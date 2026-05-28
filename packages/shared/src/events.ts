@@ -39,3 +39,12 @@ export interface ServerToClientEvents {
   [ServerEvents.GAME_STATE]: (state: GameState) => void;
   [ServerEvents.GAME_DISCONNECT_WARNING]: () => void;
 }
+
+/** Inter-server events (unused in single-instance POC, required for type param). */
+export interface InterServerEvents {}
+
+/** Per-socket data stored by Socket.io (player slot, room code, etc.). */
+export interface SocketData {
+  playerSlot: 1 | 2;
+  roomCode: string;
+}
