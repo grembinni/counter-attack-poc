@@ -26,7 +26,10 @@
 3. `hexDistance`, `hexNeighbors`, `hexesInRange`, and `isUnderZoI` functions are exported from `packages/shared/src/hex.ts` with no Socket.io or Express imports present
 4. Socket.io event name constants are defined as typed `const` objects in `packages/shared` and importable in both `server` and `client`
 5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements
-**Plans:** TBD
+**Plans:** 3 plans
+- [ ] 01-01-PLAN.md — Wave 0: pnpm bootstrap, root devDeps, tsconfig.base.json, ESLint flat config, Prettier, Husky + lint-staged
+- [ ] 01-02-PLAN.md — Wave 1: packages/shared (types, hex math, events, pitch, Vitest tests, build to dist)
+- [ ] 01-03-PLAN.md — Wave 2: packages/server + packages/client placeholders, full-repo pnpm -r build verification
 
 ### Phase 2: Move Validator + Unit Tests
 **Goal:** All game rule validation logic — movement, passing, heading, shooting, snapshots, Zone of Influence, and Loose Ball — exists as pure functions in `packages/shared` with a passing unit test suite.
@@ -134,7 +137,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Monorepo Scaffold + Shared Types | 0/0 | Not started | - |
+| 1. Monorepo Scaffold + Shared Types | 0/3 | Not started | - |
 | 2. Move Validator + Unit Tests | 0/0 | Not started | - |
 | 3. Server Room Manager + Socket.io Scaffold | 0/0 | Not started | - |
 | 4. Game Engine + Phase FSM | 0/0 | Not started | - |
