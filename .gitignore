@@ -2,8 +2,10 @@ node_modules/
 dist/
 .DS_Store
 *.log
+# Environment variable files — never commit any .env variant
 .env
-.env.local
+.env.*
+.env.*.local
 .husky/_/
 .vscode/
 .idea/
