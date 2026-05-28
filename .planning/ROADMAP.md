@@ -27,12 +27,12 @@
 2. `packages/shared` exports `HexCoord`, `GameState`, `PlayerPiece`, `BallState`, and `GamePhase` TypeScript types that `server` and `client` can import without path hacks
 3. `hexDistance`, `hexNeighbors`, `hexesInRange`, and `isUnderZoI` functions are exported from `packages/shared/src/hex.ts` with no Socket.io or Express imports present
 4. Socket.io event name constants are defined as typed `const` objects in `packages/shared` and importable in both `server` and `client`
-5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 1/3 plans executed
+5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 2/3 plans executed
 
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Wave 0: pnpm bootstrap, root devDeps, tsconfig.base.json, ESLint flat config, Prettier, Husky + lint-staged
-- [ ] 01-02-PLAN.md — Wave 1: packages/shared (types, hex math, events, pitch, Vitest tests, build to dist)
+- [x] 01-02-PLAN.md — Wave 1: packages/shared (types, hex math, events, pitch, Vitest tests, build to dist)
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -168,7 +168,7 @@
 
 | Phase                                       | Plans Complete | Status      | Completed |
 | ------------------------------------------- | -------------- | ----------- | --------- |
-| 1. Monorepo Scaffold + Shared Types         | 1/3            | In Progress |           |
+| 1. Monorepo Scaffold + Shared Types         | 2/3            | In Progress |           |
 | 2. Move Validator + Unit Tests              | 0/0            | Not started | -         |
 | 3. Server Room Manager + Socket.io Scaffold | 0/0            | Not started | -         |
 | 4. Game Engine + Phase FSM                  | 0/0            | Not started | -         |
