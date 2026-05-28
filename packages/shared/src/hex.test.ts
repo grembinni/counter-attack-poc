@@ -15,8 +15,9 @@ describe('hexDistance', () => {
     expect(hexDistance({ q: 0, r: 0 }, { q: 2, r: -2 })).toBe(2);
   });
 
-  it('returns 3 for {q:1,r:2} to {q:-2,r:-1} (symmetric, non-origin pair)', () => {
-    expect(hexDistance({ q: 1, r: 2 }, { q: -2, r: -1 })).toBe(3);
+  it('returns 6 for {q:1,r:2} to {q:-2,r:-1} (non-origin pair)', () => {
+    // Cube coordinates: a=(1,2,-3), b=(-2,-1,3); max(|dq|,|dr|,|ds|) = max(3,3,6) = 6
+    expect(hexDistance({ q: 1, r: 2 }, { q: -2, r: -1 })).toBe(6);
   });
 });
 
