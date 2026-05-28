@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "echo 'Vite build added in Phase 6'",
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests yet — added in Phase 6\" && exit 0"
   },
