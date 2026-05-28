@@ -12,7 +12,9 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 ### Validated
 
-(None yet — ship to validate)
+- ARCH-02: pnpm monorepo with three packages (shared, server, client) — all building via `pnpm -r build` (Validated in Phase 1: Monorepo Scaffold + Shared Types)
+- ARCH-03: Pure axial hex math (hexDistance, hexNeighbors, hexesInRange, isUnderZoI) with 14 passing unit tests (Validated in Phase 1)
+- ARCH-07: packages/shared has zero socket.io/express/honeycomb-grid imports — validation logic fully isolated (Validated in Phase 1)
 
 ### Active
 
@@ -73,6 +75,10 @@ Two friends can open a browser, share a room code, and play a complete match of 
 | Hardcoded teams for v1             | Eliminates card editor scope; lets us validate gameplay loop first                             | — Pending |
 | Core rules only for v1             | Fouls/injuries add significant state complexity; validate core loop before adding edge cases   | — Pending |
 | Hex grid from user-provided layout | Counter Attack pitch has specific proportions; approximation risks rules mismatches            | — Pending |
+
+## Current State
+
+Phase 1 complete (2026-05-28) — pnpm monorepo scaffold with shared types and hex math done. Phase 2 (Move Validator + Unit Tests) is next.
 
 ## Evolution
 
