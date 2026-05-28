@@ -30,6 +30,16 @@ importers:
         specifier: 8.60.0
         version: 8.60.0(eslint@9.39.4)(typescript@5.9.3)
 
+  packages/server:
+    dependencies:
+      '@counter-attack/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: 22.19.19
+        version: 22.19.19
+
   packages/shared:
     devDependencies:
       '@types/node':

@@ -1,0 +1,19 @@
+{
+  "name": "@counter-attack/server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "test": "echo \"No tests yet — added in Phase 3\" && exit 0"
+  },
+  "dependencies": {
+    "@counter-attack/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19"
+  }
+}
