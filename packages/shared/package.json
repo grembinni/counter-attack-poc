@@ -19,7 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "node --eval \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
     "@types/node": "22.19.19",
