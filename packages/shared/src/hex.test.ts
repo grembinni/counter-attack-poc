@@ -1,0 +1,75 @@
+import { describe, it, expect } from 'vitest';
+import { hexDistance, hexNeighbors, hexesInRange, isUnderZoI } from './hex.js';
+import type { HexCoord } from './types.js';
+
+describe('hexDistance', () => {
+  it('returns 0 for the same hex', () => {
+    expect(hexDistance({ q: 0, r: 0 }, { q: 0, r: 0 })).toBe(0);
+  });
+
+  it('returns 3 for {q:0,r:0} to {q:3,r:0}', () => {
+    expect(hexDistance({ q: 0, r: 0 }, { q: 3, r: 0 })).toBe(3);
+  });
+
+  it('returns 2 for {q:0,r:0} to {q:2,r:-2} (diagonal axis)', () => {
+    expect(hexDistance({ q: 0, r: 0 }, { q: 2, r: -2 })).toBe(2);
+  });
+
+  it('returns 3 for {q:1,r:2} to {q:-2,r:-1} (symmetric, non-origin pair)', () => {
+    expect(hexDistance({ q: 1, r: 2 }, { q: -2, r: -1 })).toBe(3);
+  });
+});
+
+describe('hexNeighbors', () => {
+  it('returns exactly 6 neighbors for {q:0,r:0}', () => {
+    expect(hexNeighbors({ q: 0, r: 0 })).toHaveLength(6);
+  });
+
+  it('contains {q:1,r:0} (E direction) among neighbors of {q:0,r:0}', () => {
+    const neighbors = hexNeighbors({ q: 0, r: 0 });
+    expect(neighbors).toContainEqual({ q: 1, r: 0 });
+  });
+
+  it('contains {q:0,r:-1} (NW direction) among neighbors of {q:0,r:0}', () => {
+    const neighbors = hexNeighbors({ q: 0, r: 0 });
+    expect(neighbors).toContainEqual({ q: 0, r: -1 });
+  });
+
+  it('every neighbor of {q:0,r:0} has hexDistance === 1', () => {
+    const center: HexCoord = { q: 0, r: 0 };
+    const neighbors = hexNeighbors(center);
+    for (const neighbor of neighbors) {
+      expect(hexDistance(center, neighbor)).toBe(1);
+    }
+  });
+});
+
+describe('hexesInRange', () => {
+  it('returns 1 hex for range 0 (center only)', () => {
+    const result = hexesInRange({ q: 0, r: 0 }, 0);
+    expect(result).toHaveLength(1);
+    expect(result).toContainEqual({ q: 0, r: 0 });
+  });
+
+  it('returns 7 hexes for range 1 (center + 6 neighbors)', () => {
+    expect(hexesInRange({ q: 0, r: 0 }, 1)).toHaveLength(7);
+  });
+
+  it('returns 19 hexes for range 2 (canonical hex ring count: 1+6+12)', () => {
+    expect(hexesInRange({ q: 0, r: 0 }, 2)).toHaveLength(19);
+  });
+});
+
+describe('isUnderZoI', () => {
+  it('returns true when an opponent is adjacent (distance 1)', () => {
+    expect(isUnderZoI({ q: 0, r: 0 }, [{ q: 1, r: 0 }])).toBe(true);
+  });
+
+  it('returns false when opponent is distant (distance 3)', () => {
+    expect(isUnderZoI({ q: 0, r: 0 }, [{ q: 3, r: 0 }])).toBe(false);
+  });
+
+  it('returns false when opponent list is empty', () => {
+    expect(isUnderZoI({ q: 0, r: 0 }, [])).toBe(false);
+  });
+});
