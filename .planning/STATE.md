@@ -1,9 +1,25 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-05-28T10:48:38.137Z"
+progress:
+  total_phases: 9
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State
 
 ## Current Phase
+
 Phase 1 — not started
 
 ## Project Reference
+
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
@@ -35,6 +51,7 @@ See: .planning/PROJECT.md
 ## Accumulated Context
 
 ### Decisions Locked
+
 - Server-authoritative state; full-snapshot broadcast after every action (no differential patching)
 - Axial (q, r) coordinates everywhere; pixel conversion only in `hexToPixel.ts`
 - pnpm monorepo: `packages/shared`, `packages/server`, `packages/client`
@@ -48,6 +65,7 @@ See: .planning/PROJECT.md
 - Hardcoded teams for v1; no card editor or team selection UI
 
 ### Key Pitfalls to Avoid
+
 - Never generate dice on the client; all rolls use `crypto.randomInt` server-side
 - Always return `socket.off(event, handler)` from every `useEffect` that registers a socket listener
 - Never use offset hex coordinates; axial only from day one
@@ -56,6 +74,7 @@ See: .planning/PROJECT.md
 - Add `isProcessing` mutex before writing any game logic (prevents double-click race)
 
 ### Open Questions (resolve before indicated phase)
+
 - Phase 2: Pass range distance type (hex ring vs Manhattan)?
 - Phase 2: Does ZoI block movement destinations or only pass/dribble paths?
 - Phase 4/7: Are valid moves computed on piece selection or precomputed post-state?
