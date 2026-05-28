@@ -16,4 +16,6 @@ export function bootstrap(): void {
   );
 }
 
-bootstrap();
+// Do NOT call bootstrap() at module level — callers must invoke it explicitly.
+// This prevents unintended side effects when importing named exports from this module.
+// Phase 3 will wire this up via a dedicated entrypoint or package.json "main".
