@@ -725,7 +725,7 @@ export default defineConfig({
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Server moduleResolution: node16 vs nodenext**
    - What we know: `node16` and `nodenext` are functionally identical today; `nodenext` is "future-proof"
