@@ -15,13 +15,13 @@ created: 2026-05-28
 
 ## Test Infrastructure
 
-| Property | Value |
-|----------|-------|
-| **Framework** | Vitest 2.1.9 |
-| **Config file** | `packages/shared/vitest.config.ts` (Wave 0 gap — must be created) |
-| **Quick run command** | `pnpm --filter @counter-attack/shared build` |
-| **Full suite command** | `pnpm --filter @counter-attack/shared test` |
-| **Estimated runtime** | ~5 seconds |
+| Property               | Value                                                             |
+| ---------------------- | ----------------------------------------------------------------- |
+| **Framework**          | Vitest 2.1.9                                                      |
+| **Config file**        | `packages/shared/vitest.config.ts` (Wave 0 gap — must be created) |
+| **Quick run command**  | `pnpm --filter @counter-attack/shared build`                      |
+| **Full suite command** | `pnpm --filter @counter-attack/shared test`                       |
+| **Estimated runtime**  | ~5 seconds                                                        |
 
 ---
 
@@ -36,14 +36,14 @@ created: 2026-05-28
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-?-01 | TBD | 0 | ARCH-02, ARCH-03, ARCH-07 | — | N/A | setup | `pnpm install` (exit 0) | ❌ W0 | ⬜ pending |
-| 01-?-02 | TBD | 1 | ARCH-02 | — | N/A | smoke | `pnpm -r build` (exit 0) | ❌ W0 | ⬜ pending |
-| 01-?-03 | TBD | 1 | ARCH-03 | — | N/A | unit | `pnpm --filter @counter-attack/shared test` | ❌ W0 | ⬜ pending |
-| 01-?-04 | TBD | 1 | ARCH-07 | — | N/A | type-check | `pnpm --filter @counter-attack/shared build` (exit 0) | ❌ W0 | ⬜ pending |
+| Task ID | Plan | Wave | Requirement               | Threat Ref | Secure Behavior | Test Type  | Automated Command                                     | File Exists | Status     |
+| ------- | ---- | ---- | ------------------------- | ---------- | --------------- | ---------- | ----------------------------------------------------- | ----------- | ---------- |
+| 01-?-01 | TBD  | 0    | ARCH-02, ARCH-03, ARCH-07 | —          | N/A             | setup      | `pnpm install` (exit 0)                               | ❌ W0       | ⬜ pending |
+| 01-?-02 | TBD  | 1    | ARCH-02                   | —          | N/A             | smoke      | `pnpm -r build` (exit 0)                              | ❌ W0       | ⬜ pending |
+| 01-?-03 | TBD  | 1    | ARCH-03                   | —          | N/A             | unit       | `pnpm --filter @counter-attack/shared test`           | ❌ W0       | ⬜ pending |
+| 01-?-04 | TBD  | 1    | ARCH-07                   | —          | N/A             | type-check | `pnpm --filter @counter-attack/shared build` (exit 0) | ❌ W0       | ⬜ pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+_Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ---
 
@@ -57,10 +57,10 @@ created: 2026-05-28
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| `packages/server` can import `@counter-attack/shared` types without path hacks | ARCH-02 | Integration import check — requires both packages built | Run `pnpm build` in `packages/server` and verify no TS2307 errors |
-| `packages/client` can import `@counter-attack/shared` types without path hacks | ARCH-02 | Integration import check — requires both packages built | Run `pnpm build` in `packages/client` and verify no TS2307 errors |
+| Behavior                                                                       | Requirement | Why Manual                                              | Test Instructions                                                 |
+| ------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
+| `packages/server` can import `@counter-attack/shared` types without path hacks | ARCH-02     | Integration import check — requires both packages built | Run `pnpm build` in `packages/server` and verify no TS2307 errors |
+| `packages/client` can import `@counter-attack/shared` types without path hacks | ARCH-02     | Integration import check — requires both packages built | Run `pnpm build` in `packages/client` and verify no TS2307 errors |
 
 ---
 

@@ -7,6 +7,7 @@
 ---
 
 <user_constraints>
+
 ## User Constraints (from CONTEXT.md)
 
 ### Locked Decisions
@@ -38,13 +39,15 @@ None — discussion stayed within phase scope.
 ---
 
 <phase_requirements>
+
 ## Phase Requirements
 
-| ID | Description | Research Support |
-|----|-------------|------------------|
-| ARCH-02 | Project is structured as a pnpm monorepo with packages: `shared` (types, hex math, move validation), `server` (Express + Socket.io), `client` (React + Vite) | pnpm workspaces with `pnpm-workspace.yaml`, `workspace:*` protocol |
-| ARCH-03 | All hex geometry uses axial (q, r) coordinates; cube coordinate conversion available in `shared` for distance arithmetic | Pure axial math: distance formula `(|dq| + |dq+dr| + |dr|) / 2`, neighbor lookup table, range loop |
-| ARCH-07 | Move validation logic lives exclusively in `packages/shared` as pure functions with no Socket.io or Express imports; fully unit-testable in isolation | Vitest per-package config at `packages/shared/vitest.config.ts`; TypeScript compilation isolation |
+| ID      | Description                                                                                                                                                  | Research Support                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | --- | --- | ----- | --- | --- | ----------------------------------------- |
+| ARCH-02 | Project is structured as a pnpm monorepo with packages: `shared` (types, hex math, move validation), `server` (Express + Socket.io), `client` (React + Vite) | pnpm workspaces with `pnpm-workspace.yaml`, `workspace:*` protocol                                |
+| ARCH-03 | All hex geometry uses axial (q, r) coordinates; cube coordinate conversion available in `shared` for distance arithmetic                                     | Pure axial math: distance formula `(                                                              | dq  | +   | dq+dr | +   | dr  | ) / 2`, neighbor lookup table, range loop |
+| ARCH-07 | Move validation logic lives exclusively in `packages/shared` as pure functions with no Socket.io or Express imports; fully unit-testable in isolation        | Vitest per-package config at `packages/shared/vitest.config.ts`; TypeScript compilation isolation |
+
 </phase_requirements>
 
 ---
@@ -65,17 +68,17 @@ The hex math functions (`hexDistance`, `hexNeighbors`, `hexesInRange`, `isUnderZ
 
 ## Architectural Responsibility Map
 
-| Capability | Primary Tier | Secondary Tier | Rationale |
-|------------|-------------|----------------|-----------|
-| Shared TypeScript types (GameState, HexCoord, etc.) | `packages/shared` | — | Must be importable by both server runtime and client bundler with zero runtime dep leak |
-| Hex math (distance, neighbors, range, ZoI) | `packages/shared` | — | Pure computation; server uses for validation, client uses for highlighting — same logic both sides |
-| Socket.io event name constants | `packages/shared` | — | Typed event map is shared between `Server<…>` and `Socket<…>` instantiation points |
-| Placeholder pitch coordinates (PITCH_HEXES) | `packages/shared/src/pitch.ts` | — | Blocking dependency placeholder; real measurements arrive later |
-| TypeScript compilation (shared) | `packages/shared` (tsc emit) | — | Compiles to `dist/`; consumed at runtime by server, at bundle-time by Vite |
-| TypeScript compilation (server) | `packages/server` (tsc) | — | Server package compiles independently, importing shared via node_modules symlink |
-| TypeScript compilation (client) | `packages/client` (Vite) | — | Vite handles transpilation; no separate tsc emit step needed |
-| Dev tooling (lint, format, hooks) | Monorepo root | Each package | Root `eslint.config.js` + `.prettierrc` + `.husky/`; lint-staged configured per-package |
-| Test runner | `packages/shared` only (Phase 1) | — | D-02: only shared gets Vitest in this phase |
+| Capability                                          | Primary Tier                     | Secondary Tier | Rationale                                                                                          |
+| --------------------------------------------------- | -------------------------------- | -------------- | -------------------------------------------------------------------------------------------------- |
+| Shared TypeScript types (GameState, HexCoord, etc.) | `packages/shared`                | —              | Must be importable by both server runtime and client bundler with zero runtime dep leak            |
+| Hex math (distance, neighbors, range, ZoI)          | `packages/shared`                | —              | Pure computation; server uses for validation, client uses for highlighting — same logic both sides |
+| Socket.io event name constants                      | `packages/shared`                | —              | Typed event map is shared between `Server<…>` and `Socket<…>` instantiation points                 |
+| Placeholder pitch coordinates (PITCH_HEXES)         | `packages/shared/src/pitch.ts`   | —              | Blocking dependency placeholder; real measurements arrive later                                    |
+| TypeScript compilation (shared)                     | `packages/shared` (tsc emit)     | —              | Compiles to `dist/`; consumed at runtime by server, at bundle-time by Vite                         |
+| TypeScript compilation (server)                     | `packages/server` (tsc)          | —              | Server package compiles independently, importing shared via node_modules symlink                   |
+| TypeScript compilation (client)                     | `packages/client` (Vite)         | —              | Vite handles transpilation; no separate tsc emit step needed                                       |
+| Dev tooling (lint, format, hooks)                   | Monorepo root                    | Each package   | Root `eslint.config.js` + `.prettierrc` + `.husky/`; lint-staged configured per-package            |
+| Test runner                                         | `packages/shared` only (Phase 1) | —              | D-02: only shared gets Vitest in this phase                                                        |
 
 ---
 
@@ -83,52 +86,54 @@ The hex math functions (`hexDistance`, `hexNeighbors`, `hexesInRange`, `isUnderZ
 
 ### Core (Phase 1)
 
-| Library | Version | Purpose | Why Standard | Source |
-|---------|---------|---------|--------------|--------|
-| pnpm | 9.15.9 | Package manager + workspace orchestration | Only major package manager with first-class workspace:* protocol and strict hoisting | [VERIFIED: npm registry] |
-| TypeScript | 5.9.3 | Type system for all packages | Project constraint; 5.x stable; `bundler` moduleResolution added in 5.0 | [VERIFIED: npm registry] |
-| vitest | 2.1.9 | Unit test runner for packages/shared | ESM-native, zero-babel config, reuses Vite transform pipeline (D-01) | [VERIFIED: npm registry] |
-| ESLint | 9.39.4 | Static analysis | v9 flat config is standard; typescript-eslint v8 drops legacy .eslintrc format | [VERIFIED: npm registry] |
-| typescript-eslint | 8.60.0 | TypeScript ESLint rules + parser | Canonical TS linting; v8 "project service" requires no extra monorepo config (D-10) | [VERIFIED: npm registry] |
-| eslint-config-prettier | 10.1.8 | Disables ESLint formatting rules that Prettier owns | Standard integration point between the two tools (D-10) | [VERIFIED: npm registry] |
-| prettier | 3.8.3 | Opinionated code formatter | Zero-config formatter; D-09 | [VERIFIED: npm registry] |
-| husky | 9.1.7 | Git hooks manager | v9 is current stable; `husky init` replaces deprecated `husky install` (D-11) | [VERIFIED: npm registry] |
-| lint-staged | 17.0.5 | Run linters on staged files only | Prevents committing unformatted code; pairs with husky (D-11) | [VERIFIED: npm registry] |
+| Library                | Version | Purpose                                             | Why Standard                                                                          | Source                   |
+| ---------------------- | ------- | --------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------ |
+| pnpm                   | 9.15.9  | Package manager + workspace orchestration           | Only major package manager with first-class workspace:\* protocol and strict hoisting | [VERIFIED: npm registry] |
+| TypeScript             | 5.9.3   | Type system for all packages                        | Project constraint; 5.x stable; `bundler` moduleResolution added in 5.0               | [VERIFIED: npm registry] |
+| vitest                 | 2.1.9   | Unit test runner for packages/shared                | ESM-native, zero-babel config, reuses Vite transform pipeline (D-01)                  | [VERIFIED: npm registry] |
+| ESLint                 | 9.39.4  | Static analysis                                     | v9 flat config is standard; typescript-eslint v8 drops legacy .eslintrc format        | [VERIFIED: npm registry] |
+| typescript-eslint      | 8.60.0  | TypeScript ESLint rules + parser                    | Canonical TS linting; v8 "project service" requires no extra monorepo config (D-10)   | [VERIFIED: npm registry] |
+| eslint-config-prettier | 10.1.8  | Disables ESLint formatting rules that Prettier owns | Standard integration point between the two tools (D-10)                               | [VERIFIED: npm registry] |
+| prettier               | 3.8.3   | Opinionated code formatter                          | Zero-config formatter; D-09                                                           | [VERIFIED: npm registry] |
+| husky                  | 9.1.7   | Git hooks manager                                   | v9 is current stable; `husky init` replaces deprecated `husky install` (D-11)         | [VERIFIED: npm registry] |
+| lint-staged            | 17.0.5  | Run linters on staged files only                    | Prevents committing unformatted code; pairs with husky (D-11)                         | [VERIFIED: npm registry] |
 
 ### Type Stubs (Phase 1, dev only)
 
-| Library | Version | Purpose | Source |
-|---------|---------|---------|--------|
+| Library     | Version  | Purpose                               | Source                   |
+| ----------- | -------- | ------------------------------------- | ------------------------ |
 | @types/node | 22.19.19 | Node.js type stubs for server package | [VERIFIED: npm registry] |
 
 ### Packages for Later Phases (do NOT install in Phase 1)
 
-| Library | Phase | Notes |
-|---------|-------|-------|
+| Library                      | Phase   | Notes                                                                  |
+| ---------------------------- | ------- | ---------------------------------------------------------------------- |
 | socket.io / socket.io-client | Phase 3 | Typed event interfaces defined in shared Phase 1; runtime dep deferred |
-| express / @types/express | Phase 3 | Server scaffolding |
-| react / react-dom | Phase 6 | Client rendering |
-| @vitejs/plugin-react | Phase 6 | React + Vite integration |
-| zustand | Phase 7 | Client state |
-| honeycomb-grid | Phase 6 | Pixel rendering in client only; NOT in shared (D-03) |
+| express / @types/express     | Phase 3 | Server scaffolding                                                     |
+| react / react-dom            | Phase 6 | Client rendering                                                       |
+| @vitejs/plugin-react         | Phase 6 | React + Vite integration                                               |
+| zustand                      | Phase 7 | Client state                                                           |
+| honeycomb-grid               | Phase 6 | Pixel rendering in client only; NOT in shared (D-03)                   |
 
 ### Alternatives Considered
 
-| Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
-| pnpm workspaces | npm workspaces | npm workspaces lacks workspace:* protocol enforcement; pnpm's strict hoisting avoids phantom dependencies |
-| pnpm workspaces | Turborepo on top of pnpm | Turborepo adds caching but also complexity; overkill for 3 packages, no CI yet |
-| ESM-only shared dist | Dual CJS+ESM (tsup) | Dual builds require tsup/rollup and add build time; Node.js 22 LTS supports ESM natively; no legacy CJS consumer |
-| typescript-eslint v8 project service | `parserOptions.project` | Project service is zero-config for monorepos; direct parserOptions.project needs tsconfig.eslint.json maintenance |
-| Vitest 2.x per-package | Root vitest workspace config | Per-package config (D-02) is simpler for Phase 1; workspace config added in future phases if needed |
-| tsconfig `"moduleResolution": "bundler"` globally | `"node16"` globally | Server needs `node16` (runtime enforces .js extensions); client needs `bundler` (Vite doesn't enforce extensions). Split by package. |
+| Instead of                                        | Could Use                    | Tradeoff                                                                                                                             |
+| ------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| pnpm workspaces                                   | npm workspaces               | npm workspaces lacks workspace:\* protocol enforcement; pnpm's strict hoisting avoids phantom dependencies                           |
+| pnpm workspaces                                   | Turborepo on top of pnpm     | Turborepo adds caching but also complexity; overkill for 3 packages, no CI yet                                                       |
+| ESM-only shared dist                              | Dual CJS+ESM (tsup)          | Dual builds require tsup/rollup and add build time; Node.js 22 LTS supports ESM natively; no legacy CJS consumer                     |
+| typescript-eslint v8 project service              | `parserOptions.project`      | Project service is zero-config for monorepos; direct parserOptions.project needs tsconfig.eslint.json maintenance                    |
+| Vitest 2.x per-package                            | Root vitest workspace config | Per-package config (D-02) is simpler for Phase 1; workspace config added in future phases if needed                                  |
+| tsconfig `"moduleResolution": "bundler"` globally | `"node16"` globally          | Server needs `node16` (runtime enforces .js extensions); client needs `bundler` (Vite doesn't enforce extensions). Split by package. |
 
 **Installation (root devDependencies):**
+
 ```bash
 pnpm add -D -w typescript prettier eslint typescript-eslint eslint-config-prettier husky lint-staged
 ```
 
 **Installation (packages/shared devDependencies):**
+
 ```bash
 pnpm add -D --filter @counter-attack/shared vitest @types/node
 ```
@@ -139,18 +144,18 @@ pnpm add -D --filter @counter-attack/shared vitest @types/node
 
 > slopcheck was run against PyPI (wrong registry — this is a Node.js project). All packages below are npm packages verified directly against the npm registry via `npm view <pkg> version`. slopcheck [SLOP] verdicts reflect PyPI non-existence, not npm non-existence — those verdicts are INVALID for this project.
 
-| Package | Registry | Age | slopcheck (npm) | Disposition |
-|---------|----------|-----|-----------------|-------------|
-| pnpm | npm | 2013 (13 yrs) | N/A — tool, not project dep | Approved |
-| typescript | npm | 2012 (14 yrs) | N/A — confirmed via npm view | Approved |
-| vitest | npm | 2021 (5 yrs) | Confirmed: 2.1.9 on npm | Approved |
-| eslint | npm | 2013 (13 yrs) | Confirmed: 9.39.4 on npm | Approved |
-| typescript-eslint | npm | 2019 (7 yrs) | Confirmed: 8.60.0 on npm | Approved |
-| eslint-config-prettier | npm | ~2017 (8 yrs) | Confirmed: 10.1.8 on npm | Approved |
-| prettier | npm | 2017 (8 yrs) | Confirmed: 3.8.3 on npm | Approved |
-| husky | npm | 2014 (12 yrs) | Confirmed: 9.1.7 on npm | Approved |
-| lint-staged | npm | ~2016 (9 yrs) | Confirmed: 17.0.5 on npm | Approved |
-| @types/node | npm | 2014 (12 yrs) | Confirmed: 22.19.19 on npm | Approved |
+| Package                | Registry | Age           | slopcheck (npm)              | Disposition |
+| ---------------------- | -------- | ------------- | ---------------------------- | ----------- |
+| pnpm                   | npm      | 2013 (13 yrs) | N/A — tool, not project dep  | Approved    |
+| typescript             | npm      | 2012 (14 yrs) | N/A — confirmed via npm view | Approved    |
+| vitest                 | npm      | 2021 (5 yrs)  | Confirmed: 2.1.9 on npm      | Approved    |
+| eslint                 | npm      | 2013 (13 yrs) | Confirmed: 9.39.4 on npm     | Approved    |
+| typescript-eslint      | npm      | 2019 (7 yrs)  | Confirmed: 8.60.0 on npm     | Approved    |
+| eslint-config-prettier | npm      | ~2017 (8 yrs) | Confirmed: 10.1.8 on npm     | Approved    |
+| prettier               | npm      | 2017 (8 yrs)  | Confirmed: 3.8.3 on npm      | Approved    |
+| husky                  | npm      | 2014 (12 yrs) | Confirmed: 9.1.7 on npm      | Approved    |
+| lint-staged            | npm      | ~2016 (9 yrs) | Confirmed: 17.0.5 on npm     | Approved    |
+| @types/node            | npm      | 2014 (12 yrs) | Confirmed: 22.19.19 on npm   | Approved    |
 
 **Packages removed due to slopcheck [SLOP] verdict:** none (slopcheck ran against wrong registry — PyPI — and its results are not applicable to this Node.js project)
 **Packages flagged as suspicious [SUS]:** none
@@ -235,15 +240,17 @@ counter-attack-poc/
 **When to use:** Every time one workspace package imports from another.
 
 **Example:**
+
 ```jsonc
 // packages/server/package.json
 {
   "name": "@counter-attack/server",
   "dependencies": {
-    "@counter-attack/shared": "workspace:*"
-  }
+    "@counter-attack/shared": "workspace:*",
+  },
 }
 ```
+
 [CITED: pnpm.io/workspaces]
 
 ---
@@ -255,6 +262,7 @@ counter-attack-poc/
 **When to use:** Required for `moduleResolution: bundler` and `node16` to respect the package boundary.
 
 **Example:**
+
 ```jsonc
 // packages/shared/package.json
 {
@@ -266,15 +274,16 @@ counter-attack-poc/
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/index.d.ts",
+    },
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
-  }
+    "test": "vitest run",
+  },
 }
 ```
+
 [CITED: typescriptlang.org/tsconfig/moduleResolution]
 
 ---
@@ -286,6 +295,7 @@ counter-attack-poc/
 **When to use:** Always — single source of truth for strictness settings.
 
 **Example:**
+
 ```jsonc
 // tsconfig.base.json (root)
 {
@@ -301,8 +311,8 @@ counter-attack-poc/
     "declarationMap": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
-  }
+    "forceConsistentCasingInFileNames": true,
+  },
 }
 ```
 
@@ -314,9 +324,9 @@ counter-attack-poc/
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
   },
-  "include": ["src"]
+  "include": ["src"],
 }
 ```
 
@@ -328,9 +338,9 @@ counter-attack-poc/
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
   },
-  "include": ["src"]
+  "include": ["src"],
 }
 ```
 
@@ -343,11 +353,12 @@ counter-attack-poc/
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
   },
-  "include": ["src"]
+  "include": ["src"],
 }
 ```
+
 [ASSUMED: split moduleResolution strategy — MEDIUM confidence. Standard pattern but should be verified when server package first compiles against Node.js runtime.]
 
 ---
@@ -359,6 +370,7 @@ counter-attack-poc/
 **When to use:** Define once in shared; import in both server (`Server<…>` instantiation) and client (`Socket<…>` instantiation). Phase 1 defines the interfaces and constants; Phase 3 wires them to the actual socket instances.
 
 **Example:**
+
 ```typescript
 // packages/shared/src/events.ts
 // Source: socket.io/docs/v4/typescript/
@@ -393,6 +405,7 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_ROLL]: () => void;
 }
 ```
+
 [VERIFIED: socket.io/docs/v4/typescript/]
 
 ---
@@ -404,6 +417,7 @@ export interface ClientToServerEvents {
 **When to use:** Single `eslint.config.js` at root covers all packages.
 
 **Example:**
+
 ```javascript
 // eslint.config.js (root)
 // Source: typescript-eslint.io/troubleshooting/typed-linting/monorepos/
@@ -416,15 +430,16 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,  // v8 zero-config monorepo support
+        projectService: true, // v8 zero-config monorepo support
       },
     },
   },
   {
     ignores: ['**/dist/**', '**/node_modules/**'],
-  }
+  },
 );
 ```
+
 [CITED: typescript-eslint.io/troubleshooting/typed-linting/monorepos/]
 
 ---
@@ -436,6 +451,7 @@ export default tseslint.config(
 **When to use:** Run once during scaffold; commit `.husky/` directory.
 
 **Example:**
+
 ```bash
 # One-time setup (not in scripts — run manually)
 pnpm exec husky init
@@ -458,6 +474,7 @@ pnpm exec husky init
 # .husky/pre-commit
 pnpm exec lint-staged
 ```
+
 [CITED: typicode.github.io/husky/get-started.html]
 
 ---
@@ -476,13 +493,13 @@ pnpm exec lint-staged
 
 ## Don't Hand-Roll
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| Axial hex distance | Custom formula guessed from memory | Formula from Red Blob Games: `(|dq| + |dq+dr| + |dr|) / 2` | Easy to get wrong sign or division; canonical reference is authoritative |
-| Hex neighbor directions | Hard-coded `[{q:1,r:0},...]` array guessed | Look-up from Red Blob Games direction table | Direction ordering matters for consistency across functions |
-| Workspace package resolution | `paths` aliases in tsconfig | `package.json` exports + `workspace:*` | `paths` is not respected by Node.js at runtime; workspace symlinks are |
-| Git hook file management | Manually maintaining `.git/hooks/` | Husky v9 | `.git/hooks/` is not committed to the repo; Husky manages this via `.husky/` which IS committed |
-| Staged-file filtering in hooks | `git diff --name-only` in pre-commit | lint-staged | lint-staged handles glob patterns, cascading configs, and partial-file application correctly |
+| Problem                        | Don't Build                                | Use Instead                                 | Why                                                                                             |
+| ------------------------------ | ------------------------------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------- | --- | ----- | --- | --- | ------ | ------------------------------------------------------------------------ |
+| Axial hex distance             | Custom formula guessed from memory         | Formula from Red Blob Games: `(             | dq                                                                                              | +   | dq+dr | +   | dr  | ) / 2` | Easy to get wrong sign or division; canonical reference is authoritative |
+| Hex neighbor directions        | Hard-coded `[{q:1,r:0},...]` array guessed | Look-up from Red Blob Games direction table | Direction ordering matters for consistency across functions                                     |
+| Workspace package resolution   | `paths` aliases in tsconfig                | `package.json` exports + `workspace:*`      | `paths` is not respected by Node.js at runtime; workspace symlinks are                          |
+| Git hook file management       | Manually maintaining `.git/hooks/`         | Husky v9                                    | `.git/hooks/` is not committed to the repo; Husky manages this via `.husky/` which IS committed |
+| Staged-file filtering in hooks | `git diff --name-only` in pre-commit       | lint-staged                                 | lint-staged handles glob patterns, cascading configs, and partial-file application correctly    |
 
 **Key insight:** The main risk in monorepo scaffolding is implicit coupling — one package's `tsconfig` `paths` aliasing around the workspace resolution, or a build script that happens to work locally but fails in CI because it relies on source-file importing instead of compiled dist. The patterns above ensure the resolution path is consistent between TypeScript's type checker, the runtime (Node.js), and the bundler (Vite).
 
@@ -573,13 +590,10 @@ Verified patterns from official sources:
 export type HexCoord = { q: number; r: number };
 
 export function hexDistance(a: HexCoord, b: HexCoord): number {
-  return (
-    Math.abs(a.q - b.q) +
-    Math.abs(a.q + a.r - b.q - b.r) +
-    Math.abs(a.r - b.r)
-  ) / 2;
+  return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
 }
 ```
+
 [VERIFIED: redblobgames.com/grids/hexagons/]
 
 ---
@@ -591,12 +605,12 @@ export function hexDistance(a: HexCoord, b: HexCoord): number {
 // Source: redblobgames.com/grids/hexagons/
 
 const AXIAL_DIRECTIONS: readonly HexCoord[] = [
-  { q: 1, r: 0 },   // E
-  { q: 1, r: -1 },  // NE
-  { q: 0, r: -1 },  // NW
-  { q: -1, r: 0 },  // W
-  { q: -1, r: 1 },  // SW
-  { q: 0, r: 1 },   // SE
+  { q: 1, r: 0 }, // E
+  { q: 1, r: -1 }, // NE
+  { q: 0, r: -1 }, // NW
+  { q: -1, r: 0 }, // W
+  { q: -1, r: 1 }, // SW
+  { q: 0, r: 1 }, // SE
 ];
 
 export function hexNeighbors(hex: HexCoord): HexCoord[] {
@@ -606,6 +620,7 @@ export function hexNeighbors(hex: HexCoord): HexCoord[] {
   }));
 }
 ```
+
 [VERIFIED: redblobgames.com/grids/hexagons/]
 
 ---
@@ -619,17 +634,14 @@ export function hexNeighbors(hex: HexCoord): HexCoord[] {
 export function hexesInRange(center: HexCoord, range: number): HexCoord[] {
   const results: HexCoord[] = [];
   for (let q = -range; q <= range; q++) {
-    for (
-      let r = Math.max(-range, -q - range);
-      r <= Math.min(range, -q + range);
-      r++
-    ) {
+    for (let r = Math.max(-range, -q - range); r <= Math.min(range, -q + range); r++) {
       results.push({ q: center.q + q, r: center.r + r });
     }
   }
   return results;
 }
 ```
+
 [VERIFIED: redblobgames.com/grids/hexagons/]
 
 ---
@@ -640,15 +652,11 @@ export function hexesInRange(center: HexCoord, range: number): HexCoord[] {
 // packages/shared/src/hex.ts
 // Phase 2 will consume this signature — keep it pure and dependency-free
 
-export function isUnderZoI(
-  position: HexCoord,
-  opponentPieces: readonly HexCoord[]
-): boolean {
-  return opponentPieces.some(
-    (opponent) => hexDistance(position, opponent) === 1
-  );
+export function isUnderZoI(position: HexCoord, opponentPieces: readonly HexCoord[]): boolean {
+  return opponentPieces.some((opponent) => hexDistance(position, opponent) === 1);
 }
 ```
+
 [ASSUMED: signature shape. The exact ZoI definition — whether it applies to movement endpoints or only to dribble/pass paths — is an open question flagged for Phase 2. This Phase 1 implementation is intentionally minimal: ZoI = adjacent (distance 1). Phase 2 will refine if needed.]
 
 ---
@@ -672,6 +680,7 @@ export const PITCH_HEXES: readonly HexCoord[] = (() => {
   return hexes;
 })();
 ```
+
 [ASSUMED: grid dimensions (25×16). Actual board dimensions are a blocking dependency per STATE.md.]
 
 ---
@@ -691,22 +700,24 @@ export default defineConfig({
   },
 });
 ```
+
 [CITED: v2.vitest.dev/guide/]
 
 ---
 
 ## State of the Art
 
-| Old Approach | Current Approach | When Changed | Impact |
-|--------------|------------------|--------------|--------|
-| `.eslintrc.json` + `eslintignore` | `eslint.config.js` flat config | ESLint v9 (2024) | Legacy config format removed as default; new format is JS not JSON |
-| `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser` separately | `typescript-eslint` unified package | typescript-eslint v8 (2024) | Single entry point `import tseslint from 'typescript-eslint'` |
-| `husky install` + `husky add` | `husky init` + manual hook file creation | Husky v9 (2024) | `husky add` deprecated; hooks are plain shell scripts in `.husky/` |
-| `moduleResolution: "node"` | `moduleResolution: "node16"` (server) or `"bundler"` (Vite) | TypeScript 4.7 / 5.0 | `node` does not respect `package.json` exports field |
-| Separate `@typescript-eslint/eslint-plugin` + `parserOptions.project` array | `typescript-eslint` v8 `projectService: true` | typescript-eslint v8 | Zero monorepo config; `projectService` auto-discovers tsconfigs |
-| `tsup` for dual CJS+ESM builds | ESM-only `tsc` emit with `"type": "module"` | Node.js ESM stable ~2022 | Dual builds add tooling; Node.js 22 LTS + Vite both handle native ESM |
+| Old Approach                                                                | Current Approach                                            | When Changed                | Impact                                                                |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------- |
+| `.eslintrc.json` + `eslintignore`                                           | `eslint.config.js` flat config                              | ESLint v9 (2024)            | Legacy config format removed as default; new format is JS not JSON    |
+| `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser` separately | `typescript-eslint` unified package                         | typescript-eslint v8 (2024) | Single entry point `import tseslint from 'typescript-eslint'`         |
+| `husky install` + `husky add`                                               | `husky init` + manual hook file creation                    | Husky v9 (2024)             | `husky add` deprecated; hooks are plain shell scripts in `.husky/`    |
+| `moduleResolution: "node"`                                                  | `moduleResolution: "node16"` (server) or `"bundler"` (Vite) | TypeScript 4.7 / 5.0        | `node` does not respect `package.json` exports field                  |
+| Separate `@typescript-eslint/eslint-plugin` + `parserOptions.project` array | `typescript-eslint` v8 `projectService: true`               | typescript-eslint v8        | Zero monorepo config; `projectService` auto-discovers tsconfigs       |
+| `tsup` for dual CJS+ESM builds                                              | ESM-only `tsc` emit with `"type": "module"`                 | Node.js ESM stable ~2022    | Dual builds add tooling; Node.js 22 LTS + Vite both handle native ESM |
 
 **Deprecated/outdated:**
+
 - `parserOptions.project` array in ESLint config: replaced by `projectService: true` in typescript-eslint v8
 - `husky add <hook>`: removed in Husky v9; create `.husky/<hook>` file directly
 - `"moduleResolution": "node"`: does not support `exports` field; use `"node16"` or `"bundler"`
@@ -715,13 +726,13 @@ export default defineConfig({
 
 ## Assumptions Log
 
-| # | Claim | Section | Risk if Wrong |
-|---|-------|---------|---------------|
-| A1 | `packages/shared` should use `"module": "NodeNext"` and `"moduleResolution": "NodeNext"` (same as server) rather than a separate `"Bundler"` mode | Standard Stack / Pattern 3 | Vite may require `"Bundler"` for shared package tsconfig; the dist is consumed by both. Low risk — Vite doesn't use shared tsconfig, only the package.json exports field |
-| A2 | ESM-only (`"type": "module"`) is appropriate for server package | Standard Stack | If any transitive dep of the server is CJS-only and hard to `.mjs`-ify, we may need dual output or CJS server. Node.js 22 LTS handles this well for mainstream deps |
-| A3 | `isUnderZoI` signature: `(position, opponentPieces) => boolean` | Code Examples | Phase 2 may need richer return type (e.g., which piece is contesting) or a different call site API; signature is intentionally minimal for Phase 1 |
-| A4 | Rectangular placeholder PITCH_HEXES: 25×16 grid | Code Examples | Real board dimensions unknown; placeholder is a blocker-marker, not functional |
-| A5 | Root `eslint.config.js` covers all packages with a single config | Architecture Patterns | If packages need different ESLint rules (e.g., React-specific in client), the root config will need per-glob overrides added in later phases |
+| #   | Claim                                                                                                                                             | Section                    | Risk if Wrong                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A1  | `packages/shared` should use `"module": "NodeNext"` and `"moduleResolution": "NodeNext"` (same as server) rather than a separate `"Bundler"` mode | Standard Stack / Pattern 3 | Vite may require `"Bundler"` for shared package tsconfig; the dist is consumed by both. Low risk — Vite doesn't use shared tsconfig, only the package.json exports field |
+| A2  | ESM-only (`"type": "module"`) is appropriate for server package                                                                                   | Standard Stack             | If any transitive dep of the server is CJS-only and hard to `.mjs`-ify, we may need dual output or CJS server. Node.js 22 LTS handles this well for mainstream deps      |
+| A3  | `isUnderZoI` signature: `(position, opponentPieces) => boolean`                                                                                   | Code Examples              | Phase 2 may need richer return type (e.g., which piece is contesting) or a different call site API; signature is intentionally minimal for Phase 1                       |
+| A4  | Rectangular placeholder PITCH_HEXES: 25×16 grid                                                                                                   | Code Examples              | Real board dimensions unknown; placeholder is a blocker-marker, not functional                                                                                           |
+| A5  | Root `eslint.config.js` covers all packages with a single config                                                                                  | Architecture Patterns      | If packages need different ESLint rules (e.g., React-specific in client), the root config will need per-glob overrides added in later phases                             |
 
 ---
 
@@ -746,17 +757,19 @@ export default defineConfig({
 
 ## Environment Availability
 
-| Dependency | Required By | Available | Version | Fallback |
-|------------|------------|-----------|---------|----------|
-| Node.js | All packages | Yes | v24.15.0 | — |
-| npm | Bootstrapping pnpm | Yes | 11.12.1 | — |
-| pnpm | Monorepo management | No (not in PATH) | — | Install via `npm install -g pnpm` or `corepack enable && corepack prepare pnpm@9.15.9 --activate` |
-| git | Husky hooks | Yes (repo exists) | — | — |
+| Dependency | Required By         | Available         | Version  | Fallback                                                                                          |
+| ---------- | ------------------- | ----------------- | -------- | ------------------------------------------------------------------------------------------------- |
+| Node.js    | All packages        | Yes               | v24.15.0 | —                                                                                                 |
+| npm        | Bootstrapping pnpm  | Yes               | 11.12.1  | —                                                                                                 |
+| pnpm       | Monorepo management | No (not in PATH)  | —        | Install via `npm install -g pnpm` or `corepack enable && corepack prepare pnpm@9.15.9 --activate` |
+| git        | Husky hooks         | Yes (repo exists) | —        | —                                                                                                 |
 
 **Missing dependencies with no fallback:**
+
 - pnpm is not installed globally in this environment. The plan MUST include an install step: `npm install -g pnpm@9` or `corepack enable && corepack prepare pnpm@9.15.9 --activate` before any `pnpm` commands.
 
 **Missing dependencies with fallback:**
+
 - None.
 
 ---
@@ -765,24 +778,24 @@ export default defineConfig({
 
 ### Test Framework
 
-| Property | Value |
-|----------|-------|
-| Framework | Vitest 2.1.9 |
-| Config file | `packages/shared/vitest.config.ts` (Wave 0 gap — must be created) |
-| Quick run command | `pnpm --filter @counter-attack/shared test` |
-| Full suite command | `pnpm --filter @counter-attack/shared test` (Phase 1 scope) |
+| Property           | Value                                                             |
+| ------------------ | ----------------------------------------------------------------- |
+| Framework          | Vitest 2.1.9                                                      |
+| Config file        | `packages/shared/vitest.config.ts` (Wave 0 gap — must be created) |
+| Quick run command  | `pnpm --filter @counter-attack/shared test`                       |
+| Full suite command | `pnpm --filter @counter-attack/shared test` (Phase 1 scope)       |
 
 ### Phase Requirements → Test Map
 
-| Req ID | Behavior | Test Type | Automated Command | File Exists? |
-|--------|----------|-----------|-------------------|-------------|
-| ARCH-02 | pnpm install succeeds across all three packages | smoke | `pnpm install` (exit 0) | — (verified by build) |
-| ARCH-02 | pnpm build succeeds with zero errors | smoke | `pnpm -r build` (exit 0) | — (verified by CI) |
-| ARCH-03 | hexDistance returns correct distance for axial coords | unit | `pnpm --filter @counter-attack/shared test` | ❌ Wave 0 |
-| ARCH-03 | hexNeighbors returns exactly 6 neighbors | unit | `pnpm --filter @counter-attack/shared test` | ❌ Wave 0 |
-| ARCH-03 | hexesInRange returns correct count for range N | unit | `pnpm --filter @counter-attack/shared test` | ❌ Wave 0 |
-| ARCH-07 | packages/shared compiles in isolation (no socket.io/express imports) | type-check | `pnpm --filter @counter-attack/shared build` (exit 0) | ❌ Wave 0 |
-| ARCH-07 | isUnderZoI returns true when piece is adjacent to opponent | unit | `pnpm --filter @counter-attack/shared test` | ❌ Wave 0 |
+| Req ID  | Behavior                                                             | Test Type  | Automated Command                                     | File Exists?          |
+| ------- | -------------------------------------------------------------------- | ---------- | ----------------------------------------------------- | --------------------- |
+| ARCH-02 | pnpm install succeeds across all three packages                      | smoke      | `pnpm install` (exit 0)                               | — (verified by build) |
+| ARCH-02 | pnpm build succeeds with zero errors                                 | smoke      | `pnpm -r build` (exit 0)                              | — (verified by CI)    |
+| ARCH-03 | hexDistance returns correct distance for axial coords                | unit       | `pnpm --filter @counter-attack/shared test`           | ❌ Wave 0             |
+| ARCH-03 | hexNeighbors returns exactly 6 neighbors                             | unit       | `pnpm --filter @counter-attack/shared test`           | ❌ Wave 0             |
+| ARCH-03 | hexesInRange returns correct count for range N                       | unit       | `pnpm --filter @counter-attack/shared test`           | ❌ Wave 0             |
+| ARCH-07 | packages/shared compiles in isolation (no socket.io/express imports) | type-check | `pnpm --filter @counter-attack/shared build` (exit 0) | ❌ Wave 0             |
+| ARCH-07 | isUnderZoI returns true when piece is adjacent to opponent           | unit       | `pnpm --filter @counter-attack/shared test`           | ❌ Wave 0             |
 
 ### Sampling Rate
 
@@ -804,19 +817,20 @@ export default defineConfig({
 
 ### Applicable ASVS Categories
 
-| ASVS Category | Applies | Standard Control |
-|---------------|---------|-----------------|
-| V2 Authentication | No | — |
-| V3 Session Management | No | — |
-| V4 Access Control | No | — |
-| V5 Input Validation | No (types only, no runtime input) | — |
-| V6 Cryptography | No | — |
+| ASVS Category         | Applies                           | Standard Control |
+| --------------------- | --------------------------------- | ---------------- |
+| V2 Authentication     | No                                | —                |
+| V3 Session Management | No                                | —                |
+| V4 Access Control     | No                                | —                |
+| V5 Input Validation   | No (types only, no runtime input) | —                |
+| V6 Cryptography       | No                                | —                |
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
+
 - [pnpm.io/workspaces](https://pnpm.io/workspaces) — workspace protocol, pnpm-workspace.yaml format, topological build order
 - [redblobgames.com/grids/hexagons](https://www.redblobgames.com/grids/hexagons/) — axial coordinate formulas: distance, neighbors, hexes in range
 - [socket.io/docs/v4/typescript](https://socket.io/docs/v4/typescript/) — TypeScript generics for typed events (ServerToClientEvents, ClientToServerEvents)
@@ -825,11 +839,13 @@ export default defineConfig({
 - npm registry (`npm view <pkg> version`) — version verification for all packages listed
 
 ### Secondary (MEDIUM confidence)
+
 - [typescriptlang.org/tsconfig/moduleResolution](https://www.typescriptlang.org/tsconfig/moduleResolution.html) — bundler vs node16 recommendation, exports field behavior
 - [colinhacks.com/essays/live-types-typescript-monorepo](https://colinhacks.com/essays/live-types-typescript-monorepo) — compiled dist vs live types tradeoffs (justifies D-08 decision)
 - [v2.vitest.dev/guide](https://v2.vitest.dev/guide/) — Vitest 2.x per-package config, defineProject pattern
 
 ### Tertiary (LOW confidence)
+
 - Community blog posts on pnpm monorepo ESM setup — patterns consistent with official docs but not directly cited
 
 ---
@@ -837,8 +853,9 @@ export default defineConfig({
 ## Metadata
 
 **Confidence breakdown:**
+
 - Standard stack: HIGH — all packages verified on npm registry; versions are current stable in their pinned major series
-- Architecture: HIGH — workspace:* protocol and exports field are official pnpm/TypeScript documentation
+- Architecture: HIGH — workspace:\* protocol and exports field are official pnpm/TypeScript documentation
 - Hex math formulas: HIGH — Red Blob Games is the authoritative reference for hex grid algorithms; formulas are mathematically verified
 - Husky/lint-staged setup: HIGH — official Husky docs confirm v9 init pattern
 - ESLint flat config: HIGH — typescript-eslint official docs confirm v8 project service approach

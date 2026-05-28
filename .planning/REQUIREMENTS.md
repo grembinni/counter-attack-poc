@@ -114,7 +114,7 @@
 
 ## v2 Requirements
 
-*Deferred — validate core gameplay loop before adding complexity.*
+_Deferred — validate core gameplay loop before adding complexity._
 
 - Fouls, yellow/red cards, booking checks
 - Injuries and resilience checks
@@ -141,80 +141,81 @@
 
 ## Traceability
 
-| REQ-ID | Phase |
-|--------|-------|
-| ARCH-02 | Phase 1 |
-| ARCH-03 | Phase 1 |
-| ARCH-07 | Phase 1 |
-| MOVE-01 | Phase 2 |
-| MOVE-02 | Phase 2 |
-| MOVE-03 | Phase 2 |
-| MOVE-04 | Phase 2 |
-| MOVE-05 | Phase 2 |
-| MOVE-06 | Phase 2 |
-| MOVE-07 | Phase 2 |
-| PASS-01 | Phase 2 |
-| PASS-02 | Phase 2 |
-| PASS-03 | Phase 2 |
-| PASS-04 | Phase 2 |
-| PASS-05 | Phase 2 |
-| HEAD-01 | Phase 2 |
-| HEAD-02 | Phase 2 |
-| HEAD-03 | Phase 2 |
-| HEAD-04 | Phase 2 |
-| HEAD-05 | Phase 2 |
-| SNAP-01 | Phase 2 |
-| SNAP-02 | Phase 2 |
-| SNAP-03 | Phase 2 |
-| SHOT-01 | Phase 2 |
-| SHOT-02 | Phase 2 |
-| SHOT-03 | Phase 2 |
-| SHOT-04 | Phase 2 |
-| SHOT-06 | Phase 2 |
-| DICE-03 | Phase 2 |
-| DICE-04 | Phase 2 |
-| DICE-05 | Phase 2 |
-| CONN-01 | Phase 3 |
-| CONN-02 | Phase 3 |
-| CONN-03 | Phase 3 |
-| CONN-04 | Phase 3 |
-| ARCH-01 | Phase 3 |
-| ARCH-04 | Phase 3 |
-| TEAM-01 | Phase 4 |
-| TEAM-02 | Phase 4 |
-| TEAM-03 | Phase 4 |
-| PITCH-01 | Phase 4 |
-| PITCH-02 | Phase 4 |
-| PITCH-03 | Phase 4 |
-| DICE-01 | Phase 5 |
-| DICE-02 | Phase 5 |
-| SHOT-05 | Phase 5 |
-| PITCH-04 | Phase 6 |
-| PITCH-05 | Phase 6 |
-| UX-01 | Phase 6 |
-| UX-02 | Phase 6 |
-| UX-03 | Phase 6 |
-| UX-04 | Phase 6 |
-| UNDO-01 | Phase 7 |
-| UNDO-02 | Phase 7 |
-| UNDO-03 | Phase 7 |
-| UNDO-04 | Phase 7 |
-| MATCH-01 | Phase 8 |
-| MATCH-02 | Phase 8 |
-| MATCH-03 | Phase 8 |
-| MATCH-04 | Phase 8 |
-| MATCH-05 | Phase 8 |
+| REQ-ID    | Phase   |
+| --------- | ------- |
+| ARCH-02   | Phase 1 |
+| ARCH-03   | Phase 1 |
+| ARCH-07   | Phase 1 |
+| MOVE-01   | Phase 2 |
+| MOVE-02   | Phase 2 |
+| MOVE-03   | Phase 2 |
+| MOVE-04   | Phase 2 |
+| MOVE-05   | Phase 2 |
+| MOVE-06   | Phase 2 |
+| MOVE-07   | Phase 2 |
+| PASS-01   | Phase 2 |
+| PASS-02   | Phase 2 |
+| PASS-03   | Phase 2 |
+| PASS-04   | Phase 2 |
+| PASS-05   | Phase 2 |
+| HEAD-01   | Phase 2 |
+| HEAD-02   | Phase 2 |
+| HEAD-03   | Phase 2 |
+| HEAD-04   | Phase 2 |
+| HEAD-05   | Phase 2 |
+| SNAP-01   | Phase 2 |
+| SNAP-02   | Phase 2 |
+| SNAP-03   | Phase 2 |
+| SHOT-01   | Phase 2 |
+| SHOT-02   | Phase 2 |
+| SHOT-03   | Phase 2 |
+| SHOT-04   | Phase 2 |
+| SHOT-06   | Phase 2 |
+| DICE-03   | Phase 2 |
+| DICE-04   | Phase 2 |
+| DICE-05   | Phase 2 |
+| CONN-01   | Phase 3 |
+| CONN-02   | Phase 3 |
+| CONN-03   | Phase 3 |
+| CONN-04   | Phase 3 |
+| ARCH-01   | Phase 3 |
+| ARCH-04   | Phase 3 |
+| TEAM-01   | Phase 4 |
+| TEAM-02   | Phase 4 |
+| TEAM-03   | Phase 4 |
+| PITCH-01  | Phase 4 |
+| PITCH-02  | Phase 4 |
+| PITCH-03  | Phase 4 |
+| DICE-01   | Phase 5 |
+| DICE-02   | Phase 5 |
+| SHOT-05   | Phase 5 |
+| PITCH-04  | Phase 6 |
+| PITCH-05  | Phase 6 |
+| UX-01     | Phase 6 |
+| UX-02     | Phase 6 |
+| UX-03     | Phase 6 |
+| UX-04     | Phase 6 |
+| UNDO-01   | Phase 7 |
+| UNDO-02   | Phase 7 |
+| UNDO-03   | Phase 7 |
+| UNDO-04   | Phase 7 |
+| MATCH-01  | Phase 8 |
+| MATCH-02  | Phase 8 |
+| MATCH-03  | Phase 8 |
+| MATCH-04  | Phase 8 |
+| MATCH-05  | Phase 8 |
 | REPLAY-01 | Phase 8 |
 | REPLAY-02 | Phase 8 |
 | REPLAY-03 | Phase 8 |
-| ARCH-05 | Phase 9 |
-| ARCH-06 | Phase 9 |
+| ARCH-05   | Phase 9 |
+| ARCH-06   | Phase 9 |
 
 ---
 
 ## Definition of Done
 
 A v1 requirement is done when:
+
 1. The described behaviour works end-to-end in a local 2-player session
 2. The server enforces the rule (not just the client)
 3. Both players' screens show consistent state after the action

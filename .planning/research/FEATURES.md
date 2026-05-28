@@ -12,13 +12,13 @@ Features users expect as baseline for a functional real-time 2-player web game. 
 
 ### 1. Room Code Lobby Flow
 
-| Sub-feature | Detail | Priority |
-|-------------|--------|----------|
-| Create room → get 4–6 character code | Short alphanumeric codes (e.g. "XKCD7") are the industry standard. Avoid codes with ambiguous chars: 0/O, 1/I/l. | Must |
-| One-click copy of room code | Copy-to-clipboard button on the waiting screen. Players share over Discord/WhatsApp — friction here kills sessions. | Must |
-| Join by code input | Simple text input, case-insensitive, instant feedback if code is invalid or room is full. | Must |
-| "Waiting for opponent" state | Spinner/message while host waits. Show the room code again so host can re-share. | Must |
-| Room full / game in progress guard | If a 3rd party tries to join an active room, return a clear error, not a silent failure. | Must |
+| Sub-feature                          | Detail                                                                                                              | Priority |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------- |
+| Create room → get 4–6 character code | Short alphanumeric codes (e.g. "XKCD7") are the industry standard. Avoid codes with ambiguous chars: 0/O, 1/I/l.    | Must     |
+| One-click copy of room code          | Copy-to-clipboard button on the waiting screen. Players share over Discord/WhatsApp — friction here kills sessions. | Must     |
+| Join by code input                   | Simple text input, case-insensitive, instant feedback if code is invalid or room is full.                           | Must     |
+| "Waiting for opponent" state         | Spinner/message while host waits. Show the room code again so host can re-share.                                    | Must     |
+| Room full / game in progress guard   | If a 3rd party tries to join an active room, return a clear error, not a silent failure.                            | Must     |
 
 **Minimum viable flow:** Landing page → [Create Game] or [Join Game with code] → Waiting room → Game starts automatically when 2nd player joins. No account, no auth, no matchmaking queue.
 
@@ -30,13 +30,13 @@ Features users expect as baseline for a functional real-time 2-player web game. 
 
 **What goes wrong without it:** Player refreshes tab by accident, mobile network hiccups (even on desktop Wi-Fi), ISP blip. Without reconnection, the game is dead and both players lose their session.
 
-| Sub-feature | Detail | Priority |
-|-------------|--------|----------|
-| Grace period for reconnection | Server holds game state for 60–120 seconds after a socket disconnect before treating it as abandonment. Socket.io's built-in reconnection logic handles the transport layer; the server must hold the room. | Must |
-| Rejoin via same room code | On reconnect, client sends room code + player identity (session token stored in sessionStorage). Server restores full game state to the reconnecting client. | Must |
-| Opponent notified of disconnect | Remaining player sees "Opponent disconnected — waiting for reconnect (Xs remaining)" rather than a frozen board. | Must |
-| Abandonment after grace period | After timeout: show "Opponent abandoned the match" with option to return to lobby. Do NOT auto-declare a winner — just surface the state clearly. | Must |
-| Session token scoped to tab | Use `sessionStorage` (not `localStorage`) so two tabs from same browser don't collide. A 16-character random token generated on Create/Join is sufficient. | Must |
+| Sub-feature                     | Detail                                                                                                                                                                                                      | Priority |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Grace period for reconnection   | Server holds game state for 60–120 seconds after a socket disconnect before treating it as abandonment. Socket.io's built-in reconnection logic handles the transport layer; the server must hold the room. | Must     |
+| Rejoin via same room code       | On reconnect, client sends room code + player identity (session token stored in sessionStorage). Server restores full game state to the reconnecting client.                                                | Must     |
+| Opponent notified of disconnect | Remaining player sees "Opponent disconnected — waiting for reconnect (Xs remaining)" rather than a frozen board.                                                                                            | Must     |
+| Abandonment after grace period  | After timeout: show "Opponent abandoned the match" with option to return to lobby. Do NOT auto-declare a winner — just surface the state clearly.                                                           | Must     |
+| Session token scoped to tab     | Use `sessionStorage` (not `localStorage`) so two tabs from same browser don't collide. A 16-character random token generated on Create/Join is sufficient.                                                  | Must     |
 
 **Why table stakes:** Real-time multiplayer without reconnection means any network hiccup kills the session. Players will blame the game, not their router. Socket.io handles transport reconnection automatically but the server-side room persistence and state replay must be explicitly built.
 
@@ -45,6 +45,7 @@ Features users expect as baseline for a functional real-time 2-player web game. 
 ### 3. Whose-Turn Indicator
 
 Clear, persistent, unambiguous display of:
+
 - Which player's turn it is (with their team name/color)
 - What phase they are in (Movement / Pass / Shot / Save / etc.)
 - How many actions remain in the current phase (e.g. "Attacker moves: 2 of 4 used")
@@ -83,6 +84,7 @@ A persistent action log (last 3–5 entries visible) serves both players, not ju
 ### 6. Game Over Screen
 
 When the match ends (90 actions elapsed, second half complete):
+
 - Final score displayed prominently
 - Winner declared (or draw)
 - Two clear options: [Play Again] and [Back to Lobby]
@@ -94,6 +96,7 @@ When the match ends (90 actions elapsed, second half complete):
 ### 7. Dice Roll Visual Feedback
 
 The project already calls for player-triggered dice rolls (click to roll). The visual feedback pattern required:
+
 - Pending state: "Click to roll" prompt, clearly scoped to the active player only
 - Rolling state: brief indication that the roll is processing (even 200ms fake delay improves perceived fairness)
 - Result state: the number(s) shown clearly, outcome explained ("You rolled 4 — shot saved" vs "You rolled 4 — GOAL!")
@@ -109,6 +112,7 @@ Features that improve the experience meaningfully but whose absence does not mak
 ### 1. Rematch Flow
 
 After the Game Over screen, both players can click [Rematch]. A simple handshake:
+
 - First to click: "Waiting for opponent to accept rematch..."
 - Second to click: same room, sides swapped (home/away alternate), game restarts
 
@@ -122,11 +126,11 @@ After the Game Over screen, both players can click [Rematch]. A simple handshake
 
 A scrollable table of all actions taken this match:
 
-| # | Player | Action | Result |
-|---|--------|--------|--------|
-| 1 | Red | Moved #7 → C4 | — |
-| 2 | Red | Pass #7 → #9 | Success (rolled 4) |
-| 3 | Blue | Shot | Saved |
+| #   | Player | Action        | Result             |
+| --- | ------ | ------------- | ------------------ |
+| 1   | Red    | Moved #7 → C4 | —                  |
+| 2   | Red    | Pass #7 → #9  | Success (rolled 4) |
+| 3   | Blue   | Shot          | Saved              |
 
 **Value:** Lets players review what happened, understand momentum, dispute misclicks.
 **Scope:** Medium — requires event sourcing on server (which you should have anyway for reconnect state replay). If you build reconnect replay (table stakes), the log is essentially free.
@@ -167,6 +171,7 @@ Allow additional connections to a room as read-only observers.
 ### 6. Sound Cues
 
 Distinct audio events for:
+
 - Your turn starting (soft chime)
 - Opponent's move landing (click)
 - Goal scored (cheer / whistle)
@@ -221,6 +226,7 @@ Teams are hardcoded. Exposing team selection adds a lobby step, attribute balanc
 ### 8. Forfeit / Resign Button
 
 **Borderline.** Players might want to concede when losing 5-0 with 10 actions left. However:
+
 - The game is short (90 actions total), so conceding is less critical than in chess
 - Without accounts, a forfeit has no stakes (no rating loss)
 - Misclick risk on a forfeit button is high
@@ -309,6 +315,7 @@ Game Over State
 ```
 
 **Critical path for v1:**
+
 1. Room management + session tokens
 2. Server game state + event log
 3. Turn state machine + broadcast
@@ -322,33 +329,33 @@ Rematch and move log panel are fast followers once the above are solid.
 
 ## Feature Classification Summary
 
-| Feature | Classification | Build in v1? |
-|---------|---------------|--------------|
-| Room code create/join | Table Stakes | Yes |
-| Copy-to-clipboard code | Table Stakes | Yes |
-| Waiting for opponent screen | Table Stakes | Yes |
-| Reconnect grace period | Table Stakes | Yes |
-| Session token (sessionStorage) | Table Stakes | Yes |
-| Opponent disconnect notice | Table Stakes | Yes |
-| Whose-turn indicator | Table Stakes | Yes |
-| Valid move highlighting | Table Stakes | Yes |
-| Last action feedback (log) | Table Stakes | Yes |
-| Dice roll click-to-roll + result display | Table Stakes | Yes |
-| Game over screen | Table Stakes | Yes |
-| Connection status indicator | Table Stakes | Yes |
-| Rematch flow | Differentiator | Yes — low effort, high value |
-| Move log panel | Differentiator | Yes — nearly free with event log |
-| Sound cues | Differentiator | Defer — polish pass only |
-| Turn timer | Differentiator | Defer to v2 |
-| In-game chat | Differentiator / Anti-feature | Skip for v1 |
-| Spectator mode | Differentiator | Defer to v2 |
-| User accounts | Anti-feature | Never in v1 |
-| Matchmaking | Anti-feature | Never in v1 |
-| Animations | Anti-feature | Never in v1 |
-| Persistent replay storage | Anti-feature | Never in v1 |
-| Mobile layout | Anti-feature | Never in v1 |
-| Team selection UI | Anti-feature | Never in v1 |
-| Forfeit/resign button | Anti-feature | Defer — monitor playtest feedback |
+| Feature                                  | Classification                | Build in v1?                      |
+| ---------------------------------------- | ----------------------------- | --------------------------------- |
+| Room code create/join                    | Table Stakes                  | Yes                               |
+| Copy-to-clipboard code                   | Table Stakes                  | Yes                               |
+| Waiting for opponent screen              | Table Stakes                  | Yes                               |
+| Reconnect grace period                   | Table Stakes                  | Yes                               |
+| Session token (sessionStorage)           | Table Stakes                  | Yes                               |
+| Opponent disconnect notice               | Table Stakes                  | Yes                               |
+| Whose-turn indicator                     | Table Stakes                  | Yes                               |
+| Valid move highlighting                  | Table Stakes                  | Yes                               |
+| Last action feedback (log)               | Table Stakes                  | Yes                               |
+| Dice roll click-to-roll + result display | Table Stakes                  | Yes                               |
+| Game over screen                         | Table Stakes                  | Yes                               |
+| Connection status indicator              | Table Stakes                  | Yes                               |
+| Rematch flow                             | Differentiator                | Yes — low effort, high value      |
+| Move log panel                           | Differentiator                | Yes — nearly free with event log  |
+| Sound cues                               | Differentiator                | Defer — polish pass only          |
+| Turn timer                               | Differentiator                | Defer to v2                       |
+| In-game chat                             | Differentiator / Anti-feature | Skip for v1                       |
+| Spectator mode                           | Differentiator                | Defer to v2                       |
+| User accounts                            | Anti-feature                  | Never in v1                       |
+| Matchmaking                              | Anti-feature                  | Never in v1                       |
+| Animations                               | Anti-feature                  | Never in v1                       |
+| Persistent replay storage                | Anti-feature                  | Never in v1                       |
+| Mobile layout                            | Anti-feature                  | Never in v1                       |
+| Team selection UI                        | Anti-feature                  | Never in v1                       |
+| Forfeit/resign button                    | Anti-feature                  | Defer — monitor playtest feedback |
 
 ---
 
