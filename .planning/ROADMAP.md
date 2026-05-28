@@ -2,7 +2,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Monorepo Scaffold + Shared Types** — pnpm workspace, TypeScript config, all shared interfaces, hex math utilities, Socket.io event constants
+- [x] **Phase 1: Monorepo Scaffold + Shared Types** — pnpm workspace, TypeScript config, all shared interfaces, hex math utilities, Socket.io event constants (completed 2026-05-28)
 - [ ] **Phase 2: Move Validator + Unit Tests** — Pure validation functions for movement, passing, heading, shooting, snapshots, ZoI, and Loose Ball; fully tested with no server dependency
 - [ ] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint
 - [ ] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice
@@ -27,7 +27,7 @@
 2. `packages/shared` exports `HexCoord`, `GameState`, `PlayerPiece`, `BallState`, and `GamePhase` TypeScript types that `server` and `client` can import without path hacks
 3. `hexDistance`, `hexNeighbors`, `hexesInRange`, and `isUnderZoI` functions are exported from `packages/shared/src/hex.ts` with no Socket.io or Express imports present
 4. Socket.io event name constants are defined as typed `const` objects in `packages/shared` and importable in both `server` and `client`
-5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 2/3 plans executed
+5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 3/3 plans complete
 
 **Wave 1**
 
@@ -36,7 +36,7 @@
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 01-03-PLAN.md — Wave 2: packages/server + packages/client placeholders, full-repo pnpm -r build verification
+- [x] 01-03-PLAN.md — Wave 2: packages/server + packages/client placeholders, full-repo pnpm -r build verification
 
 ### Phase 2: Move Validator + Unit Tests
 
@@ -166,14 +166,14 @@
 
 ## Progress
 
-| Phase                                       | Plans Complete | Status      | Completed |
-| ------------------------------------------- | -------------- | ----------- | --------- |
-| 1. Monorepo Scaffold + Shared Types         | 2/3            | In Progress |           |
-| 2. Move Validator + Unit Tests              | 0/0            | Not started | -         |
-| 3. Server Room Manager + Socket.io Scaffold | 0/0            | Not started | -         |
-| 4. Game Engine + Phase FSM                  | 0/0            | Not started | -         |
-| 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -         |
-| 6. React Hex Grid Renderer                  | 0/0            | Not started | -         |
-| 7. Client-Server Integration                | 0/0            | Not started | -         |
-| 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -         |
-| 9. AWS Deployment                           | 0/0            | Not started | -         |
+| Phase                                       | Plans Complete | Status      | Completed  |
+| ------------------------------------------- | -------------- | ----------- | ---------- |
+| 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
+| 2. Move Validator + Unit Tests              | 0/0            | Not started | -          |
+| 3. Server Room Manager + Socket.io Scaffold | 0/0            | Not started | -          |
+| 4. Game Engine + Phase FSM                  | 0/0            | Not started | -          |
+| 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
+| 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
+| 7. Client-Server Integration                | 0/0            | Not started | -          |
+| 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
+| 9. AWS Deployment                           | 0/0            | Not started | -          |
