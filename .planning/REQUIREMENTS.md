@@ -103,12 +103,12 @@
 ### Technical Architecture
 
 - [ ] **ARCH-01**: Game state is server-authoritative; clients send action intents and receive validated state broadcasts
-- [ ] **ARCH-02**: Project is structured as a pnpm monorepo with packages: `shared` (types, hex math, move validation), `server` (Express + Socket.io), `client` (React + Vite)
-- [ ] **ARCH-03**: All hex geometry uses axial (q, r) coordinates; cube coordinate conversion available in `shared` for distance arithmetic
+- [x] **ARCH-02**: Project is structured as a pnpm monorepo with packages: `shared` (types, hex math, move validation), `server` (Express + Socket.io), `client` (React + Vite)
+- [x] **ARCH-03**: All hex geometry uses axial (q, r) coordinates; cube coordinate conversion available in `shared` for distance arithmetic
 - [ ] **ARCH-04**: Server broadcasts full game state snapshot after every validated action (no differential patching)
 - [ ] **ARCH-05**: Server is deployable to AWS Elastic Beanstalk (single instance) without architectural changes; Socket.io client configured for WebSocket-only transport (no polling fallback) to eliminate sticky session requirements
 - [ ] **ARCH-06**: Static client build is deployable to S3 + CloudFront
-- [ ] **ARCH-07**: Move validation logic lives exclusively in `packages/shared` as pure functions with no Socket.io or Express imports; fully unit-testable in isolation
+- [x] **ARCH-07**: Move validation logic lives exclusively in `packages/shared` as pure functions with no Socket.io or Express imports; fully unit-testable in isolation
 
 ---
 
