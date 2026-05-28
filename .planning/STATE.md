@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-28T11:13:58.287Z"
+last_updated: '2026-05-28T11:25:07.441Z'
 progress:
   total_phases: 9
   completed_phases: 0
@@ -23,21 +23,21 @@ Phase 1 — not started
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 1 — Monorepo Scaffold + Shared Types
+**Current focus:** Phase 01 — monorepo-scaffold-shared-types
 
 ## Phase Status
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 1 | Monorepo Scaffold + Shared Types | Not started |
-| 2 | Move Validator + Unit Tests | Not started |
-| 3 | Server Room Manager + Socket.io Scaffold | Not started |
-| 4 | Game Engine + Phase FSM | Not started |
-| 5 | Dice Resolver + All Resolution Branches | Not started |
-| 6 | React Hex Grid Renderer | Not started |
-| 7 | Client-Server Integration | Not started |
-| 8 | Match Lifecycle + Post-Game Replay | Not started |
-| 9 | AWS Deployment | Not started |
+| Phase | Name                                     | Status      |
+| ----- | ---------------------------------------- | ----------- |
+| 1     | Monorepo Scaffold + Shared Types         | Not started |
+| 2     | Move Validator + Unit Tests              | Not started |
+| 3     | Server Room Manager + Socket.io Scaffold | Not started |
+| 4     | Game Engine + Phase FSM                  | Not started |
+| 5     | Dice Resolver + All Resolution Branches  | Not started |
+| 6     | React Hex Grid Renderer                  | Not started |
+| 7     | Client-Server Integration                | Not started |
+| 8     | Match Lifecycle + Post-Game Replay       | Not started |
+| 9     | AWS Deployment                           | Not started |
 
 ## Blocking Dependencies
 
