@@ -65,20 +65,21 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 ## Key Decisions
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Server-authoritative game state | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers | — Pending |
-| Socket.io over raw WebSockets | Handles reconnection and room management out of the box; negligible overhead for this use case | — Pending |
-| React + Vite frontend | Fast dev loop, static build output suitable for S3+CloudFront | — Pending |
-| Hardcoded teams for v1 | Eliminates card editor scope; lets us validate gameplay loop first | — Pending |
-| Core rules only for v1 | Fouls/injuries add significant state complexity; validate core loop before adding edge cases | — Pending |
-| Hex grid from user-provided layout | Counter Attack pitch has specific proportions; approximation risks rules mismatches | — Pending |
+| Decision                           | Rationale                                                                                      | Outcome   |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- | --------- |
+| Server-authoritative game state    | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                    | — Pending |
+| Socket.io over raw WebSockets      | Handles reconnection and room management out of the box; negligible overhead for this use case | — Pending |
+| React + Vite frontend              | Fast dev loop, static build output suitable for S3+CloudFront                                  | — Pending |
+| Hardcoded teams for v1             | Eliminates card editor scope; lets us validate gameplay loop first                             | — Pending |
+| Core rules only for v1             | Fouls/injuries add significant state complexity; validate core loop before adding edge cases   | — Pending |
+| Hex grid from user-provided layout | Counter Attack pitch has specific proportions; approximation risks rules mismatches            | — Pending |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 **After each phase transition** (via `/gsd-transition`):
+
 1. Requirements invalidated? → Move to Out of Scope with reason
 2. Requirements validated? → Move to Validated with phase reference
 3. New requirements emerged? → Add to Active
@@ -86,10 +87,12 @@ This document evolves at phase transitions and milestone boundaries.
 5. "What This Is" still accurate? → Update if drifted
 
 **After each milestone** (via `/gsd-complete-milestone`):
+
 1. Full review of all sections
 2. Core Value check — still the right priority?
 3. Audit Out of Scope — reasons still valid?
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-27 after initialization*
+
+_Last updated: 2026-05-27 after initialization_

@@ -31,7 +31,7 @@ Browser (Player 1)                    Browser (Player 2)
   └──────────────────────────────────────────────┘
 ```
 
-Data flows in one direction for authority: client sends *intent* (action request), server validates, mutates authoritative state, broadcasts new state snapshot to both clients. Clients never push state — only actions. Both clients always display the same state snapshot.
+Data flows in one direction for authority: client sends _intent_ (action request), server validates, mutates authoritative state, broadcasts new state snapshot to both clients. Clients never push state — only actions. Both clients always display the same state snapshot.
 
 ---
 
@@ -44,13 +44,14 @@ Use **axial coordinates (q, r)** for all internal storage and logic. This is the
 ```typescript
 // packages/shared/src/hex.ts
 interface HexCoord {
-  q: number;  // column axis
-  r: number;  // row axis
+  q: number; // column axis
+  r: number; // row axis
   // s = -q - r  (cube third axis, derived on demand: s = -q - r)
 }
 ```
 
 Rationale for axial over alternatives:
+
 - **Offset coordinates** are intuitive visually but produce irregular neighbor arithmetic (odd vs even row offsets differ), making ZoI and range calculations error-prone.
 - **Cube coordinates** (q, r, s) are algorithmically perfect but carry a redundant third value; axial is cube with s implicit (`s = -q - r`), giving identical algorithmic power with less storage.
 - Distance formula: `max(|q1-q2|, |r1-r2|, |s1-s2|)` (using cube conversion inline) — one expression, no edge cases.
@@ -69,24 +70,24 @@ type PieceRole = 'outfield' | 'goalkeeper';
 type GamePhase =
   | 'SETUP'
   | 'KICKOFF'
-  | 'MOVEMENT_ATTACKER_1'   // 4 players move (attacking team)
-  | 'MOVEMENT_DEFENDER'     // 5 players move (defending team)
-  | 'MOVEMENT_ATTACKER_2'   // up to 2 more attackers move ≤2 hexes
-  | 'ACTION_CHOICE'         // ball carrier chooses: pass / shoot / dribble
-  | 'PASS_RESOLUTION'       // pass accuracy dice
-  | 'SHOT_RESOLUTION'       // shooting vs saving duel
-  | 'HEADING_DUEL'          // heading dice
-  | 'LOOSE_BALL'            // direction + distance dice
-  | 'GK_RESTART'            // GK chooses kick/throw/movement
+  | 'MOVEMENT_ATTACKER_1' // 4 players move (attacking team)
+  | 'MOVEMENT_DEFENDER' // 5 players move (defending team)
+  | 'MOVEMENT_ATTACKER_2' // up to 2 more attackers move ≤2 hexes
+  | 'ACTION_CHOICE' // ball carrier chooses: pass / shoot / dribble
+  | 'PASS_RESOLUTION' // pass accuracy dice
+  | 'SHOT_RESOLUTION' // shooting vs saving duel
+  | 'HEADING_DUEL' // heading dice
+  | 'LOOSE_BALL' // direction + distance dice
+  | 'GK_RESTART' // GK chooses kick/throw/movement
   | 'HALF_TIME'
   | 'FULL_TIME';
 
 interface PlayerPiece {
-  id: string;               // e.g. "home_7", "away_gk"
+  id: string; // e.g. "home_7", "away_gk"
   team: TeamId;
   role: PieceRole;
   position: HexCoord;
-  hasMoved: boolean;        // within current movement phase
+  hasMoved: boolean; // within current movement phase
   attributes: PlayerAttributes;
 }
 
@@ -96,22 +97,22 @@ interface PlayerAttributes {
   tackling: number;
   dribbling: number;
   heading: number;
-  saving: number;           // goalkeepers only (meaningful)
-  handling: number;         // goalkeepers only
+  saving: number; // goalkeepers only (meaningful)
+  handling: number; // goalkeepers only
   resilience: number;
   aerialAbility: number;
 }
 
 interface BallState {
   position: HexCoord;
-  carrier: string | null;   // piece id, or null if loose
+  carrier: string | null; // piece id, or null if loose
   isLoose: boolean;
 }
 
 interface HalfState {
   halfNumber: 1 | 2;
   actionsRemaining: number; // 45 + added time
-  addedTime: number;        // rolled at start of half
+  addedTime: number; // rolled at start of half
 }
 
 interface GameState {
@@ -119,32 +120,32 @@ interface GameState {
   phase: GamePhase;
   attackingTeam: TeamId;
   possession: TeamId;
-  pieces: Record<string, PlayerPiece>;  // keyed by piece id
+  pieces: Record<string, PlayerPiece>; // keyed by piece id
   ball: BallState;
   half: HalfState;
   score: Record<TeamId, number>;
   referee: RefereeCard;
-  actionHistory: GameAction[];          // append-only log
-  lastDiceRoll: DiceResult | null;      // last resolved roll for display
-  pendingAction: PendingAction | null;  // action awaiting dice roll
-  moveSet: MoveSetRecord;               // tracks who has moved this phase
+  actionHistory: GameAction[]; // append-only log
+  lastDiceRoll: DiceResult | null; // last resolved roll for display
+  pendingAction: PendingAction | null; // action awaiting dice roll
+  moveSet: MoveSetRecord; // tracks who has moved this phase
 }
 
 interface MoveSetRecord {
-  attackerMovesUsed: number;    // 0–4 in phase 1, 0–2 in phase 2
-  defenderMovesUsed: number;    // 0–5
+  attackerMovesUsed: number; // 0–4 in phase 1, 0–2 in phase 2
+  defenderMovesUsed: number; // 0–5
   movedPieceIds: Set<string>;
 }
 
 interface RefereeCard {
   name: string;
-  leniency: number;   // added time bonus
+  leniency: number; // added time bonus
 }
 
 interface DiceResult {
   dice: number[];
   total: number;
-  context: string;    // e.g. "PASS_ACCURACY" | "SHOT" | "SAVE" | "LOOSE_BALL_DIRECTION"
+  context: string; // e.g. "PASS_ACCURACY" | "SHOT" | "SAVE" | "LOOSE_BALL_DIRECTION"
 }
 
 interface PendingAction {
@@ -156,6 +157,7 @@ interface PendingAction {
 ```
 
 Key design decisions:
+
 - `pieces` as a flat `Record<string, PlayerPiece>` (not a nested array) allows O(1) lookup by piece id, which is needed constantly during move validation.
 - `actionHistory` is append-only. This provides a complete audit trail for dispute resolution and is the basis for any future replay feature.
 - `pendingAction` captures the action that triggered a dice roll, so when the dice result arrives, the server knows how to resolve it without re-parsing event context.
@@ -231,6 +233,7 @@ Clients send **intent events** (what they want to do). Server sends **state even
 ### State Broadcast Strategy
 
 After every validated action, the server broadcasts a full `GameState` snapshot to the room via `io.to(roomId).emit('game:state', { state })`. This "full snapshot" approach is deliberately chosen over differential patching (JSON Patch / operational transforms) because:
+
 - Game state is small (22 pieces, ~30 hex positions, scalar counters) — full broadcast is under 5KB.
 - No client-side merge logic needed — eliminates an entire class of desync bugs.
 - Reconnecting clients get the current full state immediately without replaying history.
@@ -241,6 +244,7 @@ The `game:valid-moves` event is sent server-side in response to a piece-selectio
 ### Error Response Contract
 
 All rejected actions emit `game:error` with a structured code:
+
 ```
 WRONG_TURN          — not your turn to act
 WRONG_PHASE         — action not legal in current phase
@@ -269,18 +273,20 @@ Counter Attack's physical board is a rectangular grid of hexes. Axial coordinate
 ```typescript
 // Distance between two hexes
 function hexDistance(a: HexCoord, b: HexCoord): number {
-  return (Math.abs(a.q - b.q)
-        + Math.abs(a.q + a.r - b.q - b.r)
-        + Math.abs(a.r - b.r)) / 2;
+  return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
 }
 
 // All 6 neighbors of a hex
 const AXIAL_DIRECTIONS: HexCoord[] = [
-  { q: +1, r:  0 }, { q: +1, r: -1 }, { q:  0, r: -1 },
-  { q: -1, r:  0 }, { q: -1, r: +1 }, { q:  0, r: +1 },
+  { q: +1, r: 0 },
+  { q: +1, r: -1 },
+  { q: 0, r: -1 },
+  { q: -1, r: 0 },
+  { q: -1, r: +1 },
+  { q: 0, r: +1 },
 ];
 function hexNeighbors(h: HexCoord): HexCoord[] {
-  return AXIAL_DIRECTIONS.map(d => ({ q: h.q + d.q, r: h.r + d.r }));
+  return AXIAL_DIRECTIONS.map((d) => ({ q: h.q + d.q, r: h.r + d.r }));
 }
 
 // All hexes within range N (for movement / pass range highlighting)
@@ -298,7 +304,7 @@ function hexesInRange(center: HexCoord, range: number, pitchHexes: Set<string>):
 
 // Zone of Influence: is hex H under ZoI of team T?
 function isUnderZoI(hex: HexCoord, opponentPieces: PlayerPiece[]): boolean {
-  return opponentPieces.some(p => hexDistance(p.position, hex) <= 1);
+  return opponentPieces.some((p) => hexDistance(p.position, hex) <= 1);
 }
 
 // Hex key for use in Sets/Maps (storage and lookup)
@@ -316,12 +322,20 @@ The physical Counter Attack pitch has specific hex coordinates that must be meas
 const PITCH_HEXES: Set<string> = new Set([
   // populated from board measurements
   // format: "q,r"
-  "0,0", "1,0", "-1,0", /* ... all valid pitch hexes ... */
+  '0,0',
+  '1,0',
+  '-1,0' /* ... all valid pitch hexes ... */,
 ]);
 
 const GOAL_HEXES: Record<TeamId, HexCoord[]> = {
-  home: [{ q: 0, r: -8 }, { q: 1, r: -8 }],  // placeholder — measure from board
-  away: [{ q: 0, r:  8 }, { q: 1, r:  8 }],
+  home: [
+    { q: 0, r: -8 },
+    { q: 1, r: -8 },
+  ], // placeholder — measure from board
+  away: [
+    { q: 0, r: 8 },
+    { q: 1, r: 8 },
+  ],
 };
 
 const KICKOFF_HEX: HexCoord = { q: 0, r: 0 };
@@ -332,15 +346,17 @@ This is a **blocking dependency**: until the board is measured, kickoff position
 ### Screen Rendering Conversion
 
 For the React canvas/SVG renderer, convert axial to pixel with:
+
 ```typescript
 function axialToPixel(h: HexCoord, size: number): { x: number; y: number } {
   // Pointy-top hex
   return {
-    x: size * (Math.sqrt(3) * h.q + Math.sqrt(3) / 2 * h.r),
-    y: size * (3 / 2 * h.r),
+    x: size * (Math.sqrt(3) * h.q + (Math.sqrt(3) / 2) * h.r),
+    y: size * ((3 / 2) * h.r),
   };
 }
 ```
+
 `size` is the hex "radius" (center to corner). This is pure presentation logic — lives only in the frontend.
 
 ---
@@ -368,15 +384,15 @@ server/
 
 **Module responsibilities:**
 
-| Module | Does | Does Not |
-|--------|------|----------|
-| `roomManager` | Track rooms, map socket IDs to teams, handle disconnect/reconnect, generate room codes | Touch game state |
-| `gameEngine` | Receive validated actions, call moveValidator, call diceResolver, update state, call phaseController, broadcast | Parse raw socket events |
-| `moveValidator` | Compute legal hex destinations for a piece, check ZoI, check pass range, check phase legality | Mutate any state |
-| `diceResolver` | Generate cryptographically-fair dice rolls (crypto.randomInt), format DiceResult | Apply roll outcomes (that's gameEngine's job) |
-| `phaseController` | Determine what phase follows the current one, check phase completion conditions (all moves used, dice resolved) | Know about specific pieces |
-| `eventRouter` | Parse socket events, authenticate sender is the correct player, call gameEngine | Contain any game logic |
-| `stateSerializer` | Convert internal state to the wire format sent to clients | Run any logic |
+| Module            | Does                                                                                                            | Does Not                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `roomManager`     | Track rooms, map socket IDs to teams, handle disconnect/reconnect, generate room codes                          | Touch game state                              |
+| `gameEngine`      | Receive validated actions, call moveValidator, call diceResolver, update state, call phaseController, broadcast | Parse raw socket events                       |
+| `moveValidator`   | Compute legal hex destinations for a piece, check ZoI, check pass range, check phase legality                   | Mutate any state                              |
+| `diceResolver`    | Generate cryptographically-fair dice rolls (crypto.randomInt), format DiceResult                                | Apply roll outcomes (that's gameEngine's job) |
+| `phaseController` | Determine what phase follows the current one, check phase completion conditions (all moves used, dice resolved) | Know about specific pieces                    |
+| `eventRouter`     | Parse socket events, authenticate sender is the correct player, call gameEngine                                 | Contain any game logic                        |
+| `stateSerializer` | Convert internal state to the wire format sent to clients                                                       | Run any logic                                 |
 
 **Boundary rule:** `moveValidator` and `phaseController` must be **pure functions** (input → output, no side effects). This makes them unit-testable without a running server and enables the shared code strategy below.
 
@@ -409,6 +425,7 @@ Build in this dependency order. Each step unlocks the next.
 ### Step 1: Shared Types Package (unlocks everything else)
 
 Create `packages/shared` with:
+
 - `HexCoord`, `GameState`, `PlayerPiece`, `BallState`, `GamePhase` TypeScript types
 - `hexDistance`, `hexNeighbors`, `hexesInRange`, `isUnderZoI` pure functions
 - Socket event name constants (string literals typed as const)
@@ -418,6 +435,7 @@ Reason: both server and client import from here. Nothing else can be typed corre
 ### Step 2: Move Validator + Unit Tests
 
 Implement `moveValidator.ts` as pure functions using shared types. Write comprehensive tests for:
+
 - Legal move computation per phase
 - ZoI enforcement
 - Pass range per pass type
@@ -491,15 +509,15 @@ counter-attack-poc/
 
 ### What Goes in Shared
 
-| Item | Shared? | Rationale |
-|------|---------|-----------|
-| TypeScript interfaces (GameState, HexCoord, etc.) | YES | Single source of truth; compile-time mismatch detection |
-| Hex math pure functions | YES | Used by server (validation) and client (rendering, highlighting) |
-| Socket event name constants | YES | Prevents string typos diverging between emitter and listener |
-| Move validation predicates | YES (pure only) | Client uses for pre-highlighting; server re-runs for authority |
-| Dice resolution | NO — server only | Must be server-authoritative; client must not generate rolls |
-| Game state mutation | NO — server only | Clients are display-only |
-| React components | NO — client only | No server-side rendering needed |
+| Item                                              | Shared?          | Rationale                                                        |
+| ------------------------------------------------- | ---------------- | ---------------------------------------------------------------- |
+| TypeScript interfaces (GameState, HexCoord, etc.) | YES              | Single source of truth; compile-time mismatch detection          |
+| Hex math pure functions                           | YES              | Used by server (validation) and client (rendering, highlighting) |
+| Socket event name constants                       | YES              | Prevents string typos diverging between emitter and listener     |
+| Move validation predicates                        | YES (pure only)  | Client uses for pre-highlighting; server re-runs for authority   |
+| Dice resolution                                   | NO — server only | Must be server-authoritative; client must not generate rolls     |
+| Game state mutation                               | NO — server only | Clients are display-only                                         |
+| React components                                  | NO — client only | No server-side rendering needed                                  |
 
 ### Move Validation in Shared vs Server
 
@@ -560,22 +578,25 @@ Room codes should be 6-character alphanumeric (e.g. "XK7M2P") generated with `cr
 socket.on('disconnect', () => {
   const room = roomManager.getRoomBySocket(socket.id);
   if (!room || room.phase === 'COMPLETED') return;
-  
+
   room.disconnectedPlayer = socket.id;
   room.disconnectTimer = setTimeout(() => {
     io.to(room.roomId).emit('room:abandoned', { reason: 'opponent_timeout' });
     roomManager.deleteRoom(room.roomId);
   }, 60_000);
-  
-  io.to(room.roomId).emit('room:opponent-disconnected', { 
-    playerName: room.getPlayerName(socket.id) 
+
+  io.to(room.roomId).emit('room:opponent-disconnected', {
+    playerName: room.getPlayerName(socket.id),
   });
 });
 
 socket.on('reconnect-room', ({ roomCode }) => {
   const room = roomManager.getRoom(roomCode);
-  if (!room) { socket.emit('room:error', { code: 'ROOM_NOT_FOUND' }); return; }
-  
+  if (!room) {
+    socket.emit('room:error', { code: 'ROOM_NOT_FOUND' });
+    return;
+  }
+
   clearTimeout(room.disconnectTimer);
   room.disconnectedPlayer = null;
   socket.join(roomCode);
@@ -600,12 +621,12 @@ In-memory `Map` for room state is intentional for v1. Migration path to Redis is
 
 ## Confidence Notes
 
-| Area | Confidence | Basis |
-|------|------------|-------|
-| Axial hex coordinate system | HIGH | Canonical reference (redblobgames) well-established; algorithms are mathematically stable |
-| Socket.io v4 room/event API | HIGH | Stable API unchanged since v3; well-documented patterns |
-| Full-snapshot broadcast strategy | HIGH | Industry-standard for small-state turn-based games; documented in multiple multiplayer game architecture guides |
-| npm workspaces monorepo | HIGH | Standard Node.js toolchain feature since npm v7 |
-| GameState data model | MEDIUM | Derived from PROJECT.md requirements; exact fields will need iteration once Counter Attack board measurements arrive |
-| AWS sticky session approach | MEDIUM | Standard ALB configuration; specific ECS task sizing not verified against live docs this session |
-| Exact pitch hex coordinates | LOW | Blocking dependency — requires physical board measurement (explicitly flagged in PROJECT.md) |
+| Area                             | Confidence | Basis                                                                                                                |
+| -------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Axial hex coordinate system      | HIGH       | Canonical reference (redblobgames) well-established; algorithms are mathematically stable                            |
+| Socket.io v4 room/event API      | HIGH       | Stable API unchanged since v3; well-documented patterns                                                              |
+| Full-snapshot broadcast strategy | HIGH       | Industry-standard for small-state turn-based games; documented in multiple multiplayer game architecture guides      |
+| npm workspaces monorepo          | HIGH       | Standard Node.js toolchain feature since npm v7                                                                      |
+| GameState data model             | MEDIUM     | Derived from PROJECT.md requirements; exact fields will need iteration once Counter Attack board measurements arrive |
+| AWS sticky session approach      | MEDIUM     | Standard ALB configuration; specific ECS task sizing not verified against live docs this session                     |
+| Exact pitch hex coordinates      | LOW        | Blocking dependency — requires physical board measurement (explicitly flagged in PROJECT.md)                         |

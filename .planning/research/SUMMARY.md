@@ -9,18 +9,18 @@
 
 ## Recommended Stack
 
-| Layer | Choice | Version |
-|-------|--------|---------|
-| Runtime | Node.js | 22 LTS |
-| Backend framework | Express | 4.x |
-| WebSocket | Socket.io server + client | 4.x |
-| Frontend | React + Vite | 18.x + 5.x |
-| Hex grid math | honeycomb-grid | 4.x |
-| Hex rendering | React inline SVG components | — |
-| Client state | Zustand | 4.x |
-| Language | TypeScript | 5.x |
-| Monorepo | pnpm workspaces | 9.x |
-| Deployment | AWS Elastic Beanstalk (single instance) + S3/CloudFront | — |
+| Layer             | Choice                                                  | Version    |
+| ----------------- | ------------------------------------------------------- | ---------- |
+| Runtime           | Node.js                                                 | 22 LTS     |
+| Backend framework | Express                                                 | 4.x        |
+| WebSocket         | Socket.io server + client                               | 4.x        |
+| Frontend          | React + Vite                                            | 18.x + 5.x |
+| Hex grid math     | honeycomb-grid                                          | 4.x        |
+| Hex rendering     | React inline SVG components                             | —          |
+| Client state      | Zustand                                                 | 4.x        |
+| Language          | TypeScript                                              | 5.x        |
+| Monorepo          | pnpm workspaces                                         | 9.x        |
+| Deployment        | AWS Elastic Beanstalk (single instance) + S3/CloudFront | —          |
 
 **Do not use:** Colyseus (Schema model fights event-driven domain logic), boardgame.io (slow maintenance, framework coupling not justified), Redux (boilerplate disproportionate to state complexity), Canvas/Phaser/Pixi (overkill for 22 pieces on a static grid), raw ws package (reimplements what Socket.io provides for free), Lambda+API Gateway WebSocket (stateless model wrong for in-memory room state).
 
@@ -54,22 +54,23 @@ Each room holds isProcessing: boolean. Set to true when a handler starts, false 
 
 ## Table Stakes Features
 
-| Feature | Why Non-Negotiable |
-|---------|-------------------|
-| Room code create/join (6-char alphanumeric, no ambiguous chars) | This IS the product entry point |
-| Copy-to-clipboard room code | Players share over Discord; friction kills sessions |
-| Waiting for opponent screen showing code again | Clear feedback loop |
-| Session token in sessionStorage for reconnect identity | Scoped to tab, not browser |
-| Reconnect grace period (90s) with opponent notified | Any network hiccup otherwise kills the session permanently |
-| Abandonment notice after timeout | Players must never see a frozen board with no explanation |
-| Whose-turn indicator with phase and actions remaining | Largest persistent UI element after the board |
-| Valid move highlighting on piece selection | Without it the game is a rulebook memory test |
-| Last action feedback / action log (last 5 entries) | Passive player needs narration |
-| Click-to-roll dice with result displayed prominently | Maximum tension moment; never auto-roll |
-| Connection status indicator (green/yellow/red dot) | Players must never wonder if connection is live |
-| Game over screen with Rematch and Back to Lobby options | Without it players cannot tell if the game crashed |
+| Feature                                                         | Why Non-Negotiable                                         |
+| --------------------------------------------------------------- | ---------------------------------------------------------- |
+| Room code create/join (6-char alphanumeric, no ambiguous chars) | This IS the product entry point                            |
+| Copy-to-clipboard room code                                     | Players share over Discord; friction kills sessions        |
+| Waiting for opponent screen showing code again                  | Clear feedback loop                                        |
+| Session token in sessionStorage for reconnect identity          | Scoped to tab, not browser                                 |
+| Reconnect grace period (90s) with opponent notified             | Any network hiccup otherwise kills the session permanently |
+| Abandonment notice after timeout                                | Players must never see a frozen board with no explanation  |
+| Whose-turn indicator with phase and actions remaining           | Largest persistent UI element after the board              |
+| Valid move highlighting on piece selection                      | Without it the game is a rulebook memory test              |
+| Last action feedback / action log (last 5 entries)              | Passive player needs narration                             |
+| Click-to-roll dice with result displayed prominently            | Maximum tension moment; never auto-roll                    |
+| Connection status indicator (green/yellow/red dot)              | Players must never wonder if connection is live            |
+| Game over screen with Rematch and Back to Lobby options         | Without it players cannot tell if the game crashed         |
 
 **Build in v1 (low effort, high value):**
+
 - Rematch flow: reuse room, reset game state, swap sides
 - Move log panel: nearly free once event sourcing exists for reconnect replay
 
@@ -148,15 +149,16 @@ Phase 9: AWS deployment  [needs Phase 8]
 
 ## Top Pitfalls to Avoid
 
-| # | Pitfall | One-Line Prevention |
-|---|---------|---------------------|
-| 1 | Duplicate socket event listeners accumulate on re-render | Always return socket.off(event, handler) from every useEffect that calls socket.on |
-| 2 | Client-side state authority; optimistic updates diverge from server | Define server GameState shape before writing the first socket handler; clients never mutate |
-| 3 | Mixed hex coordinate systems mid-project | Axial (q, r) everywhere from day one; pixel conversion only in hexToPixel.ts |
-| 4 | Phase logic as if/else chains | Define FSM object structure before implementing the second game phase |
-| 5 | ALB idle timeout drops WebSocket connections (AWS default 60s) | Set ALB idle timeout to 3600s and configure Socket.io pingInterval: 25000 |
+| #   | Pitfall                                                             | One-Line Prevention                                                                         |
+| --- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | Duplicate socket event listeners accumulate on re-render            | Always return socket.off(event, handler) from every useEffect that calls socket.on          |
+| 2   | Client-side state authority; optimistic updates diverge from server | Define server GameState shape before writing the first socket handler; clients never mutate |
+| 3   | Mixed hex coordinate systems mid-project                            | Axial (q, r) everywhere from day one; pixel conversion only in hexToPixel.ts                |
+| 4   | Phase logic as if/else chains                                       | Define FSM object structure before implementing the second game phase                       |
+| 5   | ALB idle timeout drops WebSocket connections (AWS default 60s)      | Set ALB idle timeout to 3600s and configure Socket.io pingInterval: 25000                   |
 
 **Also dangerous:**
+
 - Room not cleaned up on disconnect: wire disconnect handler in same commit as room creation
 - Turn race condition from double-click: add per-room isProcessing boolean before any game logic
 - Reconnect leaves client in stale state: request full state snapshot on every connect event
@@ -185,35 +187,36 @@ The Counter Attack pitch has specific hex positions, goal positions, and penalty
 
 ## Open Questions
 
-| # | Question | Affects | Action |
-|---|----------|---------|--------|
-| 1 | Exact axial coordinates of every pitch hex, goal, penalty box, kickoff hex | Phases 1, 4, 6 | Hard block; requires physical board measurement |
-| 2 | Flat-top or pointy-top hex orientation? | axialToPixel formula, SVG polygon points | Confirm against physical board before first render |
-| 3 | Both hardcoded squad attribute values (all 9 attributes per player)? | Phase 5 dice resolution | Define before Phase 5; use realistic attribute ranges |
-| 4 | Does referee card affect anything beyond Leniency/added time? | Phase 8 | Clarify from rulebook v1.4.1; hardcode one card for v1 |
-| 5 | Are pass ranges (11/6/15 hex) hex ring distance or Manhattan distance? | Phase 2 move validator | Verify from rulebook before implementing pass validation |
-| 6 | Does ZoI block movement destinations or only passing/dribbling paths? | Phase 2 move validator | Confirm from rulebook; research assumes ZoI blocks pass/dribble not movement |
-| 7 | Does penalty box snapshot trigger during movement AND after a pass, or only one? | Phase 4 action choice | Confirm from rulebook; affects when ACTION_CHOICE phase is entered |
-| 8 | Is a draw a valid full-time outcome or is there a tiebreaker? | Phase 8 game over | Confirm from rulebook; default draw is valid for v1 |
-| 9 | Valid moves computed on piece selection or precomputed for all pieces post-state? | Phase 4, Phase 7 UX | Recommendation: compute on selection; server emits game:valid-moves in response |
+| #   | Question                                                                          | Affects                                  | Action                                                                          |
+| --- | --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | Exact axial coordinates of every pitch hex, goal, penalty box, kickoff hex        | Phases 1, 4, 6                           | Hard block; requires physical board measurement                                 |
+| 2   | Flat-top or pointy-top hex orientation?                                           | axialToPixel formula, SVG polygon points | Confirm against physical board before first render                              |
+| 3   | Both hardcoded squad attribute values (all 9 attributes per player)?              | Phase 5 dice resolution                  | Define before Phase 5; use realistic attribute ranges                           |
+| 4   | Does referee card affect anything beyond Leniency/added time?                     | Phase 8                                  | Clarify from rulebook v1.4.1; hardcode one card for v1                          |
+| 5   | Are pass ranges (11/6/15 hex) hex ring distance or Manhattan distance?            | Phase 2 move validator                   | Verify from rulebook before implementing pass validation                        |
+| 6   | Does ZoI block movement destinations or only passing/dribbling paths?             | Phase 2 move validator                   | Confirm from rulebook; research assumes ZoI blocks pass/dribble not movement    |
+| 7   | Does penalty box snapshot trigger during movement AND after a pass, or only one?  | Phase 4 action choice                    | Confirm from rulebook; affects when ACTION_CHOICE phase is entered              |
+| 8   | Is a draw a valid full-time outcome or is there a tiebreaker?                     | Phase 8 game over                        | Confirm from rulebook; default draw is valid for v1                             |
+| 9   | Valid moves computed on piece selection or precomputed for all pieces post-state? | Phase 4, Phase 7 UX                      | Recommendation: compute on selection; server emits game:valid-moves in response |
 
 ---
 
 ## Confidence Assessment
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack choices | HIGH | All core technologies are stable major versions with well-documented APIs |
-| Architecture patterns | HIGH | Server-authority, full-snapshot broadcast, axial coords, monorepo are well-established |
-| Feature set | HIGH | Lobby/reconnect/turn indicator/valid move highlighting are universal web board game conventions |
-| Pitfalls | HIGH | All critical pitfalls are well-documented Socket.io/Node.js/hex-grid community patterns |
-| Exact board coordinates | LOW | Blocking dependency; requires physical board; cannot be resolved from research alone |
-| Pass range rules | MEDIUM | Distances noted but distance type not confirmed against rulebook v1.4.1 |
-| Referee card behavior | MEDIUM | Added time formula understood; whether Leniency affects other rules is unconfirmed |
+| Area                    | Confidence | Notes                                                                                           |
+| ----------------------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| Stack choices           | HIGH       | All core technologies are stable major versions with well-documented APIs                       |
+| Architecture patterns   | HIGH       | Server-authority, full-snapshot broadcast, axial coords, monorepo are well-established          |
+| Feature set             | HIGH       | Lobby/reconnect/turn indicator/valid move highlighting are universal web board game conventions |
+| Pitfalls                | HIGH       | All critical pitfalls are well-documented Socket.io/Node.js/hex-grid community patterns         |
+| Exact board coordinates | LOW        | Blocking dependency; requires physical board; cannot be resolved from research alone            |
+| Pass range rules        | MEDIUM     | Distances noted but distance type not confirmed against rulebook v1.4.1                         |
+| Referee card behavior   | MEDIUM     | Added time formula understood; whether Leniency affects other rules is unconfirmed              |
 
 **Overall confidence:** HIGH for all technical and architectural decisions. LOW only for domain-specific board geometry, which is an explicit constraint already acknowledged in PROJECT.md.
 
 **Gaps to address before each phase:**
+
 - Board measurements: use placeholder rectangular grid until resolved; flag explicitly in Phase 1
 - Rulebook pass ranges: verify hex distance type before implementing Phase 2 move validator
 - Team squad attributes: define all 9 attributes for both hardcoded squads before Phase 5
@@ -226,6 +229,7 @@ The Counter Attack pitch has specific hex positions, goal positions, and penalty
 All research drawn from training knowledge (cutoff August 2025). External web access was unavailable during the research session.
 
 **HIGH confidence:**
+
 - Socket.io v4 documentation: rooms, typed events, reconnection, disconnect, ping/pong
 - redblobgames.com/grids/hexagons: canonical hex coordinate reference; axial/cube/offset tradeoffs and all key algorithms
 - honeycomb-grid v4 npm documentation: hex math library API
@@ -234,13 +238,15 @@ All research drawn from training knowledge (cutoff August 2025). External web ac
 - AWS ALB documentation: idle timeout defaults, sticky sessions, target group health checks
 
 **MEDIUM confidence (verify before relevant phase):**
+
 - Elastic Beanstalk Node.js platform WebSocket/ALB behavior: verify current EB docs before deployment phase
 - honeycomb-grid v4 specific API details: confirm against npm readme at implementation time
 
 **Validate from rulebook:**
+
 - Counter Attack Rules Reference v1.4.1 (Giannis Tilias): pass ranges, ZoI scope, referee card rules, penalty box snapshot trigger conditions
 
 ---
 
-*Research completed: 2026-05-27*
-*Ready for roadmap: yes, pending board measurement for accurate pitch coordinates*
+_Research completed: 2026-05-27_
+_Ready for roadmap: yes, pending board measurement for accurate pitch coordinates_

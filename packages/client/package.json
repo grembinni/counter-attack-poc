@@ -1,0 +1,14 @@
+{
+  "name": "@counter-attack/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests yet — added in Phase 6\" && exit 0"
+  },
+  "dependencies": {
+    "@counter-attack/shared": "workspace:*"
+  }
+}

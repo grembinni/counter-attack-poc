@@ -27,20 +27,20 @@ A 2-player real-time web implementation of Counter Attack, the hex-grid football
 
 ### At a Glance
 
-| Layer | Choice | Version |
-|-------|--------|---------|
-| Backend runtime | Node.js | 22 LTS |
-| Backend framework | Express | 4.x |
-| WebSocket layer | Socket.io (server) | 4.x |
-| WebSocket client | socket.io-client | 4.x |
-| Frontend framework | React | 18.x |
-| Frontend build tool | Vite | 5.x |
-| Hex grid math | honeycomb-grid | 4.x |
-| Hex rendering | SVG (inline React components) | — |
-| Client state | Zustand | 4.x |
-| TypeScript | ts everywhere | 5.x |
-| Monorepo tooling | pnpm workspaces | 9.x |
-| AWS deployment | Elastic Beanstalk (single instance) | — |
+| Layer               | Choice                              | Version |
+| ------------------- | ----------------------------------- | ------- |
+| Backend runtime     | Node.js                             | 22 LTS  |
+| Backend framework   | Express                             | 4.x     |
+| WebSocket layer     | Socket.io (server)                  | 4.x     |
+| WebSocket client    | socket.io-client                    | 4.x     |
+| Frontend framework  | React                               | 18.x    |
+| Frontend build tool | Vite                                | 5.x     |
+| Hex grid math       | honeycomb-grid                      | 4.x     |
+| Hex rendering       | SVG (inline React components)       | —       |
+| Client state        | Zustand                             | 4.x     |
+| TypeScript          | ts everywhere                       | 5.x     |
+| Monorepo tooling    | pnpm workspaces                     | 9.x     |
+| AWS deployment      | Elastic Beanstalk (single instance) | —       |
 
 ## Option Analysis
 
@@ -99,13 +99,13 @@ A 2-player real-time web implementation of Counter Attack, the hex-grid football
 
 ### Recommended: Elastic Beanstalk (Single Instance, Node.js platform)
 
-| Option | Stateful WebSocket Support | Operational Complexity | Cost (POC) | Verdict |
-|--------|---------------------------|----------------------|------------|---------|
-| EC2 (direct) | Yes (single process) | High — manual AMI, security groups, SSH | Low | Over-operated |
-| Elastic Beanstalk (single instance) | Yes (single process) | Low — EB handles provisioning | Low (~$15/mo t3.micro) | **Recommended** |
-| ECS/Fargate | Yes with Redis adapter | High — task definitions, service mesh, ALB sticky sessions | Medium | Overkill for POC |
-| App Runner | Limited — designed for HTTP; WebSocket support requires careful ALB config | Medium | Medium | Risky |
-| Lambda + API Gateway WebSocket | Yes but stateless — requires DynamoDB for room state | High | Variable | Wrong model |
+| Option                              | Stateful WebSocket Support                                                 | Operational Complexity                                     | Cost (POC)             | Verdict          |
+| ----------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------- | ---------------- |
+| EC2 (direct)                        | Yes (single process)                                                       | High — manual AMI, security groups, SSH                    | Low                    | Over-operated    |
+| Elastic Beanstalk (single instance) | Yes (single process)                                                       | Low — EB handles provisioning                              | Low (~$15/mo t3.micro) | **Recommended**  |
+| ECS/Fargate                         | Yes with Redis adapter                                                     | High — task definitions, service mesh, ALB sticky sessions | Medium                 | Overkill for POC |
+| App Runner                          | Limited — designed for HTTP; WebSocket support requires careful ALB config | Medium                                                     | Medium                 | Risky            |
+| Lambda + API Gateway WebSocket      | Yes but stateless — requires DynamoDB for room state                       | High                                                       | Variable               | Wrong model      |
 
 - EB's Node.js platform deploys a ZIP or Git push. `eb deploy` is a one-command deploy.
 - Single instance = in-memory room state works without Redis.
@@ -140,18 +140,18 @@ A 2-player real-time web implementation of Counter Attack, the hex-grid football
 
 ## Confidence Levels
 
-| Area | Confidence | Reasoning |
-|------|------------|-----------|
-| Socket.io v4 recommendation | HIGH | Socket.io is stable since 2020; v4 API is documented and unchanged in material ways. Project constraint already specifies it. Room/reconnection behavior is well-understood. |
-| Express 4.x + Socket.io pairing | HIGH | Canonical pairing. Every Socket.io tutorial uses Express. No meaningful alternatives for this scale. |
-| React 18 + Vite 5 | HIGH | Project constraint specifies React + Vite. Vite 5 released late 2023; stable. React 18 stable since 2022. |
-| honeycomb-grid 4.x for hex math | HIGH | Honeycomb is the dominant hex-grid math library in the JS ecosystem. v4 TypeScript support is well-documented. |
-| SVG over Canvas for rendering | HIGH | The tradeoff is well-understood. Grid size (≤600 hexes, 22 pieces) is well within SVG's comfortable performance range. |
-| Zustand 4.x for client state | HIGH | Zustand is the widely-adopted minimal-boilerplate state library. v4 is stable. Alternatives are known and the tradeoffs are clear. |
-| TypeScript shared packages monorepo | HIGH | pnpm workspaces + shared types is standard practice. Socket.io typed events are documented in Socket.io v4 docs. |
-| Elastic Beanstalk for deployment | MEDIUM | EB is a well-understood AWS service. The recommendation for single-instance (to avoid Redis dependency) is architecturally sound. Medium confidence because EB's Node.js platform version support and specific WebSocket behavior on ALB should be verified against current AWS docs before the deployment phase. |
-| Skip Colyseus recommendation | MEDIUM | Assessment is based on understanding Colyseus's architecture from training data. Recommend re-evaluating current Colyseus docs at the server scaffolding phase to confirm the Schema model is as constraining as assessed. |
-| Skip boardgame.io recommendation | MEDIUM | Based on GitHub activity assessment from training data (cutoff Aug 2025). Verify current repo activity before definitively ruling it out. If it has seen active maintenance, it becomes more viable. |
+| Area                                | Confidence | Reasoning                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Socket.io v4 recommendation         | HIGH       | Socket.io is stable since 2020; v4 API is documented and unchanged in material ways. Project constraint already specifies it. Room/reconnection behavior is well-understood.                                                                                                                                      |
+| Express 4.x + Socket.io pairing     | HIGH       | Canonical pairing. Every Socket.io tutorial uses Express. No meaningful alternatives for this scale.                                                                                                                                                                                                              |
+| React 18 + Vite 5                   | HIGH       | Project constraint specifies React + Vite. Vite 5 released late 2023; stable. React 18 stable since 2022.                                                                                                                                                                                                         |
+| honeycomb-grid 4.x for hex math     | HIGH       | Honeycomb is the dominant hex-grid math library in the JS ecosystem. v4 TypeScript support is well-documented.                                                                                                                                                                                                    |
+| SVG over Canvas for rendering       | HIGH       | The tradeoff is well-understood. Grid size (≤600 hexes, 22 pieces) is well within SVG's comfortable performance range.                                                                                                                                                                                            |
+| Zustand 4.x for client state        | HIGH       | Zustand is the widely-adopted minimal-boilerplate state library. v4 is stable. Alternatives are known and the tradeoffs are clear.                                                                                                                                                                                |
+| TypeScript shared packages monorepo | HIGH       | pnpm workspaces + shared types is standard practice. Socket.io typed events are documented in Socket.io v4 docs.                                                                                                                                                                                                  |
+| Elastic Beanstalk for deployment    | MEDIUM     | EB is a well-understood AWS service. The recommendation for single-instance (to avoid Redis dependency) is architecturally sound. Medium confidence because EB's Node.js platform version support and specific WebSocket behavior on ALB should be verified against current AWS docs before the deployment phase. |
+| Skip Colyseus recommendation        | MEDIUM     | Assessment is based on understanding Colyseus's architecture from training data. Recommend re-evaluating current Colyseus docs at the server scaffolding phase to confirm the Schema model is as constraining as assessed.                                                                                        |
+| Skip boardgame.io recommendation    | MEDIUM     | Based on GitHub activity assessment from training data (cutoff Aug 2025). Verify current repo activity before definitively ruling it out. If it has seen active maintenance, it becomes more viable.                                                                                                              |
 
 ## Version Summary (Install Reference)
 
@@ -168,6 +168,7 @@ A 2-player real-time web implementation of Counter Attack, the hex-grid football
 ## Conventions
 
 Conventions not yet established. Will populate as patterns emerge during development.
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
@@ -175,6 +176,7 @@ Conventions not yet established. Will populate as patterns emerge during develop
 ## Architecture
 
 Architecture not yet mapped. Follow existing patterns found in the codebase.
+
 <!-- GSD:architecture-end -->
 
 <!-- GSD:skills-start source:skills/ -->
@@ -182,6 +184,7 @@ Architecture not yet mapped. Follow existing patterns found in the codebase.
 ## Project Skills
 
 No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
+
 <!-- GSD:skills-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->
@@ -197,6 +200,7 @@ Use these entry points:
 - `/gsd-execute-phase` for planned phase work
 
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+
 <!-- GSD:workflow-end -->
 
 <!-- GSD:profile-start -->
@@ -205,4 +209,5 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 
 > Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
+
 <!-- GSD:profile-end -->
