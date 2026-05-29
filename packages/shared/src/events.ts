@@ -34,7 +34,7 @@ export interface ClientToServerEvents {
  * Consumed by Socket<ServerToClientEvents, ...> in packages/client (Phase 3).
  */
 export interface ServerToClientEvents {
-  [ServerEvents.ROOM_JOINED]: (roomCode: string, playerSlot: 1 | 2) => void;
+  [ServerEvents.ROOM_JOINED]: (roomCode: string, playerSlot: 1 | 2, sessionToken: string) => void;
   [ServerEvents.ROOM_ERROR]: (message: string) => void;
   [ServerEvents.GAME_STATE]: (state: GameState) => void;
   [ServerEvents.GAME_DISCONNECT_WARNING]: () => void;
