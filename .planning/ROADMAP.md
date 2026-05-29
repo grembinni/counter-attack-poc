@@ -103,7 +103,20 @@ Plans:
 4. A referee card with a Leniency attribute is randomly assigned at match start and stored in game state
 5. The per-room `isProcessing` mutex prevents duplicate action processing; a second identical action arriving while the first is processing is silently dropped
 
-**Plans:** TBD
+**Plans:** 3 plans
+
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Shared types + data: ActionEvent union, RefereeCard, MovementSlot, PlayerPiece name/role, attackingTeam; teams.ts (HOME/AWAY squads); pitch.ts regions + difficult-angle hexes; game:end-turn/undo/error events + tests
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 04-02-PLAN.md — gameEngine.ts: buildInitialGameState, advanceMovementSlot, applyMove, applyEndTurn, applyUndo, MOVE-06 free-move; unit tests + integration harness skeleton
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 04-03-PLAN.md — gameHandlers.ts (game:move/end-turn/undo with isProcessing mutex + active-player guard); wire buildInitialGameState into joinRoom + registerGameHandlers into createServer; fill integration scenarios
+
 **UI hint**: yes
 
 ### Phase 5: Dice Resolver + All Resolution Branches
@@ -193,7 +206,7 @@ Plans:
 | 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
 | 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
-| 4. Game Engine + Phase FSM                  | 0/0            | Not started | -          |
+| 4. Game Engine + Phase FSM                  | 0/3            | Planned     | -          |
 | 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
