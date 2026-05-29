@@ -3,7 +3,7 @@
 ## Phases
 
 - [x] **Phase 1: Monorepo Scaffold + Shared Types** — pnpm workspace, TypeScript config, all shared interfaces, hex math utilities, Socket.io event constants (completed 2026-05-28)
-- [ ] **Phase 2: Move Validator + Unit Tests** — Pure validation functions for movement, passing, heading, shooting, snapshots, ZoI, and Loose Ball; fully tested with no server dependency
+- [x] **Phase 2: Move Validator + Unit Tests** — Pure validation functions for movement, passing, heading, shooting, snapshots, ZoI, and Loose Ball; fully tested with no server dependency (completed 2026-05-29)
 - [ ] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint
 - [ ] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice
 - [ ] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice
@@ -51,7 +51,7 @@
 4. `computeZoI()` returns the correct adjacent-hex set for any piece position and `isUnderZoI()` correctly identifies when a ball-carrier enters a defender's influence
 5. All validation functions have zero imports from `socket.io`, `express`, or any server package — confirmed by TypeScript compilation of `packages/shared` in isolation
 
-**Plans:** 1/4 plans executed
+**Plans:** 4/4 plans complete
 
 **Wave 1**
 
@@ -59,9 +59,9 @@
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 02-02-PLAN.md — Move validator: validateMove with 4-5-2 slot semantics, Pace caps, occupancy, ATTACKER_2 restriction, ZoI steal trigger
-- [ ] 02-03-PLAN.md — Pass validator: validatePass (all four types, path blocking, interception list) and validatePassAccuracy (HIGH/LONG thresholds, Loose Ball trigger)
-- [ ] 02-04-PLAN.md — Shot + Heading + Snapshot validators bundled (validateShotDuel/Dive/HandlingCheck, validateHeading, validateSnapshot)
+- [x] 02-02-PLAN.md — Move validator: validateMove with 4-5-2 slot semantics, Pace caps, occupancy, ATTACKER_2 restriction, ZoI steal trigger
+- [x] 02-03-PLAN.md — Pass validator: validatePass (all four types, path blocking, interception list) and validatePassAccuracy (HIGH/LONG thresholds, Loose Ball trigger)
+- [x] 02-04-PLAN.md — Shot + Heading + Snapshot validators bundled (validateShotDuel/Dive/HandlingCheck, validateHeading, validateSnapshot)
 
 ### Phase 3: Server Room Manager + Socket.io Scaffold
 
@@ -179,7 +179,7 @@
 | Phase                                       | Plans Complete | Status      | Completed  |
 | ------------------------------------------- | -------------- | ----------- | ---------- |
 | 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator + Unit Tests              | 1/4            | In Progress |            |
+| 2. Move Validator + Unit Tests              | 4/4 | Complete   | 2026-05-29 |
 | 3. Server Room Manager + Socket.io Scaffold | 0/0            | Not started | -          |
 | 4. Game Engine + Phase FSM                  | 0/0            | Not started | -          |
 | 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
