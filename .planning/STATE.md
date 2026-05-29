@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-05-29T13:15:10.312Z'
+last_updated: '2026-05-29T15:45:12.490Z'
 progress:
   total_phases: 9
   completed_phases: 1
@@ -23,7 +23,7 @@ Phase 1 — not started
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 2 — move validator + unit tests
+**Current focus:** Phase 02 — move-validator-unit-tests
 
 ## Phase Status
 

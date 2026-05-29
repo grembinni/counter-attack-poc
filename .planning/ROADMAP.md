@@ -51,11 +51,11 @@
 4. `computeZoI()` returns the correct adjacent-hex set for any piece position and `isUnderZoI()` correctly identifies when a ball-carrier enters a defender's influence
 5. All validation functions have zero imports from `socket.io`, `express`, or any server package — confirmed by TypeScript compilation of `packages/shared` in isolation
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Foundation: hex.ts extensions (hexLine, getZoIDefenders), GameState D-08 fields, scoreUtils (computeCombinedScore, computeLooseBall), barrel export
+- [x] 02-01-PLAN.md — Foundation: hex.ts extensions (hexLine, getZoIDefenders), GameState D-08 fields, scoreUtils (computeCombinedScore, computeLooseBall), barrel export
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -179,7 +179,7 @@
 | Phase                                       | Plans Complete | Status      | Completed  |
 | ------------------------------------------- | -------------- | ----------- | ---------- |
 | 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator + Unit Tests              | 0/4            | Not started | -          |
+| 2. Move Validator + Unit Tests              | 1/4            | In Progress |            |
 | 3. Server Room Manager + Socket.io Scaffold | 0/0            | Not started | -          |
 | 4. Game Engine + Phase FSM                  | 0/0            | Not started | -          |
 | 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
