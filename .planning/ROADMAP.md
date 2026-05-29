@@ -4,7 +4,7 @@
 
 - [x] **Phase 1: Monorepo Scaffold + Shared Types** — pnpm workspace, TypeScript config, all shared interfaces, hex math utilities, Socket.io event constants (completed 2026-05-28)
 - [x] **Phase 2: Move Validator + Unit Tests** — Pure validation functions for movement, passing, heading, shooting, snapshots, ZoI, and Loose Ball; fully tested with no server dependency (completed 2026-05-29)
-- [ ] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint
+- [x] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint (completed 2026-05-29)
 - [ ] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice
 - [ ] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice
 - [ ] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard
@@ -76,7 +76,7 @@
 4. The server emits a full `game:state` broadcast after every validated state change, containing the complete `GameState` object
 5. `GET /health` returns HTTP 200, confirming the server is reachable for AWS ALB health checks
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 **Wave 1**
 
@@ -88,7 +88,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 03-03-PLAN.md — Wave 3: createServer.ts (Express + Socket.io factory, /health, websocket-only) + roomHandlers.ts (ROOM_CREATE/ROOM_JOIN/disconnect with 90s grace) + main.ts + integration tests
+- [x] 03-03-PLAN.md — Wave 3: createServer.ts (Express + Socket.io factory, /health, websocket-only) + roomHandlers.ts (ROOM_CREATE/ROOM_JOIN/disconnect with 90s grace) + main.ts + integration tests
 
 ### Phase 4: Game Engine + Phase FSM
 
@@ -192,7 +192,7 @@ Plans:
 | ------------------------------------------- | -------------- | ----------- | ---------- |
 | 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
 | 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
-| 3. Server Room Manager + Socket.io Scaffold | 2/3            | In Progress |            |
+| 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
 | 4. Game Engine + Phase FSM                  | 0/0            | Not started | -          |
 | 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
