@@ -6,14 +6,24 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
+    "dev": "tsx watch src/main.ts",
     "typecheck": "tsc --noEmit",
     "clean": "node --eval \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
-    "test": "echo \"No tests yet — added in Phase 3\" && exit 0"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@counter-attack/shared": "workspace:*"
+    "@counter-attack/shared": "workspace:*",
+    "cors": "2.8.6",
+    "express": "4.22.2",
+    "nanoid": "5.1.11",
+    "socket.io": "4.8.3"
   },
   "devDependencies": {
-    "@types/node": "22.19.19"
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "@types/node": "22.19.19",
+    "socket.io-client": "4.8.3",
+    "tsx": "4.22.3",
+    "vitest": "2.1.9"
   }
 }
