@@ -453,7 +453,7 @@ export function getZoIDefenders(
 
 ### Anti-Patterns to Avoid
 
-- **Checking `!state.movedPieceIds.includes(pieceId)` for ATTACKER_4/DEFENDER_5 slots:** Only ATTACKER_2 has the "not previously moved" restriction. ATTACKER_4 players _can_ move again in ATTACKER_2 — wait, they cannot per D-12. The check is correct but the inverse matters: ATTACKER_2 pieces must be NEW (not in movedPieceIds). ATTACKER_4/DEFENDER_5 have no such restriction.
+- **Checking `!state.movedPieceIds.includes(pieceId)` for ATTACKER_4/DEFENDER_5 slots:** Only ATTACKER*2 has the "not previously moved" restriction. ATTACKER_4 players \_can* move again in ATTACKER_2 — wait, they cannot per D-12. The check is correct but the inverse matters: ATTACKER_2 pieces must be NEW (not in movedPieceIds). ATTACKER_4/DEFENDER_5 have no such restriction.
 - **Accessing `state.paceUsedByPieceId[pieceId]` without a `?? 0` default:** `noUncheckedIndexedAccess` is enabled in tsconfig; this produces `number | undefined`. Always default to 0.
 - **Optional chaining on `movementSlot`:** `exactOptionalPropertyTypes` is enabled. Do not use `state.movementSlot?.` — use an explicit `!== null` check. The field must be typed as `'ATTACKER_4' | 'DEFENDER_5' | 'ATTACKER_2' | null`, not optional (`?:`).
 - **Importing from `socket.io` or `express` in any file under `packages/shared/src/`:** TypeScript compilation of the shared package runs in isolation (ARCH-07). These packages are not installed in `packages/shared`. Any such import causes a build failure.
@@ -637,17 +637,17 @@ describe('validateMove', () => {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Which PlayerPiece attribute governs High Pass and Long Pass accuracy?**
    - What we know: PASS-03 requires accuracy check; PASS-04 requires accuracy check. `PlayerPiece` has 9 attributes. The CONTEXT.md does not map pass types to specific attributes.
-   - What's unclear: Is High Pass accuracy based on `aerialAbility`? Is Long Pass based on `dribbling`? Or is there a separate "passing" attribute not currently in the type?
-   - Recommendation: The planner should add a human-verify checkpoint before implementing `validatePassAccuracy` — or default to `aerialAbility` for High Pass and `dribbling` for Long Pass and flag it as an assumption in the implementation comment.
+   - What was unclear: Is High Pass accuracy based on `aerialAbility`? Is Long Pass based on `dribbling`? Or is there a separate "passing" attribute not currently in the type?
+   - **RESOLVED:** High Pass uses `aerialAbility`, Long Pass uses `dribbling` — documented as assumption A1, flagged in `validatePassAccuracy` JSDoc for Phase 4 verification against the physical rulebook before live use.
 
 2. **SNAP-01 trigger condition — "immediately after any pass" outside penalty area?**
    - What we know: SNAP-01 says "inside or outside box" for the post-pass trigger.
-   - What's unclear: Does `validateSnapshot()` need to signal availability from inside the passing validators, or is it a separate call the FSM makes after any pass resolves?
-   - Recommendation: Snapshot availability after a pass is an FSM state transition, not a pass validator concern. `validateSnapshot()` should be callable by the FSM after any pass, with the FSM passing the current game state. Phase 4 drives the trigger; Phase 2 only validates legality.
+   - What was unclear: Does `validateSnapshot()` need to signal availability from inside the passing validators, or is it a separate call the FSM makes after any pass resolves?
+   - **RESOLVED:** `validateSnapshot()` is called by the Phase 4 FSM after any pass; Phase 2 only validates legality given current state. Snapshot availability is an FSM state transition, not a pass-validator concern.
 
 ---
 
