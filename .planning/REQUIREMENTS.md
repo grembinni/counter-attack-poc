@@ -4,10 +4,10 @@
 
 ### Connection & Lobby
 
-- [ ] **CONN-01**: Player can create a game room and receive a 4-6 character room code to share
-- [ ] **CONN-02**: Player can join an existing game room by entering a valid room code
-- [ ] **CONN-03**: Game starts automatically once both players have joined the room
-- [ ] **CONN-04**: Server rejects join attempts for room codes that do not exist or are already in progress
+- [x] **CONN-01**: Player can create a game room and receive a 4-6 character room code to share
+- [x] **CONN-02**: Player can join an existing game room by entering a valid room code
+- [x] **CONN-03**: Game starts automatically once both players have joined the room
+- [x] **CONN-04**: Server rejects join attempts for room codes that do not exist or are already in progress
 
 ### Pitch & Grid
 
@@ -102,10 +102,10 @@
 
 ### Technical Architecture
 
-- [ ] **ARCH-01**: Game state is server-authoritative; clients send action intents and receive validated state broadcasts
+- [x] **ARCH-01**: Game state is server-authoritative; clients send action intents and receive validated state broadcasts
 - [x] **ARCH-02**: Project is structured as a pnpm monorepo with packages: `shared` (types, hex math, move validation), `server` (Express + Socket.io), `client` (React + Vite)
 - [x] **ARCH-03**: All hex geometry uses axial (q, r) coordinates; cube coordinate conversion available in `shared` for distance arithmetic
-- [ ] **ARCH-04**: Server broadcasts full game state snapshot after every validated action (no differential patching)
+- [x] **ARCH-04**: Server broadcasts full game state snapshot after every validated action (no differential patching)
 - [ ] **ARCH-05**: Server is deployable to AWS Elastic Beanstalk (single instance) without architectural changes; Socket.io client configured for WebSocket-only transport (no polling fallback) to eliminate sticky session requirements
 - [ ] **ARCH-06**: Static client build is deployable to S3 + CloudFront
 - [x] **ARCH-07**: Move validation logic lives exclusively in `packages/shared` as pure functions with no Socket.io or Express imports; fully unit-testable in isolation
