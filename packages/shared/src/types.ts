@@ -44,4 +44,18 @@ export type GameState = {
   actionCount: number;
   half: 1 | 2;
   eventLog: readonly unknown[];
+  /**
+   * D-08: Movement-phase tracking fields.
+   * Default values when outside MOVEMENT phase: `[]`, `{}`, `null`.
+   *
+   * - movedPieceIds: IDs of pieces that have completed their movement in the
+   *   current Movement Phase. Empty (`[]`) outside MOVEMENT phase.
+   * - paceUsedByPieceId: Cumulative hexes moved per piece in the current
+   *   Movement Phase. Empty (`{}`) outside MOVEMENT phase.
+   * - movementSlot: Which 4-5-2 sub-phase is currently active.
+   *   `null` outside MOVEMENT phase.
+   */
+  movedPieceIds: readonly string[];
+  paceUsedByPieceId: Readonly<Record<string, number>>;
+  movementSlot: 'ATTACKER_4' | 'DEFENDER_5' | 'ATTACKER_2' | null;
 };

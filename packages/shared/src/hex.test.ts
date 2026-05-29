@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { hexDistance, hexNeighbors, hexesInRange, isUnderZoI } from './hex.js';
-import type { HexCoord } from './types.js';
+import {
+  hexDistance,
+  hexNeighbors,
+  hexesInRange,
+  isUnderZoI,
+  hexLine,
+  getZoIDefenders,
+} from './hex.js';
+import type { HexCoord, PlayerPiece } from './types.js';
 
 describe('hexDistance', () => {
   it('returns 0 for the same hex', () => {
@@ -72,5 +79,99 @@ describe('isUnderZoI', () => {
 
   it('returns false when opponent list is empty', () => {
     expect(isUnderZoI({ q: 0, r: 0 }, [])).toBe(false);
+  });
+});
+
+describe('hexLine', () => {
+  it('returns [from] when from === to (zero distance)', () => {
+    const result = hexLine({ q: 0, r: 0 }, { q: 0, r: 0 });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ q: 0, r: 0 });
+  });
+
+  it('returns 4 hexes for distance-3 line with correct endpoints', () => {
+    const result = hexLine({ q: 0, r: 0 }, { q: 3, r: 0 });
+    expect(result).toHaveLength(4);
+    expect(result[0]).toEqual({ q: 0, r: 0 });
+    expect(result[3]).toEqual({ q: 3, r: 0 });
+  });
+
+  it('every consecutive pair in the line has hexDistance === 1', () => {
+    const result = hexLine({ q: 0, r: 0 }, { q: 3, r: 0 });
+    for (let i = 0; i < result.length - 1; i++) {
+      const a = result[i] as HexCoord;
+      const b = result[i + 1] as HexCoord;
+      expect(hexDistance(a, b)).toBe(1);
+    }
+  });
+
+  it('returns a correct 3-hex path on the diagonal axis ({q:0,r:0} → {q:2,r:-2})', () => {
+    const result = hexLine({ q: 0, r: 0 }, { q: 2, r: -2 });
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ q: 0, r: 0 });
+    expect(result[2]).toEqual({ q: 2, r: -2 });
+    // middle hex must be adjacent to both endpoints
+    const mid = result[1] as HexCoord;
+    expect(hexDistance({ q: 0, r: 0 }, mid)).toBe(1);
+    expect(hexDistance({ q: 2, r: -2 }, mid)).toBe(1);
+  });
+
+  it('length equals hexDistance(from, to) + 1 for a non-trivial path', () => {
+    const from: HexCoord = { q: 1, r: 2 };
+    const to: HexCoord = { q: 4, r: -1 };
+    const result = hexLine(from, to);
+    expect(result).toHaveLength(hexDistance(from, to) + 1);
+  });
+});
+
+describe('getZoIDefenders', () => {
+  /** Helper to build a minimal PlayerPiece fixture */
+  function makePiece(
+    id: string,
+    q: number,
+    r: number,
+    teamId: 'home' | 'away' = 'away',
+  ): PlayerPiece {
+    return {
+      id,
+      teamId,
+      position: { q, r },
+      pace: 5,
+      shooting: 5,
+      tackling: 5,
+      dribbling: 5,
+      heading: 5,
+      saving: 1,
+      handling: 1,
+      resilience: 5,
+      aerialAbility: 5,
+    };
+  }
+
+  it('returns the adjacent opponent when one is at distance 1', () => {
+    const defenders = [makePiece('d1', 1, 0)];
+    const result = getZoIDefenders({ q: 0, r: 0 }, defenders);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(defenders[0]);
+  });
+
+  it('excludes opponent at distance 2 (not adjacent)', () => {
+    const defenders = [makePiece('d1', 2, 0)];
+    const result = getZoIDefenders({ q: 0, r: 0 }, defenders);
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns [] when no opponents are adjacent', () => {
+    const result = getZoIDefenders({ q: 0, r: 0 }, []);
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns only adjacent opponents from a mixed-distance list', () => {
+    const adjacent = makePiece('d1', 1, 0);
+    const distant = makePiece('d2', 3, 0);
+    const sameHex = makePiece('d3', 0, 0);
+    const result = getZoIDefenders({ q: 0, r: 0 }, [adjacent, distant, sameHex]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(adjacent);
   });
 });
