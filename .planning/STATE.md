@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-05-29'
+last_updated: '2026-05-29T18:06:50.001Z'
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 7
+  total_plans: 10
   completed_plans: 7
   percent: 22
 ---
@@ -23,21 +23,21 @@ Phase 3 — not started (next: `/gsd-plan-phase 3`)
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 03 — server-room-manager-socketio-scaffold
+**Current focus:** Phase 03 — server-room-manager-socket-io-scaffold
 
 ## Phase Status
 
-| Phase | Name                                     | Status    | Completed  |
-| ----- | ---------------------------------------- | --------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types         | Complete  | 2026-05-28 |
-| 2     | Move Validator + Unit Tests              | Complete  | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold | Not started | -        |
-| 4     | Game Engine + Phase FSM                  | Not started | -        |
-| 5     | Dice Resolver + All Resolution Branches  | Not started | -        |
-| 6     | React Hex Grid Renderer                  | Not started | -        |
-| 7     | Client-Server Integration                | Not started | -        |
-| 8     | Match Lifecycle + Post-Game Replay       | Not started | -        |
-| 9     | AWS Deployment                           | Not started | -        |
+| Phase | Name                                     | Status      | Completed  |
+| ----- | ---------------------------------------- | ----------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types         | Complete    | 2026-05-28 |
+| 2     | Move Validator + Unit Tests              | Complete    | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold | Not started | -          |
+| 4     | Game Engine + Phase FSM                  | Not started | -          |
+| 5     | Dice Resolver + All Resolution Branches  | Not started | -          |
+| 6     | React Hex Grid Renderer                  | Not started | -          |
+| 7     | Client-Server Integration                | Not started | -          |
+| 8     | Match Lifecycle + Post-Game Replay       | Not started | -          |
+| 9     | AWS Deployment                           | Not started | -          |
 
 ## Blocking Dependencies
 

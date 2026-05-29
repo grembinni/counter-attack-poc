@@ -76,7 +76,19 @@
 4. The server emits a full `game:state` broadcast after every validated state change, containing the complete `GameState` object
 5. `GET /health` returns HTTP 200, confirming the server is reachable for AWS ALB health checks
 
-**Plans:** TBD
+**Plans:** 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Wave 1: install server deps (express, socket.io, cors, nanoid, vitest 2.1.9, socket.io-client), vitest.config.ts, extend SocketData with sessionToken
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 03-02-PLAN.md — Wave 2: roomStore.ts (createRoom/joinRoom/findPlayerByToken/broadcastState + Room type with isProcessing) + sessionMiddleware.ts + roomStore unit tests
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 03-03-PLAN.md — Wave 3: createServer.ts (Express + Socket.io factory, /health, websocket-only) + roomHandlers.ts (ROOM_CREATE/ROOM_JOIN/disconnect with 90s grace) + main.ts + integration tests
 
 ### Phase 4: Game Engine + Phase FSM
 
@@ -179,8 +191,8 @@
 | Phase                                       | Plans Complete | Status      | Completed  |
 | ------------------------------------------- | -------------- | ----------- | ---------- |
 | 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator + Unit Tests              | 4/4 | Complete   | 2026-05-29 |
-| 3. Server Room Manager + Socket.io Scaffold | 0/0            | Not started | -          |
+| 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
+| 3. Server Room Manager + Socket.io Scaffold | 0/3            | Not started | -          |
 | 4. Game Engine + Phase FSM                  | 0/0            | Not started | -          |
 | 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |

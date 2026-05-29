@@ -10,14 +10,14 @@
 
 ## Phase Requirements
 
-| ID      | Description                                                                                                              | Research Support                                                                                              |
-| ------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| CONN-01 | Player can create a game room and receive a 4-6 character room code to share                                             | `nanoid` or `crypto.randomBytes` for code gen; server Map keyed on room code; emit `room:joined` with slot=1  |
-| CONN-02 | Player can join an existing game room by entering a valid room code                                                      | Socket.io `socket.join(roomCode)`; emit `room:joined` with slot=2 to room; both players now in same IO room   |
-| CONN-03 | Game starts automatically once both players have joined the room                                                         | Room `players` array length === 2 triggers `game:state` broadcast with `KICK_OFF` phase                       |
-| CONN-04 | Server rejects join attempts for room codes that do not exist or are already in progress                                 | Guards on room existence + `status !== 'waiting'`; emit `room:error` with distinct messages                   |
-| ARCH-01 | Game state is server-authoritative; clients send action intents and receive validated state broadcasts                   | All mutations go through server; full `GameState` broadcast via `game:state` after every validated change      |
-| ARCH-04 | Server broadcasts full game state snapshot after every validated action (no differential patching)                       | `io.to(roomCode).emit(ServerEvents.GAME_STATE, state)` after every handler; no patch/delta                    |
+| ID      | Description                                                                                            | Research Support                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| CONN-01 | Player can create a game room and receive a 4-6 character room code to share                           | `nanoid` or `crypto.randomBytes` for code gen; server Map keyed on room code; emit `room:joined` with slot=1 |
+| CONN-02 | Player can join an existing game room by entering a valid room code                                    | Socket.io `socket.join(roomCode)`; emit `room:joined` with slot=2 to room; both players now in same IO room  |
+| CONN-03 | Game starts automatically once both players have joined the room                                       | Room `players` array length === 2 triggers `game:state` broadcast with `KICK_OFF` phase                      |
+| CONN-04 | Server rejects join attempts for room codes that do not exist or are already in progress               | Guards on room existence + `status !== 'waiting'`; emit `room:error` with distinct messages                  |
+| ARCH-01 | Game state is server-authoritative; clients send action intents and receive validated state broadcasts | All mutations go through server; full `GameState` broadcast via `game:state` after every validated change    |
+| ARCH-04 | Server broadcasts full game state snapshot after every validated action (no differential patching)     | `io.to(roomCode).emit(ServerEvents.GAME_STATE, state)` after every handler; no patch/delta                   |
 
 </phase_requirements>
 
@@ -37,16 +37,16 @@ Session identity uses a custom token pattern (not `socket.id`, which changes on 
 
 ## Architectural Responsibility Map
 
-| Capability                         | Primary Tier                 | Secondary Tier        | Rationale                                                                                      |
-| ---------------------------------- | ---------------------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
-| Room creation + code generation    | `packages/server` (roomStore) | —                     | Server-authoritative; client never generates room codes                                        |
-| Room join + slot assignment        | `packages/server` (roomStore) | —                     | Validation must be server-side to enforce capacity and status guards                           |
-| Session token generation           | `packages/server` (middleware) | —                    | Generated on first connect; tokens are secrets — must never originate client-side              |
-| Socket.io broadcast (`game:state`) | `packages/server`             | —                     | `io.to(roomCode).emit()` after every state mutation; client is read-only receiver              |
-| Disconnect grace timer             | `packages/server` (roomStore) | —                     | `setTimeout` stored per player slot; cancelled on reconnect within 90s                         |
-| Health endpoint                    | `packages/server` (Express)   | —                     | `GET /health` returns 200; used by AWS ALB; lives in Express not Socket.io                     |
-| Session token storage (client)     | Client (`localStorage`)       | —                     | Client persists token across page loads; passed back via `socket.handshake.auth.sessionToken`  |
-| CORS configuration                 | `packages/server` (Socket.io) | Express (if REST)     | Socket.io `cors` option + Express `cors` middleware for the `/health` route                   |
+| Capability                         | Primary Tier                   | Secondary Tier    | Rationale                                                                                     |
+| ---------------------------------- | ------------------------------ | ----------------- | --------------------------------------------------------------------------------------------- |
+| Room creation + code generation    | `packages/server` (roomStore)  | —                 | Server-authoritative; client never generates room codes                                       |
+| Room join + slot assignment        | `packages/server` (roomStore)  | —                 | Validation must be server-side to enforce capacity and status guards                          |
+| Session token generation           | `packages/server` (middleware) | —                 | Generated on first connect; tokens are secrets — must never originate client-side             |
+| Socket.io broadcast (`game:state`) | `packages/server`              | —                 | `io.to(roomCode).emit()` after every state mutation; client is read-only receiver             |
+| Disconnect grace timer             | `packages/server` (roomStore)  | —                 | `setTimeout` stored per player slot; cancelled on reconnect within 90s                        |
+| Health endpoint                    | `packages/server` (Express)    | —                 | `GET /health` returns 200; used by AWS ALB; lives in Express not Socket.io                    |
+| Session token storage (client)     | Client (`localStorage`)        | —                 | Client persists token across page loads; passed back via `socket.handshake.auth.sessionToken` |
+| CORS configuration                 | `packages/server` (Socket.io)  | Express (if REST) | Socket.io `cors` option + Express `cors` middleware for the `/health` route                   |
 
 ---
 
@@ -54,38 +54,38 @@ Session identity uses a custom token pattern (not `socket.id`, which changes on 
 
 ### Core
 
-| Library             | Version  | Purpose                                      | Why Standard                                                                            | Source                   |
-| ------------------- | -------- | -------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------ |
-| express             | 4.22.2   | HTTP server + `/health` route                | Project constraint (CLAUDE.md); most EB Node.js examples are Express                   | [VERIFIED: npm registry] |
-| socket.io           | 4.8.3    | WebSocket server with room management        | Project constraint (CLAUDE.md); locked in STATE.md                                     | [VERIFIED: npm registry] |
-| cors                | 2.8.6    | CORS middleware for Express HTTP routes      | Standard middleware; needed for `/health` to respond to ALB and for dev cross-origin    | [VERIFIED: npm registry] |
-| nanoid              | 5.1.11   | Cryptographically random room code generator | ESM-native, no deps, collision-resistant; better than `Math.random()` for room codes    | [VERIFIED: npm registry] |
+| Library   | Version | Purpose                                      | Why Standard                                                                         | Source                   |
+| --------- | ------- | -------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------ |
+| express   | 4.22.2  | HTTP server + `/health` route                | Project constraint (CLAUDE.md); most EB Node.js examples are Express                 | [VERIFIED: npm registry] |
+| socket.io | 4.8.3   | WebSocket server with room management        | Project constraint (CLAUDE.md); locked in STATE.md                                   | [VERIFIED: npm registry] |
+| cors      | 2.8.6   | CORS middleware for Express HTTP routes      | Standard middleware; needed for `/health` to respond to ALB and for dev cross-origin | [VERIFIED: npm registry] |
+| nanoid    | 5.1.11  | Cryptographically random room code generator | ESM-native, no deps, collision-resistant; better than `Math.random()` for room codes | [VERIFIED: npm registry] |
 
 ### Supporting (dev)
 
-| Library          | Version | Purpose                              | When to Use                                                          |
-| ---------------- | ------- | ------------------------------------ | -------------------------------------------------------------------- |
-| tsx              | 4.22.3  | TypeScript execution for dev server  | `tsx watch src/main.ts` for hot reload during development            |
-| vitest           | 4.1.7   | Unit test runner for server package  | Phase 3 introduces server unit tests for roomStore logic             |
-| @types/express   | 5.0.6   | Express type declarations            | Required for TypeScript compilation                                  |
-| @types/cors      | 2.8.19  | CORS type declarations               | Required for TypeScript compilation of cors middleware               |
-| @types/node      | 25.9.1  | Node.js type stubs (already present) | Already a dev dep; may need version bump                             |
+| Library        | Version | Purpose                              | When to Use                                               |
+| -------------- | ------- | ------------------------------------ | --------------------------------------------------------- |
+| tsx            | 4.22.3  | TypeScript execution for dev server  | `tsx watch src/main.ts` for hot reload during development |
+| vitest         | 4.1.7   | Unit test runner for server package  | Phase 3 introduces server unit tests for roomStore logic  |
+| @types/express | 5.0.6   | Express type declarations            | Required for TypeScript compilation                       |
+| @types/cors    | 2.8.19  | CORS type declarations               | Required for TypeScript compilation of cors middleware    |
+| @types/node    | 25.9.1  | Node.js type stubs (already present) | Already a dev dep; may need version bump                  |
 
 ### Not Installing
 
-| Library                   | Reason                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------- |
-| helmet                    | Security headers middleware — useful but deferred to Phase 9 (AWS deployment); no browser clients yet   |
-| `@socket.io/redis-adapter` | Not needed for single-instance POC; planned for Phase 9 scale path if needed                           |
-| `express-validator`       | No user-input REST routes in Phase 3; only Socket.io events                                             |
+| Library                    | Reason                                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| helmet                     | Security headers middleware — useful but deferred to Phase 9 (AWS deployment); no browser clients yet |
+| `@socket.io/redis-adapter` | Not needed for single-instance POC; planned for Phase 9 scale path if needed                          |
+| `express-validator`        | No user-input REST routes in Phase 3; only Socket.io events                                           |
 
 ### Alternatives Considered
 
-| Instead of        | Could Use                     | Tradeoff                                                                                                                |
-| ----------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `nanoid`          | `crypto.randomBytes(3).toString('hex')` | Both are cryptographically random. `nanoid` is one import with no manual byte math. Either is fine. |
-| Custom session token | `connectionStateRecovery` | `connectionStateRecovery` is built-in but not guaranteed to succeed; requires compatible adapters for multi-server. Custom token is explicit and deterministic — chosen for grace-timer control. |
-| Express 4.22.2    | Express 5.2.1 (latest)        | Express 5 is stable (released 2024). CLAUDE.md specifies 4.x. Using 4.22.2 matches the constraint.                    |
+| Instead of           | Could Use                               | Tradeoff                                                                                                                                                                                         |
+| -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `nanoid`             | `crypto.randomBytes(3).toString('hex')` | Both are cryptographically random. `nanoid` is one import with no manual byte math. Either is fine.                                                                                              |
+| Custom session token | `connectionStateRecovery`               | `connectionStateRecovery` is built-in but not guaranteed to succeed; requires compatible adapters for multi-server. Custom token is explicit and deterministic — chosen for grace-timer control. |
+| Express 4.22.2       | Express 5.2.1 (latest)                  | Express 5 is stable (released 2024). CLAUDE.md specifies 4.x. Using 4.22.2 matches the constraint.                                                                                               |
 
 **Installation:**
 
@@ -102,16 +102,16 @@ pnpm add -D --filter @counter-attack/server tsx vitest @types/express @types/cor
 
 > slopcheck 0.6.1 run on 2026-05-29 against npm registry. All results below are from the scan output before the subprocess install step (which failed due to Windows shell — the scan itself completed successfully).
 
-| Package      | Registry | Age              | Downloads           | Source Repo                      | slopcheck | Disposition |
-| ------------ | -------- | ---------------- | ------------------- | -------------------------------- | --------- | ----------- |
-| express      | npm      | 2010 (~15 yrs)   | 30M+/wk             | github.com/expressjs/express     | [OK]      | Approved    |
-| socket.io    | npm      | 2010 (~15 yrs)   | 5M+/wk              | github.com/socketio/socket.io    | [OK]      | Approved    |
-| cors         | npm      | 2013 (~12 yrs)   | 30M+/wk             | github.com/expressjs/cors        | [OK]      | Approved    |
-| nanoid       | npm      | 2017 (~8 yrs)    | 50M+/wk             | github.com/ai/nanoid             | [OK]      | Approved    |
-| @types/express | npm    | 2014 (~12 yrs)   | DefinitelyTyped     | github.com/DefinitelyTyped       | N/A (types pkg) | Approved |
-| @types/cors  | npm      | 2016 (~9 yrs)    | DefinitelyTyped     | github.com/DefinitelyTyped       | N/A (types pkg) | Approved |
-| tsx          | npm      | 2021 (~4 yrs)    | 5M+/wk              | github.com/privatenumber/tsx     | [OK]      | Approved    |
-| vitest       | npm      | 2021 (~5 yrs)    | 10M+/wk             | github.com/vitest-dev/vitest     | [OK]      | Approved (already in shared) |
+| Package        | Registry | Age            | Downloads       | Source Repo                   | slopcheck       | Disposition                  |
+| -------------- | -------- | -------------- | --------------- | ----------------------------- | --------------- | ---------------------------- |
+| express        | npm      | 2010 (~15 yrs) | 30M+/wk         | github.com/expressjs/express  | [OK]            | Approved                     |
+| socket.io      | npm      | 2010 (~15 yrs) | 5M+/wk          | github.com/socketio/socket.io | [OK]            | Approved                     |
+| cors           | npm      | 2013 (~12 yrs) | 30M+/wk         | github.com/expressjs/cors     | [OK]            | Approved                     |
+| nanoid         | npm      | 2017 (~8 yrs)  | 50M+/wk         | github.com/ai/nanoid          | [OK]            | Approved                     |
+| @types/express | npm      | 2014 (~12 yrs) | DefinitelyTyped | github.com/DefinitelyTyped    | N/A (types pkg) | Approved                     |
+| @types/cors    | npm      | 2016 (~9 yrs)  | DefinitelyTyped | github.com/DefinitelyTyped    | N/A (types pkg) | Approved                     |
+| tsx            | npm      | 2021 (~4 yrs)  | 5M+/wk          | github.com/privatenumber/tsx  | [OK]            | Approved                     |
+| vitest         | npm      | 2021 (~5 yrs)  | 10M+/wk         | github.com/vitest-dev/vitest  | [OK]            | Approved (already in shared) |
 
 **Packages removed due to slopcheck [SLOP] verdict:** none
 **Packages flagged as suspicious [SUS]:** none
@@ -191,6 +191,7 @@ packages/server/
 **When to use:** Phase 3 only — `createServer.ts` is the single place this wiring lives.
 
 **Example:**
+
 ```typescript
 // packages/server/src/createServer.ts
 // Source: socket.io/docs/v4/server-initialization/
@@ -216,15 +217,13 @@ export function buildServer() {
 
   const httpServer = createServer(app);
 
-  const io = new Server<
-    ClientToServerEvents,
-    ServerToClientEvents,
-    InterServerEvents,
-    SocketData
-  >(httpServer, {
-    cors: { origin: process.env['CORS_ORIGIN'] ?? '*', methods: ['GET', 'POST'] },
-    transports: ['websocket'], // locked decision: no polling
-  });
+  const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
+    httpServer,
+    {
+      cors: { origin: process.env['CORS_ORIGIN'] ?? '*', methods: ['GET', 'POST'] },
+      transports: ['websocket'], // locked decision: no polling
+    },
+  );
 
   io.use(sessionMiddleware);
 
@@ -247,6 +246,7 @@ export function buildServer() {
 **When to use:** Any server code that needs to look up or modify room state (room handlers, session middleware, disconnect timers).
 
 **Example:**
+
 ```typescript
 // packages/server/src/roomStore.ts
 import { randomUUID } from 'crypto';
@@ -316,16 +316,14 @@ export function findPlayerByToken(sessionToken: string): { room: Room; slot: 1 |
 **When to use:** Every connection — new and reconnection. Idempotent: if no token, falls through to fresh connection path.
 
 **Example:**
+
 ```typescript
 // packages/server/src/sessionMiddleware.ts
 // Source: socket.io/docs/v4/middlewares/ + socket.io/get-started/private-messaging-part-2/
 import type { Socket } from 'socket.io';
 import { findPlayerByToken } from './roomStore.js';
 
-export function sessionMiddleware(
-  socket: Socket,
-  next: (err?: Error) => void,
-): void {
+export function sessionMiddleware(socket: Socket, next: (err?: Error) => void): void {
   const token = socket.handshake.auth['sessionToken'] as string | undefined;
   if (token) {
     const found = findPlayerByToken(token);
@@ -351,6 +349,7 @@ export function sessionMiddleware(
 **When to use:** `socket.on('disconnect', ...)` — always wire disconnect in the same handler as room creation (STATE.md pitfall).
 
 **Example:**
+
 ```typescript
 // Inside roomHandlers.ts — disconnect handler
 const GRACE_PERIOD_MS = 90_000;
@@ -404,6 +403,7 @@ if (socket.data.roomCode && socket.data.playerSlot) {
 **When to use:** Every event handler that changes game state in Phase 4+. The helper is defined in Phase 3 so Phase 4 has a stable calling convention.
 
 **Example:**
+
 ```typescript
 // packages/server/src/roomStore.ts (add to existing file)
 export function broadcastState(io: Server, room: Room): void {
@@ -430,13 +430,13 @@ export function broadcastState(io: Server, room: Room): void {
 
 ## Don't Hand-Roll
 
-| Problem                        | Don't Build                                    | Use Instead                                    | Why                                                                          |
-| ------------------------------ | ---------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------- |
-| Room code generation           | `Math.random().toString(36).slice(2, 7)`       | `nanoid` with custom alphabet                  | `Math.random()` is not cryptographically random; collision probability compounds at scale |
-| WebSocket upgrade negotiation  | Raw `ws` with manual HTTP upgrade handling     | `socket.io` Server                             | Socket.io handles polling→websocket upgrade, ping/pong, reconnect backoff    |
-| Room broadcast                 | Iterating `rooms.get(code).players` to find sockets | `io.to(roomCode).emit()`                  | Socket.io's room adapter handles socket lookup + emission atomically         |
-| CORS headers                   | Manual `res.setHeader('Access-Control-Allow-Origin', ...)` | `cors` npm package                   | Handles preflight OPTIONS, credentials, multiple origin configs              |
-| Session UUIDs                  | Custom hash function                           | `crypto.randomUUID()` (built-in Node.js 22+)  | `crypto.randomUUID()` is RFC 4122 UUID v4, cryptographically strong, built-in |
+| Problem                       | Don't Build                                                | Use Instead                                  | Why                                                                                       |
+| ----------------------------- | ---------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Room code generation          | `Math.random().toString(36).slice(2, 7)`                   | `nanoid` with custom alphabet                | `Math.random()` is not cryptographically random; collision probability compounds at scale |
+| WebSocket upgrade negotiation | Raw `ws` with manual HTTP upgrade handling                 | `socket.io` Server                           | Socket.io handles polling→websocket upgrade, ping/pong, reconnect backoff                 |
+| Room broadcast                | Iterating `rooms.get(code).players` to find sockets        | `io.to(roomCode).emit()`                     | Socket.io's room adapter handles socket lookup + emission atomically                      |
+| CORS headers                  | Manual `res.setHeader('Access-Control-Allow-Origin', ...)` | `cors` npm package                           | Handles preflight OPTIONS, credentials, multiple origin configs                           |
+| Session UUIDs                 | Custom hash function                                       | `crypto.randomUUID()` (built-in Node.js 22+) | `crypto.randomUUID()` is RFC 4122 UUID v4, cryptographically strong, built-in             |
 
 **Key insight:** The room manager's complexity is in the disconnect/reconnect lifecycle, not in the data structure. The Map is trivial; the timer management and reconnect identity resolution are where bugs appear. Keep the data model flat and explicit — no nested class hierarchies.
 
@@ -521,6 +521,7 @@ export function broadcastState(io: Server, room: Room): void {
 Verified patterns from official sources:
 
 ### Express + Socket.io Typed Server (canonical)
+
 ```typescript
 // Source: socket.io/docs/v4/server-initialization/ + socket.io/docs/v4/typescript/
 import { createServer } from 'http';
@@ -535,19 +536,19 @@ import type {
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->(httpServer, {
-  cors: { origin: '*' },
-  transports: ['websocket'],
-});
+const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
+  httpServer,
+  {
+    cors: { origin: '*' },
+    transports: ['websocket'],
+  },
+);
 ```
+
 [VERIFIED: socket.io/docs/v4/server-initialization/, socket.io/docs/v4/typescript/]
 
 ### Room Broadcast to All Members
+
 ```typescript
 // Source: socket.io/docs/v4/rooms/
 // Sends to EVERY socket in roomCode (both players), including sender
@@ -556,9 +557,11 @@ io.to(roomCode).emit('game:state', gameState);
 // Sends to every socket in roomCode EXCEPT sender (use for disconnect-warning)
 socket.to(roomCode).emit('game:disconnect-warning');
 ```
+
 [VERIFIED: socket.io/docs/v4/rooms/]
 
 ### Session Token via Handshake Auth
+
 ```typescript
 // Source: socket.io/docs/v4/middlewares/
 // Client sends: io(url, { auth: { sessionToken: 'stored-uuid' } })
@@ -569,29 +572,33 @@ io.use((socket, next) => {
   next();
 });
 ```
+
 [VERIFIED: socket.io/docs/v4/middlewares/]
 
 ### Health Endpoint Pattern
+
 ```typescript
 // Standard Express health check — ALB pings this
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 ```
+
 [ASSUMED: exact response shape — standard convention, no canonical Socket.io/Express doc specifies this format]
 
 ---
 
 ## State of the Art
 
-| Old Approach                                        | Current Approach                                   | When Changed        | Impact                                                                    |
-| --------------------------------------------------- | -------------------------------------------------- | ------------------- | ------------------------------------------------------------------------- |
-| `socket.id` as persistent user identity             | Custom session token + `socket.handshake.auth`     | Socket.io v4 (2021) | `socket.id` changes on reconnect; stable token required for room recovery |
-| Manual `http.createServer()` + `ws`                 | `socket.io` `Server` wrapping `http.createServer` | Socket.io v2+       | Room management, reconnect backoff, typed events built-in                 |
-| `socket.emit` with untyped string event names       | Typed generics `Server<C, S, I, D>`                | Socket.io v3+       | TypeScript compile-time check on event names and payload shapes           |
-| `connectionStateRecovery` for reconnect state       | Custom session-token + full-state re-emit          | Available v4.6.0    | `connectionStateRecovery` is not guaranteed to succeed; custom token is deterministic |
+| Old Approach                                  | Current Approach                                  | When Changed        | Impact                                                                                |
+| --------------------------------------------- | ------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| `socket.id` as persistent user identity       | Custom session token + `socket.handshake.auth`    | Socket.io v4 (2021) | `socket.id` changes on reconnect; stable token required for room recovery             |
+| Manual `http.createServer()` + `ws`           | `socket.io` `Server` wrapping `http.createServer` | Socket.io v2+       | Room management, reconnect backoff, typed events built-in                             |
+| `socket.emit` with untyped string event names | Typed generics `Server<C, S, I, D>`               | Socket.io v3+       | TypeScript compile-time check on event names and payload shapes                       |
+| `connectionStateRecovery` for reconnect state | Custom session-token + full-state re-emit         | Available v4.6.0    | `connectionStateRecovery` is not guaranteed to succeed; custom token is deterministic |
 
 **Deprecated/outdated:**
+
 - `socket.id` as a stable player identifier — changes on every reconnect
 - `socket.rooms` inside async disconnect handlers — may be empty; use `socket.data` instead
 
@@ -599,43 +606,46 @@ app.get('/health', (_req, res) => {
 
 ## Assumptions Log
 
-| #  | Claim                                                                                                               | Section                         | Risk if Wrong                                                                                         |
-| -- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| A1 | `nanoid` `customAlphabet` API signature: `customAlphabet(alphabet: string, size: number) => () => string`           | Standard Stack / Pattern 2      | API mismatch causes compile error; fix is to read nanoid README at npmjs.com/package/nanoid            |
-| A2 | `crypto.randomUUID()` is available in Node.js 22 with no import needed (built-in)                                   | Don't Hand-Roll                 | LOW risk — confirmed in Node.js 22 release notes; crypto module export is stable                      |
-| A3 | 90-second grace timer (requirement says 90s) will not cause memory pressure on a POC server                         | Architecture Patterns           | No risk for POC with 2 concurrent players; revisit if server hosts many rooms                         |
-| A4 | `socket.data.roomCode` approach avoids the `socket.rooms` async-emptied-on-disconnect pitfall                       | Common Pitfalls / Pattern 4     | Pattern is community-standard but not explicitly documented in Socket.io official docs as the fix      |
-| A5 | Express 4.22.2 is the latest 4.x release (matches CLAUDE.md constraint)                                            | Standard Stack                  | CLAUDE.md says "4.x" — latest in 4.x series is what to use; confirmed via npm registry                |
-| A6 | `vitest` version 4.1.7 for server tests — same major version as shared package (2.1.9 → need to decide: pin to 2.x or upgrade) | Standard Stack | Version mismatch may not matter for separate package configs, but pinning 2.x across all packages avoids accidental major upgrade |
+| #   | Claim                                                                                                                          | Section                     | Risk if Wrong                                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | `nanoid` `customAlphabet` API signature: `customAlphabet(alphabet: string, size: number) => () => string`                      | Standard Stack / Pattern 2  | API mismatch causes compile error; fix is to read nanoid README at npmjs.com/package/nanoid                                       |
+| A2  | `crypto.randomUUID()` is available in Node.js 22 with no import needed (built-in)                                              | Don't Hand-Roll             | LOW risk — confirmed in Node.js 22 release notes; crypto module export is stable                                                  |
+| A3  | 90-second grace timer (requirement says 90s) will not cause memory pressure on a POC server                                    | Architecture Patterns       | No risk for POC with 2 concurrent players; revisit if server hosts many rooms                                                     |
+| A4  | `socket.data.roomCode` approach avoids the `socket.rooms` async-emptied-on-disconnect pitfall                                  | Common Pitfalls / Pattern 4 | Pattern is community-standard but not explicitly documented in Socket.io official docs as the fix                                 |
+| A5  | Express 4.22.2 is the latest 4.x release (matches CLAUDE.md constraint)                                                        | Standard Stack              | CLAUDE.md says "4.x" — latest in 4.x series is what to use; confirmed via npm registry                                            |
+| A6  | `vitest` version 4.1.7 for server tests — same major version as shared package (2.1.9 → need to decide: pin to 2.x or upgrade) | Standard Stack              | Version mismatch may not matter for separate package configs, but pinning 2.x across all packages avoids accidental major upgrade |
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **nanoid vs `crypto.randomBytes` for room codes**
    - What we know: Both produce cryptographically random codes. `nanoid` is clean, no deps. `crypto.randomBytes(3).toString('hex')` is built-in.
    - What's unclear: Team preference for external dep vs built-in
    - Recommendation: Use `nanoid` — it handles custom alphabet (no ambiguous characters like 0/O, 1/I) and is well-tested. If dep minimalism is a priority, `crypto.randomBytes(3).toString('hex').toUpperCase()` is equivalent.
+   - **RESOLVED: Use `nanoid` with `customAlphabet` — installed in Plan 03-01; used in roomStore.ts (Plan 03-02) with uppercase alphanumeric alphabet excluding ambiguous characters.**
 
 2. **Vitest version in `packages/server` — pin to 2.x or upgrade?**
    - What we know: `packages/shared` uses Vitest 2.1.9. Vitest latest is 4.1.7.
    - What's unclear: Whether mixing Vitest versions across packages causes any issues (each package has its own config).
    - Recommendation: Install Vitest 2.x in server (matching shared) for consistency. Upgrade both in a future maintenance phase if needed.
+   - **RESOLVED: Pin to `vitest@2.1.9` matching `packages/shared` — Plan 03-01 installs this exact version. Upgrade both packages together in a future maintenance phase.**
 
 3. **Should `game:state` be broadcast immediately upon room status = 'playing', or deferred to Phase 4?**
    - What we know: Success criteria item 4 says "server emits a full `game:state` broadcast after every validated state change". Phase 3 has no game logic yet.
    - What's unclear: Should Phase 3 emit a minimal/stub `GameState` when both players join?
    - Recommendation: Yes — emit a stub `GameState` with `phase: 'LOBBY'` when room reaches 2 players. This validates the broadcast path and satisfies success criterion 4. Phase 4 replaces the stub with real initial state.
+   - **RESOLVED: Emit a stub `GameState` with `phase: 'LOBBY'` immediately on slot-2 join — Plan 03-02 creates the LOBBY stub in roomStore; Plan 03-03 calls `broadcastState(io, room)` in the join handler. Phase 4 replaces this with real initial state.**
 
 ---
 
 ## Environment Availability
 
-| Dependency   | Required By                    | Available | Version   | Fallback |
-| ------------ | ------------------------------ | --------- | --------- | -------- |
-| Node.js 22   | Express + Socket.io runtime    | Yes       | v24.15.0  | —        |
-| pnpm         | Package installation           | Yes       | (present) | —        |
-| npm registry | Package installation           | Yes       | 11.12.1   | —        |
+| Dependency   | Required By                 | Available | Version   | Fallback |
+| ------------ | --------------------------- | --------- | --------- | -------- |
+| Node.js 22   | Express + Socket.io runtime | Yes       | v24.15.0  | —        |
+| pnpm         | Package installation        | Yes       | (present) | —        |
+| npm registry | Package installation        | Yes       | 11.12.1   | —        |
 
 **Missing dependencies with no fallback:** None.
 
@@ -647,27 +657,27 @@ app.get('/health', (_req, res) => {
 
 ### Test Framework
 
-| Property           | Value                                                                        |
-| ------------------ | ---------------------------------------------------------------------------- |
-| Framework          | Vitest 2.x (matching `packages/shared` pinned version)                       |
-| Config file        | `packages/server/vitest.config.ts` — Wave 0 gap, must be created             |
-| Quick run command  | `pnpm --filter @counter-attack/server test`                                  |
-| Full suite command | `pnpm --filter @counter-attack/server test`                                  |
+| Property           | Value                                                            |
+| ------------------ | ---------------------------------------------------------------- |
+| Framework          | Vitest 2.x (matching `packages/shared` pinned version)           |
+| Config file        | `packages/server/vitest.config.ts` — Wave 0 gap, must be created |
+| Quick run command  | `pnpm --filter @counter-attack/server test`                      |
+| Full suite command | `pnpm --filter @counter-attack/server test`                      |
 
 ### Phase Requirements → Test Map
 
-| Req ID  | Behavior                                                                   | Test Type   | Automated Command                                    | File Exists?   |
-| ------- | -------------------------------------------------------------------------- | ----------- | ---------------------------------------------------- | -------------- |
-| CONN-01 | `createRoom()` returns unique 5-char alphanumeric code + sessionToken      | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| CONN-01 | Two calls to `createRoom()` never return the same room code                | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| CONN-02 | `joinRoom()` assigns slot=2 and transitions room to 'playing'              | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| CONN-03 | Both players in room triggers `game:state` broadcast with `phase: 'LOBBY'` | integration | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| CONN-04 | `joinRoom()` rejects unknown room code with `room:error`                   | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| CONN-04 | `joinRoom()` rejects a room with status 'playing' with distinct error      | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| ARCH-01 | State mutations only occur server-side (no client-side state calculation)  | manual-only | N/A — architectural constraint, not testable in unit | manual         |
-| ARCH-04 | After any state change, `game:state` emits the full `GameState` object     | integration | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| SC-3    | Reconnect within 90s cancels grace timer + re-emits state                  | integration | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0      |
-| SC-5    | `GET /health` returns HTTP 200                                              | smoke       | `curl http://localhost:PORT/health` (manual in dev)  | ❌ Wave 0      |
+| Req ID  | Behavior                                                                   | Test Type   | Automated Command                                    | File Exists? |
+| ------- | -------------------------------------------------------------------------- | ----------- | ---------------------------------------------------- | ------------ |
+| CONN-01 | `createRoom()` returns unique 5-char alphanumeric code + sessionToken      | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| CONN-01 | Two calls to `createRoom()` never return the same room code                | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| CONN-02 | `joinRoom()` assigns slot=2 and transitions room to 'playing'              | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| CONN-03 | Both players in room triggers `game:state` broadcast with `phase: 'LOBBY'` | integration | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| CONN-04 | `joinRoom()` rejects unknown room code with `room:error`                   | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| CONN-04 | `joinRoom()` rejects a room with status 'playing' with distinct error      | unit        | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| ARCH-01 | State mutations only occur server-side (no client-side state calculation)  | manual-only | N/A — architectural constraint, not testable in unit | manual       |
+| ARCH-04 | After any state change, `game:state` emits the full `GameState` object     | integration | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| SC-3    | Reconnect within 90s cancels grace timer + re-emits state                  | integration | `pnpm --filter @counter-attack/server test`          | ❌ Wave 0    |
+| SC-5    | `GET /health` returns HTTP 200                                             | smoke       | `curl http://localhost:PORT/health` (manual in dev)  | ❌ Wave 0    |
 
 > SC-3 and SC-5 reference Phase 3 Success Criteria not directly tied to REQUIREMENTS.md IDs.
 
@@ -686,6 +696,7 @@ import { buildServer } from '../createServer.js';
 This requires `socket.io-client` as a dev dependency in `packages/server`. [VERIFIED: socket.io/docs/v4/server-initialization/ — socket.io-client used for server-side testing in official Socket.io tutorial]
 
 Add to dev deps:
+
 ```bash
 pnpm add -D --filter @counter-attack/server socket.io-client
 ```
@@ -709,30 +720,31 @@ pnpm add -D --filter @counter-attack/server socket.io-client
 
 ### Applicable ASVS Categories
 
-| ASVS Category         | Applies | Standard Control                                                               |
-| --------------------- | ------- | ------------------------------------------------------------------------------ |
-| V2 Authentication     | Partial | Session token via `socket.handshake.auth` — not full auth, but identity token  |
-| V3 Session Management | Yes     | Custom session token (UUID v4) + 90s grace period; server-side Map, not JWT    |
-| V4 Access Control     | Yes     | Server validates slot ownership via session token; client cannot self-assign   |
-| V5 Input Validation   | Yes     | Room codes from client must be validated as string, length 5, alphanumeric     |
+| ASVS Category         | Applies | Standard Control                                                                          |
+| --------------------- | ------- | ----------------------------------------------------------------------------------------- |
+| V2 Authentication     | Partial | Session token via `socket.handshake.auth` — not full auth, but identity token             |
+| V3 Session Management | Yes     | Custom session token (UUID v4) + 90s grace period; server-side Map, not JWT               |
+| V4 Access Control     | Yes     | Server validates slot ownership via session token; client cannot self-assign              |
+| V5 Input Validation   | Yes     | Room codes from client must be validated as string, length 5, alphanumeric                |
 | V6 Cryptography       | Yes     | `crypto.randomUUID()` for session tokens; `nanoid` for room codes — never `Math.random()` |
 
 ### Known Threat Patterns for This Stack
 
-| Pattern                          | STRIDE      | Standard Mitigation                                                                            |
-| -------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
-| Slot hijacking (client claims slot) | Spoofing   | Server assigns slots and verifies via session token; client slot claim is ignored             |
-| Room code brute force            | Spoofing    | Rate limiting (deferred — Phase 9); 5-char alphanumeric is 33M combinations (acceptable POC) |
-| Session token theft              | Spoofing    | Token is in `localStorage`; no HTTPS = cleartext risk in production. HTTPS enforced Phase 9  |
-| Room enumeration                 | Information | Room codes are random; no API to list all rooms                                               |
-| Event flooding / DoS             | Denial      | `isProcessing` mutex limits processing to one action per room at a time                       |
-| Prototype pollution via events   | Tampering   | Never spread untrusted event payloads onto plain objects; use explicit field extraction        |
+| Pattern                             | STRIDE      | Standard Mitigation                                                                          |
+| ----------------------------------- | ----------- | -------------------------------------------------------------------------------------------- |
+| Slot hijacking (client claims slot) | Spoofing    | Server assigns slots and verifies via session token; client slot claim is ignored            |
+| Room code brute force               | Spoofing    | Rate limiting (deferred — Phase 9); 5-char alphanumeric is 33M combinations (acceptable POC) |
+| Session token theft                 | Spoofing    | Token is in `localStorage`; no HTTPS = cleartext risk in production. HTTPS enforced Phase 9  |
+| Room enumeration                    | Information | Room codes are random; no API to list all rooms                                              |
+| Event flooding / DoS                | Denial      | `isProcessing` mutex limits processing to one action per room at a time                      |
+| Prototype pollution via events      | Tampering   | Never spread untrusted event payloads onto plain objects; use explicit field extraction      |
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
+
 - [socket.io/docs/v4/server-initialization/](https://socket.io/docs/v4/server-initialization/) — Express + http.createServer + Socket.io wiring pattern
 - [socket.io/docs/v4/typescript/](https://socket.io/docs/v4/typescript/) — Typed Server generics, SocketData interface
 - [socket.io/docs/v4/rooms/](https://socket.io/docs/v4/rooms/) — socket.join(), io.to().emit(), socket.to().emit(), automatic disconnect cleanup
@@ -742,10 +754,12 @@ pnpm add -D --filter @counter-attack/server socket.io-client
 - [socket.io/docs/v4/connection-state-recovery/](https://socket.io/docs/v4/connection-state-recovery/) — connectionStateRecovery evaluated and rejected for this phase
 
 ### Secondary (MEDIUM confidence)
+
 - [socket.io/get-started/private-messaging-part-2/](https://socket.io/get-started/private-messaging-part-2/) — Custom session ID / InMemorySessionStore pattern (official Socket.io tutorial series)
 - npm registry (`npm view <pkg> version`) — version verification for all packages
 
 ### Tertiary (LOW confidence)
+
 - Community patterns for disconnect timer + reconnect cancellation — no official Socket.io doc prescribes the exact `setTimeout` + `clearTimeout` pattern; it is standard Node.js but the room-manager application of it is community convention
 
 ---
@@ -753,6 +767,7 @@ pnpm add -D --filter @counter-attack/server socket.io-client
 ## Metadata
 
 **Confidence breakdown:**
+
 - Standard stack (Express + Socket.io + cors + nanoid): HIGH — all packages verified on npm registry; versions are current stable; slopcheck returned [OK] for all five
 - Architecture (room Map + session token + middleware): HIGH — pattern derived from official Socket.io private-messaging tutorial and typescript docs
 - Disconnect timer pattern: MEDIUM — standard Node.js setTimeout, community convention for the game room use case, no official doc prescribes exact form
