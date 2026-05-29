@@ -41,10 +41,17 @@ export interface ServerToClientEvents {
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InterServerEvents {}
 
-/** Per-socket data stored by Socket.io (player slot, room code, etc.). */
+/**
+ * Per-socket data stored by Socket.io.
+ * All fields are optional: brand-new sockets connecting through io.use() middleware
+ * have none of these set yet. The session middleware populates sessionToken first;
+ * playerSlot and roomCode are set when the socket joins a room.
+ */
 export interface SocketData {
-  playerSlot: 1 | 2;
-  roomCode: string;
+  playerSlot?: 1 | 2;
+  roomCode?: string;
+  sessionToken?: string;
 }
