@@ -72,10 +72,11 @@ export function validatePass(
 
   // 3. STANDARD only: path blocking (PASS-01)
   // slice(1, -1) skips passer's hex and destination — only intermediate hexes can block
+  // Any piece (own team or opponent) on an intermediate hex blocks the pass.
   if (passType === 'STANDARD') {
     const intermediateHexes = hexLine(from, to).slice(1, -1);
     const blocked = intermediateHexes.some((hex) =>
-      state.pieces.some((p) => p.teamId !== piece.teamId && p.position.q === hex.q && p.position.r === hex.r),
+      state.pieces.some((p) => p.position.q === hex.q && p.position.r === hex.r),
     );
     if (blocked) return { ok: false, reason: 'PATH_BLOCKED' };
   }
@@ -98,7 +99,7 @@ export function validatePass(
   // LONG cannot be intercepted in flight; returns empty interceptors.
   let interceptors: PlayerPiece[] = [];
   if (passType !== 'LONG') {
-    const travelPath = hexLine(from, to).slice(1); // exclude passer's own hex
+    const travelPath = hexLine(from, to).slice(1, -1); // exclude passer's hex and destination
     const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
     for (const hex of travelPath) {
       for (const defender of getZoIDefenders(hex, opponents)) {

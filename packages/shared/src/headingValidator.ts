@@ -50,8 +50,8 @@ export type HeadingOptions = {
  * Guard precedence:
  * 1. CONSECUTIVE_HEADER (HEAD-04) — checked BEFORE distance (FSM context dominates geometry)
  * 2. OUT_OF_RANGE (HEAD-01) — challenger must be ≤2 hexes from ball
- * 3. Uncontested (HEAD-02) — no other challengers → auto-win (contested:false)
- * 4. Contested — penaltyModifier based on distance, excludedPieceIds for HEAD-05
+ * 3. Uncontested (HEAD-02) — no other challengers → auto-win (contested:false, no modifier)
+ * 4. Contested — penaltyModifier computed here (dist===2 → -1), excludedPieceIds for HEAD-05
  *
  * @param _state - Game state (accepted for future eventLog use; Phase 2 uses options.previousActionWasHeadedPass)
  * @param challenger - The piece attempting the header
@@ -73,16 +73,14 @@ export function validateHeading(
   const dist = hexDistance(challenger.position, ballPosition);
   if (dist > 2) return { ok: false, reason: 'OUT_OF_RANGE' };
 
-  // Penalty modifier based on distance (HEAD-01)
-  const penaltyModifier = dist === 2 ? -1 : 0;
-
   // 3. HEAD-02: uncontested auto-win when no other challengers
   const otherIds = options.otherChallengerIds ?? [];
   if (otherIds.length === 0) {
     return { ok: true, contested: false };
   }
 
-  // 4. Contested — expose all participant IDs for HEAD-05 enforcement
+  // 4. Contested — penaltyModifier based on distance (HEAD-01), HEAD-05 excludedPieceIds
+  const penaltyModifier = dist === 2 ? -1 : 0;
   const excludedPieceIds: string[] = [challenger.id, ...otherIds];
   return { ok: true, contested: true, penaltyModifier, excludedPieceIds };
 }

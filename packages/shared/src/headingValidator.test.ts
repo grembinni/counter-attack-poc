@@ -96,6 +96,16 @@ describe('validateHeading', () => {
     }
   });
 
+  it('returns contested:false (uncontested) at distance 2 with no challengers (HEAD-02)', () => {
+    // challenger at {5,5}, ball at {7,5} → distance 2; penaltyModifier irrelevant for uncontested
+    const result = validateHeading(baseState, basePiece, { q: 7, r: 5 }, {
+      previousActionWasHeadedPass: false,
+      otherChallengerIds: [],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.contested).toBe(false);
+  });
+
   it('CONSECUTIVE_HEADER takes precedence over OUT_OF_RANGE (HEAD-04 checked first)', () => {
     // both conditions true: consecutive header AND distance > 2
     const result = validateHeading(baseState, basePiece, { q: 9, r: 5 }, {

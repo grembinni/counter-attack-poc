@@ -78,6 +78,14 @@ describe('validatePass', () => {
     if (result.ok) expect(result.interceptors).toEqual([]);
   });
 
+  it('rejects STANDARD pass with PATH_BLOCKED when teammate occupies intermediate hex', () => {
+    const blocker = makeTeammate('p2', 5, 0); // intermediate hex on line from {0,0} to {10,0}
+    const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
+    const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'STANDARD');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('PATH_BLOCKED');
+  });
+
   it('rejects STANDARD pass with PATH_BLOCKED when opponent occupies intermediate hex', () => {
     const blocker = makeOpponent('opp1', 5, 0); // intermediate hex on line from {0,0} to {10,0}
     const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
@@ -92,6 +100,15 @@ describe('validatePass', () => {
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'HIGH');
     // HIGH passes are not blocked by intermediate opponents
     expect(result.ok).toBe(true);
+  });
+
+  it('does NOT count an opponent adjacent only to the destination as an interceptor', () => {
+    // from {0,0} to {5,0}; opp at {6,0} is distance 1 from destination only — not flight path
+    const opp = makeOpponent('opp1', 6, 0);
+    const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+    const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.interceptors).toHaveLength(0);
   });
 
   it('returns interceptors[] containing every distance-1 opponent with no duplicates', () => {
