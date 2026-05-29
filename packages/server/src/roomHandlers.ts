@@ -6,7 +6,7 @@
  * and also (disconnect-only) for reconnected sockets.
  *
  * CONN-01: ROOM_CREATE emits ROOM_JOINED(roomCode, slot=1, sessionToken) to the creator.
- * CONN-02: ROOM_JOIN on success emits ROOM_JOINED(roomCode, slot=2, sessionToken) to both players.
+ * CONN-02: ROOM_JOIN on success emits ROOM_JOINED(roomCode, slot=2, sessionToken) to joining socket only; notifies existing player(s) without token.
  * CONN-03: Slot-2 join immediately calls broadcastState(io, room) — game starts automatically.
  * CONN-04: ROOM_JOIN guards NOT_FOUND and NOT_WAITING with distinct ROOM_ERROR reason strings.
  * ARCH-01: Server assigns slots deterministically; client never supplies a slot value.
@@ -50,7 +50,7 @@ type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerE
  *                        reconnect because the player is already in a room (RESEARCH.md Pitfall 3).
  *
  * CONN-01: ROOM_CREATE path — creates room, assigns slot 1, emits ROOM_JOINED with sessionToken.
- * CONN-02: ROOM_JOIN path — joins room, assigns slot 2, broadcasts ROOM_JOINED to both players.
+ * CONN-02: ROOM_JOIN path — joins room, assigns slot 2, emits ROOM_JOINED+token to joiner only; notifies others without token.
  * CONN-03: After slot-2 join, broadcastState emits LOBBY GameState — game starts automatically.
  * CONN-04: Error paths emit distinct ROOM_ERROR reasons (NOT_FOUND vs NOT_WAITING).
  * ARCH-01: Slot assigned server-side only; client never specifies or confirms slot.
@@ -67,7 +67,25 @@ export function registerRoomHandlers(
     // ROOM_CREATE
     // -----------------------------------------------------------------------
     socket.on(ClientEvents.ROOM_CREATE, () => {
-      const { roomCode, sessionToken } = createRoom(socket.id);
+      // WR-02: idempotency guard — prevent a client from creating multiple rooms per socket.
+      // Without this, each extra ROOM_CREATE call would write a new room to the store and
+      // overwrite socket.data.roomCode, leaving the previous room orphaned indefinitely.
+      if (socket.data.roomCode !== undefined) {
+        socket.emit(ServerEvents.ROOM_ERROR, 'ALREADY_IN_ROOM');
+        return;
+      }
+
+      // CR-02: createRoom throws if it cannot generate a unique code after 5 attempts.
+      // Socket.io does not catch synchronous throws in event handlers — an uncaught
+      // error here would crash the Node process. Catch and surface to the client instead.
+      let roomCode: string;
+      let sessionToken: string;
+      try {
+        ({ roomCode, sessionToken } = createRoom(socket.id));
+      } catch {
+        socket.emit(ServerEvents.ROOM_ERROR, 'SERVER_ERROR');
+        return;
+      }
 
       // Persist room context on the socket so the disconnect handler can find
       // the room without reading socket.rooms (RESEARCH.md Pitfall 2).
@@ -93,7 +111,12 @@ export function registerRoomHandlers(
         return;
       }
 
-      const result = joinRoom(roomCode, socket.id);
+      // WR-01: normalize to uppercase so mixed-case input ("abcde") finds room "ABCDE".
+      // All generated codes use the Crockford uppercase alphabet; case-sensitive lookup
+      // silently fails for clients without a text-transform constraint on the input field.
+      const normalizedCode = roomCode.trim().toUpperCase();
+
+      const result = joinRoom(normalizedCode, socket.id);
 
       if (!result.ok) {
         // CONN-04: emit distinct reason strings so the client can show different messages.
@@ -103,19 +126,25 @@ export function registerRoomHandlers(
       }
 
       // Success path: slot 2 assigned by server (ARCH-01).
-      socket.data.roomCode = roomCode;
+      socket.data.roomCode = normalizedCode;
       socket.data.playerSlot = 2;
       socket.data.sessionToken = result.sessionToken;
 
-      void socket.join(roomCode);
+      void socket.join(normalizedCode);
 
-      // CONN-02: broadcast ROOM_JOINED to the entire room so BOTH players hear it.
-      // This is the "both players are now in the room" signal for the client.
-      io.to(roomCode).emit(ServerEvents.ROOM_JOINED, roomCode, 2, result.sessionToken);
+      // CONN-02: send ROOM_JOINED to the joining socket (slot 2) with their credential.
+      // Do NOT use io.to(roomCode).emit — that would broadcast result.sessionToken to
+      // player 1's socket as well, allowing impersonation via reconnect (CR-01 fix).
+      socket.emit(ServerEvents.ROOM_JOINED, normalizedCode, 2, result.sessionToken);
+
+      // Notify the existing player(s) that slot 2 has joined without exposing the token.
+      // Empty string satisfies the typed event signature; client ignores the token field
+      // on this "room is full / game starting" notification.
+      socket.to(normalizedCode).emit(ServerEvents.ROOM_JOINED, normalizedCode, 2, '');
 
       // CONN-03 + ARCH-04: broadcast stub LOBBY GameState to both players immediately.
       // Game starts automatically when both players have joined.
-      const room = getRoom(roomCode);
+      const room = getRoom(normalizedCode);
       if (room) {
         broadcastState(io, room);
       }
