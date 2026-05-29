@@ -3,41 +3,41 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-05-29T15:45:12.490Z'
+last_updated: '2026-05-29'
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 3
-  percent: 11
+  completed_plans: 7
+  percent: 22
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 1 — not started
+Phase 3 — not started (next: `/gsd-plan-phase 3`)
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 02 — move-validator-unit-tests
+**Current focus:** Phase 03 — server-room-manager-socketio-scaffold
 
 ## Phase Status
 
-| Phase | Name                                     | Status      |
-| ----- | ---------------------------------------- | ----------- |
-| 1     | Monorepo Scaffold + Shared Types         | Not started |
-| 2     | Move Validator + Unit Tests              | Not started |
-| 3     | Server Room Manager + Socket.io Scaffold | Not started |
-| 4     | Game Engine + Phase FSM                  | Not started |
-| 5     | Dice Resolver + All Resolution Branches  | Not started |
-| 6     | React Hex Grid Renderer                  | Not started |
-| 7     | Client-Server Integration                | Not started |
-| 8     | Match Lifecycle + Post-Game Replay       | Not started |
-| 9     | AWS Deployment                           | Not started |
+| Phase | Name                                     | Status    | Completed  |
+| ----- | ---------------------------------------- | --------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types         | Complete  | 2026-05-28 |
+| 2     | Move Validator + Unit Tests              | Complete  | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold | Not started | -        |
+| 4     | Game Engine + Phase FSM                  | Not started | -        |
+| 5     | Dice Resolver + All Resolution Branches  | Not started | -        |
+| 6     | React Hex Grid Renderer                  | Not started | -        |
+| 7     | Client-Server Integration                | Not started | -        |
+| 8     | Match Lifecycle + Post-Game Replay       | Not started | -        |
+| 9     | AWS Deployment                           | Not started | -        |
 
 ## Blocking Dependencies
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md
 - **Hex orientation (SOFT BLOCK):** Flat-top vs pointy-top orientation not yet confirmed against physical board. Must be resolved before Phase 6 (`axialToPixel` formula and SVG polygon points depend on this).
 - **Team squad attributes:** Full 9-attribute sets for both hardcoded squads not yet defined. Must be finalised before Phase 5 dice resolution uses attribute values.
 - **Referee card behaviour:** Whether Leniency affects anything beyond added time is unconfirmed from rulebook v1.4.1. Hardcode one card for v1; clarify before Phase 8.
-- **Pass range distance type:** Rulebook distances (11/6/15 hex) not confirmed as hex-ring distance vs Manhattan. Must be verified before Phase 2 move validator is implemented.
-- **ZoI scope:** Whether ZoI blocks movement destinations or only pass/dribble paths is unconfirmed. Must be resolved before Phase 2.
+- **Pass range distance type:** Resolved in Phase 2 — implemented as axial hex distance (hexDistance). Physical rulebook verification pending before Phase 5 live use.
+- **ZoI scope:** Resolved in Phase 2 — ZoI triggers a STEAL_ATTEMPT for movement (moveValidator) and produces an interceptors list for passes (passValidator). Physical rulebook verification pending before Phase 5 live use.
 
 ## Accumulated Context
 
@@ -75,8 +75,6 @@ See: .planning/PROJECT.md
 
 ### Open Questions (resolve before indicated phase)
 
-- Phase 2: Pass range distance type (hex ring vs Manhattan)?
-- Phase 2: Does ZoI block movement destinations or only pass/dribble paths?
 - Phase 4/7: Are valid moves computed on piece selection or precomputed post-state?
 - Phase 5: Full attribute values for both hardcoded squads?
 - Phase 6: Flat-top or pointy-top hex orientation?
@@ -85,6 +83,8 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-05-27
-- Roadmap created, STATE.md initialised
-- Next action: `/gsd-plan-phase 1`
+- Last updated: 2026-05-29
+- Phase 2 complete: 95 tests (all green), build clean, 3 CR findings fixed
+- Phase 2 delivered: moveValidator, passValidator, shotValidator, headingValidator, snapshotValidator + scoreUtils + hex extensions
+- Two manual checks deferred to Phase 5: Loose Ball direction map, pass attribute mapping (aerialAbility/dribbling vs rulebook)
+- Next action: `/gsd-plan-phase 3`
