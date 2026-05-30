@@ -437,5 +437,83 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// game:gk-restart integration tests
+// ---------------------------------------------------------------------------
+
+describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', () => {
+  /**
+   * Seeds a room's gameState directly into GK_RESTART with the away GK as ball carrier.
+   * The away GK is piece 'away-0' (slot 1 = home = clientA; slot 2 = away = clientB).
+   * Returns the seeded state and which client controls the GK team (clientB = 'away').
+   */
+  function seedGKRestart(
+    roomCode: string,
+    clientA: ReturnType<typeof createClient>,
+    clientB: ReturnType<typeof createClient>,
+  ): {
+    gkTeamClient: ReturnType<typeof createClient>;
+    nonGKTeamClient: ReturnType<typeof createClient>;
+  } {
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) {
+      throw new Error('Room or gameState not found');
+    }
+
+    // Find the away GK piece
+    const awayGK = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK');
+    if (!awayGK) throw new Error('Away GK not found in game state');
+
+    // Seed state: GK_RESTART, away GK holds the ball
+    room.gameState = {
+      ...room.gameState,
+      phase: 'GK_RESTART',
+      ball: { position: awayGK.position, carrierId: awayGK.id },
+      attackingTeam: 'home', // home was attacking before the save
+      activeTeam: 'away', // GK team is now relevant
+    };
+
+    // clientA = slot 1 = 'home' = non-GK team (home was attacking, away GK caught)
+    // clientB = slot 2 = 'away' = GK team
+    return { gkTeamClient: clientB, nonGKTeamClient: clientA };
+  }
+
+  it("GK team socket emits 'movement' → both clients receive MOVEMENT state with attackingTeam = GK team (D-26)", async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+
+    // Reach KICK_OFF state (already at KICK_OFF after setupRoom; seed directly)
+    const { gkTeamClient } = seedGKRestart(roomCode, clientA, clientB);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    gkTeamClient.emit(ClientEvents.GAME_GK_RESTART, 'movement');
+    const [newState] = await statePromise;
+
+    expect(newState.phase).toBe('MOVEMENT');
+    expect(newState.attackingTeam).toBe('away'); // GK team (away) now attacks
+    expect(newState.lastDiceRoll).toBeNull();
+  });
+
+  it('non-GK socket emits game:gk-restart → game:error WRONG_TEAM; phase unchanged (T-05-07)', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const { nonGKTeamClient } = seedGKRestart(roomCode, clientA, clientB);
+
+    const errorPromise = oncePromise(nonGKTeamClient, ServerEvents.GAME_ERROR);
+    nonGKTeamClient.emit(ClientEvents.GAME_GK_RESTART, 'movement');
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_TEAM');
+  });
+
+  it('GK socket emits invalid choice → game:error INVALID_CHOICE (T-05-08)', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const { gkTeamClient } = seedGKRestart(roomCode, clientA, clientB);
+
+    const errorPromise = oncePromise(gkTeamClient, ServerEvents.GAME_ERROR);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    gkTeamClient.emit(ClientEvents.GAME_GK_RESTART, 'punt' as any);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_CHOICE');
+  });
+});
+
 // Export helpers for potential reuse
 export { setupRoom, createClient, oncePromise, waitForConnect };

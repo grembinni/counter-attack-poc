@@ -30,7 +30,14 @@ import type {
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
-import { applyEndTurn, applyMove, applyRoll, applyStartMovement, applyUndo } from './gameEngine.js';
+import {
+  applyEndTurn,
+  applyGKRestart,
+  applyMove,
+  applyRoll,
+  applyStartMovement,
+  applyUndo,
+} from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
 import type { GameState } from '@counter-attack/shared';
@@ -82,6 +89,22 @@ function isActivePlayer(socket: AppSocket, room: Room): boolean {
 function controlsAttackingTeam(socket: AppSocket, room: Room): boolean {
   if (room.gameState === null) return false;
   return socketTeam(socket) === room.gameState.attackingTeam;
+}
+
+/**
+ * Returns true when the socket's controlled team is the GK's team.
+ *
+ * The GK team is derived from ball.carrierId — in GK_RESTART the ball carrier is the GK.
+ * This avoids reading socket.rooms (Pitfall 2) and avoids a separate gkTeam state field.
+ * T-05-07: gates game:gk-restart (only the GK's team may restart).
+ *
+ * Open Question 3 resolution: GK team derived from ball ownership, not a stored field.
+ */
+function controlsGKTeam(socket: AppSocket, room: Room): boolean {
+  if (room.gameState === null || room.gameState.ball.carrierId === null) return false;
+  const gkPiece = room.gameState.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
+  if (!gkPiece) return false;
+  return socketTeam(socket) === gkPiece.teamId;
 }
 
 /**
@@ -266,6 +289,54 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       const d2 = rollDice();
       const d3 = rollDice();
       const result = applyRoll(room.gameState, d1, d2, d3);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04: single broadcast entry point
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GK_RESTART — GK team chooses kick/throw/movement after a save catch
+  // T-05-07: controlsGKTeam guard — only the GK's team may restart
+  // T-05-08: choice payload validated against allowed values before dispatch (ASVS V5)
+  // T-05-09: phase guard requires GK_RESTART (D-23)
+  // T-05-10: isProcessing mutex prevents double-click race (SC-5)
+  // D-10: single broadcastState after each resolution (ARCH-04)
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_RESTART, (choice: 'kick' | 'throw' | 'movement') => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard (T-05-09): must be in GK_RESTART (D-23)
+      if (room.gameState === null || room.gameState.phase !== 'GK_RESTART') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Team guard (T-05-07): must be the GK's team — derived from ball.carrierId (Open Q3)
+      if (!controlsGKTeam(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Payload validation (T-05-08): never trust client input (ASVS V5)
+      if (!['kick', 'throw', 'movement'].includes(choice)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_CHOICE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Dispatch: pass rollDice as the injected die function (pure engine, deterministic tests)
+      const result = applyGKRestart(room.gameState, choice, rollDice);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
