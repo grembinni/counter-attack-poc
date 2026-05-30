@@ -12,9 +12,10 @@ const shooter: PlayerPiece = {
   dribbling: 5,
   heading: 5,
   saving: 1,
-  handling: 1,
+  handling: 0, // D-06: outfielders handling=0
   resilience: 5,
-  aerialAbility: 5,
+  aerialAbility: 0, // D-05: outfielders aerialAbility=0
+  highPass: 5, // D-04: FWD range 4–6
   name: 'Test Shooter',
   role: 'FWD',
 };
@@ -32,6 +33,7 @@ const goalkeeper: PlayerPiece = {
   handling: 5,
   resilience: 5,
   aerialAbility: 5,
+  highPass: 0, // D-04: GKs highPass=0
   name: 'Test GK',
   role: 'GK',
 };
@@ -50,17 +52,17 @@ describe('validateShotDuel', () => {
     expect(result.outcome).toBe('GOAL');
   });
 
-  it('returns SAVE with needsHandlingCheck when gkScore >= shooterScore', () => {
-    // shooter: 7+2=9 vs gk: 7+3=10 → SAVE
+  it('returns SAVE with needsHandlingCheck when gkScore strictly exceeds shooterScore', () => {
+    // shooter: 7+2=9 vs gk: 7+3=10 → gk strictly greater → SAVE
     const result = validateShotDuel(shooter, goalkeeper, 2, 3, [], []);
     expect(result.outcome).toBe('SAVE');
     if (result.outcome === 'SAVE') expect(result.needsHandlingCheck).toBe(true);
   });
 
-  it('ties go to the GK (SAVE) — equal scores → SAVE not GOAL', () => {
-    // shooter: 7+3=10 vs gk: 7+3=10 → tie → SAVE
+  it('equal scores produce LOOSE_BALL (D-13) — tie no longer goes to GK', () => {
+    // shooter: 7+3=10 vs gk: 7+3=10 → tie → LOOSE_BALL per D-13
     const result = validateShotDuel(shooter, goalkeeper, 3, 3, [], []);
-    expect(result.outcome).toBe('SAVE');
+    expect(result.outcome).toBe('LOOSE_BALL');
   });
 
   it('applies DICE-04 -2 cap to shooter penalties', () => {

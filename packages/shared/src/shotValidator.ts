@@ -17,13 +17,14 @@ import { computeCombinedScore } from './scoreUtils.js';
  * Discriminated union for shot duel outcome.
  *
  * AUTO_MISS is emitted before attribute calculation when shooterDice === 1 (SHOT-03).
- * SAVE always carries needsHandlingCheck:true — caller invokes validateHandlingCheck.
- * Ties go to the GK (SAVE) — determined by strict `>` comparison.
+ * SAVE carries needsHandlingCheck:true — caller invokes validateHandlingCheck.
+ * D-13 (Phase 5): Ties (equal scores) produce LOOSE_BALL, not SAVE.
  */
 export type ShotDuelResult =
   | { outcome: 'GOAL' }
   | { outcome: 'MISS'; reason: 'AUTO_MISS' }
-  | { outcome: 'SAVE'; needsHandlingCheck: true };
+  | { outcome: 'SAVE'; needsHandlingCheck: true }
+  | { outcome: 'LOOSE_BALL' }; // D-13: tie → Loose Ball (replaces SAVE on equal scores)
 
 /** GK dive savability result based on distance from shot origin (SHOT-04). */
 export type DiveResult =
@@ -40,7 +41,7 @@ export type HandlingResult = { caught: true } | { caught: false; triggerLooseBal
  * shot is a miss regardless of attributes or GK dice.
  *
  * SHOT-01: Combined scores are computed via computeCombinedScore (DICE-04 -2 cap applied centrally).
- * Result: GOAL if shooterScore > gkScore; SAVE otherwise (ties go to the GK per strict `>`).
+ * Result: GOAL if shooterScore > gkScore; LOOSE_BALL if equal (D-13); SAVE if gkScore strictly greater.
  *
  * SHOT-02: Outside-area penalty (+GK 1-hex move permitted) requires pitch-area boundary detection,
  * deferred to Phase 4. See getOutsideAreaModifiers() for the static modifier constants.
@@ -66,8 +67,8 @@ export function validateShotDuel(
   const shooterScore = computeCombinedScore(shooter.shooting, shooterDice, shooterPenalties);
   const gkScore = computeCombinedScore(goalkeeper.saving, gkDice, gkPenalties);
 
-  // Strict `>`: ties go to the GK (SAVE not GOAL)
   if (shooterScore > gkScore) return { outcome: 'GOAL' };
+  if (shooterScore === gkScore) return { outcome: 'LOOSE_BALL' }; // D-13: tie → Loose Ball
   return { outcome: 'SAVE', needsHandlingCheck: true };
 }
 

@@ -3,16 +3,15 @@
  *
  * PASS-01: Standard Pass — max 11 hexes; blocked by opponents in the path.
  * PASS-02: First-time Pass — max 6 hexes; signals FIRST_TIME_PLAYER_MOVES effect.
- * PASS-03: High Pass — max 15 hexes; accuracy check required (aerialAbility vs threshold 8).
+ * PASS-03: High Pass — max 15 hexes; accuracy check required (highPass vs threshold 8).
  * PASS-04: Long Pass — no distance cap; LANDING_RESTRICTED when target is within 5 hexes of own
  *          teammate (excluding passer) or adjacent (≤1 hex) to any opponent; accuracy check (dribbling,
  *          threshold 9 same-third / 10 cross-third).
  * PASS-05: Inaccurate High/Long pass triggers Loose Ball (triggerLooseBall: true in AccuracyResult).
  *
- * Attribute mapping (assumption A1 — flagged for Phase 4 verification before live use):
- * - High Pass accuracy uses piece.aerialAbility
+ * Attribute mapping (D-04, D-14 Phase 5 verified):
+ * - High Pass accuracy uses piece.highPass
  * - Long Pass accuracy uses piece.dribbling
- * TODO: Verify mapping against physical rulebook before Phase 4 live use (CONTEXT.md Open Questions).
  */
 
 import type { GameState, PlayerPiece, HexCoord } from './types.js';
@@ -97,7 +96,7 @@ export function validatePass(
 
   // 5. Interception list — opponents within 1 hex of any travel-path hex (D-05)
   // LONG cannot be intercepted in flight; returns empty interceptors.
-  let interceptors: PlayerPiece[] = [];
+  const interceptors: PlayerPiece[] = [];
   if (passType !== 'LONG') {
     const travelPath = hexLine(from, to).slice(1, -1); // exclude passer's hex and destination
     const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
@@ -122,9 +121,9 @@ export function validatePass(
  *
  * Thresholds (PASS-03/PASS-04): HIGH = 8, LONG_SAME_THIRD = 9, LONG_CROSS_THIRD = 10.
  *
- * Attribute mapping (assumption A1 — flagged for Phase 4 verification):
- * - HIGH: piece.aerialAbility
- * - LONG_SAME_THIRD / LONG_CROSS_THIRD: piece.dribbling
+ * Attribute mapping (D-04, D-14 Phase 5 verified):
+ * - High Pass accuracy uses piece.highPass
+ * - Long Pass accuracy uses piece.dribbling
  *
  * PASS-05: An inaccurate result carries triggerLooseBall:true to signal the Loose Ball sequence.
  *
@@ -140,8 +139,8 @@ export function validatePassAccuracy(
   penalties: number[],
 ): AccuracyResult {
   const threshold = passType === 'HIGH' ? 8 : passType === 'LONG_SAME_THIRD' ? 9 : 10;
-  // A1: assumed attribute mapping — verify against rulebook before Phase 4 live use
-  const attribute = passType === 'HIGH' ? piece.aerialAbility : piece.dribbling;
+  // D-14 (Phase 5): HIGH pass uses highPass attribute, not aerialAbility.
+  const attribute = passType === 'HIGH' ? piece.highPass : piece.dribbling;
   const score = computeCombinedScore(attribute, diceValue, penalties);
   return score >= threshold ? { accurate: true } : { accurate: false, triggerLooseBall: true };
 }

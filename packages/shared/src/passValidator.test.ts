@@ -14,7 +14,8 @@ const basePiece: PlayerPiece = {
   saving: 1,
   handling: 5,
   resilience: 5,
-  aerialAbility: 3,
+  aerialAbility: 0, // D-05: outfielders aerialAbility=0
+  highPass: 3,
   name: 'Test Player',
   role: 'MID',
 };
@@ -192,12 +193,12 @@ describe('validatePass', () => {
 });
 
 describe('validatePassAccuracy', () => {
-  it('HIGH pass: aerialAbility 3 + dice 5 = 8 → accurate (threshold 8)', () => {
+  it('HIGH pass: highPass 3 + dice 5 = 8 → accurate (threshold 8, D-14)', () => {
     const result = validatePassAccuracy(basePiece, 'HIGH', 5, []);
     expect(result.accurate).toBe(true);
   });
 
-  it('HIGH pass: aerialAbility 3 + dice 4 = 7 → inaccurate with triggerLooseBall', () => {
+  it('HIGH pass: highPass 3 + dice 4 = 7 → inaccurate with triggerLooseBall (D-14)', () => {
     const result = validatePassAccuracy(basePiece, 'HIGH', 4, []);
     expect(result.accurate).toBe(false);
     if (!result.accurate) expect(result.triggerLooseBall).toBe(true);
