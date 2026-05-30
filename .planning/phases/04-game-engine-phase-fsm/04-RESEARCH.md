@@ -633,22 +633,22 @@ export function isInPenaltyArea(hex: HexCoord, team: 'home' | 'away'): boolean {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`game:move` payload shape: piece ID vs. from-coord**
    - What we know: current `ClientToServerEvents` defines `game:move` as `(from: HexCoord, to: HexCoord) => void`
    - What's unclear: the server must identify which piece is moving. Using `from` coord requires a lookup (`pieces.find(p => p.position.q === from.q && p.position.r === from.r)`). Alternatively, the payload could include `pieceId` directly.
-   - Recommendation: Add `pieceId: string` to the `game:move` payload (extend `ClientToServerEvents`). The from-coord is redundant if we trust the server's state. This eliminates ambiguity when two pieces occupy adjacent hexes and the client click is near the boundary. [ASSUMED — change to event signature]
+   - RESOLVED: Added `pieceId: string` to the `game:move` payload in events.ts (04-01/T1). The from-coord is eliminated to remove adjacency ambiguity. The server looks up `piece.position` from state, never trusting a client-supplied from-coord (T-4-03).
 
 2. **`attackingTeam` vs. deriving from `activeTeam`**
    - What we know: `activeTeam: 'home' | 'away'` is already on `GameState`
    - What's unclear: does `activeTeam` track who is currently moving (switches each slot) or who the attacker is (constant per Movement Phase)?
-   - Recommendation: Add `attackingTeam: 'home' | 'away'` as the constant for the phase, and make `activeTeam` track the currently-moving team (the one who should be sending actions in this slot).
+   - RESOLVED: Added `attackingTeam: 'home' | 'away'` as the constant for the phase (set at coin flip, unchanged through Movement Phase). `activeTeam` tracks the currently-moving team (switches each slot per `activeTeamForSlot()` in gameEngine.ts). Implemented in 04-01/T1 (types) and 04-02/T1 (engine).
 
 3. **MOVE-06 free move: does it interrupt the current slot or append after ATTACKER_2?**
    - What we know: "all pieces in the opposite final third get a free 6-hex move (attacking team first)" — D-15
    - What's unclear: does this create a new sub-slot mid-Movement-Phase, or does it append before the next game phase?
-   - Recommendation: Treat as a new FSM state `FREE_MOVE` that suspends normal slot advancement. The handler detects `pendingFreeMove` on the state and routes `game:move` through free-move rules. After free-move exhausted, resume normal FSM state. [ASSUMED]
+   - RESOLVED: `pendingFreeMove: { team, hexesAllowed: 6 }` is set on the GameState when the ball carrier crosses between final thirds (detected in `applyMove` in 04-02/T2). Phase 5 enforces the actual free-move grant via a `FREE_MOVE` FSM sub-state; Phase 4 only detects and records the condition.
 
 ---
 
