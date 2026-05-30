@@ -773,3 +773,142 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       return { ok: false, reason: 'WRONG_PHASE' };
   }
 }
+
+// ---------------------------------------------------------------------------
+// applyGKRestart
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGKRestart. */
+export type ApplyGKRestartResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' | 'INVALID_CHOICE' }
+  | { ok: true; state: GameState };
+
+/**
+ * Applies a GK restart choice after the goalkeeper catches the ball (SHOT-05).
+ *
+ * The GK's team chooses one of three options when `GameState.phase === 'GK_RESTART'`:
+ * - 'kick': High Pass accuracy check (GK's highPass attribute); accurate → MOVEMENT with
+ *   ball held by GK; inaccurate → Loose Ball from GK position, MOVEMENT.
+ * - 'throw': uninterceptable delivery; v1 = movement-phase start with ball held by GK.
+ *   targetHex delivery (D-25 full intent) deferred to Phase 7. Intentionally equivalent
+ *   to 'movement' in engine state today — kept distinct for Phase 7 extension point.
+ * - 'movement': GK's team starts a Movement Phase immediately (no dice needed, D-26).
+ *
+ * ARCH-01: applyGKRestart is pure — it does NOT call rollDice() itself. The rollDie
+ * function is injected by the caller (handler passes rollDice) so the engine stays
+ * deterministic for unit tests.
+ *
+ * D-22: triggered by the game:gk-restart Socket.io event.
+ * D-23: team guard is the handler's responsibility (controlsGKTeam); engine trusts
+ *       the GK piece is correct via ball.carrierId lookup.
+ * D-24: kick uses validatePassAccuracy(gk, 'HIGH', rollDie(), []) — GK's highPass
+ *       attribute means kicks are almost always inaccurate, making throw/movement
+ *       meaningful alternatives. Range restriction (no kick into opposite final third)
+ *       is deferred per CONTEXT.md Deferred Ideas.
+ * D-25: throw sets ball.carrierId = gk.id (no separate accuracy roll; no targetHex in v1).
+ * D-26: movement transitions phase to MOVEMENT with attackingTeam = GK's team.
+ *
+ * @param state   - Current game state (phase must be GK_RESTART)
+ * @param choice  - One of 'kick' | 'throw' | 'movement'
+ * @param rollDie - Injected d6 function; called 1 time for kick accuracy + 2 more on inaccurate
+ */
+export function applyGKRestart(
+  state: GameState,
+  choice: 'kick' | 'throw' | 'movement',
+  rollDie: () => number,
+): ApplyGKRestartResult {
+  // 1. Phase guard (D-23)
+  if (state.phase !== 'GK_RESTART') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. Validate choice (ASVS V5 — never trust client input; validated here and in handler)
+  if (choice !== 'kick' && choice !== 'throw' && choice !== 'movement') {
+    return { ok: false, reason: 'INVALID_CHOICE' };
+  }
+
+  // 3. Look up the GK piece via ball.carrierId (Open Question 3 resolution: derive GK team
+  //    from ball ownership rather than storing a separate gkTeam field)
+  const gk = state.pieces.find((p) => p.id === state.ball.carrierId);
+  if (!gk) {
+    // Defensive: GK_RESTART requires a ball carrier; malformed state
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gkTeam = gk.teamId;
+
+  // ---- 'movement' branch (D-26) ----
+  if (choice === 'movement') {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'MOVEMENT',
+        attackingTeam: gkTeam,
+        activeTeam: gkTeam,
+        // Ball stays with GK (carrierId unchanged)
+        lastDiceRoll: null,
+      },
+    };
+  }
+
+  // ---- 'throw' branch (D-25) ----
+  // v1 SCOPE CONSTRAINT (deliberate): throw = movement-phase start with ball held by GK.
+  // targetHex delivery is deferred to Phase 7 (click-to-target UI). 'throw' and 'movement'
+  // produce identical engine state today; they are kept distinct so Phase 7 only has to
+  // extend the 'throw' branch (add targetHex parameter), not reintroduce it.
+  if (choice === 'throw') {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'MOVEMENT',
+        attackingTeam: gkTeam,
+        activeTeam: gkTeam,
+        // Ball stays with GK; uninterceptable (D-25), no accuracy roll
+        lastDiceRoll: null,
+      },
+    };
+  }
+
+  // ---- 'kick' branch (D-24) ----
+  // GK kick = High Pass accuracy check using GK's highPass attribute + injected dice roll.
+  const kickDice = rollDie();
+  const accuracyResult = validatePassAccuracy(gk, 'HIGH', kickDice, []);
+
+  if (accuracyResult.accurate) {
+    // Accurate kick: ball stays with GK (v1 — intended target delivery is implicit in
+    // the subsequent movement/pass phase). Phase → MOVEMENT; attackingTeam = GK team.
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'MOVEMENT',
+        attackingTeam: gkTeam,
+        activeTeam: gkTeam,
+        // Ball stays with GK for the movement phase (similar to accurate throw delivery)
+        lastDiceRoll: { rolls: [kickDice], context: 'GK_KICK' },
+      },
+    };
+  } else {
+    // Inaccurate kick: Loose Ball from GK's current position (D-24, D-15 same as inaccurate High Pass)
+    const directionDice = rollDie();
+    const distanceDice = rollDie();
+    const landing = computeLooseBall(
+      gk.position,
+      directionDice as 1 | 2 | 3 | 4 | 5 | 6,
+      distanceDice as 1 | 2 | 3 | 4 | 5 | 6,
+    );
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'MOVEMENT',
+        attackingTeam: gkTeam,
+        activeTeam: gkTeam,
+        ball: { position: landing, carrierId: null },
+        lastDiceRoll: { rolls: [kickDice, directionDice, distanceDice], context: 'GK_KICK' },
+      },
+    };
+  }
+}
