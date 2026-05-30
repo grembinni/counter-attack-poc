@@ -110,4 +110,10 @@ export type GameState = {
   movedPieceIds: readonly string[];
   paceUsedByPieceId: Readonly<Record<string, number>>;
   movementSlot: MovementSlot | null;
+  /**
+   * D-15 / MOVE-06: set when the ball carrier crosses between final thirds.
+   * Grants the scoring team a free 6-hex movement. Phase 5 enforces the grant.
+   * null or absent when no free move is pending.
+   */
+  pendingFreeMove?: { team: 'home' | 'away'; hexesAllowed: number } | null;
 };
