@@ -17,6 +17,7 @@ Two friends can open a browser, share a room code, and play a complete match of 
 - ARCH-07: packages/shared has zero socket.io/express/honeycomb-grid imports — validation logic fully isolated (Validated in Phase 1)
 - MOVE-01..05, PASS-01..05, HEAD-01..05, SNAP-01..03, SHOT-01..04, SHOT-06, DICE-03..05: All rule validators implemented as pure functions with 95 passing unit tests (Validated in Phase 2: Move Validator + Unit Tests, 2026-05-29)
 - CONN-01, CONN-02, CONN-03, CONN-04, ARCH-01, ARCH-04: Room create/join, session middleware, reconnect with 90s grace timer, full-snapshot broadcast — live Socket.io server with 126 passing tests (Validated in Phase 3: Server Room Manager + Socket.io Scaffold, 2026-05-29)
+- TEAM-01, TEAM-02, TEAM-03, PITCH-01, PITCH-02, PITCH-03: Hardcoded squads (11 players × 9 attributes each), pitch regions with O(1) Set lookups, 4-5-2 FSM over Socket.io with isProcessing mutex, undo, and KICK_OFF→MOVEMENT wire path — 187 passing tests (Validated in Phase 4: Game Engine + Phase FSM, 2026-05-30)
 
 ### Active
 
