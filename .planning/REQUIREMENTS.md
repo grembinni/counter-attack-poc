@@ -66,8 +66,8 @@
 
 ### Dice & Resolution
 
-- [ ] **DICE-01**: All dice rolls are generated server-side using a cryptographically random source
-- [ ] **DICE-02**: Active player clicks a "Roll" button to trigger the roll; result is broadcast to both clients simultaneously
+- [x] **DICE-01**: All dice rolls are generated server-side using a cryptographically random source
+- [x] **DICE-02**: Active player clicks a "Roll" button to trigger the roll; result is broadcast to both clients simultaneously
 - [ ] **DICE-03**: Combined score = player attribute + dice result; used for all accuracy checks and duels
 - [ ] **DICE-04**: Maximum cumulative dice penalty on any single roll is -2
 - [ ] **DICE-05**: Loose Ball: server rolls direction (1-6 matching pitch deflection ruler) and distance (1-6 hexes) from the incident centre; result broadcast to both clients
