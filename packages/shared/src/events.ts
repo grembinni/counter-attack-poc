@@ -9,6 +9,7 @@ export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   GAME_MOVE: 'game:move',
   GAME_ROLL: 'game:roll',
+  GAME_GK_RESTART: 'game:gk-restart',
   GAME_END_TURN: 'game:end-turn',
   GAME_UNDO: 'game:undo',
   GAME_START_MOVEMENT: 'game:start-movement',
@@ -32,6 +33,8 @@ export interface ClientToServerEvents {
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
   [ClientEvents.GAME_ROLL]: () => void;
+  /** D-22 (Phase 5): GK restart choice after a save catch. Payload validated server-side. */
+  [ClientEvents.GAME_GK_RESTART]: (choice: 'kick' | 'throw' | 'movement') => void;
   [ClientEvents.GAME_END_TURN]: () => void;
   [ClientEvents.GAME_UNDO]: () => void;
   /** Wire path for FSM KICK_OFF → MOVEMENT transition. D-01, 04-02/T1. */

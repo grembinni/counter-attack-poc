@@ -13,6 +13,13 @@ export type PlayerPiece = {
   handling: number;
   resilience: number;
   aerialAbility: number;
+  /**
+   * D-04 (Phase 5): High Pass accuracy attribute.
+   * Outfielders: meaningful value (3–8 by position/role).
+   * GKs: 0 — GKs use High Pass mechanics for kicks but have low accuracy by design.
+   * Context string values for lastDiceRoll: 'PASS_ACCURACY' | 'SHOT_DUEL' | 'HEADING_DUEL' | 'LOOSE_BALL' | 'GK_KICK'
+   */
+  highPass: number;
   /** Player display name (e.g. 'Home GK', 'Away FWD 1'). TEAM-02 */
   name: string;
   /** Positional role. TEAM-02 */
@@ -116,4 +123,14 @@ export type GameState = {
    * null or absent when no free move is pending.
    */
   pendingFreeMove?: { team: 'home' | 'away'; hexesAllowed: number } | null;
+  /**
+   * D-11 / Phase 5: Dice rolls from the most recent dice action.
+   * Embedded in GameState so both clients see the rolls before rendering the outcome.
+   * null when no dice have been rolled yet (KICK_OFF, LOBBY phases).
+   * Context string values: 'PASS_ACCURACY' | 'SHOT_DUEL' | 'HEADING_DUEL' | 'LOOSE_BALL' | 'GK_KICK'
+   */
+  lastDiceRoll?: {
+    rolls: number[]; // ordered dice values; length varies by context (1–3)
+    context: string;
+  } | null;
 };
