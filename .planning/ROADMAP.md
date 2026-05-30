@@ -132,7 +132,7 @@ Plans:
 4. Loose Ball resolution rolls direction (1-6) and distance (1-6 hexes) from the incident hex and updates ball position in the broadcast state
 5. After catching the ball, the goalkeeper's `game:state` reflects a `GK_RESTART` phase in which the GK player can choose kick (High Pass accuracy check), quick throw (Standard Pass distance, uninterceptable), or start a Movement Phase
 
-**Plans:** TBD
+**Plans:** 1/3 plans executed
 
 ### Phase 6: React Hex Grid Renderer
 
@@ -207,7 +207,7 @@ Plans:
 | 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
 | 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
+| 5. Dice Resolver + All Resolution Branches  | 1/3            | In Progress |            |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |

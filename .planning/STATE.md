@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-05-30T12:32:36.104Z'
+last_updated: '2026-05-30T13:00:31.180Z'
 progress:
   total_phases: 9
   completed_phases: 4
@@ -23,7 +23,7 @@ Phase 3 — not started (next: `/gsd-plan-phase 3`)
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 5 — dice resolver + all resolution branches
+**Current focus:** Phase 05 — dice-resolver-all-resolution-branches
 
 ## Phase Status
 
