@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
-import { clearAllRooms } from '../roomStore.js';
+import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 
@@ -331,6 +331,110 @@ describe('game integration — Movement Phase scenarios', () => {
   it.todo(
     'MOVE-06 free-move — engine-covered in gameEngine.test.ts; full wire exercise lands with the free-move handler in Phase 5',
   );
+});
+
+// ---------------------------------------------------------------------------
+// Helper: drive a room to PASS phase
+// ---------------------------------------------------------------------------
+
+/**
+ * Drives a room from KICK_OFF through all three movement slots to reach PASS phase.
+ * Returns the PASS-phase GameState.
+ */
+async function reachPassPhase(
+  attackingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
+  defendingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
+  listenerSocket: Socket<ServerToClientEvents, ClientToServerEvents>,
+): Promise<GameState> {
+  // Start movement (KICK_OFF → MOVEMENT/ATTACKER_4)
+  const movementState = await startMovement(attackingClient, listenerSocket);
+  expect(movementState.movementSlot).toBe('ATTACKER_4');
+
+  // ATTACKER_4 → DEFENDER_5
+  const slot2Promise = oncePromise(listenerSocket, ServerEvents.GAME_STATE);
+  attackingClient.emit(ClientEvents.GAME_END_TURN);
+  await slot2Promise;
+
+  // DEFENDER_5 → ATTACKER_2
+  const slot3Promise = oncePromise(listenerSocket, ServerEvents.GAME_STATE);
+  defendingClient.emit(ClientEvents.GAME_END_TURN);
+  await slot3Promise;
+
+  // ATTACKER_2 → PASS
+  const passPromise = oncePromise(listenerSocket, ServerEvents.GAME_STATE);
+  attackingClient.emit(ClientEvents.GAME_END_TURN);
+  const [passState] = await passPromise;
+  expect(passState.phase).toBe('PASS');
+  return passState;
+}
+
+// ---------------------------------------------------------------------------
+// game:roll integration tests
+// ---------------------------------------------------------------------------
+
+describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
+  it('game:roll from active player in PASS phase → both clients receive game:state with lastDiceRoll and phase advanced', async () => {
+    const { clientA, attackingClient, defendingClient, roomCode, state } = await setupRoom();
+    const passState = await reachPassPhase(attackingClient, defendingClient, clientA);
+    expect(passState.phase).toBe('PASS');
+
+    // Set a ball carrier on the server so applyRoll can find the carrier piece.
+    // In a real game the ball carrier is set when a player explicitly carries the ball;
+    // for this integration test we wire it directly via the room store.
+    const room = getRoom(roomCode);
+    if (room?.gameState) {
+      // Pick the first outfielder of the attacking team as the ball carrier
+      const carrierId = `${state.attackingTeam}-1`;
+      const carrier = room.gameState.pieces.find((p) => p.id === carrierId);
+      if (carrier) {
+        room.gameState = {
+          ...room.gameState,
+          ball: { position: carrier.position, carrierId },
+        };
+      }
+    }
+
+    // Both clients should receive the updated state
+    const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+
+    // Active player (attackingClient) emits game:roll
+    attackingClient.emit(ClientEvents.GAME_ROLL);
+
+    // Wait for state from clientA perspective
+    const [newState] = await statePromiseA;
+
+    // lastDiceRoll must be populated (D-10: single broadcast with rolls embedded)
+    expect(newState.lastDiceRoll).toBeDefined();
+    expect(newState.lastDiceRoll).not.toBeNull();
+    expect(newState.lastDiceRoll?.rolls).toBeDefined();
+    expect(newState.lastDiceRoll?.rolls?.length ?? 0).toBeGreaterThanOrEqual(1);
+
+    // Phase must have advanced from PASS (to SHOT or LOOSE_BALL depending on dice)
+    expect(newState.phase).not.toBe('PASS');
+    expect(['SHOT', 'LOOSE_BALL']).toContain(newState.phase);
+  });
+
+  it('game:roll from WRONG_TEAM (non-active player) in PASS phase → game:error WRONG_TEAM', async () => {
+    const { clientA, attackingClient, defendingClient } = await setupRoom();
+    await reachPassPhase(attackingClient, defendingClient, clientA);
+
+    // Non-active player emits game:roll
+    const errorPromise = oncePromise(defendingClient, ServerEvents.GAME_ERROR);
+    defendingClient.emit(ClientEvents.GAME_ROLL);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_TEAM');
+  });
+
+  it('game:roll in MOVEMENT phase (non-dice phase) → game:error WRONG_PHASE', async () => {
+    const { clientA, attackingClient } = await setupRoom();
+    await startMovement(attackingClient, clientA);
+    // We are now in MOVEMENT phase — game:roll is invalid
+
+    const errorPromise = oncePromise(attackingClient, ServerEvents.GAME_ERROR);
+    attackingClient.emit(ClientEvents.GAME_ROLL);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_PHASE');
+  });
 });
 
 // Export helpers for potential reuse

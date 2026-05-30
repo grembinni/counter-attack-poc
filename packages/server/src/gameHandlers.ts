@@ -30,12 +30,19 @@ import type {
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
-import { applyEndTurn, applyMove, applyStartMovement, applyUndo } from './gameEngine.js';
+import { applyEndTurn, applyMove, applyRoll, applyStartMovement, applyUndo } from './gameEngine.js';
+import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
 import type { GameState } from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+
+/**
+ * Phases that require a dice roll from the active player.
+ * GK_RESTART is handled by the separate game:gk-restart handler (Plan 03, D-12/D-22).
+ */
+const DICE_PHASES = new Set<string>(['PASS', 'SHOT', 'HEADER', 'LOOSE_BALL']);
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -224,6 +231,50 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_ROLL — rolls dice and resolves the current stochastic phase
+  // T-05-03: WRONG_TEAM guard rejects non-active sockets before dice are generated
+  // T-05-04: WRONG_PHASE guard limits resolution to DICE_PHASES (PASS/SHOT/HEADER/LOOSE_BALL)
+  // T-05-05: isProcessing mutex prevents double-click race (SC-5)
+  // D-10: single broadcastState after each resolution (ARCH-04)
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_ROLL, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard — must be in a dice-requiring phase (T-05-04)
+      if (room.gameState === null || !DICE_PHASES.has(room.gameState.phase)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Team guard — must be the active player (T-05-03)
+      if (!isActivePlayer(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Pre-generate all dice the branch may need (Pitfall 4 — upfront, before any validator call)
+      const d1 = rollDice();
+      const d2 = rollDice();
+      const d3 = rollDice();
+      const result = applyRoll(room.gameState, d1, d2, d3);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04: single broadcast entry point
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
   });
 }
