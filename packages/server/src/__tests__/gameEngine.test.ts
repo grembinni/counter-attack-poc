@@ -6,6 +6,7 @@ import {
   applyMove,
   applyEndTurn,
   applyUndo,
+  applyRoll,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -27,7 +28,8 @@ const homePiece: PlayerPiece = {
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 5,
+  aerialAbility: 0,
+  highPass: 5, // D-04: FWD has meaningful highPass; aerialAbility: 0 per D-05
 };
 
 const awayPiece: PlayerPiece = {
@@ -44,7 +46,8 @@ const awayPiece: PlayerPiece = {
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 5,
+  aerialAbility: 0,
+  highPass: 5, // D-04: FWD has meaningful highPass; aerialAbility: 0 per D-05
 };
 
 /** Minimal MOVEMENT-phase fixture for testing engine mutations. */
@@ -342,5 +345,286 @@ describe('applyUndo', () => {
     const result = applyUndo(baseMovementState); // no moves yet
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('NOTHING_TO_UNDO');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyRoll
+// ---------------------------------------------------------------------------
+
+const awayGK: PlayerPiece = {
+  id: 'away-0',
+  teamId: 'away',
+  name: 'Away GK',
+  role: 'GK',
+  position: { q: 23, r: 7 },
+  pace: 2,
+  shooting: 1,
+  tackling: 4,
+  dribbling: 3,
+  heading: 5,
+  saving: 9,
+  handling: 8,
+  resilience: 7,
+  aerialAbility: 8,
+  highPass: 0,
+};
+
+const awayDEF: PlayerPiece = {
+  id: 'away-1',
+  teamId: 'away',
+  name: 'Away DEF 1',
+  role: 'DEF',
+  position: { q: 15, r: 7 }, // near ball for header tests
+  pace: 5,
+  shooting: 3,
+  tackling: 7,
+  dribbling: 4,
+  heading: 6,
+  saving: 1,
+  handling: 0,
+  resilience: 7,
+  aerialAbility: 0,
+  highPass: 4,
+};
+
+/** Base PASS-phase state: home team attacking, ball carrier is homePiece (FWD, highPass:5). */
+const passState: GameState = {
+  roomCode: 'TEST1',
+  phase: 'PASS',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  pieces: [homePiece, awayGK, awayDEF, awayPiece],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+};
+
+/** Base SHOT-phase state: homePiece carries the ball near the away goal. */
+const shotState: GameState = {
+  roomCode: 'TEST1',
+  phase: 'SHOT',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  // awayGK is at q:23 (near goal); homePiece is shooter at q:10; distance ~13 (> 3, unsavable)
+  // Use awayGK near shooter for saveable scenarios in separate fixtures
+  pieces: [homePiece, awayGK],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+};
+
+/** SHOT state where GK is adjacent (distance 1) to make save scenarios possible. */
+const shotStateNearGK: GameState = {
+  ...shotState,
+  // awayGK adjacent to homePiece — distance 1 → saveable with 0 penalty
+  pieces: [
+    { ...homePiece, position: { q: 10, r: 7 } },
+    { ...awayGK, position: { q: 11, r: 7 } },
+  ],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+};
+
+/** HEADER state: home attacker has ball; away DEF is 1 hex away; away GK is near goal. */
+const headerState: GameState = {
+  roomCode: 'TEST1',
+  phase: 'HEADER',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  pieces: [homePiece, awayGK, awayDEF],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' }, // awayDEF at q:15 — 5 hexes away
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+};
+
+/** HEADER state where DEF is within 2 hexes — contested duel. */
+const headerStateContested: GameState = {
+  ...headerState,
+  pieces: [
+    { ...homePiece, position: { q: 10, r: 7 } },
+    { ...awayGK, position: { q: 23, r: 7 } },
+    { ...awayDEF, position: { q: 11, r: 7 } }, // 1 hex from ball — contested
+  ],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+};
+
+/** LOOSE_BALL state. */
+const looseBallState: GameState = {
+  roomCode: 'TEST1',
+  phase: 'LOOSE_BALL',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  pieces: [homePiece, awayGK],
+  ball: { position: { q: 12, r: 7 }, carrierId: null },
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+};
+
+describe('applyRoll', () => {
+  // ---- WRONG_PHASE guard ----
+
+  it('returns WRONG_PHASE when called in MOVEMENT phase', () => {
+    const result = applyRoll(baseMovementState, 3, 3, 3);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
+  });
+
+  // ---- PASS branch ----
+
+  it('PASS accurate (highPass+dice >= 8) → phase transitions to SHOT and lastDiceRoll set', () => {
+    // homePiece.highPass=5; dice=4 → 5+4=9 >= 8 → accurate
+    const result = applyRoll(passState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('SHOT');
+      expect(result.state.lastDiceRoll).toBeDefined();
+      expect(result.state.lastDiceRoll?.context).toBe('PASS_ACCURACY');
+      expect(result.state.lastDiceRoll?.rolls).toContain(4);
+    }
+  });
+
+  it('PASS inaccurate (highPass+dice < 8) → phase transitions to LOOSE_BALL and ball.carrierId null', () => {
+    // homePiece.highPass=5; dice=1 → 5+1=6 < 8 → inaccurate → LOOSE_BALL
+    const result = applyRoll(passState, 1, 2, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('LOOSE_BALL');
+      expect(result.state.ball.carrierId).toBeNull();
+      expect(result.state.lastDiceRoll?.context).toBe('PASS_ACCURACY');
+    }
+  });
+
+  // ---- SHOT branch ----
+
+  it('SHOT GOAL (shooterScore > gkScore) → score increments for attacking team; phase KICK_OFF', () => {
+    // homePiece.shooting=9; dice=6 → shooter=15; awayGK.saving=9; dice=1 → 10+no_penalty
+    // But GK at q:23, shooter at q:10: distance=13 > 3 → OUT_OF_RANGE (no dive penalty effectively gkPenalties=[0])
+    // Wait: OUT_OF_RANGE means gkPenalties is empty [] in the code (diveResult.saveable is false)
+    // shooterScore = 9+6=15; gkScore = 9+1=10; 15>10 → GOAL
+    const result = applyRoll(shotState, 6, 1, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('KICK_OFF');
+      expect(result.state.score.home).toBe(1); // home is attacking team
+      expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
+      expect(result.state.lastDiceRoll?.rolls).toHaveLength(3);
+    }
+  });
+
+  it('SHOT AUTO_MISS (shooter dice=1) → phase MOVEMENT', () => {
+    const result = applyRoll(shotState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.score.home).toBe(0); // no goal
+      expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
+    }
+  });
+
+  it('SHOT tie (shooterScore === gkScore) → LOOSE_BALL (D-13), ball.carrierId null', () => {
+    // Need equal scores. With OUT_OF_RANGE GK (far away, no penalties):
+    // shooterScore = shooting + shooterDice; gkScore = saving + gkDice
+    // homePiece.shooting=9; awayGK.saving=9; dice=3,3 → 9+3=12 vs 9+3=12 → tie → LOOSE_BALL
+    const result = applyRoll(shotState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.ball.carrierId).toBeNull();
+      expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
+    }
+  });
+
+  it('SHOT SAVE+CAUGHT → phase GK_RESTART; ball.carrierId set to GK id', () => {
+    // Near GK (distance 1, no penalty): shooterDice=2 → 9+2=11; gkDice=4 → 9+4=13; gk wins → SAVE
+    // handlingDice=1: 1 < gk.handling=8 → CAUGHT → GK_RESTART
+    const result = applyRoll(shotStateNearGK, 2, 4, 1);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('GK_RESTART');
+      expect(result.state.ball.carrierId).toBe('away-0'); // away GK id
+      expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
+    }
+  });
+
+  // ---- HEADER branch ----
+
+  it('HEADER uncontested (defender out of range) — attacker wins over GK → GOAL when GK score lower', () => {
+    // headerState: awayDEF at q:15 → 5 hexes from ball at q:10 → OUT_OF_RANGE, uncontested
+    // attacker.heading=6; attackerDice=6 → 12; awayGK.aerialAbility=8; gkDice=1 → 9
+    // 12 > 9: attacker beats GK → GOAL
+    const result = applyRoll(headerState, 6, 3, 1);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('KICK_OFF');
+      expect(result.state.score.home).toBe(1);
+      expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
+    }
+  });
+
+  it('HEADER uncontested — GK wins aerial → GK_RESTART', () => {
+    // attacker.heading=6; attackerDice=1 → 7; awayGK.aerialAbility=8; gkDice=3 → 11
+    // 11 >= 7: GK wins → GK_RESTART
+    const result = applyRoll(headerState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('GK_RESTART');
+      expect(result.state.ball.carrierId).toBe('away-0');
+      expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
+    }
+  });
+
+  it('HEADER contested — defender wins → phase MOVEMENT', () => {
+    // headerStateContested: awayDEF at q:11 (1 hex from ball at q:10) → contested
+    // attacker.heading=6; attackerDice=1 → penaltyMod=0 (dist=0) → 6+1=7
+    // awayDEF.heading=6; defenderDice=5 → 6+5=11 → defender wins → MOVEMENT
+    const result = applyRoll(headerStateContested, 1, 5, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
+    }
+  });
+
+  // ---- LOOSE_BALL branch ----
+
+  it('LOOSE_BALL → ball.position moves to computed landing; carrierId null; phase MOVEMENT', () => {
+    // dice: direction=1 (E: +q), distance=3 → landing = {q:12+3, r:7} = {q:15, r:7}
+    const result = applyRoll(looseBallState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.ball.carrierId).toBeNull();
+      expect(result.state.ball.position).toEqual({ q: 15, r: 7 }); // q:12 + E*3 = q:15
+      expect(result.state.lastDiceRoll?.context).toBe('LOOSE_BALL');
+      expect(result.state.lastDiceRoll?.rolls).toHaveLength(2);
+    }
   });
 });
