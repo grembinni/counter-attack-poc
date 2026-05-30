@@ -491,6 +491,7 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
     expect(newState.phase).toBe('MOVEMENT');
     expect(newState.attackingTeam).toBe('away'); // GK team (away) now attacks
     expect(newState.lastDiceRoll).toBeNull();
+    expect(newState.movementSlot).toBe('ATTACKER_4'); // Gap 1 fix: post-restart MOVEMENT is playable
   });
 
   it('non-GK socket emits game:gk-restart → game:error WRONG_TEAM; phase unchanged (T-05-07)', async () => {

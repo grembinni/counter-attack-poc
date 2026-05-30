@@ -512,14 +512,18 @@ describe('applyRoll', () => {
     }
   });
 
-  it('PASS inaccurate (highPass+dice < 8) → phase transitions to LOOSE_BALL and ball.carrierId null', () => {
+  it('PASS inaccurate (highPass+dice < 8) → phase transitions to LOOSE_BALL and ball.carrierId null, ball.position unchanged', () => {
     // homePiece.highPass=5; dice=1 → 5+1=6 < 8 → inaccurate → LOOSE_BALL
     const result = applyRoll(passState, 1, 2, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.phase).toBe('LOOSE_BALL');
       expect(result.state.ball.carrierId).toBeNull();
+      // Ball stays at incident hex — no inline landing computed (eliminates double-bounce bug)
+      expect(result.state.ball.position).toEqual(passState.ball.position);
       expect(result.state.lastDiceRoll?.context).toBe('PASS_ACCURACY');
+      // Only the failed accuracy die (d1=1) is included; d2 is not consumed here
+      expect(result.state.lastDiceRoll?.rolls).toEqual([1]);
     }
   });
 
@@ -550,15 +554,17 @@ describe('applyRoll', () => {
     }
   });
 
-  it('SHOT tie (shooterScore === gkScore) → LOOSE_BALL (D-13), ball.carrierId null', () => {
+  it('SHOT tie (shooterScore === gkScore) → LOOSE_BALL (D-13), ball.carrierId null, ball.position unchanged', () => {
     // Need equal scores. With OUT_OF_RANGE GK (far away, no penalties):
     // shooterScore = shooting + shooterDice; gkScore = saving + gkDice
     // homePiece.shooting=9; awayGK.saving=9; dice=3,3 → 9+3=12 vs 9+3=12 → tie → LOOSE_BALL
     const result = applyRoll(shotState, 3, 3, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('LOOSE_BALL');
       expect(result.state.ball.carrierId).toBeNull();
+      // Ball stays at incident hex — landing resolved on next game:roll with fresh dice
+      expect(result.state.ball.position).toEqual(shotState.ball.position);
       expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
     }
   });
@@ -614,9 +620,23 @@ describe('applyRoll', () => {
     }
   });
 
+  it('HEADER tie (attackerScore === defenderScore) → LOOSE_BALL (D-13), ball.position unchanged, carrierId null', () => {
+    // headerStateContested: awayDEF at q:11 (1 hex from ball at q:10) → contested
+    // attacker.heading=6; attackerDice=3 → 6+3=9; awayDEF.heading=6; defenderDice=3 → 6+3=9 → tie
+    const result = applyRoll(headerStateContested, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('LOOSE_BALL');
+      expect(result.state.ball.carrierId).toBeNull();
+      // Ball stays at incident hex — landing resolved on next game:roll with fresh dice
+      expect(result.state.ball.position).toEqual(headerStateContested.ball.position);
+      expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
+    }
+  });
+
   // ---- LOOSE_BALL branch ----
 
-  it('LOOSE_BALL → ball.position moves to computed landing; carrierId null; phase MOVEMENT', () => {
+  it('LOOSE_BALL → ball.position moves to computed landing; carrierId null; phase MOVEMENT; movementSlot set', () => {
     // dice: direction=1 (E: +q), distance=3 → landing = {q:12+3, r:7} = {q:15, r:7}
     const result = applyRoll(looseBallState, 1, 3, 3);
     expect(result.ok).toBe(true);
@@ -626,6 +646,8 @@ describe('applyRoll', () => {
       expect(result.state.ball.position).toEqual({ q: 15, r: 7 }); // q:12 + E*3 = q:15
       expect(result.state.lastDiceRoll?.context).toBe('LOOSE_BALL');
       expect(result.state.lastDiceRoll?.rolls).toHaveLength(2);
+      // Resolved MOVEMENT phase must be playable (Gap 1 fix)
+      expect(result.state.movementSlot).toBe('ATTACKER_4');
     }
   });
 });
@@ -711,6 +733,10 @@ describe('applyGKRestart', () => {
       expect(result.state.attackingTeam).toBe('away'); // GK team
       expect(result.state.ball.carrierId).toBe('away-0'); // still GK
       expect(result.state.lastDiceRoll).toBeNull();
+      // Gap 1 fix: MOVEMENT phase must be playable
+      expect(result.state.movementSlot).toBe('ATTACKER_4');
+      expect(result.state.movedPieceIds).toEqual([]);
+      expect(result.state.paceUsedByPieceId).toEqual({});
     }
   });
 
@@ -724,6 +750,10 @@ describe('applyGKRestart', () => {
       expect(result.state.attackingTeam).toBe('away'); // GK team
       expect(result.state.ball.carrierId).toBe('away-0'); // ball still with GK
       expect(result.state.lastDiceRoll).toBeNull();
+      // Gap 1 fix: MOVEMENT phase must be playable
+      expect(result.state.movementSlot).toBe('ATTACKER_4');
+      expect(result.state.movedPieceIds).toEqual([]);
+      expect(result.state.paceUsedByPieceId).toEqual({});
     }
   });
 
@@ -740,6 +770,10 @@ describe('applyGKRestart', () => {
       expect(result.state.lastDiceRoll).toBeDefined();
       expect(result.state.lastDiceRoll?.context).toBe('GK_KICK');
       expect(result.state.lastDiceRoll?.rolls).toHaveLength(1);
+      // Gap 1 fix: MOVEMENT phase must be playable
+      expect(result.state.movementSlot).toBe('ATTACKER_4');
+      expect(result.state.movedPieceIds).toEqual([]);
+      expect(result.state.paceUsedByPieceId).toEqual({});
     }
   });
 
@@ -763,6 +797,29 @@ describe('applyGKRestart', () => {
       expect(result.state.attackingTeam).toBe('away'); // GK team still gets movement
       expect(result.state.lastDiceRoll?.context).toBe('GK_KICK');
       expect(result.state.lastDiceRoll?.rolls?.length).toBeGreaterThanOrEqual(1);
+      // Gap 1 fix: MOVEMENT phase must be playable
+      expect(result.state.movementSlot).toBe('ATTACKER_4');
+      expect(result.state.movedPieceIds).toEqual([]);
+      expect(result.state.paceUsedByPieceId).toEqual({});
+    }
+  });
+
+  it('regression: applyMove on post-GK-restart state is not rejected with WRONG_SLOT', () => {
+    // Regression guard for Gap 1: after applyGKRestart('movement'), the returned
+    // MOVEMENT state must be accepted by applyMove (not rejected with WRONG_SLOT).
+    // gkRestartState: pieces = [homePiece (home-9), gkPiece (away-0)]
+    // After movement restart, attackingTeam = 'away' = GK team; movementSlot = 'ATTACKER_4'
+    // The GK piece (away-0) belongs to the attackingTeam ('away') and can move
+    const restartResult = applyGKRestart(gkRestartState, 'movement', () => 3);
+    expect(restartResult.ok).toBe(true);
+    if (!restartResult.ok) return;
+
+    const postRestartState = restartResult.state;
+    // GK is at { q: 23, r: 7 }; try to move one hex to { q: 24, r: 7 }
+    const moveResult = applyMove(postRestartState, 'away-0', { q: 24, r: 7 });
+    // The move may fail for game logic reasons (ZoI, pace, etc.) but must NOT be WRONG_SLOT
+    if (!moveResult.ok) {
+      expect(moveResult.reason).not.toBe('WRONG_SLOT');
     }
   });
 });
