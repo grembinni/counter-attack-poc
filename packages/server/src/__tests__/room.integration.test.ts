@@ -187,20 +187,21 @@ describe('Room integration tests', () => {
     expect(slotA).toBe(2);
     expect(slotB).toBe(2);
 
-    // Both clients receive game:state with phase LOBBY (CONN-03 + ARCH-04).
+    // Both clients receive game:state (CONN-03 + ARCH-04).
+    // Phase 4 (D-12/D-14): real KICK_OFF state with 22 pieces replaces the LOBBY stub.
     const [stateA] = await stateAPromise;
     const [stateB] = await stateBPromise;
 
-    const assertLobbyState = (state: GameState): void => {
-      expect(state.phase).toBe('LOBBY');
+    const assertKickOffState = (state: GameState): void => {
+      expect(state.phase).toBe('KICK_OFF'); // D-14: real state, LOBBY stub removed in Phase 4
       expect(state.roomCode).toBe(roomCode);
       expect(Array.isArray(state.pieces)).toBe(true);
-      expect(state.pieces).toHaveLength(0);
+      expect(state.pieces).toHaveLength(22); // D-12: 22 pieces
       expect(state.score).toEqual({ home: 0, away: 0 });
     };
 
-    assertLobbyState(stateA);
-    assertLobbyState(stateB);
+    assertKickOffState(stateA);
+    assertKickOffState(stateB);
   });
 
   /**
@@ -318,7 +319,7 @@ describe('Room integration tests', () => {
     await waitForConnect(clientAReconnected);
 
     const [state] = await statePromise;
-    expect(state.phase).toBe('LOBBY');
+    expect(state.phase).toBe('KICK_OFF'); // Phase 4 D-14: real state broadcast on reconnect
     expect(state.roomCode).toBe(roomCode);
     expect(receivedError).toBeUndefined();
   }, 5000);

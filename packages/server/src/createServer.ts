@@ -23,6 +23,7 @@ import type {
 } from '@counter-attack/shared';
 import cors from 'cors';
 import { registerRoomHandlers } from './roomHandlers.js';
+import { registerGameHandlers } from './gameHandlers.js';
 import { sessionMiddleware } from './sessionMiddleware.js';
 import { getRoom } from './roomStore.js';
 import { ServerEvents } from '@counter-attack/shared';
@@ -118,12 +119,15 @@ export function buildServer(): {
 
         // Re-register disconnect handler so the reconnected socket can disconnect again.
         registerRoomHandlers(io, socket, true);
+        // Re-register game handlers so reconnected sockets can continue mid-game actions.
+        registerGameHandlers(io, socket);
       }
       return;
     }
 
     // Fresh connection path: no session token in handshake.auth.
     registerRoomHandlers(io, socket, false);
+    registerGameHandlers(io, socket);
   });
 
   return { app, httpServer, io };

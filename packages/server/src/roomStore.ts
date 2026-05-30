@@ -14,6 +14,7 @@ import { customAlphabet } from 'nanoid';
 import type { GameState } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
+import { buildInitialGameState } from './gameEngine.js';
 
 // Crockford-ish alphabet — excludes 0/O and 1/I to reduce transcription errors.
 // RESEARCH.md Pattern 2: customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 5)
@@ -138,24 +139,9 @@ export function joinRoom(roomCode: string, socketId: string): JoinResult {
   room.players[1] = { socketId, sessionToken, slot: 2 };
   room.status = 'playing';
 
-  // Stub GameState with phase: 'LOBBY' — placeholder for ARCH-04 broadcast in Plan 03.
-  // Phase 4 (plan 04-03) replaces this with real initial state via buildInitialGameState().
-  room.gameState = {
-    roomCode,
-    phase: 'LOBBY',
-    activeTeam: 'home',
-    attackingTeam: 'home',
-    pieces: [],
-    ball: { position: { q: 0, r: 0 }, carrierId: null },
-    score: { home: 0, away: 0 },
-    actionCount: 0,
-    half: 1,
-    eventLog: [],
-    refereeCard: { leniency: 3 },
-    movedPieceIds: [],
-    paceUsedByPieceId: {},
-    movementSlot: null,
-  };
+  // D-12: build the real initial KICK_OFF GameState immediately on second-player join.
+  // D-14: buildInitialGameState sets phase 'KICK_OFF' — no additional player event needed.
+  room.gameState = buildInitialGameState(roomCode);
 
   return { ok: true, sessionToken, slot: 2 };
 }

@@ -80,14 +80,14 @@ describe('joinRoom', () => {
     if (!result.ok) expect(result.reason).toBe('NOT_WAITING');
   });
 
-  it('populates a stub LOBBY GameState on the room after successful join', () => {
+  it('builds a real KICK_OFF GameState with 22 pieces on successful join (D-12, D-14)', () => {
     const { roomCode } = createRoom('socket-host');
     const result = joinRoom(roomCode, 'socket-guest');
     expect(result.ok).toBe(true);
     const room = getRoom(roomCode);
     expect(room?.gameState).not.toBeNull();
-    expect(room?.gameState?.phase).toBe('LOBBY');
-    expect(room?.gameState?.pieces).toEqual([]);
+    expect(room?.gameState?.phase).toBe('KICK_OFF'); // D-14: real state, not LOBBY stub
+    expect(room?.gameState?.pieces).toHaveLength(22); // D-12: 22 pieces loaded
     expect(room?.gameState?.score).toEqual({ home: 0, away: 0 });
   });
 });
