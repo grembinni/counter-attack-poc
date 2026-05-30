@@ -24,7 +24,7 @@ Replace all deterministic stubs with server-side `crypto.randomInt` dice and wir
 
 - **D-01:** Hybrid rules: boxed game rulebook (2019) as the verified ground truth, with specific v1.4.1 Reference Rulebook additions retained where they add strategic depth. Conflicts default to the boxed rulebook.
 - **D-02:** Retained from v1.4.1 (not in boxed rulebook): long ball accuracy check (9+ same third, 10+ cross-third), GK restart three-option choice (kick/throw/movement), GK kick accuracy check (High Pass rules), handling attribute for post-save catch/spill check.
-- **D-03:** Applied from boxed rulebook (corrects prior assumptions): `highPass` is a named player attribute; inaccurate High Pass goes to nearest defender header (not Loose Ball); duel ties produce Loose Ball.
+- **D-03:** Applied from boxed rulebook (corrects prior assumptions): `highPass` is a named player attribute; duel ties produce Loose Ball. Inaccurate High Pass continues to produce Loose Ball (same as Long Pass — existing behaviour is correct).
 
 ### Player Attribute Corrections
 
@@ -51,10 +51,8 @@ Replace all deterministic stubs with server-side `crypto.randomInt` dice and wir
 ### Pass Accuracy Fixes
 
 - **D-14:** Fix `validatePassAccuracy` in `passValidator.ts`: change `piece.aerialAbility` → `piece.highPass` for the HIGH pass case.
-- **D-15:** Fix inaccurate High Pass outcome: change `AccuracyResult` to return `{ accurate: false; reason: 'INACCURATE_HIGH_PASS'; nearestDefenderHeader: true }` instead of `triggerLooseBall: true`. The nearest defender (closest to goal) gets a heading opportunity. The Long Pass inaccuracy still triggers Loose Ball (unchanged).
-- **D-16:** Update `AccuracyResult` discriminated union to distinguish High Pass vs Long Pass inaccuracy:
-  - `{ accurate: false; reason: 'INACCURATE_HIGH_PASS'; nearestDefenderHeader: true }` — for HIGH
-  - `{ accurate: false; reason: 'INACCURATE_LONG_PASS'; triggerLooseBall: true }` — for LONG
+- **D-15:** Inaccurate High Pass → **Loose Ball** (same as Long Pass). The existing `passValidator.ts` behaviour (`triggerLooseBall: true`) is correct and stays unchanged.
+- **D-16:** `AccuracyResult` does not need to distinguish High vs Long Pass inaccuracy — both produce `{ accurate: false; triggerLooseBall: true }`. No change to the discriminated union.
 
 ### Shot Duel Corrections
 
@@ -71,7 +69,7 @@ Replace all deterministic stubs with server-side `crypto.randomInt` dice and wir
 
 - **D-22:** GK restart uses a **single event**: `game:gk-restart` with payload `{ choice: 'kick' | 'throw' | 'movement' }`. Add to `ClientEvents` and `ClientToServerEvents` in `events.ts`.
 - **D-23:** GK restart is only valid when `GameState.phase === 'GK_RESTART'` and the emitting player is the GK's team.
-- **D-24:** GK kick = High Pass rules applied from the GK's position: GK's `highPass` attribute + dice roll ≥ 8 for accuracy. If inaccurate, nearest defender gets a header (same rule as inaccurate High Pass, D-15). GK may not kick into the opposite final third (box rule).
+- **D-24:** GK kick = High Pass rules applied from the GK's position: GK's `highPass` attribute + dice roll ≥ 8 for accuracy. If inaccurate, Loose Ball from the intended target hex (same as D-15). GK may not kick into the opposite final third (box rule).
 - **D-25:** GK quick throw = Standard Pass distance (max 11 hexes), uninterceptable. No accuracy check.
 - **D-26:** GK movement = GK's team starts a Movement Phase immediately (no dice needed). `GameState.phase` transitions to `MOVEMENT`, `attackingTeam` = GK's team.
 
