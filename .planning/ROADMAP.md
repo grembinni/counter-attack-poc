@@ -27,7 +27,9 @@
 2. `packages/shared` exports `HexCoord`, `GameState`, `PlayerPiece`, `BallState`, and `GamePhase` TypeScript types that `server` and `client` can import without path hacks
 3. `hexDistance`, `hexNeighbors`, `hexesInRange`, and `isUnderZoI` functions are exported from `packages/shared/src/hex.ts` with no Socket.io or Express imports present
 4. Socket.io event name constants are defined as typed `const` objects in `packages/shared` and importable in both `server` and `client`
-5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 3/3 plans complete
+5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 3/3 complete + 1 gap-closure plan pending
+
+- [ ] 05-04-PLAN.md — gap closure: GK-restart movementSlot, SHOT/HEADER tie → LOOSE_BALL phase, remove biased loose-ball dice reuse
 
 **Wave 1**
 
