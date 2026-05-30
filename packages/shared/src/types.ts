@@ -13,12 +13,59 @@ export type PlayerPiece = {
   handling: number;
   resilience: number;
   aerialAbility: number;
+  /** Player display name (e.g. 'Home GK', 'Away FWD 1'). TEAM-02 */
+  name: string;
+  /** Positional role. TEAM-02 */
+  role: 'GK' | 'DEF' | 'MID' | 'FWD';
 };
 
 export type BallState = {
   position: HexCoord;
   carrierId: string | null;
 };
+
+/**
+ * Named type for the 4-5-2 movement sub-phase sequence.
+ * Exported so ActionEvent and gameEngine can reference it directly. D-07/A1.
+ */
+export type MovementSlot = 'ATTACKER_4' | 'DEFENDER_5' | 'ATTACKER_2';
+
+/**
+ * Referee card leniency attribute. Assigned randomly at match start.
+ * Range 1–6 (matches dice face range per MATCH-02). TEAM-03.
+ */
+export type RefereeCard = {
+  leniency: number;
+};
+
+/** Discriminant string literals for ActionEvent union. D-07. */
+export type ActionEventType =
+  | 'MOVE'
+  | 'SLOT_ADVANCE'
+  | 'DICE_ROLL'
+  | 'STEAL_ATTEMPT'
+  | 'GOAL'
+  | 'KICK_OFF';
+
+/**
+ * Discriminated union of all recordable game actions. D-07, D-08.
+ * Appended to GameState.eventLog after each action.
+ * Used for undo (D-09, D-10) and end-of-game replay (D-11).
+ */
+export type ActionEvent =
+  | {
+      type: 'MOVE';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      slot: MovementSlot;
+      timestamp: number;
+    }
+  | { type: 'SLOT_ADVANCE'; from: MovementSlot; to: MovementSlot | null; timestamp: number }
+  | { type: 'DICE_ROLL'; result: number; timestamp: number }
+  | { type: 'STEAL_ATTEMPT'; defenderId: string; result: 'SUCCESS' | 'FAIL'; timestamp: number }
+  | { type: 'GOAL'; scoringTeam: 'home' | 'away'; timestamp: number }
+  | { type: 'KICK_OFF'; timestamp: number };
 
 export type GamePhase =
   | 'LOBBY'
@@ -43,7 +90,12 @@ export type GameState = {
   score: { home: number; away: number };
   actionCount: number;
   half: 1 | 2;
-  eventLog: readonly unknown[];
+  /** D-08: Typed action event log. Replaces readonly unknown[] placeholder. */
+  eventLog: readonly ActionEvent[];
+  /** TEAM-03: Referee card drawn at match start. leniency range 1–6. */
+  refereeCard: RefereeCard;
+  /** A1: Team currently in possession / attacking. Set at KICK_OFF, constant through Movement Phase. */
+  attackingTeam: 'home' | 'away';
   /**
    * D-08: Movement-phase tracking fields.
    * Default values when outside MOVEMENT phase: `[]`, `{}`, `null`.
@@ -57,5 +109,5 @@ export type GameState = {
    */
   movedPieceIds: readonly string[];
   paceUsedByPieceId: Readonly<Record<string, number>>;
-  movementSlot: 'ATTACKER_4' | 'DEFENDER_5' | 'ATTACKER_2' | null;
+  movementSlot: MovementSlot | null;
 };

@@ -15,6 +15,8 @@ const shooter: PlayerPiece = {
   handling: 1,
   resilience: 5,
   aerialAbility: 5,
+  name: 'Test Shooter',
+  role: 'FWD',
 };
 
 const goalkeeper: PlayerPiece = {
@@ -30,6 +32,8 @@ const goalkeeper: PlayerPiece = {
   handling: 5,
   resilience: 5,
   aerialAbility: 5,
+  name: 'Test GK',
+  role: 'GK',
 };
 
 describe('validateShotDuel', () => {

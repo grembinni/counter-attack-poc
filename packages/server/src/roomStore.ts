@@ -139,17 +139,19 @@ export function joinRoom(roomCode: string, socketId: string): JoinResult {
   room.status = 'playing';
 
   // Stub GameState with phase: 'LOBBY' — placeholder for ARCH-04 broadcast in Plan 03.
-  // Phase 4 replaces this with real initial state.
+  // Phase 4 (plan 04-03) replaces this with real initial state via buildInitialGameState().
   room.gameState = {
     roomCode,
     phase: 'LOBBY',
     activeTeam: 'home',
+    attackingTeam: 'home',
     pieces: [],
     ball: { position: { q: 0, r: 0 }, carrierId: null },
     score: { home: 0, away: 0 },
     actionCount: 0,
     half: 1,
     eventLog: [],
+    refereeCard: { leniency: 3 },
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,

@@ -15,18 +15,22 @@ const basePiece: PlayerPiece = {
   handling: 5,
   resilience: 5,
   aerialAbility: 5,
+  name: 'Test Player',
+  role: 'MID',
 };
 
 const baseState: GameState = {
   roomCode: 'TEST',
   phase: 'MOVEMENT',
   activeTeam: 'home',
+  attackingTeam: 'home',
   pieces: [basePiece],
   ball: { position: { q: 0, r: 0 }, carrierId: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
   eventLog: [],
+  refereeCard: { leniency: 3 },
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: 'ATTACKER_4',

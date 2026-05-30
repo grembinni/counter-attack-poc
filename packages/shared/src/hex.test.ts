@@ -99,8 +99,8 @@ describe('hexLine', () => {
   it('every consecutive pair in the line has hexDistance === 1', () => {
     const result = hexLine({ q: 0, r: 0 }, { q: 3, r: 0 });
     for (let i = 0; i < result.length - 1; i++) {
-      const a = result[i] as HexCoord;
-      const b = result[i + 1] as HexCoord;
+      const a = result[i];
+      const b = result[i + 1];
       expect(hexDistance(a, b)).toBe(1);
     }
   });
@@ -111,7 +111,7 @@ describe('hexLine', () => {
     expect(result[0]).toEqual({ q: 0, r: 0 });
     expect(result[2]).toEqual({ q: 2, r: -2 });
     // middle hex must be adjacent to both endpoints
-    const mid = result[1] as HexCoord;
+    const mid = result[1];
     expect(hexDistance({ q: 0, r: 0 }, mid)).toBe(1);
     expect(hexDistance({ q: 2, r: -2 }, mid)).toBe(1);
   });
@@ -145,6 +145,8 @@ describe('getZoIDefenders', () => {
       handling: 1,
       resilience: 5,
       aerialAbility: 5,
+      name: 'Test',
+      role: 'MID',
     };
   }
 
