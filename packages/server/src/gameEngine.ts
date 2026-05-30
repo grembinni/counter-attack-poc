@@ -538,6 +538,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'MOVEMENT',
+            movementSlot: 'ATTACKER_4',
+            movedPieceIds: [],
+            paceUsedByPieceId: {},
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
           },
@@ -570,6 +573,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'MOVEMENT',
+              movementSlot: 'ATTACKER_4',
+              movedPieceIds: [],
+              paceUsedByPieceId: {},
               ball: { position: landing, carrierId: null },
               lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
             },
@@ -666,6 +672,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'MOVEMENT',
+            movementSlot: 'ATTACKER_4',
+            movedPieceIds: [],
+            paceUsedByPieceId: {},
             lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
           },
         };
@@ -722,6 +731,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'MOVEMENT',
+            movementSlot: 'ATTACKER_4',
+            movedPieceIds: [],
+            paceUsedByPieceId: {},
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
           },
@@ -759,6 +771,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         state: {
           ...state,
           phase: 'MOVEMENT',
+          movementSlot: 'ATTACKER_4',
+          movedPieceIds: [],
+          paceUsedByPieceId: {},
           ball: { position: landing, carrierId: null },
           attackingTeam: state.attackingTeam, // unchanged
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
@@ -844,6 +859,9 @@ export function applyGKRestart(
       state: {
         ...state,
         phase: 'MOVEMENT',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         // Ball stays with GK (carrierId unchanged)
@@ -863,6 +881,9 @@ export function applyGKRestart(
       state: {
         ...state,
         phase: 'MOVEMENT',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         // Ball stays with GK; uninterceptable (D-25), no accuracy roll
@@ -884,6 +905,9 @@ export function applyGKRestart(
       state: {
         ...state,
         phase: 'MOVEMENT',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         // Ball stays with GK for the movement phase (similar to accurate throw delivery)
@@ -904,6 +928,9 @@ export function applyGKRestart(
       state: {
         ...state,
         phase: 'MOVEMENT',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         ball: { position: landing, carrierId: null },
