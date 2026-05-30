@@ -7,6 +7,7 @@ import {
   applyEndTurn,
   applyUndo,
   applyRoll,
+  applyGKRestart,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -625,6 +626,143 @@ describe('applyRoll', () => {
       expect(result.state.ball.position).toEqual({ q: 15, r: 7 }); // q:12 + E*3 = q:15
       expect(result.state.lastDiceRoll?.context).toBe('LOOSE_BALL');
       expect(result.state.lastDiceRoll?.rolls).toHaveLength(2);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGKRestart
+// ---------------------------------------------------------------------------
+
+/** GK piece for GK_RESTART tests — the away GK who has caught the ball. */
+const gkPiece: PlayerPiece = {
+  id: 'away-0',
+  teamId: 'away',
+  name: 'Away GK',
+  role: 'GK',
+  position: { q: 23, r: 7 },
+  pace: 2,
+  shooting: 1,
+  tackling: 4,
+  dribbling: 3,
+  heading: 5,
+  saving: 9,
+  handling: 8,
+  resilience: 7,
+  aerialAbility: 8,
+  highPass: 0, // GKs have highPass: 0 per D-04 → kick is almost always inaccurate
+};
+
+/** GK_RESTART state: away GK holds the ball after a save catch. */
+const gkRestartState: GameState = {
+  roomCode: 'TEST1',
+  phase: 'GK_RESTART',
+  activeTeam: 'away', // GK team is now active
+  attackingTeam: 'home', // home was attacking before the save
+  pieces: [homePiece, gkPiece],
+  ball: { position: { q: 23, r: 7 }, carrierId: 'away-0' }, // GK is ball carrier
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+};
+
+/** GK_RESTART state with a high-highPass GK for testing accurate kick branch. */
+const highPassGK: PlayerPiece = {
+  ...gkPiece,
+  id: 'away-0',
+  highPass: 8, // very high highPass for testing accurate kick
+};
+const gkRestartHighPassState: GameState = {
+  ...gkRestartState,
+  pieces: [homePiece, highPassGK],
+};
+
+describe('applyGKRestart', () => {
+  // ---- WRONG_PHASE guard ----
+
+  it('returns WRONG_PHASE when called outside GK_RESTART', () => {
+    const result = applyGKRestart(baseMovementState, 'movement', () => 3);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
+  });
+
+  // ---- INVALID_CHOICE guard ----
+
+  it('returns INVALID_CHOICE for an unknown choice value', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = applyGKRestart(gkRestartState, 'punt' as any, () => 3);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('INVALID_CHOICE');
+  });
+
+  // ---- movement branch ----
+
+  it("'movement' → phase MOVEMENT, attackingTeam = GK's team, ball stays with GK (D-26)", () => {
+    const result = applyGKRestart(gkRestartState, 'movement', () => 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.attackingTeam).toBe('away'); // GK team
+      expect(result.state.ball.carrierId).toBe('away-0'); // still GK
+      expect(result.state.lastDiceRoll).toBeNull();
+    }
+  });
+
+  // ---- throw branch ----
+
+  it("'throw' → phase MOVEMENT, attackingTeam = GK's team, ball stays with GK, lastDiceRoll null (D-25)", () => {
+    const result = applyGKRestart(gkRestartState, 'throw', () => 3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.attackingTeam).toBe('away'); // GK team
+      expect(result.state.ball.carrierId).toBe('away-0'); // ball still with GK
+      expect(result.state.lastDiceRoll).toBeNull();
+    }
+  });
+
+  // ---- kick branch: accurate ----
+
+  it("'kick' accurate (highPass + dice >= 8) → phase MOVEMENT, attackingTeam = GK team, ball with GK, lastDiceRoll context GK_KICK (D-24)", () => {
+    // highPassGK.highPass=8; rollDie()=6 → 8+6=14 >= 8 → accurate
+    const result = applyGKRestart(gkRestartHighPassState, 'kick', () => 6);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.attackingTeam).toBe('away'); // GK team
+      expect(result.state.ball.carrierId).toBe('away-0'); // ball stays with GK on accurate kick
+      expect(result.state.lastDiceRoll).toBeDefined();
+      expect(result.state.lastDiceRoll?.context).toBe('GK_KICK');
+      expect(result.state.lastDiceRoll?.rolls).toHaveLength(1);
+    }
+  });
+
+  // ---- kick branch: inaccurate ----
+
+  it("'kick' inaccurate (highPass + dice < 8) → Loose Ball from GK position, carrierId null, lastDiceRoll context GK_KICK (D-24)", () => {
+    // gkPiece.highPass=0; rollDie()=1 → 0+1=1 < 8 → inaccurate → Loose Ball
+    // Uses two rollDie() calls: first for accuracy, then two more for loose ball direction+distance
+    let callCount = 0;
+    const mockDie = (): number => {
+      callCount++;
+      if (callCount === 1) return 1; // accuracy roll → 0+1=1 < 8 → inaccurate
+      if (callCount === 2) return 1; // direction roll (E: +q)
+      return 3; // distance roll → 3 hexes
+    };
+    const result = applyGKRestart(gkRestartState, 'kick', mockDie);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.ball.carrierId).toBeNull(); // no carrier on Loose Ball
+      expect(result.state.attackingTeam).toBe('away'); // GK team still gets movement
+      expect(result.state.lastDiceRoll?.context).toBe('GK_KICK');
+      expect(result.state.lastDiceRoll?.rolls?.length).toBeGreaterThanOrEqual(1);
     }
   });
 });
