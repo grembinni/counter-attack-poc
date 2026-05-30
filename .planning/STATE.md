@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: '2026-05-30T18:21:53.128Z'
+status: Executing Phase 05
+last_updated: '2026-05-30T19:08:08.843Z'
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 16
-  percent: 44
+  completed_plans: 17
+  percent: 56
 ---
 
 # Project State
@@ -63,6 +63,8 @@ See: .planning/PROJECT.md
 - Zustand for client state management
 - `transports: ['websocket']` only on Socket.io client (no polling; eliminates sticky session requirement)
 - Hardcoded teams for v1; no card editor or team selection UI
+- Every MOVEMENT branch sets movementSlot: 'ATTACKER_4', movedPieceIds: [], paceUsedByPieceId: {} (Gap 1 invariant)
+- Ties and inaccuracy route to LOOSE_BALL phase with ball at incident hex; fresh dice on next game:roll (Gap 2+3)
 
 ### Key Pitfalls to Avoid
 
@@ -83,8 +85,8 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-05-29
-- Phase 2 complete: 95 tests (all green), build clean, 3 CR findings fixed
-- Phase 2 delivered: moveValidator, passValidator, shotValidator, headingValidator, snapshotValidator + scoreUtils + hex extensions
-- Two manual checks deferred to Phase 5: Loose Ball direction map, pass attribute mapping (aerialAbility/dribbling vs rulebook)
-- Next action: `/gsd-plan-phase 3`
+- Last updated: 2026-05-30
+- Phase 5 complete: 84 tests (all green), build clean, 3 verification gaps closed
+- Phase 5 delivered: applyRoll (PASS/SHOT/HEADER/LOOSE_BALL), applyGKRestart (kick/throw/movement), game:roll + game:gk-restart handlers, diceUtils (crypto.randomInt), movementSlot gap fixes
+- SHOT-05 requirement: PARTIAL → SATISFIED (GK restart MOVEMENT phase now playable)
+- Next action: `/gsd-plan-phase 6` (React Hex Grid Renderer)

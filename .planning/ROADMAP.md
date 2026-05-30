@@ -29,7 +29,7 @@
 4. Socket.io event name constants are defined as typed `const` objects in `packages/shared` and importable in both `server` and `client`
 5. A placeholder `PITCH_HEXES` coordinate set (rectangular grid) is present in `packages/shared/src/pitch.ts` with a comment marking it as pending real board measurements**Plans:** 3/3 complete + 1 gap-closure plan pending
 
-- [ ] 05-04-PLAN.md — gap closure: GK-restart movementSlot, SHOT/HEADER tie → LOOSE_BALL phase, remove biased loose-ball dice reuse
+- [x] 05-04-PLAN.md — gap closure: GK-restart movementSlot, SHOT/HEADER tie → LOOSE_BALL phase, remove biased loose-ball dice reuse
 
 **Wave 1**
 
@@ -134,7 +134,7 @@ Plans:
 4. Loose Ball resolution rolls direction (1-6) and distance (1-6 hexes) from the incident hex and updates ball position in the broadcast state
 5. After catching the ball, the goalkeeper's `game:state` reflects a `GK_RESTART` phase in which the GK player can choose kick (High Pass accuracy check), quick throw (Standard Pass distance, uninterceptable), or start a Movement Phase
 
-**Plans:** 3/3 plans complete
+**Plans:** 4/4 plans complete
 
 ### Phase 6: React Hex Grid Renderer
 
@@ -209,7 +209,7 @@ Plans:
 | 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
 | 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver + All Resolution Branches  | 3/3            | Complete    | 2026-05-30 |
+| 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |

@@ -55,7 +55,7 @@
 - [ ] **SHOT-02**: Shots from outside the penalty area receive a -1 dice penalty; goalkeeper moves 1 hex before saving (ball entering area)
 - [ ] **SHOT-03**: Rolling a 1 on a shot is an automatic miss regardless of attributes
 - [ ] **SHOT-04**: Goalkeeper may dive up to 3 hexes parallel to the goal line; diving to the 3rd hex incurs -1 Saving penalty; shots 4+ hexes away cannot be saved
-- [ ] **SHOT-05**: After the goalkeeper catches the ball, they choose: kick (High Pass accuracy check, 8+), quick throw (Standard Pass distance, uninterceptable), or start a Movement Phase
+- [x] **SHOT-05**: After the goalkeeper catches the ball, they choose: kick (High Pass accuracy check, 8+), quick throw (Standard Pass distance, uninterceptable), or start a Movement Phase
 - [ ] **SHOT-06**: Handling check after a save: roll ≥ Handling attribute = ball spills (Loose Ball); roll < Handling = ball caught
 
 ### Snapshots
