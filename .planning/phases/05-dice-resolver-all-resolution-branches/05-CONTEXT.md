@@ -22,9 +22,9 @@ Replace all deterministic stubs with server-side `crypto.randomInt` dice and wir
 
 ### Rules Version
 
-- **D-01:** Hybrid rules: boxed game rulebook (2019) as the verified ground truth, with specific v1.4.1 Reference Rulebook additions retained where they add strategic depth. Conflicts default to the boxed rulebook.
-- **D-02:** Retained from v1.4.1 (not in boxed rulebook): long ball accuracy check (9+ same third, 10+ cross-third), GK restart three-option choice (kick/throw/movement), GK kick accuracy check (High Pass rules), handling attribute for post-save catch/spill check.
-- **D-03:** Applied from boxed rulebook (corrects prior assumptions): `highPass` is a named player attribute; duel ties produce Loose Ball. Inaccurate High Pass continues to produce Loose Ball (same as Long Pass — existing behaviour is correct).
+- **D-01** [informational]: Hybrid rules: boxed game rulebook (2019) as the verified ground truth, with specific v1.4.1 Reference Rulebook additions retained where they add strategic depth. Conflicts default to the boxed rulebook.
+- **D-02** [informational]: Retained from v1.4.1 (not in boxed rulebook): long ball accuracy check (9+ same third, 10+ cross-third), GK restart three-option choice (kick/throw/movement), GK kick accuracy check (High Pass rules), handling attribute for post-save catch/spill check.
+- **D-03** [informational]: Applied from boxed rulebook (corrects prior assumptions): `highPass` is a named player attribute; duel ties produce Loose Ball. Inaccurate High Pass continues to produce Loose Ball (same as Long Pass — existing behaviour is correct). Effects implemented via D-04 through D-17.
 
 ### Player Attribute Corrections
 
@@ -166,6 +166,7 @@ Replace all deterministic stubs with server-side `crypto.randomInt` dice and wir
 - **MOVE-07 (snapshot during movement)**: The Phase 4 moveValidator already detects SNAPSHOT_AVAILABLE. Phase 5 resolves the snapshot duel when the user triggers it during movement.
 - **Advanced rules**: tackles from behind (foul on 1 or 2), extra yard injury risk, difficult-angle shooting penalties — all flagged as advanced rules in the boxed rulebook. Deferred to v2 per project scope.
 - **GK kick range restriction**: Box rulebook says GK may not kick into the opposite final third. Phase 5 enforces this. If the user's chosen target is in the opposite final third, `game:error` is returned.
+- **GK quick-throw ball delivery to a chosen target hex (D-25 full intent)**: In v1 the `throw` choice is implemented as a movement-phase start with the ball held by the GK (engine-equivalent to the `movement` choice); the ball's destination is resolved implicitly in the subsequent movement phase. D-25's full intent — placing the ball up to 11 hexes away on the throw itself — requires a `targetHex` parameter on `game:gk-restart` and a ≤11-hex distance validation. This is deferred to Phase 7 client integration, when the click-to-target UI is built. The `throw` and `movement` branches are kept distinct in the engine so Phase 7 only has to extend the `throw` branch with targetHex delivery, not reintroduce it.
 
 </deferred>
 
