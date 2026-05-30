@@ -11,17 +11,17 @@
 
 ### Pitch & Grid
 
-- [ ] **PITCH-01**: Hex grid pitch renders the Counter Attack board layout using axial (q, r) coordinates
-- [ ] **PITCH-02**: Pitch regions are encoded: final thirds, penalty areas, 6-yard boxes, centre circle, kickoff hex
-- [ ] **PITCH-03**: Difficult shooting angle hexes (dot-marked) are encoded and apply -1 dice penalty
+- [x] **PITCH-01**: Hex grid pitch renders the Counter Attack board layout using axial (q, r) coordinates
+- [x] **PITCH-02**: Pitch regions are encoded: final thirds, penalty areas, 6-yard boxes, centre circle, kickoff hex
+- [x] **PITCH-03**: Difficult shooting angle hexes (dot-marked) are encoded and apply -1 dice penalty
 - [ ] **PITCH-04**: Player selects a piece by clicking it; valid destination hexes highlight immediately
 - [ ] **PITCH-05**: Ball position is visually distinct from player positions at all times
 
 ### Teams & Players
 
-- [ ] **TEAM-01**: Two hardcoded squads (11 players each) with full attribute sets: Pace, Shooting, Tackling, Dribbling, Heading, Saving, Handling, Resilience, Aerial Ability
-- [ ] **TEAM-02**: Player cards display name, position, and all attributes during their team's turn
-- [ ] **TEAM-03**: A referee card with a Leniency attribute is randomly assigned at match start
+- [x] **TEAM-01**: Two hardcoded squads (11 players each) with full attribute sets: Pace, Shooting, Tackling, Dribbling, Heading, Saving, Handling, Resilience, Aerial Ability
+- [x] **TEAM-02**: Player cards display name, position, and all attributes during their team's turn
+- [x] **TEAM-03**: A referee card with a Leniency attribute is randomly assigned at match start
 
 ### Movement Phase
 

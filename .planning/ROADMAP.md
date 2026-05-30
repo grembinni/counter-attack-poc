@@ -5,7 +5,7 @@
 - [x] **Phase 1: Monorepo Scaffold + Shared Types** — pnpm workspace, TypeScript config, all shared interfaces, hex math utilities, Socket.io event constants (completed 2026-05-28)
 - [x] **Phase 2: Move Validator + Unit Tests** — Pure validation functions for movement, passing, heading, shooting, snapshots, ZoI, and Loose Ball; fully tested with no server dependency (completed 2026-05-29)
 - [x] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint (completed 2026-05-29)
-- [ ] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice
+- [x] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice (completed 2026-05-30)
 - [ ] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice
 - [ ] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard
 - [ ] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session
@@ -103,19 +103,19 @@ Plans:
 4. A referee card with a Leniency attribute is randomly assigned at match start and stored in game state
 5. The per-room `isProcessing` mutex prevents duplicate action processing; a second identical action arriving while the first is processing is silently dropped
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Shared types + data: ActionEvent union, RefereeCard, MovementSlot, PlayerPiece name/role, attackingTeam; teams.ts (HOME/AWAY squads); pitch.ts regions + difficult-angle hexes; game:end-turn/undo/error events + tests
+- [x] 04-01-PLAN.md — Shared types + data: ActionEvent union, RefereeCard, MovementSlot, PlayerPiece name/role, attackingTeam; teams.ts (HOME/AWAY squads); pitch.ts regions + difficult-angle hexes; game:end-turn/undo/error events + tests
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 04-02-PLAN.md — gameEngine.ts: buildInitialGameState, advanceMovementSlot, applyMove, applyEndTurn, applyUndo, MOVE-06 free-move; unit tests + integration harness skeleton
+- [x] 04-02-PLAN.md — gameEngine.ts: buildInitialGameState, advanceMovementSlot, applyMove, applyEndTurn, applyUndo, MOVE-06 free-move; unit tests + integration harness skeleton
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 04-03-PLAN.md — gameHandlers.ts (game:move/end-turn/undo with isProcessing mutex + active-player guard); wire buildInitialGameState into joinRoom + registerGameHandlers into createServer; fill integration scenarios
+- [x] 04-03-PLAN.md — gameHandlers.ts (game:move/end-turn/undo with isProcessing mutex + active-player guard); wire buildInitialGameState into joinRoom + registerGameHandlers into createServer; fill integration scenarios
 
 **UI hint**: yes
 
@@ -206,7 +206,7 @@ Plans:
 | 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
 | 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
-| 4. Game Engine + Phase FSM                  | 0/3            | Planned     | -          |
+| 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
 | 5. Dice Resolver + All Resolution Branches  | 0/0            | Not started | -          |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
