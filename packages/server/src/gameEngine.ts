@@ -453,19 +453,16 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           },
         };
       } else {
-        // Inaccurate → Loose Ball from ball's current position (D-15, D-19)
-        const landing = computeLooseBall(
-          state.ball.position,
-          d1 as 1 | 2 | 3 | 4 | 5 | 6,
-          d2 as 1 | 2 | 3 | 4 | 5 | 6,
-        );
+        // Inaccurate → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-15, D-19)
+        // Ball stays at incident hex; do NOT compute landing here (accuracy die d1 is biased)
+        // Only the accuracy die (d1) is consumed here; d2 is reserved for the fresh LOOSE_BALL roll
         return {
           ok: true,
           state: {
             ...state,
             phase: 'LOOSE_BALL',
-            ball: { position: landing, carrierId: null },
-            lastDiceRoll: { rolls: [d1, d2], context: 'PASS_ACCURACY' },
+            ball: { position: state.ball.position, carrierId: null },
+            lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
           },
         };
       }
@@ -514,18 +511,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       }
 
       if (shotResult.outcome === 'LOOSE_BALL') {
-        // Tie → Loose Ball from ball's position (D-13)
-        const landing = computeLooseBall(
-          state.ball.position,
-          d1 as 1 | 2 | 3 | 4 | 5 | 6,
-          d2 as 1 | 2 | 3 | 4 | 5 | 6,
-        );
+        // Tie → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-13, D-19)
+        // Ball stays at incident hex; do NOT compute landing here (biased dice reuse avoided)
         return {
           ok: true,
           state: {
             ...state,
-            phase: 'MOVEMENT',
-            ball: { position: landing, carrierId: null },
+            phase: 'LOOSE_BALL',
+            ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
           },
         };
@@ -739,18 +732,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           },
         };
       } else {
-        // Tie → Loose Ball (D-13)
-        const landing = computeLooseBall(
-          state.ball.position,
-          d1 as 1 | 2 | 3 | 4 | 5 | 6,
-          d2 as 1 | 2 | 3 | 4 | 5 | 6,
-        );
+        // Tie → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-13, D-19)
+        // Ball stays at incident hex; do NOT compute landing here (duel dice are biased)
         return {
           ok: true,
           state: {
             ...state,
-            phase: 'MOVEMENT',
-            ball: { position: landing, carrierId: null },
+            phase: 'LOOSE_BALL',
+            ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
           },
         };
