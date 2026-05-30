@@ -105,10 +105,14 @@ export function isDifficultAngle(hex: HexCoord): boolean {
   return DIFFICULT_ANGLE_HEXES.has(hexKey(hex));
 }
 
+/** Pre-built Set for O(1) `isPitchHex` lookups (CR-04: was O(n) Array.some). */
+const PITCH_HEX_SET: ReadonlySet<string> = buildRegion([...PITCH_HEXES]);
+
 /**
  * Returns true when `hex` is within the placeholder pitch grid.
  * Used by Loose Ball boundary enforcement to keep the ball in play.
+ * CR-04: O(1) Set.has() — consistent with isInRegion/isDifficultAngle.
  */
 export function isPitchHex(hex: HexCoord): boolean {
-  return PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r);
+  return PITCH_HEX_SET.has(hexKey(hex));
 }

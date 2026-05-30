@@ -203,7 +203,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      if (room.gameState === null) {
+      // CR-02: undo is only valid during the MOVEMENT phase; guard symmetrically with other handlers
+      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
         return;
       }
       if (!isActivePlayer(socket, room)) {

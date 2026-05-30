@@ -242,6 +242,8 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
     state: {
       ...state,
       pieces: newPieces,
+      // CR-01: append pieceId to movedPieceIds so ATTACKER_2 ALREADY_MOVED guard works
+      movedPieceIds: [...state.movedPieceIds, pieceId],
       paceUsedByPieceId: {
         ...state.paceUsedByPieceId,
         [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
@@ -376,6 +378,11 @@ export function applyUndo(state: GameState): ApplyUndoResult {
     ...state.eventLog.slice(absoluteMoveIdx + 1),
   ];
 
+  // CR-03: clear pendingFreeMove when the undone piece is the ball carrier —
+  // the final-third crossing that set it never happened once the move is reversed.
+  const undoPendingFreeMove =
+    state.ball.carrierId === moveToUndo.pieceId ? null : (state.pendingFreeMove ?? null);
+
   return {
     ok: true,
     state: {
@@ -383,6 +390,7 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       pieces: newPieces,
       paceUsedByPieceId: newPaceUsed,
       eventLog: newEventLog,
+      pendingFreeMove: undoPendingFreeMove,
     },
   };
 }
