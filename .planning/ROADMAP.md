@@ -6,7 +6,7 @@
 - [x] **Phase 2: Move Validator + Unit Tests** — Pure validation functions for movement, passing, heading, shooting, snapshots, ZoI, and Loose Ball; fully tested with no server dependency (completed 2026-05-29)
 - [x] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint (completed 2026-05-29)
 - [x] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice (completed 2026-05-30)
-- [ ] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice
+- [x] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice (completed 2026-05-30)
 - [ ] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard
 - [ ] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session
 - [ ] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay
@@ -132,7 +132,7 @@ Plans:
 4. Loose Ball resolution rolls direction (1-6) and distance (1-6 hexes) from the incident hex and updates ball position in the broadcast state
 5. After catching the ball, the goalkeeper's `game:state` reflects a `GK_RESTART` phase in which the GK player can choose kick (High Pass accuracy check), quick throw (Standard Pass distance, uninterceptable), or start a Movement Phase
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 ### Phase 6: React Hex Grid Renderer
 
@@ -207,7 +207,7 @@ Plans:
 | 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
 | 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver + All Resolution Branches  | 2/3            | In Progress |            |
+| 5. Dice Resolver + All Resolution Branches  | 3/3            | Complete    | 2026-05-30 |
 | 6. React Hex Grid Renderer                  | 0/0            | Not started | -          |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
