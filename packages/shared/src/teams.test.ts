@@ -11,21 +11,37 @@ const ATTRIBUTES = [
   'handling',
   'resilience',
   'aerialAbility',
+  'highPass',
 ] as const;
 
 const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD'] as const;
+
+/**
+ * Role-based minimum values for attributes that are 0 for certain roles (D-05, D-06, D-07).
+ * - aerialAbility: 0 for outfielders (DEF/MID/FWD); GKs have meaningful values (>= 1)
+ * - handling: 0 for outfielders; GKs have meaningful values (>= 1)
+ * - highPass: 0 for GKs (use kick accuracy rule instead); outfielders have meaningful values (>= 1)
+ * All other attributes must be >= 1 for all roles.
+ */
+function minForAttr(attr: (typeof ATTRIBUTES)[number], role: string): number {
+  if (attr === 'aerialAbility' && role !== 'GK') return 0;
+  if (attr === 'handling' && role !== 'GK') return 0;
+  if (attr === 'highPass' && role === 'GK') return 0;
+  return 1;
+}
 
 describe('HOME_SQUAD', () => {
   it('contains exactly 11 players (TEAM-01)', () => {
     expect(HOME_SQUAD).toHaveLength(11);
   });
 
-  it('each player has all 9 attributes as integers in 1..10 (TEAM-01)', () => {
+  it('each player has all 10 attributes as integers in role-adjusted range..10 (TEAM-01, D-05, D-06, D-07)', () => {
     for (const player of HOME_SQUAD) {
       for (const attr of ATTRIBUTES) {
         const val = player[attr];
+        const min = minForAttr(attr, player.role);
         expect(Number.isInteger(val), `${player.id}.${attr} must be integer`).toBe(true);
-        expect(val, `${player.id}.${attr} must be >= 1`).toBeGreaterThanOrEqual(1);
+        expect(val, `${player.id}.${attr} must be >= ${min}`).toBeGreaterThanOrEqual(min);
         expect(val, `${player.id}.${attr} must be <= 10`).toBeLessThanOrEqual(10);
       }
     }
@@ -66,12 +82,13 @@ describe('AWAY_SQUAD', () => {
     expect(AWAY_SQUAD).toHaveLength(11);
   });
 
-  it('each player has all 9 attributes as integers in 1..10 (TEAM-01)', () => {
+  it('each player has all 10 attributes as integers in role-adjusted range..10 (TEAM-01, D-05, D-06, D-07)', () => {
     for (const player of AWAY_SQUAD) {
       for (const attr of ATTRIBUTES) {
         const val = player[attr];
+        const min = minForAttr(attr, player.role);
         expect(Number.isInteger(val), `${player.id}.${attr} must be integer`).toBe(true);
-        expect(val, `${player.id}.${attr} must be >= 1`).toBeGreaterThanOrEqual(1);
+        expect(val, `${player.id}.${attr} must be >= ${min}`).toBeGreaterThanOrEqual(min);
         expect(val, `${player.id}.${attr} must be <= 10`).toBeLessThanOrEqual(10);
       }
     }

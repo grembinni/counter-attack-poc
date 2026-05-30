@@ -27,6 +27,7 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     handling: 8,
     resilience: 7,
     aerialAbility: 8,
+    highPass: 0, // D-04: GKs use High Pass rules for kicks via GK kick accuracy (not highPass attribute)
   },
   {
     id: 'home-1',
@@ -40,9 +41,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 4,
     heading: 7,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06: outfielders have handling: 0
     resilience: 7,
-    aerialAbility: 6,
+    aerialAbility: 0, // D-05: outfielders have aerialAbility: 0
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'home-2',
@@ -56,9 +58,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 3,
     heading: 8,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 8,
-    aerialAbility: 7,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'home-3',
@@ -72,9 +75,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 4,
     heading: 7,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 7,
-    aerialAbility: 6,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'home-4',
@@ -88,9 +92,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 5,
     heading: 6,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'home-5',
@@ -104,9 +109,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 6,
     heading: 5,
     saving: 2,
-    handling: 2,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 6, // D-07: MID range 5–7
   },
   {
     id: 'home-6',
@@ -120,9 +126,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 7,
     heading: 5,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 7, // D-07: MID range 5–7 (playmaker)
   },
   {
     id: 'home-7',
@@ -136,9 +143,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 6,
     heading: 6,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 7,
-    aerialAbility: 6,
+    aerialAbility: 0, // D-05
+    highPass: 6, // D-07: MID range 5–7
   },
   {
     id: 'home-8',
@@ -152,9 +160,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 7,
     heading: 5,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 5,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 5, // D-07: FWD range 4–6
   },
   {
     id: 'home-9',
@@ -168,9 +177,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 8,
     heading: 6,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 5, // D-07: FWD range 4–6
   },
   {
     id: 'home-10',
@@ -184,9 +194,10 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     dribbling: 7,
     heading: 5,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 5,
-    aerialAbility: 4,
+    aerialAbility: 0, // D-05
+    highPass: 5, // D-07: FWD range 4–6
   },
 ];
 
@@ -207,6 +218,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     handling: 9,
     resilience: 7,
     aerialAbility: 8,
+    highPass: 0, // D-04: GKs have highPass: 0
   },
   {
     id: 'away-1',
@@ -220,9 +232,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 4,
     heading: 7,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 7,
-    aerialAbility: 6,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'away-2',
@@ -236,9 +249,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 3,
     heading: 8,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 8,
-    aerialAbility: 7,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'away-3',
@@ -252,9 +266,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 4,
     heading: 7,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 7,
-    aerialAbility: 6,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'away-4',
@@ -268,9 +283,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 5,
     heading: 6,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 4, // D-07: DEF range 3–5
   },
   {
     id: 'away-5',
@@ -284,9 +300,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 6,
     heading: 5,
     saving: 2,
-    handling: 2,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 6, // D-07: MID range 5–7
   },
   {
     id: 'away-6',
@@ -300,9 +317,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 7,
     heading: 5,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 7, // D-07: MID range 5–7 (playmaker)
   },
   {
     id: 'away-7',
@@ -316,9 +334,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 6,
     heading: 6,
     saving: 2,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 7,
-    aerialAbility: 6,
+    aerialAbility: 0, // D-05
+    highPass: 6, // D-07: MID range 5–7
   },
   {
     id: 'away-8',
@@ -332,9 +351,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 7,
     heading: 5,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 5,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 5, // D-07: FWD range 4–6
   },
   {
     id: 'away-9',
@@ -348,9 +368,10 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 8,
     heading: 6,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 6,
-    aerialAbility: 5,
+    aerialAbility: 0, // D-05
+    highPass: 5, // D-07: FWD range 4–6
   },
   {
     id: 'away-10',
@@ -364,8 +385,9 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     dribbling: 7,
     heading: 5,
     saving: 1,
-    handling: 1,
+    handling: 0, // D-06
     resilience: 5,
-    aerialAbility: 4,
+    aerialAbility: 0, // D-05
+    highPass: 5, // D-07: FWD range 4–6
   },
 ];
