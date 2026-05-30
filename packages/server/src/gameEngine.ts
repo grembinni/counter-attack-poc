@@ -26,14 +26,11 @@ import {
   PITCH_REGIONS,
   isInRegion,
   validateMove,
+  computeCombinedScore,
 } from '@counter-attack/shared';
+import { rollDice } from './diceUtils.js';
 
 // No socket.io imports — pure functions only (ARCH-01, established Phase 2/3 pattern).
-
-// TODO Phase 5: replace with crypto.randomInt(1, 7)
-function stubDice(): number {
-  return 3;
-}
 
 /** 4-5-2 Movement Phase slot sequence. Used by advanceMovementSlot. D-03/D-04. */
 const SLOT_SEQUENCE: readonly MovementSlot[] = ['ATTACKER_4', 'DEFENDER_5', 'ATTACKER_2'];
@@ -210,11 +207,11 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
 
   // Handle STEAL_ATTEMPT effect
   if ('effect' in result && result.effect.type === 'STEAL_ATTEMPT') {
-    const dice = stubDice(); // TODO Phase 5: replace with crypto.randomInt(1, 7)
+    const dice = rollDice();
     const defender = result.effect.defenders[0];
-    // Phase 4 deterministic: stubDice()==3, so combined < threshold => FAIL.
-    // Phase 5 will use live dice and real thresholds.
-    const stealResult: 'SUCCESS' | 'FAIL' = dice >= 4 ? 'SUCCESS' : 'FAIL';
+    // MOVE-04: combined score >= 10 threshold using computeCombinedScore (via rollDice).
+    const combined = computeCombinedScore(defender!.tackling, dice, []);
+    const stealResult: 'SUCCESS' | 'FAIL' = combined >= 10 ? 'SUCCESS' : 'FAIL';
     const stealEvent: ActionEvent = {
       type: 'STEAL_ATTEMPT',
       defenderId: defender!.id,
