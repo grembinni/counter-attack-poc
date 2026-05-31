@@ -302,6 +302,58 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // -------------------------------------------------------------------------
+  // GAME_SHOT — records the shooter's chosen target hex (D-06)
+  //
+  // D-06: game:shot records the shooter's target hex for UX/broadcast.
+  // Dice resolution is unchanged — applyRoll resolves shooter-vs-GK from dice
+  // only and does not consume shotTarget. This handler records intent; the Roll
+  // button's game:roll handler performs (and broadcasts) the resolution.
+  //
+  // T-07-11: phase + team guards prevent out-of-phase / wrong-team target recording
+  // T-07-12: HexCoord shape validation rejects malformed payloads (ASVS V5)
+  // T-07-13: shotTarget is UX/broadcast bookkeeping only — never fed into dice resolution
+  // SC-5: isProcessing mutex prevents double-click race
+  // NOTE: intentionally does NOT call broadcastState — recording shot intent is
+  //       server-side UX bookkeeping and should not trigger a full state snapshot.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_SHOT, (targetHex: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard (T-07-11): must be in SHOT phase
+      if (room.gameState === null || room.gameState.phase !== 'SHOT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        return; // NOTE: no broadcastState — this handler never broadcasts (D-06 revision)
+      }
+      // Team guard (T-07-11): must be the active (shooting) player
+      if (!isActivePlayer(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        return; // NOTE: no broadcastState
+      }
+      // Payload validation (T-07-12): never trust client input (ASVS V5)
+      // Mirrors GAME_GK_RESTART INVALID_CHOICE validation style
+      if (
+        typeof targetHex !== 'object' ||
+        targetHex === null ||
+        typeof targetHex.q !== 'number' ||
+        typeof targetHex.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        return; // NOTE: no broadcastState
+      }
+      // Record the shooter's target hex for UX/broadcast (T-07-13: no game advantage possible)
+      room.shotTarget = { q: targetHex.q, r: targetHex.r };
+      // Intentionally no broadcastState call — see handler header (D-06 revision)
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // GAME_GK_RESTART — GK team chooses kick/throw/movement after a save catch
   // T-05-07: controlsGKTeam guard — only the GK's team may restart
   // T-05-08: choice payload validated against allowed values before dispatch (ASVS V5)

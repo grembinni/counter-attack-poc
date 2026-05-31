@@ -11,7 +11,7 @@
 
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
-import type { GameState } from '@counter-attack/shared';
+import type { GameState, HexCoord } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
 import { buildInitialGameState } from './gameEngine.js';
@@ -48,6 +48,12 @@ export type Room = {
   gameState: GameState | null;
   isProcessing: boolean;
   disconnectTimers: [ReturnType<typeof setTimeout> | null, ReturnType<typeof setTimeout> | null];
+  /**
+   * D-06: Records the shooter's target hex for UX/broadcast after a game:shot event.
+   * Server-side UX bookkeeping only — never fed into dice resolution.
+   * applyRoll resolves SHOT from dice only and does not read this field.
+   */
+  shotTarget?: HexCoord | null;
 };
 
 /**
