@@ -10,11 +10,10 @@
 export const HEX_SIZE = 20;
 
 /**
- * Converts axial hex coordinate to SVG pixel center point.
- * Flat-top orientation as per CONTEXT.md D-03.
- *   cx = hexSize * (3/2 * q)
- *   cy = hexSize * (√3/2 * q + √3 * r)
- * Source: CONTEXT.md D-03, redblobgames.com/grids/hexagons/
+ * Converts axial hex coordinate to SVG pixel center point using ODD-Q offset layout.
+ * Even columns sit at integer r positions; odd columns are offset down by half a row.
+ * This produces a rectangular bounding box (landscape, not a parallelogram).
+ * Rendering only — game logic remains in axial coords. D-03.
  */
 export function axialToPixel(
   q: number,
@@ -23,7 +22,7 @@ export function axialToPixel(
 ): { cx: number; cy: number } {
   return {
     cx: hexSize * (3 / 2) * q,
-    cy: hexSize * ((Math.sqrt(3) / 2) * q + Math.sqrt(3) * r),
+    cy: hexSize * Math.sqrt(3) * (r + 0.5 * (q % 2)),
   };
 }
 
@@ -42,15 +41,15 @@ export function hexPolygonPoints(cx: number, cy: number, hexSize: number = HEX_S
 }
 
 /**
- * Computes the SVG viewBox string for the full 37×26 grid with padding.
- * Padding of 2×hexSize avoids q=0/r=0 hex clipping at SVG origin (Pitfall 5).
- * The HexGrid component should apply <g transform="translate(hexSize, hexSize * √3/2)">
- * to offset the origin so the q=0,r=0 hex center is fully visible.
- * Source: CONTEXT.md D-03, redblobgames.com/grids/hexagons/
+ * Computes the SVG viewBox string for the full 37×26 ODD-Q offset grid.
+ * Width:  q=0 left-vertex (x=0 with translate) → q=36 right-vertex (x=1120).
+ * Height: even-q r=0 top-flat (y=0 with translate) → odd-q r=25 bottom-flat (y≈918).
+ * The HexGrid translate(hexSize, hexSize*√3/2) aligns the top-left corner to SVG origin.
  */
 export function computeViewBox(hexSize: number = HEX_SIZE): string {
-  const maxCoord = axialToPixel(36, 25, hexSize);
-  const width = maxCoord.cx + hexSize * 2;
-  const height = maxCoord.cy + hexSize * 2;
-  return `0 0 ${width} ${height}`;
+  // Width: 36 column-steps × 1.5×hexSize + 2×hexSize for left/right vertex padding.
+  const width = hexSize * 1.5 * 36 + hexSize * 2; // 1120
+  // Height: odd-q r=25 center + half-hex bottom + translate offset = hexSize×√3×26.5
+  const height = hexSize * Math.sqrt(3) * 26.5;
+  return `0 0 ${Math.ceil(width)} ${Math.ceil(height)}`;
 }

@@ -21,8 +21,11 @@ export function HexCell({ hex, isHighlighted, onClick }: Props) {
   // Goal hexes: q=0 r∈[9,15] (home) or q=36 r∈[9,15] (away). UI-SPEC §Hex Fill States.
   const isGoal = isInRegion(hex, 'homeGoal') || isInRegion(hex, 'awayGoal');
 
-  // Diagonal stripe pattern: (q + r) % 2 determines alternating light/dark green. D-02.
-  const baseFill = isGoal ? '#1a1a1a' : (hex.q + hex.r) % 2 === 0 ? '#4a7c3f' : '#3d6b34';
+  // Isolated dark hex pattern: (q + 2r) % 3 === 2 selects ~1/3 of hexes as dark.
+  // Every dark hex has all 6 neighbors in a different class → no two dark hexes touch.
+  // Center kickoff hex {q:18, r:13}: (18 + 26) % 3 = 2 → dark. D-02.
+  const isDark = (hex.q + 2 * hex.r) % 3 === 2;
+  const baseFill = isGoal ? '#1a1a1a' : isDark ? '#3d6b34' : '#4a7c3f';
 
   return (
     <>

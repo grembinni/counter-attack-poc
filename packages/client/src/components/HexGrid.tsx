@@ -6,6 +6,16 @@ import { PieceOverlay } from './PieceOverlay.js';
 import { BallMarker } from './BallMarker.js';
 import styles from './HexGrid.module.css';
 
+const SQRT3 = Math.sqrt(3);
+// Clip rect: cuts left/right pointy vertices and top/bottom for rectangular pitch boundary.
+// Top clip (clipY): cuts even-q r=0 hexes at their centres → bottom-half visible.
+// Bottom clip (clipY+clipH): aligns with odd-q r=25 centres → top-half visible.
+// Left/right clips (clipX, clipX+clipW): trim pointy vertices of q=0 and q=36 columns.
+const CLIP_X = HEX_SIZE * 0.5;
+const CLIP_Y = HEX_SIZE * SQRT3 * 0.5;
+const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE; // 1100
+const CLIP_H = HEX_SIZE * SQRT3 * 25.5; // ≈ 883
+
 /**
  * SVG root element for the Counter Attack pitch.
  * Renders all 962 HexCell polygons, BallMarker, and PieceOverlay elements inside
@@ -37,13 +47,13 @@ export function HexGrid() {
   const translateY = (HEX_SIZE * Math.sqrt(3)) / 2;
 
   return (
-    <svg
-      className={styles.hexGrid}
-      viewBox={computeViewBox()}
-      width="100%"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <g transform={`translate(${translateX}, ${translateY})`}>
+    <svg className={styles.hexGrid} viewBox={computeViewBox()} preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <clipPath id="pitch-clip">
+          <rect x={CLIP_X} y={CLIP_Y} width={CLIP_W} height={CLIP_H} />
+        </clipPath>
+      </defs>
+      <g transform={`translate(${translateX}, ${translateY})`} clipPath="url(#pitch-clip)">
         {/* Layer 1: Hex cells — base pitch fill and valid-move highlights */}
         {PITCH_HEXES.map((hex) => {
           const hexId = `${hex.q},${hex.r}`;
