@@ -60,20 +60,20 @@ describe('PITCH_REGIONS', () => {
       expect(isInRegion({ q: 18, r: 13 }, 'centreCircle')).toBe(true);
     });
 
-    it('homeGoal contains q=0 r=12 (q=0 r∈[9,15])', () => {
-      expect(isInRegion({ q: 0, r: 12 }, 'homeGoal')).toBe(true);
-      expect(isInRegion({ q: 0, r: 9 }, 'homeGoal')).toBe(true);
-      expect(isInRegion({ q: 0, r: 15 }, 'homeGoal')).toBe(true);
+    it('homeGoal contains q=0 r=13 (q=0 r∈[10,16])', () => {
+      expect(isInRegion({ q: 0, r: 13 }, 'homeGoal')).toBe(true);
+      expect(isInRegion({ q: 0, r: 10 }, 'homeGoal')).toBe(true);
+      expect(isInRegion({ q: 0, r: 16 }, 'homeGoal')).toBe(true);
     });
 
     it('homeGoal does not contain q=1 r=12 (must be q=0)', () => {
       expect(isInRegion({ q: 1, r: 12 }, 'homeGoal')).toBe(false);
     });
 
-    it('awayGoal contains q=36 r=12 (q=36 r∈[9,15])', () => {
-      expect(isInRegion({ q: 36, r: 12 }, 'awayGoal')).toBe(true);
-      expect(isInRegion({ q: 36, r: 9 }, 'awayGoal')).toBe(true);
-      expect(isInRegion({ q: 36, r: 15 }, 'awayGoal')).toBe(true);
+    it('awayGoal contains q=36 r=13 (q=36 r∈[10,16])', () => {
+      expect(isInRegion({ q: 36, r: 13 }, 'awayGoal')).toBe(true);
+      expect(isInRegion({ q: 36, r: 10 }, 'awayGoal')).toBe(true);
+      expect(isInRegion({ q: 36, r: 16 }, 'awayGoal')).toBe(true);
     });
 
     it('awayGoal does not contain q=35 r=12 (must be q=36)', () => {

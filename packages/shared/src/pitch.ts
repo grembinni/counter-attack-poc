@@ -48,8 +48,8 @@ export type PitchRegions = {
  *   homeThird:        q ∈ [0, 10]  (11 columns)
  *   middleThird:      q ∈ [11, 25] (15 columns)
  *   awayThird:        q ∈ [26, 36] (11 columns)
- *   homeGoal:         q = 0,  r ∈ [9, 15]  (7 hexes)
- *   awayGoal:         q = 36, r ∈ [9, 15]  (7 hexes)
+ *   homeGoal:         q = 0,  r ∈ [10, 16]  (7 hexes)
+ *   awayGoal:         q = 36, r ∈ [10, 16]  (7 hexes)
  *   homeSixYardBox:   q ∈ [0, 1],  r ∈ [8, 17]
  *   awaySixYardBox:   q ∈ [35, 36], r ∈ [8, 17]
  *   homePenaltyArea:  q ∈ [0, 5],  r ∈ [5, 19]
@@ -65,8 +65,8 @@ export const PITCH_REGIONS: PitchRegions = {
   awayPenaltyArea: buildRegion(PITCH_HEXES.filter((h) => h.q >= 31 && h.r >= 5 && h.r <= 19)),
   homeSixYardBox: buildRegion(PITCH_HEXES.filter((h) => h.q <= 1 && h.r >= 8 && h.r <= 17)),
   awaySixYardBox: buildRegion(PITCH_HEXES.filter((h) => h.q >= 35 && h.r >= 8 && h.r <= 17)),
-  homeGoal: buildRegion(PITCH_HEXES.filter((h) => h.q === 0 && h.r >= 9 && h.r <= 15)),
-  awayGoal: buildRegion(PITCH_HEXES.filter((h) => h.q === 36 && h.r >= 9 && h.r <= 15)),
+  homeGoal: buildRegion(PITCH_HEXES.filter((h) => h.q === 0 && h.r >= 10 && h.r <= 16)),
+  awayGoal: buildRegion(PITCH_HEXES.filter((h) => h.q === 36 && h.r >= 10 && h.r <= 16)),
   centreCircle: buildRegion(hexesInRange({ q: 18, r: 13 }, 3)),
   kickOffHex: { q: 18, r: 13 },
 };
