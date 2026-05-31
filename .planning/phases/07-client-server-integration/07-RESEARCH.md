@@ -689,17 +689,17 @@ function CreateRoomScreen() {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`GAME_SHOT` event vs `game:roll` for SHOT phase click**
    - What we know: UI-SPEC specifies `socket.emit(GAME_SHOT, { targetHex: hex })`. But `GAME_SHOT` does not exist in `events.ts` or server handlers. The `SHOT` phase resolves via `game:roll` in `applyRoll()`.
    - What's unclear: Does the goal hex click need to set a `shotTarget` field on GameState first (before rolling), or can the roll proceed without a target and the target is cosmetic only for Phase 7?
-   - Recommendation: Treat this as a **Wave 0 gap** in the plan. The simplest path: add `GAME_SHOT: 'game:shot'` to `ClientEvents`, add `ClientToServerEvents['game:shot']: (targetHex: HexCoord) => void`, add a server handler that transitions to a "ready to roll" sub-state or simply records `shotTarget` on GameState. However, since Phase 5's `applyRoll()` for SHOT doesn't consume `shotTarget`, the planner should clarify with the user whether the target hex matters for v1 resolution. If it's purely cosmetic (ball travels to clicked goal hex after goal), the simplest path is: click stores `shotTarget` in Zustand local state only, then Roll button emits `game:roll` as usual. No new event needed.
+   - **RESOLVED:** Shot target stored in local React state (`setShotTarget`) only — no new `GAME_SHOT` event created. The Roll button drives SHOT duel resolution via `game:roll` as usual. Target hex is cosmetic/UX-only for Phase 7; server does not consume it. Full server-side shot targeting deferred to Phase 8.
 
 2. **`activeTeam` vs derived team in store — which field to use?**
    - What we know: `GameState` has both `activeTeam: 'home' | 'away'` and `attackingTeam: 'home' | 'away'` + `movementSlot`. The `isActivePlayer` logic in `gameHandlers.ts` derives the acting team from `attackingTeam + movementSlot`. The `activeTeam` field exists in `GameState` but is set in `buildInitialGameState` and updated in `advanceMovementSlot`.
    - What's unclear: Can the client use `gameState.activeTeam` directly (simpler) or must it re-derive from `attackingTeam + movementSlot`?
-   - Recommendation: Use `gameState.activeTeam` directly — the server maintains this field correctly across all state transitions. Verify one edge case: after `applyEndTurn` transitioning to `PASS` phase, does `activeTeam` correctly reflect the passing team? (Likely yes — `advanceMovementSlot` sets `nextActiveTeam`.)
+   - **RESOLVED:** Use `gameState.activeTeam` directly — the server maintains this field correctly across all state transitions (including `applyEndTurn` → PASS phase via `advanceMovementSlot`). No client-side re-derivation needed.
 
 ---
 
