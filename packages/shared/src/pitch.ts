@@ -1,25 +1,15 @@
 import type { HexCoord } from './types.js';
 import { hexesInRange } from './hex.js';
 
-// PLACEHOLDER: This grid is a rectangular approximation of the Counter Attack board.
-// It is NOT derived from real board measurements and must NOT be used for
-// boundary-dependent rules (goal detection, penalty box, pitch edge).
-//
-// Blocking dependency: pending real board measurements from the user (photo/ruler).
-// See STATE.md §Blocking Dependencies — "Board layout (HARD BLOCK)".
-// Replace this export when real axial coordinates are provided in Phase 6.
-
 /**
- * PLACEHOLDER rectangular grid approximating the Counter Attack pitch.
- * ~25 cols × 16 rows; actual board dimensions are a blocking dependency.
- * This constant pending real board measurements — do not use for boundary rules.
+ * Full 37×26 rectangular pitch grid: q∈[0,36], r∈[0,25].
+ * Exactly 962 hexes (37 × 26 = 962). D-04.
+ * Replaces the placeholder 25×16 grid from Phase 1.
  */
 export const PITCH_HEXES: readonly HexCoord[] = (() => {
   const hexes: HexCoord[] = [];
-  // Approximate Counter Attack board: ~25 cols × 16 rows
-  // Real axial coordinates depend on physical board measurements (blocking dependency).
-  for (let q = 0; q < 25; q++) {
-    for (let r = 0; r < 16; r++) {
+  for (let q = 0; q <= 36; q++) {
+    for (let r = 0; r <= 25; r++) {
       hexes.push({ q, r });
     }
   }
@@ -32,8 +22,9 @@ const hexKey = (h: HexCoord): string => `${h.q},${h.r}`;
 const buildRegion = (hexes: HexCoord[]): ReadonlySet<string> => new Set(hexes.map(hexKey));
 
 /**
- * Named pitch regions derived from the placeholder 25×16 grid.
+ * Named pitch regions for the 37×26 grid.
  * PITCH-02: All regions use ReadonlySet<string> for O(1) membership checks.
+ * D-05: Region boundaries encoded from real board measurements.
  */
 export type PitchRegions = {
   homeThird: ReadonlySet<string>;
@@ -43,51 +34,72 @@ export type PitchRegions = {
   awayPenaltyArea: ReadonlySet<string>;
   homeSixYardBox: ReadonlySet<string>;
   awaySixYardBox: ReadonlySet<string>;
+  homeGoal: ReadonlySet<string>;
+  awayGoal: ReadonlySet<string>;
   centreCircle: ReadonlySet<string>;
-  /** Kick-off hex — the centre of the pitch. */
+  /** Kick-off hex — the centre of the 37×26 pitch. D-05. */
   kickOffHex: HexCoord;
 };
 
 /**
- * Encoded pitch regions for the placeholder 25×16 grid.
- * PLACEHOLDER — boundaries are approximations pending physical board measurements.
- * Phase 6 replaces these with real axial coordinates.
+ * Encoded pitch regions for the real 37×26 grid. D-04, D-05.
  * PITCH-02: All region lookups use Set.has() for O(1) structural-equality checks.
+ * Region boundaries:
+ *   homeThird:        q ∈ [0, 10]  (11 columns)
+ *   middleThird:      q ∈ [11, 25] (15 columns)
+ *   awayThird:        q ∈ [26, 36] (11 columns)
+ *   homeGoal:         q = 0,  r ∈ [9, 15]  (7 hexes)
+ *   awayGoal:         q = 36, r ∈ [9, 15]  (7 hexes)
+ *   homeSixYardBox:   q ∈ [0, 1],  r ∈ [8, 17]
+ *   awaySixYardBox:   q ∈ [35, 36], r ∈ [8, 17]
+ *   homePenaltyArea:  q ∈ [0, 5],  r ∈ [5, 19]
+ *   awayPenaltyArea:  q ∈ [31, 36], r ∈ [5, 19]
+ *   centreCircle:     hexDistance ≤ 3 from kickoff hex {q:18, r:13}
+ *   kickOffHex:       {q: 18, r: 13}
  */
 export const PITCH_REGIONS: PitchRegions = {
-  homeThird: buildRegion(PITCH_HEXES.filter((h) => h.q <= 7)),
-  awayThird: buildRegion(PITCH_HEXES.filter((h) => h.q >= 17)),
-  middleThird: buildRegion(PITCH_HEXES.filter((h) => h.q >= 8 && h.q <= 16)),
-  homePenaltyArea: buildRegion(PITCH_HEXES.filter((h) => h.q <= 3 && h.r >= 4 && h.r <= 11)),
-  awayPenaltyArea: buildRegion(PITCH_HEXES.filter((h) => h.q >= 21 && h.r >= 4 && h.r <= 11)),
-  homeSixYardBox: buildRegion(PITCH_HEXES.filter((h) => h.q <= 1 && h.r >= 6 && h.r <= 9)),
-  awaySixYardBox: buildRegion(PITCH_HEXES.filter((h) => h.q >= 23 && h.r >= 6 && h.r <= 9)),
-  centreCircle: buildRegion(hexesInRange({ q: 12, r: 7 }, 3)),
-  kickOffHex: { q: 12, r: 7 },
+  homeThird: buildRegion(PITCH_HEXES.filter((h) => h.q <= 10)),
+  middleThird: buildRegion(PITCH_HEXES.filter((h) => h.q >= 11 && h.q <= 25)),
+  awayThird: buildRegion(PITCH_HEXES.filter((h) => h.q >= 26)),
+  homePenaltyArea: buildRegion(PITCH_HEXES.filter((h) => h.q <= 5 && h.r >= 5 && h.r <= 19)),
+  awayPenaltyArea: buildRegion(PITCH_HEXES.filter((h) => h.q >= 31 && h.r >= 5 && h.r <= 19)),
+  homeSixYardBox: buildRegion(PITCH_HEXES.filter((h) => h.q <= 1 && h.r >= 8 && h.r <= 17)),
+  awaySixYardBox: buildRegion(PITCH_HEXES.filter((h) => h.q >= 35 && h.r >= 8 && h.r <= 17)),
+  homeGoal: buildRegion(PITCH_HEXES.filter((h) => h.q === 0 && h.r >= 9 && h.r <= 15)),
+  awayGoal: buildRegion(PITCH_HEXES.filter((h) => h.q === 36 && h.r >= 9 && h.r <= 15)),
+  centreCircle: buildRegion(hexesInRange({ q: 18, r: 13 }, 3)),
+  kickOffHex: { q: 18, r: 13 },
 };
 
 /**
- * Difficult-angle hexes — dot-marked positions on the physical board where shooting
- * is penalised. PITCH-03.
- * PLACEHOLDER — approximate positions. Phase 6 replaces with real coordinates.
+ * Difficult-angle hexes — dot-marked positions near penalty area corners
+ * where shooting is penalised. PITCH-03.
+ * 16 hexes approximated from Counter Attack rules for the 37×26 grid:
+ *   Home end (near penalty area corners, q∈[3,4] near r-boundaries):
+ *     Upper/near-post: {q:3,r:6}, {q:4,r:6}, {q:3,r:7}, {q:4,r:7}
+ *     Lower/far-post:  {q:3,r:17}, {q:4,r:17}, {q:3,r:18}, {q:4,r:18}
+ *   Away end (mirror at q=36-q):
+ *     Upper/near-post: {q:32,r:6}, {q:33,r:6}, {q:32,r:7}, {q:33,r:7}
+ *     Lower/far-post:  {q:32,r:17}, {q:33,r:17}, {q:32,r:18}, {q:33,r:18}
+ * TODO: Verify against docs/board-photo.jpg when available (D-06)
  */
 export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
-  { q: 2, r: 3 },
-  { q: 3, r: 3 },
-  { q: 2, r: 4 },
-  { q: 3, r: 4 }, // home end near-post
-  { q: 2, r: 10 },
-  { q: 3, r: 10 },
-  { q: 2, r: 11 },
-  { q: 3, r: 11 }, // home end far-post
-  { q: 21, r: 3 },
-  { q: 22, r: 3 },
-  { q: 21, r: 4 },
-  { q: 22, r: 4 }, // away end near-post
-  { q: 21, r: 10 },
-  { q: 22, r: 10 },
-  { q: 21, r: 11 },
-  { q: 22, r: 11 }, // away end far-post
+  { q: 3, r: 6 },
+  { q: 4, r: 6 },
+  { q: 3, r: 7 },
+  { q: 4, r: 7 }, // home end near-post upper
+  { q: 3, r: 17 },
+  { q: 4, r: 17 },
+  { q: 3, r: 18 },
+  { q: 4, r: 18 }, // home end far-post lower
+  { q: 32, r: 6 },
+  { q: 33, r: 6 },
+  { q: 32, r: 7 },
+  { q: 33, r: 7 }, // away end near-post upper
+  { q: 32, r: 17 },
+  { q: 33, r: 17 },
+  { q: 32, r: 18 },
+  { q: 33, r: 18 }, // away end far-post lower
 ]);
 
 /**
@@ -109,7 +121,7 @@ export function isDifficultAngle(hex: HexCoord): boolean {
 const PITCH_HEX_SET: ReadonlySet<string> = buildRegion([...PITCH_HEXES]);
 
 /**
- * Returns true when `hex` is within the placeholder pitch grid.
+ * Returns true when `hex` is within the 37×26 pitch grid.
  * Used by Loose Ball boundary enforcement to keep the ball in play.
  * CR-04: O(1) Set.has() — consistent with isInRegion/isDifficultAngle.
  */

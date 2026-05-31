@@ -9,65 +9,86 @@ import {
 } from './pitch.js';
 
 describe('PITCH_HEXES', () => {
-  it('contains exactly 400 hexes (PITCH-01)', () => {
-    expect(PITCH_HEXES).toHaveLength(400);
+  it('contains exactly 962 hexes (37×26 grid, PITCH-01 / D-04)', () => {
+    expect(PITCH_HEXES).toHaveLength(962);
   });
 });
 
 describe('PITCH_REGIONS', () => {
-  it('kickOffHex is { q: 12, r: 7 }', () => {
-    expect(PITCH_REGIONS.kickOffHex).toEqual({ q: 12, r: 7 });
+  it('kickOffHex is { q: 18, r: 13 } (D-05)', () => {
+    expect(PITCH_REGIONS.kickOffHex).toEqual({ q: 18, r: 13 });
   });
 
   describe('isInRegion (PITCH-02)', () => {
-    it('returns true for a hex in the homeThird (q <= 7)', () => {
-      expect(isInRegion({ q: 3, r: 7 }, 'homeThird')).toBe(true);
+    it('returns true for a hex in the homeThird (q <= 10)', () => {
+      expect(isInRegion({ q: 5, r: 12 }, 'homeThird')).toBe(true);
       expect(isInRegion({ q: 0, r: 0 }, 'homeThird')).toBe(true);
-      expect(isInRegion({ q: 7, r: 7 }, 'homeThird')).toBe(true);
+      expect(isInRegion({ q: 10, r: 12 }, 'homeThird')).toBe(true);
     });
 
-    it('returns false for a midfield hex in homeThird (PITCH-02)', () => {
-      expect(isInRegion({ q: 12, r: 7 }, 'homeThird')).toBe(false);
-      expect(isInRegion({ q: 17, r: 7 }, 'homeThird')).toBe(false);
+    it('returns false for q=11 in homeThird (boundary — middleThird starts at q=11)', () => {
+      expect(isInRegion({ q: 11, r: 12 }, 'homeThird')).toBe(false);
+      expect(isInRegion({ q: 18, r: 13 }, 'homeThird')).toBe(false);
     });
 
-    it('returns true for a hex in the awayThird (q >= 17)', () => {
-      expect(isInRegion({ q: 17, r: 7 }, 'awayThird')).toBe(true);
-      expect(isInRegion({ q: 24, r: 0 }, 'awayThird')).toBe(true);
+    it('returns true for a hex in the awayThird (q >= 26)', () => {
+      expect(isInRegion({ q: 30, r: 12 }, 'awayThird')).toBe(true);
+      expect(isInRegion({ q: 36, r: 0 }, 'awayThird')).toBe(true);
     });
 
-    it('returns false for a midfield hex in awayThird', () => {
-      expect(isInRegion({ q: 12, r: 7 }, 'awayThird')).toBe(false);
-      expect(isInRegion({ q: 7, r: 7 }, 'awayThird')).toBe(false);
+    it('returns false for q=25 in awayThird (boundary — middleThird ends at q=25)', () => {
+      expect(isInRegion({ q: 25, r: 12 }, 'awayThird')).toBe(false);
+      expect(isInRegion({ q: 18, r: 13 }, 'awayThird')).toBe(false);
     });
 
-    it('returns true for a hex inside the homePenaltyArea (PITCH-02)', () => {
-      expect(isInRegion({ q: 1, r: 7 }, 'homePenaltyArea')).toBe(true);
-      expect(isInRegion({ q: 3, r: 6 }, 'homePenaltyArea')).toBe(true);
+    it('returns true for a hex inside the homePenaltyArea (q∈[0,5] r∈[5,19])', () => {
+      expect(isInRegion({ q: 3, r: 10 }, 'homePenaltyArea')).toBe(true);
+      expect(isInRegion({ q: 0, r: 5 }, 'homePenaltyArea')).toBe(true);
+      expect(isInRegion({ q: 5, r: 19 }, 'homePenaltyArea')).toBe(true);
     });
 
     it('returns false for a midfield hex in homePenaltyArea', () => {
-      expect(isInRegion({ q: 12, r: 7 }, 'homePenaltyArea')).toBe(false);
+      expect(isInRegion({ q: 18, r: 13 }, 'homePenaltyArea')).toBe(false);
     });
 
-    it('returns true for a hex inside the awayPenaltyArea', () => {
-      expect(isInRegion({ q: 22, r: 7 }, 'awayPenaltyArea')).toBe(true);
+    it('returns true for a hex inside the awayPenaltyArea (q∈[31,36] r∈[5,19])', () => {
+      expect(isInRegion({ q: 33, r: 10 }, 'awayPenaltyArea')).toBe(true);
+      expect(isInRegion({ q: 36, r: 5 }, 'awayPenaltyArea')).toBe(true);
     });
 
     it('centreCircle contains the kick-off hex', () => {
-      expect(isInRegion({ q: 12, r: 7 }, 'centreCircle')).toBe(true);
+      expect(isInRegion({ q: 18, r: 13 }, 'centreCircle')).toBe(true);
+    });
+
+    it('homeGoal contains q=0 r=12 (q=0 r∈[9,15])', () => {
+      expect(isInRegion({ q: 0, r: 12 }, 'homeGoal')).toBe(true);
+      expect(isInRegion({ q: 0, r: 9 }, 'homeGoal')).toBe(true);
+      expect(isInRegion({ q: 0, r: 15 }, 'homeGoal')).toBe(true);
+    });
+
+    it('homeGoal does not contain q=1 r=12 (must be q=0)', () => {
+      expect(isInRegion({ q: 1, r: 12 }, 'homeGoal')).toBe(false);
+    });
+
+    it('awayGoal contains q=36 r=12 (q=36 r∈[9,15])', () => {
+      expect(isInRegion({ q: 36, r: 12 }, 'awayGoal')).toBe(true);
+      expect(isInRegion({ q: 36, r: 9 }, 'awayGoal')).toBe(true);
+      expect(isInRegion({ q: 36, r: 15 }, 'awayGoal')).toBe(true);
+    });
+
+    it('awayGoal does not contain q=35 r=12 (must be q=36)', () => {
+      expect(isInRegion({ q: 35, r: 12 }, 'awayGoal')).toBe(false);
     });
   });
 });
 
 describe('DIFFICULT_ANGLE_HEXES', () => {
-  it('isDifficultAngle returns true for an encoded dot-marked hex (PITCH-03)', () => {
-    expect(isDifficultAngle({ q: 2, r: 3 })).toBe(true);
-    expect(isDifficultAngle({ q: 22, r: 11 })).toBe(true);
+  it('isDifficultAngle returns true for a known difficult-angle hex near home end (PITCH-03)', () => {
+    expect(isDifficultAngle({ q: 3, r: 7 })).toBe(true);
   });
 
   it('isDifficultAngle returns false for the kick-off hex (PITCH-03)', () => {
-    expect(isDifficultAngle({ q: 12, r: 7 })).toBe(false);
+    expect(isDifficultAngle({ q: 18, r: 13 })).toBe(false);
   });
 
   it('DIFFICULT_ANGLE_HEXES contains exactly 16 encoded hexes', () => {
@@ -76,15 +97,15 @@ describe('DIFFICULT_ANGLE_HEXES', () => {
 });
 
 describe('isPitchHex', () => {
-  it('returns true for a valid in-grid hex', () => {
+  it('returns true for valid in-grid hexes on the 37×26 grid', () => {
     expect(isPitchHex({ q: 0, r: 0 })).toBe(true);
-    expect(isPitchHex({ q: 12, r: 7 })).toBe(true);
-    expect(isPitchHex({ q: 24, r: 15 })).toBe(true);
+    expect(isPitchHex({ q: 18, r: 13 })).toBe(true);
+    expect(isPitchHex({ q: 36, r: 25 })).toBe(true);
   });
 
-  it('returns false for an out-of-grid hex', () => {
+  it('returns false for out-of-grid hexes (37×26 boundaries)', () => {
+    expect(isPitchHex({ q: 37, r: 0 })).toBe(false);
+    expect(isPitchHex({ q: 0, r: 26 })).toBe(false);
     expect(isPitchHex({ q: 99, r: 99 })).toBe(false);
-    expect(isPitchHex({ q: 25, r: 0 })).toBe(false);
-    expect(isPitchHex({ q: 0, r: 16 })).toBe(false);
   });
 });
