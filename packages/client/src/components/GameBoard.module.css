@@ -1,0 +1,53 @@
+.gameBoard {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  height: 48px;
+  background: #1a1a2e;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.gameLayout {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.pitchContainer {
+  flex: 1;
+  background: #0a0a0a;
+  padding: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+}
+
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: #1a1a2e;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.turnIndicatorPlaceholder,
+.actionLogPlaceholder {
+  color: #a0a0a0;
+  font-size: 13px;
+  padding: 8px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+}
