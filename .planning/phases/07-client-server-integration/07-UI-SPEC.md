@@ -71,13 +71,20 @@ Declared values (must be multiples of 4). All values detected from existing CSS 
 | 2xl   | 48px  | Header bar fixed height                                                                            |
 | 3xl   | 64px  | — (available; not yet used)                                                                        |
 
-Exceptions:
+Exceptions (layout constraints — not spacing tokens):
 
-- Lobby card max-width: 440px (not a spacing token; a container width constraint)
-- Input padding: 8px vertical / 12px horizontal (8px is `sm`, 12px is between `sm` and `md`)
+- Lobby card max-width: 440px (container width constraint, not a spacing token)
 - Sidebar fixed width: 280px (layout constraint, not a spacing token)
-- Button padding: 10px vertical / 20px horizontal (not on the 4-point scale; inherited from Phase 6 ctaButton — do not change in Phase 7)
 - Action panel section gap within sidebar: 8px between individual buttons (`sm`)
+
+### Component Overrides (frozen from Phase 6)
+
+These values are frozen legacy values inherited from Phase 6. Phase 7 introduces NO new spacing on these elements. They are component-level overrides, not spacing scale tokens, and are exempt from the 4px-grid rule because they predate this phase and are out of scope for Phase 7 modification.
+
+| Component    | Property           | Value                           | Source                                              |
+| ------------ | ------------------ | ------------------------------- | --------------------------------------------------- |
+| ctaButton    | padding            | 10px vertical / 20px horizontal | Inherited from Phase 6 `.ctaButton` — do not change |
+| input fields | horizontal padding | 12px                            | Inherited from Phase 6 input styles — do not change |
 
 ---
 
@@ -326,6 +333,14 @@ The Phase 6 layout is locked:
 - Header: 48px fixed height, `#1a1a2e`, `padding: 0 16px`
 - Sidebar: 280px fixed width, `#1a1a2e`, `padding: 24px`, `gap: 16px`
 - Pitch container: `flex: 1`, `#0a0a0a`, `padding: 16px`
+
+### Focal Point Hierarchy (Game Board screen)
+
+| Priority  | Zone                                              | Description                                                          |
+| --------- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| Primary   | Hex pitch SVG (pitch container)                   | The main play area; occupies `flex: 1` of available horizontal space |
+| Secondary | Sidebar (TurnIndicator + ActionPanel + ActionLog) | Action controls and game log; fixed 280px right column               |
+| Tertiary  | Header row (score + ConnectionStatus)             | Persistent status bar; 48px fixed height, always visible             |
 
 Phase 7 sidebar changes:
 
