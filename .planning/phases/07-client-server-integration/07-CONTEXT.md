@@ -31,7 +31,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 ### Click Interaction Scope
 
 - **D-05:** **Passing — full flow wired:** Pass type selection (Standard, First-time, High, Long) is available as a UI control during the appropriate phase. Player then clicks a destination hex to set the pass target. Followed by a Roll button to trigger `game:roll` for accuracy resolution.
-- **D-06:** **Shooting — click goal hex:** When `GameState.phase === 'SHOT'`, goal hexes become clickable (highlighted). The player clicks their intended target hex within the goal area. The client emits the target coord; server transitions to the saving duel.
+- **D-06 (confirmed implementation decision — revised 2026-05-31):** **Shooting — click goal hex emits `game:shot`.** When `GameState.phase === 'SHOT'`, opponent goal hexes become clickable (highlighted red). The player clicks their intended target hex within the goal area, and **the client emits `game:shot` (`ClientEvents.GAME_SHOT`) with the target `HexCoord`** to the server. The server's `game:shot` handler (added in plan 07-04) **records the target** on the room (`room.shotTarget`) for UX/broadcast purposes after guarding `phase === 'SHOT'`, active-player, and HexCoord payload shape. **Dice resolution is unchanged:** the SHOT duel still resolves shooter-vs-GK from dice only when the Roll button fires `game:roll` → `applyRoll`; the recorded target is never consumed by resolution. This supersedes the earlier RESEARCH Open Q1 "local-state-only" resolution, which stored the target in local React state and never emitted it — a context-compliance gap flagged by the checker. Full server-side shot-targeting (target consumed by resolution) remains deferred to Phase 8.
 - **D-07:** **All action buttons wired in Phase 7:**
   - **Roll button** — visible during `PASS`, `SHOT`, `HEADER`, `LOOSE_BALL` phases; emits `game:roll`. Only rendered for the active player.
   - **End Turn button** — visible during `MOVEMENT` phase; emits `game:end-turn`. Only rendered for the active player.
@@ -81,7 +81,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 
 ### Shared Types and Events
 
-- `packages/shared/src/events.ts` — All `ClientEvents`, `ServerEvents`, `ClientToServerEvents`, `ServerToClientEvents` typed interfaces. Phase 7 emits all ClientEvents and listens on all ServerEvents.
+- `packages/shared/src/events.ts` — All `ClientEvents`, `ServerEvents`, `ClientToServerEvents`, `ServerToClientEvents` typed interfaces. Phase 7 emits all ClientEvents (including the new `GAME_SHOT`, D-06) and listens on all ServerEvents.
 - `packages/shared/src/types.ts` — `GameState` (including `lastDiceRoll`, `phase`, `movementSlot`, `attackingTeam`), `PlayerPiece`, `GamePhase`. Phase 7 reads these to gate controls.
 
 ### Existing Client Code (Phase 7 extends these)
@@ -93,7 +93,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 ### Server Handlers (Phase 7 client must emit correctly)
 
 - `packages/server/src/roomHandlers.ts` — `room:create`, `room:join` handlers; `room:joined(roomCode, slot, sessionToken)` response shape; `game:disconnect-warning` emit on disconnect.
-- `packages/server/src/gameHandlers.ts` — All `game:*` handler guards (WRONG_PHASE, WRONG_TEAM errors); `game:state` broadcast shape via `broadcastState`.
+- `packages/server/src/gameHandlers.ts` — All `game:*` handler guards (WRONG_PHASE, WRONG_TEAM errors); `game:state` broadcast shape via `broadcastState`. Phase 7 adds the `game:shot` handler here (plan 07-04, D-06).
 
 </canonical_refs>
 
@@ -107,7 +107,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 - `LobbyScreen` (`packages/client/src/components/LobbyScreen.tsx`) — Create/Join/Waiting sub-screens fully built. Only `MOCK42` and `setScreen` calls need replacement with socket events and `room:joined` handler.
 - `App.tsx` — Already imports `useGameStore` and routes by `screen`. Central `useEffect` for socket listeners goes here.
 - `validateMove()` + `hexesInRange()` — Client-side valid-move highlighting already wired to `selectPiece` in the store. No changes needed for Phase 7 (D-08).
-- `HexGrid` + `HexCell` — Click handler infrastructure already exists via `onHexClick`. Phase 7 adds conditional logic: during `SHOT` phase, only goal hexes are clickable.
+- `HexGrid` + `HexCell` — Click handler infrastructure already exists via `onHexClick`. Phase 7 adds conditional logic: during `SHOT` phase, only goal hexes are clickable and clicking one emits `game:shot` (D-06).
 
 ### Established Patterns
 
@@ -123,7 +123,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 - `App.tsx` `useEffect` → `socket.connect()` on mount → registers all ServerEvents listeners → calls `store.setGameState`, `store.setScreen`, `store.setPlayerSlot` etc.
 - `LobbyScreen` Create button → `socket.emit(ClientEvents.ROOM_CREATE)` → server emits `room:joined(code, 1, token)` → store saves `roomCode`, `playerSlot` → `setScreen('WAITING')`.
 - `LobbyScreen` Join submit → `socket.emit(ClientEvents.ROOM_JOIN, code)` → server emits `room:joined(code, 2, token)` + `game:state` → store saves slot → `setScreen('GAME_BOARD')`.
-- `HexCell` `onHexClick` → during MOVEMENT: `store.selectPiece()` or `store.emitMove()` → `socket.emit(ClientEvents.GAME_MOVE, pieceId, hex)`.
+- `HexCell` `onHexClick` → during MOVEMENT: `store.selectPiece()` or `store.emitMove()` → `socket.emit(ClientEvents.GAME_MOVE, pieceId, hex)`; during SHOT on a goal hex: `socket.emit(ClientEvents.GAME_SHOT, hex)` (D-06).
 - Action panel → during MOVEMENT: End Turn button → `socket.emit(ClientEvents.GAME_END_TURN)`; Undo button (if active player + no lastDiceRoll) → `socket.emit(ClientEvents.GAME_UNDO)`.
 
 </code_context>
@@ -136,6 +136,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 - **Session token in `localStorage`**: `room:joined` delivers a `sessionToken`. Store it in `localStorage` under a key like `ca_session_token` for reconnect via `socket.handshake.auth.sessionToken`. The server's session middleware already validates this.
 - **`game:state` handler replaces all mock state**: On every `game:state` event, `store.setGameState(state)` replaces the entire `gameState` in the Zustand store — consistent with ARCH-04 full-snapshot broadcast. Client never patches state.
 - **Pass type as a Phase 7 scope note**: Full pass flow (D-05) requires knowing which pass types are available in the current `GameState.phase`. The server's `gameEngine.ts` drives these transitions. Phase 7 only needs to wire the UI for whichever pass type the current phase allows — the server enforces which pass types are legal.
+- **`game:shot` records target only (D-06)**: The new `game:shot` event/handler (plan 07-04) records the shooter's target hex on `room.shotTarget` for UX/broadcast. It deliberately does NOT change dice resolution — `applyRoll`'s SHOT branch is unchanged and never reads `room.shotTarget`. Full target-aware resolution is a Phase 8 extension.
 
 </specifics>
 
@@ -145,6 +146,7 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 - **Heading duel click flow**: Header interaction (player clicks a challenger after a High Pass) — deferred to a follow-up task if heading duels are needed for the Phase 7 success criteria. The success criteria mention movement + passing + shooting only.
 - **Snapshot interaction**: Click-to-snapshot during movement phase in the penalty area — deferred to Phase 8 or a follow-up. MOVE-07 / SNAP-01 are separate from the Phase 7 success criteria.
 - **GK quick-throw `targetHex` delivery (Phase 5 D-25 full intent)**: Full `throw` choice should deliver the ball up to 11 hexes away. Phase 5 deferred this to Phase 7 for the click-to-target UI. However, the Phase 7 success criteria do not explicitly require quick-throw target selection — Claude should implement the `throw` choice as a movement-phase start (consistent with Phase 5 D-25 deferred note) and flag for Phase 8 if full throw-target UI is needed.
+- **Target-aware shot resolution**: `applyRoll` consuming `room.shotTarget` to bias/validate the SHOT duel (e.g. corner placement affecting save difficulty) — deferred to Phase 8. Phase 7 records the target (D-06) but resolves from dice only.
 - **React Router / URL-based navigation**: Deferred beyond Phase 7. Component-state screen routing (D-12, Phase 6) continues.
 - **Board flip for away player**: No-flip decision locked (D-11). If desired in future, apply `transform: scaleX(-1)` to the SVG and reverse pixel-to-hex mapping for click events.
 
@@ -154,3 +156,4 @@ Wire the React client's Zustand store to the live Socket.io server, replacing al
 
 _Phase: 7-client-server-integration_
 _Context gathered: 2026-05-31_
+_D-06 revised: 2026-05-31 (game:shot event added — supersedes RESEARCH Open Q1 local-state resolution)_
