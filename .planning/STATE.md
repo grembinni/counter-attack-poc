@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-last_updated: '2026-05-31T00:16:57.692Z'
+status: Ready to execute
+last_updated: '2026-05-31T00:00:00.000Z'
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 17
+  total_plans: 20
   completed_plans: 17
   percent: 56
 ---
@@ -16,14 +16,14 @@ progress:
 
 ## Current Phase
 
-Phase 3 — not started (next: `/gsd-plan-phase 3`)
+Phase 6 — planned, ready to execute (next: `/gsd-execute-phase 6`)
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 05 — dice-resolver-all-resolution-branches
+**Current focus:** Phase 06 — react-hex-grid-renderer
 
 ## Phase Status
 
@@ -34,15 +34,15 @@ See: .planning/PROJECT.md
 | 3     | Server Room Manager + Socket.io Scaffold | Not started | -          |
 | 4     | Game Engine + Phase FSM                  | Not started | -          |
 | 5     | Dice Resolver + All Resolution Branches  | Not started | -          |
-| 6     | React Hex Grid Renderer                  | Not started | -          |
+| 6     | React Hex Grid Renderer                  | Planned     | -          |
 | 7     | Client-Server Integration                | Not started | -          |
 | 8     | Match Lifecycle + Post-Game Replay       | Not started | -          |
 | 9     | AWS Deployment                           | Not started | -          |
 
 ## Blocking Dependencies
 
-- **Board layout (HARD BLOCK):** Physical Counter Attack pitch hex coordinates (q, r) not yet measured — placeholder rectangular grid used in Phase 1 (`packages/shared/src/pitch.ts`). Must be resolved before Phase 6 hex renderer reflects real board geometry and before Phase 4 boundary-dependent rules (goal detection, penalty box, pitch edge) are accurate.
-- **Hex orientation (SOFT BLOCK):** Flat-top vs pointy-top orientation not yet confirmed against physical board. Must be resolved before Phase 6 (`axialToPixel` formula and SVG polygon points depend on this).
+- **Board layout (RESOLVED in Phase 6 plan):** Real 37×26 grid (q∈[0,36], r∈[0,25]) with exact region boundaries defined in Phase 6 CONTEXT.md D-04/D-05. Difficult-angle hexes approximated; TODO: verify against docs/board-photo.jpg when available (D-06).
+- **Hex orientation (RESOLVED in Phase 6 plan):** Flat-top confirmed (CONTEXT.md D-01). axialToPixel formula locked.
 - **Team squad attributes:** Full 9-attribute sets for both hardcoded squads not yet defined. Must be finalised before Phase 5 dice resolution uses attribute values.
 - **Referee card behaviour:** Whether Leniency affects anything beyond added time is unconfirmed from rulebook v1.4.1. Hardcode one card for v1; clarify before Phase 8.
 - **Pass range distance type:** Resolved in Phase 2 — implemented as axial hex distance (hexDistance). Physical rulebook verification pending before Phase 5 live use.
@@ -85,8 +85,9 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-05-30
+- Last updated: 2026-05-31
 - Phase 5 complete: 84 tests (all green), build clean, 3 verification gaps closed
-- Phase 5 delivered: applyRoll (PASS/SHOT/HEADER/LOOSE_BALL), applyGKRestart (kick/throw/movement), game:roll + game:gk-restart handlers, diceUtils (crypto.randomInt), movementSlot gap fixes
-- SHOT-05 requirement: PARTIAL → SATISFIED (GK restart MOVEMENT phase now playable)
-- Next action: `/gsd-plan-phase 6` (React Hex Grid Renderer)
+- Phase 6 planned: 3 plans in 3 waves — pitch.ts 37×26 + client scaffold + SVG rendering + lobby/sidebar UI
+- Phase 6 blocking dependencies resolved: flat-top orientation, axial formula, 37×26 grid, region boundaries
+- Open question from Phase 6: Flat-top vs pointy-top confirmed as flat-top (D-01)
+- Next action: `/gsd-execute-phase 6` (React Hex Grid Renderer)

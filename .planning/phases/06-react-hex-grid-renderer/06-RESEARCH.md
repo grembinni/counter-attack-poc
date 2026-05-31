@@ -719,22 +719,25 @@ const validMoveHexes = useGameStore((s) => s.validMoveHexes);
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Board photo location and difficult-angle coordinates**
    - What we know: CONTEXT.md D-06 says the board photo must be saved to `docs/board-photo.jpg`
    - What's unclear: The photo has not been verified as present in the repo. The planner must check whether it exists before attempting to derive difficult-angle hex coordinates.
    - Recommendation: First task in Wave 0 — confirm `docs/board-photo.jpg` exists; if not, the planner must request it from the user before deriving coordinates.
+   - **RESOLVED:** `docs/board-photo.jpg` does not exist in the repo at planning time. Difficult-angle hexes approximated from Counter Attack rules — 16 hexes near penalty area corners on both ends. A `TODO: Verify against docs/board-photo.jpg when available (D-06)` comment is included in pitch.ts.
 
 2. **Kickoff hex exact coordinates**
    - What we know: CONTEXT.md D-05 says "Kickoff hex: ~q=18, r=12 (exact centre of 37×26 grid)"
    - What's unclear: The `~` prefix indicates this is approximate. The true centre of q∈[0,36] is q=18; r∈[0,25] is r=12.5 (non-integer). The planner should use `{q:18, r:13}` as the kickoff hex (rounding down to nearest valid row) or `{q:18, r:12}` — verify against board photo.
    - Recommendation: Use `{q:18, r:13}` as default and note it for board photo verification.
+   - **RESOLVED:** Plans use `{q:18, r:13}`. D-05 used `~` indicating approximate; r=12.5 rounds to 13 for an integer row. Noted for board photo verification when available.
 
 3. **Goal hex region in PitchRegions type**
    - What we know: UI-SPEC specifies goal hexes render as `#1a1a1a`. Current `PitchRegions` type has no `homeGoal`/`awayGoal` field.
    - What's unclear: Whether to add goal hexes to `PitchRegions` in pitch.ts or handle them inline in HexCell via direct coordinate check.
    - Recommendation: Add `homeGoal` and `awayGoal` to `PitchRegions` for consistency with all other region lookups. This is a pure `pitch.ts` addition with no downstream breakage.
+   - **RESOLVED:** `homeGoal` and `awayGoal` added to `PitchRegions` type (q=0 r∈[9,15] and q=36 r∈[9,15]) for consistency with all other region lookups.
 
 ---
 
