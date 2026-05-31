@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { ActionPanel } from './ActionPanel.js';
@@ -7,6 +7,8 @@ import { ActionPanel } from './ActionPanel.js';
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
 }));
+
+afterEach(() => cleanup());
 
 beforeEach(() => {
   vi.clearAllMocks();
