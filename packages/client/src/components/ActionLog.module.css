@@ -1,0 +1,44 @@
+.panel {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 8px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.panelHeader {
+  font-size: 13px;
+  font-weight: 700;
+  color: #a0a0a0;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.entry {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+
+.prefix {
+  color: #a0a0a0;
+}
+
+.content {
+  color: #e0e0e0;
+  margin-left: 4px;
+}
+
+.goalContent {
+  color: #e8a020;
+  margin-left: 4px;
+}
+
+.empty {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  margin: 0;
+}
