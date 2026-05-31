@@ -9,6 +9,8 @@ export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   GAME_MOVE: 'game:move',
   GAME_ROLL: 'game:roll',
+  /** D-06: client emits the SHOT target coord; server records it for UX/broadcast — duel still resolves from dice via game:roll. */
+  GAME_SHOT: 'game:shot',
   GAME_GK_RESTART: 'game:gk-restart',
   GAME_END_TURN: 'game:end-turn',
   GAME_UNDO: 'game:undo',
@@ -33,6 +35,8 @@ export interface ClientToServerEvents {
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
   [ClientEvents.GAME_ROLL]: () => void;
+  /** D-06: client emits the SHOT target coord; server records it for UX/broadcast — duel still resolves from dice via game:roll. */
+  [ClientEvents.GAME_SHOT]: (targetHex: HexCoord) => void;
   /** D-22 (Phase 5): GK restart choice after a save catch. Payload validated server-side. */
   [ClientEvents.GAME_GK_RESTART]: (choice: 'kick' | 'throw' | 'movement') => void;
   [ClientEvents.GAME_END_TURN]: () => void;
