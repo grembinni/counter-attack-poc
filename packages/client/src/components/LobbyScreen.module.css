@@ -108,6 +108,12 @@
   animation: pulse 1.2s infinite;
 }
 
+.errorText {
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 400;
+}
+
 @keyframes pulse {
   0%,
   100% {
