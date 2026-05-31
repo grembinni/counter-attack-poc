@@ -7,7 +7,7 @@
 - [x] **Phase 3: Server Room Manager + Socket.io Scaffold** — Express server, Socket.io room lifecycle, session identity, disconnect/cleanup timers, health endpoint (completed 2026-05-29)
 - [x] **Phase 4: Game Engine + Phase FSM** — Explicit FSM wired to socket events, 4-5-2 movement sequence, hardcoded teams and pitch data, deterministic (stub) dice (completed 2026-05-30)
 - [x] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice (completed 2026-05-30)
-- [ ] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard
+- [x] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard (completed 2026-05-31)
 - [ ] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session
 - [ ] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay
 - [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
@@ -149,7 +149,7 @@ Plans:
 4. An action log panel shows the last 5 structured log entries from mock state (actor, action type, coordinates, dice result, outcome) in reverse-chronological order
 5. Lobby screens exist for Create Room (displays generated code with copy-to-clipboard), Join Room (room code input), and Waiting for Opponent (shows code again); these are navigable in isolation without a server
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 **Wave 1**
 
@@ -157,7 +157,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 06-02-PLAN.md — Wave 2: HexGrid + HexCell + PieceOverlay + BallMarker + GameBoard layout
+- [x] 06-02-PLAN.md — Wave 2: HexGrid + HexCell + PieceOverlay + BallMarker + GameBoard layout
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
@@ -223,7 +223,7 @@ Plans:
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
 | 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
 | 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
-| 6. React Hex Grid Renderer                  | 1/3            | In Progress |            |
+| 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |

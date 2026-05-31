@@ -3,27 +3,27 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: In progress
-last_updated: '2026-05-30T20:19:00.000Z'
+last_updated: '2026-05-31T08:45:00.000Z'
 progress:
   total_phases: 9
-  completed_phases: 5
-  total_plans: 20
-  completed_plans: 18
-  percent: 60
+  completed_phases: 6
+  total_plans: 23
+  completed_plans: 22
+  percent: 67
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 6 — in progress (Plan 01 complete; next: Plan 02 — SVG hex grid renderer)
+Phase 7 — not started (Phase 6 complete; next: Client-Server Integration)
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 06 — react-hex-grid-renderer
+**Current focus:** Phase 07 — client-server-integration
 
 ## Phase Status
 
@@ -31,10 +31,10 @@ See: .planning/PROJECT.md
 | ----- | ---------------------------------------- | ----------- | ---------- |
 | 1     | Monorepo Scaffold + Shared Types         | Complete    | 2026-05-28 |
 | 2     | Move Validator + Unit Tests              | Complete    | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold | Not started | -          |
-| 4     | Game Engine + Phase FSM                  | Not started | -          |
-| 5     | Dice Resolver + All Resolution Branches  | Not started | -          |
-| 6     | React Hex Grid Renderer                  | In progress | -          |
+| 3     | Server Room Manager + Socket.io Scaffold | Complete    | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                  | Complete    | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches  | Complete    | 2026-05-30 |
+| 6     | React Hex Grid Renderer                  | Complete    | 2026-05-31 |
 | 7     | Client-Server Integration                | Not started | -          |
 | 8     | Match Lifecycle + Post-Game Replay       | Not started | -          |
 | 9     | AWS Deployment                           | Not started | -          |
@@ -69,6 +69,11 @@ See: .planning/PROJECT.md
 - DIFFICULT_ANGLE_HEXES approximated as 16 hexes near penalty area corners (verify vs board photo D-06)
 - HEX_SIZE = 20px (flat-top hex rendering, D-03)
 - React 18.3.1 + Zustand 4.5.7 pinned (not npm latest v19/v5 — breaking API changes)
+- Single SVG root for all overlay elements (HexCell, BallMarker, PieceOverlay) — z-order via DOM order
+- Zustand per-slice selectors in HexGrid (Pitfall 6) — prevents whole-component re-renders
+- clipPath on `<g>` operates in the group's LOCAL post-translate coordinate space (not SVG viewport space) — CLIP_X=-10, CLIP_RIGHT=1090 reference local hex geometry directly
+- ODD-Q offset arithmetic used for both hex neighbour calculation (highlight reachability) and 3-colour formula — axial arithmetic is wrong for visual adjacency in ODD-Q layout
+- LobbyScreen uses MOCK42 placeholder room code — real server-generated code wired in Phase 7
 
 ### Key Pitfalls to Avoid
 
@@ -81,18 +86,18 @@ See: .planning/PROJECT.md
 
 ### Open Questions (resolve before indicated phase)
 
-- Phase 4/7: Are valid moves computed on piece selection or precomputed post-state?
+- Phase 7: Are valid moves computed on piece selection or precomputed post-state?
 - Phase 5: Full attribute values for both hardcoded squads?
-- Phase 6: Flat-top or pointy-top hex orientation?
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
 ## Session Continuity
 
-- Last updated: 2026-05-30
-- Phase 6 Plan 01 complete: 3 tasks, 3 commits, 224 tests (all green), build clean
-  - pitch.ts updated to 37×26 grid (962 hexes, real D-05 region boundaries)
-  - React 18 + Vite 5 + Zustand 4 client scaffold bootstrapped
-  - hexToPixel utility + Zustand store + 4 mock GameState fixtures
-  - Rule 1 auto-fix: gameEngine.test.ts kickoff hex assertion updated to {q:18, r:13}
-- Next action: Execute Plan 02 (SVG hex grid renderer + lobby screens)
+- Last updated: 2026-05-31
+- Phase 6 COMPLETE — all 3 plans executed, human-verify checkpoint approved
+  - Plan 01: 37×26 grid, client scaffold, hexToPixel, Zustand store, mock fixtures
+  - Plan 02: HexCell, HexGrid, PieceOverlay, BallMarker, GameBoard layout shell
+  - Plan 03: TurnIndicator, ActionLog, LobbyScreen, App router, clip boundary fix
+  - Final state: 90 tests green, pnpm -r build clean, full UI verified in browser
+- Key learning from Phase 6: clipPath on `<g>` uses local (post-translate) coordinate space
+- Next action: Plan Phase 7 (Client-Server Integration) — wire Zustand + Socket.io to live server
