@@ -1,0 +1,58 @@
+import { useState } from 'react';
+import type { HexCoord } from '@counter-attack/shared';
+import { isInRegion, isDifficultAngle } from '@counter-attack/shared';
+import { axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
+
+type Props = {
+  hex: HexCoord;
+  isHighlighted: boolean;
+  onClick: () => void;
+};
+
+/**
+ * Renders a single flat-top hex polygon with fill states and optional highlight overlay.
+ * SVG fragment — must be a child of the HexGrid <svg> root (not a div wrapper).
+ */
+export function HexCell({ hex, isHighlighted, onClick }: Props) {
+  const { cx, cy } = axialToPixel(hex.q, hex.r);
+  const points = hexPolygonPoints(cx, cy);
+  const [hovered, setHovered] = useState(false);
+
+  // Goal hexes: q=0 r∈[9,15] (home) or q=36 r∈[9,15] (away). UI-SPEC §Hex Fill States.
+  const isGoal = isInRegion(hex, 'homeGoal') || isInRegion(hex, 'awayGoal');
+
+  // Diagonal stripe pattern: (q + r) % 2 determines alternating light/dark green. D-02.
+  const baseFill = isGoal ? '#1a1a1a' : (hex.q + hex.r) % 2 === 0 ? '#4a7c3f' : '#3d6b34';
+
+  return (
+    <>
+      {/* Base hex polygon */}
+      <polygon
+        points={points}
+        fill={baseFill}
+        stroke="#2d5227"
+        strokeWidth={0.5}
+        onClick={isHighlighted ? onClick : undefined}
+        style={{ cursor: isHighlighted ? 'pointer' : 'default' }}
+      />
+      {/* Highlight overlay — rendered only when this hex is a valid move destination */}
+      {isHighlighted && (
+        <polygon
+          points={points}
+          fill="#f5c518"
+          fillOpacity={hovered ? 0.75 : 0.55}
+          stroke="#d4a017"
+          strokeWidth={hovered ? 2 : 1.5}
+          pointerEvents="none"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{ cursor: 'pointer' }}
+        />
+      )}
+      {/* Difficult-angle dot — subtle white circle at 30% opacity. UI-SPEC §Hex Overlay Elements. */}
+      {isDifficultAngle(hex) && (
+        <circle cx={cx} cy={cy} r={3} fill="#ffffff" fillOpacity={0.3} pointerEvents="none" />
+      )}
+    </>
+  );
+}
