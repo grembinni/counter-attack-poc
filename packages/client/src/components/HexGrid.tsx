@@ -7,14 +7,14 @@ import { BallMarker } from './BallMarker.js';
 import styles from './HexGrid.module.css';
 
 const SQRT3 = Math.sqrt(3);
-// Clip rect: cuts left/right pointy vertices and top/bottom for rectangular pitch boundary.
-// Top clip (clipY): cuts even-q r=0 hexes at their centres → bottom-half visible.
-// Bottom clip (clipY+clipH): aligns with odd-q r=25 centres → top-half visible.
-// Left/right clips (clipX, clipX+clipW): trim pointy vertices of q=0 and q=36 columns.
+// Clip rect produces a symmetric rectangular pitch boundary.
+// Top  (y=CLIP_Y):        even-q r=0  centre  → bottom-half visible; odd-q r=0  top-flat at line → full.
+// Bottom (y=CLIP_Y+H):   even-q r=25 centre  → top-half visible;    odd-q r=24 bot-flat at line → full.
+// Left/right: trim the pointy vertices of q=0 and q=36 columns.
 const CLIP_X = HEX_SIZE * 0.5;
 const CLIP_Y = HEX_SIZE * SQRT3 * 0.5;
 const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE; // 1100
-const CLIP_H = HEX_SIZE * SQRT3 * 25.5; // ≈ 883
+const CLIP_H = HEX_SIZE * SQRT3 * 25; // clips at even-q r=25 centre — mirrors top
 
 /**
  * SVG root element for the Counter Attack pitch.
