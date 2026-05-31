@@ -11,9 +11,9 @@ const SQRT3 = Math.sqrt(3);
 // Top  (y=CLIP_Y):        even-q r=0  centre  → bottom-half visible; odd-q r=0  top-flat at line → full.
 // Bottom (y=CLIP_Y+H):   even-q r=25 centre  → top-half visible;    odd-q r=24 bot-flat at line → full.
 // Left/right: trim the pointy vertices of q=0 and q=36 columns.
-const CLIP_X = 0; // left at 180° vertex (leftmost tip) of q=0 hexes
+const CLIP_X = HEX_SIZE * 0.5; // 10 — left at 120°/240° flat-face corners of q=0
 const CLIP_Y = HEX_SIZE * SQRT3 * 0.5;
-const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE * 1.5; // right at 60° vertex (1110) of q=36
+const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE; // 1100 — right boundary at 1110 (60°/300° corners of q=36)
 const CLIP_H = HEX_SIZE * SQRT3 * 25; // clips at even-q r=25 centre — mirrors top
 
 /**
