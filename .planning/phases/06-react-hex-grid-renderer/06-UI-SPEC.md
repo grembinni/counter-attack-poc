@@ -54,17 +54,22 @@ Exceptions:
 
 System font stack: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
 
-| Role              | Size | Weight         | Line Height | Usage                                                               |
-| ----------------- | ---- | -------------- | ----------- | ------------------------------------------------------------------- |
-| Piece label       | 9px  | 700 (bold)     | 1.0         | Player number inside SVG piece circle; must fit inside ~12px radius |
-| Body / log entry  | 13px | 400 (regular)  | 1.5         | Action log entries, sidebar body text                               |
-| Label / indicator | 14px | 600 (semibold) | 1.3         | Turn indicator team name, phase label, scoreboard                   |
-| Heading           | 20px | 700 (bold)     | 1.2         | Lobby screen headings ("Create Room", "Join Room")                  |
+| Role             | Size | Weight        | Line Height | Usage                                                                                    |
+| ---------------- | ---- | ------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| Piece label      | 9px  | 700 (bold)    | 1.0         | Player number inside SVG piece circle; must fit inside ~12px radius                      |
+| Body / log entry | 13px | 400 (regular) | 1.5         | Action log entries, sidebar body text, phase label, scoreboard, turn indicator team name |
+| Heading          | 20px | 700 (bold)    | 1.2         | Lobby screen headings ("Create Room", "Join Room")                                       |
+| Room code        | 28px | 700 (bold)    | 1.0         | Room code display in Create Room and Waiting screens (monospace override)                |
+
+**Declared weights: 400 (regular) and 700 (bold) only. No other weights are permitted.**
 
 **Hard rules:**
 
 - Piece labels render inside SVG `<text>` elements — CSS font-size does not apply; use SVG `font-size` attribute at 9px
 - Lobby headings use CSS `font-size: 20px; font-weight: 700`
+- Turn indicator team name: `font-size: 13px; font-weight: 700` in team accent color
+- Scoreboard and phase labels: `font-size: 13px; font-weight: 400`
+- Room code display uses monospace override: `font-family: 'Courier New', Courier, monospace` at 28px weight 700
 - No font downloads — system stack only; no Google Fonts, no @font-face
 
 ---
@@ -99,21 +104,22 @@ This is a football pitch. Colors follow pitch conventions, not web app conventio
 
 ### UI Chrome Palette (sidebar, lobby)
 
-| Role                  | Hex Value | Usage                                                     |
-| --------------------- | --------- | --------------------------------------------------------- |
-| Chrome background     | `#1a1a2e` | Sidebar panel background, lobby page background           |
-| Panel surface         | `#16213e` | Sidebar inner panels (turn indicator box, action log box) |
-| Panel border          | `#0f3460` | 1px border around sidebar panels                          |
-| Chrome text primary   | `#e0e0e0` | Primary text in sidebar, lobby                            |
-| Chrome text secondary | `#a0a0a0` | Secondary/dim text (phase label, log timestamps)          |
-| Home team accent      | `#1a56b0` | Home team name in turn indicator, score highlight         |
-| Away team accent      | `#c0392b` | Away team name in turn indicator, score highlight         |
-| CTA button background | `#0f3460` | Lobby buttons (Create Room, Join Room, Copy Code)         |
-| CTA button hover      | `#1a56b0` | Lobby button on hover                                     |
-| CTA button text       | `#ffffff` | Button label text                                         |
-| Input border          | `#0f3460` | Room code text input border                               |
-| Input focus border    | `#1a56b0` | Room code text input border on focus                      |
-| Input background      | `#16213e` | Room code text input background                           |
+| Role                  | Hex Value | Usage                                                              |
+| --------------------- | --------- | ------------------------------------------------------------------ |
+| Chrome background     | `#1a1a2e` | Sidebar panel background, lobby page background                    |
+| Panel surface         | `#16213e` | Sidebar inner panels (turn indicator box, action log box)          |
+| Panel border          | `#0f3460` | 1px border around sidebar panels                                   |
+| Chrome text primary   | `#e0e0e0` | Primary text in sidebar, lobby                                     |
+| Chrome text secondary | `#a0a0a0` | Secondary/dim text (phase label, log timestamps)                   |
+| Home team accent      | `#1a56b0` | Home team name in turn indicator, score highlight                  |
+| Away team accent      | `#c0392b` | Away team name in turn indicator, score highlight                  |
+| CTA button background | `#0f3460` | Lobby buttons (Create Room, Join Room, Copy Code)                  |
+| CTA button hover      | `#1a56b0` | Lobby button on hover                                              |
+| CTA button text       | `#ffffff` | Button label text                                                  |
+| Input border          | `#0f3460` | Room code text input border                                        |
+| Input focus border    | `#1a56b0` | Room code text input border on focus                               |
+| Input background      | `#16213e` | Room code text input background                                    |
+| GOAL log entry        | `#e8a020` | Action log GOAL entry text — warm amber, distinct from accent gold |
 
 ### Color Distribution
 
@@ -122,6 +128,8 @@ This is a football pitch. Colors follow pitch conventions, not web app conventio
 - **10% accent**: Gold/amber (`#f5c518`) — reserved exclusively for valid-move highlighting and selected piece ring
 
 **Accent reserved for:** valid destination hex highlight fill, selected piece outer ring. No other UI elements use `#f5c518`.
+
+**GOAL log entries** use `#e8a020` (warm amber) — a deliberately distinct value so the accent is not diluted by non-interactive uses.
 
 **Destructive:** not applicable in Phase 6. No destructive actions (delete, leave, forfeit) exist in this phase's scope.
 
@@ -220,12 +228,12 @@ MOVEMENT PHASE
 ATTACKER_4 · 4 moves remaining
 ```
 
-| Line         | Content                                                                                                                           | Typography                              |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Line 1 left  | Active team name in ALL CAPS: "HOME TEAM" or "AWAY TEAM"                                                                          | 14px, semibold (600), team accent color |
-| Line 1 right | Score as "0 – 0"                                                                                                                  | 14px, semibold (600), `#e0e0e0`         |
-| Line 2       | Phase label: one of MOVEMENT PHASE / PASS PHASE / SHOT PHASE / HEADER PHASE / SNAPSHOT PHASE / LOOSE BALL / GK RESTART / KICK OFF | 13px, regular (400), `#a0a0a0`          |
-| Line 3       | Slot + remaining moves (MOVEMENT only): "ATTACKER_4 · 4 moves remaining"                                                          | 13px, regular (400), `#a0a0a0`          |
+| Line         | Content                                                                                                                           | Typography                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Line 1 left  | Active team name in ALL CAPS: "HOME TEAM" or "AWAY TEAM"                                                                          | 13px, bold (700), team accent color |
+| Line 1 right | Score as "0 – 0"                                                                                                                  | 13px, bold (700), `#e0e0e0`         |
+| Line 2       | Phase label: one of MOVEMENT PHASE / PASS PHASE / SHOT PHASE / HEADER PHASE / SNAPSHOT PHASE / LOOSE BALL / GK RESTART / KICK OFF | 13px, regular (400), `#a0a0a0`      |
+| Line 3       | Slot + remaining moves (MOVEMENT only): "ATTACKER_4 · 4 moves remaining"                                                          | 13px, regular (400), `#a0a0a0`      |
 
 **Phase label mapping** (GamePhase → display string):
 
@@ -287,13 +295,21 @@ Typography per entry:
 - Entire entry: 13px, regular (400), line-height 1.5
 - Event type prefix (e.g. `[MOVE]`): color `#a0a0a0`
 - Content: color `#e0e0e0`
-- GOAL entries: content color `#f5c518` (accent gold) to stand out
+- GOAL entries: content color `#e8a020` (warm amber) to stand out — distinct from accent `#f5c518`
 - Entries rendered in reverse-chronological order (newest at top)
 - No timestamp rendered in Phase 6 (timestamps available on ActionEvent but not displayed until Phase 8)
 
+### Empty State
+
+When `actionLog` is empty (no events yet), render in the panel body:
+
+> "No actions yet."
+
+Typography: 13px, regular (400), `#a0a0a0`, left-aligned. No special container — plain text in the panel body area.
+
 ### Panel Header
 
-Single line at top of panel: "ACTION LOG" — 13px, semibold (600), `#a0a0a0`, letter-spacing 0.08em (small-caps treatment without using font-variant)
+Single line at top of panel: "ACTION LOG" — 13px, bold (700), `#a0a0a0`, letter-spacing 0.08em (small-caps treatment without using font-variant)
 
 ---
 
@@ -358,11 +374,13 @@ Sub-links navigate by calling `useGameStore.setState({ screen: '...' })` directl
 
 _Source: CONTEXT.md (Claude's Discretion — layout), REQUIREMENTS.md Phase 6 success criterion 1_
 
+**Primary visual anchor: the SVG pitch. The sidebar is secondary chrome.**
+
 ### At 1280px Viewport Width
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ HEADER (48px tall) — "Counter Attack"  14px semibold  #e0e0e0  bg #1a1a2e      │
+│ HEADER (48px tall) — "Counter Attack"  13px bold  #e0e0e0  bg #1a1a2e          │
 ├────────────────────────────────────────────────────────┬────────────────────────┤
 │                                                        │  SIDEBAR (280px)       │
 │                                                        │                        │
@@ -383,7 +401,7 @@ _Source: CONTEXT.md (Claude's Discretion — layout), REQUIREMENTS.md Phase 6 su
 | -------------------------- | ------------------------------------------------------------------------------------------ |
 | Overall layout             | CSS Flexbox row, no gap                                                                    |
 | Header height              | 48px, `#1a1a2e` background, 16px horizontal padding                                        |
-| Header text                | "Counter Attack" — 14px, semibold (600), `#e0e0e0`                                         |
+| Header text                | "Counter Attack" — 13px, bold (700), `#e0e0e0`                                             |
 | Header right               | Score display: "Home 0 – 0 Away" — same typography, team names in respective accent colors |
 | Pitch container width      | `calc(100vw - 280px)`                                                                      |
 | Pitch container background | `#0a0a0a` (near-black to frame green pitch)                                                |
@@ -499,6 +517,7 @@ _Source: REQUIREMENTS.md PITCH-04, UX-02, CONTEXT.md D-07, D-09_
 | Sub-link Join→Create         | "Or create a new room →"                        |
 | App header title             | "Counter Attack"                                |
 | Action log panel header      | "ACTION LOG"                                    |
+| Action log empty state       | "No actions yet."                               |
 | Turn indicator — home active | "HOME TEAM" (in `#1a56b0`)                      |
 | Turn indicator — away active | "AWAY TEAM" (in `#c0392b`)                      |
 | Phase label                  | See phase label mapping table above             |
@@ -523,7 +542,7 @@ No third-party component registries. No shadcn. No external component blocks. Re
 - [ ] Dimension 1 Copywriting: PASS
 - [ ] Dimension 2 Visuals: PASS
 - [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
+- [x] Dimension 4 Typography: PASS — revised 2026-05-30: 4 sizes (9/13/20/28px), 2 weights (400/700). Removed 14px size and 600 weight; all former semibold usages updated to bold (700).
 - [ ] Dimension 5 Spacing: PASS
 - [ ] Dimension 6 Registry Safety: PASS
 
@@ -533,29 +552,33 @@ No third-party component registries. No shadcn. No external component blocks. Re
 
 ## Pre-Population Audit
 
-| Decision                        | Source                                          |
-| ------------------------------- | ----------------------------------------------- |
-| Flat-top hex orientation        | CONTEXT.md D-01                                 |
-| q/r axis direction              | CONTEXT.md D-02                                 |
-| axialToPixel formula            | CONTEXT.md D-03                                 |
-| 37×26 grid dimensions           | CONTEXT.md D-04                                 |
-| Region boundaries               | CONTEXT.md D-05                                 |
-| Pitch color banding `(q+r)%2`   | CONTEXT.md §Specific Ideas                      |
-| Half-hex clipPath clipping      | CONTEXT.md §Specific Ideas                      |
-| Difficult-angle dot overlay     | CONTEXT.md §Specific Ideas                      |
-| hexSize 18–22px range           | CONTEXT.md §Claude's Discretion → 20px selected |
-| Component list                  | CONTEXT.md §Claude's Discretion                 |
-| Layout: ~80% pitch width        | CONTEXT.md §Claude's Discretion → 280px sidebar |
-| No shadcn / no CSS framework    | CONTEXT.md, CLAUDE.md stack                     |
-| Zustand store with GameState    | CONTEXT.md D-10                                 |
-| Mock state per GamePhase        | CONTEXT.md D-11                                 |
-| 4 screens, Zustand routing      | CONTEXT.md D-12                                 |
-| Lobby standalone (no server)    | CONTEXT.md D-13                                 |
-| validateMove client-side        | CONTEXT.md D-07                                 |
-| MOVEMENT phase only in Phase 6  | CONTEXT.md D-09                                 |
-| ActionEvent union structure     | types.ts                                        |
-| PlayerPiece fields (role, name) | types.ts, teams.ts                              |
-| GamePhase enum                  | types.ts                                        |
-| MovementSlot enum               | types.ts                                        |
-| No animations                   | REQUIREMENTS.md Out of Scope                    |
-| Desktop-first 1280px            | REQUIREMENTS.md Out of Scope + Phase 6 SC-1     |
+| Decision                        | Source                                             |
+| ------------------------------- | -------------------------------------------------- |
+| Flat-top hex orientation        | CONTEXT.md D-01                                    |
+| q/r axis direction              | CONTEXT.md D-02                                    |
+| axialToPixel formula            | CONTEXT.md D-03                                    |
+| 37×26 grid dimensions           | CONTEXT.md D-04                                    |
+| Region boundaries               | CONTEXT.md D-05                                    |
+| Pitch color banding `(q+r)%2`   | CONTEXT.md §Specific Ideas                         |
+| Half-hex clipPath clipping      | CONTEXT.md §Specific Ideas                         |
+| Difficult-angle dot overlay     | CONTEXT.md §Specific Ideas                         |
+| hexSize 18–22px range           | CONTEXT.md §Claude's Discretion → 20px selected    |
+| Component list                  | CONTEXT.md §Claude's Discretion                    |
+| Layout: ~80% pitch width        | CONTEXT.md §Claude's Discretion → 280px sidebar    |
+| No shadcn / no CSS framework    | CONTEXT.md, CLAUDE.md stack                        |
+| Zustand store with GameState    | CONTEXT.md D-10                                    |
+| Mock state per GamePhase        | CONTEXT.md D-11                                    |
+| 4 screens, Zustand routing      | CONTEXT.md D-12                                    |
+| Lobby standalone (no server)    | CONTEXT.md D-13                                    |
+| validateMove client-side        | CONTEXT.md D-07                                    |
+| MOVEMENT phase only in Phase 6  | CONTEXT.md D-09                                    |
+| ActionEvent union structure     | types.ts                                           |
+| PlayerPiece fields (role, name) | types.ts, teams.ts                                 |
+| GamePhase enum                  | types.ts                                           |
+| MovementSlot enum               | types.ts                                           |
+| No animations                   | REQUIREMENTS.md Out of Scope                       |
+| Desktop-first 1280px            | REQUIREMENTS.md Out of Scope + Phase 6 SC-1        |
+| Typography: 4 sizes, 2 weights  | Checker revision 2026-05-30                        |
+| GOAL log color `#e8a020`        | Checker revision 2026-05-30 (distinct from accent) |
+| Action log empty state copy     | Checker revision 2026-05-30                        |
+| Primary visual anchor note      | Checker revision 2026-05-30                        |
