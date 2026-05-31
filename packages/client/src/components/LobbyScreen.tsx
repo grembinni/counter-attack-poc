@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { socket } from '../socket.js';
 import { ClientEvents } from '@counter-attack/shared';
@@ -27,10 +27,6 @@ function CopyButton({ code }: { code: string | null }) {
 function CreateRoomScreen() {
   const setScreen = useGameStore((s) => s.setScreen);
   const roomCode = useGameStore((s) => s.roomCode);
-
-  useEffect(() => {
-    socket.emit(ClientEvents.ROOM_CREATE);
-  }, []);
 
   return (
     <>

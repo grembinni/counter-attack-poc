@@ -4,7 +4,7 @@ import { GameBoard } from './components/GameBoard.js';
 import { LobbyScreen } from './components/LobbyScreen.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
-import { ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import type { GameState } from '@counter-attack/shared';
 
 export function App() {
@@ -18,12 +18,22 @@ export function App() {
   const setGameError = useGameStore((s) => s.setGameError);
 
   useEffect(() => {
-    socket.connect();
+    // Emit room:create on connect — fires exactly once per actual connection event,
+    // preventing the StrictMode double-invoke bug (CreateRoomScreen.useEffect fired twice).
+    // Guard: only if still on CREATE_ROOM with no room yet.
+    function onConnect() {
+      const { screen: s, roomCode } = useGameStore.getState();
+      if (s === 'CREATE_ROOM' && !roomCode) {
+        socket.emit(ClientEvents.ROOM_CREATE);
+      }
+    }
 
     function onGameState(state: GameState) {
       setGameState(state);
       setDisconnectWarning(false);
-      if (useGameStore.getState().screen === 'WAITING') {
+      // Advance to board from WAITING (creator path) or JOIN_ROOM (joiner path).
+      const s = useGameStore.getState().screen;
+      if (s === 'WAITING' || s === 'JOIN_ROOM') {
         setScreen('GAME_BOARD');
       }
     }
@@ -32,8 +42,11 @@ export function App() {
       if (token) localStorage.setItem('ca_session_token', token);
       setRoomCode(code);
       setPlayerSlot(slot);
-      const currentScreen = useGameStore.getState().screen;
-      if (currentScreen === 'CREATE_ROOM' || currentScreen === 'JOIN_ROOM') setScreen('WAITING');
+      const s = useGameStore.getState().screen;
+      // Creator (slot 1): advance CREATE_ROOM → WAITING to show the room code.
+      // Joiner (slot 2): stay on JOIN_ROOM — game:state will fire immediately and
+      // advance to GAME_BOARD, avoiding a visible WAITING flash.
+      if (slot === 1 && s === 'CREATE_ROOM') setScreen('WAITING');
     }
 
     function onRoomError(reason: string) {
@@ -48,13 +61,17 @@ export function App() {
       setDisconnectWarning(true);
     }
 
+    socket.on('connect', onConnect);
     socket.on(ServerEvents.GAME_STATE, onGameState);
     socket.on(ServerEvents.ROOM_JOINED, onRoomJoined);
     socket.on(ServerEvents.ROOM_ERROR, onRoomError);
     socket.on(ServerEvents.GAME_ERROR, onGameError);
     socket.on(ServerEvents.GAME_DISCONNECT_WARNING, onDisconnectWarning);
 
+    socket.connect();
+
     return () => {
+      socket.off('connect', onConnect);
       socket.off(ServerEvents.GAME_STATE, onGameState);
       socket.off(ServerEvents.ROOM_JOINED, onRoomJoined);
       socket.off(ServerEvents.ROOM_ERROR, onRoomError);
