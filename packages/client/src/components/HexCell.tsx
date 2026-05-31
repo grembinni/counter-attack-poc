@@ -50,7 +50,6 @@ export function HexCell({ hex, isHighlighted, highlightColor, onClick }: Props) 
           fillOpacity={hovered ? 0.75 : 0.55}
           stroke={highlightColor ? '#cc2222' : '#d4a017'}
           strokeWidth={hovered ? 2 : 1.5}
-          pointerEvents="none"
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           style={{ cursor: 'pointer' }}

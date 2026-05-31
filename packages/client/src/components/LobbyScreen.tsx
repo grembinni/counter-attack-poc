@@ -9,7 +9,7 @@ function CopyButton({ code }: { code: string | null }) {
   const [label, setLabel] = useState<'Copy Code' | 'Copied!'>('Copy Code');
 
   function handleClick() {
-    void navigator.clipboard.writeText(code ?? '');
+    void navigator.clipboard?.writeText(code ?? '').catch(() => undefined);
     setLabel('Copied!');
     setTimeout(() => {
       setLabel('Copy Code');
@@ -78,7 +78,7 @@ function JoinRoomScreen() {
         className={styles.input}
         type="text"
         placeholder="Room code"
-        maxLength={6}
+        maxLength={5}
         value={input}
         onChange={(e) => setInput(e.target.value.toUpperCase())}
       />

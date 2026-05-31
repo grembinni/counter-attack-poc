@@ -33,7 +33,7 @@ export function App() {
       setRoomCode(code);
       setPlayerSlot(slot);
       const currentScreen = useGameStore.getState().screen;
-      if (currentScreen === 'CREATE_ROOM') setScreen('WAITING');
+      if (currentScreen === 'CREATE_ROOM' || currentScreen === 'JOIN_ROOM') setScreen('WAITING');
     }
 
     function onRoomError(reason: string) {
