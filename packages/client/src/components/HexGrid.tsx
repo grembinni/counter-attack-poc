@@ -40,7 +40,7 @@ export function HexGrid() {
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const selectPiece = useGameStore((s) => s.selectPiece);
-  const movePiece = useGameStore((s) => s.movePiece);
+  const emitMove = useGameStore((s) => s.emitMove);
 
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
@@ -66,7 +66,11 @@ export function HexGrid() {
               key={hexId}
               hex={hex}
               isHighlighted={isHighlighted}
-              onClick={isHighlighted ? () => movePiece(hex) : () => undefined}
+              onClick={
+                isHighlighted && selectedPieceId
+                  ? () => emitMove(selectedPieceId, hex)
+                  : () => undefined
+              }
             />
           );
         })}
