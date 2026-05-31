@@ -4,8 +4,8 @@ Plans:
 
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — socket.ts singleton + Vite proxy + Zustand store extension (emitters, playerSlot/roomCode, movePiece→emitMove) + store tests
-- [ ] 07-04-PLAN.md — game:shot event (D-06): GAME_SHOT in shared events + ClientToServerEvents, server game:shot handler (phase/team/payload guards, records room.shotTarget, no broadcast, dice resolution unchanged) + integration tests
+- [x] 07-01-PLAN.md — socket.ts singleton + Vite proxy + Zustand store extension (emitters, playerSlot/roomCode, movePiece→emitMove) + store tests
+- [x] 07-04-PLAN.md — game:shot event (D-06): GAME_SHOT in shared events + ClientToServerEvents, server game:shot handler (phase/team/payload guards, records room.shotTarget, no broadcast, dice resolution unchanged) + integration tests
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
