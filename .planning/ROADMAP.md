@@ -149,11 +149,11 @@ Plans:
 4. An action log panel shows the last 5 structured log entries from mock state (actor, action type, coordinates, dice result, outcome) in reverse-chronological order
 5. Lobby screens exist for Create Room (displays generated code with copy-to-clipboard), Join Room (room code input), and Waiting for Opponent (shows code again); these are navigable in isolation without a server
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Wave 1: pitch.ts 37×26 replacement + pitch.test.ts rewrite + client scaffold (package.json, tsconfig, vite.config, vitest.config, index.html, main.tsx) + hexToPixel.ts + Zustand store + store tests + 4 mock states
+- [x] 06-01-PLAN.md — Wave 1: pitch.ts 37×26 replacement + pitch.test.ts rewrite + client scaffold (package.json, tsconfig, vite.config, vitest.config, index.html, main.tsx) + hexToPixel.ts + Zustand store + store tests + 4 mock states
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -223,7 +223,7 @@ Plans:
 | 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
 | 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
 | 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
-| 6. React Hex Grid Renderer                  | 0/3            | In progress | -          |
+| 6. React Hex Grid Renderer                  | 1/3            | In Progress |            |
 | 7. Client-Server Integration                | 0/0            | Not started | -          |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |

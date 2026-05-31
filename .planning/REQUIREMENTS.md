@@ -14,8 +14,8 @@
 - [x] **PITCH-01**: Hex grid pitch renders the Counter Attack board layout using axial (q, r) coordinates
 - [x] **PITCH-02**: Pitch regions are encoded: final thirds, penalty areas, 6-yard boxes, centre circle, kickoff hex
 - [x] **PITCH-03**: Difficult shooting angle hexes (dot-marked) are encoded and apply -1 dice penalty
-- [ ] **PITCH-04**: Player selects a piece by clicking it; valid destination hexes highlight immediately
-- [ ] **PITCH-05**: Ball position is visually distinct from player positions at all times
+- [x] **PITCH-04**: Player selects a piece by clicking it; valid destination hexes highlight immediately
+- [x] **PITCH-05**: Ball position is visually distinct from player positions at all times
 
 ### Teams & Players
 
@@ -82,10 +82,10 @@
 
 ### User Experience
 
-- [ ] **UX-01**: Turn indicator displays the active player/team and the current game phase at all times
-- [ ] **UX-02**: Valid destination hexes highlight when a player piece is selected; invalid moves are not clickable
-- [ ] **UX-03**: Server-side event log records every action as a structured object (actor, action type, from/to coordinates, dice results, outcome) in the order executed
-- [ ] **UX-04**: The event log is stored in server memory for the duration of the match and used for both reconnection state replay and post-game replay
+- [x] **UX-01**: Turn indicator displays the active player/team and the current game phase at all times
+- [x] **UX-02**: Valid destination hexes highlight when a player piece is selected; invalid moves are not clickable
+- [x] **UX-03**: Server-side event log records every action as a structured object (actor, action type, from/to coordinates, dice results, outcome) in the order executed
+- [x] **UX-04**: The event log is stored in server memory for the duration of the match and used for both reconnection state replay and post-game replay
 
 ### Undo
 

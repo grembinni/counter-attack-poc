@@ -2,21 +2,21 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: '2026-05-31T00:00:00.000Z'
+status: In progress
+last_updated: '2026-05-30T20:19:00.000Z'
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 20
-  completed_plans: 17
-  percent: 56
+  completed_plans: 18
+  percent: 60
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 6 — planned, ready to execute (next: `/gsd-execute-phase 6`)
+Phase 6 — in progress (Plan 01 complete; next: Plan 02 — SVG hex grid renderer)
 
 ## Project Reference
 
@@ -34,7 +34,7 @@ See: .planning/PROJECT.md
 | 3     | Server Room Manager + Socket.io Scaffold | Not started | -          |
 | 4     | Game Engine + Phase FSM                  | Not started | -          |
 | 5     | Dice Resolver + All Resolution Branches  | Not started | -          |
-| 6     | React Hex Grid Renderer                  | Planned     | -          |
+| 6     | React Hex Grid Renderer                  | In progress | -          |
 | 7     | Client-Server Integration                | Not started | -          |
 | 8     | Match Lifecycle + Post-Game Replay       | Not started | -          |
 | 9     | AWS Deployment                           | Not started | -          |
@@ -65,6 +65,10 @@ See: .planning/PROJECT.md
 - Hardcoded teams for v1; no card editor or team selection UI
 - Every MOVEMENT branch sets movementSlot: 'ATTACKER_4', movedPieceIds: [], paceUsedByPieceId: {} (Gap 1 invariant)
 - Ties and inaccuracy route to LOOSE_BALL phase with ball at incident hex; fresh dice on next game:roll (Gap 2+3)
+- kickOffHex = {q:18, r:13} (real 37×26 board centre; replaces placeholder {q:12, r:7})
+- DIFFICULT_ANGLE_HEXES approximated as 16 hexes near penalty area corners (verify vs board photo D-06)
+- HEX_SIZE = 20px (flat-top hex rendering, D-03)
+- React 18.3.1 + Zustand 4.5.7 pinned (not npm latest v19/v5 — breaking API changes)
 
 ### Key Pitfalls to Avoid
 
@@ -85,9 +89,10 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-05-31
-- Phase 5 complete: 84 tests (all green), build clean, 3 verification gaps closed
-- Phase 6 planned: 3 plans in 3 waves — pitch.ts 37×26 + client scaffold + SVG rendering + lobby/sidebar UI
-- Phase 6 blocking dependencies resolved: flat-top orientation, axial formula, 37×26 grid, region boundaries
-- Open question from Phase 6: Flat-top vs pointy-top confirmed as flat-top (D-01)
-- Next action: `/gsd-execute-phase 6` (React Hex Grid Renderer)
+- Last updated: 2026-05-30
+- Phase 6 Plan 01 complete: 3 tasks, 3 commits, 224 tests (all green), build clean
+  - pitch.ts updated to 37×26 grid (962 hexes, real D-05 region boundaries)
+  - React 18 + Vite 5 + Zustand 4 client scaffold bootstrapped
+  - hexToPixel utility + Zustand store + 4 mock GameState fixtures
+  - Rule 1 auto-fix: gameEngine.test.ts kickoff hex assertion updated to {q:18, r:13}
+- Next action: Execute Plan 02 (SVG hex grid renderer + lobby screens)
