@@ -18,13 +18,14 @@ describe('hexDistance', () => {
     expect(hexDistance({ q: 0, r: 0 }, { q: 3, r: 0 })).toBe(3);
   });
 
-  it('returns 2 for {q:0,r:0} to {q:2,r:-2} (diagonal axis)', () => {
-    expect(hexDistance({ q: 0, r: 0 }, { q: 2, r: -2 })).toBe(2);
+  it('returns 3 for {q:0,r:0} to {q:2,r:-2} (ODD-Q offset diagonal)', () => {
+    // ODD-Q cube: (0,0,0)→(2,1,-3); max(2,1,3)=3
+    expect(hexDistance({ q: 0, r: 0 }, { q: 2, r: -2 })).toBe(3);
   });
 
-  it('returns 6 for {q:1,r:2} to {q:-2,r:-1} (non-origin pair)', () => {
-    // Cube coordinates: a=(1,2,-3), b=(-2,-1,3); max(|dq|,|dr|,|ds|) = max(3,3,6) = 6
-    expect(hexDistance({ q: 1, r: 2 }, { q: -2, r: -1 })).toBe(6);
+  it('returns 5 for {q:1,r:2} to {q:-2,r:-1} (ODD-Q non-origin pair)', () => {
+    // ODD-Q cube: odd(1,2)→(1,-3,2); even(-2,-1)→(-2,2,0); max(3,5,2)=5
+    expect(hexDistance({ q: 1, r: 2 }, { q: -2, r: -1 })).toBe(5);
   });
 });
 
@@ -105,15 +106,16 @@ describe('hexLine', () => {
     }
   });
 
-  it('returns a correct 3-hex path on the diagonal axis ({q:0,r:0} → {q:2,r:-2})', () => {
+  it('returns a correct 4-hex path on the diagonal axis ({q:0,r:0} → {q:2,r:-2})', () => {
+    // ODD-Q distance is 3, so line has 4 hexes: (0,0)→(1,-1)→(1,-2)→(2,-2)
     const result = hexLine({ q: 0, r: 0 }, { q: 2, r: -2 });
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
     expect(result[0]).toEqual({ q: 0, r: 0 });
-    expect(result[2]).toEqual({ q: 2, r: -2 });
-    // middle hex must be adjacent to both endpoints
-    const mid = result[1];
-    expect(hexDistance({ q: 0, r: 0 }, mid)).toBe(1);
-    expect(hexDistance({ q: 2, r: -2 }, mid)).toBe(1);
+    expect(result[3]).toEqual({ q: 2, r: -2 });
+    // every consecutive pair must be adjacent
+    for (let i = 0; i < result.length - 1; i++) {
+      expect(hexDistance(result[i], result[i + 1])).toBe(1);
+    }
   });
 
   it('length equals hexDistance(from, to) + 1 for a non-trivial path', () => {
