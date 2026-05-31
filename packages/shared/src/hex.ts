@@ -60,7 +60,7 @@ export function hexDistance(a: HexCoord, b: HexCoord): number {
  * Neighbour set depends on column parity (even vs odd q).
  */
 export function hexNeighbors(hex: HexCoord): HexCoord[] {
-  const dirs = ODD_Q_NEIGHBORS[hex.q & 1];
+  const dirs = hex.q % 2 === 0 ? ODD_Q_NEIGHBORS[0] : ODD_Q_NEIGHBORS[1];
   return dirs.map((d) => ({ q: hex.q + d.q, r: hex.r + d.r }));
 }
 
