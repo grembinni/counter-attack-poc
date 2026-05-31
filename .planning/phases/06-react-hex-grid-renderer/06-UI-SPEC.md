@@ -1,7 +1,8 @@
 ---
 phase: 6
 slug: react-hex-grid-renderer
-status: draft
+status: approved
+reviewed_at: 2026-05-30
 shadcn_initialized: false
 preset: none
 created: 2026-05-30
