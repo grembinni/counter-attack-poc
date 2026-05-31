@@ -10,10 +10,13 @@ const SQRT3 = Math.sqrt(3);
 // Clip rect produces a symmetric rectangular pitch boundary.
 // Top  (y=CLIP_Y):        even-q r=0  centre  → bottom-half visible; odd-q r=0  top-flat at line → full.
 // Bottom (y=CLIP_Y+H):   even-q r=25 centre  → top-half visible;    odd-q r=24 bot-flat at line → full.
-// Left/right: trim the pointy vertices of q=0 and q=36 columns.
-const CLIP_X = -(HEX_SIZE / 2); // -10 — 10px left of the 180° tip of q=0 hexes
+// Left/right: clip path operates in the <g>'s LOCAL coordinate space (post-translate).
+// Left:  CLIP_X = −HEX_SIZE/2 = −10  → clips at the 120°/240° corners of q=0  (local x=−10); 180° tips at local −20 are outside → removed.
+// Right: CLIP_RIGHT = q36_center + HEX_SIZE/2 = 1080+10 = 1090 → clips at the 60°/300° corners of q=36; 0° tips at local 1100 are outside → removed.
+const CLIP_X = -(HEX_SIZE / 2); // -10 — local x of 120°/240° corners of q=0
+const CLIP_RIGHT = HEX_SIZE * 1.5 * 36 + HEX_SIZE / 2; // 1090 — local x of 60°/300° corners of q=36
 const CLIP_Y = HEX_SIZE * SQRT3 * 0.5;
-const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE * 3; // 1140 — right boundary at 1130 (10px past 0° tip of q=36)
+const CLIP_W = CLIP_RIGHT - CLIP_X; // 1100
 const CLIP_H = HEX_SIZE * SQRT3 * 25; // clips at even-q r=25 centre — mirrors top
 
 /**
