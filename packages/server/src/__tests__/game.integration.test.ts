@@ -516,5 +516,90 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
   });
 });
 
+// ---------------------------------------------------------------------------
+// game:shot integration tests (D-06, T-07-11, T-07-12)
+// ---------------------------------------------------------------------------
+
+describe('game:shot (D-06)', () => {
+  /**
+   * Seeds a room's gameState directly into SHOT phase with the attacking team as shooter.
+   * Returns which client controls the shooting (attacking) team and which is the defender.
+   */
+  function seedShotPhase(
+    roomCode: string,
+    clientA: ReturnType<typeof createClient>,
+    clientB: ReturnType<typeof createClient>,
+    attackingTeam: 'home' | 'away',
+  ): {
+    shooterClient: ReturnType<typeof createClient>;
+    otherClient: ReturnType<typeof createClient>;
+  } {
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) {
+      throw new Error('Room or gameState not found');
+    }
+    room.gameState = {
+      ...room.gameState,
+      phase: 'SHOT',
+      attackingTeam,
+      activeTeam: attackingTeam,
+    };
+    // clientA = slot 1 = 'home'; clientB = slot 2 = 'away'
+    const shooterClient = attackingTeam === 'home' ? clientA : clientB;
+    const otherClient = attackingTeam === 'home' ? clientB : clientA;
+    return { shooterClient, otherClient };
+  }
+
+  it('game:shot emitted when phase is NOT SHOT returns GAME_ERROR WRONG_PHASE and leaves shotTarget undefined (T-07-11)', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    // Phase is KICK_OFF after setup — not SHOT
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_SHOT, { q: 18, r: 5 });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_PHASE');
+    // shotTarget must not have been set
+    expect(getRoom(roomCode)!.shotTarget).toBeUndefined();
+  });
+
+  it('game:shot from the shooter in SHOT phase records shotTarget and does NOT emit game:state (D-06)', async () => {
+    const { clientA, clientB, roomCode, state } = await setupRoom();
+    const { shooterClient } = seedShotPhase(roomCode, clientA, clientB, state.attackingTeam);
+
+    // Collect any game:state events within a short window to assert none are emitted
+    const receivedStates: unknown[] = [];
+    const stateListener = (s: unknown): void => {
+      receivedStates.push(s);
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clientA as any).on(ServerEvents.GAME_STATE, stateListener);
+
+    const targetHex = { q: 18, r: 5 };
+    shooterClient.emit(ClientEvents.GAME_SHOT, targetHex);
+
+    // Allow time for any server response to arrive
+    await new Promise<void>((resolve) => setTimeout(resolve, 200));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clientA as any).off(ServerEvents.GAME_STATE, stateListener);
+
+    // shotTarget must be recorded on the room
+    expect(getRoom(roomCode)!.shotTarget).toEqual(targetHex);
+    // No game:state broadcast should have been emitted (D-06 revision)
+    expect(receivedStates).toHaveLength(0);
+  });
+
+  it('game:shot with a malformed payload (non-{q,r} object) returns GAME_ERROR INVALID_TARGET (T-07-12)', async () => {
+    const { clientA, clientB, roomCode, state } = await setupRoom();
+    const { shooterClient } = seedShotPhase(roomCode, clientA, clientB, state.attackingTeam);
+
+    const errorPromise = oncePromise(shooterClient, ServerEvents.GAME_ERROR);
+
+    shooterClient.emit(ClientEvents.GAME_SHOT, { q: 'x' } as never);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_TARGET');
+    // State must remain unmutated
+    expect(getRoom(roomCode)!.shotTarget).toBeUndefined();
+  });
+});
+
 // Export helpers for potential reuse
 export { setupRoom, createClient, oncePromise, waitForConnect };
