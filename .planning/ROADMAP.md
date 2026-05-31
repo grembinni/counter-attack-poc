@@ -9,7 +9,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 07-02-PLAN.md — App.tsx central socket listener hub (connect-on-mount, 5 named handlers, cleanup) + LobbyScreen real room:create/room:join wiring
-- [ ] 07-03-PLAN.md — ActionPanel (buttons + PassTypeSelector + undo gating) + ConnectionStatus + DisconnectBanner + GameBoard wiring + HexGrid/HexCell SHOT click routing (emits game:shot per D-06) + ActionPanel tests
+- [x] 07-02-PLAN.md — App.tsx central socket listener hub (connect-on-mount, 5 named handlers, cleanup) + LobbyScreen real room:create/room:join wiring
+- [x] 07-03-PLAN.md — ActionPanel (buttons + PassTypeSelector + undo gating) + ConnectionStatus + DisconnectBanner + GameBoard wiring + HexGrid/HexCell SHOT click routing (emits game:shot per D-06) + ActionPanel tests
 
 **UI hint**: yes
