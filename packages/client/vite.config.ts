@@ -7,4 +7,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
+  server: {
+    proxy: {
+      '/socket.io': {
+        target: 'ws://localhost:3001',
+        ws: true,
+        changeOrigin: true,
+      },
+    },
+  },
 });
