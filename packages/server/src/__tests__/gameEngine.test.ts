@@ -87,9 +87,9 @@ describe('buildInitialGameState', () => {
     expect(['home', 'away']).toContain(state.attackingTeam);
   });
 
-  it('ball.position equals the kick-off hex { q:12, r:7 }', () => {
+  it('ball.position equals the kick-off hex { q:18, r:13 } (D-04/D-05 37×26 grid)', () => {
     const state = buildInitialGameState('ROOM3');
-    expect(state.ball.position).toEqual({ q: 12, r: 7 });
+    expect(state.ball.position).toEqual({ q: 18, r: 13 });
   });
 
   it('eventLog is empty at start', () => {
