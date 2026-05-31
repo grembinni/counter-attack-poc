@@ -6,6 +6,8 @@ import { axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 type Props = {
   hex: HexCoord;
   isHighlighted: boolean;
+  /** D-06: undefined → gold (#f5c518) for valid-move; '#ef4444' for SHOT phase goal hexes */
+  highlightColor?: string | undefined;
   onClick: () => void;
 };
 
@@ -13,7 +15,7 @@ type Props = {
  * Renders a single flat-top hex polygon with fill states and optional highlight overlay.
  * SVG fragment — must be a child of the HexGrid <svg> root (not a div wrapper).
  */
-export function HexCell({ hex, isHighlighted, onClick }: Props) {
+export function HexCell({ hex, isHighlighted, highlightColor, onClick }: Props) {
   const { cx, cy } = axialToPixel(hex.q, hex.r);
   const points = hexPolygonPoints(cx, cy);
   const [hovered, setHovered] = useState(false);
@@ -38,14 +40,15 @@ export function HexCell({ hex, isHighlighted, onClick }: Props) {
         strokeWidth={0.5}
         onClick={isHighlighted ? onClick : undefined}
         style={{ cursor: isHighlighted ? 'pointer' : 'default' }}
+        aria-hidden="true"
       />
-      {/* Highlight overlay — rendered only when this hex is a valid move destination */}
+      {/* Highlight overlay — valid-move (gold) or SHOT goal hex (red, D-06) */}
       {isHighlighted && (
         <polygon
           points={points}
-          fill="#f5c518"
+          fill={highlightColor ?? '#f5c518'}
           fillOpacity={hovered ? 0.75 : 0.55}
-          stroke="#d4a017"
+          stroke={highlightColor ? '#cc2222' : '#d4a017'}
           strokeWidth={hovered ? 2 : 1.5}
           pointerEvents="none"
           onMouseEnter={() => setHovered(true)}

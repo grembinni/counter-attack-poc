@@ -1,5 +1,8 @@
-import { PITCH_HEXES } from '@counter-attack/shared';
+import { useState } from 'react';
+import { PITCH_HEXES, isInRegion, ClientEvents } from '@counter-attack/shared';
+import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { socket } from '../socket.js';
 import { computeViewBox, HEX_SIZE } from '../utils/hexToPixel.js';
 import { HexCell } from './HexCell.js';
 import { PieceOverlay } from './PieceOverlay.js';
@@ -37,10 +40,14 @@ export function HexGrid() {
   const ball = useGameStore((s) => s.gameState.ball);
   const phase = useGameStore((s) => s.gameState.phase);
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
+  const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const selectPiece = useGameStore((s) => s.selectPiece);
   const emitMove = useGameStore((s) => s.emitMove);
+
+  // Optimistic highlight for SHOT target — cosmetic only; server emit is source of truth (D-06)
+  const [shotTargetHighlight, setShotTargetHighlight] = useState<HexCoord | null>(null);
 
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
@@ -57,20 +64,37 @@ export function HexGrid() {
         </clipPath>
       </defs>
       <g transform={`translate(${translateX}, ${translateY})`} clipPath="url(#pitch-clip)">
-        {/* Layer 1: Hex cells — base pitch fill and valid-move highlights */}
+        {/* Layer 1: Hex cells — base pitch fill and valid-move / goal-hex highlights */}
         {PITCH_HEXES.map((hex) => {
           const hexId = `${hex.q},${hex.r}`;
-          const isHighlighted = validMoveHexSet.has(hexId);
+          const isValidMove = validMoveHexSet.has(hexId);
+          // D-06: goal hexes are clickable during SHOT phase to emit the target to the server
+          const isGoalHex =
+            phase === 'SHOT' && (isInRegion(hex, 'homeGoal') || isInRegion(hex, 'awayGoal'));
+          const isShotTarget =
+            shotTargetHighlight !== null &&
+            hex.q === shotTargetHighlight.q &&
+            hex.r === shotTargetHighlight.r;
+          const isHighlighted = isValidMove || isGoalHex || isShotTarget;
+
+          let onClick: (() => void) | undefined;
+          if (isValidMove && selectedPieceId) {
+            onClick = () => emitMove(selectedPieceId, hex);
+          } else if (isGoalHex) {
+            // D-06: emit target to server; optimistic highlight is cosmetic
+            onClick = () => {
+              setShotTargetHighlight(hex);
+              socket.emit(ClientEvents.GAME_SHOT, hex);
+            };
+          }
+
           return (
             <HexCell
               key={hexId}
               hex={hex}
               isHighlighted={isHighlighted}
-              onClick={
-                isHighlighted && selectedPieceId
-                  ? () => emitMove(selectedPieceId, hex)
-                  : () => undefined
-              }
+              highlightColor={isGoalHex || isShotTarget ? '#ef4444' : undefined}
+              onClick={onClick ?? (() => undefined)}
             />
           );
         })}
@@ -82,7 +106,11 @@ export function HexGrid() {
             key={piece.id}
             piece={piece}
             isSelected={piece.id === selectedPieceId}
-            isClickable={phase === 'MOVEMENT' && piece.teamId === activeTeam}
+            isClickable={
+              phase === 'MOVEMENT' &&
+              piece.teamId === activeTeam &&
+              !movedPieceIds.includes(piece.id) // Pitfall 8: exclude already-moved pieces
+            }
             onClick={() => selectPiece(piece.id)}
             carrierId={ball.carrierId}
           />
