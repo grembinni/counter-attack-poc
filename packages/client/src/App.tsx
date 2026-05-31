@@ -70,6 +70,13 @@ export function App() {
 
     socket.connect();
 
+    // Fallback: if already connected (HMR reload or StrictMode remount where socket
+    // persisted from the previous mount), the connect event won't fire again — call
+    // onConnect directly so room:create is still emitted.
+    if (socket.connected) {
+      onConnect();
+    }
+
     return () => {
       socket.off('connect', onConnect);
       socket.off(ServerEvents.GAME_STATE, onGameState);
