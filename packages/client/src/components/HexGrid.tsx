@@ -13,7 +13,7 @@ const SQRT3 = Math.sqrt(3);
 // Left/right: trim the pointy vertices of q=0 and q=36 columns.
 const CLIP_X = -(HEX_SIZE / 2); // -10 — 10px left of the 180° tip of q=0 hexes
 const CLIP_Y = HEX_SIZE * SQRT3 * 0.5;
-const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE * 2; // 1120 — right boundary at 1110 (60°/300° corners of q=36)
+const CLIP_W = HEX_SIZE * 1.5 * 36 + HEX_SIZE * 3; // 1140 — right boundary at 1130 (10px past 0° tip of q=36)
 const CLIP_H = HEX_SIZE * SQRT3 * 25; // clips at even-q r=25 centre — mirrors top
 
 /**
