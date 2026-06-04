@@ -72,34 +72,32 @@ export const PITCH_REGIONS: PitchRegions = {
 };
 
 /**
- * Difficult-angle hexes — dot-marked positions near penalty area corners
- * where shooting is penalised. PITCH-03.
- * 16 hexes approximated from Counter Attack rules for the 37×26 grid:
- *   Home end (near penalty area corners, q∈[3,4] near r-boundaries):
- *     Upper/near-post: {q:3,r:6}, {q:4,r:6}, {q:3,r:7}, {q:4,r:7}
- *     Lower/far-post:  {q:3,r:17}, {q:4,r:17}, {q:3,r:18}, {q:4,r:18}
- *   Away end (mirror at q=36-q):
- *     Upper/near-post: {q:32,r:6}, {q:33,r:6}, {q:32,r:7}, {q:33,r:7}
- *     Lower/far-post:  {q:32,r:17}, {q:33,r:17}, {q:32,r:18}, {q:33,r:18}
- * TODO: Verify against docs/board-photo.jpg when available (D-06)
+ * Difficult-angle hexes — corner kick zones where shooting is penalised. PITCH-03.
+ * D-11 (Phase 7.1): relocated from penalty-area corners to corner kick positions.
+ * 4 hexes per corner × 4 corners = 16 hexes total.
+ * Each corner cluster: 2 hexes along the sideline × 2 hexes toward goal line.
  */
 export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
-  { q: 3, r: 6 },
-  { q: 4, r: 6 },
-  { q: 3, r: 7 },
-  { q: 4, r: 7 }, // home end near-post upper
-  { q: 3, r: 17 },
-  { q: 4, r: 17 },
-  { q: 3, r: 18 },
-  { q: 4, r: 18 }, // home end far-post lower
-  { q: 32, r: 6 },
-  { q: 33, r: 6 },
-  { q: 32, r: 7 },
-  { q: 33, r: 7 }, // away end near-post upper
-  { q: 32, r: 17 },
-  { q: 33, r: 17 },
-  { q: 32, r: 18 },
-  { q: 33, r: 18 }, // away end far-post lower
+  // Top-left corner (q=0, r=0)
+  { q: 0, r: 0 },
+  { q: 1, r: 0 },
+  { q: 0, r: 1 },
+  { q: 1, r: 1 },
+  // Bottom-left corner (q=0, r=25)
+  { q: 0, r: 25 },
+  { q: 1, r: 25 },
+  { q: 0, r: 24 },
+  { q: 1, r: 24 },
+  // Top-right corner (q=36, r=0)
+  { q: 36, r: 0 },
+  { q: 35, r: 0 },
+  { q: 36, r: 1 },
+  { q: 35, r: 1 },
+  // Bottom-right corner (q=36, r=25)
+  { q: 36, r: 25 },
+  { q: 35, r: 25 },
+  { q: 36, r: 24 },
+  { q: 35, r: 24 },
 ]);
 
 /**
