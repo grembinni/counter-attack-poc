@@ -207,12 +207,12 @@
 5. Pitch markings (halfway line, centre circle, penalty boxes, 6-yard boxes, corner arcs, goal nets) render; goal-region hexes use grass fill, not black (PITCH-02)
 6. No console.log statements remain in App.tsx or LobbyScreen.tsx; full client + shared test suites pass
 
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 07.1-01-PLAN.md — Shared data: 4-5-2 team positions (D-01) + corner-kick difficult-angle hexes (D-11) + pitch.test.ts
-- [ ] 07.1-02-PLAN.md — Client lobby UX (D-02/03/04) + debug cleanup + goal-hex grass fill (D-10)
+- [x] 07.1-01-PLAN.md — Shared data: 4-5-2 team positions (D-01) + corner-kick difficult-angle hexes (D-11) + pitch.test.ts
+- [x] 07.1-02-PLAN.md — Client lobby UX (D-02/03/04) + debug cleanup + goal-hex grass fill (D-10)
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -262,6 +262,6 @@ Plans:
 | 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
 | 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
-| 7.1. UI Cleanup                             | 0/0            | Not started | -          |
+| 7.1. UI Cleanup                             | 2/3            | In Progress |            |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |
