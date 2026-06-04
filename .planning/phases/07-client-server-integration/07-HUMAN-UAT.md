@@ -53,8 +53,8 @@ blocked: 0
 ## Gaps
 
 - truth: "Teams start on correct side of field at kick-off (Home left, Away right or per game spec)"
-  status: failed
-  reason: "User reported: teams don't start on correct side of the field for kick off"
+  status: resolved
+  reason: "Fixed in Phase 7.1 (07.1-01): HOME_SQUAD and AWAY_SQUAD now use real 37x26 4-5-2 board coordinates; away mirrors home across q=18."
   severity: major
   test: observed
   root_cause: "Placeholder starting positions in packages/shared/src/teams.ts — comment notes 'Phase 6 replaces with real board coordinates from measurements'. Pre-existing deferred item, not a Phase 7 regression."
