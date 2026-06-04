@@ -29,9 +29,23 @@ export function PieceOverlay({
   // Player number: everything after the last '-': 'home-10' → '10', 'away-0' → '0'
   const playerNumber = piece.id.slice(piece.id.lastIndexOf('-') + 1);
 
-  // Team colors — UI-SPEC §Game Board Palette
-  const fill = piece.teamId === 'home' ? '#1a56b0' : '#c0392b';
-  const stroke = piece.teamId === 'home' ? '#0d3a82' : '#8e1c12';
+  // GK pieces use distinctive colors regardless of team (physical board convention)
+  // Outfield: home = blue, away = red
+  const isGK = piece.role === 'GK';
+  const fill = isGK
+    ? piece.teamId === 'home'
+      ? '#9b59b6' // home GK: purple
+      : '#f59e0b' // away GK: yellow/amber
+    : piece.teamId === 'home'
+      ? '#1a56b0' // home outfield: blue
+      : '#c0392b'; // away outfield: red
+  const stroke = isGK
+    ? piece.teamId === 'home'
+      ? '#6c3483'
+      : '#d97706'
+    : piece.teamId === 'home'
+      ? '#0d3a82'
+      : '#8e1c12';
 
   // Ball carrier: piece holds the ball — render inner ring indicator
   const isBallCarrier = carrierId !== null && piece.id === carrierId;
