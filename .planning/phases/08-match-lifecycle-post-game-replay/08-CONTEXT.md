@@ -100,40 +100,129 @@ Deliver a complete, rules-correct match from first kick-off through two 45-minut
 
 - **D-09:** The current FSM goes MOVEMENT → PASS → SHOT (pass always precedes shot). The eligibility table shows this is incorrect for Standard pass → Shot (✗). Phase 8 restructures the FSM so the attacking team can choose their next action after each completed action, validated against this table. The PASS phase name may need to become a more generic "BALL_ACTION" or the client handles type selection before emitting.
 
+### Per-Action Flow Validation
+
+Each action type's complete FSM flow, validation rules, time increment, and `lastActionType` value. The planner must implement each of these in `gameEngine.ts` and the corresponding `gameHandlers.ts` handler.
+
+- **D-10:** **Movement Phase**
+  - _Trigger:_ `applyStartMovement` (KICK_OFF → MOVEMENT/ATTACKER_4), or the previous action's resolution transitions phase to MOVEMENT.
+  - _Completes:_ `applyEndTurn` closes ATTACKER_2 slot (normal end), OR `applyMove` produces a `STEAL_ATTEMPT SUCCESS` result (early end — see Successful Tackle below).
+  - _Time:_ +3 min on completion (in `applyEndTurn` at the ATTACKER_2→null transition).
+  - _Sets lastActionType:_ `'MOVEMENT_PHASE'` on normal end; `'SUCCESSFUL_TACKLE'` on steal.
+  - _Sequence guard:_ valid after any `lastActionType` except `'HIGH_PASS'` (High pass must be headed, never followed by movement). Server rejects `game:start-movement` if `lastActionType === 'HIGH_PASS'`.
+  - _Next actions allowed:_ Movement ✓, Std Pass ✓, High Pass ✓, Long Ball ✓, Snapshot ✓, Shot ✓ (FT Pass ✗, Header ✗).
+
+- **D-11:** **Standard Pass**
+  - _Trigger:_ `game:pass` event with `type: 'STANDARD'` while `phase === 'PASS'` (or new action-choice state — see D-09).
+  - _Flow:_ accuracy check via `validatePassAccuracy(carrier, 'STANDARD', dice, penalties)`; accurate → possession transfers to target hex area, phase → new action choice for new ball carrier; inaccurate → LOOSE_BALL.
+  - _Time:_ +1 min on pass declaration (when the `game:pass` event is accepted, before dice roll).
+  - _Sets lastActionType:_ `'STANDARD_PASS'`.
+  - _Sequence guard:_ valid only when `lastActionType` ∈ `{MOVEMENT_PHASE, SUCCESSFUL_TACKLE}`. Server rejects otherwise.
+  - _Next actions allowed:_ Movement ✓, FT Pass ✓, Snapshot ✓ (Std Pass ✗, High Pass ✗, Long Ball ✗, Header ✗, Shot ✗).
+
+- **D-12:** **First-time Pass**
+  - _Trigger:_ `game:pass` with `type: 'FIRST_TIME'`.
+  - _Flow:_ accuracy check (PASS-02: same as Standard Pass mechanics but 6-hex range); each team moves 1 player 1 hex during flight (server resolves as a pre-approved mini-move, or defers to client selection — planner to decide); inaccurate → LOOSE_BALL.
+  - _Time:_ +0 min.
+  - _Sets lastActionType:_ `'FIRST_TIME_PASS'`.
+  - _Sequence guard:_ valid only when `lastActionType === 'STANDARD_PASS'`. Server rejects otherwise.
+  - _Next actions allowed:_ Movement ✓, Snapshot ✓ (all others ✗).
+
+- **D-13:** **High Pass**
+  - _Trigger:_ `game:pass` with `type: 'HIGH'`.
+  - _Flow:_ accuracy check (PASS-03: carrier.highPass + dice >= 8); each team moves 1 player up to 3 hexes during flight; inaccurate → LOOSE_BALL.
+  - _Time:_ +1 min.
+  - _Sets lastActionType:_ `'HIGH_PASS'`.
+  - _Sequence guard:_ valid when `lastActionType` ∈ `{MOVEMENT_PHASE, SUCCESSFUL_TACKLE}`. Server rejects otherwise. Additionally: cannot be made if an opponent is adjacent to the carrier AND in the pass path (PASS-03).
+  - _Critical rule:_ High Pass MUST be followed by a Header. `lastActionType === 'HIGH_PASS'` means the server will ONLY accept `game:header` as the next action — all other action events are rejected with `INVALID_SEQUENCE`.
+  - _Next actions allowed:_ Header ONLY ✓.
+
+- **D-14:** **Long Ball**
+  - _Trigger:_ `game:pass` with `type: 'LONG'`.
+  - _Flow:_ accuracy check (PASS-04: 9+ same third, 10+ across final thirds); cannot land within 5 hexes of own players or adjacent to an opponent; inaccurate → LOOSE_BALL.
+  - _Time:_ +1 min.
+  - _Sets lastActionType:_ `'LONG_BALL'`.
+  - _Sequence guard:_ valid when `lastActionType` ∈ `{MOVEMENT_PHASE, SUCCESSFUL_TACKLE}`. Server rejects otherwise.
+  - _Next actions allowed:_ Movement ✓, Header ✓ (all others ✗).
+
+- **D-15:** **Header**
+  - _Trigger:_ `game:header` event (new Socket.io event) while `phase === 'HEADER'`.
+  - _Flow:_ `applyRoll` HEADER branch (already implemented): attacker vs nearest defender (HEAD-01 range rules); uncontested = auto-win (HEAD-02); GK aerial challenge on attacker win (D-28); outcomes: GOAL → KICK_OFF_SETUP, GK_RESTART, LOOSE_BALL (tie), or MOVEMENT (defender wins).
+  - _Time:_ +0 min.
+  - _Sets lastActionType:_ `'HEADER'`.
+  - _Sequence guard:_ valid ONLY when `lastActionType` ∈ `{HIGH_PASS, LONG_BALL}`. Server rejects `game:header` if `lastActionType` is anything else.
+  - _Next actions allowed:_ Movement ✓, FT Pass ✓, Snapshot ✓ (Header ✗ per HEAD-04 — no consecutive headed passes; all others ✗).
+
+- **D-16:** **Snapshot**
+  - _Trigger:_ `game:snapshot` event (new) — declared by the ball carrier when either: (a) in `phase === 'MOVEMENT'` and ball is in the opponent's penalty area (SNAP-01), or (b) immediately after any pass resolves accurately (SNAP-01 second clause).
+  - _Flow:_ opponent moves 1 player up to 2 hexes (deflection attempt, SNAP-02); then transitions to `phase === 'SHOT'` with -1 dice penalty applied to the shot. All standard shot rules apply (SNAP-03).
+  - _Time:_ +0 min.
+  - _Sets lastActionType:_ `'SNAPSHOT'` on declaration. After the ensuing shot resolves, `lastActionType` follows the shot resolution (goal → reset to null via KICK_OFF_SETUP; miss/save → MOVEMENT/GK_RESTART as normal).
+  - _Sequence guard:_ valid when `lastActionType` ∈ `{MOVEMENT_PHASE, SUCCESSFUL_TACKLE, STANDARD_PASS, FIRST_TIME_PASS, HIGH_PASS, LONG_BALL, HEADER, DEFLECTION}` — i.e., Snapshot appears as valid in most rows of the eligibility table. Plus the positional rule (ball in penalty area, or immediately post-pass).
+  - _Next actions allowed:_ N/A — Snapshot immediately transitions to SHOT; the Shot's outcome determines what follows.
+
+- **D-17:** **Shot**
+  - _Trigger:_ `game:roll` while `phase === 'SHOT'` (the shot declaration is implicit — entering SHOT phase IS the declaration, which may come from Movement Phase directly or via Snapshot).
+  - _Flow:_ `applyRoll` SHOT branch (already implemented): shooter vs GK duel; outcomes: GOAL → KICK_OFF_SETUP, MISS → MOVEMENT, LOOSE_BALL (tie) → LOOSE_BALL phase, SAVE → GK_RESTART.
+  - _Time:_ +0 min.
+  - _Sets lastActionType:_ not applicable — Shot always leads to a state that resets `lastActionType` to `null` (KICK_OFF_SETUP after goal) or a new action sequence (MOVEMENT, GK_RESTART, LOOSE_BALL each set their own `lastActionType`).
+  - _Sequence guard:_ Phase 8 adds the guard that `phase` can only enter SHOT from MOVEMENT (via `lastActionType === 'MOVEMENT_PHASE'`) or from SNAPSHOT. A Shot cannot follow any pass type directly. Server must reject transitions into SHOT phase that come from pass resolution (break from current FSM behaviour).
+  - _Next actions:_ Shot does not appear as a "last action" row in the table — its outcomes always reset the sequence.
+
+- **D-18:** **Successful Tackle** (outcome, not a player-triggered action)
+  - _Occurs:_ when `applyMove` produces a `STEAL_ATTEMPT SUCCESS` inside the Movement Phase. Possession transfers immediately; the Movement Phase ends.
+  - _Time:_ +3 min (counted as part of the Movement Phase that contained the tackle).
+  - _Sets lastActionType:_ `'SUCCESSFUL_TACKLE'`.
+  - _Next actions allowed:_ Movement ✓, Std Pass ✓, High Pass ✓, Long Ball ✓, Snapshot ✓ (FT Pass ✗, Header ✗, Shot ✗).
+
+- **D-19:** **Deflection / Loose Ball** (outcome, not a player-triggered action)
+  - _Occurs:_ when `applyRoll` produces a LOOSE_BALL phase from any source (inaccurate pass, tied duel, GK kick spill).
+  - _Flow:_ `applyRoll` LOOSE_BALL branch resolves landing hex (already implemented). Ball lands unclaimed; possession is determined by whoever reaches it in the next Movement Phase.
+  - _Time:_ +0 min.
+  - _Sets lastActionType:_ `'DEFLECTION'` when LOOSE_BALL resolves (after landing is computed).
+  - _Next actions allowed:_ Movement ✓, FT Pass ✓, Long Ball ✓, Snapshot ✓ (Std Pass ✗, High Pass ✗, Header ✗, Shot ✗).
+
+- **D-20:** **GK Restart** (kick / throw / movement) — sets `lastActionType` per choice:
+  - `'kick'` → `applyGKRestart` kick branch → `lastActionType = 'STANDARD_PASS'` (kick is equivalent to a Long Ball / High Pass for sequence purposes — planner to determine correct mapping; a GK kick that is accurate leads to MOVEMENT, so treat as equivalent to movement following it; use `'MOVEMENT_PHASE'` after kick resolves to MOVEMENT).
+  - `'throw'` → `applyGKRestart` throw branch → `lastActionType = 'STANDARD_PASS'` (quick throw = uninterceptable standard pass; valid next actions as per Standard Pass row).
+  - `'movement'` → GK team starts MOVEMENT; `lastActionType = null` (same as normal kick-off start).
+
+  _Time increment:_ kick = +1 min (D-03); throw/movement = +0 min.
+
 ### Snapshots
 
-- **D-10:** Snapshots (SNAP-01, SNAP-02, SNAP-03) are **in scope for Phase 8**. `applySnapshot` to be implemented in `packages/server/src/gameEngine.ts`. Snapshot conditions: ball-carrier is in the opponent's penalty area during a Movement Phase (SNAP-01); or immediately after any pass inside or outside the box. Snapshot applies -1 dice penalty to Shooting (SNAP-02); before the shot, 1 opponent moves any player up to 2 hexes for a deflection attempt. Snapshot = 0 minutes. No new FSM state required — snapshot transitions to SHOT.
+- **D-21:** Snapshots (SNAP-01, SNAP-02, SNAP-03) are **in scope for Phase 8**. `applySnapshot` to be implemented in `packages/server/src/gameEngine.ts`. Snapshot conditions: ball-carrier is in the opponent's penalty area during a Movement Phase (SNAP-01); or immediately after any pass inside or outside the box. Snapshot applies -1 dice penalty to Shooting (SNAP-02); before the shot, 1 opponent moves any player up to 2 hexes for a deflection attempt. Snapshot = 0 minutes. No new FSM state required — snapshot transitions to SHOT.
 
 ### Kick-Off Procedure
 
-- **D-11:** New `KICK_OFF_SETUP` phase added to `GamePhase`. Both teams enter this phase before each kick-off (match start, goals, half-time start). Both teams freely reposition their 11 players to any valid hex in their permitted zone — no pace limits apply (this is pre-game/pre-restart positioning, not a movement action):
+- **D-22:** New `KICK_OFF_SETUP` phase added to `GamePhase`. Both teams enter this phase before each kick-off (match start, goals, half-time start). Both teams freely reposition their 11 players to any valid hex in their permitted zone — no pace limits apply (this is pre-game/pre-restart positioning, not a movement action):
   - Attacking team: own half (q ≤ 18 for home, q ≥ 18 for away) **plus** the centre circle hexes
   - Defending team: own half only; must be **outside** the centre circle (hexDistance > 3 from kickOffHex {q:18, r:13})
   - Pieces reset to 4-5-2 formation positions from `packages/shared/src/teams.ts` as the default before repositioning begins.
 
-- **D-12:** Each team clicks a "Ready" button (or equivalent) to confirm their positioning. Server transitions from `KICK_OFF_SETUP` to `KICK_OFF` only when **both** teams have confirmed ready. Server validates placement rules on "Ready" — rejects if constraints are violated.
+- **D-23:** Each team clicks a "Ready" button (or equivalent) to confirm their positioning. Server transitions from `KICK_OFF_SETUP` to `KICK_OFF` only when **both** teams have confirmed ready. Server validates placement rules on "Ready" — rejects if constraints are violated.
 
-- **D-13:** The attacking team must manually place exactly one player on the centre hex (`kickOffHex = {q:18, r:13}`). Server rejects the "Ready" confirmation if the centre hex is unoccupied by an attacking player. The client should highlight the centre hex requirement clearly.
+- **D-24:** The attacking team must manually place exactly one player on the centre hex (`kickOffHex = {q:18, r:13}`). Server rejects the "Ready" confirmation if the centre hex is unoccupied by an attacking player. The client should highlight the centre hex requirement clearly.
 
-- **D-14:** Second half kick-off is taken by the team that did NOT kick off in the first half (MATCH-04). `GameState.kickOffTeam` records the first-half kick-off team. When HALF_TIME transitions to the second half, `attackingTeam` is set to the opposite team.
+- **D-25:** Second half kick-off is taken by the team that did NOT kick off in the first half (MATCH-04). `GameState.kickOffTeam` records the first-half kick-off team. When HALF_TIME transitions to the second half, `attackingTeam` is set to the opposite team.
 
-- **D-15:** The first action after `KICK_OFF_SETUP` → `KICK_OFF` → `MOVEMENT` must be a Standard Pass originating from the centre hex. Server enforces this as MATCH-03.
+- **D-26:** The first action after `KICK_OFF_SETUP` → `KICK_OFF` → `MOVEMENT` must be a Standard Pass originating from the centre hex. Server enforces this as MATCH-03.
 
 ### Half-Time Flow
 
-- **D-16:** When `actionCount >= 45 + addedTime` at the end of the first half, the server transitions to `HALF_TIME` phase. Both clients render a half-time screen showing the current score and a "Start 2nd Half" button. The button is only enabled for the team that did NOT kick off in the first half (they take the second-half kick-off). Clicking it transitions to `KICK_OFF_SETUP` for the second half.
+- **D-27:** When `actionCount >= 45 + addedTime` at the end of the first half, the server transitions to `HALF_TIME` phase. Both clients render a half-time screen showing the current score and a "Start 2nd Half" button. The button is only enabled for the team that did NOT kick off in the first half (they take the second-half kick-off). Clicking it transitions to `KICK_OFF_SETUP` for the second half.
 
-- **D-17:** `half` in `GameState` increments from `1` to `2` when the second half begins. `actionCount` resets to `0`. `addedTime` resets to `null`.
+- **D-28:** `half` in `GameState` increments from `1` to `2` when the second half begins. `actionCount` resets to `0`. `addedTime` resets to `null`.
 
 ### Post-Game Replay
 
-- **D-18:** After full time (`actionCount >= 45 + addedTime` at end of second half), server transitions to `FULL_TIME` briefly (shows final score), then automatically starts `REPLAY` phase.
+- **D-29:** After full time (`actionCount >= 45 + addedTime` at end of second half), server transitions to `FULL_TIME` briefly (shows final score), then automatically starts `REPLAY` phase.
 
-- **D-19:** Replay delivery: server reconstructs `GameState` for each event in the event log (by replaying state transitions from `buildInitialGameState`) and emits `game:state` for each frame at 1-second intervals via `setInterval`. `GameState.phase = 'REPLAY'` tells clients to render the replay screen.
+- **D-30:** Replay delivery: server reconstructs `GameState` for each event in the event log (by replaying state transitions from `buildInitialGameState`) and emits `game:state` for each frame at 1-second intervals via `setInterval`. `GameState.phase = 'REPLAY'` tells clients to render the replay screen.
 
-- **D-20:** Replay granularity: **1 second per individual event** in the event log. Each `MOVE` event = 1 replay frame = 1 second. `SLOT_ADVANCE` events are skipped (no board change). `DICE_ROLL`, `STEAL_ATTEMPT`, and `GOAL` events are shown for 1 second each. `KICK_OFF` events shown for 1 second.
+- **D-31:** Replay granularity: **1 second per individual event** in the event log. Each `MOVE` event = 1 replay frame = 1 second. `SLOT_ADVANCE` events are skipped (no board change). `DICE_ROLL`, `STEAL_ATTEMPT`, and `GOAL` events are shown for 1 second each. `KICK_OFF` events shown for 1 second.
 
-- **D-21:** Replay screen shows: board state, final score (persistent), current replay position indicator (e.g., "Action 34 of 127"). When the replay finishes (all events exhausted), both clients see a "Play Again" button. Clicking "Play Again" returns to the create/join lobby screen (clears room state, new session).
+- **D-32:** Replay screen shows: board state, final score (persistent), current replay position indicator (e.g., "Action 34 of 127"). When the replay finishes (all events exhausted), both clients see a "Play Again" button. Clicking "Play Again" returns to the create/join lobby screen (clears room state, new session).
 
 ### Claude's Discretion
 
