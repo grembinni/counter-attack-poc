@@ -7,6 +7,8 @@ import { computeViewBox, HEX_SIZE } from '../utils/hexToPixel.js';
 import { HexCell } from './HexCell.js';
 import { PieceOverlay } from './PieceOverlay.js';
 import { BallMarker } from './BallMarker.js';
+import { PitchMarkings } from './PitchMarkings.js';
+import { GoalNets } from './GoalNets.js';
 import styles from './HexGrid.module.css';
 
 const SQRT3 = Math.sqrt(3);
@@ -67,62 +69,73 @@ export function HexGrid() {
         <clipPath id="pitch-clip">
           <rect x={CLIP_X} y={CLIP_Y} width={CLIP_W} height={CLIP_H} />
         </clipPath>
+        {/* D-09: Goal net mesh pattern — reused by both goal net rects in GoalNets */}
+        <pattern id="goal-net" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+          <path d="M 0 0 L 8 0 M 0 0 L 0 8" stroke="rgba(255,255,255,0.4)" strokeWidth={0.8} />
+        </pattern>
       </defs>
-      <g transform={`translate(${translateX}, ${translateY})`} clipPath="url(#pitch-clip)">
-        {/* Layer 1: Hex cells — base pitch fill and valid-move / goal-hex highlights */}
-        {PITCH_HEXES.map((hex) => {
-          const hexId = `${hex.q},${hex.r}`;
-          const isValidMove = validMoveHexSet.has(hexId);
-          // D-06: goal hexes are clickable during SHOT phase to emit the target to the server
-          const isGoalHex =
-            phase === 'SHOT' && (isInRegion(hex, 'homeGoal') || isInRegion(hex, 'awayGoal'));
-          const isShotTarget =
-            shotTargetHighlight !== null &&
-            hex.q === shotTargetHighlight.q &&
-            hex.r === shotTargetHighlight.r;
-          const isHighlighted = isValidMove || isGoalHex || isShotTarget;
+      <g transform={`translate(${translateX}, ${translateY})`}>
+        {/* Goal nets: outside clip boundary — rendered as sibling of clipped group (D-09) */}
+        <GoalNets />
+        <g clipPath="url(#pitch-clip)">
+          {/* Layer 1: Hex cells — base pitch fill and valid-move / goal-hex highlights */}
+          {PITCH_HEXES.map((hex) => {
+            const hexId = `${hex.q},${hex.r}`;
+            const isValidMove = validMoveHexSet.has(hexId);
+            // D-06: goal hexes are clickable during SHOT phase to emit the target to the server
+            const isGoalHex =
+              phase === 'SHOT' && (isInRegion(hex, 'homeGoal') || isInRegion(hex, 'awayGoal'));
+            const isShotTarget =
+              shotTargetHighlight !== null &&
+              hex.q === shotTargetHighlight.q &&
+              hex.r === shotTargetHighlight.r;
+            const isHighlighted = isValidMove || isGoalHex || isShotTarget;
 
-          let onClick: (() => void) | undefined;
-          if (isValidMove && selectedPieceId) {
-            onClick = () => emitMove(selectedPieceId, hex);
-          } else if (isGoalHex) {
-            // D-06: emit target to server; optimistic highlight is cosmetic
-            onClick = () => {
-              setShotTargetHighlight(hex);
-              socket.emit(ClientEvents.GAME_SHOT, hex);
-            };
-          }
+            let onClick: (() => void) | undefined;
+            if (isValidMove && selectedPieceId) {
+              onClick = () => emitMove(selectedPieceId, hex);
+            } else if (isGoalHex) {
+              // D-06: emit target to server; optimistic highlight is cosmetic
+              onClick = () => {
+                setShotTargetHighlight(hex);
+                socket.emit(ClientEvents.GAME_SHOT, hex);
+              };
+            }
 
-          return (
-            <HexCell
-              key={hexId}
-              hex={hex}
-              isHighlighted={isHighlighted}
-              highlightColor={isGoalHex || isShotTarget ? '#ef4444' : undefined}
-              onClick={onClick ?? (() => undefined)}
-            />
-          );
-        })}
-        {/* Layer 2: Ball marker — above hexes, below pieces */}
-        <BallMarker ball={ball} />
-        {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
-        {pieces.map((piece) => {
-          const canSelect =
-            isActivePlayer &&
-            phase === 'MOVEMENT' &&
-            piece.teamId === activeTeam &&
-            !movedPieceIds.includes(piece.id); // Pitfall 8: exclude already-moved pieces
-          return (
-            <PieceOverlay
-              key={piece.id}
-              piece={piece}
-              isSelected={piece.id === selectedPieceId}
-              isClickable={canSelect}
-              onClick={canSelect ? () => selectPiece(piece.id) : () => undefined}
-              carrierId={ball.carrierId}
-            />
-          );
-        })}
+            return (
+              <HexCell
+                key={hexId}
+                hex={hex}
+                isHighlighted={isHighlighted}
+                highlightColor={isGoalHex || isShotTarget ? '#ef4444' : undefined}
+                onClick={onClick ?? (() => undefined)}
+              />
+            );
+          })}
+          {/* Layer 1.5: Pitch markings — cosmetic SVG overlay; under pieces, over hex fill (D-07, D-08, D-12) */}
+          <PitchMarkings />
+          {/* Layer 2: Ball marker — above hexes, below pieces */}
+          <BallMarker ball={ball} />
+          {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
+          {pieces.map((piece) => {
+            const canSelect =
+              isActivePlayer &&
+              phase === 'MOVEMENT' &&
+              piece.teamId === activeTeam &&
+              !movedPieceIds.includes(piece.id); // Pitfall 8: exclude already-moved pieces
+            return (
+              <PieceOverlay
+                key={piece.id}
+                piece={piece}
+                isSelected={piece.id === selectedPieceId}
+                isClickable={canSelect}
+                onClick={canSelect ? () => selectPiece(piece.id) : () => undefined}
+                onInspect={() => selectPiece(piece.id)} // D-06: always wired; local state only — no socket.emit
+                carrierId={ball.carrierId}
+              />
+            );
+          })}
+        </g>
       </g>
     </svg>
   );

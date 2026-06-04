@@ -6,6 +6,8 @@ type Props = {
   isSelected: boolean;
   isClickable: boolean;
   onClick: () => void;
+  /** Always fires on any piece click regardless of isClickable — used for stats panel inspection (D-06). */
+  onInspect: () => void;
   carrierId: string | null;
 };
 
@@ -14,7 +16,14 @@ type Props = {
  * Colors: home '#1a56b0' / away '#c0392b' per UI-SPEC §Piece Overlay Spec.
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
-export function PieceOverlay({ piece, isSelected, isClickable, onClick, carrierId }: Props) {
+export function PieceOverlay({
+  piece,
+  isSelected,
+  isClickable,
+  onClick,
+  onInspect,
+  carrierId,
+}: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
   // Player number: everything after the last '-': 'home-10' → '10', 'away-0' → '0'
@@ -38,7 +47,10 @@ export function PieceOverlay({ piece, isSelected, isClickable, onClick, carrierI
         stroke={stroke}
         strokeWidth={1.5}
         style={{ cursor: isClickable ? 'pointer' : 'default' }}
-        onClick={isClickable ? onClick : undefined}
+        onClick={() => {
+          onInspect();
+          if (isClickable) onClick();
+        }}
       />
       {/* Selected ring — gold outline when this piece is the active selection */}
       {isSelected && (
