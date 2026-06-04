@@ -15,6 +15,15 @@ export const ClientEvents = {
   GAME_END_TURN: 'game:end-turn',
   GAME_UNDO: 'game:undo',
   GAME_START_MOVEMENT: 'game:start-movement',
+  /** D-24: kick-off setup confirmation — both teams click Ready before KICK_OFF_SETUP → KICK_OFF. */
+  GAME_READY: 'game:ready',
+  /**
+   * Phase 8 / Research OQ-2 / Pitfall 2: piece repositioning during KICK_OFF_SETUP.
+   * Distinct from game:move (movement phase) — no pace limits, no ZoI enforcement.
+   */
+  GAME_KICK_OFF_MOVE: 'game:kick-off-move',
+  /** D-28: trigger transition from HALF_TIME to 2nd-half KICK_OFF_SETUP. */
+  GAME_HALF_TIME_START: 'game:half-time-start',
 } as const;
 
 export const ServerEvents = {
@@ -43,6 +52,12 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_UNDO]: () => void;
   /** Wire path for FSM KICK_OFF → MOVEMENT transition. D-01, 04-02/T1. */
   [ClientEvents.GAME_START_MOVEMENT]: () => void;
+  /** D-24: Ready confirmation during KICK_OFF_SETUP; server transitions when both teams confirm. */
+  [ClientEvents.GAME_READY]: () => void;
+  /** Phase 8: reposition a piece during KICK_OFF_SETUP (no pace limits, no ZoI). */
+  [ClientEvents.GAME_KICK_OFF_MOVE]: (pieceId: string, to: HexCoord) => void;
+  /** D-28: trigger 2nd half; only available to the team that did NOT kick off in the 1st half. */
+  [ClientEvents.GAME_HALF_TIME_START]: () => void;
 }
 
 /**

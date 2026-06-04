@@ -12,3 +12,4 @@ export * from './passValidator.js';
 export * from './shotValidator.js';
 export * from './headingValidator.js';
 export * from './snapshotValidator.js';
+export * from './actionSequence.js'; // Phase 8: action sequence eligibility table (D-07/D-08)
