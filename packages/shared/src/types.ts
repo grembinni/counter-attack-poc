@@ -201,4 +201,10 @@ export type GameState = {
   replayIndex?: number;
   /** D-31: total replay frame count carried on REPLAY-phase frames only; absent outside replay. */
   replayTotal?: number;
+  /**
+   * SNAP-02: true when the current SHOT phase was entered via applySnapshot.
+   * The SHOT branch in applyRoll applies a -1 shooter dice penalty when this is set.
+   * Cleared to false after the shot resolves (goal, miss, save, loose ball).
+   */
+  snapshotPenalty?: boolean;
 };

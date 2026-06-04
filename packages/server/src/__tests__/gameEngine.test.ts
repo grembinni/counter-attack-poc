@@ -68,6 +68,11 @@ const baseMovementState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: 'ATTACKER_4',
   pendingFreeMove: null,
+  // Phase 8 fields (D-06)
+  addedTime: null,
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -406,6 +411,11 @@ const passState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: null,
   pendingFreeMove: null,
+  // Phase 8 fields
+  addedTime: null,
+  lastActionType: 'MOVEMENT_PHASE', // PASS phase is reached after a movement
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };
 
 /** Base SHOT-phase state: homePiece carries the ball near the away goal. */
@@ -427,6 +437,11 @@ const shotState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: null,
   pendingFreeMove: null,
+  // Phase 8 fields
+  addedTime: null,
+  lastActionType: 'MOVEMENT_PHASE',
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };
 
 /** SHOT state where GK is adjacent (distance 1) to make save scenarios possible. */
@@ -457,6 +472,11 @@ const headerState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: null,
   pendingFreeMove: null,
+  // Phase 8 fields
+  addedTime: null,
+  lastActionType: 'HIGH_PASS',
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };
 
 /** HEADER state where DEF is within 2 hexes — contested duel. */
@@ -487,6 +507,11 @@ const looseBallState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: null,
   pendingFreeMove: null,
+  // Phase 8 fields
+  addedTime: null,
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };
 
 describe('applyRoll', () => {
@@ -500,15 +525,21 @@ describe('applyRoll', () => {
 
   // ---- PASS branch ----
 
-  it('PASS accurate (highPass+dice >= 8) → phase transitions to SHOT and lastDiceRoll set', () => {
+  it('PASS accurate (highPass+dice >= 8) → phase returns to action-choice (NOT SHOT) per D-09/Pitfall8', () => {
     // homePiece.highPass=5; dice=4 → 5+4=9 >= 8 → accurate
+    // D-09/Pitfall 8: accurate pass MUST NOT transition to SHOT.
+    // Phase stays PASS (neutral action-choice) so the ball carrier's team can choose next action.
     const result = applyRoll(passState, 4, 3, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('SHOT');
+      expect(result.state.phase).not.toBe('SHOT'); // SHOT is NOT the result of accurate pass
       expect(result.state.lastDiceRoll).toBeDefined();
       expect(result.state.lastDiceRoll?.context).toBe('PASS_ACCURACY');
       expect(result.state.lastDiceRoll?.rolls).toContain(4);
+      // lastActionType should be STANDARD_PASS (default when not set by handler)
+      expect(result.state.lastActionType).toBe('STANDARD_PASS');
+      // actionCount should increase by 1 (STANDARD pass costs +1 min per D-03)
+      expect(result.state.actionCount).toBe(1);
     }
   });
 
@@ -692,6 +723,11 @@ const gkRestartState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: null,
   pendingFreeMove: null,
+  // Phase 8 fields
+  addedTime: null,
+  lastActionType: 'SHOT',
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };
 
 /** GK_RESTART state with a high-highPass GK for testing accurate kick branch. */

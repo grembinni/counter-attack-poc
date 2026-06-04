@@ -666,22 +666,20 @@ describe('applySnapshot — SNAP-01..03', () => {
 
   it('SHOT resolution after snapshot applies -1 dice penalty (SNAP-02, SNAP-03)', () => {
     // Set up a SHOT state with snapshotPenalty: true
-    // With penalty: shooter score = shooting + dice - 1
-    // With penalty off: shooter score = shooting + dice
-    // At dice=3: without penalty, 9+3=12; with penalty, 9+3-1=11 (still likely goal)
-    // Compare high shooter (9) vs high GK (8) at dice=1: without: 9+1=10 vs 8+1=9 → goal
-    // With penalty: 9+1-1=9 vs 8+1=9 → tie → LOOSE_BALL
+    // shooter.shooting=9, die=2 → combined=9+2=11 (without penalty)
+    // GK.saving=8, die=2 → combined=8+2=10
+    // Without penalty: 11 > 10 → GOAL
+    // With -1 penalty: 9+2-1=10 vs 8+2=10 → TIE → LOOSE_BALL
+    // NOTE: die=1 always triggers SHOT-03 AUTO_MISS before attribute calc, so use die=2
     const snapshotShotState: GameState = {
       ...makeShotState({ actionCount: 10 }),
       snapshotPenalty: true,
     };
-    // Dice that would produce GOAL without penalty but LOOSE_BALL/MISS with -1
-    // Without penalty: shooter=9, die=1 → 9+1=10; GK=8, die=1 → 8+1=9 → GOAL (10 > 9)
-    // With -1 penalty:  shooter=9, die=1 → 9+1-1=9; GK=8, die=1 → 8+1=9 → TIE → LOOSE_BALL
-    const result = applyRoll(snapshotShotState, 1 /* shooterDice */, 1 /* gkDice */, 5 /* handling */);
+    const result = applyRoll(snapshotShotState, 2 /* shooterDice */, 2 /* gkDice */, 5 /* handling */);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Without penalty this would be a GOAL; with -1 it becomes a tie → LOOSE_BALL
+    // Without penalty: 9+2=11 vs 8+2=10 → GOAL
+    // With -1 snapshot penalty: 9+2-1=10 vs 8+2=10 → TIE → LOOSE_BALL
     expect(result.state.phase).toBe('LOOSE_BALL');
   });
 });

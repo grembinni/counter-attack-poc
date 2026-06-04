@@ -20,6 +20,7 @@ import type {
   ActionEvent,
   HexCoord,
   PlayerPiece,
+  LastActionType,
 } from '@counter-attack/shared';
 import {
   HOME_SQUAD,
@@ -37,6 +38,7 @@ import {
   hexDistance,
 } from '@counter-attack/shared';
 import { rollDice } from './diceUtils.js';
+import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 
 // No socket.io imports — pure functions only (ARCH-01, established Phase 2/3 pattern).
 
@@ -88,6 +90,11 @@ export function buildInitialGameState(roomCode: string): GameState {
     paceUsedByPieceId: {},
     movementSlot: null,
     pendingFreeMove: null,
+    // Phase 8 additions (D-06)
+    addedTime: null, // null until actionCount first crosses 45
+    lastActionType: null, // null at match start; updated after every action
+    kickOffTeam: attackingTeam, // coin-flip winner kicks off (D-06, D-26)
+    kickOffActive: false,
   };
 }
 
@@ -214,12 +221,14 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
   let newEventLog: readonly ActionEvent[] = [...state.eventLog, moveEvent];
 
   // Handle STEAL_ATTEMPT effect
+  let stealSuccess = false;
   if ('effect' in result && result.effect.type === 'STEAL_ATTEMPT') {
     const dice = rollDice();
     const defender = result.effect.defenders[0];
     // MOVE-04: combined score >= 10 threshold using computeCombinedScore (via rollDice).
     const combined = computeCombinedScore(defender!.tackling, dice, []);
     const stealResult: 'SUCCESS' | 'FAIL' = combined >= 10 ? 'SUCCESS' : 'FAIL';
+    stealSuccess = stealResult === 'SUCCESS';
     const stealEvent: ActionEvent = {
       type: 'STEAL_ATTEMPT',
       defenderId: defender!.id,
@@ -240,6 +249,27 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
     if ((fromInHomeThird && toInAwayThird) || (fromInAwayThird && toInHomeThird)) {
       pendingFreeMove = { team: piece.teamId, hexesAllowed: 6 };
     }
+  }
+
+  // D-14/MATCH-01: successful steal ends the Movement Phase early; costs 3 min and sets SUCCESSFUL_TACKLE
+  if (stealSuccess) {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        pieces: newPieces,
+        movedPieceIds: [...state.movedPieceIds, pieceId],
+        paceUsedByPieceId: {
+          ...state.paceUsedByPieceId,
+          [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+        },
+        eventLog: newEventLog,
+        pendingFreeMove,
+        // Phase 8 fields
+        lastActionType: 'SUCCESSFUL_TACKLE' as LastActionType,
+        actionCount: state.actionCount + 3, // D-14: full movement phase cost even on early end
+      },
+    };
   }
 
   return {
@@ -273,11 +303,21 @@ export type ApplyEndTurnResult =
  *
  * D-03: advances ATTACKER_4 → DEFENDER_5 → ATTACKER_2 in order.
  * D-04: ATTACKER_2 → transitions phase to 'PASS' with movementSlot null.
+ * D-04/MATCH-01: at ATTACKER_2→null, clock increments by 3 minutes.
+ * D-05/MATCH-02: when actionCount first reaches 45, addedTime is set inline (injected roll).
+ * Pitfall 5: half===1 → HALF_TIME; half===2 → FULL_TIME at threshold.
+ * Pitfall 1: addedTimeRoll is injected by the caller — never call randomInt here.
  *
  * Resets movedPieceIds and paceUsedByPieceId for the new slot.
  * Appends a SLOT_ADVANCE ActionEvent.
+ *
+ * @param state          - Current game state (phase must be MOVEMENT)
+ * @param options        - Optional injection: addedTimeRoll (pre-rolled d6 for added time at half 45)
  */
-export function applyEndTurn(state: GameState): ApplyEndTurnResult {
+export function applyEndTurn(
+  state: GameState,
+  options?: { addedTimeRoll?: number },
+): ApplyEndTurnResult {
   if (state.phase !== 'MOVEMENT' || state.movementSlot === null) {
     return { ok: false, reason: 'WRONG_SLOT' };
   }
@@ -300,6 +340,60 @@ export function applyEndTurn(state: GameState): ApplyEndTurnResult {
           : 'home'
         : state.attackingTeam;
 
+  // Phase 8 clock hook (D-04/MATCH-01): at ATTACKER_2→null transition, apply +3 min
+  if (nextSlot === null) {
+    const newActionCount = state.actionCount + 3;
+
+    // D-05/MATCH-02: roll added time inline when actionCount first reaches 45
+    // Guard: only set addedTime once per half (Pitfall 3 — prevents re-roll)
+    let newAddedTime = state.addedTime;
+    if (newActionCount >= 45 && state.addedTime === null) {
+      // Injected roll (Pitfall 1 — never call randomInt here; caller injects via options)
+      const roll = options?.addedTimeRoll ?? 3; // default 3 for backward compatibility
+      newAddedTime = roll + state.refereeCard.leniency;
+    }
+
+    // Pitfall 5: check HALF_TIME vs FULL_TIME by half
+    const halfEnd = 45 + (newAddedTime ?? 0);
+    if (newActionCount >= halfEnd) {
+      const endPhase: GamePhase = state.half === 1 ? 'HALF_TIME' : 'FULL_TIME';
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: endPhase,
+          movementSlot: null,
+          activeTeam: nextActiveTeam,
+          eventLog: [...state.eventLog, slotAdvanceEvent],
+          movedPieceIds: [],
+          paceUsedByPieceId: {},
+          actionCount: newActionCount,
+          addedTime: newAddedTime,
+          lastActionType: 'MOVEMENT_PHASE',
+        },
+      };
+    }
+
+    // Normal ATTACKER_2→PASS transition with clock updates
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: nextPhase,
+        movementSlot: nextSlot,
+        activeTeam: nextActiveTeam,
+        eventLog: [...state.eventLog, slotAdvanceEvent],
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+        actionCount: newActionCount,
+        addedTime: newAddedTime,
+        lastActionType: 'MOVEMENT_PHASE',
+      },
+    };
+  }
+
+  // Non-ATTACKER_2 slot transition (ATTACKER_4→DEFENDER_5 or DEFENDER_5→ATTACKER_2)
+  // No clock increment at intermediate slot boundaries
   return {
     ok: true,
     state: {
@@ -440,31 +534,61 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
   switch (state.phase) {
     // -------------------------------------------------------------------------
-    // PASS: accuracy check → SHOT on accurate; LOOSE_BALL on inaccurate (D-14, D-15)
+    // PASS: accuracy check → action-choice on accurate; LOOSE_BALL on inaccurate (D-12, D-09)
+    //
+    // D-09/Pitfall 8: accurate STANDARD pass MUST NOT transition to SHOT.
+    // After an accurate pass, the phase returns to a neutral action-choice state (PASS)
+    // so the ball carrier's team can choose their next action. Shot is only reachable
+    // via game:shot (from MOVEMENT) or applySnapshot.
+    //
+    // Time cost: +1 min for STANDARD/HIGH/LONG pass; +0 for FIRST_TIME pass.
+    // The pass type was stored in GameState (lastActionType) at decision time (plan 08-04 handlers).
+    // In this pure-engine roll, we infer time cost from lastActionType if already set,
+    // otherwise default to +1 (the common case for STANDARD/HIGH/LONG passes).
     // -------------------------------------------------------------------------
     case 'PASS': {
       const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
       if (!carrier) return { ok: false, reason: 'WRONG_PHASE' };
 
-      // Use HIGH pass type (both High Pass and Long Ball use the accuracy check here).
-      // The pass type distinction was resolved at pass-selection time (not stored in GameState v1).
-      // Per D-14: use 'HIGH' pass type which maps to carrier.highPass attribute.
+      // Determine time cost based on lastActionType (if set by handler before applyRoll call)
+      // FIRST_TIME_PASS costs +0; all other pass types cost +1 (D-03 table)
+      // If lastActionType is not a pass type yet, handler hasn't set it — default to +1
+      const passTimeCost: number =
+        state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
+
+      // Use HIGH pass accuracy check (carrier.highPass attribute).
+      // Per D-12: accuracy determines pass result; exact type is stored in lastActionType by handler.
       const accuracyResult = validatePassAccuracy(carrier, 'HIGH', d1, []);
 
       if (accuracyResult.accurate) {
-        // Accurate → transition to SHOT phase; ball position stays at carrier
+        // D-09/Pitfall 8: accurate pass returns to NEUTRAL ACTION-CHOICE state (NOT SHOT).
+        // Determine the lastActionType for this pass:
+        // - If already set by the handler (plan 08-04), use it as-is (handler sets before calling)
+        // - If null/unset, default to 'STANDARD_PASS' (most common pass type in current code)
+        const newLastActionType: LastActionType =
+          (state.lastActionType !== null &&
+            ['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'].includes(state.lastActionType))
+            ? state.lastActionType
+            : 'STANDARD_PASS';
+
+        // After HIGH_PASS, phase should be HEADER (next mandatory action); others → PASS (action choice)
+        const newPhase: GamePhase = newLastActionType === 'HIGH_PASS' ? 'HEADER' : 'PASS';
+
         return {
           ok: true,
           state: {
             ...state,
-            phase: 'SHOT',
+            phase: newPhase,
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            lastActionType: newLastActionType,
+            actionCount: state.actionCount + passTimeCost,
           },
         };
       } else {
         // Inaccurate → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-15, D-19)
         // Ball stays at incident hex; do NOT compute landing here (accuracy die d1 is biased)
         // Only the accuracy die (d1) is consumed here; d2 is reserved for the fresh LOOSE_BALL roll
+        // Note: DEFLECTION is set when LOOSE_BALL resolves (next roll), not here
         return {
           ok: true,
           state: {
@@ -472,6 +596,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            actionCount: state.actionCount + passTimeCost,
+            // lastActionType stays as-is until LOOSE_BALL resolves to DEFLECTION
           },
         };
       }
@@ -499,9 +625,19 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const diveResult = validateGKDive(gk, distance);
       const gkPenalties = diveResult.saveable ? [diveResult.savingPenalty] : [];
 
-      const shotResult = validateShotDuel(shooter, gk, shooterDice, gkDice, [], gkPenalties);
+      // D-19: shot costs +0 min; actionCount unchanged throughout SHOT branch
+      // Apply -1 penalty if state.snapshotPenalty is set (SNAP-02)
+      const shooterPenalties: number[] = state.snapshotPenalty ? [-1] : [];
+      const shotResultWithPenalty = validateShotDuel(
+        shooter,
+        gk,
+        shooterDice,
+        gkDice,
+        shooterPenalties,
+        gkPenalties,
+      );
 
-      if (shotResult.outcome === 'GOAL') {
+      if (shotResultWithPenalty.outcome === 'GOAL') {
         // Increment score for the attacking team; transition to KICK_OFF
         const newScore = {
           ...state.score,
@@ -515,11 +651,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             score: newScore,
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+            lastActionType: null, // D-19: GOAL resets the sequence
+            snapshotPenalty: false, // clear snapshot penalty after shot resolves
           },
         };
       }
 
-      if (shotResult.outcome === 'LOOSE_BALL') {
+      if (shotResultWithPenalty.outcome === 'LOOSE_BALL') {
         // Tie → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-13, D-19)
         // Ball stays at incident hex; do NOT compute landing here (biased dice reuse avoided)
         return {
@@ -529,11 +667,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+            snapshotPenalty: false,
           },
         };
       }
 
-      if (shotResult.outcome === 'MISS') {
+      if (shotResultWithPenalty.outcome === 'MISS') {
         // AUTO_MISS (dice===1) → MOVEMENT; no possession change
         return {
           ok: true,
@@ -545,12 +684,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             paceUsedByPieceId: {},
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+            snapshotPenalty: false,
           },
         };
       }
 
       // SAVE: run handling check (shotResult.outcome === 'SAVE', needsHandlingCheck: true)
-      if (shotResult.outcome === 'SAVE') {
+      if (shotResultWithPenalty.outcome === 'SAVE') {
         const handling = validateHandlingCheck(gk, handlingDice);
         if (handling.caught) {
           // GK caught — ball now held by GK; transition to GK_RESTART
@@ -561,6 +701,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               phase: 'GK_RESTART',
               ball: { position: gk.position, carrierId: gk.id },
               lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+              snapshotPenalty: false,
             },
           };
         } else {
@@ -580,6 +721,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               paceUsedByPieceId: {},
               ball: { position: landing, carrierId: null },
               lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+              snapshotPenalty: false,
             },
           };
         }
@@ -637,6 +779,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 rolls: [attackerDice, defenderDice, gkDice],
                 context: 'HEADING_DUEL',
               },
+              lastActionType: 'HEADER', // D-17: header costs +0 min
             },
           };
         } else {
@@ -656,6 +799,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 rolls: [attackerDice, defenderDice, gkDice],
                 context: 'HEADING_DUEL',
               },
+              lastActionType: null, // GOAL resets sequence (D-19)
             },
           };
         }
@@ -678,6 +822,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             movedPieceIds: [],
             paceUsedByPieceId: {},
             lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER', // D-17: header resolved (even if rejected by validator)
           },
         };
       }
@@ -704,6 +849,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 rolls: [attackerDice, defenderDice, gkDice],
                 context: 'HEADING_DUEL',
               },
+              lastActionType: 'HEADER', // D-17
             },
           };
         } else {
@@ -723,6 +869,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 rolls: [attackerDice, defenderDice, gkDice],
                 context: 'HEADING_DUEL',
               },
+              lastActionType: null, // GOAL resets sequence
             },
           };
         }
@@ -738,6 +885,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             paceUsedByPieceId: {},
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER', // D-17
           },
         };
       } else {
@@ -750,6 +898,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER', // D-17
           },
         };
       }
@@ -757,6 +906,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
     // -------------------------------------------------------------------------
     // LOOSE_BALL: direction + distance dice → compute landing hex (D-19/D-20/D-21)
+    // D-20: sets lastActionType 'DEFLECTION' once landing is computed; actionCount += 0
     // -------------------------------------------------------------------------
     case 'LOOSE_BALL': {
       const landing = computeLooseBall(
@@ -775,6 +925,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ball: { position: landing, carrierId: null },
           attackingTeam: state.attackingTeam, // unchanged
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
+          lastActionType: 'DEFLECTION', // D-20: LOOSE_BALL resolves → DEFLECTION
+          // actionCount unchanged (+0 for Deflection per D-03 table)
         },
       };
     }
@@ -851,6 +1003,7 @@ export function applyGKRestart(
   const gkTeam = gk.teamId;
 
   // ---- 'movement' branch (D-26) ----
+  // D-21: GK movement = +0 min; lastActionType = null (fresh sequence)
   if (choice === 'movement') {
     return {
       ok: true,
@@ -864,11 +1017,14 @@ export function applyGKRestart(
         activeTeam: gkTeam,
         // Ball stays with GK (carrierId unchanged)
         lastDiceRoll: null,
+        lastActionType: null, // D-21: GK movement = fresh sequence
+        // actionCount unchanged (+0 per D-03 table)
       },
     };
   }
 
   // ---- 'throw' branch (D-25) ----
+  // D-21: Quick Throw = +0 min; lastActionType = 'STANDARD_PASS'
   // v1 SCOPE CONSTRAINT (deliberate): throw = movement-phase start with ball held by GK.
   // targetHex delivery is deferred to Phase 7 (click-to-target UI). 'throw' and 'movement'
   // produce identical engine state today; they are kept distinct so Phase 7 only has to
@@ -886,12 +1042,15 @@ export function applyGKRestart(
         activeTeam: gkTeam,
         // Ball stays with GK; uninterceptable (D-25), no accuracy roll
         lastDiceRoll: null,
+        lastActionType: 'STANDARD_PASS', // D-21: throw treated as standard pass for sequence
+        // actionCount unchanged (+0 per D-03 table)
       },
     };
   }
 
   // ---- 'kick' branch (D-24) ----
   // GK kick = High Pass accuracy check using GK's highPass attribute + injected dice roll.
+  // D-21: GK kick = +1 min; accurate → MOVEMENT_PHASE; inaccurate → DEFLECTION
   const kickDice = rollDie();
   const accuracyResult = validatePassAccuracy(gk, 'HIGH', kickDice, []);
 
@@ -910,6 +1069,8 @@ export function applyGKRestart(
         activeTeam: gkTeam,
         // Ball stays with GK for the movement phase (similar to accurate throw delivery)
         lastDiceRoll: { rolls: [kickDice], context: 'GK_KICK' },
+        lastActionType: 'MOVEMENT_PHASE', // D-21: accurate kick = MOVEMENT_PHASE
+        actionCount: state.actionCount + 1, // D-21: GK kick = +1 min
       },
     };
   } else {
@@ -933,7 +1094,115 @@ export function applyGKRestart(
         activeTeam: gkTeam,
         ball: { position: landing, carrierId: null },
         lastDiceRoll: { rolls: [kickDice, directionDice, distanceDice], context: 'GK_KICK' },
+        lastActionType: 'DEFLECTION', // D-21: inaccurate kick = DEFLECTION
+        actionCount: state.actionCount + 1, // D-21: GK kick = +1 min (even when inaccurate)
       },
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// applySnapshot
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applySnapshot.
+ * SNAP-01: rejects if conditions are not met.
+ * SNAP-02: on success, transitions to SHOT with -1 penalty marker.
+ */
+export type ApplySnapshotResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'NOT_IN_PENALTY_AREA' | 'INVALID_SEQUENCE' }
+  | { ok: true; state: GameState };
+
+/**
+ * Declares a Snapshot shot from the current game state.
+ *
+ * SNAP-01: Valid when:
+ *   (a) phase === 'MOVEMENT' AND ball-carrier is in the opponent's penalty area, OR
+ *   (b) immediately after an accurate pass (lastActionType is a pass type) AND phase === 'PASS'
+ *
+ * SNAP-02: On success, transitions to phase 'SHOT' with snapshotPenalty: true.
+ *   The SHOT branch in applyRoll applies the -1 dice penalty (T-08-04: server-authoritative).
+ *
+ * SNAP-03: All standard shot rules apply — handled entirely in applyRoll SHOT branch.
+ *
+ * D-18: Snapshot costs +0 min; actionCount unchanged.
+ *
+ * T-08-04 (Tampering): The snapshot penalty marker is set server-side and consumed
+ *   server-side — the client cannot omit or bypass it.
+ *
+ * Validation order (fail-fast):
+ * 1. Sequence guard (INVALID_SEQUENCE) — check ELIGIBLE_NEXT_ACTIONS
+ * 2. Phase/position guard (WRONG_PHASE | NOT_IN_PENALTY_AREA)
+ */
+export function applySnapshot(state: GameState): ApplySnapshotResult {
+  // 1. Sequence guard: if lastActionType is set, verify SNAPSHOT is eligible
+  if (state.lastActionType !== null) {
+    const eligible = ELIGIBLE_NEXT_ACTIONS[state.lastActionType];
+    if (!eligible.has('SNAPSHOT')) {
+      return { ok: false, reason: 'INVALID_SEQUENCE' };
+    }
+  }
+
+  // Pass types eligible for immediately-post-pass SNAP-01 trigger
+  const passTypes: ReadonlySet<LastActionType> = new Set([
+    'STANDARD_PASS',
+    'FIRST_TIME_PASS',
+    'HIGH_PASS',
+    'LONG_BALL',
+    'HEADER',
+    'DEFLECTION',
+    'SUCCESSFUL_TACKLE',
+    'MOVEMENT_PHASE',
+  ]);
+
+  // 2. Phase/position guard
+  if (state.phase === 'MOVEMENT') {
+    // SNAP-01 trigger (a): ball-carrier must be in the opponent's penalty area
+    const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
+    if (!carrier) {
+      return { ok: false, reason: 'WRONG_PHASE' };
+    }
+
+    // Determine opponent's penalty area based on attacking team
+    const penaltyRegion =
+      state.attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+
+    if (!isInRegion(carrier.position, penaltyRegion)) {
+      return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
+    }
+
+    // Valid MOVEMENT snapshot
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'SHOT',
+        lastActionType: 'SNAPSHOT', // D-18
+        snapshotPenalty: true, // SNAP-02: -1 dice penalty in applyRoll SHOT branch
+        // actionCount unchanged (+0 per D-18)
+      },
+    };
+  }
+
+  if (state.phase === 'PASS') {
+    // SNAP-01 trigger (b): immediately after an accurate pass (PASS phase = accurate pass resolved)
+    if (state.lastActionType !== null && passTypes.has(state.lastActionType)) {
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: 'SHOT',
+          lastActionType: 'SNAPSHOT', // D-18
+          snapshotPenalty: true, // SNAP-02
+          // actionCount unchanged
+        },
+      };
+    }
+    // In PASS phase but lastActionType not a pass type → invalid
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // Any other phase is not valid for a snapshot
+  return { ok: false, reason: 'WRONG_PHASE' };
 }
