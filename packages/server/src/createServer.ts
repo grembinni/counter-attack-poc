@@ -141,6 +141,13 @@ export function buildServer(): {
       return;
     }
 
+    // Stale token: client has a token but it's not in the room store (server restart).
+    // Tell the client so it can clear its session and return to the lobby.
+    const clientToken = socket.handshake.auth['sessionToken'] as string | undefined;
+    if (clientToken && socket.data.sessionToken === undefined) {
+      socket.emit(ServerEvents.ROOM_ERROR, 'SESSION_EXPIRED');
+    }
+
     // Fresh connection path: no session token in handshake.auth.
     registerRoomHandlers(io, socket, false);
     registerGameHandlers(io, socket);

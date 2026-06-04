@@ -40,6 +40,11 @@ export function App() {
     }
 
     function onRoomError(reason: string) {
+      if (reason === 'SESSION_EXPIRED') {
+        sessionStorage.removeItem('ca_session_token');
+        setScreen('CREATE_ROOM');
+        return;
+      }
       setRoomError(reason);
     }
 
