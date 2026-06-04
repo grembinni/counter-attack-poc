@@ -83,8 +83,8 @@ describe('PITCH_REGIONS', () => {
 });
 
 describe('DIFFICULT_ANGLE_HEXES', () => {
-  it('isDifficultAngle returns true for a known difficult-angle hex near home end (PITCH-03)', () => {
-    expect(isDifficultAngle({ q: 3, r: 7 })).toBe(true);
+  it('isDifficultAngle returns true for a corner-kick hex (top-left corner, PITCH-03)', () => {
+    expect(isDifficultAngle({ q: 0, r: 0 })).toBe(true);
   });
 
   it('isDifficultAngle returns false for the kick-off hex (PITCH-03)', () => {
@@ -93,6 +93,18 @@ describe('DIFFICULT_ANGLE_HEXES', () => {
 
   it('DIFFICULT_ANGLE_HEXES contains exactly 16 encoded hexes', () => {
     expect(DIFFICULT_ANGLE_HEXES.size).toBe(16);
+  });
+
+  it('isDifficultAngle returns false for old penalty-corner hex after D-11 relocation', () => {
+    expect(isDifficultAngle({ q: 3, r: 7 })).toBe(false);
+  });
+
+  it('isDifficultAngle returns true for each of the 4 corner cluster hexes', () => {
+    // Top-left, bottom-left, top-right, bottom-right representatives
+    expect(isDifficultAngle({ q: 1, r: 1 })).toBe(true);
+    expect(isDifficultAngle({ q: 1, r: 24 })).toBe(true);
+    expect(isDifficultAngle({ q: 35, r: 1 })).toBe(true);
+    expect(isDifficultAngle({ q: 35, r: 24 })).toBe(true);
   });
 });
 
