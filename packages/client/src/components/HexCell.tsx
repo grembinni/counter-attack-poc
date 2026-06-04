@@ -39,7 +39,9 @@ export function HexCell({ hex, isHighlighted, highlightColor, onClick }: Props) 
         onClick={isHighlighted ? onClick : undefined}
         style={{ cursor: isHighlighted ? 'pointer' : 'default' }}
         aria-hidden="true"
-      />
+      >
+        <title>{`(${hex.q}, ${hex.r})`}</title>
+      </polygon>
       {/* Highlight overlay — valid-move (gold) or SHOT goal hex (red, D-06) */}
       {isHighlighted && (
         <polygon

@@ -56,6 +56,10 @@
 - MOVE-07 snapshot during movement (Phase 5 resolves it when triggered during movement — actually deferred to Phase 5 per CONTEXT.md but not fully scoped here).
 - Advanced rules: tackles from behind, extra yard injury, difficult-angle shooting penalties.
 - GK kick range restriction enforcement (deferred in CONTEXT.md).
+- GK quick-throw ball delivery to a chosen `targetHex` (D-25 full intent): deferred to Phase 7
+  client integration. In v1 the `throw` choice is implemented as a movement-phase start with the
+  ball held by the GK (engine-equivalent to the `movement` choice); the `targetHex` parameter on
+  `game:gk-restart` and the 11-hex delivery validation arrive with the click-to-target UI in Phase 7.
   </user_constraints>
 
 <phase_requirements>
@@ -689,19 +693,32 @@ No missing dependencies. All required tooling is present.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`aerialAbility: 0` vs existing outfielder values**
+1. **`aerialAbility: 0` vs existing outfielder values** — **RESOLVED (Plan 01, Task 2):**
+   Resolved in favour of the recommendation. Plan 01-T2 sets outfielder `aerialAbility` and
+   `handling` to 0 in `teams.ts` and updates `teams.test.ts` to use role-aware attribute minimums
+   (0 allowed for `aerialAbility`/`handling`/`highPass` on non-GK roles, 1 otherwise). The
+   `highPass` field is added to the type in Plan 01-T1 and populated for all 22 players in 01-T2.
    - What we know: D-05 says outfielders have `aerialAbility: 0` in practice. Existing `teams.ts` has outfielders with values 4–7. `teams.test.ts` asserts `>= 1` for all attributes.
    - What's unclear: Should we change all outfielder `aerialAbility` to 0 now (breaking the existing test assertion), or leave existing values and only enforce the convention for new uses?
    - Recommendation: Change to 0 and update the test to allow 0 for `aerialAbility` and `handling` on non-GK roles. This is the correct modelling of the game. Accept the test update cost.
 
-2. **STEAL_ATTEMPT dice threshold (from `stubDice` comment)**
+2. **STEAL_ATTEMPT dice threshold (from `stubDice` comment)** — **RESOLVED (Plan 02, Task 1):**
+   Resolved in favour of the recommendation. Plan 02-T1 removes `stubDice()` and, in the steal path
+   of `applyMove`, uses `computeCombinedScore(defender.tackling, rollDice(), [])` against the
+   MOVE-04 "combined 10+" threshold rather than the placeholder `dice >= 4` check. All dice come
+   from the injected `rollDice()` (D-08/D-09).
    - What we know: `applyMove` has `// Phase 4 deterministic: stubDice()==3, so combined < threshold => FAIL.` — suggesting threshold is `>= 4` (dice + attribute or just dice?). The rulebook says "roll 6 or combined 10+".
    - What's unclear: The stub implies the combined score approach (attribute + dice >= 10), but the implementation only checks `dice >= 4` as a placeholder.
    - Recommendation: When replacing `stubDice()` in the steal path, implement the full "combined 10+" logic matching the MOVE-04 requirement. Use `computeCombinedScore(defender.tackling, dice, [])` vs threshold 10.
 
-3. **`gkTeam` state for GK_RESTART authorization**
+3. **`gkTeam` state for GK_RESTART authorization** — **RESOLVED (Plan 03, Task 2):**
+   Resolved in favour of the recommendation: no new `GameState` field. Plan 03-T2 adds a
+   `controlsGKTeam(socket, room)` helper that derives the GK's team from `ball.carrierId`
+   (look up the carrier piece's `teamId`). The `game:gk-restart` handler uses it as the team guard,
+   and `applyGKRestart` (03-T1) determines the restart team the same way. This avoids adding a
+   `gkTeam` field to `GameState`.
    - What we know: `game:gk-restart` must validate the emitting socket is the GK's team. There is no explicit `gkTeam` field in `GameState`.
    - What's unclear: Best way to track which team's GK has the ball during GK_RESTART phase.
    - Recommendation: When transitioning to `GK_RESTART` phase, set `ball.carrierId` to the GK's `id`. The handler can then look up `ball.carrierId → piece.teamId` to validate. This avoids adding a new field to `GameState`.

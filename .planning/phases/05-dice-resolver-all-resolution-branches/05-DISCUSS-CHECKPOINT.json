@@ -1,0 +1,56 @@
+{
+  "phase": "5",
+  "phase_name": "Dice Resolver + All Resolution Branches",
+  "timestamp": "2026-05-29T00:00:00.000Z",
+  "areas_completed": ["Roll-show model"],
+  "areas_remaining": [
+    "Pending duel state in GameState",
+    "Interception duel scope",
+    "GK restart event design"
+  ],
+  "decisions": {
+    "Roll-show model": [
+      {
+        "question": "After game:roll, how should the server respond?",
+        "answer": "Two-broadcast, auto-resolve: game:roll → broadcast dice-visible state → immediately resolve → broadcast final outcome state",
+        "options_presented": [
+          "Two-broadcast, auto-resolve",
+          "Two-broadcast, wait-for-confirm",
+          "One-broadcast, dice+outcome together"
+        ]
+      },
+      {
+        "question": "What triggers game:roll — universal event or typed payload?",
+        "answer": "Universal game:roll with no payload; server infers resolution type from GameState.phase",
+        "options_presented": [
+          "Universal game:roll, context from FSM phase",
+          "game:roll with resolution type payload"
+        ]
+      },
+      {
+        "question": "Shot duels: server rolls both dice at once or each player rolls separately?",
+        "answer": "Server rolls both shooter dice + GK dice simultaneously on a single game:roll event",
+        "options_presented": ["Server rolls both simultaneously", "Each player rolls their own die"]
+      },
+      {
+        "question": "SHOT-05 handling check: same game:roll as shot duel or separate?",
+        "answer": "All-in-one: shot duel + handling check dice all rolled in one game:roll event",
+        "options_presented": [
+          "All-in-one: shot duel + handling check in one game:roll",
+          "Two steps: shot duel then handling check separately"
+        ]
+      }
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [
+    "packages/shared/src/types.ts",
+    "packages/shared/src/events.ts",
+    "packages/shared/src/scoreUtils.ts",
+    "packages/shared/src/passValidator.ts",
+    "packages/shared/src/shotValidator.ts",
+    "packages/shared/src/headingValidator.ts",
+    "packages/server/src/gameEngine.ts",
+    "packages/server/src/gameHandlers.ts"
+  ]
+}
