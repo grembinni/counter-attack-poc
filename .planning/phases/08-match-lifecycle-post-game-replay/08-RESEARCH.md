@@ -558,7 +558,7 @@ Current status: A1 is confirmed by reading `types.ts` (KICK_OFF_SETUP absent, ve
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`applyEndTurn` purity with added-time roll injection**
    - What we know: `applyGKRestart` already accepts `rollDie: () => number` as a parameter for the same reason. `applyEndTurn` currently takes no injected functions.
