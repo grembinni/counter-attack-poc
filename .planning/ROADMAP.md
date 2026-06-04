@@ -9,7 +9,7 @@
 - [x] **Phase 5: Dice Resolver + All Resolution Branches** — Server-side crypto dice, pass accuracy, shot/save duels, heading duels, Loose Ball, GK restart choice (completed 2026-05-30)
 - [x] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard (completed 2026-05-31)
 - [x] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session (completed 2026-06-03)
-- [ ] **Phase 7.1: UI Cleanup** — Address UX rough edges found during Phase 7 UAT: lobby flow, join UX, connection status, team positioning, and visual polish (INSERTED)
+- [x] **Phase 7.1: UI Cleanup** — Address UX rough edges found during Phase 7 UAT: lobby flow, join UX, connection status, team positioning, and visual polish (INSERTED) (completed 2026-06-04)
 - [ ] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay
 - [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
 
@@ -207,7 +207,7 @@
 5. Pitch markings (halfway line, centre circle, penalty boxes, 6-yard boxes, corner arcs, goal nets) render; goal-region hexes use grass fill, not black (PITCH-02)
 6. No console.log statements remain in App.tsx or LobbyScreen.tsx; full client + shared test suites pass
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 **Wave 1**
 
@@ -216,7 +216,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 07.1-03-PLAN.md — SVG pitch markings + goal nets (D-07/08/09/12) + PlayerStatsPanel (D-05/06)
+- [x] 07.1-03-PLAN.md — SVG pitch markings + goal nets (D-07/08/09/12) + PlayerStatsPanel (D-05/06)
 
 ### Phase 8: Match Lifecycle + Post-Game Replay
 
@@ -262,6 +262,6 @@ Plans:
 | 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
 | 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
-| 7.1. UI Cleanup                             | 2/3            | In Progress |            |
+| 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
 | 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |
