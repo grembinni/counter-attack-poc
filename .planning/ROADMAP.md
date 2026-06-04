@@ -231,8 +231,34 @@ Plans:
 4. At full time, both clients display the final score and a post-game replay begins automatically, advancing one action per second through the server event log with the board re-rendering each state in sequence
 5. Score is displayed and updated on both clients simultaneously after every goal; the final score shown at full time matches the number of goals registered in the event log
 
-**Plans:** TBD
+**Plans:** 6 plans
 **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Shared types/events/actionSequence: LastActionType, ELIGIBLE_NEXT_ACTIONS, GameState fields, KICK_OFF_SETUP phase, new client events
+
+**Wave 2** _(blocked on Wave 1)_
+
+- [ ] 08-02-PLAN.md — Engine clock + sequence: applyEndTurn +3 min / added-time roll / half-full-time branch, lastActionType across applyRoll, applySnapshot (SNAP-01..03)
+
+**Wave 3** _(blocked on Wave 2 — same gameEngine.ts)_
+
+- [ ] 08-03-PLAN.md — Engine lifecycle: applyKickOffReady (MATCH-03), applyHalfTimeStart (MATCH-04), buildReplayFrames (REPLAY-02/03), Room.replayTimer + readyPlayers
+
+**Wave 4** _(blocked on Wave 3)_
+
+- [ ] 08-04-PLAN.md — Handlers: game:ready / game:kick-off-move / game:half-time-start, sequence validation + added-time injection, FULL_TIME→REPLAY setInterval streaming
+
+**Wave 5** _(blocked on Wave 1 + Wave 4)_
+
+- [ ] 08-05-PLAN.md — Client routing + screens: store Screen/emitters, App phase routing, HalfTimeScreen, FullTimeScreen, KickOffSetupPanel
+
+**Wave 6** _(blocked on Wave 5 — has checkpoint)_
+
+- [ ] 08-06-PLAN.md — In-board client: HexGrid kick-off overlays, ActionPanel eligibility + Snapshot/Header, header match-time, ReplayPanel + full-lifecycle human verify
 
 ### Phase 9: AWS Deployment
 
@@ -263,5 +289,5 @@ Plans:
 | 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
 | 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle + Post-Game Replay       | 0/0            | Not started | -          |
+| 8. Match Lifecycle + Post-Game Replay       | 0/6            | Planned     | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |
