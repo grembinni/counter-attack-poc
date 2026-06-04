@@ -31,6 +31,11 @@ export type GameStore = {
    * Uses hexesInRange(piece.position, piece.pace) to limit candidates — never iterates all 962 PITCH_HEXES.
    */
   selectPiece: (id: string) => void;
+  /**
+   * Inspect a piece for stats display only — sets selectedPieceId without computing valid moves (D-06).
+   * Used by onInspect for non-active players and opponent pieces so no movement highlights appear.
+   */
+  inspectPiece: (id: string) => void;
   /** Phase 7: Replace gameState wholesale from server broadcast (ARCH-04 full-snapshot). */
   setGameState: (state: GameState) => void;
   /** Phase 7: Set the player slot assigned by the server (D-04). */
@@ -92,6 +97,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const candidates = hexesInRange(piece.position, piece.pace);
     const valid = candidates.filter((hex) => validateMove(gameState, piece, hex).ok);
     set({ selectedPieceId: id, validMoveHexes: valid });
+  },
+
+  inspectPiece: (id) => {
+    set({ selectedPieceId: id, validMoveHexes: [] });
   },
 
   setGameState: (state) => set({ gameState: state }),

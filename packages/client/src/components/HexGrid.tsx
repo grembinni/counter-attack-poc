@@ -47,6 +47,7 @@ export function HexGrid() {
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const playerSlot = useGameStore((s) => s.playerSlot);
   const selectPiece = useGameStore((s) => s.selectPiece);
+  const inspectPiece = useGameStore((s) => s.inspectPiece);
   const emitMove = useGameStore((s) => s.emitMove);
 
   const myTeam: 'home' | 'away' | null =
@@ -130,7 +131,7 @@ export function HexGrid() {
                 isSelected={piece.id === selectedPieceId}
                 isClickable={canSelect}
                 onClick={canSelect ? () => selectPiece(piece.id) : () => undefined}
-                onInspect={() => selectPiece(piece.id)} // D-06: always wired; local state only — no socket.emit
+                onInspect={() => inspectPiece(piece.id)} // D-06: stats-only; no move computation — no socket.emit
                 carrierId={ball.carrierId}
               />
             );

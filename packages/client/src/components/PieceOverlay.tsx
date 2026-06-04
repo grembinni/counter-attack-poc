@@ -48,8 +48,8 @@ export function PieceOverlay({
         strokeWidth={1.5}
         style={{ cursor: isClickable ? 'pointer' : 'default' }}
         onClick={() => {
-          onInspect();
           if (isClickable) onClick();
+          else onInspect();
         }}
       />
       {/* Selected ring — gold outline when this piece is the active selection */}
