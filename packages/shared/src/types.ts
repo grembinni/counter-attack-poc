@@ -52,7 +52,16 @@ export type ActionEventType =
   | 'DICE_ROLL'
   | 'STEAL_ATTEMPT'
   | 'GOAL'
-  | 'KICK_OFF';
+  | 'KICK_OFF'
+  // Phase 8 additions (D-08 / Claude's Discretion): new action event types for replay coverage
+  | 'HIGH_PASS'
+  | 'LONG_BALL'
+  | 'STANDARD_PASS'
+  | 'FIRST_TIME_PASS'
+  | 'SHOT_ATTEMPT'
+  | 'SNAPSHOT'
+  | 'HALF_TIME'
+  | 'FULL_TIME';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -72,11 +81,33 @@ export type ActionEvent =
   | { type: 'DICE_ROLL'; result: number; timestamp: number }
   | { type: 'STEAL_ATTEMPT'; defenderId: string; result: 'SUCCESS' | 'FAIL'; timestamp: number }
   | { type: 'GOAL'; scoringTeam: 'home' | 'away'; timestamp: number }
-  | { type: 'KICK_OFF'; timestamp: number };
+  | { type: 'KICK_OFF'; timestamp: number }
+  // Phase 8 additions — new action subtypes for replay coverage (Claude's Discretion, 08-CONTEXT.md)
+  | { type: 'HIGH_PASS'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
+  | { type: 'LONG_BALL'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
+  | { type: 'STANDARD_PASS'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
+  | {
+      type: 'FIRST_TIME_PASS';
+      from: HexCoord;
+      to: HexCoord;
+      accurate: boolean;
+      timestamp: number;
+    }
+  | {
+      type: 'SHOT_ATTEMPT';
+      shooterId: string;
+      targetHex: HexCoord;
+      outcome: 'GOAL' | 'MISS' | 'SAVE' | 'LOOSE_BALL';
+      timestamp: number;
+    }
+  | { type: 'SNAPSHOT'; shooterId: string; timestamp: number }
+  | { type: 'HALF_TIME'; half: 1; score: { home: number; away: number }; timestamp: number }
+  | { type: 'FULL_TIME'; score: { home: number; away: number }; timestamp: number };
 
 export type GamePhase =
   | 'LOBBY'
   | 'KICK_OFF'
+  | 'KICK_OFF_SETUP' // Phase 8 (D-23): free repositioning before each kick-off; added here
   | 'MOVEMENT'
   | 'PASS'
   | 'SHOT'
@@ -87,6 +118,25 @@ export type GamePhase =
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
+
+/**
+ * D-06: Records the type of the last completed action in the current sequence.
+ * Used by the server to validate the proposed next action against ELIGIBLE_NEXT_ACTIONS (D-07/D-08).
+ * null at match start, after each kick-off reset, and after goal scored.
+ * Set to 'SUCCESSFUL_TACKLE' when a steal ends the Movement Phase early (D-14).
+ * Set to 'DEFLECTION' when LOOSE_BALL resolves from any source (D-20).
+ */
+export type LastActionType =
+  | 'MOVEMENT_PHASE'
+  | 'SUCCESSFUL_TACKLE'
+  | 'STANDARD_PASS'
+  | 'FIRST_TIME_PASS'
+  | 'HIGH_PASS'
+  | 'LONG_BALL'
+  | 'HEADER'
+  | 'DEFLECTION'
+  | 'SNAPSHOT'
+  | 'SHOT';
 
 export type GameState = {
   roomCode: string;
@@ -133,4 +183,22 @@ export type GameState = {
     rolls: number[]; // ordered dice values; length varies by context (1–3)
     context: string;
   } | null;
+  // Phase 8 additions — match lifecycle fields (D-06, D-27, D-31)
+  /** D-06: null until actionCount first crosses 45; set once per half via inline dice roll (D-05). */
+  addedTime: number | null;
+  /** D-06: null at match start and after kick-off reset; updated after every action. */
+  lastActionType: LastActionType | null;
+  /** D-06: team that kicked off the first half; determines second-half kick-off assignment (D-26). */
+  kickOffTeam: 'home' | 'away';
+  /**
+   * D-27 / MATCH-03: true from KICK_OFF_SETUP → KICK_OFF → MOVEMENT transition until the first
+   * accurate Standard Pass originating from the centre hex resolves. While true, the server must
+   * reject any ball action that is not a Standard Pass from kickOffHex. Cleared to false after the
+   * first accurate Standard Pass resolves.
+   */
+  kickOffActive: boolean;
+  /** D-31: 1-based replay frame position carried on REPLAY-phase frames only; absent outside replay. */
+  replayIndex?: number;
+  /** D-31: total replay frame count carried on REPLAY-phase frames only; absent outside replay. */
+  replayTotal?: number;
 };
