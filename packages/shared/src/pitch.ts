@@ -73,17 +73,14 @@ export const PITCH_REGIONS: PitchRegions = {
 
 /**
  * Difficult-angle hexes — corner kick zones where shooting is penalised. PITCH-03.
- * Each corner zone mirrors the same shape: 17 hexes × 4 corners = 68 hexes total.
+ * 16 hexes per corner × 4 corners = 64 hexes total.
  *
- * Top-left shape (home goal × top sideline), r mirrored for bottom, q mirrored for right:
- *   r=1: q=0..4  (5 hexes along top sideline)
- *   r=2: q=0..2  (3 hexes)
- *   r=3: q=0..3  (4 hexes)
- *   r=4: q=0..1  (2 hexes)
- *   r=5..7: q=0  (3 hexes down goal line)
+ * Top-left shape (home goal × top sideline):
+ *   r=1: q=0..4  r=2: q=0..2  r=3: q=0..2  r=4: q=0..1  r=5..7: q=0
+ * Bottom corners shifted +1 row toward board edge vs. simple r-mirror of top.
  */
 export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
-  // Top-left corner (home goal × top sideline)
+  // Top-left corner
   { q: 0, r: 1 },
   { q: 1, r: 1 },
   { q: 2, r: 1 },
@@ -95,33 +92,31 @@ export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
   { q: 0, r: 3 },
   { q: 1, r: 3 },
   { q: 2, r: 3 },
-  { q: 3, r: 3 },
   { q: 0, r: 4 },
   { q: 1, r: 4 },
   { q: 0, r: 5 },
   { q: 0, r: 6 },
   { q: 0, r: 7 },
 
-  // Bottom-left corner (home goal × bottom sideline) — r mirrored: 25-r
+  // Bottom-left corner (shifted +1 toward r=25)
+  { q: 0, r: 25 },
+  { q: 1, r: 25 },
+  { q: 2, r: 25 },
+  { q: 3, r: 25 },
+  { q: 4, r: 25 },
   { q: 0, r: 24 },
   { q: 1, r: 24 },
   { q: 2, r: 24 },
-  { q: 3, r: 24 },
-  { q: 4, r: 24 },
   { q: 0, r: 23 },
   { q: 1, r: 23 },
   { q: 2, r: 23 },
   { q: 0, r: 22 },
   { q: 1, r: 22 },
-  { q: 2, r: 22 },
-  { q: 3, r: 22 },
   { q: 0, r: 21 },
-  { q: 1, r: 21 },
   { q: 0, r: 20 },
   { q: 0, r: 19 },
-  { q: 0, r: 18 },
 
-  // Top-right corner (away goal × top sideline) — q mirrored: 36-q
+  // Top-right corner (q mirrored: 36-q)
   { q: 36, r: 1 },
   { q: 35, r: 1 },
   { q: 34, r: 1 },
@@ -133,31 +128,29 @@ export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
   { q: 36, r: 3 },
   { q: 35, r: 3 },
   { q: 34, r: 3 },
-  { q: 33, r: 3 },
   { q: 36, r: 4 },
   { q: 35, r: 4 },
   { q: 36, r: 5 },
   { q: 36, r: 6 },
   { q: 36, r: 7 },
 
-  // Bottom-right corner (away goal × bottom sideline) — both mirrored
+  // Bottom-right corner (both mirrored, shifted +1 toward r=25)
+  { q: 36, r: 25 },
+  { q: 35, r: 25 },
+  { q: 34, r: 25 },
+  { q: 33, r: 25 },
+  { q: 32, r: 25 },
   { q: 36, r: 24 },
   { q: 35, r: 24 },
   { q: 34, r: 24 },
-  { q: 33, r: 24 },
-  { q: 32, r: 24 },
   { q: 36, r: 23 },
   { q: 35, r: 23 },
   { q: 34, r: 23 },
   { q: 36, r: 22 },
   { q: 35, r: 22 },
-  { q: 34, r: 22 },
-  { q: 33, r: 22 },
   { q: 36, r: 21 },
-  { q: 35, r: 21 },
   { q: 36, r: 20 },
   { q: 36, r: 19 },
-  { q: 36, r: 18 },
 ]);
 
 /**
