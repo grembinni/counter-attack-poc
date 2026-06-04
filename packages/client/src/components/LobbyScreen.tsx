@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { socket } from '../socket.js';
 import { ClientEvents } from '@counter-attack/shared';
@@ -62,13 +62,17 @@ function JoinRoomScreen() {
   const roomError = useGameStore((s) => s.roomError);
   const setRoomError = useGameStore((s) => s.setRoomError);
   const [input, setInput] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+
+  useEffect(() => {
+    if (roomError) setIsJoining(false);
+  }, [roomError]);
 
   function handleSubmit() {
-    console.log('[join] handleSubmit — input:', input, 'connected:', socket.connected);
-    if (input.length === 0) return;
+    if (input.length === 0 || isJoining) return;
     setRoomError(null);
+    setIsJoining(true);
     socket.emit(ClientEvents.ROOM_JOIN, input);
-    console.log('[join] emitted room:join');
   }
 
   function mapError(reason: string): string {
@@ -92,10 +96,17 @@ function JoinRoomScreen() {
         maxLength={5}
         value={input}
         onChange={(e) => setInput(e.target.value.toUpperCase())}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSubmit();
+        }}
       />
       {roomError && <span className={styles.errorText}>{mapError(roomError)}</span>}
-      <button className={styles.ctaButton} disabled={input.length === 0} onClick={handleSubmit}>
-        Join Game
+      <button
+        className={styles.ctaButton}
+        disabled={input.length === 0 || isJoining}
+        onClick={handleSubmit}
+      >
+        {isJoining ? 'Joining...' : 'Join Game'}
       </button>
       <button className={styles.subLink} onClick={() => setScreen('CREATE_ROOM')}>
         Or create a new room &rarr;
@@ -112,7 +123,7 @@ function WaitingScreen() {
   return (
     <>
       <h1 className={styles.heading}>Waiting for opponent...</h1>
-      <p className={styles.body}>Share this code to invite someone:</p>
+      <p className={styles.body}>Share the code above with your opponent.</p>
       <div className={styles.roomCode}>{roomCode ?? 'Loading…'}</div>
       <CopyButton code={roomCode} />
       <div className={styles.dots}>
