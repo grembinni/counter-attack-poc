@@ -409,9 +409,10 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
     expect(newState.lastDiceRoll?.rolls).toBeDefined();
     expect(newState.lastDiceRoll?.rolls?.length ?? 0).toBeGreaterThanOrEqual(1);
 
-    // Phase must have advanced from PASS (to SHOT or LOOSE_BALL depending on dice)
-    expect(newState.phase).not.toBe('PASS');
-    expect(['SHOT', 'LOOSE_BALL']).toContain(newState.phase);
+    // D-09/Pitfall 8: Phase 8 restructures the FSM — accurate pass returns to action-choice (PASS),
+    // NOT SHOT. Only inaccurate pass goes to LOOSE_BALL. SHOT is only reachable via game:shot
+    // (from MOVEMENT) or applySnapshot. The pass result is either PASS (accurate) or LOOSE_BALL.
+    expect(['PASS', 'LOOSE_BALL']).toContain(newState.phase);
   });
 
   it('game:roll from WRONG_TEAM (non-active player) in PASS phase → game:error WRONG_TEAM', async () => {
