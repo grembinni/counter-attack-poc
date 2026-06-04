@@ -98,21 +98,21 @@ export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
   { q: 0, r: 6 },
   { q: 0, r: 7 },
 
-  // Bottom-left corner (shifted +1 toward r=25)
+  // Bottom-left corner
   { q: 0, r: 25 },
-  { q: 1, r: 25 },
   { q: 2, r: 25 },
-  { q: 3, r: 25 },
   { q: 4, r: 25 },
   { q: 0, r: 24 },
   { q: 1, r: 24 },
   { q: 2, r: 24 },
+  { q: 3, r: 24 },
   { q: 0, r: 23 },
   { q: 1, r: 23 },
   { q: 2, r: 23 },
   { q: 0, r: 22 },
   { q: 1, r: 22 },
   { q: 0, r: 21 },
+  { q: 1, r: 21 },
   { q: 0, r: 20 },
   { q: 0, r: 19 },
 
@@ -134,21 +134,21 @@ export const DIFFICULT_ANGLE_HEXES: ReadonlySet<string> = buildRegion([
   { q: 36, r: 6 },
   { q: 36, r: 7 },
 
-  // Bottom-right corner (both mirrored, shifted +1 toward r=25)
+  // Bottom-right corner
   { q: 36, r: 25 },
-  { q: 35, r: 25 },
   { q: 34, r: 25 },
-  { q: 33, r: 25 },
   { q: 32, r: 25 },
   { q: 36, r: 24 },
   { q: 35, r: 24 },
   { q: 34, r: 24 },
+  { q: 33, r: 24 },
   { q: 36, r: 23 },
   { q: 35, r: 23 },
   { q: 34, r: 23 },
   { q: 36, r: 22 },
   { q: 35, r: 22 },
   { q: 36, r: 21 },
+  { q: 35, r: 21 },
   { q: 36, r: 20 },
   { q: 36, r: 19 },
 ]);
