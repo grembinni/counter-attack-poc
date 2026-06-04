@@ -130,6 +130,7 @@ export function HexGrid() {
                 isSelected={piece.id === selectedPieceId}
                 isClickable={canSelect}
                 onClick={canSelect ? () => selectPiece(piece.id) : () => undefined}
+                onInspect={() => selectPiece(piece.id)} // D-06: always wired; local state only — no socket.emit
                 carrierId={ball.carrierId}
               />
             );

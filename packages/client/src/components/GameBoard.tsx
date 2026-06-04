@@ -5,6 +5,7 @@ import { ActionLog } from './ActionLog.js';
 import { ConnectionStatus } from './ConnectionStatus.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
 import { ActionPanel } from './ActionPanel.js';
+import { PlayerStatsPanel } from './PlayerStatsPanel.js';
 import styles from './GameBoard.module.css';
 
 /**
@@ -33,6 +34,7 @@ export function GameBoard() {
         <aside className={styles.sidebar}>
           <TurnIndicator />
           <ActionPanel />
+          <PlayerStatsPanel /> {/* D-05: stats panel between action buttons and log */}
           <ActionLog />
         </aside>
       </main>
