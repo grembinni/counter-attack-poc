@@ -42,14 +42,17 @@ export function hexPolygonPoints(cx: number, cy: number, hexSize: number = HEX_S
 
 /**
  * Computes the SVG viewBox string for the full 37×26 ODD-Q offset grid.
- * Width:  q=0 left-vertex (x=0 with translate) → q=36 right-vertex (x=1120).
- * Height: even-q r=0 top-flat (y=0 with translate) → odd-q r=25 bottom-flat (y≈918).
- * The HexGrid translate(hexSize, hexSize*√3/2) aligns the top-left corner to SVG origin.
+ * The viewBox extends beyond the pitch clip boundary on both sides to include the goal nets.
+ *
+ * With translate(hexSize, hexSize*√3/2):
+ *   Home net abs x: −hexSize/2 .. hexSize/2  (just left of CLIP_X=−10)
+ *   Away net abs x: 1110 .. 1130             (just right of CLIP_RIGHT=1090)
+ * viewBox starts at x=−hexSize/2 and is wide enough to include both nets with buffer.
  */
 export function computeViewBox(hexSize: number = HEX_SIZE): string {
-  // Width: 36 column-steps × 1.5×hexSize + 2×hexSize for left/right vertex padding.
-  const width = hexSize * 1.5 * 36 + hexSize * 2; // 1120
-  // Height: odd-q r=25 center + half-hex bottom + translate offset = hexSize×√3×26.5
+  const x = -(hexSize / 2); // −10: exposes home goal net left of translate origin
+  // Original width 1120 + hexSize*2 extra to expose away goal net right of right clip edge
+  const width = hexSize * 1.5 * 36 + hexSize * 4; // 1120 + 40 = 1160 → right edge at 1150
   const height = hexSize * Math.sqrt(3) * 26.5;
-  return `0 0 ${Math.ceil(width)} ${Math.ceil(height)}`;
+  return `${x} 0 ${Math.ceil(width)} ${Math.ceil(height)}`;
 }
