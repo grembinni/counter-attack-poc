@@ -208,11 +208,14 @@
 6. No console.log statements remain in App.tsx or LobbyScreen.tsx; full client + shared test suites pass
 
 **Plans:** 3 plans
-
 Plans:
+**Wave 1**
 
 - [ ] 07.1-01-PLAN.md — Shared data: 4-5-2 team positions (D-01) + corner-kick difficult-angle hexes (D-11) + pitch.test.ts
 - [ ] 07.1-02-PLAN.md — Client lobby UX (D-02/03/04) + debug cleanup + goal-hex grass fill (D-10)
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 07.1-03-PLAN.md — SVG pitch markings + goal nets (D-07/08/09/12) + PlayerStatsPanel (D-05/06)
 
 ### Phase 8: Match Lifecycle + Post-Game Replay
