@@ -36,12 +36,12 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* Home penalty box — left side (~q∈[0,5]) */}
+      {/* Home penalty box — inner edge bisects q=6 centre (cx=180); symmetric about y=450.32 */}
       <rect
         x={-10}
-        y={173.2}
-        width={210}
-        height={536.9}
+        y={190.5}
+        width={190}
+        height={519.6}
         fill="none"
         stroke="white"
         strokeWidth={1.5}
@@ -49,12 +49,12 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* Away penalty box — right side (~q∈[31,36]) */}
+      {/* Away penalty box — mirror of home; inner edge at x=900 (1090-190) */}
       <rect
-        x={880}
-        y={173.2}
-        width={210}
-        height={536.9}
+        x={900}
+        y={190.5}
+        width={190}
+        height={519.6}
         fill="none"
         stroke="white"
         strokeWidth={1.5}
@@ -62,12 +62,12 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* Home 6-yard box — inside home penalty area */}
+      {/* Home 6-yard box — symmetric about y=450.32; right edge at x=60 (q=2 centre) */}
       <rect
         x={-10}
-        y={294.4}
-        width={80}
-        height={329.1}
+        y={277.1}
+        width={70}
+        height={346.4}
         fill="none"
         stroke="white"
         strokeWidth={1.5}
@@ -75,12 +75,12 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* Away 6-yard box — inside away penalty area */}
+      {/* Away 6-yard box — mirror of home; right edge at clip boundary x=1090 */}
       <rect
-        x={1030}
-        y={294.4}
-        width={80}
-        height={329.1}
+        x={1020}
+        y={277.1}
+        width={70}
+        height={346.4}
         fill="none"
         stroke="white"
         strokeWidth={1.5}
@@ -88,37 +88,37 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* Corner arcs (D-12) — quarter-circle paths at each pitch corner */}
-      {/* Top-left corner */}
+      {/* Corner arcs (D-12) — r=10 quarter circles centred at each pitch corner, bulging into the field */}
+      {/* Top-left: centre (-10, 17.32); from left-edge down to top-edge right */}
       <path
-        d="M -10,57.3 A 40,40 0 0,0 50,17.3"
+        d="M -10,27.32 A 10,10 0 0,0 0,17.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
         fill="none"
         pointerEvents="none"
       />
-      {/* Bottom-left corner */}
+      {/* Bottom-left: centre (-10, 883.32); from left-edge up to bottom-edge right */}
       <path
-        d="M -10,843.3 A 40,40 0 0,1 50,883.3"
+        d="M -10,873.32 A 10,10 0 0,1 0,883.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
         fill="none"
         pointerEvents="none"
       />
-      {/* Top-right corner */}
+      {/* Top-right: centre (1090, 17.32); from right-edge down to top-edge left */}
       <path
-        d="M 1090,57.3 A 40,40 0 0,1 1030,17.3"
+        d="M 1090,27.32 A 10,10 0 0,1 1080,17.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
         fill="none"
         pointerEvents="none"
       />
-      {/* Bottom-right corner */}
+      {/* Bottom-right: centre (1090, 883.32); from right-edge up to bottom-edge left */}
       <path
-        d="M 1090,843.3 A 40,40 0 0,0 1030,883.3"
+        d="M 1090,873.32 A 10,10 0 0,0 1080,883.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
