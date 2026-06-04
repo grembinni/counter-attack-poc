@@ -88,10 +88,10 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* Corner arcs (D-12) — r=10 quarter circles centred at each pitch corner, bulging into the field */}
+      {/* Corner arcs (D-12) — r=15 quarter circles centred at each pitch corner, bulging into the field */}
       {/* Top-left: centre (-10, 17.32); from left-edge down to top-edge right */}
       <path
-        d="M -10,27.32 A 10,10 0 0,0 0,17.32"
+        d="M -10,32.32 A 15,15 0 0,0 5,17.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
@@ -100,7 +100,7 @@ export function PitchMarkings() {
       />
       {/* Bottom-left: centre (-10, 883.32); from left-edge up to bottom-edge right */}
       <path
-        d="M -10,873.32 A 10,10 0 0,1 0,883.32"
+        d="M -10,868.32 A 15,15 0 0,1 5,883.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
@@ -109,7 +109,7 @@ export function PitchMarkings() {
       />
       {/* Top-right: centre (1090, 17.32); from right-edge down to top-edge left */}
       <path
-        d="M 1090,27.32 A 10,10 0 0,1 1080,17.32"
+        d="M 1090,32.32 A 15,15 0 0,1 1075,17.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
@@ -118,7 +118,7 @@ export function PitchMarkings() {
       />
       {/* Bottom-right: centre (1090, 883.32); from right-edge up to bottom-edge left */}
       <path
-        d="M 1090,873.32 A 10,10 0 0,0 1080,883.32"
+        d="M 1090,868.32 A 15,15 0 0,0 1075,883.32"
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
