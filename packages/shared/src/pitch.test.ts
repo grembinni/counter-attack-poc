@@ -83,28 +83,51 @@ describe('PITCH_REGIONS', () => {
 });
 
 describe('DIFFICULT_ANGLE_HEXES', () => {
-  it('isDifficultAngle returns true for a corner-kick hex (top-left corner, PITCH-03)', () => {
-    expect(isDifficultAngle({ q: 0, r: 0 })).toBe(true);
+  it('DIFFICULT_ANGLE_HEXES contains exactly 68 hexes (17 per corner × 4)', () => {
+    expect(DIFFICULT_ANGLE_HEXES.size).toBe(68);
   });
 
-  it('isDifficultAngle returns false for the kick-off hex (PITCH-03)', () => {
+  it('isDifficultAngle returns false for the kick-off hex', () => {
     expect(isDifficultAngle({ q: 18, r: 13 })).toBe(false);
   });
 
-  it('DIFFICULT_ANGLE_HEXES contains exactly 16 encoded hexes', () => {
-    expect(DIFFICULT_ANGLE_HEXES.size).toBe(16);
+  it('isDifficultAngle returns false for r=0 sideline row (not in zone)', () => {
+    expect(isDifficultAngle({ q: 0, r: 0 })).toBe(false);
+    expect(isDifficultAngle({ q: 36, r: 0 })).toBe(false);
   });
 
-  it('isDifficultAngle returns false for old penalty-corner hex after D-11 relocation', () => {
-    expect(isDifficultAngle({ q: 3, r: 7 })).toBe(false);
+  it('isDifficultAngle returns true for top-left corner zone hexes', () => {
+    expect(isDifficultAngle({ q: 0, r: 1 })).toBe(true); // top of sideline row
+    expect(isDifficultAngle({ q: 4, r: 1 })).toBe(true); // far end of r=1 row
+    expect(isDifficultAngle({ q: 0, r: 7 })).toBe(true); // bottom of goal-line strip
+    expect(isDifficultAngle({ q: 3, r: 3 })).toBe(true); // inner r=3 hex
   });
 
-  it('isDifficultAngle returns true for each of the 4 corner cluster hexes', () => {
-    // Top-left, bottom-left, top-right, bottom-right representatives
-    expect(isDifficultAngle({ q: 1, r: 1 })).toBe(true);
-    expect(isDifficultAngle({ q: 1, r: 24 })).toBe(true);
-    expect(isDifficultAngle({ q: 35, r: 1 })).toBe(true);
-    expect(isDifficultAngle({ q: 35, r: 24 })).toBe(true);
+  it('isDifficultAngle returns true for bottom-left corner zone hexes', () => {
+    expect(isDifficultAngle({ q: 0, r: 24 })).toBe(true);
+    expect(isDifficultAngle({ q: 4, r: 24 })).toBe(true);
+    expect(isDifficultAngle({ q: 0, r: 18 })).toBe(true);
+    expect(isDifficultAngle({ q: 3, r: 22 })).toBe(true);
+  });
+
+  it('isDifficultAngle returns true for top-right corner zone hexes', () => {
+    expect(isDifficultAngle({ q: 36, r: 1 })).toBe(true);
+    expect(isDifficultAngle({ q: 32, r: 1 })).toBe(true);
+    expect(isDifficultAngle({ q: 36, r: 7 })).toBe(true);
+    expect(isDifficultAngle({ q: 33, r: 3 })).toBe(true);
+  });
+
+  it('isDifficultAngle returns true for bottom-right corner zone hexes', () => {
+    expect(isDifficultAngle({ q: 36, r: 24 })).toBe(true);
+    expect(isDifficultAngle({ q: 32, r: 24 })).toBe(true);
+    expect(isDifficultAngle({ q: 36, r: 18 })).toBe(true);
+    expect(isDifficultAngle({ q: 33, r: 22 })).toBe(true);
+  });
+
+  it('isDifficultAngle returns false for midfield and non-corner boundary hexes', () => {
+    expect(isDifficultAngle({ q: 3, r: 7 })).toBe(false); // old penalty-corner hex
+    expect(isDifficultAngle({ q: 5, r: 1 })).toBe(false); // just outside top-left r=1 range
+    expect(isDifficultAngle({ q: 0, r: 8 })).toBe(false); // just below goal-line strip
   });
 });
 
