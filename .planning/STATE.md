@@ -2,29 +2,28 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: milestone_complete
-last_updated: 2026-05-31T21:15:57.154Z
+status: in_progress
+last_updated: '2026-06-04T02:38:43.386Z'
 progress:
-  total_phases: 7
+  total_phases: 10
   completed_phases: 7
   total_plans: 24
   completed_plans: 24
-  percent: 100
-stopped_at: Milestone complete (Phase 07 was final phase)
+  percent: 70
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 7 — not started (Phase 6 complete; next: Client-Server Integration)
+Phase 7.1 — context gathered; ready to plan
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Milestone complete
+**Current focus:** Phase 7.1 — UI Cleanup
 
 ## Phase Status
 
@@ -36,7 +35,8 @@ See: .planning/PROJECT.md
 | 4     | Game Engine + Phase FSM                  | Complete    | 2026-05-30 |
 | 5     | Dice Resolver + All Resolution Branches  | Complete    | 2026-05-30 |
 | 6     | React Hex Grid Renderer                  | Complete    | 2026-05-31 |
-| 7     | Client-Server Integration                | Not started | -          |
+| 7     | Client-Server Integration                | Complete    | 2026-06-03 |
+| 7.1   | UI Cleanup                               | Not started | -          |
 | 8     | Match Lifecycle + Post-Game Replay       | Not started | -          |
 | 9     | AWS Deployment                           | Not started | -          |
 
@@ -94,11 +94,9 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-05-31
-- Phase 6 COMPLETE — all 3 plans executed, human-verify checkpoint approved
-  - Plan 01: 37×26 grid, client scaffold, hexToPixel, Zustand store, mock fixtures
-  - Plan 02: HexCell, HexGrid, PieceOverlay, BallMarker, GameBoard layout shell
-  - Plan 03: TurnIndicator, ActionLog, LobbyScreen, App router, clip boundary fix
-  - Final state: 90 tests green, pnpm -r build clean, full UI verified in browser
-- Key learning from Phase 6: clipPath on `<g>` uses local (post-translate) coordinate space
-- Next action: Plan Phase 7 (Client-Server Integration) — wire Zustand + Socket.io to live server
+- Last updated: 2026-06-03
+- Phase 7 COMPLETE — all 4 plans executed and UAT passed (5/5 tests), 11 bugs fixed
+  - Key fixes: sessionStorage tab isolation, playerSlot overwrite, ROOM_JOIN registration, HexCell overlay click, movedPieceIds on undo, ConnectionStatus seeding
+  - Known gap: team starting positions use Phase 4 placeholders (board photo pending)
+- Phase 7.1 inserted for UI Cleanup — address lobby UX, team positions, and polish
+- Next action: Plan Phase 7.1 (UI Cleanup)
