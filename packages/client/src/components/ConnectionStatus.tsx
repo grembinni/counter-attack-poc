@@ -22,7 +22,7 @@ const STATUS_LABEL: Record<Status, string> = {
  * CRITICAL: reconnect_attempt is a Manager event on socket.io, NOT a socket event (RESEARCH Pitfall 6).
  */
 export function ConnectionStatus() {
-  const [status, setStatus] = useState<Status>('disconnected');
+  const [status, setStatus] = useState<Status>(socket.connected ? 'connected' : 'disconnected');
 
   useEffect(() => {
     function onConnect() {

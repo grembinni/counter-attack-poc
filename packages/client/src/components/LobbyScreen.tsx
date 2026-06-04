@@ -28,13 +28,26 @@ function CreateRoomScreen() {
   const setScreen = useGameStore((s) => s.setScreen);
   const roomCode = useGameStore((s) => s.roomCode);
 
+  if (!roomCode) {
+    return (
+      <>
+        <h1 className={styles.heading}>Create Room</h1>
+        <p className={styles.body}>Generate a room code to share with your opponent.</p>
+        <button className={styles.ctaButton} onClick={() => socket.emit(ClientEvents.ROOM_CREATE)}>
+          Generate Room Code
+        </button>
+        <button className={styles.subLink} onClick={() => setScreen('JOIN_ROOM')}>
+          Or join an existing room &rarr;
+        </button>
+      </>
+    );
+  }
+
   return (
     <>
       <h1 className={styles.heading}>Create Room</h1>
       <p className={styles.body}>Share this code with your opponent.</p>
-      <div className={styles.roomCode}>
-        {roomCode ?? <span style={{ color: '#a0a0a0', fontWeight: 400 }}>Generating…</span>}
-      </div>
+      <div className={styles.roomCode}>{roomCode}</div>
       <CopyButton code={roomCode} />
       <button className={styles.subLink} onClick={() => setScreen('JOIN_ROOM')}>
         Or join an existing room &rarr;
@@ -51,9 +64,11 @@ function JoinRoomScreen() {
   const [input, setInput] = useState('');
 
   function handleSubmit() {
+    console.log('[join] handleSubmit — input:', input, 'connected:', socket.connected);
     if (input.length === 0) return;
     setRoomError(null);
     socket.emit(ClientEvents.ROOM_JOIN, input);
+    console.log('[join] emitted room:join');
   }
 
   function mapError(reason: string): string {
@@ -91,6 +106,7 @@ function JoinRoomScreen() {
 
 /** Waiting for opponent sub-screen. */
 function WaitingScreen() {
+  const setScreen = useGameStore((s) => s.setScreen);
   const roomCode = useGameStore((s) => s.roomCode);
 
   return (
@@ -104,6 +120,9 @@ function WaitingScreen() {
         <span className={styles.dot} style={{ animationDelay: '0.2s' }} />
         <span className={styles.dot} style={{ animationDelay: '0.4s' }} />
       </div>
+      <button className={styles.subLink} onClick={() => setScreen('JOIN_ROOM')}>
+        Join a different room instead &rarr;
+      </button>
     </>
   );
 }

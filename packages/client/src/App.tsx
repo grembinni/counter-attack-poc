@@ -4,7 +4,7 @@ import { GameBoard } from './components/GameBoard.js';
 import { LobbyScreen } from './components/LobbyScreen.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ServerEvents } from '@counter-attack/shared';
 import type { GameState } from '@counter-attack/shared';
 
 export function App() {
@@ -18,49 +18,55 @@ export function App() {
   const setGameError = useGameStore((s) => s.setGameError);
 
   useEffect(() => {
-    // Emit room:create on connect — fires exactly once per actual connection event,
-    // preventing the StrictMode double-invoke bug (CreateRoomScreen.useEffect fired twice).
-    // Guard: only if still on CREATE_ROOM with no room yet.
     function onConnect() {
       const { screen: s, roomCode } = useGameStore.getState();
-      if (s === 'CREATE_ROOM' && !roomCode) {
-        socket.emit(ClientEvents.ROOM_CREATE);
-      }
+      console.log('[socket] connect — screen:', s, 'roomCode:', roomCode);
     }
 
     function onGameState(state: GameState) {
       setGameState(state);
       setDisconnectWarning(false);
-      // Advance to board from WAITING (creator path) or JOIN_ROOM (joiner path).
       const s = useGameStore.getState().screen;
-      if (s === 'WAITING' || s === 'JOIN_ROOM') {
+      console.log('[socket] game:state — screen:', s, 'phase:', state.phase);
+      if (s !== 'GAME_BOARD') {
         setScreen('GAME_BOARD');
       }
     }
 
     function onRoomJoined(code: string, slot: 1 | 2, token: string) {
-      if (token) localStorage.setItem('ca_session_token', token);
+      console.log('[socket] room:joined — code:', code, 'slot:', slot, 'hasToken:', !!token);
       setRoomCode(code);
-      setPlayerSlot(slot);
+      if (token) {
+        // Non-empty token means this is OUR join confirmation — store credential and slot.
+        // Empty token is a notification that the OTHER player joined; do not overwrite our slot.
+        sessionStorage.setItem('ca_session_token', token);
+        setPlayerSlot(slot);
+      }
       const s = useGameStore.getState().screen;
-      // Creator (slot 1): advance CREATE_ROOM → WAITING to show the room code.
-      // Joiner (slot 2): stay on JOIN_ROOM — game:state will fire immediately and
-      // advance to GAME_BOARD, avoiding a visible WAITING flash.
       if (slot === 1 && s === 'CREATE_ROOM') setScreen('WAITING');
     }
 
     function onRoomError(reason: string) {
+      console.log('[socket] room:error —', reason);
       setRoomError(reason);
     }
 
     function onGameError(reason: string) {
+      console.log('[socket] game:error —', reason);
       setGameError(reason);
     }
 
     function onDisconnectWarning() {
+      console.log('[socket] game:disconnect-warning');
       setDisconnectWarning(true);
     }
 
+    // Debug: log every raw event arriving on the socket
+    function onAnyEvent(event: string, ...args: unknown[]) {
+      console.log('[socket] RAW EVENT:', event, args);
+    }
+
+    socket.onAny(onAnyEvent);
     socket.on('connect', onConnect);
     socket.on(ServerEvents.GAME_STATE, onGameState);
     socket.on(ServerEvents.ROOM_JOINED, onRoomJoined);
@@ -69,15 +75,14 @@ export function App() {
     socket.on(ServerEvents.GAME_DISCONNECT_WARNING, onDisconnectWarning);
 
     socket.connect();
+    console.log('[socket] connect() called — already connected:', socket.connected);
 
-    // Fallback: if already connected (HMR reload or StrictMode remount where socket
-    // persisted from the previous mount), the connect event won't fire again — call
-    // onConnect directly so room:create is still emitted.
     if (socket.connected) {
       onConnect();
     }
 
     return () => {
+      socket.offAny(onAnyEvent);
       socket.off('connect', onConnect);
       socket.off(ServerEvents.GAME_STATE, onGameState);
       socket.off(ServerEvents.ROOM_JOINED, onRoomJoined);

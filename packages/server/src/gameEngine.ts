@@ -376,6 +376,14 @@ export function applyUndo(state: GameState): ApplyUndoResult {
     delete newPaceUsed[moveToUndo.pieceId];
   }
 
+  // Remove piece from movedPieceIds when all its moves are undone (paceUsed → 0).
+  // This restores selectability on the client and clears the ATTACKER_2 restriction.
+  const paceAfterUndo = newPaceUsed[moveToUndo.pieceId] ?? 0;
+  const newMovedPieceIds =
+    paceAfterUndo === 0
+      ? state.movedPieceIds.filter((id) => id !== moveToUndo.pieceId)
+      : state.movedPieceIds;
+
   // Remove the MOVE event from eventLog (D-10)
   const absoluteMoveIdx = lastSlotAdvanceIdx + 1 + lastMoveRelIdx;
   const newEventLog = [
@@ -394,6 +402,7 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       ...state,
       pieces: newPieces,
       paceUsedByPieceId: newPaceUsed,
+      movedPieceIds: newMovedPieceIds,
       eventLog: newEventLog,
       pendingFreeMove: undoPendingFreeMove,
     },

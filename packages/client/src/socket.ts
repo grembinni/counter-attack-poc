@@ -18,7 +18,7 @@ export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(soc
   autoConnect: false,
   transports: ['websocket'],
   auth: (cb: (data: { sessionToken?: string }) => void) => {
-    const token = localStorage.getItem('ca_session_token');
+    const token = sessionStorage.getItem('ca_session_token');
     if (token !== null) {
       cb({ sessionToken: token });
     } else {

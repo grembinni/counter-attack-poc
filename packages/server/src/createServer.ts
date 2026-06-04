@@ -84,13 +84,16 @@ export function buildServer(): {
     // Reconnect path: middleware has populated socket.data.sessionToken, roomCode, playerSlot.
     // RESEARCH.md Pitfall 3: check sessionToken FIRST to avoid re-running fresh-join logic
     // on reconnect (which would overwrite the existing token and emit a duplicate ROOM_JOINED).
+    // Only treat as a reconnect when the game is in-progress (status === 'playing').
+    // A 'waiting' room has no game state to restore — fall through to fresh connection so
+    // the socket can freely create or join another room.
     if (
       socket.data.sessionToken !== undefined &&
       socket.data.roomCode !== undefined &&
       socket.data.playerSlot !== undefined
     ) {
       const room = getRoom(socket.data.roomCode);
-      if (room) {
+      if (room && room.status === 'playing') {
         const slotIndex = socket.data.playerSlot - 1;
 
         // SC-3: cancel the grace timer so the room is not deleted.
@@ -111,10 +114,23 @@ export function buildServer(): {
         // RESEARCH.md Anti-Pattern: forgetting socket.join on reconnect silently breaks broadcasts.
         void socket.join(room.roomCode);
 
-        // Re-emit current game state to this socket only (not the whole room).
-        // SC-3: client receives current state without re-entering a new room.
+        // Re-emit ROOM_JOINED so the client can restore playerSlot and roomCode after a
+        // page refresh (store resets to null on reload; server is the source of truth).
+        socket.emit(
+          ServerEvents.ROOM_JOINED,
+          socket.data.roomCode,
+          socket.data.playerSlot,
+          socket.data.sessionToken,
+        );
+
+        // Re-emit game state directly to the reconnecting socket (SC-3).
+        // Also notify the other player via socket.to so their disconnect banner dismisses
+        // (their onGameState calls setDisconnectWarning(false)). socket.to excludes the
+        // sender, so the other player receives it without needing a broadcastState call
+        // (which would race against the async socket.join above).
         if (room.gameState !== null) {
           socket.emit(ServerEvents.GAME_STATE, room.gameState);
+          socket.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
         }
 
         // Re-register disconnect handler so the reconnected socket can disconnect again.

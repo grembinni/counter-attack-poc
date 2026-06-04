@@ -43,8 +43,13 @@ export function HexGrid() {
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
+  const playerSlot = useGameStore((s) => s.playerSlot);
   const selectPiece = useGameStore((s) => s.selectPiece);
   const emitMove = useGameStore((s) => s.emitMove);
+
+  const myTeam: 'home' | 'away' | null =
+    playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
+  const isActivePlayer = myTeam !== null && myTeam === activeTeam;
 
   // Optimistic highlight for SHOT target — cosmetic only; server emit is source of truth (D-06)
   const [shotTargetHighlight, setShotTargetHighlight] = useState<HexCoord | null>(null);
@@ -101,20 +106,23 @@ export function HexGrid() {
         {/* Layer 2: Ball marker — above hexes, below pieces */}
         <BallMarker ball={ball} />
         {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
-        {pieces.map((piece) => (
-          <PieceOverlay
-            key={piece.id}
-            piece={piece}
-            isSelected={piece.id === selectedPieceId}
-            isClickable={
-              phase === 'MOVEMENT' &&
-              piece.teamId === activeTeam &&
-              !movedPieceIds.includes(piece.id) // Pitfall 8: exclude already-moved pieces
-            }
-            onClick={() => selectPiece(piece.id)}
-            carrierId={ball.carrierId}
-          />
-        ))}
+        {pieces.map((piece) => {
+          const canSelect =
+            isActivePlayer &&
+            phase === 'MOVEMENT' &&
+            piece.teamId === activeTeam &&
+            !movedPieceIds.includes(piece.id); // Pitfall 8: exclude already-moved pieces
+          return (
+            <PieceOverlay
+              key={piece.id}
+              piece={piece}
+              isSelected={piece.id === selectedPieceId}
+              isClickable={canSelect}
+              onClick={canSelect ? () => selectPiece(piece.id) : () => undefined}
+              carrierId={ball.carrierId}
+            />
+          );
+        })}
       </g>
     </svg>
   );
