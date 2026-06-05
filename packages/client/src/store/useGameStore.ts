@@ -158,7 +158,30 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     set({ selectedPieceId: id, validMoveHexes: [] });
   },
 
-  setGameState: (state) => set({ gameState: state, selectedPieceId: null, validMoveHexes: [] }),
+  setGameState: (newState) => {
+    const prev = get();
+    const prevState = prev.gameState;
+    const prevSelectedId = prev.selectedPieceId;
+
+    // Determine whether to retain or clear selection (D-17, D-18, D-19)
+    const slotChanged = newState.movementSlot !== prevState.movementSlot;
+    const phaseChanged = newState.phase !== prevState.phase;
+    const pieceStillExists =
+      prevSelectedId !== null && newState.pieces.some((p) => p.id === prevSelectedId);
+
+    if (slotChanged || phaseChanged || !pieceStillExists || prevSelectedId === null) {
+      // Clear selection on phase/slot transitions or missing piece (D-18)
+      set({ gameState: newState, selectedPieceId: null, validMoveHexes: [] });
+      return;
+    }
+
+    // Sticky selection: recompute validMoveHexes with remaining pace (D-17, D-19)
+    const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
+    const remainingPace = piece.pace - (newState.paceUsedByPieceId[prevSelectedId] ?? 0);
+    const candidates = hexesInRange(piece.position, remainingPace);
+    const valid = candidates.filter((hex) => validateMove(newState, piece, hex).ok);
+    set({ gameState: newState, validMoveHexes: valid });
+  },
 
   setPlayerSlot: (slot) => set({ playerSlot: slot }),
 
