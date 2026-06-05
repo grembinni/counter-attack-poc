@@ -60,4 +60,9 @@ export const mockMovementState: GameState = {
   movementSlot: 'ATTACKER_4',
   lastDiceRoll: null,
   pendingFreeMove: null,
+  // Phase 8 fields (D-06)
+  addedTime: null,
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
 };

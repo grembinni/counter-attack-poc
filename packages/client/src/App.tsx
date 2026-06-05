@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useGameStore } from './store/useGameStore.js';
 import { GameBoard } from './components/GameBoard.js';
 import { LobbyScreen } from './components/LobbyScreen.js';
+import { HalfTimeScreen } from './components/HalfTimeScreen.js';
+import { FullTimeScreen } from './components/FullTimeScreen.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents } from '@counter-attack/shared';
@@ -21,9 +23,17 @@ export function App() {
     function onGameState(state: GameState) {
       setGameState(state);
       setDisconnectWarning(false);
-      const s = useGameStore.getState().screen;
-      if (s !== 'GAME_BOARD') {
-        setScreen('GAME_BOARD');
+      // Phase 8: route to new screens by phase (D-28, D-30, D-31)
+      if (state.phase === 'HALF_TIME') {
+        setScreen('HALF_TIME');
+      } else if (state.phase === 'FULL_TIME') {
+        setScreen('FULL_TIME');
+      } else if (state.phase === 'REPLAY') {
+        setScreen('REPLAY');
+      } else {
+        // Covers KICK_OFF_SETUP, KICK_OFF, MOVEMENT, PASS, SHOT, etc. — pitch stays visible
+        const s = useGameStore.getState().screen;
+        if (s !== 'GAME_BOARD') setScreen('GAME_BOARD');
       }
     }
 
@@ -74,6 +84,19 @@ export function App() {
   }, []);
 
   return (
-    <div className={styles.app}>{screen === 'GAME_BOARD' ? <GameBoard /> : <LobbyScreen />}</div>
+    <div className={styles.app}>
+      {screen === 'GAME_BOARD' ? (
+        <GameBoard />
+      ) : screen === 'HALF_TIME' ? (
+        <HalfTimeScreen />
+      ) : screen === 'FULL_TIME' ? (
+        <FullTimeScreen />
+      ) : screen === 'REPLAY' ? (
+        // REPLAY phase uses the board layout so pieces are visible; ReplayPanel in sidebar (08-06)
+        <GameBoard />
+      ) : (
+        <LobbyScreen />
+      )}
+    </div>
   );
 }

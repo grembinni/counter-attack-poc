@@ -5,7 +5,14 @@ import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
 
 /** Screen states for client-side routing (D-12). No React Router — screen field in store. */
-export type Screen = 'CREATE_ROOM' | 'JOIN_ROOM' | 'WAITING' | 'GAME_BOARD';
+export type Screen =
+  | 'CREATE_ROOM'
+  | 'JOIN_ROOM'
+  | 'WAITING'
+  | 'GAME_BOARD'
+  | 'HALF_TIME' // Phase 8: shown when GameState.phase === 'HALF_TIME'
+  | 'FULL_TIME' // Phase 8: shown when GameState.phase === 'FULL_TIME'
+  | 'REPLAY'; // Phase 8: shown when GameState.phase === 'REPLAY' (uses GAME_BOARD layout)
 
 /** Zustand store shape for the Counter Attack game client. */
 export type GameStore = {
@@ -64,6 +71,12 @@ export type GameStore = {
   emitGKRestart: (choice: 'kick' | 'throw' | 'movement') => void;
   /** Emit game:start-movement to transition from KICK_OFF to MOVEMENT (D-01, Phase 4). */
   emitStartMovement: () => void;
+  /** Phase 8 / D-24: Emit game:ready — KICK_OFF_SETUP confirmation. */
+  emitReady: () => void;
+  /** Phase 8: Emit game:kick-off-move — reposition a piece during KICK_OFF_SETUP (no pace limits). */
+  emitKickOffMove: (pieceId: string, to: HexCoord) => void;
+  /** Phase 8 / D-28: Emit game:half-time-start — trigger 2nd half (only for non-first-half kick-off team). */
+  emitHalfTimeStart: () => void;
 };
 
 /**
@@ -138,5 +151,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitStartMovement: () => {
     socket.emit(ClientEvents.GAME_START_MOVEMENT);
+  },
+
+  emitReady: () => {
+    socket.emit(ClientEvents.GAME_READY);
+  },
+
+  emitKickOffMove: (pieceId, to) => {
+    socket.emit(ClientEvents.GAME_KICK_OFF_MOVE, pieceId, to);
+    set({ selectedPieceId: null, validMoveHexes: [] });
+  },
+
+  emitHalfTimeStart: () => {
+    socket.emit(ClientEvents.GAME_HALF_TIME_START);
   },
 }));

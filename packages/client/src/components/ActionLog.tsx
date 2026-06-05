@@ -45,6 +45,55 @@ function formatEvent(event: ActionEvent): { prefix: string; content: string; isG
         content: ' Match started',
         isGoal: false,
       };
+    // Phase 8 event types — shown in the action log during replay and normal play
+    case 'STANDARD_PASS':
+      return {
+        prefix: '[PASS]',
+        content: ` Standard ${event.accurate ? '✓' : '✗'} ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
+    case 'FIRST_TIME_PASS':
+      return {
+        prefix: '[PASS]',
+        content: ` First-time ${event.accurate ? '✓' : '✗'} ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
+    case 'HIGH_PASS':
+      return {
+        prefix: '[HIGH PASS]',
+        content: ` ${event.accurate ? '✓' : '✗'} ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
+    case 'LONG_BALL':
+      return {
+        prefix: '[LONG BALL]',
+        content: ` ${event.accurate ? '✓' : '✗'} ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
+    case 'SHOT_ATTEMPT':
+      return {
+        prefix: '[SHOT]',
+        content: ` ${event.outcome}`,
+        isGoal: event.outcome === 'GOAL',
+      };
+    case 'SNAPSHOT':
+      return {
+        prefix: '[SNAPSHOT]',
+        content: ` ${event.shooterId}`,
+        isGoal: false,
+      };
+    case 'HALF_TIME':
+      return {
+        prefix: '[HALF TIME]',
+        content: ` Score: ${event.score.home}–${event.score.away}`,
+        isGoal: false,
+      };
+    case 'FULL_TIME':
+      return {
+        prefix: '[FULL TIME]',
+        content: ` Final: ${event.score.home}–${event.score.away}`,
+        isGoal: false,
+      };
   }
 }
 

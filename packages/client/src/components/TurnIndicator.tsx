@@ -6,6 +6,7 @@ import styles from './TurnIndicator.module.css';
 const PHASE_LABEL: Record<GamePhase, string> = {
   LOBBY: '',
   KICK_OFF: 'KICK OFF',
+  KICK_OFF_SETUP: 'KICK OFF SETUP', // Phase 8 / UI-SPEC §KICK_OFF_SETUP layout
   MOVEMENT: 'MOVEMENT PHASE',
   PASS: 'PASS PHASE',
   SHOT: 'SHOT PHASE',
