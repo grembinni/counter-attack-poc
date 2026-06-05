@@ -54,6 +54,18 @@ export type Room = {
    * applyRoll resolves SHOT from dice only and does not read this field.
    */
   shotTarget?: HexCoord | null;
+  /**
+   * D-31 / Phase 8: Replay streaming interval handle.
+   * Set when the REPLAY phase begins; must be cleared in deleteRoom (Pitfall 4)
+   * and on disconnect during REPLAY to prevent post-deletion emit leaks.
+   */
+  replayTimer?: ReturnType<typeof setInterval> | null;
+  /**
+   * D-24 / Phase 8: Tracks which player slots have confirmed "Ready" during KICK_OFF_SETUP.
+   * Pattern 4 (PATTERNS.md): Set<1|2> so each socket can only mark its own slot ready.
+   * Cleared when transitioning out of KICK_OFF_SETUP.
+   */
+  readyPlayers?: Set<1 | 2> | null;
 };
 
 /**
@@ -178,6 +190,8 @@ export function deleteRoom(roomCode: string): void {
     for (const timer of room.disconnectTimers) {
       if (timer !== null) clearTimeout(timer);
     }
+    // Phase 8 / Pitfall 4: clear replay timer to prevent post-deletion emit leak (D-31)
+    if (room.replayTimer) clearInterval(room.replayTimer);
   }
   rooms.delete(roomCode);
 }
