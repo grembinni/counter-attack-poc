@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import styles from './ActionPanel.module.css';
 
@@ -15,6 +16,7 @@ export function ActionPanel() {
   const phase = useGameStore((s) => s.gameState.phase);
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
   const lastDiceRoll = useGameStore((s) => s.gameState.lastDiceRoll);
+  const lastActionType = useGameStore((s) => s.gameState.lastActionType);
   const carrierId = useGameStore((s) => s.gameState.ball.carrierId);
   const pieces = useGameStore((s) => s.gameState.pieces);
   const gameError = useGameStore((s) => s.gameError);
@@ -23,6 +25,8 @@ export function ActionPanel() {
   const emitUndo = useGameStore((s) => s.emitUndo);
   const emitStartMovement = useGameStore((s) => s.emitStartMovement);
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
+  const emitSnapshot = useGameStore((s) => s.emitSnapshot);
+  const emitHeader = useGameStore((s) => s.emitHeader);
 
   const [passType, setPassType] = useState<PassType>('STANDARD');
 
@@ -31,6 +35,15 @@ export function ActionPanel() {
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
 
   if (!isActivePlayer) return null;
+
+  // Eligibility-based button disabling (T-08-18): reflect server's ELIGIBLE_NEXT_ACTIONS table.
+  // This is UX ONLY — the server independently validates and rejects ineligible actions.
+  const eligible = lastActionType !== null ? ELIGIBLE_NEXT_ACTIONS[lastActionType] : null;
+  const isEligible = (
+    action: Parameters<
+      (typeof ELIGIBLE_NEXT_ACTIONS)[keyof typeof ELIGIBLE_NEXT_ACTIONS]['has']
+    >[0],
+  ) => eligible === null || eligible.has(action);
 
   // GK team derivation — mirrors server controlsGKTeam in gameHandlers.ts
   const gkPiece = pieces.find((p) => p.id === carrierId);
@@ -75,9 +88,32 @@ export function ActionPanel() {
         </button>
       )}
 
-      {/* Start Movement — KICK_OFF */}
+      {/* Snapshot — SNAPSHOT phase; always enabled when visible (phase gating is the guard) */}
+      {phase === 'SNAPSHOT' && (
+        <button className={styles.ctaButton} onClick={emitSnapshot}>
+          Snapshot
+        </button>
+      )}
+
+      {/* Header — HEADER phase; always enabled when visible (phase gating is the guard) */}
+      {phase === 'HEADER' && (
+        <button className={styles.ctaButton} onClick={emitHeader}>
+          Header
+        </button>
+      )}
+
+      {/* Start Movement — KICK_OFF; disable if lastActionType blocks movement (e.g. HIGH_PASS) */}
       {phase === 'KICK_OFF' && (
-        <button className={styles.ctaButton} onClick={emitStartMovement}>
+        <button
+          className={styles.ctaButton}
+          disabled={!isEligible('MOVEMENT')}
+          title={
+            !isEligible('MOVEMENT')
+              ? 'Not available after a High Pass — must head the ball'
+              : undefined
+          }
+          onClick={emitStartMovement}
+        >
           Start Movement
         </button>
       )}

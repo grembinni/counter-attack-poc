@@ -77,6 +77,10 @@ export type GameStore = {
   emitKickOffMove: (pieceId: string, to: HexCoord) => void;
   /** Phase 8 / D-28: Emit game:half-time-start — trigger 2nd half (only for non-first-half kick-off team). */
   emitHalfTimeStart: () => void;
+  /** Phase 8 / D-18: Emit game:snapshot — declare a Snapshot shot while in penalty area or post-pass. */
+  emitSnapshot: () => void;
+  /** Phase 8 / D-17: Emit game:header — resolve a Header while phase === 'HEADER'. */
+  emitHeader: () => void;
 };
 
 /**
@@ -164,5 +168,13 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitHalfTimeStart: () => {
     socket.emit(ClientEvents.GAME_HALF_TIME_START);
+  },
+
+  emitSnapshot: () => {
+    socket.emit(ClientEvents.GAME_SNAPSHOT);
+  },
+
+  emitHeader: () => {
+    socket.emit(ClientEvents.GAME_HEADER);
   },
 }));

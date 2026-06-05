@@ -24,6 +24,10 @@ export const ClientEvents = {
   GAME_KICK_OFF_MOVE: 'game:kick-off-move',
   /** D-28: trigger transition from HALF_TIME to 2nd-half KICK_OFF_SETUP. */
   GAME_HALF_TIME_START: 'game:half-time-start',
+  /** Phase 8 / D-18: declare a Snapshot when ball carrier is in penalty area or post-pass. */
+  GAME_SNAPSHOT: 'game:snapshot',
+  /** Phase 8 / D-17: resolve a Header while phase === 'HEADER'. */
+  GAME_HEADER: 'game:header',
 } as const;
 
 export const ServerEvents = {
@@ -58,6 +62,10 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_KICK_OFF_MOVE]: (pieceId: string, to: HexCoord) => void;
   /** D-28: trigger 2nd half; only available to the team that did NOT kick off in the 1st half. */
   [ClientEvents.GAME_HALF_TIME_START]: () => void;
+  /** Phase 8 / D-18: Snapshot declaration — ball carrier in penalty area or post-pass. */
+  [ClientEvents.GAME_SNAPSHOT]: () => void;
+  /** Phase 8 / D-17: Header declaration — resolve header while phase === 'HEADER'. */
+  [ClientEvents.GAME_HEADER]: () => void;
 }
 
 /**

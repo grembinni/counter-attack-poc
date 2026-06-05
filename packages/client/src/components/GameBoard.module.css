@@ -31,6 +31,12 @@
   color: #c0392b;
 }
 
+.headerTime {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f5c518;
+}
+
 .gameLayout {
   flex: 1;
   display: flex;
