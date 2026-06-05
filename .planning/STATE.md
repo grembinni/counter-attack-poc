@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-06-05T18:00:39.293Z'
+last_updated: '2026-06-05T18:08:53.279Z'
 progress:
   total_phases: 16
   completed_phases: 9
@@ -23,7 +23,7 @@ Phase 8.1 — context gathered; ready to plan
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 9 — aws deployment
+**Current focus:** Phase 08.1 — cleanup-player-stats-ball-control-movement-tackling
 
 ## Phase Status
 
