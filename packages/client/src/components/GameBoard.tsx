@@ -6,6 +6,7 @@ import { ConnectionStatus } from './ConnectionStatus.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
 import { ActionPanel } from './ActionPanel.js';
 import { KickOffSetupPanel } from './KickOffSetupPanel.js';
+import { ReplayPanel } from './ReplayPanel.js';
 import { PlayerStatsPanel } from './PlayerStatsPanel.js';
 import styles from './GameBoard.module.css';
 
@@ -65,6 +66,8 @@ export function GameBoard() {
           {/* Phase 8: swap sidebar panel by phase */}
           {phase === 'KICK_OFF_SETUP' ? (
             <KickOffSetupPanel />
+          ) : phase === 'REPLAY' ? (
+            <ReplayPanel />
           ) : (
             <>
               <ActionPanel />

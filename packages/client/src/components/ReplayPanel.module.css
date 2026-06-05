@@ -1,0 +1,75 @@
+/* ReplayPanel — frozen token inventory only (Phase 6/7 palette). */
+/* Surface hierarchy: #16213e panel, #0f3460 button/border */
+/* Text: #e0e0e0 primary, #a0a0a0 muted, #f5c518 accent-gold, #1a56b0 home, #c0392b away */
+
+.panel {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.scoreLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.homeTeam {
+  font-weight: 700;
+  color: #1a56b0;
+}
+
+.awayTeam {
+  font-weight: 700;
+  color: #c0392b;
+}
+
+.scoreDisplay {
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+/* Replay position counter — accent-gold per UI-SPEC (Phase 8 addition 5) */
+.positionCounter {
+  font-size: 13px;
+  font-weight: 400;
+  color: #f5c518;
+}
+
+.statusText {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+}
+
+.ctaButton {
+  background: #0f3460;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ctaButton:hover {
+  background: #1a56b0;
+}
+
+.ctaButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
