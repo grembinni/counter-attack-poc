@@ -256,6 +256,146 @@ describe('applyMove', () => {
       expect(result.state.pendingFreeMove).toBeNull();
     }
   });
+
+  it('ball.position follows the carrier on a normal move (D-13/D-14)', () => {
+    // home-9 is the carrier at {q:10, r:7}; moves to {q:11, r:7}; ball should track
+    const stateWithBall: GameState = {
+      ...baseMovementState,
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+    };
+    const result = applyMove(stateWithBall, 'home-9', { q: 11, r: 7 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.ball.position).toEqual({ q: 11, r: 7 });
+      expect(result.state.ball.carrierId).toBe('home-9');
+    }
+  });
+
+  it('stealDie===6 → steal SUCCESS regardless of tackling+die < 10 (auto-steal, D-06)', () => {
+    // defender: tackling=1; stealDie=6 → 1+6=7 < 10 but die===6 → SUCCESS
+    const defender: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-def',
+      position: { q: 12, r: 7 }, // adjacent to destination {q:11,r:7}
+      tackling: 1, // low tackling ensures 1+6=7 < 10 normally
+    };
+    const stateWithCarrier: GameState = {
+      ...baseMovementState,
+      pieces: [homePiece, defender],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+    };
+    // home-9 moves to {q:11,r:7} which is adjacent to defender at {q:12,r:7} → STEAL_ATTEMPT
+    const result = applyMove(
+      stateWithCarrier,
+      'home-9',
+      { q: 11, r: 7 },
+      { stealDie: 6, tackleDie: 3, carrierDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // auto-steal: ball possession transferred to defender
+      expect(result.state.ball.carrierId).toBe('away-def');
+      expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    }
+  });
+
+  it('steal success when tackling+stealDie >= 10 (D-06)', () => {
+    // defender: tackling=5; stealDie=5 → 5+5=10 >= 10 → SUCCESS
+    const defender: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-def2',
+      position: { q: 12, r: 7 },
+      tackling: 5,
+    };
+    const stateWithCarrier: GameState = {
+      ...baseMovementState,
+      pieces: [homePiece, defender],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+    };
+    const result = applyMove(
+      stateWithCarrier,
+      'home-9',
+      { q: 11, r: 7 },
+      { stealDie: 5, tackleDie: 3, carrierDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.ball.carrierId).toBe('away-def2');
+      expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    }
+  });
+
+  it('tackle duel: defenderCombined >= carrierCombined → SUCCESS, possession+ball transferred to defender (D-09)', () => {
+    // defender 'away-9' (tackling=1) at {q:14,r:7}; carrier 'home-9' (dribbling=8) at {q:10,r:7}
+    // defender moves to {q:11,r:7} which is adjacent to carrier at {q:10,r:7}
+    // tackleDie=6: defCombined=1+6=7; carrierDie=1: carCombined=8+1=9? Wait... need defCombined >= carCombined
+    // Use tackling=5, tackleDie=6 → defCombined=11; carrier dribbling=8, carrierDie=1 → carCombined=9
+    const defenderPiece: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-9',
+      position: { q: 14, r: 7 },
+      tackling: 5,
+    };
+    const stateWithCarrier: GameState = {
+      ...baseMovementState,
+      // active team for ATTACKER_4 is 'home' (attackingTeam); but we need away to move → DEFENDER_5 slot
+      movementSlot: 'DEFENDER_5',
+      activeTeam: 'away',
+      pieces: [homePiece, defenderPiece],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+    };
+    // away-9 moves from {q:14,r:7} to {q:11,r:7}: too far (3 hexes). Use {q:13,r:7} → {q:11,r:7} not 1 step.
+    // Instead place defender at {q:12,r:7} and move to {q:11,r:7} which is adjacent to carrier at {q:10,r:7}
+    const defenderAdjacentState: GameState = {
+      ...stateWithCarrier,
+      pieces: [homePiece, { ...defenderPiece, position: { q: 12, r: 7 } }],
+    };
+    const result = applyMove(
+      defenderAdjacentState,
+      'away-9',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 6, carrierDie: 1 },
+    );
+    // defCombined = 5+6=11; carCombined = 8+1=9; 11>=9 → SUCCESS
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.ball.carrierId).toBe('away-9');
+      expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // defender's new position
+      expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    }
+  });
+
+  it('tackle duel: carrierCombined > defenderCombined → FAIL, defender moves but carrier keeps ball (D-09)', () => {
+    // tackleDie=1, carrierDie=6: defCombined=5+1=6; carCombined=8+6=14; 6<14 → FAIL
+    const defenderPiece: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-9',
+      position: { q: 12, r: 7 },
+      tackling: 5,
+    };
+    const stateWithCarrier: GameState = {
+      ...baseMovementState,
+      movementSlot: 'DEFENDER_5',
+      activeTeam: 'away',
+      pieces: [homePiece, defenderPiece],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+    };
+    const result = applyMove(
+      stateWithCarrier,
+      'away-9',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 6 },
+    );
+    // defCombined = 5+1=6; carCombined = 8+6=14; 6<14 → FAIL
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.ball.carrierId).toBe('home-9'); // carrier keeps ball
+      expect(result.state.lastActionType).not.toBe('SUCCESSFUL_TACKLE'); // not ended
+      // defender still moved to destination
+      const defender = result.state.pieces.find((p) => p.id === 'away-9');
+      expect(defender?.position).toEqual({ q: 11, r: 7 });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

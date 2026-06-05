@@ -239,7 +239,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      const result = applyMove(room.gameState, pieceId, to);
+      // D-08/D-12: pre-generate all dice that may be consumed by applyMove.
+      // Generated here (in the I/O layer) so the pure engine stays deterministic for tests.
+      const stealDie = rollDice();
+      const tackleDie = rollDice();
+      const carrierDie = rollDice();
+      const result = applyMove(room.gameState, pieceId, to, { stealDie, tackleDie, carrierDie });
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // D-06: snap-back on rejection

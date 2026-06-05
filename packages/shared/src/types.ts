@@ -51,6 +51,7 @@ export type ActionEventType =
   | 'SLOT_ADVANCE'
   | 'DICE_ROLL'
   | 'STEAL_ATTEMPT'
+  | 'TACKLE_ATTEMPT'
   | 'GOAL'
   | 'KICK_OFF'
   // Phase 8 additions (D-08 / Claude's Discretion): new action event types for replay coverage
@@ -79,7 +80,25 @@ export type ActionEvent =
     }
   | { type: 'SLOT_ADVANCE'; from: MovementSlot; to: MovementSlot | null; timestamp: number }
   | { type: 'DICE_ROLL'; result: number; timestamp: number }
-  | { type: 'STEAL_ATTEMPT'; defenderId: string; result: 'SUCCESS' | 'FAIL'; timestamp: number }
+  | {
+      type: 'STEAL_ATTEMPT';
+      defenderId: string;
+      result: 'SUCCESS' | 'FAIL';
+      defenderDie: number;
+      defenderCombined: number;
+      timestamp: number;
+    }
+  | {
+      type: 'TACKLE_ATTEMPT';
+      defenderId: string;
+      carrierId: string;
+      defenderDie: number;
+      carrierDie: number;
+      defenderCombined: number;
+      carrierCombined: number;
+      result: 'SUCCESS' | 'FAIL';
+      timestamp: number;
+    }
   | { type: 'GOAL'; scoringTeam: 'home' | 'away'; timestamp: number }
   | { type: 'KICK_OFF'; timestamp: number }
   // Phase 8 additions — new action subtypes for replay coverage (Claude's Discretion, 08-CONTEXT.md)

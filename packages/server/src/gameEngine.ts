@@ -37,7 +37,6 @@ import {
   validateHeading,
   hexDistance,
 } from '@counter-attack/shared';
-import { rollDice } from './diceUtils.js';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 
 // No socket.io imports — pure functions only (ARCH-01, established Phase 2/3 pattern).
@@ -184,8 +183,22 @@ export type ApplyMoveResult =
  * MOVE-06: sets pendingFreeMove when the ball carrier crosses between final thirds (D-15).
  * T-4-03: MOVE event records server-derived from-coord — never the client's claimed position.
  * D-01: movementSlot is NOT auto-advanced on move success; applyEndTurn advances it.
+ *
+ * @param state  - Current game state (phase must be MOVEMENT)
+ * @param pieceId - ID of the piece to move
+ * @param to     - Destination hex coordinate
+ * @param dice   - Optional pre-generated dice (injected for determinism — D-08/D-12).
+ *                 stealDie: used for STEAL_ATTEMPT resolution.
+ *                 tackleDie: used for TACKLE_ATTEMPT defender roll.
+ *                 carrierDie: used for TACKLE_ATTEMPT carrier roll.
+ *                 Defaults to 3 (mid-range) when omitted — backward-compatible fallback.
  */
-export function applyMove(state: GameState, pieceId: string, to: HexCoord): ApplyMoveResult {
+export function applyMove(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+  dice?: { stealDie: number; tackleDie: number; carrierDie: number },
+): ApplyMoveResult {
   // 1. Phase guard
   if (state.phase !== 'MOVEMENT' || state.movementSlot === null) {
     return { ok: false, reason: 'WRONG_SLOT' };
@@ -220,22 +233,101 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
 
   let newEventLog: readonly ActionEvent[] = [...state.eventLog, moveEvent];
 
-  // Handle STEAL_ATTEMPT effect
+  // D-13/D-14 ball position fix: if the moving piece is the carrier, track ball to `to`.
+  // Computed here for all non-contest paths; overridden on contest success paths below.
+  const newBall = state.ball.carrierId === pieceId ? { ...state.ball, position: to } : state.ball;
+
+  // Handle STEAL_ATTEMPT effect (D-06/D-07/D-08)
   let stealSuccess = false;
+  let stealDefenderId: string | undefined;
   if ('effect' in result && result.effect.type === 'STEAL_ATTEMPT') {
-    const dice = rollDice();
+    // Dice injection: stealDie from caller; fallback 3 for backward compat (D-08)
+    const die = dice?.stealDie ?? 3;
     const defender = result.effect.defenders[0];
-    // MOVE-04: combined score >= 10 threshold using computeCombinedScore (via rollDice).
-    const combined = computeCombinedScore(defender!.tackling, dice, []);
-    const stealResult: 'SUCCESS' | 'FAIL' = combined >= 10 ? 'SUCCESS' : 'FAIL';
+    // D-06: combined score >= 10 threshold; die===6 is always SUCCESS regardless of combined (D-06)
+    const combined = computeCombinedScore(defender!.tackling, die, []);
+    const stealResult: 'SUCCESS' | 'FAIL' = die === 6 || combined >= 10 ? 'SUCCESS' : 'FAIL';
     stealSuccess = stealResult === 'SUCCESS';
+    stealDefenderId = defender!.id;
     const stealEvent: ActionEvent = {
       type: 'STEAL_ATTEMPT',
       defenderId: defender!.id,
       result: stealResult,
+      defenderDie: die,
+      defenderCombined: combined,
       timestamp: Date.now(),
     };
     newEventLog = [...newEventLog, stealEvent];
+  }
+
+  // Handle TACKLE_ATTEMPT effect (D-11/D-12)
+  // Fires when a defender (different team than carrier) moves adjacent to the carrier.
+  let tackleSuccess = false;
+  if ('effect' in result && result.effect.type === 'TACKLE_ATTEMPT') {
+    const defDie = dice?.tackleDie ?? 3;
+    const carDie = dice?.carrierDie ?? 3;
+    const carrierId = result.effect.carrierId;
+    const carrier = state.pieces.find((p) => p.id === carrierId);
+    // Defensive: carrier must exist (moveValidator already verified, but belt-and-suspenders)
+    if (carrier !== undefined) {
+      const defCombined = computeCombinedScore(piece.tackling, defDie, []);
+      const carCombined = computeCombinedScore(carrier.dribbling, carDie, []);
+      // D-09: defender wins on tie (defCombined >= carCombined → SUCCESS)
+      const tackleResult: 'SUCCESS' | 'FAIL' = defCombined >= carCombined ? 'SUCCESS' : 'FAIL';
+      tackleSuccess = tackleResult === 'SUCCESS';
+      const tackleEvent: ActionEvent = {
+        type: 'TACKLE_ATTEMPT',
+        defenderId: pieceId,
+        carrierId,
+        defenderDie: defDie,
+        carrierDie: carDie,
+        defenderCombined: defCombined,
+        carrierCombined: carCombined,
+        result: tackleResult,
+        timestamp: Date.now(),
+      };
+      newEventLog = [...newEventLog, tackleEvent];
+
+      if (tackleSuccess) {
+        // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender
+        const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
+        return {
+          ok: true,
+          state: {
+            ...state,
+            pieces: newPieces,
+            movedPieceIds: [...state.movedPieceIds, pieceId],
+            paceUsedByPieceId: {
+              ...state.paceUsedByPieceId,
+              [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+            },
+            ball: tackleSuccessBall,
+            eventLog: newEventLog,
+            pendingFreeMove: state.pendingFreeMove ?? null,
+            // D-11: tackle success ends movement phase; same as steal success
+            lastActionType: 'SUCCESSFUL_TACKLE',
+            actionCount: state.actionCount + 3,
+          },
+        };
+      }
+      // FAIL: defender moves to `to` (newPieces already reflects this), carrier keeps ball
+      // ball.position stays with the carrier (which hasn't moved) — use state.ball unchanged
+      return {
+        ok: true,
+        state: {
+          ...state,
+          pieces: newPieces,
+          movedPieceIds: [...state.movedPieceIds, pieceId],
+          paceUsedByPieceId: {
+            ...state.paceUsedByPieceId,
+            [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+          },
+          ball: state.ball, // carrier unchanged; ball stays with carrier
+          eventLog: newEventLog,
+          pendingFreeMove: state.pendingFreeMove ?? null,
+        },
+      };
+    }
   }
 
   // MOVE-06 / D-15: detect ball carrier crossing between final thirds
@@ -253,6 +345,8 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
 
   // D-14/MATCH-01: successful steal ends the Movement Phase early; costs 3 min and sets SUCCESSFUL_TACKLE
   if (stealSuccess) {
+    // On steal SUCCESS: ball transferred to defender (stealDefenderId) at `to` (carrier moved there)
+    const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     return {
       ok: true,
       state: {
@@ -263,6 +357,7 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
           ...state.paceUsedByPieceId,
           [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
         },
+        ball: stealSuccessBall,
         eventLog: newEventLog,
         pendingFreeMove,
         // Phase 8 fields
@@ -283,6 +378,7 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
         ...state.paceUsedByPieceId,
         [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
       },
+      ball: newBall, // D-13/D-14: ball tracks carrier; unchanged for non-carrier moves
       eventLog: newEventLog,
       pendingFreeMove,
     },

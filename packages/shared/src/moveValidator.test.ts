@@ -171,4 +171,77 @@ describe('validateMove', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('WRONG_SLOT');
   });
+
+  // D-10: TACKLE_ATTEMPT fires when a defender (opposing team) moves adjacent to the ball carrier
+  it('returns TACKLE_ATTEMPT when a defender (different team) moves adjacent to the carrier (D-10)', () => {
+    // carrier is 'away' piece at {q:7, r:5}; basePiece is 'home' at {q:5, r:5}
+    // basePiece moves to {q:6, r:5} which is adjacent to the carrier at {q:7, r:5}
+    const carrier: PlayerPiece = {
+      ...basePiece,
+      id: 'carrier1',
+      teamId: 'away',
+      position: { q: 7, r: 5 },
+    };
+    const state: GameState = {
+      ...baseState,
+      pieces: [basePiece, carrier],
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier1' },
+    };
+    const result = validateMove(state, basePiece, { q: 6, r: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect('effect' in result).toBe(true);
+      if ('effect' in result) {
+        expect(result.effect.type).toBe('TACKLE_ATTEMPT');
+        if (result.effect.type === 'TACKLE_ATTEMPT') {
+          expect(result.effect.carrierId).toBe('carrier1');
+        }
+      }
+    }
+  });
+
+  it("does NOT return TACKLE_ATTEMPT when the moving piece is on the carrier's own team (Pitfall 4)", () => {
+    // teammate moves adjacent to a carrier on the same team — no tackle
+    const carrier: PlayerPiece = {
+      ...basePiece,
+      id: 'carrier2',
+      teamId: 'home', // same team as basePiece
+      position: { q: 7, r: 5 },
+    };
+    const state: GameState = {
+      ...baseState,
+      pieces: [basePiece, carrier],
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier2' },
+    };
+    const result = validateMove(state, basePiece, { q: 6, r: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // No TACKLE_ATTEMPT effect for same-team movement
+      if ('effect' in result) {
+        expect(result.effect.type).not.toBe('TACKLE_ATTEMPT');
+      }
+    }
+  });
+
+  it('does NOT return TACKLE_ATTEMPT when ball.carrierId is null', () => {
+    // No carrier — no tackle trigger
+    const opponent: PlayerPiece = {
+      ...basePiece,
+      id: 'opp2',
+      teamId: 'away',
+      position: { q: 7, r: 5 },
+    };
+    const state: GameState = {
+      ...baseState,
+      pieces: [basePiece, opponent],
+      ball: { position: { q: 0, r: 0 }, carrierId: null }, // no carrier
+    };
+    const result = validateMove(state, basePiece, { q: 6, r: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      if ('effect' in result) {
+        expect(result.effect.type).not.toBe('TACKLE_ATTEMPT');
+      }
+    }
+  });
 });
