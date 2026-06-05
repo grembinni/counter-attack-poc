@@ -137,11 +137,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           return false;
         const inCentre = isInRegion(hex, 'centreCircle');
         if (myTeam === 'home') {
-          // Attacking: own half only (q ≤ 18); defending: own half excluding centre circle
-          return isAttacking ? hex.q <= kickOffHex.q : hex.q <= kickOffHex.q && !inCentre;
+          // Attacking: q ≤ 18; defending: strictly q < 18 and not in centre circle
+          return isAttacking ? hex.q <= kickOffHex.q : hex.q < kickOffHex.q && !inCentre;
         } else {
-          // Attacking: own half only (q ≥ 18); defending: own half excluding centre circle
-          return isAttacking ? hex.q >= kickOffHex.q : hex.q >= kickOffHex.q && !inCentre;
+          // Attacking: q ≥ 18; defending: strictly q > 18 and not in centre circle
+          return isAttacking ? hex.q >= kickOffHex.q : hex.q > kickOffHex.q && !inCentre;
         }
       });
       set({ selectedPieceId: id, validMoveHexes: valid });

@@ -1257,15 +1257,16 @@ export function applyKickOffReady(
   const teamPieces = state.pieces.filter((p) => p.teamId === team);
   const isAttacking = team === state.attackingTeam;
 
-  // 2. OUT_OF_ZONE: all pieces must be in team's own half
-  // Home half: q <= kickOffHex.q (18); Away half: q >= kickOffHex.q (18)
-  // The kickOffHex itself (q=18) is valid for both halves (shared boundary)
+  // 2. OUT_OF_ZONE: pieces must be in their own half.
+  // Attacking team: can occupy up to and including q=18 (kickOffHex boundary).
+  // Defending team: must be strictly behind the line (q < 18 for home, q > 18 for away).
   for (const piece of teamPieces) {
-    if (team === 'home' && piece.position.q > kickOffHex.q) {
-      return { ok: false, reason: 'OUT_OF_ZONE' };
-    }
-    if (team === 'away' && piece.position.q < kickOffHex.q) {
-      return { ok: false, reason: 'OUT_OF_ZONE' };
+    if (team === 'home') {
+      const limit = isAttacking ? kickOffHex.q : kickOffHex.q - 1;
+      if (piece.position.q > limit) return { ok: false, reason: 'OUT_OF_ZONE' };
+    } else {
+      const limit = isAttacking ? kickOffHex.q : kickOffHex.q + 1;
+      if (piece.position.q < limit) return { ok: false, reason: 'OUT_OF_ZONE' };
     }
   }
 
