@@ -42,6 +42,7 @@ import {
   applyKickOffReady,
   applyMove,
   applyRoll,
+  applySnapshot,
   applyStartMovement,
   applyUndo,
   buildReplayFrames,
@@ -671,6 +672,112 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       room.gameState = result.state;
       broadcastState(io, room); // ARCH-04: single broadcast entry point
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_SNAPSHOT — declares a Snapshot (CR-01 server end)
+  //
+  // T-08-21: gates on isActivePlayer (attacking team) + applySnapshot internal
+  //   phase/sequence/position validation (NOT_IN_PENALTY_AREA / INVALID_SEQUENCE).
+  //
+  // applySnapshot transitions MOVEMENT or PASS → SHOT and sets snapshotPenalty.
+  // No dice pre-generation here — the shot duel is resolved by the subsequent
+  // game:roll (GAME_ROLL handles phase='SHOT' via DICE_PHASES).
+  //
+  // ARCH-04: broadcastState is the single broadcast entry point.
+  // SC-5: isProcessing mutex guards against double-click race.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_SNAPSHOT, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Null-state guard (belt-and-suspenders; applySnapshot also validates internally)
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        return;
+      }
+      // T-08-21: only the active (attacking) player may declare a Snapshot
+      if (!isActivePlayer(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      const result = applySnapshot(room.gameState);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_HEADER — resolves the HEADER duel (CR-02)
+  //
+  // T-08-22: phase === 'HEADER' guard; isActivePlayer team guard; HEADER
+  //   sequence guard (same guard the GAME_ROLL handler already performs for HEADER).
+  //
+  // Rationale (recorded per plan requirement): GAME_ROLL already covers HEADER
+  // via DICE_PHASES, so GAME_HEADER is a dedicated alias that delegates to the
+  // identical applyRoll resolution. Registering it (rather than removing it from
+  // ClientEvents) is the lower-risk fix because the client's emitHeader and the
+  // events.ts contract already exist and are shipped.
+  //
+  // ARCH-04: broadcastState is the single broadcast entry point.
+  // SC-5: isProcessing mutex guards against double-click race.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_HEADER, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard (T-08-22): must be in HEADER phase
+      if (room.gameState === null || room.gameState.phase !== 'HEADER') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Team guard (T-08-22): must be the active player
+      if (!isActivePlayer(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // D-07 / T-08-12: sequence guard — HEADER is only valid after HIGH_PASS or LONG_BALL (D-17)
+      if (
+        room.gameState.lastActionType !== null &&
+        !ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Pre-generate all three dice upfront (Pitfall 4 — mirrors GAME_ROLL pattern)
+      const d1 = rollDice();
+      const d2 = rollDice();
+      const d3 = rollDice();
+      const result = applyRoll(room.gameState, d1, d2, d3);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
