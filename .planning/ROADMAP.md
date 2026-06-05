@@ -268,11 +268,18 @@ Plans:
 **Goal:** Fix four foundational gameplay issues: (1) all player attributes corrected to 1–6 scale with tier-balanced squads; (2) steal attempt changed to a dribbling-vs-tackling duel; (3) movement UX fixed so pieces stay selected after each step; (4) ZoI hexes visually distinct from safe move hexes.
 **Requirements**: MOVE-04, MOVE-05, TEAM-01, TEAM-02
 **Depends on:** Phase 8
-**Plans:** TBD
+**Plans:** 3 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 08.1 to break down)
+**Wave 1**
+
+- [ ] 08.1-01-PLAN.md — Shared data: rebalance both squads to the 1–6 scale, tier-balanced 1/2/3/3/2 (D-01..D-04, TEAM-01/02)
+- [ ] 08.1-02-PLAN.md — Engine/mechanics: TACKLE_ATTEMPT types + validator, die===6 steal fix, tackle duel resolution, ball.position fix, dice-injection refactor (D-05..D-14, MOVE-04/05)
+
+**Wave 2** _(blocked on Wave 1 — client imports extended shared types)_
+
+- [ ] 08.1-03-PLAN.md — Client UX: sticky selection, ZoI-risk hex tint, directional ball possession dot + human verify (D-15..D-21, MOVE-05)
 
 ### Phase 08.2: Passing Cleanup (INSERTED)
 
