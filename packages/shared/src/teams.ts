@@ -1,19 +1,36 @@
 import type { PlayerPiece } from './types.js';
 
-// Hardcoded squads for Phase 4. Attribute values use a 1–10 scale with role conventions:
-//   GK:  high Saving (8–10) / Handling (7–9); low Pace (2–4) / Shooting (1–2)
-//   DEF: high Tackling (7–9); moderate Pace/Heading; low Saving/Handling
-//   MID: balanced across all attributes (5–7)
-//   FWD: high Pace (7–9) / Shooting (7–9); low Tackling (1–3) / Saving (1)
+// Hardcoded squads on the 1-6 attribute scale (D-01, D-03 — Phase 8.1).
+// Role conventions (all role-relevant attributes in [1,6]):
+//   GK:  high Saving (5–6) / Handling (5–6) / AerialAbility (4–6); moderate Pace (2–3) / Resilience (4–5)
+//        highPass: 0 (D-04: GKs use GK kick accuracy rule, not highPass attribute)
+//        shooting: 1 (minimum valid — GKs can technically shoot)
+//   DEF: high Tackling (5–6); moderate Pace/Heading/Resilience (4–6); low Shooting (2–4)
+//        saving: 0, handling: 0, aerialAbility: 0 (GK-only, 0 = not applicable)
+//        highPass: 2–4 (adjusted 1-6 range per Pitfall 7)
+//   MID: balanced across all outfield attributes (4–6)
+//        saving: 0, handling: 0, aerialAbility: 0
+//        highPass: 3–5
+//   FWD: high Pace (5–6) / Shooting (5–6); low Tackling (1–4)
+//        saving: 0, handling: 0, aerialAbility: 0
+//        highPass: 3–5
+//
+// Tier distribution per squad: 1/2/3/3/2 (Tier 1=34+, Tier 2=32-33, Tier 3=30-31,
+//   Tier 4=28-29, Tier 5=26-27). D-03. Tier total = sum of all 9 ATTRS (D-02).
 //
 // Starting positions use the real 37×26 board (q 0–36, r 0–25). D-01 (Phase 7.1).
 // Home half: GK q=1, DEF q=5, MID q=9-10, FWD q=14-15. Away mirrors: q_away = 36 - q_home.
 // r-values spread symmetrically about r=12.5 (board centre) to cover the full pitch height:
 //   DEF r=3,8,17,22  MID r=5,13,21  FWD r=9,13,17  GK r=13
 
-/** Home squad: 11 players, ids 'home-0'..'home-10'. TEAM-01, TEAM-02. */
+/** Home squad: 11 players, ids 'home-0'..'home-10'. TEAM-01, TEAM-02.
+ *  Tier distribution: T1=home-1(DEF), T2=home-0(GK)+home-5(MID),
+ *  T3=home-2(DEF)+home-6(MID)+home-8(FWD), T4=home-3(DEF)+home-7(MID)+home-9(FWD),
+ *  T5=home-4(DEF)+home-10(FWD). D-03.
+ */
 export const HOME_SQUAD: readonly PlayerPiece[] = [
   {
+    // Tier 2 GK — total: 2+1+3+2+3+6+6+5+5 = 33
     id: 'home-0',
     teamId: 'home',
     name: 'Home GK',
@@ -21,50 +38,53 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     position: { q: 1, r: 13 },
     pace: 2,
     shooting: 1,
-    tackling: 4,
-    dribbling: 3,
-    heading: 5,
-    saving: 9,
-    handling: 8,
-    resilience: 7,
-    aerialAbility: 8,
-    highPass: 0, // D-04: GKs use High Pass rules for kicks via GK kick accuracy (not highPass attribute)
+    tackling: 3,
+    dribbling: 2,
+    heading: 3,
+    saving: 6,
+    handling: 6,
+    resilience: 5,
+    aerialAbility: 5,
+    highPass: 0, // D-04: GKs use GK kick accuracy rule, not highPass attribute
   },
   {
+    // Tier 1 DEF — total: 6+5+6+5+6+0+0+6+0 = 34
     id: 'home-1',
     teamId: 'home',
     name: 'Home DEF 1',
     role: 'DEF',
     position: { q: 5, r: 3 },
-    pace: 5,
-    shooting: 3,
-    tackling: 8,
-    dribbling: 4,
-    heading: 7,
-    saving: 2,
+    pace: 6,
+    shooting: 5,
+    tackling: 6,
+    dribbling: 5,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06: outfielders have handling: 0
-    resilience: 7,
+    resilience: 6,
     aerialAbility: 0, // D-05: outfielders have aerialAbility: 0
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 3, // DEF range 2–4
   },
   {
+    // Tier 3 DEF — total: 5+3+6+4+6+0+0+6+0 = 30
     id: 'home-2',
     teamId: 'home',
     name: 'Home DEF 2',
     role: 'DEF',
     position: { q: 5, r: 8 },
-    pace: 4,
-    shooting: 2,
-    tackling: 9,
-    dribbling: 3,
-    heading: 8,
-    saving: 1,
+    pace: 5,
+    shooting: 3,
+    tackling: 6,
+    dribbling: 4,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 8,
+    resilience: 6,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 3, // DEF range 2–4
   },
   {
+    // Tier 4 DEF — total: 5+3+5+4+6+0+0+5+0 = 28
     id: 'home-3',
     teamId: 'home',
     name: 'Home DEF 3',
@@ -72,190 +92,205 @@ export const HOME_SQUAD: readonly PlayerPiece[] = [
     position: { q: 5, r: 17 },
     pace: 5,
     shooting: 3,
-    tackling: 8,
+    tackling: 5,
     dribbling: 4,
-    heading: 7,
-    saving: 2,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 7,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 3, // DEF range 2–4
   },
   {
+    // Tier 5 DEF — total: 4+3+5+3+6+0+0+5+0 = 26
     id: 'home-4',
     teamId: 'home',
     name: 'Home DEF 4',
     role: 'DEF',
     position: { q: 5, r: 22 },
-    pace: 6,
-    shooting: 4,
-    tackling: 7,
-    dribbling: 5,
+    pace: 4,
+    shooting: 3,
+    tackling: 5,
+    dribbling: 3,
     heading: 6,
-    saving: 2,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 2, // DEF range 2–4
   },
   {
+    // Tier 2 MID — total: 5+5+5+6+6+0+0+5+0 = 32
     id: 'home-5',
     teamId: 'home',
     name: 'Home MID 1',
     role: 'MID',
     position: { q: 9, r: 5 },
-    pace: 6,
+    pace: 5,
     shooting: 5,
-    tackling: 6,
+    tackling: 5,
     dribbling: 6,
-    heading: 5,
-    saving: 2,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 6, // D-07: MID range 5–7
+    highPass: 5, // MID range 3–5
   },
   {
+    // Tier 3 MID — total: 5+5+5+5+5+0+0+5+0 = 30
     id: 'home-6',
     teamId: 'home',
     name: 'Home MID 2',
     role: 'MID',
     position: { q: 10, r: 13 },
-    pace: 7,
-    shooting: 6,
+    pace: 5,
+    shooting: 5,
     tackling: 5,
-    dribbling: 7,
+    dribbling: 5,
     heading: 5,
-    saving: 1,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 7, // D-07: MID range 5–7 (playmaker)
+    highPass: 4, // MID range 3–5
   },
   {
+    // Tier 4 MID — total: 5+4+5+5+4+0+0+5+0 = 28
     id: 'home-7',
     teamId: 'home',
     name: 'Home MID 3',
     role: 'MID',
     position: { q: 9, r: 21 },
-    pace: 6,
-    shooting: 5,
-    tackling: 6,
-    dribbling: 6,
-    heading: 6,
-    saving: 2,
+    pace: 5,
+    shooting: 4,
+    tackling: 5,
+    dribbling: 5,
+    heading: 4,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 7,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 6, // D-07: MID range 5–7
+    highPass: 3, // MID range 3–5
   },
   {
+    // Tier 3 FWD — total: 6+6+2+6+5+0+0+5+0 = 30
     id: 'home-8',
     teamId: 'home',
     name: 'Home FWD 1',
     role: 'FWD',
     position: { q: 14, r: 9 },
-    pace: 8,
-    shooting: 7,
+    pace: 6,
+    shooting: 6,
     tackling: 2,
-    dribbling: 7,
+    dribbling: 6,
     heading: 5,
-    saving: 1,
+    saving: 0,
     handling: 0, // D-06
     resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 5, // D-07: FWD range 4–6
+    highPass: 4, // FWD range 3–5
   },
   {
+    // Tier 4 FWD — total: 5+6+2+5+5+0+0+5+0 = 28
     id: 'home-9',
     teamId: 'home',
     name: 'Home FWD 2',
     role: 'FWD',
     position: { q: 14, r: 13 },
-    pace: 9,
-    shooting: 9,
-    tackling: 1,
-    dribbling: 8,
-    heading: 6,
-    saving: 1,
+    pace: 5,
+    shooting: 6,
+    tackling: 2,
+    dribbling: 5,
+    heading: 5,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 5, // D-07: FWD range 4–6
+    highPass: 4, // FWD range 3–5
   },
   {
+    // Tier 5 FWD — total: 5+5+2+5+4+0+0+5+0 = 26
     id: 'home-10',
     teamId: 'home',
     name: 'Home FWD 3',
     role: 'FWD',
     position: { q: 14, r: 17 },
-    pace: 8,
-    shooting: 8,
+    pace: 5,
+    shooting: 5,
     tackling: 2,
-    dribbling: 7,
-    heading: 5,
-    saving: 1,
+    dribbling: 5,
+    heading: 4,
+    saving: 0,
     handling: 0, // D-06
     resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 5, // D-07: FWD range 4–6
+    highPass: 3, // FWD range 3–5
   },
 ];
 
-/** Away squad: 11 players, ids 'away-0'..'away-10'. TEAM-01, TEAM-02. */
+/** Away squad: 11 players, ids 'away-0'..'away-10'. TEAM-01, TEAM-02.
+ *  Tier distribution: T1=away-8(FWD), T2=away-1(DEF)+away-5(MID),
+ *  T3=away-0(GK)+away-2(DEF)+away-6(MID), T4=away-3(DEF)+away-7(MID)+away-9(FWD),
+ *  T5=away-4(DEF)+away-10(FWD). D-03.
+ */
 export const AWAY_SQUAD: readonly PlayerPiece[] = [
   {
+    // Tier 3 GK — total: 2+1+3+2+3+6+5+4+5 = 31
     id: 'away-0',
     teamId: 'away',
     name: 'Away GK',
     role: 'GK',
     position: { q: 35, r: 13 },
-    pace: 3,
+    pace: 2,
     shooting: 1,
-    tackling: 5,
-    dribbling: 4,
-    heading: 6,
-    saving: 10,
-    handling: 9,
-    resilience: 7,
-    aerialAbility: 8,
+    tackling: 3,
+    dribbling: 2,
+    heading: 3,
+    saving: 6,
+    handling: 5,
+    resilience: 4,
+    aerialAbility: 5,
     highPass: 0, // D-04: GKs have highPass: 0
   },
   {
+    // Tier 2 DEF — total: 5+4+6+5+6+0+0+6+0 = 32
     id: 'away-1',
     teamId: 'away',
     name: 'Away DEF 1',
     role: 'DEF',
     position: { q: 31, r: 3 },
     pace: 5,
-    shooting: 3,
-    tackling: 8,
-    dribbling: 4,
-    heading: 7,
-    saving: 2,
+    shooting: 4,
+    tackling: 6,
+    dribbling: 5,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 7,
+    resilience: 6,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 4, // DEF range 2–4
   },
   {
+    // Tier 3 DEF — total: 5+3+6+4+6+0+0+6+0 = 30
     id: 'away-2',
     teamId: 'away',
     name: 'Away DEF 2',
     role: 'DEF',
     position: { q: 31, r: 8 },
-    pace: 4,
-    shooting: 2,
-    tackling: 9,
-    dribbling: 3,
-    heading: 8,
-    saving: 1,
+    pace: 5,
+    shooting: 3,
+    tackling: 6,
+    dribbling: 4,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 8,
+    resilience: 6,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 3, // DEF range 2–4
   },
   {
+    // Tier 4 DEF — total: 5+3+5+4+6+0+0+5+0 = 28
     id: 'away-3',
     teamId: 'away',
     name: 'Away DEF 3',
@@ -263,33 +298,35 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     position: { q: 31, r: 17 },
     pace: 5,
     shooting: 3,
-    tackling: 8,
+    tackling: 5,
     dribbling: 4,
-    heading: 7,
-    saving: 2,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 7,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 3, // DEF range 2–4
   },
   {
+    // Tier 5 DEF — total: 4+3+5+3+6+0+0+5+0 = 26
     id: 'away-4',
     teamId: 'away',
     name: 'Away DEF 4',
     role: 'DEF',
     position: { q: 31, r: 22 },
-    pace: 6,
-    shooting: 4,
-    tackling: 7,
-    dribbling: 5,
+    pace: 4,
+    shooting: 3,
+    tackling: 5,
+    dribbling: 3,
     heading: 6,
-    saving: 2,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 4, // D-07: DEF range 3–5
+    highPass: 2, // DEF range 2–4
   },
   {
+    // Tier 2 MID — total: 6+5+5+6+5+0+0+5+0 = 32
     id: 'away-5',
     teamId: 'away',
     name: 'Away MID 1',
@@ -297,98 +334,103 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     position: { q: 27, r: 5 },
     pace: 6,
     shooting: 5,
-    tackling: 6,
+    tackling: 5,
     dribbling: 6,
     heading: 5,
-    saving: 2,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 6, // D-07: MID range 5–7
+    highPass: 5, // MID range 3–5
   },
   {
+    // Tier 3 MID — total: 5+5+5+5+5+0+0+5+0 = 30
     id: 'away-6',
     teamId: 'away',
     name: 'Away MID 2',
     role: 'MID',
     position: { q: 26, r: 13 },
-    pace: 7,
-    shooting: 6,
+    pace: 5,
+    shooting: 5,
     tackling: 5,
-    dribbling: 7,
+    dribbling: 5,
     heading: 5,
-    saving: 1,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 7, // D-07: MID range 5–7 (playmaker)
+    highPass: 4, // MID range 3–5
   },
   {
+    // Tier 4 MID — total: 5+4+4+5+5+0+0+5+0 = 28
     id: 'away-7',
     teamId: 'away',
     name: 'Away MID 3',
     role: 'MID',
     position: { q: 27, r: 21 },
-    pace: 6,
-    shooting: 5,
-    tackling: 6,
-    dribbling: 6,
-    heading: 6,
-    saving: 2,
+    pace: 5,
+    shooting: 4,
+    tackling: 4,
+    dribbling: 5,
+    heading: 5,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 7,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 6, // D-07: MID range 5–7
+    highPass: 3, // MID range 3–5
   },
   {
+    // Tier 1 FWD — total: 6+6+4+6+6+0+0+6+0 = 34
     id: 'away-8',
     teamId: 'away',
     name: 'Away FWD 1',
     role: 'FWD',
     position: { q: 22, r: 9 },
-    pace: 8,
-    shooting: 7,
-    tackling: 2,
-    dribbling: 7,
-    heading: 5,
-    saving: 1,
+    pace: 6,
+    shooting: 6,
+    tackling: 4,
+    dribbling: 6,
+    heading: 6,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 5,
+    resilience: 6,
     aerialAbility: 0, // D-05
-    highPass: 5, // D-07: FWD range 4–6
+    highPass: 5, // FWD range 3–5
   },
   {
+    // Tier 4 FWD — total: 6+5+2+5+5+0+0+5+0 = 28
     id: 'away-9',
     teamId: 'away',
     name: 'Away FWD 2',
     role: 'FWD',
     position: { q: 22, r: 13 },
-    pace: 9,
-    shooting: 9,
-    tackling: 1,
-    dribbling: 8,
-    heading: 6,
-    saving: 1,
+    pace: 6,
+    shooting: 5,
+    tackling: 2,
+    dribbling: 5,
+    heading: 5,
+    saving: 0,
     handling: 0, // D-06
-    resilience: 6,
+    resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 5, // D-07: FWD range 4–6
+    highPass: 4, // FWD range 3–5
   },
   {
+    // Tier 5 FWD — total: 5+5+2+5+4+0+0+5+0 = 26
     id: 'away-10',
     teamId: 'away',
     name: 'Away FWD 3',
     role: 'FWD',
     position: { q: 22, r: 17 },
-    pace: 8,
-    shooting: 8,
+    pace: 5,
+    shooting: 5,
     tackling: 2,
-    dribbling: 7,
-    heading: 5,
-    saving: 1,
+    dribbling: 5,
+    heading: 4,
+    saving: 0,
     handling: 0, // D-06
     resilience: 5,
     aerialAbility: 0, // D-05
-    highPass: 5, // D-07: FWD range 4–6
+    highPass: 3, // FWD range 3–5
   },
 ];
