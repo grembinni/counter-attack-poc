@@ -158,7 +158,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     set({ selectedPieceId: id, validMoveHexes: [] });
   },
 
-  setGameState: (state) => set({ gameState: state }),
+  setGameState: (state) => set({ gameState: state, selectedPieceId: null, validMoveHexes: [] }),
 
   setPlayerSlot: (slot) => set({ playerSlot: slot }),
 
