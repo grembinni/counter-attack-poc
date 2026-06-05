@@ -159,14 +159,101 @@ async function startMovement(
   return state;
 }
 
+/**
+ * Drives a room from KICK_OFF_SETUP → KICK_OFF by placing an attacking piece on the
+ * centre hex, clearing defending pieces from the centre circle, and emitting game:ready
+ * for both teams. Returns the KICK_OFF state.
+ */
+async function driveToKickOff(
+  roomCode: string,
+  attackingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
+  defendingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
+  attackingTeam: 'home' | 'away',
+): Promise<GameState> {
+  const { isInRegion, PITCH_REGIONS: PR } = await import('@counter-attack/shared');
+  const room = getRoom(roomCode)!;
+  const kickOffHex = PR.kickOffHex;
+  const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+
+  // Ensure attacking team has a piece on the centre hex
+  const hasCentreHex = room.gameState!.pieces.some(
+    (p) =>
+      p.teamId === attackingTeam && p.position.q === kickOffHex.q && p.position.r === kickOffHex.r,
+  );
+  if (!hasCentreHex) {
+    const firstAttacking = room.gameState!.pieces.find((p) => p.teamId === attackingTeam)!;
+    room.gameState = {
+      ...room.gameState!,
+      pieces: room.gameState!.pieces.map((p) =>
+        p.id === firstAttacking.id ? { ...p, position: kickOffHex } : p,
+      ),
+    };
+  }
+
+  // Move defending pieces out of centre circle and into their own half
+  room.gameState = {
+    ...room.gameState!,
+    pieces: room.gameState!.pieces.map((p) => {
+      if (p.teamId !== defendingTeam) return p;
+      const safeHex = defendingTeam === 'away' ? { q: 30, r: 20 } : { q: 5, r: 20 };
+      if (isInRegion(p.position, 'centreCircle')) return { ...p, position: safeHex };
+      if (defendingTeam === 'home' && p.position.q > kickOffHex.q)
+        return { ...p, position: { q: 5, r: p.position.r } };
+      if (defendingTeam === 'away' && p.position.q < kickOffHex.q)
+        return { ...p, position: { q: 30, r: p.position.r } };
+      return p;
+    }),
+  };
+
+  const afterFirst = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+  attackingClient.emit(ClientEvents.GAME_READY);
+  await afterFirst;
+
+  const afterSecond = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+  defendingClient.emit(ClientEvents.GAME_READY);
+  const [kickOffState] = await afterSecond;
+  return kickOffState;
+}
+
+/**
+ * Creates a room and drives it to KICK_OFF phase (past KICK_OFF_SETUP).
+ */
+async function setupRoomAtKickOff(): Promise<{
+  clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
+  clientB: Socket<ServerToClientEvents, ClientToServerEvents>;
+  roomCode: string;
+  state: GameState;
+  attackingClient: Socket<ServerToClientEvents, ClientToServerEvents>;
+  defendingClient: Socket<ServerToClientEvents, ClientToServerEvents>;
+  attackingTeam: 'home' | 'away';
+}> {
+  const { clientA, clientB, roomCode, state, attackingClient, defendingClient } = await setupRoom();
+  const attackingTeam = state.attackingTeam;
+  const kickOffState = await driveToKickOff(
+    roomCode,
+    attackingClient,
+    defendingClient,
+    attackingTeam,
+  );
+  return {
+    clientA,
+    clientB,
+    roomCode,
+    state: kickOffState,
+    attackingClient,
+    defendingClient,
+    attackingTeam,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe('game integration — lifecycle', () => {
-  it('setupRoom returns a KICK_OFF state with 22 pieces (D-12, D-14, TEAM-01)', async () => {
+  it('setupRoom returns a KICK_OFF_SETUP state with 22 pieces (D-12, D-23, TEAM-01)', async () => {
     const { state } = await setupRoom();
-    expect(state.phase).toBe('KICK_OFF');
+    expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.pieces).toHaveLength(22);
     expect(['home', 'away']).toContain(state.attackingTeam);
   });
@@ -182,7 +269,7 @@ describe('game integration — Movement Phase scenarios', () => {
   });
 
   it('T-4-05: non-attacking client gets WRONG_TEAM; attacking client transitions to MOVEMENT/ATTACKER_4', async () => {
-    const { clientA, attackingClient, defendingClient } = await setupRoom();
+    const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
 
     // Defending client emits; server sends WRONG_TEAM error AND a snap-back GAME_STATE.
     // Register both listeners BEFORE emitting to avoid missing the snap-back broadcast.
@@ -202,7 +289,7 @@ describe('game integration — Movement Phase scenarios', () => {
   });
 
   it('FSM: ATTACKER_4→DEFENDER_5→ATTACKER_2→PASS over the wire (D-03/D-04)', async () => {
-    const { clientA, clientB, attackingClient } = await setupRoom();
+    const { clientA, clientB, attackingClient } = await setupRoomAtKickOff();
 
     // Reach MOVEMENT phase
     const movementState = await startMovement(attackingClient, clientA);
@@ -235,7 +322,7 @@ describe('game integration — Movement Phase scenarios', () => {
   });
 
   it('T-4-01 WRONG_TEAM: game:move from non-acting client returns WRONG_TEAM after start-movement', async () => {
-    const { clientA, attackingClient, defendingClient } = await setupRoom();
+    const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
     await startMovement(attackingClient, clientA);
 
     // Non-acting client tries to move — should get WRONG_TEAM
@@ -246,7 +333,7 @@ describe('game integration — Movement Phase scenarios', () => {
   });
 
   it('D-10 undo reverses last move within the current slot', async () => {
-    const { clientA, attackingClient } = await setupRoom();
+    const { clientA, attackingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
 
     // Pick the piece matching the attacking team
@@ -269,7 +356,7 @@ describe('game integration — Movement Phase scenarios', () => {
   });
 
   it('D-09 UNDO_LOCKED: undo after a SLOT_ADVANCE is rejected for the defending team', async () => {
-    const { clientA, attackingClient, defendingClient } = await setupRoom();
+    const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
 
     // Make a move in ATTACKER_4 then end the turn (leaving the MOVE in the log)
@@ -297,7 +384,7 @@ describe('game integration — Movement Phase scenarios', () => {
   });
 
   it('SC-5: two rapid game:end-turn actions — second is dropped while first is processing', async () => {
-    const { clientA, attackingClient } = await setupRoom();
+    const { clientA, attackingClient } = await setupRoomAtKickOff();
     await startMovement(attackingClient, clientA);
 
     // Collect all GAME_STATE events for 500ms after two back-to-back end-turns
@@ -374,7 +461,8 @@ async function reachPassPhase(
 
 describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
   it('game:roll from active player in PASS phase → both clients receive game:state with lastDiceRoll and phase advanced', async () => {
-    const { clientA, attackingClient, defendingClient, roomCode, state } = await setupRoom();
+    const { clientA, attackingClient, defendingClient, roomCode, state } =
+      await setupRoomAtKickOff();
     const passState = await reachPassPhase(attackingClient, defendingClient, clientA);
     expect(passState.phase).toBe('PASS');
 
@@ -419,7 +507,7 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
   });
 
   it('game:roll from WRONG_TEAM (non-active player) in PASS phase → game:error WRONG_TEAM', async () => {
-    const { clientA, attackingClient, defendingClient } = await setupRoom();
+    const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
     await reachPassPhase(attackingClient, defendingClient, clientA);
 
     // Non-active player emits game:roll
@@ -430,7 +518,7 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
   });
 
   it('game:roll in MOVEMENT phase (non-dice phase) → game:error WRONG_PHASE', async () => {
-    const { clientA, attackingClient } = await setupRoom();
+    const { clientA, attackingClient } = await setupRoomAtKickOff();
     await startMovement(attackingClient, clientA);
     // We are now in MOVEMENT phase — game:roll is invalid
 

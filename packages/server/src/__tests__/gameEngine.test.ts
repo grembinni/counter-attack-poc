@@ -80,9 +80,9 @@ const baseMovementState: GameState = {
 // ---------------------------------------------------------------------------
 
 describe('buildInitialGameState', () => {
-  it('returns phase KICK_OFF with 22 pieces (TEAM-01)', () => {
+  it('returns phase KICK_OFF_SETUP with 22 pieces (TEAM-01, D-23)', () => {
     const state = buildInitialGameState('ROOM1');
-    expect(state.phase).toBe('KICK_OFF');
+    expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.pieces).toHaveLength(22);
     expect(state.roomCode).toBe('ROOM1');
   });
@@ -568,7 +568,7 @@ describe('applyRoll', () => {
     const result = applyRoll(shotState, 6, 1, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('KICK_OFF');
+      expect(result.state.phase).toBe('KICK_OFF_SETUP'); // D-23: goal → KICK_OFF_SETUP for repositioning
       expect(result.state.score.home).toBe(1); // home is attacking team
       expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
       expect(result.state.lastDiceRoll?.rolls).toHaveLength(3);
@@ -621,7 +621,7 @@ describe('applyRoll', () => {
     const result = applyRoll(headerState, 6, 3, 1);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('KICK_OFF');
+      expect(result.state.phase).toBe('KICK_OFF_SETUP'); // D-23: goal → KICK_OFF_SETUP for repositioning
       expect(result.state.score.home).toBe(1);
       expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
     }

@@ -193,7 +193,7 @@ describe('Room integration tests', () => {
     const [stateB] = await stateBPromise;
 
     const assertKickOffState = (state: GameState): void => {
-      expect(state.phase).toBe('KICK_OFF'); // D-14: real state, LOBBY stub removed in Phase 4
+      expect(state.phase).toBe('KICK_OFF_SETUP'); // D-23: game starts at KICK_OFF_SETUP
       expect(state.roomCode).toBe(roomCode);
       expect(Array.isArray(state.pieces)).toBe(true);
       expect(state.pieces).toHaveLength(22); // D-12: 22 pieces
@@ -319,7 +319,7 @@ describe('Room integration tests', () => {
     await waitForConnect(clientAReconnected);
 
     const [state] = await statePromise;
-    expect(state.phase).toBe('KICK_OFF'); // Phase 4 D-14: real state broadcast on reconnect
+    expect(state.phase).toBe('KICK_OFF_SETUP'); // D-23: game starts at KICK_OFF_SETUP; reconnect rebroadcasts it
     expect(state.roomCode).toBe(roomCode);
     expect(receivedError).toBeUndefined();
   }, 5000);

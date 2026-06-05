@@ -76,7 +76,7 @@ export function buildInitialGameState(roomCode: string): GameState {
 
   return {
     roomCode,
-    phase: 'KICK_OFF', // D-14
+    phase: 'KICK_OFF_SETUP', // D-23: both teams reposition before kick-off; ready confirms advance
     activeTeam: attackingTeam,
     attackingTeam,
     pieces: [...HOME_SQUAD, ...AWAY_SQUAD], // TEAM-01: all 22 loaded at match start
@@ -639,7 +639,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       );
 
       if (shotResultWithPenalty.outcome === 'GOAL') {
-        // Increment score for the attacking team; transition to KICK_OFF
+        // Increment score; transition to KICK_OFF_SETUP for repositioning (D-23)
         const newScore = {
           ...state.score,
           [state.attackingTeam]: state.score[state.attackingTeam] + 1,
@@ -648,7 +648,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            phase: 'KICK_OFF',
+            phase: 'KICK_OFF_SETUP',
             score: newScore,
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
@@ -784,7 +784,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             },
           };
         } else {
-          // Attacker wins heading duel vs GK → GOAL
+          // Attacker wins heading duel vs GK → GOAL; transition to KICK_OFF_SETUP (D-23)
           const newScore = {
             ...state.score,
             [state.attackingTeam]: state.score[state.attackingTeam] + 1,
@@ -793,7 +793,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ok: true,
             state: {
               ...state,
-              phase: 'KICK_OFF',
+              phase: 'KICK_OFF_SETUP',
               score: newScore,
               ball: { position: state.ball.position, carrierId: null },
               lastDiceRoll: {
@@ -854,7 +854,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             },
           };
         } else {
-          // Attacker beats GK → GOAL
+          // Attacker beats GK → GOAL; transition to KICK_OFF_SETUP (D-23)
           const newScore = {
             ...state.score,
             [state.attackingTeam]: state.score[state.attackingTeam] + 1,
@@ -863,7 +863,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ok: true,
             state: {
               ...state,
-              phase: 'KICK_OFF',
+              phase: 'KICK_OFF_SETUP',
               score: newScore,
               ball: { position: state.ball.position, carrierId: null },
               lastDiceRoll: {

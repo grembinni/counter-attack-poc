@@ -109,7 +109,7 @@ function waitForConnect(
 }
 
 /**
- * Creates a room with 2 connected players and returns the initial KICK_OFF state.
+ * Creates a room with 2 connected players and returns the initial KICK_OFF_SETUP state.
  * clientA = slot 1 = 'home'; clientB = slot 2 = 'away'.
  */
 async function setupRoom(): Promise<{
@@ -141,14 +141,64 @@ async function setupRoom(): Promise<{
 }
 
 /**
- * Drives the game from KICK_OFF to KICK_OFF_SETUP by having both players emit
- * game:ready (after ensuring one player is on the centre hex for the attacking team).
- *
- * The KICK_OFF state is the initial state from buildInitialGameState which starts at 'KICK_OFF',
- * not 'KICK_OFF_SETUP'. The kick-off setup flow only triggers between halves or after a goal.
- *
- * For testing the KICK_OFF_SETUP handlers, we manually inject a room with KICK_OFF_SETUP phase
- * by directly manipulating the room state.
+ * Drives a room from KICK_OFF_SETUP → KICK_OFF by ensuring valid placement and both teams ready.
+ * Returns the KICK_OFF state.
+ */
+async function driveToKickOff(
+  roomCode: string,
+  attackingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
+  defendingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
+  attackingTeam: 'home' | 'away',
+): Promise<GameState> {
+  const { isInRegion } = await import('@counter-attack/shared');
+  const room = getRoom(roomCode)!;
+  const kickOffHex = PITCH_REGIONS.kickOffHex;
+  const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+
+  // Ensure attacking team has a piece on the centre hex
+  const hasCentreHex = room.gameState!.pieces.some(
+    (p) =>
+      p.teamId === attackingTeam && p.position.q === kickOffHex.q && p.position.r === kickOffHex.r,
+  );
+  if (!hasCentreHex) {
+    const firstAttacking = room.gameState!.pieces.find((p) => p.teamId === attackingTeam)!;
+    room.gameState = {
+      ...room.gameState!,
+      pieces: room.gameState!.pieces.map((p) =>
+        p.id === firstAttacking.id ? { ...p, position: kickOffHex } : p,
+      ),
+    };
+  }
+
+  // Move defending pieces out of centre circle and into own half
+  room.gameState = {
+    ...room.gameState!,
+    pieces: room.gameState!.pieces.map((p) => {
+      if (p.teamId !== defendingTeam) return p;
+      const safeHex = defendingTeam === 'away' ? { q: 30, r: 20 } : { q: 5, r: 20 };
+      if (isInRegion(p.position, 'centreCircle')) return { ...p, position: safeHex };
+      if (defendingTeam === 'home' && p.position.q > kickOffHex.q)
+        return { ...p, position: { q: 5, r: p.position.r } };
+      if (defendingTeam === 'away' && p.position.q < kickOffHex.q)
+        return { ...p, position: { q: 30, r: p.position.r } };
+      return p;
+    }),
+  };
+
+  // Both teams ready
+  const afterFirst = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+  attackingClient.emit(ClientEvents.GAME_READY);
+  await afterFirst;
+
+  const afterSecond = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+  defendingClient.emit(ClientEvents.GAME_READY);
+  const [kickOffState] = await afterSecond;
+  return kickOffState;
+}
+
+/**
+ * Creates a room already in KICK_OFF_SETUP phase (which is now the initial game state per D-23).
+ * clientA = slot 1 = 'home'; clientB = slot 2 = 'away'.
  */
 async function setupKickOffSetupRoom(): Promise<{
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -161,16 +211,7 @@ async function setupKickOffSetupRoom(): Promise<{
   const { clientA, clientB, roomCode, state, attackingClient, defendingClient, attackingTeam } =
     await setupRoom();
 
-  // Manually set the room to KICK_OFF_SETUP phase for testing kick-off setup handlers.
-  // This simulates the state after a goal (KICK_OFF_SETUP triggered server-side).
-  const room = getRoom(roomCode)!;
-  room.gameState = {
-    ...room.gameState!,
-    phase: 'KICK_OFF_SETUP',
-  };
-
-  // Broadcast the updated state so clients see KICK_OFF_SETUP
-  // (we don't have io here, so we use a fresh state read below in each test)
+  // buildInitialGameState now starts at KICK_OFF_SETUP (D-23), so no manual phase override needed.
   void state; // suppress unused warning
 
   return { clientA, clientB, roomCode, attackingClient, defendingClient, attackingTeam };
@@ -356,10 +397,13 @@ describe('GAME_READY — kick-off placement confirmation', () => {
 
 describe('D-27: kickOffActive is set to true when KICK_OFF → MOVEMENT', () => {
   it('broadcast state has kickOffActive === true after game:start-movement from KICK_OFF', async () => {
-    const { attackingClient, roomCode } = await setupRoom();
+    const { clientA, clientB, roomCode, attackingClient, defendingClient, attackingTeam } =
+      await setupRoom();
 
-    // The initial state from buildInitialGameState is KICK_OFF phase
-    // game:start-movement transitions to MOVEMENT and sets kickOffActive = true
+    // Drive KICK_OFF_SETUP → KICK_OFF first (initial state is now KICK_OFF_SETUP per D-23)
+    await driveToKickOff(roomCode, attackingClient, defendingClient, attackingTeam);
+
+    // Now in KICK_OFF — game:start-movement transitions to MOVEMENT and sets kickOffActive = true
     const statePromise = oncePromise(attackingClient, ServerEvents.GAME_STATE);
     attackingClient.emit(ClientEvents.GAME_START_MOVEMENT);
     const [state] = await statePromise;
@@ -370,5 +414,8 @@ describe('D-27: kickOffActive is set to true when KICK_OFF → MOVEMENT', () => 
     // Also verify via room store
     const room = getRoom(roomCode)!;
     expect(room.gameState!.kickOffActive).toBe(true);
+
+    void clientA;
+    void clientB; // suppress unused warning
   });
 });

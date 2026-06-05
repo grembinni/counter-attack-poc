@@ -86,7 +86,7 @@ describe('joinRoom', () => {
     expect(result.ok).toBe(true);
     const room = getRoom(roomCode);
     expect(room?.gameState).not.toBeNull();
-    expect(room?.gameState?.phase).toBe('KICK_OFF'); // D-14: real state, not LOBBY stub
+    expect(room?.gameState?.phase).toBe('KICK_OFF_SETUP'); // D-23: game starts at KICK_OFF_SETUP
     expect(room?.gameState?.pieces).toHaveLength(22); // D-12: 22 pieces loaded
     expect(room?.gameState?.score).toEqual({ home: 0, away: 0 });
   });

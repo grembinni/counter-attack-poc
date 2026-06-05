@@ -8,6 +8,7 @@ export default defineConfig({
     sourcemap: true,
   },
   server: {
+    host: true,
     proxy: {
       '/socket.io': {
         target: 'ws://localhost:3001',
