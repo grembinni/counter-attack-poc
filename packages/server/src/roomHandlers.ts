@@ -181,6 +181,14 @@ export function registerRoomHandlers(
 
     room.disconnectTimers[slotIndex] = timer;
 
+    // T-08-15 / Pitfall 4: clear the replay timer on disconnect to prevent
+    // post-disconnect frame emission (deleteRoom also clears it, but the
+    // 90s grace period means the room may still exist for a while after disconnect).
+    if (room.replayTimer) {
+      clearInterval(room.replayTimer);
+      room.replayTimer = null;
+    }
+
     // Warn the remaining player.
     // RESEARCH.md Anti-Pattern: use socket.to (excludes sender) NOT io.to.
     // The disconnected socket cannot receive anyway, but socket.to is the

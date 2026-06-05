@@ -44,6 +44,7 @@ import {
   applyRoll,
   applyStartMovement,
   applyUndo,
+  buildReplayFrames,
 } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
@@ -112,6 +113,51 @@ function controlsGKTeam(socket: AppSocket, room: Room): boolean {
   const gkPiece = room.gameState.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
   if (!gkPiece) return false;
   return socketTeam(socket) === gkPiece.teamId;
+}
+
+/**
+ * Starts the post-game replay stream after FULL_TIME.
+ *
+ * D-30 / D-31 / D-32 / REPLAY-01: After a ~3s FULL_TIME display, streams one
+ * GameState frame per second via setInterval. Each frame carries phase='REPLAY',
+ * replayIndex (1-based), and replayTotal so the client can show progress.
+ *
+ * T-08-15: The interval handle is stored on room.replayTimer so it can be
+ * cleared on disconnect (roomHandlers.ts) and on room deletion (deleteRoom).
+ *
+ * The ~3s setTimeout is not stored because it fires exactly once and its only
+ * action is setting room.replayTimer. If the room is deleted during the 3s hold,
+ * the interval will never start (room won't exist). Minor cleanup edge-case:
+ * the setTimeout callback is a no-op when the room is gone.
+ *
+ * @param io   - Socket.io Server instance (for room-wide emit)
+ * @param room - The room that just reached FULL_TIME
+ */
+function startReplayStream(io: AppServer, room: Room): void {
+  if (room.gameState === null) return;
+  const frames = buildReplayFrames(room.gameState);
+  const replayTotal = frames.length;
+
+  // ~3s delay so the FULL_TIME screen displays before replay begins (Open Question 3)
+  setTimeout(() => {
+    let idx = 0;
+    room.replayTimer = setInterval(() => {
+      if (idx >= frames.length) {
+        clearInterval(room.replayTimer!);
+        room.replayTimer = null;
+        return;
+      }
+      const frame = frames[idx++]!;
+      // D-32: emit REPLAY-phase frame with position metadata (D-31, D-33)
+      // Cast needed because exactOptionalPropertyTypes treats spread as losing required guarantees
+      const replayFrame: import('@counter-attack/shared').GameState = {
+        ...frame,
+        replayIndex: idx, // 1-based (idx already incremented)
+        replayTotal,
+      };
+      io.to(room.roomCode).emit(ServerEvents.GAME_STATE, replayFrame);
+    }, 1000);
+  }, 3000);
 }
 
 /**
@@ -238,6 +284,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       room.gameState = result.state;
       broadcastState(io, room); // ARCH-04
+      // D-30 / D-31 / REPLAY-01: when FULL_TIME is reached, broadcast the FULL_TIME state
+      // first (already done above), then schedule the replay stream after ~3s (Open Question 3).
+      if (result.state.phase === 'FULL_TIME') {
+        startReplayStream(io, room);
+      }
     } finally {
       room.isProcessing = false;
     }
