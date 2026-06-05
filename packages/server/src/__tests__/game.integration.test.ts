@@ -381,6 +381,8 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
     // Set a ball carrier on the server so applyRoll can find the carrier piece.
     // In a real game the ball carrier is set when a player explicitly carries the ball;
     // for this integration test we wire it directly via the room store.
+    // Also clear kickOffActive (Phase 8: set true after game:start-movement) so this test
+    // can freely place the carrier anywhere without triggering kick-off origin enforcement (D-27).
     const room = getRoom(roomCode);
     if (room?.gameState) {
       // Pick the first outfielder of the attacking team as the ball carrier
@@ -390,6 +392,7 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
         room.gameState = {
           ...room.gameState,
           ball: { position: carrier.position, carrierId },
+          kickOffActive: false, // clear kick-off enforcement for this general pass test
         };
       }
     }

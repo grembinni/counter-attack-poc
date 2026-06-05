@@ -27,7 +27,12 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import {
+  ClientEvents,
+  ELIGIBLE_NEXT_ACTIONS,
+  PITCH_REGIONS,
+  ServerEvents,
+} from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
@@ -141,6 +146,15 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
+      // D-07 / T-08-12: sequence guard — MOVEMENT is invalid after HIGH_PASS (D-11)
+      if (
+        room.gameState.lastActionType !== null &&
+        !ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('MOVEMENT')
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+        broadcastState(io, room);
+        return;
+      }
       const result = applyStartMovement(room.gameState);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
@@ -213,7 +227,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      const result = applyEndTurn(room.gameState);
+      // D-05 / MATCH-02: pre-generate added-time roll; consumed by applyEndTurn only when
+      // actionCount crosses 45 and addedTime is null. crypto.randomInt-backed (Pitfall 1).
+      const addedTimeRoll = rollDice();
+      const result = applyEndTurn(room.gameState, { addedTimeRoll });
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room);
@@ -288,6 +305,53 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
+      // D-07 / T-08-12: sequence guard for PASS phase — check if any pass is eligible
+      // after the current lastActionType. If lastActionType is set and no pass type is
+      // in its eligible set, reject with INVALID_SEQUENCE.
+      if (room.gameState.phase === 'PASS' && room.gameState.lastActionType !== null) {
+        const eligible = ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType];
+        const passTypes = ['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'] as const;
+        const anyPassEligible = passTypes.some((pt) => eligible.has(pt));
+        if (!anyPassEligible) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+          broadcastState(io, room);
+          return;
+        }
+      }
+      // D-07 / T-08-12: sequence guard for SHOT phase — SHOT is only valid after
+      // MOVEMENT_PHASE or SNAPSHOT (D-19)
+      if (room.gameState.phase === 'SHOT' && room.gameState.lastActionType !== null) {
+        if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('SHOT')) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+          broadcastState(io, room);
+          return;
+        }
+      }
+      // D-07 / T-08-12: sequence guard for HEADER phase — HEADER is only valid after
+      // HIGH_PASS or LONG_BALL (D-17)
+      if (room.gameState.phase === 'HEADER' && room.gameState.lastActionType !== null) {
+        if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+          broadcastState(io, room);
+          return;
+        }
+      }
+      // D-27 / MATCH-03 / T-08-16: kick-off first-pass enforcement.
+      // While kickOffActive, the first ball action must be a Standard Pass from the centre hex.
+      // The PASS phase is in use; the ball carrier must be on kickOffHex {q:18,r:13}.
+      if (room.gameState.phase === 'PASS' && room.gameState.kickOffActive) {
+        const carrier = room.gameState.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
+        const kickOffHex = PITCH_REGIONS.kickOffHex;
+        const onCentreHex =
+          carrier !== undefined &&
+          carrier.position.q === kickOffHex.q &&
+          carrier.position.r === kickOffHex.r;
+        if (!onCentreHex) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_KICK_OFF_PASS');
+          broadcastState(io, room);
+          return;
+        }
+      }
       // Pre-generate all dice the branch may need (Pitfall 4 — upfront, before any validator call)
       const d1 = rollDice();
       const d2 = rollDice();
@@ -298,7 +362,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      room.gameState = result.state;
+      // D-27 / MATCH-03: clear kickOffActive after a successful Standard Pass from centre hex
+      // (Standard Pass from kick-off resolves; ball is now in play; flag cleared regardless of accuracy)
+      // kickOffActive was already validated above — if we reach here, the pass origin was valid.
+      if (room.gameState.phase === 'PASS' && room.gameState.kickOffActive) {
+        room.gameState = { ...result.state, kickOffActive: false };
+      } else {
+        room.gameState = result.state;
+      }
       broadcastState(io, room); // ARCH-04: single broadcast entry point
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
