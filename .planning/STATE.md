@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-06-04T17:00:01.112Z'
+last_updated: '2026-06-05T01:51:03.019Z'
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 33
-  completed_plans: 27
+  completed_plans: 31
   percent: 80
 ---
 
@@ -92,11 +92,21 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 8)
+
+- GAME_KICK_OFF_MOVE/GAME_READY/GAME_HALF_TIME_START handlers enforce KICK_OFF_SETUP placement with isProcessing mutex and snap-back pattern
+- ELIGIBLE_NEXT_ACTIONS sequence guard on all action handlers (INVALID_SEQUENCE on violation)
+- kickOffActive=true set on KICK_OFF→MOVEMENT; cleared after first pass from centre hex
+- FULL_TIME triggers startReplayStream: 3s hold then 1s/frame setInterval (room.replayTimer)
+- Disconnect handler clears replayTimer to prevent post-disconnect frame emission (T-08-15)
+- addedTimeRoll pre-generated via rollDice() before every applyEndTurn call (D-05/MATCH-02)
+
 ## Session Continuity
 
-- Last updated: 2026-06-03
-- Phase 7 COMPLETE — all 4 plans executed and UAT passed (5/5 tests), 11 bugs fixed
-  - Key fixes: sessionStorage tab isolation, playerSlot overwrite, ROOM_JOIN registration, HexCell overlay click, movedPieceIds on undo, ConnectionStatus seeding
-  - Known gap: team starting positions use Phase 4 placeholders (board photo pending)
-- Phase 7.1 inserted for UI Cleanup — address lobby UX, team positions, and polish
-- Next action: Plan Phase 7.1 (UI Cleanup)
+- Last updated: 2026-06-04
+- Phase 8 Plan 04 COMPLETE — handler wire layer fully implemented
+  - 3 tasks completed: new handlers (Task 1), sequence validation (Task 2), replay stream (Task 3)
+  - 11 integration tests added (6 kickoffSetup + 5 replay)
+  - Pre-existing test failures: 2 undo tests from 08-02 (out of scope)
+- Phase 8 Progress: 4 of 6 plans complete (08-01 through 08-04)
+- Next: Phase 8 Plans 05+ (client-side UI components for KICK_OFF_SETUP, HALF_TIME, FULL_TIME, REPLAY screens)

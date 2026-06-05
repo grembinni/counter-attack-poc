@@ -74,10 +74,10 @@
 
 ### Match Structure
 
-- [ ] **MATCH-01**: Match consists of two 45-action halves; actions are: Movement Phase, Standard Pass, First-time Pass, High Pass, Long Pass, Header, Snapshot, Shot
-- [ ] **MATCH-02**: At the end of each half, added time = dice roll + referee Leniency attribute; play continues for exactly that many additional actions
-- [ ] **MATCH-03**: Kick off procedure: one player placed on the centre hex; attacking team may have players in the centre circle, defending team may not; game starts with a Standard Pass
-- [ ] **MATCH-04**: Second half kick off is taken by the team that did not kick off in the first half
+- [x] **MATCH-01**: Match consists of two 45-action halves; actions are: Movement Phase, Standard Pass, First-time Pass, High Pass, Long Pass, Header, Snapshot, Shot
+- [x] **MATCH-02**: At the end of each half, added time = dice roll + referee Leniency attribute; play continues for exactly that many additional actions
+- [x] **MATCH-03**: Kick off procedure: one player placed on the centre hex; attacking team may have players in the centre circle, defending team may not; game starts with a Standard Pass
+- [x] **MATCH-04**: Second half kick off is taken by the team that did not kick off in the first half
 - [ ] **MATCH-05**: Score is tracked and displayed to both players throughout the match
 
 ### User Experience
@@ -96,7 +96,7 @@
 
 ### Post-Game Replay
 
-- [ ] **REPLAY-01**: After full time, both players are shown a replay of the entire match
+- [x] **REPLAY-01**: After full time, both players are shown a replay of the entire match
 - [ ] **REPLAY-02**: Replay advances one action per second, rendering each board state in sequence from the event log
 - [ ] **REPLAY-03**: Replay is driven by the server-side event log; no additional data capture required at game end
 
