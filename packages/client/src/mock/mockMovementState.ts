@@ -15,7 +15,7 @@ const HOME_POSITIONS: Record<string, { q: number; r: number }> = {
   'home-6': { q: 10, r: 13 }, // MID 2
   'home-7': { q: 9, r: 18 }, // MID 3
   'home-8': { q: 14, r: 9 }, // FWD 1
-  'home-9': { q: 15, r: 13 }, // FWD 2 (ball carrier)
+  'home-9': { q: 14, r: 13 }, // FWD 2 (ball carrier)
   'home-10': { q: 14, r: 17 }, // FWD 3
 };
 
@@ -32,7 +32,7 @@ const AWAY_POSITIONS: Record<string, { q: number; r: number }> = {
   'away-6': { q: 26, r: 13 }, // MID 2
   'away-7': { q: 27, r: 18 }, // MID 3
   'away-8': { q: 22, r: 9 }, // FWD 1
-  'away-9': { q: 21, r: 13 }, // FWD 2
+  'away-9': { q: 22, r: 13 }, // FWD 2
   'away-10': { q: 22, r: 17 }, // FWD 3
 };
 

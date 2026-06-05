@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import type { GameState, HexCoord } from '@counter-attack/shared';
-import { validateMove, hexesInRange, ClientEvents } from '@counter-attack/shared';
+import {
+  validateMove,
+  hexesInRange,
+  ClientEvents,
+  PITCH_HEXES,
+  PITCH_REGIONS,
+  isInRegion,
+} from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
 
@@ -102,7 +109,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   setScreen: (s) => set({ screen: s }),
 
   selectPiece: (id) => {
-    const { gameState, selectedPieceId } = get();
+    const { gameState, selectedPieceId, playerSlot } = get();
     // Toggle off if the same piece is clicked again
     if (selectedPieceId === id) {
       set({ selectedPieceId: null, validMoveHexes: [] });
@@ -110,7 +117,40 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     }
     const piece = gameState.pieces.find((p) => p.id === id);
     if (!piece) return;
-    // Use hexesInRange to limit candidates — never iterate all 962 PITCH_HEXES (D-07, Pitfall 7)
+
+    // KICK_OFF_SETUP: valid destinations are the full kick-off zone (no pace limit, D-23)
+    if (gameState.phase === 'KICK_OFF_SETUP') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      const isAttacking = myTeam === gameState.attackingTeam;
+      const kickOffHex = PITCH_REGIONS.kickOffHex;
+      const valid = PITCH_HEXES.filter((hex) => {
+        // Exclude the hex currently occupied by another own piece (can't stack)
+        if (
+          gameState.pieces.some(
+            (p) =>
+              p.id !== id &&
+              p.teamId === myTeam &&
+              p.position.q === hex.q &&
+              p.position.r === hex.r,
+          )
+        )
+          return false;
+        const inCentre = isInRegion(hex, 'centreCircle');
+        if (myTeam === 'home') {
+          return isAttacking
+            ? hex.q <= kickOffHex.q || inCentre
+            : hex.q <= kickOffHex.q && !inCentre;
+        } else {
+          return isAttacking
+            ? hex.q >= kickOffHex.q || inCentre
+            : hex.q >= kickOffHex.q && !inCentre;
+        }
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
+    // Normal MOVEMENT phase: use hexesInRange + validateMove (D-07, Pitfall 7)
     const candidates = hexesInRange(piece.position, piece.pace);
     const valid = candidates.filter((hex) => validateMove(gameState, piece, hex).ok);
     set({ selectedPieceId: id, validMoveHexes: valid });
