@@ -98,7 +98,7 @@
 
 - [x] **REPLAY-01**: After full time, both players are shown a replay of the entire match
 - [x] **REPLAY-02**: Replay advances one action per second, rendering each board state in sequence from the event log
-- [ ] **REPLAY-03**: Replay is driven by the server-side event log; no additional data capture required at game end
+- [x] **REPLAY-03**: Replay is driven by the server-side event log; no additional data capture required at game end
 
 ### Technical Architecture
 
