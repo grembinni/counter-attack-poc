@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-06-05T01:58:23.943Z'
+last_updated: '2026-06-05T11:08:34.006Z'
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 33
-  completed_plans: 32
-  percent: 80
+  completed_plans: 33
+  percent: 90
 ---
 
 # Project State
@@ -23,7 +23,7 @@ Phase 7.1 — context gathered; ready to plan
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 8 — match lifecycle + post game replay
+**Current focus:** Phase 9 — AWS Deployment
 
 ## Phase Status
 
@@ -36,8 +36,8 @@ See: .planning/PROJECT.md
 | 5     | Dice Resolver + All Resolution Branches  | Complete    | 2026-05-30 |
 | 6     | React Hex Grid Renderer                  | Complete    | 2026-05-31 |
 | 7     | Client-Server Integration                | Complete    | 2026-06-03 |
-| 7.1   | UI Cleanup                               | Not started | -          |
-| 8     | Match Lifecycle + Post-Game Replay       | Not started | -          |
+| 7.1   | UI Cleanup                               | Complete    | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay       | Complete    | 2026-06-05 |
 | 9     | AWS Deployment                           | Not started | -          |
 
 ## Blocking Dependencies
@@ -104,9 +104,9 @@ See: .planning/PROJECT.md
 ## Session Continuity
 
 - Last updated: 2026-06-05
-- Phase 8 Plan 05 COMPLETE — client lifecycle screens implemented
-  - 3 tasks completed: store/App.tsx (Task 1), HalfTimeScreen/FullTimeScreen (Task 2), KickOffSetupPanel (Task 3)
-  - 11 files created/modified
-  - Auto-fixed 3 blocking TypeScript errors from Phase 8 shared type additions
-- Phase 8 Progress: 5 of 6 plans complete (08-01 through 08-05)
-- Next: Phase 8 Plan 06 (ReplayPanel + full replay UI; remaining GameBoard extensions)
+- Phase 8 Plan 06 COMPLETE — in-board client extensions + full lifecycle human verification
+  - 4 tasks completed: HexGrid overlays (Task 1), ActionPanel/GameBoard (Task 2), ReplayPanel (Task 3), human verify APPROVED (Task 4)
+  - 10 files created/modified; 6 server-side correctness fixes applied (D-23 series)
+  - Full match lifecycle verified end-to-end across two browser tabs
+- Phase 8 COMPLETE — 6 of 6 plans complete (08-01 through 08-06)
+- Next: Phase 9 (AWS Deployment)

@@ -10,7 +10,7 @@
 - [x] **Phase 6: React Hex Grid Renderer** — SVG pitch from mock state, piece overlays, valid-move highlighting, lobby UI, turn indicator, action log, scoreboard (completed 2026-05-31)
 - [x] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session (completed 2026-06-03)
 - [x] **Phase 7.1: UI Cleanup** — Address UX rough edges found during Phase 7 UAT: lobby flow, join UX, connection status, team positioning, and visual polish (INSERTED) (completed 2026-06-04)
-- [ ] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay
+- [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
 - [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
 
 ---
@@ -231,7 +231,7 @@ Plans:
 4. At full time, both clients display the final score and a post-game replay begins automatically, advancing one action per second through the server event log with the board re-rendering each state in sequence
 5. Score is displayed and updated on both clients simultaneously after every goal; the final score shown at full time matches the number of goals registered in the event log
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 **UI hint**: yes
 
 Plans:
@@ -258,7 +258,7 @@ Plans:
 
 **Wave 6** _(blocked on Wave 5 — has checkpoint)_
 
-- [ ] 08-06-PLAN.md — In-board client: HexGrid kick-off overlays, ActionPanel eligibility + Snapshot/Header, header match-time, ReplayPanel + full-lifecycle human verify
+- [x] 08-06-PLAN.md — In-board client: HexGrid kick-off overlays, ActionPanel eligibility + Snapshot/Header, header match-time, ReplayPanel + full-lifecycle human verify
 
 ### Phase 9: AWS Deployment
 
@@ -289,5 +289,5 @@ Plans:
 | 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
 | 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle + Post-Game Replay       | 5/6            | In Progress |            |
+| 8. Match Lifecycle + Post-Game Replay       | 6/6            | Complete    | 2026-06-05 |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |

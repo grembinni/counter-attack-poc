@@ -60,7 +60,7 @@
 
 ### Snapshots
 
-- [ ] **SNAP-01**: Snapshot may be taken during a Movement Phase if the ball-carrier is in the opponent's penalty area, or immediately after any pass (inside or outside box)
+- [x] **SNAP-01**: Snapshot may be taken during a Movement Phase if the ball-carrier is in the opponent's penalty area, or immediately after any pass (inside or outside box)
 - [ ] **SNAP-02**: Snapshot applies -1 dice penalty to Shooting; before the shot, 1 opponent moves any player up to 2 hexes to attempt a deflection
 - [ ] **SNAP-03**: All standard shooting rules apply to snapshots
 
@@ -97,7 +97,7 @@
 ### Post-Game Replay
 
 - [x] **REPLAY-01**: After full time, both players are shown a replay of the entire match
-- [ ] **REPLAY-02**: Replay advances one action per second, rendering each board state in sequence from the event log
+- [x] **REPLAY-02**: Replay advances one action per second, rendering each board state in sequence from the event log
 - [ ] **REPLAY-03**: Replay is driven by the server-side event log; no additional data capture required at game end
 
 ### Technical Architecture
