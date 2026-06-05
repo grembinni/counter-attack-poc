@@ -425,7 +425,9 @@ describe('applyEndTurn', () => {
     }
   });
 
-  it('resets movedPieceIds and paceUsedByPieceId after advance', () => {
+  it('preserves movedPieceIds across slot advance, resets paceUsedByPieceId', () => {
+    // movedPieceIds persists across slot boundaries so players cannot move twice in a phase.
+    // paceUsedByPieceId resets so the new slot tracks its own activations from zero.
     const stateWithPace: GameState = {
       ...baseMovementState,
       movedPieceIds: ['home-9'],
@@ -434,8 +436,8 @@ describe('applyEndTurn', () => {
     const result = applyEndTurn(stateWithPace);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.movedPieceIds).toHaveLength(0);
-      expect(result.state.paceUsedByPieceId).toEqual({});
+      expect(result.state.movedPieceIds).toContain('home-9'); // preserved — cannot move again
+      expect(result.state.paceUsedByPieceId).toEqual({}); // reset — new slot starts fresh
     }
   });
 

@@ -302,7 +302,9 @@ export function applyMove(
           state: {
             ...state,
             pieces: newPieces,
-            movedPieceIds: [...state.movedPieceIds, pieceId],
+            movedPieceIds: state.movedPieceIds.includes(pieceId)
+              ? state.movedPieceIds
+              : [...state.movedPieceIds, pieceId],
             paceUsedByPieceId: {
               ...state.paceUsedByPieceId,
               [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
@@ -323,7 +325,9 @@ export function applyMove(
         state: {
           ...state,
           pieces: newPieces,
-          movedPieceIds: [...state.movedPieceIds, pieceId],
+          movedPieceIds: state.movedPieceIds.includes(pieceId)
+            ? state.movedPieceIds
+            : [...state.movedPieceIds, pieceId],
           paceUsedByPieceId: {
             ...state.paceUsedByPieceId,
             [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
@@ -358,7 +362,9 @@ export function applyMove(
       state: {
         ...state,
         pieces: newPieces,
-        movedPieceIds: [...state.movedPieceIds, pieceId],
+        movedPieceIds: state.movedPieceIds.includes(pieceId)
+          ? state.movedPieceIds
+          : [...state.movedPieceIds, pieceId],
         paceUsedByPieceId: {
           ...state.paceUsedByPieceId,
           [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
@@ -379,7 +385,9 @@ export function applyMove(
       ...state,
       pieces: newPieces,
       // CR-01: append pieceId to movedPieceIds so ATTACKER_2 ALREADY_MOVED guard works
-      movedPieceIds: [...state.movedPieceIds, pieceId],
+      movedPieceIds: state.movedPieceIds.includes(pieceId)
+        ? state.movedPieceIds
+        : [...state.movedPieceIds, pieceId],
       paceUsedByPieceId: {
         ...state.paceUsedByPieceId,
         [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
@@ -495,7 +503,9 @@ export function applyEndTurn(
   }
 
   // Non-ATTACKER_2 slot transition (ATTACKER_4→DEFENDER_5 or DEFENDER_5→ATTACKER_2)
-  // No clock increment at intermediate slot boundaries
+  // movedPieceIds is preserved across intermediate slot boundaries so players
+  // moved in ATTACKER_4 cannot be reused in ATTACKER_2 (D-12).
+  // paceUsedByPieceId is reset so the new slot can track its own activations.
   return {
     ok: true,
     state: {
@@ -504,8 +514,8 @@ export function applyEndTurn(
       movementSlot: nextSlot,
       activeTeam: nextActiveTeam,
       eventLog: [...state.eventLog, slotAdvanceEvent],
-      movedPieceIds: [],
-      paceUsedByPieceId: {},
+      movedPieceIds: state.movedPieceIds, // preserved — no player can move twice in a phase
+      paceUsedByPieceId: {}, // reset — new slot counts activations from zero
     },
   };
 }
@@ -592,6 +602,12 @@ export function applyUndo(state: GameState): ApplyUndoResult {
   const undoPendingFreeMove =
     state.ball.carrierId === moveToUndo.pieceId ? null : (state.pendingFreeMove ?? null);
 
+  // Move ball back with the carrier when undoing their move
+  const newBallAfterUndo =
+    state.ball.carrierId === moveToUndo.pieceId
+      ? { ...state.ball, position: moveToUndo.from }
+      : state.ball;
+
   return {
     ok: true,
     state: {
@@ -601,6 +617,7 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       movedPieceIds: newMovedPieceIds,
       eventLog: newEventLog,
       pendingFreeMove: undoPendingFreeMove,
+      ball: newBallAfterUndo,
     },
   };
 }

@@ -50,6 +50,8 @@ export function HexGrid() {
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
   const attackingTeam = useGameStore((s) => s.gameState.attackingTeam);
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
+  const movementSlot = useGameStore((s) => s.gameState.movementSlot);
+  const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const playerSlot = useGameStore((s) => s.playerSlot);
@@ -211,11 +213,19 @@ export function HexGrid() {
           <BallMarker ball={ball} />
           {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
           {pieces.map((piece) => {
+            // Slot quota: how many activations remain in this slot
+            const slotQuota =
+              movementSlot === 'ATTACKER_4' ? 4 : movementSlot === 'DEFENDER_5' ? 5 : 2;
+            const activatedCount = Object.keys(paceUsedByPieceId).length;
+            const pieceAlreadyActivated = (paceUsedByPieceId[piece.id] ?? 0) > 0;
+            const slotFull = activatedCount >= slotQuota && !pieceAlreadyActivated;
+
             const canSelect =
               isActivePlayer &&
               phase === 'MOVEMENT' &&
               piece.teamId === activeTeam &&
-              !movedPieceIds.includes(piece.id); // Pitfall 8: exclude already-moved pieces
+              !movedPieceIds.includes(piece.id) && // already moved this phase
+              !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
             const isClickable = canSelect || canSelectKickOff;

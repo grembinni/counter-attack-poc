@@ -15,7 +15,7 @@ export function BallMarker({ ball }: { ball: BallState }) {
     <circle
       cx={cx}
       cy={cy}
-      r={6}
+      r={9}
       fill="#f5f0dc"
       stroke="#222222"
       strokeWidth={1.5}

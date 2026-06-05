@@ -67,20 +67,25 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
     return { ok: false, reason: 'OCCUPIED' };
   }
 
-  // 4+5. Pace and ATTACKER_2 restrictions
-  if (state.movementSlot === 'ATTACKER_2') {
-    // D-12: check "already moved" before pace — ALREADY_MOVED_IN_ATTACKER4 takes precedence
-    if (state.movedPieceIds.includes(piece.id)) {
-      return { ok: false, reason: 'ALREADY_MOVED_IN_ATTACKER4' };
-    }
-    // D-11: flat 2-hex cap for ATTACKER_2 regardless of piece.pace
-    const paceUsed = state.paceUsedByPieceId[piece.id] ?? 0;
-    if (paceUsed + 1 > 2) return { ok: false, reason: 'PACE_EXCEEDED' };
-  } else {
-    // ATTACKER_4 or DEFENDER_5: pace cap is the piece's own Pace attribute (D-11)
-    const paceUsed = state.paceUsedByPieceId[piece.id] ?? 0;
-    if (paceUsed + 1 > piece.pace) return { ok: false, reason: 'PACE_EXCEEDED' };
+  // 4+5. Pace and slot restrictions
+  // D-12: a piece moved in ANY prior slot cannot be moved again in this phase
+  if (state.movedPieceIds.includes(piece.id)) {
+    return { ok: false, reason: 'ALREADY_MOVED_IN_ATTACKER4' };
   }
+
+  // Slot quota: each slot allows a fixed number of player activations (D-11)
+  // ATTACKER_4 = 4 attackers, DEFENDER_5 = 5 defenders, ATTACKER_2 = 2 attackers (new players)
+  const slotQuota =
+    state.movementSlot === 'ATTACKER_4' ? 4 : state.movementSlot === 'DEFENDER_5' ? 5 : 2;
+  const activatedCount = Object.keys(state.paceUsedByPieceId).length;
+  const isNewActivation = (state.paceUsedByPieceId[piece.id] ?? 0) === 0;
+  if (isNewActivation && activatedCount >= slotQuota) {
+    return { ok: false, reason: 'PACE_EXCEEDED' }; // slot quota full — all activations used
+  }
+
+  // D-11: piece can move up to its own Pace attribute in hexes per activation
+  const paceUsed = state.paceUsedByPieceId[piece.id] ?? 0;
+  if (paceUsed + 1 > piece.pace) return { ok: false, reason: 'PACE_EXCEEDED' };
 
   // 6. ZoI steal trigger — only when the moving piece is the ball-carrier (D-03, MOVE-04/MOVE-05)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)

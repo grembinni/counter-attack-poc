@@ -88,14 +88,14 @@ describe('validateMove', () => {
     if (!result.ok) expect(result.reason).toBe('PACE_EXCEEDED');
   });
 
-  it('enforces flat 2-hex cap for ATTACKER_2 regardless of piece.pace', () => {
-    // piece.pace = 4, but ATTACKER_2 cap is 2; paceUsed=2 means 2+1=3 > 2
-    const fastPiece: PlayerPiece = { ...basePiece, pace: 5 };
+  it('enforces piece.pace cap for ATTACKER_2 (no flat 2-hex cap — each activation uses own pace)', () => {
+    // ATTACKER_2 now uses piece.pace, not a flat 2-hex cap; paceUsed=pace means exhausted
+    const fastPiece: PlayerPiece = { ...basePiece, pace: 3 };
     const state: GameState = {
       ...baseState,
       movementSlot: 'ATTACKER_2',
       pieces: [fastPiece],
-      paceUsedByPieceId: { p1: 2 }, // 2 + 1 = 3 > flat cap of 2
+      paceUsedByPieceId: { p1: 3 }, // paceUsed=pace → 3+1 > 3 → PACE_EXCEEDED
     };
     const result = validateMove(state, fastPiece, { q: 6, r: 5 });
     expect(result.ok).toBe(false);

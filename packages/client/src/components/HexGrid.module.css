@@ -4,7 +4,7 @@
   height: 100%;
 }
 
-/* ZoI-risk hex tint — amber overlay on valid move hexes adjacent to an opponent (D-20) */
+/* ZoI-risk hex tint — red overlay on valid move hexes adjacent to an opponent (D-20) */
 .hexZoIRisk {
-  fill: rgba(255, 165, 0, 0.4);
+  fill: rgba(220, 38, 38, 0.5);
 }
