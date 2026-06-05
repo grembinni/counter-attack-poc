@@ -56,8 +56,8 @@ export function PieceOverlay({
   // Away team attacks left (lower q) → bottom-left (-x, +y) — keyed off teamId per Open Question 3
   void attackingTeam; // direction uses piece.teamId per Open Question 3; prop kept for future overrides (D-16)
   const PIECE_RADIUS = 10;
-  const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.6 : -(PIECE_RADIUS * 0.6);
-  const dotOffsetY = PIECE_RADIUS * 0.6;
+  const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.55 : -(PIECE_RADIUS * 0.55);
+  const dotOffsetY = PIECE_RADIUS * 0.55;
 
   return (
     <>
@@ -92,10 +92,10 @@ export function PieceOverlay({
         <circle
           cx={cx + dotOffsetX}
           cy={cy + dotOffsetY}
-          r={2.5}
+          r={3.5}
           fill="#ffffff"
-          stroke="rgba(0,0,0,0.3)"
-          strokeWidth={0.5}
+          stroke="rgba(0,0,0,0.5)"
+          strokeWidth={1}
           pointerEvents="none"
         />
       )}

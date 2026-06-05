@@ -27,6 +27,9 @@ export type GameStore = {
   screen: Screen;
   selectedPieceId: string | null;
   validMoveHexes: HexCoord[];
+  /** Tracks the piece ID emitted in the most recent move — survives emitMove's optimistic clear so
+   *  setGameState can restore selection when the server broadcast arrives (D-17). */
+  lastMovedPieceId: string | null;
   /** Phase 7: which slot this client occupies (server-assigned in room:joined, D-04). Display-only — never emitted. */
   playerSlot: 1 | 2 | null;
   /** Phase 7: current room code (set from room:joined, D-04). */
@@ -100,6 +103,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   screen: 'CREATE_ROOM',
   selectedPieceId: null,
   validMoveHexes: [],
+  lastMovedPieceId: null,
   playerSlot: null,
   roomCode: null,
   disconnectWarning: false,
@@ -161,7 +165,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   setGameState: (newState) => {
     const prev = get();
     const prevState = prev.gameState;
-    const prevSelectedId = prev.selectedPieceId;
+    // Use lastMovedPieceId as fallback: emitMove clears selectedPieceId optimistically but saves
+    // the piece here so we can restore selection when the server broadcast arrives (D-17).
+    const prevSelectedId = prev.selectedPieceId ?? prev.lastMovedPieceId;
 
     // Determine whether to retain or clear selection (D-17, D-18, D-19)
     const slotChanged = newState.movementSlot !== prevState.movementSlot;
@@ -171,7 +177,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     if (slotChanged || phaseChanged || !pieceStillExists || prevSelectedId === null) {
       // Clear selection on phase/slot transitions or missing piece (D-18)
-      set({ gameState: newState, selectedPieceId: null, validMoveHexes: [] });
+      set({
+        gameState: newState,
+        selectedPieceId: null,
+        validMoveHexes: [],
+        lastMovedPieceId: null,
+      });
       return;
     }
 
@@ -180,7 +191,13 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const remainingPace = piece.pace - (newState.paceUsedByPieceId[prevSelectedId] ?? 0);
     const candidates = hexesInRange(piece.position, remainingPace);
     const valid = candidates.filter((hex) => validateMove(newState, piece, hex).ok);
-    set({ gameState: newState, validMoveHexes: valid });
+    // Restore selectedPieceId (emitMove cleared it) and clear lastMovedPieceId sentinel
+    set({
+      gameState: newState,
+      selectedPieceId: prevSelectedId,
+      validMoveHexes: valid,
+      lastMovedPieceId: null,
+    });
   },
 
   setPlayerSlot: (slot) => set({ playerSlot: slot }),
@@ -195,7 +212,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitMove: (pieceId, to) => {
     socket.emit(ClientEvents.GAME_MOVE, pieceId, to);
-    set({ selectedPieceId: null, validMoveHexes: [] });
+    // Save pieceId so setGameState can restore selection when the server broadcast arrives (D-17).
+    set({ selectedPieceId: null, validMoveHexes: [], lastMovedPieceId: pieceId });
   },
 
   emitRoll: () => {

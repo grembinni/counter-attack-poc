@@ -145,6 +145,11 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
 
   const event: ActionEvent = { type: 'KICK_OFF', timestamp: Date.now() };
 
+  // Assign ball.carrierId to the piece standing on the kick-off hex (the kicker).
+  const kicker = state.pieces.find(
+    (p) => p.position.q === state.ball.position.q && p.position.r === state.ball.position.r,
+  );
+
   return {
     ok: true,
     state: {
@@ -152,6 +157,7 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       phase: 'MOVEMENT',
       movementSlot: 'ATTACKER_4',
       activeTeam: state.attackingTeam,
+      ball: kicker ? { ...state.ball, carrierId: kicker.id } : state.ball,
       eventLog: [...state.eventLog, event],
     },
   };
