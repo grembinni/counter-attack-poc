@@ -72,23 +72,11 @@ export function HexGrid() {
     if (!isKickOffSetup || myTeam === null) return false;
     const inCentreCircle = PITCH_REGIONS.centreCircle.has(`${hex.q},${hex.r}`);
     if (myTeam === 'home') {
-      // Home: own half is q <= 18
-      if (isMyAttacking) {
-        // Attacking: q <= 18 OR centre circle
-        return hex.q <= 18 || inCentreCircle;
-      } else {
-        // Defending: q <= 18 but NOT in centre circle
-        return hex.q <= 18 && !inCentreCircle;
-      }
+      // Attacking: own half only (q <= 18); defending: own half excluding centre circle
+      return isMyAttacking ? hex.q <= 18 : hex.q <= 18 && !inCentreCircle;
     } else {
-      // Away: own half is q >= 18
-      if (isMyAttacking) {
-        // Attacking: q >= 18 OR centre circle
-        return hex.q >= 18 || inCentreCircle;
-      } else {
-        // Defending: q >= 18 but NOT in centre circle
-        return hex.q >= 18 && !inCentreCircle;
-      }
+      // Attacking: own half only (q >= 18); defending: own half excluding centre circle
+      return isMyAttacking ? hex.q >= 18 : hex.q >= 18 && !inCentreCircle;
     }
   };
 
