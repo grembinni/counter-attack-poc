@@ -21,6 +21,9 @@ import {
   applyGKRestart,
   applyMove,
   applySnapshot,
+  applyKickOffReady,
+  applyHalfTimeStart,
+  buildReplayFrames,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -464,7 +467,6 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
   // --- GK Restart ---
 
   it('applyGKRestart "kick" accurate sets lastActionType MOVEMENT_PHASE and actionCount +1 (D-21)', () => {
-    const state = makeGkRestartState({ actionCount: 10 });
     // GK.highPass=0; combined=0+die. Accurate requires combined >= 8.
     // die=6: 0+6=6 < 8 → inaccurate. die=8: not possible on d6.
     // GK always kicks inaccurate due to highPass=0. Let's use a GK with highPass=8 for accurate test.
@@ -571,7 +573,7 @@ describe('applySnapshot — SNAP-01..03', () => {
   it('rejects with WRONG_PHASE when phase is not MOVEMENT or valid-pass-follow-up', () => {
     const state: GameState = {
       ...makePassState(),
-      phase: 'LOBBY' as never, // not MOVEMENT, not PASS
+      phase: 'LOBBY', // not MOVEMENT, not PASS
       lastActionType: 'DEFLECTION', // even with eligible lastActionType
     };
     const result = applySnapshot(state);
@@ -675,11 +677,352 @@ describe('applySnapshot — SNAP-01..03', () => {
       ...makeShotState({ actionCount: 10 }),
       snapshotPenalty: true,
     };
-    const result = applyRoll(snapshotShotState, 2 /* shooterDice */, 2 /* gkDice */, 5 /* handling */);
+    const result = applyRoll(
+      snapshotShotState,
+      2 /* shooterDice */,
+      2 /* gkDice */,
+      5 /* handling */,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Without penalty: 9+2=11 vs 8+2=10 → GOAL
     // With -1 snapshot penalty: 9+2-1=10 vs 8+2=10 → TIE → LOOSE_BALL
     expect(result.state.phase).toBe('LOOSE_BALL');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4 (Plan 03): applyKickOffReady — kick-off setup validation (MATCH-03)
+// ---------------------------------------------------------------------------
+
+/** Kick-off setup state fixture */
+const makeKickOffSetupState = (overrides: Partial<GameState> = {}): GameState => ({
+  roomCode: 'TEST',
+  phase: 'KICK_OFF_SETUP',
+  activeTeam: 'home',
+  attackingTeam: 'home', // home is attacking (will kick off)
+  pieces: [
+    // Home (attacking) pieces — placed in home half (q <= 18) except one on kickOffHex
+    { ...homeFwd, id: 'home-fwd', position: { q: 18, r: 13 } }, // on kickOffHex (q:18, r:13)
+    { ...homeMid, id: 'home-mid', position: { q: 10, r: 12 } }, // home half (q<=18)
+    // Away (defending) pieces — placed in away half (q >= 18) and outside centre circle
+    { ...awayDef, id: 'away-def', position: { q: 25, r: 12 } }, // away half (q>=18), outside circle
+    { ...awayGk, id: 'away-gk', position: { q: 30, r: 13 } }, // away half (q>=18), outside circle
+  ],
+  ball: { position: { q: 18, r: 13 }, carrierId: null },
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 2 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+  addedTime: null,
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  ...overrides,
+});
+
+describe('applyKickOffReady — kick-off setup validation (MATCH-03)', () => {
+  it('rejects with WRONG_PHASE when phase is not KICK_OFF_SETUP', () => {
+    const state = makeKickOffSetupState({ phase: 'KICK_OFF' });
+    const result = applyKickOffReady(state, 'home');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('WRONG_PHASE');
+  });
+
+  it('rejects CENTRE_HEX_EMPTY when attacking team has no piece on kickOffHex {q:18,r:13} (D-25)', () => {
+    // Home is attacking; move home-fwd off the kickOffHex
+    const state = makeKickOffSetupState({
+      pieces: [
+        { ...homeFwd, id: 'home-fwd', position: { q: 15, r: 12 } }, // NOT on kickOffHex
+        { ...homeMid, id: 'home-mid', position: { q: 10, r: 12 } },
+        { ...awayDef, id: 'away-def', position: { q: 25, r: 12 } },
+        { ...awayGk, id: 'away-gk', position: { q: 30, r: 13 } },
+      ],
+    });
+    const result = applyKickOffReady(state, 'home'); // home is attacking
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('CENTRE_HEX_EMPTY');
+  });
+
+  it('rejects OUT_OF_ZONE when attacking team piece is outside its own half (D-23)', () => {
+    // Home is attacking; home half is q <= 18. Place a home piece at q=20 (away half)
+    const state = makeKickOffSetupState({
+      pieces: [
+        { ...homeFwd, id: 'home-fwd', position: { q: 18, r: 13 } }, // on kickOffHex
+        { ...homeMid, id: 'home-mid', position: { q: 20, r: 12 } }, // OUTSIDE home half (q>18)
+        { ...awayDef, id: 'away-def', position: { q: 25, r: 12 } },
+        { ...awayGk, id: 'away-gk', position: { q: 30, r: 13 } },
+      ],
+    });
+    const result = applyKickOffReady(state, 'home');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('OUT_OF_ZONE');
+  });
+
+  it('rejects IN_CENTRE_CIRCLE when defending team has a piece inside the centre circle (D-23)', () => {
+    // Home is attacking; away is defending. Place away piece inside centre circle (dist <= 3 from {q:18,r:13})
+    // {q:18,r:13} is kickOffHex with distance 0; {q:19,r:13} is distance 1 — inside circle
+    const state = makeKickOffSetupState({
+      pieces: [
+        { ...homeFwd, id: 'home-fwd', position: { q: 18, r: 13 } }, // on kickOffHex
+        { ...homeMid, id: 'home-mid', position: { q: 10, r: 12 } },
+        { ...awayDef, id: 'away-def', position: { q: 19, r: 13 } }, // INSIDE centre circle (dist=1)
+        { ...awayGk, id: 'away-gk', position: { q: 30, r: 13 } },
+      ],
+    });
+    const result = applyKickOffReady(state, 'away'); // checking away (defending) team placement
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('IN_CENTRE_CIRCLE');
+  });
+
+  it('returns ok:true when attacking team placement is valid (home on kickOffHex, in home half)', () => {
+    const state = makeKickOffSetupState(); // default setup: home on kickOffHex, pieces in correct zones
+    const result = applyKickOffReady(state, 'home');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // State is returned unchanged (handler owns both-ready transition)
+    expect(result.state.phase).toBe('KICK_OFF_SETUP');
+  });
+
+  it('returns ok:true when defending team placement is valid (away, outside centre circle)', () => {
+    const state = makeKickOffSetupState();
+    const result = applyKickOffReady(state, 'away');
+    expect(result.ok).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5 (Plan 03): applyHalfTimeStart — second-half transition (MATCH-04)
+// ---------------------------------------------------------------------------
+
+/** Half-time state fixture */
+const makeHalfTimeState = (overrides: Partial<GameState> = {}): GameState => ({
+  roomCode: 'TEST',
+  phase: 'HALF_TIME',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  pieces: [...makeAttacker2State().pieces],
+  ball: { position: { q: 18, r: 13 }, carrierId: null },
+  score: { home: 1, away: 0 },
+  actionCount: 48,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 2 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+  addedTime: 3,
+  lastActionType: 'MOVEMENT_PHASE',
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  ...overrides,
+});
+
+describe('applyHalfTimeStart — second-half transition (MATCH-04)', () => {
+  it('rejects with WRONG_PHASE when phase is not HALF_TIME', () => {
+    const state = makeHalfTimeState({ phase: 'KICK_OFF' });
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('WRONG_PHASE');
+  });
+
+  it('sets half to 2 (D-29)', () => {
+    const state = makeHalfTimeState();
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.half).toBe(2);
+  });
+
+  it('resets actionCount to 0 (D-29)', () => {
+    const state = makeHalfTimeState({ actionCount: 48 });
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.actionCount).toBe(0);
+  });
+
+  it('resets addedTime to null (D-29)', () => {
+    const state = makeHalfTimeState({ addedTime: 3 });
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.addedTime).toBeNull();
+  });
+
+  it('sets attackingTeam to the opposite of kickOffTeam (D-26)', () => {
+    // kickOffTeam is 'home'; second half should have attackingTeam = 'away'
+    const state = makeHalfTimeState({ kickOffTeam: 'home', attackingTeam: 'home' });
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.attackingTeam).toBe('away');
+  });
+
+  it('sets attackingTeam to home when kickOffTeam is away', () => {
+    const state = makeHalfTimeState({ kickOffTeam: 'away', attackingTeam: 'away' });
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.attackingTeam).toBe('home');
+  });
+
+  it('transitions phase to KICK_OFF_SETUP (D-10)', () => {
+    const state = makeHalfTimeState();
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('KICK_OFF_SETUP');
+  });
+
+  it('clears lastActionType to null (D-10)', () => {
+    const state = makeHalfTimeState({ lastActionType: 'MOVEMENT_PHASE' });
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastActionType).toBeNull();
+  });
+
+  it('resets pieces to 4-5-2 default positions from teams.ts', () => {
+    const state = makeHalfTimeState();
+    const result = applyHalfTimeStart(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // After reset, all 22 pieces should be present (11 home + 11 away)
+    expect(result.state.pieces.length).toBe(22);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 6 (Plan 03): buildReplayFrames — deterministic replay reconstruction (REPLAY-02, REPLAY-03)
+// ---------------------------------------------------------------------------
+
+describe('buildReplayFrames — REPLAY-02/03', () => {
+  it('returns empty array when eventLog has only SLOT_ADVANCE events (D-32)', () => {
+    const state: GameState = {
+      ...makeAttacker2State(),
+      phase: 'FULL_TIME',
+      eventLog: [
+        { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 1 },
+        { type: 'SLOT_ADVANCE', from: 'DEFENDER_5', to: 'ATTACKER_2', timestamp: 2 },
+        { type: 'SLOT_ADVANCE', from: 'ATTACKER_2', to: null, timestamp: 3 },
+      ],
+    };
+    const frames = buildReplayFrames(state);
+    expect(frames).toHaveLength(0);
+  });
+
+  it('skips SLOT_ADVANCE events and returns one frame per replay-eligible event', () => {
+    const state: GameState = {
+      ...makeAttacker2State(),
+      phase: 'FULL_TIME',
+      kickOffTeam: 'home',
+      eventLog: [
+        { type: 'KICK_OFF', timestamp: 1 },
+        { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 2 },
+        {
+          type: 'MOVE',
+          pieceId: 'home-mid',
+          from: { q: 15, r: 12 },
+          to: { q: 16, r: 12 },
+          slot: 'ATTACKER_4',
+          timestamp: 3,
+        },
+        { type: 'SLOT_ADVANCE', from: 'DEFENDER_5', to: 'ATTACKER_2', timestamp: 4 },
+        { type: 'DICE_ROLL', result: 4, timestamp: 5 },
+      ],
+    };
+    const frames = buildReplayFrames(state);
+    // 2 SLOT_ADVANCE events skipped; 3 eligible events (KICK_OFF, MOVE, DICE_ROLL)
+    expect(frames).toHaveLength(3);
+  });
+
+  it('frame count equals non-SLOT_ADVANCE event count for a mixed event log', () => {
+    const state: GameState = {
+      ...makeAttacker2State(),
+      phase: 'FULL_TIME',
+      kickOffTeam: 'home',
+      eventLog: [
+        { type: 'KICK_OFF', timestamp: 1 },
+        { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 2 },
+        { type: 'SLOT_ADVANCE', from: 'DEFENDER_5', to: 'ATTACKER_2', timestamp: 3 },
+        {
+          type: 'MOVE',
+          pieceId: 'home-mid',
+          from: { q: 15, r: 12 },
+          to: { q: 16, r: 12 },
+          slot: 'ATTACKER_4',
+          timestamp: 4,
+        },
+        { type: 'GOAL', scoringTeam: 'home', timestamp: 5 },
+        { type: 'SLOT_ADVANCE', from: 'ATTACKER_2', to: null, timestamp: 6 },
+      ],
+    };
+    const nonSlotEvents = state.eventLog.filter((e) => e.type !== 'SLOT_ADVANCE').length; // 3
+    const frames = buildReplayFrames(state);
+    expect(frames).toHaveLength(nonSlotEvents);
+  });
+
+  it('all returned frames have phase === REPLAY (D-31)', () => {
+    const state: GameState = {
+      ...makeAttacker2State(),
+      phase: 'FULL_TIME',
+      kickOffTeam: 'home',
+      eventLog: [
+        { type: 'KICK_OFF', timestamp: 1 },
+        {
+          type: 'MOVE',
+          pieceId: 'home-mid',
+          from: { q: 15, r: 12 },
+          to: { q: 16, r: 12 },
+          slot: 'ATTACKER_4',
+          timestamp: 2,
+        },
+      ],
+    };
+    const frames = buildReplayFrames(state);
+    for (const frame of frames) {
+      expect(frame.phase).toBe('REPLAY');
+    }
+  });
+
+  it('is deterministic: same eventLog yields deep-equal frame arrays (REPLAY-03)', () => {
+    const state: GameState = {
+      ...makeAttacker2State(),
+      phase: 'FULL_TIME',
+      kickOffTeam: 'home',
+      eventLog: [
+        { type: 'KICK_OFF', timestamp: 1 },
+        { type: 'STEAL_ATTEMPT', defenderId: 'away-def', result: 'SUCCESS', timestamp: 2 },
+        { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 3 },
+        { type: 'DICE_ROLL', result: 5, timestamp: 4 },
+      ],
+    };
+    const frames1 = buildReplayFrames(state);
+    const frames2 = buildReplayFrames(state);
+    expect(frames1).toHaveLength(frames2.length);
+    // Deep-equal check
+    expect(JSON.stringify(frames1)).toBe(JSON.stringify(frames2));
+  });
+
+  it('returns empty array for empty eventLog', () => {
+    const state: GameState = {
+      ...makeAttacker2State(),
+      phase: 'FULL_TIME',
+      eventLog: [],
+    };
+    const frames = buildReplayFrames(state);
+    expect(frames).toHaveLength(0);
   });
 });
