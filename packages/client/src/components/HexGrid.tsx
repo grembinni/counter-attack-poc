@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { PITCH_HEXES, isInRegion, ClientEvents, PITCH_REGIONS } from '@counter-attack/shared';
+import {
+  PITCH_HEXES,
+  isInRegion,
+  ClientEvents,
+  PITCH_REGIONS,
+  getZoIDefenders,
+} from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { socket } from '../socket.js';
@@ -61,6 +67,14 @@ export function HexGrid() {
 
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
+
+  // ZoI-risk hex classification: valid move hexes adjacent to ≥1 opponent (D-20)
+  const opponents = myTeam !== null ? pieces.filter((p) => p.teamId !== myTeam) : [];
+  const zoiRiskSet = new Set(
+    validMoveHexes
+      .filter((hex) => getZoIDefenders(hex, opponents).length > 0)
+      .map((h) => `${h.q},${h.r}`),
+  );
 
   // KICK_OFF_SETUP: derive the local team's valid placement zone (D-23)
   // Attacking team: own half + centre circle; defending team: own half excluding centre circle
@@ -149,6 +163,15 @@ export function HexGrid() {
                   highlightColor={isGoalHex || isShotTarget ? '#ef4444' : undefined}
                   onClick={onClick ?? (() => undefined)}
                 />
+                {/* ZoI-risk tint overlay — amber on valid hexes adjacent to an opponent (D-20, D-21) */}
+                {zoiRiskSet.has(hexId) && isValidMove && (
+                  <polygon
+                    points={points}
+                    className={styles.hexZoIRisk}
+                    stroke="none"
+                    pointerEvents="none"
+                  />
+                )}
                 {/* KICK_OFF_SETUP: zone tint overlay (own team valid zone, excluding occupied hexes) */}
                 {inMyZone && !isCentreHex && (
                   <polygon
@@ -210,6 +233,7 @@ export function HexGrid() {
                 onClick={handleClick}
                 onInspect={() => inspectPiece(piece.id)} // D-06: stats-only; no move computation — no socket.emit
                 carrierId={ball.carrierId}
+                attackingTeam={attackingTeam}
               />
             );
           })}

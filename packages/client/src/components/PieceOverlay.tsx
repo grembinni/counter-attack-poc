@@ -9,6 +9,8 @@ type Props = {
   /** Always fires on any piece click regardless of isClickable — used for stats panel inspection (D-06). */
   onInspect: () => void;
   carrierId: string | null;
+  /** Which team is currently attacking — passed from HexGrid for ball possession dot direction (D-16). */
+  attackingTeam: 'home' | 'away';
 };
 
 /**
@@ -23,6 +25,7 @@ export function PieceOverlay({
   onClick,
   onInspect,
   carrierId,
+  attackingTeam,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
@@ -47,8 +50,14 @@ export function PieceOverlay({
       ? '#0d3a82'
       : '#8e1c12';
 
-  // Ball carrier: piece holds the ball — render inner ring indicator
+  // Ball carrier: piece holds the ball — render directional possession dot (D-15)
   const isBallCarrier = carrierId !== null && piece.id === carrierId;
+  // Dot direction: home team attacks right (higher q) → bottom-right (+x, +y)
+  // Away team attacks left (lower q) → bottom-left (-x, +y) — keyed off teamId per Open Question 3
+  const PIECE_RADIUS = 10;
+  const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.6 : -(PIECE_RADIUS * 0.6);
+  const dotOffsetY = PIECE_RADIUS * 0.6;
+  void attackingTeam; // prop available for future directional overrides; direction currently uses teamId
 
   return (
     <>
@@ -78,9 +87,17 @@ export function PieceOverlay({
           pointerEvents="none"
         />
       )}
-      {/* Ball carrier indicator — subtle inner ring when piece holds the ball */}
+      {/* Ball carrier indicator — directional white dot at 45° toward scoring goal (D-15) */}
       {isBallCarrier && (
-        <circle cx={cx} cy={cy} r={5} fill="#f5f0dc" fillOpacity={0.6} pointerEvents="none" />
+        <circle
+          cx={cx + dotOffsetX}
+          cy={cy + dotOffsetY}
+          r={2.5}
+          fill="#ffffff"
+          stroke="rgba(0,0,0,0.3)"
+          strokeWidth={0.5}
+          pointerEvents="none"
+        />
       )}
       {/* Player number label */}
       <text
