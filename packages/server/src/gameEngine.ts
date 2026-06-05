@@ -706,21 +706,15 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             },
           };
         } else {
-          // Spill → Loose Ball from GK position
-          const landing = computeLooseBall(
-            gk.position,
-            d1 as 1 | 2 | 3 | 4 | 5 | 6,
-            d2 as 1 | 2 | 3 | 4 | 5 | 6,
-          );
+          // Spill → LOOSE_BALL phase; landing deferred to a fresh game:roll with independent dice.
+          // Mirrors the SHOT tie path (D-13/D-19) — avoids biased reuse of shot-duel dice (T-08-23).
+          // The LOOSE_BALL case (~line 912) will call computeLooseBall on a new d1/d2 pair.
           return {
             ok: true,
             state: {
               ...state,
-              phase: 'MOVEMENT',
-              movementSlot: 'ATTACKER_4',
-              movedPieceIds: [],
-              paceUsedByPieceId: {},
-              ball: { position: landing, carrierId: null },
+              phase: 'LOOSE_BALL',
+              ball: { position: gk.position, carrierId: null },
               lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
               snapshotPenalty: false,
             },
