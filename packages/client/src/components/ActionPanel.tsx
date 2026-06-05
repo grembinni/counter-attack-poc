@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
+import { ELIGIBLE_NEXT_ACTIONS, isInRegion } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import styles from './ActionPanel.module.css';
 
@@ -15,6 +15,7 @@ export function ActionPanel() {
   const playerSlot = useGameStore((s) => s.playerSlot);
   const phase = useGameStore((s) => s.gameState.phase);
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
+  const attackingTeam = useGameStore((s) => s.gameState.attackingTeam);
   const lastDiceRoll = useGameStore((s) => s.gameState.lastDiceRoll);
   const lastActionType = useGameStore((s) => s.gameState.lastActionType);
   const carrierId = useGameStore((s) => s.gameState.ball.carrierId);
@@ -49,6 +50,15 @@ export function ActionPanel() {
   const gkPiece = pieces.find((p) => p.id === carrierId);
   const gkTeam = gkPiece?.teamId ?? null;
   const isGKTeam = myTeam !== null && myTeam === gkTeam;
+
+  // Snapshot button visibility — mirrors applySnapshot SNAP-01 trigger (T-08-24).
+  // Client guard is permissive UX reflection only; server re-validates and rejects ineligible snapshots.
+  const carrier = pieces.find((p) => p.id === carrierId);
+  const penaltyRegion = attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+  const movementTrigger =
+    phase === 'MOVEMENT' && carrier !== undefined && isInRegion(carrier.position, penaltyRegion);
+  const passTrigger = phase === 'PASS' && lastActionType !== null;
+  const canSnapshot = movementTrigger || passTrigger;
 
   return (
     <div className={styles.panel}>
@@ -88,8 +98,9 @@ export function ActionPanel() {
         </button>
       )}
 
-      {/* Snapshot — SNAPSHOT phase; always enabled when visible (phase gating is the guard) */}
-      {phase === 'SNAPSHOT' && (
+      {/* Snapshot — visible when SNAP-01 trigger conditions are met (ball carrier in opponent penalty
+          area during MOVEMENT, or post-pass in PASS phase). Client guard is UX only; server re-validates. */}
+      {canSnapshot && (
         <button className={styles.ctaButton} onClick={emitSnapshot}>
           Snapshot
         </button>
