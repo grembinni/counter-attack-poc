@@ -11,6 +11,9 @@
 - [x] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session (completed 2026-06-03)
 - [x] **Phase 7.1: UI Cleanup** — Address UX rough edges found during Phase 7 UAT: lobby flow, join UX, connection status, team positioning, and visual polish (INSERTED) (completed 2026-06-04)
 - [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
+- [ ] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED)
+- [ ] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED)
+- [ ] **Phase 8.3: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items (INSERTED)
 - [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
 
 ---
@@ -259,6 +262,39 @@ Plans:
 **Wave 6** _(blocked on Wave 5 — has checkpoint)_
 
 - [x] 08-06-PLAN.md — In-board client: HexGrid kick-off overlays, ActionPanel eligibility + Snapshot/Header, header match-time, ReplayPanel + full-lifecycle human verify
+
+### Phase 08.1: cleanup player stats, ball control, movement, tackling (INSERTED)
+
+**Goal:** Fix four foundational gameplay issues: (1) all player attributes corrected to 1–6 scale with tier-balanced squads; (2) steal attempt changed to a dribbling-vs-tackling duel; (3) movement UX fixed so pieces stay selected after each step; (4) ZoI hexes visually distinct from safe move hexes.
+**Requirements**: MOVE-04, MOVE-05, TEAM-01, TEAM-02
+**Depends on:** Phase 8
+**Plans:** TBD
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 08.1 to break down)
+
+### Phase 08.2: Passing Cleanup (INSERTED)
+
+**Goal:** Passing actions work end-to-end: player selects a target hex, rolls for accuracy using the correct attribute per pass type (dribbling for Standard/First-time/Long, highPass for High), ball moves to target on accurate pass, LOOSE_BALL on inaccurate, adjacent defenders may intercept.
+**Requirements**: PASS-01, PASS-02, PASS-03, PASS-04, PASS-05
+**Depends on:** Phase 8.1
+**Plans:** TBD
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 08.2 to break down)
+
+### Phase 08.3: Remaining Action Flows + Tech Debt (INSERTED)
+
+**Goal:** All remaining broken game actions work (shot declaration, snapshot, header button); code review BLOCKER and WARNINGs from Phase 8 are resolved; human UAT items (snapshot full-path, header path) are verified end-to-end.
+**Requirements**: SHOT-01, SHOT-02, SHOT-03, SHOT-04, SNAP-02, SNAP-03, HEAD-01, HEAD-02, HEAD-03, HEAD-04, HEAD-05
+**Depends on:** Phase 8.2
+**Plans:** TBD
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 08.3 to break down)
 
 ### Phase 9: AWS Deployment
 

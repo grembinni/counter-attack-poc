@@ -3,21 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: 2026-06-05T16:45:15.879Z
+last_updated: '2026-06-05T17:24:21.321Z'
 progress:
-  total_phases: 10
-  completed_phases: 8
+  total_phases: 16
+  completed_phases: 9
   total_plans: 35
   completed_plans: 35
-  percent: 80
-stopped_at: Phase 08 complete (8/8) — ready to discuss Phase 9
+  percent: 56
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 7.1 — context gathered; ready to plan
+Phase 8.1 — context gathered; ready to plan
 
 ## Project Reference
 
@@ -51,6 +50,10 @@ See: .planning/PROJECT.md
 - **ZoI scope:** Resolved in Phase 2 — ZoI triggers a STEAL_ATTEMPT for movement (moveValidator) and produces an interceptors list for passes (passValidator). Physical rulebook verification pending before Phase 5 live use.
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 08.1 inserted after Phase 8: cleanup player stats, ball control, movement, tackling (URGENT)
 
 ### Decisions Locked
 
