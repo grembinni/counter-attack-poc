@@ -37,6 +37,7 @@ export type MoveResult =
     }
   | { ok: true }
   | { ok: true; effect: { type: 'STEAL_ATTEMPT'; defenders: PlayerPiece[] } }
+  | { ok: true; effect: { type: 'TACKLE_ATTEMPT'; carrierId: string } }
   | { ok: true; effect: { type: 'SNAPSHOT_AVAILABLE' } };
 
 /**
@@ -88,6 +89,21 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
     const defenders = getZoIDefenders(to, opponents);
     if (defenders.length > 0) {
       return { ok: true, effect: { type: 'STEAL_ATTEMPT', defenders } };
+    }
+  }
+
+  // 7. Tackle trigger — when a NON-carrier moves adjacent to an opponent carrier (D-10)
+  // Only fires when: there is a carrier, the moving piece is NOT the carrier,
+  // the carrier is on the opposing team, and the destination is adjacent to the carrier.
+  // Note: STEAL_ATTEMPT and TACKLE_ATTEMPT are mutually exclusive (carrier vs non-carrier).
+  if (state.ball.carrierId !== null && state.ball.carrierId !== piece.id) {
+    const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
+    if (
+      carrier !== undefined &&
+      piece.teamId !== carrier.teamId &&
+      hexDistance(to, carrier.position) === 1
+    ) {
+      return { ok: true, effect: { type: 'TACKLE_ATTEMPT', carrierId: carrier.id } };
     }
   }
 
