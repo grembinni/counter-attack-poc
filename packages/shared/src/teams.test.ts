@@ -42,6 +42,7 @@ const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD'] as const;
 function minForAttr(attr: (typeof ATTRIBUTES)[number], role: string): number {
   if (attr === 'aerialAbility' && role !== 'GK') return 0;
   if (attr === 'handling' && role !== 'GK') return 0;
+  if (attr === 'saving' && role !== 'GK') return 0;
   if (attr === 'highPass' && role === 'GK') return 0;
   return 1;
 }
