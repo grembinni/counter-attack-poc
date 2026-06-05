@@ -54,10 +54,10 @@ export function PieceOverlay({
   const isBallCarrier = carrierId !== null && piece.id === carrierId;
   // Dot direction: home team attacks right (higher q) → bottom-right (+x, +y)
   // Away team attacks left (lower q) → bottom-left (-x, +y) — keyed off teamId per Open Question 3
+  void attackingTeam; // direction uses piece.teamId per Open Question 3; prop kept for future overrides (D-16)
   const PIECE_RADIUS = 10;
   const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.6 : -(PIECE_RADIUS * 0.6);
   const dotOffsetY = PIECE_RADIUS * 0.6;
-  void attackingTeam; // prop available for future directional overrides; direction currently uses teamId
 
   return (
     <>
