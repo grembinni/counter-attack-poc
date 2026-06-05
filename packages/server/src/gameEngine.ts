@@ -266,7 +266,7 @@ export function applyMove(state: GameState, pieceId: string, to: HexCoord): Appl
         eventLog: newEventLog,
         pendingFreeMove,
         // Phase 8 fields
-        lastActionType: 'SUCCESSFUL_TACKLE' as LastActionType,
+        lastActionType: 'SUCCESSFUL_TACKLE',
         actionCount: state.actionCount + 3, // D-14: full movement phase cost even on early end
       },
     };
@@ -553,8 +553,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // Determine time cost based on lastActionType (if set by handler before applyRoll call)
       // FIRST_TIME_PASS costs +0; all other pass types cost +1 (D-03 table)
       // If lastActionType is not a pass type yet, handler hasn't set it — default to +1
-      const passTimeCost: number =
-        state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
+      const passTimeCost: number = state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
 
       // Use HIGH pass accuracy check (carrier.highPass attribute).
       // Per D-12: accuracy determines pass result; exact type is stored in lastActionType by handler.
@@ -566,8 +565,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         // - If already set by the handler (plan 08-04), use it as-is (handler sets before calling)
         // - If null/unset, default to 'STANDARD_PASS' (most common pass type in current code)
         const newLastActionType: LastActionType =
-          (state.lastActionType !== null &&
-            ['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'].includes(state.lastActionType))
+          state.lastActionType !== null &&
+          ['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'].includes(
+            state.lastActionType,
+          )
             ? state.lastActionType
             : 'STANDARD_PASS';
 
@@ -1165,8 +1166,7 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
     }
 
     // Determine opponent's penalty area based on attacking team
-    const penaltyRegion =
-      state.attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+    const penaltyRegion = state.attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
 
     if (!isInRegion(carrier.position, penaltyRegion)) {
       return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
@@ -1205,4 +1205,273 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
 
   // Any other phase is not valid for a snapshot
   return { ok: false, reason: 'WRONG_PHASE' };
+}
+
+// ---------------------------------------------------------------------------
+// applyKickOffReady
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyKickOffReady.
+ * MATCH-03: validates kick-off setup placement rules for one team.
+ */
+export type ApplyKickOffReadyResult =
+  | {
+      ok: false;
+      reason: 'WRONG_PHASE' | 'CENTRE_HEX_EMPTY' | 'OUT_OF_ZONE' | 'IN_CENTRE_CIRCLE';
+    }
+  | { ok: true; state: GameState };
+
+/**
+ * Validates a team's kick-off setup placement and records them as ready.
+ *
+ * MATCH-03 / D-23 / D-24 / D-25: Server-side placement rule enforcement.
+ * Returns ok:true with state unchanged — the both-ready → KICK_OFF transition
+ * is owned by the handler (via Room.readyPlayers per Pattern 4 in PATTERNS.md).
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be 'KICK_OFF_SETUP'
+ * 2. OUT_OF_ZONE — all of team's pieces must be in team's own half
+ * 3. CENTRE_HEX_EMPTY — attacking team must have exactly one piece on kickOffHex {q:18,r:13}
+ * 4. IN_CENTRE_CIRCLE — defending team must have no piece inside the centre circle
+ *
+ * Half boundaries (D-23):
+ *   home (attackingTeam='home'): own half = q <= 18 (kickOffHex.q)
+ *   away (attackingTeam='away'): own half = q >= 18 (kickOffHex.q)
+ *
+ * T-08-06 (Tampering): All placement checks are server-side; client zone tinting is UX-only.
+ *
+ * @param state - Current game state (phase must be KICK_OFF_SETUP)
+ * @param team  - Which team's placement to validate ('home' | 'away')
+ */
+export function applyKickOffReady(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplyKickOffReadyResult {
+  // 1. Phase guard
+  if (state.phase !== 'KICK_OFF_SETUP') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const kickOffHex = PITCH_REGIONS.kickOffHex; // {q:18, r:13}
+  const teamPieces = state.pieces.filter((p) => p.teamId === team);
+  const isAttacking = team === state.attackingTeam;
+
+  // 2. OUT_OF_ZONE: all pieces must be in team's own half
+  // Home half: q <= kickOffHex.q (18); Away half: q >= kickOffHex.q (18)
+  // The kickOffHex itself (q=18) is valid for both halves (shared boundary)
+  for (const piece of teamPieces) {
+    if (team === 'home' && piece.position.q > kickOffHex.q) {
+      return { ok: false, reason: 'OUT_OF_ZONE' };
+    }
+    if (team === 'away' && piece.position.q < kickOffHex.q) {
+      return { ok: false, reason: 'OUT_OF_ZONE' };
+    }
+  }
+
+  if (isAttacking) {
+    // 3. CENTRE_HEX_EMPTY: attacking team must have exactly one piece on kickOffHex (D-25)
+    const onCentreHex = teamPieces.some(
+      (p) => p.position.q === kickOffHex.q && p.position.r === kickOffHex.r,
+    );
+    if (!onCentreHex) {
+      return { ok: false, reason: 'CENTRE_HEX_EMPTY' };
+    }
+  } else {
+    // 4. IN_CENTRE_CIRCLE: defending team must have no piece inside the centre circle (D-23)
+    for (const piece of teamPieces) {
+      if (isInRegion(piece.position, 'centreCircle')) {
+        return { ok: false, reason: 'IN_CENTRE_CIRCLE' };
+      }
+    }
+  }
+
+  // All placement rules satisfied — return ok:true with state unchanged.
+  // The handler (08-04) tracks both-ready via Room.readyPlayers and triggers KICK_OFF transition.
+  return { ok: true, state };
+}
+
+// ---------------------------------------------------------------------------
+// applyHalfTimeStart
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyHalfTimeStart.
+ * MATCH-04: second-half transition from HALF_TIME.
+ */
+export type ApplyHalfTimeStartResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * Transitions the FSM from HALF_TIME to KICK_OFF_SETUP for the second half.
+ *
+ * MATCH-04 / D-26 / D-28 / D-29: Second-half start procedure.
+ *
+ * Resets applied:
+ * - attackingTeam = opposite of kickOffTeam (D-26: opposing team kicks off second half)
+ * - half = 2 (D-29)
+ * - actionCount = 0 (D-29)
+ * - addedTime = null (D-29)
+ * - phase = 'KICK_OFF_SETUP' (D-10: begins repositioning before second-half kick-off)
+ * - lastActionType = null (D-10: fresh action sequence at kick-off)
+ * - pieces = 4-5-2 default starting positions from teams.ts (Pitfall 6 reset)
+ *
+ * The handler (08-04) enforces that only the non-kick-off team can trigger this.
+ *
+ * @param state - Current game state (phase must be HALF_TIME)
+ */
+export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
+  // Phase guard
+  if (state.phase !== 'HALF_TIME') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // D-26: second half kick-off by the team that did NOT kick off in the first half
+  const newAttackingTeam: 'home' | 'away' = state.kickOffTeam === 'home' ? 'away' : 'home';
+
+  // Reset pieces to 4-5-2 default positions from teams.ts (Pitfall 6)
+  const resetPieces = [...HOME_SQUAD, ...AWAY_SQUAD];
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'KICK_OFF_SETUP', // D-10: setup before second-half kick-off
+      attackingTeam: newAttackingTeam, // D-26
+      activeTeam: newAttackingTeam,
+      half: 2, // D-29
+      actionCount: 0, // D-29
+      addedTime: null, // D-29
+      lastActionType: null, // D-10: fresh sequence
+      kickOffActive: false,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      movementSlot: null,
+      pieces: resetPieces, // Pitfall 6: reset to 4-5-2 formation starting positions
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// buildReplayFrames
+// ---------------------------------------------------------------------------
+
+/** Non-SLOT_ADVANCE event types that produce replay frames (D-32). */
+const REPLAY_ELIGIBLE_TYPES = new Set<string>([
+  'MOVE',
+  'DICE_ROLL',
+  'STEAL_ATTEMPT',
+  'GOAL',
+  'KICK_OFF',
+  'HIGH_PASS',
+  'LONG_BALL',
+  'STANDARD_PASS',
+  'FIRST_TIME_PASS',
+  'SHOT_ATTEMPT',
+  'SNAPSHOT',
+  'HALF_TIME',
+  'FULL_TIME',
+]);
+
+/**
+ * Reconstructs a sequence of GameState frames from the event log for replay.
+ *
+ * REPLAY-02 / REPLAY-03 / D-31 / D-32: Deterministic state reconstruction.
+ *
+ * - Starts from buildInitialGameState seeded with finalState.kickOffTeam and roomCode.
+ * - Iterates finalState.eventLog.
+ * - Emits a snapshot GameState frame (with phase='REPLAY') for each replay-eligible event.
+ * - Skips SLOT_ADVANCE events — they produce no board change and no frame (D-32).
+ * - Pure function: no setInterval here — the handler (08-04) owns timing.
+ * - Deterministic: same eventLog always yields identical frame sequence (REPLAY-03).
+ *
+ * Implementation note (A2 from RESEARCH.md):
+ * Rather than re-running full engine transitions (which would require injecting dice
+ * from the eventLog — complex and fragile), we reconstruct the visible board state
+ * incrementally by applying MOVE events (repositioning pieces) and resetting on GOAL/KICK_OFF.
+ * DICE_ROLL, STEAL_ATTEMPT, and other events carry their result in the eventLog for display.
+ * This matches the replay goal: showing board state changes, not re-simulating dice.
+ *
+ * @param finalState - The final (FULL_TIME or later) game state containing the complete eventLog.
+ * @returns Array of GameState frames — one per replay-eligible event, all tagged phase='REPLAY'.
+ */
+export function buildReplayFrames(finalState: GameState): GameState[] {
+  const frames: GameState[] = [];
+
+  // Seed the reconstruction from the initial game state using the same kickOffTeam assignment.
+  // We override the coin-flip by using a deterministic seed approach:
+  // buildInitialGameState uses randomInt for attackingTeam, so we cannot call it directly
+  // and expect determinism. Instead, we build a seeded initial state manually.
+  // A2 (RESEARCH.md): kickOffTeam is recorded in finalState; use it to seed the initial attackingTeam.
+  let current: GameState = {
+    roomCode: finalState.roomCode,
+    phase: 'KICK_OFF',
+    activeTeam: finalState.kickOffTeam,
+    attackingTeam: finalState.kickOffTeam,
+    pieces: [...HOME_SQUAD, ...AWAY_SQUAD],
+    ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+    score: { home: 0, away: 0 },
+    actionCount: 0,
+    half: 1,
+    eventLog: [],
+    refereeCard: finalState.refereeCard,
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    movementSlot: null,
+    pendingFreeMove: null,
+    addedTime: null,
+    lastActionType: null,
+    kickOffTeam: finalState.kickOffTeam,
+    kickOffActive: false,
+  };
+
+  for (const event of finalState.eventLog) {
+    // SLOT_ADVANCE events produce no board change — skip (D-32)
+    if (event.type === 'SLOT_ADVANCE') {
+      continue;
+    }
+
+    // Apply board mutations for replay-eligible events
+    if (event.type === 'MOVE') {
+      // Reposition the piece in the current reconstructed state
+      const moveEvent = event;
+      const newPieces = current.pieces.map((p) =>
+        p.id === moveEvent.pieceId ? { ...p, position: moveEvent.to } : p,
+      );
+      current = { ...current, pieces: newPieces };
+    } else if (event.type === 'GOAL') {
+      // Score increment and reset ball to kickOffHex
+      const goalEvent = event;
+      const newScore = {
+        ...current.score,
+        [goalEvent.scoringTeam]: current.score[goalEvent.scoringTeam] + 1,
+      };
+      current = {
+        ...current,
+        score: newScore,
+        ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+      };
+    } else if (event.type === 'KICK_OFF') {
+      // Kick-off: pieces stay, ball at centre (already there), transition to MOVEMENT
+      current = {
+        ...current,
+        movementSlot: 'ATTACKER_4',
+      };
+    }
+    // For DICE_ROLL, STEAL_ATTEMPT, HIGH_PASS, LONG_BALL, STANDARD_PASS, FIRST_TIME_PASS,
+    // SHOT_ATTEMPT, SNAPSHOT, HALF_TIME, FULL_TIME: produce a frame but no board mutation
+    // (these are information events for replay display; board shows them at their timestamp)
+
+    // Check if this event type is replay-eligible and emit a frame
+    if (REPLAY_ELIGIBLE_TYPES.has(event.type)) {
+      frames.push({
+        ...current,
+        phase: 'REPLAY', // D-31: tag every frame as REPLAY for client routing
+        score: { ...current.score }, // preserve persistent final score
+      });
+    }
+  }
+
+  return frames;
 }
