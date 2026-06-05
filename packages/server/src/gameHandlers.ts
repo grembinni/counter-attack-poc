@@ -33,6 +33,8 @@ import { broadcastState, getRoom } from './roomStore.js';
 import {
   applyEndTurn,
   applyGKRestart,
+  applyHalfTimeStart,
+  applyKickOffReady,
   applyMove,
   applyRoll,
   applyStartMovement,
@@ -145,7 +147,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      room.gameState = result.state;
+      // D-27 / MATCH-03: when KICK_OFF → MOVEMENT, set kickOffActive = true so the first
+      // ball action is forced to be a Standard Pass from the centre hex.
+      room.gameState = { ...result.state, kickOffActive: true };
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -348,6 +352,155 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Record the shooter's target hex for UX/broadcast (T-07-13: no game advantage possible)
       room.shotTarget = { q: targetHex.q, r: targetHex.r };
       // Intentionally no broadcastState call — see handler header (D-06 revision)
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_KICK_OFF_MOVE — free piece repositioning during KICK_OFF_SETUP phase
+  // T-08-09: piece must belong to the requesting socket's team (T-08-09 Tampering)
+  // T-08-14: isProcessing mutex guards against double-process (SC-5)
+  // D-23: no pace limits, no ZoI enforcement — this is pre-kick-off positioning
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_KICK_OFF_MOVE, (pieceId: string, to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be KICK_OFF_SETUP
+      if (room.gameState === null || room.gameState.phase !== 'KICK_OFF_SETUP') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // T-08-09: validate HexCoord payload (V5 input validation)
+      if (
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // Piece lookup
+      const piece = room.gameState.pieces.find((p) => p.id === pieceId);
+      if (!piece) {
+        socket.emit(ServerEvents.GAME_ERROR, 'PIECE_NOT_FOUND');
+        broadcastState(io, room);
+        return;
+      }
+      // T-08-09: only the owning team may reposition their pieces
+      const team = socketTeam(socket);
+      if (piece.teamId !== team) {
+        socket.emit(ServerEvents.GAME_ERROR, 'NOT_YOUR_PIECE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Apply free repositioning (no pace/ZoI checks — D-23)
+      const newPieces = room.gameState.pieces.map((p) =>
+        p.id === pieceId ? { ...p, position: { q: to.q, r: to.r } } : p,
+      );
+      room.gameState = { ...room.gameState, pieces: newPieces };
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_READY — KICK_OFF_SETUP confirmation ("Ready" button)
+  // T-08-10: applyKickOffReady validates placement server-side; snap-back on rejection
+  // T-08-08: handler tracks each socket's own slot only; never sets both ready at once
+  // D-24: transitions to KICK_OFF only when both teams have confirmed ready
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_READY, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be KICK_OFF_SETUP
+      if (room.gameState === null || room.gameState.phase !== 'KICK_OFF_SETUP') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Validate placement rules for this socket's team (T-08-10)
+      const team = socketTeam(socket);
+      const result = applyKickOffReady(room.gameState, team);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Mark this socket's player slot as ready (T-08-08: only the confirming socket's own slot)
+      const slot = socket.data.playerSlot;
+      if (slot === undefined) return;
+      if (!room.readyPlayers) {
+        room.readyPlayers = new Set<1 | 2>();
+      }
+      room.readyPlayers.add(slot);
+      // D-24: transition to KICK_OFF only when both teams have confirmed ready
+      if (room.readyPlayers.size === 2) {
+        room.gameState = {
+          ...room.gameState,
+          phase: 'KICK_OFF',
+          lastActionType: null, // D-10: fresh sequence at kick-off
+        };
+        room.readyPlayers = null; // clear for next use
+      }
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_HALF_TIME_START — trigger 2nd half from HALF_TIME phase
+  // T-08-11: only the non-kick-off team may start the second half (D-26/D-28)
+  // T-08-14: isProcessing mutex guards against double-process (SC-5)
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_HALF_TIME_START, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be HALF_TIME
+      if (room.gameState === null || room.gameState.phase !== 'HALF_TIME') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // T-08-11: only the team that did NOT kick off in the 1st half may start the 2nd half
+      // The 2nd-half kick-off team is the opposite of kickOffTeam (D-26)
+      const team = socketTeam(socket);
+      const secondHalfKickOffTeam: 'home' | 'away' =
+        room.gameState.kickOffTeam === 'home' ? 'away' : 'home';
+      if (team !== secondHalfKickOffTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'NOT_KICK_OFF_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Transition to KICK_OFF_SETUP for 2nd half (D-28)
+      const result = applyHalfTimeStart(room.gameState);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
