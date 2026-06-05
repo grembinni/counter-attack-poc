@@ -307,7 +307,7 @@ export function applyMove(
               : [...state.movedPieceIds, pieceId],
             paceUsedByPieceId: {
               ...state.paceUsedByPieceId,
-              [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+              [pieceId]: piece.pace, // full pace consumed on activation (one move per player)
             },
             ball: tackleSuccessBall,
             eventLog: newEventLog,

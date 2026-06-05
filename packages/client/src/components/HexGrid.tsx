@@ -70,12 +70,16 @@ export function HexGrid() {
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
 
-  // ZoI-risk hex classification: valid move hexes adjacent to ≥1 opponent (D-20)
+  // ZoI-risk hex classification: only shown when the ball carrier is selected (D-20)
+  // Steal risk only applies to the carrier — showing it for other players is misleading
+  const isCarrierSelected = selectedPieceId !== null && selectedPieceId === ball.carrierId;
   const opponents = myTeam !== null ? pieces.filter((p) => p.teamId !== myTeam) : [];
   const zoiRiskSet = new Set(
-    validMoveHexes
-      .filter((hex) => getZoIDefenders(hex, opponents).length > 0)
-      .map((h) => `${h.q},${h.r}`),
+    isCarrierSelected
+      ? validMoveHexes
+          .filter((hex) => getZoIDefenders(hex, opponents).length > 0)
+          .map((h) => `${h.q},${h.r}`)
+      : [],
   );
 
   // KICK_OFF_SETUP: derive the local team's valid placement zone (D-23)

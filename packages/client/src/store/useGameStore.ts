@@ -174,8 +174,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const phaseChanged = newState.phase !== prevState.phase;
     const pieceStillExists =
       prevSelectedId !== null && newState.pieces.some((p) => p.id === prevSelectedId);
+    // After a multi-hex activation the piece is in movedPieceIds — deselect, activation complete
+    const activationComplete =
+      prevSelectedId !== null && newState.movedPieceIds.includes(prevSelectedId);
 
-    if (slotChanged || phaseChanged || !pieceStillExists || prevSelectedId === null) {
+    if (
+      slotChanged ||
+      phaseChanged ||
+      !pieceStillExists ||
+      prevSelectedId === null ||
+      activationComplete
+    ) {
       // Clear selection on phase/slot transitions or missing piece (D-18)
       set({
         gameState: newState,

@@ -59,8 +59,10 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // 1. WRONG_SLOT: movementSlot must be active (checked first — no movement outside Movement Phase)
   if (state.movementSlot === null) return { ok: false, reason: 'WRONG_SLOT' };
 
-  // 2. OUT_OF_RANGE: single-step constraint (D-10)
-  if (hexDistance(piece.position, to) !== 1) return { ok: false, reason: 'OUT_OF_RANGE' };
+  // 2. OUT_OF_RANGE: destination must be within remaining pace (direct multi-hex movement)
+  const paceRemaining = piece.pace - (state.paceUsedByPieceId[piece.id] ?? 0);
+  if (hexDistance(piece.position, to) > paceRemaining || hexDistance(piece.position, to) < 1)
+    return { ok: false, reason: 'OUT_OF_RANGE' };
 
   // 3. OCCUPIED: destination must be clear (MOVE-03)
   if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
@@ -83,9 +85,7 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
     return { ok: false, reason: 'PACE_EXCEEDED' }; // slot quota full — all activations used
   }
 
-  // D-11: piece can move up to its own Pace attribute in hexes per activation
-  const paceUsed = state.paceUsedByPieceId[piece.id] ?? 0;
-  if (paceUsed + 1 > piece.pace) return { ok: false, reason: 'PACE_EXCEEDED' };
+  // D-11: pace cap enforced by OUT_OF_RANGE check above (destination within remaining pace)
 
   // 6. ZoI steal trigger — only when the moving piece is the ball-carrier (D-03, MOVE-04/MOVE-05)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)
