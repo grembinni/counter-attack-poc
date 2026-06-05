@@ -231,7 +231,7 @@ Plans:
 4. At full time, both clients display the final score and a post-game replay begins automatically, advancing one action per second through the server event log with the board re-rendering each state in sequence
 5. Score is displayed and updated on both clients simultaneously after every goal; the final score shown at full time matches the number of goals registered in the event log
 
-**Plans:** 4/6 plans executed
+**Plans:** 5/6 plans executed
 **UI hint**: yes
 
 Plans:
@@ -254,7 +254,7 @@ Plans:
 
 **Wave 5** _(blocked on Wave 1 + Wave 4)_
 
-- [ ] 08-05-PLAN.md — Client routing + screens: store Screen/emitters, App phase routing, HalfTimeScreen, FullTimeScreen, KickOffSetupPanel
+- [x] 08-05-PLAN.md — Client routing + screens: store Screen/emitters, App phase routing, HalfTimeScreen, FullTimeScreen, KickOffSetupPanel
 
 **Wave 6** _(blocked on Wave 5 — has checkpoint)_
 
@@ -289,5 +289,5 @@ Plans:
 | 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
 | 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle + Post-Game Replay       | 4/6            | In Progress |            |
+| 8. Match Lifecycle + Post-Game Replay       | 5/6            | In Progress |            |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |

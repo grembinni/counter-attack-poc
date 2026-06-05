@@ -78,7 +78,7 @@
 - [x] **MATCH-02**: At the end of each half, added time = dice roll + referee Leniency attribute; play continues for exactly that many additional actions
 - [x] **MATCH-03**: Kick off procedure: one player placed on the centre hex; attacking team may have players in the centre circle, defending team may not; game starts with a Standard Pass
 - [x] **MATCH-04**: Second half kick off is taken by the team that did not kick off in the first half
-- [ ] **MATCH-05**: Score is tracked and displayed to both players throughout the match
+- [x] **MATCH-05**: Score is tracked and displayed to both players throughout the match
 
 ### User Experience
 
