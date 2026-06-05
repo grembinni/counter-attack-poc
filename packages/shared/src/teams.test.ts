@@ -14,6 +14,22 @@ const ATTRIBUTES = [
   'highPass',
 ] as const;
 
+/**
+ * The 9 attributes that contribute to a player's tier total (all except highPass).
+ * D-02: Tier totals count all 9 attributes (0s count as 0).
+ */
+const ATTRS = [
+  'pace',
+  'shooting',
+  'tackling',
+  'dribbling',
+  'heading',
+  'saving',
+  'handling',
+  'resilience',
+  'aerialAbility',
+] as const;
+
 const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD'] as const;
 
 /**
@@ -30,19 +46,33 @@ function minForAttr(attr: (typeof ATTRIBUTES)[number], role: string): number {
   return 1;
 }
 
+/**
+ * Returns the Counter Attack tier for a player's total attribute score (sum of 9 ATTRS).
+ * Tier 1 = World Class (34+), Tier 2 = International (32-33), Tier 3 = Top Flight (30-31),
+ * Tier 4 = Respected Pro (28-29), Tier 5 = Journeyman (26-27). D-03.
+ */
+function getTier(total: number): number {
+  if (total >= 34) return 1;
+  if (total >= 32) return 2;
+  if (total >= 30) return 3;
+  if (total >= 28) return 4;
+  if (total >= 26) return 5;
+  return 0; // below Tier 5 (should not occur in a valid squad)
+}
+
 describe('HOME_SQUAD', () => {
   it('contains exactly 11 players (TEAM-01)', () => {
     expect(HOME_SQUAD).toHaveLength(11);
   });
 
-  it('each player has all 10 attributes as integers in role-adjusted range..10 (TEAM-01, D-05, D-06, D-07)', () => {
+  it('each player has all 10 attributes as integers in role-adjusted range..6 (TEAM-01, D-01, D-05, D-06, D-07)', () => {
     for (const player of HOME_SQUAD) {
       for (const attr of ATTRIBUTES) {
         const val = player[attr];
         const min = minForAttr(attr, player.role);
         expect(Number.isInteger(val), `${player.id}.${attr} must be integer`).toBe(true);
         expect(val, `${player.id}.${attr} must be >= ${min}`).toBeGreaterThanOrEqual(min);
-        expect(val, `${player.id}.${attr} must be <= 10`).toBeLessThanOrEqual(10);
+        expect(val, `${player.id}.${attr} must be <= 6`).toBeLessThanOrEqual(6);
       }
     }
   });
@@ -75,6 +105,20 @@ describe('HOME_SQUAD', () => {
       expect(player.teamId).toBe('home');
     }
   });
+
+  it('has the correct tier distribution 1/2/3/3/2 (D-03)', () => {
+    const tierCounts = [0, 0, 0, 0, 0, 0]; // index 0 unused; indices 1-5 = tier counts
+    for (const player of HOME_SQUAD) {
+      const total = ATTRS.reduce((sum, a) => sum + player[a], 0);
+      const tier = getTier(total);
+      tierCounts[tier]++;
+    }
+    expect(tierCounts[1], 'Tier 1 (World Class, 34+): 1 player').toBe(1);
+    expect(tierCounts[2], 'Tier 2 (International, 32-33): 2 players').toBe(2);
+    expect(tierCounts[3], 'Tier 3 (Top Flight, 30-31): 3 players').toBe(3);
+    expect(tierCounts[4], 'Tier 4 (Respected Pro, 28-29): 3 players').toBe(3);
+    expect(tierCounts[5], 'Tier 5 (Journeyman, 26-27): 2 players').toBe(2);
+  });
 });
 
 describe('AWAY_SQUAD', () => {
@@ -82,14 +126,14 @@ describe('AWAY_SQUAD', () => {
     expect(AWAY_SQUAD).toHaveLength(11);
   });
 
-  it('each player has all 10 attributes as integers in role-adjusted range..10 (TEAM-01, D-05, D-06, D-07)', () => {
+  it('each player has all 10 attributes as integers in role-adjusted range..6 (TEAM-01, D-01, D-05, D-06, D-07)', () => {
     for (const player of AWAY_SQUAD) {
       for (const attr of ATTRIBUTES) {
         const val = player[attr];
         const min = minForAttr(attr, player.role);
         expect(Number.isInteger(val), `${player.id}.${attr} must be integer`).toBe(true);
         expect(val, `${player.id}.${attr} must be >= ${min}`).toBeGreaterThanOrEqual(min);
-        expect(val, `${player.id}.${attr} must be <= 10`).toBeLessThanOrEqual(10);
+        expect(val, `${player.id}.${attr} must be <= 6`).toBeLessThanOrEqual(6);
       }
     }
   });
@@ -121,5 +165,19 @@ describe('AWAY_SQUAD', () => {
     for (const player of AWAY_SQUAD) {
       expect(player.teamId).toBe('away');
     }
+  });
+
+  it('has the correct tier distribution 1/2/3/3/2 (D-03)', () => {
+    const tierCounts = [0, 0, 0, 0, 0, 0]; // index 0 unused; indices 1-5 = tier counts
+    for (const player of AWAY_SQUAD) {
+      const total = ATTRS.reduce((sum, a) => sum + player[a], 0);
+      const tier = getTier(total);
+      tierCounts[tier]++;
+    }
+    expect(tierCounts[1], 'Tier 1 (World Class, 34+): 1 player').toBe(1);
+    expect(tierCounts[2], 'Tier 2 (International, 32-33): 2 players').toBe(2);
+    expect(tierCounts[3], 'Tier 3 (Top Flight, 30-31): 3 players').toBe(3);
+    expect(tierCounts[4], 'Tier 4 (Respected Pro, 28-29): 3 players').toBe(3);
+    expect(tierCounts[5], 'Tier 5 (Journeyman, 26-27): 2 players').toBe(2);
   });
 });
