@@ -1004,7 +1004,14 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
       kickOffTeam: 'home',
       eventLog: [
         { type: 'KICK_OFF', timestamp: 1 },
-        { type: 'STEAL_ATTEMPT', defenderId: 'away-def', result: 'SUCCESS', timestamp: 2 },
+        {
+          type: 'STEAL_ATTEMPT',
+          defenderId: 'away-def',
+          result: 'SUCCESS',
+          defenderDie: 6,
+          defenderCombined: 6,
+          timestamp: 2,
+        },
         { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 3 },
         { type: 'DICE_ROLL', result: 5, timestamp: 4 },
       ],
