@@ -30,7 +30,13 @@ function formatEvent(event: ActionEvent): { prefix: string; content: string; isG
     case 'STEAL_ATTEMPT':
       return {
         prefix: '[STEAL]',
-        content: ` ${event.defenderId} — ${event.result}`,
+        content: ` ${event.defenderId} — ${event.result} (die: ${event.defenderDie})`,
+        isGoal: false,
+      };
+    case 'TACKLE_ATTEMPT':
+      return {
+        prefix: '[TACKLE]',
+        content: ` ${event.defenderId} vs ${event.carrierId} — ${event.result} (${event.defenderCombined} vs ${event.carrierCombined})`,
         isGoal: false,
       };
     case 'GOAL':
