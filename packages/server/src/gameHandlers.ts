@@ -631,11 +631,21 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         room.readyPlayers = new Set<1 | 2>();
       }
       room.readyPlayers.add(slot);
-      // D-24: transition to KICK_OFF only when both teams have confirmed ready
+      // D-24: transition to KICK_OFF only when both teams have confirmed ready.
+      // applyKickOffReady already validated that the attacking team has exactly one
+      // piece on the centre hex — assign that piece as ball carrier so possession
+      // is reflected in state and graphics immediately.
       if (room.readyPlayers.size === 2) {
+        const kickOffHex = PITCH_REGIONS.kickOffHex;
+        const kicker = room.gameState.pieces.find(
+          (p) => p.position.q === kickOffHex.q && p.position.r === kickOffHex.r,
+        );
         room.gameState = {
           ...room.gameState,
           phase: 'KICK_OFF',
+          ball: kicker ? { position: kickOffHex, carrierId: kicker.id } : room.gameState.ball,
+          attackingTeam: kicker ? kicker.teamId : room.gameState.attackingTeam,
+          activeTeam: kicker ? kicker.teamId : room.gameState.activeTeam,
           lastActionType: null, // D-10: fresh sequence at kick-off
         };
         room.readyPlayers = null; // clear for next use
