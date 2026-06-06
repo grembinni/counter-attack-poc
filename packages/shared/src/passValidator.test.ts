@@ -204,15 +204,38 @@ describe('validatePassAccuracy', () => {
     if (!result.accurate) expect(result.triggerLooseBall).toBe(true);
   });
 
-  it('LONG_CROSS_THIRD: dribbling 5 + dice 6 = 11 ≥ 10 → accurate; dice 4 = 9 → inaccurate', () => {
-    const accurate = validatePassAccuracy(basePiece, 'LONG_CROSS_THIRD', 6, []);
-    expect(accurate.accurate).toBe(true);
-    const inaccurate = validatePassAccuracy(basePiece, 'LONG_CROSS_THIRD', 4, []);
-    expect(inaccurate.accurate).toBe(false);
+  it('LONG_CROSS_THIRD: highPass 3 + dice 6 = 9 < 10 → inaccurate; dice 7 would be accurate (uses highPass, not dribbling per D-04)', () => {
+    // basePiece: highPass=3, dribbling=5
+    // D-04 correction (Phase 8.2): Long Pass uses highPass, not dribbling
+    const inaccurate = validatePassAccuracy(basePiece, 'LONG_CROSS_THIRD', 6, []);
+    expect(inaccurate.accurate).toBe(false); // highPass(3)+dice(6)=9 < 10
   });
 
-  it('applies DICE-04 -2 cap: dribbling 4, dice 6, penalties [-1,-1,-1] → 4+6-2=8 < 9 → inaccurate (LONG_SAME_THIRD)', () => {
-    const piece: PlayerPiece = { ...basePiece, dribbling: 4 };
+  it('D-04: LONG_SAME_THIRD uses highPass (not dribbling) — piece with highPass=5, dribbling=1, die=4 → combined 9 → accurate (threshold 9)', () => {
+    // Proves Long Pass uses highPass: 5+4=9 >= 9 → accurate
+    // If it used dribbling instead: 1+4=5 < 9 → inaccurate (would fail this test)
+    const piece: PlayerPiece = { ...basePiece, highPass: 5, dribbling: 1 };
+    const result = validatePassAccuracy(piece, 'LONG_SAME_THIRD', 4, []);
+    expect(result.accurate).toBe(true);
+  });
+
+  it('D-04: LONG_SAME_THIRD dribbling irrelevant — piece with highPass=2, dribbling=6, die=4 → combined 6 < 9 → inaccurate (proves dribbling NOT used)', () => {
+    // highPass(2)+die(4)=6 < 9 → inaccurate
+    // If dribbling were used: 6+4=10 >= 9 → accurate (would fail this test)
+    const piece: PlayerPiece = { ...basePiece, highPass: 2, dribbling: 6 };
+    const result = validatePassAccuracy(piece, 'LONG_SAME_THIRD', 4, []);
+    expect(result.accurate).toBe(false);
+    if (!result.accurate) expect(result.triggerLooseBall).toBe(true);
+  });
+
+  it('HIGH pass accuracy behavior unchanged — still uses highPass (D-04)', () => {
+    // basePiece: highPass=3, die=5 → 3+5=8 >= 8 → accurate
+    const result = validatePassAccuracy(basePiece, 'HIGH', 5, []);
+    expect(result.accurate).toBe(true);
+  });
+
+  it('applies DICE-04 -2 cap: highPass 4, dice 6, penalties [-1,-1,-1] → 4+6-2=8 < 9 → inaccurate (LONG_SAME_THIRD)', () => {
+    const piece: PlayerPiece = { ...basePiece, highPass: 4 };
     const result = validatePassAccuracy(piece, 'LONG_SAME_THIRD', 6, [-1, -1, -1]);
     // 4 + 6 + clamp(-3, -2, 0) = 4 + 6 - 2 = 8 < 9
     expect(result.accurate).toBe(false);

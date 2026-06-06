@@ -9,9 +9,9 @@
  *          threshold 9 same-third / 10 cross-third).
  * PASS-05: Inaccurate High/Long pass triggers Loose Ball (triggerLooseBall: true in AccuracyResult).
  *
- * Attribute mapping (D-04, D-14 Phase 5 verified):
+ * Attribute mapping (D-04, Phase 8.2 correction):
  * - High Pass accuracy uses piece.highPass
- * - Long Pass accuracy uses piece.dribbling
+ * - Long Pass accuracy uses piece.highPass (D-04, Phase 8.2 correction; previously incorrectly used piece.dribbling)
  */
 
 import type { GameState, PlayerPiece, HexCoord } from './types.js';
@@ -121,9 +121,9 @@ export function validatePass(
  *
  * Thresholds (PASS-03/PASS-04): HIGH = 8, LONG_SAME_THIRD = 9, LONG_CROSS_THIRD = 10.
  *
- * Attribute mapping (D-04, D-14 Phase 5 verified):
+ * Attribute mapping (D-04, Phase 8.2 correction):
  * - High Pass accuracy uses piece.highPass
- * - Long Pass accuracy uses piece.dribbling
+ * - Long Pass accuracy uses piece.highPass (D-04, Phase 8.2 correction; was incorrectly using piece.dribbling)
  *
  * PASS-05: An inaccurate result carries triggerLooseBall:true to signal the Loose Ball sequence.
  *
@@ -139,8 +139,9 @@ export function validatePassAccuracy(
   penalties: number[],
 ): AccuracyResult {
   const threshold = passType === 'HIGH' ? 8 : passType === 'LONG_SAME_THIRD' ? 9 : 10;
-  // D-14 (Phase 5): HIGH pass uses highPass attribute, not aerialAbility.
-  const attribute = passType === 'HIGH' ? piece.highPass : piece.dribbling;
+  // D-04 (Phase 8.2 correction): HIGH, LONG_SAME_THIRD, and LONG_CROSS_THIRD all use piece.highPass.
+  // Prior code incorrectly used piece.dribbling for Long Pass types.
+  const attribute = piece.highPass;
   const score = computeCombinedScore(attribute, diceValue, penalties);
   return score >= threshold ? { accurate: true } : { accurate: false, triggerLooseBall: true };
 }
