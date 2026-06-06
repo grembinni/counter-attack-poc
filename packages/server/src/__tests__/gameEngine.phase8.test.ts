@@ -24,6 +24,7 @@ import {
   applyKickOffReady,
   applyHalfTimeStart,
   buildReplayFrames,
+  applyStartMovement,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -1031,5 +1032,74 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
     };
     const frames = buildReplayFrames(state);
     expect(frames).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Wave 0 RED scaffold: HEAD-05 / D-21 — contested piece excluded from Movement Phase
+// ---------------------------------------------------------------------------
+// RED until 08.2-02 implements HEAD-05 exclusion in applyStartMovement and applyMove
+
+describe('HEAD-05: a piece that contested a header is excluded from the subsequent Movement Phase', () => {
+  /** Base PASS state with a contestedPieceIds value set */
+  const makeContestedPassState = (contestedId: string): GameState => ({
+    roomCode: 'TEST',
+    phase: 'PASS',
+    activeTeam: 'home',
+    attackingTeam: 'home',
+    pieces: [
+      { ...homeFwd, position: { q: 20, r: 12 } }, // the contested piece (home-fwd)
+      awayGk,
+      { ...homeMid, position: { q: 15, r: 12 } },
+      awayDef,
+    ],
+    ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd' },
+    score: { home: 0, away: 0 },
+    actionCount: 10,
+    half: 1,
+    eventLog: [],
+    refereeCard: { leniency: 2 },
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    movementSlot: null,
+    pendingFreeMove: null,
+    addedTime: null,
+    lastActionType: 'HEADER',
+    kickOffTeam: 'home',
+    kickOffActive: false,
+    // D-21 / HEAD-05: this piece contested a header and must not move in the next Movement Phase
+    contestedPieceIds: [contestedId],
+  });
+
+  it('D-21: applyStartMovement clears contestedPieceIds to an empty array', () => {
+    // RED until 08.2-02 implements HEAD-05 exclusion
+    const state = makeContestedPassState('home-fwd');
+    const result = applyStartMovement(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // contestedPieceIds must be cleared to [] after starting a new Movement Phase
+    expect(result.state.contestedPieceIds ?? []).toEqual([]);
+  });
+
+  it('D-21: applyMove rejects a contested piece during the Movement Phase following a header (MOVE_INVALID)', () => {
+    // RED until 08.2-02 implements HEAD-05 exclusion
+    const passState = makeContestedPassState('home-fwd');
+    const movementResult = applyStartMovement(passState);
+    expect(movementResult.ok).toBe(true);
+    if (!movementResult.ok) return;
+
+    // Inject the contested piece ID into the started movement state
+    // (simulating a state where the engine remembers the contest for move rejection)
+    const movementState: GameState = {
+      ...movementResult.state,
+      contestedPieceIds: ['home-fwd'], // persisted for move-time rejection guard
+    };
+
+    // home-fwd is contested — attempting to move it must be rejected
+    // Move target: adjacent hex {q:21, r:12}
+    const moveResult = applyMove(movementState, 'home-fwd', { q: 21, r: 12 });
+    // HEAD-05: contested pieces must not be movable; expect rejection
+    expect(moveResult.ok).toBe(false);
+    // RED until 08.2-02 implements HEAD-05 exclusion
   });
 });
