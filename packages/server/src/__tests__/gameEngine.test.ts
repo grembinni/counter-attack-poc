@@ -700,6 +700,209 @@ describe('applyRoll', () => {
     }
   });
 
+  // ---- PASS branch — per-type accuracy, ball delivery, interception (PASS-01/02/03) ----
+
+  /** homeTeammate placed at the target hex so delivery can set carrierId */
+  const homeTeammate: PlayerPiece = {
+    id: 'home-2',
+    teamId: 'home',
+    name: 'Home MID',
+    role: 'MID',
+    position: { q: 17, r: 7 },
+    pace: 7,
+    shooting: 5,
+    tackling: 4,
+    dribbling: 5,
+    heading: 5,
+    saving: 1,
+    handling: 1,
+    resilience: 6,
+    aerialAbility: 0,
+    highPass: 5,
+  };
+
+  /** A defending piece adjacent to the pass path (for interception tests) */
+  const interceptorPiece: PlayerPiece = {
+    id: 'away-int',
+    teamId: 'away',
+    name: 'Away Interceptor',
+    role: 'MID',
+    position: { q: 13, r: 7 }, // adjacent to pass path from q:10 to q:17
+    pace: 7,
+    shooting: 4,
+    tackling: 6,
+    dribbling: 4,
+    heading: 4,
+    saving: 1,
+    handling: 1,
+    resilience: 5,
+    aerialAbility: 0,
+    highPass: 4,
+  };
+
+  /** STANDARD_PASS state: handler sets lastActionType before calling applyRoll */
+  const standardPassState: GameState = {
+    ...passState,
+    pieces: [homePiece, homeTeammate, awayGK],
+    lastActionType: 'STANDARD_PASS',
+    passTargetHex: { q: 17, r: 7 }, // homeTeammate is at q:17
+  };
+
+  /** FIRST_TIME_PASS state */
+  const firstTimePassState: GameState = {
+    ...passState,
+    pieces: [homePiece, homeTeammate, awayGK],
+    lastActionType: 'FIRST_TIME_PASS',
+    passTargetHex: { q: 17, r: 7 },
+  };
+
+  /** HIGH_PASS state: homePiece.highPass=5 */
+  const highPassState: GameState = {
+    ...passState,
+    pieces: [homePiece, homeTeammate, awayGK],
+    lastActionType: 'HIGH_PASS',
+    passTargetHex: { q: 17, r: 7 },
+  };
+
+  /** LONG_BALL state: homePiece.highPass=5 */
+  const longBallState: GameState = {
+    ...passState,
+    pieces: [homePiece, homeTeammate, awayGK],
+    lastActionType: 'LONG_BALL',
+    passTargetHex: { q: 17, r: 7 },
+  };
+
+  /** Interception state: interceptorPiece is adjacent to pass path (PASS-01) */
+  const interceptionPassState: GameState = {
+    ...passState,
+    pieces: [homePiece, homeTeammate, awayGK, interceptorPiece],
+    lastActionType: 'STANDARD_PASS',
+    passTargetHex: { q: 17, r: 7 },
+    preGeneratedInterceptionDice: [6], // die=6 → interception success
+  };
+
+  /** Interception state where defender fails to intercept */
+  const noInterceptionPassState: GameState = {
+    ...passState,
+    pieces: [homePiece, homeTeammate, awayGK, interceptorPiece],
+    lastActionType: 'STANDARD_PASS',
+    passTargetHex: { q: 17, r: 7 },
+    preGeneratedInterceptionDice: [2], // die=2, tackling=6: 2+6=8 < 10, not 6 → fail
+  };
+
+  it('STANDARD_PASS (PASS-02): ball delivered to passTargetHex; no accuracy check; passTargetHex cleared', () => {
+    // homePiece.highPass=5; even die=1 would make 5+1=6 < 8 for HIGH accuracy check
+    // But STANDARD_PASS skips accuracy check entirely (D-01)
+    const result = applyRoll(standardPassState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ball delivered to target hex
+    expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
+    // Ball carrier set to homeTeammate at target
+    expect(result.state.ball.carrierId).toBe('home-2');
+    // Phase stays PASS (neutral action choice)
+    expect(result.state.phase).toBe('PASS');
+    // lastActionType set to STANDARD_PASS
+    expect(result.state.lastActionType).toBe('STANDARD_PASS');
+    // actionCount +1 (standard pass costs 1 minute)
+    expect(result.state.actionCount).toBe(1);
+    // passTargetHex cleared to null
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('FIRST_TIME_PASS (PASS-02): same delivery as STANDARD; lastActionType FIRST_TIME_PASS; passTimeCost 0', () => {
+    const result = applyRoll(firstTimePassState, 1, 3, 3); // die=1 would fail HIGH accuracy
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ball delivered despite low die (no accuracy check)
+    expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
+    expect(result.state.ball.carrierId).toBe('home-2');
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    // FIRST_TIME_PASS costs 0 minutes
+    expect(result.state.actionCount).toBe(0);
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('HIGH_PASS accurate (PASS-03): highPass=5, die=4 (combined 9 >= 8) → ball delivered; phase HEADER; headerContestants initialized', () => {
+    // homePiece.highPass=5; die=4: 5+4=9 >= 8 → accurate
+    const result = applyRoll(highPassState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
+    expect(result.state.ball.carrierId).toBe('home-2');
+    expect(result.state.phase).toBe('HEADER');
+    expect(result.state.lastActionType).toBe('HIGH_PASS');
+    // headerContestants initialized
+    expect(result.state.headerContestants).toEqual({ home: null, away: null });
+    expect(result.state.headerConfirmed).toEqual({ home: false, away: false });
+    expect(result.state.actionCount).toBe(1); // +1 for HIGH_PASS
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('HIGH_PASS inaccurate (PASS-03): highPass=5, die=2 (combined 7 < 8) → LOOSE_BALL; ball stays at carrier', () => {
+    // homePiece.highPass=5; die=2: 5+2=7 < 8 → inaccurate
+    const result = applyRoll(highPassState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.carrierId).toBeNull();
+    // Ball stays at carrier position
+    expect(result.state.ball.position).toEqual({ q: 10, r: 7 });
+    expect(result.state.actionCount).toBe(1);
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('LONG_BALL accurate (PASS-03): highPass=5, die=4 (combined 9 >= 9 LONG_SAME_THIRD) → ball delivered; phase PASS; lastActionType LONG_BALL', () => {
+    // homePiece.highPass=5; die=4: 5+4=9 >= 9 → accurate (LONG_SAME_THIRD threshold)
+    const result = applyRoll(longBallState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('LONG_BALL');
+    expect(result.state.actionCount).toBe(1);
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('PASS-01 interception: die=6 → interceptor takes possession; lastActionType SUCCESSFUL_TACKLE', () => {
+    // preGeneratedInterceptionDice=[6]; die===6 → interception success
+    const result = applyRoll(interceptionPassState, 4, 3, 3); // d1=4 → accurate STANDARD (skips check anyway)
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Interceptor gets ball
+    expect(result.state.ball.carrierId).toBe('away-int');
+    expect(result.state.ball.position).toEqual(interceptorPiece.position);
+    // Possession flips to interceptor's team
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('PASS-01 no interception: die=2, tackling=6: combined 8 < 10 → ball delivered normally', () => {
+    // preGeneratedInterceptionDice=[2]; 6+2=8 < 10, not 6 → no interception
+    const result = applyRoll(noInterceptionPassState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ball delivered to target
+    expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
+    expect(result.state.ball.carrierId).toBe('home-2'); // homeTeammate
+    expect(result.state.attackingTeam).toBe('home'); // no flip
+    expect(result.state.lastActionType).toBe('STANDARD_PASS');
+  });
+
+  it('PASS with passTargetHex=null → WRONG_PHASE (D-10 T-08.2-03)', () => {
+    const state: GameState = {
+      ...standardPassState,
+      passTargetHex: null,
+    };
+    const result = applyRoll(state, 4, 3, 3);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
+  });
+
   // ---- SHOT branch ----
 
   it('SHOT GOAL (shooterScore > gkScore) → score increments for attacking team; phase KICK_OFF', () => {
