@@ -68,6 +68,7 @@ export function HexGrid() {
   const passTargetHex = useGameStore((s) => s.passTargetHex);
   const selectedPassType = useGameStore((s) => s.selectedPassType);
   const setPassTargetHex = useGameStore((s) => s.setPassTargetHex);
+  const confirmPassTarget = useGameStore((s) => s.confirmPassTarget);
 
   // Phase 8.2: header contestant (D-17)
   const headerContestantId = useGameStore((s) => s.headerContestantId);
@@ -178,11 +179,12 @@ export function HexGrid() {
                 socket.emit(ClientEvents.GAME_SHOT, hex);
               };
             } else if (isPassTarget && isActivePlayer) {
-              // Phase 8.2 D-06: click valid pass target to confirm; click confirmed target to deselect
+              // Phase 8.2 D-06: click valid pass target to confirm (or deselect confirmed target).
+              // STANDARD/FIRST_TIME: confirmPassTarget auto-emits; HIGH/LONG_BALL: sets passTargetHex for step 3.
               if (isConfirmedPassTarget) {
                 onClick = () => setPassTargetHex(null);
               } else if (passTargetHex === null) {
-                onClick = () => setPassTargetHex(hex);
+                onClick = () => confirmPassTarget(hex);
               }
             }
 

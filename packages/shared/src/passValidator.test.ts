@@ -83,12 +83,12 @@ describe('validatePass', () => {
     if (result.ok) expect(result.interceptors).toEqual([]);
   });
 
-  it('rejects STANDARD pass with PATH_BLOCKED when teammate occupies intermediate hex', () => {
+  it('does NOT block STANDARD pass when teammate occupies intermediate hex', () => {
+    // Teammates do not screen the pass — only opponents do (PASS-01 correction)
     const blocker = makeTeammate('p2', 5, 0); // intermediate hex on line from {0,0} to {10,0}
     const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'STANDARD');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('PATH_BLOCKED');
+    expect(result.ok).toBe(true);
   });
 
   it('rejects STANDARD pass with PATH_BLOCKED when opponent occupies intermediate hex', () => {

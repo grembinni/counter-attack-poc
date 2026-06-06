@@ -68,6 +68,12 @@ export type GameStore = {
   setSelectedPassType: (passType: PassType | null) => void;
   /** Phase 8.2 D-06: Confirm or deselect a pass target hex. */
   setPassTargetHex: (hex: HexCoord | null) => void;
+  /**
+   * Phase 8.2 D-06: Confirm a pass target from HexGrid click.
+   * STANDARD/FIRST_TIME: auto-emits GAME_ROLL immediately (no accuracy check, interception resolved by server).
+   * HIGH/LONG_BALL: sets passTargetHex so ActionPanel step 3 shows Roll Dice.
+   */
+  confirmPassTarget: (hex: HexCoord) => void;
   /** Phase 8.2 D-17: Update the local header contestant piece ID and emit to server. */
   emitHeaderContestant: (pieceId: string | null) => void;
   /** Phase 8.2 D-17: Set the header contestant piece ID in local store only (for HexGrid toggle). */
@@ -206,6 +212,21 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   setPassTargetHex: (hex) => set({ passTargetHex: hex }),
+
+  confirmPassTarget: (hex) => {
+    const { selectedPassType } = get();
+    if (selectedPassType === 'STANDARD_PASS' || selectedPassType === 'FIRST_TIME_PASS') {
+      socket.emit(ClientEvents.GAME_ROLL, selectedPassType, hex);
+      set({
+        selectedPassType: null,
+        validPassTargetHexes: [],
+        interceptionRiskHexes: [],
+        passTargetHex: null,
+      });
+    } else {
+      set({ passTargetHex: hex });
+    }
+  },
 
   emitHeaderContestant: (pieceId) => {
     socket.emit(ClientEvents.GAME_HEADER_CONTESTANT, pieceId);

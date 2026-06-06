@@ -70,12 +70,13 @@ export function validatePass(
   if (passType === 'HIGH' && dist > 15) return { ok: false, reason: 'RANGE_EXCEEDED' };
 
   // 3. STANDARD only: path blocking (PASS-01)
-  // slice(1, -1) skips passer's hex and destination — only intermediate hexes can block
-  // Any piece (own team or opponent) on an intermediate hex blocks the pass.
+  // Only OPPONENT pieces on intermediate hexes block a standard pass; teammates do not.
+  // slice(1, -1) skips the passer's hex and the destination.
   if (passType === 'STANDARD') {
+    const opponentPieces = state.pieces.filter((p) => p.teamId !== piece.teamId);
     const intermediateHexes = hexLine(from, to).slice(1, -1);
     const blocked = intermediateHexes.some((hex) =>
-      state.pieces.some((p) => p.position.q === hex.q && p.position.r === hex.r),
+      opponentPieces.some((p) => p.position.q === hex.q && p.position.r === hex.r),
     );
     if (blocked) return { ok: false, reason: 'PATH_BLOCKED' };
   }
