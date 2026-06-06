@@ -49,6 +49,7 @@ import {
   buildReplayFrames,
 } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
+import { randomInt } from 'crypto';
 import type { Room } from './roomStore.js';
 import type { GameState } from '@counter-attack/shared';
 
@@ -631,11 +632,20 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         room.readyPlayers = new Set<1 | 2>();
       }
       room.readyPlayers.add(slot);
-      // D-24: transition to KICK_OFF only when both teams have confirmed ready
+      // D-24: transition to KICK_OFF only when both teams have confirmed ready.
+      // Resolve ball possession with a fresh coin flip so both players see who
+      // kicks off at the moment both sides confirm — applies to match start,
+      // after goals, and second-half restarts.
       if (room.readyPlayers.size === 2) {
+        const kickingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away';
         room.gameState = {
           ...room.gameState,
           phase: 'KICK_OFF',
+          attackingTeam: kickingTeam,
+          activeTeam: kickingTeam,
+          // kickOffTeam records first-half kicker for second-half assignment (D-26).
+          // Only update it in the first half; leave it alone in the second half.
+          kickOffTeam: room.gameState.half === 1 ? kickingTeam : room.gameState.kickOffTeam,
           lastActionType: null, // D-10: fresh sequence at kick-off
         };
         room.readyPlayers = null; // clear for next use
