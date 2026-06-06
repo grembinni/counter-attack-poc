@@ -33,6 +33,7 @@ export function ActionPanel() {
   const lastActionType = useGameStore((s) => s.gameState.lastActionType);
   const carrierId = useGameStore((s) => s.gameState.ball.carrierId);
   const pieces = useGameStore((s) => s.gameState.pieces);
+  const eventLog = useGameStore((s) => s.gameState.eventLog);
   const gameError = useGameStore((s) => s.gameError);
   const emitRoll = useGameStore((s) => s.emitRoll);
   const emitEndTurn = useGameStore((s) => s.emitEndTurn);
@@ -61,23 +62,12 @@ export function ActionPanel() {
   const isGKTeam = myTeam !== null && myTeam === gkTeam;
 
   // -------------------------------------------------------------------------
-  // KICK_OFF phase — start the movement phase
+  // KICK_OFF + PASS phase — two-step choose-phase flow
+  // KICK_OFF is treated identically to PASS: lastActionType is null → shows
+  // MOVEMENT_PHASE eligible actions. "Move" calls emitStartMovement which the
+  // server accepts from both KICK_OFF and PASS.
   // -------------------------------------------------------------------------
-  if (phase === 'KICK_OFF') {
-    return (
-      <div className={styles.panel}>
-        <button className={styles.ctaButton} onClick={emitStartMovement}>
-          Start Movement Phase
-        </button>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // PASS phase — two-step choose-phase flow
-  // -------------------------------------------------------------------------
-  if (phase === 'PASS') {
+  if (phase === 'PASS' || phase === 'KICK_OFF') {
     // Eligible next actions based on the last completed action.
     // null lastActionType (kick-off start state) treated as MOVEMENT_PHASE.
     const effectiveLastAction = lastActionType ?? 'MOVEMENT_PHASE';
@@ -164,6 +154,16 @@ export function ActionPanel() {
     const penaltyRegion = attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
     const canSnapshot = carrier !== undefined && isInRegion(carrier.position, penaltyRegion);
 
+    // Undo is available when there is at least one MOVE event after the last slot boundary
+    // (SLOT_ADVANCE or KICK_OFF) and no dice have been rolled. Mirrors applyUndo's boundary logic.
+    const canUndo = (() => {
+      if (lastDiceRoll) return false;
+      const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
+        return evt.type === 'SLOT_ADVANCE' || evt.type === 'KICK_OFF' ? idx : acc;
+      }, -1);
+      return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
+    })();
+
     return (
       <div className={styles.panel}>
         {canSnapshot && (
@@ -171,7 +171,7 @@ export function ActionPanel() {
             Snapshot
           </button>
         )}
-        <button className={styles.ctaButton} disabled={!!lastDiceRoll} onClick={emitUndo}>
+        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
           Undo
         </button>
         <button className={styles.ctaButton} onClick={emitEndTurn}>

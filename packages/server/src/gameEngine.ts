@@ -145,10 +145,18 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
 
   const event: ActionEvent = { type: 'KICK_OFF', timestamp: Date.now() };
 
-  // Assign ball.carrierId to the piece standing on the kick-off hex (the kicker).
-  const kicker = state.pieces.find(
-    (p) => p.position.q === state.ball.position.q && p.position.r === state.ball.position.r,
-  );
+  // From KICK_OFF: find the piece standing on the ball's position (the kicker) and assign them
+  // the ball so the carrier is set before movement begins.
+  // From PASS (after steal/tackle): ball.carrierId is already correct — leave ball state as-is.
+  // (Previously the kicker lookup would find the original attacker at ball.position after a steal
+  //  and incorrectly return the ball to them.)
+  let newBall = state.ball;
+  if (state.phase === 'KICK_OFF') {
+    const kicker = state.pieces.find(
+      (p) => p.position.q === state.ball.position.q && p.position.r === state.ball.position.r,
+    );
+    if (kicker) newBall = { ...state.ball, carrierId: kicker.id };
+  }
 
   return {
     ok: true,
@@ -157,7 +165,7 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       phase: 'MOVEMENT',
       movementSlot: 'ATTACKER_4',
       activeTeam: state.attackingTeam,
-      ball: kicker ? { ...state.ball, carrierId: kicker.id } : state.ball,
+      ball: newBall,
       eventLog: [...state.eventLog, event],
     },
   };
@@ -568,15 +576,16 @@ export type ApplyUndoResult =
 /**
  * Reverses the last MOVE event in the current movement slot.
  *
- * D-09: undo is locked if a SLOT_ADVANCE or DICE_ROLL exists since the last SLOT_ADVANCE.
+ * D-09: undo is locked if a SLOT_ADVANCE or DICE_ROLL exists since the last slot boundary.
  * D-10: reverses the last MOVE — restores piece position and decrements paceUsedByPieceId.
  *
- * Only looks within the current slot (events since the last SLOT_ADVANCE).
+ * Slot boundaries: SLOT_ADVANCE (normal end-of-slot) OR KICK_OFF (applyStartMovement marker,
+ * used after steal/tackle so undo cannot cross into the pre-possession-change move history).
  */
 export function applyUndo(state: GameState): ApplyUndoResult {
-  // Find the index of the last SLOT_ADVANCE in the event log
+  // Find the index of the last slot boundary (SLOT_ADVANCE or KICK_OFF)
   const lastSlotAdvanceIdx = state.eventLog.reduce<number>((acc, evt, idx) => {
-    return evt.type === 'SLOT_ADVANCE' ? idx : acc;
+    return evt.type === 'SLOT_ADVANCE' || evt.type === 'KICK_OFF' ? idx : acc;
   }, -1);
 
   const currentSlotEvents = state.eventLog.slice(lastSlotAdvanceIdx + 1);
@@ -618,13 +627,11 @@ export function applyUndo(state: GameState): ApplyUndoResult {
     delete newPaceUsed[moveToUndo.pieceId];
   }
 
-  // Remove piece from movedPieceIds when all its moves are undone (paceUsed → 0).
-  // This restores selectability on the client and clears the ATTACKER_2 restriction.
-  const paceAfterUndo = newPaceUsed[moveToUndo.pieceId] ?? 0;
-  const newMovedPieceIds =
-    paceAfterUndo === 0
-      ? state.movedPieceIds.filter((id) => id !== moveToUndo.pieceId)
-      : state.movedPieceIds;
+  // Always remove the piece from movedPieceIds when any of its moves is undone.
+  // Previously only removed when paceUsed reached 0, which left the X marker on pieces
+  // that were exhausted (e.g. 2/2 ATTACKER_2) even after one step was reversed.
+  // The piece will be re-added to movedPieceIds if it reaches pace exhaustion again.
+  const newMovedPieceIds = state.movedPieceIds.filter((id) => id !== moveToUndo.pieceId);
 
   // Remove the MOVE event from eventLog (D-10)
   const absoluteMoveIdx = lastSlotAdvanceIdx + 1 + lastMoveRelIdx;
