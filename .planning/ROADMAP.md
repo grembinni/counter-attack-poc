@@ -283,14 +283,19 @@ Plans:
 
 ### Phase 08.2: Passing Cleanup (INSERTED)
 
-**Goal:** Passing actions work end-to-end: player selects a target hex, rolls for accuracy using the correct attribute per pass type (dribbling for Standard/First-time/Long, highPass for High), ball moves to target on accurate pass, LOOSE_BALL on inaccurate, adjacent defenders may intercept.
+**Goal:** Passing actions work end-to-end: player selects a target hex, rolls for accuracy using the correct attribute per pass type (no check for Standard/First-time; highPass for High and Long Pass per D-04), the ball moves to the target on an accurate pass, LOOSE_BALL walks the trajectory on an inaccurate pass, and adjacent defenders may auto-intercept. High Pass and Long Ball resolve a header contestant duel (HEAD-01/02/04/05).
 **Requirements**: PASS-01, PASS-02, PASS-03, PASS-04, PASS-05
 **Depends on:** Phase 8.1
-**Plans:** TBD
+**Plans:** 6 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 08.2 to break down)
+- [ ] 08.2-01-PLAN.md — Shared foundation: Long Pass attribute fix (D-04), GameState passing/header fields, typed events, Wave 0 scaffolds (PASS-04)
+- [ ] 08.2-02-PLAN.md — Engine applyRoll PASS branch: per-type accuracy, ball delivery, interception loop, LOOSE_BALL trajectory walk (PASS-01/02/03/05)
+- [ ] 08.2-03-PLAN.md — Engine HEADER branch: contestant duel from headerContestants, HEAD-05 movement exclusion (PASS-03/05, HEAD-05)
+- [ ] 08.2-04-PLAN.md — Server handlers: GAME_ROLL targetHex validation + interception dice, GAME_HEADER_CONTESTANT, HEADER confirm guard (PASS-01..05)
+- [ ] 08.2-05-PLAN.md — Client: three-step PASS flow, green/amber target highlights, header contestant UI (PASS-01..05)
+- [ ] 08.2-06-PLAN.md — Human verification: three-step flow, highlight colors, header contestant ring (checkpoint)
 
 ### Phase 08.3: Remaining Action Flows + Tech Debt (INSERTED)
 
