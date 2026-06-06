@@ -153,9 +153,11 @@ export function HexGrid() {
               hex.r === shotTargetHighlight.r;
             const isHighlighted = isValidMove || isGoalHex || isShotTarget;
 
-            // Phase 8.2 D-06/D-09: pass target classification
+            // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
             const isPassTarget =
-              phase === 'PASS' && selectedPassType !== null && validPassTargetHexSet.has(hexId);
+              (phase === 'PASS' || phase === 'KICK_OFF') &&
+              selectedPassType !== null &&
+              validPassTargetHexSet.has(hexId);
             const isInterceptionRisk = isPassTarget && interceptionRiskSet.has(hexId);
             const isConfirmedPassTarget =
               passTargetHex !== null && hex.q === passTargetHex.q && hex.r === passTargetHex.r;
@@ -249,32 +251,35 @@ export function HexGrid() {
                     pointerEvents="none"
                   />
                 )}
-                {/* Phase 8.2 D-06: safe pass target — green tint */}
+                {/* Phase 8.2 D-06: safe pass target — green tint, handles click */}
                 {isPassTarget && !isInterceptionRisk && !isConfirmedPassTarget && (
                   <polygon
                     points={points}
                     fill="rgba(34,197,94,0.4)"
                     stroke="none"
-                    pointerEvents="none"
+                    onClick={onClick}
+                    style={{ cursor: onClick ? 'pointer' : 'default' }}
                   />
                 )}
-                {/* Phase 8.2 D-09: interception-risk pass target — reuse amber tackle-risk style */}
+                {/* Phase 8.2 D-09: interception-risk pass target — amber, handles click */}
                 {isInterceptionRisk && !isConfirmedPassTarget && (
                   <polygon
                     points={points}
                     className={styles.hexTackleRisk}
                     stroke="none"
-                    pointerEvents="none"
+                    onClick={onClick}
+                    style={{ cursor: onClick ? 'pointer' : 'default' }}
                   />
                 )}
-                {/* Phase 8.2 D-06: confirmed pass target — gold outline ring */}
+                {/* Phase 8.2 D-06: confirmed pass target — gold outline ring, handles deselect click */}
                 {isConfirmedPassTarget && (
                   <polygon
                     points={points}
                     fill="none"
                     stroke="#f5c518"
                     strokeWidth={2}
-                    pointerEvents="none"
+                    onClick={onClick}
+                    style={{ cursor: onClick ? 'pointer' : 'default' }}
                   />
                 )}
               </g>
