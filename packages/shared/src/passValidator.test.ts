@@ -107,13 +107,16 @@ describe('validatePass', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('does NOT count an opponent adjacent only to the destination as an interceptor', () => {
-    // from {0,0} to {5,0}; opp at {6,0} is distance 1 from destination only — not flight path
+  it('counts an opponent adjacent to the destination as an interceptor (ball enters ZoI on landing)', () => {
+    // from {0,0} to {5,0}; opp at {6,0} is distance 1 from destination — ball lands in their ZoI
     const opp = makeOpponent('opp1', 6, 0);
     const state: GameState = { ...baseState, pieces: [basePiece, opp] };
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.interceptors).toHaveLength(0);
+    if (result.ok) {
+      expect(result.interceptors).toHaveLength(1);
+      expect(result.interceptors[0]?.id).toBe('opp1');
+    }
   });
 
   it('returns interceptors[] containing every distance-1 opponent with no duplicates', () => {

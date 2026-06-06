@@ -193,9 +193,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
       validTargets.push(hex);
 
-      // D-09: check if path has any ZoI-covered intermediate hex → interception risk
-      const pathIntermediate = hexLine(carrier.position, hex).slice(1, -1);
-      const hasInterceptionRisk = pathIntermediate.some(
+      // D-09: check if any travel-path hex (including destination) is adjacent to a defender
+      // slice(1) excludes only the passer's hex — mirrors the server's interceptors list logic
+      const travelPath = hexLine(carrier.position, hex).slice(1);
+      const hasInterceptionRisk = travelPath.some(
         (pathHex) => getZoIDefenders(pathHex, opponents).length > 0,
       );
       if (hasInterceptionRisk) {

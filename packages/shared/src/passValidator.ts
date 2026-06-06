@@ -95,11 +95,12 @@ export function validatePass(
     }
   }
 
-  // 5. Interception list — opponents within 1 hex of any travel-path hex (D-05)
+  // 5. Interception list — opponents within 1 hex of any travel-path hex INCLUDING destination (D-05)
+  // Defenders adjacent to the landing hex can also intercept (ball enters their ZoI on arrival).
   // LONG cannot be intercepted in flight; returns empty interceptors.
   const interceptors: PlayerPiece[] = [];
   if (passType !== 'LONG') {
-    const travelPath = hexLine(from, to).slice(1, -1); // exclude passer's hex and destination
+    const travelPath = hexLine(from, to).slice(1); // exclude passer's hex; include destination
     const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
     for (const hex of travelPath) {
       for (const defender of getZoIDefenders(hex, opponents)) {
