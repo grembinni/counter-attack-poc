@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import { ELIGIBLE_NEXT_ACTIONS, isInRegion } from '@counter-attack/shared';
+import { ELIGIBLE_NEXT_ACTIONS, isInRegion, ClientEvents } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import type { PassType } from '../store/useGameStore.js';
+import { socket } from '../socket.js';
 import styles from './ActionPanel.module.css';
-
-type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL';
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
   STANDARD_PASS: 'Standard Pass',
@@ -12,15 +11,18 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
   LONG_BALL: 'Long Ball',
 };
 
-const DICE_PHASES = new Set(['SHOT', 'HEADER', 'LOOSE_BALL'] as const);
+const DICE_PHASES = new Set(['SHOT', 'LOOSE_BALL'] as const);
 
 /**
  * Phase-gated, active-player-gated action controls.
  *
- * PASS phase uses a two-step choose-phase flow:
- *  1. Show eligible next actions based on ELIGIBLE_NEXT_ACTIONS[lastActionType].
- *  2. After the player selects a pass type, show Roll Dice.
+ * PASS phase uses a three-step flow (Phase 8.2 D-06):
+ *  1. Show eligible next actions (no pass type selected).
+ *  2. After selecting a pass type: prompt "click a target hex" with a Back button.
+ *  3. After clicking a target hex: show Roll Dice (enabled) and Back.
  * Non-pass actions (Move, Shoot) trigger immediately without a roll step.
+ *
+ * HEADER phase (D-17): shows contestant selection prompt, Confirm, and gated Roll Header.
  *
  * Returns null for the non-active player (UNDO-03).
  */
@@ -34,6 +36,7 @@ export function ActionPanel() {
   const carrierId = useGameStore((s) => s.gameState.ball.carrierId);
   const pieces = useGameStore((s) => s.gameState.pieces);
   const eventLog = useGameStore((s) => s.gameState.eventLog);
+  const headerConfirmed = useGameStore((s) => s.gameState.headerConfirmed);
   const gameError = useGameStore((s) => s.gameError);
   const emitRoll = useGameStore((s) => s.emitRoll);
   const emitEndTurn = useGameStore((s) => s.emitEndTurn);
@@ -41,14 +44,13 @@ export function ActionPanel() {
   const emitStartMovement = useGameStore((s) => s.emitStartMovement);
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
   const emitSnapshot = useGameStore((s) => s.emitSnapshot);
-  const emitHeader = useGameStore((s) => s.emitHeader);
 
-  // Local state: which pass type the player has selected (step 2 of choose-phase flow).
-  // Cleared whenever the game phase changes so each new PASS phase starts at the chooser.
-  const [selectedPassType, setSelectedPassType] = useState<PassType | null>(null);
-  useEffect(() => {
-    setSelectedPassType(null);
-  }, [phase]);
+  // Phase 8.2: store-backed pass type selection (replaces local useState — clearing is done in setGameState)
+  const selectedPassType = useGameStore((s) => s.selectedPassType);
+  const setSelectedPassType = useGameStore((s) => s.setSelectedPassType);
+  const passTargetHex = useGameStore((s) => s.passTargetHex);
+  const headerContestantId = useGameStore((s) => s.headerContestantId);
+  const emitHeaderContestant = useGameStore((s) => s.emitHeaderContestant);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -62,7 +64,7 @@ export function ActionPanel() {
   const isGKTeam = myTeam !== null && myTeam === gkTeam;
 
   // -------------------------------------------------------------------------
-  // KICK_OFF + PASS phase — two-step choose-phase flow
+  // KICK_OFF + PASS phase — three-step flow (Phase 8.2 D-06)
   // KICK_OFF is treated identically to PASS: lastActionType is null → shows
   // MOVEMENT_PHASE eligible actions. "Move" calls emitStartMovement which the
   // server accepts from both KICK_OFF and PASS.
@@ -73,8 +75,8 @@ export function ActionPanel() {
     const effectiveLastAction = lastActionType ?? 'MOVEMENT_PHASE';
     const eligible = ELIGIBLE_NEXT_ACTIONS[effectiveLastAction];
 
+    // Step 1: no pass type selected — show action chooser
     if (selectedPassType === null) {
-      // Step 1: show the action chooser
       return (
         <div className={styles.panel}>
           <span className={styles.phaseLabel}>Choose action</span>
@@ -115,6 +117,16 @@ export function ActionPanel() {
             </button>
           )}
 
+          {/* D-16: Long Ball header option — when HEADER is an eligible next action */}
+          {eligible.has('HEADER') && (
+            <button
+              className={styles.ctaButton}
+              onClick={() => socket.emit(ClientEvents.GAME_HEADER)}
+            >
+              Header
+            </button>
+          )}
+
           {(eligible.has('SNAPSHOT') || eligible.has('SHOT')) && (
             <button className={styles.ctaButton} onClick={emitSnapshot}>
               Shoot
@@ -126,9 +138,24 @@ export function ActionPanel() {
       );
     }
 
-    // Step 2: pass type selected — show Roll Dice
+    // Step 2: pass type selected, no target hex yet — prompt to click a target
+    if (passTargetHex === null) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>
+            {PASS_TYPE_LABELS[selectedPassType]} — click a target hex
+          </span>
+          <button className={styles.backButton} onClick={() => setSelectedPassType(null)}>
+            ← Back
+          </button>
+          {gameError && <span className={styles.errorText}>{gameError}</span>}
+        </div>
+      );
+    }
+
+    // Step 3: pass type + target hex confirmed — show Roll Dice
     const handleRoll = () => {
-      emitRoll(selectedPassType);
+      emitRoll(selectedPassType, passTargetHex);
       setSelectedPassType(null);
     };
 
@@ -183,13 +210,32 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // HEADER phase
+  // HEADER phase (D-17): contestant selection + gated Roll Header
   // -------------------------------------------------------------------------
   if (phase === 'HEADER') {
+    const myTeamKey = myTeam;
+    const myConfirmed = headerConfirmed?.[myTeamKey] ?? false;
+    const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
+
     return (
       <div className={styles.panel}>
-        <button className={styles.ctaButton} onClick={emitHeader}>
-          Header
+        {!myConfirmed && (
+          <>
+            <span className={styles.phaseLabel}>Select contestant on board</span>
+            <button
+              className={styles.ctaButton}
+              onClick={() => emitHeaderContestant(headerContestantId)}
+            >
+              {headerContestantId !== null ? 'Confirm Selection' : 'Decline (no contestant)'}
+            </button>
+          </>
+        )}
+        {myConfirmed && !bothConfirmed && (
+          <span className={styles.phaseLabel}>Waiting for opponent...</span>
+        )}
+        {/* Pitfall 5: Roll Header only enabled when both teams have confirmed */}
+        <button className={styles.ctaButton} disabled={!bothConfirmed} onClick={() => emitRoll()}>
+          Roll Header
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
@@ -199,7 +245,7 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   // SHOT / LOOSE_BALL — Roll Dice
   // -------------------------------------------------------------------------
-  if (DICE_PHASES.has(phase as 'SHOT' | 'HEADER' | 'LOOSE_BALL')) {
+  if (DICE_PHASES.has(phase as 'SHOT' | 'LOOSE_BALL')) {
     return (
       <div className={styles.panel}>
         <button className={styles.ctaButton} onClick={() => emitRoll()}>
