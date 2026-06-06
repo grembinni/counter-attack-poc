@@ -1138,9 +1138,121 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
 });
 
 // ---------------------------------------------------------------------------
+// 08.2-03 RED scaffold: HEADER duel reads headerContestants (D-17, D-19, HEAD-02)
+// ---------------------------------------------------------------------------
+
+/**
+ * Pieces for header contestant tests.
+ * homeFwd is at {q:32,r:12} but we override positions for these tests.
+ * awayDef is at {q:25,r:12} (heading=7), awayGk is at {q:36,r:13} (aerialAbility=6).
+ */
+const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
+  roomCode: 'TEST',
+  phase: 'HEADER',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  pieces: [
+    { ...homeFwd, position: { q: 20, r: 12 } }, // attacker, heading=6, at ball position
+    { ...awayDef, position: { q: 21, r: 12 } }, // defender, heading=7, 1 hex from ball
+    awayGk, // GK at {q:36,r:13}
+    homeMid,
+  ],
+  ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd' },
+  score: { home: 0, away: 0 },
+  actionCount: 10,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 2 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+  addedTime: null,
+  lastActionType: 'MOVEMENT_PHASE',
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  ...overrides,
+});
+
+describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
+  it('D-17: both selected — attacker wins on tie, phase becomes PASS, contestedPieceIds set', () => {
+    // homeFwd heading=6 + die=5 = 11; awayDef heading=7 + die=4 = 11 — TIE → attacker wins
+    const state = makeHeaderState({
+      headerContestants: { home: 'home-fwd', away: 'away-def' },
+      headerConfirmed: { home: true, away: true },
+    });
+    const result = applyRoll(state, 5, 4, 3); // d1=5 (attacker), d2=4 (defender), d3 unused
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // D-22: attacker wins → PASS (headed-shot/GK aerial deferred to 8.3)
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.carrierId).toBe('home-fwd');
+    // D-21: contestedPieceIds set to selected piece ids
+    expect(result.state.contestedPieceIds).toContain('home-fwd');
+    expect(result.state.contestedPieceIds).toContain('away-def');
+    // headerContestants and headerConfirmed cleared after resolution
+    expect(result.state.headerContestants ?? null).toBeNull();
+    expect(result.state.headerConfirmed ?? null).toBeNull();
+  });
+
+  it('D-19: uncontested — attacker auto-wins with NO dice roll (HEAD-02); phase becomes PASS', () => {
+    // Defender did not select (away: null)
+    const state = makeHeaderState({
+      headerContestants: { home: 'home-fwd', away: null },
+      headerConfirmed: { home: true, away: false },
+    });
+    // Pass impossible dice (d1=1) — auto-win must NOT depend on attacker die
+    const result = applyRoll(state, 1, 1, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // HEAD-02: uncontested auto-win → PASS
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.carrierId).toBe('home-fwd');
+    // contestedPieceIds includes only the attacker
+    expect(result.state.contestedPieceIds).toContain('home-fwd');
+    expect(result.state.contestedPieceIds).not.toContain('away-def');
+    // headerContestants cleared
+    expect(result.state.headerContestants ?? null).toBeNull();
+  });
+
+  it('D-19: neither team selected — phase becomes LOOSE_BALL', () => {
+    // Both home and away did not select contestants
+    const state = makeHeaderState({
+      headerContestants: { home: null, away: null },
+      headerConfirmed: { home: false, away: false },
+    });
+    const result = applyRoll(state, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // D-19: neither selected → LOOSE_BALL from ball.position
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.position).toEqual({ q: 20, r: 12 });
+    expect(result.state.ball.carrierId).toBeNull();
+  });
+
+  it('D-17: contested duel — defender wins — phase becomes MOVEMENT with attacker-loses path', () => {
+    // homeFwd heading=6 + die=1 = 7; awayDef heading=7 + die=5 = 12 — defender wins
+    const state = makeHeaderState({
+      headerContestants: { home: 'home-fwd', away: 'away-def' },
+      headerConfirmed: { home: true, away: true },
+    });
+    const result = applyRoll(state, 1, 5, 3); // attacker=6+1=7, defender=7+5=12
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Defender wins outfield duel → MOVEMENT (no possession for attacker)
+    expect(result.state.phase).toBe('MOVEMENT');
+    // contestedPieceIds still set to the participants
+    expect(result.state.contestedPieceIds).toContain('home-fwd');
+    expect(result.state.contestedPieceIds).toContain('away-def');
+    // headerContestants cleared
+    expect(result.state.headerContestants ?? null).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Wave 0 RED scaffold: HEAD-05 / D-21 — contested piece excluded from Movement Phase
 // ---------------------------------------------------------------------------
-// RED until 08.2-02 implements HEAD-05 exclusion in applyStartMovement and applyMove
+// GREEN as of 08.2-03
 
 describe('HEAD-05: a piece that contested a header is excluded from the subsequent Movement Phase', () => {
   /** Base PASS state with a contestedPieceIds value set */
