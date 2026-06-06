@@ -7,9 +7,15 @@ import {
   PITCH_HEXES,
   PITCH_REGIONS,
   isInRegion,
+  validatePass,
+  hexLine,
+  getZoIDefenders,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
+
+/** Pass type used for store and ActionPanel three-step flow (matches server event signature). */
+export type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL';
 
 /** Screen states for client-side routing (D-12). No React Router — screen field in store. */
 export type Screen =
@@ -42,8 +48,30 @@ export type GameStore = {
   roomError: string | null;
   /** Phase 7: last game error from server (e.g. 'WRONG_PHASE'). */
   gameError: string | null;
+  /** Phase 8.2 D-06/D-07: valid target hexes for the selected pass type (safe, no interception risk). */
+  validPassTargetHexes: HexCoord[];
+  /** Phase 8.2 D-09: target hexes with interception risk (amber highlight). */
+  interceptionRiskHexes: HexCoord[];
+  /** Phase 8.2 D-06: confirmed pass target hex (set when player clicks a valid target). */
+  passTargetHex: HexCoord | null;
+  /** Phase 8.2 D-06: currently selected pass type driving the target highlights. */
+  selectedPassType: PassType | null;
+  /** Phase 8.2 D-17: ID of the piece this client has toggled as header contestant. */
+  headerContestantId: string | null;
   /** Navigate to a different screen (D-12). */
   setScreen: (s: Screen) => void;
+  /**
+   * Phase 8.2 D-06/D-07/D-09: Select a pass type and compute valid target hexes.
+   * Iterates PITCH_HEXES via validatePass, splits results into safe (green) + interception-risk (amber).
+   * Passing null clears the selection.
+   */
+  setSelectedPassType: (passType: PassType | null) => void;
+  /** Phase 8.2 D-06: Confirm or deselect a pass target hex. */
+  setPassTargetHex: (hex: HexCoord | null) => void;
+  /** Phase 8.2 D-17: Update the local header contestant piece ID and emit to server. */
+  emitHeaderContestant: (pieceId: string | null) => void;
+  /** Phase 8.2 D-17: Set the header contestant piece ID in local store only (for HexGrid toggle). */
+  setHeaderContestantId: (id: string | null) => void;
   /**
    * Select or deselect a piece. Toggles off if already selected (D-07).
    * Computes valid move destinations via hexesInRange + validateMove (client-side, D-07).
@@ -73,8 +101,11 @@ export type GameStore = {
    * Replaces the removed movePiece local-mutation action.
    */
   emitMove: (pieceId: string, to: HexCoord) => void;
-  /** Emit game:roll to the server. Pass phase requires passType (choose-phase flow). */
-  emitRoll: (passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL') => void;
+  /**
+   * Emit game:roll to the server.
+   * Pass phase uses passType (D-10): also sends targetHex for High/Long pass accuracy resolution.
+   */
+  emitRoll: (passType?: PassType, targetHex?: HexCoord) => void;
   /** Emit game:end-turn to end the current movement phase. */
   emitEndTurn: () => void;
   /** Emit game:undo to request an undo of the last movement action (UNDO-01). */
@@ -114,8 +145,73 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   disconnectWarning: false,
   roomError: null,
   gameError: null,
+  validPassTargetHexes: [],
+  interceptionRiskHexes: [],
+  passTargetHex: null,
+  selectedPassType: null,
+  headerContestantId: null,
 
   setScreen: (s) => set({ screen: s }),
+
+  setSelectedPassType: (passType) => {
+    if (passType === null) {
+      set({
+        selectedPassType: null,
+        validPassTargetHexes: [],
+        interceptionRiskHexes: [],
+        passTargetHex: null,
+      });
+      return;
+    }
+
+    const { gameState } = get();
+    const carrier = gameState.pieces.find((p) => p.id === gameState.ball.carrierId);
+    if (!carrier) return;
+
+    // Map ActionPanel pass type to validatePass internal type
+    const vpTypeMap: Record<PassType, 'STANDARD' | 'FIRST_TIME' | 'HIGH' | 'LONG'> = {
+      STANDARD_PASS: 'STANDARD',
+      FIRST_TIME_PASS: 'FIRST_TIME',
+      HIGH_PASS: 'HIGH',
+      LONG_BALL: 'LONG',
+    };
+    const vpType = vpTypeMap[passType];
+    const opponents = gameState.pieces.filter((p) => p.teamId !== carrier.teamId);
+
+    const validTargets: HexCoord[] = [];
+    const interceptionRisk: HexCoord[] = [];
+
+    for (const hex of PITCH_HEXES) {
+      const result = validatePass(gameState, carrier, carrier.position, hex, vpType);
+      if (!result.ok) continue;
+
+      validTargets.push(hex);
+
+      // D-09: check if path has any ZoI-covered intermediate hex → interception risk
+      const pathIntermediate = hexLine(carrier.position, hex).slice(1, -1);
+      const hasInterceptionRisk = pathIntermediate.some(
+        (pathHex) => getZoIDefenders(pathHex, opponents).length > 0,
+      );
+      if (hasInterceptionRisk) {
+        interceptionRisk.push(hex);
+      }
+    }
+
+    set({
+      selectedPassType: passType,
+      validPassTargetHexes: validTargets,
+      interceptionRiskHexes: interceptionRisk,
+      passTargetHex: null,
+    });
+  },
+
+  setPassTargetHex: (hex) => set({ passTargetHex: hex }),
+
+  emitHeaderContestant: (pieceId) => {
+    socket.emit(ClientEvents.GAME_HEADER_CONTESTANT, pieceId);
+  },
+
+  setHeaderContestantId: (id) => set({ headerContestantId: id }),
 
   selectPiece: (id) => {
     const { gameState, selectedPieceId, playerSlot } = get();
@@ -206,6 +302,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         validMoveHexes: [],
         tackleRiskHexes: [],
         lastMovedPieceId: null,
+        // Phase 8.2: clear pass target and header contestant slices on phase change
+        selectedPassType: null,
+        validPassTargetHexes: [],
+        interceptionRiskHexes: [],
+        passTargetHex: null,
+        headerContestantId: null,
       });
       return;
     }
@@ -247,8 +349,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     set({ selectedPieceId: null, validMoveHexes: [], lastMovedPieceId: pieceId });
   },
 
-  emitRoll: (passType) => {
-    socket.emit(ClientEvents.GAME_ROLL, passType);
+  emitRoll: (passType, targetHex) => {
+    socket.emit(ClientEvents.GAME_ROLL, passType, targetHex);
   },
 
   emitEndTurn: () => {
