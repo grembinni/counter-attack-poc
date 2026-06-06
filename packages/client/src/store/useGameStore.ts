@@ -27,6 +27,8 @@ export type GameStore = {
   screen: Screen;
   selectedPieceId: string | null;
   validMoveHexes: HexCoord[];
+  /** Hexes where moving the selected piece would trigger a tackle attempt (adjacent to ball carrier). */
+  tackleRiskHexes: HexCoord[];
   /** Tracks the piece ID emitted in the most recent move — survives emitMove's optimistic clear so
    *  setGameState can restore selection when the server broadcast arrives (D-17). */
   lastMovedPieceId: string | null;
@@ -105,6 +107,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   screen: 'CREATE_ROOM',
   selectedPieceId: null,
   validMoveHexes: [],
+  tackleRiskHexes: [],
   lastMovedPieceId: null,
   playerSlot: null,
   roomCode: null,
@@ -155,10 +158,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     }
 
     // Normal MOVEMENT phase: show only adjacent hexes (step-by-step, D-07)
-    // validateMove enforces single-step; hexesInRange(pos, 1) gives only the 6 adjacent hexes
     const candidates = hexesInRange(piece.position, 1);
-    const valid = candidates.filter((hex) => validateMove(gameState, piece, hex).ok);
-    set({ selectedPieceId: id, validMoveHexes: valid });
+    const validResults = candidates.map((hex) => ({
+      hex,
+      result: validateMove(gameState, piece, hex),
+    }));
+    const valid = validResults.filter(({ result }) => result.ok).map(({ hex }) => hex);
+    const tackle = validResults
+      .filter(
+        ({ result }) => result.ok && 'effect' in result && result.effect.type === 'TACKLE_ATTEMPT',
+      )
+      .map(({ hex }) => hex);
+    set({ selectedPieceId: id, validMoveHexes: valid, tackleRiskHexes: tackle });
   },
 
   inspectPiece: (id) => {
@@ -193,6 +204,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         gameState: newState,
         selectedPieceId: null,
         validMoveHexes: [],
+        tackleRiskHexes: [],
         lastMovedPieceId: null,
       });
       return;
@@ -200,13 +212,21 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
-    const candidates = hexesInRange(piece.position, 1); // adjacent only — step-by-step movement
-    const valid = candidates.filter((hex) => validateMove(newState, piece, hex).ok);
-    // Restore selectedPieceId (emitMove cleared it) and clear lastMovedPieceId sentinel
+    const stickyResults = hexesInRange(piece.position, 1).map((hex) => ({
+      hex,
+      result: validateMove(newState, piece, hex),
+    }));
+    const stickyValid = stickyResults.filter(({ result }) => result.ok).map(({ hex }) => hex);
+    const stickyTackle = stickyResults
+      .filter(
+        ({ result }) => result.ok && 'effect' in result && result.effect.type === 'TACKLE_ATTEMPT',
+      )
+      .map(({ hex }) => hex);
     set({
       gameState: newState,
       selectedPieceId: prevSelectedId,
-      validMoveHexes: valid,
+      validMoveHexes: stickyValid,
+      tackleRiskHexes: stickyTackle,
       lastMovedPieceId: null,
     });
   },

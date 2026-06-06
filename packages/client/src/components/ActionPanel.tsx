@@ -28,7 +28,6 @@ export function ActionPanel() {
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
   const emitSnapshot = useGameStore((s) => s.emitSnapshot);
   const emitHeader = useGameStore((s) => s.emitHeader);
-  const emitRestartMovement = useGameStore((s) => s.emitRestartMovement);
 
   const [passType, setPassType] = useState<PassType>('STANDARD');
 
@@ -114,11 +113,11 @@ export function ActionPanel() {
         </button>
       )}
 
-      {/* Start Movement — KICK_OFF; disable if lastActionType blocks movement (e.g. HIGH_PASS) */}
-      {phase === 'KICK_OFF' && (
+      {/* Move — available from KICK_OFF or PASS when movement is eligible.
+          This is the single entry point for all movement (kick-off, repeat, post-steal). */}
+      {(phase === 'KICK_OFF' || phase === 'PASS') && isEligible('MOVEMENT') && (
         <button
           className={styles.ctaButton}
-          disabled={!isEligible('MOVEMENT')}
           title={
             !isEligible('MOVEMENT')
               ? 'Not available after a High Pass — must head the ball'
@@ -126,28 +125,21 @@ export function ActionPanel() {
           }
           onClick={emitStartMovement}
         >
-          Start Movement
+          Move
         </button>
       )}
 
-      {/* Undo Move — MOVEMENT only, disabled when dice rolled (UNDO-01/02) */}
+      {/* Undo — MOVEMENT only, disabled after dice rolled (UNDO-01/02) */}
       {phase === 'MOVEMENT' && (
         <button className={styles.ctaButton} disabled={!!lastDiceRoll} onClick={emitUndo}>
-          Undo Move
+          Undo
         </button>
       )}
 
-      {/* End Turn — MOVEMENT */}
+      {/* End Slot — advance to next slot or end movement phase */}
       {phase === 'MOVEMENT' && (
         <button className={styles.ctaButton} onClick={emitEndTurn}>
-          End Turn
-        </button>
-      )}
-
-      {/* Restart Movement Phase — reset to ATTACKER_4, clear all X markers */}
-      {phase === 'MOVEMENT' && (
-        <button className={styles.ctaButton} onClick={emitRestartMovement}>
-          Restart Movement
+          End Slot
         </button>
       )}
 
@@ -162,7 +154,7 @@ export function ActionPanel() {
             Quick Throw
           </button>
           <button className={styles.ctaButton} onClick={() => emitGKRestart('movement')}>
-            Start Movement
+            Move
           </button>
         </>
       )}

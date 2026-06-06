@@ -139,7 +139,7 @@ export type ApplyStartMovementResult =
  * Appends a KICK_OFF ActionEvent to mark the kick-off→movement edge.
  */
 export function applyStartMovement(state: GameState): ApplyStartMovementResult {
-  if (state.phase !== 'KICK_OFF') {
+  if (state.phase !== 'KICK_OFF' && state.phase !== 'PASS') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
@@ -321,11 +321,12 @@ export function applyMove(
           state: {
             ...state,
             pieces: newPieces,
-            movedPieceIds: computeMovedPieceIds(true), // tackle success always spends the piece
-            paceUsedByPieceId: {
-              ...state.paceUsedByPieceId,
-              [pieceId]: newPaceForPiece,
-            },
+            // Possession change: tackler's team becomes attacking team with fresh movement phase
+            attackingTeam: piece.teamId,
+            activeTeam: piece.teamId,
+            movementSlot: 'ATTACKER_4',
+            movedPieceIds: [],
+            paceUsedByPieceId: {},
             ball: tackleSuccessBall,
             eventLog: newEventLog,
             pendingFreeMove: state.pendingFreeMove ?? null,
@@ -367,16 +368,19 @@ export function applyMove(
 
   if (stealSuccess) {
     const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
+    const newOwnerTeam =
+      state.pieces.find((p) => p.id === stealDefenderId)?.teamId ?? state.activeTeam;
     return {
       ok: true,
       state: {
         ...state,
         pieces: newPieces,
-        movedPieceIds: computeMovedPieceIds(true), // steal success always spends the piece
-        paceUsedByPieceId: {
-          ...state.paceUsedByPieceId,
-          [pieceId]: newPaceForPiece,
-        },
+        // Possession change: new team becomes attacking team with fresh movement phase
+        attackingTeam: newOwnerTeam,
+        activeTeam: newOwnerTeam,
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
         ball: stealSuccessBall,
         eventLog: newEventLog,
         pendingFreeMove,

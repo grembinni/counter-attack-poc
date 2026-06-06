@@ -53,6 +53,7 @@ export function HexGrid() {
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
+  const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const playerSlot = useGameStore((s) => s.playerSlot);
   const selectPiece = useGameStore((s) => s.selectPiece);
@@ -70,8 +71,7 @@ export function HexGrid() {
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
 
-  // ZoI-risk hex classification: only shown when the ball carrier is selected (D-20)
-  // Steal risk only applies to the carrier — showing it for other players is misleading
+  // ZoI steal-risk hexes: only when ball carrier is selected (red tint = steal danger)
   const isCarrierSelected = selectedPieceId !== null && selectedPieceId === ball.carrierId;
   const opponents = myTeam !== null ? pieces.filter((p) => p.teamId !== myTeam) : [];
   const zoiRiskSet = new Set(
@@ -81,6 +81,8 @@ export function HexGrid() {
           .map((h) => `${h.q},${h.r}`)
       : [],
   );
+  // Tackle-risk hexes: orange when non-carrier's step would land adjacent to ball carrier
+  const tackleRiskSet = new Set(tackleRiskHexes.map((h) => `${h.q},${h.r}`));
 
   // KICK_OFF_SETUP: derive the local team's valid placement zone (D-23)
   // Attacking team: own half + centre circle; defending team: own half excluding centre circle
@@ -169,11 +171,20 @@ export function HexGrid() {
                   highlightColor={isGoalHex || isShotTarget ? '#ef4444' : undefined}
                   onClick={onClick ?? (() => undefined)}
                 />
-                {/* ZoI-risk tint overlay — amber on valid hexes adjacent to an opponent (D-20, D-21) */}
+                {/* Steal-risk tint — red on carrier's valid hexes adjacent to opponents (D-20, D-21) */}
                 {zoiRiskSet.has(hexId) && isValidMove && (
                   <polygon
                     points={points}
                     className={styles.hexZoIRisk}
+                    stroke="none"
+                    pointerEvents="none"
+                  />
+                )}
+                {/* Tackle-risk tint — orange on non-carrier valid hexes adjacent to ball carrier */}
+                {tackleRiskSet.has(hexId) && isValidMove && (
+                  <polygon
+                    points={points}
+                    className={styles.hexTackleRisk}
                     stroke="none"
                     pointerEvents="none"
                   />
