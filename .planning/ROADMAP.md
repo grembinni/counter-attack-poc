@@ -286,11 +286,11 @@ Plans:
 **Goal:** Passing actions work end-to-end: player selects a target hex, rolls for accuracy using the correct attribute per pass type (no check for Standard/First-time; highPass for High and Long Pass per D-04), the ball moves to the target on an accurate pass, LOOSE_BALL walks the trajectory on an inaccurate pass, and adjacent defenders may auto-intercept. High Pass and Long Ball resolve a header contestant duel (HEAD-01/02/04/05).
 **Requirements**: PASS-01, PASS-02, PASS-03, PASS-04, PASS-05
 **Depends on:** Phase 8.1
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 08.2-01-PLAN.md — Shared foundation: Long Pass attribute fix (D-04), GameState passing/header fields, typed events, Wave 0 scaffolds (PASS-04)
+- [x] 08.2-01-PLAN.md — Shared foundation: Long Pass attribute fix (D-04), GameState passing/header fields, typed events, Wave 0 scaffolds (PASS-04)
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
