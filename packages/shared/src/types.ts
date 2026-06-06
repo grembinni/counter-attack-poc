@@ -226,4 +226,34 @@ export type GameState = {
    * Cleared to false after the shot resolves (goal, miss, save, loose ball).
    */
   snapshotPenalty?: boolean;
+  /**
+   * D-10 (Phase 8.2): Target hex for the in-flight Long/High pass.
+   * Set by the GAME_ROLL handler before applyRoll; consumed and cleared by the applyRoll PASS branch.
+   * null or absent outside the PASS phase accuracy-check sequence.
+   */
+  passTargetHex?: HexCoord | null;
+  /**
+   * D-17 (Phase 8.2): Per-team selected contestant piece IDs during HEADER phase.
+   * home/away values are the piece IDs of each team's selected header contestant, or null before selection.
+   * null or absent outside the HEADER phase.
+   */
+  headerContestants?: { home: string | null; away: string | null } | null;
+  /**
+   * D-17 (Phase 8.2): Confirmation flags for header contestant selection.
+   * true once a team submits its contestant; GAME_ROLL for HEADER requires both true.
+   * null or absent outside the HEADER phase.
+   */
+  headerConfirmed?: { home: boolean; away: boolean } | null;
+  /**
+   * D-21 / HEAD-05 (Phase 8.2): IDs of pieces that contested a header this sequence.
+   * These pieces are excluded from the subsequent Movement Phase.
+   * Cleared to empty array in applyStartMovement.
+   */
+  contestedPieceIds?: readonly string[];
+  /**
+   * D-11 (Phase 8.2): Dice pre-rolled by the GAME_ROLL handler for each interceptor
+   * in validatePass's interceptors list. Consumed and cleared by the applyRoll PASS branch
+   * interception loop. Absent or empty when no interception roll is pending.
+   */
+  preGeneratedInterceptionDice?: number[];
 };

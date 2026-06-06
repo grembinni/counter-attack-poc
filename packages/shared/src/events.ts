@@ -30,6 +30,11 @@ export const ClientEvents = {
   GAME_HEADER: 'game:header',
   /** Restart the movement phase from ATTACKER_4 — resets movedPieceIds and pace tracking. */
   GAME_RESTART_MOVEMENT: 'game:restart-movement',
+  /**
+   * D-17 (Phase 8.2): Client selects their header contestant piece during HEADER phase.
+   * Payload: pieceId string (the selected piece), or null to deselect.
+   */
+  GAME_HEADER_CONTESTANT: 'game:header-contestant',
 } as const;
 
 export const ServerEvents = {
@@ -49,9 +54,13 @@ export interface ClientToServerEvents {
   [ClientEvents.ROOM_JOIN]: (roomCode: string) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
-  /** Optional pass type sent when rolling in PASS phase — server validates eligibility and sets lastActionType. */
+  /**
+   * Optional pass type sent when rolling in PASS phase — server validates eligibility and sets lastActionType.
+   * D-10 (Phase 8.2): targetHex carries the destination hex for High/Long pass accuracy resolution.
+   */
   [ClientEvents.GAME_ROLL]: (
     passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL',
+    targetHex?: HexCoord,
   ) => void;
   /** D-06: client emits the SHOT target coord; server records it for UX/broadcast — duel still resolves from dice via game:roll. */
   [ClientEvents.GAME_SHOT]: (targetHex: HexCoord) => void;
@@ -73,6 +82,12 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_HEADER]: () => void;
   /** Restart movement phase from ATTACKER_4 — clears movedPieceIds and pace tracking. */
   [ClientEvents.GAME_RESTART_MOVEMENT]: () => void;
+  /**
+   * D-17 (Phase 8.2): Client selects their header contestant piece.
+   * pieceId: the selected piece's ID, or null to deselect/pass.
+   * Server validates piece ownership (piece belongs to socket's team).
+   */
+  [ClientEvents.GAME_HEADER_CONTESTANT]: (pieceId: string | null) => void;
 }
 
 /**
