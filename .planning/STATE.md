@@ -105,12 +105,19 @@ See: .planning/PROJECT.md
 - Disconnect handler clears replayTimer to prevent post-disconnect frame emission (T-08-15)
 - addedTimeRoll pre-generated via rollDice() before every applyEndTurn call (D-05/MATCH-02)
 
+## Quick Tasks Completed
+
+| Slug                 | Date       | Description                                               |
+| -------------------- | ---------- | --------------------------------------------------------- |
+| phase-selection-flow | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS |
+
 ## Session Continuity
 
-- Last updated: 2026-06-05
-- Phase 8 Plan 06 COMPLETE — in-board client extensions + full lifecycle human verification
-  - 4 tasks completed: HexGrid overlays (Task 1), ActionPanel/GameBoard (Task 2), ReplayPanel (Task 3), human verify APPROVED (Task 4)
-  - 10 files created/modified; 6 server-side correctness fixes applied (D-23 series)
-  - Full match lifecycle verified end-to-end across two browser tabs
+- Last updated: 2026-06-06
+- Quick task phase-selection-flow COMPLETE (commit c6a1cbf):
+  - game:start-movement now accepts PASS phase (was KICK_OFF-only)
+  - game:roll now receives passType from client; server validates + sets lastActionType
+  - ActionPanel PASS phase redesigned as two-step choose-phase → roll flow
+  - Shoot button added when SNAPSHOT/SHOT is eligible
 - Phase 8 COMPLETE — 6 of 6 plans complete (08-01 through 08-06)
 - Next: Phase 9 (AWS Deployment)
