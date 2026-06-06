@@ -40,6 +40,24 @@ describe('ActionPanel — UNDO-03: active player gating', () => {
 
 describe('ActionPanel — UNDO-02: undo disabled when dice rolled', () => {
   it('Undo button is enabled when lastDiceRoll is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVEMENT',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+          },
+        ],
+      },
+    });
     render(<ActionPanel />);
     const undo = screen.getByRole('button', { name: /undo/i });
     expect((undo as HTMLButtonElement).disabled).toBe(false);
@@ -71,7 +89,25 @@ describe('ActionPanel — UNDO-03: opponent sees no undo button', () => {
 describe('ActionPanel — UNDO-01: clicking Undo emits game:undo', () => {
   it('calls emitUndo when Undo button clicked', () => {
     const emitUndo = vi.fn();
-    useGameStore.setState({ emitUndo });
+    useGameStore.setState({
+      emitUndo,
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVEMENT',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+          },
+        ],
+      },
+    });
     render(<ActionPanel />);
     fireEvent.click(screen.getByRole('button', { name: /undo/i }));
     expect(emitUndo).toHaveBeenCalledOnce();
@@ -82,6 +118,8 @@ describe('ActionPanel — Roll button for PASS phase', () => {
   it('shows Roll Dice button during PASS phase for active player', () => {
     useGameStore.setState({
       gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: { q: 6, r: 3 },
     });
     render(<ActionPanel />);
     expect(screen.getByRole('button', { name: /roll dice/i })).toBeDefined();
@@ -91,6 +129,8 @@ describe('ActionPanel — Roll button for PASS phase', () => {
     const emitRoll = vi.fn();
     useGameStore.setState({
       gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: { q: 6, r: 3 },
       emitRoll,
     });
     render(<ActionPanel />);
@@ -100,11 +140,11 @@ describe('ActionPanel — Roll button for PASS phase', () => {
 });
 
 describe('ActionPanel — Start Movement button for KICK_OFF phase', () => {
-  it('shows Start Movement button during KICK_OFF phase for active player', () => {
+  it('shows Move button during KICK_OFF phase for active player', () => {
     useGameStore.setState({
       gameState: { ...mockMovementState, phase: 'KICK_OFF', activeTeam: 'home' },
     });
     render(<ActionPanel />);
-    expect(screen.getByRole('button', { name: /start movement/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Move' })).toBeDefined();
   });
 });

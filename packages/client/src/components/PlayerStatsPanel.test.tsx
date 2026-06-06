@@ -57,8 +57,8 @@ describe('PlayerStatsPanel — TEAM-02: renders stats for selected piece', () =>
   it('renders the correct attribute value from gameState.pieces', () => {
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<PlayerStatsPanel />);
-    // home-9 has pace: 9, shooting: 9 (from teams.ts)
-    const statValues = screen.getAllByText('9');
+    // home-9 has pace: 5, dribbling: 5, heading: 5, resilience: 5 (from teams.ts)
+    const statValues = screen.getAllByText('5');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
 });

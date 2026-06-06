@@ -105,7 +105,7 @@ describe('useGameStore — emit actions', () => {
 
   it('emitRoll calls socket.emit with game:roll', () => {
     useGameStore.getState().emitRoll();
-    expect(emitMock).toHaveBeenCalledWith('game:roll');
+    expect(emitMock).toHaveBeenCalledWith('game:roll', undefined, undefined);
   });
 
   it('emitEndTurn calls socket.emit with game:end-turn', () => {
