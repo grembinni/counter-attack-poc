@@ -5,6 +5,7 @@ import {
   ClientEvents,
   PITCH_REGIONS,
   getZoIDefenders,
+  hexDistance,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -61,6 +62,17 @@ export function HexGrid() {
   const emitMove = useGameStore((s) => s.emitMove);
   const emitKickOffMove = useGameStore((s) => s.emitKickOffMove);
 
+  // Phase 8.2: pass target highlight slices (D-06, D-09)
+  const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
+  const interceptionRiskHexes = useGameStore((s) => s.interceptionRiskHexes);
+  const passTargetHex = useGameStore((s) => s.passTargetHex);
+  const selectedPassType = useGameStore((s) => s.selectedPassType);
+  const setPassTargetHex = useGameStore((s) => s.setPassTargetHex);
+
+  // Phase 8.2: header contestant (D-17)
+  const headerContestantId = useGameStore((s) => s.headerContestantId);
+  const setHeaderContestantId = useGameStore((s) => s.setHeaderContestantId);
+
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
@@ -70,6 +82,10 @@ export function HexGrid() {
 
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
+
+  // Phase 8.2: O(1) sets for pass target highlights (D-06, D-09)
+  const validPassTargetHexSet = new Set(validPassTargetHexes.map((h) => `${h.q},${h.r}`));
+  const interceptionRiskSet = new Set(interceptionRiskHexes.map((h) => `${h.q},${h.r}`));
 
   // ZoI steal-risk hexes: only when ball carrier is selected (red tint = steal danger)
   const isCarrierSelected = selectedPieceId !== null && selectedPieceId === ball.carrierId;
@@ -137,6 +153,13 @@ export function HexGrid() {
               hex.r === shotTargetHighlight.r;
             const isHighlighted = isValidMove || isGoalHex || isShotTarget;
 
+            // Phase 8.2 D-06/D-09: pass target classification
+            const isPassTarget =
+              phase === 'PASS' && selectedPassType !== null && validPassTargetHexSet.has(hexId);
+            const isInterceptionRisk = isPassTarget && interceptionRiskSet.has(hexId);
+            const isConfirmedPassTarget =
+              passTargetHex !== null && hex.q === passTargetHex.q && hex.r === passTargetHex.r;
+
             let onClick: (() => void) | undefined;
             if (phase === 'KICK_OFF_SETUP') {
               // KICK_OFF_SETUP: clicking a valid zone hex while a piece is selected → emitKickOffMove (T-08-19)
@@ -152,6 +175,13 @@ export function HexGrid() {
                 setShotTargetHighlight(hex);
                 socket.emit(ClientEvents.GAME_SHOT, hex);
               };
+            } else if (isPassTarget && isActivePlayer) {
+              // Phase 8.2 D-06: click valid pass target to confirm; click confirmed target to deselect
+              if (isConfirmedPassTarget) {
+                onClick = () => setPassTargetHex(null);
+              } else if (passTargetHex === null) {
+                onClick = () => setPassTargetHex(hex);
+              }
             }
 
             // KICK_OFF_SETUP zone tint overlays — rendered as additional polygons after base hex
@@ -219,6 +249,34 @@ export function HexGrid() {
                     pointerEvents="none"
                   />
                 )}
+                {/* Phase 8.2 D-06: safe pass target — green tint */}
+                {isPassTarget && !isInterceptionRisk && !isConfirmedPassTarget && (
+                  <polygon
+                    points={points}
+                    fill="rgba(34,197,94,0.4)"
+                    stroke="none"
+                    pointerEvents="none"
+                  />
+                )}
+                {/* Phase 8.2 D-09: interception-risk pass target — reuse amber tackle-risk style */}
+                {isInterceptionRisk && !isConfirmedPassTarget && (
+                  <polygon
+                    points={points}
+                    className={styles.hexTackleRisk}
+                    stroke="none"
+                    pointerEvents="none"
+                  />
+                )}
+                {/* Phase 8.2 D-06: confirmed pass target — gold outline ring */}
+                {isConfirmedPassTarget && (
+                  <polygon
+                    points={points}
+                    fill="none"
+                    stroke="#f5c518"
+                    strokeWidth={2}
+                    pointerEvents="none"
+                  />
+                )}
               </g>
             );
           })}
@@ -243,12 +301,29 @@ export function HexGrid() {
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
-            const isClickable = canSelect || canSelectKickOff;
-            const handleClick = canSelectKickOff
-              ? () => selectPiece(piece.id)
-              : canSelect
+
+            // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant
+            const isHeaderPhase = phase === 'HEADER';
+            const isOwnPiece = myTeam !== null && piece.teamId === myTeam;
+            const isHeaderEligible =
+              isActivePlayer &&
+              isHeaderPhase &&
+              isOwnPiece &&
+              hexDistance(piece.position, ball.position) <= 2;
+            const isHeaderContestant = isHeaderPhase && piece.id === headerContestantId;
+
+            const isClickable = canSelect || canSelectKickOff || isHeaderEligible;
+            const handleClick = isHeaderEligible
+              ? () => {
+                  // Toggle: clicking selected contestant deselects; clicking another selects it
+                  setHeaderContestantId(headerContestantId === piece.id ? null : piece.id);
+                }
+              : canSelectKickOff
                 ? () => selectPiece(piece.id)
-                : () => undefined;
+                : canSelect
+                  ? () => selectPiece(piece.id)
+                  : () => undefined;
+
             return (
               <PieceOverlay
                 key={piece.id}
@@ -260,6 +335,7 @@ export function HexGrid() {
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
                 isSpent={movedPieceIds.includes(piece.id)}
+                isHeaderContestant={isHeaderContestant}
               />
             );
           })}

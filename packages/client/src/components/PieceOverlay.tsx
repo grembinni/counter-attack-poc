@@ -13,6 +13,8 @@ type Props = {
   attackingTeam: 'home' | 'away';
   /** True when the piece has exhausted its activation this movement phase — renders a red X. */
   isSpent: boolean;
+  /** Phase 8.2 D-17: True when this piece is the locally-selected header contestant — renders a green ring. */
+  isHeaderContestant?: boolean;
 };
 
 /**
@@ -29,6 +31,7 @@ export function PieceOverlay({
   carrierId,
   attackingTeam,
   isSpent,
+  isHeaderContestant = false,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
@@ -87,6 +90,18 @@ export function PieceOverlay({
           fill="none"
           stroke="#f5c518"
           strokeWidth={2}
+          pointerEvents="none"
+        />
+      )}
+      {/* Phase 8.2 D-17: Header contestant ring — green outline, slightly larger than selected ring */}
+      {isHeaderContestant && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={14}
+          fill="none"
+          stroke="#22c55e"
+          strokeWidth={2.5}
           pointerEvents="none"
         />
       )}
