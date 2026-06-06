@@ -107,10 +107,11 @@ See: .planning/PROJECT.md
 
 ## Quick Tasks Completed
 
-| Slug                  | Date       | Description                                               |
-| --------------------- | ---------- | --------------------------------------------------------- |
-| phase-selection-flow  | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS |
-| possession-phase-bugs | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2       |
+| Slug                   | Date       | Description                                                    |
+| ---------------------- | ---------- | -------------------------------------------------------------- |
+| phase-selection-flow   | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS      |
+| possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2            |
+| undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser |
 
 ## Session Continuity
 
