@@ -343,7 +343,7 @@ export function applyMove(
             eventLog: newEventLog,
             pendingFreeMove: state.pendingFreeMove ?? null,
             lastActionType: 'SUCCESSFUL_TACKLE',
-            actionCount: state.actionCount + 7,
+            actionCount: state.actionCount + 3,
           },
         };
       }
@@ -473,10 +473,9 @@ export function applyEndTurn(
           : 'home'
         : state.attackingTeam;
 
-  // Phase 8 clock hook (D-04/MATCH-01): at ATTACKER_2→null transition.
-  // Testing: +7 min per phase to reach half-time quickly.
+  // Phase 8 clock hook (D-04/MATCH-01): at ATTACKER_2→null transition, +3 min per cycle.
   if (nextSlot === null) {
-    const newActionCount = state.actionCount + 7;
+    const newActionCount = state.actionCount + 3;
 
     // D-05/MATCH-02: roll added time inline when actionCount first reaches 45
     // Guard: only set addedTime once per half (Pitfall 3 — prevents re-roll)
@@ -721,8 +720,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
       if (!carrier) return { ok: false, reason: 'WRONG_PHASE' };
 
-      // Testing: +7 per pass regardless of type (normally FIRST_TIME=+0, others=+1).
-      const passTimeCost: number = 7;
+      // FIRST_TIME_PASS costs 0 min (free move in same action); all other pass types cost +1 min.
+      const passTimeCost = state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
 
       // Use HIGH pass accuracy check (carrier.highPass attribute).
       // Per D-12: accuracy determines pass result; exact type is stored in lastActionType by handler.
@@ -1234,7 +1233,7 @@ export function applyGKRestart(
         // Ball stays with GK for the movement phase (similar to accurate throw delivery)
         lastDiceRoll: { rolls: [kickDice], context: 'GK_KICK' },
         lastActionType: 'MOVEMENT_PHASE', // D-21: accurate kick = MOVEMENT_PHASE
-        actionCount: state.actionCount + 7, // Testing: +7 min (normally +1)
+        actionCount: state.actionCount + 1,
       },
     };
   } else {
@@ -1259,7 +1258,7 @@ export function applyGKRestart(
         ball: { position: landing, carrierId: null },
         lastDiceRoll: { rolls: [kickDice, directionDice, distanceDice], context: 'GK_KICK' },
         lastActionType: 'DEFLECTION', // D-21: inaccurate kick = DEFLECTION
-        actionCount: state.actionCount + 7, // Testing: +7 min (normally +1) (even when inaccurate)
+        actionCount: state.actionCount + 1,
       },
     };
   }
