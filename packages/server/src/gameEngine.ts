@@ -530,6 +530,12 @@ export function applyEndTurn(
   // movedPieceIds is preserved across intermediate slot boundaries so players
   // moved in ATTACKER_4 cannot be reused in ATTACKER_2 (D-12).
   // paceUsedByPieceId is reset so the new slot can track its own activations.
+  //
+  // Any piece with paceUsed > 0 that was not yet exhausted (not in movedPieceIds) is
+  // locked in now — ending the slot consumes the activation whether or not max pace was used.
+  const lockedOnEndSlot = Object.keys(state.paceUsedByPieceId).filter(
+    (id) => !state.movedPieceIds.includes(id),
+  );
   return {
     ok: true,
     state: {
@@ -538,7 +544,7 @@ export function applyEndTurn(
       movementSlot: nextSlot,
       activeTeam: nextActiveTeam,
       eventLog: [...state.eventLog, slotAdvanceEvent],
-      movedPieceIds: state.movedPieceIds, // preserved — no player can move twice in a phase
+      movedPieceIds: [...state.movedPieceIds, ...lockedOnEndSlot],
       paceUsedByPieceId: {}, // reset — new slot counts activations from zero
     },
   };
