@@ -32,6 +32,7 @@ import {
   ELIGIBLE_NEXT_ACTIONS,
   PITCH_REGIONS,
   ServerEvents,
+  validatePass,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
@@ -383,10 +384,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // Server validates it is eligible for the current lastActionType and sets
   // lastActionType=passType before calling applyRoll so the engine records the
   // correct action and computes the correct time cost.
+  //
+  // D-10 (Phase 8.2): targetHex carries the destination hex for High/Long pass
+  // accuracy resolution. Server authoritatively re-runs validatePass before
+  // committing passTargetHex to state (ASVS V5).
   // -------------------------------------------------------------------------
   socket.on(
     ClientEvents.GAME_ROLL,
-    (passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL') => {
+    (
+      passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL',
+      targetHex?: HexCoord,
+    ) => {
       const { roomCode } = socket.data;
       if (roomCode === undefined) return;
       const room = getRoom(roomCode);
@@ -445,6 +453,67 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               return;
             }
           }
+
+          // D-10 (Phase 8.2): targetHex validation and authoritative validatePass gate.
+          // Require targetHex for all pass types — engine needs it for accuracy resolution.
+          if (!targetHex) {
+            socket.emit(ServerEvents.GAME_ERROR, 'MISSING_TARGET');
+            broadcastState(io, room);
+            return;
+          }
+          // ASVS V5: shape validation — reject non-number q/r (mirror GAME_SHOT T-07-12)
+          if (
+            typeof targetHex !== 'object' ||
+            targetHex === null ||
+            typeof targetHex.q !== 'number' ||
+            typeof targetHex.r !== 'number'
+          ) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+            broadcastState(io, room);
+            return;
+          }
+          // Look up the ball carrier (must exist in PASS phase)
+          const carrier = room.gameState.pieces.find(
+            (p) => p.id === room.gameState!.ball.carrierId,
+          );
+          if (!carrier) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+            broadcastState(io, room);
+            return;
+          }
+          // Map client passType to validatePass type parameter
+          const passTypeMap: Record<
+            'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL',
+            'STANDARD' | 'FIRST_TIME' | 'HIGH' | 'LONG'
+          > = {
+            STANDARD_PASS: 'STANDARD',
+            FIRST_TIME_PASS: 'FIRST_TIME',
+            HIGH_PASS: 'HIGH',
+            LONG_BALL: 'LONG',
+          };
+          const vpType = passTypeMap[passType];
+          // Authoritative server-side validatePass (D-10) — re-runs before committing
+          const passResult = validatePass(
+            room.gameState,
+            carrier,
+            carrier.position,
+            targetHex,
+            vpType,
+          );
+          if (!passResult.ok) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+            broadcastState(io, room);
+            return;
+          }
+          // Commit passTargetHex to state — consumed by applyRoll PASS branch
+          room.gameState = { ...room.gameState, passTargetHex: targetHex };
+          // D-11 (Phase 8.2): Pre-generate interception dice before applyRoll (Pitfall 4)
+          // validatePass ok result carries interceptors list
+          if (passResult.interceptors.length > 0) {
+            const interceptionDice = passResult.interceptors.map(() => rollDice());
+            room.gameState = { ...room.gameState, preGeneratedInterceptionDice: interceptionDice };
+          }
+
           // Commit the chosen pass type — applyRoll reads lastActionType to determine time cost.
           room.gameState = { ...room.gameState, lastActionType: passType };
         } else {
@@ -459,6 +528,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           if (room.gameState.phase === 'HEADER' && room.gameState.lastActionType !== null) {
             if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')) {
               socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+              broadcastState(io, room);
+              return;
+            }
+          }
+          // Pitfall 5 (Phase 8.2): HEADER roll requires both teams to confirm their contestant.
+          if (room.gameState.phase === 'HEADER') {
+            if (!room.gameState.headerConfirmed?.home || !room.gameState.headerConfirmed?.away) {
+              socket.emit(ServerEvents.GAME_ERROR, 'HEADER_NOT_CONFIRMED');
               broadcastState(io, room);
               return;
             }
