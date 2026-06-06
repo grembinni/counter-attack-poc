@@ -1052,6 +1052,92 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task 2 (Plan 08.2-02): LOOSE_BALL trajectory walk (D-23/D-24 / PASS-05)
+// ---------------------------------------------------------------------------
+
+describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () => {
+  /** A piece sitting on a trajectory hex between ball and landing (D-23) */
+  const trajectoryBlocker: PlayerPiece = {
+    id: 'home-block',
+    teamId: 'home',
+    name: 'Home MID (blocker)',
+    role: 'MID',
+    position: { q: 17, r: 12 }, // placed on the trajectory from ball {q:15,r:12} toward landing
+    pace: 7,
+    shooting: 5,
+    tackling: 4,
+    dribbling: 5,
+    heading: 5,
+    saving: 1,
+    handling: 1,
+    resilience: 6,
+    aerialAbility: 0,
+    highPass: 5,
+  };
+
+  /** LOOSE_BALL state with a piece on the trajectory (D-23) */
+  const makeLooseBallStateWithBlocker = (): GameState => ({
+    ...makePassState(),
+    phase: 'LOOSE_BALL',
+    // Ball at {q:15, r:12}; trajectoryBlocker at {q:17, r:12}
+    ball: { position: { q: 15, r: 12 }, carrierId: null },
+    pieces: [
+      { ...homeFwd, position: { q: 32, r: 12 } }, // away from trajectory
+      awayGk,
+      homeMid, // at {q:15, r:12} — but that's ball position, not trajectory
+      trajectoryBlocker, // at {q:17, r:12}
+    ],
+    lastActionType: 'HIGH_PASS',
+  });
+
+  /** LOOSE_BALL state with no pieces on trajectory (D-24) */
+  const makeLooseBallStateClear = (): GameState => ({
+    ...makePassState(),
+    phase: 'LOOSE_BALL',
+    ball: { position: { q: 15, r: 12 }, carrierId: null },
+    pieces: [
+      { ...homeFwd, position: { q: 32, r: 12 } }, // far from trajectory
+      awayGk, // at {q:36, r:13} — far from trajectory
+      { ...homeMid, position: { q: 5, r: 12 } }, // far from trajectory
+      { ...awayDef, position: { q: 35, r: 5 } }, // far from trajectory
+    ],
+    lastActionType: 'HIGH_PASS',
+  });
+
+  it('PASS-05 D-23: ball stops on first occupied trajectory hex; carrierId is that piece', () => {
+    // dice d1=3 (direction), d2=4 (distance) → computeLooseBall yields a landing hex
+    // trajectoryBlocker is at {q:17, r:12}; if it is between ball and landing, ball stops there
+    // We use dice that push the landing well past {q:17, r:12} on a rightward path
+    // computeLooseBall(ball={q:15,r:12}, direction=1 (East in odd-q), distance=4)
+    // Landing should be far right from ball; trajectory passes through {q:17,r:12}
+    // Use dice d1=1 (direction→hex 0), d2=6 (distance=6 steps) to push far right
+    const state = makeLooseBallStateWithBlocker();
+    const result = applyRoll(state, 1, 6);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ball should have stopped at the trajectoryBlocker position (PASS-05 / D-23)
+    expect(result.state.ball.carrierId).toBe('home-block');
+    expect(result.state.ball.position).toEqual({ q: 17, r: 12 });
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+    expect(result.state.phase).toBe('PASS'); // D-23: phase is PASS not MOVEMENT
+    expect(result.state.attackingTeam).toBe('home'); // attackingTeam unchanged
+  });
+
+  it('PASS-05 D-24: ball lands unclaimed when no piece on trajectory; carrierId null', () => {
+    // Clear path — ball lands at computed landing hex, no piece to stop it
+    const state = makeLooseBallStateClear();
+    const result = applyRoll(state, 1, 2);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // No piece on trajectory — carrierId must be null (D-24)
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+    expect(result.state.phase).toBe('PASS'); // D-24: phase is PASS not MOVEMENT
+    expect(result.state.attackingTeam).toBe('home'); // attackingTeam unchanged
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Wave 0 RED scaffold: HEAD-05 / D-21 — contested piece excluded from Movement Phase
 // ---------------------------------------------------------------------------
 // RED until 08.2-02 implements HEAD-05 exclusion in applyStartMovement and applyMove
