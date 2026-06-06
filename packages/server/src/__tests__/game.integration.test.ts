@@ -472,11 +472,15 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
     // Also clear kickOffActive (Phase 8: set true after game:start-movement) so this test
     // can freely place the carrier anywhere without triggering kick-off origin enforcement (D-27).
     const room = getRoom(roomCode);
+    // Phase 8.2: GAME_ROLL in PASS phase requires passType + targetHex (D-10).
+    // Use a hex one step from the carrier with a clear path (distance=1, no intermediate hexes).
+    let passTargetHex = { q: 6, r: 3 }; // default for home-1 carrier at {q:5, r:3}
     if (room?.gameState) {
       // Pick the first outfielder of the attacking team as the ball carrier
       const carrierId = `${state.attackingTeam}-1`;
       const carrier = room.gameState.pieces.find((p) => p.id === carrierId);
       if (carrier) {
+        passTargetHex = { q: carrier.position.q + 1, r: carrier.position.r };
         room.gameState = {
           ...room.gameState,
           ball: { position: carrier.position, carrierId },
@@ -488,8 +492,8 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
     // Both clients should receive the updated state
     const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
 
-    // Active player (attackingClient) emits game:roll
-    attackingClient.emit(ClientEvents.GAME_ROLL);
+    // Active player (attackingClient) emits game:roll — Phase 8.2: passType + targetHex required
+    attackingClient.emit(ClientEvents.GAME_ROLL, 'STANDARD_PASS', passTargetHex);
 
     // Wait for state from clientA perspective
     const [newState] = await statePromiseA;
