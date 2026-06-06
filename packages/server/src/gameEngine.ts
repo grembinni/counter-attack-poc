@@ -30,6 +30,7 @@ import {
   validateMove,
   computeCombinedScore,
   computeLooseBall,
+  validatePass,
   validatePassAccuracy,
   validateShotDuel,
   validateHandlingCheck,
@@ -704,60 +705,42 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
   switch (state.phase) {
     // -------------------------------------------------------------------------
-    // PASS: accuracy check → action-choice on accurate; LOOSE_BALL on inaccurate (D-12, D-09)
+    // PASS: per-type accuracy → ball delivery → interception loop → LOOSE_BALL on inaccurate
     //
-    // D-09/Pitfall 8: accurate STANDARD pass MUST NOT transition to SHOT.
-    // After an accurate pass, the phase returns to a neutral action-choice state (PASS)
-    // so the ball carrier's team can choose their next action. Shot is only reachable
-    // via game:shot (from MOVEMENT) or applySnapshot.
+    // D-05: per-type accuracy gate — HIGH_PASS and LONG_BALL require validatePassAccuracy;
+    //       STANDARD_PASS and FIRST_TIME_PASS skip accuracy and always deliver the ball (D-01/D-02).
+    // D-14: accurate pass delivers ball to passTargetHex; sets ball.carrierId to teammate or null.
+    // D-11/D-12: adjacent defenders auto-roll for interception before delivery (PASS-01).
+    // D-09/Pitfall 8: accurate STANDARD pass MUST NOT transition to SHOT; phase returns to PASS.
+    // Time cost: +0 for FIRST_TIME_PASS; +1 for all other types.
     //
-    // Time cost: +1 min for STANDARD/HIGH/LONG pass; +0 for FIRST_TIME pass.
-    // The pass type was stored in GameState (lastActionType) at decision time (plan 08-04 handlers).
-    // In this pure-engine roll, we infer time cost from lastActionType if already set,
-    // otherwise default to +1 (the common case for STANDARD/HIGH/LONG passes).
+    // The handler (plan 08.2-04) is responsible for setting passTargetHex + lastActionType on
+    // state BEFORE calling applyRoll. Engine returns WRONG_PHASE if passTargetHex is absent.
     // -------------------------------------------------------------------------
     case 'PASS': {
       const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
       if (!carrier) return { ok: false, reason: 'WRONG_PHASE' };
 
-      // FIRST_TIME_PASS costs 0 min (free move in same action); all other pass types cost +1 min.
+      // T-08.2-03: passTargetHex must be set by the handler before this branch runs.
+      const targetHex = state.passTargetHex;
+      if (targetHex == null) return { ok: false, reason: 'WRONG_PHASE' };
+
+      // FIRST_TIME_PASS costs 0 min; all other pass types cost +1 min.
       const passTimeCost = state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
 
-      // Use HIGH pass accuracy check (carrier.highPass attribute).
-      // Per D-12: accuracy determines pass result; exact type is stored in lastActionType by handler.
-      const accuracyResult = validatePassAccuracy(carrier, 'HIGH', d1, []);
+      // D-05: accuracy gate — only HIGH_PASS and LONG_BALL require a check.
+      const requiresAccuracyCheck =
+        state.lastActionType === 'HIGH_PASS' || state.lastActionType === 'LONG_BALL';
 
-      if (accuracyResult.accurate) {
-        // D-09/Pitfall 8: accurate pass returns to NEUTRAL ACTION-CHOICE state (NOT SHOT).
-        // Determine the lastActionType for this pass:
-        // - If already set by the handler (plan 08-04), use it as-is (handler sets before calling)
-        // - If null/unset, default to 'STANDARD_PASS' (most common pass type in current code)
-        const newLastActionType: LastActionType =
-          state.lastActionType !== null &&
-          ['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'].includes(
-            state.lastActionType,
-          )
-            ? state.lastActionType
-            : 'STANDARD_PASS';
+      let accurate = true;
+      if (requiresAccuracyCheck) {
+        const accuracyType = state.lastActionType === 'HIGH_PASS' ? 'HIGH' : 'LONG_SAME_THIRD';
+        const accuracyResult = validatePassAccuracy(carrier, accuracyType, d1, []);
+        accurate = accuracyResult.accurate;
+      }
 
-        // After HIGH_PASS, phase should be HEADER (next mandatory action); others → PASS (action choice)
-        const newPhase: GamePhase = newLastActionType === 'HIGH_PASS' ? 'HEADER' : 'PASS';
-
-        return {
-          ok: true,
-          state: {
-            ...state,
-            phase: newPhase,
-            lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
-            lastActionType: newLastActionType,
-            actionCount: state.actionCount + passTimeCost,
-          },
-        };
-      } else {
-        // Inaccurate → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-15, D-19)
-        // Ball stays at incident hex; do NOT compute landing here (accuracy die d1 is biased)
-        // Only the accuracy die (d1) is consumed here; d2 is reserved for the fresh LOOSE_BALL roll
-        // Note: DEFLECTION is set when LOOSE_BALL resolves (next roll), not here
+      if (!accurate) {
+        // D-05/PASS-05: inaccurate → LOOSE_BALL; ball stays at carrier position.
         return {
           ok: true,
           state: {
@@ -766,10 +749,103 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
             actionCount: state.actionCount + passTimeCost,
+            passTargetHex: null,
             // lastActionType stays as-is until LOOSE_BALL resolves to DEFLECTION
           },
         };
       }
+
+      // Accurate path: run the interception loop before delivery (D-11/D-12 / PASS-01).
+      // Map lastActionType → validatePass passType.
+      const passTypeMap: Record<string, 'STANDARD' | 'FIRST_TIME' | 'HIGH' | 'LONG'> = {
+        STANDARD_PASS: 'STANDARD',
+        FIRST_TIME_PASS: 'FIRST_TIME',
+        HIGH_PASS: 'HIGH',
+        LONG_BALL: 'LONG',
+      };
+      const validatePassType: 'STANDARD' | 'FIRST_TIME' | 'HIGH' | 'LONG' =
+        (state.lastActionType && passTypeMap[state.lastActionType]) ?? 'STANDARD';
+
+      const passResult = validatePass(
+        state,
+        carrier,
+        carrier.position,
+        targetHex,
+        validatePassType,
+      );
+      const interceptors = passResult.ok ? passResult.interceptors : [];
+
+      for (let i = 0; i < interceptors.length; i++) {
+        const interceptor = interceptors[i]!;
+        const die = state.preGeneratedInterceptionDice?.[i] ?? 3;
+        const combined = computeCombinedScore(interceptor.tackling, die, []);
+        if (die === 6 || combined >= 10) {
+          // D-11/D-12: interception — first success wins; transfer possession.
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'PASS',
+              ball: { position: interceptor.position, carrierId: interceptor.id },
+              attackingTeam: interceptor.teamId,
+              activeTeam: interceptor.teamId,
+              lastActionType: 'SUCCESSFUL_TACKLE',
+              actionCount: state.actionCount + passTimeCost,
+              passTargetHex: null,
+              preGeneratedInterceptionDice: [],
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            },
+          };
+        }
+      }
+
+      // No interception: deliver ball to target hex.
+      // Find teammate at target (same teamId, matching q/r).
+      const teammate = state.pieces.find(
+        (p) =>
+          p.teamId === carrier.teamId &&
+          p.position.q === targetHex.q &&
+          p.position.r === targetHex.r,
+      );
+
+      // D-14: ball delivered to passTargetHex.
+      const newLastActionType: LastActionType =
+        state.lastActionType !== null &&
+        (['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'] as string[]).includes(
+          state.lastActionType,
+        )
+          ? state.lastActionType
+          : 'STANDARD_PASS';
+
+      // After HIGH_PASS, transition to HEADER; all others → PASS (neutral action choice).
+      const newPhase: GamePhase = newLastActionType === 'HIGH_PASS' ? 'HEADER' : 'PASS';
+
+      // D-09/Pitfall 8: PASS never transitions to SHOT.
+      const headerFields =
+        newPhase === 'HEADER'
+          ? {
+              headerContestants: { home: null as string | null, away: null as string | null },
+              headerConfirmed: { home: false, away: false },
+            }
+          : {};
+
+      // TODO: FIRST_TIME_PLAYER_MOVES (PASS-02) deferred to Phase 8.3
+      // The FIRST_TIME_PASS effect (mid-pass player movement) would be handled here.
+
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: newPhase,
+          ball: { position: targetHex, carrierId: teammate?.id ?? null },
+          lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+          lastActionType: newLastActionType,
+          actionCount: state.actionCount + passTimeCost,
+          passTargetHex: null,
+          preGeneratedInterceptionDice: [],
+          ...headerFields,
+        },
+      };
     }
 
     // -------------------------------------------------------------------------

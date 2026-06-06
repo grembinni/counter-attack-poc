@@ -668,26 +668,38 @@ describe('applyRoll', () => {
   // ---- PASS branch ----
 
   it('PASS accurate (highPass+dice >= 8) → phase returns to action-choice (NOT SHOT) per D-09/Pitfall8', () => {
-    // homePiece.highPass=5; dice=4 → 5+4=9 >= 8 → accurate
+    // Uses standardPassState (lastActionType:'STANDARD_PASS', passTargetHex set) so ball delivery works.
+    // STANDARD_PASS skips accuracy check (D-01); die=1 still results in successful delivery.
     // D-09/Pitfall 8: accurate pass MUST NOT transition to SHOT.
     // Phase stays PASS (neutral action-choice) so the ball carrier's team can choose next action.
-    const result = applyRoll(passState, 4, 3, 3);
+    // (standardPassState defined below after the per-type tests fixtures)
+    const tempPassState: GameState = {
+      ...passState,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 20, r: 7 }, // empty hex — ball delivered with carrierId null
+    };
+    const result = applyRoll(tempPassState, 4, 3, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.phase).not.toBe('SHOT'); // SHOT is NOT the result of accurate pass
       expect(result.state.lastDiceRoll).toBeDefined();
       expect(result.state.lastDiceRoll?.context).toBe('PASS_ACCURACY');
       expect(result.state.lastDiceRoll?.rolls).toContain(4);
-      // lastActionType should be STANDARD_PASS (default when not set by handler)
+      // lastActionType should be STANDARD_PASS
       expect(result.state.lastActionType).toBe('STANDARD_PASS');
       // actionCount should increase by 1 (STANDARD pass costs +1 min per D-03)
       expect(result.state.actionCount).toBe(1);
     }
   });
 
-  it('PASS inaccurate (highPass+dice < 8) → phase transitions to LOOSE_BALL and ball.carrierId null, ball.position unchanged', () => {
-    // homePiece.highPass=5; dice=1 → 5+1=6 < 8 → inaccurate → LOOSE_BALL
-    const result = applyRoll(passState, 1, 2, 3);
+  it('PASS inaccurate HIGH_PASS (highPass+dice < 8) → LOOSE_BALL; ball.carrierId null; ball.position unchanged', () => {
+    // Uses HIGH_PASS lastActionType so accuracy check fires. homePiece.highPass=5; dice=1 → 5+1=6 < 8 → inaccurate
+    const tempHighPassState: GameState = {
+      ...passState,
+      lastActionType: 'HIGH_PASS',
+      passTargetHex: { q: 20, r: 7 },
+    };
+    const result = applyRoll(tempHighPassState, 1, 2, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.phase).toBe('LOOSE_BALL');
@@ -721,13 +733,16 @@ describe('applyRoll', () => {
     highPass: 5,
   };
 
-  /** A defending piece adjacent to the pass path (for interception tests) */
+  /** A defending piece adjacent to the pass path (for interception tests).
+   *  Placed at {q:13, r:8} — adjacent to path hex {q:13, r:7} but NOT on the path itself
+   *  (STANDARD path blocking only fires on pieces ON intermediate hexes, not adjacent ones).
+   *  validatePass ZoI check picks up defenders within 1 hex of travel-path hexes. */
   const interceptorPiece: PlayerPiece = {
     id: 'away-int',
     teamId: 'away',
     name: 'Away Interceptor',
     role: 'MID',
-    position: { q: 13, r: 7 }, // adjacent to pass path from q:10 to q:17
+    position: { q: 13, r: 8 }, // adjacent (ZoI) to path hex {q:13, r:7}, not blocking the path
     pace: 7,
     shooting: 4,
     tackling: 6,

@@ -371,9 +371,13 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
   // --- PASS branch ---
 
   it('accurate STANDARD pass sets lastActionType STANDARD_PASS and actionCount +1', () => {
-    // dice=6: high enough to pass accuracy check (carrier.highPass=5, 5+6=11 >= 8)
-    const state = makePassState({ actionCount: 10 });
-    const result = applyRoll(state, 6 /* accurate */, 3, 3);
+    // STANDARD_PASS skips accuracy check (D-01); handler sets lastActionType + passTargetHex before applyRoll
+    const state = makePassState({
+      actionCount: 10,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 20, r: 12 }, // empty hex
+    });
+    const result = applyRoll(state, 6 /* any die — no accuracy check for STANDARD */, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.lastActionType).toBe('STANDARD_PASS');
@@ -381,25 +385,37 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
   });
 
   it('accurate STANDARD pass does NOT transition to phase SHOT (Pitfall 8, D-09)', () => {
-    const state = makePassState({ actionCount: 10 });
-    const result = applyRoll(state, 6 /* accurate */, 3, 3);
+    const state = makePassState({
+      actionCount: 10,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 20, r: 12 },
+    });
+    const result = applyRoll(state, 6, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).not.toBe('SHOT');
   });
 
   it('accurate STANDARD pass returns to neutral action-choice state (phase PASS)', () => {
-    const state = makePassState({ actionCount: 10 });
-    const result = applyRoll(state, 6 /* accurate */, 3, 3);
+    const state = makePassState({
+      actionCount: 10,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 20, r: 12 },
+    });
+    const result = applyRoll(state, 6, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Should stay in PASS (neutral action choice) or another non-SHOT phase
     expect(['PASS', 'MOVEMENT'].includes(result.state.phase)).toBe(true);
   });
 
-  it('inaccurate STANDARD pass routes to LOOSE_BALL and sets lastActionType DEFLECTION', () => {
-    // dice=1: low enough to fail accuracy check (carrier.highPass=5, 5+1=6 < 8)
-    const state = makePassState({ actionCount: 10 });
+  it('inaccurate HIGH_PASS routes to LOOSE_BALL (PASS-05)', () => {
+    // Use HIGH_PASS to trigger accuracy check; homeFwd.highPass=5, dice=1: 5+1=6 < 8 → inaccurate
+    const state = makePassState({
+      actionCount: 10,
+      lastActionType: 'HIGH_PASS',
+      passTargetHex: { q: 20, r: 12 },
+    });
     const result = applyRoll(state, 1 /* inaccurate */, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
