@@ -44,15 +44,11 @@ describe('validateMove', () => {
     if (!result.ok) expect(result.reason).toBe('WRONG_SLOT');
   });
 
-  it('allows multi-hex moves within piece.pace; rejects moves beyond pace (OUT_OF_RANGE)', () => {
-    // basePiece.pace = 3; distance 2 is within pace → ok
-    const withinPace = validateMove(baseState, basePiece, { q: 7, r: 5 });
-    expect(withinPace.ok).toBe(true);
-    // distance > pace → OUT_OF_RANGE
-    const beyondPace: PlayerPiece = { ...basePiece, pace: 1 };
-    const tooFar = validateMove({ ...baseState, pieces: [beyondPace] }, beyondPace, { q: 7, r: 5 });
-    expect(tooFar.ok).toBe(false);
-    if (!tooFar.ok) expect(tooFar.reason).toBe('OUT_OF_RANGE');
+  it('rejects non-adjacent moves (distance 2) with OUT_OF_RANGE — single-step only', () => {
+    // basePiece at {q:5,r:5}; destination {q:7,r:5} is distance 2 → OUT_OF_RANGE
+    const result = validateMove(baseState, basePiece, { q: 7, r: 5 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('OUT_OF_RANGE');
   });
 
   it('rejects move to occupied hex (OCCUPIED)', () => {
@@ -63,14 +59,14 @@ describe('validateMove', () => {
     if (!result.ok) expect(result.reason).toBe('OCCUPIED');
   });
 
-  it('rejects ATTACKER_4 move when paceUsed = piece.pace (remainingPace=0 → OUT_OF_RANGE)', () => {
+  it('rejects ATTACKER_4 move when paceUsed = piece.pace (PACE_EXCEEDED)', () => {
     const state: GameState = {
       ...baseState,
-      paceUsedByPieceId: { p1: 4 }, // pace is 4, remainingPace = 0 → any distance rejected
+      paceUsedByPieceId: { p1: 4 }, // pace is 4, paceUsed + 1 = 5 > 4 → PACE_EXCEEDED
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('OUT_OF_RANGE');
+    if (!result.ok) expect(result.reason).toBe('PACE_EXCEEDED');
   });
 
   it('accepts ATTACKER_4 move within pace', () => {
@@ -82,28 +78,28 @@ describe('validateMove', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects DEFENDER_5 move when paceUsed = piece.pace (remainingPace=0 → OUT_OF_RANGE)', () => {
+  it('rejects DEFENDER_5 move when paceUsed = piece.pace (PACE_EXCEEDED)', () => {
     const state: GameState = {
       ...baseState,
       movementSlot: 'DEFENDER_5',
-      paceUsedByPieceId: { p1: 4 }, // pace exhausted → remainingPace = 0
+      paceUsedByPieceId: { p1: 4 }, // paceUsed + 1 = 5 > 4 → PACE_EXCEEDED
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('OUT_OF_RANGE');
+    if (!result.ok) expect(result.reason).toBe('PACE_EXCEEDED');
   });
 
-  it('rejects ATTACKER_2 move when pace exhausted (paceUsed=pace → remainingPace=0 → OUT_OF_RANGE)', () => {
+  it('rejects ATTACKER_2 move when pace exhausted (PACE_EXCEEDED)', () => {
     const fastPiece: PlayerPiece = { ...basePiece, pace: 3 };
     const state: GameState = {
       ...baseState,
       movementSlot: 'ATTACKER_2',
       pieces: [fastPiece],
-      paceUsedByPieceId: { p1: 3 }, // paceUsed=pace → remainingPace=0 → OUT_OF_RANGE
+      paceUsedByPieceId: { p1: 3 }, // paceUsed = pace → 3 + 1 > 3 → PACE_EXCEEDED
     };
     const result = validateMove(state, fastPiece, { q: 6, r: 5 });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('OUT_OF_RANGE');
+    if (!result.ok) expect(result.reason).toBe('PACE_EXCEEDED');
   });
 
   it('rejects ATTACKER_2 move for piece already in movedPieceIds (ALREADY_MOVED_IN_ATTACKER4)', () => {

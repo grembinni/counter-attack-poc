@@ -11,6 +11,8 @@ type Props = {
   carrierId: string | null;
   /** Which team is currently attacking — passed from HexGrid for ball possession dot direction (D-16). */
   attackingTeam: 'home' | 'away';
+  /** True when the piece has exhausted its activation this movement phase — renders a red X. */
+  isSpent: boolean;
 };
 
 /**
@@ -26,6 +28,7 @@ export function PieceOverlay({
   onInspect,
   carrierId,
   attackingTeam,
+  isSpent,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
@@ -96,6 +99,16 @@ export function PieceOverlay({
           fill="#ffffff"
           stroke="rgba(0,0,0,0.5)"
           strokeWidth={1}
+          pointerEvents="none"
+        />
+      )}
+      {/* Spent indicator — red X when piece has used its activation this movement phase */}
+      {isSpent && (
+        <path
+          d={`M${cx - 7} ${cy - 7} L${cx + 7} ${cy + 7} M${cx + 7} ${cy - 7} L${cx - 7} ${cy + 7}`}
+          stroke="#ef4444"
+          strokeWidth={2.5}
+          strokeLinecap="round"
           pointerEvents="none"
         />
       )}

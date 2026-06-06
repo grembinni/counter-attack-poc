@@ -228,6 +228,25 @@ export function applyMove(
   // 5. Build new state via spread (immutable — never mutate readonly arrays, RESEARCH Pitfall 1)
   const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
 
+  // movedPieceIds tracking: a piece is "spent" when its pace is exhausted after this step.
+  // When a NEW activation starts (paceUsed was 0), any other mid-activation piece is abandoned
+  // and also added to movedPieceIds (the player chose to stop them early).
+  const currentPaceUsed = state.paceUsedByPieceId[pieceId] ?? 0;
+  const newPaceForPiece = currentPaceUsed + 1;
+  const isNewActivation = currentPaceUsed === 0;
+  const paceExhausted = newPaceForPiece >= piece.pace;
+  const abandonedIds = isNewActivation
+    ? Object.keys(state.paceUsedByPieceId).filter(
+        (id) => id !== pieceId && !state.movedPieceIds.includes(id),
+      )
+    : [];
+  const computeMovedPieceIds = (forceIncludeSelf = false): string[] => {
+    const ids = new Set(state.movedPieceIds);
+    for (const id of abandonedIds) ids.add(id);
+    if (paceExhausted || forceIncludeSelf) ids.add(pieceId);
+    return [...ids];
+  };
+
   const moveEvent: ActionEvent = {
     type: 'MOVE',
     pieceId,
@@ -302,37 +321,31 @@ export function applyMove(
           state: {
             ...state,
             pieces: newPieces,
-            movedPieceIds: state.movedPieceIds.includes(pieceId)
-              ? state.movedPieceIds
-              : [...state.movedPieceIds, pieceId],
+            movedPieceIds: computeMovedPieceIds(true), // tackle success always spends the piece
             paceUsedByPieceId: {
               ...state.paceUsedByPieceId,
-              [pieceId]: piece.pace, // full pace consumed on activation (one move per player)
+              [pieceId]: newPaceForPiece,
             },
             ball: tackleSuccessBall,
             eventLog: newEventLog,
             pendingFreeMove: state.pendingFreeMove ?? null,
-            // D-11: tackle success ends movement phase; same as steal success
             lastActionType: 'SUCCESSFUL_TACKLE',
             actionCount: state.actionCount + 3,
           },
         };
       }
       // FAIL: defender moves to `to` (newPieces already reflects this), carrier keeps ball
-      // ball.position stays with the carrier (which hasn't moved) — use state.ball unchanged
       return {
         ok: true,
         state: {
           ...state,
           pieces: newPieces,
-          movedPieceIds: state.movedPieceIds.includes(pieceId)
-            ? state.movedPieceIds
-            : [...state.movedPieceIds, pieceId],
+          movedPieceIds: computeMovedPieceIds(), // spent only if pace exhausted
           paceUsedByPieceId: {
             ...state.paceUsedByPieceId,
-            [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+            [pieceId]: newPaceForPiece,
           },
-          ball: state.ball, // carrier unchanged; ball stays with carrier
+          ball: state.ball,
           eventLog: newEventLog,
           pendingFreeMove: state.pendingFreeMove ?? null,
         },
@@ -347,52 +360,44 @@ export function applyMove(
     const fromInAwayThird = isInRegion(piece.position, 'awayThird');
     const toInHomeThird = isInRegion(to, 'homeThird');
     const toInAwayThird = isInRegion(to, 'awayThird');
-    // Cross: must move from one final third directly into the other (not via middle third)
     if ((fromInHomeThird && toInAwayThird) || (fromInAwayThird && toInHomeThird)) {
       pendingFreeMove = { team: piece.teamId, hexesAllowed: 6 };
     }
   }
 
-  // D-14/MATCH-01: successful steal ends the Movement Phase early; costs 3 min and sets SUCCESSFUL_TACKLE
   if (stealSuccess) {
-    // On steal SUCCESS: ball transferred to defender (stealDefenderId) at `to` (carrier moved there)
     const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     return {
       ok: true,
       state: {
         ...state,
         pieces: newPieces,
-        movedPieceIds: state.movedPieceIds.includes(pieceId)
-          ? state.movedPieceIds
-          : [...state.movedPieceIds, pieceId],
+        movedPieceIds: computeMovedPieceIds(true), // steal success always spends the piece
         paceUsedByPieceId: {
           ...state.paceUsedByPieceId,
-          [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+          [pieceId]: newPaceForPiece,
         },
         ball: stealSuccessBall,
         eventLog: newEventLog,
         pendingFreeMove,
-        // Phase 8 fields
         lastActionType: 'SUCCESSFUL_TACKLE',
-        actionCount: state.actionCount + 3, // D-14: full movement phase cost even on early end
+        actionCount: state.actionCount + 3,
       },
     };
   }
 
+  // Normal move
   return {
     ok: true,
     state: {
       ...state,
       pieces: newPieces,
-      // CR-01: append pieceId to movedPieceIds so ATTACKER_2 ALREADY_MOVED guard works
-      movedPieceIds: state.movedPieceIds.includes(pieceId)
-        ? state.movedPieceIds
-        : [...state.movedPieceIds, pieceId],
+      movedPieceIds: computeMovedPieceIds(), // spent only when pace fully exhausted
       paceUsedByPieceId: {
         ...state.paceUsedByPieceId,
-        [pieceId]: (state.paceUsedByPieceId[pieceId] ?? 0) + 1,
+        [pieceId]: newPaceForPiece,
       },
-      ball: newBall, // D-13/D-14: ball tracks carrier; unchanged for non-carrier moves
+      ball: newBall,
       eventLog: newEventLog,
       pendingFreeMove,
     },
@@ -516,6 +521,29 @@ export function applyEndTurn(
       eventLog: [...state.eventLog, slotAdvanceEvent],
       movedPieceIds: state.movedPieceIds, // preserved — no player can move twice in a phase
       paceUsedByPieceId: {}, // reset — new slot counts activations from zero
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyRestartMovement
+// ---------------------------------------------------------------------------
+
+/** Resets the movement phase back to ATTACKER_4, clearing movedPieceIds and pace tracking.
+ *  Used for "Start New Movement Phase" — allows the attacking team to replay the full
+ *  4-5-2 movement sequence from scratch within the same turn. */
+export function applyRestartMovement(
+  state: GameState,
+): { ok: false; reason: 'WRONG_PHASE' } | { ok: true; state: GameState } {
+  if (state.phase !== 'MOVEMENT') return { ok: false, reason: 'WRONG_PHASE' };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      movementSlot: 'ATTACKER_4',
+      activeTeam: state.attackingTeam,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
     },
   };
 }

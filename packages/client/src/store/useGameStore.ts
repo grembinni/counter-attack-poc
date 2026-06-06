@@ -91,6 +91,8 @@ export type GameStore = {
   emitSnapshot: () => void;
   /** Phase 8 / D-17: Emit game:header — resolve a Header while phase === 'HEADER'. */
   emitHeader: () => void;
+  /** Restart the movement phase from ATTACKER_4 — resets movedPieceIds and pace tracking. */
+  emitRestartMovement: () => void;
 };
 
 /**
@@ -152,8 +154,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // Normal MOVEMENT phase: use hexesInRange + validateMove (D-07, Pitfall 7)
-    const candidates = hexesInRange(piece.position, piece.pace);
+    // Normal MOVEMENT phase: show only adjacent hexes (step-by-step, D-07)
+    // validateMove enforces single-step; hexesInRange(pos, 1) gives only the 6 adjacent hexes
+    const candidates = hexesInRange(piece.position, 1);
     const valid = candidates.filter((hex) => validateMove(gameState, piece, hex).ok);
     set({ selectedPieceId: id, validMoveHexes: valid });
   },
@@ -195,10 +198,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // Sticky selection: recompute validMoveHexes with remaining pace (D-17, D-19)
+    // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
-    const remainingPace = piece.pace - (newState.paceUsedByPieceId[prevSelectedId] ?? 0);
-    const candidates = hexesInRange(piece.position, remainingPace);
+    const candidates = hexesInRange(piece.position, 1); // adjacent only — step-by-step movement
     const valid = candidates.filter((hex) => validateMove(newState, piece, hex).ok);
     // Restore selectedPieceId (emitMove cleared it) and clear lastMovedPieceId sentinel
     set({
@@ -264,5 +266,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitHeader: () => {
     socket.emit(ClientEvents.GAME_HEADER);
+  },
+
+  emitRestartMovement: () => {
+    socket.emit(ClientEvents.GAME_RESTART_MOVEMENT);
   },
 }));

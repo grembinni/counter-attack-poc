@@ -245,9 +245,10 @@ export function HexGrid() {
                 isSelected={piece.id === selectedPieceId}
                 isClickable={isClickable}
                 onClick={handleClick}
-                onInspect={() => inspectPiece(piece.id)} // D-06: stats-only; no move computation — no socket.emit
+                onInspect={() => inspectPiece(piece.id)}
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
+                isSpent={movedPieceIds.includes(piece.id)}
               />
             );
           })}

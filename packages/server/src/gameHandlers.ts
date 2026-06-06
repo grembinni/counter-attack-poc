@@ -41,6 +41,7 @@ import {
   applyHalfTimeStart,
   applyKickOffReady,
   applyMove,
+  applyRestartMovement,
   applyRoll,
   applySnapshot,
   applyStartMovement,
@@ -330,6 +331,36 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       room.gameState = result.state;
       broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_RESTART_MOVEMENT — resets movement phase to ATTACKER_4 (house-rule repeat)
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_RESTART_MOVEMENT, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return;
+    room.isProcessing = true;
+    try {
+      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        return;
+      }
+      if (!isActivePlayer(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        return;
+      }
+      const result = applyRestartMovement(room.gameState);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room);
     } finally {
       room.isProcessing = false;
     }

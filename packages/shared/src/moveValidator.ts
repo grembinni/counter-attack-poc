@@ -59,33 +59,33 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // 1. WRONG_SLOT: movementSlot must be active (checked first — no movement outside Movement Phase)
   if (state.movementSlot === null) return { ok: false, reason: 'WRONG_SLOT' };
 
-  // 2. OUT_OF_RANGE: destination must be within remaining pace (direct multi-hex movement)
-  const paceRemaining = piece.pace - (state.paceUsedByPieceId[piece.id] ?? 0);
-  if (hexDistance(piece.position, to) > paceRemaining || hexDistance(piece.position, to) < 1)
-    return { ok: false, reason: 'OUT_OF_RANGE' };
+  // 2. OUT_OF_RANGE: single-step — must move exactly 1 adjacent hex per action (D-10)
+  if (hexDistance(piece.position, to) !== 1) return { ok: false, reason: 'OUT_OF_RANGE' };
 
   // 3. OCCUPIED: destination must be clear (MOVE-03)
   if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
     return { ok: false, reason: 'OCCUPIED' };
   }
 
-  // 4+5. Pace and slot restrictions
-  // D-12: a piece moved in ANY prior slot cannot be moved again in this phase
+  // 4+5. Slot restrictions and per-step pace cap
+  // Pieces in movedPieceIds have exhausted their activation — cannot move again this phase
   if (state.movedPieceIds.includes(piece.id)) {
     return { ok: false, reason: 'ALREADY_MOVED_IN_ATTACKER4' };
   }
 
   // Slot quota: each slot allows a fixed number of player activations (D-11)
-  // ATTACKER_4 = 4 attackers, DEFENDER_5 = 5 defenders, ATTACKER_2 = 2 attackers (new players)
+  // ATTACKER_4 = 4 attackers, DEFENDER_5 = 5 defenders, ATTACKER_2 = 2 attackers (fresh players)
   const slotQuota =
     state.movementSlot === 'ATTACKER_4' ? 4 : state.movementSlot === 'DEFENDER_5' ? 5 : 2;
   const activatedCount = Object.keys(state.paceUsedByPieceId).length;
   const isNewActivation = (state.paceUsedByPieceId[piece.id] ?? 0) === 0;
   if (isNewActivation && activatedCount >= slotQuota) {
-    return { ok: false, reason: 'PACE_EXCEEDED' }; // slot quota full — all activations used
+    return { ok: false, reason: 'PACE_EXCEEDED' }; // slot quota full
   }
 
-  // D-11: pace cap enforced by OUT_OF_RANGE check above (destination within remaining pace)
+  // D-11: each step costs 1 pace; reject if this step would exceed the piece's pace
+  const paceUsed = state.paceUsedByPieceId[piece.id] ?? 0;
+  if (paceUsed + 1 > piece.pace) return { ok: false, reason: 'PACE_EXCEEDED' };
 
   // 6. ZoI steal trigger — only when the moving piece is the ball-carrier (D-03, MOVE-04/MOVE-05)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)

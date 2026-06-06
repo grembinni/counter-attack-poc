@@ -28,6 +28,7 @@ export function ActionPanel() {
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
   const emitSnapshot = useGameStore((s) => s.emitSnapshot);
   const emitHeader = useGameStore((s) => s.emitHeader);
+  const emitRestartMovement = useGameStore((s) => s.emitRestartMovement);
 
   const [passType, setPassType] = useState<PassType>('STANDARD');
 
@@ -140,6 +141,13 @@ export function ActionPanel() {
       {phase === 'MOVEMENT' && (
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
+        </button>
+      )}
+
+      {/* Restart Movement Phase — reset to ATTACKER_4, clear all X markers */}
+      {phase === 'MOVEMENT' && (
+        <button className={styles.ctaButton} onClick={emitRestartMovement}>
+          Restart Movement
         </button>
       )}
 

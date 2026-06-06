@@ -203,8 +203,8 @@ describe('applyMove', () => {
   });
 
   it('returns MOVE_INVALID when the move violates validator rules (MOVE-02/MOVE-03)', () => {
-    // Attempt a move beyond piece.pace (home-9 has pace=9; hexDistance=10 exceeds it)
-    const result = applyMove(baseMovementState, 'home-9', { q: 20, r: 7 });
+    // Attempt a non-adjacent 2-hex jump — OUT_OF_RANGE (single-step only)
+    const result = applyMove(baseMovementState, 'home-9', { q: 12, r: 7 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('MOVE_INVALID');
   });

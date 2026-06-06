@@ -28,6 +28,8 @@ export const ClientEvents = {
   GAME_SNAPSHOT: 'game:snapshot',
   /** Phase 8 / D-17: resolve a Header while phase === 'HEADER'. */
   GAME_HEADER: 'game:header',
+  /** Restart the movement phase from ATTACKER_4 — resets movedPieceIds and pace tracking. */
+  GAME_RESTART_MOVEMENT: 'game:restart-movement',
 } as const;
 
 export const ServerEvents = {
@@ -66,6 +68,8 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_SNAPSHOT]: () => void;
   /** Phase 8 / D-17: Header declaration — resolve header while phase === 'HEADER'. */
   [ClientEvents.GAME_HEADER]: () => void;
+  /** Restart movement phase from ATTACKER_4 — clears movedPieceIds and pace tracking. */
+  [ClientEvents.GAME_RESTART_MOVEMENT]: () => void;
 }
 
 /**
