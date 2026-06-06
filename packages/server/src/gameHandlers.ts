@@ -173,8 +173,10 @@ function startReplayStream(io: AppServer, room: Room): void {
  */
 export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // -------------------------------------------------------------------------
-  // GAME_START_MOVEMENT — transitions KICK_OFF → MOVEMENT/ATTACKER_4
+  // GAME_START_MOVEMENT — transitions KICK_OFF or PASS → MOVEMENT/ATTACKER_4
   // T-4-05: only the attacking team's socket may start the Movement Phase
+  // From KICK_OFF: sets kickOffActive=true (first pass must come from centre hex).
+  // From PASS: starts a new 4-5-2 movement sequence without kickoff constraints.
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_START_MOVEMENT, () => {
     const { roomCode } = socket.data;
@@ -184,7 +186,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      if (room.gameState === null || room.gameState.phase !== 'KICK_OFF') {
+      if (
+        room.gameState === null ||
+        (room.gameState.phase !== 'KICK_OFF' && room.gameState.phase !== 'PASS')
+      ) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room); // D-06: snap-back
         return;
@@ -209,9 +214,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      // D-27 / MATCH-03: when KICK_OFF → MOVEMENT, set kickOffActive = true so the first
-      // ball action is forced to be a Standard Pass from the centre hex.
-      room.gameState = { ...result.state, kickOffActive: true };
+      // D-27 / MATCH-03: kickOffActive only applies on the KICK_OFF → MOVEMENT transition.
+      // From PASS, movement restarts without forcing the first pass from the centre hex.
+      const kickOffActive = room.gameState.phase === 'KICK_OFF';
+      room.gameState = { ...result.state, kickOffActive };
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -372,97 +378,115 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // T-05-04: WRONG_PHASE guard limits resolution to DICE_PHASES (PASS/SHOT/HEADER/LOOSE_BALL)
   // T-05-05: isProcessing mutex prevents double-click race (SC-5)
   // D-10: single broadcastState after each resolution (ARCH-04)
+  //
+  // passType (optional): when phase===PASS, client sends the chosen pass type.
+  // Server validates it is eligible for the current lastActionType and sets
+  // lastActionType=passType before calling applyRoll so the engine records the
+  // correct action and computes the correct time cost.
   // -------------------------------------------------------------------------
-  socket.on(ClientEvents.GAME_ROLL, () => {
-    const { roomCode } = socket.data;
-    if (roomCode === undefined) return;
-    const room = getRoom(roomCode);
-    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+  socket.on(
+    ClientEvents.GAME_ROLL,
+    (passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL') => {
+      const { roomCode } = socket.data;
+      if (roomCode === undefined) return;
+      const room = getRoom(roomCode);
+      if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
 
-    room.isProcessing = true;
-    try {
-      // Phase guard — must be in a dice-requiring phase (T-05-04)
-      if (room.gameState === null || !DICE_PHASES.has(room.gameState.phase)) {
-        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // Team guard — must be the active player (T-05-03)
-      if (!isActivePlayer(socket, room)) {
-        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // D-07 / T-08-12: sequence guard for PASS phase — check if any pass is eligible
-      // after the current lastActionType. If lastActionType is set and no pass type is
-      // in its eligible set, reject with INVALID_SEQUENCE.
-      if (room.gameState.phase === 'PASS' && room.gameState.lastActionType !== null) {
-        const eligible = ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType];
-        const passTypes = ['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'] as const;
-        const anyPassEligible = passTypes.some((pt) => eligible.has(pt));
-        if (!anyPassEligible) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
-          broadcastState(io, room);
+      room.isProcessing = true;
+      try {
+        // Phase guard — must be in a dice-requiring phase (T-05-04)
+        if (room.gameState === null || !DICE_PHASES.has(room.gameState.phase)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+          broadcastState(io, room); // snap-back
           return;
         }
-      }
-      // D-07 / T-08-12: sequence guard for SHOT phase — SHOT is only valid after
-      // MOVEMENT_PHASE or SNAPSHOT (D-19)
-      if (room.gameState.phase === 'SHOT' && room.gameState.lastActionType !== null) {
-        if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('SHOT')) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
-          broadcastState(io, room);
+        // Team guard — must be the active player (T-05-03)
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room); // snap-back
           return;
         }
-      }
-      // D-07 / T-08-12: sequence guard for HEADER phase — HEADER is only valid after
-      // HIGH_PASS or LONG_BALL (D-17)
-      if (room.gameState.phase === 'HEADER' && room.gameState.lastActionType !== null) {
-        if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
-          broadcastState(io, room);
+
+        if (room.gameState.phase === 'PASS') {
+          // Pass phase requires a passType from the client (choose-phase flow).
+          const PASS_TYPES = [
+            'STANDARD_PASS',
+            'FIRST_TIME_PASS',
+            'HIGH_PASS',
+            'LONG_BALL',
+          ] as const;
+          if (!passType || !(PASS_TYPES as readonly string[]).includes(passType)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'MISSING_PASS_TYPE');
+            broadcastState(io, room);
+            return;
+          }
+          // Validate the chosen passType against the current lastActionType.
+          // null lastActionType (kick-off start) is treated as MOVEMENT_PHASE eligibility.
+          const effectiveLastAction = room.gameState.lastActionType ?? 'MOVEMENT_PHASE';
+          if (!ELIGIBLE_NEXT_ACTIONS[effectiveLastAction].has(passType)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+            broadcastState(io, room);
+            return;
+          }
+          // D-27 / MATCH-03 / T-08-16: kick-off first-pass enforcement.
+          // While kickOffActive, the ball carrier must be on the centre hex.
+          if (room.gameState.kickOffActive) {
+            const carrier = room.gameState.pieces.find(
+              (p) => p.id === room.gameState!.ball.carrierId,
+            );
+            const kickOffHex = PITCH_REGIONS.kickOffHex;
+            const onCentreHex =
+              carrier !== undefined &&
+              carrier.position.q === kickOffHex.q &&
+              carrier.position.r === kickOffHex.r;
+            if (!onCentreHex) {
+              socket.emit(ServerEvents.GAME_ERROR, 'INVALID_KICK_OFF_PASS');
+              broadcastState(io, room);
+              return;
+            }
+          }
+          // Commit the chosen pass type — applyRoll reads lastActionType to determine time cost.
+          room.gameState = { ...room.gameState, lastActionType: passType };
+        } else {
+          // D-07 / T-08-12: sequence guards for non-PASS dice phases.
+          if (room.gameState.phase === 'SHOT' && room.gameState.lastActionType !== null) {
+            if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('SHOT')) {
+              socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+              broadcastState(io, room);
+              return;
+            }
+          }
+          if (room.gameState.phase === 'HEADER' && room.gameState.lastActionType !== null) {
+            if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')) {
+              socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+              broadcastState(io, room);
+              return;
+            }
+          }
+        }
+
+        // Pre-generate all dice the branch may need (Pitfall 4 — upfront, before any validator call)
+        const d1 = rollDice();
+        const d2 = rollDice();
+        const d3 = rollDice();
+        const result = applyRoll(room.gameState, d1, d2, d3);
+        if (!result.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, result.reason);
+          broadcastState(io, room); // snap-back
           return;
         }
-      }
-      // D-27 / MATCH-03 / T-08-16: kick-off first-pass enforcement.
-      // While kickOffActive, the first ball action must be a Standard Pass from the centre hex.
-      // The PASS phase is in use; the ball carrier must be on kickOffHex {q:18,r:13}.
-      if (room.gameState.phase === 'PASS' && room.gameState.kickOffActive) {
-        const carrier = room.gameState.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
-        const kickOffHex = PITCH_REGIONS.kickOffHex;
-        const onCentreHex =
-          carrier !== undefined &&
-          carrier.position.q === kickOffHex.q &&
-          carrier.position.r === kickOffHex.r;
-        if (!onCentreHex) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_KICK_OFF_PASS');
-          broadcastState(io, room);
-          return;
+        // D-27 / MATCH-03: clear kickOffActive after a successful kick-off pass from centre hex.
+        if (room.gameState.phase === 'PASS' && room.gameState.kickOffActive) {
+          room.gameState = { ...result.state, kickOffActive: false };
+        } else {
+          room.gameState = result.state;
         }
+        broadcastState(io, room); // ARCH-04: single broadcast entry point
+      } finally {
+        room.isProcessing = false; // MUST be in finally — Pitfall 5
       }
-      // Pre-generate all dice the branch may need (Pitfall 4 — upfront, before any validator call)
-      const d1 = rollDice();
-      const d2 = rollDice();
-      const d3 = rollDice();
-      const result = applyRoll(room.gameState, d1, d2, d3);
-      if (!result.ok) {
-        socket.emit(ServerEvents.GAME_ERROR, result.reason);
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // D-27 / MATCH-03: clear kickOffActive after a successful Standard Pass from centre hex
-      // (Standard Pass from kick-off resolves; ball is now in play; flag cleared regardless of accuracy)
-      // kickOffActive was already validated above — if we reach here, the pass origin was valid.
-      if (room.gameState.phase === 'PASS' && room.gameState.kickOffActive) {
-        room.gameState = { ...result.state, kickOffActive: false };
-      } else {
-        room.gameState = result.state;
-      }
-      broadcastState(io, room); // ARCH-04: single broadcast entry point
-    } finally {
-      room.isProcessing = false; // MUST be in finally — Pitfall 5
-    }
-  });
+    },
+  );
 
   // -------------------------------------------------------------------------
   // GAME_SHOT — records the shooter's chosen target hex (D-06)

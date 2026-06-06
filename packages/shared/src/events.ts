@@ -49,7 +49,10 @@ export interface ClientToServerEvents {
   [ClientEvents.ROOM_JOIN]: (roomCode: string) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
-  [ClientEvents.GAME_ROLL]: () => void;
+  /** Optional pass type sent when rolling in PASS phase — server validates eligibility and sets lastActionType. */
+  [ClientEvents.GAME_ROLL]: (
+    passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL',
+  ) => void;
   /** D-06: client emits the SHOT target coord; server records it for UX/broadcast — duel still resolves from dice via game:roll. */
   [ClientEvents.GAME_SHOT]: (targetHex: HexCoord) => void;
   /** D-22 (Phase 5): GK restart choice after a save catch. Payload validated server-side. */

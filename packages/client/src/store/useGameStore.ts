@@ -73,8 +73,8 @@ export type GameStore = {
    * Replaces the removed movePiece local-mutation action.
    */
   emitMove: (pieceId: string, to: HexCoord) => void;
-  /** Emit game:roll to the server (dice resolution: pass accuracy, shot duel, loose ball). */
-  emitRoll: () => void;
+  /** Emit game:roll to the server. Pass phase requires passType (choose-phase flow). */
+  emitRoll: (passType?: 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL') => void;
   /** Emit game:end-turn to end the current movement phase. */
   emitEndTurn: () => void;
   /** Emit game:undo to request an undo of the last movement action (UNDO-01). */
@@ -247,8 +247,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     set({ selectedPieceId: null, validMoveHexes: [], lastMovedPieceId: pieceId });
   },
 
-  emitRoll: () => {
-    socket.emit(ClientEvents.GAME_ROLL);
+  emitRoll: (passType) => {
+    socket.emit(ClientEvents.GAME_ROLL, passType);
   },
 
   emitEndTurn: () => {

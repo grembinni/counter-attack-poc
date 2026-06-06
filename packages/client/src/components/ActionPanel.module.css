@@ -29,34 +29,29 @@
   cursor: default;
 }
 
-.passTypeLabel {
-  font-size: 13px;
+.phaseLabel {
+  font-size: 12px;
   font-weight: 400;
   color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.passTypeGroup {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.passTypeButton {
-  background: #0f3460;
+.backButton {
+  background: transparent;
   color: #a0a0a0;
-  border: none;
+  border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 400;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s, border-color 0.15s;
 }
 
-.passTypeButtonSelected {
-  background: #1a56b0;
+.backButton:hover {
   color: #ffffff;
-  font-weight: 700;
+  border-color: #1a56b0;
 }
 
 .gkLabel {
