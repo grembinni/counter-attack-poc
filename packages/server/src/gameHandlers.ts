@@ -929,4 +929,65 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
   });
+
+  // -------------------------------------------------------------------------
+  // GAME_HEADER_CONTESTANT — per-team header contestant selection (D-17, ASVS V4)
+  //
+  // Both teams select their contestant piece during HEADER phase before GAME_ROLL
+  // can resolve the heading duel.  Both teams may act (HEADER is two-sided), so
+  // isActivePlayer is NOT used here — the ownership check binds selection to the
+  // socket's own team slot instead (ASVS V4 Tampering mitigation T-08.2-08).
+  //
+  // SC-5: isProcessing mutex prevents double-click race.
+  // ARCH-04: broadcastState after selection so both clients see opponent's confirm flag.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_HEADER_CONTESTANT, (pieceId: string | null) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be HEADER
+      if (room.gameState === null || room.gameState.phase !== 'HEADER') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Determine which team slot this socket controls
+      const teamSlot = socket.data.playerSlot === 1 ? 'home' : 'away';
+
+      // ASVS V4: validate piece ownership — reject opponent's pieceId
+      if (pieceId !== null) {
+        const piece = room.gameState.pieces.find((p) => p.id === pieceId);
+        if (!piece || piece.teamId !== teamSlot) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_CONTESTANT');
+          broadcastState(io, room); // snap-back
+          return;
+        }
+      }
+
+      // Record the contestant selection and mark this team as confirmed
+      const existingContestants = room.gameState.headerContestants ?? {
+        home: null,
+        away: null,
+      };
+      const existingConfirmed = room.gameState.headerConfirmed ?? {
+        home: false,
+        away: false,
+      };
+
+      room.gameState = {
+        ...room.gameState,
+        headerContestants: { ...existingContestants, [teamSlot]: pieceId },
+        headerConfirmed: { ...existingConfirmed, [teamSlot]: true },
+      };
+
+      // ARCH-04: broadcast so both clients see the opponent's confirmed flag
+      broadcastState(io, room);
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
 }
