@@ -37,6 +37,7 @@ import {
   validateGKDive,
   validateHeading,
   hexDistance,
+  hexLine,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 
@@ -1144,8 +1145,15 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
     }
 
     // -------------------------------------------------------------------------
-    // LOOSE_BALL: direction + distance dice → compute landing hex (D-19/D-20/D-21)
-    // D-20: sets lastActionType 'DEFLECTION' once landing is computed; actionCount += 0
+    // LOOSE_BALL: direction + distance dice → trajectory walk → first occupied hex (D-19/D-20/D-21)
+    //
+    // D-23: if a piece occupies an intermediate trajectory hex, ball stops there.
+    //        phase → 'PASS', lastActionType → 'DEFLECTION', attackingTeam unchanged.
+    // D-24: if no piece on trajectory, ball lands at the computed landing hex with carrierId null.
+    //        phase → 'PASS', lastActionType → 'DEFLECTION'.
+    //
+    // Note: ELIGIBLE_NEXT_ACTIONS['DEFLECTION'] enforces the movement restriction for the D-24
+    // empty-landing case; we do NOT force phase='MOVEMENT' here (locked decision D-23/D-24).
     // -------------------------------------------------------------------------
     case 'LOOSE_BALL': {
       const landing = computeLooseBall(
@@ -1153,18 +1161,32 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         d1 as 1 | 2 | 3 | 4 | 5 | 6,
         d2 as 1 | 2 | 3 | 4 | 5 | 6,
       );
+
+      // D-23/D-24: walk from ball position toward landing, stopping at first occupied hex.
+      // hexLine returns [start, ..., end]; slice(1) drops the start (ball is there, no carrier).
+      const trajectory = hexLine(state.ball.position, landing).slice(1);
+
+      let finalPosition = landing;
+      let finalCarrierId: string | null = null;
+
+      for (const hex of trajectory) {
+        const occupant = state.pieces.find((p) => p.position.q === hex.q && p.position.r === hex.r);
+        if (occupant) {
+          finalPosition = hex;
+          finalCarrierId = occupant.id;
+          break;
+        }
+      }
+
       return {
         ok: true,
         state: {
           ...state,
-          phase: 'MOVEMENT',
-          movementSlot: 'ATTACKER_4',
-          movedPieceIds: [],
-          paceUsedByPieceId: {},
-          ball: { position: landing, carrierId: null },
+          phase: 'PASS', // D-23/D-24: LOOSE_BALL resolves to PASS (not MOVEMENT)
+          ball: { position: finalPosition, carrierId: finalCarrierId },
           attackingTeam: state.attackingTeam, // unchanged
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
-          lastActionType: 'DEFLECTION', // D-20: LOOSE_BALL resolves → DEFLECTION
+          lastActionType: 'DEFLECTION', // D-20/D-23/D-24: LOOSE_BALL resolves → DEFLECTION
           // actionCount unchanged (+0 for Deflection per D-03 table)
         },
       };

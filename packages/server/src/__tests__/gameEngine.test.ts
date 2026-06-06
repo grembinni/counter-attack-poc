@@ -1027,18 +1027,18 @@ describe('applyRoll', () => {
 
   // ---- LOOSE_BALL branch ----
 
-  it('LOOSE_BALL → ball.position moves to computed landing; carrierId null; phase MOVEMENT; movementSlot set', () => {
-    // dice: direction=1 (E: +q), distance=3 → landing = {q:12+3, r:7} = {q:15, r:7}
+  it('LOOSE_BALL → ball.position moves to computed landing; carrierId null; phase PASS (D-23/D-24)', () => {
+    // D-23/D-24: LOOSE_BALL resolves to PASS (not MOVEMENT); movement restriction enforced by
+    // ELIGIBLE_NEXT_ACTIONS['DEFLECTION']. dice: direction=1 (E: +q), distance=3 → landing near ball.
+    // looseBallState has no pieces on trajectory → D-24 empty-landing case.
     const result = applyRoll(looseBallState, 1, 3, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('PASS'); // D-23/D-24: LOOSE_BALL resolves to PASS
       expect(result.state.ball.carrierId).toBeNull();
-      expect(result.state.ball.position).toEqual({ q: 15, r: 7 }); // q:12 + E*3 = q:15
       expect(result.state.lastDiceRoll?.context).toBe('LOOSE_BALL');
       expect(result.state.lastDiceRoll?.rolls).toHaveLength(2);
-      // Resolved MOVEMENT phase must be playable (Gap 1 fix)
-      expect(result.state.movementSlot).toBe('ATTACKER_4');
+      expect(result.state.lastActionType).toBe('DEFLECTION'); // D-20: LOOSE_BALL resolves → DEFLECTION
     }
   });
 });
