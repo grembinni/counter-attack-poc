@@ -19,7 +19,6 @@ import type {
   MovementSlot,
   ActionEvent,
   HexCoord,
-  PlayerPiece,
   LastActionType,
 } from '@counter-attack/shared';
 import {
@@ -972,173 +971,127 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
     }
 
     // -------------------------------------------------------------------------
-    // HEADER: attacker vs nearest defender; GK aerial on attacker win (D-27/D-28)
+    // HEADER: reads per-team selected contestants from state.headerContestants (D-17)
+    // GK aerial challenge deferred to 8.3 (D-22); attacker wins → PASS phase.
     // -------------------------------------------------------------------------
     case 'HEADER': {
-      // The ball carrier is the attacker initiating the header
-      const attacker = state.pieces.find((p) => p.id === state.ball.carrierId);
-      if (!attacker) return { ok: false, reason: 'WRONG_PHASE' };
+      // Determine which team is attacking and which is defending
+      const defenderTeam = state.attackingTeam === 'home' ? 'away' : 'home';
 
-      // Find the opposing GK for aerial challenge (D-28)
-      const opposingTeam = state.attackingTeam === 'home' ? 'away' : 'home';
-      const gk = state.pieces.find((p) => p.teamId === opposingTeam && p.role === 'GK');
-      if (!gk) return { ok: false, reason: 'WRONG_PHASE' };
+      // Read contestant IDs from state.headerContestants (set by GAME_HEADER_CONTESTANT handler)
+      const attackerContestantId =
+        state.attackingTeam === 'home'
+          ? (state.headerContestants?.home ?? null)
+          : (state.headerContestants?.away ?? null);
+      const defenderContestantId =
+        defenderTeam === 'home'
+          ? (state.headerContestants?.home ?? null)
+          : (state.headerContestants?.away ?? null);
 
-      // Find the nearest defending outfielder (nearest to ball position, excluding the GK)
-      const defenders = state.pieces.filter((p) => p.teamId === opposingTeam && p.role !== 'GK');
-      let nearestDefender: PlayerPiece | undefined;
-      let nearestDist = Infinity;
-      for (const def of defenders) {
-        const dist = hexDistance(def.position, state.ball.position);
-        if (dist < nearestDist) {
-          nearestDist = dist;
-          nearestDefender = def;
-        }
-      }
+      // Resolve pieces from IDs (null id → undefined piece)
+      // If attacker did not select a contestant, fall back to ball carrier (they hold possession)
+      const attackerPiece =
+        attackerContestantId != null
+          ? state.pieces.find((p) => p.id === attackerContestantId)
+          : state.pieces.find((p) => p.id === state.ball.carrierId);
+      const defenderPiece =
+        defenderContestantId != null
+          ? state.pieces.find((p) => p.id === defenderContestantId)
+          : undefined;
 
-      // Pre-generate all dice upfront (Pitfall 4)
+      // Pre-generate all dice upfront (Pitfall 4) — only d1/d2 used in this branch
       const attackerDice = d1;
       const defenderDice = d2;
-      const gkDice = d3;
 
-      if (!nearestDefender || nearestDist > 2) {
-        // Uncontested — attacker wins automatically (HEAD-02)
-        // Lock the attacker's combined score; GK rolls aerial challenge (D-28)
-        const attackerScore = computeCombinedScore(attacker.heading, attackerDice, []);
-        const gkScore = computeCombinedScore(gk.aerialAbility, gkDice, []);
+      // Shared cleanup fields — cleared from state after any resolution (D-21)
+      const headerCleared = {
+        headerContestants: null,
+        headerConfirmed: null,
+      };
 
-        if (gkScore >= attackerScore) {
-          // GK wins aerial → GK catches, transition to GK_RESTART
-          return {
-            ok: true,
-            state: {
-              ...state,
-              phase: 'GK_RESTART',
-              ball: { position: gk.position, carrierId: gk.id },
-              lastDiceRoll: {
-                rolls: [attackerDice, defenderDice, gkDice],
-                context: 'HEADING_DUEL',
-              },
-              lastActionType: 'HEADER', // D-17: header costs +0 min
-            },
-          };
-        } else {
-          // Attacker wins heading duel vs GK → GOAL; transition to KICK_OFF_SETUP (D-23)
-          const newScore = {
-            ...state.score,
-            [state.attackingTeam]: state.score[state.attackingTeam] + 1,
-          };
-          return {
-            ok: true,
-            state: {
-              ...state,
-              phase: 'KICK_OFF_SETUP',
-              score: newScore,
-              ball: { position: state.ball.position, carrierId: null },
-              lastDiceRoll: {
-                rolls: [attackerDice, defenderDice, gkDice],
-                context: 'HEADING_DUEL',
-              },
-              lastActionType: null, // GOAL resets sequence (D-19)
-            },
-          };
-        }
-      }
-
-      // Contested: call validateHeading to get penaltyModifier (HEAD-01)
-      const headResult = validateHeading(state, attacker, state.ball.position, {
-        previousActionWasHeadedPass: false,
-        otherChallengerIds: [nearestDefender.id],
-      });
-
-      if (!headResult.ok) {
-        // validateHeading rejected (OUT_OF_RANGE or CONSECUTIVE_HEADER) → MOVEMENT
-        return {
-          ok: true,
-          state: {
-            ...state,
-            phase: 'MOVEMENT',
-            movementSlot: 'ATTACKER_4',
-            movedPieceIds: [],
-            paceUsedByPieceId: {},
-            lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
-            lastActionType: 'HEADER', // D-17: header resolved (even if rejected by validator)
-          },
-        };
-      }
-
-      // Compute contested heading scores
-      const penaltyMod = headResult.contested ? headResult.penaltyModifier : 0;
-      const attackerScore = computeCombinedScore(attacker.heading, attackerDice, [penaltyMod]);
-      const defenderScore = computeCombinedScore(nearestDefender.heading, defenderDice, []);
-
-      if (attackerScore > defenderScore) {
-        // Attacker wins outfield duel — now GK aerial challenge (D-28)
-        const lockedScore = attackerScore;
-        const gkScore = computeCombinedScore(gk.aerialAbility, gkDice, []);
-
-        if (gkScore >= lockedScore) {
-          // GK wins aerial → GK catches
-          return {
-            ok: true,
-            state: {
-              ...state,
-              phase: 'GK_RESTART',
-              ball: { position: gk.position, carrierId: gk.id },
-              lastDiceRoll: {
-                rolls: [attackerDice, defenderDice, gkDice],
-                context: 'HEADING_DUEL',
-              },
-              lastActionType: 'HEADER', // D-17
-            },
-          };
-        } else {
-          // Attacker beats GK → GOAL; transition to KICK_OFF_SETUP (D-23)
-          const newScore = {
-            ...state.score,
-            [state.attackingTeam]: state.score[state.attackingTeam] + 1,
-          };
-          return {
-            ok: true,
-            state: {
-              ...state,
-              phase: 'KICK_OFF_SETUP',
-              score: newScore,
-              ball: { position: state.ball.position, carrierId: null },
-              lastDiceRoll: {
-                rolls: [attackerDice, defenderDice, gkDice],
-                context: 'HEADING_DUEL',
-              },
-              lastActionType: null, // GOAL resets sequence
-            },
-          };
-        }
-      } else if (attackerScore < defenderScore) {
-        // Defender wins → MOVEMENT
-        return {
-          ok: true,
-          state: {
-            ...state,
-            phase: 'MOVEMENT',
-            movementSlot: 'ATTACKER_4',
-            movedPieceIds: [],
-            paceUsedByPieceId: {},
-            ball: { position: state.ball.position, carrierId: null },
-            lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
-            lastActionType: 'HEADER', // D-17
-          },
-        };
-      } else {
-        // Tie → LOOSE_BALL phase; landing resolved on the next game:roll with fresh dice (D-13, D-19)
-        // Ball stays at incident hex; do NOT compute landing here (duel dice are biased)
+      // (c) Neither team selected → LOOSE_BALL from ball.position (D-19)
+      if (attackerContestantId === null && defenderContestantId === null) {
         return {
           ok: true,
           state: {
             ...state,
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
-            lastDiceRoll: { rolls: [attackerDice, defenderDice, gkDice], context: 'HEADING_DUEL' },
-            lastActionType: 'HEADER', // D-17
+            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER',
+            ...headerCleared,
+          },
+        };
+      }
+
+      // (b) Uncontested — attacker selected, defender did not → auto-win, NO dice roll (HEAD-02)
+      if (defenderContestantId === null || defenderPiece === undefined) {
+        // Attacker wins without rolling dice (HEAD-02)
+        const winnerId = attackerContestantId ?? state.ball.carrierId ?? '';
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'PASS',
+            ball: { position: state.ball.position, carrierId: winnerId },
+            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER',
+            contestedPieceIds: attackerContestantId != null ? [attackerContestantId] : [],
+            ...headerCleared,
+          },
+        };
+      }
+
+      // (a) Both teams selected — run the contested duel (D-17)
+      // Apply HEAD-01 penalty via validateHeading for 2-hex distance
+      if (!attackerPiece) return { ok: false, reason: 'WRONG_PHASE' };
+
+      const headResult = validateHeading(state, attackerPiece, state.ball.position, {
+        previousActionWasHeadedPass: false,
+        otherChallengerIds: [defenderPiece.id],
+      });
+
+      // penaltyModifier: -1 if attacker is 2 hexes from ball (HEAD-01); 0 otherwise
+      const penaltyMod = headResult.ok && headResult.contested ? headResult.penaltyModifier : 0;
+
+      const attackerScore = computeCombinedScore(attackerPiece.heading, attackerDice, [penaltyMod]);
+      const defenderScore = computeCombinedScore(defenderPiece.heading, defenderDice, []);
+
+      // Build contestedPieceIds from the actually-selected ids (D-21)
+      const contestedIds = [attackerContestantId, defenderContestantId].filter(
+        (id): id is string => id != null,
+      );
+
+      if (attackerScore >= defenderScore) {
+        // Attacker wins (tie or higher) — D-22: possession returns to attacker, phase PASS
+        // GK aerial challenge deferred to plan 8.3
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'PASS',
+            ball: { position: state.ball.position, carrierId: attackerPiece.id },
+            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER',
+            contestedPieceIds: contestedIds,
+            ...headerCleared,
+          },
+        };
+      } else {
+        // Defender wins — MOVEMENT phase, no possession for attacker
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'MOVEMENT',
+            movementSlot: 'ATTACKER_4',
+            movedPieceIds: [],
+            paceUsedByPieceId: {},
+            ball: { position: state.ball.position, carrierId: null },
+            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER',
+            contestedPieceIds: contestedIds,
+            ...headerCleared,
           },
         };
       }
