@@ -168,6 +168,10 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       activeTeam: state.attackingTeam,
       ball: newBall,
       eventLog: [...state.eventLog, event],
+      // D-21 / HEAD-05: clear contestedPieceIds after one Movement Phase so the exclusion
+      // applies to exactly one movement sequence. applyMove checks contestedPieceIds to
+      // reject contested pieces at move-time (Pitfall 6 — cleared here, not in HEADER branch).
+      contestedPieceIds: [],
     },
   };
 }
@@ -222,6 +226,13 @@ export function applyMove(
   // 2. Piece lookup
   const piece = state.pieces.find((p) => p.id === pieceId);
   if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  // 2.5. HEAD-05 / D-21: reject contested pieces from the Movement Phase following a header.
+  // contestedPieceIds is cleared in applyStartMovement after one Movement Phase,
+  // but may be injected on state by tests or carried from a non-standard path.
+  if ((state.contestedPieceIds ?? []).includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'CONTESTED_PIECE' };
+  }
 
   // 3. Team guard (T-4-01)
   if (piece.teamId !== activeTeamForSlot(state)) {

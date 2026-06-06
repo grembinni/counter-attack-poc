@@ -973,41 +973,56 @@ describe('applyRoll', () => {
   });
 
   // ---- HEADER branch ----
+  // Updated in 08.2-03: HEADER now reads headerContestants (D-17).
+  // GK aerial challenge deferred to 8.3 (D-22); attacker wins → PASS phase.
 
-  it('HEADER uncontested (defender out of range) — attacker wins over GK → GOAL when GK score lower', () => {
-    // headerState: awayDEF at q:15 → 5 hexes from ball at q:10 → OUT_OF_RANGE, uncontested
-    // attacker.heading=6; attackerDice=6 → 12; awayGK.aerialAbility=8; gkDice=1 → 9
-    // 12 > 9: attacker beats GK → GOAL
-    const result = applyRoll(headerState, 6, 3, 1);
+  it('HEADER uncontested (defender did not select) — attacker auto-wins → PASS, no dice needed (HEAD-02)', () => {
+    // headerContestants: home selected, away null → uncontested auto-win
+    // HEAD-02: result must not depend on dice values; phase → PASS with attacker holding ball
+    const stateWithContestant: GameState = {
+      ...headerState,
+      headerContestants: { home: 'home-9', away: null },
+      headerConfirmed: { home: true, away: false },
+    };
+    const result = applyRoll(stateWithContestant, 1, 1, 1); // worst dice — auto-win must not rely on them
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('KICK_OFF_SETUP'); // D-23: goal → KICK_OFF_SETUP for repositioning
-      expect(result.state.score.home).toBe(1);
+      expect(result.state.phase).toBe('PASS'); // D-22: attacker wins → PASS (GK aerial deferred to 8.3)
+      expect(result.state.ball.carrierId).toBe('home-9');
       expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
+      // HEAD-02: no defender die involvement; uncontested
+      expect(result.state.headerContestants ?? null).toBeNull();
     }
   });
 
-  it('HEADER uncontested — GK wins aerial → GK_RESTART', () => {
-    // attacker.heading=6; attackerDice=1 → 7; awayGK.aerialAbility=8; gkDice=3 → 11
-    // 11 >= 7: GK wins → GK_RESTART
-    const result = applyRoll(headerState, 1, 3, 3);
+  it('HEADER neither selected — both contestants null → LOOSE_BALL from ball.position (D-19)', () => {
+    // Neither team selected a contestant (headerContestants absent/null)
+    const result = applyRoll(headerState, 1, 3, 3); // headerState has no headerContestants
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('GK_RESTART');
-      expect(result.state.ball.carrierId).toBe('away-0');
+      expect(result.state.phase).toBe('LOOSE_BALL'); // D-19: neither selected → LOOSE_BALL
+      expect(result.state.ball.carrierId).toBeNull();
       expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
     }
   });
 
   it('HEADER contested — defender wins → phase MOVEMENT', () => {
     // headerStateContested: awayDEF at q:11 (1 hex from ball at q:10) → contested
-    // attacker.heading=6; attackerDice=1 → penaltyMod=0 (dist=0) → 6+1=7
+    // attacker.heading=6; attackerDice=1 → 6+1=7
     // awayDEF.heading=6; defenderDice=5 → 6+5=11 → defender wins → MOVEMENT
-    const result = applyRoll(headerStateContested, 1, 5, 3);
+    const stateWithContestants: GameState = {
+      ...headerStateContested,
+      headerContestants: { home: 'home-9', away: 'away-1' },
+      headerConfirmed: { home: true, away: true },
+    };
+    const result = applyRoll(stateWithContestants, 1, 5, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.phase).toBe('MOVEMENT');
       expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
+      // D-21: contestedPieceIds set to both participants
+      expect(result.state.contestedPieceIds).toContain('home-9');
+      expect(result.state.contestedPieceIds).toContain('away-1');
     }
   });
 
