@@ -314,17 +314,19 @@ export function applyMove(
       newEventLog = [...newEventLog, tackleEvent];
 
       if (tackleSuccess) {
-        // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender
+        // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender.
+        // Phase ends immediately — new attacking team chooses next action from PASS phase
+        // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
         const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
         return {
           ok: true,
           state: {
             ...state,
+            phase: 'PASS',
             pieces: newPieces,
-            // Possession change: tackler's team becomes attacking team with fresh movement phase
             attackingTeam: piece.teamId,
             activeTeam: piece.teamId,
-            movementSlot: 'ATTACKER_4',
+            movementSlot: null,
             movedPieceIds: [],
             paceUsedByPieceId: {},
             ball: tackleSuccessBall,
@@ -367,6 +369,8 @@ export function applyMove(
   }
 
   if (stealSuccess) {
+    // Phase ends immediately — new attacking team chooses next action from PASS phase
+    // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
     const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     const newOwnerTeam =
       state.pieces.find((p) => p.id === stealDefenderId)?.teamId ?? state.activeTeam;
@@ -374,11 +378,11 @@ export function applyMove(
       ok: true,
       state: {
         ...state,
+        phase: 'PASS',
         pieces: newPieces,
-        // Possession change: new team becomes attacking team with fresh movement phase
         attackingTeam: newOwnerTeam,
         activeTeam: newOwnerTeam,
-        movementSlot: 'ATTACKER_4',
+        movementSlot: null,
         movedPieceIds: [],
         paceUsedByPieceId: {},
         ball: stealSuccessBall,

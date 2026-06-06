@@ -83,9 +83,11 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
     return { ok: false, reason: 'PACE_EXCEEDED' }; // slot quota full
   }
 
-  // D-11: each step costs 1 pace; reject if this step would exceed the piece's pace
+  // D-11: each step costs 1 pace; reject if this step would exceed the effective pace cap.
+  // ATTACKER_2 enforces an artificial cap of 2 hexes per piece regardless of piece.pace.
   const paceUsed = state.paceUsedByPieceId[piece.id] ?? 0;
-  if (paceUsed + 1 > piece.pace) return { ok: false, reason: 'PACE_EXCEEDED' };
+  const effectivePace = state.movementSlot === 'ATTACKER_2' ? Math.min(piece.pace, 2) : piece.pace;
+  if (paceUsed + 1 > effectivePace) return { ok: false, reason: 'PACE_EXCEEDED' };
 
   // 6. ZoI steal trigger — only when the moving piece is the ball-carrier (D-03, MOVE-04/MOVE-05)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)
