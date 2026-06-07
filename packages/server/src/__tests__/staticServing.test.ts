@@ -40,23 +40,20 @@ let port: number;
 
 // NODE_ENV save/restore
 let savedNodeEnv: string | undefined;
-// Whether index.html existed before this test suite ran
-let indexHtmlPreExisted = false;
+// Original index.html content (null if it didn't exist before this suite)
+let originalIndexHtml: string | null = null;
 
 beforeAll(() => {
   // Save and override NODE_ENV so buildServer() sees 'production'
   savedNodeEnv = process.env['NODE_ENV'];
   process.env['NODE_ENV'] = 'production';
 
-  // Create fixture index.html (guard against overwriting a real build)
-  indexHtmlPreExisted = fs.existsSync(fixtureIndexHtml);
-  if (!indexHtmlPreExisted) {
-    fs.mkdirSync(clientDist, { recursive: true });
-    fs.writeFileSync(
-      fixtureIndexHtml,
-      `<!DOCTYPE html><html><body>${FIXTURE_MARKER}</body></html>`,
-    );
+  // Save original index.html (if present from a real build) and write fixture
+  fs.mkdirSync(clientDist, { recursive: true });
+  if (fs.existsSync(fixtureIndexHtml)) {
+    originalIndexHtml = fs.readFileSync(fixtureIndexHtml, 'utf8');
   }
+  fs.writeFileSync(fixtureIndexHtml, `<!DOCTYPE html><html><body>${FIXTURE_MARKER}</body></html>`);
 });
 
 afterAll(() => {
@@ -67,18 +64,11 @@ afterAll(() => {
     process.env['NODE_ENV'] = savedNodeEnv;
   }
 
-  // Only remove the fixture if we created it (don't delete a real build output)
-  if (!indexHtmlPreExisted && fs.existsSync(fixtureIndexHtml)) {
+  // Restore original index.html or remove the fixture we created
+  if (originalIndexHtml !== null) {
+    fs.writeFileSync(fixtureIndexHtml, originalIndexHtml);
+  } else if (fs.existsSync(fixtureIndexHtml)) {
     fs.rmSync(fixtureIndexHtml);
-    // Clean up the dist dir only if it's now empty
-    try {
-      const entries = fs.readdirSync(clientDist);
-      if (entries.length === 0) {
-        fs.rmdirSync(clientDist);
-      }
-    } catch {
-      // Ignore — dir may have been created by another process
-    }
   }
 });
 
