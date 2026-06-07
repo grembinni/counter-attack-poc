@@ -69,9 +69,10 @@ export function validatePass(
   if (passType === 'FIRST_TIME' && dist > 6) return { ok: false, reason: 'RANGE_EXCEEDED' };
   if (passType === 'HIGH' && dist > 15) return { ok: false, reason: 'RANGE_EXCEEDED' };
 
-  // 3. STANDARD only: path blocking (PASS-01)
-  // Only OPPONENT pieces on intermediate hexes block a standard pass; teammates do not.
-  // slice(1, -1) skips the passer's hex and the destination.
+  // 3. Path blocking:
+  // STANDARD: any opponent on an intermediate hex blocks the pass.
+  // HIGH and LONG: only an opponent immediately adjacent to the kicker (on the path) blocks.
+  // FIRST_TIME: no path blocking (short snap-pass).
   if (passType === 'STANDARD') {
     const opponentPieces = state.pieces.filter((p) => p.teamId !== piece.teamId);
     const intermediateHexes = hexLine(from, to).slice(1, -1);
@@ -79,6 +80,17 @@ export function validatePass(
       opponentPieces.some((p) => p.position.q === hex.q && p.position.r === hex.r),
     );
     if (blocked) return { ok: false, reason: 'PATH_BLOCKED' };
+  } else if (passType === 'HIGH' || passType === 'LONG') {
+    const opponentPieces = state.pieces.filter((p) => p.teamId !== piece.teamId);
+    const adjacentOnPath = hexLine(from, to)[1]; // hex directly next to kicker on the target line
+    if (
+      adjacentOnPath &&
+      opponentPieces.some(
+        (p) => p.position.q === adjacentOnPath.q && p.position.r === adjacentOnPath.r,
+      )
+    ) {
+      return { ok: false, reason: 'PATH_BLOCKED' };
+    }
   }
 
   // 4. LONG only: PASS-04 landing constraints
@@ -97,9 +109,9 @@ export function validatePass(
 
   // 5. Interception list — opponents within 1 hex of any travel-path hex INCLUDING destination (D-05)
   // Defenders adjacent to the landing hex can also intercept (ball enters their ZoI on arrival).
-  // LONG cannot be intercepted in flight; returns empty interceptors.
+  // HIGH and LONG pass over defenders — cannot be intercepted in flight; returns empty interceptors.
   const interceptors: PlayerPiece[] = [];
-  if (passType !== 'LONG') {
+  if (passType !== 'LONG' && passType !== 'HIGH') {
     const travelPath = hexLine(from, to).slice(1); // exclude passer's hex; include destination
     const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
     for (const hex of travelPath) {
