@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
-    "prepare": "husky"
+    "prepare": "node -e \"if (!process.env.CI && !process.env.RENDER) require('child_process').execSync('husky', {stdio:'inherit'});\""
   },
   "lint-staged": {
     "*.{ts,tsx}": [
