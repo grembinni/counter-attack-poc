@@ -13,6 +13,6 @@ if (process.env['NODE_ENV'] === 'production' && !process.env['CORS_ORIGIN']) {
 
 const { httpServer } = buildServer();
 const PORT = Number(process.env['PORT'] ?? 3001);
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Counter Attack server listening on port ${PORT}`);
 });

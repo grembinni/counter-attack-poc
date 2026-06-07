@@ -11,8 +11,7 @@ import type { ServerToClientEvents, ClientToServerEvents } from '@counter-attack
  * auth callback — reads ca_session_token from localStorage on each connection attempt
  *   to deliver reconnect session token (CONN-03).
  */
-const socketUrl: string =
-  (import.meta.env['VITE_SOCKET_URL'] as string | undefined) ?? 'http://localhost:3001';
+const socketUrl = import.meta.env['VITE_SOCKET_URL'] as string | undefined;
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(socketUrl, {
   autoConnect: false,
