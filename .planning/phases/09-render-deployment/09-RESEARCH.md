@@ -475,17 +475,17 @@ export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(soc
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Render account and service setup**
    - What we know: Render provides a free tier; Blueprint auto-deploys from GitHub push
    - What's unclear: The user must create a Render account, connect the GitHub repo, and trigger the first Blueprint sync manually — this is a one-time human step outside the code tasks
-   - Recommendation: Document as a manual verification step in the plan's wave, not a code task
+   - RESOLVED: Documented as manual verification steps in 09-02-PLAN.md; not a code task
 
 2. **Socket.io ping keepalive on Render's proxy**
    - What we know: Render does not publish an explicit idle TCP timeout for WebSocket connections; Socket.io's default `pingInterval` (25 s) + `pingTimeout` (20 s) = 45 s heartbeat keeps connections alive
    - What's unclear: Render's actual proxy idle timeout in seconds — not documented
-   - Recommendation: No Socket.io configuration change needed; the default heartbeat is well within expected proxy timeouts. Monitor in production; if disconnects appear, reduce `pingInterval` to 20 s.
+   - RESOLVED: No configuration change needed; default heartbeat is safe. Monitor post-deploy; reduce `pingInterval` to 20 s only if disconnects appear.
 
 ---
 
