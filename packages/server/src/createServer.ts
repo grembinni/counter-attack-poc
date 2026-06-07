@@ -12,6 +12,8 @@
  * Does NOT call httpServer.listen() — that belongs exclusively in main.ts.
  */
 
+import { fileURLToPath } from 'url';
+import path from 'path';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -57,6 +59,12 @@ export function buildServer(): {
    */
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // D-02: Render health check endpoint. Plain text 'ok'; registered BEFORE static
+  // middleware so app.get('*') SPA fallback cannot shadow it.
+  app.get('/healthz', (_req, res) => {
+    res.status(200).send('ok');
   });
 
   const httpServer = createServer(app);
@@ -152,6 +160,23 @@ export function buildServer(): {
     registerRoomHandlers(io, socket, false);
     registerGameHandlers(io, socket);
   });
+
+  // D-03: Serve the React SPA in production. Must come AFTER /healthz and /health
+  // routes and AFTER Socket.io is attached to httpServer. Socket.io intercepts at the
+  // http.Server upgrade event — app.get('*') never sees WebSocket handshakes.
+  if (process.env['NODE_ENV'] === 'production') {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    // From packages/server/dist/createServer.js → packages/client/dist
+    const clientDist = path.resolve(__dirname, '../../client/dist');
+
+    app.use(express.static(clientDist));
+
+    // SPA fallback: LAST route. Returns index.html for any path not matched above.
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  }
 
   return { app, httpServer, io };
 }
