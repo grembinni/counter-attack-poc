@@ -3,7 +3,7 @@ services:
     name: counter-attack-poc
     runtime: node
     plan: free
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm -r build
+    buildCommand: npm install -g pnpm@9.15.9 && pnpm install --frozen-lockfile && pnpm -r build
     startCommand: node packages/server/dist/main.js
     healthCheckPath: /healthz
     autoDeployTrigger: commit
