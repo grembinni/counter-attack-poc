@@ -13,7 +13,7 @@
 - [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
 - [ ] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED)
 - [x] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED) (completed 2026-06-07)
-- [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
+- [ ] **Phase 9: Render Deployment** — Single Render web service (Express serves built React SPA + Socket.io), render.yaml IaC, GitHub Actions CI gate, health check, same-origin WebSocket
 - [ ] **Phase 10: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items
 
 ---
@@ -312,20 +312,31 @@ Plans:
 
 - [x] 08.2-06-PLAN.md — Human verification: three-step flow, highlight colors, header contestant ring (checkpoint)
 
-### Phase 9: AWS Deployment
+### Phase 9: Render Deployment
 
-**Goal:** The server runs on AWS Elastic Beanstalk and the client is served from S3 + CloudFront; a two-player session over the public internet completes a full match without dropped connections.
+**Goal:** The app runs as a single Render web service — Express serves the built React SPA and handles Socket.io from the same process and port; a two-player session over the public internet completes a full match without dropped connections.
 **Depends on:** Phase 8
 **Requirements:** ARCH-05, ARCH-06
 **Success Criteria**:
 
-1. `eb deploy` succeeds; the Elastic Beanstalk environment passes its ALB health check at `GET /health` and the Socket.io server is reachable from a remote browser
-2. The React production build is deployed to S3 and served via CloudFront; the client loads over HTTPS with no mixed-content errors and connects to the EB-hosted server via WebSocket
-3. The Socket.io client is configured with `transports: ['websocket']` only (no polling fallback); two players on separate networks complete a full match without connection drops attributed to ALB idle timeout (ALB timeout set to 3600s)
-4. All environment-specific values (server URL, port, CORS origin) are supplied via Elastic Beanstalk environment variables (`eb setenv`) and not hardcoded in the build artefacts
-5. A smoke test — two human players on separate machines completing a kick off, one Movement Phase, one pass, and one shot — passes without server errors in the EB logs
+1. `pnpm install --frozen-lockfile && pnpm -r build` succeeds from a clean checkout; the Render service passes its health check at `GET /healthz` and the Socket.io server is reachable from a remote browser
+2. In `NODE_ENV=production`, Express serves the built React client at `/` with a SPA fallback; the app loads over HTTPS with no mixed-content errors and no hardcoded `localhost` URLs in the client bundle
+3. The Socket.io client targets same-origin in production (falls back to `undefined` URL so the browser uses the page origin); two players on separate networks establish a WebSocket connection and play through a full match
+4. The server binds `process.env.PORT` and `0.0.0.0`; `render.yaml` at the repo root encodes `buildCommand`, `startCommand`, `healthCheckPath: /healthz`, and `NODE_ENV=production` as reviewed IaC
+5. The GitHub Actions CI workflow passes on push (install → typecheck → test → build); a smoke test — two human players completing a kick-off, one Movement Phase, one pass, and one shot — passes without server errors in the Render logs
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — Code changes: /healthz route + production static + SPA fallback (D-02/D-03), 0.0.0.0 bind (D-05), same-origin socket URL (D-04), Wave 0 static-serving test
+- [ ] 09-02-PLAN.md — Infrastructure: render.yaml Blueprint (D-06) + GitHub Actions CI workflow (D-07)
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+(09-02 runs after 09-01: render.yaml startCommand/build depend on the corrected server entry and client bundle)
 
 ### Phase 10: Remaining Action Flows + Tech Debt
 
@@ -355,5 +366,5 @@ Plans:
 | 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
 | 8.1. Cleanup — Player Stats, Movement       | 2/3            | In Progress | -          |
 | 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
-| 9. AWS Deployment                           | 0/0            | Not started | -          |
+| 9. Render Deployment                        | 0/2            | Planned     | -          |
 | 10. Remaining Action Flows + Tech Debt      | 0/0            | Not started | -          |
