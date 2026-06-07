@@ -12,7 +12,7 @@
 - [x] **Phase 7.1: UI Cleanup** — Address UX rough edges found during Phase 7 UAT: lobby flow, join UX, connection status, team positioning, and visual polish (INSERTED) (completed 2026-06-04)
 - [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
 - [ ] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED)
-- [ ] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED)
+- [x] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED) (completed 2026-06-07)
 - [ ] **Phase 8.3: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items (INSERTED)
 - [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
 
@@ -286,8 +286,8 @@ Plans:
 **Goal:** Passing actions work end-to-end: player selects a target hex, rolls for accuracy using the correct attribute per pass type (no check for Standard/First-time; highPass for High and Long Pass per D-04), the ball moves to the target on an accurate pass, LOOSE_BALL walks the trajectory on an inaccurate pass, and adjacent defenders may auto-intercept. High Pass and Long Ball resolve a header contestant duel (HEAD-01/02/04/05).
 **Requirements**: PASS-01, PASS-02, PASS-03, PASS-04, PASS-05
 **Depends on:** Phase 8.1
-**Plans:** 5/6 plans executed
-Plans:
+**Plans:** 6/6 plans complete
+
 **Wave 1**
 
 - [x] 08.2-01-PLAN.md — Shared foundation: Long Pass attribute fix (D-04), GameState passing/header fields, typed events, Wave 0 scaffolds (PASS-04)
@@ -310,7 +310,7 @@ Plans:
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
-- [ ] 08.2-06-PLAN.md — Human verification: three-step flow, highlight colors, header contestant ring (checkpoint)
+- [x] 08.2-06-PLAN.md — Human verification: three-step flow, highlight colors, header contestant ring (checkpoint)
 
 ### Phase 08.3: Remaining Action Flows + Tech Debt (INSERTED)
 
@@ -353,4 +353,7 @@ Plans:
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
 | 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
 | 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
+| 8.1. Cleanup — Player Stats, Movement       | 2/3            | In Progress | -          |
+| 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
+| 8.3. Remaining Action Flows + Tech Debt     | 0/0            | Not started | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |
