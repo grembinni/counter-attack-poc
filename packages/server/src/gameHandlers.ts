@@ -60,7 +60,7 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerE
  * Phases that require a dice roll from the active player.
  * GK_RESTART is handled by the separate game:gk-restart handler (Plan 03, D-12/D-22).
  */
-const DICE_PHASES = new Set<string>(['PASS', 'SHOT', 'HEADER', 'LOOSE_BALL']);
+const DICE_PHASES = new Set<string>(['KICK_OFF', 'PASS', 'SHOT', 'HEADER', 'LOOSE_BALL']);
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -415,7 +415,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           return;
         }
 
-        if (room.gameState.phase === 'PASS') {
+        if (room.gameState.phase === 'PASS' || room.gameState.phase === 'KICK_OFF') {
           // Pass phase requires a passType from the client (choose-phase flow).
           const PASS_TYPES = [
             'STANDARD_PASS',
@@ -546,14 +546,20 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const d1 = rollDice();
         const d2 = rollDice();
         const d3 = rollDice();
-        const result = applyRoll(room.gameState, d1, d2, d3);
+        // applyRoll's PASS branch only triggers on phase === 'PASS'; normalise KICK_OFF → PASS
+        // so the engine's pass logic runs without duplicating it (kickOffActive enforces centre-hex rule above).
+        const stateForRoll =
+          room.gameState.phase === 'KICK_OFF'
+            ? { ...room.gameState, phase: 'PASS' as const }
+            : room.gameState;
+        const result = applyRoll(stateForRoll, d1, d2, d3);
         if (!result.ok) {
           socket.emit(ServerEvents.GAME_ERROR, result.reason);
           broadcastState(io, room); // snap-back
           return;
         }
         // D-27 / MATCH-03: clear kickOffActive after a successful kick-off pass from centre hex.
-        if (room.gameState.phase === 'PASS' && room.gameState.kickOffActive) {
+        if (room.gameState.kickOffActive) {
           room.gameState = { ...result.state, kickOffActive: false };
         } else {
           room.gameState = result.state;
