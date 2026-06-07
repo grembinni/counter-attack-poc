@@ -23,7 +23,7 @@ Phase 8.2 complete — ready for Phase 8.3
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 08.3 — remaining-action-flows-tech-debt
+**Current focus:** Phase 9 — aws-deployment (Phase 10 queued after)
 
 ## Phase Status
 

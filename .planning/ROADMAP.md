@@ -13,8 +13,8 @@
 - [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
 - [ ] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED)
 - [x] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED) (completed 2026-06-07)
-- [ ] **Phase 8.3: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items (INSERTED)
 - [ ] **Phase 9: AWS Deployment** — Dockerised server to Elastic Beanstalk, React build to S3 + CloudFront, ALB timeout config, environment variables, smoke test
+- [ ] **Phase 10: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items
 
 ---
 
@@ -312,17 +312,6 @@ Plans:
 
 - [x] 08.2-06-PLAN.md — Human verification: three-step flow, highlight colors, header contestant ring (checkpoint)
 
-### Phase 08.3: Remaining Action Flows + Tech Debt (INSERTED)
-
-**Goal:** All remaining broken game actions work (shot declaration, snapshot, header button); code review BLOCKER and WARNINGs from Phase 8 are resolved; human UAT items (snapshot full-path, header path) are verified end-to-end.
-**Requirements**: SHOT-01, SHOT-02, SHOT-03, SHOT-04, SNAP-02, SNAP-03, HEAD-01, HEAD-02, HEAD-03, HEAD-04, HEAD-05
-**Depends on:** Phase 8.2
-**Plans:** TBD
-
-Plans:
-
-- [ ] TBD (run /gsd-plan-phase 08.3 to break down)
-
 ### Phase 9: AWS Deployment
 
 **Goal:** The server runs on AWS Elastic Beanstalk and the client is served from S3 + CloudFront; a two-player session over the public internet completes a full match without dropped connections.
@@ -337,6 +326,17 @@ Plans:
 5. A smoke test — two human players on separate machines completing a kick off, one Movement Phase, one pass, and one shot — passes without server errors in the EB logs
 
 **Plans:** TBD
+
+### Phase 10: Remaining Action Flows + Tech Debt
+
+**Goal:** All remaining broken game actions work (shot declaration, snapshot, header button); code review BLOCKERs and WARNINGs from Phase 8 are resolved; human UAT items (snapshot full-path, header path) are verified end-to-end.
+**Requirements**: SHOT-01, SHOT-02, SHOT-03, SHOT-04, SNAP-02, SNAP-03, HEAD-01, HEAD-02, HEAD-03, HEAD-04, HEAD-05
+**Depends on:** Phase 9
+**Plans:** TBD
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 10 to break down)
 
 ---
 
@@ -355,5 +355,5 @@ Plans:
 | 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
 | 8.1. Cleanup — Player Stats, Movement       | 2/3            | In Progress | -          |
 | 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
-| 8.3. Remaining Action Flows + Tech Debt     | 0/0            | Not started | -          |
 | 9. AWS Deployment                           | 0/0            | Not started | -          |
+| 10. Remaining Action Flows + Tech Debt      | 0/0            | Not started | -          |
