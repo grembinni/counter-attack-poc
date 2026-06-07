@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: counter-attack-poc
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm -r build
+    startCommand: node packages/server/dist/main.js
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
