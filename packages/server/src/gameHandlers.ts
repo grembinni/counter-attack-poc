@@ -30,8 +30,10 @@ import type {
 import {
   ClientEvents,
   ELIGIBLE_NEXT_ACTIONS,
+  PITCH_HEXES,
   PITCH_REGIONS,
   ServerEvents,
+  hexDistance,
   validatePass,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
@@ -51,7 +53,7 @@ import {
 } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
-import type { GameState } from '@counter-attack/shared';
+import type { ActionEvent, GameState } from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -75,9 +77,13 @@ function socketTeam(socket: AppSocket): 'home' | 'away' {
 
 /**
  * Returns the team allowed to act in the current movement slot.
+ * HIGH_PASS_MOVEMENT: activeTeam is authoritative (switches between ATTACKER/DEFENDER slots).
  * ATTACKER_4 and ATTACKER_2 → attackingTeam; DEFENDER_5 → non-attacking team.
  */
 function actingTeam(state: GameState): 'home' | 'away' {
+  if (state.phase === 'HIGH_PASS_MOVEMENT') {
+    return state.activeTeam;
+  }
   if (state.movementSlot === 'DEFENDER_5') {
     return state.attackingTeam === 'home' ? 'away' : 'home';
   }
@@ -189,7 +195,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
     try {
       if (
         room.gameState === null ||
-        (room.gameState.phase !== 'KICK_OFF' && room.gameState.phase !== 'PASS')
+        (room.gameState.phase !== 'KICK_OFF' &&
+          room.gameState.phase !== 'PASS' &&
+          room.gameState.phase !== 'LOOSE_BALL')
       ) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room); // D-06: snap-back
@@ -237,7 +245,78 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+
+      // HIGH_PASS_MOVEMENT: simple piece repositioning — 1 piece per team, max 3 hexes, no ball movement.
+      if (room.gameState.phase === 'HIGH_PASS_MOVEMENT') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const hpState = room.gameState;
+        const piece = hpState.pieces.find((p) => p.id === pieceId);
+        if (!piece || piece.teamId !== hpState.activeTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // Only one piece per slot: lock to the first piece moved
+        const lockedId = hpState.highPassMovedPieceId ?? null;
+        if (lockedId !== null && lockedId !== pieceId) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
+        }
+        const paceUsed = hpState.highPassPaceUsed ?? 0;
+        if (paceUsed >= 3) {
+          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
+          broadcastState(io, room);
+          return;
+        }
+        if (hexDistance(piece.position, to) !== 1) {
+          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
+          broadcastState(io, room);
+          return;
+        }
+        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+          broadcastState(io, room);
+          return;
+        }
+        if (
+          hpState.pieces.some(
+            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+          )
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
+          broadcastState(io, room);
+          return;
+        }
+        const hpMoveEvent: ActionEvent = {
+          type: 'HP_MOVE',
+          slot: hpState.highPassMovementSlot === 'ATTACKER' ? 'ATTACKER' : 'DEFENDER',
+          pieceId,
+          from: piece.position,
+          to,
+          timestamp: Date.now(),
+        };
+        room.gameState = {
+          ...hpState,
+          pieces: hpState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+          highPassMovedPieceId: pieceId,
+          highPassPaceUsed: paceUsed + 1,
+          eventLog: [...hpState.eventLog, hpMoveEvent],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      if (room.gameState.phase !== 'MOVEMENT') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -277,7 +356,77 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+
+      // HIGH_PASS_MOVEMENT: slot transitions + auto accuracy roll after defender slot.
+      if (room.gameState.phase === 'HIGH_PASS_MOVEMENT') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const hpState = room.gameState;
+        if (hpState.highPassMovementSlot === 'ATTACKER') {
+          // Log attacker repositioning then switch to defender's turn
+          const attackerReposEvent: ActionEvent = {
+            type: 'HP_REPOSITION',
+            slot: 'ATTACKER',
+            pieceId: hpState.highPassMovedPieceId ?? null,
+            timestamp: Date.now(),
+          };
+          const defenderTeam: 'home' | 'away' = hpState.attackingTeam === 'home' ? 'away' : 'home';
+          room.gameState = {
+            ...hpState,
+            highPassMovementSlot: 'DEFENDER',
+            activeTeam: defenderTeam,
+            highPassMovedPieceId: null,
+            highPassPaceUsed: 0,
+            eventLog: [...hpState.eventLog, attackerReposEvent],
+          };
+          broadcastState(io, room);
+        } else {
+          // Log defender repositioning then roll accuracy.
+          // Restore ball.carrierId from highPassCarrierId so applyRoll can find the kicker's stat.
+          const defenderReposEvent: ActionEvent = {
+            type: 'HP_REPOSITION',
+            slot: 'DEFENDER',
+            pieceId: hpState.highPassMovedPieceId ?? null,
+            timestamp: Date.now(),
+          };
+          const d1 = rollDice();
+          const d2 = rollDice();
+          const d3 = rollDice();
+          const stateForRoll: typeof hpState = {
+            ...hpState,
+            phase: 'PASS',
+            ball: { ...hpState.ball, carrierId: hpState.highPassCarrierId ?? null },
+            activeTeam: hpState.attackingTeam,
+            highPassMovementSlot: null,
+            highPassMovedPieceId: null,
+            highPassPaceUsed: 0,
+            highPassCarrierId: null,
+            eventLog: [...hpState.eventLog, defenderReposEvent],
+          };
+          const result = applyRoll(stateForRoll, d1, d2, d3);
+          if (!result.ok) {
+            socket.emit(ServerEvents.GAME_ERROR, result.reason);
+            broadcastState(io, room);
+            return;
+          }
+          room.gameState = result.state;
+          broadcastState(io, room);
+          if (result.state.phase === 'FULL_TIME') {
+            startReplayStream(io, room);
+          }
+        }
+        return;
+      }
+
+      if (room.gameState.phase !== 'MOVEMENT') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -436,24 +585,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             broadcastState(io, room);
             return;
           }
-          // D-27 / MATCH-03 / T-08-16: kick-off first-pass enforcement.
-          // While kickOffActive, the ball carrier must be on the centre hex.
-          if (room.gameState.kickOffActive) {
-            const carrier = room.gameState.pieces.find(
-              (p) => p.id === room.gameState!.ball.carrierId,
-            );
-            const kickOffHex = PITCH_REGIONS.kickOffHex;
-            const onCentreHex =
-              carrier !== undefined &&
-              carrier.position.q === kickOffHex.q &&
-              carrier.position.r === kickOffHex.r;
-            if (!onCentreHex) {
-              socket.emit(ServerEvents.GAME_ERROR, 'INVALID_KICK_OFF_PASS');
-              broadcastState(io, room);
-              return;
-            }
-          }
-
           // D-10 (Phase 8.2): targetHex validation and authoritative validatePass gate.
           // Require targetHex for all pass types — engine needs it for accuracy resolution.
           if (!targetHex) {
@@ -508,14 +639,44 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // Commit passTargetHex to state — consumed by applyRoll PASS branch
           room.gameState = { ...room.gameState, passTargetHex: targetHex };
           // D-11 (Phase 8.2): Pre-generate interception dice before applyRoll (Pitfall 4)
-          // validatePass ok result carries interceptors list
-          if (passResult.interceptors.length > 0) {
+          // Header-win pass is non-interceptable — skip regardless of validatePass result
+          const isHeaderPass = room.gameState.lastActionType === 'HEADER';
+          if (!isHeaderPass && passResult.interceptors.length > 0) {
             const interceptionDice = passResult.interceptors.map(() => rollDice());
             room.gameState = { ...room.gameState, preGeneratedInterceptionDice: interceptionDice };
           }
 
           // Commit the chosen pass type — applyRoll reads lastActionType to determine time cost.
           room.gameState = { ...room.gameState, lastActionType: passType };
+
+          // HIGH_PASS: log the pass attempt immediately then enter repositioning phase.
+          // Ball moves to target (visible to both clients); carrierId cleared so kicker loses possession.
+          // highPassCarrierId preserves the kicker ID for the accuracy stat lookup in applyRoll.
+          if (passType === 'HIGH_PASS') {
+            const kickerId = room.gameState.ball.carrierId;
+            const kickerPiece = room.gameState.pieces.find((p) => p.id === kickerId);
+            const highPassEvent: ActionEvent = {
+              type: 'HIGH_PASS',
+              passerId: kickerId ?? '',
+              from: kickerPiece?.position ?? targetHex,
+              to: targetHex,
+              accurate: null,
+              timestamp: Date.now(),
+            };
+            room.gameState = {
+              ...room.gameState,
+              phase: 'HIGH_PASS_MOVEMENT',
+              ball: { position: targetHex, carrierId: null },
+              highPassCarrierId: kickerId,
+              highPassMovementSlot: 'ATTACKER',
+              highPassMovedPieceId: null,
+              highPassPaceUsed: 0,
+              activeTeam: room.gameState.attackingTeam,
+              eventLog: [...room.gameState.eventLog, highPassEvent],
+            };
+            broadcastState(io, room);
+            return;
+          }
         } else {
           // D-07 / T-08-12: sequence guards for non-PASS dice phases.
           if (room.gameState.phase === 'SHOT' && room.gameState.lastActionType !== null) {
@@ -947,7 +1108,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // SC-5: isProcessing mutex prevents double-click race.
   // ARCH-04: broadcastState after selection so both clients see opponent's confirm flag.
   // -------------------------------------------------------------------------
-  socket.on(ClientEvents.GAME_HEADER_CONTESTANT, (pieceId: string | null) => {
+  socket.on(ClientEvents.GAME_HEADER_CONTESTANT, (pieceIds: string[] | null) => {
     const { roomCode } = socket.data;
     if (roomCode === undefined) return;
     const room = getRoom(roomCode);
@@ -964,8 +1125,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Determine which team slot this socket controls
       const teamSlot = socket.data.playerSlot === 1 ? 'home' : 'away';
 
-      // ASVS V4: validate piece ownership — reject opponent's pieceId
-      if (pieceId !== null) {
+      const ids = pieceIds ?? [];
+
+      // ASVS V4: validate piece ownership — reject any opponent piece
+      for (const pieceId of ids) {
         const piece = room.gameState.pieces.find((p) => p.id === pieceId);
         if (!piece || piece.teamId !== teamSlot) {
           socket.emit(ServerEvents.GAME_ERROR, 'INVALID_CONTESTANT');
@@ -976,8 +1139,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
       // Record the contestant selection and mark this team as confirmed
       const existingContestants = room.gameState.headerContestants ?? {
-        home: null,
-        away: null,
+        home: [],
+        away: [],
       };
       const existingConfirmed = room.gameState.headerConfirmed ?? {
         home: false,
@@ -986,11 +1149,29 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
       room.gameState = {
         ...room.gameState,
-        headerContestants: { ...existingContestants, [teamSlot]: pieceId },
+        headerContestants: { ...existingContestants, [teamSlot]: ids },
         headerConfirmed: { ...existingConfirmed, [teamSlot]: true },
       };
 
-      // ARCH-04: broadcast so both clients see the opponent's confirmed flag
+      // Auto-roll when both teams have now confirmed — no separate Roll Header step needed.
+      // Pre-generate one die per contestant (layout: all attacker dice first, then defender dice).
+      if (room.gameState.headerConfirmed?.home && room.gameState.headerConfirmed?.away) {
+        const atkTeam = room.gameState.attackingTeam;
+        const defTeam = atkTeam === 'home' ? 'away' : 'home';
+        const atkCount = room.gameState.headerContestants?.[atkTeam]?.length ?? 0;
+        const defCount = room.gameState.headerContestants?.[defTeam]?.length ?? 0;
+        const numDice = Math.max(atkCount + defCount, 2); // at least 2 for uncontested fallback
+        const diceArr = Array.from({ length: numDice }, () => rollDice());
+        const result = applyRoll(room.gameState, ...diceArr);
+        if (!result.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, result.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = result.state;
+      }
+
+      // ARCH-04: broadcast updated state (either interim confirm or resolved header)
       broadcastState(io, room);
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5

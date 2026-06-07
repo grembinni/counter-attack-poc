@@ -845,12 +845,12 @@ describe('applyRoll', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
-    expect(result.state.ball.carrierId).toBe('home-2');
+    expect(result.state.ball.carrierId).toBeNull(); // ball in air during header contest
     expect(result.state.phase).toBe('HEADER');
     expect(result.state.lastActionType).toBe('HIGH_PASS');
-    // headerContestants initialized
-    expect(result.state.headerContestants).toEqual({ home: null, away: null });
-    expect(result.state.headerConfirmed).toEqual({ home: false, away: false });
+    // headerContestants initialized; away auto-confirmed (no away piece within 2 hexes of target)
+    expect(result.state.headerContestants).toEqual({ home: [], away: [] });
+    expect(result.state.headerConfirmed).toEqual({ home: false, away: true });
     expect(result.state.actionCount).toBe(1); // +1 for HIGH_PASS
     expect(result.state.passTargetHex).toBeNull();
   });
@@ -981,7 +981,7 @@ describe('applyRoll', () => {
     // HEAD-02: result must not depend on dice values; phase → PASS with attacker holding ball
     const stateWithContestant: GameState = {
       ...headerState,
-      headerContestants: { home: 'home-9', away: null },
+      headerContestants: { home: ['home-9'], away: [] },
       headerConfirmed: { home: true, away: false },
     };
     const result = applyRoll(stateWithContestant, 1, 1, 1); // worst dice — auto-win must not rely on them
@@ -1006,19 +1006,19 @@ describe('applyRoll', () => {
     }
   });
 
-  it('HEADER contested — defender wins → phase MOVEMENT', () => {
+  it('HEADER contested — defender wins → phase PASS with defending team now attacking', () => {
     // headerStateContested: awayDEF at q:11 (1 hex from ball at q:10) → contested
     // attacker.heading=6; attackerDice=1 → 6+1=7
-    // awayDEF.heading=6; defenderDice=5 → 6+5=11 → defender wins → MOVEMENT
+    // awayDEF.heading=6; defenderDice=5 → 6+5=11 → defender wins
     const stateWithContestants: GameState = {
       ...headerStateContested,
-      headerContestants: { home: 'home-9', away: 'away-1' },
+      headerContestants: { home: ['home-9'], away: ['away-1'] },
       headerConfirmed: { home: true, away: true },
     };
     const result = applyRoll(stateWithContestants, 1, 5, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('PASS');
       expect(result.state.lastDiceRoll?.context).toBe('HEADING_DUEL');
       // D-21: contestedPieceIds set to both participants
       expect(result.state.contestedPieceIds).toContain('home-9');

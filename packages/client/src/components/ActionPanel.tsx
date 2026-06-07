@@ -1,4 +1,5 @@
-import { ELIGIBLE_NEXT_ACTIONS, isInRegion, ClientEvents } from '@counter-attack/shared';
+import { useEffect } from 'react';
+import { ELIGIBLE_NEXT_ACTIONS, hexDistance, ClientEvents } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
 import { socket } from '../socket.js';
@@ -11,7 +12,7 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
   LONG_BALL: 'Long Ball',
 };
 
-const DICE_PHASES = new Set(['SHOT', 'LOOSE_BALL'] as const);
+const DICE_PHASES = new Set(['SHOT'] as const);
 
 /**
  * Phase-gated, active-player-gated action controls.
@@ -43,18 +44,95 @@ export function ActionPanel() {
   const emitUndo = useGameStore((s) => s.emitUndo);
   const emitStartMovement = useGameStore((s) => s.emitStartMovement);
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
-  const emitSnapshot = useGameStore((s) => s.emitSnapshot);
-
   // Phase 8.2: store-backed pass type selection (replaces local useState — clearing is done in setGameState)
   const selectedPassType = useGameStore((s) => s.selectedPassType);
   const setSelectedPassType = useGameStore((s) => s.setSelectedPassType);
   const passTargetHex = useGameStore((s) => s.passTargetHex);
-  const headerContestantId = useGameStore((s) => s.headerContestantId);
+  const headerContestantIds = useGameStore((s) => s.headerContestantIds);
   const emitHeaderContestant = useGameStore((s) => s.emitHeaderContestant);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
+
+  // Auto-emit scatter roll when entering LOOSE_BALL — no player interaction needed
+  useEffect(() => {
+    if (phase === 'LOOSE_BALL' && isActivePlayer) {
+      emitRoll();
+    }
+  }, [phase, isActivePlayer, emitRoll]);
+
+  // After a header win the active player immediately gets a Standard Pass (11-hex, non-interceptable).
+  // Auto-select the pass type so the valid-target hexes appear without an extra click.
+  useEffect(() => {
+    if (
+      phase === 'PASS' &&
+      lastActionType === 'HEADER' &&
+      isActivePlayer &&
+      selectedPassType === null
+    ) {
+      setSelectedPassType('STANDARD_PASS');
+    }
+  }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
+
+  // -------------------------------------------------------------------------
+  // HIGH_PASS_MOVEMENT phase: both teams reposition 1 player up to 3 hexes before accuracy roll.
+  // Must be before the isActivePlayer guard — both teams act in this phase.
+  // -------------------------------------------------------------------------
+  if (phase === 'HIGH_PASS_MOVEMENT') {
+    if (myTeam === null) return null;
+    // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
+    // so isActivePlayer correctly reflects whose turn it is in this phase
+    if (!isActivePlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent is repositioning — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.phaseLabel}>
+          Reposition a player for the header (up to 3 hexes)
+        </span>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // HEADER phase (D-17): both teams must see the contestant selection UI.
+  // The Roll Header button is gated to the active player only.
+  // This block must be BEFORE the isActivePlayer guard so the defending team
+  // can select/decline their contestant.
+  // -------------------------------------------------------------------------
+  if (phase === 'HEADER') {
+    if (myTeam === null) return null;
+    const myConfirmed = headerConfirmed?.[myTeam] ?? false;
+
+    return (
+      <div className={styles.panel}>
+        {!myConfirmed && (
+          <>
+            <span className={styles.phaseLabel}>
+              Select contestant(s) within 2 hexes ({headerContestantIds.length} selected)
+            </span>
+            <button
+              className={styles.ctaButton}
+              onClick={() => emitHeaderContestant(headerContestantIds)}
+            >
+              {headerContestantIds.length > 0 ? 'Confirm Selection' : 'Decline (no contestant)'}
+            </button>
+          </>
+        )}
+        {myConfirmed && <span className={styles.phaseLabel}>Waiting for opponent...</span>}
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
 
   if (!isActivePlayer) return null;
 
@@ -70,6 +148,19 @@ export function ActionPanel() {
   // server accepts from both KICK_OFF and PASS.
   // -------------------------------------------------------------------------
   if (phase === 'PASS' || phase === 'KICK_OFF') {
+    // Ball loose in PASS phase (standard pass to empty hex or deflection landing): only Move available.
+    if (phase === 'PASS' && carrierId === null) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Ball is loose — move to collect</span>
+          <button className={styles.ctaButton} onClick={emitStartMovement}>
+            Move
+          </button>
+          {gameError && <span className={styles.errorText}>{gameError}</span>}
+        </div>
+      );
+    }
+
     // Eligible next actions based on the last completed action.
     // null lastActionType (kick-off start state) treated as MOVEMENT_PHASE.
     const effectiveLastAction = lastActionType ?? 'MOVEMENT_PHASE';
@@ -127,11 +218,23 @@ export function ActionPanel() {
             </button>
           )}
 
-          {(eligible.has('SNAPSHOT') || eligible.has('SHOT')) && (
-            <button className={styles.ctaButton} onClick={emitSnapshot}>
-              Shoot
-            </button>
-          )}
+          {(eligible.has('SNAPSHOT') || eligible.has('SHOT')) &&
+            (() => {
+              const carrier = pieces.find((p) => p.id === carrierId);
+              const goalHexes =
+                attackingTeam === 'home'
+                  ? [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 36, r }))
+                  : [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 0, r }));
+              const dist =
+                carrier !== undefined
+                  ? Math.min(...goalHexes.map((g) => hexDistance(carrier.position, g)))
+                  : Infinity;
+              return dist <= 11 ? (
+                <button className={styles.ctaButton} disabled>
+                  Shoot
+                </button>
+              ) : null;
+            })()}
 
           {gameError && <span className={styles.errorText}>{gameError}</span>}
         </div>
@@ -178,8 +281,15 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   if (phase === 'MOVEMENT') {
     const carrier = pieces.find((p) => p.id === carrierId);
-    const penaltyRegion = attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
-    const canSnapshot = carrier !== undefined && isInRegion(carrier.position, penaltyRegion);
+    const targetGoalHexes =
+      attackingTeam === 'home'
+        ? [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 36, r }))
+        : [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 0, r }));
+    const distToGoal =
+      carrier !== undefined
+        ? Math.min(...targetGoalHexes.map((g) => hexDistance(carrier.position, g)))
+        : Infinity;
+    const canSnapshot = distToGoal <= 6;
 
     // Undo is available when there is at least one MOVE event after the last slot boundary
     // (SLOT_ADVANCE or KICK_OFF) and no dice have been rolled. Mirrors applyUndo's boundary logic.
@@ -194,7 +304,7 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         {canSnapshot && (
-          <button className={styles.ctaButton} onClick={emitSnapshot}>
+          <button className={styles.ctaButton} disabled>
             Snapshot
           </button>
         )}
@@ -202,7 +312,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
-          End Slot
+          End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
@@ -210,42 +320,9 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // HEADER phase (D-17): contestant selection + gated Roll Header
+  // SHOT — Roll Dice
   // -------------------------------------------------------------------------
-  if (phase === 'HEADER') {
-    const myTeamKey = myTeam;
-    const myConfirmed = headerConfirmed?.[myTeamKey] ?? false;
-    const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
-
-    return (
-      <div className={styles.panel}>
-        {!myConfirmed && (
-          <>
-            <span className={styles.phaseLabel}>Select contestant on board</span>
-            <button
-              className={styles.ctaButton}
-              onClick={() => emitHeaderContestant(headerContestantId)}
-            >
-              {headerContestantId !== null ? 'Confirm Selection' : 'Decline (no contestant)'}
-            </button>
-          </>
-        )}
-        {myConfirmed && !bothConfirmed && (
-          <span className={styles.phaseLabel}>Waiting for opponent...</span>
-        )}
-        {/* Pitfall 5: Roll Header only enabled when both teams have confirmed */}
-        <button className={styles.ctaButton} disabled={!bothConfirmed} onClick={() => emitRoll()}>
-          Roll Header
-        </button>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // SHOT / LOOSE_BALL — Roll Dice
-  // -------------------------------------------------------------------------
-  if (DICE_PHASES.has(phase as 'SHOT' | 'LOOSE_BALL')) {
+  if (DICE_PHASES.has(phase as 'SHOT')) {
     return (
       <div className={styles.panel}>
         <button className={styles.ctaButton} onClick={() => emitRoll()}>

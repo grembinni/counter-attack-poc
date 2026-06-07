@@ -62,7 +62,12 @@ export type ActionEventType =
   | 'SHOT_ATTEMPT'
   | 'SNAPSHOT'
   | 'HALF_TIME'
-  | 'FULL_TIME';
+  | 'FULL_TIME'
+  | 'HEADER'
+  | 'HP_REPOSITION'
+  | 'HP_ACCURACY'
+  | 'HP_MOVE'
+  | 'LOOSE_BALL_LAND';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -102,7 +107,14 @@ export type ActionEvent =
   | { type: 'GOAL'; scoringTeam: 'home' | 'away'; timestamp: number }
   | { type: 'KICK_OFF'; timestamp: number }
   // Phase 8 additions — new action subtypes for replay coverage (Claude's Discretion, 08-CONTEXT.md)
-  | { type: 'HIGH_PASS'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
+  | {
+      type: 'HIGH_PASS';
+      passerId: string;
+      from: HexCoord;
+      to: HexCoord;
+      accurate: boolean | null;
+      timestamp: number;
+    }
   | { type: 'LONG_BALL'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
   | { type: 'STANDARD_PASS'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
   | {
@@ -121,7 +133,39 @@ export type ActionEvent =
     }
   | { type: 'SNAPSHOT'; shooterId: string; timestamp: number }
   | { type: 'HALF_TIME'; half: 1; score: { home: number; away: number }; timestamp: number }
-  | { type: 'FULL_TIME'; score: { home: number; away: number }; timestamp: number };
+  | { type: 'FULL_TIME'; score: { home: number; away: number }; timestamp: number }
+  | {
+      type: 'HEADER';
+      /** Attacking team's contestant piece ID, or null if the attacking team declined. */
+      attackerId: string | null;
+      /** Defending team's contestant piece ID, or null if the defending team declined. */
+      defenderId: string | null;
+      result: 'ATTACKER_WIN' | 'DEFENDER_WIN' | 'TIE';
+      /** Dice and stats — null for uncontested headers (no dice rolled). */
+      attackerDie: number | null;
+      attackerHeading: number | null;
+      attackerCombined: number | null;
+      defenderDie: number | null;
+      defenderHeading: number | null;
+      defenderCombined: number | null;
+      timestamp: number;
+    }
+  | {
+      type: 'HP_REPOSITION';
+      slot: 'ATTACKER' | 'DEFENDER';
+      pieceId: string | null;
+      timestamp: number;
+    }
+  | { type: 'HP_ACCURACY'; passerId: string; accurate: boolean; timestamp: number }
+  | {
+      type: 'HP_MOVE';
+      slot: 'ATTACKER' | 'DEFENDER';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | { type: 'LOOSE_BALL_LAND'; from: HexCoord; to: HexCoord; timestamp: number };
 
 export type GamePhase =
   | 'LOBBY'
@@ -133,6 +177,7 @@ export type GamePhase =
   | 'HEADER'
   | 'SNAPSHOT'
   | 'LOOSE_BALL'
+  | 'HIGH_PASS_MOVEMENT' // Pre-accuracy repositioning phase for high pass
   | 'GK_RESTART'
   | 'HALF_TIME'
   | 'FULL_TIME'
@@ -234,10 +279,10 @@ export type GameState = {
   passTargetHex?: HexCoord | null;
   /**
    * D-17 (Phase 8.2): Per-team selected contestant piece IDs during HEADER phase.
-   * home/away values are the piece IDs of each team's selected header contestant, or null before selection.
+   * home/away are arrays of piece IDs; empty array means the team declined (no contestant).
    * null or absent outside the HEADER phase.
    */
-  headerContestants?: { home: string | null; away: string | null } | null;
+  headerContestants?: { home: string[]; away: string[] } | null;
   /**
    * D-17 (Phase 8.2): Confirmation flags for header contestant selection.
    * true once a team submits its contestant; GAME_ROLL for HEADER requires both true.
@@ -256,4 +301,27 @@ export type GameState = {
    * interception loop. Absent or empty when no interception roll is pending.
    */
   preGeneratedInterceptionDice?: number[];
+  /**
+   * HIGH_PASS_MOVEMENT phase: which team's repositioning slot is active.
+   * 'ATTACKER' → attacking team moves first; 'DEFENDER' → defending team moves.
+   * null or absent outside HIGH_PASS_MOVEMENT phase.
+   */
+  highPassMovementSlot?: 'ATTACKER' | 'DEFENDER' | null;
+  /**
+   * HIGH_PASS_MOVEMENT phase: the piece ID chosen for this team's repositioning slot.
+   * Locked to the first piece moved; subsequent moves must use the same piece.
+   * null if no piece has been moved yet in the current slot.
+   */
+  highPassMovedPieceId?: string | null;
+  /**
+   * HIGH_PASS_MOVEMENT phase: cumulative hexes moved by highPassMovedPieceId in the current slot.
+   * Capped at 3. Reset to 0 at each slot transition.
+   */
+  highPassPaceUsed?: number;
+  /**
+   * HIGH_PASS_MOVEMENT phase: the piece ID of the player who kicked the high pass.
+   * Preserved so applyRoll can look up the kicker's highPass stat after ball.carrierId is cleared.
+   * null or absent outside HIGH_PASS_MOVEMENT phase.
+   */
+  highPassCarrierId?: string | null;
 };

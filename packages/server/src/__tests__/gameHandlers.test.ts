@@ -179,7 +179,7 @@ function seedHeaderPhase(
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
-    headerContestants: { home: null, away: null },
+    headerContestants: { home: [], away: [] },
     headerConfirmed: headerConfirmed ?? { home: false, away: false },
   };
 }
@@ -280,13 +280,13 @@ describe('GAME_HEADER_CONTESTANT ownership validation (D-17, ASVS V4)', () => {
 
     // clientA = slot 1 = 'home'; 'away-1' belongs to the opponent
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, 'away-1');
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, ['away-1']);
     const [reason] = await errorPromise;
 
     expect(reason).toBe('INVALID_CONTESTANT');
     // headerContestants should not have been set for home
     const room = getRoom(roomCode);
-    expect(room?.gameState?.headerContestants?.home).toBeNull();
+    expect(room?.gameState?.headerContestants?.home).toEqual([]);
   });
 
   it('D-17: GAME_HEADER_CONTESTANT with own pieceId sets headerContestants and headerConfirmed for that team', async () => {
@@ -295,10 +295,10 @@ describe('GAME_HEADER_CONTESTANT ownership validation (D-17, ASVS V4)', () => {
 
     // clientA = slot 1 = 'home'; 'home-1' is a home team outfielder
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, 'home-1');
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, ['home-1']);
     const [newState] = await statePromise;
 
-    expect(newState.headerContestants?.home).toBe('home-1');
+    expect(newState.headerContestants?.home).toEqual(['home-1']);
     expect(newState.headerConfirmed?.home).toBe(true);
     // Away team has not confirmed yet
     expect(newState.headerConfirmed?.away).toBe(false);
@@ -308,12 +308,12 @@ describe('GAME_HEADER_CONTESTANT ownership validation (D-17, ASVS V4)', () => {
     const { clientA, roomCode } = await setupRoom();
     seedHeaderPhase(roomCode);
 
-    // null means "no contestant" — team is still confirming they decline
+    // null (or empty array) means "no contestant" — team is still confirming they decline
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, null);
     const [newState] = await statePromise;
 
-    expect(newState.headerContestants?.home).toBeNull();
+    expect(newState.headerContestants?.home).toEqual([]);
     expect(newState.headerConfirmed?.home).toBe(true);
   });
 
@@ -322,7 +322,7 @@ describe('GAME_HEADER_CONTESTANT ownership validation (D-17, ASVS V4)', () => {
     // Room is in KICK_OFF_SETUP — not HEADER
 
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, 'home-1');
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, ['home-1']);
     const [reason] = await errorPromise;
 
     expect(reason).toBe('WRONG_PHASE');

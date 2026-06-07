@@ -23,6 +23,25 @@ function CopyButton({ code }: { code: string | null }) {
   );
 }
 
+/** Landing page — entry point shown to new visitors. */
+function LandingScreen() {
+  const setScreen = useGameStore((s) => s.setScreen);
+  return (
+    <>
+      <h1 className={styles.landingTitle}>Counter Attack</h1>
+      <p className={styles.landingSubtitle}>Real-time 2-player hex football strategy</p>
+      <div className={styles.buttonRow}>
+        <button className={styles.ctaButton} onClick={() => socket.emit(ClientEvents.ROOM_CREATE)}>
+          Create Game
+        </button>
+        <button className={styles.ctaButton} onClick={() => setScreen('JOIN_ROOM')}>
+          Join Game
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** Create Room sub-screen. */
 function CreateRoomScreen() {
   const setScreen = useGameStore((s) => s.setScreen);
@@ -36,8 +55,8 @@ function CreateRoomScreen() {
         <button className={styles.ctaButton} onClick={() => socket.emit(ClientEvents.ROOM_CREATE)}>
           Generate Room Code
         </button>
-        <button className={styles.subLink} onClick={() => setScreen('JOIN_ROOM')}>
-          Or join an existing room &rarr;
+        <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+          &larr; Back
         </button>
       </>
     );
@@ -49,8 +68,8 @@ function CreateRoomScreen() {
       <p className={styles.body}>Share this code with your opponent.</p>
       <div className={styles.roomCode}>{roomCode}</div>
       <CopyButton code={roomCode} />
-      <button className={styles.subLink} onClick={() => setScreen('JOIN_ROOM')}>
-        Or join an existing room &rarr;
+      <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+        &larr; Back
       </button>
     </>
   );
@@ -108,8 +127,8 @@ function JoinRoomScreen() {
       >
         {isJoining ? 'Joining...' : 'Join Game'}
       </button>
-      <button className={styles.subLink} onClick={() => setScreen('CREATE_ROOM')}>
-        Or create a new room &rarr;
+      <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+        &larr; Back
       </button>
     </>
   );
@@ -131,8 +150,8 @@ function WaitingScreen() {
         <span className={styles.dot} style={{ animationDelay: '0.2s' }} />
         <span className={styles.dot} style={{ animationDelay: '0.4s' }} />
       </div>
-      <button className={styles.subLink} onClick={() => setScreen('JOIN_ROOM')}>
-        Join a different room instead &rarr;
+      <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+        &larr; Back
       </button>
     </>
   );
@@ -148,7 +167,9 @@ export function LobbyScreen() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        {screen === 'JOIN_ROOM' ? (
+        {screen === 'LANDING' ? (
+          <LandingScreen />
+        ) : screen === 'JOIN_ROOM' ? (
           <JoinRoomScreen />
         ) : screen === 'WAITING' ? (
           <WaitingScreen />

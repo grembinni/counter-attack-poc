@@ -26,6 +26,7 @@ import {
   AWAY_SQUAD,
   PITCH_REGIONS,
   isInRegion,
+  isPitchHex,
   validateMove,
   computeCombinedScore,
   computeLooseBall,
@@ -140,17 +141,14 @@ export type ApplyStartMovementResult =
  * Appends a KICK_OFF ActionEvent to mark the kick-off→movement edge.
  */
 export function applyStartMovement(state: GameState): ApplyStartMovementResult {
-  if (state.phase !== 'KICK_OFF' && state.phase !== 'PASS') {
+  if (state.phase !== 'KICK_OFF' && state.phase !== 'PASS' && state.phase !== 'LOOSE_BALL') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
-
-  const event: ActionEvent = { type: 'KICK_OFF', timestamp: Date.now() };
 
   // From KICK_OFF: find the piece standing on the ball's position (the kicker) and assign them
   // the ball so the carrier is set before movement begins.
   // From PASS (after steal/tackle): ball.carrierId is already correct — leave ball state as-is.
-  // (Previously the kicker lookup would find the original attacker at ball.position after a steal
-  //  and incorrectly return the ball to them.)
+  // From LOOSE_BALL: ball.carrierId is null — leave as-is; pickup happens in applyMove.
   let newBall = state.ball;
   if (state.phase === 'KICK_OFF') {
     const kicker = state.pieces.find(
@@ -158,6 +156,12 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
     );
     if (kicker) newBall = { ...state.ball, carrierId: kicker.id };
   }
+
+  // Log KICK_OFF event for KICK_OFF and PASS transitions; LOOSE_BALL pickup start needs no marker.
+  const newEventLog: readonly ActionEvent[] =
+    state.phase !== 'LOOSE_BALL'
+      ? [...state.eventLog, { type: 'KICK_OFF' as const, timestamp: Date.now() }]
+      : state.eventLog;
 
   return {
     ok: true,
@@ -167,7 +171,7 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       movementSlot: 'ATTACKER_4',
       activeTeam: state.attackingTeam,
       ball: newBall,
-      eventLog: [...state.eventLog, event],
+      eventLog: newEventLog,
       // D-21 / HEAD-05: clear contestedPieceIds after one Movement Phase so the exclusion
       // applies to exactly one movement sequence. applyMove checks contestedPieceIds to
       // reject contested pieces at move-time (Pitfall 6 — cleared here, not in HEADER branch).
@@ -283,6 +287,32 @@ export function applyMove(
   // D-13/D-14 ball position fix: if the moving piece is the carrier, track ball to `to`.
   // Computed here for all non-contest paths; overridden on contest success paths below.
   const newBall = state.ball.carrierId === pieceId ? { ...state.ball, position: to } : state.ball;
+
+  // Loose ball pickup: piece steps onto the hex where the ball is loose (no carrier).
+  // Grants possession to the moving piece's team; transitions immediately to PASS.
+  if (
+    state.ball.carrierId === null &&
+    to.q === state.ball.position.q &&
+    to.r === state.ball.position.r
+  ) {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        pieces: newPieces,
+        ball: { position: to, carrierId: pieceId },
+        attackingTeam: piece.teamId,
+        activeTeam: piece.teamId,
+        phase: 'PASS',
+        movementSlot: null,
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+        eventLog: newEventLog,
+        pendingFreeMove: state.pendingFreeMove ?? null,
+        lastActionType: 'SUCCESSFUL_TACKLE',
+      },
+    };
+  }
 
   // Handle STEAL_ATTEMPT effect (D-06/D-07/D-08)
   let stealSuccess = false;
@@ -739,29 +769,64 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // FIRST_TIME_PASS costs 0 min; all other pass types cost +1 min.
       const passTimeCost = state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
 
-      // D-05: accuracy gate — only HIGH_PASS and LONG_BALL require a check.
+      // D-05: accuracy gate — HIGH_PASS and LONG_BALL require an accuracy check.
       const requiresAccuracyCheck =
         state.lastActionType === 'HIGH_PASS' || state.lastActionType === 'LONG_BALL';
 
       let accurate = true;
       if (requiresAccuracyCheck) {
-        const accuracyType = state.lastActionType === 'HIGH_PASS' ? 'HIGH' : 'LONG_SAME_THIRD';
+        let accuracyType: 'HIGH' | 'LONG_SAME_THIRD' | 'LONG_CROSS_THIRD' = 'HIGH';
+        if (state.lastActionType === 'LONG_BALL') {
+          const crossThird =
+            (isInRegion(carrier.position, 'homeThird') && isInRegion(targetHex, 'awayThird')) ||
+            (isInRegion(carrier.position, 'awayThird') && isInRegion(targetHex, 'homeThird'));
+          accuracyType = crossThird ? 'LONG_CROSS_THIRD' : 'LONG_SAME_THIRD';
+        }
         const accuracyResult = validatePassAccuracy(carrier, accuracyType, d1, []);
         accurate = accuracyResult.accurate;
       }
 
       if (!accurate) {
         // D-05/PASS-05: inaccurate → LOOSE_BALL; ball stays at carrier position.
+        // HIGH_PASS: event was already logged at target selection (accurate: null); don't re-log.
+        const inaccuratePassType = state.lastActionType as 'HIGH_PASS' | 'LONG_BALL';
+        const inaccurateLog: readonly ActionEvent[] =
+          inaccuratePassType === 'HIGH_PASS'
+            ? [
+                ...state.eventLog,
+                {
+                  type: 'HP_ACCURACY' as const,
+                  passerId: state.highPassCarrierId ?? '',
+                  accurate: false,
+                  timestamp: Date.now(),
+                },
+              ]
+            : [
+                ...state.eventLog,
+                {
+                  type: inaccuratePassType,
+                  from: carrier.position,
+                  to: targetHex,
+                  accurate: false,
+                  timestamp: Date.now(),
+                },
+              ];
         return {
           ok: true,
           state: {
             ...state,
             phase: 'LOOSE_BALL',
-            ball: { position: state.ball.position, carrierId: null },
+            // HIGH_PASS: ball already at target (moved during repositioning); use state.ball.position.
+            // LONG_BALL: ball stays at carrier until accuracy check — scatter from targetHex.
+            ball: {
+              position: inaccuratePassType === 'LONG_BALL' ? targetHex : state.ball.position,
+              carrierId: null,
+            },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            lastActionType: 'DEFLECTION',
             actionCount: state.actionCount + passTimeCost,
             passTargetHex: null,
-            // lastActionType stays as-is until LOOSE_BALL resolves to DEFLECTION
+            eventLog: inaccurateLog,
           },
         };
       }
@@ -786,11 +851,58 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       );
       const interceptors = passResult.ok ? passResult.interceptors : [];
 
+      // Resolve pass type before the interception loop so early returns can use it.
+      const newLastActionType: LastActionType =
+        state.lastActionType !== null &&
+        (['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'] as string[]).includes(
+          state.lastActionType,
+        )
+          ? state.lastActionType
+          : 'STANDARD_PASS';
+
+      // Log the pass attempt — HIGH_PASS was already logged at target selection (handler), skip it.
+      const deliveredPassType = newLastActionType as
+        | 'STANDARD_PASS'
+        | 'HIGH_PASS'
+        | 'LONG_BALL'
+        | 'FIRST_TIME_PASS';
+      let newEventLog: readonly ActionEvent[];
+      if (deliveredPassType === 'HIGH_PASS') {
+        newEventLog = [
+          ...state.eventLog,
+          {
+            type: 'HP_ACCURACY' as const,
+            passerId: state.highPassCarrierId ?? '',
+            accurate: true,
+            timestamp: Date.now(),
+          },
+        ];
+      } else {
+        const passAttemptEvent: ActionEvent = {
+          type: deliveredPassType,
+          from: carrier.position,
+          to: targetHex,
+          accurate: true,
+          timestamp: Date.now(),
+        };
+        newEventLog = [...state.eventLog, passAttemptEvent];
+      }
+
       for (let i = 0; i < interceptors.length; i++) {
         const interceptor = interceptors[i]!;
         const die = state.preGeneratedInterceptionDice?.[i] ?? 3;
         const combined = computeCombinedScore(interceptor.tackling, die, []);
-        if (die === 6 || combined >= 10) {
+        const intercepted = die === 6 || combined >= 10;
+        const interceptionEvent: ActionEvent = {
+          type: 'STEAL_ATTEMPT',
+          defenderId: interceptor.id,
+          result: intercepted ? 'SUCCESS' : 'FAIL',
+          defenderDie: die,
+          defenderCombined: combined,
+          timestamp: Date.now(),
+        };
+        newEventLog = [...newEventLog, interceptionEvent];
+        if (intercepted) {
           // D-11/D-12: interception — first success wins; transfer possession.
           return {
             ok: true,
@@ -805,6 +917,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               passTargetHex: null,
               preGeneratedInterceptionDice: [],
               lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              eventLog: newEventLog,
             },
           };
         }
@@ -819,26 +932,53 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           p.position.r === targetHex.r,
       );
 
-      // D-14: ball delivered to passTargetHex.
-      const newLastActionType: LastActionType =
-        state.lastActionType !== null &&
-        (['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'FIRST_TIME_PASS'] as string[]).includes(
-          state.lastActionType,
-        )
-          ? state.lastActionType
-          : 'STANDARD_PASS';
+      // After HIGH_PASS, transition to HEADER (or LOOSE_BALL if no eligible players).
+      // All other pass types → PASS (neutral action choice).
+      if (newLastActionType === 'HIGH_PASS') {
+        // 5.1: check if any player from either team is within 2 hexes of the target
+        const homeEligible = state.pieces.some(
+          (p) => p.teamId === 'home' && hexDistance(p.position, targetHex) <= 2,
+        );
+        const awayEligible = state.pieces.some(
+          (p) => p.teamId === 'away' && hexDistance(p.position, targetHex) <= 2,
+        );
 
-      // After HIGH_PASS, transition to HEADER; all others → PASS (neutral action choice).
-      const newPhase: GamePhase = newLastActionType === 'HIGH_PASS' ? 'HEADER' : 'PASS';
+        if (!homeEligible && !awayEligible) {
+          // No eligible players → ball falls loose at target (no header contest)
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'LOOSE_BALL',
+              ball: { position: targetHex, carrierId: null },
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              lastActionType: 'DEFLECTION',
+              actionCount: state.actionCount + passTimeCost,
+              passTargetHex: null,
+              preGeneratedInterceptionDice: [],
+              eventLog: newEventLog,
+            },
+          };
+        }
 
-      // D-09/Pitfall 8: PASS never transitions to SHOT.
-      const headerFields =
-        newPhase === 'HEADER'
-          ? {
-              headerContestants: { home: null as string | null, away: null as string | null },
-              headerConfirmed: { home: false, away: false },
-            }
-          : {};
+        // 5.2: auto-confirm teams with no eligible players (they automatically decline)
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'HEADER',
+            ball: { position: targetHex, carrierId: null },
+            lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            lastActionType: newLastActionType,
+            actionCount: state.actionCount + passTimeCost,
+            passTargetHex: null,
+            preGeneratedInterceptionDice: [],
+            eventLog: newEventLog,
+            headerContestants: { home: [] as string[], away: [] as string[] },
+            headerConfirmed: { home: !homeEligible, away: !awayEligible },
+          },
+        };
+      }
 
       // TODO: FIRST_TIME_PLAYER_MOVES (PASS-02) deferred to Phase 8.3
       // The FIRST_TIME_PASS effect (mid-pass player movement) would be handled here.
@@ -847,14 +987,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         ok: true,
         state: {
           ...state,
-          phase: newPhase,
+          phase: 'PASS',
           ball: { position: targetHex, carrierId: teammate?.id ?? null },
           lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
           lastActionType: newLastActionType,
           actionCount: state.actionCount + passTimeCost,
           passTargetHex: null,
           preGeneratedInterceptionDice: [],
-          ...headerFields,
+          eventLog: newEventLog,
         },
       };
     }
@@ -923,6 +1063,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+            lastActionType: 'DEFLECTION',
             snapshotPenalty: false,
           },
         };
@@ -971,6 +1112,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               phase: 'LOOSE_BALL',
               ball: { position: gk.position, carrierId: null },
               lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
+              lastActionType: 'DEFLECTION',
               snapshotPenalty: false,
             },
           };
@@ -983,125 +1125,249 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
     // -------------------------------------------------------------------------
     // HEADER: reads per-team selected contestants from state.headerContestants (D-17)
+    // Each contestant rolls their own die; team winner = highest (die + heading).
+    // Intra-team tie: pick randomly. Cross-team tie: LOOSE_BALL.
     // GK aerial challenge deferred to 8.3 (D-22); attacker wins → PASS phase.
+    // dice[] layout: [atk_0, atk_1, ..., def_0, def_1, ...]
     // -------------------------------------------------------------------------
     case 'HEADER': {
-      // Determine which team is attacking and which is defending
       const defenderTeam = state.attackingTeam === 'home' ? 'away' : 'home';
 
-      // Read contestant IDs from state.headerContestants (set by GAME_HEADER_CONTESTANT handler)
-      const attackerContestantId =
+      const attackerContestantIds: string[] =
         state.attackingTeam === 'home'
-          ? (state.headerContestants?.home ?? null)
-          : (state.headerContestants?.away ?? null);
-      const defenderContestantId =
+          ? (state.headerContestants?.home ?? [])
+          : (state.headerContestants?.away ?? []);
+      const defenderContestantIds: string[] =
         defenderTeam === 'home'
-          ? (state.headerContestants?.home ?? null)
-          : (state.headerContestants?.away ?? null);
+          ? (state.headerContestants?.home ?? [])
+          : (state.headerContestants?.away ?? []);
 
-      // Resolve pieces from IDs (null id → undefined piece)
-      // If attacker did not select a contestant, fall back to ball carrier (they hold possession)
-      const attackerPiece =
-        attackerContestantId != null
-          ? state.pieces.find((p) => p.id === attackerContestantId)
-          : state.pieces.find((p) => p.id === state.ball.carrierId);
-      const defenderPiece =
-        defenderContestantId != null
-          ? state.pieces.find((p) => p.id === defenderContestantId)
-          : undefined;
+      const headerCleared = { headerContestants: null, headerConfirmed: null };
 
-      // Pre-generate all dice upfront (Pitfall 4) — only d1/d2 used in this branch
-      const attackerDice = d1;
-      const defenderDice = d2;
+      // Build per-contestant results: each rolls their die from the pre-generated dice array.
+      // dice[0..attackerCount-1] = attacker dice; dice[attackerCount..] = defender dice.
+      type CR = { piece: (typeof state.pieces)[number]; die: number; raw: number };
 
-      // Shared cleanup fields — cleared from state after any resolution (D-21)
-      const headerCleared = {
-        headerContestants: null,
-        headerConfirmed: null,
+      const buildResults = (ids: string[], offset: number): CR[] =>
+        ids
+          .map((id, i) => {
+            const piece = state.pieces.find((p) => p.id === id);
+            if (!piece) return null;
+            const die = dice[offset + i] ?? 3;
+            return { piece, die, raw: piece.heading + die };
+          })
+          .filter((r): r is CR => r !== null);
+
+      // Pick team winner: highest combined score; random tiebreak for same-score contestants.
+      const pickWinner = (results: CR[]): CR | undefined => {
+        if (results.length === 0) return undefined;
+        const max = Math.max(...results.map((r) => r.raw));
+        const tied = results.filter((r) => r.raw === max);
+        return tied[Math.floor(Math.random() * tied.length)];
       };
 
+      const atkCount = attackerContestantIds.length;
+      const attackerResults = buildResults(attackerContestantIds, 0);
+      const defenderResults = buildResults(defenderContestantIds, atkCount);
+
+      const attackerWinner = pickWinner(attackerResults);
+      const defenderWinner = pickWinner(defenderResults);
+
+      // If attacker declined, fall back to ball carrier (they hold possession uncontested)
+      const attackerFallback = state.pieces.find((p) => p.id === state.ball.carrierId);
+      const attackerPiece =
+        attackerWinner?.piece ?? (atkCount === 0 ? attackerFallback : undefined);
+      const defenderPiece = defenderWinner?.piece;
+
+      const fallbackRolls = [dice[0] ?? 3, dice[1] ?? 3];
+      const allRolls = [...attackerResults, ...defenderResults].map((r) => r.die);
+      const duelRolls = allRolls.length > 0 ? allRolls : fallbackRolls;
+
       // (c) Neither team selected → LOOSE_BALL from ball.position (D-19)
-      if (attackerContestantId === null && defenderContestantId === null) {
+      if (atkCount === 0 && defenderContestantIds.length === 0) {
         return {
           ok: true,
           state: {
             ...state,
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
-            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            lastDiceRoll: { rolls: fallbackRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             ...headerCleared,
           },
         };
       }
 
-      // (b) Uncontested — attacker selected, defender did not → auto-win, NO dice roll (HEAD-02)
-      if (defenderContestantId === null || defenderPiece === undefined) {
-        // Attacker wins without rolling dice (HEAD-02)
-        const winnerId = attackerContestantId ?? state.ball.carrierId ?? '';
+      // (b-def) Defender selected, attacker declined → defender wins uncontested
+      if (atkCount === 0 && defenderPiece !== undefined) {
         return {
           ok: true,
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: state.ball.position, carrierId: winnerId },
-            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            attackingTeam: defenderTeam,
+            activeTeam: defenderTeam,
+            ball: { position: defenderPiece.position, carrierId: defenderPiece.id },
+            lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
-            contestedPieceIds: attackerContestantId != null ? [attackerContestantId] : [],
+            contestedPieceIds: defenderContestantIds,
+            eventLog: [
+              ...state.eventLog,
+              {
+                type: 'HEADER' as const,
+                attackerId: null,
+                defenderId: defenderPiece.id,
+                result: 'DEFENDER_WIN' as const,
+                attackerDie: null,
+                attackerHeading: null,
+                attackerCombined: null,
+                defenderDie: null,
+                defenderHeading: null,
+                defenderCombined: null,
+                timestamp: Date.now(),
+              },
+            ],
             ...headerCleared,
           },
         };
       }
 
-      // (a) Both teams selected — run the contested duel (D-17)
-      // Apply HEAD-01 penalty via validateHeading for 2-hex distance
+      // (b) Attacker selected, defender declined → attacker wins uncontested (HEAD-02, no dice roll)
+      if (defenderContestantIds.length === 0 || defenderPiece === undefined) {
+        const winnerId = attackerPiece?.id ?? '';
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'PASS',
+            ball: { position: attackerPiece?.position ?? state.ball.position, carrierId: winnerId },
+            lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER',
+            contestedPieceIds: attackerContestantIds,
+            eventLog: [
+              ...state.eventLog,
+              {
+                type: 'HEADER' as const,
+                attackerId: winnerId,
+                defenderId: null,
+                result: 'ATTACKER_WIN' as const,
+                attackerDie: null,
+                attackerHeading: null,
+                attackerCombined: null,
+                defenderDie: null,
+                defenderHeading: null,
+                defenderCombined: null,
+                timestamp: Date.now(),
+              },
+            ],
+            ...headerCleared,
+          },
+        };
+      }
+
+      // (a) Both selected — contested duel between each team's winner (D-17)
       if (!attackerPiece) return { ok: false, reason: 'WRONG_PHASE' };
 
+      // Apply HEAD-01 distance penalty to the attacker winner
       const headResult = validateHeading(state, attackerPiece, state.ball.position, {
         previousActionWasHeadedPass: false,
         otherChallengerIds: [defenderPiece.id],
       });
-
-      // penaltyModifier: -1 if attacker is 2 hexes from ball (HEAD-01); 0 otherwise
       const penaltyMod = headResult.ok && headResult.contested ? headResult.penaltyModifier : 0;
 
-      const attackerScore = computeCombinedScore(attackerPiece.heading, attackerDice, [penaltyMod]);
-      const defenderScore = computeCombinedScore(defenderPiece.heading, defenderDice, []);
+      const attackerDie = attackerWinner!.die;
+      const defenderDie = defenderWinner!.die;
+      const attackerScore = computeCombinedScore(attackerPiece.heading, attackerDie, [penaltyMod]);
+      const defenderScore = computeCombinedScore(defenderPiece.heading, defenderDie, []);
 
-      // Build contestedPieceIds from the actually-selected ids (D-21)
-      const contestedIds = [attackerContestantId, defenderContestantId].filter(
-        (id): id is string => id != null,
-      );
+      const contestedIds = [...attackerContestantIds, ...defenderContestantIds];
 
-      if (attackerScore >= defenderScore) {
-        // Attacker wins (tie or higher) — D-22: possession returns to attacker, phase PASS
-        // GK aerial challenge deferred to plan 8.3
+      if (attackerScore > defenderScore) {
         return {
           ok: true,
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: state.ball.position, carrierId: attackerPiece.id },
-            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            ball: { position: attackerPiece.position, carrierId: attackerPiece.id },
+            lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
+            eventLog: [
+              ...state.eventLog,
+              {
+                type: 'HEADER' as const,
+                attackerId: attackerPiece.id,
+                defenderId: defenderPiece.id,
+                result: 'ATTACKER_WIN' as const,
+                attackerDie,
+                attackerHeading: attackerPiece.heading,
+                attackerCombined: attackerScore,
+                defenderDie,
+                defenderHeading: defenderPiece.heading,
+                defenderCombined: defenderScore,
+                timestamp: Date.now(),
+              },
+            ],
             ...headerCleared,
           },
         };
-      } else {
-        // Defender wins — MOVEMENT phase, no possession for attacker
+      } else if (attackerScore === defenderScore) {
         return {
           ok: true,
           state: {
             ...state,
-            phase: 'MOVEMENT',
-            movementSlot: 'ATTACKER_4',
-            movedPieceIds: [],
-            paceUsedByPieceId: {},
+            phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
-            lastDiceRoll: { rolls: [attackerDice, defenderDice], context: 'HEADING_DUEL' },
+            lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
+            eventLog: [
+              ...state.eventLog,
+              {
+                type: 'HEADER' as const,
+                attackerId: attackerPiece.id,
+                defenderId: defenderPiece.id,
+                result: 'TIE' as const,
+                attackerDie,
+                attackerHeading: attackerPiece.heading,
+                attackerCombined: attackerScore,
+                defenderDie,
+                defenderHeading: defenderPiece.heading,
+                defenderCombined: defenderScore,
+                timestamp: Date.now(),
+              },
+            ],
+            ...headerCleared,
+          },
+        };
+      } else {
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'PASS',
+            attackingTeam: defenderTeam,
+            activeTeam: defenderTeam,
+            ball: { position: defenderPiece.position, carrierId: defenderPiece.id },
+            lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
+            lastActionType: 'HEADER',
+            contestedPieceIds: contestedIds,
+            eventLog: [
+              ...state.eventLog,
+              {
+                type: 'HEADER' as const,
+                attackerId: attackerPiece.id,
+                defenderId: defenderPiece.id,
+                result: 'DEFENDER_WIN' as const,
+                attackerDie,
+                attackerHeading: attackerPiece.heading,
+                attackerCombined: attackerScore,
+                defenderDie,
+                defenderHeading: defenderPiece.heading,
+                defenderCombined: defenderScore,
+                timestamp: Date.now(),
+              },
+            ],
             ...headerCleared,
           },
         };
@@ -1130,17 +1396,32 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // hexLine returns [start, ..., end]; slice(1) drops the start (ball is there, no carrier).
       const trajectory = hexLine(state.ball.position, landing).slice(1);
 
-      let finalPosition = landing;
+      let finalPosition = state.ball.position;
       let finalCarrierId: string | null = null;
 
       for (const hex of trajectory) {
+        // Stop immediately when the trajectory exits the pitch boundary
+        if (!isPitchHex(hex)) break;
+        finalPosition = hex;
         const occupant = state.pieces.find((p) => p.position.q === hex.q && p.position.r === hex.r);
         if (occupant) {
-          finalPosition = hex;
           finalCarrierId = occupant.id;
           break;
         }
       }
+
+      const looseBallLandEvent: ActionEvent = {
+        type: 'LOOSE_BALL_LAND',
+        from: state.ball.position,
+        to: finalPosition,
+        timestamp: Date.now(),
+      };
+
+      // If ball lands on a piece, that piece's team becomes the attacking team
+      const looseBallCarrier = finalCarrierId
+        ? state.pieces.find((p) => p.id === finalCarrierId)
+        : null;
+      const newAttackingTeam = looseBallCarrier ? looseBallCarrier.teamId : state.attackingTeam;
 
       return {
         ok: true,
@@ -1148,10 +1429,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ...state,
           phase: 'PASS', // D-23/D-24: LOOSE_BALL resolves to PASS (not MOVEMENT)
           ball: { position: finalPosition, carrierId: finalCarrierId },
-          attackingTeam: state.attackingTeam, // unchanged
+          attackingTeam: newAttackingTeam,
+          activeTeam: newAttackingTeam,
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
           lastActionType: 'DEFLECTION', // D-20/D-23/D-24: LOOSE_BALL resolves → DEFLECTION
           // actionCount unchanged (+0 for Deflection per D-03 table)
+          eventLog: [...state.eventLog, looseBallLandEvent],
         },
       };
     }

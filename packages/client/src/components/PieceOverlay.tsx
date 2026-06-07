@@ -35,8 +35,8 @@ export function PieceOverlay({
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
-  // Player number: everything after the last '-': 'home-10' → '10', 'away-0' → '0'
-  const playerNumber = piece.id.slice(piece.id.lastIndexOf('-') + 1);
+  // Player number: 1-based — 'home-0' (GK) → '1', 'home-10' → '11'
+  const playerNumber = String(Number(piece.id.slice(piece.id.lastIndexOf('-') + 1)) + 1);
 
   // GK pieces use distinctive colors regardless of team (physical board convention)
   // Outfield: home = blue, away = red
@@ -61,7 +61,7 @@ export function PieceOverlay({
   // Dot direction: home team attacks right (higher q) → bottom-right (+x, +y)
   // Away team attacks left (lower q) → bottom-left (-x, +y) — keyed off teamId per Open Question 3
   void attackingTeam; // direction uses piece.teamId per Open Question 3; prop kept for future overrides (D-16)
-  const PIECE_RADIUS = 10;
+  const PIECE_RADIUS = 12;
   const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.55 : -(PIECE_RADIUS * 0.55);
   const dotOffsetY = PIECE_RADIUS * 0.55;
 
@@ -71,7 +71,7 @@ export function PieceOverlay({
       <circle
         cx={cx}
         cy={cy}
-        r={10}
+        r={PIECE_RADIUS}
         fill={fill}
         stroke={stroke}
         strokeWidth={1.5}
@@ -86,7 +86,7 @@ export function PieceOverlay({
         <circle
           cx={cx}
           cy={cy}
-          r={12}
+          r={PIECE_RADIUS + 2}
           fill="none"
           stroke="#f5c518"
           strokeWidth={2}
@@ -98,7 +98,7 @@ export function PieceOverlay({
         <circle
           cx={cx}
           cy={cy}
-          r={14}
+          r={PIECE_RADIUS + 4}
           fill="none"
           stroke="#22c55e"
           strokeWidth={2.5}
@@ -110,7 +110,7 @@ export function PieceOverlay({
         <circle
           cx={cx + dotOffsetX}
           cy={cy + dotOffsetY}
-          r={3.5}
+          r={PIECE_RADIUS * 0.35}
           fill="#ffffff"
           stroke="rgba(0,0,0,0.5)"
           strokeWidth={1}
@@ -120,7 +120,7 @@ export function PieceOverlay({
       {/* Spent indicator — red X when piece has used its activation this movement phase */}
       {isSpent && (
         <path
-          d={`M${cx - 7} ${cy - 7} L${cx + 7} ${cy + 7} M${cx + 7} ${cy - 7} L${cx - 7} ${cy + 7}`}
+          d={`M${cx - PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7} M${cx + PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7}`}
           stroke="#ef4444"
           strokeWidth={2.5}
           strokeLinecap="round"
@@ -133,7 +133,7 @@ export function PieceOverlay({
         y={cy}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={9}
+        fontSize={15}
         fontWeight={700}
         fill="#ffffff"
         fontStyle={piece.role === 'GK' ? 'italic' : 'normal'}

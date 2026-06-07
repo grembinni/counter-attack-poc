@@ -83,11 +83,11 @@ export interface ClientToServerEvents {
   /** Restart movement phase from ATTACKER_4 — clears movedPieceIds and pace tracking. */
   [ClientEvents.GAME_RESTART_MOVEMENT]: () => void;
   /**
-   * D-17 (Phase 8.2): Client selects their header contestant piece.
-   * pieceId: the selected piece's ID, or null to deselect/pass.
-   * Server validates piece ownership (piece belongs to socket's team).
+   * D-17 (Phase 8.2): Client confirms their header contestant selection.
+   * pieceIds: array of selected piece IDs (multiple allowed); empty array or null = decline.
+   * Server validates piece ownership (all pieces must belong to socket's team).
    */
-  [ClientEvents.GAME_HEADER_CONTESTANT]: (pieceId: string | null) => void;
+  [ClientEvents.GAME_HEADER_CONTESTANT]: (pieceIds: string[] | null) => void;
 }
 
 /**

@@ -15,7 +15,7 @@ export function GoalNets() {
       {/* Home goal net — left end of pitch */}
       <rect
         x={-30}
-        y={346.4}
+        y={329.1}
         width={20}
         height={242.5}
         fill="url(#goal-net)"
@@ -27,7 +27,7 @@ export function GoalNets() {
       {/* Away goal net — right end of pitch */}
       <rect
         x={1090}
-        y={346.4}
+        y={329.1}
         width={20}
         height={242.5}
         fill="url(#goal-net)"

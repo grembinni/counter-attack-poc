@@ -71,8 +71,12 @@ export function HexGrid() {
   const confirmPassTarget = useGameStore((s) => s.confirmPassTarget);
 
   // Phase 8.2: header contestant (D-17)
-  const headerContestantId = useGameStore((s) => s.headerContestantId);
-  const setHeaderContestantId = useGameStore((s) => s.setHeaderContestantId);
+  const headerContestantIds = useGameStore((s) => s.headerContestantIds);
+  const toggleHeaderContestantId = useGameStore((s) => s.toggleHeaderContestantId);
+  const headerConfirmed = useGameStore((s) => s.gameState.headerConfirmed);
+  // HIGH_PASS_MOVEMENT: track locked piece and pace so selection gating + spent X match server rule
+  const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
+  const highPassPaceUsed = useGameStore((s) => s.gameState.highPassPaceUsed);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -152,7 +156,11 @@ export function HexGrid() {
               shotTargetHighlight !== null &&
               hex.q === shotTargetHighlight.q &&
               hex.r === shotTargetHighlight.r;
-            const isHighlighted = isValidMove || isGoalHex || isShotTarget;
+            // Suppress gold move highlights during HIGH_PASS_MOVEMENT — separate subtle overlay below
+            const isHighlighted =
+              (phase !== 'HIGH_PASS_MOVEMENT' && isValidMove) || isGoalHex || isShotTarget;
+            const isHpMoveTarget =
+              phase === 'HIGH_PASS_MOVEMENT' && selectedPieceId !== null && isValidMove;
 
             // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
             const isPassTarget =
@@ -253,6 +261,28 @@ export function HexGrid() {
                     pointerEvents="none"
                   />
                 )}
+                {/* HEADER phase: gold overlay on ball position hex so players can see where the ball landed */}
+                {phase === 'HEADER' && hex.q === ball.position.q && hex.r === ball.position.r && (
+                  <polygon
+                    points={points}
+                    fill="#f5c518"
+                    fillOpacity={0.5}
+                    stroke="#f5c518"
+                    strokeWidth={2}
+                    pointerEvents="none"
+                  />
+                )}
+                {/* HIGH_PASS_MOVEMENT: subtle white tint on valid repositioning hexes (distinct from gold move highlight) */}
+                {isHpMoveTarget && (
+                  <polygon
+                    points={points}
+                    fill="rgba(255,255,255,0.18)"
+                    stroke="rgba(255,255,255,0.5)"
+                    strokeWidth={1}
+                    onClick={onClick}
+                    style={{ cursor: onClick ? 'pointer' : 'default' }}
+                  />
+                )}
                 {/* Phase 8.2 D-06: safe pass target — green tint, handles click */}
                 {isPassTarget && !isInterceptionRisk && !isConfirmedPassTarget && (
                   <polygon
@@ -308,28 +338,62 @@ export function HexGrid() {
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
+            // HIGH_PASS_MOVEMENT: active team selects 1 own piece to reposition up to 3 hexes
+            const canSelectHighPassMove =
+              phase === 'HIGH_PASS_MOVEMENT' &&
+              isActivePlayer &&
+              myTeam !== null &&
+              piece.teamId === myTeam &&
+              (highPassMovedPieceId === null || highPassMovedPieceId === piece.id);
 
-            // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant
+            // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant.
+            // Both teams select independently; gated on not yet confirmed for this team.
             const isHeaderPhase = phase === 'HEADER';
             const isOwnPiece = myTeam !== null && piece.teamId === myTeam;
+            const myTeamConfirmed =
+              isHeaderPhase && myTeam !== null ? (headerConfirmed?.[myTeam] ?? false) : false;
             const isHeaderEligible =
-              isActivePlayer &&
               isHeaderPhase &&
+              !myTeamConfirmed &&
               isOwnPiece &&
               hexDistance(piece.position, ball.position) <= 2;
-            const isHeaderContestant = isHeaderPhase && piece.id === headerContestantId;
+            const isHeaderContestant = isHeaderPhase && headerContestantIds.includes(piece.id);
 
-            const isClickable = canSelect || canSelectKickOff || isHeaderEligible;
-            const handleClick = isHeaderEligible
+            // Pass targeting: clicking a piece on a valid pass target hex is the same as clicking that hex.
+            const pieceHexId = `${piece.position.q},${piece.position.r}`;
+            const isPassTargetPiece =
+              isActivePlayer && selectedPassType !== null && validPassTargetHexSet.has(pieceHexId);
+            const pieceHexConfirmed =
+              isPassTargetPiece &&
+              passTargetHex !== null &&
+              passTargetHex.q === piece.position.q &&
+              passTargetHex.r === piece.position.r;
+
+            const isClickable =
+              isPassTargetPiece ||
+              canSelect ||
+              canSelectKickOff ||
+              isHeaderEligible ||
+              canSelectHighPassMove;
+            const handleClick = isPassTargetPiece
               ? () => {
-                  // Toggle: clicking selected contestant deselects; clicking another selects it
-                  setHeaderContestantId(headerContestantId === piece.id ? null : piece.id);
+                  if (pieceHexConfirmed) {
+                    setPassTargetHex(null);
+                  } else if (passTargetHex === null) {
+                    confirmPassTarget(piece.position);
+                  }
                 }
-              : canSelectKickOff
+              : canSelectHighPassMove
                 ? () => selectPiece(piece.id)
-                : canSelect
-                  ? () => selectPiece(piece.id)
-                  : () => undefined;
+                : isHeaderEligible
+                  ? () => {
+                      toggleHeaderContestantId(piece.id);
+                    }
+                  : canSelectKickOff
+                    ? () => selectPiece(piece.id)
+                    : canSelect
+                      ? () => selectPiece(piece.id)
+                      : () => undefined;
 
             return (
               <PieceOverlay
@@ -341,7 +405,11 @@ export function HexGrid() {
                 onInspect={() => inspectPiece(piece.id)}
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
-                isSpent={movedPieceIds.includes(piece.id)}
+                isSpent={
+                  phase === 'HIGH_PASS_MOVEMENT'
+                    ? piece.id === highPassMovedPieceId && (highPassPaceUsed ?? 0) >= 3
+                    : movedPieceIds.includes(piece.id)
+                }
                 isHeaderContestant={isHeaderContestant}
               />
             );

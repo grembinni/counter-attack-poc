@@ -9,6 +9,7 @@ import {
   isInRegion,
   validatePass,
   hexLine,
+  hexDistance,
   getZoIDefenders,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
@@ -19,6 +20,7 @@ export type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG
 
 /** Screen states for client-side routing (D-12). No React Router — screen field in store. */
 export type Screen =
+  | 'LANDING'
   | 'CREATE_ROOM'
   | 'JOIN_ROOM'
   | 'WAITING'
@@ -56,8 +58,8 @@ export type GameStore = {
   passTargetHex: HexCoord | null;
   /** Phase 8.2 D-06: currently selected pass type driving the target highlights. */
   selectedPassType: PassType | null;
-  /** Phase 8.2 D-17: ID of the piece this client has toggled as header contestant. */
-  headerContestantId: string | null;
+  /** Phase 8.2 D-17: IDs of pieces this client has selected as header contestants (multiple allowed). */
+  headerContestantIds: string[];
   /** Navigate to a different screen (D-12). */
   setScreen: (s: Screen) => void;
   /**
@@ -74,10 +76,10 @@ export type GameStore = {
    * HIGH/LONG_BALL: sets passTargetHex so ActionPanel step 3 shows Roll Dice.
    */
   confirmPassTarget: (hex: HexCoord) => void;
-  /** Phase 8.2 D-17: Update the local header contestant piece ID and emit to server. */
-  emitHeaderContestant: (pieceId: string | null) => void;
-  /** Phase 8.2 D-17: Set the header contestant piece ID in local store only (for HexGrid toggle). */
-  setHeaderContestantId: (id: string | null) => void;
+  /** Phase 8.2 D-17: Emit confirmed contestant array to server (send current headerContestantIds or empty = decline). */
+  emitHeaderContestant: (pieceIds: string[]) => void;
+  /** Phase 8.2 D-17: Toggle a piece in/out of the local headerContestantIds array. */
+  toggleHeaderContestantId: (id: string) => void;
   /**
    * Select or deselect a piece. Toggles off if already selected (D-07).
    * Computes valid move destinations via hexesInRange + validateMove (client-side, D-07).
@@ -141,7 +143,7 @@ export type GameStore = {
  */
 export const useGameStore = create<GameStore>()((set, get) => ({
   gameState: mockMovementState,
-  screen: 'CREATE_ROOM',
+  screen: 'LANDING',
   selectedPieceId: null,
   validMoveHexes: [],
   tackleRiskHexes: [],
@@ -155,7 +157,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   interceptionRiskHexes: [],
   passTargetHex: null,
   selectedPassType: null,
-  headerContestantId: null,
+  headerContestantIds: [],
 
   setScreen: (s) => set({ screen: s }),
 
@@ -193,14 +195,36 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
       validTargets.push(hex);
 
-      // D-09: check if any travel-path hex (including destination) is adjacent to a defender
-      // slice(1) excludes only the passer's hex — mirrors the server's interceptors list logic
-      const travelPath = hexLine(carrier.position, hex).slice(1);
-      const hasInterceptionRisk = travelPath.some(
-        (pathHex) => getZoIDefenders(pathHex, opponents).length > 0,
-      );
-      if (hasInterceptionRisk) {
-        interceptionRisk.push(hex);
+      if (passType === 'LONG_BALL') {
+        // Long ball cannot be intercepted. Show orange only on final-third hexes
+        // when the passer is in their own first third (ambitious long-range play indicator).
+        const passerInOwnThird =
+          carrier.teamId === 'home'
+            ? isInRegion(carrier.position, 'homeThird')
+            : isInRegion(carrier.position, 'awayThird');
+        const hexInOpponentFinalThird =
+          carrier.teamId === 'home' ? isInRegion(hex, 'awayThird') : isInRegion(hex, 'homeThird');
+        if (passerInOwnThird && hexInOpponentFinalThird) {
+          interceptionRisk.push(hex);
+        }
+      } else if (passType === 'HIGH_PASS') {
+        // High pass cannot be intercepted in flight, but opponents within 2 hexes of the
+        // landing hex can contest the header — show those targets as orange (contest risk).
+        const hasNearbyOpponent = opponents.some((o) => hexDistance(o.position, hex) <= 2);
+        if (hasNearbyOpponent) {
+          interceptionRisk.push(hex);
+        }
+      } else {
+        // STANDARD / FIRST_TIME: check if any travel-path hex is adjacent to a defender
+        const travelPath = hexLine(carrier.position, hex).slice(1);
+        const hasInterceptionRisk = travelPath.some(
+          (pathHex) =>
+            getZoIDefenders(pathHex, opponents).length > 0 ||
+            opponents.some((o) => o.position.q === pathHex.q && o.position.r === pathHex.r),
+        );
+        if (hasInterceptionRisk) {
+          interceptionRisk.push(hex);
+        }
       }
     }
 
@@ -216,7 +240,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   confirmPassTarget: (hex) => {
     const { selectedPassType } = get();
-    if (selectedPassType === 'STANDARD_PASS' || selectedPassType === 'FIRST_TIME_PASS') {
+    // All pass types auto-emit GAME_ROLL on target confirm — no Roll Dice button.
+    // HIGH_PASS: server transitions to HIGH_PASS_MOVEMENT; LONG_BALL: accuracy checked server-side.
+    if (
+      selectedPassType === 'STANDARD_PASS' ||
+      selectedPassType === 'FIRST_TIME_PASS' ||
+      selectedPassType === 'HIGH_PASS' ||
+      selectedPassType === 'LONG_BALL'
+    ) {
       socket.emit(ClientEvents.GAME_ROLL, selectedPassType, hex);
       set({
         selectedPassType: null,
@@ -229,11 +260,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     }
   },
 
-  emitHeaderContestant: (pieceId) => {
-    socket.emit(ClientEvents.GAME_HEADER_CONTESTANT, pieceId);
+  emitHeaderContestant: (pieceIds) => {
+    socket.emit(ClientEvents.GAME_HEADER_CONTESTANT, pieceIds);
   },
 
-  setHeaderContestantId: (id) => set({ headerContestantId: id }),
+  toggleHeaderContestantId: (id) =>
+    set((state) => ({
+      headerContestantIds: state.headerContestantIds.includes(id)
+        ? state.headerContestantIds.filter((x) => x !== id)
+        : [...state.headerContestantIds, id],
+    })),
 
   selectPiece: (id) => {
     const { gameState, selectedPieceId, playerSlot } = get();
@@ -270,6 +306,40 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           // Attacking: q ≥ 18; defending: strictly q > 18 and not in centre circle
           return isAttacking ? hex.q >= kickOffHex.q : hex.q > kickOffHex.q && !inCentre;
         }
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
+    // HIGH_PASS_MOVEMENT: 1 piece per team, up to 3 hexes, any direction
+    if (gameState.phase === 'HIGH_PASS_MOVEMENT') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // Only own team pieces can be selected
+      if (piece.teamId !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // If a different piece is already locked in for this slot, reject selection
+      const lockedId = gameState.highPassMovedPieceId ?? null;
+      if (lockedId !== null && lockedId !== id) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const paceRemaining = 3 - (gameState.highPassPaceUsed ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      // Valid destinations: adjacent hexes on pitch not occupied by another piece
+      const valid = hexesInRange(piece.position, 1).filter((hex) => {
+        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+        if (
+          gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          )
+        )
+          return false;
+        return hexDistance(piece.position, hex) === 1;
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
@@ -329,13 +399,43 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         validPassTargetHexes: [],
         interceptionRiskHexes: [],
         passTargetHex: null,
-        headerContestantId: null,
+        headerContestantIds: [],
       });
       return;
     }
 
     // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
+
+    // HIGH_PASS_MOVEMENT: re-run phase-specific valid move logic (validateMove is MOVEMENT-only)
+    if (newState.phase === 'HIGH_PASS_MOVEMENT') {
+      const paceRemaining = 3 - (newState.highPassPaceUsed ?? 0);
+      const lockedId = newState.highPassMovedPieceId ?? null;
+      const locked = lockedId !== null && lockedId !== prevSelectedId;
+      const stickyValid =
+        locked || paceRemaining <= 0
+          ? []
+          : hexesInRange(piece.position, 1).filter((hex) => {
+              if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+              if (
+                newState.pieces.some(
+                  (p) =>
+                    p.id !== prevSelectedId && p.position.q === hex.q && p.position.r === hex.r,
+                )
+              )
+                return false;
+              return hexDistance(piece.position, hex) === 1;
+            });
+      set({
+        gameState: newState,
+        selectedPieceId: prevSelectedId,
+        validMoveHexes: stickyValid,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+      });
+      return;
+    }
+
     const stickyResults = hexesInRange(piece.position, 1).map((hex) => ({
       hex,
       result: validateMove(newState, piece, hex),

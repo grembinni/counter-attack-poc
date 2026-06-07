@@ -1175,13 +1175,13 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
 });
 
 describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
-  it('D-17: both selected — attacker wins on tie, phase becomes PASS, contestedPieceIds set', () => {
-    // homeFwd heading=6 + die=5 = 11; awayDef heading=7 + die=4 = 11 — TIE → attacker wins
+  it('D-17: both selected, attacker wins outright — phase becomes PASS, contestedPieceIds set', () => {
+    // homeFwd heading=6 + die=6 = 12; awayDef heading=7 + die=4 = 11 — attacker wins
     const state = makeHeaderState({
-      headerContestants: { home: 'home-fwd', away: 'away-def' },
+      headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerConfirmed: { home: true, away: true },
     });
-    const result = applyRoll(state, 5, 4, 3); // d1=5 (attacker), d2=4 (defender), d3 unused
+    const result = applyRoll(state, 6, 4, 3); // d1=6 (attacker→12), d2=4 (defender→11)
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // D-22: attacker wins → PASS (headed-shot/GK aerial deferred to 8.3)
@@ -1195,10 +1195,26 @@ describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
     expect(result.state.headerConfirmed ?? null).toBeNull();
   });
 
+  it('D-13: both selected, TIE — phase becomes LOOSE_BALL, contestedPieceIds set', () => {
+    // homeFwd heading=6 + die=5 = 11; awayDef heading=7 + die=4 = 11 — TIE → LOOSE_BALL
+    const state = makeHeaderState({
+      headerContestants: { home: ['home-fwd'], away: ['away-def'] },
+      headerConfirmed: { home: true, away: true },
+    });
+    const result = applyRoll(state, 5, 4, 3); // d1=5 (attacker→11), d2=4 (defender→11)
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.contestedPieceIds).toContain('home-fwd');
+    expect(result.state.contestedPieceIds).toContain('away-def');
+    expect(result.state.headerContestants ?? null).toBeNull();
+  });
+
   it('D-19: uncontested — attacker auto-wins with NO dice roll (HEAD-02); phase becomes PASS', () => {
     // Defender did not select (away: null)
     const state = makeHeaderState({
-      headerContestants: { home: 'home-fwd', away: null },
+      headerContestants: { home: ['home-fwd'], away: [] },
       headerConfirmed: { home: true, away: false },
     });
     // Pass impossible dice (d1=1) — auto-win must NOT depend on attacker die
@@ -1218,7 +1234,7 @@ describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
   it('D-19: neither team selected — phase becomes LOOSE_BALL', () => {
     // Both home and away did not select contestants
     const state = makeHeaderState({
-      headerContestants: { home: null, away: null },
+      headerContestants: { home: [], away: [] },
       headerConfirmed: { home: false, away: false },
     });
     const result = applyRoll(state, 3, 3, 3);
@@ -1233,14 +1249,14 @@ describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
   it('D-17: contested duel — defender wins — phase becomes MOVEMENT with attacker-loses path', () => {
     // homeFwd heading=6 + die=1 = 7; awayDef heading=7 + die=5 = 12 — defender wins
     const state = makeHeaderState({
-      headerContestants: { home: 'home-fwd', away: 'away-def' },
+      headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerConfirmed: { home: true, away: true },
     });
     const result = applyRoll(state, 1, 5, 3); // attacker=6+1=7, defender=7+5=12
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Defender wins outfield duel → MOVEMENT (no possession for attacker)
-    expect(result.state.phase).toBe('MOVEMENT');
+    // Defender wins outfield duel → PASS with defending team now attacking
+    expect(result.state.phase).toBe('PASS');
     // contestedPieceIds still set to the participants
     expect(result.state.contestedPieceIds).toContain('home-fwd');
     expect(result.state.contestedPieceIds).toContain('away-def');

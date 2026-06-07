@@ -46,7 +46,7 @@ export function App() {
         setPlayerSlot(slot);
       }
       const s = useGameStore.getState().screen;
-      if (slot === 1 && s === 'CREATE_ROOM') setScreen('WAITING');
+      if (slot === 1 && (s === 'LANDING' || s === 'CREATE_ROOM')) setScreen('WAITING');
     }
 
     function onRoomError(reason: string) {
