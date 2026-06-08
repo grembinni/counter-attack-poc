@@ -163,8 +163,8 @@ describe('applyStartMovement', () => {
     if (result.ok) {
       expect(result.state.phase).toBe('MOVEMENT');
       expect(result.state.movementSlot).toBe('ATTACKER_4');
-      expect(result.state.eventLog).toHaveLength(1);
-      expect(result.state.eventLog[0]?.type).toBe('KICK_OFF');
+      // KICK_OFF event is now logged in the GAME_READY handler (not applyStartMovement)
+      expect(result.state.eventLog).toHaveLength(0);
     }
   });
 

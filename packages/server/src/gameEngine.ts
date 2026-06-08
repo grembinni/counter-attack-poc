@@ -171,12 +171,6 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
     if (kicker) newBall = { ...state.ball, carrierId: kicker.id };
   }
 
-  // Log KICK_OFF event for KICK_OFF and PASS transitions; LOOSE_BALL pickup start needs no marker.
-  const newEventLog: readonly ActionEvent[] =
-    state.phase !== 'LOOSE_BALL'
-      ? [...state.eventLog, { type: 'KICK_OFF' as const, timestamp: Date.now() }]
-      : state.eventLog;
-
   return {
     ok: true,
     state: {
@@ -185,7 +179,7 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       movementSlot: 'ATTACKER_4',
       activeTeam: state.attackingTeam,
       ball: newBall,
-      eventLog: newEventLog,
+      eventLog: state.eventLog,
       // D-21 / HEAD-05: clear contestedPieceIds after one Movement Phase so the exclusion
       // applies to exactly one movement sequence. applyMove checks contestedPieceIds to
       // reject contested pieces at move-time (Pitfall 6 — cleared here, not in HEADER branch).

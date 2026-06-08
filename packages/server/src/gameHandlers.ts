@@ -891,6 +891,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           attackingTeam: kicker ? kicker.teamId : room.gameState.attackingTeam,
           activeTeam: kicker ? kicker.teamId : room.gameState.activeTeam,
           lastActionType: null, // D-10: fresh sequence at kick-off
+          eventLog: [
+            ...room.gameState.eventLog,
+            { type: 'KICK_OFF' as const, timestamp: Date.now() },
+          ],
         };
         room.readyPlayers = null; // clear for next use
       }
