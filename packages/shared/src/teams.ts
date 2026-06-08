@@ -26,7 +26,8 @@ import type { PlayerPiece } from './types.js';
 // Home half: GK q=1, DEF q=5, MID q=10, FWD q=15, ST q=18 (kickoff) or q=15 (defending).
 // Away mirrors: q_away = 36 - q_home.
 // r-values: DEF r=4,13,22  MID r=9,17  FWD r=4,9,17,22  ST r=13 (centre or edge of circle).
-// ST position is overridden in buildInitialGameState based on the coin-flip result.
+// ST position is overridden in buildInitialGameState based on the coin-flip result:
+//   attacking ST → {q:18,r:13} (kickoff hex); defending ST → {q:14,r:13} or {q:22,r:13} (just outside circle).
 
 /** Home squad: 11 players, ids 'home-0'..'home-10'. TEAM-01, TEAM-02.
  *  3-2-4-1 formation.
@@ -322,7 +323,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away ST',
     role: 'ST',
-    position: { q: 21, r: 13 }, // default: defending (away-side edge of centre circle); overridden by coin flip
+    position: { q: 22, r: 13 }, // default: defending (away-side, just outside centre circle); overridden by coin flip
     pace: 4,
     shooting: 3,
     tackling: 5,

@@ -82,10 +82,10 @@ export function buildInitialGameState(roomCode: string): GameState {
   if (homeST && awayST) {
     if (attackingTeam === 'home') {
       homeST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
-      awayST.position = { q: 21, r: 13 }; // away-side edge of centre circle
+      awayST.position = { q: 22, r: 13 }; // away-side, just outside centre circle
     } else {
       awayST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
-      homeST.position = { q: 15, r: 13 }; // home-side edge of centre circle
+      homeST.position = { q: 14, r: 13 }; // home-side, just outside centre circle
     }
   }
 
