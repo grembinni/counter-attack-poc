@@ -11,7 +11,7 @@
 - [x] **Phase 7: Client-Server Integration** — Zustand + Socket.io wired to live server, click handlers, undo, connection status, first playable local session (completed 2026-06-03)
 - [x] **Phase 7.1: UI Cleanup** — Address UX rough edges found during Phase 7 UAT: lobby flow, join UX, connection status, team positioning, and visual polish (INSERTED) (completed 2026-06-04)
 - [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
-- [ ] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED)
+- [x] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED) (completed 2026-06-05)
 - [x] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED) (completed 2026-06-07)
 - [x] **Phase 9: Render Deployment** — Single Render web service (Express serves built React SPA + Socket.io), render.yaml IaC, GitHub Actions CI gate, health check, same-origin WebSocket (completed 2026-06-08)
 - [ ] **Phase 10: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items
@@ -268,7 +268,7 @@ Plans:
 **Goal:** Fix four foundational gameplay issues: (1) all player attributes corrected to 1–6 scale with tier-balanced squads; (2) steal attempt changed to a dribbling-vs-tackling duel; (3) movement UX fixed so pieces stay selected after each step; (4) ZoI hexes visually distinct from safe move hexes.
 **Requirements**: MOVE-04, MOVE-05, TEAM-01, TEAM-02
 **Depends on:** Phase 8
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 
@@ -279,7 +279,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 — client imports extended shared types)_
 
-- [ ] 08.1-03-PLAN.md — Client UX: sticky selection, ZoI-risk hex tint, directional ball possession dot + human verify (D-15..D-21, MOVE-05)
+- [x] 08.1-03-PLAN.md — Client UX: sticky selection, ZoI-risk hex tint, directional ball possession dot + human verify (D-15..D-21, MOVE-05)
 
 ### Phase 08.2: Passing Cleanup (INSERTED)
 
@@ -364,7 +364,7 @@ Plans:
 | 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
 | 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
 | 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
-| 8.1. Cleanup — Player Stats, Movement       | 2/3            | In Progress | -          |
+| 8.1. Cleanup — Player Stats, Movement       | 3/3            | Complete    | 2026-06-05 |
 | 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
 | 9. Render Deployment                        | 2/2            | Complete    | 2026-06-08 |
 | 10. Remaining Action Flows + Tech Debt      | 0/0            | Not started | -          |

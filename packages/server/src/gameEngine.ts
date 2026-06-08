@@ -75,12 +75,26 @@ function activeTeamForSlot(state: GameState): 'home' | 'away' {
 export function buildInitialGameState(roomCode: string): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
+  // Build mutable piece array so ST positions can be set based on who kicks off.
+  const pieces = [...HOME_SQUAD, ...AWAY_SQUAD].map((p) => ({ ...p }));
+  const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
+  const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
+  if (homeST && awayST) {
+    if (attackingTeam === 'home') {
+      homeST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
+      awayST.position = { q: 21, r: 13 }; // away-side edge of centre circle
+    } else {
+      awayST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
+      homeST.position = { q: 15, r: 13 }; // home-side edge of centre circle
+    }
+  }
+
   return {
     roomCode,
     phase: 'KICK_OFF_SETUP', // D-23: both teams reposition before kick-off; ready confirms advance
     activeTeam: attackingTeam,
     attackingTeam,
-    pieces: [...HOME_SQUAD, ...AWAY_SQUAD], // TEAM-01: all 22 loaded at match start
+    pieces, // TEAM-01: all 22 loaded at match start; ST positioned by coin flip
     ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
     score: { home: 0, away: 0 },
     actionCount: 0,

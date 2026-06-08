@@ -23,7 +23,7 @@ export type PlayerPiece = {
   /** Player display name (e.g. 'Home GK', 'Away FWD 1'). TEAM-02 */
   name: string;
   /** Positional role. TEAM-02 */
-  role: 'GK' | 'DEF' | 'MID' | 'FWD';
+  role: 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST';
 };
 
 export type BallState = {

@@ -6,7 +6,7 @@ status: ready_to_plan
 last_updated: '2026-06-07T22:10:12.663Z'
 progress:
   total_phases: 15
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 46
   completed_plans: 46
   percent: 80
@@ -27,18 +27,20 @@ See: .planning/PROJECT.md
 
 ## Phase Status
 
-| Phase | Name                                     | Status   | Completed  |
-| ----- | ---------------------------------------- | -------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types         | Complete | 2026-05-28 |
-| 2     | Move Validator + Unit Tests              | Complete | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold | Complete | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                  | Complete | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches  | Complete | 2026-05-30 |
-| 6     | React Hex Grid Renderer                  | Complete | 2026-05-31 |
-| 7     | Client-Server Integration                | Complete | 2026-06-03 |
-| 7.1   | UI Cleanup                               | Complete | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay       | Complete | 2026-06-05 |
-| 9     | Render Deployment                        | Complete | 2026-06-08 |
+| Phase | Name                                       | Status   | Completed  |
+| ----- | ------------------------------------------ | -------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types           | Complete | 2026-05-28 |
+| 2     | Move Validator + Unit Tests                | Complete | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold   | Complete | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                    | Complete | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches    | Complete | 2026-05-30 |
+| 6     | React Hex Grid Renderer                    | Complete | 2026-05-31 |
+| 7     | Client-Server Integration                  | Complete | 2026-06-03 |
+| 7.1   | UI Cleanup                                 | Complete | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay         | Complete | 2026-06-05 |
+| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
+| 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
+| 9     | Render Deployment                          | Complete | 2026-06-08 |
 
 ## Blocking Dependencies
 

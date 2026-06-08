@@ -30,7 +30,7 @@ const ATTRS = [
   'aerialAbility',
 ] as const;
 
-const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD'] as const;
+const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD', 'ST'] as const;
 
 /**
  * Role-based minimum values for attributes that are 0 for certain roles (D-05, D-06, D-07).
@@ -81,7 +81,7 @@ describe('HOME_SQUAD', () => {
   it('each player has a non-empty name and a valid role (TEAM-02)', () => {
     for (const player of HOME_SQUAD) {
       expect(player.name.length, `${player.id} name must be non-empty`).toBeGreaterThan(0);
-      expect(VALID_ROLES.includes(player.role), `${player.id} role must be GK|DEF|MID|FWD`).toBe(
+      expect(VALID_ROLES.includes(player.role), `${player.id} role must be GK|DEF|MID|FWD|ST`).toBe(
         true,
       );
     }
@@ -142,7 +142,7 @@ describe('AWAY_SQUAD', () => {
   it('each player has a non-empty name and a valid role (TEAM-02)', () => {
     for (const player of AWAY_SQUAD) {
       expect(player.name.length, `${player.id} name must be non-empty`).toBeGreaterThan(0);
-      expect(VALID_ROLES.includes(player.role), `${player.id} role must be GK|DEF|MID|FWD`).toBe(
+      expect(VALID_ROLES.includes(player.role), `${player.id} role must be GK|DEF|MID|FWD|ST`).toBe(
         true,
       );
     }
