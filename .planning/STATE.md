@@ -6,39 +6,39 @@ status: ready_to_plan
 last_updated: '2026-06-07T22:10:12.663Z'
 progress:
   total_phases: 15
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 46
-  completed_plans: 44
-  percent: 73
+  completed_plans: 46
+  percent: 80
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 8.2 complete — ready for Phase 8.3
+Phase 9 complete — ready for Phase 10
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 09 — Render Deployment
+**Current focus:** Phase 10 — Remaining Action Flows + Tech Debt
 
 ## Phase Status
 
-| Phase | Name                                     | Status      | Completed  |
-| ----- | ---------------------------------------- | ----------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types         | Complete    | 2026-05-28 |
-| 2     | Move Validator + Unit Tests              | Complete    | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold | Complete    | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                  | Complete    | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches  | Complete    | 2026-05-30 |
-| 6     | React Hex Grid Renderer                  | Complete    | 2026-05-31 |
-| 7     | Client-Server Integration                | Complete    | 2026-06-03 |
-| 7.1   | UI Cleanup                               | Complete    | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay       | Complete    | 2026-06-05 |
-| 9     | AWS Deployment                           | Not started | -          |
+| Phase | Name                                     | Status   | Completed  |
+| ----- | ---------------------------------------- | -------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types         | Complete | 2026-05-28 |
+| 2     | Move Validator + Unit Tests              | Complete | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold | Complete | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                  | Complete | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches  | Complete | 2026-05-30 |
+| 6     | React Hex Grid Renderer                  | Complete | 2026-05-31 |
+| 7     | Client-Server Integration                | Complete | 2026-06-03 |
+| 7.1   | UI Cleanup                               | Complete | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay       | Complete | 2026-06-05 |
+| 9     | Render Deployment                        | Complete | 2026-06-08 |
 
 ## Blocking Dependencies
 

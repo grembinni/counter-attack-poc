@@ -13,7 +13,7 @@
 - [x] **Phase 8: Match Lifecycle + Post-Game Replay** — Action counters, added time, half transitions, full-time detection, kick off procedure, post-game replay (completed 2026-06-05)
 - [ ] **Phase 8.1: Cleanup — Player Stats, Ball Control, Movement, Tackling** — Fix 1–6 stat scale, rebalance squads by tier, fix steal to dribbling-vs-tackling duel, fix movement UX (sticky selection + ZoI coloring) (INSERTED)
 - [x] **Phase 8.2: Passing Cleanup** — Target hex selection, correct accuracy attribute per pass type, ball movement on accurate pass, interception by adjacent defenders (INSERTED) (completed 2026-06-07)
-- [ ] **Phase 9: Render Deployment** — Single Render web service (Express serves built React SPA + Socket.io), render.yaml IaC, GitHub Actions CI gate, health check, same-origin WebSocket
+- [x] **Phase 9: Render Deployment** — Single Render web service (Express serves built React SPA + Socket.io), render.yaml IaC, GitHub Actions CI gate, health check, same-origin WebSocket (completed 2026-06-08)
 - [ ] **Phase 10: Remaining Action Flows + Tech Debt** — Shot declaration flow, all broken post-movement actions, code review debt from Phase 8 (CR-01 timer leak, WR-01..WR-04), human UAT verification items
 
 ---
@@ -325,14 +325,14 @@ Plans:
 4. The server binds `process.env.PORT` and `0.0.0.0`; `render.yaml` at the repo root encodes `buildCommand`, `startCommand`, `healthCheckPath: /healthz`, and `NODE_ENV=production` as reviewed IaC
 5. The GitHub Actions CI workflow passes on push (install → typecheck → test → build); a smoke test — two human players completing a kick-off, one Movement Phase, one pass, and one shot — passes without server errors in the Render logs
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Code changes: /healthz route + production static + SPA fallback (D-02/D-03), 0.0.0.0 bind (D-05), same-origin socket URL (D-04), Wave 0 static-serving test
-- [ ] 09-02-PLAN.md — Infrastructure: render.yaml Blueprint (D-06) + GitHub Actions CI workflow (D-07)
+- [x] 09-01-PLAN.md — Code changes: /healthz route + production static + SPA fallback (D-02/D-03), 0.0.0.0 bind (D-05), same-origin socket URL (D-04), Wave 0 static-serving test
+- [x] 09-02-PLAN.md — Infrastructure: render.yaml Blueprint (D-06) + GitHub Actions CI workflow (D-07)
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -366,5 +366,5 @@ Plans:
 | 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
 | 8.1. Cleanup — Player Stats, Movement       | 2/3            | In Progress | -          |
 | 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
-| 9. Render Deployment                        | 0/2            | Planned     | -          |
+| 9. Render Deployment                        | 2/2            | Complete    | 2026-06-08 |
 | 10. Remaining Action Flows + Tech Debt      | 0/0            | Not started | -          |
