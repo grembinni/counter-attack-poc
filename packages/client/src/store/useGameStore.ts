@@ -359,6 +359,38 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // SNAP_DEFLECT: defending team moves 1 piece up to 2 hexes
+    if (gameState.phase === 'SNAP_DEFLECT') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      const defendingTeam: 'home' | 'away' = gameState.attackingTeam === 'home' ? 'away' : 'home';
+      if (piece.teamId !== defendingTeam || myTeam !== defendingTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const lockedId = gameState.snapDeflectMovedPieceId ?? null;
+      if (lockedId !== null && lockedId !== id) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const paceRemaining = 2 - (gameState.snapDeflectPaceUsed ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      const valid = hexesInRange(piece.position, 1).filter((hex) => {
+        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+        if (
+          gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          )
+        )
+          return false;
+        return hexDistance(piece.position, hex) === 1;
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // Normal MOVEMENT phase: show only adjacent hexes (step-by-step, D-07)
     const candidates = hexesInRange(piece.position, 1);
     const validResults = candidates.map((hex) => ({

@@ -1800,16 +1800,14 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
       return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
     }
 
-    // Valid MOVEMENT snapshot — SNAP-02: opponent gets deflection move before shot resolves
+    // Valid MOVEMENT snapshot — attacker must declare goal hex (SHOT_DECLARED), then opponent deflects
     return {
       ok: true,
       state: {
         ...state,
-        phase: 'SNAP_DEFLECT',
+        phase: 'SHOT_DECLARED',
         lastActionType: 'SNAPSHOT', // D-18
-        snapshotPenalty: true, // SNAP-02: -1 dice penalty applied when SNAP_DEFLECT resolves
-        snapDeflectMovedPieceId: null,
-        snapDeflectPaceUsed: 0,
+        snapshotPenalty: true, // SNAP-02: -1 dice penalty applied when shot resolves
         // actionCount unchanged (+0 per D-18)
       },
     };
@@ -1822,11 +1820,9 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
         ok: true,
         state: {
           ...state,
-          phase: 'SNAP_DEFLECT',
+          phase: 'SHOT_DECLARED',
           lastActionType: 'SNAPSHOT', // D-18
           snapshotPenalty: true, // SNAP-02
-          snapDeflectMovedPieceId: null,
-          snapDeflectPaceUsed: 0,
           // actionCount unchanged
         },
       };
@@ -1997,11 +1993,35 @@ export type ApplyDeclareShotResult =
  */
 export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDeclareShotResult {
   // 1. Phase guard
-  if (state.phase !== 'PASS') {
+  if (state.phase !== 'PASS' && state.phase !== 'SHOT_DECLARED') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
-  // 2. Sequence guard: SHOT must be eligible from the current lastActionType
+  // Goal-line hex validation (T-10-05 / A1 assumption: r∈[10..16] at goal q)
+  // Home attacks toward away goal (q=36); away attacks toward home goal (q=0).
+  const goalQ = state.attackingTeam === 'home' ? 36 : 0;
+  if (goalHex.q !== goalQ || goalHex.r < 10 || goalHex.r > 16) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const defendingTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
+
+  // SHOT_DECLARED from snapshot context: set target then give defender deflection move
+  if (state.phase === 'SHOT_DECLARED') {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'SNAP_DEFLECT',
+        shotTargetHex: goalHex,
+        activeTeam: defendingTeam, // defender's turn to deflect
+        snapDeflectMovedPieceId: null,
+        snapDeflectPaceUsed: 0,
+      },
+    };
+  }
+
+  // 2. Sequence guard: SHOT must be eligible from the current lastActionType (PASS phase only)
   if (state.lastActionType !== null) {
     const eligible = ELIGIBLE_NEXT_ACTIONS[state.lastActionType];
     if (!eligible.has('SHOT')) {
@@ -2009,15 +2029,7 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
     }
   }
 
-  // 3. Goal-line hex validation (T-10-05 / A1 assumption: r∈[10..16] at goal q)
-  // Home attacks toward away goal (q=36); away attacks toward home goal (q=0).
-  const goalQ = state.attackingTeam === 'home' ? 36 : 0;
-  if (goalHex.q !== goalQ || goalHex.r < 10 || goalHex.r > 16) {
-    return { ok: false, reason: 'INVALID_TARGET' };
-  }
-
   // Find the defending GK (role:'GK' on the non-attacking team)
-  const defendingTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
   const gk = state.pieces.find((p) => p.teamId === defendingTeam && p.role === 'GK');
   if (!gk) {
     return { ok: false, reason: 'INVALID_TARGET' };

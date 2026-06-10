@@ -606,12 +606,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const d2 = rollDice(); // GK die
         const d3 = rollDice(); // handling die
         // Normalise to SHOT phase for applyRoll; clear snap deflect tracking fields via destructuring
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        /* eslint-disable @typescript-eslint/no-unused-vars */
         const {
           snapDeflectMovedPieceId: _smpi,
           snapDeflectPaceUsed: _sppu,
           ...restSdState
         } = sdState;
+        /* eslint-enable @typescript-eslint/no-unused-vars */
         const stateForSnap: typeof sdState = {
           ...restSdState,
           phase: 'SHOT',
@@ -969,8 +970,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      // 2. Phase guard (D-02): must be in PASS (renamed ACTION in Phase 10) phase
-      if (room.gameState.phase !== 'PASS') {
+      // 2. Phase guard: must be in PASS or SHOT_DECLARED (snapshot target selection)
+      if (room.gameState.phase !== 'PASS' && room.gameState.phase !== 'SHOT_DECLARED') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room); // snap-back
         return;

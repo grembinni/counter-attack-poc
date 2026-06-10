@@ -229,6 +229,27 @@ export function ActionPanel() {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // SHOT_DECLARED — snapshot target selection: attacker clicks a goal hex.
+  // Must be before the isActivePlayer gate so defender also gets a waiting panel.
+  // -------------------------------------------------------------------------
+  if (phase === 'SHOT_DECLARED') {
+    if (myTeam === null) return null;
+    if (!isActivePlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent is aiming — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.phaseLabel}>Snapshot! Click a goal hex to target</span>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
   if (!isActivePlayer) return null;
 
   // GK team derivation — mirrors server controlsGKTeam in gameHandlers.ts

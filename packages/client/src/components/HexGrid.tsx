@@ -86,6 +86,7 @@ export function HexGrid() {
   const emitHeaderTarget = useGameStore((s) => s.emitHeaderTarget);
   const gkDivePosition = useGameStore((s) => s.gameState.gkDivePosition);
   const shotTargetHex = useGameStore((s) => s.gameState.shotTargetHex);
+  const snapDeflectMovedPieceId = useGameStore((s) => s.gameState.snapDeflectMovedPieceId);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -204,9 +205,11 @@ export function HexGrid() {
               hex.q === shotTargetHighlight.q &&
               hex.r === shotTargetHighlight.r;
 
-            // Phase 10: shooting mode goal-line highlight (step 2 of two-step Shoot flow)
+            // Phase 10: shooting mode goal-line highlight (two-step Shoot flow + SHOT_DECLARED snapshot target)
             const isShootingModeGoalHex =
-              shootingMode && goalLineHexSet.has(hexId) && isActivePlayer;
+              (shootingMode || phase === 'SHOT_DECLARED') &&
+              goalLineHexSet.has(hexId) &&
+              isActivePlayer;
 
             // Phase 10: GK dive target (parallel to goal line, adjacent to current gkDivePosition)
             const isGKDiveTarget = phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId);
@@ -222,6 +225,7 @@ export function HexGrid() {
             // Suppress gold move highlights during HIGH_PASS_MOVEMENT — separate subtle overlay below
             // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)
             const isHighlighted =
+              isShootingModeGoalHex ||
               (phase !== 'HIGH_PASS_MOVEMENT' &&
                 phase !== 'GK_DIVING' &&
                 phase !== 'SNAP_DEFLECT' &&
@@ -290,7 +294,9 @@ export function HexGrid() {
                 <HexCell
                   hex={hex}
                   isHighlighted={isHighlighted}
-                  highlightColor={isGoalHex || isShotTarget ? '#ef4444' : undefined}
+                  highlightColor={
+                    isGoalHex || isShotTarget || isShootingModeGoalHex ? '#ef4444' : undefined
+                  }
                   onClick={onClick ?? (() => undefined)}
                 />
                 {/* Steal-risk tint — red on carrier's valid hexes adjacent to opponents (D-20, D-21) */}
@@ -435,6 +441,14 @@ export function HexGrid() {
               myTeam !== null &&
               piece.teamId === myTeam &&
               (highPassMovedPieceId === null || highPassMovedPieceId === piece.id);
+            // SNAP_DEFLECT: defending team selects 1 own piece to move up to 2 hexes
+            const snapDefendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+            const canSelectSnapDeflect =
+              phase === 'SNAP_DEFLECT' &&
+              myTeam !== null &&
+              myTeam === snapDefendingTeam &&
+              piece.teamId === myTeam &&
+              (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id);
 
             // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant.
             // Both teams select independently; gated on not yet confirmed for this team.
@@ -464,7 +478,8 @@ export function HexGrid() {
               canSelect ||
               canSelectKickOff ||
               isHeaderEligible ||
-              canSelectHighPassMove;
+              canSelectHighPassMove ||
+              canSelectSnapDeflect;
             const handleClick = isPassTargetPiece
               ? () => {
                   if (pieceHexConfirmed) {
@@ -473,17 +488,19 @@ export function HexGrid() {
                     confirmPassTarget(piece.position);
                   }
                 }
-              : canSelectHighPassMove
+              : canSelectSnapDeflect
                 ? () => selectPiece(piece.id)
-                : isHeaderEligible
-                  ? () => {
-                      toggleHeaderContestantId(piece.id);
-                    }
-                  : canSelectKickOff
-                    ? () => selectPiece(piece.id)
-                    : canSelect
+                : canSelectHighPassMove
+                  ? () => selectPiece(piece.id)
+                  : isHeaderEligible
+                    ? () => {
+                        toggleHeaderContestantId(piece.id);
+                      }
+                    : canSelectKickOff
                       ? () => selectPiece(piece.id)
-                      : () => undefined;
+                      : canSelect
+                        ? () => selectPiece(piece.id)
+                        : () => undefined;
 
             return (
               <PieceOverlay
