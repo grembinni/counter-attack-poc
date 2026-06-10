@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 10
-last_updated: '2026-06-10T12:40:00.000Z'
+status: Executing Phase 10 — Plan 05 Tasks 2-3 done; awaiting Task 4 UAT
+last_updated: '2026-06-10T16:15:00.000Z'
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 51
   completed_plans: 51
-  percent: 96
+  percent: 97
 ---
 
 # Project State
@@ -98,6 +98,12 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 10 Plan 05)
+
+- passerId added to STANDARD_PASS/FIRST_TIME_PASS ActionEvent (shared types + engine) to enable team-colour prefix in ActionLog (D-27)
+- game:shot integration tests updated to reflect D-02 handler rework: seedPassPhaseForShot seeds PASS phase; assertions check GK_DIVING transition
+- Integration tests must use real HOME_SQUAD/AWAY_SQUAD positions (hexDistance=1 adjacency required); placeholder coords like {q:11,r:7} break moves silently
+
 ### Decisions Locked (Phase 10 Plan 04)
 
 - controlsGKTeam is phase-aware: GK_DIVING derives defending team from attackingTeam (ball.carrierId = shooter in that phase); GK_RESTART uses ball.carrierId
@@ -139,7 +145,6 @@ See: .planning/PROJECT.md
 ## Session Continuity
 
 - Last updated: 2026-06-10
-- Phase 10 Plan 04 COMPLETE — GAME_SHOT rework (44378d8), GAME_GK_DIVE, GAME_HEADER_TARGET, SNAP_DEFLECT, GK end-turn auto-resolve, D-15/D-24/D-19 fixes
-- Phase 10 Plan 04 COMPLETE: handler layer wired for shot/GK-dive/header-target/snap-deflect; CR-01 BLOCKER resolved
-- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-05-PLAN.md`
-- Next: Execute Plan 05 (ActionPanel UI: GK_DIVING, SNAP_DEFLECT, HEADER target hex, Shoot button two-step)
+- Phase 10 Plan 05 Tasks 2-3 COMPLETE — ActionPanel/HexGrid/ActionLog wired (f1099a5), integration tests fixed (8c0ee8b)
+- Awaiting Task 4 UAT: human must verify snapshot, header-at-goal, header auto-roll, regular shot + GK save
+- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-05-PLAN.md` Task 4 checkpoint
