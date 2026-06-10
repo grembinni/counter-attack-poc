@@ -135,7 +135,7 @@ const makeShotState = (overrides: Partial<GameState> = {}): GameState => ({
 
 const makeActionState = (overrides: Partial<GameState> = {}): GameState => ({
   ...baseState,
-  phase: 'ACTION',
+  phase: 'PASS',
   movementSlot: null,
   lastActionType: 'MOVEMENT_PHASE',
   ...overrides,
@@ -289,7 +289,7 @@ describe('D-29: stealAttemptedByIds / tackleAttemptedByIds cleared on applyStart
   it('applyStartMovement clears stealAttemptedByIds and tackleAttemptedByIds', () => {
     const state: GameState = {
       ...baseState,
-      phase: 'ACTION',
+      phase: 'PASS',
       movementSlot: null,
       lastActionType: 'MOVEMENT_PHASE',
       stealAttemptedByIds: ['away-def'],
@@ -309,7 +309,7 @@ describe('D-29: stealAttemptedByIds / tackleAttemptedByIds cleared on applyStart
 // ---------------------------------------------------------------------------
 
 describe.skip('SNAP_DEFLECT transition (Phase 10 — applyDeclareShot not yet implemented)', () => {
-  it('applyDeclareShot transitions ACTION → SHOT_DECLARED → GK_DIVING', () => {
+  it('applyDeclareShot transitions PASS → SHOT_DECLARED → GK_DIVING', () => {
     const state = makeActionState();
     const goalHex = { q: 36, r: 13 };
     const result = applyDeclareShot(state, goalHex);
@@ -319,7 +319,7 @@ describe.skip('SNAP_DEFLECT transition (Phase 10 — applyDeclareShot not yet im
     expect(result.state.shotTargetHex).toEqual(goalHex);
   });
 
-  it('applyDeclareShot rejects when phase is not ACTION (WRONG_PHASE)', () => {
+  it('applyDeclareShot rejects when phase is not PASS (WRONG_PHASE)', () => {
     const state = makeShotState();
     const result = applyDeclareShot(state, { q: 36, r: 13 });
     expect(result.ok).toBe(false);

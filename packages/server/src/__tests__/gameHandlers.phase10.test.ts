@@ -137,7 +137,7 @@ async function setupRoom(): Promise<{
 }
 
 /**
- * Seeds a room into ACTION phase for testing shot/pass flow.
+ * Seeds a room into PASS phase for testing shot/pass flow.
  */
 function seedActionPhase(roomCode: string): void {
   const room = getRoom(roomCode);
@@ -148,7 +148,7 @@ function seedActionPhase(roomCode: string): void {
 
   room.gameState = {
     ...room.gameState,
-    phase: 'ACTION',
+    phase: 'PASS',
     attackingTeam: 'home',
     activeTeam: 'home',
     ball: { position: carrier.position, carrierId: carrier.id },
