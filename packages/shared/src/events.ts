@@ -35,6 +35,10 @@ export const ClientEvents = {
    * Payload: pieceId string (the selected piece), or null to deselect.
    */
   GAME_HEADER_CONTESTANT: 'game:header-contestant',
+  /** Phase 10: GK repositions during GK_DIVING phase (up to 3 hexes parallel to goal line). */
+  GAME_GK_DIVE: 'game:gk-dive',
+  /** Phase 10: Attacker selects target hex during HEADER phase (HEAD-03). */
+  GAME_HEADER_TARGET: 'game:header-target',
 } as const;
 
 export const ServerEvents = {
@@ -88,6 +92,10 @@ export interface ClientToServerEvents {
    * Server validates piece ownership (all pieces must belong to socket's team).
    */
   [ClientEvents.GAME_HEADER_CONTESTANT]: (pieceIds: string[] | null) => void;
+  /** Phase 10: GK dive hex during GK_DIVING phase. */
+  [ClientEvents.GAME_GK_DIVE]: (to: HexCoord) => void;
+  /** Phase 10: Header target hex selection during HEADER phase (HEAD-03). */
+  [ClientEvents.GAME_HEADER_TARGET]: (targetHex: HexCoord) => void;
 }
 
 /**
