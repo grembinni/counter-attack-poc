@@ -343,28 +343,46 @@ Plans:
 **Goal:** All remaining broken game actions work (shot declaration, snapshot, header button); code review BLOCKERs and WARNINGs from Phase 8 are resolved; human UAT items (snapshot full-path, header path) are verified end-to-end.
 **Requirements**: SHOT-01, SHOT-02, SHOT-03, SHOT-04, SNAP-02, SNAP-03, HEAD-01, HEAD-02, HEAD-03, HEAD-04, HEAD-05
 **Depends on:** Phase 9
-**Plans:** TBD
+**Plans:** 5 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 10 to break down)
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Shared foundation: PASS→ACTION rename + 3 new phases (SHOT_DECLARED/GK_DIVING/SNAP_DEFLECT) + 5 GameState fields + GAME_GK_DIVE/GAME_HEADER_TARGET events + Wave 0 test scaffolds
+
+**Wave 2** _(blocked on Wave 1 — owns gameEngine.ts)_
+
+- [ ] 10-02-PLAN.md — Engine debt + bugs: code-review fixes D-16/D-17/D-20/D-21/D-22/D-23 + gameplay bugs D-26/D-29/D-30 + PASS→ACTION in engine
+
+**Wave 3** _(blocked on Wave 2 — same gameEngine.ts)_
+
+- [ ] 10-03-PLAN.md — New engine functions: applyDeclareShot, applyGKDive, applyDeclareHeaderTarget + defender path-deflection (SHOT-01..04, SNAP-02, HEAD-03)
+
+**Wave 4** _(blocked on Wave 3 — owns gameHandlers.ts)_
+
+- [ ] 10-04-PLAN.md — Handlers: GAME_SHOT rework + GAME_GK_DIVE + GAME_HEADER_TARGET + SNAP_DEFLECT move guard + GK auto-resolve + D-15 (CR-01 BLOCKER)/D-19/D-24
+
+**Wave 5** _(blocked on Wave 4 — has human checkpoint)_
+
+- [ ] 10-05-PLAN.md — Client wiring (two-step Shoot, Snapshot, GK_DIVING/SNAP_DEFLECT/HEADER-target UI, D-18/D-27/D-28) + integration test repair (D-25) + human UAT (UAT-01/02/03)
 
 ---
 
 ## Progress
 
-| Phase                                       | Plans Complete | Status      | Completed  |
-| ------------------------------------------- | -------------- | ----------- | ---------- |
-| 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
-| 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
-| 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
-| 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
-| 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
-| 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
-| 8.1. Cleanup — Player Stats, Movement       | 3/3            | Complete    | 2026-06-05 |
-| 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
-| 9. Render Deployment                        | 2/2            | Complete    | 2026-06-08 |
-| 10. Remaining Action Flows + Tech Debt      | 0/0            | Not started | -          |
+| Phase                                       | Plans Complete | Status   | Completed  |
+| ------------------------------------------- | -------------- | -------- | ---------- |
+| 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete | 2026-05-28 |
+| 2. Move Validator + Unit Tests              | 4/4            | Complete | 2026-05-29 |
+| 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete | 2026-05-29 |
+| 4. Game Engine + Phase FSM                  | 3/3            | Complete | 2026-05-30 |
+| 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete | 2026-05-30 |
+| 6. React Hex Grid Renderer                  | 3/3            | Complete | 2026-05-31 |
+| 7. Client-Server Integration                | 4/4            | Complete | 2026-06-03 |
+| 7.1. UI Cleanup                             | 3/3            | Complete | 2026-06-04 |
+| 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete | 2026-06-05 |
+| 8.1. Cleanup — Player Stats, Movement       | 3/3            | Complete | 2026-06-05 |
+| 8.2. Passing Cleanup                        | 6/6            | Complete | 2026-06-07 |
+| 9. Render Deployment                        | 2/2            | Complete | 2026-06-08 |
+| 10. Remaining Action Flows + Tech Debt      | 0/5            | Planned  | -          |
