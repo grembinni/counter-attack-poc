@@ -172,7 +172,7 @@ export type GamePhase =
   | 'KICK_OFF'
   | 'KICK_OFF_SETUP' // Phase 8 (D-23): free repositioning before each kick-off; added here
   | 'MOVEMENT'
-  | 'ACTION' // renamed from 'PASS'
+  | 'PASS'
   | 'SHOT_DECLARED' // new: shot declared, awaiting GK dive
   | 'GK_DIVING' // new: GK's team repositions GK interactively
   | 'SNAP_DEFLECT' // new: opponent moves 1 player before snapshot resolves

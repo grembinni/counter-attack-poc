@@ -20,7 +20,7 @@ const makeState = (phase: GameState['phase']): GameState => ({
 });
 
 describe('validateSnapshot', () => {
-  it('returns WRONG_PHASE outside MOVEMENT/ACTION/SNAPSHOT (SNAP-01)', () => {
+  it('returns WRONG_PHASE outside MOVEMENT/PASS/SNAPSHOT (SNAP-01)', () => {
     const result = validateSnapshot(makeState('SHOT'));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
@@ -36,8 +36,8 @@ describe('validateSnapshot', () => {
     }
   });
 
-  it('accepts in ACTION phase (SNAP-01 post-pass trigger)', () => {
-    const result = validateSnapshot(makeState('ACTION'));
+  it('accepts in PASS phase (SNAP-01 post-pass trigger)', () => {
+    const result = validateSnapshot(makeState('PASS'));
     expect(result.ok).toBe(true);
   });
 

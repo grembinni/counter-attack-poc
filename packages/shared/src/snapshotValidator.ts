@@ -1,7 +1,7 @@
 /**
  * Snapshot trigger validator for the Counter Attack game engine.
  *
- * SNAP-01: A snapshot is available only when game phase is MOVEMENT, ACTION, or SNAPSHOT.
+ * SNAP-01: A snapshot is available only when game phase is MOVEMENT, PASS, or SNAPSHOT.
  *          Penalty-area boundary detection is deferred to Phase 4 — the Phase 4 FSM will
  *          gate validateSnapshot calls behind a ball-in-penalty-area check once pitch regions
  *          are encoded (CONTEXT.md Deferred Ideas).
@@ -24,7 +24,7 @@ import type { GameState } from './types.js';
 /**
  * Discriminated union result for validateSnapshot.
  *
- * Reject: WRONG_PHASE — snapshot is not available outside MOVEMENT, ACTION, SNAPSHOT phases.
+ * Reject: WRONG_PHASE — snapshot is not available outside MOVEMENT, PASS, SNAPSHOT phases.
  * Accept: ok:true with shootingPenalty:-1 and deflectionEffect (SNAP-02).
  */
 export type SnapshotResult =
@@ -38,7 +38,7 @@ export type SnapshotResult =
 /**
  * Validates whether a snapshot attempt is mechanically available.
  *
- * SNAP-01: Rejects if phase is not MOVEMENT, ACTION, or SNAPSHOT.
+ * SNAP-01: Rejects if phase is not MOVEMENT, PASS, or SNAPSHOT.
  * SNAP-02: On success, returns -1 shooting penalty + 2-hex opponent deflection signal.
  *
  * Penalty-area boundary check is NOT performed here — deferred to Phase 4 FSM.
@@ -47,7 +47,7 @@ export type SnapshotResult =
  */
 export function validateSnapshot(state: GameState): SnapshotResult {
   // SNAP-01: snapshot only available in these three phases
-  if (state.phase !== 'MOVEMENT' && state.phase !== 'ACTION' && state.phase !== 'SNAPSHOT') {
+  if (state.phase !== 'MOVEMENT' && state.phase !== 'PASS' && state.phase !== 'SNAPSHOT') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
