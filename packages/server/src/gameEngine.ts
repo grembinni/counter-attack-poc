@@ -204,6 +204,8 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       // applies to exactly one movement sequence. applyMove checks contestedPieceIds to
       // reject contested pieces at move-time (Pitfall 6 — cleared here, not in HEADER branch).
       contestedPieceIds: [],
+      stealAttemptedByIds: [], // D-29: reset per-phase steal tracking at Movement Phase start
+      tackleAttemptedByIds: [], // D-29: reset per-phase tackle tracking at Movement Phase start
     },
   };
 }
@@ -317,35 +319,53 @@ export function applyMove(
   const newBall = state.ball.carrierId === pieceId ? { ...state.ball, position: to } : state.ball;
 
   // Loose ball pickup: piece steps onto the hex where the ball is loose (no carrier).
-  // Grants possession to the moving piece's team; transitions immediately to PASS.
+  // D-30: grants possession to the moving piece WITHOUT ending the movement action.
+  // The piece retains its remaining pace; paceUsedByPieceId is updated for this step only.
+  // Phase stays MOVEMENT so the piece can continue moving (action is not ended).
+  // attackingTeam updates to the picking-up piece's team immediately (possession change).
   if (
     state.ball.carrierId === null &&
     to.q === state.ball.position.q &&
     to.r === state.ball.position.r
   ) {
+    const newPickupAttackingTeam = piece.teamId;
     return {
       ok: true,
       state: {
         ...state,
         pieces: newPieces,
         ball: { position: to, carrierId: pieceId },
-        attackingTeam: piece.teamId,
-        activeTeam: piece.teamId,
-        phase: 'PASS',
-        movementSlot: null,
-        movedPieceIds: [],
-        paceUsedByPieceId: {},
+        attackingTeam: newPickupAttackingTeam,
+        activeTeam: newPickupAttackingTeam,
+        // D-30: stay in MOVEMENT — do NOT transition to PASS or reset pace/slots
+        phase: 'MOVEMENT',
+        movementSlot: state.movementSlot,
+        movedPieceIds: computeMovedPieceIds(), // spent only if pace exhausted after this step
+        paceUsedByPieceId: {
+          ...state.paceUsedByPieceId,
+          [pieceId]: newPaceForPiece,
+        },
         eventLog: newEventLog,
         pendingFreeMove: state.pendingFreeMove ?? null,
-        lastActionType: 'SUCCESSFUL_TACKLE',
+        lastActionType: state.lastActionType, // preserve; pickup mid-movement doesn't change action type
       },
     };
   }
+
+  // D-29: track per-attempt ids for steal/tackle — updated in the relevant branches
+  // and threaded through all ok:true return paths.
+  let newStealAttemptedByIds: readonly string[] = state.stealAttemptedByIds ?? [];
+  let newTackleAttemptedByIds: readonly string[] = state.tackleAttemptedByIds ?? [];
 
   // Handle STEAL_ATTEMPT effect (D-06/D-07/D-08)
   let stealSuccess = false;
   let stealDefenderId: string | undefined;
   if ('effect' in result && result.effect.type === 'STEAL_ATTEMPT') {
+    // D-29: reject if this piece already attempted a steal this movement phase
+    if (newStealAttemptedByIds.includes(pieceId)) {
+      return { ok: false, reason: 'MOVE_INVALID', detail: 'ALREADY_ATTEMPTED' };
+    }
+
     // Dice injection: stealDie from caller; fallback 3 for backward compat (D-08)
     const die = dice?.stealDie ?? 3;
     const defender = result.effect.defenders[0];
@@ -363,12 +383,19 @@ export function applyMove(
       timestamp: Date.now(),
     };
     newEventLog = [...newEventLog, stealEvent];
+    // D-29: record that this piece has now attempted a steal this phase (success or fail)
+    newStealAttemptedByIds = [...newStealAttemptedByIds, pieceId];
   }
 
   // Handle TACKLE_ATTEMPT effect (D-11/D-12)
   // Fires when a defender (different team than carrier) moves adjacent to the carrier.
   let tackleSuccess = false;
   if ('effect' in result && result.effect.type === 'TACKLE_ATTEMPT') {
+    // D-29: reject if this piece already attempted a tackle this movement phase
+    if (newTackleAttemptedByIds.includes(pieceId)) {
+      return { ok: false, reason: 'MOVE_INVALID', detail: 'ALREADY_ATTEMPTED' };
+    }
+
     const defDie = dice?.tackleDie ?? 3;
     const carDie = dice?.carrierDie ?? 3;
     const carrierId = result.effect.carrierId;
@@ -392,6 +419,8 @@ export function applyMove(
         timestamp: Date.now(),
       };
       newEventLog = [...newEventLog, tackleEvent];
+      // D-29: record that this piece has now attempted a tackle this phase (success or fail)
+      newTackleAttemptedByIds = [...newTackleAttemptedByIds, pieceId];
 
       if (tackleSuccess) {
         // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender.
@@ -414,6 +443,7 @@ export function applyMove(
             pendingFreeMove: state.pendingFreeMove ?? null,
             lastActionType: 'SUCCESSFUL_TACKLE',
             actionCount: state.actionCount + 3,
+            tackleAttemptedByIds: newTackleAttemptedByIds, // D-29
           },
         };
       }
@@ -431,6 +461,7 @@ export function applyMove(
           ball: state.ball,
           eventLog: newEventLog,
           pendingFreeMove: state.pendingFreeMove ?? null,
+          tackleAttemptedByIds: newTackleAttemptedByIds, // D-29
         },
       };
     }
@@ -470,11 +501,12 @@ export function applyMove(
         pendingFreeMove,
         lastActionType: 'SUCCESSFUL_TACKLE',
         actionCount: state.actionCount + 3,
+        stealAttemptedByIds: newStealAttemptedByIds, // D-29
       },
     };
   }
 
-  // Normal move
+  // Normal move (includes steal FAIL fall-through)
   return {
     ok: true,
     state: {
@@ -488,6 +520,7 @@ export function applyMove(
       ball: newBall,
       eventLog: newEventLog,
       pendingFreeMove,
+      stealAttemptedByIds: newStealAttemptedByIds, // D-29: propagate (may have been updated)
     },
   };
 }
