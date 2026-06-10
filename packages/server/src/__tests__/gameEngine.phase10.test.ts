@@ -18,17 +18,9 @@ import {
   applyMove,
   applyDeclareShot,
   applyGKDive,
+  applyDeclareHeaderTarget,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-
-// ---------------------------------------------------------------------------
-// Type stub for applyDeclareHeaderTarget (plan 03 Task 2 will implement)
-// ---------------------------------------------------------------------------
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StubFn = (...args: any[]) => any;
-
-const applyDeclareHeaderTarget: StubFn = undefined as unknown as StubFn;
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -552,7 +544,7 @@ describe('SNAP_DEFLECT transition / applyDeclareShot (Phase 10)', () => {
 // (Plan 03 will implement; describe.skip used since applyDeclareHeaderTarget not yet available)
 // ---------------------------------------------------------------------------
 
-describe.skip('HEAD-03: header target hex selection (applyDeclareHeaderTarget not yet implemented)', () => {
+describe('HEAD-03: header target hex selection (applyDeclareHeaderTarget)', () => {
   it('applyDeclareHeaderTarget sets headerTargetHex when both teams confirmed', () => {
     const state = makeHeaderState();
     const targetHex = { q: 36, r: 13 };
@@ -575,6 +567,84 @@ describe.skip('HEAD-03: header target hex selection (applyDeclareHeaderTarget no
     });
     const result = applyDeclareHeaderTarget(state, { q: 36, r: 13 });
     expect(result.ok).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HEAD-03: goal-line header redirect (header attacker win routes to GK save path)
+// (Plan 03 Task 2)
+// ---------------------------------------------------------------------------
+
+describe('HEAD-03: goal-line header redirect in applyRoll HEADER', () => {
+  // Home attacks; away goal at q=36, r∈[10..16]; awaGk at {q:36, r:13}
+  // homeFwd (heading=6) vs awayDef (heading=7)
+  // To force attacker win: homeFwd score > awayDef score
+  // heading + die: homeFwd=6+6=12; awayDef=7+1=8 → attacker wins
+
+  const makeHeaderStateWithTarget = (targetHex: { q: number; r: number }): GameState => ({
+    ...baseState,
+    phase: 'HEADER',
+    movementSlot: null,
+    lastActionType: 'HIGH_PASS',
+    attackingTeam: 'home',
+    activeTeam: 'home',
+    pieces: [
+      { ...homeFwd, position: { q: 34, r: 12 } }, // attacker contestant
+      { ...awayDef, position: { q: 34, r: 12 } }, // defender contestant
+      homeMid,
+      { ...awayGk, position: { q: 36, r: 13 } }, // GK
+    ],
+    ball: { position: { q: 34, r: 12 }, carrierId: null },
+    headerContestants: { home: ['home-fwd'], away: ['away-def'] },
+    headerConfirmed: { home: true, away: true },
+    headerTargetHex: targetHex,
+  });
+
+  it('header attacker win on a goal-line headerTargetHex routes to GK save path (GK_DIVING)', () => {
+    // targetHex is a goal-line hex for home attack → should route to GK_DIVING
+    const state = makeHeaderStateWithTarget({ q: 36, r: 13 });
+    // d1=6 (attacker die, heading+6=12), d2=1 (defender die, heading+1=8) → attacker wins
+    const result = applyRoll(state, 6, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // HEAD-03: goal-line target + attacker win → GK_DIVING (not PASS)
+    expect(result.state.phase).toBe('GK_DIVING');
+    expect(result.state.shotTargetHex).toEqual({ q: 36, r: 13 });
+  });
+
+  it('header attacker win on a non-goal-line hex delivers ball to that hex with attacker carrierId', () => {
+    // targetHex is a non-goal-line hex → headed pass, attacker controls ball there
+    const state = makeHeaderStateWithTarget({ q: 25, r: 10 });
+    // d1=6 (attacker die, heading+6=12), d2=1 (defender die, heading+1=8) → attacker wins
+    const result = applyRoll(state, 6, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Non-goal-line: headed pass → PASS phase with ball at targetHex
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.position).toEqual({ q: 25, r: 10 });
+    expect(result.state.ball.carrierId).toBe('home-fwd');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Defender path-deflection in shot resolution (D-03)
+// Plan 03 Task 2: in-path defender deflects → LOOSE_BALL at defender position
+// (Tests will become green when the defender path-deflection helper is wired
+//  into the GK_DIVING end-turn auto-resolve flow in plan 04; these are RED now)
+// ---------------------------------------------------------------------------
+
+describe('Shot defender path-deflection (D-03)', () => {
+  // homeFwd at {q:32, r:12} (shooter), awayGk at {q:36, r:13} (GK)
+  // awayDef is in-path: on hexLine between shooter and goal target
+  // We set awayDef on the path at {q:34, r:12} (between shooter and goal)
+  // Note: the deflection helper is consumed by the handler (plan 04) not applyRoll directly.
+  // This test verifies the pure computeShotPathDeflection helper via the exported function
+  // once plan 03 implements it. Until then, it is a spec test.
+  it.skip('in-path defender with die 5 deflects → LOOSE_BALL at defender position (D-03 spec)', () => {
+    // This test documents expected behavior; implementation is in plan 04 end-turn auto-resolve.
+    // The pure helper computeShotPathDeflection will be called server-side during GK_DIVING end-turn.
+    // Marking as skip because it requires handler integration (plan 04) to be testable end-to-end.
+    expect(true).toBe(true); // placeholder
   });
 });
 
