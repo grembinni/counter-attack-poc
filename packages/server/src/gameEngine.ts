@@ -46,6 +46,9 @@ import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 /** 4-5-2 Movement Phase slot sequence. Used by advanceMovementSlot. D-03/D-04. */
 const SLOT_SEQUENCE: readonly MovementSlot[] = ['ATTACKER_4', 'DEFENDER_5', 'ATTACKER_2'];
 
+/** TESTING ONLY — set to null to use real piece pace values. Remove before ship. */
+const TESTING_PACE_OVERRIDE: number | null = 15;
+
 /**
  * D-20 (IN-01): hoisted to module-level const — avoids reallocating the Set on every
  * applySnapshot call. Used in the SNAP-01 trigger (b) guard in applySnapshot.
@@ -65,19 +68,6 @@ const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
   'SUCCESSFUL_TACKLE',
   'MOVEMENT_PHASE',
 ]);
-
-/**
- * Returns the team that is allowed to act in the current movement slot.
- * ATTACKER_4 and ATTACKER_2 slots belong to the attacking team;
- * DEFENDER_5 slot belongs to the defending (non-attacking) team.
- * RESEARCH Pitfall 2 — attacker vs moving team.
- */
-function activeTeamForSlot(state: GameState): 'home' | 'away' {
-  if (state.movementSlot === 'DEFENDER_5') {
-    return state.attackingTeam === 'home' ? 'away' : 'home';
-  }
-  return state.attackingTeam;
-}
 
 // ---------------------------------------------------------------------------
 // buildInitialGameState
@@ -268,8 +258,8 @@ export function applyMove(
     return { ok: false, reason: 'MOVE_INVALID', detail: 'CONTESTED_PIECE' };
   }
 
-  // 3. Team guard (T-4-01)
-  if (piece.teamId !== activeTeamForSlot(state)) {
+  // 3. Team guard (T-4-01) — use state.activeTeam (authoritative after D-30 pickup mid-slot)
+  if (piece.teamId !== state.activeTeam) {
     return { ok: false, reason: 'WRONG_TEAM' };
   }
 
@@ -289,7 +279,8 @@ export function applyMove(
   const newPaceForPiece = currentPaceUsed + 1;
   const isNewActivation = currentPaceUsed === 0;
   // ATTACKER_2 enforces the same artificial cap of 2 hexes used by moveValidator.
-  const effectivePace = state.movementSlot === 'ATTACKER_2' ? Math.min(piece.pace, 2) : piece.pace;
+  const rawPace = TESTING_PACE_OVERRIDE ?? piece.pace;
+  const effectivePace = state.movementSlot === 'ATTACKER_2' ? Math.min(rawPace, 2) : rawPace;
   const paceExhausted = newPaceForPiece >= effectivePace;
   const abandonedIds = isNewActivation
     ? Object.keys(state.paceUsedByPieceId).filter(
@@ -1809,14 +1800,16 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
       return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
     }
 
-    // Valid MOVEMENT snapshot
+    // Valid MOVEMENT snapshot — SNAP-02: opponent gets deflection move before shot resolves
     return {
       ok: true,
       state: {
         ...state,
-        phase: 'SHOT',
+        phase: 'SNAP_DEFLECT',
         lastActionType: 'SNAPSHOT', // D-18
-        snapshotPenalty: true, // SNAP-02: -1 dice penalty in applyRoll SHOT branch
+        snapshotPenalty: true, // SNAP-02: -1 dice penalty applied when SNAP_DEFLECT resolves
+        snapDeflectMovedPieceId: null,
+        snapDeflectPaceUsed: 0,
         // actionCount unchanged (+0 per D-18)
       },
     };
@@ -1829,9 +1822,11 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
         ok: true,
         state: {
           ...state,
-          phase: 'SHOT',
+          phase: 'SNAP_DEFLECT',
           lastActionType: 'SNAPSHOT', // D-18
           snapshotPenalty: true, // SNAP-02
+          snapDeflectMovedPieceId: null,
+          snapDeflectPaceUsed: 0,
           // actionCount unchanged
         },
       };

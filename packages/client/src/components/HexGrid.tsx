@@ -6,6 +6,7 @@ import {
   PITCH_REGIONS,
   getZoIDefenders,
   hexDistance,
+  hexLine,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -84,6 +85,7 @@ export function HexGrid() {
   const emitGKDive = useGameStore((s) => s.emitGKDive);
   const emitHeaderTarget = useGameStore((s) => s.emitHeaderTarget);
   const gkDivePosition = useGameStore((s) => s.gameState.gkDivePosition);
+  const shotTargetHex = useGameStore((s) => s.gameState.shotTargetHex);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -138,6 +140,17 @@ export function HexGrid() {
   );
   // Tackle-risk hexes: orange when non-carrier's step would land adjacent to ball carrier
   const tackleRiskSet = new Set(tackleRiskHexes.map((h) => `${h.q},${h.r}`));
+
+  // SNAP_DEFLECT: orange-tint shot path from shooter position to declared target hex
+  const snapDeflectPathSet = new Set<string>();
+  if (phase === 'SNAP_DEFLECT' && shotTargetHex !== null && shotTargetHex !== undefined) {
+    const shooter = ball.carrierId ? pieces.find((p) => p.id === ball.carrierId) : null;
+    if (shooter) {
+      for (const h of hexLine(shooter.position, shotTargetHex)) {
+        snapDeflectPathSet.add(`${h.q},${h.r}`);
+      }
+    }
+  }
 
   // KICK_OFF_SETUP: derive the local team's valid placement zone (D-23)
   // Attacking team: own half + centre circle; defending team: own half excluding centre circle
@@ -197,6 +210,8 @@ export function HexGrid() {
 
             // Phase 10: GK dive target (parallel to goal line, adjacent to current gkDivePosition)
             const isGKDiveTarget = phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId);
+            // SNAP_DEFLECT: danger path tint — shot line from shooter to declared target
+            const isShotPath = snapDeflectPathSet.has(hexId);
             // GK team = defending team during a shot
             const gkTeamForDive: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
             const isGKTeamPlayer = myTeam === gkTeamForDive;
@@ -334,6 +349,16 @@ export function HexGrid() {
                     fillOpacity={0.5}
                     stroke="#f5c518"
                     strokeWidth={2}
+                    pointerEvents="none"
+                  />
+                )}
+                {/* SNAP_DEFLECT: orange danger-path tint so defending team can see the shot line */}
+                {isShotPath && (
+                  <polygon
+                    points={points}
+                    fill="rgba(249,115,22,0.45)"
+                    stroke="rgba(249,115,22,0.7)"
+                    strokeWidth={1}
                     pointerEvents="none"
                   />
                 )}

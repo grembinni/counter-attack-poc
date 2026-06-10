@@ -644,9 +644,11 @@ describe('applySnapshot — SNAP-01..03', () => {
     const result = applySnapshot(state);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('SHOT');
+    expect(result.state.phase).toBe('SNAP_DEFLECT'); // SNAP-02: opponent deflection before shot resolves
     expect(result.state.lastActionType).toBe('SNAPSHOT');
     expect(result.state.actionCount).toBe(10); // +0 for snapshot (D-18)
+    expect(result.state.snapDeflectMovedPieceId).toBeNull();
+    expect(result.state.snapDeflectPaceUsed).toBe(0);
   });
 
   it('succeeds immediately after accurate pass (SNAP-01 post-pass condition)', () => {
@@ -658,8 +660,10 @@ describe('applySnapshot — SNAP-01..03', () => {
     const result = applySnapshot(state);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('SHOT');
+    expect(result.state.phase).toBe('SNAP_DEFLECT'); // SNAP-02: opponent deflection before shot resolves
     expect(result.state.lastActionType).toBe('SNAPSHOT');
+    expect(result.state.snapDeflectMovedPieceId).toBeNull();
+    expect(result.state.snapDeflectPaceUsed).toBe(0);
   });
 
   it('sets snapshot -1 penalty marker in state (SNAP-02)', () => {

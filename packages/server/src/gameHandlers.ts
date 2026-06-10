@@ -82,18 +82,11 @@ function socketTeam(socket: AppSocket): 'home' | 'away' {
 }
 
 /**
- * Returns the team allowed to act in the current movement slot.
- * HIGH_PASS_MOVEMENT: activeTeam is authoritative (switches between ATTACKER/DEFENDER slots).
- * ATTACKER_4 and ATTACKER_2 → attackingTeam; DEFENDER_5 → non-attacking team.
+ * Returns the team allowed to act. state.activeTeam is always authoritative —
+ * it is correct for D-30 (loose ball pickup mid-slot) and HIGH_PASS_MOVEMENT.
  */
 function actingTeam(state: GameState): 'home' | 'away' {
-  if (state.phase === 'HIGH_PASS_MOVEMENT') {
-    return state.activeTeam;
-  }
-  if (state.movementSlot === 'DEFENDER_5') {
-    return state.attackingTeam === 'home' ? 'away' : 'home';
-  }
-  return state.attackingTeam;
+  return state.activeTeam;
 }
 
 /**
@@ -612,8 +605,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const d1 = rollDice(); // shooter die
         const d2 = rollDice(); // GK die
         const d3 = rollDice(); // handling die
-        // Normalise to SHOT phase for applyRoll; clear snap deflect tracking
-        // Omit snap-deflect fields via destructuring (exactOptionalPropertyTypes: no explicit undefined)
+        // Normalise to SHOT phase for applyRoll; clear snap deflect tracking fields via destructuring
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const {
           snapDeflectMovedPieceId: _smpi,

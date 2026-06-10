@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ELIGIBLE_NEXT_ACTIONS, hexDistance } from '@counter-attack/shared';
+import { ELIGIBLE_NEXT_ACTIONS, hexDistance, isInRegion } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
 import styles from './ActionPanel.module.css';
@@ -10,8 +10,6 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
   HIGH_PASS: 'High Pass',
   LONG_BALL: 'Long Ball',
 };
-
-const DICE_PHASES = new Set(['SHOT'] as const);
 
 /** Goal line r-values shared between Shoot two-step and GK_DIVING/SNAP_DEFLECT wait panels. */
 const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
@@ -324,8 +322,8 @@ export function ActionPanel() {
                 : Infinity;
             return (
               <>
-                {/* D-18 (WR-03): Snapshot — use isEligible('SNAPSHOT') as visibility condition */}
-                {isEligible('SNAPSHOT') && dist <= 6 && (
+                {/* D-18 (WR-03): Snapshot — server validates penalty area; lastActionType guard prevents showing on fresh PASS state */}
+                {lastActionType !== null && isEligible('SNAPSHOT') && (
                   <button className={styles.ctaButton} onClick={emitSnapshot}>
                     Snapshot
                   </button>
@@ -370,24 +368,8 @@ export function ActionPanel() {
       );
     }
 
-    // Step 3: pass type + target hex confirmed — show Roll Dice
-    const handleRoll = () => {
-      emitRoll(selectedPassType, passTargetHex);
-      setSelectedPassType(null);
-    };
-
-    return (
-      <div className={styles.panel}>
-        <span className={styles.phaseLabel}>Rolling for {PASS_TYPE_LABELS[selectedPassType]}</span>
-        <button className={styles.ctaButton} onClick={handleRoll}>
-          Roll Dice
-        </button>
-        <button className={styles.backButton} onClick={() => setSelectedPassType(null)}>
-          ← Back
-        </button>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
-    );
+    // confirmPassTarget auto-emits GAME_ROLL — no step 3 needed; return null while server processes
+    return null;
   }
 
   // -------------------------------------------------------------------------
@@ -395,15 +377,8 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   if (phase === 'MOVEMENT') {
     const carrier = pieces.find((p) => p.id === carrierId);
-    const targetGoalHexes =
-      attackingTeam === 'home'
-        ? [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 36, r }))
-        : [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 0, r }));
-    const distToGoal =
-      carrier !== undefined
-        ? Math.min(...targetGoalHexes.map((g) => hexDistance(carrier.position, g)))
-        : Infinity;
-    const canSnapshot = distToGoal <= 6;
+    const penaltyAreaRegion = attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+    const canSnapshot = carrier !== undefined && isInRegion(carrier.position, penaltyAreaRegion);
 
     // Undo is available when there is at least one MOVE event after the last slot boundary
     // (SLOT_ADVANCE or KICK_OFF) and no dice have been rolled. Mirrors applyUndo's boundary logic.
@@ -428,20 +403,6 @@ export function ActionPanel() {
         </button>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
-        </button>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // SHOT — Roll Dice
-  // -------------------------------------------------------------------------
-  if (DICE_PHASES.has(phase as 'SHOT')) {
-    return (
-      <div className={styles.panel}>
-        <button className={styles.ctaButton} onClick={() => emitRoll()}>
-          Roll Dice
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
