@@ -336,11 +336,13 @@ describe('game integration — Movement Phase scenarios', () => {
     const { clientA, attackingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
 
-    // Pick the piece matching the attacking team
+    // D-25: use real HOME_SQUAD / AWAY_SQUAD piece IDs and actual starting positions on the 37×26 board.
+    // home-9 = Home FWD 3 at {q:15, r:17}; away-9 = Away FWD 3 at {q:21, r:17}.
+    // Adjacent target hex (distance=1): home attacks → {q:16, r:17}; away attacks → {q:20, r:17}.
     const teamPrefix = movementState.attackingTeam === 'home' ? 'home' : 'away';
     const pieceId = `${teamPrefix}-9`;
-    const targetHex = movementState.attackingTeam === 'home' ? { q: 11, r: 7 } : { q: 13, r: 7 };
-    const origPos = movementState.attackingTeam === 'home' ? { q: 10, r: 7 } : { q: 14, r: 7 };
+    const origPos = movementState.attackingTeam === 'home' ? { q: 15, r: 17 } : { q: 21, r: 17 };
+    const targetHex = movementState.attackingTeam === 'home' ? { q: 16, r: 17 } : { q: 20, r: 17 };
 
     // Make a valid move
     const afterMovePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
@@ -359,10 +361,12 @@ describe('game integration — Movement Phase scenarios', () => {
     const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
 
-    // Make a move in ATTACKER_4 then end the turn (leaving the MOVE in the log)
+    // D-25: use real HOME_SQUAD / AWAY_SQUAD piece IDs and actual starting positions on the 37×26 board.
+    // home-9 = Home FWD 3 at {q:15, r:17}; away-9 = Away FWD 3 at {q:21, r:17}.
+    // Adjacent target hex (distance=1): home attacks → {q:16, r:17}; away attacks → {q:20, r:17}.
     const teamPrefix = movementState.attackingTeam === 'home' ? 'home' : 'away';
     const pieceId = `${teamPrefix}-9`;
-    const targetHex = movementState.attackingTeam === 'home' ? { q: 11, r: 7 } : { q: 13, r: 7 };
+    const targetHex = movementState.attackingTeam === 'home' ? { q: 16, r: 17 } : { q: 20, r: 17 };
 
     const moveStatePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     attackingClient.emit(ClientEvents.GAME_MOVE, pieceId, targetHex);
@@ -618,10 +622,12 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
 
 describe('game:shot (D-06)', () => {
   /**
-   * Seeds a room's gameState directly into SHOT phase with the attacking team as shooter.
-   * Returns which client controls the shooting (attacking) team and which is the defender.
+   * Seeds a room's gameState directly into PASS phase for the attacking team shooter
+   * (D-02 rework: GAME_SHOT handler now guards on PASS phase, not SHOT).
+   * Adds a ball carrier for the attacking team to satisfy applyDeclareShot guards.
+   * Returns which client controls the attacking team and which is the defender.
    */
-  function seedShotPhase(
+  function seedPassPhaseForShot(
     roomCode: string,
     clientA: ReturnType<typeof createClient>,
     clientB: ReturnType<typeof createClient>,
@@ -634,11 +640,20 @@ describe('game:shot (D-06)', () => {
     if (!room || !room.gameState) {
       throw new Error('Room or gameState not found');
     }
+    // Assign a ball carrier from the attacking team (first FWD piece works)
+    const carrierId = attackingTeam === 'home' ? 'home-8' : 'away-8';
+    const carrier = room.gameState.pieces.find((p) => p.id === carrierId);
     room.gameState = {
       ...room.gameState,
-      phase: 'SHOT',
+      phase: 'PASS',
       attackingTeam,
       activeTeam: attackingTeam,
+      // lastActionType: null allows SHOT to be eligible (null treated as MOVEMENT_PHASE)
+      lastActionType: null,
+      ball: {
+        position: carrier?.position ?? { q: 18, r: 13 },
+        carrierId,
+      },
     };
     // clientA = slot 1 = 'home'; clientB = slot 2 = 'away'
     const shooterClient = attackingTeam === 'home' ? clientA : clientB;
@@ -646,54 +661,47 @@ describe('game:shot (D-06)', () => {
     return { shooterClient, otherClient };
   }
 
-  it('game:shot emitted when phase is NOT SHOT returns GAME_ERROR WRONG_PHASE and leaves shotTarget undefined (T-07-11)', async () => {
+  it('game:shot emitted when phase is NOT PASS returns GAME_ERROR WRONG_PHASE (T-07-11)', async () => {
     const { clientA, roomCode } = await setupRoom();
-    // Phase is KICK_OFF after setup — not SHOT
+    // Phase is KICK_OFF_SETUP after setup — not PASS
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    clientA.emit(ClientEvents.GAME_SHOT, { q: 18, r: 5 });
+    clientA.emit(ClientEvents.GAME_SHOT, { q: 36, r: 13 });
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_PHASE');
-    // shotTarget must not have been set
-    expect(getRoom(roomCode)!.shotTarget).toBeUndefined();
+    // State must not have changed (still KICK_OFF_SETUP)
+    expect(getRoom(roomCode)!.gameState?.phase).toBe('KICK_OFF_SETUP');
   });
 
-  it('game:shot from the shooter in SHOT phase records shotTarget and does NOT emit game:state (D-06)', async () => {
+  it('game:shot from the shooter in PASS phase → state transitions to GK_DIVING (D-02 rework)', async () => {
+    // D-02: GAME_SHOT now calls applyDeclareShot: PASS → GK_DIVING; broadcasts new state.
     const { clientA, clientB, roomCode, state } = await setupRoom();
-    const { shooterClient } = seedShotPhase(roomCode, clientA, clientB, state.attackingTeam);
+    const { shooterClient } = seedPassPhaseForShot(roomCode, clientA, clientB, state.attackingTeam);
 
-    // Collect any game:state events within a short window to assert none are emitted
-    const receivedStates: unknown[] = [];
-    const stateListener = (s: unknown): void => {
-      receivedStates.push(s);
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (clientA as any).on(ServerEvents.GAME_STATE, stateListener);
+    // Register state listener BEFORE emitting (state IS broadcast now — ARCH-04)
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
 
-    const targetHex = { q: 18, r: 5 };
+    // Valid goal hex for the attacking team: q=36 for home, q=0 for away; r=13 (centre of goal)
+    const targetHex = state.attackingTeam === 'home' ? { q: 36, r: 13 } : { q: 0, r: 13 };
     shooterClient.emit(ClientEvents.GAME_SHOT, targetHex);
 
-    // Allow time for any server response to arrive
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (clientA as any).off(ServerEvents.GAME_STATE, stateListener);
-
-    // shotTarget must be recorded on the room
-    expect(getRoom(roomCode)!.shotTarget).toEqual(targetHex);
-    // No game:state broadcast should have been emitted (D-06 revision)
-    expect(receivedStates).toHaveLength(0);
+    // Server broadcasts new state (transition to GK_DIVING)
+    const [newState] = await statePromise;
+    expect(newState.phase).toBe('GK_DIVING');
+    expect(newState.shotTargetHex).toEqual(targetHex);
   });
 
   it('game:shot with a malformed payload (non-{q,r} object) returns GAME_ERROR INVALID_TARGET (T-07-12)', async () => {
     const { clientA, clientB, roomCode, state } = await setupRoom();
-    const { shooterClient } = seedShotPhase(roomCode, clientA, clientB, state.attackingTeam);
+    // Seed in PASS phase so phase guard passes and payload check triggers
+    const { shooterClient } = seedPassPhaseForShot(roomCode, clientA, clientB, state.attackingTeam);
 
     const errorPromise = oncePromise(shooterClient, ServerEvents.GAME_ERROR);
 
     shooterClient.emit(ClientEvents.GAME_SHOT, { q: 'x' } as never);
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_TARGET');
-    // State must remain unmutated
-    expect(getRoom(roomCode)!.shotTarget).toBeUndefined();
+    // Phase must not have changed (still PASS)
+    expect(getRoom(roomCode)!.gameState?.phase).toBe('PASS');
   });
 });
 
