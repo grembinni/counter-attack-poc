@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyEndTurn, applyRoll, applyStartMovement } from '../gameEngine.js';
+import { applyEndTurn, applyRoll, applyStartMovement, applyMove } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -300,6 +300,215 @@ describe('D-29: stealAttemptedByIds / tackleAttemptedByIds cleared on applyStart
     if (!result.ok) return;
     expect(result.state.stealAttemptedByIds).toEqual([]);
     expect(result.state.tackleAttemptedByIds).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-26: Loose Ball trajectory clamps to PITCH_HEXES — ball.position always in-bounds
+// ---------------------------------------------------------------------------
+
+describe('D-26: Loose Ball boundary clamp', () => {
+  it('applyRoll LOOSE_BALL result has ball.position that is a member of PITCH_HEXES', () => {
+    // Ball near the right edge at q=35, r=13; any direction die could push toward q=36+ (off-board)
+    const looseBallState: GameState = {
+      ...baseState,
+      phase: 'LOOSE_BALL',
+      movementSlot: null,
+      lastActionType: 'DEFLECTION',
+      ball: { position: { q: 35, r: 13 }, carrierId: null },
+    };
+    // Try multiple direction+distance combos to check none land off-board
+    for (const d1 of [1, 2, 3, 4, 5, 6] as const) {
+      for (const d2 of [1, 2, 3, 4, 5, 6] as const) {
+        const result = applyRoll(looseBallState, d1, d2);
+        expect(result.ok).toBe(true);
+        if (!result.ok) continue;
+        // ball.position must have valid pitch coordinates (q in [0,36], r in [0,25])
+        const { q, r } = result.state.ball.position;
+        expect(q).toBeGreaterThanOrEqual(0);
+        expect(q).toBeLessThanOrEqual(36);
+        expect(r).toBeGreaterThanOrEqual(0);
+        expect(r).toBeLessThanOrEqual(25);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-29 enforcement: one steal / one tackle per piece per movement phase
+// (plan 02 will fix; currently applyMove does not enforce stealAttemptedByIds)
+// ---------------------------------------------------------------------------
+
+describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
+  // Steal scenario: homeFwd (carrier) at {q:32,r:12} moves to {q:32,r:13}.
+  // awayDef at {q:31,r:12} is a neighbor of the destination {q:32,r:13} → ZoI steal triggers.
+  // {q:32,r:13} is unoccupied (awayDef is at {q:31,r:12}).
+  const stealTriggerState: GameState = {
+    ...baseState,
+    phase: 'MOVEMENT',
+    movementSlot: 'ATTACKER_4',
+    activeTeam: 'home',
+    pieces: [
+      { ...homeFwd, position: { q: 32, r: 12 } }, // carrier
+      { ...awayDef, position: { q: 31, r: 12 } }, // ZoI from destination {32,13}
+      { ...homeMid, position: { q: 15, r: 12 } },
+      { ...awayGk, position: { q: 36, r: 13 } },
+    ],
+    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+    paceUsedByPieceId: {},
+    movedPieceIds: [],
+  };
+
+  it('a piece already in stealAttemptedByIds is rejected when steal triggers again', () => {
+    const state: GameState = {
+      ...stealTriggerState,
+      stealAttemptedByIds: ['home-fwd'], // home-fwd already attempted a steal this phase
+    };
+    // Move carrier to {32,13} (adjacent, triggers ZoI with awayDef)
+    // D-29: should be rejected because 'home-fwd' is already in stealAttemptedByIds
+    const result = applyMove(state, 'home-fwd', { q: 32, r: 13 });
+    if (!result.ok) {
+      expect(result.reason).toBe('MOVE_INVALID');
+    }
+    // After D-29 fix: expect result.ok to be false (rejected); currently ok:true (pre-fix RED)
+    expect(result.ok).toBe(false);
+  });
+
+  it('a piece not in stealAttemptedByIds can attempt a steal; its id is added to list', () => {
+    const state: GameState = {
+      ...stealTriggerState,
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+    };
+    // Move carrier to {32,13} (triggers ZoI steal with awayDef); die=1 → steal FAIL
+    const result = applyMove(
+      state,
+      'home-fwd',
+      { q: 32, r: 13 },
+      { stealDie: 1, tackleDie: 1, carrierDie: 1 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // After D-29 fix: 'home-fwd' should be in stealAttemptedByIds after the attempt
+    expect(result.state.stealAttemptedByIds ?? []).toContain('home-fwd');
+  });
+
+  // Tackle scenario: awayDef (non-carrier) moves adjacent to homeFwd (carrier).
+  // homeFwd (carrier) at {q:32,r:12}; awayDef at {q:31,r:11} (2 hexes away).
+  // awayDef moves to {q:31,r:12} → adjacent to {q:32,r:12} (carrier) → TACKLE_ATTEMPT.
+  const tackleTriggerState: GameState = {
+    ...baseState,
+    phase: 'MOVEMENT',
+    movementSlot: 'DEFENDER_5',
+    activeTeam: 'away',
+    attackingTeam: 'home',
+    pieces: [
+      { ...homeFwd, position: { q: 32, r: 12 } }, // carrier
+      { ...awayDef, position: { q: 31, r: 11 } }, // defender 1 step from tackle position
+      { ...homeMid, position: { q: 15, r: 12 } },
+      { ...awayGk, position: { q: 36, r: 13 } },
+    ],
+    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+    paceUsedByPieceId: {},
+    movedPieceIds: [],
+  };
+
+  it('a piece already in tackleAttemptedByIds is rejected when tackle triggers again', () => {
+    const state: GameState = {
+      ...tackleTriggerState,
+      tackleAttemptedByIds: ['away-def'], // away-def already attempted a tackle this phase
+    };
+    // awayDef moves from {31,11} to {31,12} (adjacent to carrier at {32,12}) → TACKLE_ATTEMPT
+    // D-29: should be rejected because 'away-def' is already in tackleAttemptedByIds
+    const result = applyMove(state, 'away-def', { q: 31, r: 12 });
+    if (!result.ok) {
+      expect(result.reason).toBe('MOVE_INVALID');
+    }
+    // After D-29 fix: expect result.ok to be false; currently ok:true (pre-fix RED)
+    expect(result.ok).toBe(false);
+  });
+
+  it('a piece not in tackleAttemptedByIds can attempt tackle; its id is added to list', () => {
+    const state: GameState = {
+      ...tackleTriggerState,
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+    };
+    // awayDef moves to {31,12} (adjacent to carrier at {32,12}) → TACKLE_ATTEMPT; die=1 → FAIL
+    const result = applyMove(
+      state,
+      'away-def',
+      { q: 31, r: 12 },
+      { stealDie: 1, tackleDie: 1, carrierDie: 1 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // After D-29 fix: 'away-def' should be in tackleAttemptedByIds after the attempt
+    expect(result.state.tackleAttemptedByIds ?? []).toContain('away-def');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-30: Loose-ball pickup during movement continues movement (does NOT end action)
+// (plan 02 will fix; currently pickup transitions to PASS and resets pace)
+// ---------------------------------------------------------------------------
+
+describe('D-30: loose-ball pickup continues movement action', () => {
+  it('picking up the loose ball does not transition to PASS phase', () => {
+    // homeFwd (pace=9) is in MOVEMENT at ATTACKER_4, has used 1 hex of pace
+    // loose ball is on the next hex they can step to
+    const looseBallPickupState: GameState = {
+      ...baseState,
+      phase: 'MOVEMENT',
+      movementSlot: 'ATTACKER_4',
+      activeTeam: 'home',
+      attackingTeam: 'home',
+      pieces: [{ ...homeFwd, position: { q: 20, r: 12 } }, awayGk, homeMid, awayDef],
+      ball: { position: { q: 21, r: 12 }, carrierId: null }, // loose ball 1 hex ahead
+      paceUsedByPieceId: { 'home-fwd': 1 }, // already used 1 of 9 pace
+      movedPieceIds: [],
+    };
+
+    const result = applyMove(looseBallPickupState, 'home-fwd', { q: 21, r: 12 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // D-30: should remain in MOVEMENT phase (not transition to PASS)
+    // Current behavior (pre-fix): phase='PASS' — this test is RED until D-30 is fixed
+    expect(result.state.phase).toBe('MOVEMENT');
+    // paceUsedByPieceId should reflect the new step (was 1, now 2)
+    expect(result.state.paceUsedByPieceId['home-fwd']).toBe(2);
+    // ball should be carried by home-fwd
+    expect(result.state.ball.carrierId).toBe('home-fwd');
+  });
+
+  it('picking up the loose ball sets attackingTeam to the picking-up piece team', () => {
+    // DEFENDER_5 slot: away team is moving. away-def (non-carrier) picks up loose ball.
+    // attackingTeam was 'home'; after pickup, attackingTeam should become 'away'.
+    const state: GameState = {
+      ...baseState,
+      phase: 'MOVEMENT',
+      movementSlot: 'DEFENDER_5',
+      activeTeam: 'away',
+      attackingTeam: 'home',
+      pieces: [
+        { ...homeFwd, position: { q: 20, r: 12 } },
+        { ...awayDef, position: { q: 22, r: 12 } }, // away-def will pick up loose ball
+        { ...homeMid, position: { q: 15, r: 12 } },
+        { ...awayGk, position: { q: 36, r: 13 } },
+      ],
+      ball: { position: { q: 21, r: 12 }, carrierId: null }, // loose ball adjacent to awayDef
+      paceUsedByPieceId: {},
+      movedPieceIds: [],
+    };
+
+    const result = applyMove(state, 'away-def', { q: 21, r: 12 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // After pickup, attacking team should switch to away (the picking-up team)
+    expect(result.state.attackingTeam).toBe('away');
+    // D-30: should remain in MOVEMENT phase, not transition to PASS
+    expect(result.state.phase).toBe('MOVEMENT');
   });
 });
 
