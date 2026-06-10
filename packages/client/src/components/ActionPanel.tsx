@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
-import { ELIGIBLE_NEXT_ACTIONS, hexDistance, ClientEvents } from '@counter-attack/shared';
+import { ELIGIBLE_NEXT_ACTIONS, hexDistance } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
-import { socket } from '../socket.js';
 import styles from './ActionPanel.module.css';
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
@@ -13,6 +12,9 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
 };
 
 const DICE_PHASES = new Set(['SHOT'] as const);
+
+/** Goal line r-values shared between Shoot two-step and GK_DIVING/SNAP_DEFLECT wait panels. */
+const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
 
 /**
  * Phase-gated, active-player-gated action controls.
@@ -44,16 +46,28 @@ export function ActionPanel() {
   const emitUndo = useGameStore((s) => s.emitUndo);
   const emitStartMovement = useGameStore((s) => s.emitStartMovement);
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
+  const emitSnapshot = useGameStore((s) => s.emitSnapshot);
+  const emitHeader = useGameStore((s) => s.emitHeader);
   // Phase 8.2: store-backed pass type selection (replaces local useState — clearing is done in setGameState)
   const selectedPassType = useGameStore((s) => s.selectedPassType);
   const setSelectedPassType = useGameStore((s) => s.setSelectedPassType);
   const passTargetHex = useGameStore((s) => s.passTargetHex);
   const headerContestantIds = useGameStore((s) => s.headerContestantIds);
   const emitHeaderContestant = useGameStore((s) => s.emitHeaderContestant);
+  // Phase 10: shooting mode (two-step Shoot flow)
+  const shootingMode = useGameStore((s) => s.shootingMode);
+  const setShootingMode = useGameStore((s) => s.setShootingMode);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
+
+  /** Check if an action is eligible given the current lastActionType. */
+  const isEligible = (action: string): boolean => {
+    const effectiveLast = lastActionType ?? 'MOVEMENT_PHASE';
+    const eligible = ELIGIBLE_NEXT_ACTIONS[effectiveLast];
+    return eligible?.has(action as Parameters<typeof eligible.has>[0]) ?? false;
+  };
 
   // Auto-emit scatter roll when entering LOOSE_BALL — no player interaction needed
   useEffect(() => {
@@ -104,6 +118,67 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
+  // GK_DIVING phase: GK's team repositions GK up to 3 hexes parallel to goal line,
+  // then ends turn → server auto-resolves the shot.
+  // Must be before the isActivePlayer guard — both teams see this phase.
+  // Active team = GK team (defendingTeam during a shot).
+  // -------------------------------------------------------------------------
+  if (phase === 'GK_DIVING') {
+    if (myTeam === null) return null;
+    // GK team is the team NOT currently attacking
+    const gkTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+    const isGKTeamPlayer = myTeam === gkTeam;
+    if (!isGKTeamPlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent is repositioning GK — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.phaseLabel}>
+          Reposition GK (up to 3 hexes parallel to goal line)
+        </span>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn (Dive Complete)
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // SNAP_DEFLECT phase: defending team moves 1 player up to 2 hexes before
+  // snapshot resolves.
+  // Must be before the isActivePlayer guard — both teams see this phase.
+  // Active team = defending team (opponent of attackingTeam).
+  // -------------------------------------------------------------------------
+  if (phase === 'SNAP_DEFLECT') {
+    if (myTeam === null) return null;
+    const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+    const isDefendingTeamPlayer = myTeam === defendingTeam;
+    if (!isDefendingTeamPlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent is deflecting — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.phaseLabel}>
+          Move a player to deflect the snapshot (up to 2 hexes)
+        </span>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
   // HEADER phase (D-17): both teams must see the contestant selection UI.
   // The Roll Header button is gated to the active player only.
   // This block must be BEFORE the isActivePlayer guard so the defending team
@@ -112,6 +187,28 @@ export function ActionPanel() {
   if (phase === 'HEADER') {
     if (myTeam === null) return null;
     const myConfirmed = headerConfirmed?.[myTeam] ?? false;
+    const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
+
+    // HEAD-03: after both teams confirm, attacker clicks a target hex (handled in HexGrid).
+    // Only the attacker sees the "click target" prompt; defender waits.
+    // D-19 (WR-04): No Roll Header or Header button here — auto-confirm fires the duel once
+    // headerTargetHex is set (server side). Single resolution route only.
+    if (bothConfirmed) {
+      if (isActivePlayer && myTeam === attackingTeam) {
+        return (
+          <div className={styles.panel}>
+            <span className={styles.phaseLabel}>Click a target hex for the header</span>
+            {gameError && <span className={styles.errorText}>{gameError}</span>}
+          </div>
+        );
+      }
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Waiting for attacker to select target...</span>
+          {gameError && <span className={styles.errorText}>{gameError}</span>}
+        </div>
+      );
+    }
 
     return (
       <div className={styles.panel}>
@@ -210,31 +307,48 @@ export function ActionPanel() {
 
           {/* D-16: Long Ball header option — when HEADER is an eligible next action */}
           {eligible.has('HEADER') && (
-            <button
-              className={styles.ctaButton}
-              onClick={() => socket.emit(ClientEvents.GAME_HEADER)}
-            >
+            <button className={styles.ctaButton} onClick={emitHeader}>
               Header
             </button>
           )}
 
-          {(eligible.has('SNAPSHOT') || eligible.has('SHOT')) &&
-            (() => {
-              const carrier = pieces.find((p) => p.id === carrierId);
-              const goalHexes =
-                attackingTeam === 'home'
-                  ? [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 36, r }))
-                  : [10, 11, 12, 13, 14, 15, 16].map((r) => ({ q: 0, r }));
-              const dist =
-                carrier !== undefined
-                  ? Math.min(...goalHexes.map((g) => hexDistance(carrier.position, g)))
-                  : Infinity;
-              return dist <= 11 ? (
-                <button className={styles.ctaButton} disabled>
-                  Shoot
-                </button>
-              ) : null;
-            })()}
+          {(() => {
+            const carrier = pieces.find((p) => p.id === carrierId);
+            const goalHexes = GOAL_R_VALUES.map((r) => ({
+              q: attackingTeam === 'home' ? 36 : 0,
+              r,
+            }));
+            const dist =
+              carrier !== undefined
+                ? Math.min(...goalHexes.map((g) => hexDistance(carrier.position, g)))
+                : Infinity;
+            return (
+              <>
+                {/* D-18 (WR-03): Snapshot — use isEligible('SNAPSHOT') as visibility condition */}
+                {isEligible('SNAPSHOT') && dist <= 6 && (
+                  <button className={styles.ctaButton} onClick={emitSnapshot}>
+                    Snapshot
+                  </button>
+                )}
+                {/* Two-step Shoot flow (D-01): Step 1 — click Shoot sets shootingMode=true.
+                    Step 2 — HexGrid highlights goal hexes; clicking one emits emitDeclareShot. */}
+                {eligible.has('SHOT') && dist <= 11 && (
+                  <button
+                    className={styles.ctaButton}
+                    onClick={() => setShootingMode(true)}
+                    disabled={shootingMode}
+                  >
+                    {shootingMode ? 'Select goal hex...' : 'Shoot'}
+                  </button>
+                )}
+                {shootingMode && (
+                  <button className={styles.backButton} onClick={() => setShootingMode(false)}>
+                    ← Cancel Shot
+                  </button>
+                )}
+              </>
+            );
+          })()}
 
           {gameError && <span className={styles.errorText}>{gameError}</span>}
         </div>
@@ -303,8 +417,9 @@ export function ActionPanel() {
 
     return (
       <div className={styles.panel}>
+        {/* D-10: Snapshot wired to emitSnapshot in MOVEMENT phase (was permanently disabled) */}
         {canSnapshot && (
-          <button className={styles.ctaButton} disabled>
+          <button className={styles.ctaButton} onClick={emitSnapshot}>
             Snapshot
           </button>
         )}

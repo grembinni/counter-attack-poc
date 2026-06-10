@@ -74,9 +74,16 @@ export function HexGrid() {
   const headerContestantIds = useGameStore((s) => s.headerContestantIds);
   const toggleHeaderContestantId = useGameStore((s) => s.toggleHeaderContestantId);
   const headerConfirmed = useGameStore((s) => s.gameState.headerConfirmed);
+  const headerTargetHex = useGameStore((s) => s.gameState.headerTargetHex);
   // HIGH_PASS_MOVEMENT: track locked piece and pace so selection gating + spent X match server rule
   const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
   const highPassPaceUsed = useGameStore((s) => s.gameState.highPassPaceUsed);
+  // Phase 10: shooting mode, GK dive/header-target actions
+  const shootingMode = useGameStore((s) => s.shootingMode);
+  const emitDeclareShot = useGameStore((s) => s.emitDeclareShot);
+  const emitGKDive = useGameStore((s) => s.emitGKDive);
+  const emitHeaderTarget = useGameStore((s) => s.emitHeaderTarget);
+  const gkDivePosition = useGameStore((s) => s.gameState.gkDivePosition);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -84,6 +91,33 @@ export function HexGrid() {
 
   // Optimistic highlight for SHOT target — cosmetic only; server emit is source of truth (D-06)
   const [shotTargetHighlight, setShotTargetHighlight] = useState<HexCoord | null>(null);
+
+  // Phase 10: Goal line hexes (used for shootingMode two-step and HEADER target)
+  const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
+  const goalQ = attackingTeam === 'home' ? 36 : 0;
+  const goalLineHexSet = new Set(GOAL_R_VALUES.map((r) => `${goalQ},${r}`));
+
+  // GK_DIVING: GK can move up to 3 hexes parallel to goal line from current gkDivePosition
+  // (same q as gkDivePosition, adjacent r within pitch bounds)
+  const gkDiveTargetSet = new Set<string>();
+  if (phase === 'GK_DIVING' && gkDivePosition !== null && gkDivePosition !== undefined) {
+    const maxR = 25;
+    for (let dr = -1; dr <= 1; dr += 2) {
+      const nr = gkDivePosition.r + dr;
+      if (nr >= 0 && nr <= maxR) {
+        gkDiveTargetSet.add(`${gkDivePosition.q},${nr}`);
+      }
+    }
+  }
+
+  // HEADER target step: goal line hexes (both sides) for the attacker's selection
+  const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
+  const headerTargetStep =
+    phase === 'HEADER' &&
+    bothConfirmed &&
+    headerTargetHex === null &&
+    isActivePlayer &&
+    myTeam === attackingTeam;
 
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
@@ -156,11 +190,33 @@ export function HexGrid() {
               shotTargetHighlight !== null &&
               hex.q === shotTargetHighlight.q &&
               hex.r === shotTargetHighlight.r;
+
+            // Phase 10: shooting mode goal-line highlight (step 2 of two-step Shoot flow)
+            const isShootingModeGoalHex =
+              shootingMode && goalLineHexSet.has(hexId) && isActivePlayer;
+
+            // Phase 10: GK dive target (parallel to goal line, adjacent to current gkDivePosition)
+            const isGKDiveTarget = phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId);
+            // GK team = defending team during a shot
+            const gkTeamForDive: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+            const isGKTeamPlayer = myTeam === gkTeamForDive;
+
+            // Phase 10: HEADER target hex selection step
+            const isHeaderTargetGoalHex = headerTargetStep && goalLineHexSet.has(hexId);
+
             // Suppress gold move highlights during HIGH_PASS_MOVEMENT — separate subtle overlay below
+            // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)
             const isHighlighted =
-              (phase !== 'HIGH_PASS_MOVEMENT' && isValidMove) || isGoalHex || isShotTarget;
+              (phase !== 'HIGH_PASS_MOVEMENT' &&
+                phase !== 'GK_DIVING' &&
+                phase !== 'SNAP_DEFLECT' &&
+                isValidMove) ||
+              isGoalHex ||
+              isShotTarget;
             const isHpMoveTarget =
-              phase === 'HIGH_PASS_MOVEMENT' && selectedPieceId !== null && isValidMove;
+              (phase === 'HIGH_PASS_MOVEMENT' || phase === 'SNAP_DEFLECT') &&
+              selectedPieceId !== null &&
+              isValidMove;
 
             // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
             const isPassTarget =
@@ -178,10 +234,19 @@ export function HexGrid() {
                 onClick = () => emitKickOffMove(selectedPieceId, hex);
               }
               // Clicking any other hex during setup is a no-op — handled by the piece's own onClick below
+            } else if (phase === 'GK_DIVING' && isGKDiveTarget && isGKTeamPlayer) {
+              // Phase 10: GK team clicks a valid dive hex during GK_DIVING
+              onClick = () => emitGKDive(hex);
+            } else if (isShootingModeGoalHex) {
+              // Phase 10: Two-step Shoot flow — clicking goal hex emits declare shot
+              onClick = () => emitDeclareShot(hex);
+            } else if (isHeaderTargetGoalHex) {
+              // Phase 10: HEADER target step — attacker clicks goal-line hex
+              onClick = () => emitHeaderTarget(hex);
             } else if (isValidMove && selectedPieceId) {
               onClick = () => emitMove(selectedPieceId, hex);
             } else if (isGoalHex) {
-              // D-06: emit target to server; optimistic highlight is cosmetic
+              // D-06: emit target to server (legacy SHOT phase path); optimistic highlight is cosmetic
               onClick = () => {
                 setShotTargetHighlight(hex);
                 socket.emit(ClientEvents.GAME_SHOT, hex);

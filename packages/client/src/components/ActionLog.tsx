@@ -204,14 +204,14 @@ function formatEvent(event: ActionEvent): Formatted {
     case 'STANDARD_PASS':
       return {
         prefix: event.accurate ? '[PASS ✓]' : '[PASS ✗]',
-        prefixColor: null,
+        prefixColor: event.passerId ? pieceColorOf(event.passerId) : null, // D-27: team colour
         content: ` Standard  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
     case 'FIRST_TIME_PASS':
       return {
         prefix: event.accurate ? '[PASS ✓]' : '[PASS ✗]',
-        prefixColor: null,
+        prefixColor: event.passerId ? pieceColorOf(event.passerId) : null, // D-27: team colour
         content: ` First-time  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };

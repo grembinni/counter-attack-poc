@@ -116,9 +116,19 @@ export type ActionEvent =
       timestamp: number;
     }
   | { type: 'LONG_BALL'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
-  | { type: 'STANDARD_PASS'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
+  | {
+      type: 'STANDARD_PASS';
+      /** D-27: passer piece ID for team-colour prefix in ActionLog. */
+      passerId: string;
+      from: HexCoord;
+      to: HexCoord;
+      accurate: boolean;
+      timestamp: number;
+    }
   | {
       type: 'FIRST_TIME_PASS';
+      /** D-27: passer piece ID for team-colour prefix in ActionLog. */
+      passerId: string;
       from: HexCoord;
       to: HexCoord;
       accurate: boolean;

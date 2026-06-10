@@ -942,6 +942,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       } else {
         const passAttemptEvent: ActionEvent = {
           type: deliveredPassType,
+          // D-27: include passer ID for team-colour prefix in ActionLog
+          passerId: carrier.id,
           from: carrier.position,
           to: targetHex,
           accurate: true,
