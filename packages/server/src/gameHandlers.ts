@@ -134,26 +134,33 @@ function controlsGKTeam(socket: AppSocket, room: Room): boolean {
  * T-08-15: The interval handle is stored on room.replayTimer so it can be
  * cleared on disconnect (roomHandlers.ts) and on room deletion (deleteRoom).
  *
- * The ~3s setTimeout is not stored because it fires exactly once and its only
- * action is setting room.replayTimer. If the room is deleted during the 3s hold,
- * the interval will never start (room won't exist). Minor cleanup edge-case:
- * the setTimeout callback is a no-op when the room is gone.
+ * D-15 (CR-01 BLOCKER): The setTimeout callback re-fetches the live room via
+ * getRoom(room.roomCode) to avoid holding a stale reference to a room that may
+ * have been deleted during the 3s hold (e.g. both players disconnected). If the
+ * room is gone or its gameState is null when the callback fires, the interval is
+ * never created and the callback exits silently.
  *
  * @param io   - Socket.io Server instance (for room-wide emit)
  * @param room - The room that just reached FULL_TIME
  */
 function startReplayStream(io: AppServer, room: Room): void {
   if (room.gameState === null) return;
-  const frames = buildReplayFrames(room.gameState);
-  const replayTotal = frames.length;
 
   // ~3s delay so the FULL_TIME screen displays before replay begins (Open Question 3)
+  // D-15 CR-01: frames are built inside the callback so we work with the live room,
+  // not a stale closure reference.
   setTimeout(() => {
+    // D-15 CR-01: re-fetch the live room — if deleted during the 3s hold, bail out.
+    const liveRoom = getRoom(room.roomCode);
+    if (!liveRoom || liveRoom.gameState === null) return;
+
+    const frames = buildReplayFrames(liveRoom.gameState);
+    const replayTotal = frames.length;
     let idx = 0;
-    room.replayTimer = setInterval(() => {
+    liveRoom.replayTimer = setInterval(() => {
       if (idx >= frames.length) {
-        clearInterval(room.replayTimer!);
-        room.replayTimer = null;
+        clearInterval(liveRoom.replayTimer!);
+        liveRoom.replayTimer = null;
         return;
       }
       const frame = frames[idx++]!;
@@ -164,7 +171,7 @@ function startReplayStream(io: AppServer, room: Room): void {
         replayIndex: idx, // 1-based (idx already incremented)
         replayTotal,
       };
-      io.to(room.roomCode).emit(ServerEvents.GAME_STATE, replayFrame);
+      io.to(liveRoom.roomCode).emit(ServerEvents.GAME_STATE, replayFrame);
     }, 1000);
   }, 3000);
 }
@@ -504,15 +511,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
     try {
       if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // D-24: snap-back so client re-syncs
         return;
       }
       if (!isActivePlayer(socket, room)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // D-24: snap-back so client re-syncs
         return;
       }
       const result = applyRestartMovement(room.gameState);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // D-24: snap-back so client re-syncs
         return;
       }
       room.gameState = result.state;
@@ -1041,65 +1051,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // -------------------------------------------------------------------------
-  // GAME_HEADER — resolves the HEADER duel (CR-02)
-  //
-  // T-08-22: phase === 'HEADER' guard; isActivePlayer team guard; HEADER
-  //   sequence guard (same guard the GAME_ROLL handler already performs for HEADER).
-  //
-  // Rationale (recorded per plan requirement): GAME_ROLL already covers HEADER
-  // via DICE_PHASES, so GAME_HEADER is a dedicated alias that delegates to the
-  // identical applyRoll resolution. Registering it (rather than removing it from
-  // ClientEvents) is the lower-risk fix because the client's emitHeader and the
-  // events.ts contract already exist and are shipped.
-  //
-  // ARCH-04: broadcastState is the single broadcast entry point.
-  // SC-5: isProcessing mutex guards against double-click race.
+  // NOTE (D-19 WR-04): The dedicated GAME_HEADER handler was removed in Phase 10.
+  // HEADER now resolves exclusively via GAME_HEADER_CONTESTANT: when both teams
+  // confirm their contestant selection, GAME_HEADER_CONTESTANT auto-rolls the duel
+  // immediately (established in Phase 8.2). A second resolution route caused
+  // duplicate dice rolls and UI confusion (D-19). ClientEvents.GAME_HEADER remains
+  // in events.ts for type-contract backwards compatibility but is no longer wired.
   // -------------------------------------------------------------------------
-  socket.on(ClientEvents.GAME_HEADER, () => {
-    const { roomCode } = socket.data;
-    if (roomCode === undefined) return;
-    const room = getRoom(roomCode);
-    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
-
-    room.isProcessing = true;
-    try {
-      // Phase guard (T-08-22): must be in HEADER phase
-      if (room.gameState === null || room.gameState.phase !== 'HEADER') {
-        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // Team guard (T-08-22): must be the active player
-      if (!isActivePlayer(socket, room)) {
-        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // D-07 / T-08-12: sequence guard — HEADER is only valid after HIGH_PASS or LONG_BALL (D-17)
-      if (
-        room.gameState.lastActionType !== null &&
-        !ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')
-      ) {
-        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // Pre-generate all three dice upfront (Pitfall 4 — mirrors GAME_ROLL pattern)
-      const d1 = rollDice();
-      const d2 = rollDice();
-      const d3 = rollDice();
-      const result = applyRoll(room.gameState, d1, d2, d3);
-      if (!result.ok) {
-        socket.emit(ServerEvents.GAME_ERROR, result.reason);
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      room.gameState = result.state;
-      broadcastState(io, room); // ARCH-04
-    } finally {
-      room.isProcessing = false; // MUST be in finally — Pitfall 5
-    }
-  });
 
   // -------------------------------------------------------------------------
   // GAME_HEADER_CONTESTANT — per-team header contestant selection (D-17, ASVS V4)
