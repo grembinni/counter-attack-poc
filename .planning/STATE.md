@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 10
-last_updated: '2026-06-10T11:35:00.000Z'
+last_updated: '2026-06-10T12:40:00.000Z'
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 51
-  completed_plans: 50
-  percent: 94
+  completed_plans: 51
+  percent: 96
 ---
 
 # Project State
@@ -98,6 +98,14 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 10 Plan 04)
+
+- controlsGKTeam is phase-aware: GK_DIVING derives defending team from attackingTeam (ball.carrierId = shooter in that phase); GK_RESTART uses ball.carrierId
+- GAME_HEADER removed; single resolution route via GAME_HEADER_CONTESTANT auto-confirm (D-19)
+- startReplayStream re-fetches liveRoom inside setTimeout to eliminate stale closure (D-15 CR-01 BLOCKER)
+- snapDeflectMovedPieceId + snapDeflectPaceUsed added to GameState for SNAP_DEFLECT phase tracking
+- GK_DIVING end-turn: computeShotPathDeflection first (deflect → LOOSE_BALL), then applyRoll with phase normalised to SHOT
+
 ### Decisions Locked (Phase 10 Plan 03)
 
 - applyDeclareShot transitions directly to GK_DIVING (not SHOT_DECLARED + GK_DIVING); shotTargetHex recorded
@@ -131,7 +139,7 @@ See: .planning/PROJECT.md
 ## Session Continuity
 
 - Last updated: 2026-06-10
-- Phase 10 Plan 03 COMPLETE — applyDeclareShot (56a1ed6), applyGKDive, applyDeclareHeaderTarget, HEAD-03 redirect, computeShotPathDeflection
-- Phase 10 Plan 03 COMPLETE: shot declaration FSM; GK dive reposition guard; header goal-line redirect; defender deflection pure helper
-- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-04-PLAN.md`
-- Next: Execute Plan 04 (new handlers: GAME_GK_DIVE, GAME_HEADER_TARGET, GAME_SHOT rework, SNAP_DEFLECT)
+- Phase 10 Plan 04 COMPLETE — GAME_SHOT rework (44378d8), GAME_GK_DIVE, GAME_HEADER_TARGET, SNAP_DEFLECT, GK end-turn auto-resolve, D-15/D-24/D-19 fixes
+- Phase 10 Plan 04 COMPLETE: handler layer wired for shot/GK-dive/header-target/snap-deflect; CR-01 BLOCKER resolved
+- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-05-PLAN.md`
+- Next: Execute Plan 05 (ActionPanel UI: GK_DIVING, SNAP_DEFLECT, HEADER target hex, Shoot button two-step)
