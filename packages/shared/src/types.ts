@@ -172,7 +172,10 @@ export type GamePhase =
   | 'KICK_OFF'
   | 'KICK_OFF_SETUP' // Phase 8 (D-23): free repositioning before each kick-off; added here
   | 'MOVEMENT'
-  | 'PASS'
+  | 'ACTION' // renamed from 'PASS'
+  | 'SHOT_DECLARED' // new: shot declared, awaiting GK dive
+  | 'GK_DIVING' // new: GK's team repositions GK interactively
+  | 'SNAP_DEFLECT' // new: opponent moves 1 player before snapshot resolves
   | 'SHOT'
   | 'HEADER'
   | 'SNAPSHOT'
@@ -324,4 +327,14 @@ export type GameState = {
    * null or absent outside HIGH_PASS_MOVEMENT phase.
    */
   highPassCarrierId?: string | null;
+  /** Phase 10 HEAD-03: target hex selected by header attacker; null outside HEADER phase. */
+  headerTargetHex?: HexCoord | null;
+  /** Phase 10 SHOT_DECLARED: goal hex the shooter declared. */
+  shotTargetHex?: HexCoord | null;
+  /** Phase 10 GK_DIVING: GK's current position during GK_DIVING phase. */
+  gkDivePosition?: HexCoord | null;
+  /** Phase 10 D-29: piece IDs that already attempted a steal this movement phase. */
+  stealAttemptedByIds?: readonly string[];
+  /** Phase 10 D-29: piece IDs that already attempted a tackle this movement phase. */
+  tackleAttemptedByIds?: readonly string[];
 };

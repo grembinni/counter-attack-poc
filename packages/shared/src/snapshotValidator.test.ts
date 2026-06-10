@@ -1,31 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { validateSnapshot } from './snapshotValidator.js';
-import type { GameState, PlayerPiece } from './types.js';
-
-const basePiece: PlayerPiece = {
-  id: 'p1',
-  teamId: 'home',
-  position: { q: 5, r: 5 },
-  pace: 4,
-  shooting: 7,
-  tackling: 5,
-  dribbling: 5,
-  heading: 5,
-  saving: 1,
-  handling: 5,
-  resilience: 5,
-  aerialAbility: 5,
-  name: 'Test Player',
-  role: 'MID',
-};
+import type { GameState } from './types.js';
 
 const makeState = (phase: GameState['phase']): GameState => ({
   roomCode: 'TEST',
   phase,
   activeTeam: 'home',
   attackingTeam: 'home',
-  pieces: [basePiece],
-  ball: { position: { q: 5, r: 5 }, carrierId: 'p1' },
+  pieces: [],
+  ball: { position: { q: 5, r: 5 }, carrierId: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -37,14 +20,14 @@ const makeState = (phase: GameState['phase']): GameState => ({
 });
 
 describe('validateSnapshot', () => {
-  it('returns WRONG_PHASE outside MOVEMENT/PASS/SNAPSHOT (SNAP-01)', () => {
-    const result = validateSnapshot(makeState('SHOT'), basePiece);
+  it('returns WRONG_PHASE outside MOVEMENT/ACTION/SNAPSHOT (SNAP-01)', () => {
+    const result = validateSnapshot(makeState('SHOT'));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
   });
 
   it('accepts in MOVEMENT phase with shootingPenalty -1 and deflectionEffect maxHexes 2 (SNAP-02)', () => {
-    const result = validateSnapshot(makeState('MOVEMENT'), basePiece);
+    const result = validateSnapshot(makeState('MOVEMENT'));
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.shootingPenalty).toBe(-1);
@@ -53,13 +36,13 @@ describe('validateSnapshot', () => {
     }
   });
 
-  it('accepts in PASS phase (SNAP-01 post-pass trigger)', () => {
-    const result = validateSnapshot(makeState('PASS'), basePiece);
+  it('accepts in ACTION phase (SNAP-01 post-pass trigger)', () => {
+    const result = validateSnapshot(makeState('ACTION'));
     expect(result.ok).toBe(true);
   });
 
   it('accepts in SNAPSHOT phase (composability — already snapshotting)', () => {
-    const result = validateSnapshot(makeState('SNAPSHOT'), basePiece);
+    const result = validateSnapshot(makeState('SNAPSHOT'));
     expect(result.ok).toBe(true);
   });
 });
