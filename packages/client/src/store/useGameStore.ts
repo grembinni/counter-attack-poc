@@ -60,6 +60,10 @@ export type GameStore = {
   selectedPassType: PassType | null;
   /** Phase 8.2 D-17: IDs of pieces this client has selected as header contestants (multiple allowed). */
   headerContestantIds: string[];
+  /** Phase 10: true when shooter has clicked "Shoot" and is selecting a goal hex. */
+  shootingMode: boolean;
+  /** Phase 10: goal hex selected by shooter before emit. */
+  shootTargetHex: HexCoord | null;
   /** Navigate to a different screen (D-12). */
   setScreen: (s: Screen) => void;
   /**
@@ -134,6 +138,14 @@ export type GameStore = {
   emitHeader: () => void;
   /** Restart the movement phase from ATTACKER_4 — resets movedPieceIds and pace tracking. */
   emitRestartMovement: () => void;
+  /** Phase 10: Emit game:shot (shot declaration) with the selected goal hex. Reuses GAME_SHOT event. */
+  emitDeclareShot: (goalHex: HexCoord) => void;
+  /** Phase 10: Emit game:gk-dive — GK repositions during GK_DIVING phase. */
+  emitGKDive: (to: HexCoord) => void;
+  /** Phase 10: Emit game:header-target — attacker selects target hex during HEADER phase (HEAD-03). */
+  emitHeaderTarget: (targetHex: HexCoord) => void;
+  /** Phase 10: Enable/disable shooting mode (step 1 of two-step Shoot flow). */
+  setShootingMode: (on: boolean) => void;
 };
 
 /**
@@ -158,6 +170,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   passTargetHex: null,
   selectedPassType: null,
   headerContestantIds: [],
+  shootingMode: false,
+  shootTargetHex: null,
 
   setScreen: (s) => set({ screen: s }),
 
@@ -400,6 +414,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         interceptionRiskHexes: [],
         passTargetHex: null,
         headerContestantIds: [],
+        // Phase 10: clear shooting mode on new server broadcast
+        shootingMode: false,
+        shootTargetHex: null,
       });
       return;
     }
@@ -515,4 +532,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   emitRestartMovement: () => {
     socket.emit(ClientEvents.GAME_RESTART_MOVEMENT);
   },
+
+  emitDeclareShot: (goalHex) => {
+    socket.emit(ClientEvents.GAME_SHOT, goalHex);
+  },
+
+  emitGKDive: (to) => {
+    socket.emit(ClientEvents.GAME_GK_DIVE, to);
+  },
+
+  emitHeaderTarget: (targetHex) => {
+    socket.emit(ClientEvents.GAME_HEADER_TARGET, targetHex);
+  },
+
+  setShootingMode: (on) => set({ shootingMode: on, shootTargetHex: null }),
 }));
