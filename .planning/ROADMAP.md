@@ -357,7 +357,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 — same gameEngine.ts)_
 
-- [ ] 10-03-PLAN.md — New engine functions: applyDeclareShot, applyGKDive, applyDeclareHeaderTarget + defender path-deflection (SHOT-01..04, SNAP-02, HEAD-03)
+- [x] 10-03-PLAN.md — New engine functions: applyDeclareShot, applyGKDive, applyDeclareHeaderTarget + defender path-deflection (SHOT-01..04, SNAP-02, HEAD-03)
 
 **Wave 4** _(blocked on Wave 3 — owns gameHandlers.ts)_
 

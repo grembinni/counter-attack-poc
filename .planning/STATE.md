@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 10
-last_updated: '2026-06-10T06:20:00.000Z'
+last_updated: '2026-06-10T11:35:00.000Z'
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 51
-  completed_plans: 48
+  completed_plans: 50
   percent: 94
 ---
 
@@ -98,6 +98,13 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 10 Plan 03)
+
+- applyDeclareShot transitions directly to GK_DIVING (not SHOT_DECLARED + GK_DIVING); shotTargetHex recorded
+- gkDivePosition seeded from GK piece position at shot declaration; cumulative distance checked against piece.position
+- HEAD-03 goal-line routing applied to both contested and uncontested attacker-win HEADER paths
+- computeShotPathDeflection is a pure helper; handler (plan 04) builds DefenderDeflectionInput list from hexLine
+
 ### Decisions Locked (Phase 10 Plan 02)
 
 - D-30: loose-ball pickup in applyMove stays in MOVEMENT; attackingTeam/activeTeam update immediately; pace tracking continues; no PASS transition on pickup
@@ -124,7 +131,7 @@ See: .planning/PROJECT.md
 ## Session Continuity
 
 - Last updated: 2026-06-10
-- Phase 10 Plan 02 COMPLETE — engine bug fixes D-16/D-17/D-20/D-21/D-22/D-23/D-26/D-29/D-30 (42545df)
-- Phase 10 Plan 02 COMPLETE: Math.random() eliminated; GOAL event logged; intermediate slot lastActionType reset; one-steal/one-tackle enforced; loose-ball pickup preserves movement pace
-- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-03-PLAN.md`
-- Next: Execute Plan 03 (new engine functions: applyDeclareShot, applyGKDive, applyDeclareHeaderTarget)
+- Phase 10 Plan 03 COMPLETE — applyDeclareShot (56a1ed6), applyGKDive, applyDeclareHeaderTarget, HEAD-03 redirect, computeShotPathDeflection
+- Phase 10 Plan 03 COMPLETE: shot declaration FSM; GK dive reposition guard; header goal-line redirect; defender deflection pure helper
+- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-04-PLAN.md`
+- Next: Execute Plan 04 (new handlers: GAME_GK_DIVE, GAME_HEADER_TARGET, GAME_SHOT rework, SNAP_DEFLECT)
