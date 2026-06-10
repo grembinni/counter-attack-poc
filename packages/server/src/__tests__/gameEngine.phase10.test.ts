@@ -11,19 +11,23 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyEndTurn, applyRoll, applyStartMovement, applyMove } from '../gameEngine.js';
+import {
+  applyEndTurn,
+  applyRoll,
+  applyStartMovement,
+  applyMove,
+  applyDeclareShot,
+  applyGKDive,
+} from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
-// Type stubs for not-yet-implemented engine functions (plans 02/03/04)
-// These will be replaced with real imports once implemented.
+// Type stub for applyDeclareHeaderTarget (plan 03 Task 2 will implement)
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StubFn = (...args: any[]) => any;
 
-const applyDeclareShot: StubFn = undefined as unknown as StubFn;
-const applyGKDive: StubFn = undefined as unknown as StubFn;
 const applyDeclareHeaderTarget: StubFn = undefined as unknown as StubFn;
 
 // ---------------------------------------------------------------------------
@@ -517,7 +521,7 @@ describe('D-30: loose-ball pickup continues movement action', () => {
 // (Plan 03 will implement; describe.skip used since applyDeclareShot not yet available)
 // ---------------------------------------------------------------------------
 
-describe.skip('SNAP_DEFLECT transition (Phase 10 — applyDeclareShot not yet implemented)', () => {
+describe('SNAP_DEFLECT transition / applyDeclareShot (Phase 10)', () => {
   it('applyDeclareShot transitions PASS → SHOT_DECLARED → GK_DIVING', () => {
     const state = makeActionState();
     const goalHex = { q: 36, r: 13 };
@@ -579,7 +583,7 @@ describe.skip('HEAD-03: header target hex selection (applyDeclareHeaderTarget no
 // (Plan 04 will implement; describe.skip used since applyGKDive not yet available)
 // ---------------------------------------------------------------------------
 
-describe.skip('applyGKDive guards (applyGKDive not yet implemented)', () => {
+describe('applyGKDive guards (Phase 10)', () => {
   const makeGkDivingState = (overrides: Partial<GameState> = {}): GameState => ({
     ...baseState,
     phase: 'GK_DIVING',
