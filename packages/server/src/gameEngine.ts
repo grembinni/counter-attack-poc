@@ -1780,6 +1780,151 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
 }
 
 // ---------------------------------------------------------------------------
+// applyDeclareShot
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyDeclareShot.
+ * T-10-05/T-10-06: goal hex is server-re-validated; never trust client coordinates.
+ */
+export type ApplyDeclareShotResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'INVALID_SEQUENCE' | 'INVALID_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * Transitions the FSM from PASS → GK_DIVING after the shooter declares a goal hex.
+ *
+ * D-01/D-02: Two-step shot flow: shooter clicks goal hex → server validates and
+ * enters GK_DIVING so the GK's team can reposition before auto-resolution.
+ * D-05: shotTargetHex recorded for event log; not consumed by dice resolution.
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be 'PASS'
+ * 2. INVALID_SEQUENCE — SHOT must be in ELIGIBLE_NEXT_ACTIONS[lastActionType]
+ * 3. INVALID_TARGET — goalHex must be a goal-line hex for attackingTeam
+ *    (q=36, r∈[10..16] for home; q=0, r∈[10..16] for away) — A1 assumption
+ *
+ * T-10-06: PITCH_HEXES membership and goal-line bounds checked server-side.
+ *
+ * @param state    - Current game state (phase must be 'PASS')
+ * @param goalHex  - The goal hex the shooter is targeting
+ */
+export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDeclareShotResult {
+  // 1. Phase guard
+  if (state.phase !== 'PASS') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. Sequence guard: SHOT must be eligible from the current lastActionType
+  if (state.lastActionType !== null) {
+    const eligible = ELIGIBLE_NEXT_ACTIONS[state.lastActionType];
+    if (!eligible.has('SHOT')) {
+      return { ok: false, reason: 'INVALID_SEQUENCE' };
+    }
+  }
+
+  // 3. Goal-line hex validation (T-10-05 / A1 assumption: r∈[10..16] at goal q)
+  // Home attacks toward away goal (q=36); away attacks toward home goal (q=0).
+  const goalQ = state.attackingTeam === 'home' ? 36 : 0;
+  if (goalHex.q !== goalQ || goalHex.r < 10 || goalHex.r > 16) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // Find the defending GK (role:'GK' on the non-attacking team)
+  const defendingTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
+  const gk = state.pieces.find((p) => p.teamId === defendingTeam && p.role === 'GK');
+  if (!gk) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // D-02: Transition directly to GK_DIVING (single hop rather than SHOT_DECLARED + GK_DIVING).
+  // Records shotTargetHex and seeds gkDivePosition from GK's current position.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GK_DIVING',
+      lastActionType: 'SHOT', // marks that a shot was declared
+      shotTargetHex: goalHex,
+      gkDivePosition: gk.position, // GK's starting position — used as cumulative dive reference
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyGKDive
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyGKDive.
+ * T-10-06: all GK dive coordinates are re-validated server-side.
+ */
+export type ApplyGKDiveResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'NOT_PARALLEL' | 'TOO_FAR' | 'OFF_PITCH' }
+  | { ok: true; state: GameState };
+
+/**
+ * Repositions the GK during the GK_DIVING interactive phase.
+ *
+ * D-04 / SHOT-04: GK may move up to 3 hexes parallel to the goal line (constant q).
+ * Cumulative distance from GK's starting position (piece.position in state.pieces) to `to` must be ≤ 3.
+ * At 3rd hex: -1 Saving penalty applied at resolution time via validateGKDive (Pitfall 2).
+ * Shot origin 4+ hexes from gkDivePosition at resolution = unsaveable.
+ *
+ * The -1 Saving penalty and unsaveability are NOT computed here — they are derived
+ * at resolution time from hexDistance(gkDivePosition, shooterPos) via validateGKDive.
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be 'GK_DIVING'
+ * 2. NOT_PARALLEL — to.q must equal gk.position.q (parallel to goal line, Pitfall 1)
+ * 3. TOO_FAR — hexDistance from GK's initial position to `to` must be ≤ 3
+ * 4. OFF_PITCH — `to` must be a valid pitch hex (isPitchHex)
+ *
+ * @param state - Current game state (phase must be 'GK_DIVING')
+ * @param to    - Target hex for the GK dive
+ */
+export function applyGKDive(state: GameState, to: HexCoord): ApplyGKDiveResult {
+  // 1. Phase guard
+  if (state.phase !== 'GK_DIVING') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // Find the defending GK
+  const defendingTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
+  const gk = state.pieces.find((p) => p.teamId === defendingTeam && p.role === 'GK');
+  if (!gk) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. Parallel-to-goal-line guard (Pitfall 1: constant q = parallel to goal line)
+  if (to.q !== gk.position.q) {
+    return { ok: false, reason: 'NOT_PARALLEL' };
+  }
+
+  // 3. Cumulative distance guard: from GK's initial position (piece position in pieces array)
+  // to the target hex must be ≤ 3 (Pitfall 2: use post-dive position for resolution,
+  // but use piece.position as the cumulative reference here — see spec action §3).
+  const cumulativeDistance = hexDistance(gk.position, to);
+  if (cumulativeDistance > 3) {
+    return { ok: false, reason: 'TOO_FAR' };
+  }
+
+  // 4. Pitch boundary guard (T-10-06)
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'OFF_PITCH' };
+  }
+
+  // Update gkDivePosition to the new position
+  return {
+    ok: true,
+    state: {
+      ...state,
+      gkDivePosition: to,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyKickOffReady
 // ---------------------------------------------------------------------------
 
