@@ -1309,32 +1309,60 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // (b) Attacker selected, defender declined → attacker wins uncontested (HEAD-02, no dice roll)
       if (defenderContestantIds.length === 0 || defenderPiece === undefined) {
         const winnerId = attackerPiece?.id ?? '';
+        const winnerPiece = attackerPiece;
+        const tgtHexB = state.headerTargetHex ?? null;
+        const goalQB = state.attackingTeam === 'home' ? 36 : 0;
+        const isGoalLineTargetB =
+          tgtHexB !== null && tgtHexB.q === goalQB && tgtHexB.r >= 10 && tgtHexB.r <= 16;
+
+        const headerEventB = {
+          type: 'HEADER' as const,
+          attackerId: winnerId,
+          defenderId: null,
+          result: 'ATTACKER_WIN' as const,
+          attackerDie: null,
+          attackerHeading: null,
+          attackerCombined: null,
+          defenderDie: null,
+          defenderHeading: null,
+          defenderCombined: null,
+          timestamp: Date.now(),
+        };
+
+        if (isGoalLineTargetB) {
+          const defendingTeamForGkB: 'home' | 'away' =
+            state.attackingTeam === 'home' ? 'away' : 'home';
+          const gkB = state.pieces.find((p) => p.teamId === defendingTeamForGkB && p.role === 'GK');
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'GK_DIVING',
+              lastActionType: 'SHOT',
+              shotTargetHex: tgtHexB,
+              gkDivePosition: gkB?.position ?? state.ball.position,
+              contestedPieceIds: attackerContestantIds,
+              lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
+              eventLog: [...state.eventLog, headerEventB],
+              ...headerCleared,
+              headerTargetHex: null,
+            },
+          };
+        }
+
+        const ballPositionB = tgtHexB ?? winnerPiece?.position ?? state.ball.position;
         return {
           ok: true,
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: attackerPiece?.position ?? state.ball.position, carrierId: winnerId },
+            ball: { position: ballPositionB, carrierId: winnerId },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: attackerContestantIds,
-            eventLog: [
-              ...state.eventLog,
-              {
-                type: 'HEADER' as const,
-                attackerId: winnerId,
-                defenderId: null,
-                result: 'ATTACKER_WIN' as const,
-                attackerDie: null,
-                attackerHeading: null,
-                attackerCombined: null,
-                defenderDie: null,
-                defenderHeading: null,
-                defenderCombined: null,
-                timestamp: Date.now(),
-              },
-            ],
+            eventLog: [...state.eventLog, headerEventB],
             ...headerCleared,
+            headerTargetHex: null,
           },
         };
       }
@@ -1357,32 +1385,67 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const contestedIds = [...attackerContestantIds, ...defenderContestantIds];
 
       if (attackerScore > defenderScore) {
+        // HEAD-03 (D-11/D-12): check if the header target is a goal-line hex for the attacker.
+        // Goal-line: q=36 for home attack / q=0 for away attack, r∈[10..16] (A1 assumption).
+        // If so → route to GK_DIVING (no outfield deflection — D-13 applies).
+        // If not → headed pass to the target hex (if set) or attacker's position (fallback).
+        const tgtHex = state.headerTargetHex ?? null;
+        const goalQ = state.attackingTeam === 'home' ? 36 : 0;
+        const isGoalLineTarget =
+          tgtHex !== null && tgtHex.q === goalQ && tgtHex.r >= 10 && tgtHex.r <= 16;
+
+        const headerEventEntry = {
+          type: 'HEADER' as const,
+          attackerId: attackerPiece.id,
+          defenderId: defenderPiece.id,
+          result: 'ATTACKER_WIN' as const,
+          attackerDie,
+          attackerHeading: attackerPiece.heading,
+          attackerCombined: attackerScore,
+          defenderDie,
+          defenderHeading: defenderPiece.heading,
+          defenderCombined: defenderScore,
+          timestamp: Date.now(),
+        };
+
+        if (isGoalLineTarget) {
+          // HEAD-03: goal-line header → GK_DIVING (same as declared shot flow).
+          // D-13: no outfield path-deflection — only GK contests.
+          const defendingTeamForGk: 'home' | 'away' =
+            state.attackingTeam === 'home' ? 'away' : 'home';
+          const gk = state.pieces.find((p) => p.teamId === defendingTeamForGk && p.role === 'GK');
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'GK_DIVING',
+              lastActionType: 'SHOT',
+              shotTargetHex: tgtHex,
+              gkDivePosition: gk?.position ?? state.ball.position,
+              contestedPieceIds: contestedIds,
+              lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
+              eventLog: [...state.eventLog, headerEventEntry],
+              ...headerCleared,
+              headerTargetHex: null, // clear after routing
+            },
+          };
+        }
+
+        // Not goal-line (or no target set): headed pass.
+        // Ball goes to headerTargetHex if set; otherwise to attacker's position.
+        const ballPosition = tgtHex ?? attackerPiece.position;
         return {
           ok: true,
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: attackerPiece.position, carrierId: attackerPiece.id },
+            ball: { position: ballPosition, carrierId: attackerPiece.id },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
-            eventLog: [
-              ...state.eventLog,
-              {
-                type: 'HEADER' as const,
-                attackerId: attackerPiece.id,
-                defenderId: defenderPiece.id,
-                result: 'ATTACKER_WIN' as const,
-                attackerDie,
-                attackerHeading: attackerPiece.heading,
-                attackerCombined: attackerScore,
-                defenderDie,
-                defenderHeading: defenderPiece.heading,
-                defenderCombined: defenderScore,
-                timestamp: Date.now(),
-              },
-            ],
+            eventLog: [...state.eventLog, headerEventEntry],
             ...headerCleared,
+            headerTargetHex: null,
           },
         };
       } else if (attackerScore === defenderScore) {
@@ -1777,6 +1840,132 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
 
   // Any other phase is not valid for a snapshot
   return { ok: false, reason: 'WRONG_PHASE' };
+}
+
+// ---------------------------------------------------------------------------
+// applyDeclareHeaderTarget
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyDeclareHeaderTarget.
+ * T-10-05: target hex validated server-side against attackingTeam's goal direction.
+ */
+export type ApplyDeclareHeaderTargetResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'NOT_CONFIRMED' | 'INVALID_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * Records the target hex for the header during the HEADER phase (HEAD-03).
+ *
+ * D-11/D-12: The attacker clicks a target hex after both teams confirm contestants.
+ * If the target is a goal-line hex for the attacking team → GK_DIVING redirect after duel.
+ * If not goal-line → the winning attacker's ball goes to that hex (headed pass).
+ *
+ * Validation does NOT trigger the duel — it only sets headerTargetHex and stays in HEADER.
+ * The duel is triggered by the subsequent ROLL event (applyRoll HEADER branch).
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be 'HEADER'
+ * 2. NOT_CONFIRMED — both headerConfirmed.home and headerConfirmed.away must be true
+ * 3. INVALID_TARGET — targetHex must be a valid pitch hex (isPitchHex)
+ *    Goal-line hex check is permissive here: the goal-line routing happens in applyRoll.
+ *    T-10-05: if client claims a goal-line hex, applyRoll re-validates the direction.
+ *
+ * @param state     - Current game state (phase must be 'HEADER')
+ * @param targetHex - The hex the attacker is aiming for
+ */
+export function applyDeclareHeaderTarget(
+  state: GameState,
+  targetHex: HexCoord,
+): ApplyDeclareHeaderTargetResult {
+  // 1. Phase guard
+  if (state.phase !== 'HEADER') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. Both-teams-confirmed guard (D-12: target only set after both confirm)
+  if (!state.headerConfirmed?.home || !state.headerConfirmed?.away) {
+    return { ok: false, reason: 'NOT_CONFIRMED' };
+  }
+
+  // 3. Pitch boundary guard (T-10-05/T-10-06)
+  if (!isPitchHex(targetHex)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // Set headerTargetHex; stay in HEADER for the duel
+  return {
+    ok: true,
+    state: {
+      ...state,
+      headerTargetHex: targetHex,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// computeShotPathDeflection (D-03 pure helper)
+// ---------------------------------------------------------------------------
+
+/**
+ * Defender-set types for shot path deflection (D-03).
+ * Set A = defenders on the shot path (hexLine); Set B = defenders within 1 hex of path but not on it.
+ */
+export type DefenderDeflectionInput = {
+  /** Piece ID of the deflecting defender. */
+  defenderId: string;
+  /** Position of the defending piece. */
+  defenderPosition: HexCoord;
+  /** Pre-generated die value for this defender's deflection attempt. */
+  die: number;
+  /** Tackling attribute of the defending piece. */
+  tackling: number;
+  /** Whether this defender is in-path (Set A) or adjacent-to-path (Set B). */
+  band: 'A' | 'B';
+};
+
+/**
+ * Result of the shot path deflection step.
+ * If a deflection occurs, returns the deflecting defender's position for Loose Ball.
+ * If no deflection, returns null — caller proceeds to shooter-vs-GK duel.
+ */
+export type ShotPathDeflectionResult =
+  | { deflected: true; deflectorPosition: HexCoord; deflectorId: string }
+  | { deflected: false };
+
+/**
+ * Computes the shot path deflection step for regular shot resolution (D-03).
+ *
+ * Evaluates each defender in input order; first deflection wins.
+ *
+ * Deflection thresholds (D-03):
+ * - Set A (in-path):            die === 5 || die === 6 || (die + tackling >= 10)
+ * - Set B (within 1 hex path):  die === 6             || (die + tackling >= 10)
+ *
+ * T-10-07: Dice are injected — this function does NOT call rollDice/Math.random.
+ *
+ * D-13 (HEAD-03): Headed goal attempts skip this step entirely — only GK contests.
+ *
+ * @param defenders - Ordered list of defenders with pre-generated dice (handler provides)
+ */
+export function computeShotPathDeflection(
+  defenders: DefenderDeflectionInput[],
+): ShotPathDeflectionResult {
+  for (const def of defenders) {
+    const deflects =
+      def.band === 'A'
+        ? def.die === 5 || def.die === 6 || def.die + def.tackling >= 10
+        : def.die === 6 || def.die + def.tackling >= 10;
+
+    if (deflects) {
+      return {
+        deflected: true,
+        deflectorPosition: def.defenderPosition,
+        deflectorId: def.defenderId,
+      };
+    }
+  }
+  return { deflected: false };
 }
 
 // ---------------------------------------------------------------------------
