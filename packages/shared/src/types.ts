@@ -337,4 +337,8 @@ export type GameState = {
   stealAttemptedByIds?: readonly string[];
   /** Phase 10 D-29: piece IDs that already attempted a tackle this movement phase. */
   tackleAttemptedByIds?: readonly string[];
+  /** Phase 10 SNAP_DEFLECT: ID of the first piece moved during snap deflection. */
+  snapDeflectMovedPieceId?: string | null;
+  /** Phase 10 SNAP_DEFLECT: number of hexes moved so far during snap deflection (max 2). */
+  snapDeflectPaceUsed?: number;
 };

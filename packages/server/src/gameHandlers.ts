@@ -34,12 +34,16 @@ import {
   PITCH_REGIONS,
   ServerEvents,
   hexDistance,
+  hexLine,
   validatePass,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
+  applyDeclareHeaderTarget,
+  applyDeclareShot,
   applyEndTurn,
+  applyGKDive,
   applyGKRestart,
   applyHalfTimeStart,
   applyKickOffReady,
@@ -50,7 +54,9 @@ import {
   applyStartMovement,
   applyUndo,
   buildReplayFrames,
+  computeShotPathDeflection,
 } from './gameEngine.js';
+import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
 import type { ActionEvent, GameState } from '@counter-attack/shared';
@@ -111,14 +117,25 @@ function controlsAttackingTeam(socket: AppSocket, room: Room): boolean {
 /**
  * Returns true when the socket's controlled team is the GK's team.
  *
- * The GK team is derived from ball.carrierId — in GK_RESTART the ball carrier is the GK.
+ * In GK_DIVING phase: the GK's team is the defending team (non-attacking team).
+ * In GK_RESTART phase: derived from ball.carrierId (the GK holds the ball after a save).
  * This avoids reading socket.rooms (Pitfall 2) and avoids a separate gkTeam state field.
  * T-05-07: gates game:gk-restart (only the GK's team may restart).
+ * T-10-08: gates GAME_GK_DIVE (only the defending/GK team may dive).
  *
- * Open Question 3 resolution: GK team derived from ball ownership, not a stored field.
+ * Open Question 3 resolution: GK team derived from ball ownership for GK_RESTART;
+ * derived from attackingTeam for GK_DIVING (ball carrier is the shooter, not the GK).
  */
 function controlsGKTeam(socket: AppSocket, room: Room): boolean {
-  if (room.gameState === null || room.gameState.ball.carrierId === null) return false;
+  if (room.gameState === null) return false;
+  // In GK_DIVING the ball carrier is the shooter; derive GK team from attackingTeam instead
+  if (room.gameState.phase === 'GK_DIVING') {
+    const defendingTeam: 'home' | 'away' =
+      room.gameState.attackingTeam === 'home' ? 'away' : 'home';
+    return socketTeam(socket) === defendingTeam;
+  }
+  // GK_RESTART: GK holds the ball — derive from ball.carrierId
+  if (room.gameState.ball.carrierId === null) return false;
   const gkPiece = room.gameState.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
   if (!gkPiece) return false;
   return socketTeam(socket) === gkPiece.teamId;
@@ -323,6 +340,71 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // SNAP_DEFLECT: defending team moves 1 player up to 2 hexes before snapshot resolves.
+      // Pattern mirrors HIGH_PASS_MOVEMENT block: 1 piece per team, max 2 hexes, adjacency,
+      // pitch boundary, no occupied hex. Active team = defending team (opponent of attackingTeam).
+      // D-08 / SNAP-02.
+      if (room.gameState.phase === 'SNAP_DEFLECT') {
+        const sdState = room.gameState;
+        const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
+        // Guard: only the defending team may deflect
+        if (socketTeam(socket) !== defendingTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const sdPiece = sdState.pieces.find((p) => p.id === pieceId);
+        if (!sdPiece || sdPiece.teamId !== defendingTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // Lock to the first piece moved this phase
+        const lockedId = sdState.snapDeflectMovedPieceId ?? null;
+        if (lockedId !== null && lockedId !== pieceId) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
+        }
+        // Max 2 hexes total
+        const paceUsed = sdState.snapDeflectPaceUsed ?? 0;
+        if (paceUsed >= 2) {
+          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
+          broadcastState(io, room);
+          return;
+        }
+        // Adjacency check (one step at a time)
+        if (hexDistance(sdPiece.position, to) !== 1) {
+          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
+          broadcastState(io, room);
+          return;
+        }
+        // Pitch boundary
+        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+          broadcastState(io, room);
+          return;
+        }
+        // No occupied hex
+        if (
+          sdState.pieces.some(
+            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+          )
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = {
+          ...sdState,
+          pieces: sdState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+          snapDeflectMovedPieceId: pieceId,
+          snapDeflectPaceUsed: paceUsed + 1,
+        };
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVEMENT') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -366,6 +448,89 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       if (room.gameState === null) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
+        return;
+      }
+
+      // GK_DIVING: GK team confirms dive; server pre-generates all dice and auto-resolves the shot.
+      // D-03/D-04: Pre-generate defender deflection dice + shooter/GK/handling dice in handler
+      // (ARCH-01 — engine must stay pure). After resolution, broadcast full outcome.
+      if (room.gameState.phase === 'GK_DIVING') {
+        if (!controlsGKTeam(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const gkState = room.gameState;
+        // Build defender deflection inputs from shot path (computeShotPathDeflection is pure)
+        const shooterPiece = gkState.pieces.find((p) => p.id === gkState.ball.carrierId);
+        const shotTarget = gkState.shotTargetHex ?? null;
+        const defenderInputs: DefenderDeflectionInput[] = [];
+        if (shooterPiece && shotTarget) {
+          const pathHexes = hexLine(shooterPiece.position, shotTarget);
+          const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
+          const defTeam: 'home' | 'away' = gkState.attackingTeam === 'home' ? 'away' : 'home';
+          for (const defender of gkState.pieces.filter(
+            (p) => p.teamId === defTeam && p.role !== 'GK',
+          )) {
+            const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
+            let nearPath = false;
+            if (!onPath) {
+              for (const ph of pathHexes) {
+                if (hexDistance(defender.position, ph) === 1) {
+                  nearPath = true;
+                  break;
+                }
+              }
+            }
+            if (onPath || nearPath) {
+              defenderInputs.push({
+                defenderId: defender.id,
+                defenderPosition: defender.position,
+                tackling: defender.tackling,
+                die: rollDice(),
+                band: onPath ? 'A' : 'B',
+              });
+            }
+          }
+        }
+        // Pre-generate shot duel dice (D-03: shooter, GK, handling)
+        const shooterDie = rollDice();
+        const gkDie = rollDice();
+        const handlingDie = rollDice();
+        // Call computeShotPathDeflection to check for deflection first
+        const deflectionResult = computeShotPathDeflection(defenderInputs);
+        if (deflectionResult.deflected && deflectionResult.deflectorPosition) {
+          // Deflection: transition to LOOSE_BALL at deflector's position
+          const deflectState: typeof gkState = {
+            ...gkState,
+            phase: 'LOOSE_BALL',
+            ball: { position: deflectionResult.deflectorPosition, carrierId: null },
+            lastActionType: 'DEFLECTION',
+            shotTargetHex: null,
+            gkDivePosition: null,
+          };
+          room.gameState = deflectState;
+          broadcastState(io, room);
+          return;
+        }
+        // No deflection: resolve shooter-vs-GK duel via applyRoll (SHOT branch)
+        // applyRoll SHOT branch reads phase==='SHOT', so normalise the state
+        const stateForShot: typeof gkState = {
+          ...gkState,
+          phase: 'SHOT',
+          lastActionType: 'SHOT',
+        };
+        const shotResult = applyRoll(stateForShot, shooterDie, gkDie, handlingDie);
+        if (!shotResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, shotResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = { ...shotResult.state, gkDivePosition: null };
+        broadcastState(io, room);
+        if (shotResult.state.phase === 'FULL_TIME') {
+          startReplayStream(io, room);
+        }
         return;
       }
 
@@ -429,6 +594,47 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           if (result.state.phase === 'FULL_TIME') {
             startReplayStream(io, room);
           }
+        }
+        return;
+      }
+
+      // SNAP_DEFLECT: defending team ends their deflection turn; auto-resolve the snapshot shot.
+      // D-08 / SNAP-02: After opponent moves (or passes), resolve as a SHOT phase duel.
+      if (room.gameState.phase === 'SNAP_DEFLECT') {
+        const sdState = room.gameState;
+        const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
+        if (socketTeam(socket) !== defendingTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // Auto-resolve: no path defenders (snap_deflect has no shot path check per SNAP-02)
+        const d1 = rollDice(); // shooter die
+        const d2 = rollDice(); // GK die
+        const d3 = rollDice(); // handling die
+        // Normalise to SHOT phase for applyRoll; clear snap deflect tracking
+        // Omit snap-deflect fields via destructuring (exactOptionalPropertyTypes: no explicit undefined)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const {
+          snapDeflectMovedPieceId: _smpi,
+          snapDeflectPaceUsed: _sppu,
+          ...restSdState
+        } = sdState;
+        const stateForSnap: typeof sdState = {
+          ...restSdState,
+          phase: 'SHOT',
+          lastActionType: 'SHOT',
+        };
+        const snapResult = applyRoll(stateForSnap, d1, d2, d3);
+        if (!snapResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, snapResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = snapResult.state;
+        broadcastState(io, room);
+        if (snapResult.state.phase === 'FULL_TIME') {
+          startReplayStream(io, room);
         }
         return;
       }
@@ -743,19 +949,19 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   );
 
   // -------------------------------------------------------------------------
-  // GAME_SHOT — records the shooter's chosen target hex (D-06)
+  // GAME_SHOT — declares a shot: PASS → GK_DIVING (D-02 rework)
   //
-  // D-06: game:shot records the shooter's target hex for UX/broadcast.
-  // Dice resolution is unchanged — applyRoll resolves shooter-vs-GK from dice
-  // only and does not consume shotTarget. This handler records intent; the Roll
-  // button's game:roll handler performs (and broadcasts) the resolution.
+  // D-02: reworked from a metadata-only recorder to a state-transitioning
+  // declaration handler. Phase guard changed from SHOT → PASS (shooter is in
+  // the ACTION/PASS phase when they click "Shoot"). Calls applyDeclareShot which
+  // transitions to GK_DIVING and records shotTargetHex. Broadcasts new state.
   //
-  // T-07-11: phase + team guards prevent out-of-phase / wrong-team target recording
-  // T-07-12: HexCoord shape validation rejects malformed payloads (ASVS V5)
-  // T-07-13: shotTarget is UX/broadcast bookkeeping only — never fed into dice resolution
-  // SC-5: isProcessing mutex prevents double-click race
-  // NOTE: intentionally does NOT call broadcastState — recording shot intent is
-  //       server-side UX bookkeeping and should not trigger a full state snapshot.
+  // T-07-11: phase (PASS) + team guard (controlsAttackingTeam) prevent wrong-phase
+  //          / wrong-team declarations
+  // T-07-12: HexCoord shape validation rejects malformed payloads (ASVS V5, T-10-09)
+  // T-10-10: server declares goal hex; dice pre-generated server-side (no client dice)
+  // T-10-11: isProcessing mutex prevents double-click race (SC-5)
+  // ARCH-04: broadcastState is mandatory — this handler now transitions state.
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_SHOT, (targetHex: HexCoord) => {
     const { roomCode } = socket.data;
@@ -765,18 +971,25 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      // Phase guard (T-07-11): must be in SHOT phase
-      if (room.gameState === null || room.gameState.phase !== 'SHOT') {
+      // 1. Null-state guard
+      if (room.gameState === null) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
-        return; // NOTE: no broadcastState — this handler never broadcasts (D-06 revision)
+        broadcastState(io, room); // snap-back
+        return;
       }
-      // Team guard (T-07-11): must be the active (shooting) player
-      if (!isActivePlayer(socket, room)) {
+      // 2. Phase guard (D-02): must be in PASS (renamed ACTION in Phase 10) phase
+      if (room.gameState.phase !== 'PASS') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // 3. Team guard: only the attacking team may declare a shot
+      if (!controlsAttackingTeam(socket, room)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-        return; // NOTE: no broadcastState
+        broadcastState(io, room); // snap-back
+        return;
       }
-      // Payload validation (T-07-12): never trust client input (ASVS V5)
-      // Mirrors GAME_GK_RESTART INVALID_CHOICE validation style
+      // 4. Payload validation (ASVS V5, T-07-12, T-10-09)
       if (
         typeof targetHex !== 'object' ||
         targetHex === null ||
@@ -784,11 +997,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         typeof targetHex.r !== 'number'
       ) {
         socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
-        return; // NOTE: no broadcastState
+        broadcastState(io, room); // snap-back
+        return;
       }
-      // Record the shooter's target hex for UX/broadcast (T-07-13: no game advantage possible)
-      room.shotTarget = { q: targetHex.q, r: targetHex.r };
-      // Intentionally no broadcastState call — see handler header (D-06 revision)
+      // 5. Engine call: validates goal hex and transitions PASS → GK_DIVING
+      const result = applyDeclareShot(room.gameState, targetHex);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
@@ -1058,6 +1278,134 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // duplicate dice rolls and UI confusion (D-19). ClientEvents.GAME_HEADER remains
   // in events.ts for type-contract backwards compatibility but is no longer wired.
   // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // GAME_GK_DIVE — GK repositions during GK_DIVING phase (D-04, SHOT-04)
+  //
+  // T-10-08: controlsGKTeam guard — only the GK's team may send dive hexes.
+  // T-10-09: HexCoord shape validation rejects malformed payloads (ASVS V5).
+  // T-10-11: isProcessing mutex prevents double-click race (SC-5).
+  // applyGKDive validates: parallel-to-goal-line, ≤3 hexes, on-pitch.
+  // ARCH-04: broadcastState after success and on all error paths.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_DIVE, (to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'GK_DIVING') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. HexCoord payload validation (ASVS V5, T-10-09)
+      if (
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the GK's team may reposition (T-10-08)
+      if (!controlsGKTeam(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Engine call: validates parallel-to-goal-line, ≤3 hexes, on-pitch
+      const result = applyGKDive(room.gameState, to);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_HEADER_TARGET — attacker selects target hex during HEADER phase (HEAD-03)
+  //
+  // T-10-12: attacker guard ensures header target is for the correct goal side.
+  // T-10-09: HexCoord shape validation (ASVS V5).
+  // T-10-11: isProcessing mutex (SC-5).
+  // Both teams must have confirmed contestants before target hex is accepted.
+  // applyDeclareHeaderTarget validates on-pitch and stores headerTargetHex.
+  // If goal-line hex: redirect to GK_DIVING in the subsequent ROLL step.
+  // ARCH-04: broadcastState after success and on all error paths.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_HEADER_TARGET, (targetHex: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'HEADER') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. Both-teams-confirmed guard: target hex only accepted after both teams confirm contestants
+      if (!room.gameState.headerConfirmed?.home || !room.gameState.headerConfirmed?.away) {
+        socket.emit(ServerEvents.GAME_ERROR, 'HEADER_NOT_CONFIRMED');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. HexCoord payload validation (ASVS V5, T-10-09)
+      if (
+        typeof targetHex !== 'object' ||
+        targetHex === null ||
+        typeof targetHex.q !== 'number' ||
+        typeof targetHex.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Attacker guard: only the attacking team selects the header target (T-10-12)
+      if (!controlsAttackingTeam(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 6. Engine call: validates on-pitch, sets headerTargetHex
+      const result = applyDeclareHeaderTarget(room.gameState, targetHex);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
 
   // -------------------------------------------------------------------------
   // GAME_HEADER_CONTESTANT — per-team header contestant selection (D-17, ASVS V4)

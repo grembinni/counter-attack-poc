@@ -161,6 +161,8 @@ function seedActionPhase(roomCode: string): void {
 
 /**
  * Seeds a room into GK_DIVING phase for testing GK dive guards.
+ * The away GK is repositioned to q=36 (goal line) so that a valid dive to
+ * { q: 36, r: 14 } is accepted by applyGKDive's parallel-to-goal-line guard.
  */
 function seedGkDivingPhase(roomCode: string): void {
   const room = getRoom(roomCode);
@@ -169,18 +171,27 @@ function seedGkDivingPhase(roomCode: string): void {
   const gk = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK');
   if (!gk) throw new Error('No away GK found');
 
+  // Position GK at q=36, r=13 (goal line) so dives along r at constant q=36 are valid
+  const gkAtGoalLine = { q: 36, r: 13 };
+
   room.gameState = {
     ...room.gameState,
     phase: 'GK_DIVING',
     attackingTeam: 'home',
     activeTeam: 'away',
+    // ball.carrierId = shooter's piece (not the GK) in real game; set to away carrier for
+    // controlsGKTeam derivation (controlsGKTeam uses attackingTeam in GK_DIVING phase)
     ball: { position: gk.position, carrierId: gk.id },
     lastActionType: 'SHOT',
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
     shotTargetHex: { q: 36, r: 13 },
-    gkDivePosition: gk.position,
+    gkDivePosition: gkAtGoalLine,
+    // Reposition the away GK to the goal line for valid dive tests
+    pieces: room.gameState.pieces.map((p) =>
+      p.id === gk.id ? { ...p, position: gkAtGoalLine } : p,
+    ),
   };
 }
 
