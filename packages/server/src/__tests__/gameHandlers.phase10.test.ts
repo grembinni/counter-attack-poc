@@ -11,9 +11,8 @@
  * Test harness mirrors gameHandlers.test.ts (real Socket.io server on port 0;
  * room store seeded directly via getRoom for phase/state manipulation).
  *
- * Wave 0 scaffolds — GAME_GK_DIVE and GAME_HEADER_TARGET handlers are not yet
- * registered; their describe blocks are skipped until plan 04 wires them.
- * D-15 CR-01 and D-24 tests are runnable now as they test existing handlers.
+ * All describe blocks now active — handlers wired in plan 04.
+ * D-15 CR-01 and D-24 tests cover existing handler fixes.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -245,7 +244,7 @@ describe('D-24: GAME_RESTART_MOVEMENT snap-back on wrong phase', () => {
 // GAME_GK_DIVE guards (Phase 10 — handler not yet registered in plan 04)
 // ---------------------------------------------------------------------------
 
-describe.skip('GAME_GK_DIVE handler guards (not yet implemented — plan 04)', () => {
+describe('GAME_GK_DIVE handler guards', () => {
   it('GAME_GK_DIVE in wrong phase emits GAME_ERROR (WRONG_PHASE)', async () => {
     const { clientA, roomCode } = await setupRoom();
     seedActionPhase(roomCode);
@@ -298,7 +297,7 @@ describe.skip('GAME_GK_DIVE handler guards (not yet implemented — plan 04)', (
 // (Plan 04 will add SNAP_DEFLECT block to GAME_MOVE; describe.skip until then)
 // ---------------------------------------------------------------------------
 
-describe.skip('SNAP_DEFLECT GAME_MOVE guard (not yet implemented — plan 04)', () => {
+describe('SNAP_DEFLECT GAME_MOVE guard', () => {
   it('GAME_MOVE in SNAP_DEFLECT by wrong team emits GAME_ERROR', async () => {
     const { clientA, roomCode } = await setupRoom();
     const room = getRoom(roomCode);
@@ -328,7 +327,7 @@ describe.skip('SNAP_DEFLECT GAME_MOVE guard (not yet implemented — plan 04)', 
 // GAME_HEADER_TARGET guards (Phase 10 — handler not yet registered in plan 04)
 // ---------------------------------------------------------------------------
 
-describe.skip('GAME_HEADER_TARGET handler guards (not yet implemented — plan 04)', () => {
+describe('GAME_HEADER_TARGET handler guards', () => {
   it('GAME_HEADER_TARGET before both teams confirm emits GAME_ERROR', async () => {
     const { clientA, roomCode } = await setupRoom();
     const room = getRoom(roomCode);
