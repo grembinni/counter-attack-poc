@@ -343,13 +343,13 @@ Plans:
 **Goal:** All remaining broken game actions work (shot declaration, snapshot, header button); code review BLOCKERs and WARNINGs from Phase 8 are resolved; human UAT items (snapshot full-path, header path) are verified end-to-end.
 **Requirements**: SHOT-01, SHOT-02, SHOT-03, SHOT-04, SNAP-02, SNAP-03, HEAD-01, HEAD-02, HEAD-03, HEAD-04, HEAD-05
 **Depends on:** Phase 9
-**Plans:** 5 plans
+**Plans:** 1/5 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Shared foundation: PASS→ACTION rename + 3 new phases (SHOT_DECLARED/GK_DIVING/SNAP_DEFLECT) + 5 GameState fields + GAME_GK_DIVE/GAME_HEADER_TARGET events + Wave 0 test scaffolds
+- [x] 10-01-PLAN.md — Shared foundation: PASS→ACTION rename + 3 new phases (SHOT_DECLARED/GK_DIVING/SNAP_DEFLECT) + 5 GameState fields + GAME_GK_DIVE/GAME_HEADER_TARGET events + Wave 0 test scaffolds
 
 **Wave 2** _(blocked on Wave 1 — owns gameEngine.ts)_
 
@@ -371,18 +371,18 @@ Plans:
 
 ## Progress
 
-| Phase                                       | Plans Complete | Status   | Completed  |
-| ------------------------------------------- | -------------- | -------- | ---------- |
-| 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete | 2026-05-28 |
-| 2. Move Validator + Unit Tests              | 4/4            | Complete | 2026-05-29 |
-| 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete | 2026-05-29 |
-| 4. Game Engine + Phase FSM                  | 3/3            | Complete | 2026-05-30 |
-| 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete | 2026-05-30 |
-| 6. React Hex Grid Renderer                  | 3/3            | Complete | 2026-05-31 |
-| 7. Client-Server Integration                | 4/4            | Complete | 2026-06-03 |
-| 7.1. UI Cleanup                             | 3/3            | Complete | 2026-06-04 |
-| 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete | 2026-06-05 |
-| 8.1. Cleanup — Player Stats, Movement       | 3/3            | Complete | 2026-06-05 |
-| 8.2. Passing Cleanup                        | 6/6            | Complete | 2026-06-07 |
-| 9. Render Deployment                        | 2/2            | Complete | 2026-06-08 |
-| 10. Remaining Action Flows + Tech Debt      | 0/5            | Planned  | -          |
+| Phase                                       | Plans Complete | Status      | Completed  |
+| ------------------------------------------- | -------------- | ----------- | ---------- |
+| 1. Monorepo Scaffold + Shared Types         | 3/3            | Complete    | 2026-05-28 |
+| 2. Move Validator + Unit Tests              | 4/4            | Complete    | 2026-05-29 |
+| 3. Server Room Manager + Socket.io Scaffold | 3/3            | Complete    | 2026-05-29 |
+| 4. Game Engine + Phase FSM                  | 3/3            | Complete    | 2026-05-30 |
+| 5. Dice Resolver + All Resolution Branches  | 4/4            | Complete    | 2026-05-30 |
+| 6. React Hex Grid Renderer                  | 3/3            | Complete    | 2026-05-31 |
+| 7. Client-Server Integration                | 4/4            | Complete    | 2026-06-03 |
+| 7.1. UI Cleanup                             | 3/3            | Complete    | 2026-06-04 |
+| 8. Match Lifecycle + Post-Game Replay       | 8/8            | Complete    | 2026-06-05 |
+| 8.1. Cleanup — Player Stats, Movement       | 3/3            | Complete    | 2026-06-05 |
+| 8.2. Passing Cleanup                        | 6/6            | Complete    | 2026-06-07 |
+| 9. Render Deployment                        | 2/2            | Complete    | 2026-06-08 |
+| 10. Remaining Action Flows + Tech Debt      | 1/5            | In Progress |            |
