@@ -47,6 +47,26 @@ import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 const SLOT_SEQUENCE: readonly MovementSlot[] = ['ATTACKER_4', 'DEFENDER_5', 'ATTACKER_2'];
 
 /**
+ * D-20 (IN-01): hoisted to module-level const — avoids reallocating the Set on every
+ * applySnapshot call. Used in the SNAP-01 trigger (b) guard in applySnapshot.
+ *
+ * D-16 (WR-01): 'HIGH_PASS' intentionally excluded — after a HIGH_PASS, the phase
+ * transitions to HEADER, never directly to PASS, so `phase === 'PASS'` with
+ * `lastActionType === 'HIGH_PASS'` is impossible at runtime. Keeping it would be dead
+ * code and could mask a regression if the FSM is changed.
+ */
+const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
+  'STANDARD_PASS',
+  'FIRST_TIME_PASS',
+  // HIGH_PASS intentionally omitted (D-16): HIGH_PASS → HEADER, never → PASS directly
+  'LONG_BALL',
+  'HEADER',
+  'DEFLECTION',
+  'SUCCESSFUL_TACKLE',
+  'MOVEMENT_PHASE',
+]);
+
+/**
  * Returns the team that is allowed to act in the current movement slot.
  * ATTACKER_4 and ATTACKER_2 slots belong to the attacking team;
  * DEFENDER_5 slot belongs to the defending (non-attacking) team.
@@ -595,6 +615,7 @@ export function applyEndTurn(
       eventLog: [...state.eventLog, slotAdvanceEvent],
       movedPieceIds: [...state.movedPieceIds, ...lockedOnEndSlot],
       paceUsedByPieceId: {}, // reset — new slot counts activations from zero
+      lastActionType: 'MOVEMENT_PHASE', // D-17 (WR-02): reset for intermediate slot transitions
     },
   };
 }
@@ -1057,6 +1078,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastDiceRoll: { rolls: [shooterDice, gkDice, handlingDice], context: 'SHOT_DUEL' },
             lastActionType: null, // D-19: GOAL resets the sequence
             snapshotPenalty: false, // clear snapshot penalty after shot resolves
+            // D-22: append GOAL event so replays can reconstruct the scoreline correctly
+            eventLog: [
+              ...state.eventLog,
+              { type: 'GOAL' as const, scoringTeam: state.attackingTeam, timestamp: Date.now() },
+            ],
           },
         };
       }
@@ -1166,20 +1192,27 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           })
           .filter((r): r is CR => r !== null);
 
-      // Pick team winner: highest combined score; random tiebreak for same-score contestants.
-      const pickWinner = (results: CR[]): CR | undefined => {
+      // Pick team winner: highest combined score; deterministic tiebreak using injected die (D-21).
+      // tieBreakerDie: a pre-generated die value passed by the handler for determinism (ARCH-01).
+      // Index into tied[] by (tieBreakerDie - 1) % tied.length — pure, no Math.random.
+      const pickWinner = (results: CR[], tieBreakerDie: number): CR | undefined => {
         if (results.length === 0) return undefined;
         const max = Math.max(...results.map((r) => r.raw));
         const tied = results.filter((r) => r.raw === max);
-        return tied[Math.floor(Math.random() * tied.length)];
+        return tied[(tieBreakerDie - 1) % tied.length];
       };
 
       const atkCount = attackerContestantIds.length;
       const attackerResults = buildResults(attackerContestantIds, 0);
       const defenderResults = buildResults(defenderContestantIds, atkCount);
 
-      const attackerWinner = pickWinner(attackerResults);
-      const defenderWinner = pickWinner(defenderResults);
+      // D-21: tie-break dice follow all contestant dice in the ...dice spread.
+      // atkTieDie is used when multiple attackers tie; defTieDie when multiple defenders tie.
+      const atkTieDie = dice[atkCount + defenderContestantIds.length] ?? 1;
+      const defTieDie = dice[atkCount + defenderContestantIds.length + 1] ?? 1;
+
+      const attackerWinner = pickWinner(attackerResults, atkTieDie);
+      const defenderWinner = pickWinner(defenderResults, defTieDie);
 
       // If attacker declined, fall back to ball carrier (they hold possession uncontested)
       const attackerFallback = state.pieces.find((p) => p.id === state.ball.carrierId);
@@ -1327,7 +1360,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'LOOSE_BALL',
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
-            lastActionType: 'HEADER',
+            lastActionType: 'DEFLECTION', // D-23 (WR-03): HEADER tie → LOOSE_BALL = DEFLECTION
             contestedPieceIds: contestedIds,
             eventLog: [
               ...state.eventLog,
@@ -1660,17 +1693,8 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
     }
   }
 
-  // Pass types eligible for immediately-post-pass SNAP-01 trigger
-  const passTypes: ReadonlySet<LastActionType> = new Set([
-    'STANDARD_PASS',
-    'FIRST_TIME_PASS',
-    'HIGH_PASS',
-    'LONG_BALL',
-    'HEADER',
-    'DEFLECTION',
-    'SUCCESSFUL_TACKLE',
-    'MOVEMENT_PHASE',
-  ]);
+  // Pass types eligible for immediately-post-pass SNAP-01 trigger (D-16/D-20: module-level const)
+  const passTypes = SNAPSHOT_ELIGIBLE_PASS_TYPES;
 
   // 2. Phase/position guard
   if (state.phase === 'MOVEMENT') {
