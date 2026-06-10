@@ -37,7 +37,7 @@ export type GamePhase =
   | 'KICK_OFF'
   | 'KICK_OFF_SETUP'
   | 'MOVEMENT'
-  | 'PASS' // ← rename to 'ACTION'
+  | 'PASS'
   | 'SHOT'
   | 'HEADER'
   | 'SNAPSHOT'
@@ -57,7 +57,7 @@ export type GamePhase =
   | 'KICK_OFF'
   | 'KICK_OFF_SETUP'
   | 'MOVEMENT'
-  | 'ACTION' // renamed from 'PASS'
+  | 'PASS'
   | 'SHOT_DECLARED' // new: shot declared, awaiting GK dive
   | 'GK_DIVING' // new: GK's team repositions GK interactively
   | 'SNAP_DEFLECT' // new: opponent moves 1 player before snapshot resolves
@@ -392,15 +392,6 @@ setTimeout(() => {
 }, 3000);
 ```
 
-**DICE_PHASES constant — rename 'PASS' → 'ACTION'** (line 65):
-
-```typescript
-// Before:
-const DICE_PHASES = new Set<string>(['KICK_OFF', 'PASS', 'SHOT', 'HEADER', 'LOOSE_BALL']);
-// After:
-const DICE_PHASES = new Set<string>(['KICK_OFF', 'ACTION', 'SHOT', 'HEADER', 'LOOSE_BALL']);
-```
-
 **GAME_HEADER_TARGET handler — both-teams-confirmed guard pattern** (copy from GAME_HEADER_CONTESTANT lines 1160–1176):
 
 ```typescript
@@ -504,22 +495,6 @@ HexGrid click wires to `emitHeaderTarget` store action.
 }
 ```
 
-**PASS → ACTION rename in ActionPanel** (lines 15, 69, 150):
-
-```tsx
-// line 15: DICE_PHASES
-const DICE_PHASES = new Set(['SHOT'] as const); // 'PASS' not in client DICE_PHASES, no change needed
-
-// line 69:
-if (phase === 'PASS' && lastActionType === 'HEADER' ...) → 'ACTION'
-
-// line 150:
-if (phase === 'PASS' || phase === 'KICK_OFF') → if (phase === 'ACTION' || phase === 'KICK_OFF')
-
-// line 152:
-if (phase === 'PASS' && carrierId === null) → if (phase === 'ACTION' && carrierId === null)
-```
-
 ---
 
 ### `packages/client/src/store/useGameStore.ts` (store, request-response)
@@ -558,8 +533,6 @@ shootTargetHex: HexCoord | null;
 ```
 
 Cleared in `setGameState` alongside `selectedPassType` and `passTargetHex` clearing.
-
-**PASS → ACTION rename in useGameStore** — search for `'PASS'` string literals in phase comparisons and update. The `selectedPassType` state field name stays (it refers to pass action type, not GamePhase value).
 
 ---
 
