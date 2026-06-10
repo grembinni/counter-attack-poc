@@ -353,7 +353,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 — owns gameEngine.ts)_
 
-- [ ] 10-02-PLAN.md — Engine debt + bugs: code-review fixes D-16/D-17/D-20/D-21/D-22/D-23 + gameplay bugs D-26/D-29/D-30 + PASS→ACTION in engine
+- [x] 10-02-PLAN.md — Engine debt + bugs: code-review fixes D-16/D-17/D-20/D-21/D-22/D-23 + gameplay bugs D-26/D-29/D-30 + PASS→ACTION in engine
 
 **Wave 3** _(blocked on Wave 2 — same gameEngine.ts)_
 

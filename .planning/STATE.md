@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 10
-last_updated: '2026-06-10T01:22:06.253Z'
+last_updated: '2026-06-10T06:20:00.000Z'
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 51
-  completed_plans: 47
-  percent: 92
+  completed_plans: 48
+  percent: 94
 ---
 
 # Project State
@@ -98,6 +98,12 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 10 Plan 02)
+
+- D-30: loose-ball pickup in applyMove stays in MOVEMENT; attackingTeam/activeTeam update immediately; pace tracking continues; no PASS transition on pickup
+- D-29 enforcement in engine layer: applyMove returns MOVE_INVALID/ALREADY_ATTEMPTED when piece id already in stealAttemptedByIds/tackleAttemptedByIds
+- pickWinner tie-break: uses (die-1) % tied.length with injected die (no Math.random in engine)
+
 ### Decisions Locked (Phase 8)
 
 - GAME_KICK_OFF_MOVE/GAME_READY/GAME_HALF_TIME_START handlers enforce KICK_OFF_SETUP placement with isProcessing mutex and snap-back pattern
@@ -117,8 +123,8 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-06-09
-- Phase 10 Plan 01 COMPLETE — shared foundation (types, events) + Wave 0 test scaffolds committed (c282395)
-- Phase 10 Plan 01 COMPLETE: GamePhase extended with SHOT_DECLARED/GK_DIVING/SNAP_DEFLECT; 5 new GameState fields; GAME_GK_DIVE + GAME_HEADER_TARGET events; Wave 0 engine + handler test scaffolds
-- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-02-PLAN.md`
-- Next: Execute Plan 02 (engine bug fixes: D-22, D-17, D-21, D-23, D-29, D-15, D-16, D-18, D-20, D-24, D-25)
+- Last updated: 2026-06-10
+- Phase 10 Plan 02 COMPLETE — engine bug fixes D-16/D-17/D-20/D-21/D-22/D-23/D-26/D-29/D-30 (42545df)
+- Phase 10 Plan 02 COMPLETE: Math.random() eliminated; GOAL event logged; intermediate slot lastActionType reset; one-steal/one-tackle enforced; loose-ball pickup preserves movement pace
+- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-03-PLAN.md`
+- Next: Execute Plan 03 (new engine functions: applyDeclareShot, applyGKDive, applyDeclareHeaderTarget)

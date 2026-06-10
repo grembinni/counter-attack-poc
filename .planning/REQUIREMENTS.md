@@ -46,7 +46,7 @@
 - [ ] **HEAD-01**: A header must follow a High Pass; players within 1 hex challenge normally; players within 2 hexes challenge with -1 dice penalty
 - [ ] **HEAD-02**: An uncontested header is won automatically (no dice roll required)
 - [x] **HEAD-03**: A headed attempt at goal must be declared before rolling; if attacker wins the duel, goalkeeper attempts a save; cannot be blocked by outfield defenders
-- [ ] **HEAD-04**: A headed pass cannot be intercepted; two consecutive headed passes are not allowed
+- [x] **HEAD-04**: A headed pass cannot be intercepted; two consecutive headed passes are not allowed
 - [ ] **HEAD-05**: Players who challenged for a header cannot participate in the subsequent Movement Phase
 
 ### Shooting & Saving
@@ -62,7 +62,7 @@
 
 - [x] **SNAP-01**: Snapshot may be taken during a Movement Phase if the ball-carrier is in the opponent's penalty area, or immediately after any pass (inside or outside box)
 - [x] **SNAP-02**: Snapshot applies -1 dice penalty to Shooting; before the shot, 1 opponent moves any player up to 2 hexes to attempt a deflection
-- [ ] **SNAP-03**: All standard shooting rules apply to snapshots
+- [x] **SNAP-03**: All standard shooting rules apply to snapshots
 
 ### Dice & Resolution
 
