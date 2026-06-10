@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: '2026-06-07T22:10:12.663Z'
+last_updated: '2026-06-10T00:16:50.743Z'
 progress:
-  total_phases: 15
-  completed_phases: 13
+  total_phases: 13
+  completed_phases: 12
   total_plans: 46
   completed_plans: 46
-  percent: 80
+  percent: 92
 ---
 
 # Project State
@@ -117,11 +117,8 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-06-06
-- Quick task phase-selection-flow COMPLETE (commit c6a1cbf):
-  - game:start-movement now accepts PASS phase (was KICK_OFF-only)
-  - game:roll now receives passType from client; server validates + sets lastActionType
-  - ActionPanel PASS phase redesigned as two-step choose-phase → roll flow
-  - Shoot button added when SNAPSHOT/SHOT is eligible
-- Phase 8 COMPLETE — 6 of 6 plans complete (08-01 through 08-06)
-- Next: Phase 9 (AWS Deployment)
+- Last updated: 2026-06-09
+- Phase 9 (Render Deployment) COMPLETE — all 7 UAT tests passed; deployed and live
+- Phase 10 context gathered (commit d0926ad) — 30 decisions captured in 10-CONTEXT.md
+- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-CONTEXT.md`
+- Next: `/gsd-plan-phase 10`
