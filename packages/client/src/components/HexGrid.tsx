@@ -90,6 +90,8 @@ export function HexGrid() {
   const gkDivePosition = useGameStore((s) => s.gameState.gkDivePosition);
   const shotTargetHex = useGameStore((s) => s.gameState.shotTargetHex);
   const snapDeflectMovedPieceId = useGameStore((s) => s.gameState.snapDeflectMovedPieceId);
+  // RULE-04 (Phase 11): subscribe to pace counter so HexGrid suppresses selection once exhausted
+  const snapDeflectPaceUsed = useGameStore((s) => s.gameState.snapDeflectPaceUsed);
   const lastShotPath = useGameStore((s) => s.gameState.lastShotPath);
   const emitGKKickTarget = useGameStore((s) => s.emitGKKickTarget);
 
@@ -572,7 +574,8 @@ export function HexGrid() {
               myTeam !== null &&
               myTeam === snapDefendingTeam &&
               piece.teamId === myTeam &&
-              (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id);
+              (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id) &&
+              (snapDeflectPaceUsed ?? 0) < 2; // RULE-04 D-09: suppress when pace exhausted
             // GK_KICK_MOVEMENT: active team selects 1 own piece to reposition up to 3 hexes
             const canSelectGKKickMove =
               phase === 'GK_KICK_MOVEMENT' &&
