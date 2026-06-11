@@ -161,17 +161,18 @@ function seedActionPhase(roomCode: string): void {
 
 /**
  * Seeds a room into GK_DIVING phase for testing GK dive guards.
- * The away GK is repositioned to q=36 (goal line) so that a valid dive to
- * { q: 36, r: 14 } is accepted by applyGKDive's parallel-to-goal-line guard.
+ * GK at {q:36,r:13}; home shooter has the ball with shot aimed at {q:36,r:13}.
+ * The shot path from shooter to goal includes {q:36,r:13} (endpoint), so
+ * a dive to {q:36,r:13} (stay in place) is always valid.
  */
 function seedGkDivingPhase(roomCode: string): void {
   const room = getRoom(roomCode);
   if (!room || !room.gameState) throw new Error('Room or gameState not found');
 
   const gk = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK');
-  if (!gk) throw new Error('No away GK found');
+  const shooter = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+  if (!gk || !shooter) throw new Error('No away GK or home shooter found');
 
-  // Position GK at q=36, r=13 (goal line) so dives along r at constant q=36 are valid
   const gkAtGoalLine = { q: 36, r: 13 };
 
   room.gameState = {
@@ -179,16 +180,13 @@ function seedGkDivingPhase(roomCode: string): void {
     phase: 'GK_DIVING',
     attackingTeam: 'home',
     activeTeam: 'away',
-    // ball.carrierId = shooter's piece (not the GK) in real game; set to away carrier for
-    // controlsGKTeam derivation (controlsGKTeam uses attackingTeam in GK_DIVING phase)
-    ball: { position: gk.position, carrierId: gk.id },
+    ball: { position: shooter.position, carrierId: shooter.id },
     lastActionType: 'SHOT',
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
     shotTargetHex: { q: 36, r: 13 },
     gkDivePosition: gkAtGoalLine,
-    // Reposition the away GK to the goal line for valid dive tests
     pieces: room.gameState.pieces.map((p) =>
       p.id === gk.id ? { ...p, position: gkAtGoalLine } : p,
     ),
@@ -290,15 +288,17 @@ describe('GAME_GK_DIVE handler guards', () => {
     expect(reason).toBe('INVALID_TARGET');
   });
 
-  it('valid GAME_GK_DIVE updates gkDivePosition in state', async () => {
+  it('valid GAME_GK_DIVE triggers immediate shot resolution (phase exits GK_DIVING)', async () => {
     const { clientB, roomCode } = await setupRoom();
     seedGkDivingPhase(roomCode);
 
     const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    // Dive to the goal hex (always on path as endpoint, distance 0 from GK)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (clientB as any).emit(ClientEvents.GAME_GK_DIVE, { q: 36, r: 14 });
+    (clientB as any).emit(ClientEvents.GAME_GK_DIVE, { q: 36, r: 13 });
     const [state] = await statePromise;
-    expect(state.gkDivePosition).toEqual({ q: 36, r: 14 });
+    // Shot auto-resolves: phase must have left GK_DIVING
+    expect(state.phase).not.toBe('GK_DIVING');
   });
 });
 
@@ -372,7 +372,7 @@ describe('GAME_HEADER_TARGET handler guards', () => {
     expect(reason).toBe('WRONG_TEAM');
   });
 
-  it('valid GAME_HEADER_TARGET sets headerTargetHex in state', async () => {
+  it('valid GAME_HEADER_TARGET fires the heading duel and resolves HEADER phase', async () => {
     const { clientA, roomCode } = await setupRoom();
     seedHeaderPhaseConfirmed(roomCode);
 
@@ -380,7 +380,10 @@ describe('GAME_HEADER_TARGET handler guards', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (clientA as any).emit(ClientEvents.GAME_HEADER_TARGET, { q: 36, r: 13 });
     const [state] = await statePromise;
-    expect(state.headerTargetHex).toEqual({ q: 36, r: 13 });
+    // GAME_HEADER_TARGET now fires the duel immediately after setting the target hex.
+    // HEADER phase must be resolved; headerTargetHex cleared by applyRoll on all paths.
+    expect(state.phase).not.toBe('HEADER');
+    expect(state.headerTargetHex == null).toBe(true);
   });
 
   it('GAME_HEADER_TARGET with malformed HexCoord emits GAME_ERROR (INVALID_TARGET)', async () => {

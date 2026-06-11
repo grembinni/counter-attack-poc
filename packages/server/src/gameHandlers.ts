@@ -44,15 +44,18 @@ import {
   applyDeclareShot,
   applyEndTurn,
   applyGKDive,
+  applyGKKickTarget,
   applyGKRestart,
   applyHalfTimeStart,
   applyKickOffReady,
   applyMove,
+  applyQuickThrow,
   applyRestartMovement,
   applyRoll,
   applySnapshot,
   applyStartMovement,
   applyUndo,
+  buildKickOffPieces,
   buildReplayFrames,
   computeShotPathDeflection,
 } from './gameEngine.js';
@@ -388,11 +391,83 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
+        // SNAP-02: if the GK is being moved, recompute the snapshot GK penalty from new position.
+        let snapshotGkPenalty = sdState.snapshotGkPenalty ?? 0;
+        if (sdPiece.role === 'GK' && sdState.shotTargetHex) {
+          const dist = hexDistance(to, sdState.shotTargetHex);
+          snapshotGkPenalty = dist <= 1 ? 0 : dist === 2 ? -1 : dist === 3 ? -2 : 0;
+        }
         room.gameState = {
           ...sdState,
           pieces: sdState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
           snapDeflectMovedPieceId: pieceId,
           snapDeflectPaceUsed: paceUsed + 1,
+          snapshotGkPenalty,
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      // GK_KICK_MOVEMENT: both teams reposition 1 piece ≤3 hexes while kick is in air.
+      // Mirrors HIGH_PASS_MOVEMENT block: adjacency, pitch boundary, occupancy, 1-piece lock.
+      if (room.gameState.phase === 'GK_KICK_MOVEMENT') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const gkMoveState = room.gameState;
+        const piece = gkMoveState.pieces.find((p) => p.id === pieceId);
+        if (!piece || piece.teamId !== gkMoveState.activeTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const lockedId = gkMoveState.gkKickMovedPieceId ?? null;
+        if (lockedId !== null && lockedId !== pieceId) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
+        }
+        const paceUsed = gkMoveState.gkKickPaceUsed ?? 0;
+        if (paceUsed >= 3) {
+          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
+          broadcastState(io, room);
+          return;
+        }
+        if (hexDistance(piece.position, to) !== 1) {
+          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
+          broadcastState(io, room);
+          return;
+        }
+        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+          broadcastState(io, room);
+          return;
+        }
+        if (
+          gkMoveState.pieces.some(
+            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+          )
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
+          broadcastState(io, room);
+          return;
+        }
+        const gkKickMoveEvent: ActionEvent = {
+          type: 'GK_KICK_MOVE',
+          slot: gkMoveState.gkKickMovementSlot === 'KICKER' ? 'KICKER' : 'OPP',
+          pieceId,
+          from: piece.position,
+          to,
+          timestamp: Date.now(),
+        };
+        room.gameState = {
+          ...gkMoveState,
+          pieces: gkMoveState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+          gkKickMovedPieceId: pieceId,
+          gkKickPaceUsed: paceUsed + 1,
+          eventLog: [...gkMoveState.eventLog, gkKickMoveEvent],
         };
         broadcastState(io, room);
         return;
@@ -444,86 +519,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // GK_DIVING: GK team confirms dive; server pre-generates all dice and auto-resolves the shot.
-      // D-03/D-04: Pre-generate defender deflection dice + shooter/GK/handling dice in handler
-      // (ARCH-01 — engine must stay pure). After resolution, broadcast full outcome.
+      // GK_DIVING: shot now resolves via GAME_GK_DIVE (single-click dive + auto-resolve).
+      // End-turn in this phase is a no-op — just snap back so the client stays in sync.
       if (room.gameState.phase === 'GK_DIVING') {
-        if (!controlsGKTeam(socket, room)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        const gkState = room.gameState;
-        // Build defender deflection inputs from shot path (computeShotPathDeflection is pure)
-        const shooterPiece = gkState.pieces.find((p) => p.id === gkState.ball.carrierId);
-        const shotTarget = gkState.shotTargetHex ?? null;
-        const defenderInputs: DefenderDeflectionInput[] = [];
-        if (shooterPiece && shotTarget) {
-          const pathHexes = hexLine(shooterPiece.position, shotTarget);
-          const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
-          const defTeam: 'home' | 'away' = gkState.attackingTeam === 'home' ? 'away' : 'home';
-          for (const defender of gkState.pieces.filter(
-            (p) => p.teamId === defTeam && p.role !== 'GK',
-          )) {
-            const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
-            let nearPath = false;
-            if (!onPath) {
-              for (const ph of pathHexes) {
-                if (hexDistance(defender.position, ph) === 1) {
-                  nearPath = true;
-                  break;
-                }
-              }
-            }
-            if (onPath || nearPath) {
-              defenderInputs.push({
-                defenderId: defender.id,
-                defenderPosition: defender.position,
-                tackling: defender.tackling,
-                die: rollDice(),
-                band: onPath ? 'A' : 'B',
-              });
-            }
-          }
-        }
-        // Pre-generate shot duel dice (D-03: shooter, GK, handling)
-        const shooterDie = rollDice();
-        const gkDie = rollDice();
-        const handlingDie = rollDice();
-        // Call computeShotPathDeflection to check for deflection first
-        const deflectionResult = computeShotPathDeflection(defenderInputs);
-        if (deflectionResult.deflected && deflectionResult.deflectorPosition) {
-          // Deflection: transition to LOOSE_BALL at deflector's position
-          const deflectState: typeof gkState = {
-            ...gkState,
-            phase: 'LOOSE_BALL',
-            ball: { position: deflectionResult.deflectorPosition, carrierId: null },
-            lastActionType: 'DEFLECTION',
-            shotTargetHex: null,
-            gkDivePosition: null,
-          };
-          room.gameState = deflectState;
-          broadcastState(io, room);
-          return;
-        }
-        // No deflection: resolve shooter-vs-GK duel via applyRoll (SHOT branch)
-        // applyRoll SHOT branch reads phase==='SHOT', so normalise the state
-        const stateForShot: typeof gkState = {
-          ...gkState,
-          phase: 'SHOT',
-          lastActionType: 'SHOT',
-        };
-        const shotResult = applyRoll(stateForShot, shooterDie, gkDie, handlingDie);
-        if (!shotResult.ok) {
-          socket.emit(ServerEvents.GAME_ERROR, shotResult.reason);
-          broadcastState(io, room);
-          return;
-        }
-        room.gameState = { ...shotResult.state, gkDivePosition: null };
         broadcastState(io, room);
-        if (shotResult.state.phase === 'FULL_TIME') {
-          startReplayStream(io, room);
-        }
         return;
       }
 
@@ -591,6 +590,89 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // GK_KICK_MOVEMENT: slot transitions + accuracy check after OPP slot.
+      if (room.gameState.phase === 'GK_KICK_MOVEMENT') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const gkEndState = room.gameState;
+        if (gkEndState.gkKickMovementSlot === 'KICKER') {
+          // KICKER slot done: switch to opponent's repositioning turn
+          const oppTeam: 'home' | 'away' = gkEndState.attackingTeam === 'home' ? 'away' : 'home';
+          room.gameState = {
+            ...gkEndState,
+            gkKickMovementSlot: 'OPP',
+            activeTeam: oppTeam,
+            gkKickMovedPieceId: null,
+            gkKickPaceUsed: 0,
+          };
+          broadcastState(io, room);
+        } else {
+          // OPP slot done: roll accuracy and deliver ball (or loose ball)
+          const kickDie = rollDice();
+          const gk = gkEndState.pieces.find((p) => p.id === gkEndState.gkKickGkId);
+          const kickScore = kickDie + (gk?.highPass ?? 0);
+          const accurate = kickScore >= 8;
+          const targetHex = gkEndState.gkKickTargetHex!;
+          const gkTeam = gkEndState.attackingTeam; // attackingTeam = GK's team throughout GK kick phases
+
+          const kickEvent: ActionEvent = {
+            type: 'GK_KICK',
+            gkId: gkEndState.gkKickGkId ?? '',
+            targetHex,
+            accurate,
+            kickDie,
+            kickScore,
+            timestamp: Date.now(),
+          };
+
+          if (accurate) {
+            const receiver = gkEndState.pieces.find(
+              (p) =>
+                p.teamId === gkTeam && p.position.q === targetHex.q && p.position.r === targetHex.r,
+            );
+            room.gameState = {
+              ...gkEndState,
+              phase: 'PASS',
+              ball: { position: targetHex, carrierId: receiver?.id ?? null },
+              attackingTeam: gkTeam,
+              activeTeam: gkTeam,
+              lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
+              lastActionType: 'MOVEMENT_PHASE',
+              actionCount: gkEndState.actionCount + 1,
+              gkKickTargetHex: null,
+              gkKickGkId: null,
+              gkKickMovementSlot: null,
+              gkKickMovedPieceId: null,
+              gkKickPaceUsed: 0,
+              eventLog: [...gkEndState.eventLog, kickEvent],
+            };
+          } else {
+            // Inaccurate: loose ball from GK's current position
+            room.gameState = {
+              ...gkEndState,
+              phase: 'LOOSE_BALL',
+              ball: { position: gk?.position ?? gkEndState.ball.position, carrierId: null },
+              attackingTeam: gkTeam,
+              activeTeam: gkTeam,
+              lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
+              lastActionType: 'DEFLECTION',
+              actionCount: gkEndState.actionCount + 1,
+              gkKickTargetHex: null,
+              gkKickGkId: null,
+              gkKickMovementSlot: null,
+              gkKickMovedPieceId: null,
+              gkKickPaceUsed: 0,
+              eventLog: [...gkEndState.eventLog, kickEvent],
+            };
+          }
+          broadcastState(io, room);
+        }
+        return;
+      }
+
       // SNAP_DEFLECT: defending team ends their deflection turn; auto-resolve the snapshot shot.
       // D-08 / SNAP-02: After opponent moves (or passes), resolve as a SHOT phase duel.
       if (room.gameState.phase === 'SNAP_DEFLECT') {
@@ -605,6 +687,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const d1 = rollDice(); // shooter die
         const d2 = rollDice(); // GK die
         const d3 = rollDice(); // handling die
+        console.log(`[SNAP_DEFLECT] Shot dice — shooter:${d1} GK:${d2} handling:${d3}`);
         // Normalise to SHOT phase for applyRoll; clear snap deflect tracking fields via destructuring
         /* eslint-disable @typescript-eslint/no-unused-vars */
         const {
@@ -624,6 +707,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
+        const snapOutcome =
+          snapResult.state.phase === 'KICK_OFF_SETUP'
+            ? 'GOAL'
+            : snapResult.state.phase === 'GK_RESTART'
+              ? 'SAVE → caught'
+              : snapResult.state.phase === 'LOOSE_BALL'
+                ? 'SAVE → spilled'
+                : snapResult.state.phase === 'MOVEMENT'
+                  ? 'MISS (auto)'
+                  : snapResult.state.phase;
+        console.log(`[SNAP_DEFLECT] Shot outcome: ${snapOutcome}`);
         room.gameState = snapResult.state;
         broadcastState(io, room);
         if (snapResult.state.phase === 'FULL_TIME') {
@@ -922,11 +1016,27 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           room.gameState.phase === 'KICK_OFF'
             ? { ...room.gameState, phase: 'PASS' as const }
             : room.gameState;
+        if (stateForRoll.phase === 'SHOT') {
+          console.log(`[SNAPSHOT] Shot dice — shooter:${d1} GK:${d2} handling:${d3}`);
+        }
         const result = applyRoll(stateForRoll, d1, d2, d3);
         if (!result.ok) {
           socket.emit(ServerEvents.GAME_ERROR, result.reason);
           broadcastState(io, room); // snap-back
           return;
+        }
+        if (stateForRoll.phase === 'SHOT') {
+          const snapOutcome =
+            result.state.phase === 'KICK_OFF_SETUP'
+              ? 'GOAL'
+              : result.state.phase === 'GK_RESTART'
+                ? 'SAVE → caught'
+                : result.state.phase === 'LOOSE_BALL'
+                  ? 'SAVE → spilled'
+                  : result.state.phase === 'MOVEMENT'
+                    ? 'MISS (auto)'
+                    : result.state.phase;
+          console.log(`[SNAPSHOT] Shot outcome: ${snapOutcome}`);
         }
         // D-27 / MATCH-03: clear kickOffActive after a successful kick-off pass from centre hex.
         if (room.gameState.kickOffActive) {
@@ -993,14 +1103,158 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      // 5. Engine call: validates goal hex and transitions PASS → GK_DIVING
+      // 5. Engine call: validates goal hex and seeds GK_DIVING state
       const result = applyDeclareShot(room.gameState, targetHex);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
         return;
       }
-      room.gameState = result.state;
+      const declaredState = result.state;
+
+      // 6. Deflection check (before GK dives — defenders on/near path act first)
+      const shotShooter = declaredState.pieces.find((p) => p.id === declaredState.ball.carrierId);
+      const shotPathTarget = declaredState.shotTargetHex;
+      const defInputs: DefenderDeflectionInput[] = [];
+      if (shotShooter && shotPathTarget) {
+        const pathHexes = hexLine(shotShooter.position, shotPathTarget);
+        const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
+        const defTeam: 'home' | 'away' = declaredState.attackingTeam === 'home' ? 'away' : 'home';
+        for (const defender of declaredState.pieces.filter(
+          (p) => p.teamId === defTeam && p.role !== 'GK',
+        )) {
+          const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
+          let nearPath = false;
+          if (!onPath) {
+            for (const ph of pathHexes) {
+              if (hexDistance(defender.position, ph) === 1) {
+                nearPath = true;
+                break;
+              }
+            }
+          }
+          if (onPath || nearPath) {
+            defInputs.push({
+              defenderId: defender.id,
+              defenderPosition: defender.position,
+              tackling: defender.tackling,
+              die: rollDice(),
+              band: onPath ? 'A' : 'B',
+            });
+          }
+        }
+      }
+
+      const deflectEventsShot: ActionEvent[] = [];
+      for (const def of defInputs) {
+        const didDeflect =
+          def.band === 'A'
+            ? def.die === 5 || def.die === 6 || def.die + def.tackling >= 10
+            : def.die === 6 || def.die + def.tackling >= 10;
+        deflectEventsShot.push({
+          type: 'DEFLECT_ATTEMPT',
+          defenderId: def.defenderId,
+          band: def.band,
+          die: def.die,
+          tackling: def.tackling,
+          result: didDeflect ? 'DEFLECTED' : 'NO_DEFLECT',
+          timestamp: Date.now(),
+        });
+        if (didDeflect) break;
+      }
+
+      if (defInputs.length > 0) {
+        console.log(
+          '[GAME_SHOT] Deflection check:',
+          defInputs
+            .map((d) => `id=${d.defenderId} band=${d.band} die=${d.die} tackling=${d.tackling}`)
+            .join(', '),
+        );
+      }
+
+      const shotDeflectionResult = computeShotPathDeflection(defInputs);
+      if (shotDeflectionResult.deflected && shotDeflectionResult.deflectorPosition) {
+        console.log(`[GAME_SHOT] DEFLECTED by ${shotDeflectionResult.deflectorId} → LOOSE_BALL`);
+        room.gameState = {
+          ...declaredState,
+          phase: 'LOOSE_BALL',
+          ball: { position: shotDeflectionResult.deflectorPosition, carrierId: null },
+          lastActionType: 'DEFLECTION',
+          shotTargetHex: null,
+          gkDivePosition: null,
+          lastShotPath: null,
+          eventLog: [...declaredState.eventLog, ...deflectEventsShot],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      // 7. GK range check: if no path hex is reachable (≤3 hexes) auto-GOAL
+      const shotDefTeam: 'home' | 'away' = declaredState.attackingTeam === 'home' ? 'away' : 'home';
+      const gkForRange = declaredState.pieces.find(
+        (p) => p.teamId === shotDefTeam && p.role === 'GK',
+      );
+      const reachablePathHexes =
+        shotShooter && shotPathTarget ? hexLine(shotShooter.position, shotPathTarget) : [];
+      const hasReachableHex =
+        gkForRange !== undefined &&
+        reachablePathHexes.some((h) => hexDistance(gkForRange.position, h) <= 3);
+
+      if (!hasReachableHex) {
+        console.log('[GAME_SHOT] GK out of range — auto-GOAL (no path hex within 3)');
+        const scoringTeam = declaredState.attackingTeam;
+        const newKickOffTeam = shotDefTeam;
+        const outDie1 = rollDice();
+        const outDie2 = rollDice();
+        const outOfRangeEvent: ActionEvent = {
+          type: 'SHOT_ATTEMPT',
+          shooterId: declaredState.ball.carrierId ?? '',
+          targetHex: shotPathTarget ?? { q: 0, r: 0 },
+          outcome: 'GOAL',
+          shooterDie: outDie1,
+          shooterScore: null,
+          gkDie: outDie2,
+          gkScore: null,
+          handlingDie: null,
+          gkHandling: null,
+          shooterPenaltyTotal: 0,
+          gkPenaltyTotal: 0,
+          timestamp: Date.now(),
+        };
+        const newScore = {
+          ...declaredState.score,
+          [scoringTeam]: declaredState.score[scoringTeam] + 1,
+        };
+        room.gameState = {
+          ...declaredState,
+          pieces: buildKickOffPieces(newKickOffTeam),
+          phase: 'KICK_OFF_SETUP',
+          score: newScore,
+          attackingTeam: newKickOffTeam,
+          activeTeam: newKickOffTeam,
+          ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+          lastDiceRoll: { rolls: [outDie1, outDie2], context: 'SHOT_DUEL' },
+          lastActionType: null,
+          lastShotPath: null,
+          gkDivePosition: null,
+          shotTargetHex: null,
+          snapshotGkPenalty: null,
+          eventLog: [
+            ...declaredState.eventLog,
+            ...deflectEventsShot,
+            outOfRangeEvent,
+            { type: 'GOAL' as const, scoringTeam, timestamp: Date.now() },
+          ],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      // GK in range: enter GK_DIVING with any deflect events appended
+      room.gameState = {
+        ...declaredState,
+        eventLog: [...declaredState.eventLog, ...deflectEventsShot],
+      };
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -1219,12 +1473,84 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // -------------------------------------------------------------------------
+  // GAME_QUICK_THROW — GK delivers to a target hex (unblocked, uninterceptable)
+  // Only the GK's team may throw; target validated server-side (range ≤ 11, on pitch).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_QUICK_THROW, (targetHex: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return;
+
+    room.isProcessing = true;
+    try {
+      if (room.gameState === null || room.gameState.phase !== 'QUICK_THROW') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      if (!controlsGKTeam(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyQuickThrow(room.gameState, targetHex);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room);
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room);
+    } finally {
+      room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GK_KICK_TARGET — GK's team selects kick destination during GK_KICK_TARGET phase.
+  // Only the GK's team may send this; target validated by applyGKKickTarget (on pitch,
+  // not in opponent's final third, not GK's own hex).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_KICK_TARGET, (targetHex: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return;
+
+    room.isProcessing = true;
+    try {
+      if (room.gameState === null || room.gameState.phase !== 'GK_KICK_TARGET') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // controlsGKTeam derives GK team from ball.carrierId (still set in GK_KICK_TARGET)
+      if (!controlsGKTeam(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyGKKickTarget(room.gameState, targetHex);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room);
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room);
+    } finally {
+      room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // GAME_SNAPSHOT — declares a Snapshot (CR-01 server end)
   //
   // T-08-21: gates on isActivePlayer (attacking team) + applySnapshot internal
   //   phase/sequence/position validation (NOT_IN_PENALTY_AREA / INVALID_SEQUENCE).
   //
-  // applySnapshot transitions MOVEMENT or PASS → SHOT and sets snapshotPenalty.
+  // applySnapshot transitions MOVEMENT or PASS → SHOT and sets snapshotGkPenalty.
   // No dice pre-generation here — the shot duel is resolved by the subsequent
   // game:roll (GAME_ROLL handles phase='SHOT' via DICE_PHASES).
   //
@@ -1318,15 +1644,49 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      // 5. Engine call: validates parallel-to-goal-line, ≤3 hexes, on-pitch
+      // 5. Engine call: validates path membership, ≤3 hexes, on-pitch
       const result = applyGKDive(room.gameState, to);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
         return;
       }
-      room.gameState = result.state;
+
+      // 6. Auto-resolve shot immediately after dive (no end-turn needed)
+      const afterDiveState = result.state;
+      const diveShotDie = rollDice();
+      const diveGkDie = rollDice();
+      const diveHandlingDie = rollDice();
+      const stateForShot: typeof afterDiveState = {
+        ...afterDiveState,
+        phase: 'SHOT',
+        lastActionType: 'SHOT',
+      };
+      console.log(
+        `[GK_DIVE] Shot dice — shooter:${diveShotDie} GK:${diveGkDie} handling:${diveHandlingDie}`,
+      );
+      const diveShotResult = applyRoll(stateForShot, diveShotDie, diveGkDie, diveHandlingDie);
+      if (!diveShotResult.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, diveShotResult.reason);
+        broadcastState(io, room);
+        return;
+      }
+      const diveOutcome =
+        diveShotResult.state.phase === 'KICK_OFF_SETUP'
+          ? 'GOAL'
+          : diveShotResult.state.phase === 'GK_RESTART'
+            ? 'SAVE → caught'
+            : diveShotResult.state.phase === 'LOOSE_BALL'
+              ? 'SAVE → spilled'
+              : diveShotResult.state.phase === 'MOVEMENT'
+                ? 'MISS (auto)'
+                : diveShotResult.state.phase;
+      console.log(`[GK_DIVE] Shot outcome: ${diveOutcome}`);
+      room.gameState = { ...diveShotResult.state, gkDivePosition: null };
       broadcastState(io, room); // ARCH-04
+      if (diveShotResult.state.phase === 'FULL_TIME') {
+        startReplayStream(io, room);
+      }
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
@@ -1394,6 +1754,21 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       room.gameState = result.state;
+      // 7. Auto-roll the heading duel now that the target hex is confirmed (HEAD-03).
+      // Pre-generate one die per contestant (layout: all attacker dice first, then defender dice).
+      const atkTeam = room.gameState.attackingTeam;
+      const defTeam = atkTeam === 'home' ? 'away' : 'home';
+      const atkCount = room.gameState.headerContestants?.[atkTeam]?.length ?? 0;
+      const defCount = room.gameState.headerContestants?.[defTeam]?.length ?? 0;
+      const numDice = Math.max(atkCount + defCount, 2); // at least 2 for uncontested fallback
+      const diceArr = Array.from({ length: numDice }, () => rollDice());
+      const rollResult = applyRoll(room.gameState, ...diceArr);
+      if (!rollResult.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, rollResult.reason);
+        broadcastState(io, room);
+        return;
+      }
+      room.gameState = rollResult.state;
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -1456,25 +1831,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         headerConfirmed: { ...existingConfirmed, [teamSlot]: true },
       };
 
-      // Auto-roll when both teams have now confirmed — no separate Roll Header step needed.
-      // Pre-generate one die per contestant (layout: all attacker dice first, then defender dice).
-      if (room.gameState.headerConfirmed?.home && room.gameState.headerConfirmed?.away) {
-        const atkTeam = room.gameState.attackingTeam;
-        const defTeam = atkTeam === 'home' ? 'away' : 'home';
-        const atkCount = room.gameState.headerContestants?.[atkTeam]?.length ?? 0;
-        const defCount = room.gameState.headerContestants?.[defTeam]?.length ?? 0;
-        const numDice = Math.max(atkCount + defCount, 2); // at least 2 for uncontested fallback
-        const diceArr = Array.from({ length: numDice }, () => rollDice());
-        const result = applyRoll(room.gameState, ...diceArr);
-        if (!result.ok) {
-          socket.emit(ServerEvents.GAME_ERROR, result.reason);
-          broadcastState(io, room);
-          return;
-        }
-        room.gameState = result.state;
-      }
-
-      // ARCH-04: broadcast updated state (either interim confirm or resolved header)
+      // Both teams confirmed — broadcast so the attacker sees the target-hex prompt (HEAD-03).
+      // The duel fires in GAME_HEADER_TARGET once the attacker selects a target hex.
       broadcastState(io, room);
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
