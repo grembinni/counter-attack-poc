@@ -51,6 +51,9 @@ export function ActionPanel() {
   const passTargetHex = useGameStore((s) => s.passTargetHex);
   const headerContestantIds = useGameStore((s) => s.headerContestantIds);
   const emitHeaderContestant = useGameStore((s) => s.emitHeaderContestant);
+  // RULE-01 (Phase 11): accuracy roll acknowledgment gate
+  const headerAccuracyRollPending = useGameStore((s) => s.gameState.headerAccuracyRollPending);
+  const emitHeaderAccuracyAck = useGameStore((s) => s.emitHeaderAccuracyAck);
   // Phase 10: shooting mode (two-step Shoot flow)
   const shootingMode = useGameStore((s) => s.shootingMode);
   const setShootingMode = useGameStore((s) => s.setShootingMode);
@@ -180,6 +183,32 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   if (phase === 'HEADER') {
     if (myTeam === null) return null;
+
+    // RULE-01: gate contestant selection behind accuracy roll acknowledgment
+    if (headerAccuracyRollPending ?? false) {
+      const rollValue = lastDiceRoll?.rolls[0] ?? '?';
+      if (isActivePlayer && myTeam === attackingTeam) {
+        return (
+          <div className={styles.panel}>
+            <span className={styles.phaseLabel}>
+              High Pass accuracy roll: {rollValue} — pass is accurate! Click to continue.
+            </span>
+            <button className={styles.ctaButton} onClick={() => emitHeaderAccuracyAck()}>
+              Continue
+            </button>
+            {gameError && <span className={styles.errorText}>{gameError}</span>}
+          </div>
+        );
+      }
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>
+            High Pass accuracy roll: {rollValue} — waiting for attacker...
+          </span>
+        </div>
+      );
+    }
+
     const myConfirmed = headerConfirmed?.[myTeam] ?? false;
     const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
 

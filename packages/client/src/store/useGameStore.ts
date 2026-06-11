@@ -148,6 +148,11 @@ export type GameStore = {
   emitQuickThrow: (targetHex: HexCoord) => void;
   /** GK kick: emit chosen target hex to server (GK_KICK_TARGET phase). */
   emitGKKickTarget: (targetHex: HexCoord) => void;
+  /**
+   * RULE-01 (Phase 11): attacker acknowledges the high-pass accuracy roll result.
+   * Emits GAME_HEADER_ACCURACY_ACK (zero arguments). No-op if socket not connected.
+   */
+  emitHeaderAccuracyAck: () => void;
 };
 
 /**
@@ -622,5 +627,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitGKKickTarget: (targetHex) => {
     socket.emit(ClientEvents.GAME_GK_KICK_TARGET, targetHex);
+  },
+
+  emitHeaderAccuracyAck: () => {
+    socket.emit(ClientEvents.GAME_HEADER_ACCURACY_ACK);
   },
 }));
