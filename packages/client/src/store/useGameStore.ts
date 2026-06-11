@@ -134,8 +134,6 @@ export type GameStore = {
   emitHalfTimeStart: () => void;
   /** Phase 8 / D-18: Emit game:snapshot — declare a Snapshot shot while in penalty area or post-pass. */
   emitSnapshot: () => void;
-  /** Phase 8 / D-17: Emit game:header — resolve a Header while phase === 'HEADER'. */
-  emitHeader: () => void;
   /** Restart the movement phase from ATTACKER_4 — resets movedPieceIds and pace tracking. */
   emitRestartMovement: () => void;
   /** Phase 10: Emit game:shot (shot declaration) with the selected goal hex. Reuses GAME_SHOT event. */
@@ -598,10 +596,6 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitSnapshot: () => {
     socket.emit(ClientEvents.GAME_SNAPSHOT);
-  },
-
-  emitHeader: () => {
-    socket.emit(ClientEvents.GAME_HEADER);
   },
 
   emitRestartMovement: () => {

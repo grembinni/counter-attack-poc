@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 10 — Plan 05 Tasks 2-3 done; awaiting Task 4 UAT
-last_updated: '2026-06-10T16:15:00.000Z'
+status: COMPLETE — v1.0 archived 2026-06-11; 13/13 phases, 51/51 plans
+last_updated: '2026-06-11T00:00:00.000Z'
 progress:
   total_phases: 13
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 51
   completed_plans: 51
-  percent: 97
+  percent: 100
 ---
 
 # Project State
@@ -41,6 +41,7 @@ See: .planning/PROJECT.md
 | 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
 | 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
 | 9     | Render Deployment                          | Complete | 2026-06-08 |
+| 10    | Remaining Action Flows + Tech Debt         | Complete | 2026-06-11 |
 
 ## Blocking Dependencies
 
@@ -142,9 +143,14 @@ See: .planning/PROJECT.md
 | possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2            |
 | undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser |
 
+## Deferred Items (acknowledged at milestone close 2026-06-11)
+
+| Slug                   | Type       | Note                                                                               |
+| ---------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| undo-kickoff-ball-bugs | quick-task | Completed 2026-06-06; no formal artifact directory. Work captured in git log only. |
+
 ## Session Continuity
 
-- Last updated: 2026-06-10
-- Phase 10 Plan 05 Tasks 2-3 COMPLETE — ActionPanel/HexGrid/ActionLog wired (f1099a5), integration tests fixed (8c0ee8b)
-- Awaiting Task 4 UAT: human must verify snapshot, header-at-goal, header auto-roll, regular shot + GK save
-- Resume: `.planning/phases/10-remaining-action-flows-tech-debt/10-05-PLAN.md` Task 4 checkpoint
+- Last updated: 2026-06-11
+- v1.0 milestone close in progress — all 13 phases complete, 10/10 UAT tests pass
+- Dead code removed (GAME_HEADER + SHOT branch in GAME_ROLL); all human verifications signed off

@@ -26,8 +26,6 @@ export const ClientEvents = {
   GAME_HALF_TIME_START: 'game:half-time-start',
   /** Phase 8 / D-18: declare a Snapshot when ball carrier is in penalty area or post-pass. */
   GAME_SNAPSHOT: 'game:snapshot',
-  /** Phase 8 / D-17: resolve a Header while phase === 'HEADER'. */
-  GAME_HEADER: 'game:header',
   /** Restart the movement phase from ATTACKER_4 — resets movedPieceIds and pace tracking. */
   GAME_RESTART_MOVEMENT: 'game:restart-movement',
   /**
@@ -86,8 +84,6 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_HALF_TIME_START]: () => void;
   /** Phase 8 / D-18: Snapshot declaration — ball carrier in penalty area or post-pass. */
   [ClientEvents.GAME_SNAPSHOT]: () => void;
-  /** Phase 8 / D-17: Header declaration — resolve header while phase === 'HEADER'. */
-  [ClientEvents.GAME_HEADER]: () => void;
   /** Restart movement phase from ATTACKER_4 — clears movedPieceIds and pace tracking. */
   [ClientEvents.GAME_RESTART_MOVEMENT]: () => void;
   /**

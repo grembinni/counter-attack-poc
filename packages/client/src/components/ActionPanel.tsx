@@ -45,7 +45,6 @@ export function ActionPanel() {
   const emitStartMovement = useGameStore((s) => s.emitStartMovement);
   const emitGKRestart = useGameStore((s) => s.emitGKRestart);
   const emitSnapshot = useGameStore((s) => s.emitSnapshot);
-  const emitHeader = useGameStore((s) => s.emitHeader);
   // Phase 8.2: store-backed pass type selection (replaces local useState — clearing is done in setGameState)
   const selectedPassType = useGameStore((s) => s.selectedPassType);
   const setSelectedPassType = useGameStore((s) => s.setSelectedPassType);
@@ -419,13 +418,6 @@ export function ActionPanel() {
           {eligible.has('LONG_BALL') && (
             <button className={styles.ctaButton} onClick={() => setSelectedPassType('LONG_BALL')}>
               Long Ball
-            </button>
-          )}
-
-          {/* D-16: Long Ball header option — when HEADER is an eligible next action */}
-          {eligible.has('HEADER') && (
-            <button className={styles.ctaButton} onClick={emitHeader}>
-              Header
             </button>
           )}
 

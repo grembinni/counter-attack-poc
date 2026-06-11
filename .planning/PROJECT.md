@@ -2,42 +2,38 @@
 
 ## What This Is
 
-A 2-player real-time web implementation of Counter Attack, the hex-grid football strategy board game by Webstar Games. Two players connect via a shared room code and play a match through a browser — no installation required. The game models the physical board faithfully: hex movement, dice rolls, pass accuracy checks, Zone of Influence, and shooting duels, with a chess-like click-to-move interface.
+A 2-player real-time web implementation of Counter Attack, the hex-grid football strategy board game by Webstar Games. Two players connect via a shared room code and play a complete match through a browser — no installation required. The game models the physical board faithfully: hex movement, dice rolls, pass accuracy checks, Zone of Influence, and shooting duels, with a chess-like click-to-move interface.
 
 ## Core Value
 
 Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
 
+## Current State
+
+**v1.0 shipped — 2026-06-11.** The game is fully playable end-to-end and deployed to Render. All core rules are implemented: movement (4-5-2 sequence), passing (4 types), heading duels, shot/save duels with GK_DIVING, snapshots with SNAP_DEFLECT, GK restart, Loose Ball, ZoI enforcement, match lifecycle (2 halves + added time + kick off procedure), and post-game replay. 65/66 v1 requirements satisfied; MOVE-06 (free 6-hex move) deferred to v1.1.
+
+The next step is `/gsd-new-milestone` to define v1.1 scope.
+
 ## Requirements
 
-### Validated
+### Validated (v1.0)
 
-- ARCH-02: pnpm monorepo with three packages (shared, server, client) — all building via `pnpm -r build` (Validated in Phase 1: Monorepo Scaffold + Shared Types)
-- ARCH-03: Pure axial hex math (hexDistance, hexNeighbors, hexesInRange, isUnderZoI) with 14 passing unit tests (Validated in Phase 1)
-- ARCH-07: packages/shared has zero socket.io/express/honeycomb-grid imports — validation logic fully isolated (Validated in Phase 1)
-- MOVE-01..05, PASS-01..05, HEAD-01..05, SNAP-01..03, SHOT-01..04, SHOT-06, DICE-03..05: All rule validators implemented as pure functions with 95 passing unit tests (Validated in Phase 2: Move Validator + Unit Tests, 2026-05-29)
-- CONN-01, CONN-02, CONN-03, CONN-04, ARCH-01, ARCH-04: Room create/join, session middleware, reconnect with 90s grace timer, full-snapshot broadcast — live Socket.io server with 126 passing tests (Validated in Phase 3: Server Room Manager + Socket.io Scaffold, 2026-05-29)
-- TEAM-01, TEAM-02, TEAM-03, PITCH-01, PITCH-02, PITCH-03: Hardcoded squads (11 players × 9 attributes each), pitch regions with O(1) Set lookups, 4-5-2 FSM over Socket.io with isProcessing mutex, undo, and KICK_OFF→MOVEMENT wire path — 187 passing tests (Validated in Phase 4: Game Engine + Phase FSM, 2026-05-30)
-- PASS-01, PASS-02, PASS-03, PASS-04, PASS-05: Full end-to-end passing — three-step PASS flow (pass type → target hex → Roll), correct accuracy per type (highPass for High/Long), ball delivery on accurate pass, LOOSE_BALL trajectory walk, interception auto-roll, green/amber target highlighting. Header contestant duel (HEAD-01/02/04/05) resolved server-side on mutual confirm. 218 shared + 181 server tests passing (Validated in Phase 8.2: Passing Cleanup, 2026-06-07)
+All 65 satisfied requirements are archived in [.planning/milestones/v1.0-REQUIREMENTS.md](milestones/v1.0-REQUIREMENTS.md).
 
-### Active
+Key groups:
 
-- [ ] Two players can create and join a match via a shared room code
-- [ ] Hex-grid pitch renders the Counter Attack board layout accurately
-- [ ] Each team has two hardcoded squads with player attributes (Pace, Shooting, Tackling, Dribbling, Heading, Saving, Handling, Resilience, Aerial Ability)
-- [ ] Movement Phase follows the 4-5-2 sequence (Attacker 4 → Defender 5 → Attacker 2 new players ≤2 hexes)
-- [ ] Players click to select and move pieces; valid hex destinations highlighted
-- [ ] Zone of Influence enforced for passes and dribbling
-- [ ] Standard Pass (11 hexes), First-time Pass (6 hexes), High Pass (15 hexes), Long Pass implemented
-- [ ] Heading duels follow range rules (1 hex free, 2 hexes = -1 dice penalty)
-- [ ] Shooting vs Saving duel resolves a shot on goal
-- [ ] Snapshots available in the penalty box during movement or after a pass
-- [ ] Dice rolls are player-triggered (click to roll) with result displayed
-- [ ] Loose Ball direction and distance resolved by dice
-- [ ] Score tracked across two 45-action halves with added time (dice roll + Leniency)
-- [ ] Kick off procedure implemented
-- [ ] After making a save: GK chooses kick, quick throw, or movement phase
-- [ ] Game state is authoritative on the server; clients are display-only
+- **ARCH-01..07**: Server-authoritative pnpm monorepo; pure shared validation; axial coordinates; full-snapshot broadcast; Render deployment (AWS EB-compatible)
+- **CONN-01..04**: Room create/join, session middleware, reconnect with 90s grace timer
+- **MOVE-01..05, MOVE-07**: 4-5-2 movement sequence, Pace caps, occupancy rules, ZoI steal, snapshot in box
+- **PASS-01..05, HEAD-01..05**: All four pass types, heading duels, header-at-goal, HEAD-05 exclusion
+- **SHOT-01..06, SNAP-01..03**: Shot/save duels, GK_DIVING, handling check, SNAP_DEFLECT path-deflection
+- **MATCH-01..05, REPLAY-01..03**: Two-half match with added time, kick off procedure, post-game replay
+- **DICE-01..05, UNDO-01..04, UX-01..04, TEAM-01..03, PITCH-01..05**: Full rules, UX, player attributes
+
+### Active (v1.1 — not yet planned)
+
+- [ ] **MOVE-06**: Free 6-hex move after action confined to one final third — scaffolded in `gameEngine.ts:517`, handler not implemented
+- [ ] **PASS-02 (partial)**: Mid-pass player movement during First-time Pass flight — deferred per TODO at `gameEngine.ts:1087`
 
 ### Out of Scope
 
@@ -54,39 +50,36 @@ Two friends can open a browser, share a room code, and play a complete match of 
 ## Context
 
 - Rules reference: Counter Attack Rules Reference Rulebook v1.4.1 (Giannis Tilias)
-- Physical board uses a hex grid pitch; exact dimensions to be confirmed by user (photo/measurements pending)
-- The 4-5-2 movement sequence and Zone of Influence are the mechanical heart of the game
-- Added time per half = dice roll + referee Leniency attribute
-- Referee Leniency is on a randomly drawn referee card (1 per game)
-- Hardcoded teams should include realistic attribute ranges to make gameplay meaningful
+- Physical board: 37×26 axial hex grid, flat-top orientation, HEX_SIZE=20px
+- Kick-off hex: `{q:18, r:13}` (board centre)
+- Difficult-angle hexes: 16 corner-kick zone hexes (4 per corner)
+- Hardcoded squads: two tier-balanced teams, attributes on 1–6 scale
+- Deployment: Render web service (Express + Socket.io + static client from single process)
 
 ## Constraints
 
 - **Tech — Backend**: Node.js + Socket.io; keeps the WebSocket layer portable to AWS (EC2, Elastic Beanstalk, ECS)
 - **Tech — Frontend**: React (Vite); served as static files, can be hosted on S3+CloudFront later
-- **Deployment target**: AWS — architecture decisions throughout must support straightforward AWS deployment as the final phase
+- **Deployment target**: Render (v1.0 POC); AWS EB-compatible with no code changes required
 - **Scope**: Core rules only in v1; full rulebook fidelity deferred to future milestones
 - **Multiplayer**: Real-time only (no async/turn-timer mode); requires active WebSocket connection
-- **Pitch layout**: Exact hex grid coordinates depend on user-provided board photo/measurements — treat as a blocking dependency for accurate hex rendering
 
 ## Key Decisions
 
-| Decision                           | Rationale                                                                                      | Outcome   |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------- | --------- |
-| Server-authoritative game state    | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                    | — Pending |
-| Socket.io over raw WebSockets      | Handles reconnection and room management out of the box; negligible overhead for this use case | — Pending |
-| React + Vite frontend              | Fast dev loop, static build output suitable for S3+CloudFront                                  | — Pending |
-| Hardcoded teams for v1             | Eliminates card editor scope; lets us validate gameplay loop first                             | — Pending |
-| Core rules only for v1             | Fouls/injuries add significant state complexity; validate core loop before adding edge cases   | — Pending |
-| Hex grid from user-provided layout | Counter Attack pitch has specific proportions; approximation risks rules mismatches            | — Pending |
-
-## Current State
-
-Phase 1 complete (2026-05-28) — pnpm monorepo scaffold with shared types and hex math done. Phase 2 (Move Validator + Unit Tests) is next.
+| Decision                            | Rationale                                                                                    | Outcome                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Server-authoritative game state     | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                  | Implemented — full snapshot broadcast after every action; `isProcessing` mutex         |
+| Socket.io over raw WebSockets       | Handles reconnection and room management out of the box; negligible overhead                 | Implemented — typed events via generics; `transports: ['websocket']` only (no polling) |
+| React + Vite frontend               | Fast dev loop, static build output suitable for S3+CloudFront                                | Implemented — `vite build` → `dist/`; served by Express in production                  |
+| Hardcoded teams for v1              | Eliminates card editor scope; lets us validate gameplay loop first                           | Validated — two tier-balanced squads ship in v1.0                                      |
+| Core rules only for v1              | Fouls/injuries add significant state complexity; validate core loop before adding edge cases | Validated — all 65 core-rule requirements satisfied                                    |
+| Render deployment over AWS EB       | Simpler first deploy; no Elastic Beanstalk config overhead; Render Blueprint IaC             | Validated — single web service, `render.yaml`, CI gate on push; AWS EB path preserved  |
+| SVG over Canvas for rendering       | ≤600 hexes well within SVG performance range; DevTools-inspectable; CSS transitions free     | Validated — 37×26 grid renders performantly; no Canvas needed                          |
+| Zustand over Redux for client state | Zero boilerplate; per-slice selectors prevent full re-renders; socket handlers call setState | Validated — per-slice selectors throughout; no render-all issues observed              |
 
 ## Evolution
 
-This document evolves at phase transitions and milestone boundaries.
+This document is updated at phase transitions and milestone boundaries.
 
 **After each phase transition** (via `/gsd-transition`):
 
@@ -105,4 +98,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-27 after initialization_
+_Last updated: 2026-06-11 (v1.0 milestone close)_

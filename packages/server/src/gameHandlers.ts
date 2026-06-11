@@ -71,7 +71,7 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerE
  * Phases that require a dice roll from the active player.
  * GK_RESTART is handled by the separate game:gk-restart handler (Plan 03, D-12/D-22).
  */
-const DICE_PHASES = new Set<string>(['KICK_OFF', 'PASS', 'SHOT', 'HEADER', 'LOOSE_BALL']);
+const DICE_PHASES = new Set<string>(['KICK_OFF', 'PASS', 'HEADER', 'LOOSE_BALL']);
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -1098,13 +1098,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           }
         } else {
           // D-07 / T-08-12: sequence guards for non-PASS dice phases.
-          if (room.gameState.phase === 'SHOT' && room.gameState.lastActionType !== null) {
-            if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('SHOT')) {
-              socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
-              broadcastState(io, room);
-              return;
-            }
-          }
           if (room.gameState.phase === 'HEADER' && room.gameState.lastActionType !== null) {
             if (!ELIGIBLE_NEXT_ACTIONS[room.gameState.lastActionType].has('HEADER')) {
               socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
@@ -1132,27 +1125,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           room.gameState.phase === 'KICK_OFF'
             ? { ...room.gameState, phase: 'PASS' as const }
             : room.gameState;
-        if (stateForRoll.phase === 'SHOT') {
-          console.log(`[SNAPSHOT] Shot dice — shooter:${d1} GK:${d2} handling:${d3}`);
-        }
         const result = applyRoll(stateForRoll, d1, d2, d3);
         if (!result.ok) {
           socket.emit(ServerEvents.GAME_ERROR, result.reason);
           broadcastState(io, room); // snap-back
           return;
-        }
-        if (stateForRoll.phase === 'SHOT') {
-          const snapOutcome =
-            result.state.phase === 'KICK_OFF_SETUP'
-              ? 'GOAL'
-              : result.state.phase === 'GK_RESTART'
-                ? 'SAVE → caught'
-                : result.state.phase === 'LOOSE_BALL'
-                  ? 'SAVE → spilled'
-                  : result.state.phase === 'MOVEMENT'
-                    ? 'MISS (auto)'
-                    : result.state.phase;
-          console.log(`[SNAPSHOT] Shot outcome: ${snapOutcome}`);
         }
         // D-27 / MATCH-03: clear kickOffActive after a successful kick-off pass from centre hex.
         if (room.gameState.kickOffActive) {
@@ -1704,15 +1681,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
   });
-
-  // -------------------------------------------------------------------------
-  // NOTE (D-19 WR-04): The dedicated GAME_HEADER handler was removed in Phase 10.
-  // HEADER now resolves exclusively via GAME_HEADER_CONTESTANT: when both teams
-  // confirm their contestant selection, GAME_HEADER_CONTESTANT auto-rolls the duel
-  // immediately (established in Phase 8.2). A second resolution route caused
-  // duplicate dice rolls and UI confusion (D-19). ClientEvents.GAME_HEADER remains
-  // in events.ts for type-contract backwards compatibility but is no longer wired.
-  // -------------------------------------------------------------------------
 
   // -------------------------------------------------------------------------
   // GAME_GK_DIVE — GK repositions during GK_DIVING phase (D-04, SHOT-04)

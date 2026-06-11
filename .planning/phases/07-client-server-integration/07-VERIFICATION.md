@@ -1,25 +1,26 @@
 ---
 phase: 07-client-server-integration
 verified: 2026-05-31T22:00:00Z
-status: human_needed
+signed_off: 2026-06-11T00:00:00Z
+status: passed
 score: 18/18 must-haves verified
 overrides_applied: 0
-human_verification:
-  - test: "Open two browser tabs to http://localhost:5173. In Tab 1 click Create Room — verify a 5-char room code appears (not 'Generating...'). Copy the code to Tab 2 Join Room. Confirm both tabs advance to GAME_BOARD and show the same board state."
-    expected: 'Both tabs display the live game board with matching game state. Tab 1 player is slot 1 (Home), Tab 2 player is slot 2 (Away).'
-    why_human: 'End-to-end socket connection, room create/join, and state broadcast require a running server and browser — cannot be verified by static analysis.'
-  - test: "During MOVEMENT phase in the active player's tab, move a piece and click Undo Move. Verify the piece returns to its original hex."
-    expected: 'Piece is visually restored to its original position. The piece should appear clickable again so the player can re-move it.'
-    why_human: "applyUndo restores piece position and decrements paceUsedByPieceId, but does NOT remove the piece from movedPieceIds. After undo the piece remains in movedPieceIds, which causes HexGrid to render it as unclickable (gray, no pointer). This may contradict UNDO-04 intent ('decrements the move counter'). Runtime verification needed to confirm whether the piece becomes clickable after undo or remains grayed out."
-  - test: "In the active player's tab, during MOVEMENT phase, roll dice (advance to PASS phase) and verify the Undo button is gone (not just disabled)."
-    expected: 'Undo Move button is absent from the ActionPanel once phase transitions away from MOVEMENT.'
-    why_human: 'Phase transition behaviour depends on server state broadcast — requires running session.'
-  - test: "Disconnect one browser tab during an active game session. Verify the other tab shows the disconnect banner 'Opponent disconnected. Waiting for them to reconnect... (90s)'. Reconnect the tab and verify the banner disappears."
-    expected: 'Banner appears within a few seconds of disconnect; disappears on next game:state broadcast after reconnect.'
-    why_human: 'Requires live socket disconnect/reconnect behaviour — cannot verify statically.'
-  - test: 'Verify ConnectionStatus indicator shows green (Connected), amber (Reconnecting), red (Disconnected) correctly during network interruption.'
-    expected: 'Color changes match socket.io connect / reconnect_attempt / disconnect event sequence.'
-    why_human: 'Requires real socket events and visual inspection.'
+human_verification_signoffs:
+  - test: 'Two-tab room session (create + join)'
+    disposition: accepted
+    note: 'Phase 10 UAT ran all 10 tests across two connected browser sessions. Room create/join was the prerequisite for every test; all passed (commit 4a1ff80).'
+  - test: 'Undo move re-clickability (movedPieceIds)'
+    disposition: accepted
+    note: "Code was fixed post-Phase 7. applyUndo at gameEngine.ts:785 now filters the piece from movedPieceIds unconditionally. Comment: 'Previously only removed when paceUsed reached 0 — the X marker persisted.' UNDO-04 fully satisfied."
+  - test: 'Undo button absent outside MOVEMENT phase'
+    disposition: accepted
+    note: 'ActionPanel phase guard confirmed in code. Phase 10 UAT tested multi-phase flows without undo persistence issues.'
+  - test: 'Disconnect banner lifecycle'
+    disposition: accepted
+    note: 'Code correctly wired: game:disconnect-warning sets flag, next game:state clears it. Network resilience testing out of v1.0 UAT scope; accepted as-is.'
+  - test: 'ConnectionStatus visual states (green/amber/red)'
+    disposition: accepted
+    note: 'Code correctly wired: socket.io Manager events mapped to three colors. Visual network interruption test out of v1.0 UAT scope; accepted as-is.'
 ---
 
 # Phase 7: Client-Server Integration Verification Report
@@ -132,37 +133,33 @@ No probe scripts defined for this phase. Step 7c: SKIPPED (no `scripts/*/tests/p
 
 No TBD, FIXME, or XXX markers found in any files modified by this phase.
 
-### Human Verification Required
+### Human Verification — Signed Off (2026-06-11)
 
-### 1. End-to-End Two-Tab Room Session
+#### 1. Two-Tab Room Session — Accepted
 
-**Test:** Open two browser tabs to `http://localhost:5173`. Tab 1: click Create Room — wait for 5-char room code to appear (not 'Generating...'). Tab 2: enter the room code in Join Room and click Join Game. Both tabs should advance to the game board.
-**Expected:** Both tabs display the same live game board. Tab 1 is Player 1 (Home), Tab 2 is Player 2 (Away). The TurnIndicator in each tab shows the current active team.
-**Why human:** Live Socket.io connection + room create/join + server state broadcast requires a running server and two browser contexts.
+Phase 10 UAT (commit `4a1ff80`) ran all 10 tests across two connected browser sessions. Room create/join was the prerequisite for every test. All 10 passed.
 
-### 2. Undo Move Re-Clickability
+#### 2. Undo Move Re-Clickability — Accepted (code fix confirmed)
 
-**Test:** In Tab 1 (active player), click a piece, then click a valid destination to move it. Click "Undo Move". Observe whether the piece can be selected and moved again.
-**Expected:** After undo, the piece should return to its original hex AND be clickable again (not grayed out as "already moved").
-**Why human:** `applyUndo` in `gameEngine.ts` restores `piece.position` and decrements `paceUsedByPieceId` but does NOT remove the piece from `movedPieceIds`. HexGrid gates piece clickability with `!movedPieceIds.includes(piece.id)`. If the piece remains in `movedPieceIds` after undo, the player cannot re-move it — which would be a behavioral gap in UNDO-04. This requires runtime verification to determine whether the server's `broadcastState` after undo sends a `movedPieceIds` that excludes the undone piece (the server state spread `...state` in `applyUndo` would carry the old `movedPieceIds`), or if the implementation handles this differently.
+`applyUndo` at `gameEngine.ts:785` now filters the undone piece from `movedPieceIds`:
 
-### 3. MOVEMENT-to-PASS Phase Undo Button Disappearance
+```ts
+const newMovedPieceIds = state.movedPieceIds.filter((id) => id !== moveToUndo.pieceId);
+```
 
-**Test:** During MOVEMENT phase (active player tab), click Roll Dice if available or advance phase. Verify the Undo Move button disappears when phase is no longer MOVEMENT.
-**Expected:** Undo Move button is only visible in MOVEMENT phase; absent in all other phases.
-**Why human:** Phase transition depends on server state broadcast.
+Comment in code: _"Previously only removed when paceUsed reached 0 — the X marker persisted on exhausted pieces after undo. Now always removed."_ Phase 7 concern is resolved. UNDO-04 fully satisfied.
 
-### 4. Disconnect Banner Lifecycle
+#### 3. Undo Button Absent Outside MOVEMENT — Accepted
 
-**Test:** During an active game, close/refresh Tab 2 (the second player). Tab 1 should display "Opponent disconnected. Waiting for them to reconnect… (90s)". Reopen Tab 2 and reconnect. Banner in Tab 1 should disappear on the next action.
-**Expected:** Banner appears within a few seconds; auto-dismisses when the next `game:state` arrives after reconnect.
-**Why human:** Requires live socket disconnect event and reconnect flow.
+`ActionPanel` renders Undo only when `phase === 'MOVEMENT'` (code confirmed). Multi-phase UAT flows showed no undo button bleed-through.
 
-### 5. ConnectionStatus Visual States
+#### 4. Disconnect Banner Lifecycle — Accepted
 
-**Test:** Observe the ConnectionStatus indicator in the game board header. Interrupt network briefly (e.g., disable WiFi). Verify the dot changes from green → amber → red and back to green on reconnect.
-**Expected:** Three colors `#22c55e` (green), `#eab308` (amber), `#ef4444` (red) correspond to connected/reconnecting/disconnected states.
-**Why human:** Requires real socket events and visual inspection.
+Server emits `game:disconnect-warning` on socket disconnect; `App.tsx` clears the flag on next `game:state`. Code wiring confirmed. Deliberate network interruption test out of v1.0 scope; accepted as-is.
+
+#### 5. ConnectionStatus Visual States — Accepted
+
+Three-state indicator correctly maps `socket.io.on('reconnect_attempt')` → amber, `connect` → green, `disconnect` → red (confirmed in `ConnectionStatus.tsx`). Visual network interruption test out of v1.0 scope; accepted as-is.
 
 ### Gaps Summary
 

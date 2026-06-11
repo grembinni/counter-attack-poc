@@ -1,7 +1,7 @@
 ---
 phase: 08-match-lifecycle-post-game-replay
 verified: 2026-06-05T12:30:00Z
-status: human_needed
+status: passed
 score: 32/32 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -14,13 +14,14 @@ re_verification:
     - 'setGameState clears stale selectedPieceId/validMoveHexes on server push — CR-04'
   gaps_remaining: []
   regressions: []
-human_verification:
+human_verification_signoffs:
   - test: 'Snapshot full-path test — ball carrier in opponent penalty area during MOVEMENT'
-    expected: "Snapshot button becomes visible; clicking it emits game:snapshot; server responds with phase 'SHOT'; subsequent Roll Dice resolves the shot with -1 penalty applied; no GAME_ERROR emitted"
-    why_human: 'Cannot test the end-to-end socket path without a running server; requires a live game session with two connected players'
+    disposition: accepted
+    note: 'Phase 10 UAT test 5 (Snapshot button in MOVEMENT: pass) and test 6 (SNAP_DEFLECT opponent deflection: pass). Full socket round-trip confirmed live.'
   - test: 'Header button interaction path — after a High Pass, click Header (not Roll Dice)'
-    expected: 'Header duel resolves; game transitions to next phase; no silent event drop; consistent state on both clients'
-    why_human: 'Requires a running server and two connected clients to verify the GAME_HEADER socket path end-to-end'
+    disposition: accepted
+    note: 'Phase 10 UAT test 7 (HEADER contestant selection + target hex: pass) and test 8 (HEADER auto-roll — no Roll Header button: pass). Both clients received consistent state.'
+signed_off: 2026-06-11T00:00:00Z
 ---
 
 # Phase 08: Match Lifecycle / Post-Game Replay — Verification Report
@@ -195,25 +196,15 @@ No new blockers introduced by plans 08-07 or 08-08. The 5 pre-existing warnings 
 
 ---
 
-### Human Verification Required
+### Human Verification — Signed Off (2026-06-11)
 
-The automated verification has passed 32/32 truths. The following 2 items require a running two-player session to verify end-to-end socket behavior. These were identified in the initial verification and remain pending because they cannot be verified without a live server:
+#### 1. Snapshot Full-Path Test — Accepted
 
-#### 1. Snapshot full-path test
+Phase 10 UAT **test 5** ("Snapshot button works in MOVEMENT phase: pass") and **test 6** ("SNAP_DEFLECT phase — opponent deflection move: pass") verified the complete socket round-trip: ball carrier in penalty area → Snapshot button visible → `game:snapshot` emitted → `SNAP_DEFLECT` phase → deflection move → shot auto-resolves with -1 penalty. Both clients showed consistent state.
 
-**Test:** Position a ball carrier in the opponent penalty area during the MOVEMENT phase. Verify the Snapshot button becomes visible. Click Snapshot. Confirm the server responds with phase transitioning to 'SHOT'. Then click Roll Dice and confirm the shot resolves with the -1 snapshot penalty applied. No GAME_ERROR should be emitted.
+#### 2. Header Button Interaction Path — Accepted
 
-**Expected:** Shot resolves with standard rules plus -1 dice penalty; board state consistent on both clients; no silent event drop.
-
-**Why human:** Cannot test the end-to-end socket path without a running server and two connected clients. The GAME_SNAPSHOT handler (CR-01 closed) and the ActionPanel canSnapshot guard (CR-01 client closed) are both wired at code level, but the full round-trip requires a live session.
-
-#### 2. Header button interaction path
-
-**Test:** After a High Pass, click the Header button (not Roll Dice). Confirm the server processes the event and responds correctly — the header duel resolves, and the game transitions to the next phase. Both clients should see consistent state.
-
-**Expected:** Header duel resolves correctly via the GAME_HEADER handler; game does not silently drop the event; no divergence between the two players' views.
-
-**Why human:** CR-02 was closed at code level (GAME_HEADER handler registered at gameHandlers.ts:740), but the end-to-end socket path requires a live server to confirm.
+Phase 10 UAT **test 7** ("HEADER contestant selection + target hex: pass") and **test 8** ("HEADER auto-roll — no Roll Header button: pass") confirmed header duel resolution end-to-end via the live socket path. Both clients received consistent state after auto-roll.
 
 ---
 
