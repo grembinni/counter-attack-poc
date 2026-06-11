@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: executing
-last_updated: '2026-06-11T20:31:11.634Z'
-last_activity: 2026-06-11 — Milestone v1.1 started
+last_updated: '2026-06-11T20:55:16.874Z'
+last_activity: 2026-06-11 -- Phase 11 execution started
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,7 +24,7 @@ Phase 9 complete — ready for Phase 10
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 10 — remaining-action-flows-tech-debt
+**Current focus:** Phase 11 — rule-correctness
 
 ## Phase Status
 
@@ -100,6 +100,14 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 11 Plan 01)
+
+- RULE-01 (D-03): headerAccuracyRollPending flag on HEADER state gates contestant selection; GAME_HEADER_ACCURACY_ACK (attacker-only) clears it; headerCleared spread nulls it on terminal transitions
+- RULE-02 (D-03): duel fires in GAME_HEADER_CONTESTANT when both teams confirm via computeHeaderDuelWinner; headerDuelWinner field records winner; phase stays HEADER for target selection
+- RULE-02 (D-05): GAME_HEADER_TARGET winner guard uses socketTeam(socket) !== headerDuelWinner replacing controlsAttackingTeam; null winner (tie) returns WRONG_TEAM
+- RULE-02 (D-06): applyResolveHeaderTarget validates targetHex against winning contestant position (hexDistance > 6 = INVALID_TARGET), not ball position; no re-roll (Pitfall 4 prevention)
+- exactOptionalPropertyTypes enforced: headerDuelWinner?: 'home' | 'away' | null (not undefined)
+
 ### Decisions Locked (Phase 10 Plan 05)
 
 - passerId added to STANDARD_PASS/FIRST_TIME_PASS ActionEvent (shared types + engine) to enable team-colour prefix in ActionLog (D-27)
@@ -158,7 +166,7 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-11 — Milestone v1.1 started
+Phase: 11 (rule-correctness) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 11
+Last activity: 2026-06-11 -- Completed 11-01-PLAN.md (RULE-01/RULE-02 header FSM fix)
