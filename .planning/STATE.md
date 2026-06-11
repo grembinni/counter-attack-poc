@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: executing
-last_updated: '2026-06-11T20:55:16.874Z'
-last_activity: 2026-06-11 -- Phase 11 execution started
+last_updated: '2026-06-11T21:04:21.636Z'
+last_activity: 2026-06-11 -- Completed 11-01-PLAN.md (RULE-01/RULE-02 header FSM fix)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -100,6 +100,11 @@ See: .planning/PROJECT.md
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
 
+### Decisions Locked (Phase 11 Plan 02)
+
+- RULE-03 (D-07): lastShotPath: null added to SHOT LOOSE_BALL tie (~line 1289), SHOT save-dropped LOOSE_BALL (~line 1341), and LOOSE_BALL scatter -> PASS (~line 1746); applyStartMovement is NOT modified (targeted fix, not defensive clear)
+- Dead shotPath variable removed from SHOT case after all LOOSE_BALL return objects set null explicitly (lint compliance)
+
 ### Decisions Locked (Phase 11 Plan 01)
 
 - RULE-01 (D-03): headerAccuracyRollPending flag on HEADER state gates contestant selection; GAME_HEADER_ACCURACY_ACK (attacker-only) clears it; headerCleared spread nulls it on terminal transitions
@@ -167,6 +172,12 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 11 (rule-correctness) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 11
-Last activity: 2026-06-11 -- Completed 11-01-PLAN.md (RULE-01/RULE-02 header FSM fix)
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-06-11 -- Completed 11-02-PLAN.md (RULE-03 shot-path clear fix)
+
+## Performance Metrics
+
+| Phase                         | Plan | Duration | Notes   |
+| ----------------------------- | ---- | -------- | ------- |
+| Phase 11-rule-correctness P02 | 20   | 1 tasks  | 2 files |

@@ -37,7 +37,7 @@
 
 - [x] **RULE-01**: On a High Pass, the header contestant selection phase is triggered only after the accuracy check roll resolves — not before the roll
 - [x] **RULE-02**: On a High Pass with header contestants, the target hex selection step is triggered only after the header contestant duel resolves — correct sequence is: accuracy check → contestant duel → target selection
-- [ ] **RULE-03**: After a snapshot resolves, all shot-path highlight hexes are cleared from the board before entering the next phase; no stale highlights persist into the Movement Phase or subsequent actions
+- [x] **RULE-03**: After a snapshot resolves, all shot-path highlight hexes are cleared from the board before entering the next phase; no stale highlights persist into the Movement Phase or subsequent actions
 - [ ] **RULE-04**: During SNAP_DEFLECT phase, hex highlights for a deflecting piece's valid moves are suppressed once that piece has used its maximum deflection pace allowance (2 hexes)
 - [ ] **RULE-05**: After a shot is deflected into Loose Ball, both teams enter a normal Movement Phase; both teams' pieces are selectable and can be activated in the correct 4-5-2 sequence
 
