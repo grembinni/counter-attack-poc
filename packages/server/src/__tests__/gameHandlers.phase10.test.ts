@@ -224,6 +224,9 @@ function seedHeaderPhaseConfirmed(roomCode: string): void {
     }),
     headerContestants: { home: [homeAttacker.id], away: [awayDefender.id] },
     headerConfirmed: { home: true, away: true },
+    // RULE-02 (Phase 11): duel winner must be set before GAME_HEADER_TARGET is valid.
+    // home is the attacker; set home as winner for tests that use clientA (home socket).
+    headerDuelWinner: 'home',
   };
 }
 

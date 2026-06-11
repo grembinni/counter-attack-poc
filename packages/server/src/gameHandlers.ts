@@ -40,7 +40,6 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
-  applyDeclareHeaderTarget,
   applyDeclareShot,
   applyEndTurn,
   applyGKDive,
@@ -50,6 +49,7 @@ import {
   applyKickOffReady,
   applyMove,
   applyQuickThrow,
+  applyResolveHeaderTarget,
   applyRestartMovement,
   applyRoll,
   applySnapshot,
@@ -57,6 +57,7 @@ import {
   applyUndo,
   buildKickOffPieces,
   buildReplayFrames,
+  computeHeaderDuelWinner,
   computeShotPathDeflection,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
@@ -1777,14 +1778,54 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // -------------------------------------------------------------------------
-  // GAME_HEADER_TARGET — attacker selects target hex during HEADER phase (HEAD-03)
+  // -------------------------------------------------------------------------
+  // GAME_HEADER_ACCURACY_ACK — attacker acknowledges the high-pass accuracy roll (RULE-01)
   //
-  // T-10-12: attacker guard ensures header target is for the correct goal side.
+  // D-01 (Phase 11): The attacking team must acknowledge the accuracy roll result before
+  // contestant selection UI is revealed. This handler clears headerAccuracyRollPending.
+  //
+  // T-11-02: Only the attacking team can clear the flag (ASVS V4 Spoofing mitigation).
+  // SC-5: isProcessing mutex prevents double-click race.
+  // ARCH-04: broadcastState after flag clear.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_HEADER_ACCURACY_ACK, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard
+      if (room.gameState === null || room.gameState.phase !== 'HEADER') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Team guard: only the attacking team can acknowledge (T-11-02)
+      if (!controlsAttackingTeam(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Clear the pending flag
+      room.gameState = { ...room.gameState, headerAccuracyRollPending: null };
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 2
+    }
+  });
+
+  // GAME_HEADER_TARGET — winning team selects target hex after duel resolves (RULE-02, D-05)
+  //
+  // RULE-02 (Phase 11): winner guard replaces the prior attacker-only guard (T-11-01).
+  // The duel was already fired in GAME_HEADER_CONTESTANT when both teams confirmed.
+  // headerDuelWinner records which team won; only that team may submit a target hex.
+  // applyResolveHeaderTarget validates range against the winning contestant's position (D-06)
+  // and transitions to PASS or GK_DIVING without re-rolling dice (Pitfall 4 prevention).
+  //
   // T-10-09: HexCoord shape validation (ASVS V5).
-  // T-10-11: isProcessing mutex (SC-5).
-  // Both teams must have confirmed contestants before target hex is accepted.
-  // applyDeclareHeaderTarget validates on-pitch and stores headerTargetHex.
-  // If goal-line hex: redirect to GK_DIVING in the subsequent ROLL step.
+  // SC-5: isProcessing mutex.
   // ARCH-04: broadcastState after success and on all error paths.
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_HEADER_TARGET, (targetHex: HexCoord) => {
@@ -1824,35 +1865,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      // 5. Attacker guard: only the attacking team selects the header target (T-10-12)
-      if (!controlsAttackingTeam(socket, room)) {
+      // 5. Winner guard (RULE-02, D-05, T-11-01): only the duel winner may select the target hex
+      const duelWinner = room.gameState.headerDuelWinner;
+      if (!duelWinner || socketTeam(socket) !== duelWinner) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-        broadcastState(io, room);
+        broadcastState(io, room); // snap-back
         return;
       }
-      // 6. Engine call: validates on-pitch, sets headerTargetHex
-      const result = applyDeclareHeaderTarget(room.gameState, targetHex);
+      // 6. Engine call: validates range against winning contestant's position (D-06), transitions
+      //    to PASS or GK_DIVING without re-rolling dice (Pitfall 4 — duel fires exactly once)
+      const result = applyResolveHeaderTarget(room.gameState, targetHex);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
         return;
       }
       room.gameState = result.state;
-      // 7. Auto-roll the heading duel now that the target hex is confirmed (HEAD-03).
-      // Pre-generate one die per contestant (layout: all attacker dice first, then defender dice).
-      const atkTeam = room.gameState.attackingTeam;
-      const defTeam = atkTeam === 'home' ? 'away' : 'home';
-      const atkCount = room.gameState.headerContestants?.[atkTeam]?.length ?? 0;
-      const defCount = room.gameState.headerContestants?.[defTeam]?.length ?? 0;
-      const numDice = Math.max(atkCount + defCount, 2); // at least 2 for uncontested fallback
-      const diceArr = Array.from({ length: numDice }, () => rollDice());
-      const rollResult = applyRoll(room.gameState, ...diceArr);
-      if (!rollResult.ok) {
-        socket.emit(ServerEvents.GAME_ERROR, rollResult.reason);
-        broadcastState(io, room);
-        return;
-      }
-      room.gameState = rollResult.state;
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -1909,17 +1937,42 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         away: false,
       };
 
+      const updatedContestants = { ...existingContestants, [teamSlot]: ids };
+      const updatedConfirmed = { ...existingConfirmed, [teamSlot]: true };
+
       room.gameState = {
         ...room.gameState,
-        headerContestants: { ...existingContestants, [teamSlot]: ids },
-        headerConfirmed: { ...existingConfirmed, [teamSlot]: true },
+        headerContestants: updatedContestants,
+        headerConfirmed: updatedConfirmed,
       };
 
-      // Both teams confirmed — broadcast so the attacker sees the target-hex prompt (HEAD-03).
-      // The duel fires in GAME_HEADER_TARGET once the attacker selects a target hex.
-      broadcastState(io, room);
+      // RULE-02 (D-03, Phase 11): when both teams have confirmed, auto-fire the heading duel.
+      // The duel sets headerDuelWinner but keeps phase = 'HEADER' so the winning team can
+      // still select a target hex via GAME_HEADER_TARGET. The phase transition happens there.
+      // Do NOT call applyRoll here — that would transition past HEADER prematurely (Pitfall 4).
+      const bothConfirmed = updatedConfirmed.home === true && updatedConfirmed.away === true;
+      if (bothConfirmed) {
+        const atkTeam = room.gameState.attackingTeam;
+        const defTeam: 'home' | 'away' = atkTeam === 'home' ? 'away' : 'home';
+        const atkCount = updatedContestants[atkTeam]?.length ?? 0;
+        const defCount = updatedContestants[defTeam]?.length ?? 0;
+        // dice layout: [atk_0..atkN, def_0..defN, atkTieDie, defTieDie]
+        const numDice = Math.max(atkCount + defCount + 2, 2);
+        const diceArr = Array.from({ length: numDice }, () => rollDice());
+        const winner = computeHeaderDuelWinner(room.gameState, diceArr);
+        // winner is null on a tie — LOOSE_BALL path; headerDuelWinner stays null
+        // and applyResolveHeaderTarget will return DUEL_NOT_RESOLVED (not reached here).
+        // For tie: neither team can submit GAME_HEADER_TARGET — the UI should handle this.
+        room.gameState = {
+          ...room.gameState,
+          headerDuelWinner: winner, // null on tie, 'home' | 'away' on win
+        };
+      }
+
+      // Single broadcastState per handler path (Pitfall 1 — no double-broadcast)
+      broadcastState(io, room); // ARCH-04
     } finally {
-      room.isProcessing = false; // MUST be in finally — Pitfall 5
+      room.isProcessing = false; // MUST be in finally — Pitfall 2
     }
   });
 }
