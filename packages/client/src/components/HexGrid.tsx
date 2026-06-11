@@ -121,7 +121,7 @@ export function HexGrid() {
   const headerTargetStep =
     phase === 'HEADER' &&
     bothConfirmed &&
-    headerTargetHex === null &&
+    headerTargetHex == null && // == catches both null and undefined (field is optional in GameState)
     isActivePlayer &&
     myTeam === attackingTeam;
 
