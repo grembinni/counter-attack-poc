@@ -254,6 +254,8 @@ export function HexGrid() {
 
             // Phase 10: HEADER target hex selection step
             const isHeaderTargetGoalHex = headerTargetStep && goalLineHexSet.has(hexId);
+            // All non-goal-line pitch hexes are also valid header targets (engine only requires isPitchHex)
+            const isHeaderNonGoalTarget = headerTargetStep && !goalLineHexSet.has(hexId);
 
             // Suppress gold move highlights during reposition phases — separate subtle overlay below
             // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)
@@ -299,6 +301,9 @@ export function HexGrid() {
               onClick = () => emitDeclareShot(hex);
             } else if (isHeaderTargetGoalHex) {
               // Phase 10: HEADER target step — attacker clicks goal-line hex
+              onClick = () => emitHeaderTarget(hex);
+            } else if (isHeaderNonGoalTarget) {
+              // Phase 10: HEADER target step — attacker clicks any other pitch hex (headed pass)
               onClick = () => emitHeaderTarget(hex);
             } else if (isValidMove && selectedPieceId) {
               onClick = () => emitMove(selectedPieceId, hex);
@@ -404,6 +409,17 @@ export function HexGrid() {
                     stroke="#f5c518"
                     strokeWidth={2}
                     pointerEvents="none"
+                  />
+                )}
+                {/* HEADER target step: subtle cyan tint on all non-goal-line pitch hexes (headed pass targets) */}
+                {isHeaderNonGoalTarget && (
+                  <polygon
+                    points={points}
+                    fill="rgba(34,211,238,0.18)"
+                    stroke="rgba(34,211,238,0.4)"
+                    strokeWidth={0.5}
+                    onClick={onClick}
+                    style={{ cursor: 'pointer' }}
                   />
                 )}
                 {/* SNAP_DEFLECT: orange danger-path tint so defending team can see the shot line */}
