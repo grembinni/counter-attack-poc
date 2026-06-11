@@ -2164,6 +2164,134 @@ export function applyDeclareHeaderTarget(
 }
 
 // ---------------------------------------------------------------------------
+// applyResolveHeaderTarget (RULE-02, Phase 11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyResolveHeaderTarget.
+ * RULE-02: validates target hex against winning contestant's position (D-06).
+ */
+export type ApplyResolveHeaderTargetResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'DUEL_NOT_RESOLVED' | 'INVALID_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * Resolves the header target hex selection after the duel winner is known (RULE-02, D-04–D-06).
+ *
+ * Called by GAME_HEADER_TARGET handler (Task 3) after the duel auto-fires in GAME_HEADER_CONTESTANT.
+ * This function reads the pre-resolved `headerDuelWinner` and transitions to PASS or GK_DIVING
+ * WITHOUT re-rolling dice — the duel already resolved in the handler.
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be 'HEADER'
+ * 2. DUEL_NOT_RESOLVED — headerDuelWinner must be set
+ * 3. INVALID_TARGET — targetHex must be within 6 hexes of the winning contestant's position (D-06)
+ *
+ * Transition routing mirrors the applyRoll HEADER branch (HEAD-03):
+ * - If targetHex is a goal-line hex for the attacking team → GK_DIVING
+ * - Otherwise → PASS with ball placed at targetHex and winner as carrier
+ *
+ * @param state     - Current game state (phase must be 'HEADER', headerDuelWinner must be set)
+ * @param targetHex - The hex the winning team is heading toward
+ */
+export function applyResolveHeaderTarget(
+  state: GameState,
+  targetHex: HexCoord,
+): ApplyResolveHeaderTargetResult {
+  // 1. Phase guard
+  if (state.phase !== 'HEADER') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. Duel must already be resolved (RULE-02, D-04)
+  if (!state.headerDuelWinner) {
+    return { ok: false, reason: 'DUEL_NOT_RESOLVED' };
+  }
+
+  const winnerTeam = state.headerDuelWinner;
+
+  // 3. Resolve the winning contestant's piece (D-04)
+  const winnerContestantIds =
+    winnerTeam === 'home'
+      ? (state.headerContestants?.home ?? [])
+      : (state.headerContestants?.away ?? []);
+  const winnerContestantId = winnerContestantIds[0];
+  const winnerPiece = state.pieces.find((p) => p.id === winnerContestantId);
+
+  // Fallback: if no contestant, use ball carrier (uncontested case)
+  const resolvedWinner =
+    winnerPiece ?? state.pieces.find((p) => p.id === state.ball.carrierId) ?? null;
+
+  const referencePosition = resolvedWinner?.position ?? state.ball.position;
+
+  // 4. D-06: validate targetHex within 6 hexes of the winning contestant's position
+  if (hexDistance(referencePosition, targetHex) > 6) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const headerCleared = {
+    headerContestants: null,
+    headerConfirmed: null,
+    headerTargetHex: null,
+    headerAccuracyRollPending: null,
+    headerDuelWinner: null,
+  };
+
+  // 5. Route to GK_DIVING if the target is a goal-line hex for the attacking team (HEAD-03)
+  // Attacking team is the team whose contestant won the duel and is heading toward goal.
+  // For a defender win (RULE-02): the winner's team is now the effective attacking team.
+  const attackingTeamForHeader = state.attackingTeam;
+  const goalQ = attackingTeamForHeader === 'home' ? 36 : 0;
+  const isGoalLineTarget = targetHex.q === goalQ && targetHex.r >= 10 && targetHex.r <= 16;
+
+  const defenderTeamForGk: 'home' | 'away' = attackingTeamForHeader === 'home' ? 'away' : 'home';
+  const contestedIds = [
+    ...(state.headerContestants?.home ?? []),
+    ...(state.headerContestants?.away ?? []),
+  ];
+
+  if (isGoalLineTarget) {
+    const gk = state.pieces.find((p) => p.teamId === defenderTeamForGk && p.role === 'GK');
+    const winnerPos = resolvedWinner?.position ?? state.ball.position;
+    const headerShotPath = hexLine(winnerPos, targetHex);
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'GK_DIVING',
+        lastActionType: 'SHOT',
+        ball: {
+          position: winnerPos,
+          carrierId: resolvedWinner?.id ?? null,
+        },
+        shotTargetHex: targetHex,
+        gkDivePosition: gk?.position ?? state.ball.position,
+        lastShotPath: headerShotPath,
+        contestedPieceIds: contestedIds,
+        attackingTeam: winnerTeam,
+        activeTeam: defenderTeamForGk,
+        ...headerCleared,
+      },
+    };
+  }
+
+  // Not goal-line: headed pass → PASS with winner as carrier
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'PASS',
+      attackingTeam: winnerTeam,
+      activeTeam: winnerTeam,
+      ball: { position: targetHex, carrierId: resolvedWinner?.id ?? null },
+      lastActionType: 'HEADER',
+      contestedPieceIds: contestedIds,
+      ...headerCleared,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // computeShotPathDeflection (D-03 pure helper)
 // ---------------------------------------------------------------------------
 
