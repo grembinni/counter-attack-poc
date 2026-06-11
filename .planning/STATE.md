@@ -1,15 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: COMPLETE — v1.0 archived 2026-06-11; 13/13 phases, 51/51 plans
-last_updated: '2026-06-11T00:00:00.000Z'
+milestone: v1.1
+milestone_name: UX Tuning & Bug Cleanup
+status: planning
+last_updated: '2026-06-11T16:28:16.797Z'
+last_activity: 2026-06-11
 progress:
-  total_phases: 13
-  completed_phases: 13
-  total_plans: 51
-  completed_plans: 51
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -154,3 +155,10 @@ See: .planning/PROJECT.md
 - Last updated: 2026-06-11
 - v1.0 milestone close in progress — all 13 phases complete, 10/10 UAT tests pass
 - Dead code removed (GAME_HEADER + SHOT branch in GAME_ROLL); all human verifications signed off
+
+## Current Position
+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-11 — Milestone v1.1 started

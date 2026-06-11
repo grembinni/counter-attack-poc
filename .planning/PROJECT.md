@@ -8,11 +8,23 @@ A 2-player real-time web implementation of Counter Attack, the hex-grid football
 
 Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
 
+## Current Milestone: v1.1 UX Tuning & Bug Cleanup
+
+**Goal:** Overhaul visual presentation and layout — team token redesign, unified hex highlight system, scoreboard/action top-area layout, improved match clock and replay — while fixing 7 specific gameplay bugs.
+
+**Target features:**
+
+- Team token visual redesign (stripes distinguishing home/away)
+- Unified hex highlight system (8 consistent states across all game phases)
+- Top-area layout: persistent scoreboard + action/log panel above the hex grid
+- Match clock overhaul: MM:SS format, 45:00 second-half start, always visible
+- Kickoff constraints: midfield/backs to cols 6–20; only Standard Pass from kick off hex
+- Replay: double speed, simultaneous move animation, ball tracking fix
+- Bug fixes: header sequence (2), snapshot path clear, deflection highlights, post-deflect Movement Phase, clock
+
 ## Current State
 
-**v1.0 shipped — 2026-06-11.** The game is fully playable end-to-end and deployed to Render. All core rules are implemented: movement (4-5-2 sequence), passing (4 types), heading duels, shot/save duels with GK_DIVING, snapshots with SNAP_DEFLECT, GK restart, Loose Ball, ZoI enforcement, match lifecycle (2 halves + added time + kick off procedure), and post-game replay. 65/66 v1 requirements satisfied; MOVE-06 (free 6-hex move) deferred to v1.1.
-
-The next step is `/gsd-new-milestone` to define v1.1 scope.
+**v1.1 milestone in progress.** v1.0 shipped 2026-06-11 — fully playable Counter Attack on Render (13 phases, 65/66 requirements). v1.1 focuses on visual polish, layout redesign, and 7 bug fixes identified during v1.0 UAT.
 
 ## Requirements
 
@@ -30,7 +42,22 @@ Key groups:
 - **MATCH-01..05, REPLAY-01..03**: Two-half match with added time, kick off procedure, post-game replay
 - **DICE-01..05, UNDO-01..04, UX-01..04, TEAM-01..03, PITCH-01..05**: Full rules, UX, player attributes
 
-### Active (v1.1 — not yet planned)
+### Active (v1.1 — in progress)
+
+- [ ] Team token visual redesign (home: vertical black stripe; away: horizontal dark stripes)
+- [ ] Unified hex highlight system (8 states: selectable/active/activated/risk/goal/safe/kickoff/shot-path)
+- [ ] Top-area scoreboard (home score | time/half/connection | away score)
+- [ ] Top-area action/log panel (action buttons + status + event log)
+- [ ] Match clock: MM:SS format, 45:00 second-half start, always visible
+- [ ] Kickoff constraints: midfield/backs cols 6–20; only Standard Pass from kick off hex
+- [ ] Replay: double speed, simultaneous move animation, ball tracking fix
+- [ ] Bug: header contest triggers after high pass accuracy check
+- [ ] Bug: header targeting triggers after header contestant duel
+- [ ] Bug: snapshot path hexes clear after phase ends
+- [ ] Bug: deflection highlights stop at max pace
+- [ ] Bug: post-shot-deflect Movement Phase activates both teams
+
+### Deferred (v1.2 candidates)
 
 - [ ] **MOVE-06**: Free 6-hex move after action confined to one final third — scaffolded in `gameEngine.ts:517`, handler not implemented
 - [ ] **PASS-02 (partial)**: Mid-pass player movement during First-time Pass flight — deferred per TODO at `gameEngine.ts:1087`
