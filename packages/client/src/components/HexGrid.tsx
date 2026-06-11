@@ -84,9 +84,12 @@ export function HexGrid() {
   const emitDeclareShot = useGameStore((s) => s.emitDeclareShot);
   const emitGKDive = useGameStore((s) => s.emitGKDive);
   const emitHeaderTarget = useGameStore((s) => s.emitHeaderTarget);
+  const emitQuickThrow = useGameStore((s) => s.emitQuickThrow);
   const gkDivePosition = useGameStore((s) => s.gameState.gkDivePosition);
   const shotTargetHex = useGameStore((s) => s.gameState.shotTargetHex);
   const snapDeflectMovedPieceId = useGameStore((s) => s.gameState.snapDeflectMovedPieceId);
+  const lastShotPath = useGameStore((s) => s.gameState.lastShotPath);
+  const emitGKKickTarget = useGameStore((s) => s.emitGKKickTarget);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -100,15 +103,15 @@ export function HexGrid() {
   const goalQ = attackingTeam === 'home' ? 36 : 0;
   const goalLineHexSet = new Set(GOAL_R_VALUES.map((r) => `${goalQ},${r}`));
 
-  // GK_DIVING: GK can move up to 3 hexes parallel to goal line from current gkDivePosition
-  // (same q as gkDivePosition, adjacent r within pitch bounds)
+  // GK_DIVING: valid dive targets are shot-path hexes within 3 hexes of GK's starting position.
   const gkDiveTargetSet = new Set<string>();
   if (phase === 'GK_DIVING' && gkDivePosition !== null && gkDivePosition !== undefined) {
-    const maxR = 25;
-    for (let dr = -1; dr <= 1; dr += 2) {
-      const nr = gkDivePosition.r + dr;
-      if (nr >= 0 && nr <= maxR) {
-        gkDiveTargetSet.add(`${gkDivePosition.q},${nr}`);
+    const shooter = ball.carrierId ? pieces.find((p) => p.id === ball.carrierId) : null;
+    if (shooter && shotTargetHex !== null && shotTargetHex !== undefined) {
+      for (const h of hexLine(shooter.position, shotTargetHex)) {
+        if (hexDistance(gkDivePosition, h) <= 3) {
+          gkDiveTargetSet.add(`${h.q},${h.r}`);
+        }
       }
     }
   }
@@ -174,6 +177,35 @@ export function HexGrid() {
   // Zone tint colour for the local team (T-08-19: own-team only; opponent zone has no tint)
   const kickOffZoneColor = myTeam === 'home' ? '#1a56b0' : '#c0392b';
 
+  // Shot path highlight: O(1) lookup set for the last resolved shot trajectory
+  const lastShotPathSet = new Set<string>((lastShotPath ?? []).map((h) => `${h.q},${h.r}`));
+
+  // GK_KICK_TARGET: all pitch hexes not in the opponent's final third (GK's team restricted)
+  const gkKickTargetSet = new Set<string>();
+  if (phase === 'GK_KICK_TARGET' && isActivePlayer) {
+    const gk = pieces.find((p) => p.id === ball.carrierId);
+    if (gk) {
+      const restrictedRegion = gk.teamId === 'home' ? 'awayThird' : 'homeThird';
+      for (const h of PITCH_HEXES) {
+        if (isInRegion(h, restrictedRegion)) continue;
+        if (h.q === gk.position.q && h.r === gk.position.r) continue;
+        gkKickTargetSet.add(`${h.q},${h.r}`);
+      }
+    }
+  }
+
+  // QUICK_THROW: all pitch hexes within 11 hexes of the GK (no blocking, no interception)
+  const quickThrowTargetSet = new Set<string>();
+  if (phase === 'QUICK_THROW' && isActivePlayer) {
+    const gk = pieces.find((p) => p.id === ball.carrierId);
+    if (gk) {
+      for (const h of PITCH_HEXES) {
+        const d = hexDistance(gk.position, h);
+        if (d > 0 && d <= 11) quickThrowTargetSet.add(`${h.q},${h.r}`);
+      }
+    }
+  }
+
   // Translate offset to prevent q=0,r=0 hex clipping (Pitfall 5)
   const translateX = HEX_SIZE;
   const translateY = (HEX_SIZE * Math.sqrt(3)) / 2;
@@ -211,31 +243,37 @@ export function HexGrid() {
               goalLineHexSet.has(hexId) &&
               isActivePlayer;
 
-            // Phase 10: GK dive target (parallel to goal line, adjacent to current gkDivePosition)
-            const isGKDiveTarget = phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId);
             // SNAP_DEFLECT: danger path tint — shot line from shooter to declared target
             const isShotPath = snapDeflectPathSet.has(hexId);
             // GK team = defending team during a shot
             const gkTeamForDive: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
             const isGKTeamPlayer = myTeam === gkTeamForDive;
+            // Phase 10: GK dive target — gated on isGKTeamPlayer so only the GK's side sees highlights
+            const isGKDiveTarget =
+              phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId) && isGKTeamPlayer;
 
             // Phase 10: HEADER target hex selection step
             const isHeaderTargetGoalHex = headerTargetStep && goalLineHexSet.has(hexId);
 
-            // Suppress gold move highlights during HIGH_PASS_MOVEMENT — separate subtle overlay below
+            // Suppress gold move highlights during reposition phases — separate subtle overlay below
             // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)
             const isHighlighted =
               isShootingModeGoalHex ||
+              isHeaderTargetGoalHex ||
               (phase !== 'HIGH_PASS_MOVEMENT' &&
+                phase !== 'GK_KICK_MOVEMENT' &&
                 phase !== 'GK_DIVING' &&
                 phase !== 'SNAP_DEFLECT' &&
                 isValidMove) ||
               isGoalHex ||
               isShotTarget;
             const isHpMoveTarget =
-              (phase === 'HIGH_PASS_MOVEMENT' || phase === 'SNAP_DEFLECT') &&
-              selectedPieceId !== null &&
-              isValidMove;
+              ((phase === 'HIGH_PASS_MOVEMENT' ||
+                phase === 'SNAP_DEFLECT' ||
+                phase === 'GK_KICK_MOVEMENT') &&
+                selectedPieceId !== null &&
+                isValidMove) ||
+              isGKDiveTarget;
 
             // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
             const isPassTarget =
@@ -264,6 +302,14 @@ export function HexGrid() {
               onClick = () => emitHeaderTarget(hex);
             } else if (isValidMove && selectedPieceId) {
               onClick = () => emitMove(selectedPieceId, hex);
+            } else if (phase === 'GK_KICK_TARGET' && isActivePlayer && gkKickTargetSet.has(hexId)) {
+              onClick = () => emitGKKickTarget(hex);
+            } else if (
+              phase === 'QUICK_THROW' &&
+              isActivePlayer &&
+              quickThrowTargetSet.has(hexId)
+            ) {
+              onClick = () => emitQuickThrow(hex);
             } else if (isGoalHex) {
               // D-06: emit target to server (legacy SHOT phase path); optimistic highlight is cosmetic
               onClick = () => {
@@ -295,7 +341,9 @@ export function HexGrid() {
                   hex={hex}
                   isHighlighted={isHighlighted}
                   highlightColor={
-                    isGoalHex || isShotTarget || isShootingModeGoalHex ? '#ef4444' : undefined
+                    isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex
+                      ? '#ef4444'
+                      : undefined
                   }
                   onClick={onClick ?? (() => undefined)}
                 />
@@ -368,6 +416,38 @@ export function HexGrid() {
                     pointerEvents="none"
                   />
                 )}
+                {/* Shot path highlight: gold tint on hexes the ball crossed on the last resolved shot */}
+                {lastShotPathSet.has(hexId) && (
+                  <polygon
+                    points={points}
+                    fill="rgba(245,197,24,0.35)"
+                    stroke="rgba(245,197,24,0.6)"
+                    strokeWidth={1}
+                    pointerEvents="none"
+                  />
+                )}
+                {/* GK_KICK_TARGET: sky-blue tint on valid kick destinations */}
+                {gkKickTargetSet.has(hexId) && (
+                  <polygon
+                    points={points}
+                    fill="rgba(56,189,248,0.30)"
+                    stroke="rgba(56,189,248,0.55)"
+                    strokeWidth={1}
+                    onClick={() => emitGKKickTarget(hex)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                )}
+                {/* QUICK_THROW: green tint on valid target hexes (no blocking, no interception) */}
+                {quickThrowTargetSet.has(hexId) && (
+                  <polygon
+                    points={points}
+                    fill="rgba(34,197,94,0.35)"
+                    stroke="rgba(34,197,94,0.6)"
+                    strokeWidth={1}
+                    onClick={() => emitQuickThrow(hex)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                )}
                 {/* HIGH_PASS_MOVEMENT: subtle white tint on valid repositioning hexes (distinct from gold move highlight) */}
                 {isHpMoveTarget && (
                   <polygon
@@ -419,6 +499,18 @@ export function HexGrid() {
           <BallMarker ball={ball} />
           {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
           {pieces.map((piece) => {
+            // During GK_DIVING, visually show the defending GK at their current dive position.
+            // gk.position in state.pieces is the original position (used for cumulative distance check);
+            // gkDivePosition tracks where they actually are on screen.
+            const gkDiveTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+            const displayPiece =
+              phase === 'GK_DIVING' &&
+              gkDivePosition != null &&
+              piece.role === 'GK' &&
+              piece.teamId === gkDiveTeam
+                ? { ...piece, position: gkDivePosition }
+                : piece;
+
             // Slot quota: how many activations remain in this slot
             const slotQuota =
               movementSlot === 'ATTACKER_4' ? 4 : movementSlot === 'DEFENDER_5' ? 5 : 2;
@@ -472,40 +564,46 @@ export function HexGrid() {
               passTargetHex !== null &&
               passTargetHex.q === piece.position.q &&
               passTargetHex.r === piece.position.r;
+            // QUICK_THROW: clicking a piece on a valid target hex emits throw to that hex (not selectPiece)
+            const isQuickThrowTargetPiece =
+              phase === 'QUICK_THROW' && isActivePlayer && quickThrowTargetSet.has(pieceHexId);
 
             const isClickable =
               isPassTargetPiece ||
+              isQuickThrowTargetPiece ||
               canSelect ||
               canSelectKickOff ||
               isHeaderEligible ||
               canSelectHighPassMove ||
               canSelectSnapDeflect;
-            const handleClick = isPassTargetPiece
-              ? () => {
-                  if (pieceHexConfirmed) {
-                    setPassTargetHex(null);
-                  } else if (passTargetHex === null) {
-                    confirmPassTarget(piece.position);
+            const handleClick = isQuickThrowTargetPiece
+              ? () => emitQuickThrow(piece.position)
+              : isPassTargetPiece
+                ? () => {
+                    if (pieceHexConfirmed) {
+                      setPassTargetHex(null);
+                    } else if (passTargetHex === null) {
+                      confirmPassTarget(piece.position);
+                    }
                   }
-                }
-              : canSelectSnapDeflect
-                ? () => selectPiece(piece.id)
-                : canSelectHighPassMove
+                : canSelectSnapDeflect
                   ? () => selectPiece(piece.id)
-                  : isHeaderEligible
-                    ? () => {
-                        toggleHeaderContestantId(piece.id);
-                      }
-                    : canSelectKickOff
-                      ? () => selectPiece(piece.id)
-                      : canSelect
+                  : canSelectHighPassMove
+                    ? () => selectPiece(piece.id)
+                    : isHeaderEligible
+                      ? () => {
+                          toggleHeaderContestantId(piece.id);
+                        }
+                      : canSelectKickOff
                         ? () => selectPiece(piece.id)
-                        : () => undefined;
+                        : canSelect
+                          ? () => selectPiece(piece.id)
+                          : () => undefined;
 
             return (
               <PieceOverlay
                 key={piece.id}
-                piece={piece}
+                piece={displayPiece}
                 isSelected={piece.id === selectedPieceId}
                 isClickable={isClickable}
                 onClick={handleClick}

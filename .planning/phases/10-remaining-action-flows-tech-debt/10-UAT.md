@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 10-remaining-action-flows-tech-debt
 source: 10-01-SUMMARY.md, 10-02-SUMMARY.md, 10-03-SUMMARY.md, 10-04-SUMMARY.md, 10-05-SUMMARY.md
 started: 2026-06-11T00:00:00Z
@@ -80,7 +80,11 @@ blocked: 0
   reason: "User reported: All header functions work except for the targeting goaline"
   severity: major
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "isHeaderTargetGoalHex missing from isHighlighted in HexGrid.tsx — HexCell only wires onClick when isHighlighted=true, so goal-line hexes were unclickable and unlit during HEADER target step"
+  artifacts:
+  - path: "packages/client/src/components/HexGrid.tsx"
+    issue: "isHeaderTargetGoalHex not included in isHighlighted expression; also missing from highlightColor condition"
+    missing:
+  - "Add isHeaderTargetGoalHex to isHighlighted (line 262)"
+  - "Add isHeaderTargetGoalHex to highlightColor red condition (line 341)"
+    debug_session: ""
