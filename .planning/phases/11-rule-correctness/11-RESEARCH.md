@@ -603,17 +603,17 @@ This phase makes no changes to authentication, session management, access contro
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **RULE-02: applyRoll HEADER branch reachability after fix**
    - What we know: `GAME_HEADER_TARGET` currently calls `applyRoll` on HEADER phase, which fires the duel. If RULE-02 moves the duel to `GAME_HEADER_CONTESTANT`, `GAME_HEADER_TARGET` must no longer call `applyRoll` (or `applyRoll` HEADER must read `headerDuelWinner` to skip re-rolling).
    - What's unclear: Which approach is cleaner — remove `applyRoll` call from `GAME_HEADER_TARGET` entirely (and do the phase transition inline), or preserve it but have `applyRoll` HEADER read the pre-resolved winner?
-   - Recommendation: Remove `applyRoll` call from `GAME_HEADER_TARGET`. Build a new `applyResolveHeaderTarget(state, targetHex)` engine function that reads `headerDuelWinner` and transitions to PASS/GK_DIVING/LOOSE_BALL without re-rolling dice. This keeps the engine pure and the handler thin.
+   - RESOLVED: Remove `applyRoll` call from `GAME_HEADER_TARGET`. Build a new `applyResolveHeaderTarget(state, targetHex)` engine function that reads `headerDuelWinner` and transitions to PASS/GK_DIVING/LOOSE_BALL without re-rolling dice. This keeps the engine pure and the handler thin. Plan 11-01 Task 2 implements `applyResolveHeaderTarget`; Task 3 updates `GAME_HEADER_TARGET` to call it.
 
 2. **RULE-05: `activeTeam` after LOOSE_BALL scatter when ball lands on nobody**
    - What we know: `applyRoll` LOOSE_BALL keeps `attackingTeam` unchanged when ball lands on empty hex. `applyStartMovement` then sets `activeTeam = attackingTeam`. The attacker's player can start movement.
    - What's unclear: In the UAT scenario, was the ball landing on a piece (changing `attackingTeam`) or landing on empty? If changing teams, is the NEW attacker able to find and click the Start Movement button?
-   - Recommendation: Add explicit console logging of `attackingTeam`, `activeTeam`, `movementSlot` in both the server LOOSE_BALL handler response and the client `setGameState` handler to capture the full state at the moment of transition.
+   - RESOLVED: Plan 11-03 Task 3 adds a diagnosis step with explicit console logging of `attackingTeam`, `activeTeam`, `movementSlot`, `paceUsedByPieceId`, and `isActivePlayer` in HexGrid.tsx `canSelect` computation. The fix follows from what the logs reveal, with an escalation path if the root cause proves server-side.
 
 ---
 
