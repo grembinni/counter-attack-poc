@@ -1474,6 +1474,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           const defendingTeamForGkB: 'home' | 'away' =
             state.attackingTeam === 'home' ? 'away' : 'home';
           const gkB = state.pieces.find((p) => p.teamId === defendingTeamForGkB && p.role === 'GK');
+          const headerShotPathB = hexLine(state.ball.position, tgtHexB);
           return {
             ok: true,
             state: {
@@ -1482,6 +1483,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               lastActionType: 'SHOT',
               shotTargetHex: tgtHexB,
               gkDivePosition: gkB?.position ?? state.ball.position,
+              lastShotPath: headerShotPathB,
               contestedPieceIds: attackerContestantIds,
               lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
               eventLog: [...state.eventLog, headerEventB],
@@ -1555,6 +1557,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           const defendingTeamForGk: 'home' | 'away' =
             state.attackingTeam === 'home' ? 'away' : 'home';
           const gk = state.pieces.find((p) => p.teamId === defendingTeamForGk && p.role === 'GK');
+          const headerShotPath = hexLine(state.ball.position, tgtHex);
           return {
             ok: true,
             state: {
@@ -1563,11 +1566,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               lastActionType: 'SHOT',
               shotTargetHex: tgtHex,
               gkDivePosition: gk?.position ?? state.ball.position,
+              lastShotPath: headerShotPath,
               contestedPieceIds: contestedIds,
               lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
               eventLog: [...state.eventLog, headerEventEntry],
               ...headerCleared,
-              headerTargetHex: null, // clear after routing
+              headerTargetHex: null,
             },
           };
         }
@@ -2330,12 +2334,17 @@ export function applyGKDive(state: GameState, to: HexCoord): ApplyGKDiveResult {
   }
 
   // 2. Shot-path membership: GK may only dive to a hex on the shot trajectory.
-  const shooter = state.pieces.find((p) => p.id === state.ball.carrierId);
+  // For a regular shot ball.carrierId is the shooter; for a header-at-goal it is null
+  // (ball was in the air) — fall back to ball.position as the shot origin.
   const shotTarget = state.shotTargetHex;
-  if (!shooter || !shotTarget) {
+  if (!shotTarget) {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
-  const pathHexes = hexLine(shooter.position, shotTarget);
+  const shooterPiece = state.ball.carrierId
+    ? state.pieces.find((p) => p.id === state.ball.carrierId)
+    : null;
+  const shotOrigin = shooterPiece?.position ?? state.ball.position;
+  const pathHexes = hexLine(shotOrigin, shotTarget);
   if (!pathHexes.some((h) => h.q === to.q && h.r === to.r)) {
     return { ok: false, reason: 'NOT_ON_PATH' };
   }
