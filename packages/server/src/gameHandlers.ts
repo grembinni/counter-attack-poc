@@ -650,11 +650,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               eventLog: [...gkEndState.eventLog, kickEvent],
             };
           } else {
-            // Inaccurate: loose ball from GK's current position
+            // Inaccurate: loose ball at the target hex (ball went wide of its destination)
             room.gameState = {
               ...gkEndState,
               phase: 'LOOSE_BALL',
-              ball: { position: gk?.position ?? gkEndState.ball.position, carrierId: null },
+              ball: { position: targetHex, carrierId: null },
               attackingTeam: gkTeam,
               activeTeam: gkTeam,
               lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
@@ -673,8 +673,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // SNAP_DEFLECT: defending team ends their deflection turn; auto-resolve the snapshot shot.
-      // D-08 / SNAP-02: After opponent moves (or passes), resolve as a SHOT phase duel.
+      // SNAP_DEFLECT: defending team ends their deflection turn.
+      // Flow mirrors GAME_SHOT: deflection check → GK range check → GK_DIVING (or auto-GOAL).
       if (room.gameState.phase === 'SNAP_DEFLECT') {
         const sdState = room.gameState;
         const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
@@ -683,46 +683,162 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
-        // Auto-resolve: no path defenders (snap_deflect has no shot path check per SNAP-02)
-        const d1 = rollDice(); // shooter die
-        const d2 = rollDice(); // GK die
-        const d3 = rollDice(); // handling die
-        console.log(`[SNAP_DEFLECT] Shot dice — shooter:${d1} GK:${d2} handling:${d3}`);
-        // Normalise to SHOT phase for applyRoll; clear snap deflect tracking fields via destructuring
-        /* eslint-disable @typescript-eslint/no-unused-vars */
+        // Strip snap-deflect tracking fields from base state
+
         const {
           snapDeflectMovedPieceId: _smpi,
           snapDeflectPaceUsed: _sppu,
-          ...restSdState
+          ...baseSnapState
         } = sdState;
-        /* eslint-enable @typescript-eslint/no-unused-vars */
-        const stateForSnap: typeof sdState = {
-          ...restSdState,
-          phase: 'SHOT',
-          lastActionType: 'SHOT',
-        };
-        const snapResult = applyRoll(stateForSnap, d1, d2, d3);
-        if (!snapResult.ok) {
-          socket.emit(ServerEvents.GAME_ERROR, snapResult.reason);
+
+        // Deflection check (same pattern as GAME_SHOT)
+        const snapShooter = baseSnapState.pieces.find((p) => p.id === baseSnapState.ball.carrierId);
+        const snapTarget = baseSnapState.shotTargetHex;
+        const snapDefInputs: DefenderDeflectionInput[] = [];
+        if (snapShooter && snapTarget) {
+          const pathHexes = hexLine(snapShooter.position, snapTarget);
+          const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
+          for (const defender of baseSnapState.pieces.filter(
+            (p) => p.teamId === defendingTeam && p.role !== 'GK',
+          )) {
+            const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
+            let nearPath = false;
+            if (!onPath) {
+              for (const ph of pathHexes) {
+                if (hexDistance(defender.position, ph) === 1) {
+                  nearPath = true;
+                  break;
+                }
+              }
+            }
+            if (onPath || nearPath) {
+              snapDefInputs.push({
+                defenderId: defender.id,
+                defenderPosition: defender.position,
+                tackling: defender.tackling,
+                die: rollDice(),
+                band: onPath ? 'A' : 'B',
+              });
+            }
+          }
+        }
+
+        const deflectEvents: ActionEvent[] = [];
+        for (const def of snapDefInputs) {
+          const didDeflect =
+            def.band === 'A'
+              ? def.die === 5 || def.die === 6 || def.die + def.tackling >= 10
+              : def.die === 6 || def.die + def.tackling >= 10;
+          deflectEvents.push({
+            type: 'DEFLECT_ATTEMPT',
+            defenderId: def.defenderId,
+            band: def.band,
+            die: def.die,
+            tackling: def.tackling,
+            result: didDeflect ? 'DEFLECTED' : 'NO_DEFLECT',
+            timestamp: Date.now(),
+          });
+          if (didDeflect) break;
+        }
+
+        if (snapDefInputs.length > 0) {
+          console.log(
+            '[SNAP_DEFLECT] Deflection check:',
+            snapDefInputs
+              .map((d) => `id=${d.defenderId} band=${d.band} die=${d.die} tackling=${d.tackling}`)
+              .join(', '),
+          );
+        }
+
+        const snapDeflectResult = computeShotPathDeflection(snapDefInputs);
+        if (snapDeflectResult.deflected && snapDeflectResult.deflectorPosition) {
+          console.log(`[SNAP_DEFLECT] DEFLECTED by ${snapDeflectResult.deflectorId} → LOOSE_BALL`);
+          room.gameState = {
+            ...baseSnapState,
+            phase: 'LOOSE_BALL',
+            ball: { position: snapDeflectResult.deflectorPosition, carrierId: null },
+            lastActionType: 'DEFLECTION',
+            shotTargetHex: null,
+            gkDivePosition: null,
+            lastShotPath: null,
+            snapshotGkPenalty: null,
+            eventLog: [...baseSnapState.eventLog, ...deflectEvents],
+          };
           broadcastState(io, room);
           return;
         }
-        const snapOutcome =
-          snapResult.state.phase === 'KICK_OFF_SETUP'
-            ? 'GOAL'
-            : snapResult.state.phase === 'GK_RESTART'
-              ? 'SAVE → caught'
-              : snapResult.state.phase === 'LOOSE_BALL'
-                ? 'SAVE → spilled'
-                : snapResult.state.phase === 'MOVEMENT'
-                  ? 'MISS (auto)'
-                  : snapResult.state.phase;
-        console.log(`[SNAP_DEFLECT] Shot outcome: ${snapOutcome}`);
-        room.gameState = snapResult.state;
-        broadcastState(io, room);
-        if (snapResult.state.phase === 'FULL_TIME') {
-          startReplayStream(io, room);
+
+        // GK range check: auto-GOAL if no path hex within 3 hexes of GK
+        const snapGk = baseSnapState.pieces.find(
+          (p) => p.teamId === defendingTeam && p.role === 'GK',
+        );
+        const reachableSnapPath =
+          snapShooter && snapTarget ? hexLine(snapShooter.position, snapTarget) : [];
+        const snapGkHasReachable =
+          snapGk !== undefined &&
+          reachableSnapPath.some((h) => hexDistance(snapGk.position, h) <= 3);
+
+        if (!snapGkHasReachable) {
+          console.log('[SNAP_DEFLECT] GK out of range — auto-GOAL (no path hex within 3)');
+          const scoringTeam = baseSnapState.attackingTeam;
+          const newKickOffTeam = defendingTeam;
+          const outDie1 = rollDice();
+          const outDie2 = rollDice();
+          const outOfRangeEvent: ActionEvent = {
+            type: 'SHOT_ATTEMPT',
+            shooterId: baseSnapState.ball.carrierId ?? '',
+            targetHex: snapTarget ?? { q: 0, r: 0 },
+            outcome: 'GOAL',
+            shooterDie: outDie1,
+            shooterScore: null,
+            gkDie: outDie2,
+            gkScore: null,
+            handlingDie: null,
+            gkHandling: null,
+            shooterPenaltyTotal: 0,
+            gkPenaltyTotal: 0,
+            timestamp: Date.now(),
+          };
+          const newScore = {
+            ...baseSnapState.score,
+            [scoringTeam]: baseSnapState.score[scoringTeam] + 1,
+          };
+          room.gameState = {
+            ...baseSnapState,
+            pieces: buildKickOffPieces(newKickOffTeam),
+            phase: 'KICK_OFF_SETUP',
+            score: newScore,
+            attackingTeam: newKickOffTeam,
+            activeTeam: newKickOffTeam,
+            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            lastDiceRoll: { rolls: [outDie1, outDie2], context: 'SHOT_DUEL' },
+            lastActionType: null,
+            lastShotPath: null,
+            gkDivePosition: null,
+            shotTargetHex: null,
+            snapshotGkPenalty: null,
+            eventLog: [
+              ...baseSnapState.eventLog,
+              ...deflectEvents,
+              outOfRangeEvent,
+              { type: 'GOAL' as const, scoringTeam, timestamp: Date.now() },
+            ],
+          };
+          broadcastState(io, room);
+          return;
         }
+
+        // GK in range: transition to GK_DIVING so GK can choose a dive hex
+        console.log('[SNAP_DEFLECT] GK in range → GK_DIVING');
+        room.gameState = {
+          ...baseSnapState,
+          phase: 'GK_DIVING',
+          lastActionType: 'SHOT',
+          gkDivePosition: snapGk.position,
+          snapshotGkPenalty: null,
+          eventLog: [...baseSnapState.eventLog, ...deflectEvents],
+        };
+        broadcastState(io, room);
         return;
       }
 

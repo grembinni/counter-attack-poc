@@ -55,6 +55,7 @@ export function ActionPanel() {
   // Phase 10: shooting mode (two-step Shoot flow)
   const shootingMode = useGameStore((s) => s.shootingMode);
   const setShootingMode = useGameStore((s) => s.setShootingMode);
+  const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -74,8 +75,9 @@ export function ActionPanel() {
     }
   }, [phase, isActivePlayer, emitRoll]);
 
-  // After a header win the active player immediately gets a Standard Pass (11-hex, non-interceptable).
-  // Auto-select the pass type so the valid-target hexes appear without an extra click.
+  // After a header win the active player gets a First-time Pass (non-interceptable per isHeaderPass).
+  // Auto-select so the valid-target hexes appear without an extra click.
+  // ELIGIBLE_NEXT_ACTIONS['HEADER'] does not include STANDARD_PASS — use FIRST_TIME_PASS.
   useEffect(() => {
     if (
       phase === 'PASS' &&
@@ -83,7 +85,7 @@ export function ActionPanel() {
       isActivePlayer &&
       selectedPassType === null
     ) {
-      setSelectedPassType('STANDARD_PASS');
+      setSelectedPassType('FIRST_TIME_PASS');
     }
   }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
 
@@ -116,31 +118,26 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // GK_DIVING phase: GK's team repositions GK up to 3 hexes parallel to goal line,
-  // then ends turn → server auto-resolves the shot.
+  // GK_DIVING phase: GK clicks a highlighted hex on the shot path (0–3 hexes away).
+  // Clicking triggers the dive and the shot auto-resolves immediately — no End Turn needed.
   // Must be before the isActivePlayer guard — both teams see this phase.
-  // Active team = GK team (defendingTeam during a shot).
   // -------------------------------------------------------------------------
   if (phase === 'GK_DIVING') {
     if (myTeam === null) return null;
-    // GK team is the team NOT currently attacking
     const gkTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isGKTeamPlayer = myTeam === gkTeam;
     if (!isGKTeamPlayer) {
       return (
         <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent is repositioning GK — wait...</span>
+          <span className={styles.phaseLabel}>Opponent is positioning GK — wait...</span>
         </div>
       );
     }
     return (
       <div className={styles.panel}>
         <span className={styles.phaseLabel}>
-          Reposition GK (up to 3 hexes parallel to goal line)
+          Click a highlighted hex to dive (0–3 hexes along the shot path)
         </span>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
-          End Turn (Dive Complete)
-        </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -250,12 +247,113 @@ export function ActionPanel() {
     );
   }
 
-  if (!isActivePlayer) return null;
+  // -------------------------------------------------------------------------
+  // GK_RESTART phase: GK's team chooses restart method (kick/throw/movement).
+  // Must be before the isActivePlayer guard — after a regular save, activeTeam
+  // stays as the attacking team, so the GK team would fail the guard below.
+  // -------------------------------------------------------------------------
+  if (phase === 'GK_RESTART') {
+    if (myTeam === null) return null;
+    const gkPieceForRestart = pieces.find((p) => p.id === carrierId);
+    const gkTeamForRestart = gkPieceForRestart?.teamId ?? null;
+    const isGKTeamPlayer = myTeam !== null && myTeam === gkTeamForRestart;
+    if (!isGKTeamPlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent GK restart — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.gkLabel}>GK Restart — choose:</span>
+        <button className={styles.ctaButton} onClick={() => emitGKRestart('kick')}>
+          Kick (High Pass)
+        </button>
+        <button className={styles.ctaButton} onClick={() => emitGKRestart('throw')}>
+          Quick Throw
+        </button>
+        <button className={styles.ctaButton} onClick={() => emitGKRestart('movement')}>
+          Move
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
 
-  // GK team derivation — mirrors server controlsGKTeam in gameHandlers.ts
-  const gkPiece = pieces.find((p) => p.id === carrierId);
-  const gkTeam = gkPiece?.teamId ?? null;
-  const isGKTeam = myTeam !== null && myTeam === gkTeam;
+  // QUICK_THROW phase: GK's team selects a target hex on the pitch (≤ 11 hexes).
+  // Same guard structure as GK_RESTART — must be before isActivePlayer check.
+  if (phase === 'QUICK_THROW') {
+    if (myTeam === null) return null;
+    const gkPiece = pieces.find((p) => p.id === carrierId);
+    const gkTeam = gkPiece?.teamId ?? null;
+    const isGKTeamPlayer = myTeam === gkTeam;
+    if (!isGKTeamPlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent GK quick throw — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.gkLabel}>Quick Throw — select target hex</span>
+        <span className={styles.phaseLabel}>Up to 11 hexes · no interception</span>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // GK_KICK_TARGET phase: GK's team clicks a target hex on the pitch.
+  // Must be before isActivePlayer guard — both teams see this phase.
+  if (phase === 'GK_KICK_TARGET') {
+    if (myTeam === null) return null;
+    const gkPiece = pieces.find((p) => p.id === carrierId);
+    const gkTeam = gkPiece?.teamId ?? null;
+    const isGKTeamPlayer = myTeam === gkTeam;
+    if (!isGKTeamPlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent GK kick — wait for target selection...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.gkLabel}>GK Kick — select target hex</span>
+        <span className={styles.phaseLabel}>
+          Any pitch hex except the opponent&apos;s final third
+        </span>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // GK_KICK_MOVEMENT phase: both teams reposition 1 player up to 3 hexes while ball is in air.
+  // Must be before isActivePlayer guard — both teams act in this phase.
+  if (phase === 'GK_KICK_MOVEMENT') {
+    if (myTeam === null) return null;
+    if (!isActivePlayer) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.phaseLabel}>Opponent is repositioning — wait...</span>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.panel}>
+        <span className={styles.phaseLabel}>
+          Reposition a player while kick is in air (up to 3 hexes)
+        </span>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  if (!isActivePlayer) return null;
 
   // -------------------------------------------------------------------------
   // KICK_OFF + PASS phase — three-step flow (Phase 8.2 D-06)
@@ -341,10 +439,14 @@ export function ActionPanel() {
               carrier !== undefined
                 ? Math.min(...goalHexes.map((g) => hexDistance(carrier.position, g)))
                 : Infinity;
+            const passPhaseSnapshotRegion =
+              attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+            const carrierInPenaltyArea =
+              carrier !== undefined && isInRegion(carrier.position, passPhaseSnapshotRegion);
             return (
               <>
-                {/* D-18 (WR-03): Snapshot — server validates penalty area; lastActionType guard prevents showing on fresh PASS state */}
-                {lastActionType !== null && isEligible('SNAPSHOT') && (
+                {/* D-18 (WR-03): Snapshot — carrier must be in opponent's penalty area (mirrors MOVEMENT phase check) */}
+                {lastActionType !== null && isEligible('SNAPSHOT') && carrierInPenaltyArea && (
                   <button className={styles.ctaButton} onClick={emitSnapshot}>
                     Snapshot
                   </button>
@@ -399,7 +501,15 @@ export function ActionPanel() {
   if (phase === 'MOVEMENT') {
     const carrier = pieces.find((p) => p.id === carrierId);
     const penaltyAreaRegion = attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
-    const canSnapshot = carrier !== undefined && isInRegion(carrier.position, penaltyAreaRegion);
+    // Snapshot only for the attacking team (not defense in DEFENDER_5 slot) and only while
+    // the ball carrier has not yet exhausted their movement (not in movedPieceIds).
+    const canSnapshot =
+      carrier !== undefined &&
+      myTeam !== null &&
+      carrier.teamId === myTeam &&
+      isInRegion(carrier.position, penaltyAreaRegion) &&
+      carrierId !== null &&
+      !movedPieceIds.includes(carrierId);
 
     // Undo is available when there is at least one MOVE event after the last slot boundary
     // (SLOT_ADVANCE or KICK_OFF) and no dice have been rolled. Mirrors applyUndo's boundary logic.
@@ -424,27 +534,6 @@ export function ActionPanel() {
         </button>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
-        </button>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // GK_RESTART phase — GK's team chooses restart method
-  // -------------------------------------------------------------------------
-  if (phase === 'GK_RESTART' && isGKTeam) {
-    return (
-      <div className={styles.panel}>
-        <span className={styles.gkLabel}>GK Restart — choose:</span>
-        <button className={styles.ctaButton} onClick={() => emitGKRestart('kick')}>
-          Kick (High Pass)
-        </button>
-        <button className={styles.ctaButton} onClick={() => emitGKRestart('throw')}>
-          Quick Throw
-        </button>
-        <button className={styles.ctaButton} onClick={() => emitGKRestart('movement')}>
-          Move
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>

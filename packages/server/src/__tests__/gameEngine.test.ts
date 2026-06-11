@@ -935,21 +935,22 @@ describe('applyRoll', () => {
     }
   });
 
-  it('SHOT AUTO_MISS (shooter dice=1) → phase MOVEMENT', () => {
+  it('die=1 participates in duel — no auto-miss rule', () => {
+    // shooter at q:10 (outside awayPenaltyArea) → -1 outside-area penalty
+    // shooter: 9+1-1=9; GK (dist=0, no penalty): 9+3=12 → GK wins → handling die=3 < handling=8 → caught
     const result = applyRoll(shotState, 1, 3, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('GK_RESTART'); // GK wins, catches (handling die 3 < gk.handling 8)
       expect(result.state.score.home).toBe(0); // no goal
       expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
     }
   });
 
   it('SHOT tie (shooterScore === gkScore) → LOOSE_BALL (D-13), ball.carrierId null, ball.position unchanged', () => {
-    // Need equal scores. With OUT_OF_RANGE GK (far away, no penalties):
-    // shooterScore = shooting + shooterDice; gkScore = saving + gkDice
-    // homePiece.shooting=9; awayGK.saving=9; dice=3,3 → 9+3=12 vs 9+3=12 → tie → LOOSE_BALL
-    const result = applyRoll(shotState, 3, 3, 3);
+    // shooter at q:10 (outside awayPenaltyArea) → -1 outside-area penalty
+    // shooterScore = 9+4-1=12; gkScore (dist=0, no penalty) = 9+3=12 → tie → LOOSE_BALL
+    const result = applyRoll(shotState, 4, 3, 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.phase).toBe('LOOSE_BALL');
@@ -1153,65 +1154,46 @@ describe('applyGKRestart', () => {
 
   // ---- throw branch ----
 
-  it("'throw' → phase MOVEMENT, attackingTeam = GK's team, ball stays with GK, lastDiceRoll null (D-25)", () => {
+  it("'throw' → phase QUICK_THROW, attackingTeam = GK's team, ball stays with GK, lastDiceRoll null (D-25)", () => {
     const result = applyGKRestart(gkRestartState, 'throw', () => 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('QUICK_THROW');
       expect(result.state.attackingTeam).toBe('away'); // GK team
       expect(result.state.ball.carrierId).toBe('away-0'); // ball still with GK
       expect(result.state.lastDiceRoll).toBeNull();
-      // Gap 1 fix: MOVEMENT phase must be playable
-      expect(result.state.movementSlot).toBe('ATTACKER_4');
-      expect(result.state.movedPieceIds).toEqual([]);
-      expect(result.state.paceUsedByPieceId).toEqual({});
     }
   });
 
-  // ---- kick branch: accurate ----
+  // ---- kick branch: target selection phase ----
 
-  it("'kick' accurate (highPass + dice >= 8) → phase MOVEMENT, attackingTeam = GK team, ball with GK, lastDiceRoll context GK_KICK (D-24)", () => {
-    // highPassGK.highPass=8; rollDie()=6 → 8+6=14 >= 8 → accurate
-    const result = applyGKRestart(gkRestartHighPassState, 'kick', () => 6);
+  it("'kick' → phase GK_KICK_TARGET, attackingTeam = GK team, ball still with GK, no dice rolled yet", () => {
+    // New behavior: kick now transitions to GK_KICK_TARGET for target selection.
+    // Accuracy check + repositioning happen in GK_KICK_MOVEMENT after target is selected.
+    const result = applyGKRestart(gkRestartState, 'kick', () => 6);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('GK_KICK_TARGET');
       expect(result.state.attackingTeam).toBe('away'); // GK team
-      expect(result.state.ball.carrierId).toBe('away-0'); // ball stays with GK on accurate kick
-      expect(result.state.lastDiceRoll).toBeDefined();
-      expect(result.state.lastDiceRoll?.context).toBe('GK_KICK');
-      expect(result.state.lastDiceRoll?.rolls).toHaveLength(1);
-      // Gap 1 fix: MOVEMENT phase must be playable
-      expect(result.state.movementSlot).toBe('ATTACKER_4');
-      expect(result.state.movedPieceIds).toEqual([]);
-      expect(result.state.paceUsedByPieceId).toEqual({});
+      expect(result.state.activeTeam).toBe('away');
+      expect(result.state.ball.carrierId).toBe('away-0'); // ball still with GK (target not selected yet)
+      expect(result.state.lastDiceRoll).toBeNull(); // no dice rolled at this stage
+      expect(result.state.lastActionType).toBeNull();
     }
   });
 
-  // ---- kick branch: inaccurate ----
-
-  it("'kick' inaccurate (highPass + dice < 8) → Loose Ball from GK position, carrierId null, lastDiceRoll context GK_KICK (D-24)", () => {
-    // gkPiece.highPass=0; rollDie()=1 → 0+1=1 < 8 → inaccurate → Loose Ball
-    // Uses two rollDie() calls: first for accuracy, then two more for loose ball direction+distance
+  it("'kick' with high-highPass GK → same GK_KICK_TARGET transition (dice deferred to applyGKKickTarget)", () => {
+    // rollDie injected but not called — accuracy is deferred until GK_KICK_MOVEMENT ends
     let callCount = 0;
     const mockDie = (): number => {
       callCount++;
-      if (callCount === 1) return 1; // accuracy roll → 0+1=1 < 8 → inaccurate
-      if (callCount === 2) return 1; // direction roll (E: +q)
-      return 3; // distance roll → 3 hexes
+      return 6;
     };
-    const result = applyGKRestart(gkRestartState, 'kick', mockDie);
+    const result = applyGKRestart(gkRestartHighPassState, 'kick', mockDie);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
-      expect(result.state.ball.carrierId).toBeNull(); // no carrier on Loose Ball
-      expect(result.state.attackingTeam).toBe('away'); // GK team still gets movement
-      expect(result.state.lastDiceRoll?.context).toBe('GK_KICK');
-      expect(result.state.lastDiceRoll?.rolls?.length).toBeGreaterThanOrEqual(1);
-      // Gap 1 fix: MOVEMENT phase must be playable
-      expect(result.state.movementSlot).toBe('ATTACKER_4');
-      expect(result.state.movedPieceIds).toEqual([]);
-      expect(result.state.paceUsedByPieceId).toEqual({});
+      expect(result.state.phase).toBe('GK_KICK_TARGET');
+      expect(callCount).toBe(0); // rollDie never called in the new kick branch
     }
   });
 

@@ -79,6 +79,8 @@ export function HexGrid() {
   // HIGH_PASS_MOVEMENT: track locked piece and pace so selection gating + spent X match server rule
   const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
   const highPassPaceUsed = useGameStore((s) => s.gameState.highPassPaceUsed);
+  // GK_KICK_MOVEMENT: track locked piece so multi-step moves stay on the same piece
+  const gkKickMovedPieceId = useGameStore((s) => s.gameState.gkKickMovedPieceId);
   // Phase 10: shooting mode, GK dive/header-target actions
   const shootingMode = useGameStore((s) => s.shootingMode);
   const emitDeclareShot = useGameStore((s) => s.emitDeclareShot);
@@ -241,10 +243,19 @@ export function HexGrid() {
               hex.r === shotTargetHighlight.r;
 
             // Phase 10: shooting mode goal-line highlight (two-step Shoot flow + SHOT_DECLARED snapshot target)
+            // For snapshot (SHOT_DECLARED), apply 6-hex range from carrier — same max as first-time pass.
+            const snapCarrier =
+              phase === 'SHOT_DECLARED' && ball.carrierId
+                ? pieces.find((p) => p.id === ball.carrierId)
+                : null;
             const isShootingModeGoalHex =
-              (shootingMode || phase === 'SHOT_DECLARED') &&
+              isActivePlayer &&
               goalLineHexSet.has(hexId) &&
-              isActivePlayer;
+              (shootingMode ||
+                (phase === 'SHOT_DECLARED' &&
+                  snapCarrier !== undefined &&
+                  snapCarrier !== null &&
+                  hexDistance(snapCarrier.position, hex) <= 6));
 
             // SNAP_DEFLECT: danger path tint — shot line from shooter to declared target
             const isShotPath = snapDeflectPathSet.has(hexId);
@@ -562,6 +573,13 @@ export function HexGrid() {
               myTeam === snapDefendingTeam &&
               piece.teamId === myTeam &&
               (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id);
+            // GK_KICK_MOVEMENT: active team selects 1 own piece to reposition up to 3 hexes
+            const canSelectGKKickMove =
+              phase === 'GK_KICK_MOVEMENT' &&
+              isActivePlayer &&
+              myTeam !== null &&
+              piece.teamId === myTeam &&
+              (gkKickMovedPieceId === null || gkKickMovedPieceId === piece.id);
 
             // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant.
             // Both teams select independently; gated on not yet confirmed for this team.
@@ -596,7 +614,8 @@ export function HexGrid() {
               canSelectKickOff ||
               isHeaderEligible ||
               canSelectHighPassMove ||
-              canSelectSnapDeflect;
+              canSelectSnapDeflect ||
+              canSelectGKKickMove;
             const handleClick = isQuickThrowTargetPiece
               ? () => emitQuickThrow(piece.position)
               : isPassTargetPiece
@@ -607,19 +626,21 @@ export function HexGrid() {
                       confirmPassTarget(piece.position);
                     }
                   }
-                : canSelectSnapDeflect
+                : canSelectGKKickMove
                   ? () => selectPiece(piece.id)
-                  : canSelectHighPassMove
+                  : canSelectSnapDeflect
                     ? () => selectPiece(piece.id)
-                    : isHeaderEligible
-                      ? () => {
-                          toggleHeaderContestantId(piece.id);
-                        }
-                      : canSelectKickOff
-                        ? () => selectPiece(piece.id)
-                        : canSelect
+                    : canSelectHighPassMove
+                      ? () => selectPiece(piece.id)
+                      : isHeaderEligible
+                        ? () => {
+                            toggleHeaderContestantId(piece.id);
+                          }
+                        : canSelectKickOff
                           ? () => selectPiece(piece.id)
-                          : () => undefined;
+                          : canSelect
+                            ? () => selectPiece(piece.id)
+                            : () => undefined;
 
             return (
               <PieceOverlay

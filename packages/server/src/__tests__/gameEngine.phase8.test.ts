@@ -483,40 +483,28 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
 
   // --- GK Restart ---
 
-  it('applyGKRestart "kick" accurate sets lastActionType MOVEMENT_PHASE and actionCount +1 (D-21)', () => {
-    // GK.highPass=0; combined=0+die. Accurate requires combined >= 8.
-    // die=6: 0+6=6 < 8 → inaccurate. die=8: not possible on d6.
-    // GK always kicks inaccurate due to highPass=0. Let's use a GK with highPass=8 for accurate test.
-    const highPassGk: PlayerPiece = { ...awayGk, highPass: 8 };
-    const accurateKickState: GameState = {
-      ...makeGkRestartState({ actionCount: 10 }),
-      pieces: [homeFwd, highPassGk, homeMid, awayDef],
-      ball: { position: highPassGk.position, carrierId: highPassGk.id },
-    };
-    const result = applyGKRestart(accurateKickState, 'kick', () => 6); // 8+6=14 >= 8 → accurate
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.actionCount).toBe(11); // +1 for GK kick
-    expect(result.state.lastActionType).toBe('MOVEMENT_PHASE'); // D-21 accurate kick
-  });
-
-  it('applyGKRestart "kick" inaccurate sets lastActionType DEFLECTION (D-21)', () => {
+  it('applyGKRestart "kick" transitions to GK_KICK_TARGET — actionCount unchanged, dice deferred (D-21)', () => {
+    // Kick now goes to GK_KICK_TARGET so the GK's team can select a destination.
+    // Accuracy check + repositioning happen in GK_KICK_MOVEMENT after target selection.
     const state = makeGkRestartState({ actionCount: 10 });
-    // awayGk.highPass=0; 0+1=1 < 8 → inaccurate
-    const result = applyGKRestart(state, 'kick', () => 1); // inaccurate
+    const result = applyGKRestart(state, 'kick', () => 6);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.actionCount).toBe(11); // +1 even on inaccurate kick
-    expect(result.state.lastActionType).toBe('DEFLECTION'); // D-21 inaccurate kick
+    expect(result.state.phase).toBe('GK_KICK_TARGET');
+    expect(result.state.actionCount).toBe(10); // unchanged — no action yet
+    expect(result.state.lastActionType).toBeNull();
+    expect(result.state.lastDiceRoll).toBeNull();
+    expect(result.state.ball.carrierId).toBe('away-gk'); // still with GK at target-selection stage
   });
 
-  it('applyGKRestart "throw" sets lastActionType STANDARD_PASS and actionCount +0 (D-21)', () => {
+  it('applyGKRestart "throw" transitions to QUICK_THROW phase with actionCount +0 (D-21)', () => {
     const state = makeGkRestartState({ actionCount: 10 });
     const result = applyGKRestart(state, 'throw', () => 6);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.actionCount).toBe(10); // +0 for throw
-    expect(result.state.lastActionType).toBe('STANDARD_PASS'); // D-21
+    expect(result.state.phase).toBe('QUICK_THROW');
+    expect(result.state.actionCount).toBe(10); // +0 for quick throw
+    expect(result.state.lastActionType).toBeNull();
   });
 
   it('applyGKRestart "movement" sets lastActionType null and actionCount +0 (D-21)', () => {
@@ -647,7 +635,7 @@ describe('applySnapshot — SNAP-01..03', () => {
     expect(result.state.phase).toBe('SHOT_DECLARED'); // attacker must declare goal hex before deflection
     expect(result.state.lastActionType).toBe('SNAPSHOT');
     expect(result.state.actionCount).toBe(10); // +0 for snapshot (D-18)
-    expect(result.state.snapshotPenalty).toBe(true);
+    expect(result.state.snapshotGkPenalty).toBe(0);
   });
 
   it('succeeds immediately after accurate pass (SNAP-01 post-pass condition)', () => {
@@ -661,7 +649,7 @@ describe('applySnapshot — SNAP-01..03', () => {
     if (!result.ok) return;
     expect(result.state.phase).toBe('SHOT_DECLARED'); // attacker must declare goal hex before deflection
     expect(result.state.lastActionType).toBe('SNAPSHOT');
-    expect(result.state.snapshotPenalty).toBe(true);
+    expect(result.state.snapshotGkPenalty).toBe(0);
   });
 
   it('sets snapshot -1 penalty marker in state (SNAP-02)', () => {
@@ -682,31 +670,36 @@ describe('applySnapshot — SNAP-01..03', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // The snapshot penalty marker should be present in state
-    expect(result.state.snapshotPenalty).toBe(true);
+    expect(result.state.snapshotGkPenalty).toBe(0);
   });
 
-  it('SHOT resolution after snapshot applies -1 dice penalty (SNAP-02, SNAP-03)', () => {
-    // Set up a SHOT state with snapshotPenalty: true
-    // shooter.shooting=9, die=2 → combined=9+2=11 (without penalty)
-    // GK.saving=8, die=2 → combined=8+2=10
-    // Without penalty: 11 > 10 → GOAL
-    // With -1 penalty: 9+2-1=10 vs 8+2=10 → TIE → LOOSE_BALL
-    // NOTE: die=1 always triggers SHOT-03 AUTO_MISS before attribute calc, so use die=2
-    const snapshotShotState: GameState = {
+  it('SHOT resolution GK saving penalty comes from dive distance, not snapshotGkPenalty (SNAP-02, SNAP-03)', () => {
+    // Snapshot shots now flow through GK_DIVING like regular shots.
+    // gkSavingPenalty = validateGKDive(gk, diveDistance).savingPenalty — snapshotGkPenalty is ignored.
+    // awayGk at {q:36,r:13}; gkDivePosition 3 hexes away at {q:33,r:13} → -1 saving penalty.
+
+    // -1 penalty via dive distance: shooter 9+3=12 vs GK 8+4-1=11 → GOAL
+    const state1: GameState = {
       ...makeShotState({ actionCount: 10 }),
-      snapshotPenalty: true,
+      gkDivePosition: { q: 33, r: 13 }, // 3 hexes from awayGk at {q:36,r:13}
     };
-    const result = applyRoll(
-      snapshotShotState,
-      2 /* shooterDice */,
-      2 /* gkDice */,
-      5 /* handling */,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    // Without penalty: 9+2=11 vs 8+2=10 → GOAL
-    // With -1 snapshot penalty: 9+2-1=10 vs 8+2=10 → TIE → LOOSE_BALL
-    expect(result.state.phase).toBe('LOOSE_BALL');
+    const r1 = applyRoll(state1, 3 /* shooter */, 4 /* GK */, 5 /* handling */);
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) return;
+    // Without penalty: 9+3=12 vs 8+4=12 → TIE → LOOSE_BALL
+    // With -1 dive penalty: 9+3=12 vs 8+4-1=11 → shooter wins → GOAL
+    expect(r1.state.phase).toBe('KICK_OFF_SETUP');
+
+    // snapshotGkPenalty in state has no effect on applyRoll (tie stays as LOOSE_BALL)
+    const state2: GameState = {
+      ...makeShotState({ actionCount: 10 }),
+      snapshotGkPenalty: -2, // ignored — no longer read by applyRoll
+    };
+    const r2 = applyRoll(state2, 3 /* shooter */, 4 /* GK */, 5 /* handling */);
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) return;
+    // 9+3=12 vs 8+4=12 → TIE → LOOSE_BALL (snapshotGkPenalty not applied)
+    expect(r2.state.phase).toBe('LOOSE_BALL');
   });
 });
 

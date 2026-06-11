@@ -334,16 +334,40 @@ export function applyMove(
   const newBall = state.ball.carrierId === pieceId ? { ...state.ball, position: to } : state.ball;
 
   // Loose ball pickup: piece steps onto the hex where the ball is loose (no carrier).
-  // D-30: grants possession to the moving piece WITHOUT ending the movement action.
+  // D-30: grants possession to the moving piece WITHOUT ending the movement action (same-team only).
   // The piece retains its remaining pace; paceUsedByPieceId is updated for this step only.
   // Phase stays MOVEMENT so the piece can continue moving (action is not ended).
   // attackingTeam updates to the picking-up piece's team immediately (possession change).
+  // Exception: if the picking-up piece belongs to the defending team (DEFENDER_5 slot),
+  // possession has changed sides — end movement and transition to PASS.
   if (
     state.ball.carrierId === null &&
     to.q === state.ball.position.q &&
     to.r === state.ball.position.r
   ) {
     const newPickupAttackingTeam = piece.teamId;
+
+    if (piece.teamId !== state.attackingTeam) {
+      // Defending team picked up a loose ball — possession changes, movement phase ends.
+      return {
+        ok: true,
+        state: {
+          ...state,
+          pieces: newPieces,
+          ball: { position: to, carrierId: pieceId },
+          attackingTeam: newPickupAttackingTeam,
+          activeTeam: newPickupAttackingTeam,
+          phase: 'PASS',
+          movementSlot: null,
+          movedPieceIds: [],
+          paceUsedByPieceId: {},
+          pendingFreeMove: null,
+          lastActionType: 'DEFLECTION',
+          eventLog: newEventLog,
+        },
+      };
+    }
+
     return {
       ok: true,
       state: {
@@ -1163,12 +1187,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         };
       }
 
-      // SNAP-02: for snapshot shots use distance-based GK penalty (0/-1/-2);
-      // for regular shots use validateGKDive's savingPenalty.
-      const isSnapshot = state.snapshotGkPenalty != null;
-      const gkSavingPenalty = isSnapshot
-        ? (state.snapshotGkPenalty ?? 0)
-        : diveResult.savingPenalty;
+      // GK saving penalty always comes from validateGKDive's distance-based result.
+      // Snapshot shots go through GK_DIVING same as regular shots — no special-case needed.
+      const gkSavingPenalty = diveResult.savingPenalty;
       const gkPenalties = [gkSavingPenalty];
 
       // D-19: shot costs +0 min; actionCount unchanged throughout SHOT branch
@@ -1350,7 +1371,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ? (state.headerContestants?.home ?? [])
           : (state.headerContestants?.away ?? []);
 
-      const headerCleared = { headerContestants: null, headerConfirmed: null };
+      const headerCleared = {
+        headerContestants: null,
+        headerConfirmed: null,
+        headerTargetHex: null,
+      };
 
       // Build per-contestant results: each rolls their die from the pre-generated dice array.
       // dice[0..attackerCount-1] = attacker dice; dice[attackerCount..] = defender dice.
@@ -1894,7 +1919,7 @@ export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyG
     state: {
       ...state,
       phase: 'GK_KICK_MOVEMENT',
-      ball: { ...state.ball, carrierId: null }, // ball is in air
+      ball: { position: targetHex, carrierId: null }, // ball moves to target — visible to both teams
       gkKickTargetHex: targetHex,
       gkKickGkId: gk.id,
       gkKickMovementSlot: 'KICKER',
@@ -2248,7 +2273,10 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
   // SHOT_DECLARED from snapshot context: set target then give defender deflection move
   if (state.phase === 'SHOT_DECLARED') {
     const snapShooter = state.pieces.find((p) => p.id === state.ball.carrierId);
-    const snapShotPath = snapShooter ? hexLine(snapShooter.position, goalHex) : [];
+    if (!snapShooter || hexDistance(snapShooter.position, goalHex) > 6) {
+      return { ok: false, reason: 'INVALID_TARGET' };
+    }
+    const snapShotPath = hexLine(snapShooter.position, goalHex);
     return {
       ok: true,
       state: {

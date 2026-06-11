@@ -204,6 +204,9 @@ function seedHeaderPhaseConfirmed(roomCode: string): void {
   const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
   if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
 
+  // Ball near the away goal line so header target {q:36,r:13} is within 6-hex range.
+  const headerBallPos = { q: 30, r: 13 };
+
   room.gameState = {
     ...room.gameState,
     phase: 'HEADER',
@@ -213,6 +216,12 @@ function seedHeaderPhaseConfirmed(roomCode: string): void {
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
+    ball: { position: headerBallPos, carrierId: null },
+    pieces: room.gameState.pieces.map((p) => {
+      if (p.id === homeAttacker.id) return { ...p, position: { q: 30, r: 13 } };
+      if (p.id === awayDefender.id) return { ...p, position: { q: 31, r: 13 } };
+      return p;
+    }),
     headerContestants: { home: [homeAttacker.id], away: [awayDefender.id] },
     headerConfirmed: { home: true, away: true },
   };

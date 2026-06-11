@@ -146,6 +146,10 @@ export type GameStore = {
   emitHeaderTarget: (targetHex: HexCoord) => void;
   /** Phase 10: Enable/disable shooting mode (step 1 of two-step Shoot flow). */
   setShootingMode: (on: boolean) => void;
+  /** GK quick throw: emit target hex to server (unblocked, uninterceptable delivery). */
+  emitQuickThrow: (targetHex: HexCoord) => void;
+  /** GK kick: emit chosen target hex to server (GK_KICK_TARGET phase). */
+  emitGKKickTarget: (targetHex: HexCoord) => void;
 };
 
 /**
@@ -359,6 +363,37 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // GK_KICK_MOVEMENT: both teams reposition 1 piece up to 3 hexes while kick is in air
+    if (gameState.phase === 'GK_KICK_MOVEMENT') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      if (piece.teamId !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const lockedId = gameState.gkKickMovedPieceId ?? null;
+      if (lockedId !== null && lockedId !== id) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const paceRemaining = 3 - (gameState.gkKickPaceUsed ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      const valid = hexesInRange(piece.position, 1).filter((hex) => {
+        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+        if (
+          gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          )
+        )
+          return false;
+        return hexDistance(piece.position, hex) === 1;
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // SNAP_DEFLECT: defending team moves 1 piece up to 2 hexes
     if (gameState.phase === 'SNAP_DEFLECT') {
       const myTeam = playerSlot === 1 ? 'home' : 'away';
@@ -449,6 +484,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         // Phase 10: clear shooting mode on new server broadcast
         shootingMode: false,
         shootTargetHex: null,
+        // Bug 1: stale GAME_ERROR from a prior action must not bleed into the new phase/slot
+        gameError: null,
       });
       return;
     }
@@ -456,10 +493,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
 
-    // HIGH_PASS_MOVEMENT: re-run phase-specific valid move logic (validateMove is MOVEMENT-only)
-    if (newState.phase === 'HIGH_PASS_MOVEMENT') {
-      const paceRemaining = 3 - (newState.highPassPaceUsed ?? 0);
-      const lockedId = newState.highPassMovedPieceId ?? null;
+    // HIGH_PASS_MOVEMENT / GK_KICK_MOVEMENT: re-run phase-specific valid move logic
+    if (newState.phase === 'HIGH_PASS_MOVEMENT' || newState.phase === 'GK_KICK_MOVEMENT') {
+      const paceRemaining =
+        newState.phase === 'GK_KICK_MOVEMENT'
+          ? 3 - (newState.gkKickPaceUsed ?? 0)
+          : 3 - (newState.highPassPaceUsed ?? 0);
+      const lockedId =
+        newState.phase === 'GK_KICK_MOVEMENT'
+          ? (newState.gkKickMovedPieceId ?? null)
+          : (newState.highPassMovedPieceId ?? null);
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid =
         locked || paceRemaining <= 0
@@ -578,4 +621,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   setShootingMode: (on) => set({ shootingMode: on, shootTargetHex: null }),
+
+  emitQuickThrow: (targetHex) => {
+    socket.emit(ClientEvents.GAME_QUICK_THROW, targetHex);
+  },
+
+  emitGKKickTarget: (targetHex) => {
+    socket.emit(ClientEvents.GAME_GK_KICK_TARGET, targetHex);
+  },
 }));

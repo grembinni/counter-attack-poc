@@ -12,7 +12,7 @@ function pieceColorOf(pieceId: string): string {
 }
 
 /** Bold, team-colored player label rendered inline. */
-function P({ pieceId, prefix }: { pieceId: string; prefix: 'A' | 'D' }) {
+function P({ pieceId, prefix }: { pieceId: string; prefix: string }) {
   return (
     <span style={{ color: pieceColorOf(pieceId), fontWeight: 'bold' }}>
       {prefix}
@@ -99,6 +99,29 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
       continue;
     }
 
+    if (event.type === 'GK_KICK_MOVE') {
+      const prefix = event.slot === 'KICKER' ? '[GK_KICK_K]' : '[GK_KICK_O]';
+      const team = event.slot === 'KICKER' ? 'K' : 'O';
+      const color = pieceColorOf(event.pieceId);
+      const pieceLabel = `${team}${pieceNum(event.pieceId)}`;
+      const groupKey = `GKK_${event.slot}:${event.pieceId}`;
+      const last = items[items.length - 1];
+      if (last?.kind === 'move_group' && last.groupKey === groupKey) {
+        last.path.push(event.to);
+      } else {
+        items.push({
+          kind: 'move_group',
+          groupKey,
+          prefix,
+          prefixColor: color,
+          pieceLabel,
+          pieceColor: color,
+          path: [event.from, event.to],
+        });
+      }
+      continue;
+    }
+
     if (event.type === 'HP_MOVE') {
       const prefix = event.slot === 'ATTACKER' ? '[MOVE_HP_A1]' : '[MOVE_HP_D1]';
       const team = event.slot === 'ATTACKER' ? 'A' : 'D';
@@ -160,6 +183,24 @@ function formatEvent(event: ActionEvent): Formatted {
         content: ` Rolled ${event.result}`,
         isGoal: false,
       };
+    case 'DEFLECT_ATTEMPT': {
+      const deflected = event.result === 'DEFLECTED';
+      const dColor = pieceColorOf(event.defenderId);
+      return {
+        prefix: deflected ? '[DEFLECT ✓]' : '[DEFLECT ✗]',
+        prefixColor: dColor,
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.defenderId} prefix="D" /> (Set {event.band}) — die:{event.die}
+            {event.band === 'A' && event.die < 5
+              ? `+${event.tackling}=${event.die + event.tackling}`
+              : ''}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
     case 'STEAL_ATTEMPT': {
       const dColor = pieceColorOf(event.defenderId);
       return {
@@ -230,13 +271,36 @@ function formatEvent(event: ActionEvent): Formatted {
         content: `  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
-    case 'SHOT_ATTEMPT':
+    case 'SHOT_ATTEMPT': {
+      const fmtScore = (die: number, rawStat: number, penalty: number, score: number): string => {
+        if (penalty === 0) return `(${die}+${rawStat}=${score})`;
+        return `(${die}+${rawStat}${penalty < 0 ? penalty : `+${penalty}`}=${score})`;
+      };
+      let shotContent: React.ReactNode;
+      if (event.shooterScore === null) {
+        // No duel ran: GK out of range — automatic goal
+        shotContent = ` GOAL — GK out of range (die:${event.shooterDie})`;
+      } else if (event.handlingDie !== null) {
+        // GK won the duel; handling check ran
+        const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
+        const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
+        const duelStr = `${fmtScore(event.shooterDie, shooterRawStat, event.shooterPenaltyTotal, event.shooterScore)} vs ${fmtScore(event.gkDie, gkRawStat, event.gkPenaltyTotal, event.gkScore!)}`;
+        const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
+        shotContent = ` ${event.outcome} — ${duelStr} | handling: ${event.handlingDie} vs ${event.gkHandling} (${handlingResult})`;
+      } else {
+        // Regular duel outcome (GOAL or LOOSE_BALL)
+        const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
+        const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
+        const outcomeLabel = event.outcome === 'LOOSE_BALL' ? 'LOOSE BALL (tie)' : event.outcome;
+        shotContent = ` ${outcomeLabel} — ${fmtScore(event.shooterDie, shooterRawStat, event.shooterPenaltyTotal, event.shooterScore)} vs ${fmtScore(event.gkDie, gkRawStat, event.gkPenaltyTotal, event.gkScore!)}`;
+      }
       return {
         prefix: '[SHOT]',
         prefixColor: event.shooterId ? pieceColorOf(event.shooterId) : null,
-        content: ` ${event.outcome}`,
+        content: shotContent,
         isGoal: event.outcome === 'GOAL',
       };
+    }
     case 'SNAPSHOT':
       return {
         prefix: '[SNAPSHOT]',
@@ -346,6 +410,38 @@ function formatEvent(event: ActionEvent): Formatted {
       const team = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
         prefix: event.slot === 'ATTACKER' ? '[MOVE_HP_A1]' : '[MOVE_HP_D1]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.pieceId} prefix={team} /> {event.from.q},{event.from.r} → {event.to.q}
+            ,{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'GK_KICK': {
+      const gkColor = pieceColorOf(event.gkId);
+      const accurate = event.accurate;
+      return {
+        prefix: accurate ? '[GK KICK ✓]' : '[GK KICK ✗]',
+        prefixColor: gkColor,
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.gkId} prefix="GK" /> → {event.targetHex.q},{event.targetHex.r} — die:
+            {event.kickDie}+{event.kickScore - event.kickDie}={event.kickScore}
+            {accurate ? ' ACCURATE' : ' inaccurate — loose ball'}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'GK_KICK_MOVE': {
+      const team = event.slot === 'KICKER' ? 'K' : 'O';
+      return {
+        prefix: event.slot === 'KICKER' ? '[GK_KICK_K]' : '[GK_KICK_O]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>

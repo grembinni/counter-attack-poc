@@ -672,8 +672,8 @@ describe('game:shot (D-06)', () => {
     expect(getRoom(roomCode)!.gameState?.phase).toBe('KICK_OFF_SETUP');
   });
 
-  it('game:shot from the shooter in PASS phase → state transitions to GK_DIVING (D-02 rework)', async () => {
-    // D-02: GAME_SHOT now calls applyDeclareShot: PASS → GK_DIVING; broadcasts new state.
+  it('game:shot from the shooter in PASS phase → shot transition accepted (D-02 rework)', async () => {
+    // D-02: GAME_SHOT now runs deflection check then enters GK_DIVING (or auto-resolves).
     const { clientA, clientB, roomCode, state } = await setupRoom();
     const { shooterClient } = seedPassPhaseForShot(roomCode, clientA, clientB, state.attackingTeam);
 
@@ -684,10 +684,13 @@ describe('game:shot (D-06)', () => {
     const targetHex = state.attackingTeam === 'home' ? { q: 36, r: 13 } : { q: 0, r: 13 };
     shooterClient.emit(ClientEvents.GAME_SHOT, targetHex);
 
-    // Server broadcasts new state (transition to GK_DIVING)
+    // Server broadcasts new state — phase leaves PASS (deflection or GK_DIVING or auto-GOAL)
     const [newState] = await statePromise;
-    expect(newState.phase).toBe('GK_DIVING');
-    expect(newState.shotTargetHex).toEqual(targetHex);
+    expect(newState.phase).not.toBe('PASS');
+    // If GK in range and no deflection: GK_DIVING with shotTargetHex recorded
+    if (newState.phase === 'GK_DIVING') {
+      expect(newState.shotTargetHex).toEqual(targetHex);
+    }
   });
 
   it('game:shot with a malformed payload (non-{q,r} object) returns GAME_ERROR INVALID_TARGET (T-07-12)', async () => {

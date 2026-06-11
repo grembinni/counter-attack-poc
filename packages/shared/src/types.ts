@@ -67,7 +67,10 @@ export type ActionEventType =
   | 'HP_REPOSITION'
   | 'HP_ACCURACY'
   | 'HP_MOVE'
-  | 'LOOSE_BALL_LAND';
+  | 'LOOSE_BALL_LAND'
+  | 'DEFLECT_ATTEMPT'
+  | 'GK_KICK'
+  | 'GK_KICK_MOVE';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -138,7 +141,32 @@ export type ActionEvent =
       type: 'SHOT_ATTEMPT';
       shooterId: string;
       targetHex: HexCoord;
-      outcome: 'GOAL' | 'MISS' | 'SAVE' | 'LOOSE_BALL';
+      outcome: 'GOAL' | 'SAVE' | 'LOOSE_BALL';
+      /** Raw shooter die value. */
+      shooterDie: number;
+      /** Shooter combined score (die + shooting + penalties). null when no duel ran (auto-miss or unsaveable). */
+      shooterScore: number | null;
+      /** Raw GK die value. */
+      gkDie: number;
+      /** GK combined score (die + saving + penalties). null when no duel ran. */
+      gkScore: number | null;
+      /** Handling die, present only when GK won the shot duel and a handling check ran. */
+      handlingDie: number | null;
+      /** GK's handling attribute, present when handlingDie is non-null. */
+      gkHandling: number | null;
+      /** Net clamped penalty applied to shooter (0, -1, or -2). 0 when no duel ran. */
+      shooterPenaltyTotal: number;
+      /** Net clamped penalty applied to GK (0, -1, or -2). 0 when no duel ran. */
+      gkPenaltyTotal: number;
+      timestamp: number;
+    }
+  | {
+      type: 'DEFLECT_ATTEMPT';
+      defenderId: string;
+      band: 'A' | 'B';
+      die: number;
+      tackling: number;
+      result: 'DEFLECTED' | 'NO_DEFLECT';
       timestamp: number;
     }
   | { type: 'SNAPSHOT'; shooterId: string; timestamp: number }
@@ -175,7 +203,24 @@ export type ActionEvent =
       to: HexCoord;
       timestamp: number;
     }
-  | { type: 'LOOSE_BALL_LAND'; from: HexCoord; to: HexCoord; timestamp: number };
+  | { type: 'LOOSE_BALL_LAND'; from: HexCoord; to: HexCoord; timestamp: number }
+  | {
+      type: 'GK_KICK';
+      gkId: string;
+      targetHex: HexCoord;
+      accurate: boolean;
+      kickDie: number;
+      kickScore: number;
+      timestamp: number;
+    }
+  | {
+      type: 'GK_KICK_MOVE';
+      slot: 'KICKER' | 'OPP';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    };
 
 export type GamePhase =
   | 'LOBBY'
@@ -192,6 +237,9 @@ export type GamePhase =
   | 'LOOSE_BALL'
   | 'HIGH_PASS_MOVEMENT' // Pre-accuracy repositioning phase for high pass
   | 'GK_RESTART'
+  | 'QUICK_THROW' // GK selects target hex for unblockable, uninterceptable throw
+  | 'GK_KICK_TARGET' // GK's team selects kick destination (not into opponent's final third)
+  | 'GK_KICK_MOVEMENT' // both teams reposition 1 player ≤3 hexes while ball is in air
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -279,11 +327,14 @@ export type GameState = {
   /** D-31: total replay frame count carried on REPLAY-phase frames only; absent outside replay. */
   replayTotal?: number;
   /**
-   * SNAP-02: true when the current SHOT phase was entered via applySnapshot.
-   * The SHOT branch in applyRoll applies a -1 shooter dice penalty when this is set.
-   * Cleared to false after the shot resolves (goal, miss, save, loose ball).
+   * SNAP-02: GK saving penalty for the current snapshot shot.
+   * 0  = snapshot active, GK within 1 hex of target (no penalty).
+   * -1 = GK at exactly 2 hexes from target.
+   * -2 = GK at exactly 3 hexes from target.
+   * undefined = not a snapshot shot (regular shot rules apply).
+   * Cleared to undefined after the shot resolves.
    */
-  snapshotPenalty?: boolean;
+  snapshotGkPenalty?: number | null;
   /**
    * D-10 (Phase 8.2): Target hex for the in-flight Long/High pass.
    * Set by the GAME_ROLL handler before applyRoll; consumed and cleared by the applyRoll PASS branch.
@@ -351,4 +402,33 @@ export type GameState = {
   snapDeflectMovedPieceId?: string | null;
   /** Phase 10 SNAP_DEFLECT: number of hexes moved so far during snap deflection (max 2). */
   snapDeflectPaceUsed?: number;
+  /** Last resolved shot path (shooter → goal hex). Cleared on next non-shot action. */
+  lastShotPath?: HexCoord[] | null;
+  /**
+   * GK_KICK_TARGET / GK_KICK_MOVEMENT: destination hex selected by the GK's team.
+   * null outside GK kick phases.
+   */
+  gkKickTargetHex?: HexCoord | null;
+  /**
+   * GK_KICK_MOVEMENT: piece ID of the GK who kicked. Saved before ball.carrierId is cleared
+   * so the accuracy stat (highPass) can be looked up after repositioning.
+   * null outside GK kick phases.
+   */
+  gkKickGkId?: string | null;
+  /**
+   * GK_KICK_MOVEMENT: whose repositioning slot is active.
+   * 'KICKER' → GK's team moves first; 'OPP' → opponent moves.
+   * null outside GK_KICK_MOVEMENT phase.
+   */
+  gkKickMovementSlot?: 'KICKER' | 'OPP' | null;
+  /**
+   * GK_KICK_MOVEMENT: piece ID locked in for this team's repositioning slot.
+   * null if no piece has moved yet in the current slot.
+   */
+  gkKickMovedPieceId?: string | null;
+  /**
+   * GK_KICK_MOVEMENT: cumulative hexes moved by gkKickMovedPieceId in the current slot.
+   * Capped at 3. Reset to 0 at each slot transition.
+   */
+  gkKickPaceUsed?: number;
 };

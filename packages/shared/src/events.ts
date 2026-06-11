@@ -39,6 +39,10 @@ export const ClientEvents = {
   GAME_GK_DIVE: 'game:gk-dive',
   /** Phase 10: Attacker selects target hex during HEADER phase (HEAD-03). */
   GAME_HEADER_TARGET: 'game:header-target',
+  /** GK selects the target hex for a quick throw (unblockable, uninterceptable standard pass). */
+  GAME_QUICK_THROW: 'game:quick-throw',
+  /** GK kick: GK's team selects the target hex for the kick (not into opponent's final third). */
+  GAME_GK_KICK_TARGET: 'game:gk-kick-target',
 } as const;
 
 export const ServerEvents = {
@@ -96,6 +100,10 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_GK_DIVE]: (to: HexCoord) => void;
   /** Phase 10: Header target hex selection during HEADER phase (HEAD-03). */
   [ClientEvents.GAME_HEADER_TARGET]: (targetHex: HexCoord) => void;
+  /** GK quick throw target hex — unblockable, uninterceptable delivery. */
+  [ClientEvents.GAME_QUICK_THROW]: (targetHex: HexCoord) => void;
+  /** GK kick target hex — not into opponent's final third; triggers GK_KICK_MOVEMENT repositioning. */
+  [ClientEvents.GAME_GK_KICK_TARGET]: (targetHex: HexCoord) => void;
 }
 
 /**

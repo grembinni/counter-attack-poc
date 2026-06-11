@@ -503,8 +503,10 @@ describe('D-30: loose-ball pickup continues movement action', () => {
     if (!result.ok) return;
     // After pickup, attacking team should switch to away (the picking-up team)
     expect(result.state.attackingTeam).toBe('away');
-    // D-30: should remain in MOVEMENT phase, not transition to PASS
-    expect(result.state.phase).toBe('MOVEMENT');
+    // Defender picked up loose ball during DEFENDER_5 slot → possession changed, movement ends.
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.movementSlot).toBeNull();
+    expect(result.state.activeTeam).toBe('away');
   });
 });
 
@@ -654,13 +656,16 @@ describe('Shot defender path-deflection (D-03)', () => {
 // ---------------------------------------------------------------------------
 
 describe('applyGKDive guards (Phase 10)', () => {
+  // GK at q=36,r=13; shooter (homeFwd) at q=32,r=12; default shot aimed at q=36,r=13
   const makeGkDivingState = (overrides: Partial<GameState> = {}): GameState => ({
     ...baseState,
     phase: 'GK_DIVING',
     movementSlot: null,
     activeTeam: 'away',
     lastActionType: 'SHOT',
-    ball: { position: awayGk.position, carrierId: 'away-gk' },
+    ball: { position: homeFwd.position, carrierId: 'home-fwd' }, // shooter holds ball
+    shotTargetHex: { q: 36, r: 13 }, // goal hex = default dive target
+    gkDivePosition: { q: 36, r: 13 }, // GK starts at goal hex
     ...overrides,
   });
 
@@ -671,28 +676,33 @@ describe('applyGKDive guards (Phase 10)', () => {
     if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
   });
 
-  it('applyGKDive rejects a hex where to.q !== gk.position.q (not parallel to goal line)', () => {
-    // GK at q=36; diagonal move changes q → invalid
+  it('applyGKDive rejects a hex not on the shot path (NOT_ON_PATH)', () => {
+    // Shot aimed at {q:36,r:13}; hex {q:35,r:13} is off the path → NOT_ON_PATH
     const state = makeGkDivingState();
-    const result = applyGKDive(state, { q: 35, r: 13 }); // q changed → diagonal
+    const result = applyGKDive(state, { q: 35, r: 13 });
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('NOT_ON_PATH');
   });
 
-  it('applyGKDive accepts a parallel-to-goal-line move (constant q, varying r)', () => {
-    const state = makeGkDivingState({ gkDivePosition: { q: 36, r: 13 } });
-    const result = applyGKDive(state, { q: 36, r: 14 }); // same q, r+1
+  it('applyGKDive accepts a shot-path hex within 3 hexes of GK', () => {
+    // Shot aimed at {q:36,r:14}; GK starts at {q:36,r:13} — dive to the goal hex (on path)
+    const state = makeGkDivingState({
+      shotTargetHex: { q: 36, r: 14 },
+      gkDivePosition: { q: 36, r: 13 },
+    });
+    const result = applyGKDive(state, { q: 36, r: 14 }); // goal hex = endpoint of path
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.gkDivePosition).toEqual({ q: 36, r: 14 });
   });
 
-  it('applyGKDive rejects a 4th hex beyond the 3-hex cumulative limit (SHOT-04)', () => {
-    // GK started at r=13, already moved 3 hexes to r=16
+  it('applyGKDive rejects a hex more than 3 hexes from GK starting position (TOO_FAR)', () => {
+    // Shot aimed at {q:36,r:17}; GK at {q:36,r:13} — 4 hexes away → TOO_FAR
     const state = makeGkDivingState({
-      gkDivePosition: { q: 36, r: 16 },
-      // represent 3 hexes of movement
+      shotTargetHex: { q: 36, r: 17 },
     });
-    const result = applyGKDive(state, { q: 36, r: 17 }); // 4th hex
+    const result = applyGKDive(state, { q: 36, r: 17 }); // 4 hexes from GK position
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('TOO_FAR');
   });
 });

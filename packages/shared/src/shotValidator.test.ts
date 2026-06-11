@@ -39,11 +39,11 @@ const goalkeeper: PlayerPiece = {
 };
 
 describe('validateShotDuel', () => {
-  it('returns AUTO_MISS on shooterDice === 1 regardless of attributes (SHOT-03 precedence)', () => {
-    // shooter.shooting=7, gk.saving=1 — shooter would dominate on attributes alone, but dice=1 wins
-    const result = validateShotDuel(shooter, goalkeeper, 1, 6, [], []);
-    expect(result.outcome).toBe('MISS');
-    if (result.outcome === 'MISS') expect(result.reason).toBe('AUTO_MISS');
+  it('die=1 participates in the normal duel — no auto-miss rule', () => {
+    // shooter: 7+1=8 vs low-saving GK: 1+1=2 → shooter wins despite rolling 1
+    const weakGK: PlayerPiece = { ...goalkeeper, saving: 1 };
+    const result = validateShotDuel(shooter, weakGK, 1, 1, [], []);
+    expect(result.outcome).toBe('GOAL');
   });
 
   it('returns GOAL when shooterScore > gkScore', () => {

@@ -22,6 +22,8 @@ beforeEach(() => {
     disconnectWarning: false,
     roomError: null,
     gameError: null,
+    selectedPassType: null,
+    passTargetHex: null,
   });
 });
 
@@ -114,28 +116,26 @@ describe('ActionPanel — UNDO-01: clicking Undo emits game:undo', () => {
   });
 });
 
-describe('ActionPanel — Roll button for PASS phase', () => {
-  it('shows Roll Dice button during PASS phase for active player', () => {
+describe('ActionPanel — PASS phase pass-type selection flow', () => {
+  it('shows target-hex prompt and Back button in step 2 (pass type selected, no target)', () => {
     useGameStore.setState({
       gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
       selectedPassType: 'STANDARD_PASS',
-      passTargetHex: { q: 6, r: 3 },
+      passTargetHex: null,
     });
     render(<ActionPanel />);
-    expect(screen.getByRole('button', { name: /roll dice/i })).toBeDefined();
+    expect(screen.getByText(/standard pass/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /back/i })).toBeDefined();
   });
 
-  it('calls emitRoll when Roll Dice clicked', () => {
-    const emitRoll = vi.fn();
+  it('returns null in step 3 (target selected) because confirmPassTarget auto-emits', () => {
     useGameStore.setState({
       gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
       selectedPassType: 'STANDARD_PASS',
       passTargetHex: { q: 6, r: 3 },
-      emitRoll,
     });
-    render(<ActionPanel />);
-    fireEvent.click(screen.getByRole('button', { name: /roll dice/i }));
-    expect(emitRoll).toHaveBeenCalledOnce();
+    const { container } = render(<ActionPanel />);
+    expect(container.firstChild).toBeNull();
   });
 });
 

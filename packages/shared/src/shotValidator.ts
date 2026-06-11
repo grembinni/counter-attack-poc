@@ -16,15 +16,13 @@ import { computeCombinedScore } from './scoreUtils.js';
 /**
  * Discriminated union for shot duel outcome.
  *
- * AUTO_MISS is emitted before attribute calculation when shooterDice === 1 (SHOT-03).
  * SAVE carries needsHandlingCheck:true — caller invokes validateHandlingCheck.
  * D-13 (Phase 5): Ties (equal scores) produce LOOSE_BALL, not SAVE.
  */
 export type ShotDuelResult =
   | { outcome: 'GOAL' }
-  | { outcome: 'MISS'; reason: 'AUTO_MISS' }
   | { outcome: 'SAVE'; needsHandlingCheck: true }
-  | { outcome: 'LOOSE_BALL' }; // D-13: tie → Loose Ball (replaces SAVE on equal scores)
+  | { outcome: 'LOOSE_BALL' }; // D-13: tie → Loose Ball
 
 /** GK dive savability result based on distance from shot origin (SHOT-04). */
 export type DiveResult =
@@ -61,9 +59,6 @@ export function validateShotDuel(
   shooterPenalties: number[],
   gkPenalties: number[],
 ): ShotDuelResult {
-  // SHOT-03: auto-miss check MUST run before any attribute calculation
-  if (shooterDice === 1) return { outcome: 'MISS', reason: 'AUTO_MISS' };
-
   const shooterScore = computeCombinedScore(shooter.shooting, shooterDice, shooterPenalties);
   const gkScore = computeCombinedScore(goalkeeper.saving, gkDice, gkPenalties);
 

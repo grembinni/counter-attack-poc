@@ -18,6 +18,9 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   LOOSE_BALL: 'LOOSE BALL',
   HIGH_PASS_MOVEMENT: 'HIGH PASS — REPOSITION',
   GK_RESTART: 'GK RESTART',
+  QUICK_THROW: 'QUICK THROW',
+  GK_KICK_TARGET: 'GK KICK — SELECT TARGET',
+  GK_KICK_MOVEMENT: 'GK KICK — REPOSITION',
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
@@ -39,15 +42,17 @@ export function TurnIndicator() {
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
   const score = useGameStore((s) => s.gameState.score);
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
-  const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
+  const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
 
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
   const teamColor = activeTeam === 'home' ? '#1a56b0' : '#c0392b';
   const phaseLabel = PHASE_LABEL[phase];
 
+  // paceUsedByPieceId is reset to {} at every slot boundary, so its key count
+  // reflects activations in the CURRENT slot only — correct for all three slots.
   const remaining =
     phase === 'MOVEMENT' && movementSlot != null
-      ? SLOT_TOTAL[movementSlot] - movedPieceIds.length
+      ? SLOT_TOTAL[movementSlot] - Object.keys(paceUsedByPieceId).length
       : null;
 
   return (

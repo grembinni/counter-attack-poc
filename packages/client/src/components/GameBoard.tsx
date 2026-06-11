@@ -21,6 +21,9 @@ const PLAY_PHASES = new Set([
   'SNAPSHOT',
   'LOOSE_BALL',
   'GK_RESTART',
+  'QUICK_THROW',
+  'GK_KICK_TARGET',
+  'GK_KICK_MOVEMENT',
 ]);
 
 /**
