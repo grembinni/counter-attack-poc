@@ -390,6 +390,19 @@ export type GameState = {
   highPassCarrierId?: string | null;
   /** Phase 10 HEAD-03: target hex selected by header attacker; null outside HEADER phase. */
   headerTargetHex?: HexCoord | null;
+  /**
+   * RULE-01 (Phase 11): true when high-pass accuracy roll has resolved but the
+   * attacker has not yet acknowledged the result. Contestant selection UI is
+   * suppressed until this flag clears. null or absent outside HEADER phase.
+   */
+  headerAccuracyRollPending?: boolean | null;
+  /**
+   * RULE-02 (Phase 11): winner of the heading duel.
+   * Set in GAME_HEADER_CONTESTANT when both teams confirm and duel auto-fires.
+   * Used by GAME_HEADER_TARGET to validate the submitting team.
+   * null or absent outside HEADER phase after duel resolves.
+   */
+  headerDuelWinner?: 'home' | 'away' | null;
   /** Phase 10 SHOT_DECLARED: goal hex the shooter declared. */
   shotTargetHex?: HexCoord | null;
   /** Phase 10 GK_DIVING: GK's current position during GK_DIVING phase. */

@@ -1080,6 +1080,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             headerContestants: { home: [] as string[], away: [] as string[] },
             headerConfirmed: { home: !homeEligible, away: !awayEligible },
             headerTargetHex: null,
+            headerAccuracyRollPending: true, // RULE-01 (Phase 11): gate contestant selection until attacker acks roll
           },
         };
       }
@@ -1375,6 +1376,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         headerContestants: null,
         headerConfirmed: null,
         headerTargetHex: null,
+        headerAccuracyRollPending: null, // RULE-01 (Phase 11): clear on all HEADER terminal transitions
+        headerDuelWinner: null, // RULE-02 (Phase 11): clear on all HEADER terminal transitions
       };
 
       // Build per-contestant results: each rolls their die from the pre-generated dice array.

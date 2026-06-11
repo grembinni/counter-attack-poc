@@ -41,6 +41,11 @@ export const ClientEvents = {
   GAME_QUICK_THROW: 'game:quick-throw',
   /** GK kick: GK's team selects the target hex for the kick (not into opponent's final third). */
   GAME_GK_KICK_TARGET: 'game:gk-kick-target',
+  /**
+   * RULE-01 (Phase 11): attacker acknowledges the high-pass accuracy roll result before
+   * contestant selection UI is shown. Zero-argument event — clears headerAccuracyRollPending.
+   */
+  GAME_HEADER_ACCURACY_ACK: 'game:header-accuracy-ack',
 } as const;
 
 export const ServerEvents = {
@@ -100,6 +105,11 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_QUICK_THROW]: (targetHex: HexCoord) => void;
   /** GK kick target hex — not into opponent's final third; triggers GK_KICK_MOVEMENT repositioning. */
   [ClientEvents.GAME_GK_KICK_TARGET]: (targetHex: HexCoord) => void;
+  /**
+   * RULE-01 (Phase 11): attacker acknowledges the high-pass accuracy roll result.
+   * Zero-argument acknowledgment — clears headerAccuracyRollPending flag on the server.
+   */
+  [ClientEvents.GAME_HEADER_ACCURACY_ACK]: () => void;
 }
 
 /**
