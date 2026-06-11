@@ -106,9 +106,12 @@ export function HexGrid() {
   // GK_DIVING: valid dive targets are shot-path hexes within 3 hexes of GK's starting position.
   const gkDiveTargetSet = new Set<string>();
   if (phase === 'GK_DIVING' && gkDivePosition !== null && gkDivePosition !== undefined) {
-    const shooter = ball.carrierId ? pieces.find((p) => p.id === ball.carrierId) : null;
-    if (shooter && shotTargetHex !== null && shotTargetHex !== undefined) {
-      for (const h of hexLine(shooter.position, shotTargetHex)) {
+    // For a regular shot the ball has a carrier (the shooter). For a header-at-goal the ball
+    // was in the air (carrierId=null) — fall back to ball.position as the shot origin.
+    const shooterPiece = ball.carrierId ? pieces.find((p) => p.id === ball.carrierId) : null;
+    const shotOrigin = shooterPiece?.position ?? ball.position;
+    if (shotTargetHex !== null && shotTargetHex !== undefined) {
+      for (const h of hexLine(shotOrigin, shotTargetHex)) {
         if (hexDistance(gkDivePosition, h) <= 3) {
           gkDiveTargetSet.add(`${h.q},${h.r}`);
         }
@@ -252,10 +255,14 @@ export function HexGrid() {
             const isGKDiveTarget =
               phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId) && isGKTeamPlayer;
 
-            // Phase 10: HEADER target hex selection step
+            // Phase 10: HEADER target hex selection step — targets limited to attacking penalty area
             const isHeaderTargetGoalHex = headerTargetStep && goalLineHexSet.has(hexId);
-            // All non-goal-line pitch hexes are also valid header targets (engine only requires isPitchHex)
-            const isHeaderNonGoalTarget = headerTargetStep && !goalLineHexSet.has(hexId);
+            const headerPenaltyRegion =
+              attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+            const isHeaderNonGoalTarget =
+              headerTargetStep &&
+              !goalLineHexSet.has(hexId) &&
+              isInRegion(hex, headerPenaltyRegion);
 
             // Suppress gold move highlights during reposition phases — separate subtle overlay below
             // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)
