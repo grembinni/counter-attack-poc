@@ -1474,13 +1474,15 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           const defendingTeamForGkB: 'home' | 'away' =
             state.attackingTeam === 'home' ? 'away' : 'home';
           const gkB = state.pieces.find((p) => p.teamId === defendingTeamForGkB && p.role === 'GK');
-          const headerShotPathB = hexLine(state.ball.position, tgtHexB);
+          const winnerPos = winnerPiece?.position ?? state.ball.position;
+          const headerShotPathB = hexLine(winnerPos, tgtHexB);
           return {
             ok: true,
             state: {
               ...state,
               phase: 'GK_DIVING',
               lastActionType: 'SHOT',
+              ball: { position: winnerPos, carrierId: winnerId },
               shotTargetHex: tgtHexB,
               gkDivePosition: gkB?.position ?? state.ball.position,
               lastShotPath: headerShotPathB,
@@ -1557,13 +1559,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           const defendingTeamForGk: 'home' | 'away' =
             state.attackingTeam === 'home' ? 'away' : 'home';
           const gk = state.pieces.find((p) => p.teamId === defendingTeamForGk && p.role === 'GK');
-          const headerShotPath = hexLine(state.ball.position, tgtHex);
+          const headerShotPath = hexLine(attackerPiece.position, tgtHex);
           return {
             ok: true,
             state: {
               ...state,
               phase: 'GK_DIVING',
               lastActionType: 'SHOT',
+              ball: { position: attackerPiece.position, carrierId: attackerPiece.id },
               shotTargetHex: tgtHex,
               gkDivePosition: gk?.position ?? state.ball.position,
               lastShotPath: headerShotPath,
