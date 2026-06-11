@@ -355,3 +355,195 @@ describe('RULE-02: applyResolveHeaderTarget — GK_DIVING route for goal-line ta
     expect(result.state.headerContestants).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// RULE-03: lastShotPath cleared on loose-ball scatter and confirmed-bug SHOT branches
+// ---------------------------------------------------------------------------
+
+/**
+ * Shooter inside awayPenaltyArea (q=33, r=12) so no -1 outside-area penalty.
+ * GK (saving=4) at {q:36,r:13} — shotTargetHex = {q:36,r:13}, distance=3 → saveable with -1 penalty.
+ *
+ * Die values for each RULE-03 scenario:
+ *   LOOSE_BALL tie:  shooter die=5, GK die=6 → scores: 3+5=8, (4-1)+6=9? No...
+ *   Let's use simpler: shooting=5, die=3 → score=8; saving=3, penalty=0, die=5 → score=8 → tie.
+ *   GK at same position as target so distance=0 → penalty=0.
+ */
+const shotShooter: PlayerPiece = {
+  id: 'shot-shooter',
+  teamId: 'home',
+  name: 'Shot Shooter',
+  role: 'FWD',
+  // Inside awayPenaltyArea: q=33 ∈ [31,36], r=12 ∈ [5,19]
+  position: { q: 33, r: 12 },
+  pace: 8,
+  shooting: 5,
+  tackling: 2,
+  dribbling: 6,
+  heading: 5,
+  saving: 1,
+  handling: 1,
+  resilience: 6,
+  aerialAbility: 0,
+  highPass: 5,
+};
+
+/** GK at shot target hex so distance = 0, no saving penalty (diveResult.savingPenalty = 0). */
+const shotGk: PlayerPiece = {
+  id: 'shot-gk',
+  teamId: 'away',
+  name: 'Shot GK',
+  role: 'GK',
+  // At the shot target — distance 0 from target, no dive penalty
+  position: { q: 36, r: 13 },
+  pace: 5,
+  shooting: 1,
+  tackling: 1,
+  dribbling: 1,
+  heading: 3,
+  saving: 3, // saving=3: die=5 → score=8, tie with shooter (shooting=5, die=3 → score=8)
+  handling: 3, // handling=3: handlingDie=4 ≥ 3 → dropped (LOOSE_BALL)
+  resilience: 5,
+  aerialAbility: 4,
+  highPass: 0,
+};
+
+/**
+ * Base SHOT state that reaches the LOOSE_BALL (tie) branch when called with
+ * applyRoll(state, shooterDie=3, gkDie=5, handlingDie=1).
+ * Shooter (shooting=5) + die=3 = 8. GK (saving=3) + die=5 = 8. Tie → LOOSE_BALL.
+ */
+const makeShotStateRule03 = (overrides: Partial<GameState> = {}): GameState => ({
+  ...baseState,
+  phase: 'SHOT',
+  attackingTeam: 'home',
+  activeTeam: 'home',
+  pieces: [shotShooter, awayDef, shotGk, homeMid],
+  ball: { position: shotShooter.position, carrierId: 'shot-shooter' },
+  shotTargetHex: shotGk.position, // {q:36,r:13} — GK position = shot target
+  lastShotPath: [
+    { q: 33, r: 12 },
+    { q: 34, r: 12 },
+    { q: 35, r: 12 },
+    { q: 36, r: 13 },
+  ],
+  lastActionType: 'MOVEMENT_PHASE',
+  snapshotGkPenalty: null,
+  ...overrides,
+});
+
+/**
+ * GK with high saving (wins duel) and low handling (drops save).
+ * saving=8: GK die=6 → score=14; shooter (shooting=3) die=1 → score=4. GK wins → SAVE.
+ * handling=3: handlingDie=4 ≥ 3 → dropped → LOOSE_BALL.
+ */
+const dropGk: PlayerPiece = {
+  ...shotGk,
+  id: 'drop-gk',
+  saving: 8,
+  handling: 3,
+};
+
+const makeSaveDroppedState = (overrides: Partial<GameState> = {}): GameState => ({
+  ...makeShotStateRule03(),
+  pieces: [{ ...shotShooter, shooting: 3 }, awayDef, dropGk, homeMid],
+  ball: { position: shotShooter.position, carrierId: 'shot-shooter' },
+  lastShotPath: [
+    { q: 33, r: 12 },
+    { q: 34, r: 12 },
+    { q: 36, r: 13 },
+  ],
+  shotTargetHex: dropGk.position,
+  ...overrides,
+});
+
+/**
+ * LOOSE_BALL state with a non-null lastShotPath (simulating prior SHOT phase stale path).
+ * applyRoll on LOOSE_BALL scatter transitions to PASS.
+ * Before the RULE-03 fix, lastShotPath was inherited via ...state spread.
+ * After the fix, it must be null in the returned PASS state.
+ */
+const makeLooseBallScatterState = (overrides: Partial<GameState> = {}): GameState => ({
+  ...baseState,
+  phase: 'LOOSE_BALL',
+  attackingTeam: 'home',
+  activeTeam: 'home',
+  // Ball in the centre of the pitch — well within bounds
+  ball: { position: { q: 18, r: 13 }, carrierId: null },
+  lastShotPath: [
+    { q: 25, r: 12 },
+    { q: 30, r: 12 },
+    { q: 36, r: 13 },
+  ],
+  lastActionType: 'DEFLECTION',
+  ...overrides,
+});
+
+describe('RULE-03: SHOT LOOSE_BALL (tie) branch — lastShotPath is null after fix', () => {
+  it('applyRoll SHOT tie (scores equal) returns LOOSE_BALL state with lastShotPath === null', () => {
+    // Shooter: shooting=5, die=3 → score=8. GK: saving=3, die=5 → score=8. Tie → LOOSE_BALL.
+    // GK is AT the shot target (distance=0) → no dive penalty.
+    const state = makeShotStateRule03();
+    const result = applyRoll(state, 3, 5, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    // RULE-03 fix: lastShotPath must be null (was previously carrying shotPath forward)
+    expect(result.state.lastShotPath).toBeNull();
+  });
+});
+
+describe('RULE-03: SHOT save-dropped branch — lastShotPath is null after fix', () => {
+  it('applyRoll SHOT save-dropped returns LOOSE_BALL state with lastShotPath === null', () => {
+    // Shooter: shooting=3, die=1 → score=4. GK (dropGk): saving=8, die=6 → score=14. SAVE.
+    // Handling check: handlingDie=4 ≥ gk.handling=3 → dropped → LOOSE_BALL.
+    const state = makeSaveDroppedState();
+    const result = applyRoll(state, 1, 6, 4);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    // RULE-03 fix: lastShotPath must be null (was previously carrying shotPath forward)
+    expect(result.state.lastShotPath).toBeNull();
+  });
+});
+
+describe('RULE-03: LOOSE_BALL scatter → PASS — lastShotPath is null after fix', () => {
+  it('applyRoll LOOSE_BALL scatter returns PASS state with lastShotPath === null', () => {
+    // Ball at centre pitch; any dice values will scatter and land somewhere.
+    // The state has a non-null lastShotPath that was inherited from prior SHOT phase.
+    // After fix, the LOOSE_BALL return object must explicitly set lastShotPath: null.
+    const state = makeLooseBallScatterState();
+    expect(state.lastShotPath).not.toBeNull();
+    const result = applyRoll(state, 3, 4);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    // RULE-03 primary fix: stale shot path must not persist into PASS phase
+    expect(result.state.lastShotPath).toBeNull();
+  });
+});
+
+describe('RULE-03: confirmed-correct branches still return lastShotPath === null (regression)', () => {
+  it('applyRoll SHOT GOAL branch returns KICK_OFF_SETUP with lastShotPath === null (unchanged)', () => {
+    // Force GOAL: shooter (shooting=5) die=6 → score=11; GK (saving=3) die=1 → score=4. GOAL.
+    const state = makeShotStateRule03();
+    const result = applyRoll(state, 6, 1, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('KICK_OFF_SETUP');
+    // Should already be null — regression guard to confirm correct branches are unchanged
+    expect(result.state.lastShotPath).toBeNull();
+  });
+
+  it('applyRoll SHOT save-caught branch returns GK_RESTART with lastShotPath === null (unchanged)', () => {
+    // GK wins (saving=8+die=6=14 > shooting=3+die=1=4) → SAVE.
+    // Handling: handlingDie=1 < gk.handling=8 → caught. GK_RESTART.
+    const state = makeSaveDroppedState();
+    const result = applyRoll(state, 1, 6, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_RESTART');
+    // Confirmed-correct branch — already null, regression guard
+    expect(result.state.lastShotPath).toBeNull();
+  });
+});
