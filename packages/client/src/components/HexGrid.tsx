@@ -255,14 +255,12 @@ export function HexGrid() {
             const isGKDiveTarget =
               phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId) && isGKTeamPlayer;
 
-            // Phase 10: HEADER target hex selection step — targets limited to attacking penalty area
-            const isHeaderTargetGoalHex = headerTargetStep && goalLineHexSet.has(hexId);
-            const headerPenaltyRegion =
-              attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+            // Phase 10: HEADER target hex selection step — same range as first-time pass (≤6 hexes)
+            const headerDist = headerTargetStep ? hexDistance(hex, ball.position) : Infinity;
+            const isHeaderTargetGoalHex =
+              headerTargetStep && goalLineHexSet.has(hexId) && headerDist <= 6;
             const isHeaderNonGoalTarget =
-              headerTargetStep &&
-              !goalLineHexSet.has(hexId) &&
-              isInRegion(hex, headerPenaltyRegion);
+              headerTargetStep && !goalLineHexSet.has(hexId) && headerDist <= 6;
 
             // Suppress gold move highlights during reposition phases — separate subtle overlay below
             // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)

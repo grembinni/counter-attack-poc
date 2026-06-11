@@ -2113,6 +2113,11 @@ export function applyDeclareHeaderTarget(
     return { ok: false, reason: 'INVALID_TARGET' };
   }
 
+  // 4. Range guard — same as first-time pass (≤6 hexes from ball position)
+  if (hexDistance(state.ball.position, targetHex) > 6) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
   // Set headerTargetHex; stay in HEADER for the duel
   return {
     ok: true,
