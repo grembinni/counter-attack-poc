@@ -1129,9 +1129,6 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const diveDistance = hexDistance(gk.position, gkEffectivePos);
       const diveResult = validateGKDive(gk, diveDistance);
 
-      // Shot path hexes for client-side highlight (shooter → goal hex via hexLine).
-      const shotPath = hexLine(shooter.position, shotTarget);
-
       // After shot resolves, update GK piece position to where they actually are.
       // Prevents the GK snapping back to pre-dive position after phase transitions.
       const piecesWithGKPos =
@@ -1289,7 +1286,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ball: { position: state.ball.position, carrierId: null },
             lastDiceRoll: shotDiceRoll,
             lastActionType: 'DEFLECTION',
-            lastShotPath: shotPath,
+            lastShotPath: null, // RULE-03: clear stale shot path on LOOSE_BALL (tie)
             snapshotGkPenalty: null,
             eventLog: [...state.eventLog, shotAttempt],
           },
@@ -1341,7 +1338,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               ball: { position: gkEffectivePos, carrierId: null },
               lastDiceRoll: shotDiceRoll,
               lastActionType: 'DEFLECTION',
-              lastShotPath: shotPath,
+              lastShotPath: null, // RULE-03: clear stale shot path on save-dropped LOOSE_BALL
               snapshotGkPenalty: null,
               eventLog: [...state.eventLog, shotAttempt],
             },
@@ -1746,6 +1743,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           activeTeam: newAttackingTeam,
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
           lastActionType: 'DEFLECTION', // D-20/D-23/D-24: LOOSE_BALL resolves → DEFLECTION
+          lastShotPath: null, // RULE-03: clear stale shot path — do not carry into PASS phase
           // actionCount unchanged (+0 for Deflection per D-03 table)
           eventLog: [...state.eventLog, looseBallLandEvent],
         },
