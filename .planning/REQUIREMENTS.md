@@ -77,26 +77,26 @@
 
 ## Traceability
 
-| REQ-ID    | Phase |
-| --------- | ----- |
-| VIS-01    |       |
-| VIS-02    |       |
-| UX-05     |       |
-| UX-06     |       |
-| LAYOUT-01 |       |
-| LAYOUT-02 |       |
-| CLOCK-01  |       |
-| CLOCK-02  |       |
-| MATCH-06  |       |
-| MATCH-07  |       |
-| REPLAY-04 |       |
-| REPLAY-05 |       |
-| REPLAY-06 |       |
-| RULE-01   |       |
-| RULE-02   |       |
-| RULE-03   |       |
-| RULE-04   |       |
-| RULE-05   |       |
+| REQ-ID    | Phase    |
+| --------- | -------- |
+| VIS-01    | Phase 12 |
+| VIS-02    | Phase 12 |
+| UX-05     | Phase 12 |
+| UX-06     | Phase 12 |
+| LAYOUT-01 | Phase 13 |
+| LAYOUT-02 | Phase 13 |
+| CLOCK-01  | Phase 13 |
+| CLOCK-02  | Phase 13 |
+| MATCH-06  | Phase 14 |
+| MATCH-07  | Phase 14 |
+| REPLAY-04 | Phase 14 |
+| REPLAY-05 | Phase 14 |
+| REPLAY-06 | Phase 14 |
+| RULE-01   | Phase 11 |
+| RULE-02   | Phase 11 |
+| RULE-03   | Phase 11 |
+| RULE-04   | Phase 11 |
+| RULE-05   | Phase 11 |
 
 ---
 
