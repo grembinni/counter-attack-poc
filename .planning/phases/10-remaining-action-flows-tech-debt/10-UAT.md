@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 10-remaining-action-flows-tech-debt
 source: 10-01-SUMMARY.md, 10-02-SUMMARY.md, 10-03-SUMMARY.md, 10-04-SUMMARY.md, 10-05-SUMMARY.md
 started: 2026-06-11T00:00:00Z
@@ -45,9 +45,7 @@ result: pass
 ### 7. HEADER contestant selection + target hex
 
 expected: During HEADER phase, after both teams have confirmed their contestants, the ActionPanel shows a prompt for the attacker to select a target hex. Valid target hexes are highlighted on the board (including goal-line hexes for a headed goal attempt). Clicking a goal-line hex triggers the GK save flow (GK_DIVING phase). Clicking a non-goal hex delivers the ball to that position.
-result: issue
-reported: "All header functions work except for the targeting goaline"
-severity: major
+result: pass
 
 ### 8. HEADER auto-roll — no Roll Header button
 
@@ -67,24 +65,8 @@ result: pass
 ## Summary
 
 total: 10
-passed: 9
-issues: 1
+passed: 10
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
-
-## Gaps
-
-- truth: "Clicking a goal-line hex during HEADER target-hex selection triggers the GK save flow (GK_DIVING phase)"
-  status: failed
-  reason: "User reported: All header functions work except for the targeting goaline"
-  severity: major
-  test: 7
-  root_cause: "isHeaderTargetGoalHex missing from isHighlighted in HexGrid.tsx — HexCell only wires onClick when isHighlighted=true, so goal-line hexes were unclickable and unlit during HEADER target step"
-  artifacts:
-  - path: "packages/client/src/components/HexGrid.tsx"
-    issue: "isHeaderTargetGoalHex not included in isHighlighted expression; also missing from highlightColor condition"
-    missing:
-  - "Add isHeaderTargetGoalHex to isHighlighted (line 262)"
-  - "Add isHeaderTargetGoalHex to highlightColor red condition (line 341)"
-    debug_session: ""
