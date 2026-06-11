@@ -56,7 +56,11 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 3. After a snapshot resolves, the shot-path hexes on the board are cleared before the next phase begins — no stale path hexes persist into the Movement Phase or subsequent actions
 4. During SNAP_DEFLECT, a deflecting piece that has used its 2-hex pace allowance sees no further move highlights — the board is clean once max deflection distance is reached
 5. After a shot deflects into Loose Ball, both teams' pieces are selectable in a normal Movement Phase — the 4-5-2 sequence activates for both sides
-   **Plans**: TBD
+   **Plans**: 3 plans
+
+- [ ] 11-01-PLAN.md — RULE-01/RULE-02 server: accuracy-roll ack flag + auto-duel + winner-guarded target resolution
+- [ ] 11-02-PLAN.md — RULE-03 server: clear stale lastShotPath on loose-ball scatter and shot bug branches
+- [ ] 11-03-PLAN.md — RULE-01 client gate + RULE-04 pace-exhaust suppression + RULE-05 post-deflect Movement selectability
 
 ### Phase 12: Visual Token & Hex Layer
 
@@ -107,7 +111,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 | Phase                        | Plans Complete | Status      | Completed |
 | ---------------------------- | -------------- | ----------- | --------- |
-| 11. Rule Correctness         | 0/?            | Not started | -         |
+| 11. Rule Correctness         | 0/3            | Not started | -         |
 | 12. Visual Token & Hex Layer | 0/?            | Not started | -         |
 | 13. Layout & Clock           | 0/?            | Not started | -         |
 | 14. Kick Off Rules & Replay  | 0/?            | Not started | -         |
