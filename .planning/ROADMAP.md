@@ -35,7 +35,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ### Phases
 
-- [ ] **Phase 11: Rule Correctness** — Fix 5 server-side gameplay sequencing and highlight bugs
+- [x] **Phase 11: Rule Correctness** — Fix 5 server-side gameplay sequencing and highlight bugs (completed 2026-06-11)
 - [ ] **Phase 12: Visual Token & Hex Layer** — Redesign team tokens and unify hex highlight/outline system
 - [ ] **Phase 13: Layout & Clock** — Restructure screen into persistent top scoreboard + action panel; MM:SS clock always visible
 - [ ] **Phase 14: Kick Off Rules & Replay** — Enforce kick off placement/pass constraints; overhaul replay speed and fidelity
@@ -60,7 +60,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 - [x] 11-01-PLAN.md — RULE-01/RULE-02 server: accuracy-roll ack flag + auto-duel + winner-guarded target resolution
 - [x] 11-02-PLAN.md — RULE-03 server: clear stale lastShotPath on loose-ball scatter and shot bug branches
-- [ ] 11-03-PLAN.md — RULE-01 client gate + RULE-04 pace-exhaust suppression + RULE-05 post-deflect Movement selectability
+- [x] 11-03-PLAN.md — RULE-01 client gate + RULE-04 pace-exhaust suppression + RULE-05 post-deflect Movement selectability
 
 ### Phase 12: Visual Token & Hex Layer
 
@@ -109,12 +109,12 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ## Progress
 
-| Phase                        | Plans Complete | Status      | Completed |
-| ---------------------------- | -------------- | ----------- | --------- |
-| 11. Rule Correctness         | 2/3            | In Progress |           |
-| 12. Visual Token & Hex Layer | 0/?            | Not started | -         |
-| 13. Layout & Clock           | 0/?            | Not started | -         |
-| 14. Kick Off Rules & Replay  | 0/?            | Not started | -         |
+| Phase                        | Plans Complete | Status      | Completed  |
+| ---------------------------- | -------------- | ----------- | ---------- |
+| 11. Rule Correctness         | 3/3            | Complete    | 2026-06-11 |
+| 12. Visual Token & Hex Layer | 0/?            | Not started | -          |
+| 13. Layout & Clock           | 0/?            | Not started | -          |
+| 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
 
 ---
 

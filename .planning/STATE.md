@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
-status: executing
-last_updated: '2026-06-11T21:04:21.636Z'
-last_activity: 2026-06-11 -- Completed 11-01-PLAN.md (RULE-01/RULE-02 header FSM fix)
+status: verifying
+last_updated: '2026-06-11T21:18:04.505Z'
+last_activity: 2026-06-11 -- Completed 11-02-PLAN.md (RULE-03 shot-path clear fix)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 25
 ---
 
 # Project State
@@ -173,7 +173,7 @@ See: .planning/PROJECT.md
 
 Phase: 11 (rule-correctness) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-11 -- Completed 11-02-PLAN.md (RULE-03 shot-path clear fix)
 
 ## Performance Metrics
@@ -181,3 +181,10 @@ Last activity: 2026-06-11 -- Completed 11-02-PLAN.md (RULE-03 shot-path clear fi
 | Phase                         | Plan | Duration | Notes   |
 | ----------------------------- | ---- | -------- | ------- |
 | Phase 11-rule-correctness P02 | 20   | 1 tasks  | 2 files |
+| Phase 11 P03                  | 8    | - tasks  | - files |
+
+## Decisions
+
+- [Phase ?]: RULE-01 client: contestant UI gated behind headerAccuracyRollPending; Continue emits GAME_HEADER_ACCURACY_ACK
+- [Phase ?]: RULE-04: canSelectSnapDeflect pace guard added to HexGrid; aligns outline with store selectPiece exhaustion check
+- [Phase ?]: RULE-05: root cause = stale paceUsedByPieceId from applySnapshot spread; applyStartMovement reset resolves it; post-deflect tests confirm correct behavior
