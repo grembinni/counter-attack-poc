@@ -25,12 +25,12 @@ describe('HexCell — UX-06: highlight tint colors', () => {
     expect(fills).toContain('rgba(245,197,24,1)');
   });
 
-  it("highlightType='risk' renders an overlay polygon with fill rgba(255,165,0,1)", () => {
+  it("highlightType='risk' renders an overlay polygon with fill rgba(255,140,0,1)", () => {
     const { container } = renderHighlighted('risk');
     const fills = Array.from(container.querySelectorAll('polygon')).map((p) =>
       p.getAttribute('fill'),
     );
-    expect(fills).toContain('rgba(255,165,0,1)');
+    expect(fills).toContain('rgba(255,140,0,1)');
   });
 
   it("highlightType='goal' renders an overlay polygon with fill rgba(220,50,50,1)", () => {
@@ -68,7 +68,7 @@ describe('HexCell — UX-06: highlight tint colors', () => {
     // None of the 5 tint rgba values should be present
     const tintFills = [
       'rgba(245,197,24,1)',
-      'rgba(255,165,0,1)',
+      'rgba(255,140,0,1)',
       'rgba(220,50,50,1)',
       'rgba(59,130,246,1)',
       'rgba(255,255,255,1)',

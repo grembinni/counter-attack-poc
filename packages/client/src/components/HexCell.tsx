@@ -17,11 +17,11 @@ const HIGHLIGHT_STYLES: Record<
     strokeWidth: 1.5,
   },
   risk: {
-    fill: 'rgba(255,165,0,1)',
-    restOpacity: 0.4,
-    hoverOpacity: 0.55,
-    stroke: '#cc7700',
-    strokeWidth: 1.5,
+    fill: 'rgba(255,140,0,1)',
+    restOpacity: 0.65,
+    hoverOpacity: 0.8,
+    stroke: '#b35a00',
+    strokeWidth: 2,
   },
   goal: {
     fill: 'rgba(220,50,50,1)',
