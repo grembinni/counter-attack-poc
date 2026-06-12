@@ -54,6 +54,7 @@ export function ActionPanel() {
   // RULE-01 (Phase 11): accuracy roll acknowledgment gate
   const headerAccuracyRollPending = useGameStore((s) => s.gameState.headerAccuracyRollPending);
   const emitHeaderAccuracyAck = useGameStore((s) => s.emitHeaderAccuracyAck);
+  const headerDuelWinner = useGameStore((s) => s.gameState.headerDuelWinner);
   // Phase 10: shooting mode (two-step Shoot flow)
   const shootingMode = useGameStore((s) => s.shootingMode);
   const setShootingMode = useGameStore((s) => s.setShootingMode);
@@ -215,10 +216,19 @@ export function ActionPanel() {
     const myConfirmed = headerConfirmed?.[myTeam] ?? false;
     const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
 
-    // Bug 4 fix: after both teams confirm, the server immediately resolves the duel and
-    // transitions to PASS/GK_DIVING/LOOSE_BALL — no "choose target hex" step remains in
-    // HEADER phase. Show a resolving message while the server broadcast arrives.
     if (bothConfirmed) {
+      // Duel resolved — winner selects target hex; loser/tie waits.
+      if (headerDuelWinner != null && headerDuelWinner === myTeam) {
+        return (
+          <div className={styles.panel}>
+            <div className={styles.helperBlock}>
+              <span className={styles.helperLine1}>Header won!</span>
+              <span className={styles.helperLine2}>Choose target.</span>
+            </div>
+            {gameError && <span className={styles.errorText}>{gameError}</span>}
+          </div>
+        );
+      }
       return (
         <div className={styles.panel}>
           <span className={styles.phaseLabel}>Header — resolving duel...</span>
