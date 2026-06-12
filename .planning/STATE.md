@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: executing
-last_updated: '2026-06-12T17:31:15.344Z'
-last_activity: 2026-06-12 -- Phase 12 Plan 04 completed (HexGrid wiring, 56/56 tests green)
+last_updated: '2026-06-12T17:46:52.693Z'
+last_activity: 2026-06-12 -- Phase 13 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 11
+  completed_plans: 9
   percent: 50
 ---
 
@@ -24,7 +24,7 @@ Phase 12 complete — ready for Phase 13
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 13 — layout-and-clock
+**Current focus:** Phase 13 — layout-clock
 
 ## Phase Status
 
@@ -171,10 +171,10 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 12 (visual-token-hex-layer) — COMPLETE
-Plan: 4 of 4
+Phase: 13 (layout-clock) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 12 Plan 04 completed (HexGrid wiring, 56/56 tests green)
+Last activity: 2026-06-12 -- Phase 13 execution started
 
 ## Performance Metrics
 
@@ -188,6 +188,7 @@ Last activity: 2026-06-12 -- Phase 12 Plan 04 completed (HexGrid wiring, 56/56 t
 | Phase 12-visual-token-hex-layer P03 | 2m 21s | 2 tasks  | 3 files |
 | Phase 12-visual-token-hex-layer P03 | ~15m   | 3 tasks  | 3 files |
 | Phase 12-visual-token-hex-layer P04 | ~45m   | 3 tasks  | 2 files |
+| Phase 13-layout-clock P01           | 2min   | 1 tasks  | 1 files |
 
 ## Decisions
 
@@ -202,3 +203,5 @@ Last activity: 2026-06-12 -- Phase 12 Plan 04 completed (HexGrid wiring, 56/56 t
 - [Phase 12 P04]: D-11: tint-only polygon overlays folded into HexCell highlightType; .hexZoIRisk removed; .hexTackleRisk retained for interception-risk pass overlay
 - [Phase 12 P04]: D-12: highlightType priority order risk > goal > shot-path > kickoff > safe applied as single ternary in HexGrid
 - [Phase 12 P04]: D-13: isHeaderNonGoalTarget overlay tint changed from cyan to white (rgba(255,255,255,0.35)); two-tier white tint added for shot-path vs shot-path-action
+- [Phase ?]: Wave 0 socket mock pattern: extend { emit, on, off } with socket.io: { on, off } to support ConnectionStatus Manager events in GameBoard tests
+- [Phase ?]: GameBoard.test.tsx Wave 0 RED state: 15 tests, 11 failing until Plan 02 rewrites GameBoard — Nyquist signal design

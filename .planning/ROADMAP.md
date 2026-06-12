@@ -90,7 +90,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 4. The clock is visible during every phase without exception: kick off setup, GK restart, GK diving, half time screen, full time screen, and the post-game replay
    **Plans**: 3 plans
 
-- [ ] 13-01-PLAN.md — Wave 0 test scaffold (GameBoard.test.tsx for LAYOUT-01/02, CLOCK-01/02)
+- [x] 13-01-PLAN.md — Wave 0 test scaffold (GameBoard.test.tsx for LAYOUT-01/02, CLOCK-01/02)
 - [ ] 13-02-PLAN.md — Top band rewrite: scoreboard, MM:00 clock, compact card, action swap, log toggle, phase overlays
 - [ ] 13-03-PLAN.md — App routing simplification + Screen type trim + delete retired components
       **UI hint**: yes
@@ -118,7 +118,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
 | 12. Visual Token & Hex Layer | 4/4            | Complete    | 2026-06-12 |
-| 13. Layout & Clock           | 0/3            | Planned     | -          |
+| 13. Layout & Clock           | 1/3            | In Progress |            |
 | 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
 
 ---

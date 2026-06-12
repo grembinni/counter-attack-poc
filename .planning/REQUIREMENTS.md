@@ -5,7 +5,7 @@
 ### Visual Token Design
 
 - [x] **VIS-01**: Home team tokens display a single vertical black stripe; away team tokens display two horizontal dark stripes — both teams are visually distinguishable on the pitch without requiring labels
-- [ ] **VIS-02**: Token stripe design is consistent in all contexts: on-pitch overlays, player stats panel, and replay
+- [x] **VIS-02**: Token stripe design is consistent in all contexts: on-pitch overlays, player stats panel, and replay
 
 ### Hex Highlights & Indicators
 
@@ -14,13 +14,13 @@
 
 ### Screen Layout
 
-- [ ] **LAYOUT-01**: A persistent scoreboard is displayed at the top of the screen in all game phases; it contains home team score, match time + half indicator + connection status, and away team score
-- [ ] **LAYOUT-02**: An action/log panel is displayed at the top of the screen alongside or below the scoreboard; it contains available action buttons, current phase status text, and the recent event log; the hex grid occupies the main screen area beneath both top components; layout is responsive-aware
+- [x] **LAYOUT-01**: A persistent scoreboard is displayed at the top of the screen in all game phases; it contains home team score, match time + half indicator + connection status, and away team score
+- [x] **LAYOUT-02**: An action/log panel is displayed at the top of the screen alongside or below the scoreboard; it contains available action buttons, current phase status text, and the recent event log; the hex grid occupies the main screen area beneath both top components; layout is responsive-aware
 
 ### Match Clock
 
-- [ ] **CLOCK-01**: Match time displays in MM:SS format; first half runs from 0:00 forward; second half starts at 45:00 and runs forward through added time to full time
-- [ ] **CLOCK-02**: The clock is visible in all game phases including kick off setup, GK restart, GK diving, half time screen, full time screen, and post-game replay
+- [x] **CLOCK-01**: Match time displays in MM:SS format; first half runs from 0:00 forward; second half starts at 45:00 and runs forward through added time to full time
+- [x] **CLOCK-02**: The clock is visible in all game phases including kick off setup, GK restart, GK diving, half time screen, full time screen, and post-game replay
 
 ### Kick Off Rules
 
