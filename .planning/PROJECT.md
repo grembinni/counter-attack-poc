@@ -24,7 +24,7 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 ## Current State
 
-**v1.1 milestone in progress.** v1.0 shipped 2026-06-11 — fully playable Counter Attack on Render (13 phases, 65/66 requirements). v1.1 focuses on visual polish, layout redesign, and 7 bug fixes identified during v1.0 UAT.
+**v1.1 milestone in progress.** v1.0 shipped 2026-06-11 — fully playable Counter Attack on Render (13 phases, 65/66 requirements). v1.1 focuses on visual polish, layout redesign, and 7 bug fixes identified during v1.0 UAT. Phase 11 complete — rule-correctness fixes (header sequencing, snapshot cleanup, deflection highlights, post-deflect movement entry); 252 server tests green.
 
 ## Requirements
 
@@ -125,4 +125,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-11 (v1.0 milestone close)_
+_Last updated: 2026-06-12 (Phase 11 complete — rule-correctness)_
