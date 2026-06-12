@@ -154,15 +154,15 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     expect(ringCircles[0]!.getAttribute('stroke')).toBe('#22c55e');
   });
 
-  it("selectionState='activated' renders an orange ring (#f97316) AND a red X path (#ef4444)", () => {
+  it("selectionState='activated' renders an orange ring (#f97316) AND an orange X path (#f97316)", () => {
     const { container } = renderPiece(homeOutfield, 'activated');
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const ringCircles = allCircles.filter((c) => c.getAttribute('fill') === 'none');
     expect(ringCircles.length).toBe(1);
     expect(ringCircles[0]!.getAttribute('stroke')).toBe('#f97316');
-    // Red X path
+    // Orange X path
     const paths = container.querySelectorAll('path');
-    const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#ef4444');
+    const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#f97316');
     expect(xPaths.length).toBe(1);
   });
 
@@ -171,9 +171,9 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const ringCircles = allCircles.filter((c) => c.getAttribute('fill') === 'none');
     expect(ringCircles.length).toBe(0);
-    // No red X path either
+    // No X path either
     const paths = container.querySelectorAll('path');
-    const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#ef4444');
+    const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#f97316');
     expect(xPaths.length).toBe(0);
   });
 });

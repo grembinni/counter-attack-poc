@@ -152,7 +152,7 @@ export function PieceOverlay({
           />
           <path
             d={`M${cx - PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7} M${cx + PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7}`}
-            stroke="#ef4444"
+            stroke="#f97316"
             strokeWidth={2.5}
             strokeLinecap="round"
             pointerEvents="none"
