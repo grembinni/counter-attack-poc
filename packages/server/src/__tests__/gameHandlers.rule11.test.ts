@@ -5,12 +5,18 @@
  *  - GAME_HEADER_ACCURACY_ACK: attacker clears flag; non-attacker is rejected
  *  - GAME_HEADER_CONTESTANT both-confirmed: duel auto-fires, headerDuelWinner is set
  *  - GAME_HEADER_TARGET: winner guard — winner succeeds; loser is rejected
+ *  - RULE-02 header tie: equal scores → LOOSE_BALL (CR-02 regression coverage)
  *
  * Test harness mirrors gameHandlers.phase10.test.ts (real Socket.io server on port 0;
  * room store seeded directly via getRoom).
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+// vi.mock is hoisted by vitest — must appear before other imports.
+// Forces all rollDice() calls to return 3, making any two contestants with equal heading
+// produce equal raw scores (heading + 3 each) → computeHeaderDuelWinner returns null → LOOSE_BALL.
+vi.mock('../diceUtils.js', () => ({ rollDice: () => 3 }));
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
@@ -318,10 +324,10 @@ describe('RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel', (
     clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
     const [stateB] = await stateAfterB;
 
-    // Duel fired — headerDuelWinner should be set
+    // Duel fired — headerDuelWinner is set on win, or null on tie (which routes to LOOSE_BALL).
     expect(['home', 'away', null]).toContain(stateB.headerDuelWinner);
-    // Phase stays HEADER (target selection still pending)
-    expect(stateB.phase).toBe('HEADER');
+    // Phase is either HEADER (winner selected target next) or LOOSE_BALL (tie path — CR-02).
+    expect(['HEADER', 'LOOSE_BALL']).toContain(stateB.phase);
   });
 
   it('broadcasts exactly one GAME_STATE per contestant confirmation', async () => {
@@ -393,5 +399,51 @@ describe('RULE-02: GAME_HEADER_TARGET — winner guard replaces attacker guard',
     (clientA as any).emit(ClientEvents.GAME_HEADER_TARGET, { q: 28, r: 12 });
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_TEAM');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RULE-02: header tie → LOOSE_BALL recovery (CR-02 regression coverage)
+// ---------------------------------------------------------------------------
+
+describe('RULE-02: header tie → LOOSE_BALL recovery (CR-02)', () => {
+  it('transitions to LOOSE_BALL with carrierId null when both contestants have equal heading (deterministic tie)', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    // Force equal heading on both contestants so that heading + die (3) + 0 = equal raw scores.
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    // Both contestants get heading=3; rollDice is mocked to 3; raw score = 3 + 3 = 6 each → tie.
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) => {
+        if (p.id === homeAttacker.id || p.id === awayDefender.id) return { ...p, heading: 3 };
+        return p;
+      }),
+    };
+
+    // clientA (home) confirms first — duel not yet fired
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    // clientB (away) confirms second — bothConfirmed → duel fires → tie → LOOSE_BALL
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [tieState] = await stateAfterB;
+
+    // CR-02 recovery: header tie must transition to LOOSE_BALL (not deadlock in HEADER)
+    expect(tieState.phase).toBe('LOOSE_BALL');
+    // Loose ball has no carrier
+    expect(tieState.ball.carrierId).toBeNull();
+    // headerDuelWinner cleared on tie path
+    expect(tieState.headerDuelWinner == null).toBe(true);
+    // No lingering HEADER phase
+    expect(tieState.phase).not.toBe('HEADER');
   });
 });
