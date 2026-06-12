@@ -75,6 +75,7 @@ export function PieceOverlay({
               height={24}
               patternUnits="userSpaceOnUse"
             >
+              <rect width={24} height={24} fill="#1a56b0" />
               {/* D-03: Single vertical black stripe centered at x=10..14 within 24px tile */}
               <rect x={10} y={0} width={4} height={24} fill="#000000" fillOpacity={0.55} />
             </pattern>
@@ -87,6 +88,7 @@ export function PieceOverlay({
               height={24}
               patternUnits="userSpaceOnUse"
             >
+              <rect width={24} height={24} fill="#c0392b" />
               {/* D-03: Two horizontal dark maroon bands — upper third and lower third */}
               <rect x={0} y={6} width={24} height={4} fill="#7f0000" fillOpacity={0.65} />
               <rect x={0} y={14} width={24} height={4} fill="#7f0000" fillOpacity={0.65} />

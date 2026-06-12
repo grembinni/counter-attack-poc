@@ -55,6 +55,7 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
               height={18}
               patternUnits="userSpaceOnUse"
             >
+              <rect width={18} height={18} fill="#1a56b0" />
               {/* Single vertical black stripe centered on 18px tile (x=7..11) */}
               <rect x={7} y={0} width={4} height={18} fill="#000000" fillOpacity={0.55} />
             </pattern>
@@ -67,6 +68,7 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
               height={18}
               patternUnits="userSpaceOnUse"
             >
+              <rect width={18} height={18} fill="#c0392b" />
               {/* Two horizontal maroon bands — proportional to 18px tile: y=4..7 and y=11..14 */}
               <rect x={0} y={4} width={18} height={3} fill="#7f0000" fillOpacity={0.65} />
               <rect x={0} y={11} width={18} height={3} fill="#7f0000" fillOpacity={0.65} />
