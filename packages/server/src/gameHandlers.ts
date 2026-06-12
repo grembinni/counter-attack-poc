@@ -1777,7 +1777,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       room.gameState = { ...room.gameState, headerAccuracyRollPending: null };
       broadcastState(io, room); // ARCH-04
     } finally {
-      room.isProcessing = false; // MUST be in finally — Pitfall 2
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
   });
 
@@ -1949,7 +1949,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Single broadcastState per handler path (Pitfall 1 — no double-broadcast)
       broadcastState(io, room); // ARCH-04
     } finally {
-      room.isProcessing = false; // MUST be in finally — Pitfall 2
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
   });
 }
