@@ -341,11 +341,8 @@ export function HexGrid() {
               highPassContestZoneSet.has(hexId);
             // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex)
             const isKickoffTint = inMyZone && !isCentreHex;
-            // isSafeTint: normal valid-move hexes not classified as goal-line or ball position.
-            // Ball position is suppressed: the ball marker already indicates the hex, and
-            // highlighting it yellow when it's technically reachable is visually confusing.
-            const isBallHex = hexId === `${ball.position.q},${ball.position.r}`;
-            const isSafeTint = isHighlighted && !isGoalTint && !isBallHex;
+            // isSafeTint: normal valid-move hexes not classified as goal-line
+            const isSafeTint = isHighlighted && !isGoalTint;
             const highlightType: HexHighlightType | undefined = isRisk
               ? 'risk'
               : isGoalTint
