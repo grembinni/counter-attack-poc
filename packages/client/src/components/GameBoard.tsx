@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { GamePhase, MovementSlot } from '@counter-attack/shared';
+import type { GamePhase } from '@counter-attack/shared';
 import type { PlayerPiece } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { HexGrid } from './HexGrid.js';
@@ -32,13 +32,6 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
-};
-
-/** Total moves allowed per movement slot. Absorbed from TurnIndicator.tsx. */
-const SLOT_TOTAL: Record<MovementSlot, number> = {
-  ATTACKER_4: 4,
-  DEFENDER_5: 5,
-  ATTACKER_2: 2,
 };
 
 /** Returns the appropriate statBubble color class based on the stat value. */
@@ -127,7 +120,6 @@ export function GameBoard() {
 
   // Centre section (absorbed from TurnIndicator)
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
-  const movementSlot = useGameStore((s) => s.gameState.movementSlot);
 
   // Compact player card
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -146,16 +138,6 @@ export function GameBoard() {
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
   const teamColor = activeTeam === 'home' ? '#1a56b0' : '#c0392b';
   const phaseLabel = PHASE_LABEL[phase];
-
-  const movementHelperText: { line1: string; line2: string } | null =
-    phase === 'MOVEMENT' && movementSlot != null
-      ? (() => {
-          const total = SLOT_TOTAL[movementSlot];
-          if (total === 4) return { line1: 'Move up to 4 players', line2: '(2 hexes max)' };
-          if (total === 5) return { line1: 'Move up to 5 players', line2: '(2 hexes max)' };
-          return { line1: 'Move up to 2 players', line2: '(2 hexes max)' };
-        })()
-      : null;
 
   // D-03: persistent player card — never blank after first selection
   const lastPieceRef = useRef<PlayerPiece | null>(null);
@@ -259,12 +241,6 @@ export function GameBoard() {
                   <span className={styles.phaseLabel}>&nbsp;&middot;&nbsp;{phaseLabel}</span>
                 )}
               </div>
-              {movementHelperText && (
-                <div className={styles.movementHelper}>
-                  <span className={styles.movementHelperLine1}>{movementHelperText.line1}</span>
-                  <span className={styles.movementHelperLine2}>{movementHelperText.line2}</span>
-                </div>
-              )}
             </div>
 
             {/* Away cell: score numeral + shield */}

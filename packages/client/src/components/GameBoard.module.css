@@ -230,27 +230,6 @@
   letter-spacing: 0.05em;
 }
 
-/* Two-line movement helper shown only in MOVEMENT phase */
-.movementHelper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.movementHelperLine1 {
-  font-size: 10px;
-  font-weight: 700;
-  color: #e0e0e0;
-  letter-spacing: 0.03em;
-}
-
-.movementHelperLine2 {
-  font-size: 9px;
-  font-weight: 400;
-  color: #a0a0a0;
-}
-
 /* ─── Action section ──────────────────────────────────────────────────────── */
 
 .actionSection {
@@ -333,7 +312,7 @@
 .pitchContainer {
   flex: 1;
   background: #0a0a0a;
-  padding: 16px;
+  padding: 4px 8px;
   overflow: hidden;
   display: flex;
   align-items: center;

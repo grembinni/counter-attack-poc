@@ -58,6 +58,7 @@ export function ActionPanel() {
   const shootingMode = useGameStore((s) => s.shootingMode);
   const setShootingMode = useGameStore((s) => s.setShootingMode);
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
+  const movementSlot = useGameStore((s) => s.gameState.movementSlot);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -108,9 +109,10 @@ export function ActionPanel() {
     }
     return (
       <div className={styles.panel}>
-        <span className={styles.phaseLabel}>
-          Reposition a player for the header (up to 3 hexes)
-        </span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Header!</span>
+          <span className={styles.helperLine2}>Move 1 player to challenge.</span>
+        </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
         </button>
@@ -190,9 +192,10 @@ export function ActionPanel() {
       if (isActivePlayer && myTeam === attackingTeam) {
         return (
           <div className={styles.panel}>
-            <span className={styles.phaseLabel}>
-              High Pass accuracy roll: {rollValue} — accurate! Click to continue.
-            </span>
+            <div className={styles.helperBlock}>
+              <span className={styles.helperLine1}>Accurate High Pass!</span>
+              <span className={styles.helperLine2}>Click to continue.</span>
+            </div>
             <button className={styles.ctaButton} onClick={() => emitHeaderAccuracyAck()}>
               Continue
             </button>
@@ -228,9 +231,12 @@ export function ActionPanel() {
       <div className={styles.panel}>
         {!myConfirmed && (
           <>
-            <span className={styles.phaseLabel}>
-              Select contestant(s) within 2 hexes ({headerContestantIds.length} selected)
-            </span>
+            <div className={styles.helperBlock}>
+              <span className={styles.helperLine1}>Contesting Header!</span>
+              <span className={styles.helperLine2}>
+                ({headerContestantIds.length}) selected within range.
+              </span>
+            </div>
             <button
               className={styles.ctaButton}
               onClick={() => emitHeaderContestant(headerContestantIds)}
@@ -385,7 +391,10 @@ export function ActionPanel() {
     if (phase === 'PASS' && carrierId === null) {
       return (
         <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Ball is loose — move to collect</span>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>Loose Ball!</span>
+            <span className={styles.helperLine2}>Move to collect.</span>
+          </div>
           <button className={styles.ctaButton} onClick={emitStartMovement}>
             Move
           </button>
@@ -403,7 +412,7 @@ export function ActionPanel() {
     if (selectedPassType === null) {
       return (
         <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Choose action</span>
+          <span className={styles.phaseLabel}>Choosing action</span>
 
           {eligible.has('MOVEMENT') && (
             <button className={styles.ctaButton} onClick={emitStartMovement}>
@@ -533,8 +542,19 @@ export function ActionPanel() {
       return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
     })();
 
+    const slotTotal =
+      movementSlot != null ? { ATTACKER_4: 4, DEFENDER_5: 5, ATTACKER_2: 2 }[movementSlot] : null;
+    const slotHelperLine1 = slotTotal != null ? `Move up to ${slotTotal} players` : null;
+    const slotHelperLine2 = movementSlot === 'ATTACKER_2' ? '(2 space max)' : null;
+
     return (
       <div className={styles.panel}>
+        {slotHelperLine1 && (
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>{slotHelperLine1}</span>
+            {slotHelperLine2 && <span className={styles.helperLine2}>{slotHelperLine2}</span>}
+          </div>
+        )}
         {/* D-10: Snapshot wired to emitSnapshot in MOVEMENT phase (was permanently disabled) */}
         {canSnapshot && (
           <button className={styles.ctaButton} onClick={emitSnapshot}>
