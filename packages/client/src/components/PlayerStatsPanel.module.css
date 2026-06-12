@@ -13,11 +13,23 @@
 
 .header {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: 6px; /* D-08: 6px gap between badge and name */
   font-size: 13px;
   font-weight: 700;
   color: #e0e0e0;
+}
+
+.tokenBadge {
+  flex-shrink: 0;
+}
+
+.headerText {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex: 1;
+  min-width: 0; /* prevents overflow */
 }
 
 .role {
