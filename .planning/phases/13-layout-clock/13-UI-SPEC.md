@@ -47,7 +47,7 @@ Exceptions:
 - Score columns (home/away): 56px wide, fixed. Enough for 2-digit score + team name label.
 - Log section collapsed width: 32px (chevron button only). Expanded width: 240px. Source: CONTEXT.md discretion note — "200–280px when expanded". 240px midpoint chosen.
 - Overlay card max-width: 440px (inherits from existing HalfTimeScreen/FullTimeScreen card pattern).
-- Connection status dot: 10px × 10px (inherited from ConnectionStatus.module.css).
+- Connection status dot: 8px × 8px (spec value; component will be updated to match).
 
 ---
 
@@ -155,7 +155,7 @@ Top band: `background: #1a1a2e`, `height: 80px`, `flex-shrink: 0`, `display: gri
 Three stacked lines, vertically centered within 80px band:
 
 - **Line 1 (clock):** MM:SS display — 20px, 700, `#f5c518`. Format: `${actionCount}:00`. Always visible. No PLAY_PHASES filter.
-- **Line 2 (connection):** ConnectionStatus component — dot (10px) + label (11px, 400, `#a0a0a0`). Compact, not dominant.
+- **Line 2 (connection):** ConnectionStatus component — dot (8px) + label (11px, 400, `#a0a0a0`). Compact, not dominant.
 - **Line 3 (phase summary):** Active team name colored (13px, 700, team color) + phase label (13px, 400, `#a0a0a0`, uppercase, letter-spacing 0.05em) + moves remaining if MOVEMENT phase (13px, 400, `#a0a0a0`).
 
 ### CompactPlayerCard (~20% of middle)
