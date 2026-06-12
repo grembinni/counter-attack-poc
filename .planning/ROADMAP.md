@@ -88,8 +88,12 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 2. An action/log panel appears at the top of the screen containing available action buttons, current phase status text, and recent event log entries — the hex grid occupies the main area below both top components
 3. Match time displays in MM:SS format; in the first half it counts up from 0:00; in the second half it starts at 45:00 and counts forward through added time to full time
 4. The clock is visible during every phase without exception: kick off setup, GK restart, GK diving, half time screen, full time screen, and the post-game replay
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 3 plans
+
+- [ ] 13-01-PLAN.md — Wave 0 test scaffold (GameBoard.test.tsx for LAYOUT-01/02, CLOCK-01/02)
+- [ ] 13-02-PLAN.md — Top band rewrite: scoreboard, MM:00 clock, compact card, action swap, log toggle, phase overlays
+- [ ] 13-03-PLAN.md — App routing simplification + Screen type trim + delete retired components
+      **UI hint**: yes
 
 ### Phase 14: Kick Off Rules & Replay
 
@@ -114,7 +118,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
 | 12. Visual Token & Hex Layer | 4/4            | Complete    | 2026-06-12 |
-| 13. Layout & Clock           | 0/?            | Not started | -          |
+| 13. Layout & Clock           | 0/3            | Planned     | -          |
 | 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
 
 ---
