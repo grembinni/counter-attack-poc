@@ -3,9 +3,17 @@
   border: 1px solid #0f3460;
   border-radius: 4px;
   padding: 4px 6px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 3px;
+  align-items: start;
+}
+
+/* Status text spans full width — not action buttons */
+.phaseLabel,
+.gkLabel,
+.errorText {
+  grid-column: 1 / -1;
 }
 
 .ctaButton {
