@@ -317,11 +317,8 @@ describe('RULE-02: applyResolveHeaderTarget — OUT_OF_RANGE (D-06)', () => {
     // Should succeed (6 is within range), OR fail if not a valid pitch hex — either is fine
     // The important assertion is that distance 7 fails:
     const result7 = applyResolveHeaderTarget(state, { q: 34, r: 12 });
-    if (result7.ok) {
-      // If it passes, the range is > 6 which would be a bug — but only if we're within board
-      // For this test, just assert distance-7 result is inconsistent with distance-6
-      expect(result7.ok).toBe(false);
-    }
+    expect(result7.ok).toBe(false);
+    if (!result7.ok) expect(result7.reason).toBe('INVALID_TARGET');
     // At minimum distance-6 should not fail with DUEL_NOT_RESOLVED
     if (!result.ok) {
       expect(result.reason).not.toBe('DUEL_NOT_RESOLVED');
