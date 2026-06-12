@@ -4,11 +4,6 @@
   height: 100%;
 }
 
-/* Steal-risk tint — red overlay on carrier's valid hexes adjacent to opponents (D-20) */
-.hexZoIRisk {
-  fill: rgba(220, 38, 38, 0.5);
-}
-
 /* Tackle-risk tint — orange overlay on non-carrier hexes adjacent to the ball carrier */
 .hexTackleRisk {
   fill: rgba(255, 140, 0, 0.55);

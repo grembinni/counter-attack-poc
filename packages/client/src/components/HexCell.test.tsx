@@ -60,7 +60,7 @@ describe('HexCell — UX-06: highlight tint colors', () => {
   it('highlightType=undefined renders only the base polygon (no tint overlay) and base polygon has default cursor', () => {
     const { container } = render(
       <svg>
-        <HexCell hex={testHex} isHighlighted={false} onClick={() => {}} />
+        <HexCell hex={testHex} onClick={() => {}} />
       </svg>,
     );
     const polygons = container.querySelectorAll('polygon');

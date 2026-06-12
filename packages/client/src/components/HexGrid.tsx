@@ -388,7 +388,7 @@ export function HexGrid() {
               <g key={hexId}>
                 <HexCell
                   hex={hex}
-                  highlightType={highlightType}
+                  {...(highlightType !== undefined ? { highlightType } : {})}
                   onClick={onClick ?? (() => undefined)}
                 />
                 {/* KICK_OFF_SETUP: centre hex gold fill overlay (always visible during setup, MATCH-03) */}
