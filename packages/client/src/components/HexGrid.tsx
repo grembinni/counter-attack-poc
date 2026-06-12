@@ -165,6 +165,19 @@ export function HexGrid() {
     }
   }
 
+  // Bug 1 fix: HIGH_PASS_MOVEMENT — contest zone preview.
+  // During repositioning, highlight the ball's landing hex (= pass target) plus all hexes
+  // within 2 hexes of it with shot-path (white) tint. This shows players where the header
+  // contest will take place before the accuracy roll resolves.
+  const highPassContestZoneSet = new Set<string>();
+  if (phase === 'HIGH_PASS_MOVEMENT') {
+    for (const h of PITCH_HEXES) {
+      if (hexDistance(h, ball.position) <= 2) {
+        highPassContestZoneSet.add(`${h.q},${h.r}`);
+      }
+    }
+  }
+
   // KICK_OFF_SETUP: derive the local team's valid placement zone (D-23)
   // Attacking team: own half + centre circle; defending team: own half excluding centre circle
   const isKickOffSetup = phase === 'KICK_OFF_SETUP';
@@ -274,24 +287,18 @@ export function HexGrid() {
             const isHeaderNonGoalTarget =
               headerTargetStep && !goalLineHexSet.has(hexId) && headerDist <= 6;
 
-            // Suppress gold move highlights during reposition phases — separate subtle overlay below
-            // D-28: also suppress for GK_DIVING/SNAP_DEFLECT phases (highlights already cleared by setGameState)
+            // Bug 2 fix: HIGH_PASS_MOVEMENT and GK_KICK_MOVEMENT valid move hexes now use yellow
+            // (safe) tint, same as normal movement. SNAP_DEFLECT keeps the white shot-path tint
+            // (defender moving to intercept a snapshot = different UX context).
+            // D-28: GK_DIVING highlights already cleared by setGameState — still suppressed here.
             const isHighlighted =
               isShootingModeGoalHex ||
               isHeaderTargetGoalHex ||
-              (phase !== 'HIGH_PASS_MOVEMENT' &&
-                phase !== 'GK_KICK_MOVEMENT' &&
-                phase !== 'GK_DIVING' &&
-                phase !== 'SNAP_DEFLECT' &&
-                isValidMove) ||
+              (phase !== 'GK_DIVING' && phase !== 'SNAP_DEFLECT' && isValidMove) ||
               isGoalHex ||
               isShotTarget;
             const isHpMoveTarget =
-              ((phase === 'HIGH_PASS_MOVEMENT' ||
-                phase === 'SNAP_DEFLECT' ||
-                phase === 'GK_KICK_MOVEMENT') &&
-                selectedPieceId !== null &&
-                isValidMove) ||
+              (phase === 'SNAP_DEFLECT' && selectedPieceId !== null && isValidMove) ||
               isGKDiveTarget;
 
             // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
@@ -318,8 +325,14 @@ export function HexGrid() {
               isShotPath;
             const isGoalTint =
               isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex;
-            // isShotPathTint: resolved shot path, HIGH_PASS reposition targets, GK dive targets (white tint)
-            const isShotPathTint = lastShotPathSet.has(hexId) || isHpMoveTarget || isGKDiveTarget;
+            // isShotPathTint: resolved shot path, HIGH_PASS contest zone preview, SNAP_DEFLECT
+            // reposition targets, GK dive targets (white tint).
+            // HIGH_PASS_MOVEMENT movement hexes are now yellow (safe) via isHighlighted — see Bug 2 fix.
+            const isShotPathTint =
+              lastShotPathSet.has(hexId) ||
+              isHpMoveTarget ||
+              isGKDiveTarget ||
+              highPassContestZoneSet.has(hexId);
             // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex)
             const isKickoffTint = inMyZone && !isCentreHex;
             // isSafeTint: normal valid-move hexes not classified as goal-line
@@ -587,11 +600,13 @@ export function HexGrid() {
               phase === 'HIGH_PASS_MOVEMENT'
                 ? piece.id === highPassMovedPieceId && (highPassPaceUsed ?? 0) >= 3
                 : movedPieceIds.includes(piece.id);
+            // Bug 3 fix: isHeaderContestant (confirmed contestant) → 'active' (green ring);
+            // isHeaderEligible but not yet contestant → 'selectable' (blue ring).
             const selectionState: SelectionState = isSpentNow
               ? 'activated'
-              : piece.id === selectedPieceId || isHeaderEligible || isHeaderContestant
+              : piece.id === selectedPieceId || isHeaderContestant
                 ? 'active'
-                : isClickable
+                : isHeaderEligible || isClickable
                   ? 'selectable'
                   : 'none';
 
