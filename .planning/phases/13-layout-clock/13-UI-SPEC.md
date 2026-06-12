@@ -162,7 +162,7 @@ Three stacked lines, vertically centered within 80px band:
 
 - Background: `#16213e`, border: `1px solid #0f3460`, border-radius: 4px
 - Header row: piece name (13px, 700, `#e0e0e0`) + role (11px, 400, `#a0a0a0`, uppercase)
-- Stats grid: `display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 8px`
+- Stats grid: `display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px`
 - Each cell: label (11px, 400, `#a0a0a0`) + value (11px, 700, `#f5c518`)
 - Skills: SPD | SHT / TAC | HED / PAS | STM (2 columns, 3 rows)
 - State: persists last-selected piece; never blank after first selection. Shows placeholder text "Select a piece" (11px, 400, `#a0a0a0`) before first selection.
