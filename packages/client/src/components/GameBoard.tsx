@@ -4,7 +4,6 @@ import type { PlayerPiece } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { HexGrid } from './HexGrid.js';
 import { ActionLog } from './ActionLog.js';
-import { ConnectionStatus } from './ConnectionStatus.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
 import { ActionPanel } from './ActionPanel.js';
 import { KickOffSetupPanel } from './KickOffSetupPanel.js';
@@ -129,7 +128,6 @@ export function GameBoard() {
   // Centre section (absorbed from TurnIndicator)
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
-  const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
 
   // Compact player card
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -148,9 +146,15 @@ export function GameBoard() {
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
   const teamColor = activeTeam === 'home' ? '#1a56b0' : '#c0392b';
   const phaseLabel = PHASE_LABEL[phase];
-  const remaining =
+
+  const movementHelperText: { line1: string; line2: string } | null =
     phase === 'MOVEMENT' && movementSlot != null
-      ? SLOT_TOTAL[movementSlot] - Object.keys(paceUsedByPieceId).length
+      ? (() => {
+          const total = SLOT_TOTAL[movementSlot];
+          if (total === 4) return { line1: 'Move up to 4 players', line2: '(2 hexes max)' };
+          if (total === 5) return { line1: 'Move up to 5 players', line2: '(2 hexes max)' };
+          return { line1: 'Move up to 2 players', line2: '(2 hexes max)' };
+        })()
       : null;
 
   // D-03: persistent player card — never blank after first selection
@@ -232,26 +236,35 @@ export function GameBoard() {
               </span>
             </div>
 
-            {/* Centre cell: clock + connection + phase summary */}
+            {/* Centre cell: green dot + clock (row), then phase summary + movement helper */}
             <div className={styles.scoreboardCentreCell}>
-              <span className={styles.clockDisplay}>{clockDisplay}</span>
-              <div className={styles.connectionLine}>
-                <ConnectionStatus />
+              <div className={styles.clockRow}>
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#27ae60',
+                    flexShrink: 0,
+                  }}
+                  title="Connected"
+                />
+                <span className={styles.clockDisplay}>{clockDisplay}</span>
               </div>
               <div className={styles.phaseSummary}>
                 <span className={styles.teamName} style={{ color: teamColor }}>
                   {teamName}
                 </span>
                 {phaseLabel && phase !== 'REPLAY' && (
-                  <span className={styles.phaseLabel}>&nbsp;{phaseLabel}</span>
-                )}
-                {phase === 'MOVEMENT' && movementSlot != null && remaining != null && (
-                  <span className={styles.movesRemaining}>
-                    &nbsp;&middot;&nbsp;{movementSlot}&nbsp;&middot;&nbsp;{remaining} moves
-                    remaining
-                  </span>
+                  <span className={styles.phaseLabel}>&nbsp;&middot;&nbsp;{phaseLabel}</span>
                 )}
               </div>
+              {movementHelperText && (
+                <div className={styles.movementHelper}>
+                  <span className={styles.movementHelperLine1}>{movementHelperText.line1}</span>
+                  <span className={styles.movementHelperLine2}>{movementHelperText.line2}</span>
+                </div>
+              )}
             </div>
 
             {/* Away cell: score numeral + shield */}

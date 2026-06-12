@@ -195,18 +195,19 @@
 
 /* Match time — prominent, accent gold */
 .clockDisplay {
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
   color: #f5c518;
 }
 
-/* Connection status line */
-.connectionLine {
+/* Flex row: green dot + clock, centred */
+.clockRow {
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
-/* Phase summary row: team name + phase label + moves remaining */
+/* Phase summary row: team name + phase label */
 .phaseSummary {
   display: flex;
   align-items: center;
@@ -229,8 +230,23 @@
   letter-spacing: 0.05em;
 }
 
-.movesRemaining {
-  font-size: 13px;
+/* Two-line movement helper shown only in MOVEMENT phase */
+.movementHelper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.movementHelperLine1 {
+  font-size: 10px;
+  font-weight: 700;
+  color: #e0e0e0;
+  letter-spacing: 0.03em;
+}
+
+.movementHelperLine2 {
+  font-size: 9px;
   font-weight: 400;
   color: #a0a0a0;
 }
