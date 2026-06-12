@@ -35,7 +35,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ### Phases
 
-- [x] **Phase 11: Rule Correctness** — Fix 5 server-side gameplay sequencing and highlight bugs (completed 2026-06-11)
+- [x] **Phase 11: Rule Correctness** — Fix 5 server-side gameplay sequencing and highlight bugs (completed 2026-06-12)
 - [ ] **Phase 12: Visual Token & Hex Layer** — Redesign team tokens and unify hex highlight/outline system
 - [ ] **Phase 13: Layout & Clock** — Restructure screen into persistent top scoreboard + action panel; MM:SS clock always visible
 - [ ] **Phase 14: Kick Off Rules & Replay** — Enforce kick off placement/pass constraints; overhaul replay speed and fidelity
@@ -61,7 +61,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 11-01-PLAN.md — RULE-01/RULE-02 server: accuracy-roll ack flag + auto-duel + winner-guarded target resolution
 - [x] 11-02-PLAN.md — RULE-03 server: clear stale lastShotPath on loose-ball scatter and shot bug branches
 - [x] 11-03-PLAN.md — RULE-01 client gate + RULE-04 pace-exhaust suppression + RULE-05 post-deflect Movement selectability
-- [ ] 11-04-PLAN.md — Gap closure: deterministic header-tie LOOSE_BALL recovery test + vacuous distance-7 assertion fix + Pitfall 5 comment fixes
+- [x] 11-04-PLAN.md — Gap closure: deterministic header-tie LOOSE_BALL recovery test + vacuous distance-7 assertion fix + Pitfall 5 comment fixes
 
 ### Phase 12: Visual Token & Hex Layer
 
@@ -112,7 +112,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 | Phase                        | Plans Complete | Status      | Completed  |
 | ---------------------------- | -------------- | ----------- | ---------- |
-| 11. Rule Correctness         | 3/4            | Gap closure | 2026-06-11 |
+| 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
 | 12. Visual Token & Hex Layer | 0/?            | Not started | -          |
 | 13. Layout & Clock           | 0/?            | Not started | -          |
 | 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
