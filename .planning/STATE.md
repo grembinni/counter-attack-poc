@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
-status: executing
-last_updated: '2026-06-12T17:54:00.000Z'
-last_activity: 2026-06-12 -- Phase 13 Plan 02 complete
+status: completed
+last_updated: '2026-06-12T18:01:57.767Z'
+last_activity: 2026-06-12 -- Phase 13 Plan 02 complete (GameBoard top-band layout)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 10
-  percent: 55
+  completed_plans: 11
+  percent: 75
 ---
 
 # Project State
@@ -171,10 +171,10 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 13 (layout-clock) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute (Plan 02 complete)
-Last activity: 2026-06-12 -- Phase 13 Plan 02 complete (GameBoard top-band layout)
+Phase: 13 (layout-clock) — COMPLETE
+Plan: 3 of 3 (all plans complete)
+Status: Phase complete — ready for transition or next phase
+Last activity: 2026-06-12 -- Phase 13 Plan 03 complete (routing simplification + dead-code deletion)
 
 ## Performance Metrics
 
@@ -190,6 +190,7 @@ Last activity: 2026-06-12 -- Phase 13 Plan 02 complete (GameBoard top-band layou
 | Phase 12-visual-token-hex-layer P04 | ~45m   | 3 tasks  | 2 files |
 | Phase 13-layout-clock P01           | 2min   | 1 tasks  | 1 files |
 | Phase 13-layout-clock P02           | 5m 5s  | 2 tasks  | 3 files |
+| Phase 13-layout-clock P03           | 6min   | 2 tasks  | 8 files |
 
 ## Decisions
 
@@ -210,3 +211,4 @@ Last activity: 2026-06-12 -- Phase 13 Plan 02 complete (GameBoard top-band layou
 - [Phase 13 P02]: REPLAY phaseLabel suppressed in centre section to prevent getByText collision with ReplayPanel heading
 - [Phase 13 P02]: topBand uses CSS Grid 56px 1fr 1fr 1fr auto 56px; pitchContainer gains position:relative for overlay anchoring
 - [Phase 13 P02]: COMPACT_STATS selects 6 confirmed PlayerPiece fields (pace/shooting/tackling/heading/dribbling/highPass)
+- [Phase 13 P03]: D-12 finalised — HALF_TIME/FULL_TIME routing branches removed from App.tsx; Screen type trimmed to 6 members; six retired component files deleted; emitHalfTimeStart preserved in store
