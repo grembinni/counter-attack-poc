@@ -2296,11 +2296,17 @@ export function applyResolveHeaderTarget(
   const winnerTeam = state.headerDuelWinner;
 
   // 3. Resolve the winning contestant's piece (D-04)
+  // Use the highest-heading contestant (mirrors pickWinner in computeHeaderDuelWinner),
+  // not [0] which ignores intra-team tiebreaks when multiple contestants were nominated.
   const winnerContestantIds =
     winnerTeam === 'home'
       ? (state.headerContestants?.home ?? [])
       : (state.headerContestants?.away ?? []);
-  const winnerContestantId = winnerContestantIds[0];
+  const winnerContestantId = winnerContestantIds.reduce<string | undefined>((bestId, id) => {
+    const p = state.pieces.find((x) => x.id === id);
+    const best = bestId ? state.pieces.find((x) => x.id === bestId) : undefined;
+    return !p ? bestId : !best || p.heading > best.heading ? id : bestId;
+  }, undefined);
   const winnerPiece = state.pieces.find((p) => p.id === winnerContestantId);
 
   // Fallback: if no contestant, use ball carrier (uncontested case)
