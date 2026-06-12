@@ -1,39 +1,32 @@
 /* KickOffSetupPanel — sidebar panel style, matching ActionPanel.
-   Frozen token inventory from Phase 6/7 (UI-SPEC §Design System). No new colour values. */
+   Frozen token inventory from Phase 6/7 (UI-SPEC §Design System). No new colour values.
+   Compact sizing (260612-kvw): fits within 80px top band with zero scroll. */
 
 .panel {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 16px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .panelHeading {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #e0e0e0;
 }
 
-.instruction {
-  font-size: 13px;
-  font-weight: 400;
-  color: #a0a0a0;
-  margin: 0;
-  line-height: 1.5;
-}
-
 .constraintRow {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 400;
   line-height: 1.5;
 }
 
 .errorText {
   color: #ef4444;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 400;
 }
 
@@ -42,8 +35,8 @@
   color: #ffffff;
   border: none;
   border-radius: 4px;
-  padding: 10px 20px;
-  font-size: 13px;
+  padding: 4px 10px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;

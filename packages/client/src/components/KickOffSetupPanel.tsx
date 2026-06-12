@@ -82,9 +82,6 @@ export function KickOffSetupPanel() {
   return (
     <div className={styles.panel}>
       <span className={styles.panelHeading}>Kick-Off Setup</span>
-      <p className={styles.instruction}>
-        Place your players in your permitted zone. One player must be on the centre hex.
-      </p>
 
       {/* Constraint rows */}
       {isAttacking && (

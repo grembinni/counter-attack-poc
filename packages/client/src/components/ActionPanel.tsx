@@ -6,7 +6,7 @@ import styles from './ActionPanel.module.css';
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
   STANDARD_PASS: 'Standard Pass',
-  FIRST_TIME_PASS: 'First-time Pass',
+  FIRST_TIME_PASS: 'One-Touch',
   HIGH_PASS: 'High Pass',
   LONG_BALL: 'Long Ball',
 };
@@ -425,7 +425,7 @@ export function ActionPanel() {
               className={styles.ctaButton}
               onClick={() => setSelectedPassType('FIRST_TIME_PASS')}
             >
-              First-time Pass
+              One-Touch
             </button>
           )}
 
