@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: executing
-last_updated: '2026-06-12T10:30:44.345Z'
+last_updated: '2026-06-12T10:39:07.301Z'
 last_activity: 2026-06-12 -- Phase 12 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 25
 ---
 
@@ -172,18 +172,19 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 12 (visual-token-hex-layer) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-12 -- Phase 12 execution started
 
 ## Performance Metrics
 
-| Phase                         | Plan   | Duration | Notes   |
-| ----------------------------- | ------ | -------- | ------- |
-| Phase 11-rule-correctness P02 | 20     | 1 tasks  | 2 files |
-| Phase 11 P03                  | 8      | - tasks  | - files |
-| Phase 11 P04                  | 5      | 3 tasks  | 3 files |
-| Phase 12 P01                  | 5m 11s | 2 tasks  | 2 files |
+| Phase                               | Plan   | Duration | Notes   |
+| ----------------------------------- | ------ | -------- | ------- |
+| Phase 11-rule-correctness P02       | 20     | 1 tasks  | 2 files |
+| Phase 11 P03                        | 8      | - tasks  | - files |
+| Phase 11 P04                        | 5      | 3 tasks  | 3 files |
+| Phase 12 P01                        | 5m 11s | 2 tasks  | 2 files |
+| Phase 12-visual-token-hex-layer P02 | 5m 45s | 2 tasks  | 3 files |
 
 ## Decisions
 
@@ -191,3 +192,4 @@ Last activity: 2026-06-12 -- Phase 12 execution started
 - [Phase ?]: RULE-04: canSelectSnapDeflect pace guard added to HexGrid; aligns outline with store selectPiece exhaustion check
 - [Phase ?]: RULE-05: root cause = stale paceUsedByPieceId from applySnapshot spread; applyStartMovement reset resolves it; post-deflect tests confirm correct behavior
 - [Phase 11 P04]: vi.mock('../diceUtils.js') forces rollDice()=3; pre-existing duel test relaxed to accept LOOSE_BALL since heading=6+die=3 always ties; distance-7 assertion now unconditional INVALID_TARGET; Pitfall 5 corrected on both header handler finally blocks
+- [Phase ?]: D-10: highlightType enum prop replaces free-form isHighlighted/highlightColor; HIGHLIGHT_STYLES internal table owns all tint color values as single source of truth in HexCell.tsx

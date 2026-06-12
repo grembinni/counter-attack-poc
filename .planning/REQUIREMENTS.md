@@ -10,7 +10,7 @@
 ### Hex Highlights & Indicators
 
 - [x] **UX-05**: Piece selection state uses distinct outlines: selectable pieces show a bright blue outline; the currently active (selected) piece shows a green outline; pieces already activated this turn show an orange outline
-- [ ] **UX-06**: Game-state hex tints use a unified color system — risk hexes (ZoI, tackle range, dive range, accuracy-penalty zone) are transparent orange; goal hexes are transparent red; safe move hexes are transparent yellow; kick off setup hexes are transparent blue; shot-path hexes are transparent white
+- [x] **UX-06**: Game-state hex tints use a unified color system — risk hexes (ZoI, tackle range, dive range, accuracy-penalty zone) are transparent orange; goal hexes are transparent red; safe move hexes are transparent yellow; kick off setup hexes are transparent blue; shot-path hexes are transparent white
 
 ### Screen Layout
 
