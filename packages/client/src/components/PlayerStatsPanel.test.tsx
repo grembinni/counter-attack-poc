@@ -62,3 +62,63 @@ describe('PlayerStatsPanel — TEAM-02: renders stats for selected piece', () =>
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('PlayerStatsPanel — D-08: MiniTokenBadge in panel header', () => {
+  it('home outfield piece: mini-token circle fill references url(#mini-home-stripe-<id>) and the pattern exists', () => {
+    // home-1 is a DEF (outfield, teamId='home')
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    const { container } = render(<PlayerStatsPanel />);
+
+    // The panel's inline SVG
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+
+    // The pattern def must exist with the expected id
+    const patternId = 'mini-home-stripe-home-1';
+    const pattern = container.querySelector(`pattern#${patternId}`);
+    expect(pattern).not.toBeNull();
+
+    // The base circle fill must reference the pattern
+    const circle = container.querySelector('circle');
+    expect(circle).not.toBeNull();
+    expect(circle!.getAttribute('fill')).toBe(`url(#${patternId})`);
+  });
+
+  it('away outfield piece: mini-token circle fill references url(#mini-away-stripe-<id>) and the pattern exists', () => {
+    // away-1 is a DEF (outfield, teamId='away')
+    useGameStore.setState({ selectedPieceId: 'away-1' });
+    const { container } = render(<PlayerStatsPanel />);
+
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+
+    const patternId = 'mini-away-stripe-away-1';
+    const pattern = container.querySelector(`pattern#${patternId}`);
+    expect(pattern).not.toBeNull();
+
+    const circle = container.querySelector('circle');
+    expect(circle).not.toBeNull();
+    expect(circle!.getAttribute('fill')).toBe(`url(#${patternId})`);
+  });
+
+  it('GK piece: mini-token circle uses solid fill (no stripe pattern, no url(#mini-...))', () => {
+    // home-0 is the home GK
+    useGameStore.setState({ selectedPieceId: 'home-0' });
+    const { container } = render(<PlayerStatsPanel />);
+
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+
+    // No stripe pattern def should exist for GK
+    const pattern = container.querySelector('pattern');
+    expect(pattern).toBeNull();
+
+    // Circle fill should be the solid GK color, not a url reference
+    const circle = container.querySelector('circle');
+    expect(circle).not.toBeNull();
+    const fill = circle!.getAttribute('fill');
+    expect(fill).not.toContain('url(#mini-');
+    // Home GK is purple
+    expect(fill).toBe('#9b59b6');
+  });
+});
