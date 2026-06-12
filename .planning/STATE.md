@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: active
 last_updated: '2026-06-12T13:30:00Z'
-last_activity: 2026-06-12 -- Quick task 260612-ike: GameBoard top-band layout + player card refactor (scoreboard centered, role-conditional stats, stat bubbles)
+last_activity: 2026-06-12 -- Quick task 260612-kvw: UI polish — scores flank clock, side-panel log, compact ActionPanel/KickOff
 progress:
   total_phases: 4
   completed_phases: 3
@@ -171,6 +171,7 @@ See: .planning/PROJECT.md
 | possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2            |
 | undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser |
 | 260612-ike             | 2026-06-12 | Refactor GameBoard top-band layout and player card             |
+| 260612-kvw             | 2026-06-12 | GameBoard UI polish: scores flanking clock, side-panel log     |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-11)
 
