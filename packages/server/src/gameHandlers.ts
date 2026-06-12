@@ -1800,6 +1800,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
+      // Idempotency guard: flag already cleared — snap-back without state mutation
+      if (!room.gameState.headerAccuracyRollPending) {
+        broadcastState(io, room);
+        return;
+      }
       // Clear the pending flag
       room.gameState = { ...room.gameState, headerAccuracyRollPending: null };
       broadcastState(io, room); // ARCH-04
