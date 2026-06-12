@@ -102,24 +102,28 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Requirements**: MATCH-06, MATCH-07, REPLAY-04, REPLAY-05, REPLAY-06
 **Success Criteria** (what must be TRUE):
 
-1. During KICK_OFF_SETUP, placing a midfielder or back outside hex columns 6–20 is rejected by the server — the piece is not allowed to move there
+1. Every midfielder and back starts within hex columns 6–20 (server-set default placement at match start and at half-time reset) — per D-01 this is a default-placement requirement, not a live movement guard
 2. Attempting any action other than Standard Pass from the kick off hex during kick off is rejected by the server — only Standard Pass proceeds
 3. Post-game replay advances at approximately 0.5 seconds per action frame, visibly faster than v1.0 playback
 4. When a Movement Phase frame is replayed, all pieces moved in that phase update simultaneously — the board snaps to the end-of-phase state rather than animating pieces sequentially
 5. The ball marker is positioned correctly on every replay frame — for each replayed action the ball reflects its correct final position in that snapshot with no frames showing a stale location
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 3 plans
+
+- [ ] 14-01-PLAN.md — Kick off rules: DEF/MID start columns 6–20 (MATCH-06) + KICK_OFF Standard-Pass-only guard (MATCH-07)
+- [ ] 14-02-PLAN.md — ballAfter migration: required field on replay-eligible ActionEvents + universal ball update in buildReplayFrames (REPLAY-06)
+- [ ] 14-03-PLAN.md — Replay 500ms cadence (REPLAY-04) + simultaneous movement-phase step-frames (REPLAY-05)
+      **UI hint**: yes
 
 ---
 
 ## Progress
 
-| Phase                        | Plans Complete | Status      | Completed  |
-| ---------------------------- | -------------- | ----------- | ---------- |
-| 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
-| 12. Visual Token & Hex Layer | 4/4            | Complete    | 2026-06-12 |
-| 13. Layout & Clock           | 3/3            | Complete    | 2026-06-12 |
-| 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
+| Phase                        | Plans Complete | Status   | Completed  |
+| ---------------------------- | -------------- | -------- | ---------- |
+| 11. Rule Correctness         | 4/4            | Complete | 2026-06-12 |
+| 12. Visual Token & Hex Layer | 4/4            | Complete | 2026-06-12 |
+| 13. Layout & Clock           | 3/3            | Complete | 2026-06-12 |
+| 14. Kick Off Rules & Replay  | 0/3            | Planned  | -          |
 
 ---
 

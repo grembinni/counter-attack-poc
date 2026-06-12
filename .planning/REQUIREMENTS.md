@@ -24,7 +24,7 @@
 
 ### Kick Off Rules
 
-- [ ] **MATCH-06**: Default kick off setup enforces that midfielders and backs are placed between hex columns 6 and 20 (server-side validation); pieces outside this range are rejected during KICK_OFF_SETUP
+- [ ] **MATCH-06**: Default kick off setup places midfielders and backs within hex columns 6–20 (server-set default placement at match start and at half-time reset). Per Phase 14 D-01 this is a default-placement requirement, not a live movement guard — players may freely reposition pieces during KICK_OFF_SETUP
 - [ ] **MATCH-07**: Only a Standard Pass can be played as the opening action from the kick off hex; any other action type attempted from the centre hex during kick off is rejected by the server
 
 ### Replay Improvements
