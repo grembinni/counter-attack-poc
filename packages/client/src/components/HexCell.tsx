@@ -3,19 +3,61 @@ import type { HexCoord } from '@counter-attack/shared';
 import { isDifficultAngle } from '@counter-attack/shared';
 import { axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 
+export type HexHighlightType = 'safe' | 'risk' | 'goal' | 'kickoff' | 'shot-path';
+
+const HIGHLIGHT_STYLES: Record<
+  HexHighlightType,
+  { fill: string; restOpacity: number; hoverOpacity: number; stroke: string; strokeWidth: number }
+> = {
+  safe: {
+    fill: 'rgba(245,197,24,1)',
+    restOpacity: 0.5,
+    hoverOpacity: 0.65,
+    stroke: '#d4a017',
+    strokeWidth: 1.5,
+  },
+  risk: {
+    fill: 'rgba(255,165,0,1)',
+    restOpacity: 0.4,
+    hoverOpacity: 0.55,
+    stroke: '#cc7700',
+    strokeWidth: 1.5,
+  },
+  goal: {
+    fill: 'rgba(220,50,50,1)',
+    restOpacity: 0.5,
+    hoverOpacity: 0.65,
+    stroke: '#cc2222',
+    strokeWidth: 1.5,
+  },
+  kickoff: {
+    fill: 'rgba(59,130,246,1)',
+    restOpacity: 0.4,
+    hoverOpacity: 0.55,
+    stroke: '#2563eb',
+    strokeWidth: 1.5,
+  },
+  'shot-path': {
+    fill: 'rgba(255,255,255,1)',
+    restOpacity: 0.35,
+    hoverOpacity: 0.5,
+    stroke: '#cccccc',
+    strokeWidth: 1.5,
+  },
+};
+
 type Props = {
   hex: HexCoord;
-  isHighlighted: boolean;
-  /** D-06: undefined → gold (#f5c518) for valid-move; '#ef4444' for SHOT phase goal hexes */
-  highlightColor?: string | undefined;
+  highlightType?: HexHighlightType;
   onClick: () => void;
 };
 
 /**
  * Renders a single flat-top hex polygon with fill states and optional highlight overlay.
  * SVG fragment — must be a child of the HexGrid <svg> root (not a div wrapper).
+ * D-10: highlightType enum prop replaces the free-form isHighlighted/highlightColor props.
  */
-export function HexCell({ hex, isHighlighted, highlightColor, onClick }: Props) {
+export function HexCell({ hex, highlightType, onClick }: Props) {
   const { cx, cy } = axialToPixel(hex.q, hex.r);
   const points = hexPolygonPoints(cx, cy);
   const [hovered, setHovered] = useState(false);
@@ -36,26 +78,30 @@ export function HexCell({ hex, isHighlighted, highlightColor, onClick }: Props) 
         fill={baseFill}
         stroke="#2d5227"
         strokeWidth={0.5}
-        onClick={isHighlighted ? onClick : undefined}
-        style={{ cursor: isHighlighted ? 'pointer' : 'default' }}
+        onClick={highlightType !== undefined ? onClick : undefined}
+        style={{ cursor: highlightType !== undefined ? 'pointer' : 'default' }}
         aria-hidden="true"
       >
         <title>{`(${hex.q}, ${hex.r})`}</title>
       </polygon>
-      {/* Highlight overlay — valid-move (gold) or SHOT goal hex (red, D-06) */}
-      {isHighlighted && (
-        <polygon
-          points={points}
-          fill={highlightColor ?? '#f5c518'}
-          fillOpacity={hovered ? 0.75 : 0.55}
-          stroke={highlightColor ? '#cc2222' : '#d4a017'}
-          strokeWidth={hovered ? 2 : 1.5}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          onClick={onClick}
-          style={{ cursor: 'pointer' }}
-        />
-      )}
+      {/* Highlight overlay — semantic tint from HIGHLIGHT_STYLES lookup table (D-10) */}
+      {highlightType !== undefined &&
+        (() => {
+          const s = HIGHLIGHT_STYLES[highlightType];
+          return (
+            <polygon
+              points={points}
+              fill={s.fill}
+              fillOpacity={hovered ? s.hoverOpacity : s.restOpacity}
+              stroke={s.stroke}
+              strokeWidth={hovered ? s.strokeWidth + 0.5 : s.strokeWidth}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+              onClick={onClick}
+              style={{ cursor: 'pointer' }}
+            />
+          );
+        })()}
       {/* Difficult-angle dot — subtle white circle at 30% opacity. UI-SPEC §Hex Overlay Elements. */}
       {isDifficultAngle(hex) && (
         <circle cx={cx} cy={cy} r={3} fill="#ffffff" fillOpacity={0.3} pointerEvents="none" />
