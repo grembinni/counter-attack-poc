@@ -113,7 +113,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | Phase                        | Plans Complete | Status      | Completed  |
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
-| 12. Visual Token & Hex Layer | 0/?            | Not started | -          |
+| 12. Visual Token & Hex Layer | 1/4            | In Progress |            |
 | 13. Layout & Clock           | 0/?            | Not started | -          |
 | 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
 
