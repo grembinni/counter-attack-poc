@@ -3,7 +3,13 @@ import type { HexCoord } from '@counter-attack/shared';
 import { isDifficultAngle } from '@counter-attack/shared';
 import { axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 
-export type HexHighlightType = 'safe' | 'risk' | 'goal' | 'kickoff' | 'shot-path';
+export type HexHighlightType =
+  | 'safe'
+  | 'risk'
+  | 'goal'
+  | 'kickoff'
+  | 'shot-path'
+  | 'shot-path-action';
 
 const HIGHLIGHT_STYLES: Record<
   HexHighlightType,
@@ -39,10 +45,17 @@ const HIGHLIGHT_STYLES: Record<
   },
   'shot-path': {
     fill: 'rgba(255,255,255,1)',
-    restOpacity: 0.35,
-    hoverOpacity: 0.5,
-    stroke: '#cccccc',
-    strokeWidth: 1.5,
+    restOpacity: 0.2,
+    hoverOpacity: 0.32,
+    stroke: '#dddddd',
+    strokeWidth: 1,
+  },
+  'shot-path-action': {
+    fill: 'rgba(255,255,255,1)',
+    restOpacity: 0.55,
+    hoverOpacity: 0.7,
+    stroke: '#aaaaaa',
+    strokeWidth: 2,
   },
 };
 

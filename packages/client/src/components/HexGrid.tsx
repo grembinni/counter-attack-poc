@@ -320,9 +320,12 @@ export function HexGrid() {
               isShotPath;
             const isGoalTint =
               isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex;
-            // isShotPathTint: resolved shot path, HIGH_PASS contest zone preview, SNAP_DEFLECT
-            // reposition targets, GK dive targets (white tint).
-            // HIGH_PASS_MOVEMENT movement hexes are now yellow (safe) via isHighlighted — see Bug 2 fix.
+            // isShotPathActionTint: actionable white hexes — GK dive options and header contest zone
+            // hexes the moving player can actually step into (darker/less transparent white).
+            const isShotPathActionTint =
+              isGKDiveTarget || (highPassContestZoneSet.has(hexId) && isValidMove);
+            // isShotPathTint: informational white — resolved shot path, contest zone preview,
+            // SNAP_DEFLECT reposition targets (lighter/more transparent white).
             const isShotPathTint =
               lastShotPathSet.has(hexId) ||
               isHpMoveTarget ||
@@ -336,13 +339,15 @@ export function HexGrid() {
               ? 'risk'
               : isGoalTint
                 ? 'goal'
-                : isShotPathTint
-                  ? 'shot-path'
-                  : isKickoffTint
-                    ? 'kickoff'
-                    : isSafeTint
-                      ? 'safe'
-                      : undefined;
+                : isShotPathActionTint
+                  ? 'shot-path-action'
+                  : isShotPathTint
+                    ? 'shot-path'
+                    : isKickoffTint
+                      ? 'kickoff'
+                      : isSafeTint
+                        ? 'safe'
+                        : undefined;
 
             let onClick: (() => void) | undefined;
             if (phase === 'KICK_OFF_SETUP') {

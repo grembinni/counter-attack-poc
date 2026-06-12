@@ -57,6 +57,14 @@ describe('HexCell — UX-06: highlight tint colors', () => {
     expect(fills).toContain('rgba(255,255,255,1)');
   });
 
+  it("highlightType='shot-path-action' renders an overlay polygon with fill rgba(255,255,255,1)", () => {
+    const { container } = renderHighlighted('shot-path-action');
+    const fills = Array.from(container.querySelectorAll('polygon')).map((p) =>
+      p.getAttribute('fill'),
+    );
+    expect(fills).toContain('rgba(255,255,255,1)');
+  });
+
   it('highlightType=undefined renders only the base polygon (no tint overlay) and base polygon has default cursor', () => {
     const { container } = render(
       <svg>
@@ -65,7 +73,7 @@ describe('HexCell — UX-06: highlight tint colors', () => {
     );
     const polygons = container.querySelectorAll('polygon');
     const fills = Array.from(polygons).map((p) => p.getAttribute('fill'));
-    // None of the 5 tint rgba values should be present
+    // None of the tint rgba values should be present
     const tintFills = [
       'rgba(245,197,24,1)',
       'rgba(255,140,0,1)',
