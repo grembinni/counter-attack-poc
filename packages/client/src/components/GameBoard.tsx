@@ -49,7 +49,7 @@ function statBubbleClass(value: number): string {
   return styles.statBubbleRed ?? '';
 }
 
-/** Inline SVG shield icon for team identity in the scoreboard and player card. */
+/** Inline SVG shield icon for team identity in the score row and player card. */
 function TeamShieldIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true">
@@ -74,10 +74,50 @@ function StatRow({ label, value }: { label: string; value: number }) {
 }
 
 /**
- * Full game board layout: 80px top band (player card | centre | scoreboard | action | log)
- * followed by the hex pitch. HALF_TIME / FULL_TIME render as overlays over the pitch.
+ * Side log panel — collapsed (28px strip with › chevron) or expanded (220px with ActionLog).
+ * CSS width transition 0.2s ease on the wrapper div.
+ */
+function SideLog() {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <div className={styles.sideLogCollapsed}>
+        <button
+          className={styles.sideLogChevron}
+          onClick={() => setOpen(true)}
+          aria-label="Open log"
+        >
+          &#8250;
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.sideLogExpanded}>
+      <div className={styles.sideLogHeader}>
+        <span>MATCH LOG</span>
+        <button
+          className={styles.sideLogChevron}
+          onClick={() => setOpen(false)}
+          aria-label="Close log"
+        >
+          &#8249;
+        </button>
+      </div>
+      <ActionLog />
+    </div>
+  );
+}
+
+/**
+ * Full game board layout: 80px top band (player card | centre+scores | action)
+ * followed by a pitchRow containing SideLog + pitchContainer.
+ * HALF_TIME / FULL_TIME render as overlays over the pitch.
  * Phase 13: replaces sidebar layout; top band always visible in every phase (LAYOUT-01/02, CLOCK-01/02).
  * Refactored 260612-ike: 5-track band, scoreboard with shields, 3-col player card, stat bubbles.
+ * Refactored 260612-kvw: scores flank clock in centre, side-log panel, 4-track band.
  */
 export function GameBoard() {
   // Core state
@@ -99,9 +139,6 @@ export function GameBoard() {
   const kickOffTeam = useGameStore((s) => s.gameState.kickOffTeam);
   const addedTime = useGameStore((s) => s.gameState.addedTime);
   const emitHalfTimeStart = useGameStore((s) => s.emitHalfTimeStart);
-
-  // Log toggle (D-05: collapsed by default, local UI state)
-  const [logExpanded, setLogExpanded] = useState(false);
 
   // D-08/D-09: event-driven clock. Format: "MM:00". Always rendered (CLOCK-02).
   const clockDisplay = String(actionCount).padStart(2, '0') + ':00';
@@ -183,9 +220,19 @@ export function GameBoard() {
           )}
         </div>
 
-        {/* Track 2 — Centre section: clock + connection + phase summary */}
-        <div className={styles.topBandSection}>
-          <span className={styles.clockDisplay}>{clockDisplay}</span>
+        {/* Track 2 — Centre section: [home shield | home score | clock | away score | away shield] + connection + phase summary */}
+        <div className={styles.centreSection}>
+          <div className={styles.scoreRow}>
+            <TeamShieldIcon color="#1a56b0" />
+            <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
+              {score.home}
+            </span>
+            <span className={styles.clockDisplay}>{clockDisplay}</span>
+            <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
+              {score.away}
+            </span>
+            <TeamShieldIcon color="#c0392b" />
+          </div>
           <div className={styles.connectionLine}>
             <ConnectionStatus />
           </div>
@@ -204,24 +251,7 @@ export function GameBoard() {
           </div>
         </div>
 
-        {/* Track 3 — Scoreboard: [home icon | home score | dash | away score | away icon] */}
-        <div className={styles.scoreboard}>
-          <div className={styles.scoreIcon}>
-            <TeamShieldIcon color="#1a56b0" />
-          </div>
-          <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
-            {score.home}
-          </span>
-          <span className={styles.scoreDash}>&ndash;</span>
-          <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
-            {score.away}
-          </span>
-          <div className={styles.scoreIcon}>
-            <TeamShieldIcon color="#c0392b" />
-          </div>
-        </div>
-
-        {/* Track 4 — Action section: phase-aware panel swap */}
+        {/* Track 3 — Action section: phase-aware panel swap */}
         <div className={styles.topBandSection}>
           <div className={styles.actionSection}>
             {phase === 'KICK_OFF_SETUP' ? (
@@ -234,115 +264,95 @@ export function GameBoard() {
           </div>
         </div>
 
-        {/* Track 5 — Log toggle section */}
-        {logExpanded ? (
-          <div className={styles.logExpanded}>
-            <div className={styles.logHeader}>
-              <span>MATCH LOG</span>
-              <button
-                className={styles.logChevron}
-                onClick={() => setLogExpanded(false)}
-                aria-label="Collapse log"
-              >
-                &#8249;
-              </button>
-            </div>
-            <ActionLog />
-          </div>
-        ) : (
-          <div className={styles.logCollapsed}>
-            <button
-              className={styles.logChevron}
-              onClick={() => setLogExpanded(true)}
-              aria-label="Expand log"
-            >
-              &#8250;
-            </button>
-          </div>
-        )}
+        {/* Track 4 — (reserved / empty — log moved to side panel) */}
       </div>
 
       {/* DisconnectBanner between top band and pitch */}
       <DisconnectBanner />
 
-      {/* Pitch area: flex:1, position:relative for overlay anchoring */}
-      <div className={styles.pitchContainer}>
-        <HexGrid />
+      {/* Pitch row: SideLog + pitchContainer in a flex row */}
+      <div className={styles.pitchRow}>
+        <SideLog />
 
-        {/* Phase overlays — rendered over pitch, top band remains visible above (D-13) */}
-        {phase === 'HALF_TIME' && (
-          <div className={styles.overlay}>
-            <div className={styles.overlayCard}>
-              <h2 className={styles.overlayHeading}>Half Time</h2>
-              <p className={styles.overlayBody}>End of 1st Half</p>
+        {/* Pitch area: flex:1, position:relative for overlay anchoring */}
+        <div className={styles.pitchContainer}>
+          <HexGrid />
 
-              {/* Score display */}
-              <div className={styles.overlayScoreRow}>
-                <span className={styles.overlayTeamLabel} style={{ color: '#1a56b0' }}>
-                  Home
-                </span>
-                <span className={styles.overlayScore}>
-                  {score.home}&nbsp;&ndash;&nbsp;{score.away}
-                </span>
-                <span className={styles.overlayTeamLabel} style={{ color: '#c0392b' }}>
-                  Away
-                </span>
+          {/* Phase overlays — rendered over pitch, top band remains visible above (D-13) */}
+          {phase === 'HALF_TIME' && (
+            <div className={styles.overlay}>
+              <div className={styles.overlayCard}>
+                <h2 className={styles.overlayHeading}>Half Time</h2>
+                <p className={styles.overlayBody}>End of 1st Half</p>
+
+                {/* Score display */}
+                <div className={styles.overlayScoreRow}>
+                  <span className={styles.overlayTeamLabel} style={{ color: '#1a56b0' }}>
+                    Home
+                  </span>
+                  <span className={styles.overlayScore}>
+                    {score.home}&nbsp;&ndash;&nbsp;{score.away}
+                  </span>
+                  <span className={styles.overlayTeamLabel} style={{ color: '#c0392b' }}>
+                    Away
+                  </span>
+                </div>
+
+                {/* Added time note */}
+                {addedTime !== null && addedTime > 0 && (
+                  <p className={styles.overlayBody}>Added time played: +{addedTime}&apos;</p>
+                )}
+
+                {/* 2nd half kick-off assignment */}
+                <p className={styles.overlayBody}>
+                  2nd half kick-off:{' '}
+                  <span style={{ color: secondHalfTeamColor, fontWeight: 700 }}>
+                    {secondHalfTeamName}
+                  </span>
+                </p>
+
+                {/* Start 2nd Half button — gated to non-first-half kick-off team (D-28) */}
+                <button
+                  className={styles.overlayCtaButton}
+                  disabled={!canStart}
+                  title={!canStart ? 'Only the 2nd half kick-off team can start' : undefined}
+                  onClick={() => emitHalfTimeStart()}
+                >
+                  Start 2nd Half
+                </button>
               </div>
-
-              {/* Added time note */}
-              {addedTime !== null && addedTime > 0 && (
-                <p className={styles.overlayBody}>Added time played: +{addedTime}&apos;</p>
-              )}
-
-              {/* 2nd half kick-off assignment */}
-              <p className={styles.overlayBody}>
-                2nd half kick-off:{' '}
-                <span style={{ color: secondHalfTeamColor, fontWeight: 700 }}>
-                  {secondHalfTeamName}
-                </span>
-              </p>
-
-              {/* Start 2nd Half button — gated to non-first-half kick-off team (D-28) */}
-              <button
-                className={styles.overlayCtaButton}
-                disabled={!canStart}
-                title={!canStart ? 'Only the 2nd half kick-off team can start' : undefined}
-                onClick={() => emitHalfTimeStart()}
-              >
-                Start 2nd Half
-              </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {phase === 'FULL_TIME' && (
-          <div className={styles.overlay}>
-            <div className={styles.overlayCard}>
-              <h2 className={styles.overlayHeading}>Full Time</h2>
+          {phase === 'FULL_TIME' && (
+            <div className={styles.overlay}>
+              <div className={styles.overlayCard}>
+                <h2 className={styles.overlayHeading}>Full Time</h2>
 
-              {/* Score display */}
-              <div className={styles.overlayScoreRow}>
-                <span className={styles.overlayTeamLabel} style={{ color: '#1a56b0' }}>
-                  Home
-                </span>
-                <span className={styles.overlayScore}>
-                  {score.home}&nbsp;&ndash;&nbsp;{score.away}
-                </span>
-                <span className={styles.overlayTeamLabel} style={{ color: '#c0392b' }}>
-                  Away
-                </span>
+                {/* Score display */}
+                <div className={styles.overlayScoreRow}>
+                  <span className={styles.overlayTeamLabel} style={{ color: '#1a56b0' }}>
+                    Home
+                  </span>
+                  <span className={styles.overlayScore}>
+                    {score.home}&nbsp;&ndash;&nbsp;{score.away}
+                  </span>
+                  <span className={styles.overlayTeamLabel} style={{ color: '#c0392b' }}>
+                    Away
+                  </span>
+                </div>
+
+                {/* Result line */}
+                <p className={styles.overlayResultLine} style={{ color: resultColor }}>
+                  {resultText}
+                </p>
+
+                {/* Transition notice */}
+                <p className={styles.overlayBody}>Replay starting&hellip;</p>
               </div>
-
-              {/* Result line */}
-              <p className={styles.overlayResultLine} style={{ color: resultColor }}>
-                {resultText}
-              </p>
-
-              {/* Transition notice */}
-              <p className={styles.overlayBody}>Replay starting&hellip;</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
