@@ -1,10 +1,11 @@
 ---
 phase: 12
 slug: visual-token-hex-layer
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-12
+reviewed_at: 2026-06-11
 ---
 
 # Phase 12 — UI Design Contract
