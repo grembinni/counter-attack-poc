@@ -286,10 +286,14 @@ export function HexGrid() {
             // (safe) tint, same as normal movement. SNAP_DEFLECT keeps the white shot-path tint
             // (defender moving to intercept a snapshot = different UX context).
             // D-28: GK_DIVING highlights already cleared by setGameState — still suppressed here.
+            // headerTargetStep excluded: white action overlay in HexGrid handles header pass tinting.
             const isHighlighted =
               isShootingModeGoalHex ||
               isHeaderTargetGoalHex ||
-              (phase !== 'GK_DIVING' && phase !== 'SNAP_DEFLECT' && isValidMove) ||
+              (phase !== 'GK_DIVING' &&
+                phase !== 'SNAP_DEFLECT' &&
+                !headerTargetStep &&
+                isValidMove) ||
               isGoalHex ||
               isShotTarget;
             const isHpMoveTarget =
@@ -313,10 +317,12 @@ export function HexGrid() {
               hex.r === PITCH_REGIONS.kickOffHex.r;
 
             // Plan 04 D-12: priority-resolve highlightType (risk > goal > shot-path > kickoff > safe)
-            // isRisk: ZoI steal-risk OR tackle-risk movement OR snap-deflect shot path (all orange)
+            // isRisk: ZoI steal-risk OR tackle-risk movement OR snap-deflect shot path (all orange).
+            // Header pass is unblockable — suppress ZoI/tackle risk during headerTargetStep.
             const isRisk =
-              (zoiRiskSet.has(hexId) && isValidMove) ||
-              (tackleRiskSet.has(hexId) && isValidMove) ||
+              (!headerTargetStep &&
+                ((zoiRiskSet.has(hexId) && isValidMove) ||
+                  (tackleRiskSet.has(hexId) && isValidMove))) ||
               isShotPath;
             const isGoalTint =
               isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex;
