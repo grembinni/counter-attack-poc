@@ -14,6 +14,7 @@ import { socket } from '../socket.js';
 import { computeViewBox, HEX_SIZE, axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 import { HexCell } from './HexCell.js';
 import { PieceOverlay } from './PieceOverlay.js';
+import type { SelectionState } from './PieceOverlay.js';
 import { BallMarker } from './BallMarker.js';
 import { PitchMarkings } from './PitchMarkings.js';
 import { GoalNets } from './GoalNets.js';
@@ -619,6 +620,20 @@ export function HexGrid() {
               canSelectHighPassMove ||
               canSelectSnapDeflect ||
               canSelectGKKickMove;
+
+            // Plan 04: derive single selectionState enum for PieceOverlay (UX-05, D-04, D-07)
+            const isSpentNow =
+              phase === 'HIGH_PASS_MOVEMENT'
+                ? piece.id === highPassMovedPieceId && (highPassPaceUsed ?? 0) >= 3
+                : movedPieceIds.includes(piece.id);
+            const selectionState: SelectionState = isSpentNow
+              ? 'activated'
+              : piece.id === selectedPieceId || isHeaderEligible || isHeaderContestant
+                ? 'active'
+                : isClickable
+                  ? 'selectable'
+                  : 'none';
+
             const handleClick = isQuickThrowTargetPiece
               ? () => emitQuickThrow(piece.position)
               : isPassTargetPiece
@@ -649,18 +664,11 @@ export function HexGrid() {
               <PieceOverlay
                 key={piece.id}
                 piece={displayPiece}
-                isSelected={piece.id === selectedPieceId}
-                isClickable={isClickable}
+                selectionState={selectionState}
                 onClick={handleClick}
                 onInspect={() => inspectPiece(piece.id)}
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
-                isSpent={
-                  phase === 'HIGH_PASS_MOVEMENT'
-                    ? piece.id === highPassMovedPieceId && (highPassPaceUsed ?? 0) >= 3
-                    : movedPieceIds.includes(piece.id)
-                }
-                isHeaderContestant={isHeaderContestant}
               />
             );
           })}
