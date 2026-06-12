@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
-status: completed
-last_updated: '2026-06-12T18:01:57.767Z'
-last_activity: 2026-06-12 -- Phase 13 Plan 02 complete (GameBoard top-band layout)
+status: active
+last_updated: '2026-06-12T13:30:00Z'
+last_activity: 2026-06-12 -- Phase 13 verified (human_needed — 3 browser UAT items); automated suite 71/71 green
 progress:
   total_phases: 4
   completed_phases: 3
@@ -17,14 +17,14 @@ progress:
 
 ## Current Phase
 
-Phase 13 in progress — Plan 02 complete, ready for Plan 03
+Phase 13 (layout-clock) — all 3 plans complete; verification status: human_needed (3 browser UAT items pending). Phase 14 ready to start after UAT sign-off.
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 13 — layout-clock
+**Current focus:** Phase 13 UAT sign-off — then Phase 14 (Kick Off Rules & Replay)
 
 ## Phase Status
 
@@ -149,6 +149,20 @@ See: .planning/PROJECT.md
 - Disconnect handler clears replayTimer to prevent post-disconnect frame emission (T-08-15)
 - addedTimeRoll pre-generated via rollDice() before every applyEndTurn call (D-05/MATCH-02)
 
+### Decisions Locked (Phase 13)
+
+- D-08/D-09: Clock is event-driven, MM:00 format — minutes from actionCount, seconds always :00. No client-side timer. actionCount=7 → "7:00". ROADMAP said MM:SS; CONTEXT.md design decision overrides to MM:00.
+- D-11: Clock rendered unconditionally — no PLAY_PHASES gating. topBand always visible regardless of phase.
+- D-12: App.tsx no longer routes HALF_TIME/FULL_TIME to separate screens. All game phases render GameBoard. HALF_TIME/FULL_TIME overlays are position:absolute inside the position:relative pitchContainer.
+- topBand: CSS Grid 56px 1fr 1fr 1fr auto 56px; 80px height; six tracks: home score | centre | player card | action | log | away score.
+- PHASE_LABEL and SLOT_TOTAL absorbed verbatim from TurnIndicator into GameBoard module scope.
+- COMPACT_STATS: 6 confirmed PlayerPiece fields (pace/shooting/tackling/heading/dribbling/highPass). No passing or stamina.
+- REPLAY phaseLabel suppressed in centre section (phase !== 'REPLAY' guard) to prevent getByText collision with ReplayPanel heading.
+- Screen type trimmed to 6 members: 'LANDING' | 'CREATE_ROOM' | 'JOIN_ROOM' | 'WAITING' | 'GAME_BOARD' | 'REPLAY'. HALF_TIME and FULL_TIME removed.
+- emitHalfTimeStart preserved in store — called from GameBoard HALF_TIME overlay, not HalfTimeScreen.
+- Six retired files deleted: TurnIndicator.tsx/.module.css, HalfTimeScreen.tsx/.module.css, FullTimeScreen.tsx/.module.css.
+- Wave 0 socket mock pattern: extend { emit, on, off } with socket.io: { on, off } to support ConnectionStatus Manager events in GameBoard tests.
+
 ## Quick Tasks Completed
 
 | Slug                   | Date       | Description                                                    |
@@ -165,16 +179,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-- Last updated: 2026-06-11
-- v1.0 milestone close in progress — all 13 phases complete, 10/10 UAT tests pass
-- Dead code removed (GAME_HEADER + SHOT branch in GAME_ROLL); all human verifications signed off
+- Last updated: 2026-06-12
+- Phase 13 implementation complete (3/3 plans). Verification: human_needed (3 browser UAT items).
+- 71/71 automated tests pass. Build clean. Dead component files deleted.
 
 ## Current Position
 
-Phase: 13 (layout-clock) — COMPLETE
+Phase: 13 (layout-clock) — COMPLETE (pending browser UAT)
 Plan: 3 of 3 (all plans complete)
-Status: Phase complete — ready for transition or next phase
-Last activity: 2026-06-12 -- Phase 13 Plan 03 complete (routing simplification + dead-code deletion)
+Status: human_needed — 3 browser UAT items in 13-VERIFICATION.md; automated checks all pass
+Last activity: 2026-06-12 -- Phase 13 verified (human_needed); 71/71 tests pass, build clean
 
 ## Performance Metrics
 
