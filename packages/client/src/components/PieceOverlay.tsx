@@ -1,37 +1,33 @@
 import type { PlayerPiece } from '@counter-attack/shared';
 import { axialToPixel } from '../utils/hexToPixel.js';
 
+export type SelectionState = 'none' | 'selectable' | 'active' | 'activated';
+
 type Props = {
   piece: PlayerPiece;
-  isSelected: boolean;
-  isClickable: boolean;
+  selectionState: SelectionState;
   onClick: () => void;
-  /** Always fires on any piece click regardless of isClickable — used for stats panel inspection (D-06). */
+  /** Always fires on any piece click regardless of selectionState — used for stats panel inspection (D-06). */
   onInspect: () => void;
   carrierId: string | null;
   /** Which team is currently attacking — passed from HexGrid for ball possession dot direction (D-16). */
   attackingTeam: 'home' | 'away';
-  /** True when the piece has exhausted its activation this movement phase — renders a red X. */
-  isSpent: boolean;
-  /** Phase 8.2 D-17: True when this piece is the locally-selected header contestant — renders a green ring. */
-  isHeaderContestant?: boolean;
 };
 
 /**
  * Renders a single PlayerPiece as an SVG circle + text label.
  * Colors: home '#1a56b0' / away '#c0392b' per UI-SPEC §Piece Overlay Spec.
+ * Stripe patterns: home = vertical black stripe, away = two horizontal maroon bands (VIS-01, D-01/D-02/D-03).
+ * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
 export function PieceOverlay({
   piece,
-  isSelected,
-  isClickable,
+  selectionState,
   onClick,
   onInspect,
   carrierId,
   attackingTeam,
-  isSpent,
-  isHeaderContestant = false,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
@@ -67,34 +63,69 @@ export function PieceOverlay({
 
   return (
     <>
-      {/* Base piece circle */}
+      {/* D-01/D-02: Per-piece SVG stripe pattern defs — outfield only, gated on !isGK */}
+      {!isGK && (
+        <defs>
+          {piece.teamId === 'home' ? (
+            <pattern
+              id={`home-stripe-${piece.id}`}
+              x={cx - PIECE_RADIUS}
+              y={cy - PIECE_RADIUS}
+              width={24}
+              height={24}
+              patternUnits="userSpaceOnUse"
+            >
+              {/* D-03: Single vertical black stripe centered at x=10..14 within 24px tile */}
+              <rect x={10} y={0} width={4} height={24} fill="#000000" fillOpacity={0.55} />
+            </pattern>
+          ) : (
+            <pattern
+              id={`away-stripe-${piece.id}`}
+              x={cx - PIECE_RADIUS}
+              y={cy - PIECE_RADIUS}
+              width={24}
+              height={24}
+              patternUnits="userSpaceOnUse"
+            >
+              {/* D-03: Two horizontal dark maroon bands — upper third and lower third */}
+              <rect x={0} y={6} width={24} height={4} fill="#7f0000" fillOpacity={0.65} />
+              <rect x={0} y={14} width={24} height={4} fill="#7f0000" fillOpacity={0.65} />
+            </pattern>
+          )}
+        </defs>
+      )}
+      {/* Base piece circle — GK: solid fill; outfield: stripe pattern fill */}
       <circle
         cx={cx}
         cy={cy}
         r={PIECE_RADIUS}
-        fill={fill}
+        fill={
+          isGK
+            ? fill
+            : `url(#${piece.teamId === 'home' ? `home-stripe-${piece.id}` : `away-stripe-${piece.id}`})`
+        }
         stroke={stroke}
         strokeWidth={1.5}
-        style={{ cursor: isClickable ? 'pointer' : 'default' }}
+        style={{ cursor: selectionState !== 'none' ? 'pointer' : 'default' }}
         onClick={() => {
-          if (isClickable) onClick();
+          if (selectionState !== 'none') onClick();
           else onInspect();
         }}
       />
-      {/* Selected ring — gold outline when this piece is the active selection */}
-      {isSelected && (
+      {/* D-04/UX-05: selectable ring — bright blue outline */}
+      {selectionState === 'selectable' && (
         <circle
           cx={cx}
           cy={cy}
           r={PIECE_RADIUS + 2}
           fill="none"
-          stroke="#f5c518"
+          stroke="#3b82f6"
           strokeWidth={2}
           pointerEvents="none"
         />
       )}
-      {/* Phase 8.2 D-17: Header contestant ring — green outline, slightly larger than selected ring */}
-      {isHeaderContestant && (
+      {/* D-04/UX-05: active ring — green outline (selected piece or header contestant) */}
+      {selectionState === 'active' && (
         <circle
           cx={cx}
           cy={cy}
@@ -105,6 +136,27 @@ export function PieceOverlay({
           pointerEvents="none"
         />
       )}
+      {/* D-04/D-05/UX-05: activated = orange ring + red X (piece already used this turn) */}
+      {selectionState === 'activated' && (
+        <>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={PIECE_RADIUS + 3}
+            fill="none"
+            stroke="#f97316"
+            strokeWidth={2}
+            pointerEvents="none"
+          />
+          <path
+            d={`M${cx - PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7} M${cx + PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7}`}
+            stroke="#ef4444"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            pointerEvents="none"
+          />
+        </>
+      )}
       {/* Ball carrier indicator — directional white dot at 45° toward scoring goal (D-15) */}
       {isBallCarrier && (
         <circle
@@ -114,16 +166,6 @@ export function PieceOverlay({
           fill="#ffffff"
           stroke="rgba(0,0,0,0.5)"
           strokeWidth={1}
-          pointerEvents="none"
-        />
-      )}
-      {/* Spent indicator — red X when piece has used its activation this movement phase */}
-      {isSpent && (
-        <path
-          d={`M${cx - PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7} M${cx + PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7}`}
-          stroke="#ef4444"
-          strokeWidth={2.5}
-          strokeLinecap="round"
           pointerEvents="none"
         />
       )}

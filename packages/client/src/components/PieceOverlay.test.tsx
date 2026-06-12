@@ -2,9 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import type { PlayerPiece } from '@counter-attack/shared';
 import { PieceOverlay } from './PieceOverlay.js';
-// SelectionState will be exported by PieceOverlay.tsx after Task 2 (GREEN)
-// Define locally here so the test file is valid TypeScript in RED phase
-type SelectionState = 'none' | 'selectable' | 'active' | 'activated';
+import type { SelectionState } from './PieceOverlay.js';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -105,24 +103,21 @@ describe('PieceOverlay — VIS-01: stripe pattern fills', () => {
   it('home outfield piece fill references url(#home-stripe-<id>)', () => {
     const { container } = renderPiece(homeOutfield, 'none');
     // The base circle should have fill referencing the home-stripe pattern
-    const circles = container.querySelectorAll('circle');
-    const baseCircle = circles[0];
+    const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
     expect(baseCircle.getAttribute('fill')).toContain('url(#home-stripe');
     expect(baseCircle.getAttribute('fill')).toContain('home-5');
   });
 
   it('away outfield piece fill references url(#away-stripe-<id>)', () => {
     const { container } = renderPiece(awayOutfield, 'none');
-    const circles = container.querySelectorAll('circle');
-    const baseCircle = circles[0];
+    const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
     expect(baseCircle.getAttribute('fill')).toContain('url(#away-stripe');
     expect(baseCircle.getAttribute('fill')).toContain('away-5');
   });
 
   it('home GK renders with solid fill (#9b59b6) and no url(#...-stripe) fill', () => {
     const { container } = renderPiece(homeGK, 'none');
-    const circles = container.querySelectorAll('circle');
-    const baseCircle = circles[0];
+    const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
     expect(baseCircle.getAttribute('fill')).toBe('#9b59b6');
     // No pattern element for GK
     const patterns = container.querySelectorAll('pattern');
@@ -133,8 +128,7 @@ describe('PieceOverlay — VIS-01: stripe pattern fills', () => {
 
   it('away GK renders with solid fill (#f59e0b) and no url(#...-stripe) fill', () => {
     const { container } = renderPiece(awayGK, 'none');
-    const circles = container.querySelectorAll('circle');
-    const baseCircle = circles[0];
+    const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
     expect(baseCircle.getAttribute('fill')).toBe('#f59e0b');
     const patterns = container.querySelectorAll('pattern');
     expect(patterns.length).toBe(0);
@@ -149,7 +143,7 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const ringCircles = allCircles.filter((c) => c.getAttribute('fill') === 'none');
     expect(ringCircles.length).toBe(1);
-    expect(ringCircles[0].getAttribute('stroke')).toBe('#3b82f6');
+    expect(ringCircles[0]!.getAttribute('stroke')).toBe('#3b82f6');
   });
 
   it("selectionState='active' renders exactly one ring circle with stroke #22c55e", () => {
@@ -157,7 +151,7 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const ringCircles = allCircles.filter((c) => c.getAttribute('fill') === 'none');
     expect(ringCircles.length).toBe(1);
-    expect(ringCircles[0].getAttribute('stroke')).toBe('#22c55e');
+    expect(ringCircles[0]!.getAttribute('stroke')).toBe('#22c55e');
   });
 
   it("selectionState='activated' renders an orange ring (#f97316) AND a red X path (#ef4444)", () => {
@@ -165,7 +159,7 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const ringCircles = allCircles.filter((c) => c.getAttribute('fill') === 'none');
     expect(ringCircles.length).toBe(1);
-    expect(ringCircles[0].getAttribute('stroke')).toBe('#f97316');
+    expect(ringCircles[0]!.getAttribute('stroke')).toBe('#f97316');
     // Red X path
     const paths = container.querySelectorAll('path');
     const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#ef4444');
