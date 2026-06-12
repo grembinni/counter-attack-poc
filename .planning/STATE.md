@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
-status: executing
-last_updated: '2026-06-12T10:43:59.125Z'
+status: verifying
+last_updated: '2026-06-12T11:16:35.981Z'
 last_activity: 2026-06-12 -- Phase 12 execution started
 progress:
   total_phases: 4
@@ -173,7 +173,7 @@ See: .planning/PROJECT.md
 
 Phase: 12 (visual-token-hex-layer) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-12 -- Phase 12 execution started
 
 ## Performance Metrics
@@ -186,6 +186,7 @@ Last activity: 2026-06-12 -- Phase 12 execution started
 | Phase 12 P01                        | 5m 11s | 2 tasks  | 2 files |
 | Phase 12-visual-token-hex-layer P02 | 5m 45s | 2 tasks  | 3 files |
 | Phase 12-visual-token-hex-layer P03 | 2m 21s | 2 tasks  | 3 files |
+| Phase 12-visual-token-hex-layer P03 | ~15m   | 3 tasks  | 3 files |
 
 ## Decisions
 
@@ -194,3 +195,5 @@ Last activity: 2026-06-12 -- Phase 12 execution started
 - [Phase ?]: RULE-05: root cause = stale paceUsedByPieceId from applySnapshot spread; applyStartMovement reset resolves it; post-deflect tests confirm correct behavior
 - [Phase 11 P04]: vi.mock('../diceUtils.js') forces rollDice()=3; pre-existing duel test relaxed to accept LOOSE_BALL since heading=6+die=3 always ties; distance-7 assertion now unconditional INVALID_TARGET; Pitfall 5 corrected on both header handler finally blocks
 - [Phase ?]: D-10: highlightType enum prop replaces free-form isHighlighted/highlightColor; HIGHLIGHT_STYLES internal table owns all tint color values as single source of truth in HexCell.tsx
+- [Phase ?]: D-08: mini token rendered in PlayerStatsPanel header for selected piece
+- [Phase ?]: D-09: self-contained SVG defs inside inline svg — no cross-document url(#...) reference from stats panel

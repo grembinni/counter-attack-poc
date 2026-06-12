@@ -71,6 +71,7 @@ Each task was committed atomically:
 1. **Task 1 RED: failing tests for MiniTokenBadge** - `0ee98fb` (test)
 2. **Task 1 GREEN: implement MiniTokenBadge + update header render** - `03d49a6` (feat)
 3. **Task 2: update PlayerStatsPanel header CSS** - `c1dbcbe` (feat)
+4. **Post-checkpoint fix: add base fill rect to stripe patterns** - `73be801` (fix) — transparent token background bug discovered during human visual verification; fixed in both PlayerStatsPanel.tsx and PieceOverlay.tsx
 
 ## Files Created/Modified
 
@@ -86,11 +87,19 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None — plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Add base fill rect to stripe patterns — tokens rendered transparent**
+
+- **Found during:** Post-checkpoint human verification (Task 3 — approved visual review)
+- **Issue:** SVG `<pattern>` elements in both `PlayerStatsPanel.tsx` and `PieceOverlay.tsx` lacked a base `<rect fill="...">` behind the stripe overlay, leaving the token circle fill transparent on all browsers where the pattern background does not default to the team colour. Outfield tokens appeared colourless instead of showing the team base colour with stripe bands on top.
+- **Fix:** Added a base `<rect x={0} y={0} width={18} height={18} fill={baseFill} />` as the first child of every stripe `<pattern>` in both components (home `#1a3a8a`, away `#8e1c12`).
+- **Files modified:** `packages/client/src/components/PlayerStatsPanel.tsx`, `packages/client/src/components/PieceOverlay.tsx`
+- **Commit:** `73be801`
 
 ## Issues Encountered
 
-None.
+None — all 55 client tests pass after the transparency fix.
 
 ## User Setup Required
 
@@ -100,7 +109,7 @@ None — no external service configuration required.
 
 - VIS-02 satisfied: stripe identity now appears in all three required contexts — on-pitch (Plan 01), stats panel (Plan 03), replay (Plan 04 covers via shared PieceOverlay)
 - Plan 04 (HexGrid refactor) is fully independent and unaffected by this plan
-- Checkpoint pending: human verification of mini badge visual appearance across home/away/GK pieces
+- Human visual verification approved: home vertical stripe, away horizontal stripes, and GK solid fill all confirmed correct
 
 ## Known Stubs
 
@@ -115,4 +124,5 @@ None — PlayerStatsPanel is a pure client-side render component with no network
 - `packages/client/src/components/PlayerStatsPanel.tsx`: exists with `MiniTokenBadge` function
 - `packages/client/src/components/PlayerStatsPanel.module.css`: exists with `.tokenBadge` and `.headerText`
 - `packages/client/src/components/PlayerStatsPanel.test.tsx`: exists with 7 passing tests
-- Commits 0ee98fb, 03d49a6, c1dbcbe: all present in git log
+- Commits 0ee98fb, 03d49a6, c1dbcbe, 73be801: all present in git log
+- 55/55 client tests pass (pnpm --filter @counter-attack/client test)
