@@ -3,28 +3,28 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: verifying
-last_updated: '2026-06-12T11:16:35.981Z'
+last_updated: '2026-06-12T13:49:03.429Z'
 last_activity: 2026-06-12 -- Phase 12 execution started
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 7
-  percent: 25
+  completed_plans: 8
+  percent: 50
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 11 complete — ready for Phase 12
+Phase 12 complete — ready for Phase 13
 
 ## Project Reference
 
 See: .planning/PROJECT.md
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 12 — visual-token-hex-layer
+**Current focus:** Phase 13 — layout-and-clock
 
 ## Phase Status
 
@@ -171,10 +171,10 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 12 (visual-token-hex-layer) — EXECUTING
+Phase: 12 (visual-token-hex-layer) — COMPLETE
 Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-12 -- Phase 12 execution started
+Status: Phase 12 complete — Phase 13 (Layout & Clock) ready to start
+Last activity: 2026-06-12 -- Phase 12 Plan 04 completed (HexGrid wiring, 56/56 tests green)
 
 ## Performance Metrics
 
@@ -187,6 +187,7 @@ Last activity: 2026-06-12 -- Phase 12 execution started
 | Phase 12-visual-token-hex-layer P02 | 5m 45s | 2 tasks  | 3 files |
 | Phase 12-visual-token-hex-layer P03 | 2m 21s | 2 tasks  | 3 files |
 | Phase 12-visual-token-hex-layer P03 | ~15m   | 3 tasks  | 3 files |
+| Phase 12-visual-token-hex-layer P04 | ~45m   | 3 tasks  | 2 files |
 
 ## Decisions
 
@@ -197,3 +198,7 @@ Last activity: 2026-06-12 -- Phase 12 execution started
 - [Phase ?]: D-10: highlightType enum prop replaces free-form isHighlighted/highlightColor; HIGHLIGHT_STYLES internal table owns all tint color values as single source of truth in HexCell.tsx
 - [Phase ?]: D-08: mini token rendered in PlayerStatsPanel header for selected piece
 - [Phase ?]: D-09: self-contained SVG defs inside inline svg — no cross-document url(#...) reference from stats panel
+- [Phase 12 P04]: D-07: isHeaderEligible AND isHeaderContestant both map to selectionState='active' (green ring); no separate isHeaderContestant prop in PieceOverlay
+- [Phase 12 P04]: D-11: tint-only polygon overlays folded into HexCell highlightType; .hexZoIRisk removed; .hexTackleRisk retained for interception-risk pass overlay
+- [Phase 12 P04]: D-12: highlightType priority order risk > goal > shot-path > kickoff > safe applied as single ternary in HexGrid
+- [Phase 12 P04]: D-13: isHeaderNonGoalTarget overlay tint changed from cyan to white (rgba(255,255,255,0.35)); two-tier white tint added for shot-path vs shot-path-action

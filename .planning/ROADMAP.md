@@ -36,7 +36,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### Phases
 
 - [x] **Phase 11: Rule Correctness** — Fix 5 server-side gameplay sequencing and highlight bugs (completed 2026-06-12)
-- [ ] **Phase 12: Visual Token & Hex Layer** — Redesign team tokens and unify hex highlight/outline system
+- [x] **Phase 12: Visual Token & Hex Layer** — Redesign team tokens and unify hex highlight/outline system (completed 2026-06-12)
 - [ ] **Phase 13: Layout & Clock** — Restructure screen into persistent top scoreboard + action panel; MM:SS clock always visible
 - [ ] **Phase 14: Kick Off Rules & Replay** — Enforce kick off placement/pass constraints; overhaul replay speed and fidelity
 
@@ -113,7 +113,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | Phase                        | Plans Complete | Status      | Completed  |
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
-| 12. Visual Token & Hex Layer | 3/4            | In Progress |            |
+| 12. Visual Token & Hex Layer | 4/4            | Complete    | 2026-06-12 |
 | 13. Layout & Clock           | 0/?            | Not started | -          |
 | 14. Kick Off Rules & Replay  | 0/?            | Not started | -          |
 
