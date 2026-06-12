@@ -19,15 +19,7 @@ import { socket } from '../socket.js';
 export type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL';
 
 /** Screen states for client-side routing (D-12). No React Router — screen field in store. */
-export type Screen =
-  | 'LANDING'
-  | 'CREATE_ROOM'
-  | 'JOIN_ROOM'
-  | 'WAITING'
-  | 'GAME_BOARD'
-  | 'HALF_TIME' // Phase 8: shown when GameState.phase === 'HALF_TIME'
-  | 'FULL_TIME' // Phase 8: shown when GameState.phase === 'FULL_TIME'
-  | 'REPLAY'; // Phase 8: shown when GameState.phase === 'REPLAY' (uses GAME_BOARD layout)
+export type Screen = 'LANDING' | 'CREATE_ROOM' | 'JOIN_ROOM' | 'WAITING' | 'GAME_BOARD' | 'REPLAY'; // Phase 8: shown when GameState.phase === 'REPLAY' (uses GAME_BOARD layout)
 
 /** Zustand store shape for the Counter Attack game client. */
 export type GameStore = {
