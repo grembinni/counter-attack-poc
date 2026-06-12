@@ -2329,13 +2329,12 @@ export function applyResolveHeaderTarget(
   };
 
   // 5. Route to GK_DIVING if the target is a goal-line hex for the attacking team (HEAD-03)
-  // Use the duel winner's team as the effective attacker — for a defender win (RULE-02) this
-  // is the defender, who heads toward their own attacking direction (the opposite goal).
-  const attackingTeamForHeader = state.headerDuelWinner ?? state.attackingTeam;
-  const goalQ = attackingTeamForHeader === 'home' ? 36 : 0;
+  // Use winnerTeam (captured before headerCleared is constructed) as the effective attacker.
+  // Re-reading state.headerDuelWinner here would be null after the headerCleared spread is applied.
+  const goalQ = winnerTeam === 'home' ? 36 : 0;
   const isGoalLineTarget = targetHex.q === goalQ && targetHex.r >= 10 && targetHex.r <= 16;
 
-  const defenderTeamForGk: 'home' | 'away' = attackingTeamForHeader === 'home' ? 'away' : 'home';
+  const defenderTeamForGk: 'home' | 'away' = winnerTeam === 'home' ? 'away' : 'home';
   const contestedIds = [
     ...(state.headerContestants?.home ?? []),
     ...(state.headerContestants?.away ?? []),
