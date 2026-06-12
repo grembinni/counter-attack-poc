@@ -2232,12 +2232,19 @@ export function computeHeaderDuelWinner(state: GameState, dice: number[]): 'home
 
   if (!attackerWinner) return defenderTeam;
 
-  // Contested: compare scores
-  const attackerScore = attackerWinner.raw;
-  const defenderScore = defenderWinner.raw;
+  // Contested: apply HEAD-01 distance penalty to attacker (mirrors applyRoll HEADER branch)
+  const headResult = validateHeading(state, attackerWinner.piece, state.ball.position, {
+    previousActionWasHeadedPass: false,
+    otherChallengerIds: [defenderWinner.piece.id],
+  });
+  const penaltyMod = headResult.ok && headResult.contested ? headResult.penaltyModifier : 0;
+  const adjustedAtk = computeCombinedScore(attackerWinner.piece.heading, attackerWinner.die, [
+    penaltyMod,
+  ]);
+  const adjustedDef = computeCombinedScore(defenderWinner.piece.heading, defenderWinner.die, []);
 
-  if (attackerScore > defenderScore) return state.attackingTeam;
-  if (attackerScore < defenderScore) return defenderTeam;
+  if (adjustedAtk > adjustedDef) return state.attackingTeam;
+  if (adjustedAtk < adjustedDef) return defenderTeam;
   return null; // tie → LOOSE_BALL path (caller handles)
 }
 
