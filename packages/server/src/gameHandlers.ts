@@ -1960,13 +1960,25 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const numDice = Math.max(atkCount + defCount + 2, 2);
         const diceArr = Array.from({ length: numDice }, () => rollDice());
         const winner = computeHeaderDuelWinner(room.gameState, diceArr);
-        // winner is null on a tie — LOOSE_BALL path; headerDuelWinner stays null
-        // and applyResolveHeaderTarget will return DUEL_NOT_RESOLVED (not reached here).
-        // For tie: neither team can submit GAME_HEADER_TARGET — the UI should handle this.
-        room.gameState = {
-          ...room.gameState,
-          headerDuelWinner: winner, // null on tie, 'home' | 'away' on win
-        };
+        if (winner === null) {
+          // Tie → LOOSE_BALL immediately; no winner to select a target hex
+          room.gameState = {
+            ...room.gameState,
+            phase: 'LOOSE_BALL',
+            ball: { position: room.gameState.ball.position, carrierId: null },
+            lastActionType: 'DEFLECTION',
+            headerContestants: null,
+            headerConfirmed: null,
+            headerTargetHex: null,
+            headerAccuracyRollPending: null,
+            headerDuelWinner: null,
+          };
+        } else {
+          room.gameState = {
+            ...room.gameState,
+            headerDuelWinner: winner,
+          };
+        }
       }
 
       // Single broadcastState per handler path (Pitfall 1 — no double-broadcast)
