@@ -1386,7 +1386,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             const piece = state.pieces.find((p) => p.id === id);
             if (!piece) return null;
             const die = dice[offset + i] ?? 3;
-            return { piece, die, raw: piece.heading + die };
+            return { piece, die, raw: computeCombinedScore(piece.heading, die, []) };
           })
           .filter((r): r is CR => r !== null);
 
@@ -2316,9 +2316,9 @@ export function applyResolveHeaderTarget(
   };
 
   // 5. Route to GK_DIVING if the target is a goal-line hex for the attacking team (HEAD-03)
-  // Attacking team is the team whose contestant won the duel and is heading toward goal.
-  // For a defender win (RULE-02): the winner's team is now the effective attacking team.
-  const attackingTeamForHeader = state.attackingTeam;
+  // Use the duel winner's team as the effective attacker — for a defender win (RULE-02) this
+  // is the defender, who heads toward their own attacking direction (the opposite goal).
+  const attackingTeamForHeader = state.headerDuelWinner ?? state.attackingTeam;
   const goalQ = attackingTeamForHeader === 'home' ? 36 : 0;
   const isGoalLineTarget = targetHex.q === goalQ && targetHex.r >= 10 && targetHex.r <= 16;
 

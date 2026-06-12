@@ -660,6 +660,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               activeTeam: gkTeam,
               lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
               lastActionType: 'DEFLECTION',
+              lastShotPath: null,
               actionCount: gkEndState.actionCount + 1,
               gkKickTargetHex: null,
               gkKickGkId: null,
@@ -742,18 +743,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           if (didDeflect) break;
         }
 
-        if (snapDefInputs.length > 0) {
-          console.log(
-            '[SNAP_DEFLECT] Deflection check:',
-            snapDefInputs
-              .map((d) => `id=${d.defenderId} band=${d.band} die=${d.die} tackling=${d.tackling}`)
-              .join(', '),
-          );
-        }
-
         const snapDeflectResult = computeShotPathDeflection(snapDefInputs);
         if (snapDeflectResult.deflected && snapDeflectResult.deflectorPosition) {
-          console.log(`[SNAP_DEFLECT] DEFLECTED by ${snapDeflectResult.deflectorId} → LOOSE_BALL`);
           room.gameState = {
             ...baseSnapState,
             phase: 'LOOSE_BALL',
@@ -780,7 +771,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           reachableSnapPath.some((h) => hexDistance(snapGk.position, h) <= 3);
 
         if (!snapGkHasReachable) {
-          console.log('[SNAP_DEFLECT] GK out of range — auto-GOAL (no path hex within 3)');
           const scoringTeam = baseSnapState.attackingTeam;
           const newKickOffTeam = defendingTeam;
           const outDie1 = rollDice();
@@ -830,7 +820,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         }
 
         // GK in range: transition to GK_DIVING so GK can choose a dive hex
-        console.log('[SNAP_DEFLECT] GK in range → GK_DIVING');
         room.gameState = {
           ...baseSnapState,
           phase: 'GK_DIVING',
@@ -1257,18 +1246,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         if (didDeflect) break;
       }
 
-      if (defInputs.length > 0) {
-        console.log(
-          '[GAME_SHOT] Deflection check:',
-          defInputs
-            .map((d) => `id=${d.defenderId} band=${d.band} die=${d.die} tackling=${d.tackling}`)
-            .join(', '),
-        );
-      }
-
       const shotDeflectionResult = computeShotPathDeflection(defInputs);
       if (shotDeflectionResult.deflected && shotDeflectionResult.deflectorPosition) {
-        console.log(`[GAME_SHOT] DEFLECTED by ${shotDeflectionResult.deflectorId} → LOOSE_BALL`);
         room.gameState = {
           ...declaredState,
           phase: 'LOOSE_BALL',
@@ -1295,7 +1274,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         reachablePathHexes.some((h) => hexDistance(gkForRange.position, h) <= 3);
 
       if (!hasReachableHex) {
-        console.log('[GAME_SHOT] GK out of range — auto-GOAL (no path hex within 3)');
         const scoringTeam = declaredState.attackingTeam;
         const newKickOffTeam = shotDefTeam;
         const outDie1 = rollDice();
@@ -1662,6 +1640,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Null-state guard (belt-and-suspenders; applySnapshot also validates internally)
       if (room.gameState === null) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back — ARCH-04
         return;
       }
       // T-08-21: only the active (attacking) player may declare a Snapshot
@@ -1747,26 +1726,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         phase: 'SHOT',
         lastActionType: 'SHOT',
       };
-      console.log(
-        `[GK_DIVE] Shot dice — shooter:${diveShotDie} GK:${diveGkDie} handling:${diveHandlingDie}`,
-      );
       const diveShotResult = applyRoll(stateForShot, diveShotDie, diveGkDie, diveHandlingDie);
       if (!diveShotResult.ok) {
         socket.emit(ServerEvents.GAME_ERROR, diveShotResult.reason);
         broadcastState(io, room);
         return;
       }
-      const diveOutcome =
-        diveShotResult.state.phase === 'KICK_OFF_SETUP'
-          ? 'GOAL'
-          : diveShotResult.state.phase === 'GK_RESTART'
-            ? 'SAVE → caught'
-            : diveShotResult.state.phase === 'LOOSE_BALL'
-              ? 'SAVE → spilled'
-              : diveShotResult.state.phase === 'MOVEMENT'
-                ? 'MISS (auto)'
-                : diveShotResult.state.phase;
-      console.log(`[GK_DIVE] Shot outcome: ${diveOutcome}`);
       room.gameState = { ...diveShotResult.state, gkDivePosition: null };
       broadcastState(io, room); // ARCH-04
       if (diveShotResult.state.phase === 'FULL_TIME') {

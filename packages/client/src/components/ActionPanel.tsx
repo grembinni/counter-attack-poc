@@ -191,7 +191,7 @@ export function ActionPanel() {
         return (
           <div className={styles.panel}>
             <span className={styles.phaseLabel}>
-              High Pass accuracy roll: {rollValue} — pass is accurate! Click to continue.
+              High Pass accuracy roll: {rollValue} — accurate! Click to continue.
             </span>
             <button className={styles.ctaButton} onClick={() => emitHeaderAccuracyAck()}>
               Continue
