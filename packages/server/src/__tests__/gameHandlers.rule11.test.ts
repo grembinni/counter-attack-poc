@@ -304,7 +304,7 @@ describe('RULE-01: GAME_HEADER_ACCURACY_ACK — attacker clears accuracy-roll fl
 // ---------------------------------------------------------------------------
 
 describe('RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel', () => {
-  it('sets headerDuelWinner to home or away when both teams confirm', async () => {
+  it('immediately transitions to PASS or LOOSE_BALL when both teams confirm (Bug 4 fix)', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
     seedHeaderReadyForContestants(roomCode);
 
@@ -319,15 +319,17 @@ describe('RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel', (
     clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
     await stateAfterA;
 
-    // clientB (away) confirms second — duel should auto-fire now
+    // clientB (away) confirms second — duel auto-fires and resolves immediately
     const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
     const [stateB] = await stateAfterB;
 
-    // Duel fired — headerDuelWinner is set on win, or null on tie (which routes to LOOSE_BALL).
-    expect(['home', 'away', null]).toContain(stateB.headerDuelWinner);
-    // Phase is either HEADER (winner selected target next) or LOOSE_BALL (tie path — CR-02).
-    expect(['HEADER', 'LOOSE_BALL']).toContain(stateB.phase);
+    // Bug 4 fix: duel resolves immediately — phase transitions to PASS or LOOSE_BALL (tie).
+    // HEADER phase is no longer held open for a target-selection step.
+    expect(['PASS', 'GK_DIVING', 'LOOSE_BALL']).toContain(stateB.phase);
+    // header fields cleared on all terminal transitions
+    expect(stateB.headerDuelWinner == null).toBe(true);
+    expect(stateB.headerContestants == null).toBe(true);
   });
 
   it('broadcasts exactly one GAME_STATE per contestant confirmation', async () => {

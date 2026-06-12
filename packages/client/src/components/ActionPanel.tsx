@@ -212,22 +212,13 @@ export function ActionPanel() {
     const myConfirmed = headerConfirmed?.[myTeam] ?? false;
     const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
 
-    // HEAD-03: after both teams confirm, attacker clicks a target hex (handled in HexGrid).
-    // Only the attacker sees the "click target" prompt; defender waits.
-    // D-19 (WR-04): No Roll Header or Header button here — auto-confirm fires the duel once
-    // headerTargetHex is set (server side). Single resolution route only.
+    // Bug 4 fix: after both teams confirm, the server immediately resolves the duel and
+    // transitions to PASS/GK_DIVING/LOOSE_BALL — no "choose target hex" step remains in
+    // HEADER phase. Show a resolving message while the server broadcast arrives.
     if (bothConfirmed) {
-      if (isActivePlayer && myTeam === attackingTeam) {
-        return (
-          <div className={styles.panel}>
-            <span className={styles.phaseLabel}>Click a target hex for the header</span>
-            {gameError && <span className={styles.errorText}>{gameError}</span>}
-          </div>
-        );
-      }
       return (
         <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Waiting for attacker to select target...</span>
+          <span className={styles.phaseLabel}>Header — resolving duel...</span>
           {gameError && <span className={styles.errorText}>{gameError}</span>}
         </div>
       );

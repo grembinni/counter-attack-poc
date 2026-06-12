@@ -77,7 +77,6 @@ export function HexGrid() {
   const headerContestantIds = useGameStore((s) => s.headerContestantIds);
   const toggleHeaderContestantId = useGameStore((s) => s.toggleHeaderContestantId);
   const headerConfirmed = useGameStore((s) => s.gameState.headerConfirmed);
-  const headerTargetHex = useGameStore((s) => s.gameState.headerTargetHex);
   // HIGH_PASS_MOVEMENT: track locked piece and pace so selection gating + spent X match server rule
   const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
   const highPassPaceUsed = useGameStore((s) => s.gameState.highPassPaceUsed);
@@ -125,14 +124,10 @@ export function HexGrid() {
     }
   }
 
-  // HEADER target step: goal line hexes (both sides) for the attacker's selection
-  const bothConfirmed = (headerConfirmed?.home ?? false) && (headerConfirmed?.away ?? false);
-  const headerTargetStep =
-    phase === 'HEADER' &&
-    bothConfirmed &&
-    headerTargetHex == null && // == catches both null and undefined (field is optional in GameState)
-    isActivePlayer &&
-    myTeam === attackingTeam;
+  // Bug 4 fix: headerTargetStep removed — server now resolves the duel immediately when both
+  // teams confirm contestants, transitioning directly to PASS without a "choose target hex" step.
+  // The PASS phase with lastActionType='HEADER' auto-selects FIRST_TIME_PASS in ActionPanel.
+  const headerTargetStep = false; // always false — kept as named const to avoid touching all usages below
 
   // O(1) membership check for valid-move highlights
   const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
