@@ -206,6 +206,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     };
     const vpType = vpTypeMap[passType];
     const opponents = gameState.pieces.filter((p) => p.teamId !== carrier.teamId);
+    // Header pass is unblockable — skip interception risk computation entirely.
+    const isHeaderPass = gameState.lastActionType === 'HEADER';
 
     const validTargets: HexCoord[] = [];
     const interceptionRisk: HexCoord[] = [];
@@ -216,7 +218,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
       validTargets.push(hex);
 
-      if (passType === 'LONG_BALL') {
+      if (isHeaderPass) {
+        // Header pass is unblockable — never mark any hex as interception risk.
+      } else if (passType === 'LONG_BALL') {
         // Long ball cannot be intercepted. Show orange only on final-third hexes
         // when the passer is in their own first third (ambitious long-range play indicator).
         const passerInOwnThird =
