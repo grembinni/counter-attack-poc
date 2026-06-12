@@ -65,6 +65,14 @@ export function ActionPanel() {
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
 
+  const waitingPanel = (
+    <div className={styles.panel}>
+      <div className={styles.helperBlock}>
+        <span className={styles.helperLine2}>Waiting for Opponent.</span>
+      </div>
+    </div>
+  );
+
   /** Check if an action is eligible given the current lastActionType. */
   const isEligible = (action: string): boolean => {
     const effectiveLast = lastActionType ?? 'MOVEMENT_PHASE';
@@ -101,13 +109,7 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
     // so isActivePlayer correctly reflects whose turn it is in this phase
-    if (!isActivePlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent is repositioning — wait...</span>
-        </div>
-      );
-    }
+    if (!isActivePlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
@@ -131,13 +133,7 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     const gkTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isGKTeamPlayer = myTeam === gkTeam;
-    if (!isGKTeamPlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent is positioning GK — wait...</span>
-        </div>
-      );
-    }
+    if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.phaseLabel}>
@@ -158,13 +154,7 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isDefendingTeamPlayer = myTeam === defendingTeam;
-    if (!isDefendingTeamPlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent is deflecting — wait...</span>
-        </div>
-      );
-    }
+    if (!isDefendingTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.phaseLabel}>
@@ -189,7 +179,6 @@ export function ActionPanel() {
 
     // RULE-01: gate contestant selection behind accuracy roll acknowledgment
     if (headerAccuracyRollPending ?? false) {
-      const rollValue = lastDiceRoll?.rolls[0] ?? '?';
       if (isActivePlayer && myTeam === attackingTeam) {
         return (
           <div className={styles.panel}>
@@ -206,9 +195,10 @@ export function ActionPanel() {
       }
       return (
         <div className={styles.panel}>
-          <span className={styles.phaseLabel}>
-            High Pass accuracy roll: {rollValue} — waiting for attacker...
-          </span>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>Accurate High Pass!</span>
+            <span className={styles.helperLine2}>Waiting for Opponent.</span>
+          </div>
         </div>
       );
     }
@@ -229,12 +219,7 @@ export function ActionPanel() {
           </div>
         );
       }
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Header — resolving duel...</span>
-          {gameError && <span className={styles.errorText}>{gameError}</span>}
-        </div>
-      );
+      return waitingPanel;
     }
 
     return (
@@ -255,7 +240,11 @@ export function ActionPanel() {
             </button>
           </>
         )}
-        {myConfirmed && <span className={styles.phaseLabel}>Waiting for opponent...</span>}
+        {myConfirmed && (
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine2}>Waiting for Opponent.</span>
+          </div>
+        )}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -267,13 +256,7 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   if (phase === 'SHOT_DECLARED') {
     if (myTeam === null) return null;
-    if (!isActivePlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent is aiming — wait...</span>
-        </div>
-      );
-    }
+    if (!isActivePlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.phaseLabel}>Snapshot! Click a goal hex to target</span>
@@ -292,13 +275,7 @@ export function ActionPanel() {
     const gkPieceForRestart = pieces.find((p) => p.id === carrierId);
     const gkTeamForRestart = gkPieceForRestart?.teamId ?? null;
     const isGKTeamPlayer = myTeam !== null && myTeam === gkTeamForRestart;
-    if (!isGKTeamPlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent GK restart — wait...</span>
-        </div>
-      );
-    }
+    if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.gkLabel}>GK Restart — choose:</span>
@@ -323,13 +300,7 @@ export function ActionPanel() {
     const gkPiece = pieces.find((p) => p.id === carrierId);
     const gkTeam = gkPiece?.teamId ?? null;
     const isGKTeamPlayer = myTeam === gkTeam;
-    if (!isGKTeamPlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent GK quick throw — wait...</span>
-        </div>
-      );
-    }
+    if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.gkLabel}>Quick Throw — select target hex</span>
@@ -346,13 +317,7 @@ export function ActionPanel() {
     const gkPiece = pieces.find((p) => p.id === carrierId);
     const gkTeam = gkPiece?.teamId ?? null;
     const isGKTeamPlayer = myTeam === gkTeam;
-    if (!isGKTeamPlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent GK kick — wait for target selection...</span>
-        </div>
-      );
-    }
+    if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.gkLabel}>GK Kick — select target hex</span>
@@ -368,13 +333,7 @@ export function ActionPanel() {
   // Must be before isActivePlayer guard — both teams act in this phase.
   if (phase === 'GK_KICK_MOVEMENT') {
     if (myTeam === null) return null;
-    if (!isActivePlayer) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Opponent is repositioning — wait...</span>
-        </div>
-      );
-    }
+    if (!isActivePlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
         <span className={styles.phaseLabel}>
@@ -388,7 +347,7 @@ export function ActionPanel() {
     );
   }
 
-  if (!isActivePlayer) return null;
+  if (!isActivePlayer) return waitingPanel;
 
   // -------------------------------------------------------------------------
   // KICK_OFF + PASS phase — three-step flow (Phase 8.2 D-06)
@@ -422,7 +381,7 @@ export function ActionPanel() {
     if (selectedPassType === null) {
       return (
         <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Choosing action</span>
+          <span className={styles.phaseLabel}>Choose action.</span>
 
           {eligible.has('MOVEMENT') && (
             <button className={styles.ctaButton} onClick={emitStartMovement}>

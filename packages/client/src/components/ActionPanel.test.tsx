@@ -28,10 +28,10 @@ beforeEach(() => {
 });
 
 describe('ActionPanel — UNDO-03: active player gating', () => {
-  it('renders null for the non-active player', () => {
+  it('renders waiting panel for the non-active player', () => {
     useGameStore.setState({ playerSlot: 2 });
-    const { container } = render(<ActionPanel />);
-    expect(container.firstChild).toBeNull();
+    render(<ActionPanel />);
+    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
   });
 
   it('renders controls for the active player', () => {
