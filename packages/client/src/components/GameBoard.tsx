@@ -112,12 +112,13 @@ function SideLog() {
 }
 
 /**
- * Full game board layout: 80px top band (player card | centre+scores | action)
+ * Full game board layout: 80px top band (left 1fr | scoreboard auto | right 1fr)
  * followed by a pitchRow containing SideLog + pitchContainer.
  * HALF_TIME / FULL_TIME render as overlays over the pitch.
  * Phase 13: replaces sidebar layout; top band always visible in every phase (LAYOUT-01/02, CLOCK-01/02).
- * Refactored 260612-ike: 5-track band, scoreboard with shields, 3-col player card, stat bubbles.
- * Refactored 260612-kvw: scores flank clock in centre, side-log panel, 4-track band.
+ * Refactored 260612-ike: scoreboard with shields, 3-col player card, stat bubbles.
+ * Refactored 260612-kvw: scores flank clock in centre, side-log panel.
+ * Refactored 260612-l7d: 3-track band (1fr auto 1fr), scoreboard as visual centrepiece.
  */
 export function GameBoard() {
   // Core state
@@ -178,10 +179,10 @@ export function GameBoard() {
 
   return (
     <div className={styles.gameBoard}>
-      {/* Top band: 80px CSS grid strip spanning full width */}
+      {/* Top band: 80px CSS grid strip spanning full width — 3 tracks: 1fr auto 1fr */}
       <div className={styles.topBand}>
-        {/* Track 1 — Player card (leftmost) */}
-        <div className={styles.playerCardSection}>
+        {/* Track 1 — Left zone: player card centred within 1fr */}
+        <div className={styles.topBandLeft}>
           {displayPiece ? (
             <div className={styles.playerCard3Col}>
               {/* Col 1: name / role / team icon */}
@@ -220,51 +221,59 @@ export function GameBoard() {
           )}
         </div>
 
-        {/* Track 2 — Centre section: [home shield | home score | clock | away score | away shield] + connection + phase summary */}
-        <div className={styles.centreSection}>
-          <div className={styles.scoreRow}>
-            <TeamShieldIcon color="#1a56b0" />
-            <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
-              {score.home}
-            </span>
-            <span className={styles.clockDisplay}>{clockDisplay}</span>
-            <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
-              {score.away}
-            </span>
-            <TeamShieldIcon color="#c0392b" />
-          </div>
-          <div className={styles.connectionLine}>
-            <ConnectionStatus />
-          </div>
-          <div className={styles.phaseSummary}>
-            <span className={styles.teamName} style={{ color: teamColor }}>
-              {teamName}
-            </span>
-            {phaseLabel && phase !== 'REPLAY' && (
-              <span className={styles.phaseLabel}>&nbsp;{phaseLabel}</span>
-            )}
-            {phase === 'MOVEMENT' && movementSlot != null && remaining != null && (
-              <span className={styles.movesRemaining}>
-                &nbsp;&middot;&nbsp;{movementSlot}&nbsp;&middot;&nbsp;{remaining} moves remaining
+        {/* Track 2 — Scoreboard (auto): home cell | centre cell | away cell */}
+        <div className={styles.scoreboard}>
+          <div className={styles.scoreboardGrid}>
+            {/* Home cell: shield + score numeral */}
+            <div className={styles.scoreboardHomeCell}>
+              <TeamShieldIcon color="#1a56b0" />
+              <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
+                {score.home}
               </span>
-            )}
+            </div>
+
+            {/* Centre cell: clock + connection + phase summary */}
+            <div className={styles.scoreboardCentreCell}>
+              <span className={styles.clockDisplay}>{clockDisplay}</span>
+              <div className={styles.connectionLine}>
+                <ConnectionStatus />
+              </div>
+              <div className={styles.phaseSummary}>
+                <span className={styles.teamName} style={{ color: teamColor }}>
+                  {teamName}
+                </span>
+                {phaseLabel && phase !== 'REPLAY' && (
+                  <span className={styles.phaseLabel}>&nbsp;{phaseLabel}</span>
+                )}
+                {phase === 'MOVEMENT' && movementSlot != null && remaining != null && (
+                  <span className={styles.movesRemaining}>
+                    &nbsp;&middot;&nbsp;{movementSlot}&nbsp;&middot;&nbsp;{remaining} moves
+                    remaining
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Away cell: score numeral + shield */}
+            <div className={styles.scoreboardAwayCell}>
+              <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
+                {score.away}
+              </span>
+              <TeamShieldIcon color="#c0392b" />
+            </div>
           </div>
         </div>
 
-        {/* Track 3 — Action section: phase-aware panel swap */}
-        <div className={styles.topBandSection}>
-          <div className={styles.actionSection}>
-            {phase === 'KICK_OFF_SETUP' ? (
-              <KickOffSetupPanel />
-            ) : phase === 'REPLAY' ? (
-              <ReplayPanel />
-            ) : (
-              <ActionPanel />
-            )}
-          </div>
+        {/* Track 3 — Right zone: action panel centred within 1fr */}
+        <div className={styles.topBandRight}>
+          {phase === 'KICK_OFF_SETUP' ? (
+            <KickOffSetupPanel />
+          ) : phase === 'REPLAY' ? (
+            <ReplayPanel />
+          ) : (
+            <ActionPanel />
+          )}
         </div>
-
-        {/* Track 4 — (reserved / empty — log moved to side panel) */}
       </div>
 
       {/* DisconnectBanner between top band and pitch */}
