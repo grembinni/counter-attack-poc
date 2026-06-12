@@ -46,8 +46,7 @@ import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 /** 4-5-2 Movement Phase slot sequence. Used by advanceMovementSlot. D-03/D-04. */
 const SLOT_SEQUENCE: readonly MovementSlot[] = ['ATTACKER_4', 'DEFENDER_5', 'ATTACKER_2'];
 
-/** TESTING ONLY — set to null to use real piece pace values. Remove before ship. */
-const TESTING_PACE_OVERRIDE: number | null = 15;
+const TESTING_PACE_OVERRIDE: number | null = null;
 
 /**
  * D-20 (IN-01): hoisted to module-level const — avoids reallocating the Set on every
