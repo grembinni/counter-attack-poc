@@ -42,23 +42,42 @@ const SLOT_TOTAL: Record<MovementSlot, number> = {
   ATTACKER_2: 2,
 };
 
-/**
- * Compact stats to display in the player card (2x3 grid).
- * Six confirmed PlayerPiece numeric fields chosen for outfield relevance.
- */
-const COMPACT_STATS: Array<[keyof PlayerPiece, string]> = [
-  ['pace', 'PAC'],
-  ['shooting', 'SHT'],
-  ['tackling', 'TAC'],
-  ['heading', 'HED'],
-  ['dribbling', 'DRB'],
-  ['highPass', 'HPS'],
-];
+/** Returns the appropriate statBubble color class based on the stat value. */
+function statBubbleClass(value: number): string {
+  if (value >= 5) return styles.statBubbleGreen ?? '';
+  if (value >= 3) return styles.statBubbleYellow ?? '';
+  return styles.statBubbleRed ?? '';
+}
+
+/** Inline SVG shield icon for team identity in the scoreboard and player card. */
+function TeamShieldIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true">
+      <path
+        d="M11 1L2 4.5V12C2 17.5 6 22.5 11 25C16 22.5 20 17.5 20 12V4.5L11 1Z"
+        fill={color}
+        stroke="rgba(255,255,255,0.2)"
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
+
+/** Renders a single stat row: label + colored bubble. */
+function StatRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className={styles.statRow}>
+      <span className={styles.statLabel}>{label}</span>
+      <span className={`${styles.statBubble} ${statBubbleClass(value)}`}>{value}</span>
+    </div>
+  );
+}
 
 /**
- * Full game board layout: 80px top band (score | centre | card | action | log | score)
+ * Full game board layout: 80px top band (player card | centre | scoreboard | action | log)
  * followed by the hex pitch. HALF_TIME / FULL_TIME render as overlays over the pitch.
  * Phase 13: replaces sidebar layout; top band always visible in every phase (LAYOUT-01/02, CLOCK-01/02).
+ * Refactored 260612-ike: 5-track band, scoreboard with shields, 3-col player card, stat bubbles.
  */
 export function GameBoard() {
   // Core state
@@ -118,19 +137,53 @@ export function GameBoard() {
   const resultColor =
     score.home > score.away ? '#1a56b0' : score.away > score.home ? '#c0392b' : '#e0e0e0';
 
+  const isGK = displayPiece?.role === 'GK';
+
   return (
     <div className={styles.gameBoard}>
       {/* Top band: 80px CSS grid strip spanning full width */}
       <div className={styles.topBand}>
-        {/* Home score column (far left, fixed 56px) */}
-        <div className={styles.scoreColumn}>
-          <span className={styles.scoreTeamName}>Home</span>
-          <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
-            {score.home}
-          </span>
+        {/* Track 1 — Player card (leftmost) */}
+        <div className={styles.playerCardSection}>
+          {displayPiece ? (
+            <div className={styles.playerCard3Col}>
+              {/* Col 1: name / role / team icon */}
+              <div className={styles.playerCardInfoCol}>
+                <span className={styles.playerCardName}>{displayPiece.name}</span>
+                <span className={styles.playerCardRole}>{displayPiece.role}</span>
+                <TeamShieldIcon color={displayPiece.teamId === 'home' ? '#1a56b0' : '#c0392b'} />
+              </div>
+
+              {/* Col 2: PAC / DRB / HED or AA / SHT or SAV */}
+              <div className={styles.playerCardStatsCol}>
+                <StatRow label="PAC" value={displayPiece.pace} />
+                <StatRow label="DRB" value={displayPiece.dribbling} />
+                {isGK ? (
+                  <StatRow label="AA" value={displayPiece.aerialAbility} />
+                ) : (
+                  <StatRow label="HED" value={displayPiece.heading} />
+                )}
+                {isGK ? (
+                  <StatRow label="SAV" value={displayPiece.saving} />
+                ) : (
+                  <StatRow label="SHT" value={displayPiece.shooting} />
+                )}
+              </div>
+
+              {/* Col 3: HPS / RES / TAC / HND (GK only) */}
+              <div className={styles.playerCardStatsCol}>
+                <StatRow label="HPS" value={displayPiece.highPass} />
+                <StatRow label="RES" value={displayPiece.resilience} />
+                <StatRow label="TAC" value={displayPiece.tackling} />
+                {isGK && <StatRow label="HND" value={displayPiece.handling} />}
+              </div>
+            </div>
+          ) : (
+            <span className={styles.playerCardPlaceholder}>Select a piece</span>
+          )}
         </div>
 
-        {/* Centre section: clock + connection + phase summary */}
+        {/* Track 2 — Centre section: clock + connection + phase summary */}
         <div className={styles.topBandSection}>
           <span className={styles.clockDisplay}>{clockDisplay}</span>
           <div className={styles.connectionLine}>
@@ -151,29 +204,24 @@ export function GameBoard() {
           </div>
         </div>
 
-        {/* Compact player card */}
-        <div className={styles.topBandSection}>
-          {displayPiece ? (
-            <div className={styles.playerCard}>
-              <div className={styles.playerCardHeader}>
-                <span>{displayPiece.name}</span>
-                <span className={styles.playerCardRole}>{displayPiece.role}</span>
-              </div>
-              <div className={styles.compactStatsGrid}>
-                {COMPACT_STATS.map(([field, label]) => (
-                  <div key={field} className={styles.compactStat}>
-                    <span className={styles.compactStatLabel}>{label}</span>
-                    <span className={styles.compactStatValue}>{displayPiece[field] as number}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <span className={styles.playerCardPlaceholder}>Select a piece</span>
-          )}
+        {/* Track 3 — Scoreboard: [home icon | home score | dash | away score | away icon] */}
+        <div className={styles.scoreboard}>
+          <div className={styles.scoreIcon}>
+            <TeamShieldIcon color="#1a56b0" />
+          </div>
+          <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
+            {score.home}
+          </span>
+          <span className={styles.scoreDash}>&ndash;</span>
+          <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
+            {score.away}
+          </span>
+          <div className={styles.scoreIcon}>
+            <TeamShieldIcon color="#c0392b" />
+          </div>
         </div>
 
-        {/* Action section: phase-aware panel swap */}
+        {/* Track 4 — Action section: phase-aware panel swap */}
         <div className={styles.topBandSection}>
           <div className={styles.actionSection}>
             {phase === 'KICK_OFF_SETUP' ? (
@@ -186,7 +234,7 @@ export function GameBoard() {
           </div>
         </div>
 
-        {/* Log toggle section */}
+        {/* Track 5 — Log toggle section */}
         {logExpanded ? (
           <div className={styles.logExpanded}>
             <div className={styles.logHeader}>
@@ -212,14 +260,6 @@ export function GameBoard() {
             </button>
           </div>
         )}
-
-        {/* Away score column (far right, fixed 56px) */}
-        <div className={styles.scoreColumnAway}>
-          <span className={styles.scoreTeamName}>Away</span>
-          <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
-            {score.away}
-          </span>
-        </div>
       </div>
 
       {/* DisconnectBanner between top band and pitch */}
