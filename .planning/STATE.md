@@ -3,21 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
 status: executing
-last_updated: '2026-06-12T17:46:52.693Z'
-last_activity: 2026-06-12 -- Phase 13 execution started
+last_updated: '2026-06-12T17:54:00.000Z'
+last_activity: 2026-06-12 -- Phase 13 Plan 02 complete
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 11
-  completed_plans: 9
-  percent: 50
+  completed_plans: 10
+  percent: 55
 ---
 
 # Project State
 
 ## Current Phase
 
-Phase 12 complete — ready for Phase 13
+Phase 13 in progress — Plan 02 complete, ready for Plan 03
 
 ## Project Reference
 
@@ -172,9 +172,9 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 13 (layout-clock) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 13 execution started
+Plan: 3 of 3
+Status: Ready to execute (Plan 02 complete)
+Last activity: 2026-06-12 -- Phase 13 Plan 02 complete (GameBoard top-band layout)
 
 ## Performance Metrics
 
@@ -189,6 +189,7 @@ Last activity: 2026-06-12 -- Phase 13 execution started
 | Phase 12-visual-token-hex-layer P03 | ~15m   | 3 tasks  | 3 files |
 | Phase 12-visual-token-hex-layer P04 | ~45m   | 3 tasks  | 2 files |
 | Phase 13-layout-clock P01           | 2min   | 1 tasks  | 1 files |
+| Phase 13-layout-clock P02           | 5m 5s  | 2 tasks  | 3 files |
 
 ## Decisions
 
@@ -205,3 +206,7 @@ Last activity: 2026-06-12 -- Phase 13 execution started
 - [Phase 12 P04]: D-13: isHeaderNonGoalTarget overlay tint changed from cyan to white (rgba(255,255,255,0.35)); two-tier white tint added for shot-path vs shot-path-action
 - [Phase ?]: Wave 0 socket mock pattern: extend { emit, on, off } with socket.io: { on, off } to support ConnectionStatus Manager events in GameBoard tests
 - [Phase ?]: GameBoard.test.tsx Wave 0 RED state: 15 tests, 11 failing until Plan 02 rewrites GameBoard — Nyquist signal design
+- [Phase 13 P02]: PHASE_LABEL and SLOT_TOTAL absorbed verbatim from TurnIndicator into GameBoard module scope
+- [Phase 13 P02]: REPLAY phaseLabel suppressed in centre section to prevent getByText collision with ReplayPanel heading
+- [Phase 13 P02]: topBand uses CSS Grid 56px 1fr 1fr 1fr auto 56px; pitchContainer gains position:relative for overlay anchoring
+- [Phase 13 P02]: COMPACT_STATS selects 6 confirmed PlayerPiece fields (pace/shooting/tackling/heading/dribbling/highPass)
