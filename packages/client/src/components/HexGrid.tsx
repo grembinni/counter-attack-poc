@@ -94,6 +94,7 @@ export function HexGrid() {
   // RULE-04 (Phase 11): subscribe to pace counter so HexGrid suppresses selection once exhausted
   const snapDeflectPaceUsed = useGameStore((s) => s.gameState.snapDeflectPaceUsed);
   const lastShotPath = useGameStore((s) => s.gameState.lastShotPath);
+  const lastActionType = useGameStore((s) => s.gameState.lastActionType);
   const emitGKKickTarget = useGameStore((s) => s.emitGKKickTarget);
 
   const myTeam: 'home' | 'away' | null =
@@ -318,9 +319,10 @@ export function HexGrid() {
 
             // Plan 04 D-12: priority-resolve highlightType (risk > goal > shot-path > kickoff > safe)
             // isRisk: ZoI steal-risk OR tackle-risk movement OR snap-deflect shot path (all orange).
-            // Header pass is unblockable — suppress ZoI/tackle risk during headerTargetStep.
+            // Header pass is unblockable — suppress ZoI/tackle risk when lastActionType === 'HEADER'.
+            const isHeaderPass = phase === 'PASS' && lastActionType === 'HEADER';
             const isRisk =
-              (!headerTargetStep &&
+              (!isHeaderPass &&
                 ((zoiRiskSet.has(hexId) && isValidMove) ||
                   (tackleRiskSet.has(hexId) && isValidMove))) ||
               isShotPath;
