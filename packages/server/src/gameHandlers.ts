@@ -1379,6 +1379,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
+      // Boundary guard: reject off-pitch destinations (D-23)
+      if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+        broadcastState(io, room);
+        return;
+      }
+      // Occupancy guard: reject if any other piece already occupies that hex
+      if (
+        room.gameState.pieces.some(
+          (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+        )
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
+        broadcastState(io, room);
+        return;
+      }
       // Apply free repositioning (no pace/ZoI checks — D-23)
       const newPieces = room.gameState.pieces.map((p) =>
         p.id === pieceId ? { ...p, position: { q: to.q, r: to.r } } : p,
