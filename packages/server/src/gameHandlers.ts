@@ -1104,6 +1104,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               return;
             }
           }
+          // RULE-02 guard: duel already resolved in GAME_HEADER_CONTESTANT — do not re-fire.
+          // An attacker who lost could otherwise send GAME_ROLL to overwrite headerDuelWinner.
+          if (
+            room.gameState.phase === 'HEADER' &&
+            room.gameState.headerDuelWinner !== undefined
+          ) {
+            socket.emit(ServerEvents.GAME_ERROR, 'DUEL_ALREADY_RESOLVED');
+            broadcastState(io, room);
+            return;
+          }
         }
 
         // Pre-generate all dice the branch may need (Pitfall 4 — upfront, before any validator call)
