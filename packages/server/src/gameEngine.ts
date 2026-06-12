@@ -2101,6 +2101,7 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
 /**
  * Discriminated union result for applyDeclareHeaderTarget.
  * T-10-05: target hex validated server-side against attackingTeam's goal direction.
+ * @deprecated Use {@link ApplyResolveHeaderTargetResult} and {@link applyResolveHeaderTarget} instead.
  */
 export type ApplyDeclareHeaderTargetResult =
   | { ok: false; reason: 'WRONG_PHASE' | 'NOT_CONFIRMED' | 'INVALID_TARGET' }
@@ -2108,6 +2109,11 @@ export type ApplyDeclareHeaderTargetResult =
 
 /**
  * Records the target hex for the header during the HEADER phase (HEAD-03).
+ *
+ * @deprecated Superseded by {@link applyResolveHeaderTarget} (RULE-02, Phase 11).
+ * `applyDeclareHeaderTarget` relied on a subsequent GAME_ROLL to resolve the duel, which
+ * has been replaced by pre-computing the winner in `GAME_HEADER_CONTESTANT`.
+ * This function has no production callsite. Use `applyResolveHeaderTarget` for all new code.
  *
  * D-11/D-12: The attacker clicks a target hex after both teams confirm contestants.
  * If the target is a goal-line hex for the attacking team → GK_DIVING redirect after duel.
