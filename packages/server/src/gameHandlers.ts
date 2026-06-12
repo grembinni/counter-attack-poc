@@ -642,6 +642,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               activeTeam: gkTeam,
               lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
               lastActionType: 'MOVEMENT_PHASE',
+              lastShotPath: null,
               actionCount: gkEndState.actionCount + 1,
               gkKickTargetHex: null,
               gkKickGkId: null,
