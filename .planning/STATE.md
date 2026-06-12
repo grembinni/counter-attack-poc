@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: UX Tuning & Bug Cleanup — Active
-status: active
-last_updated: '2026-06-12T13:30:00Z'
-last_activity: 2026-06-12 -- Quick task 260612-lme: scoreboard centre cell polish (dot+clock, 26px, slot helper text) and centred ActionPanel label
+status: verifying
+last_updated: '2026-06-12T22:26:26.856Z'
+last_activity: 2026-06-12 -- Phase 13 verified (human_needed); 71/71 tests pass, build clean
 progress:
   total_phases: 4
   completed_phases: 3
