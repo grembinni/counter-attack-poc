@@ -13,6 +13,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { socket } from '../socket.js';
 import { computeViewBox, HEX_SIZE, axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 import { HexCell } from './HexCell.js';
+import type { HexHighlightType } from './HexCell.js';
 import { PieceOverlay } from './PieceOverlay.js';
 import type { SelectionState } from './PieceOverlay.js';
 import { BallMarker } from './BallMarker.js';
@@ -182,9 +183,6 @@ export function HexGrid() {
     }
   };
 
-  // Zone tint colour for the local team (T-08-19: own-team only; opponent zone has no tint)
-  const kickOffZoneColor = myTeam === 'home' ? '#1a56b0' : '#c0392b';
-
   // Shot path highlight: O(1) lookup set for the last resolved shot trajectory
   const lastShotPathSet = new Set<string>((lastShotPath ?? []).map((h) => `${h.q},${h.r}`));
 
@@ -305,6 +303,39 @@ export function HexGrid() {
             const isConfirmedPassTarget =
               passTargetHex !== null && hex.q === passTargetHex.q && hex.r === passTargetHex.r;
 
+            // KICK_OFF_SETUP zone — must be computed before highlightType derivation below
+            const inMyZone = isKickOffSetup ? isInMyKickOffZone(hex) : false;
+            const isCentreHex =
+              isKickOffSetup &&
+              hex.q === PITCH_REGIONS.kickOffHex.q &&
+              hex.r === PITCH_REGIONS.kickOffHex.r;
+
+            // Plan 04 D-12: priority-resolve highlightType (risk > goal > shot-path > kickoff > safe)
+            // isRisk: ZoI steal-risk OR tackle-risk movement OR snap-deflect shot path (all orange)
+            const isRisk =
+              (zoiRiskSet.has(hexId) && isValidMove) ||
+              (tackleRiskSet.has(hexId) && isValidMove) ||
+              isShotPath;
+            const isGoalTint =
+              isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex;
+            // isShotPathTint: resolved shot path, HIGH_PASS reposition targets, GK dive targets (white tint)
+            const isShotPathTint = lastShotPathSet.has(hexId) || isHpMoveTarget || isGKDiveTarget;
+            // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex)
+            const isKickoffTint = inMyZone && !isCentreHex;
+            // isSafeTint: normal valid-move hexes not classified as goal-line
+            const isSafeTint = isHighlighted && !isGoalTint;
+            const highlightType: HexHighlightType | undefined = isRisk
+              ? 'risk'
+              : isGoalTint
+                ? 'goal'
+                : isShotPathTint
+                  ? 'shot-path'
+                  : isKickoffTint
+                    ? 'kickoff'
+                    : isSafeTint
+                      ? 'safe'
+                      : undefined;
+
             let onClick: (() => void) | undefined;
             if (phase === 'KICK_OFF_SETUP') {
               // KICK_OFF_SETUP: clicking a valid zone hex while a piece is selected → emitKickOffMove (T-08-19)
@@ -350,12 +381,6 @@ export function HexGrid() {
               }
             }
 
-            // KICK_OFF_SETUP zone tint overlays — rendered as additional polygons after base hex
-            const inMyZone = isKickOffSetup ? isInMyKickOffZone(hex) : false;
-            const isCentreHex =
-              isKickOffSetup &&
-              hex.q === PITCH_REGIONS.kickOffHex.q &&
-              hex.r === PITCH_REGIONS.kickOffHex.r;
             const { cx, cy } = axialToPixel(hex.q, hex.r);
             const points = hexPolygonPoints(cx, cy);
 
@@ -363,42 +388,9 @@ export function HexGrid() {
               <g key={hexId}>
                 <HexCell
                   hex={hex}
-                  isHighlighted={isHighlighted}
-                  highlightColor={
-                    isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex
-                      ? '#ef4444'
-                      : undefined
-                  }
+                  highlightType={highlightType}
                   onClick={onClick ?? (() => undefined)}
                 />
-                {/* Steal-risk tint — red on carrier's valid hexes adjacent to opponents (D-20, D-21) */}
-                {zoiRiskSet.has(hexId) && isValidMove && (
-                  <polygon
-                    points={points}
-                    className={styles.hexZoIRisk}
-                    stroke="none"
-                    pointerEvents="none"
-                  />
-                )}
-                {/* Tackle-risk tint — orange on non-carrier valid hexes adjacent to ball carrier */}
-                {tackleRiskSet.has(hexId) && isValidMove && (
-                  <polygon
-                    points={points}
-                    className={styles.hexTackleRisk}
-                    stroke="none"
-                    pointerEvents="none"
-                  />
-                )}
-                {/* KICK_OFF_SETUP: zone tint overlay (own team valid zone, excluding occupied hexes) */}
-                {inMyZone && !isCentreHex && (
-                  <polygon
-                    points={points}
-                    fill={kickOffZoneColor}
-                    fillOpacity={0.25}
-                    stroke="none"
-                    pointerEvents="none"
-                  />
-                )}
                 {/* KICK_OFF_SETUP: centre hex gold fill overlay (always visible during setup, MATCH-03) */}
                 {isCentreHex && (
                   <polygon
@@ -430,35 +422,15 @@ export function HexGrid() {
                     pointerEvents="none"
                   />
                 )}
-                {/* HEADER target step: subtle cyan tint on all non-goal-line pitch hexes (headed pass targets) */}
+                {/* HEADER target step: white shot-path tint on all non-goal-line pitch hexes (headed pass targets) — D-13 */}
                 {isHeaderNonGoalTarget && (
                   <polygon
                     points={points}
-                    fill="rgba(34,211,238,0.18)"
-                    stroke="rgba(34,211,238,0.4)"
+                    fill="rgba(255,255,255,0.35)"
+                    stroke="#cccccc"
                     strokeWidth={0.5}
                     onClick={onClick}
                     style={{ cursor: 'pointer' }}
-                  />
-                )}
-                {/* SNAP_DEFLECT: orange danger-path tint so defending team can see the shot line */}
-                {isShotPath && (
-                  <polygon
-                    points={points}
-                    fill="rgba(249,115,22,0.45)"
-                    stroke="rgba(249,115,22,0.7)"
-                    strokeWidth={1}
-                    pointerEvents="none"
-                  />
-                )}
-                {/* Shot path highlight: gold tint on hexes the ball crossed on the last resolved shot */}
-                {lastShotPathSet.has(hexId) && (
-                  <polygon
-                    points={points}
-                    fill="rgba(245,197,24,0.35)"
-                    stroke="rgba(245,197,24,0.6)"
-                    strokeWidth={1}
-                    pointerEvents="none"
                   />
                 )}
                 {/* GK_KICK_TARGET: sky-blue tint on valid kick destinations */}
@@ -481,17 +453,6 @@ export function HexGrid() {
                     strokeWidth={1}
                     onClick={() => emitQuickThrow(hex)}
                     style={{ cursor: 'pointer' }}
-                  />
-                )}
-                {/* HIGH_PASS_MOVEMENT: subtle white tint on valid repositioning hexes (distinct from gold move highlight) */}
-                {isHpMoveTarget && (
-                  <polygon
-                    points={points}
-                    fill="rgba(255,255,255,0.18)"
-                    stroke="rgba(255,255,255,0.5)"
-                    strokeWidth={1}
-                    onClick={onClick}
-                    style={{ cursor: onClick ? 'pointer' : 'default' }}
                   />
                 )}
                 {/* Phase 8.2 D-06: safe pass target — green tint, handles click */}
