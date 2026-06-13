@@ -395,6 +395,77 @@ describe('GAME_READY — kick-off placement confirmation', () => {
   });
 });
 
+describe('MATCH-07: only a Standard Pass may be played as the opening action from KICK_OFF', () => {
+  it('rejects a non-Standard-Pass during KICK_OFF with KICKOFF_STANDARD_PASS_ONLY and snaps back', async () => {
+    const { clientA, clientB, roomCode, attackingClient, defendingClient, attackingTeam } =
+      await setupRoom();
+    const kickOffState = await driveToKickOff(
+      roomCode,
+      attackingClient,
+      defendingClient,
+      attackingTeam,
+    );
+    expect(kickOffState.phase).toBe('KICK_OFF');
+
+    // Seed a valid targetHex (adjacent to the kickoff hex)
+    const targetHex = { q: PITCH_REGIONS.kickOffHex.q + 1, r: PITCH_REGIONS.kickOffHex.r };
+
+    const errorPromise = oncePromise(attackingClient, ServerEvents.GAME_ERROR);
+    attackingClient.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', targetHex);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('KICKOFF_STANDARD_PASS_ONLY');
+
+    // Phase must snap back to KICK_OFF
+    const snapState = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+    const [state] = await snapState.catch(() => [[kickOffState]]);
+    void state; // snap-back already broadcast alongside the error
+    const room = getRoom(roomCode)!;
+    expect(room.gameState!.phase).toBe('KICK_OFF');
+
+    void clientA;
+    void clientB;
+  });
+
+  it('does not block a Standard Pass during KICK_OFF with KICKOFF_STANDARD_PASS_ONLY', async () => {
+    const { clientA, clientB, roomCode, attackingClient, defendingClient, attackingTeam } =
+      await setupRoom();
+    const kickOffState = await driveToKickOff(
+      roomCode,
+      attackingClient,
+      defendingClient,
+      attackingTeam,
+    );
+    expect(kickOffState.phase).toBe('KICK_OFF');
+
+    // Place the ball carrier at the kickoff hex so STANDARD_PASS is valid
+    const room = getRoom(roomCode)!;
+    const carrier = room.gameState!.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
+    if (!carrier) throw new Error('No ball carrier');
+
+    const targetHex = { q: carrier.position.q + 1, r: carrier.position.r };
+
+    // Listen for the first GAME_ERROR or GAME_STATE — whichever arrives
+    let errorReceived: string | null = null;
+    const errorListener = (err: string) => {
+      errorReceived = err;
+    };
+    attackingClient.on(ServerEvents.GAME_ERROR, errorListener);
+
+    const statePromise = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+    attackingClient.emit(ClientEvents.GAME_ROLL, 'STANDARD_PASS', targetHex);
+    await statePromise;
+
+    attackingClient.off(ServerEvents.GAME_ERROR, errorListener);
+
+    // The guard must not have fired with KICKOFF_STANDARD_PASS_ONLY
+    expect(errorReceived).not.toBe('KICKOFF_STANDARD_PASS_ONLY');
+
+    void clientA;
+    void clientB;
+  });
+});
+
 describe('D-27: kickOffActive is set to true when KICK_OFF → MOVEMENT', () => {
   it('broadcast state has kickOffActive === true after game:start-movement from KICK_OFF', async () => {
     const { clientA, clientB, roomCode, attackingClient, defendingClient, attackingTeam } =

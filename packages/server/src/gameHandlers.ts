@@ -994,6 +994,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             broadcastState(io, room);
             return;
           }
+          // MATCH-07: during KICK_OFF phase, only a Standard Pass may open play.
+          if (room.gameState.phase === 'KICK_OFF' && passType !== 'STANDARD_PASS') {
+            socket.emit(ServerEvents.GAME_ERROR, 'KICKOFF_STANDARD_PASS_ONLY');
+            broadcastState(io, room);
+            return;
+          }
           // D-10 (Phase 8.2): targetHex validation and authoritative validatePass gate.
           // Require targetHex for all pass types — engine needs it for accuracy resolution.
           if (!targetHex) {
