@@ -9,11 +9,11 @@
 ## Team Identity
 
 - [ ] **TEAM-01**: Four teams defined in shared types with name, primary color, and badge component — Cozmos, Xolos, City, Crew
-- [ ] **TEAM-02**: Cozmos — home blue; badge depicts a galaxy or star pattern; jersey has a horizontal stripe that is 3× wider than the current stripe
-- [ ] **TEAM-03**: Xolos — orange; badge depicts a coyote; orange jersey with a grey checker pattern
-- [ ] **TEAM-04**: City — red with gold accent; badge is an STL City–style design; red jersey with a gold arch line across the lower half and vertical stripes
-- [ ] **TEAM-05**: Crew — gold; badge is a Columbus Crew–style design; gold jersey with 45-degree black stripes across the shoulders
-- [ ] **TEAM-06**: Team badge is displayed in the team selection screen, the player card, and the scoreboard top band
+- [x] **TEAM-02**: Cozmos — home blue; badge depicts a galaxy or star pattern; jersey has a horizontal stripe that is 3× wider than the current stripe
+- [x] **TEAM-03**: Xolos — orange; badge depicts a coyote; orange jersey with a grey checker pattern
+- [x] **TEAM-04**: City — red with gold accent; badge is an STL City–style design; red jersey with a gold arch line across the lower half and vertical stripes
+- [x] **TEAM-05**: Crew — gold; badge is a Columbus Crew–style design; gold jersey with 45-degree black stripes across the shoulders
+- [x] **TEAM-06**: Team badge is displayed in the team selection screen, the player card, and the scoreboard top band
 
 ## Player Roster
 
@@ -54,28 +54,28 @@
 
 ## Traceability
 
-| REQ-ID    | Phase    | Status  |
-| --------- | -------- | ------- |
-| TEAM-01   | Phase 15 | Pending |
-| TEAM-02   | Phase 15 | Pending |
-| TEAM-03   | Phase 15 | Pending |
-| TEAM-04   | Phase 15 | Pending |
-| TEAM-05   | Phase 15 | Pending |
-| TEAM-06   | Phase 15 | Pending |
-| PLAY-01   | Phase 16 | Pending |
-| PLAY-02   | Phase 16 | Pending |
-| PLAY-03   | Phase 16 | Pending |
-| SELECT-01 | Phase 16 | Pending |
-| BUG-01    | Phase 17 | Pending |
-| BUG-02    | Phase 17 | Pending |
-| BUG-03    | Phase 17 | Pending |
-| BUG-04    | Phase 17 | Pending |
-| BUG-05    | Phase 17 | Pending |
-| MOVE-06   | Phase 17 | Pending |
-| PASS-02   | Phase 17 | Pending |
-| DESIGN-01 | Phase 18 | Pending |
-| DESIGN-02 | Phase 18 | Pending |
-| DESIGN-03 | Phase 18 | Pending |
-| DESIGN-04 | Phase 18 | Pending |
-| REPLAY-06 | Phase 18 | Pending |
-| MATCH-06  | Phase 18 | Pending |
+| REQ-ID    | Phase    | Status   |
+| --------- | -------- | -------- |
+| TEAM-01   | Phase 15 | Pending  |
+| TEAM-02   | Phase 15 | Complete |
+| TEAM-03   | Phase 15 | Complete |
+| TEAM-04   | Phase 15 | Complete |
+| TEAM-05   | Phase 15 | Complete |
+| TEAM-06   | Phase 15 | Complete |
+| PLAY-01   | Phase 16 | Pending  |
+| PLAY-02   | Phase 16 | Pending  |
+| PLAY-03   | Phase 16 | Pending  |
+| SELECT-01 | Phase 16 | Pending  |
+| BUG-01    | Phase 17 | Pending  |
+| BUG-02    | Phase 17 | Pending  |
+| BUG-03    | Phase 17 | Pending  |
+| BUG-04    | Phase 17 | Pending  |
+| BUG-05    | Phase 17 | Pending  |
+| MOVE-06   | Phase 17 | Pending  |
+| PASS-02   | Phase 17 | Pending  |
+| DESIGN-01 | Phase 18 | Pending  |
+| DESIGN-02 | Phase 18 | Pending  |
+| DESIGN-03 | Phase 18 | Pending  |
+| DESIGN-04 | Phase 18 | Pending  |
+| REPLAY-06 | Phase 18 | Pending  |
+| MATCH-06  | Phase 18 | Pending  |

@@ -64,8 +64,8 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 **Plans**: 3 plans
 
 - [x] 15-01-PLAN.md — Shared TeamConfig types + TEAM_CONFIGS, client TEAM_DEFAULTS, TeamBadge component, vite-env shim
-- [ ] 15-02-PLAN.md — PieceOverlay jersey patterns (4 outfield + 2 GK) + D-06 color refactor
-- [ ] 15-03-PLAN.md — Scoreboard TeamBadge wiring + D-06 color refactor (GameBoard, ActionLog, PlayerStatsPanel)
+- [x] 15-02-PLAN.md — PieceOverlay jersey patterns (4 outfield + 2 GK) + D-06 color refactor
+- [x] 15-03-PLAN.md — Scoreboard TeamBadge wiring + D-06 color refactor (GameBoard, ActionLog, PlayerStatsPanel)
 
 **UI hint**: yes
 
@@ -134,7 +134,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 12. Visual Token & Hex Layer  | v1.1      | 4/4            | Complete | 2026-06-12 |
 | 13. Layout & Clock            | v1.1      | 3/3            | Complete | 2026-06-12 |
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity             | v1.2      | 1/3            | Active   | -          |
+| 15. Team Identity             | v1.2      | 3/3            | Complete | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 0/TBD          | Pending  | -          |
 | 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending  | -          |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending  | -          |
