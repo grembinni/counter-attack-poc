@@ -789,6 +789,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             shooterPenaltyTotal: 0,
             gkPenaltyTotal: 0,
             timestamp: Date.now(),
+            ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
           };
           const newScore = {
             ...baseSnapState.score,
@@ -812,7 +813,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               ...baseSnapState.eventLog,
               ...deflectEvents,
               outOfRangeEvent,
-              { type: 'GOAL' as const, scoringTeam, timestamp: Date.now() },
+              {
+                type: 'GOAL' as const,
+                scoringTeam,
+                timestamp: Date.now(),
+                ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+              },
             ],
           };
           broadcastState(io, room);
@@ -1077,6 +1083,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               to: targetHex,
               accurate: null,
               timestamp: Date.now(),
+              ballAfter: { position: targetHex, carrierId: null },
             };
             room.gameState = {
               ...room.gameState,
@@ -1305,6 +1312,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           shooterPenaltyTotal: 0,
           gkPenaltyTotal: 0,
           timestamp: Date.now(),
+          ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
         };
         const newScore = {
           ...declaredState.score,
@@ -1328,7 +1336,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             ...declaredState.eventLog,
             ...deflectEventsShot,
             outOfRangeEvent,
-            { type: 'GOAL' as const, scoringTeam, timestamp: Date.now() },
+            {
+              type: 'GOAL' as const,
+              scoringTeam,
+              timestamp: Date.now(),
+              ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            },
           ],
         };
         broadcastState(io, room);
@@ -1471,7 +1484,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           lastActionType: null, // D-10: fresh sequence at kick-off
           eventLog: [
             ...room.gameState.eventLog,
-            { type: 'KICK_OFF' as const, timestamp: Date.now() },
+            {
+              type: 'KICK_OFF' as const,
+              timestamp: Date.now(),
+              ballAfter: kicker
+                ? { position: kickOffHex, carrierId: kicker.id }
+                : room.gameState.ball,
+            },
           ],
         };
         room.readyPlayers = null; // clear for next use

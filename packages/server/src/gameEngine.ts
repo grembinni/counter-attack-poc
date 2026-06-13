@@ -317,6 +317,14 @@ export function applyMove(
     return [...ids];
   };
 
+  const ballAfterMove: { position: HexCoord; carrierId: string | null } =
+    state.ball.carrierId === pieceId
+      ? { position: to, carrierId: pieceId }
+      : state.ball.carrierId === null &&
+          to.q === state.ball.position.q &&
+          to.r === state.ball.position.r
+        ? { position: to, carrierId: pieceId }
+        : { position: state.ball.position, carrierId: state.ball.carrierId };
   const moveEvent: ActionEvent = {
     type: 'MOVE',
     pieceId,
@@ -324,6 +332,7 @@ export function applyMove(
     to,
     slot: state.movementSlot,
     timestamp: Date.now(),
+    ballAfter: ballAfterMove,
   };
 
   let newEventLog: readonly ActionEvent[] = [...state.eventLog, moveEvent];
@@ -419,6 +428,10 @@ export function applyMove(
       defenderDie: die,
       defenderCombined: combined,
       timestamp: Date.now(),
+      ballAfter:
+        stealResult === 'SUCCESS'
+          ? { position: to, carrierId: defender!.id }
+          : { position: to, carrierId: pieceId },
     };
     newEventLog = [...newEventLog, stealEvent];
     // D-29: record that this piece has now attempted a steal this phase (success or fail)
@@ -909,6 +922,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                   to: targetHex,
                   accurate: false,
                   timestamp: Date.now(),
+                  ballAfter: { position: targetHex, carrierId: null },
                 },
               ];
         return {
@@ -966,6 +980,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         | 'HIGH_PASS'
         | 'LONG_BALL'
         | 'FIRST_TIME_PASS';
+      // Look up the receiver at targetHex for ballAfter tracking on pass/interception events.
+      const passTeammate = state.pieces.find(
+        (p) =>
+          p.teamId === carrier.teamId &&
+          p.position.q === targetHex.q &&
+          p.position.r === targetHex.r,
+      );
       let newEventLog: readonly ActionEvent[];
       if (deliveredPassType === 'HIGH_PASS') {
         newEventLog = [
@@ -986,6 +1007,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           to: targetHex,
           accurate: true,
           timestamp: Date.now(),
+          ballAfter: { position: targetHex, carrierId: passTeammate?.id ?? null },
         };
         newEventLog = [...state.eventLog, passAttemptEvent];
       }
@@ -1002,6 +1024,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           defenderDie: die,
           defenderCombined: combined,
           timestamp: Date.now(),
+          ballAfter: intercepted
+            ? { position: interceptor.position, carrierId: interceptor.id }
+            : { position: targetHex, carrierId: passTeammate?.id ?? null },
         };
         newEventLog = [...newEventLog, interceptionEvent];
         if (intercepted) {
@@ -1160,6 +1185,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           shooterPenaltyTotal: 0,
           gkPenaltyTotal: 0,
           timestamp: Date.now(),
+          ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
         };
         return {
           ok: true,
@@ -1178,7 +1204,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             eventLog: [
               ...state.eventLog,
               shotAttemptGoal,
-              { type: 'GOAL' as const, scoringTeam, timestamp: Date.now() },
+              {
+                type: 'GOAL' as const,
+                scoringTeam,
+                timestamp: Date.now(),
+                ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+              },
             ],
           },
         };
@@ -1236,6 +1267,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           shooterPenaltyTotal,
           gkPenaltyTotal,
           timestamp: Date.now(),
+          ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
         };
         return {
           ok: true,
@@ -1254,7 +1286,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             eventLog: [
               ...state.eventLog,
               shotAttemptGoal,
-              { type: 'GOAL' as const, scoringTeam, timestamp: Date.now() },
+              {
+                type: 'GOAL' as const,
+                scoringTeam,
+                timestamp: Date.now(),
+                ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+              },
             ],
           },
         };
@@ -1275,6 +1312,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           shooterPenaltyTotal,
           gkPenaltyTotal,
           timestamp: Date.now(),
+          ballAfter: { position: state.ball.position, carrierId: null },
         };
         return {
           ok: true,
@@ -1310,6 +1348,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           shooterPenaltyTotal,
           gkPenaltyTotal,
           timestamp: Date.now(),
+          ballAfter: handling.caught
+            ? { position: gkEffectivePos, carrierId: gk.id }
+            : { position: gkEffectivePos, carrierId: null },
         };
         if (handling.caught) {
           return {
@@ -1972,6 +2013,7 @@ export function applyQuickThrow(state: GameState, targetHex: HexCoord): ApplyQui
     to: targetHex,
     accurate: true,
     timestamp: Date.now(),
+    ballAfter: { position: targetHex, carrierId: receiver?.id ?? null },
   };
 
   return {
@@ -2866,23 +2908,23 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
       );
       current = { ...current, pieces: newPieces };
     } else if (event.type === 'GOAL') {
-      // Score increment and reset ball to kickOffHex
+      // Score increment — ball position is updated via universal ballAfter below
       const goalEvent = event;
       const newScore = {
         ...current.score,
         [goalEvent.scoringTeam]: current.score[goalEvent.scoringTeam] + 1,
       };
-      current = {
-        ...current,
-        score: newScore,
-        ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
-      };
+      current = { ...current, score: newScore };
     } else if (event.type === 'KICK_OFF') {
       // Kick-off: pieces stay, ball at centre (already there), transition to MOVEMENT
       current = {
         ...current,
         movementSlot: 'ATTACKER_4',
       };
+    }
+    // Universal ball position update — driven by ballAfter on replay-eligible events (REPLAY-06)
+    if ('ballAfter' in event) {
+      current = { ...current, ball: event.ballAfter };
     }
     // For DICE_ROLL, STEAL_ATTEMPT, HIGH_PASS, LONG_BALL, STANDARD_PASS, FIRST_TIME_PASS,
     // SHOT_ATTEMPT, SNAPSHOT, HALF_TIME, FULL_TIME: produce a frame but no board mutation
