@@ -26,7 +26,7 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
   xolos: {
     id: 'xolos',
     name: 'Xolos',
-    primaryColor: '#ea580c',
+    primaryColor: '#f59e0b',
     secondaryColor: '#6b7280',
     badgeFile: 'xolos.png',
   },

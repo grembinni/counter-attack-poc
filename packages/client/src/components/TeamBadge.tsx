@@ -19,12 +19,26 @@ const BADGE_MAP: Record<TeamId, string> = {
 
 export function TeamBadge({ teamId, size = 28 }: { teamId: TeamId; size?: number }) {
   return (
-    <img
-      src={BADGE_MAP[teamId]}
-      alt={`${teamId} badge`}
-      width={size}
-      height={size}
-      style={{ display: 'block' }}
-    />
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: '#ffffff',
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <img
+        src={BADGE_MAP[teamId]}
+        alt={`${teamId} badge`}
+        width={size}
+        height={size}
+        style={{ display: 'block', objectFit: 'contain' }}
+      />
+    </span>
   );
 }

@@ -47,12 +47,12 @@ export function PieceOverlay({
   const fill = isGK
     ? piece.teamId === 'home'
       ? '#9b59b6' // home GK: purple (replaced by checker pattern on circle fill)
-      : '#f59e0b' // away GK: amber (solid base; stripes added as siblings)
+      : '#ea580c' // away GK: orange (solid base; stripes added as siblings)
     : teamConfig.primaryColor; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
   const stroke = isGK
     ? piece.teamId === 'home'
       ? '#6c3483'
-      : '#d97706'
+      : '#c2410c'
     : piece.teamId === 'home'
       ? '#0d3a82'
       : '#8e1c12';
@@ -72,7 +72,7 @@ export function PieceOverlay({
       {/* D-08: Per-piece SVG jersey pattern defs — four outfield teams + home GK checker */}
       {!isGK && (
         <defs>
-          {/* Cosmos: navy base + wide horizontal white stripe (D-08) */}
+          {/* Cosmos: white base + wide horizontal navy stripe (D-08) */}
           <pattern
             id={`cosmos-jersey-${piece.id}`}
             x={cx - PIECE_RADIUS}
@@ -81,11 +81,11 @@ export function PieceOverlay({
             height={24}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={24} height={24} fill="#1e3a8a" />
-            <rect x={0} y={6} width={24} height={12} fill="#ffffff" fillOpacity={0.6} />
+            <rect width={24} height={24} fill="#ffffff" />
+            <rect x={0} y={6} width={24} height={12} fill="#1e3a8a" fillOpacity={0.85} />
           </pattern>
 
-          {/* Xolos: orange base + grey checker 8×8 tiles in 16px tile (D-08) */}
+          {/* Xolos: amber base + grey checker 8×8 tiles in 16px tile (D-08) */}
           <pattern
             id={`xolos-jersey-${piece.id}`}
             x={cx - PIECE_RADIUS}
@@ -94,7 +94,7 @@ export function PieceOverlay({
             height={16}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={16} height={16} fill="#ea580c" />
+            <rect width={16} height={16} fill="#f59e0b" />
             <rect x={0} y={0} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
             <rect x={8} y={8} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
           </pattern>
@@ -162,7 +162,7 @@ export function PieceOverlay({
           isGK
             ? piece.teamId === 'home'
               ? `url(#home-gk-checker-${piece.id})`
-              : '#f59e0b' // away GK: solid amber base; stripes added as siblings
+              : '#ea580c' // away GK: solid orange base; stripes added as siblings
             : `url(#${teamId}-jersey-${piece.id})`
         }
         stroke={stroke}
@@ -205,7 +205,7 @@ export function PieceOverlay({
             y={cy - PIECE_RADIUS}
             width={3}
             height={PIECE_RADIUS * 2}
-            fill="#ea580c"
+            fill="#f59e0b"
             fillOpacity={0.85}
             pointerEvents="none"
           />
@@ -214,7 +214,7 @@ export function PieceOverlay({
             y={cy - PIECE_RADIUS}
             width={3}
             height={PIECE_RADIUS * 2}
-            fill="#ea580c"
+            fill="#f59e0b"
             fillOpacity={0.85}
             pointerEvents="none"
           />
