@@ -109,7 +109,7 @@ export function PieceOverlay({
             patternUnits="userSpaceOnUse"
           >
             <rect width={8} height={24} fill="#dc143c" />
-            <rect x={3} y={0} width={2} height={24} fill="#f5c518" fillOpacity={0.9} />
+            <rect x={2} y={0} width={4} height={24} fill="#f5c518" fillOpacity={0.9} />
           </pattern>
 
           {/* Crew: solid gold base; / \ chevron stripes added as clipped siblings (D-08) */}
@@ -178,7 +178,7 @@ export function PieceOverlay({
           x2={cx + PIECE_RADIUS}
           y2={cy + PIECE_RADIUS}
           stroke="#111111"
-          strokeWidth={5}
+          strokeWidth={10}
           strokeOpacity={0.8}
           clipPath={`url(#crew-clip-${piece.id})`}
           pointerEvents="none"
