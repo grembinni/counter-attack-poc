@@ -8,7 +8,11 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['packages/*/src/*.test.ts', 'packages/*/src/*.test.tsx'],
+          allowDefaultProject: [
+            'packages/*/src/*.test.ts',
+            'packages/*/src/*.test.tsx',
+            'packages/*/scripts/*.ts',
+          ],
         },
       },
     },

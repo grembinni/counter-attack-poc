@@ -19,10 +19,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "clean": "node --eval \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
+    "clean": "node --eval \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
+    "seed:rosters": "tsx scripts/seed-rosters.ts"
   },
   "devDependencies": {
     "@types/node": "22.19.19",
+    "tsx": "4.22.3",
     "vitest": "2.1.9"
   }
 }
