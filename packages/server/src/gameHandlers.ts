@@ -1472,8 +1472,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // is reflected in state and graphics immediately.
       if (room.readyPlayers.size === 2) {
         const kickOffHex = PITCH_REGIONS.kickOffHex;
+        // CR-03: filter by attackingTeam first so a defending piece that happens to be on
+        // the kick-off hex (e.g. due to a stale placement guard) cannot be assigned possession.
         const kicker = room.gameState.pieces.find(
-          (p) => p.position.q === kickOffHex.q && p.position.r === kickOffHex.r,
+          (p) =>
+            p.teamId === room.gameState!.attackingTeam &&
+            p.position.q === kickOffHex.q &&
+            p.position.r === kickOffHex.r,
         );
         room.gameState = {
           ...room.gameState,
