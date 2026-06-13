@@ -2726,16 +2726,17 @@ export function applyKickOffReady(
   const teamPieces = state.pieces.filter((p) => p.teamId === team);
   const isAttacking = team === state.attackingTeam;
 
-  // 2. OUT_OF_ZONE: pieces must be in their own half.
-  // Attacking team: can occupy up to and including q=18 (kickOffHex boundary).
-  // Defending team: must be strictly behind the line (q < 18 for home, q > 18 for away).
-  for (const piece of teamPieces) {
-    if (team === 'home') {
-      const limit = isAttacking ? kickOffHex.q : kickOffHex.q - 1;
-      if (piece.position.q > limit) return { ok: false, reason: 'OUT_OF_ZONE' };
-    } else {
-      const limit = isAttacking ? kickOffHex.q : kickOffHex.q + 1;
-      if (piece.position.q < limit) return { ok: false, reason: 'OUT_OF_ZONE' };
+  // 2. OUT_OF_ZONE: attacking team must stay in their own half (up to and including q=18).
+  // The defending team has no half-boundary restriction at kick-off; they are only restricted
+  // from the centre circle (rule 4 below). Applying OUT_OF_ZONE to defenders was asymmetric
+  // and incorrectly rejected defending-away pieces at q=18 (WR-02).
+  if (isAttacking) {
+    for (const piece of teamPieces) {
+      if (team === 'home') {
+        if (piece.position.q > kickOffHex.q) return { ok: false, reason: 'OUT_OF_ZONE' };
+      } else {
+        if (piece.position.q < kickOffHex.q) return { ok: false, reason: 'OUT_OF_ZONE' };
+      }
     }
   }
 
