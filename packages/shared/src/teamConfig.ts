@@ -19,7 +19,7 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
   cosmos: {
     id: 'cosmos',
     name: 'Cosmos',
-    primaryColor: '#1e3a8a',
+    primaryColor: '#3b82f6',
     secondaryColor: '#c8a84b',
     badgeFile: 'cosmos.png',
   },
