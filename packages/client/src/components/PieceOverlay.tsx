@@ -1,5 +1,7 @@
 import type { PlayerPiece } from '@counter-attack/shared';
+import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { axialToPixel } from '../utils/hexToPixel.js';
+import { TEAM_DEFAULTS } from '../teamDefaults.js';
 
 export type SelectionState = 'none' | 'selectable' | 'active' | 'activated';
 
@@ -16,8 +18,8 @@ type Props = {
 
 /**
  * Renders a single PlayerPiece as an SVG circle + text label.
- * Colors: home '#1a56b0' / away '#c0392b' per UI-SPEC §Piece Overlay Spec.
- * Stripe patterns: home = vertical black stripe, away = two horizontal maroon bands (VIS-01, D-01/D-02/D-03).
+ * Colors: driven by TEAM_CONFIGS[TEAM_DEFAULTS[piece.teamId]].primaryColor (D-06 refactor).
+ * Jersey patterns: four outfield team patterns (cosmos/xolos/city/crew) + GK checker/stripe (D-08, D-10).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
@@ -34,16 +36,19 @@ export function PieceOverlay({
   // Player number: 1-based — 'home-0' (GK) → '1', 'home-10' → '11'
   const playerNumber = String(Number(piece.id.slice(piece.id.lastIndexOf('-') + 1)) + 1);
 
-  // GK pieces use distinctive colors regardless of team (physical board convention)
-  // Outfield: home = blue, away = red
   const isGK = piece.role === 'GK';
+
+  // D-06: resolve team config via TEAM_DEFAULTS → TEAM_CONFIGS instead of positional literals
+  const teamId = TEAM_DEFAULTS[piece.teamId];
+  const teamConfig = TEAM_CONFIGS[teamId];
+
+  // GK pieces use distinctive colors regardless of team (physical board convention)
+  // Outfield: primaryColor from TEAM_CONFIGS
   const fill = isGK
     ? piece.teamId === 'home'
-      ? '#9b59b6' // home GK: purple
-      : '#f59e0b' // away GK: yellow/amber
-    : piece.teamId === 'home'
-      ? '#1a56b0' // home outfield: blue
-      : '#c0392b'; // away outfield: red
+      ? '#9b59b6' // home GK: purple (replaced by checker pattern on circle fill)
+      : '#f59e0b' // away GK: amber (solid base; stripes added as siblings)
+    : teamConfig.primaryColor; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
   const stroke = isGK
     ? piece.teamId === 'home'
       ? '#6c3483'
@@ -57,54 +62,108 @@ export function PieceOverlay({
   // Dot direction: home team attacks right (higher q) → bottom-right (+x, +y)
   // Away team attacks left (lower q) → bottom-left (-x, +y) — keyed off teamId per Open Question 3
   void attackingTeam; // direction uses piece.teamId per Open Question 3; prop kept for future overrides (D-16)
+  void fill; // used for stroke reference; circle fill is pattern url for outfield / solid for GK
   const PIECE_RADIUS = 12;
   const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.55 : -(PIECE_RADIUS * 0.55);
   const dotOffsetY = PIECE_RADIUS * 0.55;
 
   return (
     <>
-      {/* D-01/D-02: Per-piece SVG stripe pattern defs — outfield only, gated on !isGK */}
+      {/* D-08: Per-piece SVG jersey pattern defs — four outfield teams + home GK checker */}
       {!isGK && (
         <defs>
-          {piece.teamId === 'home' ? (
-            <pattern
-              id={`home-stripe-${piece.id}`}
-              x={cx - PIECE_RADIUS}
-              y={cy - PIECE_RADIUS}
-              width={24}
-              height={24}
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width={24} height={24} fill="#1a56b0" />
-              {/* D-03: Single vertical black stripe centered at x=10..14 within 24px tile */}
-              <rect x={10} y={0} width={4} height={24} fill="#000000" fillOpacity={0.55} />
-            </pattern>
-          ) : (
-            <pattern
-              id={`away-stripe-${piece.id}`}
-              x={cx - PIECE_RADIUS}
-              y={cy - PIECE_RADIUS}
-              width={24}
-              height={24}
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width={24} height={24} fill="#c0392b" />
-              {/* D-03: Two horizontal dark maroon bands — upper third and lower third */}
-              <rect x={0} y={6} width={24} height={4} fill="#7f0000" fillOpacity={0.65} />
-              <rect x={0} y={14} width={24} height={4} fill="#7f0000" fillOpacity={0.65} />
-            </pattern>
-          )}
+          {/* Cosmos: navy base + wide horizontal white stripe (D-08) */}
+          <pattern
+            id={`cosmos-jersey-${piece.id}`}
+            x={cx - PIECE_RADIUS}
+            y={cy - PIECE_RADIUS}
+            width={24}
+            height={24}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={24} height={24} fill="#1e3a8a" />
+            <rect x={0} y={6} width={24} height={12} fill="#ffffff" fillOpacity={0.6} />
+          </pattern>
+
+          {/* Xolos: orange base + grey checker 8×8 tiles in 16px tile (D-08) */}
+          <pattern
+            id={`xolos-jersey-${piece.id}`}
+            x={cx - PIECE_RADIUS}
+            y={cy - PIECE_RADIUS}
+            width={16}
+            height={16}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={16} height={16} fill="#ea580c" />
+            <rect x={0} y={0} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
+            <rect x={8} y={8} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
+          </pattern>
+
+          {/* City: crimson base + thin gold vertical stripe (1px per 4px tile) (D-08) */}
+          <pattern
+            id={`city-jersey-${piece.id}`}
+            x={cx - PIECE_RADIUS}
+            y={cy - PIECE_RADIUS}
+            width={4}
+            height={24}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={4} height={24} fill="#dc143c" />
+            <rect x={3} y={0} width={1} height={24} fill="#f5c518" fillOpacity={0.8} />
+          </pattern>
+
+          {/* Crew: gold base + 45° diagonal black stripe (8×8 tile) (D-08) */}
+          <pattern
+            id={`crew-jersey-${piece.id}`}
+            x={cx - PIECE_RADIUS}
+            y={cy - PIECE_RADIUS}
+            width={8}
+            height={8}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={8} height={8} fill="#f5c518" />
+            <line
+              x1={8}
+              y1={0}
+              x2={0}
+              y2={8}
+              stroke="#111111"
+              strokeWidth={2}
+              strokeOpacity={0.75}
+            />
+          </pattern>
         </defs>
       )}
-      {/* Base piece circle — GK: solid fill; outfield: stripe pattern fill */}
+
+      {/* D-10: Home GK checker pattern def */}
+      {isGK && piece.teamId === 'home' && (
+        <defs>
+          <pattern
+            id={`home-gk-checker-${piece.id}`}
+            x={cx - PIECE_RADIUS}
+            y={cy - PIECE_RADIUS}
+            width={12}
+            height={12}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={12} height={12} fill="#7c3aed" />
+            <rect x={0} y={0} width={6} height={6} fill="#4c1d95" />
+            <rect x={6} y={6} width={6} height={6} fill="#4c1d95" />
+          </pattern>
+        </defs>
+      )}
+
+      {/* Base piece circle — outfield: jersey pattern fill; home GK: checker pattern; away GK: solid amber */}
       <circle
         cx={cx}
         cy={cy}
         r={PIECE_RADIUS}
         fill={
           isGK
-            ? fill
-            : `url(#${piece.teamId === 'home' ? `home-stripe-${piece.id}` : `away-stripe-${piece.id}`})`
+            ? piece.teamId === 'home'
+              ? `url(#home-gk-checker-${piece.id})`
+              : '#f59e0b' // away GK: solid amber base; stripes added as siblings
+            : `url(#${teamId}-jersey-${piece.id})`
         }
         stroke={stroke}
         strokeWidth={1.5}
@@ -114,6 +173,54 @@ export function PieceOverlay({
           else onInspect();
         }}
       />
+
+      {/* D-09: City arch — gold curved path in lower third of token (gated on city outfield) */}
+      {teamId === 'city' && !isGK && (
+        <path
+          d={`M ${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.3} Q ${cx} ${cy + PIECE_RADIUS * 0.9} ${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.3}`}
+          fill="none"
+          stroke="#f5c518"
+          strokeWidth={1.5}
+          pointerEvents="none"
+        />
+      )}
+
+      {/* D-09: Crew shoulder mask — cover lower 70% with solid gold to restrict diagonal to top ~30% */}
+      {teamId === 'crew' && !isGK && (
+        <rect
+          x={cx - PIECE_RADIUS}
+          y={cy - PIECE_RADIUS * 0.4}
+          width={PIECE_RADIUS * 2}
+          height={PIECE_RADIUS * 1.4}
+          fill="#f5c518"
+          pointerEvents="none"
+        />
+      )}
+
+      {/* D-10: Away GK edge stripes — two narrow orange vertical rects over amber base */}
+      {isGK && piece.teamId === 'away' && (
+        <>
+          <rect
+            x={cx - PIECE_RADIUS + 4}
+            y={cy - PIECE_RADIUS}
+            width={3}
+            height={PIECE_RADIUS * 2}
+            fill="#ea580c"
+            fillOpacity={0.85}
+            pointerEvents="none"
+          />
+          <rect
+            x={cx + PIECE_RADIUS - 7}
+            y={cy - PIECE_RADIUS}
+            width={3}
+            height={PIECE_RADIUS * 2}
+            fill="#ea580c"
+            fillOpacity={0.85}
+            pointerEvents="none"
+          />
+        </>
+      )}
+
       {/* D-04/UX-05: selectable ring — bright blue outline */}
       {selectionState === 'selectable' && (
         <circle
