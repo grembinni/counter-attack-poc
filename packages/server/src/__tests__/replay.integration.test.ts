@@ -153,6 +153,10 @@ async function setupFullTimeRoom(): Promise<{
         },
         slot: 'ATTACKER_4' as const,
         timestamp: Date.now(),
+        ballAfter: {
+          position: room.gameState!.ball.position,
+          carrierId: room.gameState!.ball.carrierId,
+        },
       },
     ],
   };
@@ -201,6 +205,10 @@ describe('FULL_TIME → REPLAY stream', () => {
           to: { q: piece.position.q + 1, r: piece.position.r },
           slot: 'ATTACKER_4' as const,
           timestamp: Date.now() - 2000,
+          ballAfter: {
+            position: { q: piece.position.q + 1, r: piece.position.r },
+            carrierId: null,
+          },
         },
         {
           type: 'MOVE',
@@ -209,6 +217,10 @@ describe('FULL_TIME → REPLAY stream', () => {
           to: { q: piece.position.q + 2, r: piece.position.r },
           slot: 'ATTACKER_4' as const,
           timestamp: Date.now() - 1000,
+          ballAfter: {
+            position: { q: piece.position.q + 2, r: piece.position.r },
+            carrierId: null,
+          },
         },
       ],
     };
@@ -223,6 +235,44 @@ describe('FULL_TIME → REPLAY stream', () => {
     const annotatedFrame = { ...frames[0], replayIndex: 1, replayTotal: frames.length };
     expect(annotatedFrame.replayIndex).toBe(1);
     expect(annotatedFrame.replayTotal).toBe(2);
+  });
+
+  it('REPLAY-06: each replay frame reflects ball position from ballAfter on the triggering event', async () => {
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const piece = room.gameState!.pieces[0]!;
+    const targetA = { q: piece.position.q + 1, r: piece.position.r };
+    const targetB = { q: piece.position.q + 2, r: piece.position.r };
+    const carrierId = 'home-st';
+
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: piece.id,
+          from: piece.position,
+          to: targetA,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 1,
+          ballAfter: { position: targetA, carrierId },
+        },
+        {
+          type: 'MOVE',
+          pieceId: piece.id,
+          from: targetA,
+          to: targetB,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: { position: targetB, carrierId: null },
+        },
+      ],
+    };
+
+    const frames = buildReplayFrames(room.gameState);
+    expect(frames).toHaveLength(2);
+    expect(frames[0]!.ball).toEqual({ position: targetA, carrierId });
+    expect(frames[1]!.ball).toEqual({ position: targetB, carrierId: null });
   });
 
   it('T-08-15: replayTimer is cleared when frames are exhausted (no further emits)', async () => {

@@ -941,7 +941,11 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
       phase: 'FULL_TIME',
       kickOffTeam: 'home',
       eventLog: [
-        { type: 'KICK_OFF', timestamp: 1 },
+        {
+          type: 'KICK_OFF',
+          timestamp: 1,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
         { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 2 },
         {
           type: 'MOVE',
@@ -950,9 +954,15 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
           to: { q: 16, r: 12 },
           slot: 'ATTACKER_4',
           timestamp: 3,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
         },
         { type: 'SLOT_ADVANCE', from: 'DEFENDER_5', to: 'ATTACKER_2', timestamp: 4 },
-        { type: 'DICE_ROLL', result: 4, timestamp: 5 },
+        {
+          type: 'DICE_ROLL',
+          result: 4,
+          timestamp: 5,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
       ],
     };
     const frames = buildReplayFrames(state);
@@ -966,7 +976,11 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
       phase: 'FULL_TIME',
       kickOffTeam: 'home',
       eventLog: [
-        { type: 'KICK_OFF', timestamp: 1 },
+        {
+          type: 'KICK_OFF',
+          timestamp: 1,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
         { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 2 },
         { type: 'SLOT_ADVANCE', from: 'DEFENDER_5', to: 'ATTACKER_2', timestamp: 3 },
         {
@@ -976,8 +990,14 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
           to: { q: 16, r: 12 },
           slot: 'ATTACKER_4',
           timestamp: 4,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
         },
-        { type: 'GOAL', scoringTeam: 'home', timestamp: 5 },
+        {
+          type: 'GOAL',
+          scoringTeam: 'home',
+          timestamp: 5,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
         { type: 'SLOT_ADVANCE', from: 'ATTACKER_2', to: null, timestamp: 6 },
       ],
     };
@@ -992,7 +1012,11 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
       phase: 'FULL_TIME',
       kickOffTeam: 'home',
       eventLog: [
-        { type: 'KICK_OFF', timestamp: 1 },
+        {
+          type: 'KICK_OFF',
+          timestamp: 1,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
         {
           type: 'MOVE',
           pieceId: 'home-mid',
@@ -1000,6 +1024,7 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
           to: { q: 16, r: 12 },
           slot: 'ATTACKER_4',
           timestamp: 2,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
         },
       ],
     };
@@ -1015,7 +1040,11 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
       phase: 'FULL_TIME',
       kickOffTeam: 'home',
       eventLog: [
-        { type: 'KICK_OFF', timestamp: 1 },
+        {
+          type: 'KICK_OFF',
+          timestamp: 1,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
         {
           type: 'STEAL_ATTEMPT',
           defenderId: 'away-def',
@@ -1023,9 +1052,15 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
           defenderDie: 6,
           defenderCombined: 6,
           timestamp: 2,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: 'away-def' },
         },
         { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'DEFENDER_5', timestamp: 3 },
-        { type: 'DICE_ROLL', result: 5, timestamp: 4 },
+        {
+          type: 'DICE_ROLL',
+          result: 5,
+          timestamp: 4,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        },
       ],
     };
     const frames1 = buildReplayFrames(state);
