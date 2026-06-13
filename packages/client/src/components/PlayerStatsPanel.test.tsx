@@ -63,9 +63,9 @@ describe('PlayerStatsPanel — TEAM-02: renders stats for selected piece', () =>
   });
 });
 
-describe('PlayerStatsPanel — D-08: MiniTokenBadge in panel header', () => {
-  it('home outfield piece: mini-token circle fill references url(#mini-home-stripe-<id>) and the pattern exists', () => {
-    // home-1 is a DEF (outfield, teamId='home')
+describe('PlayerStatsPanel — D-08/D-06: MiniTokenBadge team-keyed patterns (15-03)', () => {
+  it('home outfield piece: mini-token circle fill references url(#mini-cosmos-jersey-<id>) and the pattern exists', () => {
+    // home-1 is a DEF (outfield, teamId='home'); TEAM_DEFAULTS: home -> cosmos
     useGameStore.setState({ selectedPieceId: 'home-1' });
     const { container } = render(<PlayerStatsPanel />);
 
@@ -73,26 +73,26 @@ describe('PlayerStatsPanel — D-08: MiniTokenBadge in panel header', () => {
     const svg = container.querySelector('svg');
     expect(svg).not.toBeNull();
 
-    // The pattern def must exist with the expected id
-    const patternId = 'mini-home-stripe-home-1';
+    // The team-keyed jersey pattern def must exist
+    const patternId = 'mini-cosmos-jersey-home-1';
     const pattern = container.querySelector(`pattern#${patternId}`);
     expect(pattern).not.toBeNull();
 
-    // The base circle fill must reference the pattern
+    // The base circle fill must reference the team-keyed pattern
     const circle = container.querySelector('circle');
     expect(circle).not.toBeNull();
     expect(circle!.getAttribute('fill')).toBe(`url(#${patternId})`);
   });
 
-  it('away outfield piece: mini-token circle fill references url(#mini-away-stripe-<id>) and the pattern exists', () => {
-    // away-1 is a DEF (outfield, teamId='away')
+  it('away outfield piece: mini-token circle fill references url(#mini-xolos-jersey-<id>) and the pattern exists', () => {
+    // away-1 is a DEF (outfield, teamId='away'); TEAM_DEFAULTS: away -> xolos
     useGameStore.setState({ selectedPieceId: 'away-1' });
     const { container } = render(<PlayerStatsPanel />);
 
     const svg = container.querySelector('svg');
     expect(svg).not.toBeNull();
 
-    const patternId = 'mini-away-stripe-away-1';
+    const patternId = 'mini-xolos-jersey-away-1';
     const pattern = container.querySelector(`pattern#${patternId}`);
     expect(pattern).not.toBeNull();
 
@@ -101,7 +101,7 @@ describe('PlayerStatsPanel — D-08: MiniTokenBadge in panel header', () => {
     expect(circle!.getAttribute('fill')).toBe(`url(#${patternId})`);
   });
 
-  it('GK piece: mini-token circle uses solid fill (no stripe pattern, no url(#mini-...))', () => {
+  it('home GK: mini-token circle references url(#mini-home-gk-checker-<id>) and checker pattern exists (D-10)', () => {
     // home-0 is the home GK
     useGameStore.setState({ selectedPieceId: 'home-0' });
     const { container } = render(<PlayerStatsPanel />);
@@ -109,16 +109,32 @@ describe('PlayerStatsPanel — D-08: MiniTokenBadge in panel header', () => {
     const svg = container.querySelector('svg');
     expect(svg).not.toBeNull();
 
-    // No stripe pattern def should exist for GK
+    // Home GK now uses checker pattern, not solid fill
+    const homeGkPatId = 'mini-home-gk-checker-home-0';
+    const pattern = container.querySelector(`pattern#${homeGkPatId}`);
+    expect(pattern).not.toBeNull();
+
+    const circle = container.querySelector('circle');
+    expect(circle).not.toBeNull();
+    expect(circle!.getAttribute('fill')).toBe(`url(#${homeGkPatId})`);
+  });
+
+  it('away GK: mini-token circle uses solid amber fill (#f59e0b), no pattern', () => {
+    // away-0 is the away GK
+    useGameStore.setState({ selectedPieceId: 'away-0' });
+    const { container } = render(<PlayerStatsPanel />);
+
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+
+    // Away GK keeps solid amber — no checker pattern
     const pattern = container.querySelector('pattern');
     expect(pattern).toBeNull();
 
-    // Circle fill should be the solid GK color, not a url reference
     const circle = container.querySelector('circle');
     expect(circle).not.toBeNull();
     const fill = circle!.getAttribute('fill');
     expect(fill).not.toContain('url(#mini-');
-    // Home GK is purple
-    expect(fill).toBe('#9b59b6');
+    expect(fill).toBe('#f59e0b');
   });
 });
