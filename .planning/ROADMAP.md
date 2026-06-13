@@ -84,7 +84,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
    **Plans**: 4 plans
 
 - [x] 16-01-PLAN.md — Wave 0 RED test scaffolding (roster, player card, selection screen, engine)
-- [ ] 16-02-PLAN.md — Seed script + teams.ts (TEAM_SQUADS/FREE_AGENTS), PlayerPiece type surgery, selectedTeams + team events
+- [x] 16-02-PLAN.md — Seed script + teams.ts (TEAM_SQUADS/FREE_AGENTS), PlayerPiece type surgery, selectedTeams + team events
 - [ ] 16-03-PLAN.md — Server: buildInitialGameState selectedTeams, team:selection-start gate, team:pick handler
 - [ ] 16-04-PLAN.md — Client: TeamSelectionScreen, player card redesign, TEAM_DEFAULTS deletion, App routing
 
@@ -141,6 +141,6 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 13. Layout & Clock            | v1.1      | 3/3            | Complete    | 2026-06-12 |
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete    | 2026-06-12 |
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
-| 16. Player Roster & Selection | v1.2      | 1/4            | In Progress |            |
+| 16. Player Roster & Selection | v1.2      | 2/4            | In Progress |            |
 | 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending     | -          |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |

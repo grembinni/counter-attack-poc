@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-13T22:34:38.807Z'
+last_updated: '2026-06-13T22:44:45.166Z'
 last_activity: 2026-06-13 -- Phase 16 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 25
 ---
 
@@ -205,7 +205,7 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 16 (player-roster-team-selection) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-13 -- Phase 16 execution started
 
@@ -228,6 +228,7 @@ Last activity: 2026-06-13 -- Phase 16 execution started
 | Phase 15-team-identity P02          | 4min   | 2 tasks  | 2 files |
 | Phase 15-team-identity P03          | 6min   | 2 tasks  | 5 files |
 | Phase 16 P01                        | 4min   | 2 tasks  | 4 files |
+| Phase 16 P02                        | 7m     | 2 tasks  | 6 files |
 
 ## Decisions
 
@@ -255,3 +256,5 @@ Last activity: 2026-06-13 -- Phase 16 execution started
 - [Phase ?]: TeamShieldIcon deleted; TeamBadge PNG wired into scoreboard and player card icon (TEAM-06, D-07)
 - [Phase ?]: D-06 color refactor complete: TEAM_CONFIGS[TEAM_DEFAULTS[...]] is single color source of truth in GameBoard, ActionLog, PlayerStatsPanel
 - [Phase ?]: MiniTokenBadge home GK uses mini-home-gk-checker pattern (10px tile, 5px checkers) matching main board (D-10, Pitfall 2)
+- [Phase ?]: [Phase 16 P02]: GK CSV blank attrs floored to 1 in seed-rosters.ts — test spec requires >=1 for all non-GK-specific attributes
+- [Phase ?]: [Phase 16 P02]: eslint allowDefaultProject extended with packages/_/scripts/_.ts for seed-rosters.ts dev tool outside src/
