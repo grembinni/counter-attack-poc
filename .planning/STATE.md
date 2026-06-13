@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-13T22:25:04.095Z'
-last_activity: 2026-06-13 -- Phase 15 Plan 03 complete (phase complete)
+last_updated: '2026-06-13T22:34:38.807Z'
+last_activity: 2026-06-13 -- Phase 16 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
   percent: 25
 ---
 
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 15 — team-identity
+**Current focus:** Phase 16 — player-roster-team-selection
 
 ## Phase Status
 
@@ -204,10 +204,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 15 (team-identity) — COMPLETE
-Plan: 3 of 3 (all complete)
+Phase: 16 (player-roster-team-selection) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-13 -- Phase 15 Plan 03 complete (phase complete)
+Last activity: 2026-06-13 -- Phase 16 execution started
 
 ## Performance Metrics
 
@@ -227,6 +227,7 @@ Last activity: 2026-06-13 -- Phase 15 Plan 03 complete (phase complete)
 | Phase 15-team-identity P01          | 3min   | 2 tasks  | 6 files |
 | Phase 15-team-identity P02          | 4min   | 2 tasks  | 2 files |
 | Phase 15-team-identity P03          | 6min   | 2 tasks  | 5 files |
+| Phase 16 P01                        | 4min   | 2 tasks  | 4 files |
 
 ## Decisions
 

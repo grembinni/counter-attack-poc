@@ -17,13 +17,13 @@
 
 ## Player Roster
 
-- [ ] **PLAY-01**: Player data updated from fc_stats.csv — all four team squads (Cozmos, Xolos, City, Crew) populated with correct names, nationalities, positions, and attributes; remaining players stored as Free Agents (no team assigned)
-- [ ] **PLAY-02**: Player card component shows First Name on line 1, Last Name on line 2, and a third row with Badge | Position | # (shirt number)
-- [ ] **PLAY-03**: Free Agent players are stored in the system but not selectable during team selection; reserved for future use
+- [x] **PLAY-01**: Player data updated from fc_stats.csv — all four team squads (Cozmos, Xolos, City, Crew) populated with correct names, nationalities, positions, and attributes; remaining players stored as Free Agents (no team assigned)
+- [x] **PLAY-02**: Player card component shows First Name on line 1, Last Name on line 2, and a third row with Badge | Position | # (shirt number)
+- [x] **PLAY-03**: Free Agent players are stored in the system but not selectable during team selection; reserved for future use
 
 ## Team Selection
 
-- [ ] **SELECT-01**: A team selection screen is presented before the player enters the field; the home player selects their team first, then the away player selects from the remaining teams; the selected team's badge and colors are applied throughout the match
+- [x] **SELECT-01**: A team selection screen is presented before the player enters the field; the home player selects their team first, then the away player selects from the remaining teams; the selected team's badge and colors are applied throughout the match
 
 ## Bug Fixes
 
@@ -62,10 +62,10 @@
 | TEAM-04   | Phase 15 | Complete |
 | TEAM-05   | Phase 15 | Complete |
 | TEAM-06   | Phase 15 | Complete |
-| PLAY-01   | Phase 16 | Pending  |
-| PLAY-02   | Phase 16 | Pending  |
-| PLAY-03   | Phase 16 | Pending  |
-| SELECT-01 | Phase 16 | Pending  |
+| PLAY-01   | Phase 16 | Complete |
+| PLAY-02   | Phase 16 | Complete |
+| PLAY-03   | Phase 16 | Complete |
+| SELECT-01 | Phase 16 | Complete |
 | BUG-01    | Phase 17 | Pending  |
 | BUG-02    | Phase 17 | Pending  |
 | BUG-03    | Phase 17 | Pending  |

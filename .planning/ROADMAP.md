@@ -83,7 +83,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 5. The selected team's badge and colors are applied to the scoreboard, player cards, and tokens throughout the match
    **Plans**: 4 plans
 
-- [ ] 16-01-PLAN.md — Wave 0 RED test scaffolding (roster, player card, selection screen, engine)
+- [x] 16-01-PLAN.md — Wave 0 RED test scaffolding (roster, player card, selection screen, engine)
 - [ ] 16-02-PLAN.md — Seed script + teams.ts (TEAM_SQUADS/FREE_AGENTS), PlayerPiece type surgery, selectedTeams + team events
 - [ ] 16-03-PLAN.md — Server: buildInitialGameState selectedTeams, team:selection-start gate, team:pick handler
 - [ ] 16-04-PLAN.md — Client: TeamSelectionScreen, player card redesign, TEAM_DEFAULTS deletion, App routing
@@ -121,26 +121,26 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 ## Progress
 
-| Phase                         | Milestone | Plans Complete | Status   | Completed  |
-| ----------------------------- | --------- | -------------- | -------- | ---------- |
-| 1. Monorepo Scaffold          | v1.0      | 3/3            | Complete | 2026-05-28 |
-| 2. Move Validator             | v1.0      | 4/4            | Complete | 2026-05-29 |
-| 3. Server Room Manager        | v1.0      | 3/3            | Complete | 2026-05-29 |
-| 4. Game Engine + FSM          | v1.0      | 3/3            | Complete | 2026-05-30 |
-| 5. Dice Resolver              | v1.0      | 4/4            | Complete | 2026-05-30 |
-| 6. React Hex Grid             | v1.0      | 3/3            | Complete | 2026-05-31 |
-| 7. Client-Server Integration  | v1.0      | 4/4            | Complete | 2026-06-03 |
-| 7.1. UI Cleanup               | v1.0      | 3/3            | Complete | 2026-06-04 |
-| 8. Match Lifecycle            | v1.0      | 8/8            | Complete | 2026-06-05 |
-| 8.1. Cleanup                  | v1.0      | 3/3            | Complete | 2026-06-05 |
-| 8.2. Passing Cleanup          | v1.0      | 6/6            | Complete | 2026-06-07 |
-| 9. Render Deployment          | v1.0      | 2/2            | Complete | 2026-06-08 |
-| 10. Remaining Flows           | v1.0      | 5/5            | Complete | 2026-06-11 |
-| 11. Rule Correctness          | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 12. Visual Token & Hex Layer  | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 13. Layout & Clock            | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity             | v1.2      | 3/3            | Complete | 2026-06-13 |
-| 16. Player Roster & Selection | v1.2      | 0/4            | Pending  | -          |
-| 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending  | -          |
-| 18. Design Polish             | v1.2      | 0/TBD          | Pending  | -          |
+| Phase                         | Milestone | Plans Complete | Status      | Completed  |
+| ----------------------------- | --------- | -------------- | ----------- | ---------- |
+| 1. Monorepo Scaffold          | v1.0      | 3/3            | Complete    | 2026-05-28 |
+| 2. Move Validator             | v1.0      | 4/4            | Complete    | 2026-05-29 |
+| 3. Server Room Manager        | v1.0      | 3/3            | Complete    | 2026-05-29 |
+| 4. Game Engine + FSM          | v1.0      | 3/3            | Complete    | 2026-05-30 |
+| 5. Dice Resolver              | v1.0      | 4/4            | Complete    | 2026-05-30 |
+| 6. React Hex Grid             | v1.0      | 3/3            | Complete    | 2026-05-31 |
+| 7. Client-Server Integration  | v1.0      | 4/4            | Complete    | 2026-06-03 |
+| 7.1. UI Cleanup               | v1.0      | 3/3            | Complete    | 2026-06-04 |
+| 8. Match Lifecycle            | v1.0      | 8/8            | Complete    | 2026-06-05 |
+| 8.1. Cleanup                  | v1.0      | 3/3            | Complete    | 2026-06-05 |
+| 8.2. Passing Cleanup          | v1.0      | 6/6            | Complete    | 2026-06-07 |
+| 9. Render Deployment          | v1.0      | 2/2            | Complete    | 2026-06-08 |
+| 10. Remaining Flows           | v1.0      | 5/5            | Complete    | 2026-06-11 |
+| 11. Rule Correctness          | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 12. Visual Token & Hex Layer  | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 13. Layout & Clock            | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
+| 16. Player Roster & Selection | v1.2      | 1/4            | In Progress |            |
+| 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending     | -          |
+| 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
