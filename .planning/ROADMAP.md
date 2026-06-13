@@ -81,8 +81,14 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 3. The player card shows First Name on line 1, Last Name on line 2, and Badge | Position | shirt number on line 3
 4. Before the match starts, the home player selects their team first; the away player then selects from the remaining three teams; neither player can proceed without making a selection
 5. The selected team's badge and colors are applied to the scoreboard, player cards, and tokens throughout the match
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 4 plans
+
+- [ ] 16-01-PLAN.md — Wave 0 RED test scaffolding (roster, player card, selection screen, engine)
+- [ ] 16-02-PLAN.md — Seed script + teams.ts (TEAM_SQUADS/FREE_AGENTS), PlayerPiece type surgery, selectedTeams + team events
+- [ ] 16-03-PLAN.md — Server: buildInitialGameState selectedTeams, team:selection-start gate, team:pick handler
+- [ ] 16-04-PLAN.md — Client: TeamSelectionScreen, player card redesign, TEAM_DEFAULTS deletion, App routing
+
+**UI hint**: yes
 
 ### Phase 17: Rule Bugs
 
@@ -135,6 +141,6 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 13. Layout & Clock            | v1.1      | 3/3            | Complete | 2026-06-12 |
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete | 2026-06-12 |
 | 15. Team Identity             | v1.2      | 3/3            | Complete | 2026-06-13 |
-| 16. Player Roster & Selection | v1.2      | 0/TBD          | Pending  | -          |
+| 16. Player Roster & Selection | v1.2      | 0/4            | Pending  | -          |
 | 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending  | -          |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending  | -          |
