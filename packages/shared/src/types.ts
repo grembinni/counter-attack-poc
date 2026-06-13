@@ -113,6 +113,7 @@ export type ActionEvent =
       carrierCombined: number;
       result: 'SUCCESS' | 'FAIL';
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'GOAL';

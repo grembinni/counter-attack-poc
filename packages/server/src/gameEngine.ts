@@ -458,6 +458,11 @@ export function applyMove(
       // D-09: defender wins on tie (defCombined >= carCombined → SUCCESS)
       const tackleResult: 'SUCCESS' | 'FAIL' = defCombined >= carCombined ? 'SUCCESS' : 'FAIL';
       tackleSuccess = tackleResult === 'SUCCESS';
+      // Compute ballAfter for replay: on SUCCESS ball moves to tackler; on FAIL ball stays.
+      const tackleBallAfter =
+        tackleResult === 'SUCCESS'
+          ? { position: to, carrierId: pieceId }
+          : { position: state.ball.position, carrierId: state.ball.carrierId };
       const tackleEvent: ActionEvent = {
         type: 'TACKLE_ATTEMPT',
         defenderId: pieceId,
@@ -468,6 +473,7 @@ export function applyMove(
         carrierCombined: carCombined,
         result: tackleResult,
         timestamp: Date.now(),
+        ballAfter: tackleBallAfter,
       };
       newEventLog = [...newEventLog, tackleEvent];
       // D-29: record that this piece has now attempted a tackle this phase (success or fail)
@@ -2829,6 +2835,7 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'MOVE',
   'DICE_ROLL',
   'STEAL_ATTEMPT',
+  'TACKLE_ATTEMPT',
   'GOAL',
   'KICK_OFF',
   'HIGH_PASS',
