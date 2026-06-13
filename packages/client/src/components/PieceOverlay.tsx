@@ -149,6 +149,24 @@ export function PieceOverlay({
         </defs>
       )}
 
+      {/* Away GK checker pattern def — same structure as home, using away GK colors */}
+      {isGK && piece.teamId === 'away' && (
+        <defs>
+          <pattern
+            id={`away-gk-checker-${piece.id}`}
+            x={cx - PIECE_RADIUS}
+            y={cy - PIECE_RADIUS}
+            width={12}
+            height={12}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={12} height={12} fill="#db2777" />
+            <rect x={0} y={0} width={6} height={6} fill="#f59e0b" />
+            <rect x={6} y={6} width={6} height={6} fill="#f59e0b" />
+          </pattern>
+        </defs>
+      )}
+
       {/* Base piece circle — outfield: jersey pattern fill; home GK: checker pattern; away GK: solid amber */}
       <circle
         cx={cx}
@@ -158,7 +176,7 @@ export function PieceOverlay({
           isGK
             ? piece.teamId === 'home'
               ? `url(#home-gk-checker-${piece.id})`
-              : '#db2777' // away GK: solid orange base; stripes added as siblings
+              : `url(#away-gk-checker-${piece.id})`
             : `url(#${teamId}-jersey-${piece.id})`
         }
         stroke={stroke}
@@ -183,30 +201,6 @@ export function PieceOverlay({
           clipPath={`url(#crew-clip-${piece.id})`}
           pointerEvents="none"
         />
-      )}
-
-      {/* D-10: Away GK edge stripes — two narrow orange vertical rects over amber base */}
-      {isGK && piece.teamId === 'away' && (
-        <>
-          <rect
-            x={cx - PIECE_RADIUS + 4}
-            y={cy - PIECE_RADIUS}
-            width={3}
-            height={PIECE_RADIUS * 2}
-            fill="#f59e0b"
-            fillOpacity={0.85}
-            pointerEvents="none"
-          />
-          <rect
-            x={cx + PIECE_RADIUS - 7}
-            y={cy - PIECE_RADIUS}
-            width={3}
-            height={PIECE_RADIUS * 2}
-            fill="#f59e0b"
-            fillOpacity={0.85}
-            pointerEvents="none"
-          />
-        </>
       )}
 
       {/* D-04/UX-05: selectable ring — bright blue outline */}

@@ -176,25 +176,22 @@ describe('PieceOverlay — D-10: GK jersey patterns', () => {
     expect(fills).toContain('#4c1d95');
   });
 
-  it('away GK solid fill is pink-600 #db2777', () => {
+  it('away GK fill references url(#away-gk-checker-...) not solid #db2777', () => {
     const { container } = renderPiece(awayGK, 'none');
     const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toBe('#db2777');
+    expect(baseCircle.getAttribute('fill')).toContain('url(#away-gk-checker');
+    expect(baseCircle.getAttribute('fill')).not.toBe('#db2777');
   });
 
-  it('away GK renders two amber #f59e0b edge stripe rects with pointerEvents=none', () => {
+  it('away GK renders a checker pattern with fills #db2777 and #f59e0b', () => {
     const { container } = renderPiece(awayGK, 'none');
-    const rects = Array.from(container.querySelectorAll('rect'));
-    const stripeRects = rects.filter(
-      (r) => r.getAttribute('fill') === '#f59e0b' && r.getAttribute('pointer-events') === 'none',
-    );
-    expect(stripeRects.length).toBe(2);
-  });
-
-  it('away GK has no url(#...) pattern fill on base circle', () => {
-    const { container } = renderPiece(awayGK, 'none');
-    const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).not.toContain('url(#');
+    const patterns = Array.from(container.querySelectorAll('pattern'));
+    const gkPattern = patterns.find((p) => p.id.startsWith('away-gk-checker-'));
+    expect(gkPattern).toBeTruthy();
+    const rects = gkPattern ? Array.from(gkPattern.querySelectorAll('rect')) : [];
+    const fills = rects.map((r) => r.getAttribute('fill'));
+    expect(fills).toContain('#db2777');
+    expect(fills).toContain('#f59e0b');
   });
 });
 
