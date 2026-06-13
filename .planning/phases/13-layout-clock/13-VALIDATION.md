@@ -1,10 +1,11 @@
 ---
 phase: 13
 slug: layout-clock
-status: draft
+status: complete
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-12
+audited: 2026-06-12
 ---
 
 # Phase 13 — Validation Strategy
@@ -15,20 +16,20 @@ created: 2026-06-12
 
 ## Test Infrastructure
 
-| Property               | Value                                             |
-| ---------------------- | ------------------------------------------------- |
-| **Framework**          | Vitest (jsdom environment)                        |
-| **Config file**        | `packages/client/vitest.config.ts`                |
-| **Quick run command**  | `pnpm --filter @counter-attack/client test --run` |
-| **Full suite command** | `pnpm --filter @counter-attack/client test --run` |
-| **Estimated runtime**  | ~15 seconds                                       |
+| Property                | Value                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| **Framework**           | Vitest 2.1.9 + @testing-library/react (jsdom environment)                                |
+| **Config file**         | `packages/client/vitest.config.ts`                                                       |
+| **Phase13 run command** | `pnpm --filter @counter-attack/client exec vitest run src/components/GameBoard.test.tsx` |
+| **Full suite command**  | `pnpm --filter @counter-attack/client exec vitest run`                                   |
+| **Estimated runtime**   | ~4 seconds (phase13 tests only)                                                          |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `pnpm --filter @counter-attack/client test --run`
-- **After every plan wave:** Run `pnpm --filter @counter-attack/client test --run`
+- **After every task commit:** Run GameBoard.test.tsx
+- **After every plan wave:** Run full client suite
 - **Before `/gsd-verify-work`:** Full suite must be green
 - **Max feedback latency:** ~15 seconds
 
@@ -36,21 +37,28 @@ created: 2026-06-12
 
 ## Per-Task Verification Map
 
-| Task ID  | Plan   | Wave | Requirement                              | Threat Ref | Secure Behavior | Test Type | Automated Command                                              | File Exists | Status     |
-| -------- | ------ | ---- | ---------------------------------------- | ---------- | --------------- | --------- | -------------------------------------------------------------- | ----------- | ---------- |
-| 13-W0-01 | Wave 0 | 0    | LAYOUT-01, LAYOUT-02, CLOCK-01, CLOCK-02 | —          | N/A             | unit      | `pnpm --filter @counter-attack/client test --run -- GameBoard` | ❌ W0       | ⬜ pending |
-| 13-01    | 01     | 1    | LAYOUT-01, CLOCK-01, CLOCK-02            | —          | N/A             | unit      | `pnpm --filter @counter-attack/client test --run -- GameBoard` | ❌ W0       | ⬜ pending |
-| 13-02    | 01/02  | 1    | LAYOUT-02                                | —          | N/A             | unit      | `pnpm --filter @counter-attack/client test --run -- GameBoard` | ❌ W0       | ⬜ pending |
+| Task ID  | Plan  | Wave | Requirement                              | Test File              | Test Description                                                                                                | Status   |
+| -------- | ----- | ---- | ---------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- | -------- |
+| 13-01-T1 | 13-01 | 0    | LAYOUT-01, LAYOUT-02, CLOCK-01, CLOCK-02 | GameBoard.test.tsx     | Wave 0 scaffold: 15 RED tests created before GameBoard rewrite (P13-02 drives GREEN)                            | ✅ green |
+| 13-02-T1 | 13-02 | 1    | CLOCK-01                                 | GameBoard.test.tsx     | actionCount=7→"7:00", actionCount=45→"45:00", actionCount=46→"46:00", actionCount=0→"0:00" (×4 tests)           | ✅ green |
+| 13-02-T1 | 13-02 | 1    | CLOCK-02                                 | GameBoard.test.tsx     | Clock visible in HALF_TIME, KICK_OFF_SETUP, FULL_TIME, REPLAY phases (×4 tests)                                 | ✅ green |
+| 13-02-T1 | 13-02 | 1    | LAYOUT-01                                | GameBoard.test.tsx     | Home score "2" + away "1", default 0/0, large scores 3/2 (×3 tests)                                             | ✅ green |
+| 13-02-T1 | 13-02 | 1    | LAYOUT-02                                | GameBoard.test.tsx     | KickOffSetupPanel in KICK_OFF_SETUP, ReplayPanel in REPLAY, ActionPanel in MOVEMENT, log chevron "›" (×4 tests) | ✅ green |
+| 13-02-T2 | 13-02 | 1    | LAYOUT-01, LAYOUT-02                     | GameBoard.test.tsx     | GameBoard.module.css rewrite: top-band grid, overlay anchoring, clock styles — covered by full build + tests    | ✅ green |
+| 13-03-T1 | 13-03 | 2    | LAYOUT-01, CLOCK-02                      | GameBoard.test.tsx     | App.tsx routing: HALF_TIME/FULL_TIME fall through to GameBoard; Screen type trimmed                             | ✅ green |
+| 13-03-T2 | 13-03 | 2    | —                                        | — (build verification) | Delete retired TurnIndicator, HalfTimeScreen, FullTimeScreen — 71/71 tests green post-deletion                  | ✅ green |
 
-_Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
+_Status: ⬜ pending · ✅ green · ❌ red · ⚠️ manual/flaky_
+
+**Test counts:** 15 tests in GameBoard.test.tsx — all passing
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `packages/client/src/components/GameBoard.test.tsx` — stubs/tests for LAYOUT-01, LAYOUT-02, CLOCK-01, CLOCK-02
+Wave 0 was applied as Plan 13-01 — GameBoard.test.tsx was created with 15 RED tests before Plan 13-02 began implementation. This is the correct RED→GREEN Nyquist pattern.
 
-_Wave 0 must create the GameBoard test file before implementation begins._
+- [x] `packages/client/src/components/GameBoard.test.tsx` — created in P13-01 with 15 failing assertions before P13-02 implementation
 
 ---
 
@@ -66,11 +74,22 @@ _Wave 0 must create the GameBoard test file before implementation begins._
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have automated verify or documented Manual-Only reason
+- [x] Wave 0 applied before execution (Plan 13-01 was Wave 0 scaffold)
+- [x] Sampling continuity: all phase13 tests run in ~4s
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [ ] `nyquist_compliant: true` — 3 manual-only gaps prevent full compliance
 
-**Approval:** pending
+**Approval:** partial — 15/15 automatable tasks covered; 3 browser UAT items marked manual-only (top-band 1080p layout, HALF_TIME clock visibility above overlay, log toggle expand/collapse)
+
+---
+
+## Validation Audit 2026-06-12
+
+| Metric               | Count |
+| -------------------- | ----- |
+| Gaps found           | 0     |
+| Resolved (automated) | 0     |
+| Marked manual-only   | 3     |
+| Tests passing        | 15/15 |
