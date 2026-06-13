@@ -191,7 +191,7 @@ describe('PieceOverlay — D-10: GK jersey patterns', () => {
     const rects = gkPattern ? Array.from(gkPattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
     expect(fills).toContain('#db2777');
-    expect(fills).toContain('#f59e0b');
+    expect(fills).toContain('#831843');
   });
 });
 
