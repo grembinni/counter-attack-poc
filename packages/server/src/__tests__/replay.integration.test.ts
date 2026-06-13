@@ -335,6 +335,157 @@ describe('FULL_TIME → REPLAY stream', () => {
     expect(intervalCleared).toBe(true);
   });
 
+  it('REPLAY-04: replay stream emits frames at 500ms cadence with 3s pre-roll', async () => {
+    vi.useFakeTimers();
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const piece = room.gameState!.pieces[0]!;
+
+    // Seed 2 MOVE events so buildReplayFrames produces 2 frames to stream
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: piece.id,
+          from: piece.position,
+          to: { q: piece.position.q + 1, r: piece.position.r },
+          slot: 'ATTACKER_4' as const,
+          timestamp: 1,
+          ballAfter: { position: piece.position, carrierId: null },
+        },
+        {
+          type: 'MOVE',
+          pieceId: piece.id,
+          from: { q: piece.position.q + 1, r: piece.position.r },
+          to: { q: piece.position.q + 2, r: piece.position.r },
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: {
+            position: { q: piece.position.q + 2, r: piece.position.r },
+            carrierId: null,
+          },
+        },
+      ],
+    };
+
+    const frames = buildReplayFrames(room.gameState);
+    expect(frames.length).toBe(2);
+
+    // Simulate startReplayStream's timer pattern: 3s pre-roll then 500ms interval (REPLAY-04)
+    let framesSent = 0;
+    let idx = 0;
+    setTimeout(() => {
+      room.replayTimer = setInterval(() => {
+        if (idx >= frames.length) {
+          clearInterval(room.replayTimer!);
+          room.replayTimer = null;
+          return;
+        }
+        idx++;
+        framesSent++;
+      }, 500);
+    }, 3000);
+
+    // Before pre-roll: no frames
+    vi.advanceTimersByTime(2999);
+    expect(framesSent).toBe(0);
+
+    // Pre-roll fires at t=3000ms; advance to t=3499ms — 499ms into interval, no tick yet
+    vi.advanceTimersByTime(500);
+    expect(framesSent).toBe(0);
+
+    // At t=3500ms: first 500ms tick fires
+    vi.advanceTimersByTime(1);
+    expect(framesSent).toBe(1);
+
+    // At t=4000ms: second 500ms tick fires
+    vi.advanceTimersByTime(500);
+    expect(framesSent).toBe(2);
+
+    vi.useRealTimers();
+  });
+
+  it('REPLAY-05: movement phase replays as K simultaneous step-frames', async () => {
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const pieceX = pieces[0]!;
+    const pieceY = pieces[1]!;
+    const xPos = pieceX.position;
+    const yPos = pieceY.position;
+    const ballPos = { q: 18, r: 13 };
+
+    // pieceX: 3 consecutive MOVE events (path length 3)
+    // pieceY: 1 MOVE event (path length 1)
+    // No non-MOVE boundary event — flush occurs at end of log
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: pieceX.id,
+          from: xPos,
+          to: { q: xPos.q + 1, r: xPos.r },
+          slot: 'ATTACKER_4' as const,
+          timestamp: 1,
+          ballAfter: { position: ballPos, carrierId: null },
+        },
+        {
+          type: 'MOVE',
+          pieceId: pieceX.id,
+          from: { q: xPos.q + 1, r: xPos.r },
+          to: { q: xPos.q + 2, r: xPos.r },
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: { position: ballPos, carrierId: null },
+        },
+        {
+          type: 'MOVE',
+          pieceId: pieceX.id,
+          from: { q: xPos.q + 2, r: xPos.r },
+          to: { q: xPos.q + 3, r: xPos.r },
+          slot: 'ATTACKER_4' as const,
+          timestamp: 3,
+          ballAfter: { position: ballPos, carrierId: null },
+        },
+        {
+          type: 'MOVE',
+          pieceId: pieceY.id,
+          from: yPos,
+          to: { q: yPos.q + 1, r: yPos.r },
+          slot: 'DEFENDER_5' as const,
+          timestamp: 4,
+          ballAfter: { position: ballPos, carrierId: null },
+        },
+      ],
+    };
+
+    const frames = buildReplayFrames(room.gameState);
+
+    // K = 3 (max path length; pieceX has 3 steps, pieceY has 1)
+    expect(frames).toHaveLength(3);
+
+    for (const frame of frames) {
+      expect(frame.phase).toBe('REPLAY');
+    }
+
+    const getPiecePos = (frame: GameState, id: string) =>
+      frame.pieces.find((p) => p.id === id)!.position;
+
+    // Step 1: both pieces advance simultaneously
+    expect(getPiecePos(frames[0]!, pieceX.id)).toEqual({ q: xPos.q + 1, r: xPos.r });
+    expect(getPiecePos(frames[0]!, pieceY.id)).toEqual({ q: yPos.q + 1, r: yPos.r });
+
+    // Step 2: pieceX advances; pieceY holds its final hex
+    expect(getPiecePos(frames[1]!, pieceX.id)).toEqual({ q: xPos.q + 2, r: xPos.r });
+    expect(getPiecePos(frames[1]!, pieceY.id)).toEqual({ q: yPos.q + 1, r: yPos.r });
+
+    // Step 3: pieceX reaches its final hex; pieceY still holds
+    expect(getPiecePos(frames[2]!, pieceX.id)).toEqual({ q: xPos.q + 3, r: xPos.r });
+    expect(getPiecePos(frames[2]!, pieceY.id)).toEqual({ q: yPos.q + 1, r: yPos.r });
+  });
+
   it('D-31: startReplayStream is triggered when FULL_TIME is reached via GAME_END_TURN', async () => {
     // This test seeds a room where the next GAME_END_TURN will produce FULL_TIME,
     // then verifies that REPLAY-phase frames are eventually emitted.
