@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1–10 (shipped 2026-06-11)
 - ✅ **v1.1 UX Tuning & Bug Cleanup** — Phases 11–14 (shipped 2026-06-12)
-- 📋 **v1.2** — not yet defined
+- 🔄 **v1.2 Team Identity & Core Fixes** — Phases 15–18 (in progress)
 
 ## Phases
 

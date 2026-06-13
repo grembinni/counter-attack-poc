@@ -1,30 +1,30 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: UX Tuning & Bug Cleanup — Complete
-status: complete
+milestone: v1.2
+milestone_name: Team Identity & Core Fixes
+status: in_progress
 last_updated: '2026-06-13T00:00:00.000Z'
-last_activity: 2026-06-13 -- v1.1 milestone archived; git tag v1.1 pending
+last_activity: 2026-06-13 -- v1.2 milestone defined; roadmap pending
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Phase
 
-v1.1 milestone complete. All 4 phases shipped. Next: `/gsd-new-milestone` to define v1.2.
+v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is first.
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Planning v1.2 (REPLAY-06 fix, MATCH-06 req text, MOVE-06)
+**Current focus:** v1.2 — Team Identity & Core Fixes (4 teams with badges/uniforms, player roster, 5 bug fixes, design review)
 
 ## Phase Status
 

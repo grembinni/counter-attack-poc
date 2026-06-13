@@ -47,12 +47,33 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 - ⚠ **MATCH-06** — Symmetric DEF/MID formation (req text ambiguous; design intent met) — v1.1
 - ✗ **REPLAY-06** — Ball tracking live-session bugs deferred to v1.2 — v1.1 partial
 
-### Active (v1.2 — next milestone)
+### Active (v1.2 — Team Identity & Core Fixes)
 
-- [ ] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay)
-- [ ] **MATCH-06** req text update: rewrite to "each team's DEF/MID within symmetric columns of kick-off hex"
+**Team Identity + Player Roster (highest priority)**
+
+- [ ] **TEAM-01..06**: Four teams defined with badge SVG, color, and uniform — Cozmos (blue/galaxy), Xolos (orange/coyote), City (red-gold/STL-style), Crew (gold/Columbus-style)
+- [ ] **PLAY-01**: Player roster updated from fc_stats.csv; 4 team squads populated + remaining players as Free Agents
+- [ ] **PLAY-02**: Player card redesigned — First Name, Last Name, Badge | Position | #
+- [ ] **SELECT-01**: Team selection screen before match; home team picks first, then away team
+
+**Bug Fixes**
+
+- [ ] **BUG-01**: Headers are not blockable — remove block option from header duel
+- [ ] **BUG-02**: All actions show a back/cancel link until a change is committed or target selected
+- [ ] **BUG-03**: Pre-header moves are undoable
+- [ ] **BUG-04**: Pass landing on occupied hex → ball pickup; if defender → change of possession
+- [ ] **BUG-05**: Loose ball on save spawns at save hex, not shot origin hex
 - [ ] **MOVE-06**: Free 6-hex move for all players in opposite final third — scaffolded in `gameEngine.ts:517`, handler not implemented
 - [ ] **PASS-02 (partial)**: Mid-pass player movement (1 hex per team) during First-time Pass flight — deferred per TODO at `gameEngine.ts:1087`
+
+**Design Review + Carry-forward**
+
+- [ ] **DESIGN-01**: App messaging consistency audit and update
+- [ ] **DESIGN-02**: Playback review and optimizations
+- [ ] **DESIGN-03**: Duplicate code removal
+- [ ] **DESIGN-04**: Dead code removal
+- [ ] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay)
+- [ ] **MATCH-06** req text update: rewrite to "each team's DEF/MID within symmetric columns of kick-off hex"
 
 ### Deferred (v2 candidates)
 
@@ -131,4 +152,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-13 after v1.1 milestone_
+_Last updated: 2026-06-13 after v1.1 milestone close; v1.2 goals defined_
