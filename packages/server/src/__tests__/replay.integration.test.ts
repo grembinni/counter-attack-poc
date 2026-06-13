@@ -226,7 +226,10 @@ describe('FULL_TIME → REPLAY stream', () => {
     };
 
     const frames = buildReplayFrames(room.gameState);
-    expect(frames.length).toBe(2); // 2 MOVE events → 2 frames (D-32)
+    // REPLAY-05: K = max path length across all moving pieces. Here one piece moves 2 steps
+    // (path length 2), so K=2 and 2 step-frames are emitted. This is NOT simply '1 frame per
+    // MOVE event' — if a second piece moved 3 steps concurrently the result would be 3 frames.
+    expect(frames.length).toBe(2); // K = 2 steps for the single moving piece
     for (const frame of frames) {
       expect(frame.phase).toBe('REPLAY'); // D-31
     }
