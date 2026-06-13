@@ -1,13 +1,16 @@
 import { useRef, useState } from 'react';
 import type { GamePhase } from '@counter-attack/shared';
 import type { PlayerPiece } from '@counter-attack/shared';
+import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { TEAM_DEFAULTS } from '../teamDefaults.js';
 import { HexGrid } from './HexGrid.js';
 import { ActionLog } from './ActionLog.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
 import { ActionPanel } from './ActionPanel.js';
 import { KickOffSetupPanel } from './KickOffSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
+import { TeamBadge } from './TeamBadge.js';
 import styles from './GameBoard.module.css';
 
 /** Phase label mapping per UI-SPEC Turn Indicator Spec table. Absorbed from TurnIndicator.tsx. */
@@ -39,20 +42,6 @@ function statBubbleClass(value: number): string {
   if (value >= 5) return styles.statBubbleGreen ?? '';
   if (value >= 3) return styles.statBubbleYellow ?? '';
   return styles.statBubbleRed ?? '';
-}
-
-/** Inline SVG shield icon for team identity in the score row and player card. */
-function TeamShieldIcon({ color }: { color: string }) {
-  return (
-    <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true">
-      <path
-        d="M11 1L2 4.5V12C2 17.5 6 22.5 11 25C16 22.5 20 17.5 20 12V4.5L11 1Z"
-        fill={color}
-        stroke="rgba(255,255,255,0.2)"
-        strokeWidth="1"
-      />
-    </svg>
-  );
 }
 
 /** Renders a single stat row: label + colored bubble. */
@@ -136,7 +125,7 @@ export function GameBoard() {
 
   // Centre section derived values (from TurnIndicator)
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
-  const teamColor = activeTeam === 'home' ? '#1a56b0' : '#c0392b';
+  const teamColor = TEAM_CONFIGS[TEAM_DEFAULTS[activeTeam]].primaryColor;
   const phaseLabel = PHASE_LABEL[phase];
 
   // D-03: persistent player card — never blank after first selection
@@ -153,13 +142,17 @@ export function GameBoard() {
   const canStart = myTeam !== null && myTeam !== kickOffTeam;
   const secondHalfKickOffTeam = kickOffTeam === 'home' ? 'away' : 'home';
   const secondHalfTeamName = secondHalfKickOffTeam === 'home' ? 'Home' : 'Away';
-  const secondHalfTeamColor = secondHalfKickOffTeam === 'home' ? '#1a56b0' : '#c0392b';
+  const secondHalfTeamColor = TEAM_CONFIGS[TEAM_DEFAULTS[secondHalfKickOffTeam]].primaryColor;
 
   // FULL_TIME overlay: result derivation (from FullTimeScreen.tsx)
   const resultText =
     score.home > score.away ? 'Home wins' : score.away > score.home ? 'Away wins' : 'Draw';
   const resultColor =
-    score.home > score.away ? '#1a56b0' : score.away > score.home ? '#c0392b' : '#e0e0e0';
+    score.home > score.away
+      ? TEAM_CONFIGS[TEAM_DEFAULTS['home']].primaryColor
+      : score.away > score.home
+        ? TEAM_CONFIGS[TEAM_DEFAULTS['away']].primaryColor
+        : '#e0e0e0';
 
   const isGK = displayPiece?.role === 'GK';
 
@@ -175,7 +168,7 @@ export function GameBoard() {
               <div className={styles.playerCardInfoCol}>
                 <span className={styles.playerCardName}>{displayPiece.name}</span>
                 <span className={styles.playerCardRole}>{displayPiece.role}</span>
-                <TeamShieldIcon color={displayPiece.teamId === 'home' ? '#1a56b0' : '#c0392b'} />
+                <TeamBadge teamId={TEAM_DEFAULTS[displayPiece.teamId]} size={28} />
               </div>
 
               {/* Col 2: PAC / DRB / HED or AA / SHT or SAV */}
@@ -210,10 +203,13 @@ export function GameBoard() {
         {/* Track 2 — Scoreboard (auto): home cell | centre cell | away cell */}
         <div className={styles.scoreboard}>
           <div className={styles.scoreboardGrid}>
-            {/* Home cell: shield + score numeral */}
+            {/* Home cell: badge + score numeral */}
             <div className={styles.scoreboardHomeCell}>
-              <TeamShieldIcon color="#1a56b0" />
-              <span className={styles.scoreNumeral} style={{ color: '#1a56b0' }}>
+              <TeamBadge teamId={TEAM_DEFAULTS['home']} size={28} />
+              <span
+                className={styles.scoreNumeral}
+                style={{ color: TEAM_CONFIGS[TEAM_DEFAULTS['home']].primaryColor }}
+              >
                 {score.home}
               </span>
             </div>
@@ -243,12 +239,15 @@ export function GameBoard() {
               </div>
             </div>
 
-            {/* Away cell: score numeral + shield */}
+            {/* Away cell: score numeral + badge */}
             <div className={styles.scoreboardAwayCell}>
-              <span className={styles.scoreNumeral} style={{ color: '#c0392b' }}>
+              <span
+                className={styles.scoreNumeral}
+                style={{ color: TEAM_CONFIGS[TEAM_DEFAULTS['away']].primaryColor }}
+              >
                 {score.away}
               </span>
-              <TeamShieldIcon color="#c0392b" />
+              <TeamBadge teamId={TEAM_DEFAULTS['away']} size={28} />
             </div>
           </div>
         </div>
@@ -285,13 +284,19 @@ export function GameBoard() {
 
                 {/* Score display */}
                 <div className={styles.overlayScoreRow}>
-                  <span className={styles.overlayTeamLabel} style={{ color: '#1a56b0' }}>
+                  <span
+                    className={styles.overlayTeamLabel}
+                    style={{ color: TEAM_CONFIGS[TEAM_DEFAULTS['home']].primaryColor }}
+                  >
                     Home
                   </span>
                   <span className={styles.overlayScore}>
                     {score.home}&nbsp;&ndash;&nbsp;{score.away}
                   </span>
-                  <span className={styles.overlayTeamLabel} style={{ color: '#c0392b' }}>
+                  <span
+                    className={styles.overlayTeamLabel}
+                    style={{ color: TEAM_CONFIGS[TEAM_DEFAULTS['away']].primaryColor }}
+                  >
                     Away
                   </span>
                 </div>
@@ -329,13 +334,19 @@ export function GameBoard() {
 
                 {/* Score display */}
                 <div className={styles.overlayScoreRow}>
-                  <span className={styles.overlayTeamLabel} style={{ color: '#1a56b0' }}>
+                  <span
+                    className={styles.overlayTeamLabel}
+                    style={{ color: TEAM_CONFIGS[TEAM_DEFAULTS['home']].primaryColor }}
+                  >
                     Home
                   </span>
                   <span className={styles.overlayScore}>
                     {score.home}&nbsp;&ndash;&nbsp;{score.away}
                   </span>
-                  <span className={styles.overlayTeamLabel} style={{ color: '#c0392b' }}>
+                  <span
+                    className={styles.overlayTeamLabel}
+                    style={{ color: TEAM_CONFIGS[TEAM_DEFAULTS['away']].primaryColor }}
+                  >
                     Away
                   </span>
                 </div>
