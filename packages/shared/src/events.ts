@@ -1,4 +1,5 @@
 import type { HexCoord, GameState } from './types.js';
+import type { TeamId } from './teamConfig.js';
 
 // Typed const objects for Socket.io event names (not TypeScript enums — enums compile
 // to IIFEs and don't tree-shake cleanly; const objects emit nothing at runtime).
@@ -46,6 +47,8 @@ export const ClientEvents = {
    * contestant selection UI is shown. Zero-argument event — clears headerAccuracyRollPending.
    */
   GAME_HEADER_ACCURACY_ACK: 'game:header-accuracy-ack',
+  /** Phase 16 D-11: client emits chosen TeamId during team selection phase. */
+  TEAM_PICK: 'team:pick',
 } as const;
 
 export const ServerEvents = {
@@ -54,6 +57,10 @@ export const ServerEvents = {
   GAME_STATE: 'game:state',
   GAME_DISCONNECT_WARNING: 'game:disconnect-warning',
   GAME_ERROR: 'game:error',
+  /** Phase 16 D-10: emitted to both players when slot-2 joins; signals team selection phase start. */
+  TEAM_SELECTION_START: 'team:selection-start',
+  /** Phase 16 D-11: emitted to both players when home player picks a team. */
+  TEAM_HOME_PICKED: 'team:home-picked',
 } as const;
 
 /**
@@ -110,6 +117,8 @@ export interface ClientToServerEvents {
    * Zero-argument acknowledgment — clears headerAccuracyRollPending flag on the server.
    */
   [ClientEvents.GAME_HEADER_ACCURACY_ACK]: () => void;
+  /** Phase 16 D-11: client selects a team during team selection phase. Validated server-side. */
+  [ClientEvents.TEAM_PICK]: (teamId: TeamId) => void;
 }
 
 /**
@@ -123,6 +132,10 @@ export interface ServerToClientEvents {
   [ServerEvents.GAME_DISCONNECT_WARNING]: () => void;
   /** D-06: Server rejection with typed reason string. Client snaps back on receipt. */
   [ServerEvents.GAME_ERROR]: (reason: string) => void;
+  /** Phase 16 D-10: signals both players that team selection has begun. */
+  [ServerEvents.TEAM_SELECTION_START]: () => void;
+  /** Phase 16 D-11: informs both players which team home player chose. */
+  [ServerEvents.TEAM_HOME_PICKED]: (teamId: TeamId) => void;
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */

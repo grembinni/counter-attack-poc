@@ -1,3 +1,5 @@
+import type { TeamId } from './teamConfig.js';
+
 export type HexCoord = { q: number; r: number };
 
 export type PlayerPiece = {
@@ -20,8 +22,14 @@ export type PlayerPiece = {
    * Context string values for lastDiceRoll: 'PASS_ACCURACY' | 'SHOT_DUEL' | 'HEADING_DUEL' | 'LOOSE_BALL' | 'GK_KICK'
    */
   highPass: number;
-  /** Player display name (e.g. 'Home GK', 'Away FWD 1'). TEAM-02 */
-  name: string;
+  /** D-06 (Phase 16): first name from CSV roster. */
+  firstName: string;
+  /** D-06 (Phase 16): last name from CSV roster. */
+  lastName: string;
+  /** D-04 (Phase 16): jersey number (GK = 1; others 2–11 in ROLE_ORDER). */
+  number: number;
+  /** D-06 (Phase 16): player nationality from CSV roster. */
+  nationality: string;
   /** Positional role. TEAM-02 */
   role: 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST';
 };
@@ -366,6 +374,8 @@ export type GameState = {
    * first accurate Standard Pass resolves.
    */
   kickOffActive: boolean;
+  /** Phase 16 D-15: teams selected before match start, embedded in every GameState snapshot. */
+  selectedTeams: { home: TeamId; away: TeamId };
   /** D-31: 1-based replay frame position carried on REPLAY-phase frames only; absent outside replay. */
   replayIndex?: number;
   /** D-31: total replay frame count carried on REPLAY-phase frames only; absent outside replay. */
