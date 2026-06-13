@@ -81,8 +81,8 @@ export function PieceOverlay({
             height={24}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={24} height={24} fill="#d1d5db" />
-            <rect x={0} y={6} width={24} height={12} fill="#1e3a8a" fillOpacity={0.85} />
+            <rect width={24} height={24} fill="#1e3a8a" />
+            <rect x={0} y={6} width={24} height={12} fill="#d1d5db" fillOpacity={0.85} />
           </pattern>
 
           {/* Xolos: amber base + grey checker 8×8 tiles in 16px tile (D-08) */}
