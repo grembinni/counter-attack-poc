@@ -2785,7 +2785,7 @@ export type ApplyHalfTimeStartResult =
  * - addedTime = null (D-29)
  * - phase = 'KICK_OFF_SETUP' (D-10: begins repositioning before second-half kick-off)
  * - lastActionType = null (D-10: fresh action sequence at kick-off)
- * - pieces = 4-5-2 default starting positions from teams.ts (Pitfall 6 reset)
+ * - pieces = 3-2-4-1 formation starting positions from teams.ts (Pitfall 6 reset; "4-5-2" is the movement sequence, not the formation)
  *
  * The handler (08-04) enforces that only the non-kick-off team can trigger this.
  *
@@ -2800,7 +2800,7 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
   // D-26: second half kick-off by the team that did NOT kick off in the first half
   const newAttackingTeam: 'home' | 'away' = state.kickOffTeam === 'home' ? 'away' : 'home';
 
-  // Reset pieces to 4-5-2 default positions from teams.ts (Pitfall 6)
+  // Reset pieces to 3-2-4-1 formation starting positions from teams.ts (Pitfall 6; "4-5-2" = movement sequence)
   const resetPieces = [...HOME_SQUAD, ...AWAY_SQUAD];
 
   return {
@@ -2818,7 +2818,7 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       movedPieceIds: [],
       paceUsedByPieceId: {},
       movementSlot: null,
-      pieces: resetPieces, // Pitfall 6: reset to 4-5-2 formation starting positions
+      pieces: resetPieces, // Pitfall 6: reset to 3-2-4-1 formation starting positions
       ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null }, // reset ball to centre hex
       lastDiceRoll: null,
       pendingFreeMove: null,

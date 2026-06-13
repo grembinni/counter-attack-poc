@@ -906,7 +906,7 @@ describe('applyHalfTimeStart — second-half transition (MATCH-04)', () => {
     expect(result.state.lastActionType).toBeNull();
   });
 
-  it('resets pieces to 4-5-2 default positions from teams.ts', () => {
+  it('resets pieces to 3-2-4-1 formation starting positions from teams.ts (4-5-2 is the movement sequence)', () => {
     const state = makeHalfTimeState();
     const result = applyHalfTimeStart(state);
     expect(result.ok).toBe(true);

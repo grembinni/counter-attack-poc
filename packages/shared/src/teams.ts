@@ -2,6 +2,8 @@ import type { PlayerPiece } from './types.js';
 
 // Hardcoded squads on the 1-6 attribute scale (D-01, D-03 — Phase 8.1).
 // Formation: 3-2-4-1 (3 DEF, 2 MID, 4 FWD, 1 ST).
+// Note: "4-5-2" refers to the movement sub-phase sequence (4 attackers move, then 5 defenders, then 2 attackers);
+//       it is NOT the player-position formation. The actual squad formation is 3-2-4-1 (11 outfield pieces + GK).
 // Role conventions (all role-relevant attributes in [1,6]):
 //   GK:  high Saving (5–6) / Handling (5–6) / AerialAbility (4–6); moderate Pace (2–3) / Resilience (4–5)
 //        highPass: 0 (D-04: GKs use GK kick accuracy rule, not highPass attribute)
