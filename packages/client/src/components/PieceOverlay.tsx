@@ -99,39 +99,35 @@ export function PieceOverlay({
             <rect x={8} y={8} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
           </pattern>
 
-          {/* City: crimson base + thin gold vertical stripe (1px per 4px tile) (D-08) */}
+          {/* City: red base + 3 gold pinstripes (2px wide, 8px tile) (D-08) */}
           <pattern
             id={`city-jersey-${piece.id}`}
             x={cx - PIECE_RADIUS}
             y={cy - PIECE_RADIUS}
-            width={4}
+            width={8}
             height={24}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={4} height={24} fill="#dc143c" />
-            <rect x={3} y={0} width={1} height={24} fill="#f5c518" fillOpacity={0.8} />
+            <rect width={8} height={24} fill="#dc143c" />
+            <rect x={3} y={0} width={2} height={24} fill="#f5c518" fillOpacity={0.9} />
           </pattern>
 
-          {/* Crew: gold base + 45° diagonal black stripe (8×8 tile) (D-08) */}
+          {/* Crew: solid gold base; / \ chevron stripes added as clipped siblings (D-08) */}
           <pattern
             id={`crew-jersey-${piece.id}`}
             x={cx - PIECE_RADIUS}
             y={cy - PIECE_RADIUS}
-            width={8}
-            height={8}
+            width={PIECE_RADIUS * 2}
+            height={PIECE_RADIUS * 2}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={8} height={8} fill="#f5c518" />
-            <line
-              x1={8}
-              y1={0}
-              x2={0}
-              y2={8}
-              stroke="#111111"
-              strokeWidth={2}
-              strokeOpacity={0.75}
-            />
+            <rect width={PIECE_RADIUS * 2} height={PIECE_RADIUS * 2} fill="#f5c518" />
           </pattern>
+          {teamId === 'crew' && (
+            <clipPath id={`crew-clip-${piece.id}`}>
+              <circle cx={cx} cy={cy} r={PIECE_RADIUS} />
+            </clipPath>
+          )}
         </defs>
       )}
 
@@ -174,27 +170,32 @@ export function PieceOverlay({
         }}
       />
 
-      {/* D-09: City arch — gold curved path in lower third of token (gated on city outfield) */}
-      {teamId === 'city' && !isGK && (
-        <path
-          d={`M ${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.3} Q ${cx} ${cy + PIECE_RADIUS * 0.9} ${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.3}`}
-          fill="none"
-          stroke="#f5c518"
-          strokeWidth={1.5}
-          pointerEvents="none"
-        />
-      )}
-
-      {/* D-09: Crew shoulder mask — cover lower 70% with solid gold to restrict diagonal to top ~30% */}
+      {/* Crew shoulder chevron stripes (/ \) — clipped to circle so token stays circular */}
       {teamId === 'crew' && !isGK && (
-        <rect
-          x={cx - PIECE_RADIUS}
-          y={cy - PIECE_RADIUS * 0.4}
-          width={PIECE_RADIUS * 2}
-          height={PIECE_RADIUS * 1.4}
-          fill="#f5c518"
-          pointerEvents="none"
-        />
+        <>
+          <line
+            x1={cx - 2}
+            y1={cy - 9}
+            x2={cx - 9}
+            y2={cy + 3}
+            stroke="#111111"
+            strokeWidth={4}
+            strokeOpacity={0.75}
+            clipPath={`url(#crew-clip-${piece.id})`}
+            pointerEvents="none"
+          />
+          <line
+            x1={cx + 2}
+            y1={cy - 9}
+            x2={cx + 9}
+            y2={cy + 3}
+            stroke="#111111"
+            strokeWidth={4}
+            strokeOpacity={0.75}
+            clipPath={`url(#crew-clip-${piece.id})`}
+            pointerEvents="none"
+          />
+        </>
       )}
 
       {/* D-10: Away GK edge stripes — two narrow orange vertical rects over amber base */}
