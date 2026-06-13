@@ -176,17 +176,17 @@ describe('PieceOverlay — D-10: GK jersey patterns', () => {
     expect(fills).toContain('#4c1d95');
   });
 
-  it('away GK solid fill is amber #f59e0b', () => {
+  it('away GK solid fill is hot pink #ff69b4', () => {
     const { container } = renderPiece(awayGK, 'none');
     const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toBe('#f59e0b');
+    expect(baseCircle.getAttribute('fill')).toBe('#ff69b4');
   });
 
-  it('away GK renders two orange #ea580c edge stripe rects with pointerEvents=none', () => {
+  it('away GK renders two amber #f59e0b edge stripe rects with pointerEvents=none', () => {
     const { container } = renderPiece(awayGK, 'none');
     const rects = Array.from(container.querySelectorAll('rect'));
     const stripeRects = rects.filter(
-      (r) => r.getAttribute('fill') === '#ea580c' && r.getAttribute('pointer-events') === 'none',
+      (r) => r.getAttribute('fill') === '#f59e0b' && r.getAttribute('pointer-events') === 'none',
     );
     expect(stripeRects.length).toBe(2);
   });

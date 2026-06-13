@@ -47,7 +47,7 @@ export function PieceOverlay({
   const fill = isGK
     ? piece.teamId === 'home'
       ? '#9b59b6' // home GK: purple (replaced by checker pattern on circle fill)
-      : '#ea580c' // away GK: orange (solid base; stripes added as siblings)
+      : '#ff69b4' // away GK: orange (solid base; stripes added as siblings)
     : teamConfig.primaryColor; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
   const stroke = isGK
     ? piece.teamId === 'home'
@@ -95,8 +95,8 @@ export function PieceOverlay({
             patternUnits="userSpaceOnUse"
           >
             <rect width={16} height={16} fill="#f59e0b" />
-            <rect x={0} y={0} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
-            <rect x={8} y={8} width={8} height={8} fill="#6b7280" fillOpacity={0.7} />
+            <rect x={0} y={0} width={8} height={8} fill="#374151" fillOpacity={0.7} />
+            <rect x={8} y={8} width={8} height={8} fill="#374151" fillOpacity={0.7} />
           </pattern>
 
           {/* City: red base + 3 gold pinstripes (2px wide, 8px tile) (D-08) */}
@@ -158,7 +158,7 @@ export function PieceOverlay({
           isGK
             ? piece.teamId === 'home'
               ? `url(#home-gk-checker-${piece.id})`
-              : '#ea580c' // away GK: solid orange base; stripes added as siblings
+              : '#ff69b4' // away GK: solid orange base; stripes added as siblings
             : `url(#${teamId}-jersey-${piece.id})`
         }
         stroke={stroke}
