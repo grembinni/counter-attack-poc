@@ -58,17 +58,27 @@ Exceptions:
 
 ## Typography
 
-Existing scale extracted from CSS Modules (source: App.module.css, GameBoard.module.css, LobbyScreen.module.css, ActionLog.module.css):
+### Design Scale (max 4 sizes)
 
-| Role             | Size | Weight | Line Height | Usage                                                        |
-| ---------------- | ---- | ------ | ----------- | ------------------------------------------------------------ |
-| Meta / label     | 10px | 400    | 1.4         | Stat labels (`.statRow`, `.statLabel`)                       |
-| Body / secondary | 11px | 400    | 1.4         | Role text, phase label, sub-links, panel headers (uppercase) |
-| Body             | 13px | 400    | 1.5         | Action log entries, lobby body, card body, error text        |
-| Body bold        | 13px | 700    | 1.5         | CTA buttons, player name, panel header labels                |
-| Heading          | 20px | 700    | 1.2         | Overlay heading, card heading                                |
-| Display / mono   | 28px | 700    | 1.0         | Room code, overlay score, landing title                      |
-| Clock            | 36px | 700    | 1.0         | Match clock (`.clockDisplay`)                                |
+Prescriptive contract — planner and executor use exactly these 4 sizes. Do not introduce additional sizes.
+
+| Role            | Size | Weight    | Line Height | Usage                                                                                        |
+| --------------- | ---- | --------- | ----------- | -------------------------------------------------------------------------------------------- |
+| Label / meta    | 11px | 400       | 1.4         | Stat labels, role text, phase label, sub-links, panel headers (uppercase)                    |
+| Body            | 13px | 400 / 700 | 1.5         | Action log entries, lobby body, card body, error text; bold variant for CTAs and player name |
+| Heading         | 20px | 700       | 1.2         | Overlay heading, card heading                                                                |
+| Display / clock | 36px | 700       | 1.0         | Match clock (`.clockDisplay`)                                                                |
+
+Weights in use: regular (400) and bold (700). No other weights.
+
+### Codebase Audit Record — do not extend
+
+The following sizes exist in the codebase as legacy values. They are documented here for inventory purposes. Do not replicate or expand on them in new work.
+
+| Legacy Size | Location                                        | Note                                                                                |
+| ----------- | ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 10px        | `.statRow`, `.statLabel` (App.module.css)       | Folded into the 11px label tier — 1px difference is imperceptible at this scale     |
+| 28px        | Scoreboard score display (GameBoard.module.css) | Retained for the existing score numeral only; not a scale member for new components |
 
 Phase 15 does NOT introduce any new type sizes or weights. The `TeamBadge` component renders an `<img>` — no typography. SVG jersey labels are not used (pieces render as SVG circles with pattern fills, no text labels in this phase).
 
