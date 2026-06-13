@@ -13,3 +13,4 @@ export * from './shotValidator.js';
 export * from './headingValidator.js';
 export * from './snapshotValidator.js';
 export * from './actionSequence.js'; // Phase 8: action sequence eligibility table (D-07/D-08)
+export * from './teamConfig.js'; // Phase 15: team identity types and TEAM_CONFIGS record
