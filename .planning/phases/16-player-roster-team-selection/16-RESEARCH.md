@@ -559,7 +559,7 @@ The `homePickedTeam` and `onPick` are managed in `App.tsx` local state, wired to
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Away squad position mirroring strategy**
    - What we know: current `AWAY_SQUAD` in `teams.ts` has manually mirrored positions. After seed script, all 4 squads will have home-side positions.
