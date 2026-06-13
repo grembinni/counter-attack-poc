@@ -19,12 +19,12 @@ Define 4 named teams (Cosmos, Xolos, City, Crew) with distinct visual identities
 
 - **D-01:** Badge images are provided as PNG files by the user. Store at `packages/client/src/assets/badges/{teamid}.png` (e.g., `cosmos.png`, `xolos.png`, `city.png`, `crew.png`). Display via `<img>` tags in scoreboard and player card contexts — no inline SVG recreation needed.
 
-- **D-02:** Badge name clarification needed before implementation: the badge image reads "COSMOS" but REQUIREMENTS.md says "Cozmos". Researcher/planner must confirm the canonical team name with the user before writing code. The `id` field in TeamConfig should match whatever is chosen.
+- **D-02:** Team name confirmed: **Cosmos** (not "Cozmos"). `TeamId` uses `'cosmos'`. Badge files confirmed present at `packages/client/src/assets/badges/` (cosmos.png, xolos.png, city.png, crew.png).
 
 ### TeamConfig Data Shape
 
 - **D-03:** New file `packages/shared/src/teamConfig.ts`. Exports:
-  - `TeamId` union type: `'cosmos' | 'xolos' | 'city' | 'crew'` (adjust id if name is 'Cozmos' → `'cozmos'`)
+  - `TeamId` union type: `'cosmos' | 'xolos' | 'city' | 'crew'`
   - `TeamConfig` interface with fields: `id: TeamId`, `name: string`, `primaryColor: string`, `secondaryColor: string`, `badgeFile: string`
   - `TEAM_CONFIGS: Record<TeamId, TeamConfig>` static lookup
 
