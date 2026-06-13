@@ -27,7 +27,7 @@
 
 ## Bug Fixes
 
-- [ ] **BUG-01**: Header duels are not blockable — the "block" option is absent from the header duel UI and the server rejects any block attempt during a header
+- [ ] **BUG-01**: The header pass executed by the winner of a high pass contest is not blockable — the block option is absent when a player executes a header and the server rejects any block attempt on a header; the high pass contest itself (determining who wins the header) is unaffected
 - [ ] **BUG-02**: Every action phase shows a back/cancel control until an irreversible change has been made (piece moved, dice rolled, target hex committed); the back control returns the player to the previous decision step without consuming their action
 - [ ] **BUG-03**: Moves made in the Movement Phase before a header is triggered (pre-header moves) can be undone; undo restores piece position and pace allowance as if the move had not been made
 - [ ] **BUG-04**: A pass (any type except High Pass) whose trajectory ends on a hex occupied by a player results in ball pickup by that player; if the player is on the defending team, possession transfers to the defending team immediately

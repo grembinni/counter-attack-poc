@@ -85,7 +85,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 **Requirements**: BUG-01, BUG-02, BUG-03, BUG-04, BUG-05, MOVE-06, PASS-02
 **Success Criteria** (what must be TRUE):
 
-1. Header duels are not blockable — the block option is absent from the header duel UI and the server rejects any block attempt during a header phase
+1. The header pass executed by the high pass contest winner is not blockable — no block option is presented during header execution and the server rejects any block attempt; the high pass contest (determining who wins the header) is unchanged
 2. A back/cancel control is present at every decision step before any irreversible action (piece moved, dice rolled, target committed); activating it returns the player to the prior step without consuming their action
 3. Piece moves made before a header is triggered can each be individually undone, restoring the piece's position and remaining pace allowance
 4. A grounded pass that lands on an occupied hex results in ball pickup by that player; if the player belongs to the defending team, possession immediately transfers to them
