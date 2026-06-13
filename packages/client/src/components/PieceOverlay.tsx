@@ -47,7 +47,7 @@ export function PieceOverlay({
   const fill = isGK
     ? piece.teamId === 'home'
       ? '#9b59b6' // home GK: purple (replaced by checker pattern on circle fill)
-      : '#831843' // away GK: orange (solid base; stripes added as siblings)
+      : '#db2777' // away GK: orange (solid base; stripes added as siblings)
     : teamConfig.primaryColor; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
   const stroke = isGK
     ? piece.teamId === 'home'
@@ -158,7 +158,7 @@ export function PieceOverlay({
           isGK
             ? piece.teamId === 'home'
               ? `url(#home-gk-checker-${piece.id})`
-              : '#831843' // away GK: solid orange base; stripes added as siblings
+              : '#db2777' // away GK: solid orange base; stripes added as siblings
             : `url(#${teamId}-jersey-${piece.id})`
         }
         stroke={stroke}
