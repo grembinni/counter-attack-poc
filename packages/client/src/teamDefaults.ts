@@ -6,6 +6,6 @@
 import type { TeamId } from '@counter-attack/shared';
 
 export const TEAM_DEFAULTS: Record<'home' | 'away', TeamId> = {
-  home: 'cosmos',
-  away: 'xolos',
+  home: 'city',
+  away: 'crew',
 };
