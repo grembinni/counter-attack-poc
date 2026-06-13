@@ -26,12 +26,12 @@ import type { PlayerPiece } from './types.js';
 //
 // Starting positions use the real 37×26 board (q 0–36, r 0–25). D-01 (Phase 7.1).
 // Home half: GK q=1, DEF q=6, MID q=10, FWD q=15, ST q=18 (kickoff) or q=15 (defending).
-// Away mirrors (within the MATCH-06 q∈[6,20] band for DEF/MID):
-//   Away DEF q=20 (band max, mirroring home DEF at band min q=6).
-//   Away MID q=16 (band mirror of home MID: 6+20-10=16).
+// Away mirrors (within the MATCH-06 q∈[6,19] band for DEF/MID):
+//   Away DEF q=19 (band max, mirroring home DEF at band min q=6).
+//   Away MID q=16 (within band; 16 ≤ 19).
 //   Away FWD q=21, Away GK q=35.
 // r-values: DEF r=4,13,22  MID r=9,17  FWD r=4,9,17,22  ST r=13 (centre or edge of circle).
-// MATCH-06 / D-01 (Phase 14): All DEF and MID pieces must start with q∈[6,20] (inclusive).
+// MATCH-06 / D-01 (Phase 14): All DEF and MID pieces must start with q∈[6,19] (inclusive).
 //   This applies to both initial placement (buildInitialGameState) and half-time reset
 //   (applyHalfTimeStart), since both read the same HOME_SQUAD/AWAY_SQUAD source.
 // ST position is overridden in buildInitialGameState based on the coin-flip result:
@@ -276,7 +276,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away DEF 1',
     role: 'DEF',
-    position: { q: 20, r: 4 },
+    position: { q: 19, r: 4 },
     pace: 5,
     shooting: 4,
     tackling: 6,
@@ -294,7 +294,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away DEF 2',
     role: 'DEF',
-    position: { q: 20, r: 13 },
+    position: { q: 19, r: 13 },
     pace: 5,
     shooting: 3,
     tackling: 6,
@@ -312,7 +312,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away DEF 3',
     role: 'DEF',
-    position: { q: 20, r: 22 },
+    position: { q: 19, r: 22 },
     pace: 5,
     shooting: 3,
     tackling: 5,

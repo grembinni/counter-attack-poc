@@ -198,7 +198,7 @@ export function GameBoard() {
               <div className={styles.playerCardStatsCol}>
                 <StatRow label="HPS" value={displayPiece.highPass} />
                 <StatRow label="RES" value={displayPiece.resilience} />
-                <StatRow label="TAC" value={displayPiece.tackling} />
+                {!isGK && <StatRow label="TAC" value={displayPiece.tackling} />}
                 {isGK && <StatRow label="HND" value={displayPiece.handling} />}
               </div>
             </div>

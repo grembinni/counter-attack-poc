@@ -639,15 +639,16 @@ export function applyEndTurn(
 
     // D-05/MATCH-02: roll added time inline when actionCount first reaches 45
     // Guard: only set addedTime once per half (Pitfall 3 — prevents re-roll)
+    const HALF_LENGTH = 45;
     let newAddedTime = state.addedTime;
-    if (newActionCount >= 45 && state.addedTime === null) {
+    if (newActionCount >= HALF_LENGTH && state.addedTime === null) {
       // Injected roll (Pitfall 1 — never call randomInt here; caller injects via options)
       const roll = options?.addedTimeRoll ?? 3; // default 3 for backward compatibility
       newAddedTime = roll + state.refereeCard.leniency;
     }
 
     // Pitfall 5: check HALF_TIME vs FULL_TIME by half
-    const halfEnd = 45 + (newAddedTime ?? 0);
+    const halfEnd = HALF_LENGTH + (newAddedTime ?? 0);
     if (newActionCount >= halfEnd) {
       const endPhase: GamePhase = state.half === 1 ? 'HALF_TIME' : 'FULL_TIME';
       return {

@@ -136,9 +136,10 @@ export function ActionPanel() {
     if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.phaseLabel}>
-          Click a highlighted hex to dive (0–3 hexes along the shot path)
-        </span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Attempt save!</span>
+          <span className={styles.helperLine2}>Dive to a highlighted hex. (Max 3 hexes away)</span>
+        </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -278,7 +279,9 @@ export function ActionPanel() {
     if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.gkLabel}>GK Restart — choose:</span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Choose Keeper Action</span>
+        </div>
         <button className={styles.ctaButton} onClick={() => emitGKRestart('kick')}>
           Kick (High Pass)
         </button>
@@ -320,10 +323,12 @@ export function ActionPanel() {
     if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.gkLabel}>GK Kick — select target hex</span>
-        <span className={styles.phaseLabel}>
-          Any pitch hex except the opponent&apos;s final third
-        </span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Keeper Kick</span>
+          <span className={styles.helperLine2}>
+            Target anywhere but the opponent&apos;s final 3rd
+          </span>
+        </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -379,16 +384,44 @@ export function ActionPanel() {
 
     // Step 1: no pass type selected — show action chooser
     if (selectedPassType === null) {
-      return (
-        <div className={styles.panel}>
-          <span className={styles.phaseLabel}>Choose action.</span>
+      const carrier = pieces.find((p) => p.id === carrierId);
+      const goalHexes = GOAL_R_VALUES.map((r) => ({
+        q: attackingTeam === 'home' ? 36 : 0,
+        r,
+      }));
+      const dist =
+        carrier !== undefined
+          ? Math.min(...goalHexes.map((g) => hexDistance(carrier.position, g)))
+          : Infinity;
+      const passPhaseSnapshotRegion =
+        attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+      const carrierInPenaltyArea =
+        carrier !== undefined && isInRegion(carrier.position, passPhaseSnapshotRegion);
+      const showSnapshot =
+        lastActionType !== null && isEligible('SNAPSHOT') && carrierInPenaltyArea;
+      const showShoot = eligible.has('SHOT') && dist <= 11;
 
+      // MATCH-07: during kick-off only Standard Pass is a legal opening action.
+      const isKickOff = phase === 'KICK_OFF';
+
+      const actionCount = [
+        eligible.has('MOVEMENT'),
+        eligible.has('STANDARD_PASS'),
+        !isKickOff && eligible.has('FIRST_TIME_PASS'),
+        !isKickOff && eligible.has('HIGH_PASS'),
+        !isKickOff && eligible.has('LONG_BALL'),
+        !isKickOff && showSnapshot,
+        !isKickOff && showShoot,
+      ].filter(Boolean).length;
+
+      return (
+        <div className={`${styles.panel} ${actionCount >= 5 ? styles.wide : ''}`}>
+          <span className={styles.phaseLabel}>Choose action.</span>
           {eligible.has('MOVEMENT') && (
             <button className={styles.ctaButton} onClick={emitStartMovement}>
               Move
             </button>
           )}
-
           {eligible.has('STANDARD_PASS') && (
             <button
               className={styles.ctaButton}
@@ -397,8 +430,7 @@ export function ActionPanel() {
               Standard Pass
             </button>
           )}
-
-          {eligible.has('FIRST_TIME_PASS') && (
+          {!isKickOff && eligible.has('FIRST_TIME_PASS') && (
             <button
               className={styles.ctaButton}
               onClick={() => setSelectedPassType('FIRST_TIME_PASS')}
@@ -406,61 +438,35 @@ export function ActionPanel() {
               One-Touch
             </button>
           )}
-
-          {eligible.has('HIGH_PASS') && (
+          {!isKickOff && eligible.has('HIGH_PASS') && (
             <button className={styles.ctaButton} onClick={() => setSelectedPassType('HIGH_PASS')}>
               High Pass
             </button>
           )}
-
-          {eligible.has('LONG_BALL') && (
+          {!isKickOff && eligible.has('LONG_BALL') && (
             <button className={styles.ctaButton} onClick={() => setSelectedPassType('LONG_BALL')}>
               Long Ball
             </button>
           )}
-
-          {(() => {
-            const carrier = pieces.find((p) => p.id === carrierId);
-            const goalHexes = GOAL_R_VALUES.map((r) => ({
-              q: attackingTeam === 'home' ? 36 : 0,
-              r,
-            }));
-            const dist =
-              carrier !== undefined
-                ? Math.min(...goalHexes.map((g) => hexDistance(carrier.position, g)))
-                : Infinity;
-            const passPhaseSnapshotRegion =
-              attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
-            const carrierInPenaltyArea =
-              carrier !== undefined && isInRegion(carrier.position, passPhaseSnapshotRegion);
-            return (
-              <>
-                {/* D-18 (WR-03): Snapshot — carrier must be in opponent's penalty area (mirrors MOVEMENT phase check) */}
-                {lastActionType !== null && isEligible('SNAPSHOT') && carrierInPenaltyArea && (
-                  <button className={styles.ctaButton} onClick={emitSnapshot}>
-                    Snapshot
-                  </button>
-                )}
-                {/* Two-step Shoot flow (D-01): Step 1 — click Shoot sets shootingMode=true.
-                    Step 2 — HexGrid highlights goal hexes; clicking one emits emitDeclareShot. */}
-                {eligible.has('SHOT') && dist <= 11 && (
-                  <button
-                    className={styles.ctaButton}
-                    onClick={() => setShootingMode(true)}
-                    disabled={shootingMode}
-                  >
-                    {shootingMode ? 'Select goal hex...' : 'Shoot'}
-                  </button>
-                )}
-                {shootingMode && (
-                  <button className={styles.backButton} onClick={() => setShootingMode(false)}>
-                    ← Cancel Shot
-                  </button>
-                )}
-              </>
-            );
-          })()}
-
+          {!isKickOff && showSnapshot && (
+            <button className={styles.ctaButton} onClick={emitSnapshot}>
+              Snapshot
+            </button>
+          )}
+          {!isKickOff && showShoot && (
+            <button
+              className={styles.ctaButton}
+              onClick={() => setShootingMode(true)}
+              disabled={shootingMode}
+            >
+              {shootingMode ? 'Select goal hex...' : 'Shoot'}
+            </button>
+          )}
+          {!isKickOff && shootingMode && (
+            <button className={styles.backButton} onClick={() => setShootingMode(false)}>
+              ← Cancel Shot
+            </button>
+          )}
           {gameError && <span className={styles.errorText}>{gameError}</span>}
         </div>
       );
