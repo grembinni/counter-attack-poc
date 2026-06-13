@@ -52,7 +52,7 @@ export function PieceOverlay({
   const stroke = isGK
     ? piece.teamId === 'home'
       ? '#6c3483'
-      : '#c2410c'
+      : '#7f1d1d'
     : piece.teamId === 'home'
       ? '#0d3a82'
       : '#8e1c12';
