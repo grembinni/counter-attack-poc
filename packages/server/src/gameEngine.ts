@@ -6,7 +6,7 @@
  * state transitions except by sending events that are re-validated here.
  *
  * ARCH-01: server-authoritative state — all transitions validated server-side.
- * D-12: buildInitialGameState called from roomStore.joinRoom when the second player joins.
+ * D-12: buildInitialGameState called from roomHandlers after both teams picked (Phase 16).
  * D-13: attackingTeam assigned via coin flip using crypto.randomInt (never client-supplied).
  * D-14: FSM starts at KICK_OFF; applyStartMovement transitions to MOVEMENT.
  * TEAM-03: refereeCard assigned randomly at match start via crypto.randomInt(1, 7).
@@ -21,9 +21,9 @@ import type {
   HexCoord,
   LastActionType,
 } from '@counter-attack/shared';
+import type { TeamId } from '@counter-attack/shared';
 import {
-  HOME_SQUAD,
-  AWAY_SQUAD,
+  TEAM_SQUADS,
   PITCH_REGIONS,
   isInRegion,
   isPitchHex,
@@ -40,6 +40,7 @@ import {
   hexLine,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
+// Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
 
 // No socket.io imports — pure functions only (ARCH-01, established Phase 2/3 pattern).
 
@@ -73,19 +74,33 @@ const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
 // ---------------------------------------------------------------------------
 
 /**
- * Builds the real initial GameState when the second player joins a room.
+ * Builds the real initial GameState after both teams are selected.
  *
- * D-12: called from roomStore.joinRoom() immediately on second-player join.
+ * D-12 (updated Phase 16): called from roomHandlers TEAM_PICK handler once both teams are chosen.
  * D-13: attackingTeam determined by server-side coin flip — never client-supplied.
- * D-14: phase starts at 'KICK_OFF'; no player event needed to reach this state.
- * TEAM-01: all 22 players (HOME_SQUAD + AWAY_SQUAD) placed at starting positions.
+ * D-14: phase starts at 'KICK_OFF_SETUP'; no player event needed to reach this state.
+ * D-15: selectedTeams embedded in every subsequent snapshot.
+ * D-16: away pieces mirrored via q_away = 36 - q_home; ids re-prefixed home- → away-.
+ * TEAM-01: all 22 players (11 home + 11 away) placed at starting positions.
  * TEAM-03: refereeCard.leniency is randomly assigned in range 1–6 at match start.
  */
-export function buildInitialGameState(roomCode: string): GameState {
+export function buildInitialGameState(
+  roomCode: string,
+  selectedTeams: { home: TeamId; away: TeamId },
+): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
-  // Build mutable piece array so ST positions can be set based on who kicks off.
-  const pieces = [...HOME_SQUAD, ...AWAY_SQUAD].map((p) => ({ ...p }));
+  // Build mutable piece arrays from TEAM_SQUADS. Away pieces mirror home positions. D-16.
+  const homeSquad = TEAM_SQUADS[selectedTeams.home].map((p) => ({ ...p, teamId: 'home' as const }));
+  const awaySquad = TEAM_SQUADS[selectedTeams.away].map((p) => ({
+    ...p,
+    teamId: 'away' as const,
+    position: { q: 36 - p.position.q, r: p.position.r }, // A1 mirror formula
+    id: p.id.replace('home-', 'away-'),
+  }));
+  const pieces = [...homeSquad, ...awaySquad];
+
+  // Apply ST coin-flip positioning (same logic as before, now on the new piece arrays).
   const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
   const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
   if (homeST && awayST) {
@@ -119,15 +134,29 @@ export function buildInitialGameState(roomCode: string): GameState {
     lastActionType: null, // null at match start; updated after every action
     kickOffTeam: attackingTeam, // coin-flip winner kicks off (D-06, D-26)
     kickOffActive: false,
+    selectedTeams, // D-15: embedded in every subsequent snapshot
   };
 }
 
 /**
  * Returns a fresh pieces array at formation start positions for the given kick-off team.
  * Used after a goal to reset all players to their default positions.
+ *
+ * A4 (Phase 16): now takes selectedTeams so post-goal resets keep the correct squads.
+ * D-16: away pieces mirrored via q_away = 36 - q_home; ids re-prefixed home- → away-.
  */
-export function buildKickOffPieces(attackingTeam: 'home' | 'away') {
-  const pieces = [...HOME_SQUAD, ...AWAY_SQUAD].map((p) => ({ ...p }));
+export function buildKickOffPieces(
+  attackingTeam: 'home' | 'away',
+  selectedTeams: { home: TeamId; away: TeamId },
+) {
+  const homeSquad = TEAM_SQUADS[selectedTeams.home].map((p) => ({ ...p, teamId: 'home' as const }));
+  const awaySquad = TEAM_SQUADS[selectedTeams.away].map((p) => ({
+    ...p,
+    teamId: 'away' as const,
+    position: { q: 36 - p.position.q, r: p.position.r }, // A1 mirror formula
+    id: p.id.replace('home-', 'away-'),
+  }));
+  const pieces = [...homeSquad, ...awaySquad];
   const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
   const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
   if (homeST && awayST) {
@@ -1198,7 +1227,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            pieces: buildKickOffPieces(newKickOffTeam),
+            pieces: buildKickOffPieces(newKickOffTeam, state.selectedTeams),
             phase: 'KICK_OFF_SETUP',
             score: newScoreUnsaveable,
             attackingTeam: newKickOffTeam,
@@ -1280,7 +1309,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            pieces: buildKickOffPieces(newKickOffTeam),
+            pieces: buildKickOffPieces(newKickOffTeam, state.selectedTeams),
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -2802,8 +2831,8 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
   // D-26: second half kick-off by the team that did NOT kick off in the first half
   const newAttackingTeam: 'home' | 'away' = state.kickOffTeam === 'home' ? 'away' : 'home';
 
-  // Reset pieces to 3-2-4-1 formation starting positions from teams.ts (Pitfall 6; "4-5-2" = movement sequence)
-  const resetPieces = [...HOME_SQUAD, ...AWAY_SQUAD];
+  // Reset pieces to formation starting positions using selectedTeams (Phase 16, Pitfall 6; "4-5-2" = movement sequence)
+  const resetPieces = buildKickOffPieces(newAttackingTeam, state.selectedTeams);
 
   return {
     ok: true,
@@ -2820,7 +2849,7 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       movedPieceIds: [],
       paceUsedByPieceId: {},
       movementSlot: null,
-      pieces: resetPieces, // Pitfall 6: reset to 3-2-4-1 formation starting positions
+      pieces: resetPieces, // Pitfall 6: reset to formation starting positions
       ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null }, // reset ball to centre hex
       lastDiceRoll: null,
       pendingFreeMove: null,
@@ -2880,12 +2909,13 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
   // buildInitialGameState uses randomInt for attackingTeam, so we cannot call it directly
   // and expect determinism. Instead, we build a seeded initial state manually.
   // A2 (RESEARCH.md): kickOffTeam is recorded in finalState; use it to seed the initial attackingTeam.
+  // Phase 16: use buildKickOffPieces with finalState.selectedTeams for correct squad positions.
   let current: GameState = {
     roomCode: finalState.roomCode,
     phase: 'KICK_OFF',
     activeTeam: finalState.kickOffTeam,
     attackingTeam: finalState.kickOffTeam,
-    pieces: [...HOME_SQUAD, ...AWAY_SQUAD],
+    pieces: buildKickOffPieces(finalState.kickOffTeam, finalState.selectedTeams),
     ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
     score: { home: 0, away: 0 },
     actionCount: 0,
@@ -2900,6 +2930,7 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     lastActionType: null,
     kickOffTeam: finalState.kickOffTeam,
     kickOffActive: false,
+    selectedTeams: finalState.selectedTeams, // D-15: carry team selection into replay frames
   };
 
   // REPLAY-05: accumulate consecutive MOVE events per pieceId so an entire movement phase

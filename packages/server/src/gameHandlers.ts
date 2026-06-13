@@ -797,7 +797,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           };
           room.gameState = {
             ...baseSnapState,
-            pieces: buildKickOffPieces(newKickOffTeam),
+            pieces: buildKickOffPieces(newKickOffTeam, baseSnapState.selectedTeams),
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -1325,7 +1325,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         };
         room.gameState = {
           ...declaredState,
-          pieces: buildKickOffPieces(newKickOffTeam),
+          pieces: buildKickOffPieces(newKickOffTeam, declaredState.selectedTeams),
           phase: 'KICK_OFF_SETUP',
           score: newScore,
           attackingTeam: newKickOffTeam,

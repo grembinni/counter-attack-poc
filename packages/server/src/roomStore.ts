@@ -12,9 +12,9 @@
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
 import type { GameState, HexCoord } from '@counter-attack/shared';
+import type { TeamId } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
-import { buildInitialGameState } from './gameEngine.js';
 
 // Crockford-ish alphabet — excludes 0/O and 1/I to reduce transcription errors.
 // RESEARCH.md Pattern 2: customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 5)
@@ -66,6 +66,12 @@ export type Room = {
    * Cleared when transitioning out of KICK_OFF_SETUP.
    */
   readyPlayers?: Set<1 | 2> | null;
+  /**
+   * Phase 16 / D-11: The team chosen by home player (slot 1) during team selection.
+   * undefined = home has not yet picked; set once home picks; used to gate away's pick.
+   * Cleared (irrelevant) once gameState is built — gameState.selectedTeams becomes the source of truth.
+   */
+  homePickedTeam?: TeamId;
 };
 
 /**
@@ -152,14 +158,12 @@ export function joinRoom(roomCode: string, socketId: string): JoinResult {
     return { ok: false, reason: 'FULL' };
   }
 
-  // 4. Success path: assign slot 2, transition to 'playing', set stub LOBBY state
+  // 4. Success path: assign slot 2, transition to 'playing'.
+  // Phase 16 D-10: gameState stays null until both teams are selected via team:pick.
+  // buildInitialGameState is called only after away pick in roomHandlers TEAM_PICK handler.
   const sessionToken = randomUUID();
   room.players[1] = { socketId, sessionToken, slot: 2 };
   room.status = 'playing';
-
-  // D-12: build the real initial KICK_OFF GameState immediately on second-player join.
-  // D-14: buildInitialGameState sets phase 'KICK_OFF' — no additional player event needed.
-  room.gameState = buildInitialGameState(roomCode);
 
   return { ok: true, sessionToken, slot: 2 };
 }

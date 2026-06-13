@@ -112,8 +112,11 @@ function waitForConnect(
 }
 
 /**
- * Creates a room with 2 connected clients.
+ * Creates a room with 2 connected clients, completes team selection.
  * clientA = slot 1 = 'home'; clientB = slot 2 = 'away'.
+ *
+ * Phase 16 D-10: game:state is only emitted after both teams picked via team:pick.
+ * This helper drives the full team-selection flow so tests get a real GameState.
  */
 async function setupRoom(): Promise<{
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -129,8 +132,18 @@ async function setupRoom(): Promise<{
   clientA.emit(ClientEvents.ROOM_CREATE);
   const [roomCode] = await createPromise;
 
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+  // Join: both clients receive team:selection-start (Phase 16 D-10)
+  const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START);
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+  await selectionStartPromise;
+
+  // Home (clientA/slot 1) picks first, away (clientB/slot 2) picks from remaining 3
+  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  // Wait for TEAM_HOME_PICKED before away picks (ensures turn order)
+  const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  await homePickedPromise;
+  clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
   const [state] = await statePromise;
 
   return { clientA, clientB, roomCode, state };

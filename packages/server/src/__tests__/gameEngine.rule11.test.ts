@@ -21,7 +21,10 @@ import type { GameState, PlayerPiece } from '@counter-attack/shared';
 const homeFwd: PlayerPiece = {
   id: 'home-fwd',
   teamId: 'home',
-  name: 'Home FWD',
+  firstName: 'Home',
+  lastName: 'FWD',
+  number: 9,
+  nationality: 'Test',
   role: 'FWD',
   position: { q: 25, r: 12 },
   pace: 8,
@@ -39,7 +42,10 @@ const homeFwd: PlayerPiece = {
 const awayDef: PlayerPiece = {
   id: 'away-def',
   teamId: 'away',
-  name: 'Away DEF',
+  firstName: 'Away',
+  lastName: 'DEF',
+  number: 2,
+  nationality: 'Test',
   role: 'DEF',
   position: { q: 27, r: 12 }, // within 2 hexes of targetHex {q:27,r:12}
   pace: 6,
@@ -57,7 +63,10 @@ const awayDef: PlayerPiece = {
 const awayGk: PlayerPiece = {
   id: 'away-gk',
   teamId: 'away',
-  name: 'Away GK',
+  firstName: 'Away',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
   role: 'GK',
   position: { q: 36, r: 13 },
   pace: 5,
@@ -75,7 +84,10 @@ const awayGk: PlayerPiece = {
 const homeMid: PlayerPiece = {
   id: 'home-mid',
   teamId: 'home',
-  name: 'Home MID',
+  firstName: 'Home',
+  lastName: 'MID',
+  number: 6,
+  nationality: 'Test',
   role: 'MID',
   position: { q: 15, r: 12 },
   pace: 7,
@@ -110,6 +122,7 @@ const baseState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   contestedPieceIds: [],
 };
 
@@ -369,7 +382,10 @@ describe('RULE-02: applyResolveHeaderTarget — GK_DIVING route for goal-line ta
 const shotShooter: PlayerPiece = {
   id: 'shot-shooter',
   teamId: 'home',
-  name: 'Shot Shooter',
+  firstName: 'Shot',
+  lastName: 'Shooter',
+  number: 9,
+  nationality: 'Test',
   role: 'FWD',
   // Inside awayPenaltyArea: q=33 ∈ [31,36], r=12 ∈ [5,19]
   position: { q: 33, r: 12 },
@@ -389,7 +405,10 @@ const shotShooter: PlayerPiece = {
 const shotGk: PlayerPiece = {
   id: 'shot-gk',
   teamId: 'away',
-  name: 'Shot GK',
+  firstName: 'Shot',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
   role: 'GK',
   // At the shot target — distance 0 from target, no dive penalty
   position: { q: 36, r: 13 },

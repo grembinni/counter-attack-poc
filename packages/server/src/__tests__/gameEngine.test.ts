@@ -18,7 +18,10 @@ import type { GameState, PlayerPiece } from '@counter-attack/shared';
 const homePiece: PlayerPiece = {
   id: 'home-9',
   teamId: 'home',
-  name: 'Home FWD 2',
+  firstName: 'Home',
+  lastName: 'FWD 2',
+  number: 10,
+  nationality: 'Test',
   role: 'FWD',
   position: { q: 10, r: 7 },
   pace: 9,
@@ -36,7 +39,10 @@ const homePiece: PlayerPiece = {
 const awayPiece: PlayerPiece = {
   id: 'away-9',
   teamId: 'away',
-  name: 'Away FWD 2',
+  firstName: 'Away',
+  lastName: 'FWD 2',
+  number: 10,
+  nationality: 'Test',
   role: 'FWD',
   position: { q: 14, r: 7 },
   pace: 9,
@@ -73,37 +79,42 @@ const baseMovementState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  // Phase 16 field (D-15)
+  selectedTeams: { home: 'cosmos', away: 'xolos' },
 };
 
 // ---------------------------------------------------------------------------
 // buildInitialGameState
 // ---------------------------------------------------------------------------
 
+// Default selectedTeams for existing buildInitialGameState tests (Phase 16 repair).
+const DEFAULT_TEAMS = { home: 'cosmos', away: 'xolos' } as const;
+
 describe('buildInitialGameState', () => {
   it('returns phase KICK_OFF_SETUP with 22 pieces (TEAM-01, D-23)', () => {
-    const state = buildInitialGameState('ROOM1');
+    const state = buildInitialGameState('ROOM1', DEFAULT_TEAMS);
     expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.pieces).toHaveLength(22);
     expect(state.roomCode).toBe('ROOM1');
   });
 
   it('attackingTeam is home or away (D-13 coin flip)', () => {
-    const state = buildInitialGameState('ROOM2');
+    const state = buildInitialGameState('ROOM2', DEFAULT_TEAMS);
     expect(['home', 'away']).toContain(state.attackingTeam);
   });
 
   it('ball.position equals the kick-off hex { q:18, r:13 } (D-04/D-05 37×26 grid)', () => {
-    const state = buildInitialGameState('ROOM3');
+    const state = buildInitialGameState('ROOM3', DEFAULT_TEAMS);
     expect(state.ball.position).toEqual({ q: 18, r: 13 });
   });
 
   it('eventLog is empty at start', () => {
-    const state = buildInitialGameState('ROOM4');
+    const state = buildInitialGameState('ROOM4', DEFAULT_TEAMS);
     expect(state.eventLog).toHaveLength(0);
   });
 
   it('refereeCard.leniency is an integer in 1..6 (TEAM-03)', () => {
-    const state = buildInitialGameState('ROOM5');
+    const state = buildInitialGameState('ROOM5', DEFAULT_TEAMS);
     const { leniency } = state.refereeCard;
     expect(Number.isInteger(leniency)).toBe(true);
     expect(leniency).toBeGreaterThanOrEqual(1);
@@ -113,13 +124,13 @@ describe('buildInitialGameState', () => {
   it('refereeCard.leniency is random — at least 2 distinct values across 10 builds (TEAM-03)', () => {
     const values = new Set<number>();
     for (let i = 0; i < 10; i++) {
-      values.add(buildInitialGameState(`ROOM-${i}`).refereeCard.leniency);
+      values.add(buildInitialGameState(`ROOM-${i}`, DEFAULT_TEAMS).refereeCard.leniency);
     }
     expect(values.size).toBeGreaterThanOrEqual(2);
   });
 
   it('movementSlot is null at KICK_OFF', () => {
-    const state = buildInitialGameState('ROOM6');
+    const state = buildInitialGameState('ROOM6', DEFAULT_TEAMS);
     expect(state.movementSlot).toBeNull();
   });
 });
@@ -503,7 +514,10 @@ describe('applyUndo', () => {
 const awayGK: PlayerPiece = {
   id: 'away-0',
   teamId: 'away',
-  name: 'Away GK',
+  firstName: 'Away',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
   role: 'GK',
   position: { q: 23, r: 7 },
   pace: 2,
@@ -521,7 +535,10 @@ const awayGK: PlayerPiece = {
 const awayDEF: PlayerPiece = {
   id: 'away-1',
   teamId: 'away',
-  name: 'Away DEF 1',
+  firstName: 'Away',
+  lastName: 'DEF 1',
+  number: 2,
+  nationality: 'Test',
   role: 'DEF',
   position: { q: 15, r: 7 }, // near ball for header tests
   pace: 5,
@@ -558,6 +575,7 @@ const passState: GameState = {
   lastActionType: 'MOVEMENT_PHASE', // PASS phase is reached after a movement
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
 };
 
 /** Base SHOT-phase state: homePiece carries the ball near the away goal. */
@@ -584,6 +602,7 @@ const shotState: GameState = {
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
 };
 
 /** SHOT state where GK is adjacent (distance 1) to make save scenarios possible. */
@@ -619,6 +638,7 @@ const headerState: GameState = {
   lastActionType: 'HIGH_PASS',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
 };
 
 /** HEADER state where DEF is within 2 hexes — contested duel. */
@@ -654,6 +674,7 @@ const looseBallState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
 };
 
 describe('applyRoll', () => {
@@ -718,7 +739,10 @@ describe('applyRoll', () => {
   const homeTeammate: PlayerPiece = {
     id: 'home-2',
     teamId: 'home',
-    name: 'Home MID',
+    firstName: 'Home',
+    lastName: 'MID',
+    number: 6,
+    nationality: 'Test',
     role: 'MID',
     position: { q: 17, r: 7 },
     pace: 7,
@@ -740,7 +764,10 @@ describe('applyRoll', () => {
   const interceptorPiece: PlayerPiece = {
     id: 'away-int',
     teamId: 'away',
-    name: 'Away Interceptor',
+    firstName: 'Away',
+    lastName: 'Interceptor',
+    number: 3,
+    nationality: 'Test',
     role: 'MID',
     position: { q: 13, r: 8 }, // adjacent (ZoI) to path hex {q:13, r:7}, not blocking the path
     pace: 7,
@@ -1067,7 +1094,10 @@ describe('applyRoll', () => {
 const gkPiece: PlayerPiece = {
   id: 'away-0',
   teamId: 'away',
-  name: 'Away GK',
+  firstName: 'Away',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
   role: 'GK',
   position: { q: 23, r: 7 },
   pace: 2,
@@ -1104,6 +1134,7 @@ const gkRestartState: GameState = {
   lastActionType: 'SHOT',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
 };
 
 /** GK_RESTART state with a high-highPass GK for testing accurate kick branch. */

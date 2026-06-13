@@ -117,9 +117,11 @@ function waitForConnect(
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a room with 2 connected players and waits for the initial GAME_STATE broadcast.
+ * Creates a room with 2 connected players, completes team selection, and waits for GAME_STATE.
  * clientA = slot 1 = 'home'; clientB = slot 2 = 'away'.
  * Returns which client controls the attacking team for convenience.
+ *
+ * Phase 16 D-10: game:state is only emitted after both teams picked via team:pick.
  */
 async function setupRoom(): Promise<{
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -137,8 +139,17 @@ async function setupRoom(): Promise<{
   clientA.emit(ClientEvents.ROOM_CREATE);
   const [roomCode] = await createPromise;
 
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+  // Join: both clients receive team:selection-start (Phase 16 D-10)
+  const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START);
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+  await selectionStartPromise;
+
+  // Drive team selection: home picks cosmos, away picks xolos; game:state emitted after away pick
+  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  await homePickedPromise;
+  clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
   const [state] = await statePromise;
 
   // clientA = slot 1 = 'home'; attackingTeam from coin flip

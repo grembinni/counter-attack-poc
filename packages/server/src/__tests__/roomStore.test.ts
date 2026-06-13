@@ -80,15 +80,15 @@ describe('joinRoom', () => {
     if (!result.ok) expect(result.reason).toBe('NOT_WAITING');
   });
 
-  it('builds a real KICK_OFF GameState with 22 pieces on successful join (D-12, D-14)', () => {
+  it('joinRoom sets gameState to null — game built after team selection (Phase 16 D-10)', () => {
     const { roomCode } = createRoom('socket-host');
     const result = joinRoom(roomCode, 'socket-guest');
     expect(result.ok).toBe(true);
     const room = getRoom(roomCode);
-    expect(room?.gameState).not.toBeNull();
-    expect(room?.gameState?.phase).toBe('KICK_OFF_SETUP'); // D-23: game starts at KICK_OFF_SETUP
-    expect(room?.gameState?.pieces).toHaveLength(22); // D-12: 22 pieces loaded
-    expect(room?.gameState?.score).toEqual({ home: 0, away: 0 });
+    // Phase 16 D-10: gameState is null after join; built only once both teams pick via team:pick
+    expect(room?.gameState).toBeNull();
+    // homePickedTeam is not yet set
+    expect(room?.homePickedTeam).toBeUndefined();
   });
 });
 

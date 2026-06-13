@@ -35,7 +35,10 @@ import type { GameState, PlayerPiece } from '@counter-attack/shared';
 const homeFwd: PlayerPiece = {
   id: 'home-fwd',
   teamId: 'home',
-  name: 'Home FWD',
+  firstName: 'Home',
+  lastName: 'FWD',
+  number: 9,
+  nationality: 'Test',
   role: 'FWD',
   position: { q: 32, r: 12 }, // in awayPenaltyArea (q>=31, r in [5,19])
   pace: 9,
@@ -53,7 +56,10 @@ const homeFwd: PlayerPiece = {
 const awayGk: PlayerPiece = {
   id: 'away-gk',
   teamId: 'away',
-  name: 'Away GK',
+  firstName: 'Away',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
   role: 'GK',
   position: { q: 36, r: 13 },
   pace: 5,
@@ -71,7 +77,10 @@ const awayGk: PlayerPiece = {
 const homeMid: PlayerPiece = {
   id: 'home-mid',
   teamId: 'home',
-  name: 'Home MID',
+  firstName: 'Home',
+  lastName: 'MID',
+  number: 6,
+  nationality: 'Test',
   role: 'MID',
   position: { q: 15, r: 12 },
   pace: 7,
@@ -89,7 +98,10 @@ const homeMid: PlayerPiece = {
 const awayDef: PlayerPiece = {
   id: 'away-def',
   teamId: 'away',
-  name: 'Away DEF',
+  firstName: 'Away',
+  lastName: 'DEF',
+  number: 2,
+  nationality: 'Test',
   role: 'DEF',
   position: { q: 25, r: 12 },
   pace: 6,
@@ -125,6 +137,7 @@ const makeAttacker2State = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -149,6 +162,7 @@ const makePassState = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -173,6 +187,7 @@ const makeShotState = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -197,6 +212,7 @@ const makeGkRestartState = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: 'SHOT',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -226,6 +242,7 @@ const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -346,19 +363,22 @@ describe('applyEndTurn — Phase 8 clock', () => {
 // Task 1: buildInitialGameState — Phase 8 fields
 // ---------------------------------------------------------------------------
 
+// Default selectedTeams for Phase 8 tests (Phase 16 repair).
+const DEFAULT_TEAMS_P8 = { home: 'cosmos', away: 'xolos' } as const;
+
 describe('buildInitialGameState — Phase 8 fields', () => {
   it('returns addedTime: null (D-06)', () => {
-    const state = buildInitialGameState('ROOM8');
+    const state = buildInitialGameState('ROOM8', DEFAULT_TEAMS_P8);
     expect(state.addedTime).toBeNull();
   });
 
   it('returns lastActionType: null (D-06)', () => {
-    const state = buildInitialGameState('ROOM9');
+    const state = buildInitialGameState('ROOM9', DEFAULT_TEAMS_P8);
     expect(state.lastActionType).toBeNull();
   });
 
   it('returns kickOffTeam equal to attackingTeam (D-06 coin-flip)', () => {
-    const state = buildInitialGameState('ROOM10');
+    const state = buildInitialGameState('ROOM10', DEFAULT_TEAMS_P8);
     expect(state.kickOffTeam).toBe(state.attackingTeam);
   });
 });
@@ -735,6 +755,7 @@ const makeKickOffSetupState = (overrides: Partial<GameState> = {}): GameState =>
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -837,6 +858,7 @@ const makeHalfTimeState = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -1090,7 +1112,10 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
   const trajectoryBlocker: PlayerPiece = {
     id: 'home-block',
     teamId: 'home',
-    name: 'Home MID (blocker)',
+    firstName: 'Home',
+    lastName: 'MID',
+    number: 6,
+    nationality: 'Test',
     role: 'MID',
     position: { q: 17, r: 12 }, // placed on the trajectory from ball {q:15,r:12} toward landing
     pace: 7,
@@ -1201,6 +1226,7 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   ...overrides,
 });
 
@@ -1327,6 +1353,7 @@ describe('HEAD-05: a piece that contested a header is excluded from the subseque
     lastActionType: 'HEADER',
     kickOffTeam: 'home',
     kickOffActive: false,
+    selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
     // D-21 / HEAD-05: this piece contested a header and must not move in the next Movement Phase
     contestedPieceIds: [contestedId],
   });

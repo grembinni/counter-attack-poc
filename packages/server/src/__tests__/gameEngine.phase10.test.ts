@@ -29,7 +29,10 @@ import type { GameState, PlayerPiece } from '@counter-attack/shared';
 const homeFwd: PlayerPiece = {
   id: 'home-fwd',
   teamId: 'home',
-  name: 'Home FWD',
+  firstName: 'Home',
+  lastName: 'FWD',
+  number: 9,
+  nationality: 'Test',
   role: 'FWD',
   position: { q: 32, r: 12 }, // in awayPenaltyArea (q>=31, r in [5,19])
   pace: 9,
@@ -47,7 +50,10 @@ const homeFwd: PlayerPiece = {
 const awayGk: PlayerPiece = {
   id: 'away-gk',
   teamId: 'away',
-  name: 'Away GK',
+  firstName: 'Away',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
   role: 'GK',
   position: { q: 36, r: 13 },
   pace: 5,
@@ -65,7 +71,10 @@ const awayGk: PlayerPiece = {
 const homeMid: PlayerPiece = {
   id: 'home-mid',
   teamId: 'home',
-  name: 'Home MID',
+  firstName: 'Home',
+  lastName: 'MID',
+  number: 6,
+  nationality: 'Test',
   role: 'MID',
   position: { q: 15, r: 12 },
   pace: 7,
@@ -83,7 +92,10 @@ const homeMid: PlayerPiece = {
 const awayDef: PlayerPiece = {
   id: 'away-def',
   teamId: 'away',
-  name: 'Away DEF',
+  firstName: 'Away',
+  lastName: 'DEF',
+  number: 2,
+  nationality: 'Test',
   role: 'DEF',
   position: { q: 25, r: 12 },
   pace: 6,
@@ -118,6 +130,7 @@ const baseState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
   contestedPieceIds: [],
 };
 

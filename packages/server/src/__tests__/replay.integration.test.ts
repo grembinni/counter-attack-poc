@@ -114,9 +114,11 @@ function waitForConnect(
 }
 
 /**
- * Creates a room, seeds a FULL_TIME game state with a non-empty eventLog,
+ * Creates a room, drives team selection, seeds a FULL_TIME game state with a non-empty eventLog,
  * and returns the clients and room. The room state has phase='FULL_TIME'
  * and an eventLog with at least one MOVE event (so buildReplayFrames returns frames).
+ *
+ * Phase 16 D-10: game:state is only emitted after both teams picked via team:pick.
  */
 async function setupFullTimeRoom(): Promise<{
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -131,8 +133,17 @@ async function setupFullTimeRoom(): Promise<{
   clientA.emit(ClientEvents.ROOM_CREATE);
   const [roomCode] = await createPromise;
 
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+  // Join: both clients receive team:selection-start (Phase 16 D-10)
+  const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START);
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+  await selectionStartPromise;
+
+  // Drive team selection: home picks cosmos, away picks xolos
+  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  await homePickedPromise;
+  clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
   await statePromise;
 
   // Seed the room with a FULL_TIME state and a non-empty eventLog.

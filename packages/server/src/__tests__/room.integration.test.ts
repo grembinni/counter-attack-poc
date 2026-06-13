@@ -21,7 +21,7 @@ import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms } from '../roomStore.js';
-import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
+import type { ClientToServerEvents, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import http from 'http';
 
@@ -160,10 +160,11 @@ describe('Room integration tests', () => {
   });
 
   /**
-   * Test 2 — CONN-02 + CONN-03 + ARCH-04 (wire level):
-   * room:join succeeds for second client and BOTH receive ROOM_JOINED slot=2 plus game:state LOBBY.
+   * Test 2 — CONN-02 + CONN-03 (wire level, Phase 16 update):
+   * room:join succeeds for second client and BOTH receive ROOM_JOINED slot=2 plus team:selection-start.
+   * Phase 16 D-10: game:state is no longer emitted on join — emitted only after both teams picked.
    */
-  it('room:join — both clients receive ROOM_JOINED slot=2 and game:state LOBBY (CONN-02 + CONN-03 + ARCH-04)', async () => {
+  it('room:join — both clients receive ROOM_JOINED slot=2 and team:selection-start (CONN-02 + CONN-03)', async () => {
     const clientA = createClient();
     const clientB = createClient();
     await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
@@ -176,8 +177,8 @@ describe('Room integration tests', () => {
     // Register listeners BEFORE emitting join, so we don't miss the event.
     const joinedAPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
     const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
-    const stateAPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-    const stateBPromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    const selectionStartAPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START);
+    const selectionStartBPromise = oncePromise(clientB, ServerEvents.TEAM_SELECTION_START);
 
     clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
 
@@ -187,21 +188,11 @@ describe('Room integration tests', () => {
     expect(slotA).toBe(2);
     expect(slotB).toBe(2);
 
-    // Both clients receive game:state (CONN-03 + ARCH-04).
-    // Phase 4 (D-12/D-14): real KICK_OFF state with 22 pieces replaces the LOBBY stub.
-    const [stateA] = await stateAPromise;
-    const [stateB] = await stateBPromise;
-
-    const assertKickOffState = (state: GameState): void => {
-      expect(state.phase).toBe('KICK_OFF_SETUP'); // D-23: game starts at KICK_OFF_SETUP
-      expect(state.roomCode).toBe(roomCode);
-      expect(Array.isArray(state.pieces)).toBe(true);
-      expect(state.pieces).toHaveLength(22); // D-12: 22 pieces
-      expect(state.score).toEqual({ home: 0, away: 0 });
-    };
-
-    assertKickOffState(stateA);
-    assertKickOffState(stateB);
+    // Phase 16 D-10: both clients receive team:selection-start instead of game:state.
+    // game:state is only emitted after both teams are picked via team:pick.
+    await selectionStartAPromise;
+    await selectionStartBPromise;
+    // Verify assertions pass: the promises resolved (no timeout = team:selection-start was emitted).
   });
 
   /**
