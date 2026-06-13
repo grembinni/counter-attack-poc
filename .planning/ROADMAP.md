@@ -60,8 +60,14 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 2. Each team's badge is visually distinct and matches its design brief (galaxy, coyote, STL arch, Columbus-style)
 3. Each team's jersey is rendered with the correct color and pattern (Cozmos horizontal stripe, Xolos checker, City gold arch, Crew diagonal shoulder stripes)
 4. The team badge appears in the scoreboard top band for both teams during a match
-   **Plans**: TBD
-   **UI hint**: yes
+
+**Plans**: 3 plans
+
+- [ ] 15-01-PLAN.md — Shared TeamConfig types + TEAM_CONFIGS, client TEAM_DEFAULTS, TeamBadge component, vite-env shim
+- [ ] 15-02-PLAN.md — PieceOverlay jersey patterns (4 outfield + 2 GK) + D-06 color refactor
+- [ ] 15-03-PLAN.md — Scoreboard TeamBadge wiring + D-06 color refactor (GameBoard, ActionLog, PlayerStatsPanel)
+
+**UI hint**: yes
 
 ### Phase 16: Player Roster & Team Selection
 
@@ -128,7 +134,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 12. Visual Token & Hex Layer  | v1.1      | 4/4            | Complete | 2026-06-12 |
 | 13. Layout & Clock            | v1.1      | 3/3            | Complete | 2026-06-12 |
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity             | v1.2      | 0/TBD          | Pending  | -          |
+| 15. Team Identity             | v1.2      | 0/3            | Pending  | -          |
 | 16. Player Roster & Selection | v1.2      | 0/TBD          | Pending  | -          |
 | 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending  | -          |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending  | -          |
