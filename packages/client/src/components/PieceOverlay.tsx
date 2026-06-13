@@ -170,32 +170,19 @@ export function PieceOverlay({
         }}
       />
 
-      {/* Crew shoulder chevron stripes (/ \) — clipped to circle so token stays circular */}
+      {/* Crew diagonal stripe (\ top-left to bottom-right) — clipped to circle */}
       {teamId === 'crew' && !isGK && (
-        <>
-          <line
-            x1={cx - 2}
-            y1={cy - 9}
-            x2={cx - 9}
-            y2={cy + 3}
-            stroke="#111111"
-            strokeWidth={4}
-            strokeOpacity={0.75}
-            clipPath={`url(#crew-clip-${piece.id})`}
-            pointerEvents="none"
-          />
-          <line
-            x1={cx + 2}
-            y1={cy - 9}
-            x2={cx + 9}
-            y2={cy + 3}
-            stroke="#111111"
-            strokeWidth={4}
-            strokeOpacity={0.75}
-            clipPath={`url(#crew-clip-${piece.id})`}
-            pointerEvents="none"
-          />
-        </>
+        <line
+          x1={cx - PIECE_RADIUS}
+          y1={cy - PIECE_RADIUS}
+          x2={cx + PIECE_RADIUS}
+          y2={cy + PIECE_RADIUS}
+          stroke="#111111"
+          strokeWidth={5}
+          strokeOpacity={0.8}
+          clipPath={`url(#crew-clip-${piece.id})`}
+          pointerEvents="none"
+        />
       )}
 
       {/* D-10: Away GK edge stripes — two narrow orange vertical rects over amber base */}
