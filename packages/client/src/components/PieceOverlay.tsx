@@ -109,7 +109,7 @@ export function PieceOverlay({
             patternUnits="userSpaceOnUse"
           >
             <rect width={8} height={24} fill="#dc143c" />
-            <rect x={2} y={0} width={4} height={24} fill="#f87171" fillOpacity={0.9} />
+            <rect x={2} y={0} width={4} height={24} fill="#dc2626" fillOpacity={0.9} />
           </pattern>
 
           {/* Crew: solid gold base; / \ chevron stripes added as clipped siblings (D-08) */}
