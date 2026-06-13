@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-13T08:54:29Z'
-last_activity: 2026-06-13 -- Phase 15 Plan 01 complete
+last_updated: '2026-06-13T14:03:35.016Z'
+last_activity: 2026-06-13 -- Phase 15 Plan 02 complete
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 0
 ---
 
 # Project State
@@ -205,9 +205,9 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 15 (team-identity) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Executing Phase 15
-Last activity: 2026-06-13 -- Phase 15 Plan 01 complete
+Last activity: 2026-06-13 -- Phase 15 Plan 02 complete
 
 ## Performance Metrics
 
@@ -225,6 +225,7 @@ Last activity: 2026-06-13 -- Phase 15 Plan 01 complete
 | Phase 13-layout-clock P02           | 5m 5s  | 2 tasks  | 3 files |
 | Phase 13-layout-clock P03           | 6min   | 2 tasks  | 8 files |
 | Phase 15-team-identity P01          | 3min   | 2 tasks  | 6 files |
+| Phase 15-team-identity P02          | 4min   | 2 tasks  | 2 files |
 
 ## Decisions
 
@@ -248,3 +249,4 @@ Last activity: 2026-06-13 -- Phase 15 Plan 01 complete
 - [Phase 13 P03]: D-12 finalised — HALF_TIME/FULL_TIME routing branches removed from App.tsx; Screen type trimmed to 6 members; six retired component files deleted; emitHalfTimeStart preserved in store
 - [Phase 15 P01]: badgeFile in TeamConfig is filename key only — static Vite import in TeamBadge gives content-hashed URLs (Pitfall 3 prevention)
 - [Phase 15 P01]: TEAM_DEFAULTS is client-only module-level constant in teamDefaults.ts — stable reference for Zustand selectors (D-05, Pitfall 6 prevention)
+- [Phase ?]: [Phase 15 P02]: D-06 refactor complete — TEAM_CONFIGS[TEAM_DEFAULTS[piece.teamId]] replaces positional color literals in PieceOverlay; home GK uses checker pattern url(#home-gk-checker-{id}); away GK retains solid amber with sibling edge stripes
