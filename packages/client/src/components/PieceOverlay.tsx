@@ -81,7 +81,7 @@ export function PieceOverlay({
             height={24}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={24} height={24} fill="#e5e7eb" />
+            <rect width={24} height={24} fill="#d1d5db" />
             <rect x={0} y={6} width={24} height={12} fill="#1e3a8a" fillOpacity={0.85} />
           </pattern>
 
