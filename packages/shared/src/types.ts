@@ -85,9 +85,15 @@ export type ActionEvent =
       to: HexCoord;
       slot: MovementSlot;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | { type: 'SLOT_ADVANCE'; from: MovementSlot; to: MovementSlot | null; timestamp: number }
-  | { type: 'DICE_ROLL'; result: number; timestamp: number }
+  | {
+      type: 'DICE_ROLL';
+      result: number;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
   | {
       type: 'STEAL_ATTEMPT';
       defenderId: string;
@@ -95,6 +101,7 @@ export type ActionEvent =
       defenderDie: number;
       defenderCombined: number;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'TACKLE_ATTEMPT';
@@ -107,8 +114,17 @@ export type ActionEvent =
       result: 'SUCCESS' | 'FAIL';
       timestamp: number;
     }
-  | { type: 'GOAL'; scoringTeam: 'home' | 'away'; timestamp: number }
-  | { type: 'KICK_OFF'; timestamp: number }
+  | {
+      type: 'GOAL';
+      scoringTeam: 'home' | 'away';
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      type: 'KICK_OFF';
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
   // Phase 8 additions — new action subtypes for replay coverage (Claude's Discretion, 08-CONTEXT.md)
   | {
       type: 'HIGH_PASS';
@@ -117,8 +133,16 @@ export type ActionEvent =
       to: HexCoord;
       accurate: boolean | null;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
-  | { type: 'LONG_BALL'; from: HexCoord; to: HexCoord; accurate: boolean; timestamp: number }
+  | {
+      type: 'LONG_BALL';
+      from: HexCoord;
+      to: HexCoord;
+      accurate: boolean;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
   | {
       type: 'STANDARD_PASS';
       /** D-27: passer piece ID for team-colour prefix in ActionLog. */
@@ -127,6 +151,7 @@ export type ActionEvent =
       to: HexCoord;
       accurate: boolean;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'FIRST_TIME_PASS';
@@ -136,6 +161,7 @@ export type ActionEvent =
       to: HexCoord;
       accurate: boolean;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'SHOT_ATTEMPT';
@@ -159,6 +185,7 @@ export type ActionEvent =
       /** Net clamped penalty applied to GK (0, -1, or -2). 0 when no duel ran. */
       gkPenaltyTotal: number;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'DEFLECT_ATTEMPT';
@@ -169,9 +196,25 @@ export type ActionEvent =
       result: 'DEFLECTED' | 'NO_DEFLECT';
       timestamp: number;
     }
-  | { type: 'SNAPSHOT'; shooterId: string; timestamp: number }
-  | { type: 'HALF_TIME'; half: 1; score: { home: number; away: number }; timestamp: number }
-  | { type: 'FULL_TIME'; score: { home: number; away: number }; timestamp: number }
+  | {
+      type: 'SNAPSHOT';
+      shooterId: string;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      type: 'HALF_TIME';
+      half: 1;
+      score: { home: number; away: number };
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      type: 'FULL_TIME';
+      score: { home: number; away: number };
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
   | {
       type: 'HEADER';
       /** Attacking team's contestant piece ID, or null if the attacking team declined. */
