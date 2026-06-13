@@ -417,7 +417,7 @@ export function ActionPanel() {
       return (
         <div className={`${styles.panel} ${actionCount >= 5 ? styles.wide : ''}`}>
           <span className={styles.phaseLabel}>Choose action.</span>
-          {eligible.has('MOVEMENT') && (
+          {!isKickOff && eligible.has('MOVEMENT') && (
             <button className={styles.ctaButton} onClick={emitStartMovement}>
               Move
             </button>

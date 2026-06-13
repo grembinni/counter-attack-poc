@@ -27,7 +27,7 @@ import type { PlayerPiece } from './types.js';
 // Starting positions use the real 37×26 board (q 0–36, r 0–25). D-01 (Phase 7.1).
 // Home half: GK q=1, DEF q=6, MID q=10, FWD q=15, ST q=18 (kickoff) or q=15 (defending).
 // Away squad positions mirror the home half:
-//   Away GK q=35, Away DEF q=31, Away MID q=26, Away FWD q=21.
+//   Away GK q=35, Away DEF q=30, Away MID q=26, Away FWD q=21.
 // r-values: DEF r=6,13,19  MID r=9,17  FWD r=4,9,17,22  ST r=13 (centre or edge of circle).
 // Side DEF (originally r=4,r=22) moved to r=6,r=19 to sit closer to the field's horizontal centre.
 // ST position is overridden in buildInitialGameState based on the coin-flip result:
@@ -272,7 +272,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away DEF 1',
     role: 'DEF',
-    position: { q: 31, r: 6 },
+    position: { q: 30, r: 6 },
     pace: 5,
     shooting: 4,
     tackling: 6,
@@ -290,7 +290,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away DEF 2',
     role: 'DEF',
-    position: { q: 31, r: 13 },
+    position: { q: 30, r: 13 },
     pace: 5,
     shooting: 3,
     tackling: 6,
@@ -308,7 +308,7 @@ export const AWAY_SQUAD: readonly PlayerPiece[] = [
     teamId: 'away',
     name: 'Away DEF 3',
     role: 'DEF',
-    position: { q: 31, r: 19 },
+    position: { q: 30, r: 19 },
     pace: 5,
     shooting: 3,
     tackling: 5,
