@@ -1,5 +1,7 @@
 import type { PlayerPiece } from '@counter-attack/shared';
+import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { TEAM_DEFAULTS } from '../teamDefaults.js';
 import styles from './PlayerStatsPanel.module.css';
 
 /**
@@ -30,57 +32,60 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
   const miniCx = 10;
   const miniCy = 10;
 
-  // Player number: 1-based — matches PieceOverlay derivation (line 35 of PieceOverlay.tsx)
+  // Player number: 1-based — matches PieceOverlay derivation
   const playerNumber = String(Number(piece.id.slice(piece.id.lastIndexOf('-') + 1)) + 1);
 
-  const homePatId = `mini-home-stripe-${piece.id}`;
-  const awayPatId = `mini-away-stripe-${piece.id}`;
+  // D-06: team-keyed pattern ids (15-03)
+  const teamId = TEAM_DEFAULTS[piece.teamId];
+  const jerseyPatId = `mini-${teamId}-jersey-${piece.id}`;
+  const homeGkPatId = `mini-home-gk-checker-${piece.id}`;
 
-  // Fill/stroke colors mirror PieceOverlay values (lines 40-53)
-  const gkFill = piece.teamId === 'home' ? '#9b59b6' : '#f59e0b';
+  // D-10: home GK uses checker pattern; away GK keeps solid amber
+  const gkFill = isGK && piece.teamId === 'home' ? `url(#${homeGkPatId})` : '#f59e0b';
   const gkStroke = piece.teamId === 'home' ? '#6c3483' : '#d97706';
   const outfieldStroke = piece.teamId === 'home' ? '#0d3a82' : '#8e1c12';
 
   return (
     <svg width={20} height={20} viewBox="0 0 20 20" className={styles.tokenBadge}>
-      {/* D-09: self-contained stripe defs — outfield only */}
+      {/* D-09: self-contained team-keyed jersey defs — outfield only */}
       {!isGK && (
         <defs>
-          {piece.teamId === 'home' ? (
-            <pattern
-              id={homePatId}
-              x={miniCx - miniR}
-              y={miniCy - miniR}
-              width={18}
-              height={18}
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width={18} height={18} fill="#1a56b0" />
-              {/* Single vertical black stripe centered on 18px tile (x=7..11) */}
-              <rect x={7} y={0} width={4} height={18} fill="#000000" fillOpacity={0.55} />
-            </pattern>
-          ) : (
-            <pattern
-              id={awayPatId}
-              x={miniCx - miniR}
-              y={miniCy - miniR}
-              width={18}
-              height={18}
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width={18} height={18} fill="#c0392b" />
-              {/* Two horizontal maroon bands — proportional to 18px tile: y=4..7 and y=11..14 */}
-              <rect x={0} y={4} width={18} height={3} fill="#7f0000" fillOpacity={0.65} />
-              <rect x={0} y={11} width={18} height={3} fill="#7f0000" fillOpacity={0.65} />
-            </pattern>
-          )}
+          <pattern
+            id={jerseyPatId}
+            x={miniCx - miniR}
+            y={miniCy - miniR}
+            width={18}
+            height={18}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={18} height={18} fill={TEAM_CONFIGS[teamId].primaryColor} />
+            {/* Horizontal white stripe across centre — matches scaled cosmos jersey */}
+            <rect x={0} y={6} width={18} height={6} fill="#ffffff" fillOpacity={0.4} />
+          </pattern>
+        </defs>
+      )}
+      {/* D-10: home GK checker pattern def — 10px tile, 5px checkers */}
+      {isGK && piece.teamId === 'home' && (
+        <defs>
+          <pattern
+            id={homeGkPatId}
+            x={miniCx - miniR}
+            y={miniCy - miniR}
+            width={10}
+            height={10}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width={10} height={10} fill="#7c3aed" />
+            <rect x={0} y={0} width={5} height={5} fill="#4c1d95" />
+            <rect x={5} y={5} width={5} height={5} fill="#4c1d95" />
+          </pattern>
         </defs>
       )}
       <circle
         cx={miniCx}
         cy={miniCy}
         r={miniR}
-        fill={isGK ? gkFill : `url(#${piece.teamId === 'home' ? homePatId : awayPatId})`}
+        fill={isGK ? gkFill : `url(#${jerseyPatId})`}
         stroke={isGK ? gkStroke : outfieldStroke}
         strokeWidth={1.5}
       />

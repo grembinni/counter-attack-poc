@@ -1,14 +1,14 @@
 import type { ActionEvent, HexCoord } from '@counter-attack/shared';
+import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { TEAM_DEFAULTS } from '../teamDefaults.js';
 import styles from './ActionLog.module.css';
 
-// ─── Team colors (match PieceOverlay) ────────────────────────────────────────
-
-const HOME_COLOR = '#1a56b0';
-const AWAY_COLOR = '#c0392b';
+// ─── Team colors (D-06: derive from TEAM_CONFIGS instead of hardcoded literals) ─
 
 function pieceColorOf(pieceId: string): string {
-  return pieceId.startsWith('home') ? HOME_COLOR : AWAY_COLOR;
+  const positional = pieceId.startsWith('home') ? 'home' : 'away';
+  return TEAM_CONFIGS[TEAM_DEFAULTS[positional]].primaryColor;
 }
 
 /** Bold, team-colored player label rendered inline. */
@@ -236,7 +236,8 @@ function formatEvent(event: ActionEvent): Formatted {
     case 'GOAL':
       return {
         prefix: '[GOAL]',
-        prefixColor: event.scoringTeam === 'home' ? HOME_COLOR : AWAY_COLOR,
+        prefixColor:
+          TEAM_CONFIGS[TEAM_DEFAULTS[event.scoringTeam === 'home' ? 'home' : 'away']].primaryColor,
         content: ` ${event.scoringTeam.toUpperCase()} scored!`,
         isGoal: true,
       };
