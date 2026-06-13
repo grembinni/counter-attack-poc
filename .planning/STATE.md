@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: UX Tuning & Bug Cleanup — Active
-status: executing
-last_updated: '2026-06-12T22:46:44.460Z'
-last_activity: 2026-06-12 -- Phase 14 all 3 plans complete; code review pending
+milestone_name: UX Tuning & Bug Cleanup — Complete
+status: complete
+last_updated: '2026-06-13T00:00:00.000Z'
+last_activity: 2026-06-13 -- v1.1 milestone archived; git tag v1.1 pending
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
   completed_plans: 14
   percent: 100
@@ -17,14 +17,14 @@ progress:
 
 ## Current Phase
 
-Phase 13 (layout-clock) — all 3 plans complete; verification status: human_needed (3 browser UAT items pending). Phase 14 ready to start after UAT sign-off.
+v1.1 milestone complete. All 4 phases shipped. Next: `/gsd-new-milestone` to define v1.2.
 
 ## Project Reference
 
-See: .planning/PROJECT.md
+See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 14 — kick-off-rules-replay
+**Current focus:** Planning v1.2 (REPLAY-06 fix, MATCH-06 req text, MOVE-06)
 
 ## Phase Status
 
@@ -174,6 +174,21 @@ See: .planning/PROJECT.md
 | 260612-kvw             | 2026-06-12 | GameBoard UI polish: scores flanking clock, side-panel log               |
 | 260612-l7d             | 2026-06-12 | GameBoard 3-zone top band: centred scoreboard, left/right zones          |
 | 260612-lme             | 2026-06-12 | Scoreboard dot+clock (26px), slot helper text, centred ActionPanel label |
+
+## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
+
+Items acknowledged and deferred at v1.1 milestone close on 2026-06-13:
+
+| Category         | Item                                        | Status                                                                                                     |
+| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| verification_gap | Phase 13: 13-VERIFICATION.md                | human_needed — 3 browser UAT items (1080p layout, HALF_TIME overlay, log toggle); all automated tests pass |
+| quick_task       | undo-kickoff-ball-bugs                      | missing — completed 2026-06-06; work in git log; no formal artifact dir                                    |
+| quick_task       | 260612-ike (GameBoard top-band refactor)    | unknown — completed during Phase 13; work committed; no formal close                                       |
+| quick_task       | 260612-kvw (GameBoard scores/clock polish)  | unknown — completed during Phase 13; work committed; no formal close                                       |
+| quick_task       | 260612-l7d (GameBoard 3-zone top band)      | unknown — completed during Phase 13; work committed; no formal close                                       |
+| quick_task       | 260612-lme (scoreboard action panel polish) | unknown — completed during Phase 13; work committed; no formal close                                       |
+
+Known deferred items at close: 6 (see above)
 
 ## Deferred Items (acknowledged at milestone close 2026-06-11)
 

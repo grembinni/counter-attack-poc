@@ -31,4 +31,34 @@
 
 ---
 
-_Next milestone: not yet defined. Run `/gsd-new-milestone` to start v1.1._
+---
+
+## v1.1 UX Tuning & Bug Cleanup — Complete (2026-06-12)
+
+**Tagline:** Visual overhaul with persistent top-band layout, stripe token design, unified hex highlight system, MM:00 clock, kick off enforcement, and 5 rule-correctness bug fixes.
+
+**Scope:** 4 phases, 14 plans, 108 files changed, +16,372 / -995 lines. 2026-06-11 → 2026-06-12 (2 days).
+
+**Requirements:** 13/18 v1.1 requirements fully validated. 3 wired (admin gap — MATCH-07, REPLAY-04, REPLAY-05). 1 spec conflict (MATCH-06 — symmetric formation correct, req text ambiguous). 1 deferred (REPLAY-06 — live-session ball tracking bugs; severity: minor).
+
+**Known deferred items at close:** 6 (see STATE.md Deferred Items — Phase 13 browser UAT (3 items), 5 quick tasks with missing/unknown status; all work committed).
+
+### Key Accomplishments
+
+1. **Rule correctness (Phase 11)** — Fixed 5 gameplay sequencing bugs: header accuracy gate (RULE-01), duel-target ordering (RULE-02), snapshot path cleanup (RULE-03), deflection pace suppression (RULE-04), post-deflect both-teams Movement Phase entry (RULE-05). 35 new server + client tests.
+
+2. **Team token visual redesign (Phase 12)** — Home tokens: vertical black stripe; away tokens: two horizontal dark stripes — distinguishable without labels. Stripe renders identically across on-pitch overlays, stats panel, and replay. Unified hex highlight system: 5 distinct tint types (risk/goal/safe/kickoff/shot-path) with priority resolution. 22 new tests.
+
+3. **Persistent top-band layout + MM:00 clock (Phase 13)** — 80px CSS-Grid top band (scoreboard + player card + action section + log) always visible in all game phases. MM:00 event-driven clock; no PLAY_PHASES gating. HALF_TIME/FULL_TIME as position:absolute pitch overlays; routing simplified; 6 dead component files deleted. 15 new tests (Wave 0 scaffold pattern).
+
+4. **Kick off enforcement + replay overhaul (Phase 14)** — Server-authoritative symmetric DEF/MID formation; KICKOFF_STANDARD_PASS_ONLY guard rejects non-standard passes from kick off hex. Universal `ballAfter` field on 13 ActionEvent union members (TypeScript-enforced). 500ms replay cadence (was 1000ms). Simultaneous K step-frames for movement replay. 5 new tests.
+
+### Archives
+
+- [Roadmap archive](v1.1-ROADMAP.md) — full phase details and plan checklists
+- [Requirements archive](v1.1-REQUIREMENTS.md) — all 18 requirements with final status
+- [Milestone audit](v1.1-MILESTONE-AUDIT.md) — cross-phase integration check, gap analysis
+
+---
+
+_Next milestone: not yet defined. Run `/gsd-new-milestone` to start v1.2._

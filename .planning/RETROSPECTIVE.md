@@ -52,4 +52,73 @@ A fully playable 2-player Counter Attack web game in 15 days: 13 phases, 51 plan
 
 ---
 
-_Written: 2026-06-11_
+## v1.1 UX Tuning & Bug Cleanup (2026-06-11 → 2026-06-12)
+
+**Shipped:** 2026-06-12
+**Phases:** 4 | **Plans:** 14
+
+### What Was Built
+
+- **Phase 11**: 5 rule-correctness fixes — header accuracy gate, duel-target ordering, snapshot stale path, deflection pace suppression, post-deflect both-teams Movement entry. 35 new tests.
+- **Phase 12**: Team token stripe redesign (home vertical, away horizontal) + unified 5-type hex highlight system (risk/goal/safe/kickoff/shot-path). 22 new tests.
+- **Phase 13**: Persistent 80px CSS-Grid top band; MM:00 event-driven clock always visible; HALF_TIME/FULL_TIME as pitch overlays; 6 dead components deleted. 15 new tests (Wave 0 RED→GREEN).
+- **Phase 14**: Symmetric DEF/MID kick off formation; KICKOFF_STANDARD_PASS_ONLY guard; universal `ballAfter` on 13 ActionEvent members; 500ms replay cadence; simultaneous K step-frames. 5 new tests.
+
+### What Worked
+
+**Wave 0 RED→GREEN (Phase 13).** Creating GameBoard.test.tsx with 15 failing tests as Plan 13-01 before any implementation in Plan 13-02 was the cleanest Nyquist signal in the milestone. The RED state was the spec; the GREEN state was the done condition. No guessing about what "done" meant.
+
+**TypeScript as an enforcement layer.** Making `ballAfter` a required (not optional) field on 13 ActionEvent union members in Phase 14 meant the TypeScript compiler caught every missed site at build time. Zero runtime surprises; the migration was mechanical rather than exploratory.
+
+**Targeted bug fixes with regression coverage.** Phase 11's approach of a per-requirement test file (`gameEngine.rule11.test.ts`) with explicit test descriptions meant every bug fix had a corresponding regression guard. The 35-test file is self-documenting history of what was broken and how it was fixed.
+
+**UAT as the final arbiter.** Phase 14 UAT caught 2 bugs (MATCH-06 boundary, MATCH-07 client UI) that automated tests missed. The deferred REPLAY-06 was correctly classified as minor — the unit test coverage was honest about its limits.
+
+### What Was Inefficient
+
+**Phase 14 REQUIREMENTS.md checkboxes never ticked.** Three requirements (MATCH-07, REPLAY-04, REPLAY-05) were implemented and tested but their REQUIREMENTS.md checkboxes were never ticked. This created unnecessary audit noise at milestone close. The SUMMARY `requirements_addressed` vs `requirements-completed` key mismatch compounded the problem. Fix: always tick the checkbox in the same commit that executes the final task.
+
+**Multiple iterative UAT commits for MATCH-06.** Away DEF positions were adjusted three times across commits `23266b1 → 6404725 → 261b69a` before settling on q=30. The original requirement text (q∈[6,20]) was ambiguous about which team's perspective it described. A 2-minute clarification at requirements time would have prevented 3 fix commits.
+
+**Post-compact context cost.** This session ran out of context midway through Phase 13 validation and required a summary handoff. The Phase 13 test run state was fully derivable from the artifact files; resumption was smooth, but it highlights that validation-heavy sessions (4 phases × Nyquist audit each) should be split across sessions proactively.
+
+### Patterns Established
+
+- **Per-phase validation audit**: `gsd-validate-phase` reconstructs coverage from SUMMARY files for phases without VALIDATION.md (State B); manual-only gaps documented with test instructions
+- **Wave 0 as a separate plan**: Plan 13-01 as an explicit Wave 0 scaffold with intentionally RED tests is cleaner than creating test stubs mid-implementation
+- **Symmetric mirror convention**: On a 37-col board, Away column = 36 - Home column. Should be documented in CONTEXT.md for future phases touching team formation
+
+### Key Lessons
+
+1. **Tick requirement checkboxes atomically with implementation.** Never let `[ ]` survive past the commit that wires the feature. The audit overhead at close is disproportionate.
+2. **Requirement text should be perspective-neutral.** "columns 6–20" without specifying "from each team's own end" caused a 3-commit correction cycle. Frame formation requirements as "within N hexes of kick-off" or "symmetric from centre".
+3. **TypeScript required fields > optional fields for migrations.** Adding `ballAfter?: ...` would have compiled everywhere silently; `ballAfter: ...` forced every missed site to a compile error. Use required fields for migration-style additions.
+4. **UAT defers gracefully when classified clearly.** REPLAY-06 had severity:minor + deferred:true set explicitly in 14-UAT.md. This made the milestone audit unambiguous — the gap was acknowledged, not overlooked.
+
+### Known Gaps Entering v1.2
+
+| Gap               | Description                                                                | Location                               |
+| ----------------- | -------------------------------------------------------------------------- | -------------------------------------- |
+| REPLAY-06         | Live-session ball tracking edge cases (pickups, passes, steals mid-replay) | `gameEngine.ts:buildReplayFrames`      |
+| MATCH-06 req text | Requirement says q∈[6,20] but Away team uses symmetric q=30/q=26           | `.planning/REQUIREMENTS.md` (archived) |
+| MOVE-06           | Free 6-hex move scaffolded, handler not implemented                        | `gameEngine.ts:517`                    |
+| PASS-02           | Mid-pass player movement deferred TODO                                     | `gameEngine.ts:1087`                   |
+
+### Metrics
+
+| Metric        | Value                                                       |
+| ------------- | ----------------------------------------------------------- |
+| Duration      | 2 days (2026-06-11 → 2026-06-12)                            |
+| Phases        | 4                                                           |
+| Plans         | 14                                                          |
+| Commits       | 141                                                         |
+| Files changed | 108                                                         |
+| Lines added   | +16,372                                                     |
+| Lines removed | -995                                                        |
+| New tests     | 77 (35+22+15+5)                                             |
+| Requirements  | 13/18 fully validated; 3 wired; 1 spec conflict; 1 deferred |
+| UAT pass rate | 4/6 (MATCH-06 fixed, MATCH-07 fixed; REPLAY-06 deferred)    |
+
+---
+
+_Written: 2026-06-13_
