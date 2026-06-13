@@ -109,7 +109,7 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 5. The ball marker is positioned correctly on every replay frame — for each replayed action the ball reflects its correct final position in that snapshot with no frames showing a stale location
    **Plans**: 3 plans
 
-- [ ] 14-01-PLAN.md — Kick off rules: DEF/MID start columns 6–20 (MATCH-06) + KICK_OFF Standard-Pass-only guard (MATCH-07)
+- [x] 14-01-PLAN.md — Kick off rules: DEF/MID start columns 6–20 (MATCH-06) + KICK_OFF Standard-Pass-only guard (MATCH-07)
 - [ ] 14-02-PLAN.md — ballAfter migration: required field on replay-eligible ActionEvents + universal ball update in buildReplayFrames (REPLAY-06)
 - [ ] 14-03-PLAN.md — Replay 500ms cadence (REPLAY-04) + simultaneous movement-phase step-frames (REPLAY-05)
       **UI hint**: yes
@@ -118,12 +118,12 @@ Full archive: [.planning/milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ## Progress
 
-| Phase                        | Plans Complete | Status   | Completed  |
-| ---------------------------- | -------------- | -------- | ---------- |
-| 11. Rule Correctness         | 4/4            | Complete | 2026-06-12 |
-| 12. Visual Token & Hex Layer | 4/4            | Complete | 2026-06-12 |
-| 13. Layout & Clock           | 3/3            | Complete | 2026-06-12 |
-| 14. Kick Off Rules & Replay  | 0/3            | Planned  | -          |
+| Phase                        | Plans Complete | Status      | Completed  |
+| ---------------------------- | -------------- | ----------- | ---------- |
+| 11. Rule Correctness         | 4/4            | Complete    | 2026-06-12 |
+| 12. Visual Token & Hex Layer | 4/4            | Complete    | 2026-06-12 |
+| 13. Layout & Clock           | 3/3            | Complete    | 2026-06-12 |
+| 14. Kick Off Rules & Replay  | 1/3            | In Progress |            |
 
 ---
 
