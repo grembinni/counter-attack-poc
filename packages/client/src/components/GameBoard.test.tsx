@@ -182,3 +182,30 @@ describe('GameBoard — LAYOUT-02: phase-aware action section and log toggle', (
     expect(chevron).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// TEAM-06: Scoreboard badge images (TeamBadge replaces TeamShieldIcon)
+// ---------------------------------------------------------------------------
+describe('GameBoard — TEAM-06: scoreboard badge images', () => {
+  it('renders at least two <img> elements with alt text containing "badge"', () => {
+    render(<GameBoard />);
+    // TeamBadge renders <img alt="{teamId} badge"> for home and away
+    const imgs = screen.getAllByRole('img');
+    const badgeImgs = imgs.filter((el) => /badge/i.test(el.getAttribute('alt') ?? ''));
+    expect(badgeImgs.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('home scoreboard badge img alt contains "cosmos" (TEAM_DEFAULTS home → cosmos)', () => {
+    render(<GameBoard />);
+    // TEAM_DEFAULTS: home -> cosmos; TeamBadge alt = "{teamId} badge"
+    const cosmosBadge = screen.getByAltText('cosmos badge');
+    expect(cosmosBadge).toBeDefined();
+  });
+
+  it('away scoreboard badge img alt contains "xolos" (TEAM_DEFAULTS away → xolos)', () => {
+    render(<GameBoard />);
+    // TEAM_DEFAULTS: away -> xolos; TeamBadge alt = "{teamId} badge"
+    const xolosBadge = screen.getByAltText('xolos badge');
+    expect(xolosBadge).toBeDefined();
+  });
+});
