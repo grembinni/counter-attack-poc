@@ -2893,52 +2893,96 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     kickOffActive: false,
   };
 
+  // REPLAY-05: accumulate consecutive MOVE events per pieceId so an entire movement phase
+  // replays as K simultaneous step-frames (K = max steps any piece took in the phase).
+  // A piece with fewer than K steps holds its final hex on the remaining step-frames.
+  type MoveStep = { to: HexCoord; ballAfter: { position: HexCoord; carrierId: string | null } };
+  const moveGroup = new Map<string, MoveStep[]>();
+
+  function flushMoveGroup() {
+    if (moveGroup.size === 0) return;
+    const paths = [...moveGroup.entries()];
+    let K = 0;
+    for (const [, steps] of paths) {
+      if (steps.length > K) K = steps.length;
+    }
+    let stepBall = current.ball;
+    for (let n = 1; n <= K; n++) {
+      const steppedPieces = current.pieces.map((p) => {
+        const path = moveGroup.get(p.id);
+        if (!path) return p;
+        const stepIdx = Math.min(n, path.length) - 1;
+        return { ...p, position: path[stepIdx]!.to };
+      });
+      // Apply ballAfter from any piece that actually moves at step n (not held at final)
+      for (const [, path] of paths) {
+        if (n <= path.length) {
+          stepBall = path[n - 1]!.ballAfter;
+        }
+      }
+      frames.push({
+        ...current,
+        pieces: steppedPieces,
+        ball: stepBall,
+        phase: 'REPLAY',
+        score: { ...current.score },
+      });
+    }
+    // Commit final piece positions and ball state into current for subsequent events
+    const finalPieces = current.pieces.map((p) => {
+      const path = moveGroup.get(p.id);
+      if (!path) return p;
+      return { ...p, position: path[path.length - 1]!.to };
+    });
+    current = { ...current, pieces: finalPieces, ball: stepBall };
+    moveGroup.clear();
+  }
+
   for (const event of finalState.eventLog) {
     // SLOT_ADVANCE events produce no board change — skip (D-32)
     if (event.type === 'SLOT_ADVANCE') {
       continue;
     }
 
-    // Apply board mutations for replay-eligible events
     if (event.type === 'MOVE') {
-      // Reposition the piece in the current reconstructed state
-      const moveEvent = event;
-      const newPieces = current.pieces.map((p) =>
-        p.id === moveEvent.pieceId ? { ...p, position: moveEvent.to } : p,
-      );
-      current = { ...current, pieces: newPieces };
-    } else if (event.type === 'GOAL') {
+      // Accumulate into moveGroup for batched simultaneous step-frame emit (REPLAY-05)
+      const existing = moveGroup.get(event.pieceId) ?? [];
+      existing.push({ to: event.to, ballAfter: event.ballAfter });
+      moveGroup.set(event.pieceId, existing);
+      continue;
+    }
+
+    // Non-MOVE, non-SLOT_ADVANCE event: flush accumulated movement phase before handling
+    flushMoveGroup();
+
+    // Apply board mutations
+    if (event.type === 'GOAL') {
       // Score increment — ball position is updated via universal ballAfter below
-      const goalEvent = event;
       const newScore = {
         ...current.score,
-        [goalEvent.scoringTeam]: current.score[goalEvent.scoringTeam] + 1,
+        [event.scoringTeam]: current.score[event.scoringTeam] + 1,
       };
       current = { ...current, score: newScore };
     } else if (event.type === 'KICK_OFF') {
-      // Kick-off: pieces stay, ball at centre (already there), transition to MOVEMENT
-      current = {
-        ...current,
-        movementSlot: 'ATTACKER_4',
-      };
+      current = { ...current, movementSlot: 'ATTACKER_4' };
     }
+
     // Universal ball position update — driven by ballAfter on replay-eligible events (REPLAY-06)
     if ('ballAfter' in event) {
       current = { ...current, ball: event.ballAfter };
     }
-    // For DICE_ROLL, STEAL_ATTEMPT, HIGH_PASS, LONG_BALL, STANDARD_PASS, FIRST_TIME_PASS,
-    // SHOT_ATTEMPT, SNAPSHOT, HALF_TIME, FULL_TIME: produce a frame but no board mutation
-    // (these are information events for replay display; board shows them at their timestamp)
 
-    // Check if this event type is replay-eligible and emit a frame
     if (REPLAY_ELIGIBLE_TYPES.has(event.type)) {
       frames.push({
         ...current,
-        phase: 'REPLAY', // D-31: tag every frame as REPLAY for client routing
-        score: { ...current.score }, // preserve persistent final score
+        phase: 'REPLAY',
+        score: { ...current.score },
       });
     }
   }
+
+  // Final flush if the log ends with MOVE events
+  flushMoveGroup();
 
   return frames;
 }

@@ -185,7 +185,7 @@ function startReplayStream(io: AppServer, room: Room): void {
         replayTotal,
       };
       io.to(liveRoom.roomCode).emit(ServerEvents.GAME_STATE, replayFrame);
-    }, 1000);
+    }, 500);
   }, 3000);
 }
 
