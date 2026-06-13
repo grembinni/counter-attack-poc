@@ -2955,8 +2955,11 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
   }
 
   for (const event of finalState.eventLog) {
-    // SLOT_ADVANCE events produce no board change — skip (D-32)
-    if (event.type === 'SLOT_ADVANCE') {
+    // SLOT_ADVANCE and DEFLECT_ATTEMPT events produce no standalone board change — skip.
+    // SLOT_ADVANCE: internal FSM transition, no visual change (D-32).
+    // DEFLECT_ATTEMPT: recorded during shot handling; not in REPLAY_ELIGIBLE_TYPES and must
+    //   not trigger a premature flushMoveGroup when it appears mid-movement-group (WR-03).
+    if (event.type === 'SLOT_ADVANCE' || event.type === 'DEFLECT_ATTEMPT') {
       continue;
     }
 
