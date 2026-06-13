@@ -2921,10 +2921,18 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
         const stepIdx = Math.min(n, path.length) - 1;
         return { ...p, position: path[stepIdx]!.to };
       });
-      // Apply ballAfter from any piece that actually moves at step n (not held at final)
+      // Apply ballAfter from pieces that actually step at tick n.
+      // Prefer the ball-carrier's ballAfter to avoid overwriting with a non-carrier's value
+      // when two pieces have unequal path lengths (CR-02: insertion-order last-writer bias fix).
+      let ballUpdated = false;
       for (const [, path] of paths) {
         if (n <= path.length) {
-          stepBall = path[n - 1]!.ballAfter;
+          const candidate = path[n - 1]!.ballAfter;
+          // prefer carrier's ballAfter; otherwise accept any piece that stepped at this tick
+          if (!ballUpdated || candidate.carrierId !== null) {
+            stepBall = candidate;
+            ballUpdated = true;
+          }
         }
       }
       frames.push({
