@@ -1148,6 +1148,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           room.gameState = result.state;
         }
         broadcastState(io, room); // ARCH-04: single broadcast entry point
+        // WR-04: guard against the (currently unreachable) case where applyRoll transitions to
+        // FULL_TIME — mirrors the startReplayStream call in GAME_END_TURN / HIGH_PASS_MOVEMENT.
+        if (room.gameState.phase === 'FULL_TIME') {
+          startReplayStream(io, room);
+        }
       } finally {
         room.isProcessing = false; // MUST be in finally — Pitfall 5
       }
