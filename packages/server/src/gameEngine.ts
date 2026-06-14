@@ -1093,7 +1093,37 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       }
 
       // No interception: deliver ball to target hex.
-      // Find teammate at target (same teamId, matching q/r).
+      // BUG-04 (Phase 17 D-08/D-09/D-10): find ANY piece at targetHex (any team).
+      // Applies to STANDARD_PASS, FIRST_TIME_PASS, LONG_BALL — NOT HIGH_PASS (D-10).
+      // HIGH_PASS routes to the HEADER branch below, so we skip the occupant check for it.
+      // If a piece occupies targetHex, they pick up the ball.
+      // If that piece is on the opposing team, possession transfers to their team (D-09).
+      if (newLastActionType !== 'HIGH_PASS') {
+        const occupant = state.pieces.find(
+          (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+        );
+        if (occupant) {
+          const possessionChanges = occupant.teamId !== carrier.teamId;
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'PASS',
+              ball: { position: occupant.position, carrierId: occupant.id },
+              attackingTeam: possessionChanges ? occupant.teamId : state.attackingTeam,
+              activeTeam: possessionChanges ? occupant.teamId : state.activeTeam,
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              lastActionType: newLastActionType,
+              actionCount: state.actionCount + passTimeCost,
+              passTargetHex: null,
+              preGeneratedInterceptionDice: [],
+              eventLog: newEventLog,
+            },
+          };
+        }
+      }
+
+      // Find teammate at target (same teamId, matching q/r) — fallback for no-occupant path.
       const teammate = state.pieces.find(
         (p) =>
           p.teamId === carrier.teamId &&
