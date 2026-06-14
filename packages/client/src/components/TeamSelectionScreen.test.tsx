@@ -8,7 +8,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-// @ts-expect-error — TeamSelectionScreen does not exist yet (Wave 0 RED state, PLAY-03 / SELECT-01)
 import { TeamSelectionScreen } from './TeamSelectionScreen.js';
 import { useGameStore } from '../store/useGameStore.js';
 
@@ -59,7 +58,7 @@ describe('TeamSelectionScreen — SELECT-01: home-first turn order', () => {
     const cards = screen.getAllByRole('button');
     expect(cards).toHaveLength(4);
     for (const card of cards) {
-      expect(card).not.toBeDisabled();
+      expect(card.hasAttribute('disabled')).toBe(false);
     }
   });
 
@@ -71,7 +70,7 @@ describe('TeamSelectionScreen — SELECT-01: home-first turn order', () => {
     const cards = screen.getAllByRole('button');
     expect(cards).toHaveLength(4);
     for (const card of cards) {
-      expect(card).toBeDisabled();
+      expect(card.hasAttribute('disabled')).toBe(true);
     }
   });
 });
@@ -116,10 +115,10 @@ describe('TeamSelectionScreen — SELECT-01: clicking an enabled card calls onPi
     expect(enabledCards).toHaveLength(3);
 
     // Click the first enabled card
-    await userEvent.click(enabledCards[0]);
+    await userEvent.click(enabledCards[0]!);
     expect(onPick).toHaveBeenCalledTimes(1);
     // onPick should be called with one of the remaining teamIds (not cosmos)
-    const calledWith = onPick.mock.calls[0][0];
+    const calledWith = onPick.mock.calls[0]?.[0];
     expect(['xolos', 'city', 'crew']).toContain(calledWith);
   });
 
@@ -134,7 +133,7 @@ describe('TeamSelectionScreen — SELECT-01: clicking an enabled card calls onPi
     expect(disabledCards).toHaveLength(1);
 
     // Click the disabled (cosmos) card — no event should fire
-    await userEvent.click(disabledCards[0]);
+    await userEvent.click(disabledCards[0]!);
     expect(onPick).not.toHaveBeenCalled();
   });
 });

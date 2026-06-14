@@ -1,0 +1,101 @@
+/* TeamSelectionScreen — Phase 16 SELECT-01 / D-10 through D-13
+ * Color palette matches existing dark theme:
+ * --bg-page: #1a1a2e; --bg-surface: #16213e; --text: #e0e0e0; --text-dim: #a0a0a0;
+ */
+
+/* Full-viewport centered flex column — mirrors .page in LobbyScreen.module.css */
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #1a1a2e;
+  gap: 16px;
+  padding: 24px;
+}
+
+/* Screen heading: 20px/700 — D-12 copywriting contract */
+.heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Status line: "Waiting for home player to choose..." */
+.statusLine {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  margin: 0;
+}
+
+/* 2×2 card grid — SELECT-01 */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 480px;
+  width: 100%;
+}
+
+/* Base card style — active state (SELECT-01 D-12) */
+.card {
+  border: 2px solid; /* color set via inline style from TEAM_CONFIGS */
+  border-radius: 4px;
+  background: #16213e;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 120px;
+  min-height: 180px;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.card:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+/* Disabled state: opacity reduced, no pointer */
+.card:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Struck-out card: home's chosen team shown on away player's screen */
+.cardStruckOut {
+  border: 2px solid;
+  border-radius: 4px;
+  background: #16213e;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: not-allowed;
+  min-width: 120px;
+  min-height: 180px;
+  opacity: 0.4;
+}
+
+/* Team name below badge — default (active) */
+.teamName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+/* Team name struck-out (home's chosen team) */
+.teamNameStruckOut {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  text-decoration: line-through;
+}
