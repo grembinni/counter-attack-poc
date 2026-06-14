@@ -106,7 +106,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 - [x] 17-01-PLAN.md — Foundation: shared FREE_MOVE phase + GameState fields + GAME_CANCEL_MOVEMENT event + Wave-0 failing tests
 - [x] 17-02-PLAN.md — Engine bug fixes: BUG-01 (header unblockable), BUG-04 (occupied-hex pickup/possession), BUG-05 (loose ball at GK)
-- [ ] 17-03-PLAN.md — BUG-02 Cancel in MOVEMENT + BUG-03 Undo in HIGH_PASS_MOVEMENT (engine + handler + ActionPanel)
+- [x] 17-03-PLAN.md — BUG-02 Cancel in MOVEMENT + BUG-03 Undo in HIGH_PASS_MOVEMENT (engine + handler + ActionPanel)
 - [ ] 17-04-PLAN.md — MOVE-06 FREE_MOVE phase end-to-end (transition, per-piece 6-hex move, handlers, panel)
 - [ ] 17-05-PLAN.md — PASS-02 First-time Pass mid-flight repositioning (attacker step + SNAP_DEFLECT reuse + path highlight)
 
@@ -148,5 +148,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete    | 2026-06-12 |
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
-| 17. Rule Bugs                 | v1.2      | 2/5            | In Progress |            |
+| 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |

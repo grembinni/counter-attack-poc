@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-14T17:16:20.695Z'
+last_updated: '2026-06-14T17:30:53.327Z'
 last_activity: 2026-06-14 -- Phase 17 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 50
 ---
 
@@ -205,7 +205,7 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17 (rule-bugs) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-14 -- Phase 17 execution started
 
@@ -232,6 +232,7 @@ Last activity: 2026-06-14 -- Phase 17 execution started
 | Phase 16-player-roster-team-selection P04 | 12min  | 2 tasks  | 13 files |
 | Phase 17-rule-bugs P01                    | 6m 50s | 3 tasks  | 4 files  |
 | Phase 17-rule-bugs P02                    | 25min  | 3 tasks  | 2 files  |
+| Phase 17-rule-bugs P03                    | 18min  | 3 tasks  | 5 files  |
 
 ## Decisions
 
@@ -267,3 +268,4 @@ Last activity: 2026-06-14 -- Phase 17 execution started
 - [Phase ?]: BUG-01: isHeaderPass guard uses state.lastActionType === HEADER (not newLastActionType)
 - [Phase ?]: BUG-04: occupant check guards HIGH_PASS path to prevent pre-empting HEADER routing (newLastActionType !== HIGH_PASS)
 - [Phase ?]: BUG-05: gkEffectivePos already used at save-dropped LOOSE_BALL return (pre-existing fix from Phase 10/11)
+- [Phase ?]: [Phase 17 P03]: BUG-02 cancel uses paceUsedByPieceId emptiness check (Pitfall 5); BUG-03 handler now accepts MOVEMENT and HIGH_PASS_MOVEMENT via validUndoPhases array
