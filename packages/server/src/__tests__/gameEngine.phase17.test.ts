@@ -294,6 +294,65 @@ const shotStateNearGK: GameState = {
 };
 
 // ---------------------------------------------------------------------------
+// BUG-01 fixture: PASS state with lastActionType='HEADER' (won header, doing pass)
+// ---------------------------------------------------------------------------
+
+/**
+ * PASS state simulating the result of a won header: lastActionType='HEADER'.
+ * awayDEF at {q:12, r:8} is exactly 1 hex from {q:12, r:7} on the pass line
+ * (homeFWD→homeMID: q:10→q:14, all at r:7), placing it in ZoI and making it
+ * a valid interceptor. With die=6, it would auto-intercept in a normal pass.
+ * With BUG-01 fix, the interception loop is skipped entirely for header passes.
+ */
+const headerPassState: GameState = {
+  ...passState,
+  pieces: [
+    homeFWD,
+    { ...homeMID, position: { q: 14, r: 7 } }, // target
+    awayGK,
+    { ...awayDEF, position: { q: 12, r: 8 } }, // 1 hex from pass line path — true interceptor
+  ],
+  lastActionType: 'HEADER', // won a header — pass is unblockable
+  passTargetHex: { q: 14, r: 7 },
+  preGeneratedInterceptionDice: [6], // die=6 would normally auto-intercept
+};
+
+// ---------------------------------------------------------------------------
+// BUG-01: header pass is unblockable (interception loop skipped)
+// ---------------------------------------------------------------------------
+
+describe('Phase 17 BUG-01: header pass skips interception loop', () => {
+  it('PASS with lastActionType=HEADER: ball delivers to target despite interceptor with die=6', () => {
+    // awayDEF at {q:12, r:7} would intercept with die=6 (auto-intercept) in normal flow
+    // BUG-01 fix: interception loop is skipped when lastActionType=HEADER
+    const result = applyRoll(headerPassState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ball must be delivered to the homeMID (target-hex teammate)
+    expect(result.state.ball.carrierId).toBe('home-2');
+    expect(result.state.ball.position).toEqual({ q: 14, r: 7 });
+    // Possession unchanged — still home team
+    expect(result.state.attackingTeam).toBe('home');
+  });
+
+  it('non-header PASS: interception still fires (die=6 → interceptor gets ball)', () => {
+    // Regression guard: non-header passes must still be interceptable
+    const normalPassState: GameState = {
+      ...headerPassState,
+      lastActionType: 'STANDARD_PASS', // NOT a header pass — interception runs
+      // awayDEF at {q:12,r:8} is 1 hex from path; die=6 triggers auto-interception
+    };
+    const result = applyRoll(normalPassState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // With die=6 and STANDARD_PASS, awayDEF (away-1) should intercept
+    // (they are in ZoI of the pass path from homeFWD to homeMID)
+    expect(result.state.ball.carrierId).toBe('away-1');
+    expect(result.state.attackingTeam).toBe('away');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // BUG-02: applyCancelMovement
 // ---------------------------------------------------------------------------
 
