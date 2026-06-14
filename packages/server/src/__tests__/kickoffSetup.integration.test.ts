@@ -136,13 +136,17 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Drive team selection: home picks cosmos, away picks xolos; game:state emitted after away pick
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  // Drive team selection: register all listeners BEFORE emitting to avoid races.
+  // Wait for BOTH clients to receive GAME_STATE to ensure clientB's event is drained before
+  // tests register new listeners on clientB (prevents stale buffered events from firing on
+  // tests that use attackingClient=clientB as their primary listener).
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
   await homePickedPromise;
   clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
-  const [state] = await statePromise;
+  const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   const attackingTeam = state.attackingTeam;
   const attackingClient = attackingTeam === 'home' ? clientA : clientB;
@@ -154,13 +158,20 @@ async function setupRoom(): Promise<{
 /**
  * Drives a room from KICK_OFF_SETUP → KICK_OFF by ensuring valid placement and both teams ready.
  * Returns the KICK_OFF state.
+ *
+ * @param observer - The socket to listen on for GAME_STATE broadcasts. Always use clientA
+ *   (slot 1) as the observer to avoid stale event buffer issues when attackingClient = clientB.
  */
 async function driveToKickOff(
   roomCode: string,
   attackingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
   defendingClient: Socket<ServerToClientEvents, ClientToServerEvents>,
   attackingTeam: 'home' | 'away',
+  observer?: Socket<ServerToClientEvents, ClientToServerEvents>,
 ): Promise<GameState> {
+  // Default observer to attackingClient for backwards compatibility, but callers should
+  // always pass clientA (slot 1) to avoid stale-buffer issues when attackingClient = clientB.
+  const stateObserver = observer ?? attackingClient;
   const { isInRegion } = await import('@counter-attack/shared');
   const room = getRoom(roomCode)!;
   const kickOffHex = PITCH_REGIONS.kickOffHex;
@@ -196,12 +207,12 @@ async function driveToKickOff(
     }),
   };
 
-  // Both teams ready
-  const afterFirst = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+  // Both teams ready — observe GAME_STATE on stateObserver (always clientA where possible)
+  const afterFirst = oncePromise(stateObserver, ServerEvents.GAME_STATE);
   attackingClient.emit(ClientEvents.GAME_READY);
   await afterFirst;
 
-  const afterSecond = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+  const afterSecond = oncePromise(stateObserver, ServerEvents.GAME_STATE);
   defendingClient.emit(ClientEvents.GAME_READY);
   const [kickOffState] = await afterSecond;
   return kickOffState;
@@ -330,13 +341,20 @@ describe('GAME_READY — kick-off placement confirmation', () => {
 
     // Attacking player emits ready — should get a GAME_STATE broadcast but phase stays KICK_OFF_SETUP
     // (only 1 of 2 players is ready)
+    let gameError: string | null = null;
+    attackingClient.once(ServerEvents.GAME_ERROR, (reason: string) => {
+      gameError = reason;
+    });
     const statePromise = oncePromise(attackingClient, ServerEvents.GAME_STATE);
     attackingClient.emit(ClientEvents.GAME_READY);
     const [state] = await statePromise;
 
+    // Capture any error for debugging (should be null — no error expected)
     // After one team ready, phase must still be KICK_OFF_SETUP
     expect(state.phase).toBe('KICK_OFF_SETUP');
-    // readyPlayers should have 1 entry
+    // If applyKickOffReady passed, readyPlayers should have 1 entry (no error)
+    // Include gameError in the assertion message for debugging
+    expect(gameError, `GAME_ERROR received: ${gameError}`).toBeNull();
     expect(room.readyPlayers?.size).toBe(1);
   });
 

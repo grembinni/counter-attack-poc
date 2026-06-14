@@ -268,6 +268,9 @@ describe('Room integration tests', () => {
    *
    * The 90s expiry is acknowledged in code review, not tested at wall-clock latency
    * (VALIDATION.md budget ~5s total runtime — RESEARCH.md A3 confirms 90s is the requirement).
+   *
+   * Phase 16 D-10: game:state is only populated after team:pick flow completes.
+   * This test drives the full selection before disconnecting.
    */
   it('reconnect with sessionToken receives game:state, no ROOM_ERROR (SC-3)', async () => {
     // Set up the room with two players.
@@ -279,15 +282,23 @@ describe('Room integration tests', () => {
     clientA.emit(ClientEvents.ROOM_CREATE);
     const [roomCode, , sessionTokenA] = await createJoinedPromise;
 
-    // Client B joins so room enters 'playing' and game:state is populated.
-    // Register game:state listener on clientA BEFORE the join so we don't miss the broadcast.
-    const stateOnJoinPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    // Client B joins — both receive team:selection-start (Phase 16 D-10).
+    const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
     const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
     clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
     await joinedBPromise;
+    await selectionStartPromise;
 
-    // Wait for game:state to be delivered to clientA before disconnecting.
-    await stateOnJoinPromise;
+    // Drive team selection: wait for BOTH clients to receive GAME_STATE to drain event buffers.
+    const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
+    const stateOnPickPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE, 2000);
+    const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
+    clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+    await homePickedPromise;
+    clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
+
+    // Wait for game:state to be delivered to BOTH clients before disconnecting.
+    await Promise.all([stateOnPickPromiseA, stateOnPickPromiseB]);
 
     // Client A disconnects — server stores a 90s grace timer.
     clientA.disconnect();

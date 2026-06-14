@@ -1,16 +1,18 @@
 /**
  * Socket.io event handlers for room lifecycle management.
  *
- * Wires ROOM_CREATE, ROOM_JOIN, and the disconnect handler onto a socket.
+ * Wires ROOM_CREATE, ROOM_JOIN, TEAM_PICK, and the disconnect handler onto a socket.
  * Called from createServer.ts io.on('connection') for fresh connections,
  * and also (disconnect-only) for reconnected sockets.
  *
  * CONN-01: ROOM_CREATE emits ROOM_JOINED(roomCode, slot=1, sessionToken) to the creator.
  * CONN-02: ROOM_JOIN on success emits ROOM_JOINED(roomCode, slot=2, sessionToken) to joining socket only; notifies existing player(s) without token.
- * CONN-03: Slot-2 join immediately calls broadcastState(io, room) — game starts automatically.
+ * CONN-03: Slot-2 join emits TEAM_SELECTION_START to all room members (Phase 16 D-10).
  * CONN-04: ROOM_JOIN guards NOT_FOUND and NOT_WAITING with distinct ROOM_ERROR reason strings.
  * ARCH-01: Server assigns slots deterministically; client never supplies a slot value.
  * ARCH-04: broadcastState emits the full GameState snapshot after every state change.
+ * TEAM-01: Home (slot 1) picks first; away (slot 2) picks from remaining three teams.
+ * TEAM-02: isProcessing mutex prevents concurrent team:pick processing (SC-5 pattern).
  *
  * Anti-pattern rationale (RESEARCH.md):
  * - Uses socket.to(roomCode).emit for disconnect-warning, NOT io.to(roomCode).emit.
@@ -26,10 +28,15 @@ import type {
   InterServerEvents,
   ServerToClientEvents,
   SocketData,
+  TeamId,
 } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
+import { buildInitialGameState } from './gameEngine.js';
 import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roomStore.js';
+
+/** Valid team IDs — allow-list for team:pick validation (ASVS V5). */
+const VALID_TEAM_IDS: readonly TeamId[] = ['cosmos', 'xolos', 'city', 'crew'] as const;
 
 /** 90-second grace period before disconnected player's room is deleted. */
 const GRACE_PERIOD_MS = 90_000;
@@ -51,11 +58,13 @@ type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerE
  *
  * CONN-01: ROOM_CREATE path — creates room, assigns slot 1, emits ROOM_JOINED with sessionToken.
  * CONN-02: ROOM_JOIN path — joins room, assigns slot 2, emits ROOM_JOINED+token to joiner only; notifies others without token.
- * CONN-03: After slot-2 join, broadcastState emits LOBBY GameState — game starts automatically.
+ * CONN-03: After slot-2 join, emits TEAM_SELECTION_START to whole room (Phase 16 D-10).
  * CONN-04: Error paths emit distinct ROOM_ERROR reasons (NOT_FOUND vs NOT_WAITING).
  * ARCH-01: Slot assigned server-side only; client never specifies or confirms slot.
  * ARCH-04: broadcastState always sends the full GameState snapshot (no differential patching).
  * SC-3:    Disconnect handler stores timer; reconnect path in createServer.ts cancels it.
+ * TEAM-01: TEAM_PICK handler enforces home-first turn order and allow-list validation.
+ * TEAM-02: isProcessing mutex prevents concurrent TEAM_PICK processing.
  */
 export function registerRoomHandlers(
   io: AppServer,
@@ -142,11 +151,63 @@ export function registerRoomHandlers(
       // on this "room is full / game starting" notification.
       socket.to(normalizedCode).emit(ServerEvents.ROOM_JOINED, normalizedCode, 2, '');
 
-      // CONN-03 + ARCH-04: broadcast stub LOBBY GameState to both players immediately.
-      // Game starts automatically when both players have joined.
-      const room = getRoom(normalizedCode);
-      if (room) {
-        broadcastState(io, room);
+      // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
+      // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
+      // Do NOT call broadcastState here; room.gameState is null at this point.
+      io.to(normalizedCode).emit(ServerEvents.TEAM_SELECTION_START);
+    });
+
+    // -----------------------------------------------------------------------
+    // TEAM_PICK
+    // Phase 16 TEAM-01/TEAM-02: enforces home-first turn order, allow-list
+    // validation, isProcessing mutex, and builds game state after both picks.
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.TEAM_PICK, (teamId: TeamId) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // SC-5 / TEAM-02: isProcessing mutex — drop concurrent TEAM_PICK events.
+      if (room.isProcessing) return;
+      room.isProcessing = true;
+      try {
+        // ASVS V5: allow-list validation — reject unknown or forged team IDs.
+        if (!(VALID_TEAM_IDS as readonly string[]).includes(teamId)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TEAM');
+          return;
+        }
+
+        const playerSlot = socket.data.playerSlot;
+
+        if (room.homePickedTeam === undefined) {
+          // Home picks first — only slot 1 may act now (TEAM-01).
+          if (playerSlot !== 1) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+            return;
+          }
+          // Record home pick, broadcast to all so away sees which team was taken.
+          room.homePickedTeam = teamId;
+          io.to(roomCode).emit(ServerEvents.TEAM_HOME_PICKED, teamId);
+        } else {
+          // Away picks second — only slot 2 may act now (TEAM-01).
+          if (playerSlot !== 2) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+            return;
+          }
+          // Away cannot pick the same team home already picked.
+          if (teamId === room.homePickedTeam) {
+            socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
+            return;
+          }
+          // Both teams chosen — build game state and start the game.
+          const selectedTeams = { home: room.homePickedTeam, away: teamId };
+          room.gameState = buildInitialGameState(roomCode, selectedTeams);
+          broadcastState(io, room);
+        }
+      } finally {
+        room.isProcessing = false;
       }
     });
   }

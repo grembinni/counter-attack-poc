@@ -137,14 +137,15 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Home (clientA/slot 1) picks first, away (clientB/slot 2) picks from remaining 3
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
-  // Wait for TEAM_HOME_PICKED before away picks (ensures turn order)
+  // Home (clientA/slot 1) picks first, away (clientB/slot 2) picks from remaining 3.
+  // Wait for BOTH clients to receive GAME_STATE to drain clientB's event buffer.
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
   await homePickedPromise;
   clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
-  const [state] = await statePromise;
+  const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   return { clientA, clientB, roomCode, state };
 }

@@ -144,13 +144,15 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Drive team selection: home picks cosmos, away picks xolos; game:state emitted after away pick
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  // Drive team selection: wait for BOTH clients to receive GAME_STATE to drain clientB's
+  // event buffer before tests register new listeners on clientB.
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
   await homePickedPromise;
   clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
-  const [state] = await statePromise;
+  const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   // clientA = slot 1 = 'home'; attackingTeam from coin flip
   const attackingClient = state.attackingTeam === 'home' ? clientA : clientB;
@@ -347,13 +349,18 @@ describe('game integration — Movement Phase scenarios', () => {
     const { clientA, attackingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
 
-    // D-25: use real HOME_SQUAD / AWAY_SQUAD piece IDs and actual starting positions on the 37×26 board.
-    // home-9 = Home FWD 3 at {q:15, r:17}; away-9 = Away FWD 3 at {q:21, r:17}.
-    // Adjacent target hex (distance=1): home attacks → {q:16, r:17}; away attacks → {q:20, r:17}.
+    // Use piece-9 of the attacking team; read its actual position from live state
+    // (avoids hardcoding positions that differ between team squads).
     const teamPrefix = movementState.attackingTeam === 'home' ? 'home' : 'away';
     const pieceId = `${teamPrefix}-9`;
-    const origPos = movementState.attackingTeam === 'home' ? { q: 15, r: 17 } : { q: 21, r: 17 };
-    const targetHex = movementState.attackingTeam === 'home' ? { q: 16, r: 17 } : { q: 20, r: 17 };
+    const piece = movementState.pieces.find((p) => p.id === pieceId);
+    if (!piece) throw new Error(`Piece ${pieceId} not found in state`);
+    const origPos = piece.position;
+    // Move one hex in q — always a valid single-step move (piece has pace >= 1)
+    const targetHex = {
+      q: origPos.q + (movementState.attackingTeam === 'home' ? 1 : -1),
+      r: origPos.r,
+    };
 
     // Make a valid move
     const afterMovePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
@@ -372,12 +379,17 @@ describe('game integration — Movement Phase scenarios', () => {
     const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
 
-    // D-25: use real HOME_SQUAD / AWAY_SQUAD piece IDs and actual starting positions on the 37×26 board.
-    // home-9 = Home FWD 3 at {q:15, r:17}; away-9 = Away FWD 3 at {q:21, r:17}.
-    // Adjacent target hex (distance=1): home attacks → {q:16, r:17}; away attacks → {q:20, r:17}.
+    // Use piece-9 of the attacking team; read actual position from live state
+    // to avoid hardcoding positions that differ between team squads.
     const teamPrefix = movementState.attackingTeam === 'home' ? 'home' : 'away';
     const pieceId = `${teamPrefix}-9`;
-    const targetHex = movementState.attackingTeam === 'home' ? { q: 16, r: 17 } : { q: 20, r: 17 };
+    const piece = movementState.pieces.find((p) => p.id === pieceId);
+    if (!piece) throw new Error(`Piece ${pieceId} not found in state`);
+    const origPos = piece.position;
+    const targetHex = {
+      q: origPos.q + (movementState.attackingTeam === 'home' ? 1 : -1),
+      r: origPos.r,
+    };
 
     const moveStatePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     attackingClient.emit(ClientEvents.GAME_MOVE, pieceId, targetHex);

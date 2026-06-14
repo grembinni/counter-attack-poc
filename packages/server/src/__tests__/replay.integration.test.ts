@@ -138,13 +138,14 @@ async function setupFullTimeRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Drive team selection: home picks cosmos, away picks xolos
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  // Drive team selection: wait for BOTH clients to receive GAME_STATE to drain clientB's buffer.
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
   await homePickedPromise;
   clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
-  await statePromise;
+  await Promise.all([statePromiseA, statePromiseB]);
 
   // Seed the room with a FULL_TIME state and a non-empty eventLog.
   // We add a MOVE event so buildReplayFrames produces at least one frame.

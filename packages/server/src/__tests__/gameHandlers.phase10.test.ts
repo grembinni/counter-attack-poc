@@ -135,13 +135,14 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Drive team selection: home picks, then away picks; game:state emitted after away pick
-  const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  // Wait for BOTH clients to receive GAME_STATE to drain clientB's event buffer.
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
+  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
   await homePickedPromise;
   clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
-  const [state] = await statePromise;
+  const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   return { clientA, clientB, roomCode, state };
 }
