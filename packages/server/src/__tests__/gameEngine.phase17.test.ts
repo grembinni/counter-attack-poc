@@ -194,14 +194,17 @@ const passToDefenderState: GameState = {
   passTargetHex: { q: 14, r: 7 }, // same as awayDEF position
 };
 
-/** PASS state for BUG-04b: teammate is at the target hex. */
+/** PASS state for BUG-04b: teammate is at the target hex.
+ *  awayDEF is placed at {q:20, r:7} — far from the pass path — so no interception occurs.
+ *  The occupant check (BUG-04) should set carrierId to homeMID without possession change.
+ */
 const passToTeammateState: GameState = {
   ...passState,
   pieces: [
     homeFWD,
     { ...homeMID, position: { q: 14, r: 7 } }, // teammate at target
     awayGK,
-    awayDEF,
+    { ...awayDEF, position: { q: 20, r: 7 } }, // far from pass path — no interception
   ],
   lastActionType: 'STANDARD_PASS',
   passTargetHex: { q: 14, r: 7 }, // same as homeMID position
@@ -431,7 +434,8 @@ describe('Phase 17 BUG-04: pass to occupied hex → ball pickup', () => {
   });
 
   it('pass landing on teammate hex: carrierId = teammate id, possession unchanged', () => {
-    // Wave 0 RED — currently applyRoll sets carrierId to null on occupied hex
+    // awayDEF at {q:20,r:7} — far from pass path; no interception occurs
+    // Existing teammate lookup already finds homeMID at target; possession unchanged
     const result = applyRoll(passToTeammateState, 4, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -441,6 +445,35 @@ describe('Phase 17 BUG-04: pass to occupied hex → ball pickup', () => {
     // Possession unchanged — still home team
     expect(result.state.attackingTeam).toBe('home');
     expect(result.state.activeTeam).toBe('home');
+    expect(result.state.phase).toBe('PASS');
+  });
+
+  it('BUG-04 occupant check: 1-hex pass, defender at target outside ZoI → defender picks up, possession flips', () => {
+    // 1-hex STANDARD_PASS: from {q:10,r:7} to {q:11,r:7}.
+    // travelPath = [{q:11,r:7}]. awayDEF at {q:11,r:7} has distance=0 from target path hex,
+    // so distance !== 1 → NOT in ZoI → interceptors = []. Ball would deliver to carrierId=null
+    // (no teammate at target) without the BUG-04 fix.
+    // BUG-04 fix: occupant lookup finds awayDEF → carrierId=awayDEF.id, possession flips.
+    const shortPassToDefenderState: GameState = {
+      ...passState,
+      pieces: [
+        homeFWD, // carrier at {q:10, r:7}
+        { ...homeMID, position: { q: 20, r: 7 } }, // teammate far away
+        awayGK, // GK at {q:29, r:7}
+        { ...awayDEF, position: { q: 11, r: 7 } }, // defender AT target, NOT in ZoI
+      ],
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 11, r: 7 }, // 1 hex from carrier → travelPath=[{q:11}]; awayDEF dist=0
+    };
+    // Wave 0 RED — without BUG-04, ball.carrierId is null (no teammate lookup finds awayDEF)
+    const result = applyRoll(shortPassToDefenderState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // BUG-04 occupant check: awayDEF picks up ball; possession flips to away
+    expect(result.state.ball.carrierId).toBe('away-1');
+    expect(result.state.ball.position).toEqual({ q: 11, r: 7 });
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
     expect(result.state.phase).toBe('PASS');
   });
 });
