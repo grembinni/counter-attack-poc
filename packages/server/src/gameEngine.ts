@@ -782,9 +782,14 @@ export type ApplyUndoResult =
  * used after steal/tackle so undo cannot cross into the pre-possession-change move history).
  */
 export function applyUndo(state: GameState): ApplyUndoResult {
-  // Find the index of the last slot boundary (SLOT_ADVANCE or KICK_OFF)
+  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, or HP_REPOSITION in HIGH_PASS_MOVEMENT)
+  // BUG-03 (Phase 17 D-06): also treat HP_REPOSITION as a slot boundary in HIGH_PASS_MOVEMENT
   const lastSlotAdvanceIdx = state.eventLog.reduce<number>((acc, evt, idx) => {
-    return evt.type === 'SLOT_ADVANCE' || evt.type === 'KICK_OFF' ? idx : acc;
+    const isBoundary =
+      evt.type === 'SLOT_ADVANCE' ||
+      evt.type === 'KICK_OFF' ||
+      (state.phase === 'HIGH_PASS_MOVEMENT' && evt.type === 'HP_REPOSITION');
+    return isBoundary ? idx : acc;
   }, -1);
 
   const currentSlotEvents = state.eventLog.slice(lastSlotAdvanceIdx + 1);
@@ -860,6 +865,47 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       eventLog: newEventLog,
       pendingFreeMove: undoPendingFreeMove,
       ball: newBallAfterUndo,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCancelMovement
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyCancelMovement.
+ * BUG-02 (Phase 17 D-03/D-04): cancel MOVEMENT phase before any piece has moved.
+ */
+export type ApplyCancelMovementResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECES_ALREADY_MOVED' }
+  | { ok: true; state: GameState };
+
+/**
+ * Reverts the MOVEMENT phase back to PASS, consuming no movement slot.
+ *
+ * BUG-02 D-03: only cancellable when no piece has moved at all in the current slot
+ * (paceUsedByPieceId is empty — Pitfall 5: movedPieceIds is NOT the right check).
+ * BUG-02 D-04: pressing Cancel emits game:cancel_movement; server reverts to PASS.
+ * BUG-02 D-05: no movement slot is consumed.
+ */
+export function applyCancelMovement(state: GameState): ApplyCancelMovementResult {
+  if (state.phase !== 'MOVEMENT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  // BUG-02 D-03: cancel only when no piece has started moving (Pitfall 5)
+  if (Object.keys(state.paceUsedByPieceId).length > 0) {
+    return { ok: false, reason: 'PIECES_ALREADY_MOVED' };
+  }
+  // D-04: revert to PASS — as if applyStartMovement was never called
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'PASS',
+      movementSlot: null,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
     },
   };
 }

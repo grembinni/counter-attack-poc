@@ -11,10 +11,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyEndTurn, applyUndo, applyRoll, applyMove } from '../gameEngine.js';
-// Wave 0 RED — applyCancelMovement implemented in Plan 02
-// @ts-expect-error — function does not exist yet; import will fail at runtime (RED gate)
-import { applyCancelMovement } from '../gameEngine.js';
+import {
+  applyEndTurn,
+  applyUndo,
+  applyRoll,
+  applyMove,
+  applyCancelMovement,
+} from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
