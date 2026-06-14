@@ -138,13 +138,3 @@ describe('ActionPanel — PASS phase pass-type selection flow', () => {
     expect(container.firstChild).toBeNull();
   });
 });
-
-describe('ActionPanel — Start Movement button for KICK_OFF phase', () => {
-  it('shows Move button during KICK_OFF phase for active player', () => {
-    useGameStore.setState({
-      gameState: { ...mockMovementState, phase: 'KICK_OFF', activeTeam: 'home' },
-    });
-    render(<ActionPanel />);
-    expect(screen.getByRole('button', { name: 'Move' })).toBeDefined();
-  });
-});

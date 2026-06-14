@@ -195,15 +195,15 @@ describe('PieceOverlay — D-10: GK jersey patterns', () => {
     expect(baseCircle.getAttribute('fill')).not.toBe('#db2777');
   });
 
-  it('away GK renders a checker pattern with fills #db2777 and #f59e0b', () => {
+  it('away GK renders a checker pattern with fills #be185d and #500724', () => {
     const { container } = renderPiece(awayGK, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
     const gkPattern = patterns.find((p) => p.id.startsWith('away-gk-checker-'));
     expect(gkPattern).toBeTruthy();
     const rects = gkPattern ? Array.from(gkPattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
-    expect(fills).toContain('#db2777');
-    expect(fills).toContain('#831843');
+    expect(fills).toContain('#be185d');
+    expect(fills).toContain('#500724');
   });
 });
 

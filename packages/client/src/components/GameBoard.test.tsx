@@ -72,8 +72,8 @@ describe('GameBoard — CLOCK-02: clock visible in all phases', () => {
       gameState: { ...mockMovementState, phase: 'HALF_TIME', actionCount: 45 },
     });
     render(<GameBoard />);
-    // Clock must be present regardless of phase — CONTEXT.md D-11, UI-SPEC §Clock always visible
-    expect(screen.getByText(/\d+:00/)).toBeDefined();
+    // HALF_TIME: overlay shows literal 45:00 + scoreboard shows computed 45:00 — both valid
+    expect(screen.getAllByText(/\d+:00/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the clock during KICK_OFF_SETUP phase', () => {
@@ -89,7 +89,7 @@ describe('GameBoard — CLOCK-02: clock visible in all phases', () => {
       gameState: { ...mockMovementState, phase: 'FULL_TIME', actionCount: 90 },
     });
     render(<GameBoard />);
-    expect(screen.getByText(/\d+:00/)).toBeDefined();
+    expect(screen.getAllByText(/\d+:00/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the clock during REPLAY phase', () => {
