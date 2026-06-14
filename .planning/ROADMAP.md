@@ -102,7 +102,13 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 3. Piece moves made before a header is triggered can each be individually undone, restoring the piece's position and remaining pace allowance
 4. A grounded pass that lands on an occupied hex results in ball pickup by that player; if the player belongs to the defending team, possession immediately transfers to them
 5. When a goalkeeper save produces a loose ball, the ball spawns at the goalkeeper's hex; outfield players in an opponent's final third each receive a free move of up to 6 hexes after a normal action; during a first-time pass flight both teams may each move one player up to 1 hex
-   **Plans**: TBD
+   **Plans**: 5 plans
+
+- [ ] 17-01-PLAN.md — Foundation: shared FREE_MOVE phase + GameState fields + GAME_CANCEL_MOVEMENT event + Wave-0 failing tests
+- [ ] 17-02-PLAN.md — Engine bug fixes: BUG-01 (header unblockable), BUG-04 (occupied-hex pickup/possession), BUG-05 (loose ball at GK)
+- [ ] 17-03-PLAN.md — BUG-02 Cancel in MOVEMENT + BUG-03 Undo in HIGH_PASS_MOVEMENT (engine + handler + ActionPanel)
+- [ ] 17-04-PLAN.md — MOVE-06 FREE_MOVE phase end-to-end (transition, per-piece 6-hex move, handlers, panel)
+- [ ] 17-05-PLAN.md — PASS-02 First-time Pass mid-flight repositioning (attacker step + SNAP_DEFLECT reuse + path highlight)
 
 ### Phase 18: Design Polish
 
@@ -142,5 +148,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete | 2026-06-12 |
 | 15. Team Identity             | v1.2      | 3/3            | Complete | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete | 2026-06-14 |
-| 17. Rule Bugs                 | v1.2      | 0/TBD          | Pending  | -          |
+| 17. Rule Bugs                 | v1.2      | 0/5            | Pending  | -          |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending  | -          |
