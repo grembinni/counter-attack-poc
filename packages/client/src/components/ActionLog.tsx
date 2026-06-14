@@ -1,14 +1,15 @@
 import type { ActionEvent, HexCoord } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
-import { TEAM_DEFAULTS } from '../teamDefaults.js';
 import styles from './ActionLog.module.css';
 
-// ─── Team colors (D-06: derive from TEAM_CONFIGS instead of hardcoded literals) ─
+// ─── Team colors (D-06/D-17: derive from selectedTeams via TEAM_CONFIGS) ─
 
+/** Reads selectedTeams from store state (not a subscription — safe in module-level helpers). */
 function pieceColorOf(pieceId: string): string {
+  const selectedTeams = useGameStore.getState().gameState.selectedTeams;
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
-  return TEAM_CONFIGS[TEAM_DEFAULTS[positional]].primaryColor;
+  return TEAM_CONFIGS[selectedTeams[positional]].primaryColor;
 }
 
 /** Bold, team-colored player label rendered inline. */
@@ -236,8 +237,7 @@ function formatEvent(event: ActionEvent): Formatted {
     case 'GOAL':
       return {
         prefix: '[GOAL]',
-        prefixColor:
-          TEAM_CONFIGS[TEAM_DEFAULTS[event.scoringTeam === 'home' ? 'home' : 'away']].primaryColor,
+        prefixColor: pieceColorOf(event.scoringTeam === 'home' ? 'home-0' : 'away-0'),
         content: ` ${event.scoringTeam.toUpperCase()} scored!`,
         isGoal: true,
       };
@@ -467,6 +467,8 @@ function formatEvent(event: ActionEvent): Formatted {
  */
 export function ActionLog() {
   const eventLog = useGameStore((s) => s.gameState.eventLog);
+  // D-17: subscribe to selectedTeams so ActionLog re-renders when teams change
+  useGameStore((s) => s.gameState.selectedTeams);
 
   const consolidated = consolidateEvents(eventLog);
   const recent = [...consolidated].reverse().slice(0, 10);

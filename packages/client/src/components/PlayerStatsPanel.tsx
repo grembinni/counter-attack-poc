@@ -1,7 +1,7 @@
 import type { PlayerPiece } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
-import { TEAM_DEFAULTS } from '../teamDefaults.js';
+import { TeamBadge } from './TeamBadge.js';
 import styles from './PlayerStatsPanel.module.css';
 
 /**
@@ -32,11 +32,12 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
   const miniCx = 10;
   const miniCy = 10;
 
-  // Player number: 1-based — matches PieceOverlay derivation
-  const playerNumber = String(Number(piece.id.slice(piece.id.lastIndexOf('-') + 1)) + 1);
+  // D-08: player number from piece.number (replaces id-slice derivation)
+  const playerNumber = String(piece.number);
 
-  // D-06: team-keyed pattern ids (15-03)
-  const teamId = TEAM_DEFAULTS[piece.teamId];
+  // D-06/D-17: team-keyed pattern ids (15-03) — reads selectedTeams from store
+  const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
+  const teamId = selectedTeams[piece.teamId];
   const jerseyPatId = `mini-${teamId}-jersey-${piece.id}`;
   const homeGkPatId = `mini-home-gk-checker-${piece.id}`;
 
@@ -119,6 +120,7 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
 export function PlayerStatsPanel() {
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const pieces = useGameStore((s) => s.gameState.pieces);
+  const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
 
   if (!selectedPieceId) return null;
   const piece = pieces.find((p) => p.id === selectedPieceId);
@@ -129,9 +131,15 @@ export function PlayerStatsPanel() {
       <div className={styles.header}>
         {/* D-08/D-09: inline SVG mini token badge — self-contained defs, no HexGrid dependency */}
         <MiniTokenBadge piece={piece} />
+        {/* D-08/D-09 (PLAY-02): 3-line header — firstName / lastName / badge|role|#number */}
         <div className={styles.headerText}>
-          {piece.name}
-          <span className={styles.role}>{piece.role}</span>
+          <span className={styles.firstName}>{piece.firstName}</span>
+          <span className={styles.lastName}>{piece.lastName}</span>
+          <span className={styles.playerMeta}>
+            <TeamBadge teamId={selectedTeams[piece.teamId]} size={20} />
+            <span className={styles.role}>{piece.role}</span>
+            <span>#{piece.number}</span>
+          </span>
         </div>
       </div>
       <div className={styles.statGrid}>

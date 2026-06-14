@@ -26,10 +26,33 @@
 
 .headerText {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   min-width: 0; /* prevents overflow */
+}
+
+/* PLAY-02 / D-08 / D-09: player card 3-line header */
+.firstName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.lastName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.playerMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .role {

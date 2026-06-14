@@ -22,7 +22,6 @@ afterEach(() => cleanup());
 beforeEach(() => {
   vi.clearAllMocks();
   useGameStore.setState({
-    // @ts-expect-error — selectedTeams not yet in GameState type (Wave 0 RED state, PLAY-02 / D-15)
     gameState: {
       ...mockMovementState,
       selectedTeams: { home: 'cosmos', away: 'xolos' },
@@ -96,8 +95,8 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
   it('renders the correct attribute value from gameState.pieces', () => {
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<PlayerStatsPanel />);
-    // home-9 has pace: 5, dribbling: 5, heading: 5, resilience: 5 (from teams.ts)
-    const statValues = screen.getAllByText('5');
+    // home-9 (Nicolae Rusu, FWD) from real CSV data has pace:4, dribbling:4, heading:4, highPass:4
+    const statValues = screen.getAllByText('4');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
 });

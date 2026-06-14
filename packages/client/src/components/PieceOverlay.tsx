@@ -1,7 +1,7 @@
 import type { PlayerPiece } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { axialToPixel } from '../utils/hexToPixel.js';
-import { TEAM_DEFAULTS } from '../teamDefaults.js';
+import { useGameStore } from '../store/useGameStore.js';
 
 export type SelectionState = 'none' | 'selectable' | 'active' | 'activated';
 
@@ -32,14 +32,15 @@ export function PieceOverlay({
   attackingTeam,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
+  const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
 
   // Player number: 1-based — 'home-0' (GK) → '1', 'home-10' → '11'
   const playerNumber = String(Number(piece.id.slice(piece.id.lastIndexOf('-') + 1)) + 1);
 
   const isGK = piece.role === 'GK';
 
-  // D-06: resolve team config via TEAM_DEFAULTS → TEAM_CONFIGS instead of positional literals
-  const teamId = TEAM_DEFAULTS[piece.teamId];
+  // D-06: resolve team config via selectedTeams → TEAM_CONFIGS (replaces TEAM_DEFAULTS — D-17)
+  const teamId = selectedTeams[piece.teamId];
   const teamConfig = TEAM_CONFIGS[teamId];
 
   // GK pieces use distinctive colors regardless of team (physical board convention)
