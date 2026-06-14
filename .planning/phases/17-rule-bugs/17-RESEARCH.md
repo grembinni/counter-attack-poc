@@ -552,22 +552,16 @@ if (state.pendingFreeMove !== null) {
 | A4  | BUG-05 bug is specifically the SAVE → LOOSE_BALL path using wrong position — `gkEffectivePos` is correct and already in scope                | Code Examples (BUG-05)      | If the actual bug is elsewhere, the fix target is wrong                           |
 | A5  | FREE_MOVE phase should use `game:end-turn` (existing event) rather than a new `game:free_move_end` event                                     | Architecture Patterns       | A new event adds boilerplate; reusing end-turn requires a phase guard             |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **PASS-02 sub-state representation**
+1. **PASS-02 sub-state representation** — RESOLVED: use `firstTimePassStep` flag on GameState (stays in PASS phase), per plans 01/05.
    - What we know: D-17 says attacker moves 1 non-passer player before SNAP_DEFLECT.
    - What's unclear: Whether this uses a new flag on `GameState` (e.g. `firstTimePassStep: 'ATTACKER' | null`) or a new lightweight phase.
    - Recommendation: Use a `firstTimePassStep` flag on GameState (stays in PASS phase) to avoid adding another entry to the `GamePhase` union. Simpler than a new phase.
 
-2. **BUG-02 server event name**
-   - What we know: D-04 specifies `game:cancel_movement`.
-   - What's unclear: Whether `GAME_END_TURN` could be overloaded for cancel (phase === MOVEMENT, no moves made → implicit cancel). The CONTEXT.md explicitly names a new event.
-   - Recommendation: Add new `game:cancel_movement` event as specified. Don't overload end-turn.
+2. **BUG-02 server event name** — RESOLVED: add new `game:cancel_movement` event per CONTEXT.md D-04; don't overload end-turn.
 
-3. **MOVE-06 Free Move event name**
-   - What we know: D-12/D-16 mention a `game:free_move` event and `FREE_MOVE_END` in `ELIGIBLE_NEXT_ACTIONS`.
-   - What's unclear: Whether free move pieces are moved via the existing `game:move` event (simpler) or a separate `game:free_move` event.
-   - Recommendation: Reuse `game:move` with a phase guard in the GAME_MOVE handler for FREE_MOVE phase. Use `game:end-turn` (existing) to end FREE_MOVE. Only add to `ClientEvents` if the semantics differ enough to warrant separation. This avoids two new events.
+3. **MOVE-06 Free Move event name** — RESOLVED: reuse `game:move` with a phase guard for FREE_MOVE piece moves; use existing `game:end-turn` to end FREE_MOVE. No new events needed.
 
 ## Environment Availability
 
