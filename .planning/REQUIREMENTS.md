@@ -27,16 +27,16 @@
 
 ## Bug Fixes
 
-- [ ] **BUG-01**: The header pass executed by the winner of a high pass contest is not blockable — the block option is absent when a player executes a header and the server rejects any block attempt on a header; the high pass contest itself (determining who wins the header) is unaffected
-- [ ] **BUG-02**: Every action phase shows a back/cancel control until an irreversible change has been made (piece moved, dice rolled, target hex committed); the back control returns the player to the previous decision step without consuming their action
-- [ ] **BUG-03**: Moves made in the Movement Phase before a header is triggered (pre-header moves) can be undone; undo restores piece position and pace allowance as if the move had not been made
-- [ ] **BUG-04**: A pass (any type except High Pass) whose trajectory ends on a hex occupied by a player results in ball pickup by that player; if the player is on the defending team, possession transfers to the defending team immediately
-- [ ] **BUG-05**: When a goalkeeper save results in a loose ball, the loose ball spawns at the goalkeeper's hex (the save location), not at the shot origin hex
+- [x] **BUG-01**: The header pass executed by the winner of a high pass contest is not blockable — the block option is absent when a player executes a header and the server rejects any block attempt on a header; the high pass contest itself (determining who wins the header) is unaffected
+- [x] **BUG-02**: Every action phase shows a back/cancel control until an irreversible change has been made (piece moved, dice rolled, target hex committed); the back control returns the player to the previous decision step without consuming their action
+- [x] **BUG-03**: Moves made in the Movement Phase before a header is triggered (pre-header moves) can be undone; undo restores piece position and pace allowance as if the move had not been made
+- [x] **BUG-04**: A pass (any type except High Pass) whose trajectory ends on a hex occupied by a player results in ball pickup by that player; if the player is on the defending team, possession transfers to the defending team immediately
+- [x] **BUG-05**: When a goalkeeper save results in a loose ball, the loose ball spawns at the goalkeeper's hex (the save location), not at the shot origin hex
 
 ## Carry-forward Bugs
 
-- [ ] **MOVE-06**: Server implements the free 6-hex move rule — after completing a normal action, outfield players in the opponent's final third may each move up to 6 hexes for free; the scaffolded handler in `gameEngine.ts:517` is completed and connected
-- [ ] **PASS-02**: During a First-time Pass flight, each team may move one player up to 1 hex; the TODO at `gameEngine.ts:1087` is implemented
+- [x] **MOVE-06**: Server implements the free 6-hex move rule — after completing a normal action, outfield players in the opponent's final third may each move up to 6 hexes for free; the scaffolded handler in `gameEngine.ts:517` is completed and connected
+- [x] **PASS-02**: During a First-time Pass flight, each team may move one player up to 1 hex; the TODO at `gameEngine.ts:1087` is implemented
 
 ## Design Review
 
@@ -66,13 +66,13 @@
 | PLAY-02   | Phase 16 | Complete |
 | PLAY-03   | Phase 16 | Complete |
 | SELECT-01 | Phase 16 | Complete |
-| BUG-01    | Phase 17 | Pending  |
-| BUG-02    | Phase 17 | Pending  |
-| BUG-03    | Phase 17 | Pending  |
-| BUG-04    | Phase 17 | Pending  |
-| BUG-05    | Phase 17 | Pending  |
-| MOVE-06   | Phase 17 | Pending  |
-| PASS-02   | Phase 17 | Pending  |
+| BUG-01    | Phase 17 | Complete |
+| BUG-02    | Phase 17 | Complete |
+| BUG-03    | Phase 17 | Complete |
+| BUG-04    | Phase 17 | Complete |
+| BUG-05    | Phase 17 | Complete |
+| MOVE-06   | Phase 17 | Complete |
+| PASS-02   | Phase 17 | Complete |
 | DESIGN-01 | Phase 18 | Pending  |
 | DESIGN-02 | Phase 18 | Pending  |
 | DESIGN-03 | Phase 18 | Pending  |

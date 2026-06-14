@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-14T16:46:40.348Z'
-last_activity: 2026-06-13 -- Phase 16 execution started
+last_updated: '2026-06-14T16:59:29.413Z'
+last_activity: 2026-06-14 -- Phase 17 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 12
+  completed_plans: 8
   percent: 50
 ---
 
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 16 — player-roster-team-selection
+**Current focus:** Phase 17 — rule-bugs
 
 ## Phase Status
 
@@ -204,10 +204,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 16 (player-roster-team-selection) — EXECUTING
-Plan: 4 of 4
+Phase: 17 (rule-bugs) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-13 -- Phase 16 execution started
+Last activity: 2026-06-14 -- Phase 17 execution started
 
 ## Performance Metrics
 
@@ -230,6 +230,7 @@ Last activity: 2026-06-13 -- Phase 16 execution started
 | Phase 16 P01                              | 4min   | 2 tasks  | 4 files  |
 | Phase 16 P02                              | 7m     | 2 tasks  | 6 files  |
 | Phase 16-player-roster-team-selection P04 | 12min  | 2 tasks  | 13 files |
+| Phase 17-rule-bugs P01                    | 6m 50s | 3 tasks  | 4 files  |
 
 ## Decisions
 
@@ -259,3 +260,6 @@ Last activity: 2026-06-13 -- Phase 16 execution started
 - [Phase ?]: MiniTokenBadge home GK uses mini-home-gk-checker pattern (10px tile, 5px checkers) matching main board (D-10, Pitfall 2)
 - [Phase ?]: [Phase 16 P02]: GK CSV blank attrs floored to 1 in seed-rosters.ts — test spec requires >=1 for all non-GK-specific attributes
 - [Phase ?]: [Phase 16 P02]: eslint allowDefaultProject extended with packages/_/scripts/_.ts for seed-rosters.ts dev tool outside src/
+- [Phase ?]: FREE_MOVE inserted after GK_KICK_MOVEMENT in GamePhase union; five new GameState fields added for PASS-02 and MOVE-06
+- [Phase ?]: BUG-03 engine already works correctly via event-log scan; fix needed is handler phase guard at gameHandlers.ts:884
+- [Phase ?]: BUG-05 already fixed in prior phase (gameEngine.ts line 1414 uses gkEffectivePos for dropped-save LOOSE_BALL)
