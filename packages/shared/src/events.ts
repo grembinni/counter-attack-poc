@@ -15,6 +15,8 @@ export const ClientEvents = {
   GAME_GK_RESTART: 'game:gk-restart',
   GAME_END_TURN: 'game:end-turn',
   GAME_UNDO: 'game:undo',
+  /** Phase 17 BUG-02: cancels MOVEMENT phase before any piece has moved. */
+  GAME_CANCEL_MOVEMENT: 'game:cancel_movement',
   GAME_START_MOVEMENT: 'game:start-movement',
   /** D-24: kick-off setup confirmation — both teams click Ready before KICK_OFF_SETUP → KICK_OFF. */
   GAME_READY: 'game:ready',
@@ -86,6 +88,8 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_GK_RESTART]: (choice: 'kick' | 'throw' | 'movement') => void;
   [ClientEvents.GAME_END_TURN]: () => void;
   [ClientEvents.GAME_UNDO]: () => void;
+  /** Phase 17 BUG-02: revert MOVEMENT phase → PASS. Guard: paceUsedByPieceId must be empty. */
+  [ClientEvents.GAME_CANCEL_MOVEMENT]: () => void;
   /** Wire path for FSM KICK_OFF → MOVEMENT transition. D-01, 04-02/T1. */
   [ClientEvents.GAME_START_MOVEMENT]: () => void;
   /** D-24: Ready confirmation during KICK_OFF_SETUP; server transitions when both teams confirm. */
