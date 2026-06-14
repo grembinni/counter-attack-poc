@@ -1,6 +1,5 @@
 .panel {
   background: #16213e;
-  border: 1px solid #0f3460;
   border-radius: 4px;
   padding: 4px 6px;
   display: flex;
@@ -52,7 +51,7 @@
 }
 
 .backButton {
-  flex: 0 0 calc(50% - 2px);
+  flex: 0 0 100%;
   min-width: 0;
   background: transparent;
   color: #a0a0a0;

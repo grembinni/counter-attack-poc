@@ -133,12 +133,12 @@ export function ActionPanel() {
           <span className={styles.helperLine1}>Header!</span>
           <span className={styles.helperLine2}>Move 1 player to challenge.</span>
         </div>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
-          End Turn
-        </button>
         {/* BUG-03 (Phase 17 D-07): Undo available in HIGH_PASS_MOVEMENT with same boundary logic */}
         <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
           Undo
+        </button>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
