@@ -60,6 +60,8 @@ export function ActionPanel() {
   const setShootingMode = useGameStore((s) => s.setShootingMode);
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
+  const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
+  const emitCancelMovement = useGameStore((s) => s.emitCancelMovement);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -101,6 +103,21 @@ export function ActionPanel() {
     }
   }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
 
+  // Shared canUndo computation — used in both MOVEMENT and HIGH_PASS_MOVEMENT phases.
+  // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVEMENT also uses HP_REPOSITION as a slot boundary.
+  // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVEMENT).
+  const canUndo = (() => {
+    if (lastDiceRoll) return false;
+    const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
+      const isBoundary =
+        evt.type === 'SLOT_ADVANCE' ||
+        evt.type === 'KICK_OFF' ||
+        (phase === 'HIGH_PASS_MOVEMENT' && evt.type === 'HP_REPOSITION');
+      return isBoundary ? idx : acc;
+    }, -1);
+    return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
+  })();
+
   // -------------------------------------------------------------------------
   // HIGH_PASS_MOVEMENT phase: both teams reposition 1 player up to 3 hexes before accuracy roll.
   // Must be before the isActivePlayer guard — both teams act in this phase.
@@ -118,6 +135,10 @@ export function ActionPanel() {
         </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
+        </button>
+        {/* BUG-03 (Phase 17 D-07): Undo available in HIGH_PASS_MOVEMENT with same boundary logic */}
+        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
+          Undo
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
@@ -507,15 +528,7 @@ export function ActionPanel() {
       carrierId !== null &&
       !movedPieceIds.includes(carrierId);
 
-    // Undo is available when there is at least one MOVE event after the last slot boundary
-    // (SLOT_ADVANCE or KICK_OFF) and no dice have been rolled. Mirrors applyUndo's boundary logic.
-    const canUndo = (() => {
-      if (lastDiceRoll) return false;
-      const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
-        return evt.type === 'SLOT_ADVANCE' || evt.type === 'KICK_OFF' ? idx : acc;
-      }, -1);
-      return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
-    })();
+    // canUndo is computed above as a shared const (also used by HIGH_PASS_MOVEMENT)
 
     const slotTotal =
       movementSlot != null ? { ATTACKER_4: 4, DEFENDER_5: 5, ATTACKER_2: 2 }[movementSlot] : null;
@@ -542,6 +555,12 @@ export function ActionPanel() {
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
         </button>
+        {/* BUG-02 (Phase 17 D-03): Cancel visible only before any piece has moved (Pitfall 5) */}
+        {Object.keys(paceUsedByPieceId).length === 0 && (
+          <button className={styles.backButton} onClick={emitCancelMovement}>
+            ← Cancel
+          </button>
+        )}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );

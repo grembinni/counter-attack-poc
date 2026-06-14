@@ -121,6 +121,8 @@ export type GameStore = {
   emitEndTurn: () => void;
   /** Emit game:undo to request an undo of the last movement action (UNDO-01). */
   emitUndo: () => void;
+  /** BUG-02 (Phase 17 D-03/D-04): cancel MOVEMENT phase before any piece has moved, reverting to PASS. */
+  emitCancelMovement: () => void;
   /** Emit game:gk-restart with the GK's choice after a save catch (D-22, Phase 5). */
   emitGKRestart: (choice: 'kick' | 'throw' | 'movement') => void;
   /** Emit game:start-movement to transition from KICK_OFF to MOVEMENT (D-01, Phase 4). */
@@ -575,6 +577,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitUndo: () => {
     socket.emit(ClientEvents.GAME_UNDO);
+  },
+
+  emitCancelMovement: () => {
+    socket.emit(ClientEvents.GAME_CANCEL_MOVEMENT);
   },
 
   emitGKRestart: (choice) => {
