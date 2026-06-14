@@ -40,6 +40,7 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
+  applyCancelMovement,
   applyDeclareShot,
   applyEndTurn,
   applyGKDive,
@@ -62,7 +63,7 @@ import {
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
-import type { ActionEvent, GameState } from '@counter-attack/shared';
+import type { ActionEvent, GamePhase, GameState } from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -880,8 +881,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      // CR-02: undo is only valid during the MOVEMENT phase; guard symmetrically with other handlers
-      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+      // BUG-03 (Phase 17 D-06): undo is valid in MOVEMENT and HIGH_PASS_MOVEMENT phases
+      const validUndoPhases: GamePhase[] = ['MOVEMENT', 'HIGH_PASS_MOVEMENT'];
+      if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -928,6 +930,41 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // D-24: snap-back so client re-syncs
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room);
+    } finally {
+      room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_CANCEL_MOVEMENT — reverts MOVEMENT phase back to PASS before any piece has moved
+  // BUG-02 (Phase 17 D-03/D-04/D-05): cancel is only available when paceUsedByPieceId is empty.
+  // No movement slot is consumed on cancel.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_CANCEL_MOVEMENT, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return;
+    room.isProcessing = true;
+    try {
+      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      if (!isActivePlayer(socket, room)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyCancelMovement(room.gameState);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room);
         return;
       }
       room.gameState = result.state;
