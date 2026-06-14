@@ -292,6 +292,8 @@ export type GamePhase =
   | 'QUICK_THROW' // GK selects target hex for unblockable, uninterceptable throw
   | 'GK_KICK_TARGET' // GK's team selects kick destination (not into opponent's final third)
   | 'GK_KICK_MOVEMENT' // both teams reposition 1 player ≤3 hexes while ball is in air
+  // Phase 17 MOVE-06: free 6-hex move for players in opponent's final third
+  | 'FREE_MOVE'
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -498,4 +500,33 @@ export type GameState = {
    * Capped at 3. Reset to 0 at each slot transition.
    */
   gkKickPaceUsed?: number;
+  /**
+   * PASS-02 (Phase 17): path of an in-flight First-time Pass.
+   * Array of hex coords from passer to target, computed by hexLine().
+   * null outside FIRST_TIME_PASS attacker-step sub-state.
+   */
+  firstTimePassPath?: readonly HexCoord[] | null;
+  /**
+   * PASS-02 (Phase 17): sub-step within First-time Pass flow.
+   * 'ATTACKER' = attacker may reposition 1 non-passer player ≤1 hex.
+   * null outside this sub-state.
+   */
+  firstTimePassStep?: 'ATTACKER' | null;
+  /**
+   * MOVE-06 (Phase 17): piece IDs eligible for free 6-hex move (outfield players in opponent's third).
+   * Set when entering FREE_MOVE phase; null outside FREE_MOVE.
+   */
+  freeMoveEligibleIds?: readonly string[] | null;
+  /**
+   * MOVE-06 (Phase 17): cumulative hexes used per piece during FREE_MOVE phase.
+   * Key = pieceId; value = hexes moved so far (max 6).
+   * null outside FREE_MOVE phase.
+   */
+  freeMoveUsedPace?: Readonly<Record<string, number>> | null;
+  /**
+   * PASS-02 (Phase 17): the piece ID of the player who made the First-time Pass.
+   * Set when firstTimePassStep: 'ATTACKER' is entered so the handler can reject
+   * attempts to move the passer. null outside this sub-state.
+   */
+  passerId?: string | null;
 };
