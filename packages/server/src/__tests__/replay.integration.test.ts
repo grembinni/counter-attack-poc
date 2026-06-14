@@ -507,28 +507,17 @@ describe('FULL_TIME → REPLAY stream', () => {
     const { clientA, clientB, roomCode } = await setupFullTimeRoom();
 
     // Seed the room so the next applyEndTurn call produces FULL_TIME:
-    // half=2, actionCount just before 45+addedTime, movementSlot=ATTACKER_2
+    // half=2, actionCount just before 90+addedTime, movementSlot=ATTACKER_2
     const room = getRoom(roomCode)!;
     room.gameState = {
       ...room.gameState!,
       phase: 'MOVEMENT',
       movementSlot: 'ATTACKER_2',
       half: 2,
-      actionCount: 42, // +3 on end-turn = 45; addedTime will be set and then crossed
-      addedTime: null,
-      // We'll use leniency=0 effectively: addedTime will be roll + leniency
-      // but we can't control the roll. Instead set addedTime already = 0 (min possible)
-      // and actionCount such that 45 + 0 = 45 <= 45 -> FULL_TIME
-      // Actually set actionCount=45 so +3 = 48 >= 45+addedTime (roll result)
-      // The safest approach: set addedTime=1 (already set), actionCount=44 → 44+3=47 >= 45+1=46
-    };
-    // Set addedTime and actionCount so FULL_TIME fires deterministically
-    room.gameState = {
-      ...room.gameState,
-      addedTime: 1, // already set; halfEnd = 46
-      actionCount: 44, // +3 = 47 >= 46 → FULL_TIME
-      attackingTeam: room.gameState.attackingTeam,
-      activeTeam: room.gameState.attackingTeam, // must be the acting team for isActivePlayer check
+      addedTime: 1, // already set; halfEnd = 90+1=91
+      actionCount: 88, // +3 = 91 >= 91 → FULL_TIME
+      attackingTeam: room.gameState!.attackingTeam,
+      activeTeam: room.gameState!.attackingTeam, // must be the acting team for isActivePlayer check
     };
 
     // Collect REPLAY frames (will arrive after ~3s + intervals)

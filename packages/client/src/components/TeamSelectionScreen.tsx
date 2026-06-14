@@ -64,18 +64,29 @@ export function TeamSelectionScreen({ homePickedTeam, onPick }: Props) {
               key={teamId}
               disabled={isDisabled}
               className={isStruckOut ? styles.cardStruckOut : styles.card}
-              style={{ borderColor: TEAM_CONFIGS[teamId].primaryColor }}
+              style={{
+                borderColor: TEAM_CONFIGS[teamId].primaryColor,
+                background: TEAM_CONFIGS[teamId].primaryColor,
+              }}
               onClick={() => onPick(teamId)}
             >
-              <img
-                src={FULL_BADGE_MAP[teamId]}
-                alt={`${TEAM_CONFIGS[teamId].name} badge`}
-                width={110}
-                height={110}
-                style={{ objectFit: 'contain' }}
-              />
-              <span className={isStruckOut ? styles.teamNameStruckOut : styles.teamName}>
-                {TEAM_CONFIGS[teamId].name}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  width: 110,
+                  height: 110,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={FULL_BADGE_MAP[teamId]}
+                  alt={`${TEAM_CONFIGS[teamId].name} badge`}
+                  width={110}
+                  height={110}
+                  style={{ display: 'block', objectFit: 'cover' }}
+                />
               </span>
             </button>
           );

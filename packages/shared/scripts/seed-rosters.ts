@@ -48,7 +48,7 @@ const ROLE_ORDER = ['GK', 'DEF', 'MID', 'FWD', 'ST'] as const;
 type HexCoord = { q: number; r: number };
 
 const FORMATION_POSITIONS: Record<string, HexCoord[]> = {
-  GK: [{ q: 1, r: 13 }],
+  GK: [{ q: 2, r: 13 }],
   DEF: [
     { q: 6, r: 6 },
     { q: 6, r: 13 },

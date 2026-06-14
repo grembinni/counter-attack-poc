@@ -16,7 +16,7 @@
 .topBand {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  height: 80px;
+  min-height: 80px;
   flex-shrink: 0;
   background: #1a1a2e;
   border-bottom: 1px solid #0f3460;
@@ -64,16 +64,20 @@
 
 .scoreboardHomeCell {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 14px;
 }
 
 .scoreboardAwayCell {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 14px;
 }
 
 .scoreboardCentreCell {
@@ -91,8 +95,9 @@
 
 .scoreNumeral {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 24px;
+  font-size: 56px;
   font-weight: 700;
+  line-height: 1;
 }
 
 /* ─── Player card section (track 1 — leftmost) ────────────────────────────── */
@@ -207,6 +212,14 @@
   gap: 6px;
 }
 
+.clockRow > *:first-child {
+  margin-right: 10px;
+}
+
+.clockRow > *:last-child {
+  margin-left: 10px;
+}
+
 /* Phase summary row: team name + phase label */
 .phaseSummary {
   display: flex;
@@ -268,7 +281,7 @@
 
 /* Expanded: 220px panel showing ActionLog */
 .sideLogExpanded {
-  width: 220px;
+  width: 210px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -333,10 +346,10 @@
   z-index: 10;
 }
 
-/* Centred card matching HalfTimeScreen.module.css .card dimensions */
+/* Centred card — wide enough for 150px badges + 120px score numerals */
 .overlayCard {
   width: 100%;
-  max-width: 440px;
+  max-width: 760px;
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
@@ -347,7 +360,7 @@
 }
 
 .overlayHeading {
-  font-size: 20px;
+  font-size: 10px;
   font-weight: 700;
   color: #e0e0e0;
   margin: 0;
@@ -366,6 +379,24 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
+}
+
+/* Full badges + score numeral — constrained to 60% of card, centred */
+.overlayScoreSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 60%;
+  margin: 0 auto;
+}
+
+/* Added time (left) + 2nd-half kick-off (right) on one row */
+.overlayInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px;
 }
 
 .overlayScore {
@@ -395,7 +426,7 @@
   color: #ffffff;
   border: none;
   border-radius: 4px;
-  padding: 10px 20px;
+  padding: 10px 10px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -408,4 +439,78 @@
 .overlayCtaButton:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* ─── Half-time / Full-time scoreboard overlay layout ─────────────────────── */
+
+/* Flex row: score | badge | [clock/+time centre] | badge | score
+   gap matches card padding so edge-to-score == score-to-badge == badge-to-clock */
+.halfTimeScoreRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Large score numeral — 120px (25% up from 96px), Courier to match .scoreNumeral */
+.halfTimeScore {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 120px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Centre column: stretches to badge height, three vertical sections */
+.halfTimeCenter {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Middle section: clock + extra time, fills remaining space and centres content */
+.halfTimeCenterMiddle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Bottom section: kick-off label stacked above team name */
+.halfTimeCenterBottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Clock — identical to .clockDisplay (36px gold bold, no font-family override) */
+.halfTimeClock {
+  font-size: 36px;
+  font-weight: 700;
+  color: #f5c518;
+  line-height: 1;
+  margin: 0;
+}
+
+/* Extra time "+11'" — same style as clock at 50% size */
+.halfTimeAddedTime {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f5c518;
+  line-height: 1;
+}
+
+/* "TEAM — 2ND HALF KICK OFF" label */
+.halfTimeKickOff {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
 }

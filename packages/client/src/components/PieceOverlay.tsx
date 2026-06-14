@@ -3,6 +3,26 @@ import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { axialToPixel } from '../utils/hexToPixel.js';
 import { useGameStore } from '../store/useGameStore.js';
 
+function SoccerPatches({ cx, cy, R }: { cx: number; cy: number; R: number }) {
+  const outerDist = R * 0.62;
+  const angles = Array.from({ length: 5 }, (_, i) => (i * 72 - 90) * (Math.PI / 180));
+  return (
+    <>
+      <circle cx={cx} cy={cy} r={R * 0.27} fill="#111" pointerEvents="none" />
+      {angles.map((a, i) => (
+        <circle
+          key={i}
+          cx={cx + outerDist * Math.cos(a)}
+          cy={cy + outerDist * Math.sin(a)}
+          r={R * 0.19}
+          fill="#111"
+          pointerEvents="none"
+        />
+      ))}
+    </>
+  );
+}
+
 export type SelectionState = 'none' | 'selectable' | 'active' | 'activated';
 
 type Props = {
@@ -34,8 +54,14 @@ export function PieceOverlay({
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
 
-  // Player number: 1-based — 'home-0' (GK) → '1', 'home-10' → '11'
-  const playerNumber = String(Number(piece.id.slice(piece.id.lastIndexOf('-') + 1)) + 1);
+  // Player number: GK=1, DEF/MID 1-based, FWD idx 6-7 → 7-8, FWD idx 8-9 → 10-11, ST=9
+  const idx = Number(piece.id.slice(piece.id.lastIndexOf('-') + 1));
+  const playerNumber =
+    piece.role === 'ST'
+      ? '9'
+      : piece.role === 'FWD' && idx >= 8
+        ? String(idx + 2)
+        : String(idx + 1);
 
   const isGK = piece.role === 'GK';
 
@@ -48,15 +74,9 @@ export function PieceOverlay({
   const fill = isGK
     ? piece.teamId === 'home'
       ? '#9b59b6' // home GK: purple (replaced by checker pattern on circle fill)
-      : '#db2777' // away GK: orange (solid base; stripes added as siblings)
+      : '#be185d' // away GK: pink-700 (one shade darker)
     : teamConfig.primaryColor; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
-  const stroke = isGK
-    ? piece.teamId === 'home'
-      ? '#6c3483'
-      : '#7f1d1d'
-    : piece.teamId === 'home'
-      ? '#0d3a82'
-      : '#8e1c12';
+  const stroke = isGK ? (piece.teamId === 'home' ? '#6c3483' : '#5f1515') : teamConfig.primaryColor;
 
   // Ball carrier: piece holds the ball — render directional possession dot (D-15)
   const isBallCarrier = carrierId !== null && piece.id === carrierId;
@@ -65,8 +85,8 @@ export function PieceOverlay({
   void attackingTeam; // direction uses piece.teamId per Open Question 3; prop kept for future overrides (D-16)
   void fill; // used for stroke reference; circle fill is pattern url for outfield / solid for GK
   const PIECE_RADIUS = 12;
-  const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.55 : -(PIECE_RADIUS * 0.55);
-  const dotOffsetY = PIECE_RADIUS * 0.55;
+  const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.715 : -(PIECE_RADIUS * 0.715);
+  const dotOffsetY = PIECE_RADIUS * 0.715;
 
   return (
     <>
@@ -150,7 +170,7 @@ export function PieceOverlay({
         </defs>
       )}
 
-      {/* Away GK checker pattern def — same structure as home, using away GK colors */}
+      {/* Away GK checker pattern def — one shade darker than prior pink-600/pink-900 */}
       {isGK && piece.teamId === 'away' && (
         <defs>
           <pattern
@@ -161,9 +181,9 @@ export function PieceOverlay({
             height={12}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={12} height={12} fill="#db2777" />
-            <rect x={0} y={0} width={6} height={6} fill="#831843" />
-            <rect x={6} y={6} width={6} height={6} fill="#831843" />
+            <rect width={12} height={12} fill="#be185d" />
+            <rect x={0} y={0} width={6} height={6} fill="#500724" />
+            <rect x={6} y={6} width={6} height={6} fill="#500724" />
           </pattern>
         </defs>
       )}
@@ -249,17 +269,20 @@ export function PieceOverlay({
           />
         </>
       )}
-      {/* Ball carrier indicator — directional white dot at 45° toward scoring goal (D-15) */}
+      {/* Ball carrier indicator — directional soccer ball at 45° toward scoring goal (D-15) */}
       {isBallCarrier && (
-        <circle
-          cx={cx + dotOffsetX}
-          cy={cy + dotOffsetY}
-          r={PIECE_RADIUS * 0.35}
-          fill="#ffffff"
-          stroke="rgba(0,0,0,0.5)"
-          strokeWidth={1}
-          pointerEvents="none"
-        />
+        <>
+          <circle
+            cx={cx + dotOffsetX}
+            cy={cy + dotOffsetY}
+            r={PIECE_RADIUS * 0.59}
+            fill="#f5f0dc"
+            stroke="rgba(0,0,0,0.5)"
+            strokeWidth={1}
+            pointerEvents="none"
+          />
+          <SoccerPatches cx={cx + dotOffsetX} cy={cy + dotOffsetY} R={PIECE_RADIUS * 0.59} />
+        </>
       )}
       {/* Player number label */}
       <text

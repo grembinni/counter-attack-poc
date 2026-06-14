@@ -283,40 +283,44 @@ export function GameBoard() {
           {phase === 'HALF_TIME' && (
             <div className={styles.overlay}>
               <div className={styles.overlayCard}>
-                <h2 className={styles.overlayHeading}>Half Time</h2>
-                <p className={styles.overlayBody}>End of 1st Half</p>
-
-                {/* Score display */}
-                <div className={styles.overlayScoreRow}>
+                {/* Score row: score | badge | [HALF TIME / 45:00 / KICK OFF] | badge | score */}
+                <div className={styles.halfTimeScoreRow}>
                   <span
-                    className={styles.overlayTeamLabel}
+                    className={styles.halfTimeScore}
                     style={{ color: TEAM_CONFIGS[selectedTeams['home']].primaryColor }}
                   >
-                    Home
+                    {score.home}
                   </span>
-                  <span className={styles.overlayScore}>
-                    {score.home}&nbsp;&ndash;&nbsp;{score.away}
-                  </span>
+                  <TeamBadge teamId={selectedTeams['home']} size={150} full />
+
+                  {/* Centre column: HALF TIME (top) | clock (mid) | kick-off + team (bottom) */}
+                  <div className={styles.halfTimeCenter}>
+                    <span className={styles.halfTimeKickOff}>HALF TIME</span>
+                    <div className={styles.halfTimeCenterMiddle}>
+                      <span className={styles.halfTimeClock}>45:00</span>
+                      {addedTime !== null && addedTime > 0 && (
+                        <span className={styles.halfTimeAddedTime}>+{addedTime}&prime;</span>
+                      )}
+                    </div>
+                    <div className={styles.halfTimeCenterBottom}>
+                      <span className={styles.halfTimeKickOff}>2ND HALF KICK OFF</span>
+                      <span
+                        className={styles.halfTimeKickOff}
+                        style={{ color: secondHalfTeamColor }}
+                      >
+                        {secondHalfTeamName.toUpperCase()} TEAM
+                      </span>
+                    </div>
+                  </div>
+
+                  <TeamBadge teamId={selectedTeams['away']} size={150} full />
                   <span
-                    className={styles.overlayTeamLabel}
+                    className={styles.halfTimeScore}
                     style={{ color: TEAM_CONFIGS[selectedTeams['away']].primaryColor }}
                   >
-                    Away
+                    {score.away}
                   </span>
                 </div>
-
-                {/* Added time note */}
-                {addedTime !== null && addedTime > 0 && (
-                  <p className={styles.overlayBody}>Added time played: +{addedTime}&apos;</p>
-                )}
-
-                {/* 2nd half kick-off assignment */}
-                <p className={styles.overlayBody}>
-                  2nd half kick-off:{' '}
-                  <span style={{ color: secondHalfTeamColor, fontWeight: 700 }}>
-                    {secondHalfTeamName}
-                  </span>
-                </p>
 
                 {/* Start 2nd Half button — gated to non-first-half kick-off team (D-28) */}
                 <button
@@ -334,31 +338,31 @@ export function GameBoard() {
           {phase === 'FULL_TIME' && (
             <div className={styles.overlay}>
               <div className={styles.overlayCard}>
-                <h2 className={styles.overlayHeading}>Full Time</h2>
-
-                {/* Score display */}
-                <div className={styles.overlayScoreRow}>
+                {/* Score row: home score | home badge | [90:00 / result] | away badge | away score */}
+                <div className={styles.halfTimeScoreRow}>
                   <span
-                    className={styles.overlayTeamLabel}
+                    className={styles.halfTimeScore}
                     style={{ color: TEAM_CONFIGS[selectedTeams['home']].primaryColor }}
                   >
-                    Home
+                    {score.home}
                   </span>
-                  <span className={styles.overlayScore}>
-                    {score.home}&nbsp;&ndash;&nbsp;{score.away}
-                  </span>
+                  <TeamBadge teamId={selectedTeams['home']} size={150} full />
+                  <div className={styles.halfTimeCenter}>
+                    <div className={styles.halfTimeCenterMiddle}>
+                      <span className={styles.halfTimeClock}>90:00</span>
+                      <span className={styles.halfTimeAddedTime} style={{ color: resultColor }}>
+                        {resultText}
+                      </span>
+                    </div>
+                  </div>
+                  <TeamBadge teamId={selectedTeams['away']} size={150} full />
                   <span
-                    className={styles.overlayTeamLabel}
+                    className={styles.halfTimeScore}
                     style={{ color: TEAM_CONFIGS[selectedTeams['away']].primaryColor }}
                   >
-                    Away
+                    {score.away}
                   </span>
                 </div>
-
-                {/* Result line */}
-                <p className={styles.overlayResultLine} style={{ color: resultColor }}>
-                  {resultText}
-                </p>
 
                 {/* Transition notice */}
                 <p className={styles.overlayBody}>Replay starting&hellip;</p>

@@ -314,13 +314,13 @@ describe('applyEndTurn — Phase 8 clock', () => {
     expect(result.state.lastActionType).toBe('MOVEMENT_PHASE');
   });
 
-  it('returns FULL_TIME for half 2 when actionCount >= 45 + addedTime (Pitfall 5)', () => {
+  it('returns FULL_TIME for half 2 when actionCount >= 90 + addedTime (Pitfall 5)', () => {
     const state = makeAttacker2State({
-      actionCount: 44,
+      actionCount: 89,
       half: 2,
       addedTime: 2, // already set
       refereeCard: { leniency: 1 },
-    }); // 44+3=47 >= 45+2=47
+    }); // 89+3=92 >= 90+2=92
     const result = applyEndTurn(state, { addedTimeRoll: 3 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -879,12 +879,12 @@ describe('applyHalfTimeStart — second-half transition (MATCH-04)', () => {
     expect(result.state.half).toBe(2);
   });
 
-  it('resets actionCount to 0 (D-29)', () => {
+  it('sets actionCount to 45 for second half start (D-29)', () => {
     const state = makeHalfTimeState({ actionCount: 48 });
     const result = applyHalfTimeStart(state);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.actionCount).toBe(0);
+    expect(result.state.actionCount).toBe(45);
   });
 
   it('resets addedTime to null (D-29)', () => {

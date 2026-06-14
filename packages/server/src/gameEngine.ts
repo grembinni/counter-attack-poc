@@ -666,9 +666,9 @@ export function applyEndTurn(
   if (nextSlot === null) {
     const newActionCount = state.actionCount + 3;
 
-    // D-05/MATCH-02: roll added time inline when actionCount first reaches 45
+    // D-05/MATCH-02: roll added time inline when half ends (45 for h1, 90 for h2)
     // Guard: only set addedTime once per half (Pitfall 3 — prevents re-roll)
-    const HALF_LENGTH = 45;
+    const HALF_LENGTH = state.half * 45;
     let newAddedTime = state.addedTime;
     if (newActionCount >= HALF_LENGTH && state.addedTime === null) {
       // Injected roll (Pitfall 1 — never call randomInt here; caller injects via options)
@@ -2812,7 +2812,7 @@ export type ApplyHalfTimeStartResult =
  * Resets applied:
  * - attackingTeam = opposite of kickOffTeam (D-26: opposing team kicks off second half)
  * - half = 2 (D-29)
- * - actionCount = 0 (D-29)
+ * - actionCount = 45 (D-29: clock starts at 45 for the second half)
  * - addedTime = null (D-29)
  * - phase = 'KICK_OFF_SETUP' (D-10: begins repositioning before second-half kick-off)
  * - lastActionType = null (D-10: fresh action sequence at kick-off)
@@ -2842,7 +2842,7 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       attackingTeam: newAttackingTeam, // D-26
       activeTeam: newAttackingTeam,
       half: 2, // D-29
-      actionCount: 0, // D-29
+      actionCount: 45, // D-29: second half clock starts at 45
       addedTime: null, // D-29
       lastActionType: null, // D-10: fresh sequence
       kickOffActive: false,
