@@ -25,11 +25,13 @@ export const mockGKRestartState: GameState = {
       type: 'DICE_ROLL',
       result: 4,
       timestamp: Date.now(),
+      ballAfter: { position: { q: 36, r: 13 }, carrierId: null },
     },
     {
       type: 'GOAL',
       scoringTeam: 'home',
       timestamp: Date.now(),
+      ballAfter: { position: { q: 36, r: 13 }, carrierId: null },
     },
   ],
   pendingFreeMove: null,

@@ -555,10 +555,9 @@ export function ActionPanel() {
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
         </button>
-        {/* BUG-02 (Phase 17 D-03): Cancel visible only before any piece has moved (Pitfall 5) */}
-        {Object.keys(paceUsedByPieceId).length === 0 && (
+        {movementSlot === 'ATTACKER_4' && Object.keys(paceUsedByPieceId).length === 0 && (
           <button className={styles.backButton} onClick={emitCancelMovement}>
-            ← Cancel
+            ← Back
           </button>
         )}
         {gameError && <span className={styles.errorText}>{gameError}</span>}

@@ -23,6 +23,7 @@ export const mockShotState: GameState = {
       to: { q: 33, r: 13 },
       slot: 'ATTACKER_4',
       timestamp: Date.now(),
+      ballAfter: { position: { q: 33, r: 13 }, carrierId: 'home-9' },
     },
   ],
   lastDiceRoll: null,
