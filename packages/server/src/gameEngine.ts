@@ -1048,41 +1048,47 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         newEventLog = [...state.eventLog, passAttemptEvent];
       }
 
-      for (let i = 0; i < interceptors.length; i++) {
-        const interceptor = interceptors[i]!;
-        const die = state.preGeneratedInterceptionDice?.[i] ?? 3;
-        const combined = computeCombinedScore(interceptor.tackling, die, []);
-        const intercepted = die === 6 || combined >= 10;
-        const interceptionEvent: ActionEvent = {
-          type: 'STEAL_ATTEMPT',
-          defenderId: interceptor.id,
-          result: intercepted ? 'SUCCESS' : 'FAIL',
-          defenderDie: die,
-          defenderCombined: combined,
-          timestamp: Date.now(),
-          ballAfter: intercepted
-            ? { position: interceptor.position, carrierId: interceptor.id }
-            : { position: targetHex, carrierId: passTeammate?.id ?? null },
-        };
-        newEventLog = [...newEventLog, interceptionEvent];
-        if (intercepted) {
-          // D-11/D-12: interception — first success wins; transfer possession.
-          return {
-            ok: true,
-            state: {
-              ...state,
-              phase: 'PASS',
-              ball: { position: interceptor.position, carrierId: interceptor.id },
-              attackingTeam: interceptor.teamId,
-              activeTeam: interceptor.teamId,
-              lastActionType: 'SUCCESSFUL_TACKLE',
-              actionCount: state.actionCount + passTimeCost,
-              passTargetHex: null,
-              preGeneratedInterceptionDice: [],
-              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
-              eventLog: newEventLog,
-            },
+      // BUG-01 (Phase 17 D-01): header passes are unblockable — skip interception entirely.
+      // When the carrier just won a header (lastActionType==='HEADER'), their FIRST_TIME_PASS
+      // cannot be intercepted. Any other pass type runs the interception loop as normal.
+      const isHeaderPass = state.lastActionType === 'HEADER';
+      if (!isHeaderPass) {
+        for (let i = 0; i < interceptors.length; i++) {
+          const interceptor = interceptors[i]!;
+          const die = state.preGeneratedInterceptionDice?.[i] ?? 3;
+          const combined = computeCombinedScore(interceptor.tackling, die, []);
+          const intercepted = die === 6 || combined >= 10;
+          const interceptionEvent: ActionEvent = {
+            type: 'STEAL_ATTEMPT',
+            defenderId: interceptor.id,
+            result: intercepted ? 'SUCCESS' : 'FAIL',
+            defenderDie: die,
+            defenderCombined: combined,
+            timestamp: Date.now(),
+            ballAfter: intercepted
+              ? { position: interceptor.position, carrierId: interceptor.id }
+              : { position: targetHex, carrierId: passTeammate?.id ?? null },
           };
+          newEventLog = [...newEventLog, interceptionEvent];
+          if (intercepted) {
+            // D-11/D-12: interception — first success wins; transfer possession.
+            return {
+              ok: true,
+              state: {
+                ...state,
+                phase: 'PASS',
+                ball: { position: interceptor.position, carrierId: interceptor.id },
+                attackingTeam: interceptor.teamId,
+                activeTeam: interceptor.teamId,
+                lastActionType: 'SUCCESSFUL_TACKLE',
+                actionCount: state.actionCount + passTimeCost,
+                passTargetHex: null,
+                preGeneratedInterceptionDice: [],
+                lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+                eventLog: newEventLog,
+              },
+            };
+          }
         }
       }
 
