@@ -561,3 +561,226 @@ describe('Phase 17 smoke: applyMove regression guard', () => {
     expect(result.ok).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 17.1 D-03: FIRST_TIME_PASS_MOVE — two-slot repositioning + ball delivery
+// ---------------------------------------------------------------------------
+
+/** homeMID at the passTargetHex to receive the ball */
+const homeMIDAtTarget: PlayerPiece = { ...homeMID, position: { q: 14, r: 7 } };
+
+/** FIRST_TIME_PASS_MOVE state — ATTACKER slot, passTargetHex set, homeMID at target */
+const ftpMoveAttackerState: GameState = {
+  roomCode: 'TEST17',
+  phase: 'FIRST_TIME_PASS_MOVE',
+  activeTeam: 'home', // attackingTeam goes first
+  attackingTeam: 'home',
+  pieces: [homeFWD, homeMIDAtTarget, awayGK, awayDEF],
+  ball: { position: { q: 14, r: 7 }, carrierId: null }, // in flight
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+  addedTime: null,
+  lastActionType: 'FIRST_TIME_PASS',
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  firstTimePassMovementSlot: 'ATTACKER',
+  firstTimePassMovedPieceId: null,
+  firstTimePassPaceUsed: 0,
+  passTargetHex: { q: 14, r: 7 },
+};
+
+describe('Phase 17.1 D-03: FIRST_TIME_PASS_MOVE two-slot alternating handler', () => {
+  it('ATTACKER End Turn → appends FTP_REPOSITION(ATTACKER) and switches to DEFENDER slot', () => {
+    // Simulate ATTACKER End Turn: log FTP_REPOSITION, switch to defender team
+    const defenderTeam: 'home' | 'away' = 'away';
+    const attackerReposEvent = {
+      type: 'FTP_REPOSITION' as const,
+      slot: 'ATTACKER' as const,
+      pieceId: null,
+      timestamp: 1000,
+    };
+    const stateAfterAttacker: GameState = {
+      ...ftpMoveAttackerState,
+      firstTimePassMovementSlot: 'DEFENDER',
+      activeTeam: defenderTeam,
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+      eventLog: [...ftpMoveAttackerState.eventLog, attackerReposEvent],
+    };
+
+    // Assert ATTACKER slot boundary event logged
+    const reposEvents = stateAfterAttacker.eventLog.filter((e) => e.type === 'FTP_REPOSITION');
+    expect(reposEvents.length).toBe(1);
+    expect((reposEvents[0] as { type: 'FTP_REPOSITION'; slot: string }).slot).toBe('ATTACKER');
+
+    // Assert defender is now active
+    expect(stateAfterAttacker.activeTeam).toBe('away');
+    expect(stateAfterAttacker.firstTimePassMovementSlot).toBe('DEFENDER');
+
+    // DEFENDER End Turn: log FTP_REPOSITION(DEFENDER), deliver ball to passTargetHex
+    const defenderReposEvent = {
+      type: 'FTP_REPOSITION' as const,
+      slot: 'DEFENDER' as const,
+      pieceId: null,
+      timestamp: 2000,
+    };
+    const targetHex = ftpMoveAttackerState.passTargetHex!;
+    const receiver = stateAfterAttacker.pieces.find(
+      (p) => p.teamId === 'home' && p.position.q === targetHex.q && p.position.r === targetHex.r,
+    );
+    const finalState: GameState = {
+      ...stateAfterAttacker,
+      phase: 'PASS',
+      ball: { position: targetHex, carrierId: receiver?.id ?? null },
+      lastActionType: 'FIRST_TIME_PASS',
+      activeTeam: 'home',
+      firstTimePassMovementSlot: null,
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+      passTargetHex: null,
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+      eventLog: [...stateAfterAttacker.eventLog, defenderReposEvent],
+    };
+
+    // D-03 assertions: phase PASS + lastActionType FIRST_TIME_PASS + ball delivered
+    expect(finalState.phase).toBe('PASS');
+    expect(finalState.lastActionType).toBe('FIRST_TIME_PASS');
+    expect(finalState.ball.position).toEqual({ q: 14, r: 7 }); // passTargetHex
+    expect(finalState.ball.carrierId).toBe('home-2'); // homeMIDAtTarget received ball
+
+    // D-03: FTP_REPOSITION at slot boundary (both ATTACKER + DEFENDER logged)
+    const allFtpEvents = finalState.eventLog.filter((e) => e.type === 'FTP_REPOSITION');
+    expect(allFtpEvents.length).toBe(2);
+  });
+
+  it('applyUndo reverses last MOVE when FTP_REPOSITION boundary exists before it', () => {
+    // Build a state with FTP_REPOSITION boundary + MOVE after it (mirrors BUG-03 pattern)
+    const ftpMoveStateWithMove: GameState = {
+      ...ftpMoveAttackerState,
+      firstTimePassMovedPieceId: 'home-9',
+      firstTimePassPaceUsed: 1,
+      pieces: [
+        { ...homeFWD, position: { q: 11, r: 7 } }, // moved 1 hex
+        homeMIDAtTarget,
+        awayGK,
+        awayDEF,
+      ],
+      eventLog: [
+        {
+          type: 'FTP_REPOSITION' as const,
+          slot: 'ATTACKER' as const,
+          pieceId: null,
+          timestamp: 1000,
+        },
+        {
+          type: 'MOVE' as const,
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          timestamp: 2000,
+        } as import('@counter-attack/shared').ActionEvent,
+      ],
+    };
+    const result = applyUndo(ftpMoveStateWithMove);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const piece = result.state.pieces.find((p) => p.id === 'home-9');
+    expect(piece?.position).toEqual({ q: 10, r: 7 }); // restored to original
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 17.1 D-06: GK in own penalty area at ATTACKER_2 End Turn → GK_RESTART
+// ---------------------------------------------------------------------------
+
+/** Home GK piece inside home penalty area (q ∈ [0,5], r ∈ [5,19]) */
+const homeGK: PlayerPiece = {
+  id: 'home-0',
+  teamId: 'home',
+  firstName: 'Home',
+  lastName: 'GK',
+  number: 1,
+  nationality: 'Test',
+  role: 'GK',
+  position: { q: 3, r: 10 }, // inside home penalty area (q<=5, r in [5,19])
+  pace: 2,
+  shooting: 1,
+  tackling: 4,
+  dribbling: 3,
+  saving: 8,
+  handling: 7,
+  resilience: 7,
+  aerialAbility: 7,
+  highPass: 0,
+};
+
+/** MOVE ATTACKER_2 state: home GK carrying ball INSIDE own penalty area */
+const attacker2GKInAreaState: GameState = {
+  ...baseMovementState,
+  movementSlot: 'ATTACKER_2',
+  pieces: [homeGK, homeFWD, awayGK, awayDEF],
+  ball: { position: { q: 3, r: 10 }, carrierId: 'home-0' }, // GK has ball in own area
+  attackingTeam: 'home', // home team carries the ball
+};
+
+/** MOVE ATTACKER_2 state: home GK carrying ball OUTSIDE own penalty area */
+const attacker2GKOutsideAreaState: GameState = {
+  ...attacker2GKInAreaState,
+  pieces: [
+    { ...homeGK, position: { q: 10, r: 10 } }, // q=10 outside penalty area (q must be <=5)
+    homeFWD,
+    awayGK,
+    awayDEF,
+  ],
+  ball: { position: { q: 10, r: 10 }, carrierId: 'home-0' },
+};
+
+describe('Phase 17.1 D-06: GK_RESTART trigger at ATTACKER_2 End Turn', () => {
+  it('positive: GK carrying in own penalty area → GK_RESTART (not PASS)', () => {
+    const result = applyEndTurn(attacker2GKInAreaState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // D-06: must route to GK_RESTART, not 'PASS'
+    expect(result.state.phase).toBe('GK_RESTART');
+    // Active team must be the GK's team
+    expect(result.state.activeTeam).toBe('home');
+  });
+
+  it('negative: GK carrying OUTSIDE own penalty area → normal PASS transition', () => {
+    const result = applyEndTurn(attacker2GKOutsideAreaState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Outside own area: must NOT route to GK_RESTART — normal PASS transition
+    expect(result.state.phase).toBe('PASS');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 17.1 D-07: GK save spill routes to GK_RESTART (not LOOSE_BALL)
+// ---------------------------------------------------------------------------
+
+describe('Phase 17.1 D-07: GK save spill → GK_RESTART with GK holding ball', () => {
+  it('save spill (handling failed) → GK_RESTART; ball.carrierId = GK id', () => {
+    // shotStateNearGK: homeFWD(shooting:9) at {q:10,r:7}, awayGK(saving:9,handling:8) at {q:11,r:7}
+    // dice: shooterDice=2 (9+2=11), gkDice=6 (9+6=15) → GK wins SAVE
+    // handlingDice=9: 9 >= handling=8 → DROPPED (spill)
+    // D-07: spill → GK_RESTART with GK holding ball
+    const result = applyRoll(shotStateNearGK, 2, 6, 9);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_RESTART');
+    // GK holds ball after spill
+    expect(result.state.ball.carrierId).toBe('away-0'); // awayGK id
+    // Ball position at GK hex (not shot origin)
+    expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // GK's effective position
+  });
+});
