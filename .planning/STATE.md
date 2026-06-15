@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-15T15:55:35.307Z'
+last_updated: '2026-06-15T16:19:25.916Z'
 last_activity: 2026-06-15 -- Phase 17.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 11
+  completed_plans: 12
   percent: 40
 ---
 
@@ -205,7 +205,7 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-06-15 -- Phase 17.1 execution started
 
@@ -234,6 +234,7 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 | Phase 17-rule-bugs P02                    | 25min  | 3 tasks  | 2 files  |
 | Phase 17-rule-bugs P03                    | 18min  | 3 tasks  | 5 files  |
 | Phase 17.1 P01                            | 45     | 3 tasks  | 23 files |
+| Phase 17.1 P02                            | 90min  | 3 tasks  | 16 files |
 
 ## Decisions
 
@@ -272,3 +273,5 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 - [Phase ?]: [Phase 17 P03]: BUG-02 cancel uses paceUsedByPieceId emptiness check (Pitfall 5); BUG-03 handler now accepts MOVEMENT and HIGH_PASS_MOVEMENT via validUndoPhases array
 - [Phase ?]: CHOOSE_ACTION replaced with PASS in gameEngine.ts (deferred phase — not yet in GamePhase union)
 - [Phase ?]: FIRST_TIME_PASS_MOVE added to GamePhase union to satisfy exhaustive Record<GamePhase,string> in PHASE_LABEL
+- [Phase ?]: D-01: heading removed from PlayerPiece; aerialAbility is the sole aerial stat
+- [Phase ?]: D-02: steal exclusion reads stealAttemptedByIds in moveValidator (cross-type)
