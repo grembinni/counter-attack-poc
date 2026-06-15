@@ -31,11 +31,10 @@ const homeFwd: PlayerPiece = {
   shooting: 8,
   tackling: 2,
   dribbling: 7,
-  heading: 7,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 7,
   highPass: 8, // high stat to ensure accurate high pass (>=3 threshold)
 };
 
@@ -52,7 +51,6 @@ const awayDef: PlayerPiece = {
   shooting: 3,
   tackling: 8,
   dribbling: 4,
-  heading: 6,
   saving: 1,
   handling: 1,
   resilience: 7,
@@ -73,7 +71,6 @@ const awayGk: PlayerPiece = {
   shooting: 1,
   tackling: 1,
   dribbling: 1,
-  heading: 3,
   saving: 8,
   handling: 8,
   resilience: 5,
@@ -94,7 +91,6 @@ const homeMid: PlayerPiece = {
   shooting: 6,
   tackling: 5,
   dribbling: 6,
-  heading: 5,
   saving: 1,
   handling: 1,
   resilience: 6,
@@ -393,11 +389,10 @@ const shotShooter: PlayerPiece = {
   shooting: 5,
   tackling: 2,
   dribbling: 6,
-  heading: 5,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 5,
   highPass: 5,
 };
 
@@ -416,7 +411,6 @@ const shotGk: PlayerPiece = {
   shooting: 1,
   tackling: 1,
   dribbling: 1,
-  heading: 3,
   saving: 3, // saving=3: die=5 → score=8, tie with shooter (shooting=5, die=3 → score=8)
   handling: 3, // handling=3: handlingDie=4 ≥ 3 → dropped (LOOSE_BALL)
   resilience: 5,

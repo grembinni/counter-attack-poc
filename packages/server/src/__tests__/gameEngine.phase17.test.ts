@@ -37,11 +37,10 @@ const homeFWD: PlayerPiece = {
   shooting: 9,
   tackling: 1,
   dribbling: 8,
-  heading: 6,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 5,
 };
 
@@ -59,11 +58,10 @@ const homeMID: PlayerPiece = {
   shooting: 5,
   tackling: 4,
   dribbling: 5,
-  heading: 5,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 5,
   highPass: 5,
 };
 
@@ -81,7 +79,6 @@ const awayGK: PlayerPiece = {
   shooting: 1,
   tackling: 4,
   dribbling: 3,
-  heading: 5,
   saving: 9,
   handling: 8,
   resilience: 7,
@@ -102,11 +99,10 @@ const awayDEF: PlayerPiece = {
   shooting: 3,
   tackling: 7,
   dribbling: 4,
-  heading: 6,
   saving: 1,
   handling: 0,
   resilience: 7,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 4,
 };
 

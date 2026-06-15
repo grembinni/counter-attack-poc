@@ -400,6 +400,8 @@ export function applyMove(
           paceUsedByPieceId: {},
           pendingFreeMove: null,
           lastActionType: 'DEFLECTION',
+          stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+          tackleAttemptedByIds: [], // D-02
           eventLog: newEventLog,
         },
       };
@@ -529,7 +531,8 @@ export function applyMove(
             pendingFreeMove: state.pendingFreeMove ?? null,
             lastActionType: 'SUCCESSFUL_TACKLE',
             actionCount: state.actionCount + 3,
-            tackleAttemptedByIds: newTackleAttemptedByIds, // D-29
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
           },
         };
       }
@@ -587,7 +590,8 @@ export function applyMove(
         pendingFreeMove,
         lastActionType: 'SUCCESSFUL_TACKLE',
         actionCount: state.actionCount + 3,
-        stealAttemptedByIds: newStealAttemptedByIds, // D-29
+        stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+        tackleAttemptedByIds: [], // D-02
       },
     };
   }
@@ -711,6 +715,8 @@ export function applyEndTurn(
         actionCount: newActionCount,
         addedTime: newAddedTime,
         lastActionType: 'MOVEMENT_PHASE',
+        stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+        tackleAttemptedByIds: [], // D-02
       },
     };
   }
@@ -906,6 +912,8 @@ export function applyCancelMovement(state: GameState): ApplyCancelMovementResult
       movementSlot: null,
       movedPieceIds: [],
       paceUsedByPieceId: {},
+      stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+      tackleAttemptedByIds: [], // D-02
     },
   };
 }
@@ -1131,6 +1139,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 passTargetHex: null,
                 preGeneratedInterceptionDice: [],
                 lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+                stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+                tackleAttemptedByIds: [], // D-02
                 eventLog: newEventLog,
               },
             };
@@ -1163,6 +1173,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               actionCount: state.actionCount + passTimeCost,
               passTargetHex: null,
               preGeneratedInterceptionDice: [],
+              stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+              tackleAttemptedByIds: [], // D-02
               eventLog: newEventLog,
             },
           };
@@ -1241,6 +1253,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           actionCount: state.actionCount + passTimeCost,
           passTargetHex: null,
           preGeneratedInterceptionDice: [],
+          stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+          tackleAttemptedByIds: [], // D-02
           eventLog: newEventLog,
         },
       };
@@ -1545,7 +1559,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             const piece = state.pieces.find((p) => p.id === id);
             if (!piece) return null;
             const die = dice[offset + i] ?? 3;
-            return { piece, die, raw: computeCombinedScore(piece.heading, die, []) };
+            return { piece, die, raw: computeCombinedScore(piece.aerialAbility, die, []) };
           })
           .filter((r): r is CR => r !== null);
 
@@ -1609,6 +1623,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: defenderContestantIds,
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
             eventLog: [
               ...state.eventLog,
               {
@@ -1617,10 +1633,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 defenderId: defenderPiece.id,
                 result: 'DEFENDER_WIN' as const,
                 attackerDie: null,
-                attackerHeading: null,
+                attackerAerialAbility: null,
                 attackerCombined: null,
                 defenderDie: null,
-                defenderHeading: null,
+                defenderAerialAbility: null,
                 defenderCombined: null,
                 timestamp: Date.now(),
               },
@@ -1645,10 +1661,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           defenderId: null,
           result: 'ATTACKER_WIN' as const,
           attackerDie: null,
-          attackerHeading: null,
+          attackerAerialAbility: null,
           attackerCombined: null,
           defenderDie: null,
-          defenderHeading: null,
+          defenderAerialAbility: null,
           defenderCombined: null,
           timestamp: Date.now(),
         };
@@ -1688,6 +1704,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: attackerContestantIds,
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
             eventLog: [...state.eventLog, headerEventB],
             ...headerCleared,
             headerTargetHex: null,
@@ -1707,8 +1725,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
       const attackerDie = attackerWinner!.die;
       const defenderDie = defenderWinner!.die;
-      const attackerScore = computeCombinedScore(attackerPiece.heading, attackerDie, [penaltyMod]);
-      const defenderScore = computeCombinedScore(defenderPiece.heading, defenderDie, []);
+      const attackerScore = computeCombinedScore(attackerPiece.aerialAbility, attackerDie, [
+        penaltyMod,
+      ]);
+      const defenderScore = computeCombinedScore(defenderPiece.aerialAbility, defenderDie, []);
 
       const contestedIds = [...attackerContestantIds, ...defenderContestantIds];
 
@@ -1728,10 +1748,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           defenderId: defenderPiece.id,
           result: 'ATTACKER_WIN' as const,
           attackerDie,
-          attackerHeading: attackerPiece.heading,
+          attackerAerialAbility: attackerPiece.aerialAbility,
           attackerCombined: attackerScore,
           defenderDie,
-          defenderHeading: defenderPiece.heading,
+          defenderAerialAbility: defenderPiece.aerialAbility,
           defenderCombined: defenderScore,
           timestamp: Date.now(),
         };
@@ -1774,6 +1794,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
             eventLog: [...state.eventLog, headerEventEntry],
             ...headerCleared,
             headerTargetHex: null,
@@ -1797,10 +1819,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 defenderId: defenderPiece.id,
                 result: 'TIE' as const,
                 attackerDie,
-                attackerHeading: attackerPiece.heading,
+                attackerAerialAbility: attackerPiece.aerialAbility,
                 attackerCombined: attackerScore,
                 defenderDie,
-                defenderHeading: defenderPiece.heading,
+                defenderAerialAbility: defenderPiece.aerialAbility,
                 defenderCombined: defenderScore,
                 timestamp: Date.now(),
               },
@@ -1820,6 +1842,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
             eventLog: [
               ...state.eventLog,
               {
@@ -1828,10 +1852,10 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 defenderId: defenderPiece.id,
                 result: 'DEFENDER_WIN' as const,
                 attackerDie,
-                attackerHeading: attackerPiece.heading,
+                attackerAerialAbility: attackerPiece.aerialAbility,
                 attackerCombined: attackerScore,
                 defenderDie,
-                defenderHeading: defenderPiece.heading,
+                defenderAerialAbility: defenderPiece.aerialAbility,
                 defenderCombined: defenderScore,
                 timestamp: Date.now(),
               },
@@ -1902,6 +1926,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
           lastActionType: 'DEFLECTION', // D-20/D-23/D-24: LOOSE_BALL resolves → DEFLECTION
           lastShotPath: null, // RULE-03: clear stale shot path — do not carry into CHOOSE_ACTION phase
+          stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+          tackleAttemptedByIds: [], // D-02
           // actionCount unchanged (+0 for Deflection per D-03 table)
           eventLog: [...state.eventLog, looseBallLandEvent],
         },
@@ -2144,6 +2170,8 @@ export function applyQuickThrow(state: GameState, targetHex: HexCoord): ApplyQui
       activeTeam: gk.teamId,
       lastActionType: 'STANDARD_PASS',
       lastDiceRoll: null,
+      stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+      tackleAttemptedByIds: [], // D-02
       eventLog: [...state.eventLog, throwEvent],
     },
   };
@@ -2364,7 +2392,7 @@ export function computeHeaderDuelWinner(state: GameState, dice: number[]): 'home
         const piece = state.pieces.find((p) => p.id === id);
         if (!piece) return null;
         const die = dice[offset + i] ?? 3;
-        return { piece, die, raw: computeCombinedScore(piece.heading, die, []) };
+        return { piece, die, raw: computeCombinedScore(piece.aerialAbility, die, []) };
       })
       .filter((r): r is CR => r !== null);
 
@@ -2404,10 +2432,14 @@ export function computeHeaderDuelWinner(state: GameState, dice: number[]): 'home
     otherChallengerIds: [defenderWinner.piece.id],
   });
   const penaltyMod = headResult.ok && headResult.contested ? headResult.penaltyModifier : 0;
-  const adjustedAtk = computeCombinedScore(attackerWinner.piece.heading, attackerWinner.die, [
+  const adjustedAtk = computeCombinedScore(attackerWinner.piece.aerialAbility, attackerWinner.die, [
     penaltyMod,
   ]);
-  const adjustedDef = computeCombinedScore(defenderWinner.piece.heading, defenderWinner.die, []);
+  const adjustedDef = computeCombinedScore(
+    defenderWinner.piece.aerialAbility,
+    defenderWinner.die,
+    [],
+  );
 
   if (adjustedAtk > adjustedDef) return state.attackingTeam;
   if (adjustedAtk < adjustedDef) return defenderTeam;
@@ -2471,7 +2503,7 @@ export function applyResolveHeaderTarget(
   const winnerContestantId = winnerContestantIds.reduce<string | undefined>((bestId, id) => {
     const p = state.pieces.find((x) => x.id === id);
     const best = bestId ? state.pieces.find((x) => x.id === bestId) : undefined;
-    return !p ? bestId : !best || p.heading > best.heading ? id : bestId;
+    return !p ? bestId : !best || p.aerialAbility > best.aerialAbility ? id : bestId;
   }, undefined);
   const winnerPiece = state.pieces.find((p) => p.id === winnerContestantId);
 
@@ -2542,6 +2574,8 @@ export function applyResolveHeaderTarget(
       ball: { position: targetHex, carrierId: resolvedWinner?.id ?? null },
       lastActionType: 'HEADER',
       contestedPieceIds: contestedIds,
+      stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+      tackleAttemptedByIds: [], // D-02
       ...headerCleared,
     },
   };

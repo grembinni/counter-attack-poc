@@ -28,11 +28,10 @@ const homePiece: PlayerPiece = {
   shooting: 9,
   tackling: 1,
   dribbling: 8,
-  heading: 6,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 5, // D-04: FWD has meaningful highPass; aerialAbility: 0 per D-05
 };
 
@@ -49,11 +48,10 @@ const awayPiece: PlayerPiece = {
   shooting: 9,
   tackling: 1,
   dribbling: 8,
-  heading: 6,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 5, // D-04: FWD has meaningful highPass; aerialAbility: 0 per D-05
 };
 
@@ -524,7 +522,6 @@ const awayGK: PlayerPiece = {
   shooting: 1,
   tackling: 4,
   dribbling: 3,
-  heading: 5,
   saving: 9,
   handling: 8,
   resilience: 7,
@@ -545,11 +542,10 @@ const awayDEF: PlayerPiece = {
   shooting: 3,
   tackling: 7,
   dribbling: 4,
-  heading: 6,
   saving: 1,
   handling: 0,
   resilience: 7,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 4,
 };
 
@@ -749,11 +745,10 @@ describe('applyRoll', () => {
     shooting: 5,
     tackling: 4,
     dribbling: 5,
-    heading: 5,
     saving: 1,
     handling: 1,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 5,
   };
 
@@ -774,11 +769,10 @@ describe('applyRoll', () => {
     shooting: 4,
     tackling: 6,
     dribbling: 4,
-    heading: 4,
     saving: 1,
     handling: 1,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   };
 
@@ -1104,7 +1098,6 @@ const gkPiece: PlayerPiece = {
   shooting: 1,
   tackling: 4,
   dribbling: 3,
-  heading: 5,
   saving: 9,
   handling: 8,
   resilience: 7,

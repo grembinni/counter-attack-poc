@@ -45,11 +45,10 @@ const homeFwd: PlayerPiece = {
   shooting: 9,
   tackling: 1,
   dribbling: 8,
-  heading: 6,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 5,
 };
 
@@ -66,7 +65,6 @@ const awayGk: PlayerPiece = {
   shooting: 1,
   tackling: 1,
   dribbling: 1,
-  heading: 3,
   saving: 8,
   handling: 8,
   resilience: 5,
@@ -87,7 +85,6 @@ const homeMid: PlayerPiece = {
   shooting: 6,
   tackling: 5,
   dribbling: 6,
-  heading: 5,
   saving: 1,
   handling: 1,
   resilience: 6,
@@ -108,7 +105,6 @@ const awayDef: PlayerPiece = {
   shooting: 3,
   tackling: 8,
   dribbling: 4,
-  heading: 7,
   saving: 1,
   handling: 1,
   resilience: 7,
@@ -1122,11 +1118,10 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
     shooting: 5,
     tackling: 4,
     dribbling: 5,
-    heading: 5,
     saving: 1,
     handling: 1,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 5,
   };
 
@@ -1199,7 +1194,7 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
 /**
  * Pieces for header contestant tests.
  * homeFwd is at {q:32,r:12} but we override positions for these tests.
- * awayDef is at {q:25,r:12} (heading=7), awayGk is at {q:36,r:13} (aerialAbility=6).
+ * awayDef is at {q:25,r:12} (aerialAbility=7 for header tests), awayGk is at {q:36,r:13} (aerialAbility=6).
  */
 const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
   roomCode: 'TEST',
@@ -1207,8 +1202,8 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [
-    { ...homeFwd, position: { q: 20, r: 12 } }, // attacker, heading=6, at ball position
-    { ...awayDef, position: { q: 21, r: 12 } }, // defender, heading=7, 1 hex from ball
+    { ...homeFwd, position: { q: 20, r: 12 } }, // attacker, aerialAbility=6, at ball position
+    { ...awayDef, position: { q: 21, r: 12 }, aerialAbility: 7 }, // defender, aerialAbility=7 (header-test value), 1 hex from ball
     awayGk, // GK at {q:36,r:13}
     homeMid,
   ],
@@ -1232,7 +1227,7 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
 
 describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
   it('D-17: both selected, attacker wins outright — phase becomes PASS, contestedPieceIds set', () => {
-    // homeFwd heading=6 + die=6 = 12; awayDef heading=7 + die=4 = 11 — attacker wins
+    // homeFwd aerialAbility=6 + die=6 = 12; awayDef aerialAbility=7 + die=4 = 11 — attacker wins
     const state = makeHeaderState({
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerConfirmed: { home: true, away: true },
@@ -1252,7 +1247,7 @@ describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
   });
 
   it('D-13: both selected, TIE — phase becomes LOOSE_BALL, contestedPieceIds set', () => {
-    // homeFwd heading=6 + die=5 = 11; awayDef heading=7 + die=4 = 11 — TIE → LOOSE_BALL
+    // homeFwd aerialAbility=6 + die=5 = 11; awayDef aerialAbility=7 + die=4 = 11 — TIE → LOOSE_BALL
     const state = makeHeaderState({
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerConfirmed: { home: true, away: true },
@@ -1303,7 +1298,7 @@ describe('HEADER duel reads headerContestants (D-17, D-19, HEAD-02)', () => {
   });
 
   it('D-17: contested duel — defender wins — phase becomes MOVEMENT with attacker-loses path', () => {
-    // homeFwd heading=6 + die=1 = 7; awayDef heading=7 + die=5 = 12 — defender wins
+    // homeFwd aerialAbility=6 + die=1 = 7; awayDef aerialAbility=7 + die=5 = 12 — defender wins
     const state = makeHeaderState({
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerConfirmed: { home: true, away: true },

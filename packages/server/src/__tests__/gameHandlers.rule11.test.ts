@@ -434,11 +434,11 @@ describe('RULE-02: header tie → LOOSE_BALL recovery (CR-02)', () => {
     const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
     if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
 
-    // Both contestants get heading=3; rollDice is mocked to 3; raw score = 3 + 3 = 6 each → tie.
+    // Both contestants get aerialAbility=3; rollDice is mocked to 3; raw score = 3 + 3 = 6 each → tie.
     room.gameState = {
       ...room.gameState,
       pieces: room.gameState.pieces.map((p) => {
-        if (p.id === homeAttacker.id || p.id === awayDefender.id) return { ...p, heading: 3 };
+        if (p.id === homeAttacker.id || p.id === awayDefender.id) return { ...p, aerialAbility: 3 };
         return p;
       }),
     };

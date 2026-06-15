@@ -181,11 +181,7 @@ export function GameBoard() {
               <div className={styles.playerCardStatsCol}>
                 <StatRow label="PAC" value={displayPiece.pace} />
                 <StatRow label="DRB" value={displayPiece.dribbling} />
-                {isGK ? (
-                  <StatRow label="AA" value={displayPiece.aerialAbility} />
-                ) : (
-                  <StatRow label="HED" value={displayPiece.heading} />
-                )}
+                <StatRow label="AA" value={displayPiece.aerialAbility} />
                 {isGK ? (
                   <StatRow label="SAV" value={displayPiece.saving} />
                 ) : (

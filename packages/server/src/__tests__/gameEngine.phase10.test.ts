@@ -39,11 +39,10 @@ const homeFwd: PlayerPiece = {
   shooting: 9,
   tackling: 1,
   dribbling: 8,
-  heading: 6,
   saving: 1,
   handling: 1,
   resilience: 6,
-  aerialAbility: 0,
+  aerialAbility: 6,
   highPass: 5,
 };
 
@@ -60,7 +59,6 @@ const awayGk: PlayerPiece = {
   shooting: 1,
   tackling: 1,
   dribbling: 1,
-  heading: 3,
   saving: 8,
   handling: 8,
   resilience: 5,
@@ -81,7 +79,6 @@ const homeMid: PlayerPiece = {
   shooting: 6,
   tackling: 5,
   dribbling: 6,
-  heading: 5,
   saving: 1,
   handling: 1,
   resilience: 6,
@@ -102,7 +99,6 @@ const awayDef: PlayerPiece = {
   shooting: 3,
   tackling: 8,
   dribbling: 4,
-  heading: 7,
   saving: 1,
   handling: 1,
   resilience: 7,
@@ -237,8 +233,8 @@ describe('D-21: pickWinner determinism', () => {
     // This test verifies the tie-break die is used when provided
     const state = makeHeaderState({
       pieces: [
-        { ...homeFwd, heading: 5 },
-        { ...awayDef, heading: 5, position: { q: 32, r: 12 } },
+        { ...homeFwd, aerialAbility: 5 },
+        { ...awayDef, aerialAbility: 5, position: { q: 32, r: 12 } },
         homeMid,
         awayGk,
       ],
@@ -272,8 +268,8 @@ describe('D-23: HEADER tie → LOOSE_BALL lastActionType=DEFLECTION', () => {
     // When header is a tie, ball goes to LOOSE_BALL with lastActionType='DEFLECTION'
     const state = makeHeaderState({
       pieces: [
-        { ...homeFwd, heading: 5, position: { q: 33, r: 12 } },
-        { ...awayDef, heading: 5, position: { q: 33, r: 12 } },
+        { ...homeFwd, aerialAbility: 5, position: { q: 33, r: 12 } },
+        { ...awayDef, aerialAbility: 5, position: { q: 33, r: 12 } },
         homeMid,
         awayGk,
       ],
@@ -443,16 +439,20 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
       stealAttemptedByIds: [],
       tackleAttemptedByIds: [],
     };
-    // awayDef moves to {31,12} (adjacent to carrier at {32,12}) → TACKLE_ATTEMPT; die=1 → FAIL
+    // awayDef (tackling=8) vs homeFwd (dribbling=8).
+    // tackleDie=1 → defCombined=9; carrierDie=6 → carCombined=14 → FAIL (phase stays MOVE).
+    // D-02: tackleAttemptedByIds resets to [] only on PASS transition;
+    //        on a FAIL the movement stays in MOVE and 'away-def' is added to the list.
     const result = applyMove(
       state,
       'away-def',
       { q: 31, r: 12 },
-      { stealDie: 1, tackleDie: 1, carrierDie: 1 },
+      { stealDie: 1, tackleDie: 1, carrierDie: 6 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // After D-29 fix: 'away-def' should be in tackleAttemptedByIds after the attempt
+    // After D-29 fix: 'away-def' should be in tackleAttemptedByIds after a FAIL attempt
+    // (no PASS transition, so D-02 reset has not fired)
     expect(result.state.tackleAttemptedByIds ?? []).toContain('away-def');
   });
 });

@@ -13,7 +13,6 @@ const STAT_LABELS: Array<[keyof PlayerPiece, string]> = [
   ['shooting', 'Shooting'],
   ['tackling', 'Tackling'],
   ['dribbling', 'Dribbling'],
-  ['heading', 'Heading'],
   ['saving', 'Saving'],
   ['handling', 'Handling'],
   ['resilience', 'Resilience'],

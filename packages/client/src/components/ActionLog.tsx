@@ -355,12 +355,12 @@ function formatEvent(event: ActionEvent): Formatted {
       // Contested duel: both teams fielded contestants
       const aScore = fmtHeading(
         event.attackerDie!,
-        event.attackerHeading!,
+        event.attackerAerialAbility!,
         event.attackerCombined!,
       );
       const dScore = fmtHeading(
         event.defenderDie!,
-        event.defenderHeading!,
+        event.defenderAerialAbility!,
         event.defenderCombined!,
       );
       const winnerColor = isTie

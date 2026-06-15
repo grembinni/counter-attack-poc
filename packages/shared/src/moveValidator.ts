@@ -94,7 +94,10 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)
   if (state.ball.carrierId === piece.id) {
     const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
-    const defenders = getZoIDefenders(to, opponents);
+    const allDefenders = getZoIDefenders(to, opponents);
+    // D-02 (Phase 17.1): exclude defenders who have already attempted a steal this sequence.
+    // A defender flagged in stealAttemptedByIds still projects TACKLE ZoI (cross-type exclusion).
+    const defenders = allDefenders.filter((d) => !(state.stealAttemptedByIds ?? []).includes(d.id));
     if (defenders.length > 0) {
       return { ok: true, effect: { type: 'STEAL_ATTEMPT', defenders } };
     }

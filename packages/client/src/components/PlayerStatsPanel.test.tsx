@@ -77,25 +77,26 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
     expect(screen.queryByText(/Home GK/i)).toBeNull();
   });
 
-  it('renders all 10 attribute labels', () => {
+  it('renders all 9 attribute labels (heading removed — aerialAbility is the sole aerial stat)', () => {
     useGameStore.setState({ selectedPieceId: 'home-1' });
     render(<PlayerStatsPanel />);
     expect(screen.getByText('Pace')).toBeDefined();
     expect(screen.getByText('Shooting')).toBeDefined();
     expect(screen.getByText('Tackling')).toBeDefined();
     expect(screen.getByText('Dribbling')).toBeDefined();
-    expect(screen.getByText('Heading')).toBeDefined();
     expect(screen.getByText('Saving')).toBeDefined();
     expect(screen.getByText('Handling')).toBeDefined();
     expect(screen.getByText('Resilience')).toBeDefined();
     expect(screen.getByText('Aerial Ability')).toBeDefined();
     expect(screen.getByText('High Pass')).toBeDefined();
+    // 'Heading' label removed — aerialAbility is now the sole aerial stat
+    expect(screen.queryByText('Heading')).toBeNull();
   });
 
   it('renders the correct attribute value from gameState.pieces', () => {
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<PlayerStatsPanel />);
-    // home-9 (Nicolae Rusu, FWD) from real CSV data has pace:4, dribbling:4, heading:4, highPass:4
+    // home-9 (Nicolae Rusu, FWD) from real CSV data has pace:4, dribbling:4, highPass:4
     const statValues = screen.getAllByText('4');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
