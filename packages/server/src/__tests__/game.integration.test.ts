@@ -665,7 +665,13 @@ describe('game:shot (D-06)', () => {
     }
     // Assign a ball carrier from the attacking team (first FWD piece works)
     const carrierId = attackingTeam === 'home' ? 'home-8' : 'away-8';
-    const carrier = room.gameState.pieces.find((p) => p.id === carrierId);
+    // D-09: shooter must be within 11 hexes of the goal.
+    // Home attacks toward q=36 (goal r∈[10..16]); away attacks toward q=0.
+    // Place shooter exactly 11 hexes from the centre goal hex so the range gate allows the shot.
+    const shooterPos =
+      attackingTeam === 'home'
+        ? { q: 25, r: 13 } // hexDist to {q:36,r:13} = 11
+        : { q: 11, r: 13 }; // hexDist to {q:0,r:13} = 11
     room.gameState = {
       ...room.gameState,
       phase: 'PASS',
@@ -673,8 +679,12 @@ describe('game:shot (D-06)', () => {
       activeTeam: attackingTeam,
       // lastActionType: null allows SHOT to be eligible (null treated as MOVEMENT_PHASE)
       lastActionType: null,
+      // Reposition the carrier piece to within 11 hexes of the goal (D-09 range gate)
+      pieces: room.gameState.pieces.map((p) =>
+        p.id === carrierId ? { ...p, position: shooterPos } : p,
+      ),
       ball: {
-        position: carrier?.position ?? { q: 18, r: 13 },
+        position: shooterPos,
         carrierId,
       },
     };

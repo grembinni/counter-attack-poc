@@ -75,7 +75,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
   const items: DisplayItem[] = [];
 
   for (const event of events) {
-    if (event.type === 'HP_REPOSITION') continue;
+    if (event.type === 'HP_REPOSITION' || event.type === 'FTP_REPOSITION') continue;
 
     if (event.type === 'MOVE') {
       const prefix = SLOT_PREFIX[event.slot] ?? '[MOVE]';
@@ -393,6 +393,13 @@ function formatEvent(event: ActionEvent): Formatted {
         content: event.pieceId ? ` ${event.pieceId} repositioned` : ` No repositioning`,
         isGoal: false,
       };
+    case 'FTP_REPOSITION':
+      return {
+        prefix: `[FTP ${event.slot}]`,
+        prefixColor: null,
+        content: event.pieceId ? ` ${event.pieceId} repositioned` : ` No repositioning`,
+        isGoal: false,
+      };
     case 'HP_ACCURACY':
       return {
         prefix: event.accurate ? '[HIGH ✓]' : '[HIGH ✗]',
@@ -417,6 +424,21 @@ function formatEvent(event: ActionEvent): Formatted {
             {' '}
             <P pieceId={event.pieceId} prefix={team} /> {event.from.q},{event.from.r} → {event.to.q}
             ,{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'FTP_MOVE': {
+      const ftpTeam = event.slot === 'ATTACKER' ? 'A' : 'D';
+      return {
+        prefix: event.slot === 'ATTACKER' ? '[MOVE_FTP_A1]' : '[MOVE_FTP_D1]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.pieceId} prefix={ftpTeam} /> {event.from.q},{event.from.r} →{' '}
+            {event.to.q},{event.to.r}
           </>
         ),
         isGoal: false,

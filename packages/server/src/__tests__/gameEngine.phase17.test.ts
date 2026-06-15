@@ -17,7 +17,9 @@ import {
   applyRoll,
   applyMove,
   applyCancelMovement,
+  applyDeclareShot,
 } from '../gameEngine.js';
+import { isPitchHex } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -782,5 +784,113 @@ describe('Phase 17.1 D-07: GK save spill → GK_RESTART with GK holding ball', (
     expect(result.state.ball.carrierId).toBe('away-0'); // awayGK id
     // Ball position at GK hex (not shot origin)
     expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // GK's effective position
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 17.1 D-08: Loose-ball scatter clamps to last valid pitch hex
+// ---------------------------------------------------------------------------
+
+/** LOOSE_BALL state: ball near east edge (q=34) — eastward scatter would go off-pitch. */
+const looseBallNearEdgeState: GameState = {
+  roomCode: 'TEST17-D08',
+  phase: 'LOOSE_BALL',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  // No pieces on the scatter path so ball lands empty (D-24)
+  pieces: [
+    { ...homeFWD, position: { q: 5, r: 7 } }, // far from scatter path
+    { ...awayGK, position: { q: 29, r: 7 } }, // far from scatter path
+  ],
+  ball: { position: { q: 34, r: 7 }, carrierId: null },
+  score: { home: 0, away: 0 },
+  actionCount: 0,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 3 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: null,
+  pendingFreeMove: null,
+  addedTime: null,
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' },
+};
+
+describe('Phase 17.1 D-08: loose-ball scatter clamps to board edge', () => {
+  it('scatter direction=1 (East, +q) distance=5 from q=34 clamps at q=36; ball stays on-pitch; phase PASS', () => {
+    // Ball at q=34, direction=1 (East: +q), distance=5 → raw landing q=39 (off-pitch: pitch is q∈[0,36])
+    // Clamp walk: step 1→q=35 (valid), step 2→q=36 (valid), step 3→q=37 (off-pitch: break)
+    // clampedPos = {q:36, r:7}
+    const result = applyRoll(looseBallNearEdgeState, 1, 5);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Clamped ball must be on-pitch
+    expect(isPitchHex(result.state.ball.position)).toBe(true);
+    // Exactly at pitch boundary (q=36 is max pitch column)
+    expect(result.state.ball.position).toEqual({ q: 36, r: 7 });
+    // LOOSE_BALL always resolves to PASS phase (D-23/D-24)
+    expect(result.state.phase).toBe('PASS');
+  });
+
+  it('scatter that stays fully on-pitch is unchanged by clamping', () => {
+    // Ball at q=10, direction=4 (West: -q), distance=3 → landing q=7 (well within pitch)
+    const result = applyRoll(looseBallNearEdgeState, 4, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ball should land 3 steps west: q=34-3=31, r=7
+    expect(result.state.ball.position).toEqual({ q: 31, r: 7 });
+    expect(isPitchHex(result.state.ball.position)).toBe(true);
+    expect(result.state.phase).toBe('PASS');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 17.1 D-09: Regular shot range gate — goal hex >11 hexes → INVALID_TARGET
+// ---------------------------------------------------------------------------
+
+/** PASS state with shooter (home-9) far from goal (>11 hexes). */
+const passStateShooterFar: GameState = {
+  ...passState,
+  // homeFWD at q:10, r:7 — distance to goal q=36,r=13: hexDist = (|26|+|6|+|20|)/2 = 26 > 11
+  pieces: [
+    { ...homeFWD, position: { q: 10, r: 7 } },
+    { ...awayGK, position: { q: 33, r: 13 } }, // GK near goal
+    { ...awayDEF, position: { q: 20, r: 7 } },
+  ],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  lastActionType: 'MOVEMENT_PHASE',
+};
+
+/** PASS state with shooter (home-9) exactly 11 hexes from goal. */
+const passStateShooterAt11: GameState = {
+  ...passState,
+  // homeFWD at q:25, r:13 — distance to goal q=36,r=13: dq=11, dr=0 → hexDist = (11+0+11)/2 = 11 ≤ 11
+  pieces: [
+    { ...homeFWD, position: { q: 25, r: 13 } },
+    { ...awayGK, position: { q: 33, r: 13 } }, // GK near goal
+    { ...awayDEF, position: { q: 20, r: 7 } },
+  ],
+  ball: { position: { q: 25, r: 13 }, carrierId: 'home-9' },
+  lastActionType: 'MOVEMENT_PHASE',
+};
+
+describe('Phase 17.1 D-09: regular shot range gate (>11 hexes → INVALID_TARGET)', () => {
+  it('shooter >11 hexes from goal hex → INVALID_TARGET', () => {
+    // homeFWD at q:10 shooting toward q=36,r=13; distance ≈26 > 11 → rejected
+    const result = applyDeclareShot(passStateShooterFar, { q: 36, r: 13 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('INVALID_TARGET');
+  });
+
+  it('shooter exactly 11 hexes from goal hex → GK_DIVE transition (valid)', () => {
+    // homeFWD at q:25,r:13 shooting toward q=36,r=13; distance=11 → allowed
+    const result = applyDeclareShot(passStateShooterAt11, { q: 36, r: 13 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_DIVE');
   });
 });
