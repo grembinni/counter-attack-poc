@@ -278,22 +278,23 @@ export type GamePhase =
   | 'LOBBY'
   | 'KICK_OFF'
   | 'KICK_OFF_SETUP' // Phase 8 (D-23): free repositioning before each kick-off; added here
-  | 'MOVEMENT'
+  | 'MOVE'
   | 'PASS'
-  | 'SHOT_DECLARED' // new: shot declared, awaiting GK dive
-  | 'GK_DIVING' // new: GK's team repositions GK interactively
-  | 'SNAP_DEFLECT' // new: opponent moves 1 player before snapshot resolves
+  | 'SNAPSHOT_TARGET' // new: shot declared, awaiting GK dive
+  | 'GK_DIVE' // new: GK's team repositions GK interactively
+  | 'SNAPSHOT_DEFLECT' // new: opponent moves 1 player before snapshot resolves
   | 'SHOT'
   | 'HEADER'
   | 'SNAPSHOT'
   | 'LOOSE_BALL'
-  | 'HIGH_PASS_MOVEMENT' // Pre-accuracy repositioning phase for high pass
+  | 'HIGH_PASS_MOVE' // Pre-accuracy repositioning phase for high pass
   | 'GK_RESTART'
-  | 'QUICK_THROW' // GK selects target hex for unblockable, uninterceptable throw
+  | 'GK_QUICK_THROW' // GK selects target hex for unblockable, uninterceptable throw
   | 'GK_KICK_TARGET' // GK's team selects kick destination (not into opponent's final third)
-  | 'GK_KICK_MOVEMENT' // both teams reposition 1 player ≤3 hexes while ball is in air
+  | 'GK_KICK_MOVE' // both teams reposition 1 player ≤3 hexes while ball is in air
   // Phase 17 MOVE-06: free 6-hex move for players in opponent's final third
   | 'FREE_MOVE'
+  | 'FIRST_TIME_PASS_MOVE' // D-03: repositioning phase after first-time pass target selected
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -422,26 +423,26 @@ export type GameState = {
    */
   preGeneratedInterceptionDice?: number[];
   /**
-   * HIGH_PASS_MOVEMENT phase: which team's repositioning slot is active.
+   * HIGH_PASS_MOVE phase: which team's repositioning slot is active.
    * 'ATTACKER' → attacking team moves first; 'DEFENDER' → defending team moves.
-   * null or absent outside HIGH_PASS_MOVEMENT phase.
+   * null or absent outside HIGH_PASS_MOVE phase.
    */
   highPassMovementSlot?: 'ATTACKER' | 'DEFENDER' | null;
   /**
-   * HIGH_PASS_MOVEMENT phase: the piece ID chosen for this team's repositioning slot.
+   * HIGH_PASS_MOVE phase: the piece ID chosen for this team's repositioning slot.
    * Locked to the first piece moved; subsequent moves must use the same piece.
    * null if no piece has been moved yet in the current slot.
    */
   highPassMovedPieceId?: string | null;
   /**
-   * HIGH_PASS_MOVEMENT phase: cumulative hexes moved by highPassMovedPieceId in the current slot.
+   * HIGH_PASS_MOVE phase: cumulative hexes moved by highPassMovedPieceId in the current slot.
    * Capped at 3. Reset to 0 at each slot transition.
    */
   highPassPaceUsed?: number;
   /**
-   * HIGH_PASS_MOVEMENT phase: the piece ID of the player who kicked the high pass.
+   * HIGH_PASS_MOVE phase: the piece ID of the player who kicked the high pass.
    * Preserved so applyRoll can look up the kicker's highPass stat after ball.carrierId is cleared.
-   * null or absent outside HIGH_PASS_MOVEMENT phase.
+   * null or absent outside HIGH_PASS_MOVE phase.
    */
   highPassCarrierId?: string | null;
   /** Phase 10 HEAD-03: target hex selected by header attacker; null outside HEADER phase. */
@@ -459,44 +460,44 @@ export type GameState = {
    * null or absent outside HEADER phase after duel resolves.
    */
   headerDuelWinner?: 'home' | 'away' | null;
-  /** Phase 10 SHOT_DECLARED: goal hex the shooter declared. */
+  /** Phase 10 SNAPSHOT_TARGET: goal hex the shooter declared. */
   shotTargetHex?: HexCoord | null;
-  /** Phase 10 GK_DIVING: GK's current position during GK_DIVING phase. */
+  /** Phase 10 GK_DIVE: GK's current position during GK_DIVE phase. */
   gkDivePosition?: HexCoord | null;
   /** Phase 10 D-29: piece IDs that already attempted a steal this movement phase. */
   stealAttemptedByIds?: readonly string[];
   /** Phase 10 D-29: piece IDs that already attempted a tackle this movement phase. */
   tackleAttemptedByIds?: readonly string[];
-  /** Phase 10 SNAP_DEFLECT: ID of the first piece moved during snap deflection. */
+  /** Phase 10 SNAPSHOT_DEFLECT: ID of the first piece moved during snap deflection. */
   snapDeflectMovedPieceId?: string | null;
-  /** Phase 10 SNAP_DEFLECT: number of hexes moved so far during snap deflection (max 2). */
+  /** Phase 10 SNAPSHOT_DEFLECT: number of hexes moved so far during snap deflection (max 2). */
   snapDeflectPaceUsed?: number;
   /** Last resolved shot path (shooter → goal hex). Cleared on next non-shot action. */
   lastShotPath?: HexCoord[] | null;
   /**
-   * GK_KICK_TARGET / GK_KICK_MOVEMENT: destination hex selected by the GK's team.
+   * GK_KICK_TARGET / GK_KICK_MOVE: destination hex selected by the GK's team.
    * null outside GK kick phases.
    */
   gkKickTargetHex?: HexCoord | null;
   /**
-   * GK_KICK_MOVEMENT: piece ID of the GK who kicked. Saved before ball.carrierId is cleared
+   * GK_KICK_MOVE: piece ID of the GK who kicked. Saved before ball.carrierId is cleared
    * so the accuracy stat (highPass) can be looked up after repositioning.
    * null outside GK kick phases.
    */
   gkKickGkId?: string | null;
   /**
-   * GK_KICK_MOVEMENT: whose repositioning slot is active.
+   * GK_KICK_MOVE: whose repositioning slot is active.
    * 'KICKER' → GK's team moves first; 'OPP' → opponent moves.
-   * null outside GK_KICK_MOVEMENT phase.
+   * null outside GK_KICK_MOVE phase.
    */
   gkKickMovementSlot?: 'KICKER' | 'OPP' | null;
   /**
-   * GK_KICK_MOVEMENT: piece ID locked in for this team's repositioning slot.
+   * GK_KICK_MOVE: piece ID locked in for this team's repositioning slot.
    * null if no piece has moved yet in the current slot.
    */
   gkKickMovedPieceId?: string | null;
   /**
-   * GK_KICK_MOVEMENT: cumulative hexes moved by gkKickMovedPieceId in the current slot.
+   * GK_KICK_MOVE: cumulative hexes moved by gkKickMovedPieceId in the current slot.
    * Capped at 3. Reset to 0 at each slot transition.
    */
   gkKickPaceUsed?: number;

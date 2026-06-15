@@ -47,7 +47,7 @@ export type SnapshotResult =
  */
 export function validateSnapshot(state: GameState): SnapshotResult {
   // SNAP-01: snapshot only available in these three phases
-  if (state.phase !== 'MOVEMENT' && state.phase !== 'PASS' && state.phase !== 'SNAPSHOT') {
+  if (state.phase !== 'MOVE' && state.phase !== 'PASS' && state.phase !== 'SNAPSHOT') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 

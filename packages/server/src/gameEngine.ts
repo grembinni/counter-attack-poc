@@ -189,9 +189,9 @@ export function advanceMovementSlot(state: GameState): {
 } {
   const idx = SLOT_SEQUENCE.indexOf(state.movementSlot!);
   if (idx === SLOT_SEQUENCE.length - 1) {
-    return { nextSlot: null, nextPhase: 'PASS' }; // D-04: ATTACKER_2 → PASS
+    return { nextSlot: null, nextPhase: 'PASS' }; // D-04: ATTACKER_2 → PASS (CHOOSE_ACTION rename deferred)
   }
-  return { nextSlot: SLOT_SEQUENCE[idx + 1]!, nextPhase: 'MOVEMENT' }; // D-03
+  return { nextSlot: SLOT_SEQUENCE[idx + 1]!, nextPhase: 'MOVE' }; // D-03
 }
 
 // ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
 
   // From KICK_OFF: find the piece standing on the ball's position (the kicker) and assign them
   // the ball so the carrier is set before movement begins.
-  // From PASS (after steal/tackle): ball.carrierId is already correct — leave ball state as-is.
+  // From CHOOSE_ACTION (after steal/tackle): ball.carrierId is already correct — leave ball state as-is.
   // From LOOSE_BALL: ball.carrierId is null — leave as-is; pickup happens in applyMove.
   let newBall = state.ball;
   if (state.phase === 'KICK_OFF') {
@@ -233,13 +233,13 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
     ok: true,
     state: {
       ...state,
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
       activeTeam: state.attackingTeam,
       ball: newBall,
       eventLog: state.eventLog,
-      // Always reset movement tracking here — PASS state normally carries [] but defensive
-      // paths (snapshot miss → LOOSE_BALL → PASS) can carry stale ids from the prior slot.
+      // Always reset movement tracking here — CHOOSE_ACTION state normally carries [] but defensive
+      // paths (snapshot miss → LOOSE_BALL → CHOOSE_ACTION) can carry stale ids from the prior slot.
       movedPieceIds: [],
       paceUsedByPieceId: {},
       // D-21 / HEAD-05: clear contestedPieceIds after one Movement Phase so the exclusion
@@ -295,7 +295,7 @@ export function applyMove(
   dice?: { stealDie: number; tackleDie: number; carrierDie: number },
 ): ApplyMoveResult {
   // 1. Phase guard
-  if (state.phase !== 'MOVEMENT' || state.movementSlot === null) {
+  if (state.phase !== 'MOVE' || state.movementSlot === null) {
     return { ok: false, reason: 'WRONG_SLOT' };
   }
 
@@ -413,8 +413,8 @@ export function applyMove(
         ball: { position: to, carrierId: pieceId },
         attackingTeam: newPickupAttackingTeam,
         activeTeam: newPickupAttackingTeam,
-        // D-30: stay in MOVEMENT — do NOT transition to PASS or reset pace/slots
-        phase: 'MOVEMENT',
+        // D-30: stay in MOVE — do NOT transition to CHOOSE_ACTION or reset pace/slots
+        phase: 'MOVE',
         movementSlot: state.movementSlot,
         movedPieceIds: computeMovedPieceIds(), // spent only if pace exhausted after this step
         paceUsedByPieceId: {
@@ -510,7 +510,7 @@ export function applyMove(
 
       if (tackleSuccess) {
         // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender.
-        // Phase ends immediately — new attacking team chooses next action from PASS phase
+        // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
         // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
         const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
         return {
@@ -566,7 +566,7 @@ export function applyMove(
   }
 
   if (stealSuccess) {
-    // Phase ends immediately — new attacking team chooses next action from PASS phase
+    // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
     // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
     const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     const newOwnerTeam =
@@ -640,7 +640,7 @@ export function applyEndTurn(
   state: GameState,
   options?: { addedTimeRoll?: number },
 ): ApplyEndTurnResult {
-  if (state.phase !== 'MOVEMENT' || state.movementSlot === null) {
+  if (state.phase !== 'MOVE' || state.movementSlot === null) {
     return { ok: false, reason: 'WRONG_SLOT' };
   }
 
@@ -750,7 +750,7 @@ export function applyEndTurn(
 export function applyRestartMovement(
   state: GameState,
 ): { ok: false; reason: 'WRONG_PHASE' } | { ok: true; state: GameState } {
-  if (state.phase !== 'MOVEMENT') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.phase !== 'MOVE') return { ok: false, reason: 'WRONG_PHASE' };
   return {
     ok: true,
     state: {
@@ -782,13 +782,13 @@ export type ApplyUndoResult =
  * used after steal/tackle so undo cannot cross into the pre-possession-change move history).
  */
 export function applyUndo(state: GameState): ApplyUndoResult {
-  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, or HP_REPOSITION in HIGH_PASS_MOVEMENT)
-  // BUG-03 (Phase 17 D-06): also treat HP_REPOSITION as a slot boundary in HIGH_PASS_MOVEMENT
+  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, or HP_REPOSITION in HIGH_PASS_MOVE)
+  // BUG-03 (Phase 17 D-06): also treat HP_REPOSITION as a slot boundary in HIGH_PASS_MOVE
   const lastSlotAdvanceIdx = state.eventLog.reduce<number>((acc, evt, idx) => {
     const isBoundary =
       evt.type === 'SLOT_ADVANCE' ||
       evt.type === 'KICK_OFF' ||
-      (state.phase === 'HIGH_PASS_MOVEMENT' && evt.type === 'HP_REPOSITION');
+      (state.phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -890,14 +890,14 @@ export type ApplyCancelMovementResult =
  * BUG-02 D-05: no movement slot is consumed.
  */
 export function applyCancelMovement(state: GameState): ApplyCancelMovementResult {
-  if (state.phase !== 'MOVEMENT') {
+  if (state.phase !== 'MOVE') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
   // BUG-02 D-03: cancel only when no piece has started moving (Pitfall 5)
   if (Object.keys(state.paceUsedByPieceId).length > 0) {
     return { ok: false, reason: 'PIECES_ALREADY_MOVED' };
   }
-  // D-04: revert to PASS — as if applyStartMovement was never called
+  // D-04: revert to CHOOSE_ACTION — as if applyStartMovement was never called
   return {
     ok: true,
     state: {
@@ -1334,7 +1334,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       }
 
       // GK saving penalty always comes from validateGKDive's distance-based result.
-      // Snapshot shots go through GK_DIVING same as regular shots — no special-case needed.
+      // Snapshot shots go through GK_DIVE same as regular shots — no special-case needed.
       const gkSavingPenalty = diveResult.savingPenalty;
       const gkPenalties = [gkSavingPenalty];
 
@@ -1663,7 +1663,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ok: true,
             state: {
               ...state,
-              phase: 'GK_DIVING',
+              phase: 'GK_DIVE',
               lastActionType: 'SHOT',
               ball: { position: winnerPos, carrierId: winnerId },
               shotTargetHex: tgtHexB,
@@ -1715,7 +1715,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       if (attackerScore > defenderScore) {
         // HEAD-03 (D-11/D-12): check if the header target is a goal-line hex for the attacker.
         // Goal-line: q=36 for home attack / q=0 for away attack, r∈[10..16] (A1 assumption).
-        // If so → route to GK_DIVING (no outfield deflection — D-13 applies).
+        // If so → route to GK_DIVE (no outfield deflection — D-13 applies).
         // If not → headed pass to the target hex (if set) or attacker's position (fallback).
         const tgtHex = state.headerTargetHex ?? null;
         const goalQ = state.attackingTeam === 'home' ? 36 : 0;
@@ -1737,7 +1737,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         };
 
         if (isGoalLineTarget) {
-          // HEAD-03: goal-line header → GK_DIVING (same as declared shot flow).
+          // HEAD-03: goal-line header → GK_DIVE (same as declared shot flow).
           // D-13: no outfield path-deflection — only GK contests.
           const defendingTeamForGk: 'home' | 'away' =
             state.attackingTeam === 'home' ? 'away' : 'home';
@@ -1747,7 +1747,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ok: true,
             state: {
               ...state,
-              phase: 'GK_DIVING',
+              phase: 'GK_DIVE',
               lastActionType: 'SHOT',
               ball: { position: attackerPiece.position, carrierId: attackerPiece.id },
               shotTargetHex: tgtHex,
@@ -1851,7 +1851,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
     //        phase → 'PASS', lastActionType → 'DEFLECTION'.
     //
     // Note: ELIGIBLE_NEXT_ACTIONS['DEFLECTION'] enforces the movement restriction for the D-24
-    // empty-landing case; we do NOT force phase='MOVEMENT' here (locked decision D-23/D-24).
+    // empty-landing case; we do NOT force phase='MOVE' here (locked decision D-23/D-24).
     // -------------------------------------------------------------------------
     case 'LOOSE_BALL': {
       const landing = computeLooseBall(
@@ -1895,13 +1895,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         ok: true,
         state: {
           ...state,
-          phase: 'PASS', // D-23/D-24: LOOSE_BALL resolves to PASS (not MOVEMENT)
+          phase: 'PASS', // D-23/D-24: LOOSE_BALL resolves to CHOOSE_ACTION (not MOVE)
           ball: { position: finalPosition, carrierId: finalCarrierId },
           attackingTeam: newAttackingTeam,
           activeTeam: newAttackingTeam,
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
           lastActionType: 'DEFLECTION', // D-20/D-23/D-24: LOOSE_BALL resolves → DEFLECTION
-          lastShotPath: null, // RULE-03: clear stale shot path — do not carry into PASS phase
+          lastShotPath: null, // RULE-03: clear stale shot path — do not carry into CHOOSE_ACTION phase
           // actionCount unchanged (+0 for Deflection per D-03 table)
           eventLog: [...state.eventLog, looseBallLandEvent],
         },
@@ -1986,7 +1986,7 @@ export function applyGKRestart(
       ok: true,
       state: {
         ...state,
-        phase: 'MOVEMENT',
+        phase: 'MOVE',
         movementSlot: 'ATTACKER_4',
         movedPieceIds: [],
         paceUsedByPieceId: {},
@@ -2001,14 +2001,14 @@ export function applyGKRestart(
   }
 
   // ---- 'throw' branch (D-25) ----
-  // Transitions to QUICK_THROW phase: GK's team selects a target hex (≤11 hexes, no blocking, no interception).
+  // Transitions to GK_QUICK_THROW phase: GK's team selects a target hex (≤11 hexes, no blocking, no interception).
   // applyQuickThrow handles the actual delivery once the target is chosen.
   if (choice === 'throw') {
     return {
       ok: true,
       state: {
         ...state,
-        phase: 'QUICK_THROW',
+        phase: 'GK_QUICK_THROW',
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         lastDiceRoll: null,
@@ -2019,7 +2019,7 @@ export function applyGKRestart(
 
   // ---- 'kick' branch ----
   // GK kick: transition to GK_KICK_TARGET so the GK's team selects a destination hex.
-  // Accuracy check + repositioning phase happen after target selection (GK_KICK_MOVEMENT).
+  // Accuracy check + repositioning phase happen after target selection (GK_KICK_MOVE).
   return {
     ok: true,
     state: {
@@ -2043,7 +2043,7 @@ export type ApplyGKKickTargetResult =
   | { ok: true; state: GameState };
 
 /**
- * Records the GK's chosen kick destination and transitions to GK_KICK_MOVEMENT.
+ * Records the GK's chosen kick destination and transitions to GK_KICK_MOVE.
  *
  * Rules:
  * - Phase must be GK_KICK_TARGET.
@@ -2052,7 +2052,7 @@ export type ApplyGKKickTargetResult =
  * - Cannot target the GK's own hex.
  * - Ball.carrierId is cleared (ball in air); gkKickGkId preserves the GK's ID for
  *   the accuracy stat lookup after repositioning.
- * - Both teams then reposition 1 piece ≤3 hexes (GK_KICK_MOVEMENT phase).
+ * - Both teams then reposition 1 piece ≤3 hexes (GK_KICK_MOVE phase).
  */
 export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyGKKickTargetResult {
   if (state.phase !== 'GK_KICK_TARGET') return { ok: false, reason: 'WRONG_PHASE' };
@@ -2077,7 +2077,7 @@ export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyG
     ok: true,
     state: {
       ...state,
-      phase: 'GK_KICK_MOVEMENT',
+      phase: 'GK_KICK_MOVE',
       ball: { position: targetHex, carrierId: null }, // ball moves to target — visible to both teams
       gkKickTargetHex: targetHex,
       gkKickGkId: gk.id,
@@ -2101,7 +2101,7 @@ export type ApplyQuickThrowResult =
  * Resolves a quick throw: GK delivers ball to targetHex (unblocked, uninterceptable).
  *
  * Rules:
- * - Phase must be QUICK_THROW (set by applyGKRestart 'throw' branch).
+ * - Phase must be GK_QUICK_THROW (set by applyGKRestart 'throw' branch).
  * - Distance ≤ 11 hexes (standard pass range); cannot throw to own hex.
  * - No path blocking check, no interception.
  * - Ball moves to targetHex; receiver = GK's team piece at that hex (if any).
@@ -2109,7 +2109,7 @@ export type ApplyQuickThrowResult =
  * - actionCount unchanged (+0, same as standard throw per D-03).
  */
 export function applyQuickThrow(state: GameState, targetHex: HexCoord): ApplyQuickThrowResult {
-  if (state.phase !== 'QUICK_THROW') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.phase !== 'GK_QUICK_THROW') return { ok: false, reason: 'WRONG_PHASE' };
 
   const gk = state.pieces.find((p) => p.id === state.ball.carrierId);
   if (!gk) return { ok: false, reason: 'WRONG_PHASE' };
@@ -2166,7 +2166,7 @@ export type ApplySnapshotResult =
  * Declares a Snapshot shot from the current game state.
  *
  * SNAP-01: Valid when:
- *   (a) phase === 'MOVEMENT' AND ball-carrier is in the opponent's penalty area, OR
+ *   (a) phase === 'MOVE' AND ball-carrier is in the opponent's penalty area, OR
  *   (b) immediately after an accurate pass (lastActionType is a pass type) AND phase === 'PASS'
  *
  * SNAP-02: On success, transitions to phase 'SHOT' with snapshotPenalty: true.
@@ -2196,7 +2196,7 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
   const passTypes = SNAPSHOT_ELIGIBLE_PASS_TYPES;
 
   // 2. Phase/position guard
-  if (state.phase === 'MOVEMENT') {
+  if (state.phase === 'MOVE') {
     // SNAP-01 trigger (a): ball-carrier must be in the opponent's penalty area
     const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
     if (!carrier) {
@@ -2210,14 +2210,14 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
       return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
     }
 
-    // Valid MOVEMENT snapshot — attacker must declare goal hex (SHOT_DECLARED), then opponent deflects
+    // Valid MOVE snapshot — attacker must declare goal hex (SNAPSHOT_TARGET), then opponent deflects
     return {
       ok: true,
       state: {
         ...state,
-        phase: 'SHOT_DECLARED',
+        phase: 'SNAPSHOT_TARGET',
         lastActionType: 'SNAPSHOT', // D-18
-        snapshotGkPenalty: 0, // SNAP-02: penalty determined by GK distance in SNAP_DEFLECT
+        snapshotGkPenalty: 0, // SNAP-02: penalty determined by GK distance in SNAPSHOT_DEFLECT
         // actionCount unchanged (+0 per D-18)
       },
     };
@@ -2239,7 +2239,7 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
         ok: true,
         state: {
           ...state,
-          phase: 'SHOT_DECLARED',
+          phase: 'SNAPSHOT_TARGET',
           lastActionType: 'SNAPSHOT', // D-18
           snapshotGkPenalty: 0, // SNAP-02
           // actionCount unchanged
@@ -2276,7 +2276,7 @@ export type ApplyDeclareHeaderTargetResult =
  * This function has no production callsite. Use `applyResolveHeaderTarget` for all new code.
  *
  * D-11/D-12: The attacker clicks a target hex after both teams confirm contestants.
- * If the target is a goal-line hex for the attacking team → GK_DIVING redirect after duel.
+ * If the target is a goal-line hex for the attacking team → GK_DIVE redirect after duel.
  * If not goal-line → the winning attacker's ball goes to that hex (headed pass).
  *
  * Validation does NOT trigger the duel — it only sets headerTargetHex and stays in HEADER.
@@ -2430,7 +2430,7 @@ export type ApplyResolveHeaderTargetResult =
  * Resolves the header target hex selection after the duel winner is known (RULE-02, D-04–D-06).
  *
  * Called by GAME_HEADER_TARGET handler (Task 3) after the duel auto-fires in GAME_HEADER_CONTESTANT.
- * This function reads the pre-resolved `headerDuelWinner` and transitions to PASS or GK_DIVING
+ * This function reads the pre-resolved `headerDuelWinner` and transitions to PASS or GK_DIVE
  * WITHOUT re-rolling dice — the duel already resolved in the handler.
  *
  * Guard sequence (fail-fast):
@@ -2494,7 +2494,7 @@ export function applyResolveHeaderTarget(
     headerDuelWinner: null,
   };
 
-  // 5. Route to GK_DIVING if the target is a goal-line hex for the attacking team (HEAD-03)
+  // 5. Route to GK_DIVE if the target is a goal-line hex for the attacking team (HEAD-03)
   // Use winnerTeam (captured before headerCleared is constructed) as the effective attacker.
   // Re-reading state.headerDuelWinner here would be null after the headerCleared spread is applied.
   const goalQ = winnerTeam === 'home' ? 36 : 0;
@@ -2514,7 +2514,7 @@ export function applyResolveHeaderTarget(
       ok: true,
       state: {
         ...state,
-        phase: 'GK_DIVING',
+        phase: 'GK_DIVE',
         lastActionType: 'SHOT',
         ball: {
           position: winnerPos,
@@ -2625,10 +2625,10 @@ export type ApplyDeclareShotResult =
   | { ok: true; state: GameState };
 
 /**
- * Transitions the FSM from PASS → GK_DIVING after the shooter declares a goal hex.
+ * Transitions the FSM from PASS → GK_DIVE after the shooter declares a goal hex.
  *
  * D-01/D-02: Two-step shot flow: shooter clicks goal hex → server validates and
- * enters GK_DIVING so the GK's team can reposition before auto-resolution.
+ * enters GK_DIVE so the GK's team can reposition before auto-resolution.
  * D-05: shotTargetHex recorded for event log; not consumed by dice resolution.
  *
  * Guard sequence (fail-fast):
@@ -2644,7 +2644,7 @@ export type ApplyDeclareShotResult =
  */
 export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDeclareShotResult {
   // 1. Phase guard
-  if (state.phase !== 'PASS' && state.phase !== 'SHOT_DECLARED') {
+  if (state.phase !== 'PASS' && state.phase !== 'SNAPSHOT_TARGET') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
@@ -2657,8 +2657,8 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
 
   const defendingTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
 
-  // SHOT_DECLARED from snapshot context: set target then give defender deflection move
-  if (state.phase === 'SHOT_DECLARED') {
+  // SNAPSHOT_TARGET from snapshot context: set target then give defender deflection move
+  if (state.phase === 'SNAPSHOT_TARGET') {
     const snapShooter = state.pieces.find((p) => p.id === state.ball.carrierId);
     if (!snapShooter || hexDistance(snapShooter.position, goalHex) > 6) {
       return { ok: false, reason: 'INVALID_TARGET' };
@@ -2668,7 +2668,7 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
       ok: true,
       state: {
         ...state,
-        phase: 'SNAP_DEFLECT',
+        phase: 'SNAPSHOT_DEFLECT',
         shotTargetHex: goalHex,
         activeTeam: defendingTeam, // defender's turn to deflect
         snapDeflectMovedPieceId: null,
@@ -2692,7 +2692,7 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
     return { ok: false, reason: 'INVALID_TARGET' };
   }
 
-  // D-02: Transition directly to GK_DIVING (single hop rather than SHOT_DECLARED + GK_DIVING).
+  // D-02: Transition directly to GK_DIVE (single hop rather than SNAPSHOT_TARGET + GK_DIVE).
   // Records shotTargetHex and seeds gkDivePosition from GK's current position.
   // Set lastShotPath immediately so both clients see the trajectory before GK dives.
   const shooter = state.pieces.find((p) => p.id === state.ball.carrierId);
@@ -2701,7 +2701,7 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
     ok: true,
     state: {
       ...state,
-      phase: 'GK_DIVING',
+      phase: 'GK_DIVE',
       lastActionType: 'SHOT', // marks that a shot was declared
       shotTargetHex: goalHex,
       gkDivePosition: gk.position, // GK's starting position — used as cumulative dive reference
@@ -2723,24 +2723,24 @@ export type ApplyGKDiveResult =
   | { ok: true; state: GameState };
 
 /**
- * Repositions the GK during the GK_DIVING interactive phase.
+ * Repositions the GK during the GK_DIVE interactive phase.
  *
  * D-04 / SHOT-04: GK may dive to any hex on the shot path within 3 hexes of their piece position.
  * Diving 3 hexes: -1 Saving penalty applied at resolution time via validateGKDive.
  * GK out-of-range (no reachable path hex) is handled upstream at GAME_SHOT time — not here.
  *
  * Guard sequence (fail-fast):
- * 1. WRONG_PHASE — phase must be 'GK_DIVING'
+ * 1. WRONG_PHASE — phase must be 'GK_DIVE'
  * 2. NOT_ON_PATH — `to` must be on hexLine(shooter.position, shotTargetHex)
  * 3. TOO_FAR — hexDistance from GK's piece position to `to` must be ≤ 3
  * 4. OFF_PITCH — `to` must be a valid pitch hex (isPitchHex)
  *
- * @param state - Current game state (phase must be 'GK_DIVING')
+ * @param state - Current game state (phase must be 'GK_DIVE')
  * @param to    - Target hex for the GK dive
  */
 export function applyGKDive(state: GameState, to: HexCoord): ApplyGKDiveResult {
   // 1. Phase guard
-  if (state.phase !== 'GK_DIVING') {
+  if (state.phase !== 'GK_DIVE') {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 

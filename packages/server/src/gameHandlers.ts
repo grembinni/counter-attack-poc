@@ -125,8 +125,8 @@ function controlsAttackingTeam(socket: AppSocket, room: Room): boolean {
  */
 function controlsGKTeam(socket: AppSocket, room: Room): boolean {
   if (room.gameState === null) return false;
-  // In GK_DIVING the ball carrier is the shooter; derive GK team from attackingTeam instead
-  if (room.gameState.phase === 'GK_DIVING') {
+  // In GK_DIVE the ball carrier is the shooter; derive GK team from attackingTeam instead
+  if (room.gameState.phase === 'GK_DIVE') {
     const defendingTeam: 'home' | 'away' =
       room.gameState.attackingTeam === 'home' ? 'away' : 'home';
     return socketTeam(socket) === defendingTeam;
@@ -272,8 +272,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // HIGH_PASS_MOVEMENT: simple piece repositioning — 1 piece per team, max 3 hexes, no ball movement.
-      if (room.gameState.phase === 'HIGH_PASS_MOVEMENT') {
+      // HIGH_PASS_MOVE: simple piece repositioning — 1 piece per team, max 3 hexes, no ball movement.
+      if (room.gameState.phase === 'HIGH_PASS_MOVE') {
         if (!isActivePlayer(socket, room)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
           broadcastState(io, room);
@@ -337,11 +337,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // SNAP_DEFLECT: defending team moves 1 player up to 2 hexes before snapshot resolves.
-      // Pattern mirrors HIGH_PASS_MOVEMENT block: 1 piece per team, max 2 hexes, adjacency,
+      // SNAPSHOT_DEFLECT: defending team moves 1 player up to 2 hexes before snapshot resolves.
+      // Pattern mirrors HIGH_PASS_MOVE block: 1 piece per team, max 2 hexes, adjacency,
       // pitch boundary, no occupied hex. Active team = defending team (opponent of attackingTeam).
       // D-08 / SNAP-02.
-      if (room.gameState.phase === 'SNAP_DEFLECT') {
+      if (room.gameState.phase === 'SNAPSHOT_DEFLECT') {
         const sdState = room.gameState;
         const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
         // Guard: only the defending team may deflect
@@ -409,9 +409,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // GK_KICK_MOVEMENT: both teams reposition 1 piece ≤3 hexes while kick is in air.
-      // Mirrors HIGH_PASS_MOVEMENT block: adjacency, pitch boundary, occupancy, 1-piece lock.
-      if (room.gameState.phase === 'GK_KICK_MOVEMENT') {
+      // GK_KICK_MOVE: both teams reposition 1 piece ≤3 hexes while kick is in air.
+      // Mirrors HIGH_PASS_MOVE block: adjacency, pitch boundary, occupancy, 1-piece lock.
+      if (room.gameState.phase === 'GK_KICK_MOVE') {
         if (!isActivePlayer(socket, room)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
           broadcastState(io, room);
@@ -474,7 +474,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      if (room.gameState.phase !== 'MOVEMENT') {
+      if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -520,15 +520,15 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // GK_DIVING: shot now resolves via GAME_GK_DIVE (single-click dive + auto-resolve).
+      // GK_DIVE: shot now resolves via GAME_GK_DIVE (single-click dive + auto-resolve).
       // End-turn in this phase is a no-op — just snap back so the client stays in sync.
-      if (room.gameState.phase === 'GK_DIVING') {
+      if (room.gameState.phase === 'GK_DIVE') {
         broadcastState(io, room);
         return;
       }
 
-      // HIGH_PASS_MOVEMENT: slot transitions + auto accuracy roll after defender slot.
-      if (room.gameState.phase === 'HIGH_PASS_MOVEMENT') {
+      // HIGH_PASS_MOVE: slot transitions + auto accuracy roll after defender slot.
+      if (room.gameState.phase === 'HIGH_PASS_MOVE') {
         if (!isActivePlayer(socket, room)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
           broadcastState(io, room);
@@ -591,8 +591,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // GK_KICK_MOVEMENT: slot transitions + accuracy check after OPP slot.
-      if (room.gameState.phase === 'GK_KICK_MOVEMENT') {
+      // GK_KICK_MOVE: slot transitions + accuracy check after OPP slot.
+      if (room.gameState.phase === 'GK_KICK_MOVE') {
         if (!isActivePlayer(socket, room)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
           broadcastState(io, room);
@@ -676,9 +676,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // SNAP_DEFLECT: defending team ends their deflection turn.
-      // Flow mirrors GAME_SHOT: deflection check → GK range check → GK_DIVING (or auto-GOAL).
-      if (room.gameState.phase === 'SNAP_DEFLECT') {
+      // SNAPSHOT_DEFLECT: defending team ends their deflection turn.
+      // Flow mirrors GAME_SHOT: deflection check → GK range check → GK_DIVE (or auto-GOAL).
+      if (room.gameState.phase === 'SNAPSHOT_DEFLECT') {
         const sdState = room.gameState;
         const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
         if (socketTeam(socket) !== defendingTeam) {
@@ -826,10 +826,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           return;
         }
 
-        // GK in range: transition to GK_DIVING so GK can choose a dive hex
+        // GK in range: transition to GK_DIVE so GK can choose a dive hex
         room.gameState = {
           ...baseSnapState,
-          phase: 'GK_DIVING',
+          phase: 'GK_DIVE',
           lastActionType: 'SHOT',
           gkDivePosition: snapGk.position,
           snapshotGkPenalty: null,
@@ -839,7 +839,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      if (room.gameState.phase !== 'MOVEMENT') {
+      if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -881,8 +881,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      // BUG-03 (Phase 17 D-06): undo is valid in MOVEMENT and HIGH_PASS_MOVEMENT phases
-      const validUndoPhases: GamePhase[] = ['MOVEMENT', 'HIGH_PASS_MOVEMENT'];
+      // BUG-03 (Phase 17 D-06): undo is valid in MOVE and HIGH_PASS_MOVE phases
+      const validUndoPhases: GamePhase[] = ['MOVE', 'HIGH_PASS_MOVE'];
       if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -916,7 +916,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
     if (!room || room.isProcessing) return;
     room.isProcessing = true;
     try {
-      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+      if (room.gameState === null || room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room); // D-24: snap-back so client re-syncs
         return;
@@ -951,7 +951,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
     if (!room || room.isProcessing) return;
     room.isProcessing = true;
     try {
-      if (room.gameState === null || room.gameState.phase !== 'MOVEMENT') {
+      if (room.gameState === null || room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -1124,7 +1124,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             };
             room.gameState = {
               ...room.gameState,
-              phase: 'HIGH_PASS_MOVEMENT',
+              phase: 'HIGH_PASS_MOVE',
               ball: { position: targetHex, carrierId: null },
               highPassCarrierId: kickerId,
               highPassMovementSlot: 'ATTACKER',
@@ -1225,8 +1225,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      // 2. Phase guard: must be in PASS or SHOT_DECLARED (snapshot target selection)
-      if (room.gameState.phase !== 'PASS' && room.gameState.phase !== 'SHOT_DECLARED') {
+      // 2. Phase guard: must be in PASS or SNAPSHOT_TARGET (snapshot target selection)
+      if (room.gameState.phase !== 'PASS' && room.gameState.phase !== 'SNAPSHOT_TARGET') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room); // snap-back
         return;
@@ -1651,7 +1651,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
     room.isProcessing = true;
     try {
-      if (room.gameState === null || room.gameState.phase !== 'QUICK_THROW') {
+      if (room.gameState === null || room.gameState.phase !== 'GK_QUICK_THROW') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
@@ -1781,7 +1781,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       // 2. Phase guard
-      if (room.gameState.phase !== 'GK_DIVING') {
+      if (room.gameState.phase !== 'GK_DIVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
         return;
