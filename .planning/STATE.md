@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-15T10:53:52.927Z'
-last_activity: 2026-06-14 -- Phase 17 execution started
+last_updated: '2026-06-15T11:34:19.882Z'
+last_activity: 2026-06-15 -- Phase 17.1 execution started
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 2
-  total_plans: 12
+  total_plans: 18
   completed_plans: 10
-  percent: 50
+  percent: 40
 ---
 
 # Project State
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 17 — rule-bugs
+**Current focus:** Phase 17.1 — action-flow-cleanup
 
 ## Phase Status
 
@@ -204,10 +204,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 17 (rule-bugs) — EXECUTING
-Plan: 4 of 5
-Status: Ready to execute
-Last activity: 2026-06-14 -- Phase 17 execution started
+Phase: 17.1 (action-flow-cleanup) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 17.1
+Last activity: 2026-06-15 -- Phase 17.1 execution started
 
 ## Performance Metrics
 
