@@ -701,6 +701,34 @@ export function applyEndTurn(
       };
     }
 
+    // D-06 (Phase 17.1): GK carrier in own penalty area → GK_RESTART instead of 'PASS'.
+    // Must run BEFORE the normal 'PASS' branch so the GK can use GK_RESTART actions.
+    const carrier = state.ball.carrierId
+      ? state.pieces.find((p) => p.id === state.ball.carrierId)
+      : null;
+    if (carrier?.role === 'GK') {
+      const ownArea: keyof typeof PITCH_REGIONS =
+        carrier.teamId === 'home' ? 'homePenaltyArea' : 'awayPenaltyArea';
+      if (isInRegion(carrier.position, ownArea)) {
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'GK_RESTART',
+            movementSlot: null,
+            activeTeam: carrier.teamId,
+            eventLog: [...state.eventLog, slotAdvanceEvent],
+            movedPieceIds: [],
+            paceUsedByPieceId: {},
+            actionCount: newActionCount,
+            addedTime: newAddedTime,
+            stealAttemptedByIds: [], // D-02: reset on phase transition
+            tackleAttemptedByIds: [], // D-02
+          },
+        };
+      }
+    }
+
     // Normal ATTACKER_2→PASS transition with clock updates
     return {
       ok: true,
@@ -788,13 +816,15 @@ export type ApplyUndoResult =
  * used after steal/tackle so undo cannot cross into the pre-possession-change move history).
  */
 export function applyUndo(state: GameState): ApplyUndoResult {
-  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, or HP_REPOSITION in HIGH_PASS_MOVE)
+  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, HP_REPOSITION, or FTP_REPOSITION)
   // BUG-03 (Phase 17 D-06): also treat HP_REPOSITION as a slot boundary in HIGH_PASS_MOVE
+  // D-03 (Phase 17.1): treat FTP_REPOSITION as a slot boundary in FIRST_TIME_PASS_MOVE
   const lastSlotAdvanceIdx = state.eventLog.reduce<number>((acc, evt, idx) => {
     const isBoundary =
       evt.type === 'SLOT_ADVANCE' ||
       evt.type === 'KICK_OFF' ||
-      (state.phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION');
+      (state.phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
+      (state.phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -1239,8 +1269,31 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         };
       }
 
-      // TODO: FIRST_TIME_PLAYER_MOVES (PASS-02) deferred to Phase 8.3
-      // The FIRST_TIME_PASS effect (mid-pass player movement) would be handled here.
+      // D-03 (Phase 17.1): FIRST_TIME_PASS → enter two-slot repositioning phase.
+      // Ball stays in flight (carrierId = null, position = targetHex) until both teams
+      // have ended their repositioning turns, at which point the handler delivers the ball.
+      // passTargetHex is preserved so the GAME_END_TURN handler knows where to deliver.
+      if (newLastActionType === 'FIRST_TIME_PASS') {
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'FIRST_TIME_PASS_MOVE',
+            ball: { position: targetHex, carrierId: null },
+            lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            lastActionType: 'FIRST_TIME_PASS',
+            actionCount: state.actionCount + passTimeCost,
+            // passTargetHex preserved — GAME_END_TURN delivers ball here after both slots
+            passTargetHex: targetHex,
+            preGeneratedInterceptionDice: [],
+            firstTimePassMovementSlot: 'ATTACKER',
+            firstTimePassMovedPieceId: null,
+            firstTimePassPaceUsed: 0,
+            activeTeam: state.attackingTeam,
+            eventLog: newEventLog,
+          },
+        };
+      }
 
       return {
         ok: true,
@@ -1501,16 +1554,19 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             },
           };
         } else {
+          // D-07 (Phase 17.1): GK save spill → GK_RESTART (mirrors clean catch).
+          // pending out-of-bounds rules — spill treated as clean catch for now
           return {
             ok: true,
             state: {
               ...state,
               pieces: piecesWithGKPos,
-              phase: 'LOOSE_BALL',
-              ball: { position: gkEffectivePos, carrierId: null },
+              phase: 'GK_RESTART',
+              ball: { position: gkEffectivePos, carrierId: gk.id },
+              activeTeam: gk.teamId,
+              attackingTeam: gk.teamId,
               lastDiceRoll: shotDiceRoll,
-              lastActionType: 'DEFLECTION',
-              lastShotPath: null, // RULE-03: clear stale shot path on save-dropped LOOSE_BALL
+              lastShotPath: null, // clear path — GK holds the ball
               snapshotGkPenalty: null,
               eventLog: [...state.eventLog, shotAttempt],
             },

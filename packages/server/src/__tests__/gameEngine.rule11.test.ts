@@ -504,14 +504,18 @@ describe('RULE-03: SHOT LOOSE_BALL (tie) branch — lastShotPath is null after f
 });
 
 describe('RULE-03: SHOT save-dropped branch — lastShotPath is null after fix', () => {
-  it('applyRoll SHOT save-dropped returns LOOSE_BALL state with lastShotPath === null', () => {
+  it('applyRoll SHOT save-dropped returns GK_RESTART state with lastShotPath === null', () => {
     // Shooter: shooting=3, die=1 → score=4. GK (dropGk): saving=8, die=6 → score=14. SAVE.
-    // Handling check: handlingDie=4 ≥ gk.handling=3 → dropped → LOOSE_BALL.
+    // Handling check: handlingDie=4 ≥ gk.handling=3 → dropped.
+    // D-07 (Phase 17.1): spill now routes to GK_RESTART (not LOOSE_BALL).
+    // pending out-of-bounds rules — spill treated as clean catch for now
     const state = makeSaveDroppedState();
     const result = applyRoll(state, 1, 6, 4);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.phase).toBe('GK_RESTART');
+    // GK holds the ball on a spill
+    expect(result.state.ball.carrierId).not.toBeNull();
     // RULE-03 fix: lastShotPath must be null (was previously carrying shotPath forward)
     expect(result.state.lastShotPath).toBeNull();
   });

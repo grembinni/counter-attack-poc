@@ -478,21 +478,21 @@ describe('Phase 17 BUG-04: pass to occupied hex → ball pickup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// BUG-05: Loose ball spawns at GK hex after save
+// BUG-05: After D-07 (Phase 17.1), save spill routes to GK_RESTART (not LOOSE_BALL)
 // ---------------------------------------------------------------------------
 
-describe('Phase 17 BUG-05: save dropped → LOOSE_BALL at GK position', () => {
-  it('handling die >= handling stat (dropped) → LOOSE_BALL; ball.position equals GK hex', () => {
+describe('Phase 17 BUG-05: save dropped → GK_RESTART with GK holding ball at GK position (D-07)', () => {
+  it('handling die >= handling stat (dropped) → GK_RESTART; GK holds ball at GK hex', () => {
     // GK at {q:11, r:7}; shooter at {q:10, r:7}; distance 1 → saveable (no penalty)
     // shooterDice=2: 9+2=11; gkDice=6: 9+6=15; GK wins SAVE
-    // handlingDice=9: 9 >= handling=8 → DROPPED → LOOSE_BALL
-    // Wave 0 RED — currently ball.position is set to shot origin, not gkEffectivePos
+    // handlingDice=9: 9 >= handling=8 → DROPPED → D-07: GK_RESTART (not LOOSE_BALL)
     const result = applyRoll(shotStateNearGK, 2, 6, 9);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('LOOSE_BALL');
-    expect(result.state.ball.carrierId).toBeNull();
-    // BUG-05 fix: ball must spawn at GK's position {q:11, r:7}, not shooter's {q:10, r:7}
+    // D-07 fix: spill routes to GK_RESTART with GK holding the ball
+    expect(result.state.phase).toBe('GK_RESTART');
+    expect(result.state.ball.carrierId).toBe('away-0'); // GK holds ball
+    // Ball must spawn at GK's position {q:11, r:7}, not shooter's {q:10, r:7}
     expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // GK hex
     expect(result.state.ball.position).not.toEqual({ q: 10, r: 7 }); // NOT shot origin
   });
