@@ -21,13 +21,24 @@ import { computeCombinedScore } from './scoreUtils.js';
 /**
  * Discriminated union result for validatePass.
  *
- * Reject: RANGE_EXCEEDED (distance cap or zero), PATH_BLOCKED (Standard only), LANDING_RESTRICTED (LONG only).
- * Accept: ok:true with interceptors (possibly empty) and optional FIRST_TIME_PLAYER_MOVES effect.
+ * Reject: RANGE_EXCEEDED (distance cap or zero), PATH_BLOCKED (Standard only — intermediate hex), LANDING_RESTRICTED (LONG only).
+ * Accept: ok:true with autoIntercepts (case 1: destination defender, no roll) and rollIntercepts (case 3: ZoI defenders,
+ *   die===6 || combined>=10 threshold) and optional FIRST_TIME_PLAYER_MOVES effect.
+ *
+ * D-10 three cases:
+ *   Case 1: destination hex IS a defender's hex → autoIntercepts (no roll, immediate interception)
+ *   Case 2: path passes THROUGH a defender's hex (beyond them) → PATH_BLOCKED (unchanged)
+ *   Case 3: defender within 1 hex of path, not on path → rollIntercepts (die===6 || combined>=10)
  */
 export type PassResult =
   | { ok: false; reason: 'RANGE_EXCEEDED' | 'PATH_BLOCKED' | 'LANDING_RESTRICTED' }
-  | { ok: true; interceptors: PlayerPiece[] }
-  | { ok: true; interceptors: PlayerPiece[]; effect: { type: 'FIRST_TIME_PLAYER_MOVES' } };
+  | { ok: true; autoIntercepts: PlayerPiece[]; rollIntercepts: PlayerPiece[] }
+  | {
+      ok: true;
+      autoIntercepts: PlayerPiece[];
+      rollIntercepts: PlayerPiece[];
+      effect: { type: 'FIRST_TIME_PLAYER_MOVES' };
+    };
 
 /**
  * Discriminated union result for validatePassAccuracy.
@@ -107,27 +118,60 @@ export function validatePass(
     }
   }
 
-  // 5. Interception list — opponents within 1 hex of any travel-path hex INCLUDING destination (D-05)
-  // Defenders adjacent to the landing hex can also intercept (ball enters their ZoI on arrival).
-  // HIGH and LONG pass over defenders — cannot be intercepted in flight; returns empty interceptors.
-  const interceptors: PlayerPiece[] = [];
+  // 5. Interception lists — D-10 three-case split:
+  //   Case 1: destination hex is occupied by a defender → autoIntercepts (no roll, immediate interception)
+  //   Case 3: ZoI defenders adjacent to path/destination → rollIntercepts (die===6 || combined>=10)
+  //   HIGH and LONG passes skip interception (fly over defenders).
+
+  // D-10 case 1: destination hex occupied by a defender → auto-intercept, no roll needed.
+  // Only applies to STANDARD pass (FIRST_TIME has no path blocking; HIGH/LONG skip interception).
+  // Note: the case-2 PATH_BLOCKED guard above already returned for intermediate hexes, so if we
+  // reach here for STANDARD, the destination is the first defender-occupied hex on the line.
+  const destDefender =
+    passType === 'STANDARD'
+      ? (state.pieces.find(
+          (p) => p.teamId !== piece.teamId && p.position.q === to.q && p.position.r === to.r,
+        ) ?? null)
+      : null;
+
+  // D-10: populate autoIntercepts (case 1) and rollIntercepts (case 3) separately.
+  const autoIntercepts: PlayerPiece[] = destDefender ? [destDefender] : [];
+  const rollIntercepts: PlayerPiece[] = [];
   if (passType !== 'LONG' && passType !== 'HIGH') {
-    const travelPath = hexLine(from, to).slice(1); // exclude passer's hex; include destination
+    // Travel path excluding passer's hex; slice(1, -1) excludes destination (handled by destDefender above)
+    const travelPath = hexLine(from, to).slice(1, -1);
     const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
     for (const hex of travelPath) {
       for (const defender of getZoIDefenders(hex, opponents)) {
-        if (!interceptors.some((d) => d.id === defender.id)) {
-          interceptors.push(defender);
+        if (
+          !rollIntercepts.some((d) => d.id === defender.id) &&
+          !autoIntercepts.some((d) => d.id === defender.id)
+        ) {
+          rollIntercepts.push(defender);
         }
+      }
+    }
+    // ZoI at destination hex (excluding destDefender already in autoIntercepts)
+    for (const defender of getZoIDefenders(to, opponents)) {
+      if (
+        !rollIntercepts.some((d) => d.id === defender.id) &&
+        !autoIntercepts.some((d) => d.id === defender.id)
+      ) {
+        rollIntercepts.push(defender);
       }
     }
   }
 
   // 6. Success — FIRST_TIME carries its effect
   if (passType === 'FIRST_TIME') {
-    return { ok: true, interceptors, effect: { type: 'FIRST_TIME_PLAYER_MOVES' } };
+    return {
+      ok: true,
+      autoIntercepts,
+      rollIntercepts,
+      effect: { type: 'FIRST_TIME_PLAYER_MOVES' },
+    };
   }
-  return { ok: true, interceptors };
+  return { ok: true, autoIntercepts, rollIntercepts };
 }
 
 /**
