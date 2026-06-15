@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-15T20:43:07.618Z'
+last_updated: '2026-06-15T21:01:13.118Z'
 last_activity: 2026-06-15 -- Phase 17.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 13
+  completed_plans: 14
   percent: 40
 ---
 
@@ -198,14 +198,14 @@ Known deferred items at close: 6 (see above)
 
 ## Session Continuity
 
-- Last updated: 2026-06-12
-- Phase 13 implementation complete (3/3 plans). Verification: human_needed (3 browser UAT items).
-- 71/71 automated tests pass. Build clean. Dead component files deleted.
+- Last updated: 2026-06-15
+- Phase 17.1 Plan 04 complete. D-08 board-edge clamp + D-09 shot range gate implemented and tested.
+- 286 server + 91 client + 241 shared tests passing. 4 pre-existing RED stubs unchanged. Typecheck clean.
 
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-06-15 -- Phase 17.1 execution started
 
@@ -236,6 +236,7 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 | Phase 17.1 P01                            | 45     | 3 tasks  | 23 files |
 | Phase 17.1 P02                            | 90min  | 3 tasks  | 16 files |
 | Phase 17.1-action-flow-cleanup P03        | 9min   | 3 tasks  | 5 files  |
+| Phase 17.1-action-flow-cleanup P04        | 15min  | 2 tasks  | 5 files  |
 
 ## Decisions
 
@@ -276,3 +277,5 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 - [Phase ?]: FIRST_TIME_PASS_MOVE added to GamePhase union to satisfy exhaustive Record<GamePhase,string> in PHASE_LABEL
 - [Phase ?]: D-01: heading removed from PlayerPiece; aerialAbility is the sole aerial stat
 - [Phase ?]: D-02: steal exclusion reads stealAttemptedByIds in moveValidator (cross-type)
+- [Phase 17.1 P04]: D-08: LOOSE_BALL_DIRECTIONS exported from scoreUtils; direction-delta clamp walk in applyRoll LOOSE_BALL branch (isPitchHex per step; stops at board edge)
+- [Phase 17.1 P04]: D-09: hexDistance(shooter.position, goalHex) > 11 guard in applyDeclareShot before GK_DIVE; snapshot 6-hex gate unchanged
