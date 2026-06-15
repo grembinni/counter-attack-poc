@@ -62,7 +62,10 @@ describe('validatePass', () => {
     const state: GameState = { ...baseState, pieces: [basePiece] };
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 11, r: 0 }, 'STANDARD');
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.interceptors).toEqual([]);
+    if (result.ok) {
+      expect(result.autoIntercepts).toEqual([]);
+      expect(result.rollIntercepts).toEqual([]);
+    }
   });
 
   it('rejects FIRST_TIME pass at distance 7 with RANGE_EXCEEDED', () => {
@@ -74,13 +77,19 @@ describe('validatePass', () => {
   it('accepts HIGH pass at distance 15', () => {
     const result = validatePass(baseState, basePiece, { q: 0, r: 0 }, { q: 15, r: 0 }, 'HIGH');
     expect(result.ok).toBe(true);
-    if (result.ok) expect(Array.isArray(result.interceptors)).toBe(true);
+    if (result.ok) {
+      expect(Array.isArray(result.autoIntercepts)).toBe(true);
+      expect(Array.isArray(result.rollIntercepts)).toBe(true);
+    }
   });
 
   it('accepts LONG pass at distance 30 when target is far from all pieces', () => {
     const result = validatePass(baseState, basePiece, { q: 0, r: 0 }, { q: 30, r: 0 }, 'LONG');
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.interceptors).toEqual([]);
+    if (result.ok) {
+      expect(result.autoIntercepts).toEqual([]);
+      expect(result.rollIntercepts).toEqual([]);
+    }
   });
 
   it('does NOT block STANDARD pass when teammate occupies intermediate hex', () => {
@@ -99,6 +108,23 @@ describe('validatePass', () => {
     if (!result.ok) expect(result.reason).toBe('PATH_BLOCKED');
   });
 
+  // D-10 case 1: STANDARD pass whose DESTINATION hex is occupied by a defender → auto-intercept (no roll)
+  it('D-10 case 1: STANDARD pass to defender-occupied destination is allowed and auto-intercepted', () => {
+    // Defender at {5,0} is the destination — not an intermediate hex, so no PATH_BLOCKED
+    const defender = makeOpponent('opp1', 5, 0);
+    const state: GameState = { ...baseState, pieces: [basePiece, defender] };
+    const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
+    // Pass is ALLOWED (ok: true) — destination defender triggers auto-intercept, not PATH_BLOCKED
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Defender is in autoIntercepts (case 1: no dice, immediate interception)
+      expect(result.autoIntercepts).toHaveLength(1);
+      expect(result.autoIntercepts[0]?.id).toBe('opp1');
+      // Defender is NOT also in rollIntercepts
+      expect(result.rollIntercepts.some((d) => d.id === 'opp1')).toBe(false);
+    }
+  });
+
   it('does NOT block a HIGH pass over an opponent in the travel path', () => {
     const blocker = makeOpponent('opp1', 5, 0); // intermediate hex
     const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
@@ -107,27 +133,30 @@ describe('validatePass', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('counts an opponent adjacent to the destination as an interceptor (ball enters ZoI on landing)', () => {
+  // D-10 case 3: ZoI-adjacent defenders go into rollIntercepts
+  it('counts an opponent adjacent to the destination as a rollInterceptor (ball enters ZoI on landing)', () => {
     // from {0,0} to {5,0}; opp at {6,0} is distance 1 from destination — ball lands in their ZoI
     const opp = makeOpponent('opp1', 6, 0);
     const state: GameState = { ...baseState, pieces: [basePiece, opp] };
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.interceptors).toHaveLength(1);
-      expect(result.interceptors[0]?.id).toBe('opp1');
+      expect(result.rollIntercepts).toHaveLength(1);
+      expect(result.rollIntercepts[0]?.id).toBe('opp1');
+      expect(result.autoIntercepts).toHaveLength(0);
     }
   });
 
-  it('returns interceptors[] containing every distance-1 opponent with no duplicates', () => {
+  it('returns rollIntercepts[] containing every distance-1 opponent with no duplicates', () => {
     // Opponent at {4,1} is adjacent to path hex {4,0} on line from {0,0} to {8,0}
     const opp = makeOpponent('opp1', 4, 1);
     const state: GameState = { ...baseState, pieces: [basePiece, opp] };
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 8, r: 0 }, 'STANDARD');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.interceptors).toHaveLength(1);
-      expect(result.interceptors[0]?.id).toBe('opp1');
+      expect(result.rollIntercepts).toHaveLength(1);
+      expect(result.rollIntercepts[0]?.id).toBe('opp1');
+      expect(result.autoIntercepts).toHaveLength(0);
     }
   });
 
@@ -137,16 +166,21 @@ describe('validatePass', () => {
     if (result.ok) {
       expect('effect' in result).toBe(true);
       if ('effect' in result) expect(result.effect.type).toBe('FIRST_TIME_PLAYER_MOVES');
+      expect(result.autoIntercepts).toEqual([]);
+      expect(result.rollIntercepts).toEqual([]);
     }
   });
 
-  it('returns empty interceptors[] for a LONG pass even when opponents are adjacent to the line', () => {
+  it('returns empty autoIntercepts and rollIntercepts for a LONG pass even when opponents are adjacent to the line', () => {
     const opp = makeOpponent('opp1', 10, 1); // adjacent to path hex {10,0}
     const state: GameState = { ...baseState, pieces: [basePiece, opp] };
     // target far enough from all pieces for landing check to pass
     const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 30, r: 0 }, 'LONG');
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.interceptors).toEqual([]);
+    if (result.ok) {
+      expect(result.autoIntercepts).toEqual([]);
+      expect(result.rollIntercepts).toEqual([]);
+    }
   });
 
   it('rejects LONG pass with LANDING_RESTRICTED when target is within 5 hexes of own teammate', () => {
