@@ -29,7 +29,7 @@ import {
   isPitchHex,
   validateMove,
   computeCombinedScore,
-  computeLooseBall,
+  LOOSE_BALL_DIRECTIONS,
   validatePass,
   validatePassAccuracy,
   validateShotDuel,
@@ -1934,22 +1934,31 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
     // empty-landing case; we do NOT force phase='MOVE' here (locked decision D-23/D-24).
     // -------------------------------------------------------------------------
     case 'LOOSE_BALL': {
-      const landing = computeLooseBall(
-        state.ball.position,
-        d1 as 1 | 2 | 3 | 4 | 5 | 6,
-        d2 as 1 | 2 | 3 | 4 | 5 | 6,
-      );
+      const direction = d1 as 1 | 2 | 3 | 4 | 5 | 6;
+      const distance = d2 as 1 | 2 | 3 | 4 | 5 | 6;
 
-      // D-23/D-24: walk from ball position toward landing, stopping at first occupied hex.
+      // D-08: clamp scatter to last valid pitch hex using direction-delta walk.
+      // pending out-of-bounds rules — ball stopped at board edge for now
+      const from = state.ball.position;
+      const dirDelta = LOOSE_BALL_DIRECTIONS[direction - 1]!;
+      let clampedPos = from; // fallback: ball stays at current position if first step is off-pitch
+      for (let step = 0; step < distance; step++) {
+        const next: HexCoord = {
+          q: from.q + dirDelta.q * (step + 1),
+          r: from.r + dirDelta.r * (step + 1),
+        };
+        if (isPitchHex(next)) clampedPos = next;
+        else break;
+      }
+
+      // D-23/D-24: walk from ball position toward clamped landing, stopping at first occupied hex.
       // hexLine returns [start, ..., end]; slice(1) drops the start (ball is there, no carrier).
-      const trajectory = hexLine(state.ball.position, landing).slice(1);
+      const trajectory = hexLine(state.ball.position, clampedPos).slice(1);
 
-      let finalPosition = state.ball.position;
+      let finalPosition = clampedPos;
       let finalCarrierId: string | null = null;
 
       for (const hex of trajectory) {
-        // Stop immediately when the trajectory exits the pitch boundary
-        if (!isPitchHex(hex)) break;
         finalPosition = hex;
         const occupant = state.pieces.find((p) => p.position.q === hex.q && p.position.r === hex.r);
         if (occupant) {
@@ -2786,7 +2795,13 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
   // Records shotTargetHex and seeds gkDivePosition from GK's current position.
   // Set lastShotPath immediately so both clients see the trajectory before GK dives.
   const shooter = state.pieces.find((p) => p.id === state.ball.carrierId);
-  const earlyPath = shooter ? hexLine(shooter.position, goalHex) : [];
+
+  // D-09: regular shot range gate — goal hex must be within 11 hexes of the shooter.
+  if (!shooter || hexDistance(shooter.position, goalHex) > 11) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const earlyPath = hexLine(shooter.position, goalHex);
   return {
     ok: true,
     state: {

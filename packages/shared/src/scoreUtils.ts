@@ -45,7 +45,7 @@ export function computeCombinedScore(
  * Physical rulebook verification is required before Phase 4 live use
  * (per assumption A2 in 02-RESEARCH.md).
  */
-const LOOSE_BALL_DIRECTIONS: readonly HexCoord[] = [
+export const LOOSE_BALL_DIRECTIONS: readonly HexCoord[] = [
   { q: 1, r: 0 }, // 1 = E
   { q: 1, r: -1 }, // 2 = NE
   { q: 0, r: -1 }, // 3 = NW
