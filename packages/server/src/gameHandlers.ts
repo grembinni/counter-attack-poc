@@ -1233,10 +1233,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // Commit passTargetHex to state — consumed by applyRoll PASS branch
           room.gameState = { ...room.gameState, passTargetHex: targetHex };
           // D-11 (Phase 8.2): Pre-generate interception dice before applyRoll (Pitfall 4)
-          // Header-win pass is non-interceptable — skip regardless of validatePass result
+          // Header-win pass is non-interceptable — skip regardless of validatePass result.
+          // D-10: autoIntercepts need no dice; only pre-generate for rollIntercepts.
           const isHeaderPass = room.gameState.lastActionType === 'HEADER';
-          if (!isHeaderPass && passResult.interceptors.length > 0) {
-            const interceptionDice = passResult.interceptors.map(() => rollDice());
+          if (!isHeaderPass && passResult.rollIntercepts.length > 0) {
+            const interceptionDice = passResult.rollIntercepts.map(() => rollDice());
             room.gameState = { ...room.gameState, preGeneratedInterceptionDice: interceptionDice };
           }
 

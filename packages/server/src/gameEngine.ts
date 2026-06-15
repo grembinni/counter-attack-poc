@@ -1083,7 +1083,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         targetHex,
         validatePassType,
       );
-      const interceptors = passResult.ok ? passResult.interceptors : [];
+      // D-10: split interceptors into autoIntercepts (case 1: no roll) and rollIntercepts (case 3: threshold roll)
+      const autoIntercepts = passResult.ok ? passResult.autoIntercepts : [];
+      const rollIntercepts = passResult.ok ? passResult.rollIntercepts : [];
 
       // Resolve pass type before the interception loop so early returns can use it.
       const newLastActionType: LastActionType =
@@ -1137,8 +1139,42 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // cannot be intercepted. Any other pass type runs the interception loop as normal.
       const isHeaderPass = state.lastActionType === 'HEADER';
       if (!isHeaderPass) {
-        for (let i = 0; i < interceptors.length; i++) {
-          const interceptor = interceptors[i]!;
+        // D-10 case 1: autoIntercepts — destination hex was defender's hex; immediate interception, no dice.
+        for (const interceptor of autoIntercepts) {
+          const interceptionEvent: ActionEvent = {
+            type: 'STEAL_ATTEMPT',
+            defenderId: interceptor.id,
+            result: 'SUCCESS',
+            defenderDie: 0, // no dice roll for auto-intercept
+            defenderCombined: 0,
+            timestamp: Date.now(),
+            ballAfter: { position: interceptor.position, carrierId: interceptor.id },
+          };
+          newEventLog = [...newEventLog, interceptionEvent];
+          // Immediate possession transfer — first auto-interceptor wins.
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'PASS',
+              ball: { position: interceptor.position, carrierId: interceptor.id },
+              attackingTeam: interceptor.teamId,
+              activeTeam: interceptor.teamId,
+              lastActionType: 'SUCCESSFUL_TACKLE',
+              actionCount: state.actionCount + passTimeCost,
+              passTargetHex: null,
+              preGeneratedInterceptionDice: [],
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+              tackleAttemptedByIds: [], // D-02
+              eventLog: newEventLog,
+            },
+          };
+        }
+
+        // D-10 case 3: rollIntercepts — ZoI defenders; die===6 || combined>=10 threshold.
+        for (let i = 0; i < rollIntercepts.length; i++) {
+          const interceptor = rollIntercepts[i]!;
           const die = state.preGeneratedInterceptionDice?.[i] ?? 3;
           const combined = computeCombinedScore(interceptor.tackling, die, []);
           const intercepted = die === 6 || combined >= 10;
