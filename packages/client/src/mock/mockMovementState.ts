@@ -42,7 +42,7 @@ const AWAY_POSITIONS: Record<string, { q: number; r: number }> = {
  */
 export const mockMovementState: GameState = {
   roomCode: 'MOCK1',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [

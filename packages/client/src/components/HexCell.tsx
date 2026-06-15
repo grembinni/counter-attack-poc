@@ -40,8 +40,8 @@ const HIGHLIGHT_STYLES: Record<
     fill: 'rgba(59,130,246,1)',
     restOpacity: 0.4,
     hoverOpacity: 0.55,
-    stroke: '#2563eb',
-    strokeWidth: 1.5,
+    stroke: 'none',
+    strokeWidth: 0,
   },
   'shot-path': {
     fill: 'rgba(255,255,255,1)',

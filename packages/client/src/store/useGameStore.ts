@@ -333,8 +333,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // HIGH_PASS_MOVEMENT: 1 piece per team, up to 3 hexes, any direction
-    if (gameState.phase === 'HIGH_PASS_MOVEMENT') {
+    // HIGH_PASS_MOVE: 1 piece per team, up to 3 hexes, any direction
+    if (gameState.phase === 'HIGH_PASS_MOVE') {
       const myTeam = playerSlot === 1 ? 'home' : 'away';
       // Only own team pieces can be selected
       if (piece.teamId !== myTeam) {
@@ -367,8 +367,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // GK_KICK_MOVEMENT: both teams reposition 1 piece up to 3 hexes while kick is in air
-    if (gameState.phase === 'GK_KICK_MOVEMENT') {
+    // GK_KICK_MOVE: both teams reposition 1 piece up to 3 hexes while kick is in air
+    if (gameState.phase === 'GK_KICK_MOVE') {
       const myTeam = playerSlot === 1 ? 'home' : 'away';
       if (piece.teamId !== myTeam) {
         set({ selectedPieceId: null, validMoveHexes: [] });
@@ -398,8 +398,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // SNAP_DEFLECT: defending team moves 1 piece up to 2 hexes
-    if (gameState.phase === 'SNAP_DEFLECT') {
+    // SNAPSHOT_DEFLECT: defending team moves 1 piece up to 2 hexes
+    if (gameState.phase === 'SNAPSHOT_DEFLECT') {
       const myTeam = playerSlot === 1 ? 'home' : 'away';
       const defendingTeam: 'home' | 'away' = gameState.attackingTeam === 'home' ? 'away' : 'home';
       if (piece.teamId !== defendingTeam || myTeam !== defendingTeam) {
@@ -497,14 +497,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
 
-    // HIGH_PASS_MOVEMENT / GK_KICK_MOVEMENT: re-run phase-specific valid move logic
-    if (newState.phase === 'HIGH_PASS_MOVEMENT' || newState.phase === 'GK_KICK_MOVEMENT') {
+    // HIGH_PASS_MOVE / GK_KICK_MOVE: re-run phase-specific valid move logic
+    if (newState.phase === 'HIGH_PASS_MOVE' || newState.phase === 'GK_KICK_MOVE') {
       const paceRemaining =
-        newState.phase === 'GK_KICK_MOVEMENT'
+        newState.phase === 'GK_KICK_MOVE'
           ? 3 - (newState.gkKickPaceUsed ?? 0)
           : 3 - (newState.highPassPaceUsed ?? 0);
       const lockedId =
-        newState.phase === 'GK_KICK_MOVEMENT'
+        newState.phase === 'GK_KICK_MOVE'
           ? (newState.gkKickMovedPieceId ?? null)
           : (newState.highPassMovedPieceId ?? null);
       const locked = lockedId !== null && lockedId !== prevSelectedId;

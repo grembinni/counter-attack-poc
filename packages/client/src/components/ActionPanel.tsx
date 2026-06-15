@@ -11,7 +11,7 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
   LONG_BALL: 'Long Ball',
 };
 
-/** Goal line r-values shared between Shoot two-step and GK_DIVING/SNAP_DEFLECT wait panels. */
+/** Goal line r-values shared between Shoot two-step and GK_DIVE/SNAPSHOT_DEFLECT wait panels. */
 const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
 
 /**
@@ -103,26 +103,26 @@ export function ActionPanel() {
     }
   }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
 
-  // Shared canUndo computation — used in both MOVEMENT and HIGH_PASS_MOVEMENT phases.
-  // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVEMENT also uses HP_REPOSITION as a slot boundary.
-  // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVEMENT).
+  // Shared canUndo computation — used in both MOVE and HIGH_PASS_MOVE phases.
+  // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVE also uses HP_REPOSITION as a slot boundary.
+  // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVE).
   const canUndo = (() => {
     if (lastDiceRoll) return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
         evt.type === 'KICK_OFF' ||
-        (phase === 'HIGH_PASS_MOVEMENT' && evt.type === 'HP_REPOSITION');
+        (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION');
       return isBoundary ? idx : acc;
     }, -1);
     return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
   })();
 
   // -------------------------------------------------------------------------
-  // HIGH_PASS_MOVEMENT phase: both teams reposition 1 player up to 3 hexes before accuracy roll.
+  // HIGH_PASS_MOVE phase: both teams reposition 1 player up to 3 hexes before accuracy roll.
   // Must be before the isActivePlayer guard — both teams act in this phase.
   // -------------------------------------------------------------------------
-  if (phase === 'HIGH_PASS_MOVEMENT') {
+  if (phase === 'HIGH_PASS_MOVE') {
     if (myTeam === null) return null;
     // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
     // so isActivePlayer correctly reflects whose turn it is in this phase
@@ -146,11 +146,11 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // GK_DIVING phase: GK clicks a highlighted hex on the shot path (0–3 hexes away).
+  // GK_DIVE phase: GK clicks a highlighted hex on the shot path (0–3 hexes away).
   // Clicking triggers the dive and the shot auto-resolves immediately — no End Turn needed.
   // Must be before the isActivePlayer guard — both teams see this phase.
   // -------------------------------------------------------------------------
-  if (phase === 'GK_DIVING') {
+  if (phase === 'GK_DIVE') {
     if (myTeam === null) return null;
     const gkTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isGKTeamPlayer = myTeam === gkTeam;
@@ -167,12 +167,12 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // SNAP_DEFLECT phase: defending team moves 1 player up to 2 hexes before
+  // SNAPSHOT_DEFLECT phase: defending team moves 1 player up to 2 hexes before
   // snapshot resolves.
   // Must be before the isActivePlayer guard — both teams see this phase.
   // Active team = defending team (opponent of attackingTeam).
   // -------------------------------------------------------------------------
-  if (phase === 'SNAP_DEFLECT') {
+  if (phase === 'SNAPSHOT_DEFLECT') {
     if (myTeam === null) return null;
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isDefendingTeamPlayer = myTeam === defendingTeam;
@@ -273,10 +273,10 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // SHOT_DECLARED — snapshot target selection: attacker clicks a goal hex.
+  // SNAPSHOT_TARGET — snapshot target selection: attacker clicks a goal hex.
   // Must be before the isActivePlayer gate so defender also gets a waiting panel.
   // -------------------------------------------------------------------------
-  if (phase === 'SHOT_DECLARED') {
+  if (phase === 'SNAPSHOT_TARGET') {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
     return (
@@ -317,9 +317,9 @@ export function ActionPanel() {
     );
   }
 
-  // QUICK_THROW phase: GK's team selects a target hex on the pitch (≤ 11 hexes).
+  // GK_QUICK_THROW phase: GK's team selects a target hex on the pitch (≤ 11 hexes).
   // Same guard structure as GK_RESTART — must be before isActivePlayer check.
-  if (phase === 'QUICK_THROW') {
+  if (phase === 'GK_QUICK_THROW') {
     if (myTeam === null) return null;
     const gkPiece = pieces.find((p) => p.id === carrierId);
     const gkTeam = gkPiece?.teamId ?? null;
@@ -355,9 +355,9 @@ export function ActionPanel() {
     );
   }
 
-  // GK_KICK_MOVEMENT phase: both teams reposition 1 player up to 3 hexes while ball is in air.
+  // GK_KICK_MOVE phase: both teams reposition 1 player up to 3 hexes while ball is in air.
   // Must be before isActivePlayer guard — both teams act in this phase.
-  if (phase === 'GK_KICK_MOVEMENT') {
+  if (phase === 'GK_KICK_MOVE') {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
     return (
@@ -513,9 +513,9 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // MOVEMENT phase
+  // MOVE phase
   // -------------------------------------------------------------------------
-  if (phase === 'MOVEMENT') {
+  if (phase === 'MOVE') {
     const carrier = pieces.find((p) => p.id === carrierId);
     const penaltyAreaRegion = attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
     // Snapshot only for the attacking team (not defense in DEFENDER_5 slot) and only while

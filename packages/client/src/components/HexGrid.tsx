@@ -109,9 +109,9 @@ export function HexGrid() {
   const goalQ = attackingTeam === 'home' ? 36 : 0;
   const goalLineHexSet = new Set(GOAL_R_VALUES.map((r) => `${goalQ},${r}`));
 
-  // GK_DIVING: valid dive targets are shot-path hexes within 3 hexes of GK's starting position.
+  // GK_DIVE: valid dive targets are shot-path hexes within 3 hexes of GK's starting position.
   const gkDiveTargetSet = new Set<string>();
-  if (phase === 'GK_DIVING' && gkDivePosition !== null && gkDivePosition !== undefined) {
+  if (phase === 'GK_DIVE' && gkDivePosition !== null && gkDivePosition !== undefined) {
     // For a regular shot the ball has a carrier (the shooter). For a header-at-goal the ball
     // was in the air (carrierId=null) — fall back to ball.position as the shot origin.
     const shooterPiece = ball.carrierId ? pieces.find((p) => p.id === ball.carrierId) : null;
@@ -150,9 +150,9 @@ export function HexGrid() {
   // Tackle-risk hexes: orange when non-carrier's step would land adjacent to ball carrier
   const tackleRiskSet = new Set(tackleRiskHexes.map((h) => `${h.q},${h.r}`));
 
-  // SNAP_DEFLECT: orange-tint shot path from shooter position to declared target hex
+  // SNAPSHOT_DEFLECT: orange-tint shot path from shooter position to declared target hex
   const snapDeflectPathSet = new Set<string>();
-  if (phase === 'SNAP_DEFLECT' && shotTargetHex !== null && shotTargetHex !== undefined) {
+  if (phase === 'SNAPSHOT_DEFLECT' && shotTargetHex !== null && shotTargetHex !== undefined) {
     const shooter = ball.carrierId ? pieces.find((p) => p.id === ball.carrierId) : null;
     if (shooter) {
       for (const h of hexLine(shooter.position, shotTargetHex)) {
@@ -161,12 +161,12 @@ export function HexGrid() {
     }
   }
 
-  // Bug 1 fix: HIGH_PASS_MOVEMENT — contest zone preview.
+  // Bug 1 fix: HIGH_PASS_MOVE — contest zone preview.
   // During repositioning, highlight the ball's landing hex (= pass target) plus all hexes
   // within 2 hexes of it with shot-path (white) tint. This shows players where the header
   // contest will take place before the accuracy roll resolves.
   const highPassContestZoneSet = new Set<string>();
-  if (phase === 'HIGH_PASS_MOVEMENT') {
+  if (phase === 'HIGH_PASS_MOVE') {
     for (const h of PITCH_HEXES) {
       if (hexDistance(h, ball.position) <= 2) {
         highPassContestZoneSet.add(`${h.q},${h.r}`);
@@ -209,9 +209,9 @@ export function HexGrid() {
     }
   }
 
-  // QUICK_THROW: all pitch hexes within 11 hexes of the GK (no blocking, no interception)
+  // GK_QUICK_THROW: all pitch hexes within 11 hexes of the GK (no blocking, no interception)
   const quickThrowTargetSet = new Set<string>();
-  if (phase === 'QUICK_THROW' && isActivePlayer) {
+  if (phase === 'GK_QUICK_THROW' && isActivePlayer) {
     const gk = pieces.find((p) => p.id === ball.carrierId);
     if (gk) {
       for (const h of PITCH_HEXES) {
@@ -252,29 +252,29 @@ export function HexGrid() {
               hex.q === shotTargetHighlight.q &&
               hex.r === shotTargetHighlight.r;
 
-            // Phase 10: shooting mode goal-line highlight (two-step Shoot flow + SHOT_DECLARED snapshot target)
-            // For snapshot (SHOT_DECLARED), apply 6-hex range from carrier — same max as first-time pass.
+            // Phase 10: shooting mode goal-line highlight (two-step Shoot flow + SNAPSHOT_TARGET snapshot target)
+            // For snapshot (SNAPSHOT_TARGET), apply 6-hex range from carrier — same max as first-time pass.
             const snapCarrier =
-              phase === 'SHOT_DECLARED' && ball.carrierId
+              phase === 'SNAPSHOT_TARGET' && ball.carrierId
                 ? pieces.find((p) => p.id === ball.carrierId)
                 : null;
             const isShootingModeGoalHex =
               isActivePlayer &&
               goalLineHexSet.has(hexId) &&
               (shootingMode ||
-                (phase === 'SHOT_DECLARED' &&
+                (phase === 'SNAPSHOT_TARGET' &&
                   snapCarrier !== undefined &&
                   snapCarrier !== null &&
                   hexDistance(snapCarrier.position, hex) <= 6));
 
-            // SNAP_DEFLECT: danger path tint — shot line from shooter to declared target
+            // SNAPSHOT_DEFLECT: danger path tint — shot line from shooter to declared target
             const isShotPath = snapDeflectPathSet.has(hexId);
             // GK team = defending team during a shot
             const gkTeamForDive: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
             const isGKTeamPlayer = myTeam === gkTeamForDive;
             // Phase 10: GK dive target — gated on isGKTeamPlayer so only the GK's side sees highlights
             const isGKDiveTarget =
-              phase === 'GK_DIVING' && gkDiveTargetSet.has(hexId) && isGKTeamPlayer;
+              phase === 'GK_DIVE' && gkDiveTargetSet.has(hexId) && isGKTeamPlayer;
 
             // Phase 10: HEADER target hex selection step — same range as first-time pass (≤6 hexes)
             const headerDist = headerTargetStep ? hexDistance(hex, ball.position) : Infinity;
@@ -283,22 +283,22 @@ export function HexGrid() {
             const isHeaderNonGoalTarget =
               headerTargetStep && !goalLineHexSet.has(hexId) && headerDist <= 6;
 
-            // Bug 2 fix: HIGH_PASS_MOVEMENT and GK_KICK_MOVEMENT valid move hexes now use yellow
-            // (safe) tint, same as normal movement. SNAP_DEFLECT keeps the white shot-path tint
+            // Bug 2 fix: HIGH_PASS_MOVE and GK_KICK_MOVE valid move hexes now use yellow
+            // (safe) tint, same as normal movement. SNAPSHOT_DEFLECT keeps the white shot-path tint
             // (defender moving to intercept a snapshot = different UX context).
-            // D-28: GK_DIVING highlights already cleared by setGameState — still suppressed here.
+            // D-28: GK_DIVE highlights already cleared by setGameState — still suppressed here.
             // headerTargetStep excluded: white action overlay in HexGrid handles header pass tinting.
             const isHighlighted =
               isShootingModeGoalHex ||
               isHeaderTargetGoalHex ||
-              (phase !== 'GK_DIVING' &&
-                phase !== 'SNAP_DEFLECT' &&
+              (phase !== 'GK_DIVE' &&
+                phase !== 'SNAPSHOT_DEFLECT' &&
                 !headerTargetStep &&
                 isValidMove) ||
               isGoalHex ||
               isShotTarget;
             const isHpMoveTarget =
-              (phase === 'SNAP_DEFLECT' && selectedPieceId !== null && isValidMove) ||
+              (phase === 'SNAPSHOT_DEFLECT' && selectedPieceId !== null && isValidMove) ||
               isGKDiveTarget;
 
             // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
@@ -364,8 +364,8 @@ export function HexGrid() {
                 onClick = () => emitKickOffMove(selectedPieceId, hex);
               }
               // Clicking any other hex during setup is a no-op — handled by the piece's own onClick below
-            } else if (phase === 'GK_DIVING' && isGKDiveTarget && isGKTeamPlayer) {
-              // Phase 10: GK team clicks a valid dive hex during GK_DIVING
+            } else if (phase === 'GK_DIVE' && isGKDiveTarget && isGKTeamPlayer) {
+              // Phase 10: GK team clicks a valid dive hex during GK_DIVE
               onClick = () => emitGKDive(hex);
             } else if (isShootingModeGoalHex) {
               // Phase 10: Two-step Shoot flow — clicking goal hex emits declare shot
@@ -381,7 +381,7 @@ export function HexGrid() {
             } else if (phase === 'GK_KICK_TARGET' && isActivePlayer && gkKickTargetSet.has(hexId)) {
               onClick = () => emitGKKickTarget(hex);
             } else if (
-              phase === 'QUICK_THROW' &&
+              phase === 'GK_QUICK_THROW' &&
               isActivePlayer &&
               quickThrowTargetSet.has(hexId)
             ) {
@@ -516,12 +516,12 @@ export function HexGrid() {
           <BallMarker ball={ball} />
           {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
           {pieces.map((piece) => {
-            // During GK_DIVING, visually show the defending GK at their current dive position.
+            // During GK_DIVE, visually show the defending GK at their current dive position.
             // gk.position in state.pieces is the original position (used for cumulative distance check);
             // gkDivePosition tracks where they actually are on screen.
             const gkDiveTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
             const displayPiece =
-              phase === 'GK_DIVING' &&
+              phase === 'GK_DIVE' &&
               gkDivePosition != null &&
               piece.role === 'GK' &&
               piece.teamId === gkDiveTeam
@@ -537,31 +537,31 @@ export function HexGrid() {
 
             const canSelect =
               isActivePlayer &&
-              phase === 'MOVEMENT' &&
+              phase === 'MOVE' &&
               piece.teamId === activeTeam &&
               !movedPieceIds.includes(piece.id) && // already moved this phase
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
-            // HIGH_PASS_MOVEMENT: active team selects 1 own piece to reposition up to 3 hexes
+            // HIGH_PASS_MOVE: active team selects 1 own piece to reposition up to 3 hexes
             const canSelectHighPassMove =
-              phase === 'HIGH_PASS_MOVEMENT' &&
+              phase === 'HIGH_PASS_MOVE' &&
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
               (highPassMovedPieceId === null || highPassMovedPieceId === piece.id);
-            // SNAP_DEFLECT: defending team selects 1 own piece to move up to 2 hexes
+            // SNAPSHOT_DEFLECT: defending team selects 1 own piece to move up to 2 hexes
             const snapDefendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
             const canSelectSnapDeflect =
-              phase === 'SNAP_DEFLECT' &&
+              phase === 'SNAPSHOT_DEFLECT' &&
               myTeam !== null &&
               myTeam === snapDefendingTeam &&
               piece.teamId === myTeam &&
               (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id) &&
               (snapDeflectPaceUsed ?? 0) < 2; // RULE-04 D-09: suppress when pace exhausted
-            // GK_KICK_MOVEMENT: active team selects 1 own piece to reposition up to 3 hexes
+            // GK_KICK_MOVE: active team selects 1 own piece to reposition up to 3 hexes
             const canSelectGKKickMove =
-              phase === 'GK_KICK_MOVEMENT' &&
+              phase === 'GK_KICK_MOVE' &&
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
@@ -589,9 +589,9 @@ export function HexGrid() {
               passTargetHex !== null &&
               passTargetHex.q === piece.position.q &&
               passTargetHex.r === piece.position.r;
-            // QUICK_THROW: clicking a piece on a valid target hex emits throw to that hex (not selectPiece)
+            // GK_QUICK_THROW: clicking a piece on a valid target hex emits throw to that hex (not selectPiece)
             const isQuickThrowTargetPiece =
-              phase === 'QUICK_THROW' && isActivePlayer && quickThrowTargetSet.has(pieceHexId);
+              phase === 'GK_QUICK_THROW' && isActivePlayer && quickThrowTargetSet.has(pieceHexId);
 
             const isClickable =
               isPassTargetPiece ||
@@ -605,7 +605,7 @@ export function HexGrid() {
 
             // Plan 04: derive single selectionState enum for PieceOverlay (UX-05, D-04, D-07)
             const isSpentNow =
-              phase === 'HIGH_PASS_MOVEMENT'
+              phase === 'HIGH_PASS_MOVE'
                 ? piece.id === highPassMovedPieceId && (highPassPaceUsed ?? 0) >= 3
                 : movedPieceIds.includes(piece.id);
             // Bug 3 fix: isHeaderContestant (confirmed contestant) → 'active' (green ring);
