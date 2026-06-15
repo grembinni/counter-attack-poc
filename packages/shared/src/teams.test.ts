@@ -16,7 +16,6 @@ const ATTRIBUTES = [
   'shooting',
   'tackling',
   'dribbling',
-  'heading',
   'saving',
   'handling',
   'resilience',
