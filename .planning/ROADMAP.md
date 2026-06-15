@@ -110,6 +110,28 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 - [ ] 17-04-PLAN.md — MOVE-06 FREE_MOVE phase end-to-end (transition, per-piece 6-hex move, handlers, panel)
 - [ ] 17-05-PLAN.md — PASS-02 First-time Pass mid-flight repositioning (attacker step + SNAP_DEFLECT reuse + path highlight)
 
+### Phase 17.1: Action Flow Cleanup
+
+**Goal**: The codebase is aligned with the corrected Counter Attack v1.4.1 phase/action model — GamePhase enum renamed, aerial stat consolidated, ZoI exclusion fixed, first-time-pass repositioning phase added, and GK restart / loose-ball / shot-range mechanics corrected.
+**Depends on**: Phase 17 (builds on the rule-bug fixes and FREE_MOVE/undo scaffolding)
+**Requirements**: none (ad hoc cleanup phase; all decisions captured as D-01–D-11 in 17.1-CONTEXT.md)
+**Success Criteria** (what must be TRUE):
+
+1. All 8 GamePhase literals are renamed to the v1.4.1 names and a new FIRST_TIME_PASS_MOVE phase exists; typecheck and full test suite pass
+2. PlayerPiece has a single aerial stat (aerialAbility); a defender who has attempted a tackle/steal no longer re-triggers that same challenge but still projects the other ZoI
+3. First-time pass flight lets both teams reposition one player ≤1 hex, then delivers the ball without interception; undo is available at the FTP_REPOSITION boundary
+4. GK carrying in its own penalty area at end of MOVE → GK_RESTART; GK save spill → GK_RESTART; loose-ball scatter clamps to the pitch; regular shot beyond 11 hexes is rejected
+5. A STANDARD pass to a defender-occupied hex is allowed and auto-intercepted (case 1); intermediate on-path blocking still returns PATH_BLOCKED (case 2); ZoI defenders roll-intercept (case 3)
+
+**Plans**: 6 plans (5 waves)
+
+- [ ] 17.1-01-PLAN.md — D-11 GamePhase rename sweep (all source + tests) + FIRST_TIME_PASS_MOVE added to union [Wave 1]
+- [ ] 17.1-02-PLAN.md — D-01 stat model consolidation + D-02 ZoI exclusion/reset (types, teams, moveValidator, gameEngine) [Wave 3]
+- [ ] 17.1-06-PLAN.md — ActionPanel FIRST_TIME_PASS_MOVE panel + BallMarker/HexCell visual commit [Wave 3]
+- [ ] 17.1-03-PLAN.md — D-03 FIRST_TIME_PASS_MOVE handler + D-06 GK_RESTART trigger + D-07 spill route [Wave 4]
+- [ ] 17.1-04-PLAN.md — D-08 board-edge clamping + D-09 regular-shot range gate [Wave 5]
+- [ ] 17.1-05-PLAN.md — D-10 pass intercept shape change (autoIntercepts/rollIntercepts) [Wave 6]
+
 ### Phase 18: Design Polish
 
 **Goal**: Player-facing text is consistent, replay playback is clean, and dead/duplicate code is removed, leaving the codebase in a stable state for the next milestone.
@@ -149,4 +171,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 0/6            | Planned     | -          |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
