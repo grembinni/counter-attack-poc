@@ -118,6 +118,79 @@ describe('ActionPanel — UNDO-01: clicking Undo emits game:undo', () => {
   });
 });
 
+describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
+  const ftpBaseState = {
+    ...mockMovementState,
+    phase: 'FIRST_TIME_PASS_MOVE' as const,
+    activeTeam: 'home' as const,
+    lastDiceRoll: null,
+  };
+
+  it('active player sees helper text and both Undo and End Turn buttons', () => {
+    useGameStore.setState({
+      gameState: ftpBaseState,
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('First-time pass!')).toBeDefined();
+    expect(screen.getByText('Move 1 player to receive the ball.')).toBeDefined();
+    expect(screen.getByRole('button', { name: /undo/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+  });
+
+  it('Undo is disabled when no FTP_REPOSITION event in log', () => {
+    useGameStore.setState({
+      gameState: {
+        ...ftpBaseState,
+        eventLog: [],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Undo is enabled when last event is FTP_REPOSITION', () => {
+    useGameStore.setState({
+      gameState: {
+        ...ftpBaseState,
+        eventLog: [
+          {
+            type: 'FTP_REPOSITION',
+            slot: 'ATTACKER',
+            pieceId: null,
+            timestamp: 1,
+          },
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 2,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('non-active player sees the waiting panel', () => {
+    useGameStore.setState({
+      gameState: ftpBaseState,
+      playerSlot: 2, // away player — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+});
+
 describe('ActionPanel — PASS phase pass-type selection flow', () => {
   it('shows target-hex prompt and Back button in step 2 (pass type selected, no target)', () => {
     useGameStore.setState({
