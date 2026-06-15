@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-15T11:34:19.882Z'
+last_updated: '2026-06-15T15:55:35.307Z'
 last_activity: 2026-06-15 -- Phase 17.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 10
+  completed_plans: 11
   percent: 40
 ---
 
@@ -205,8 +205,8 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 17.1
+Plan: 2 of 6
+Status: Ready to execute
 Last activity: 2026-06-15 -- Phase 17.1 execution started
 
 ## Performance Metrics
@@ -233,6 +233,7 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 | Phase 17-rule-bugs P01                    | 6m 50s | 3 tasks  | 4 files  |
 | Phase 17-rule-bugs P02                    | 25min  | 3 tasks  | 2 files  |
 | Phase 17-rule-bugs P03                    | 18min  | 3 tasks  | 5 files  |
+| Phase 17.1 P01                            | 45     | 3 tasks  | 23 files |
 
 ## Decisions
 
@@ -269,3 +270,5 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 - [Phase ?]: BUG-04: occupant check guards HIGH_PASS path to prevent pre-empting HEADER routing (newLastActionType !== HIGH_PASS)
 - [Phase ?]: BUG-05: gkEffectivePos already used at save-dropped LOOSE_BALL return (pre-existing fix from Phase 10/11)
 - [Phase ?]: [Phase 17 P03]: BUG-02 cancel uses paceUsedByPieceId emptiness check (Pitfall 5); BUG-03 handler now accepts MOVEMENT and HIGH_PASS_MOVEMENT via validUndoPhases array
+- [Phase ?]: CHOOSE_ACTION replaced with PASS in gameEngine.ts (deferred phase — not yet in GamePhase union)
+- [Phase ?]: FIRST_TIME_PASS_MOVE added to GamePhase union to satisfy exhaustive Record<GamePhase,string> in PHASE_LABEL
