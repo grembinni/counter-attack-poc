@@ -112,7 +112,8 @@ export function ActionPanel() {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
         evt.type === 'KICK_OFF' ||
-        (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION');
+        (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
+        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
       return isBoundary ? idx : acc;
     }, -1);
     return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
@@ -134,6 +135,34 @@ export function ActionPanel() {
           <span className={styles.helperLine2}>Move 1 player to challenge.</span>
         </div>
         {/* BUG-03 (Phase 17 D-07): Undo available in HIGH_PASS_MOVEMENT with same boundary logic */}
+        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
+          Undo
+        </button>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // FIRST_TIME_PASS_MOVE phase: both teams reposition 1 player ≤1 hex each before
+  // ball is delivered to the target hex (no interception check).
+  // Must be before the isActivePlayer guard — both teams act in this phase.
+  // -------------------------------------------------------------------------
+  if (phase === 'FIRST_TIME_PASS_MOVE') {
+    if (myTeam === null) return null;
+    // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
+    // so isActivePlayer correctly reflects whose turn it is in this phase
+    if (!isActivePlayer) return waitingPanel;
+    return (
+      <div className={styles.panel}>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>First-time pass!</span>
+          <span className={styles.helperLine2}>Move 1 player to receive the ball.</span>
+        </div>
+        {/* D-03 (Phase 17.1): Undo available with FTP_REPOSITION as the slot boundary */}
         <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
           Undo
         </button>
