@@ -75,6 +75,7 @@ export type ActionEventType =
   | 'FTP_REPOSITION' // D-03: first-time pass repositioning slot boundary (mirrors HP_REPOSITION)
   | 'HP_ACCURACY'
   | 'HP_MOVE'
+  | 'FTP_MOVE' // D-03: piece repositioning move during FIRST_TIME_PASS_MOVE phase
   | 'LOOSE_BALL_LAND'
   | 'DEFLECT_ATTEMPT'
   | 'GK_KICK'
@@ -246,9 +247,23 @@ export type ActionEvent =
       pieceId: string | null;
       timestamp: number;
     }
+  | {
+      type: 'FTP_REPOSITION'; // D-03: first-time pass repositioning slot boundary (mirrors HP_REPOSITION)
+      slot: 'ATTACKER' | 'DEFENDER';
+      pieceId: string | null;
+      timestamp: number;
+    }
   | { type: 'HP_ACCURACY'; passerId: string; accurate: boolean; timestamp: number }
   | {
       type: 'HP_MOVE';
+      slot: 'ATTACKER' | 'DEFENDER';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | {
+      type: 'FTP_MOVE'; // D-03: piece repositioning move during FIRST_TIME_PASS_MOVE phase
       slot: 'ATTACKER' | 'DEFENDER';
       pieceId: string;
       from: HexCoord;
@@ -513,6 +528,22 @@ export type GameState = {
    * null outside this sub-state.
    */
   firstTimePassStep?: 'ATTACKER' | null;
+  /**
+   * D-03 (Phase 17.1): FIRST_TIME_PASS_MOVE repositioning slot.
+   * 'ATTACKER' → attacking team's slot; 'DEFENDER' → defending team's slot.
+   * null outside FIRST_TIME_PASS_MOVE phase.
+   */
+  firstTimePassMovementSlot?: 'ATTACKER' | 'DEFENDER' | null;
+  /**
+   * D-03 (Phase 17.1): piece ID locked in for the current FIRST_TIME_PASS_MOVE slot.
+   * null if no piece has been moved yet in the current slot.
+   */
+  firstTimePassMovedPieceId?: string | null;
+  /**
+   * D-03 (Phase 17.1): cumulative hexes moved in the current FIRST_TIME_PASS_MOVE slot.
+   * Capped at 1. Reset to 0 at each slot transition.
+   */
+  firstTimePassPaceUsed?: number;
   /**
    * MOVE-06 (Phase 17): piece IDs eligible for free 6-hex move (outfield players in opponent's third).
    * Set when entering FREE_MOVE phase; null outside FREE_MOVE.

@@ -474,6 +474,74 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // FIRST_TIME_PASS_MOVE: both teams reposition 1 piece ≤1 hex while ball is in flight.
+      // Mirrors HIGH_PASS_MOVE block: 1 piece per team, max 1 hex, adjacency,
+      // pitch boundary, no occupied hex. Active team alternates ATTACKER→DEFENDER.
+      // D-03 (Phase 17.1).
+      if (room.gameState.phase === 'FIRST_TIME_PASS_MOVE') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const ftpState = room.gameState;
+        const piece = ftpState.pieces.find((p) => p.id === pieceId);
+        if (!piece || piece.teamId !== ftpState.activeTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // Only one piece per slot: lock to the first piece moved
+        const lockedId = ftpState.firstTimePassMovedPieceId ?? null;
+        if (lockedId !== null && lockedId !== pieceId) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
+        }
+        const paceUsed = ftpState.firstTimePassPaceUsed ?? 0;
+        if (paceUsed >= 1) {
+          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
+          broadcastState(io, room);
+          return;
+        }
+        if (hexDistance(piece.position, to) !== 1) {
+          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
+          broadcastState(io, room);
+          return;
+        }
+        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+          broadcastState(io, room);
+          return;
+        }
+        if (
+          ftpState.pieces.some(
+            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+          )
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
+          broadcastState(io, room);
+          return;
+        }
+        const ftpMoveEvent: ActionEvent = {
+          type: 'FTP_MOVE',
+          slot: ftpState.firstTimePassMovementSlot === 'ATTACKER' ? 'ATTACKER' : 'DEFENDER',
+          pieceId,
+          from: piece.position,
+          to,
+          timestamp: Date.now(),
+        };
+        room.gameState = {
+          ...ftpState,
+          pieces: ftpState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+          firstTimePassMovedPieceId: pieceId,
+          firstTimePassPaceUsed: paceUsed + 1,
+          eventLog: [...ftpState.eventLog, ftpMoveEvent],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -585,6 +653,73 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           room.gameState = result.state;
           broadcastState(io, room);
           if (result.state.phase === 'FULL_TIME') {
+            startReplayStream(io, room);
+          }
+        }
+        return;
+      }
+
+      // FIRST_TIME_PASS_MOVE: slot transitions + ball delivery after defender slot.
+      // Mirrors HIGH_PASS_MOVE: ATTACKER slot → DEFENDER slot → deliver ball to passTargetHex.
+      // No accuracy roll on delivery (D-03: no interception check). D-03 (Phase 17.1).
+      if (room.gameState.phase === 'FIRST_TIME_PASS_MOVE') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const ftpEndState = room.gameState;
+        if (ftpEndState.firstTimePassMovementSlot === 'ATTACKER') {
+          // Log attacker repositioning then switch to defender's turn
+          const attackerReposEvent: ActionEvent = {
+            type: 'FTP_REPOSITION',
+            slot: 'ATTACKER',
+            pieceId: ftpEndState.firstTimePassMovedPieceId ?? null,
+            timestamp: Date.now(),
+          };
+          const defenderTeam: 'home' | 'away' =
+            ftpEndState.attackingTeam === 'home' ? 'away' : 'home';
+          room.gameState = {
+            ...ftpEndState,
+            firstTimePassMovementSlot: 'DEFENDER',
+            activeTeam: defenderTeam,
+            firstTimePassMovedPieceId: null,
+            firstTimePassPaceUsed: 0,
+            eventLog: [...ftpEndState.eventLog, attackerReposEvent],
+          };
+          broadcastState(io, room);
+        } else {
+          // DEFENDER slot done: log defender repositioning, deliver ball to passTargetHex.
+          // D-03: no interception check on delivery — ball goes straight to target.
+          const defenderReposEvent: ActionEvent = {
+            type: 'FTP_REPOSITION',
+            slot: 'DEFENDER',
+            pieceId: ftpEndState.firstTimePassMovedPieceId ?? null,
+            timestamp: Date.now(),
+          };
+          const targetHex = ftpEndState.passTargetHex!;
+          const receiver = ftpEndState.pieces.find(
+            (p) =>
+              p.teamId === ftpEndState.attackingTeam &&
+              p.position.q === targetHex.q &&
+              p.position.r === targetHex.r,
+          );
+          room.gameState = {
+            ...ftpEndState,
+            phase: 'PASS',
+            ball: { position: targetHex, carrierId: receiver?.id ?? null },
+            lastActionType: 'FIRST_TIME_PASS',
+            activeTeam: ftpEndState.attackingTeam,
+            firstTimePassMovementSlot: null,
+            firstTimePassMovedPieceId: null,
+            firstTimePassPaceUsed: 0,
+            passTargetHex: null,
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
+            eventLog: [...ftpEndState.eventLog, defenderReposEvent],
+          };
+          broadcastState(io, room);
+          if (room.gameState.phase === 'FULL_TIME') {
             startReplayStream(io, room);
           }
         }
@@ -882,7 +1017,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
     room.isProcessing = true;
     try {
       // BUG-03 (Phase 17 D-06): undo is valid in MOVE and HIGH_PASS_MOVE phases
-      const validUndoPhases: GamePhase[] = ['MOVE', 'HIGH_PASS_MOVE'];
+      // D-03 (Phase 17.1): also valid in FIRST_TIME_PASS_MOVE
+      const validUndoPhases: GamePhase[] = ['MOVE', 'HIGH_PASS_MOVE', 'FIRST_TIME_PASS_MOVE'];
       if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
