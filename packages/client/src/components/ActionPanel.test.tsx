@@ -13,7 +13,7 @@ afterEach(() => cleanup());
 beforeEach(() => {
   vi.clearAllMocks();
   useGameStore.setState({
-    gameState: { ...mockMovementState, phase: 'MOVEMENT', activeTeam: 'home', lastDiceRoll: null },
+    gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home', lastDiceRoll: null },
     screen: 'GAME_BOARD',
     selectedPieceId: null,
     validMoveHexes: [],
@@ -45,7 +45,7 @@ describe('ActionPanel — UNDO-02: undo disabled when dice rolled', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
-        phase: 'MOVEMENT',
+        phase: 'MOVE',
         activeTeam: 'home',
         lastDiceRoll: null,
         eventLog: [
@@ -70,7 +70,7 @@ describe('ActionPanel — UNDO-02: undo disabled when dice rolled', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
-        phase: 'MOVEMENT',
+        phase: 'MOVE',
         activeTeam: 'home',
         lastDiceRoll: { rolls: [4], context: 'SHOT_DUEL' },
       },
@@ -96,7 +96,7 @@ describe('ActionPanel — UNDO-01: clicking Undo emits game:undo', () => {
       emitUndo,
       gameState: {
         ...mockMovementState,
-        phase: 'MOVEMENT',
+        phase: 'MOVE',
         activeTeam: 'home',
         lastDiceRoll: null,
         eventLog: [

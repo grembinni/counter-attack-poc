@@ -152,7 +152,7 @@ function seedMovementPhaseEmpty(roomCode: string): void {
 
   room.gameState = {
     ...room.gameState,
-    phase: 'MOVEMENT',
+    phase: 'MOVE',
     attackingTeam: 'home',
     activeTeam: 'home',
     ball: { position: room.gameState.ball.position, carrierId: null },
@@ -178,7 +178,7 @@ function seedMovementPhaseWithMove(roomCode: string): void {
 
   room.gameState = {
     ...room.gameState,
-    phase: 'MOVEMENT',
+    phase: 'MOVE',
     attackingTeam: 'home',
     activeTeam: 'home',
     ball: { position: room.gameState.ball.position, carrierId: null },
@@ -217,9 +217,9 @@ function seedSnapDeflectFirstTimePass(roomCode: string): void {
 
   room.gameState = {
     ...room.gameState,
-    phase: 'SNAP_DEFLECT',
+    phase: 'SNAPSHOT_DEFLECT',
     attackingTeam: 'home',
-    activeTeam: 'away', // defender's turn in SNAP_DEFLECT
+    activeTeam: 'away', // defender's turn in SNAPSHOT_DEFLECT
     ball: { position: passerPos, carrierId: null }, // ball in flight
     lastActionType: 'FIRST_TIME_PASS',
     kickOffActive: false,
@@ -277,7 +277,7 @@ describe('Phase 17 BUG-02: game:cancel_movement handler', () => {
     expect(reason).toBe('PIECES_ALREADY_MOVED');
     // Phase should still be MOVEMENT
     const room = getRoom(roomCode);
-    expect(room?.gameState?.phase).toBe('MOVEMENT');
+    expect(room?.gameState?.phase).toBe('MOVE');
   });
 });
 
@@ -303,6 +303,6 @@ describe('Phase 17 PASS-02: SNAP_DEFLECT end-turn resolves as pass when lastActi
     // firstTimePassStep and firstTimePassPath should be cleared after resolution
     expect(newState.firstTimePassStep ?? null).toBeNull();
     // The outcome should NOT be a shot duel phase (GK_DIVING, SHOT, SHOT_DECLARED)
-    expect(['GK_DIVING', 'SHOT', 'SHOT_DECLARED']).not.toContain(newState.phase);
+    expect(['GK_DIVE', 'SHOT', 'SNAPSHOT_TARGET']).not.toContain(newState.phase);
   });
 });

@@ -26,8 +26,8 @@ describe('validateSnapshot', () => {
     if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
   });
 
-  it('accepts in MOVEMENT phase with shootingPenalty -1 and deflectionEffect maxHexes 2 (SNAP-02)', () => {
-    const result = validateSnapshot(makeState('MOVEMENT'));
+  it('accepts in MOVE phase with shootingPenalty -1 and deflectionEffect maxHexes 2 (SNAP-02)', () => {
+    const result = validateSnapshot(makeState('MOVE'));
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.shootingPenalty).toBe(-1);

@@ -340,7 +340,7 @@ describe('RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel', (
 
     // Bug 4 fix: duel resolves immediately — phase transitions to PASS or LOOSE_BALL (tie).
     // HEADER phase is no longer held open for a target-selection step.
-    expect(['PASS', 'GK_DIVING', 'LOOSE_BALL']).toContain(stateB.phase);
+    expect(['PASS', 'GK_DIVE', 'LOOSE_BALL']).toContain(stateB.phase);
     // header fields cleared on all terminal transitions
     expect(stateB.headerDuelWinner == null).toBe(true);
     expect(stateB.headerContestants == null).toBe(true);

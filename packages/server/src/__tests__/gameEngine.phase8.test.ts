@@ -119,7 +119,7 @@ const awayDef: PlayerPiece = {
 /** Base MOVEMENT/ATTACKER_2 state used by clock tests. */
 const makeAttacker2State = (overrides: Partial<GameState> = {}): GameState => ({
   roomCode: 'TEST',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
@@ -219,7 +219,7 @@ const makeGkRestartState = (overrides: Partial<GameState> = {}): GameState => ({
 /** Base MOVEMENT/ATTACKER_4 state for steal tests. */
 const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
   roomCode: 'TEST',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [
@@ -426,7 +426,7 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Should stay in PASS (neutral action choice) or another non-SHOT phase
-    expect(['PASS', 'MOVEMENT'].includes(result.state.phase)).toBe(true);
+    expect(['PASS', 'MOVE'].includes(result.state.phase)).toBe(true);
   });
 
   it('inaccurate HIGH_PASS routes to LOOSE_BALL (PASS-05)', () => {
@@ -522,7 +522,7 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
     const result = applyGKRestart(state, 'throw', () => 6);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('QUICK_THROW');
+    expect(result.state.phase).toBe('GK_QUICK_THROW');
     expect(result.state.actionCount).toBe(10); // +0 for quick throw
     expect(result.state.lastActionType).toBeNull();
   });
@@ -610,7 +610,7 @@ describe('applySnapshot — SNAP-01..03', () => {
   it('rejects with NOT_IN_PENALTY_AREA when in MOVEMENT but ball-carrier not in opponent penalty area (SNAP-01)', () => {
     const midFieldState: GameState = {
       ...makeMovementState(),
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
       ball: { position: { q: 15, r: 12 }, carrierId: 'home-mid' }, // mid-pitch, not in awayPenaltyArea
       lastActionType: 'MOVEMENT_PHASE',
@@ -624,7 +624,7 @@ describe('applySnapshot — SNAP-01..03', () => {
   it('rejects with INVALID_SEQUENCE when lastActionType not eligible for SNAPSHOT', () => {
     const state: GameState = {
       ...makeMovementState(),
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
       ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' }, // in awayPenaltyArea
       lastActionType: 'HIGH_PASS', // HIGH_PASS only allows HEADER next — not SNAPSHOT
@@ -638,7 +638,7 @@ describe('applySnapshot — SNAP-01..03', () => {
   it('succeeds in MOVEMENT with ball-carrier in opponent penalty area (SNAP-01)', () => {
     const state: GameState = {
       ...makeMovementState(),
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
       pieces: [
         { ...homeFwd, position: { q: 32, r: 12 } }, // in awayPenaltyArea
@@ -652,7 +652,7 @@ describe('applySnapshot — SNAP-01..03', () => {
     const result = applySnapshot(state);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('SHOT_DECLARED'); // attacker must declare goal hex before deflection
+    expect(result.state.phase).toBe('SNAPSHOT_TARGET'); // attacker must declare goal hex before deflection
     expect(result.state.lastActionType).toBe('SNAPSHOT');
     expect(result.state.actionCount).toBe(10); // +0 for snapshot (D-18)
     expect(result.state.snapshotGkPenalty).toBe(0);
@@ -667,7 +667,7 @@ describe('applySnapshot — SNAP-01..03', () => {
     const result = applySnapshot(state);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('SHOT_DECLARED'); // attacker must declare goal hex before deflection
+    expect(result.state.phase).toBe('SNAPSHOT_TARGET'); // attacker must declare goal hex before deflection
     expect(result.state.lastActionType).toBe('SNAPSHOT');
     expect(result.state.snapshotGkPenalty).toBe(0);
   });
@@ -675,7 +675,7 @@ describe('applySnapshot — SNAP-01..03', () => {
   it('sets snapshot -1 penalty marker in state (SNAP-02)', () => {
     const state: GameState = {
       ...makeMovementState(),
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
       pieces: [
         { ...homeFwd, position: { q: 32, r: 12 } },

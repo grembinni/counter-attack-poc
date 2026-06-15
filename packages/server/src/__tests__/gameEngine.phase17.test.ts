@@ -113,7 +113,7 @@ const awayDEF: PlayerPiece = {
 /** Base MOVEMENT-phase state with ATTACKER_4 slot active and no moves yet. */
 const baseMovementState: GameState = {
   roomCode: 'TEST17',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFWD, awayGK, awayDEF],
@@ -216,7 +216,7 @@ const passToTeammateState: GameState = {
 /** HIGH_PASS_MOVEMENT state with one HP_REPOSITION event in the log. */
 const highPassMovementStateWithMove: GameState = {
   roomCode: 'TEST17',
-  phase: 'HIGH_PASS_MOVEMENT',
+  phase: 'HIGH_PASS_MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFWD, awayGK, awayDEF],

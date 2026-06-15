@@ -60,7 +60,7 @@ const awayPiece: PlayerPiece = {
 /** Minimal MOVEMENT-phase fixture for testing engine mutations. */
 const baseMovementState: GameState = {
   roomCode: 'TEST1',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homePiece, awayPiece],
@@ -144,14 +144,14 @@ describe('advanceMovementSlot', () => {
     const state: GameState = { ...baseMovementState, movementSlot: 'ATTACKER_4' };
     const { nextSlot, nextPhase } = advanceMovementSlot(state);
     expect(nextSlot).toBe('DEFENDER_5');
-    expect(nextPhase).toBe('MOVEMENT');
+    expect(nextPhase).toBe('MOVE');
   });
 
   it('DEFENDER_5 → ATTACKER_2 / MOVEMENT (D-03)', () => {
     const state: GameState = { ...baseMovementState, movementSlot: 'DEFENDER_5' };
     const { nextSlot, nextPhase } = advanceMovementSlot(state);
     expect(nextSlot).toBe('ATTACKER_2');
-    expect(nextPhase).toBe('MOVEMENT');
+    expect(nextPhase).toBe('MOVE');
   });
 
   it('ATTACKER_2 → null / PASS (D-04)', () => {
@@ -172,7 +172,7 @@ describe('applyStartMovement', () => {
     const result = applyStartMovement(kickOffState);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('MOVE');
       expect(result.state.movementSlot).toBe('ATTACKER_4');
       // KICK_OFF event is now logged in the GAME_READY handler (not applyStartMovement)
       expect(result.state.eventLog).toHaveLength(0);
@@ -426,7 +426,7 @@ describe('applyEndTurn', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.movementSlot).toBe('DEFENDER_5');
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('MOVE');
       const lastEvent = result.state.eventLog[result.state.eventLog.length - 1];
       expect(lastEvent?.type).toBe('SLOT_ADVANCE');
       if (lastEvent?.type === 'SLOT_ADVANCE') {
@@ -1172,7 +1172,7 @@ describe('applyGKRestart', () => {
     const result = applyGKRestart(gkRestartState, 'movement', () => 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('MOVEMENT');
+      expect(result.state.phase).toBe('MOVE');
       expect(result.state.attackingTeam).toBe('away'); // GK team
       expect(result.state.ball.carrierId).toBe('away-0'); // still GK
       expect(result.state.lastDiceRoll).toBeNull();
@@ -1189,7 +1189,7 @@ describe('applyGKRestart', () => {
     const result = applyGKRestart(gkRestartState, 'throw', () => 3);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.state.phase).toBe('QUICK_THROW');
+      expect(result.state.phase).toBe('GK_QUICK_THROW');
       expect(result.state.attackingTeam).toBe('away'); // GK team
       expect(result.state.ball.carrierId).toBe('away-0'); // ball still with GK
       expect(result.state.lastDiceRoll).toBeNull();

@@ -297,7 +297,7 @@ describe('game integration — Movement Phase scenarios', () => {
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     attackingClient.emit(ClientEvents.GAME_START_MOVEMENT);
     const [movementState] = await statePromise;
-    expect(movementState.phase).toBe('MOVEMENT');
+    expect(movementState.phase).toBe('MOVE');
     expect(movementState.movementSlot).toBe('ATTACKER_4');
   });
 
@@ -316,7 +316,7 @@ describe('game integration — Movement Phase scenarios', () => {
     attackingClient.emit(ClientEvents.GAME_END_TURN);
     const [slot2State] = await slot2Promise;
     expect(slot2State.movementSlot).toBe('DEFENDER_5');
-    expect(slot2State.phase).toBe('MOVEMENT');
+    expect(slot2State.phase).toBe('MOVE');
 
     // DEFENDER_5 → ATTACKER_2: defending client ends turn
     const defendingClient = attackingIsA ? clientB : clientA;
@@ -324,7 +324,7 @@ describe('game integration — Movement Phase scenarios', () => {
     defendingClient.emit(ClientEvents.GAME_END_TURN);
     const [slot3State] = await slot3Promise;
     expect(slot3State.movementSlot).toBe('ATTACKER_2');
-    expect(slot3State.phase).toBe('MOVEMENT');
+    expect(slot3State.phase).toBe('MOVE');
 
     // ATTACKER_2 → PASS: attacking client ends turn again (D-04)
     const passPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
@@ -611,7 +611,7 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
     gkTeamClient.emit(ClientEvents.GAME_GK_RESTART, 'movement');
     const [newState] = await statePromise;
 
-    expect(newState.phase).toBe('MOVEMENT');
+    expect(newState.phase).toBe('MOVE');
     expect(newState.attackingTeam).toBe('away'); // GK team (away) now attacks
     expect(newState.lastDiceRoll).toBeNull();
     expect(newState.movementSlot).toBe('ATTACKER_4'); // Gap 1 fix: post-restart MOVEMENT is playable
@@ -711,7 +711,7 @@ describe('game:shot (D-06)', () => {
     const [newState] = await statePromise;
     expect(newState.phase).not.toBe('PASS');
     // If GK in range and no deflection: GK_DIVING with shotTargetHex recorded
-    if (newState.phase === 'GK_DIVING') {
+    if (newState.phase === 'GK_DIVE') {
       expect(newState.shotTargetHex).toEqual(targetHex);
     }
   });

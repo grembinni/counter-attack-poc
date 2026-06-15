@@ -112,7 +112,7 @@ const awayDef: PlayerPiece = {
 
 const baseState: GameState = {
   roomCode: 'TEST',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
@@ -162,7 +162,7 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
 
 const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
   ...baseState,
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   movementSlot: 'ATTACKER_4',
   lastActionType: null,
   ...overrides,
@@ -354,7 +354,7 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
   // {q:32,r:13} is unoccupied (awayDef is at {q:31,r:12}).
   const stealTriggerState: GameState = {
     ...baseState,
-    phase: 'MOVEMENT',
+    phase: 'MOVE',
     movementSlot: 'ATTACKER_4',
     activeTeam: 'home',
     pieces: [
@@ -407,7 +407,7 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
   // awayDef moves to {q:31,r:12} → adjacent to {q:32,r:12} (carrier) → TACKLE_ATTEMPT.
   const tackleTriggerState: GameState = {
     ...baseState,
-    phase: 'MOVEMENT',
+    phase: 'MOVE',
     movementSlot: 'DEFENDER_5',
     activeTeam: 'away',
     attackingTeam: 'home',
@@ -468,7 +468,7 @@ describe('D-30: loose-ball pickup continues movement action', () => {
     // loose ball is on the next hex they can step to
     const looseBallPickupState: GameState = {
       ...baseState,
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
       activeTeam: 'home',
       attackingTeam: 'home',
@@ -484,7 +484,7 @@ describe('D-30: loose-ball pickup continues movement action', () => {
 
     // D-30: should remain in MOVEMENT phase (not transition to PASS)
     // Current behavior (pre-fix): phase='PASS' — this test is RED until D-30 is fixed
-    expect(result.state.phase).toBe('MOVEMENT');
+    expect(result.state.phase).toBe('MOVE');
     // paceUsedByPieceId should reflect the new step (was 1, now 2)
     expect(result.state.paceUsedByPieceId['home-fwd']).toBe(2);
     // ball should be carried by home-fwd
@@ -496,7 +496,7 @@ describe('D-30: loose-ball pickup continues movement action', () => {
     // attackingTeam was 'home'; after pickup, attackingTeam should become 'away'.
     const state: GameState = {
       ...baseState,
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'DEFENDER_5',
       activeTeam: 'away',
       attackingTeam: 'home',
@@ -535,7 +535,7 @@ describe('SNAP_DEFLECT transition / applyDeclareShot (Phase 10)', () => {
     const result = applyDeclareShot(state, goalHex);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('GK_DIVING');
+    expect(result.state.phase).toBe('GK_DIVE');
     expect(result.state.shotTargetHex).toEqual(goalHex);
   });
 
@@ -623,7 +623,7 @@ describe('HEAD-03: goal-line header redirect in applyRoll HEADER', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // HEAD-03: goal-line target + attacker win → GK_DIVING (not PASS)
-    expect(result.state.phase).toBe('GK_DIVING');
+    expect(result.state.phase).toBe('GK_DIVE');
     expect(result.state.shotTargetHex).toEqual({ q: 36, r: 13 });
   });
 
@@ -672,7 +672,7 @@ describe('applyGKDive guards (Phase 10)', () => {
   // GK at q=36,r=13; shooter (homeFwd) at q=32,r=12; default shot aimed at q=36,r=13
   const makeGkDivingState = (overrides: Partial<GameState> = {}): GameState => ({
     ...baseState,
-    phase: 'GK_DIVING',
+    phase: 'GK_DIVE',
     movementSlot: null,
     activeTeam: 'away',
     lastActionType: 'SHOT',

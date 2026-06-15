@@ -511,7 +511,7 @@ describe('FULL_TIME → REPLAY stream', () => {
     const room = getRoom(roomCode)!;
     room.gameState = {
       ...room.gameState!,
-      phase: 'MOVEMENT',
+      phase: 'MOVE',
       movementSlot: 'ATTACKER_2',
       half: 2,
       addedTime: 1, // already set; halfEnd = 90+1=91

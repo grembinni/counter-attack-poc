@@ -508,7 +508,7 @@ describe('D-27: kickOffActive is set to true when KICK_OFF → MOVEMENT', () => 
     attackingClient.emit(ClientEvents.GAME_START_MOVEMENT);
     const [state] = await statePromise;
 
-    expect(state.phase).toBe('MOVEMENT');
+    expect(state.phase).toBe('MOVE');
     expect(state.kickOffActive).toBe(true);
 
     // Also verify via room store

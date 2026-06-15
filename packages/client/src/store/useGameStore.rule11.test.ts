@@ -31,7 +31,7 @@ function makeSnapDeflectState(snapDeflectPaceUsed: number): GameState {
   });
   return {
     ...base,
-    phase: 'SNAP_DEFLECT',
+    phase: 'SNAPSHOT_DEFLECT',
     attackingTeam: 'home',
     activeTeam: 'away',
     pieces,
@@ -55,7 +55,7 @@ function makeSnapDeflectState(snapDeflectPaceUsed: number): GameState {
 function makePostDeflectMovementState(): GameState {
   return {
     ...mockMovementState,
-    phase: 'MOVEMENT',
+    phase: 'MOVE',
     attackingTeam: 'home',
     activeTeam: 'home',
     movementSlot: 'ATTACKER_4',
@@ -71,7 +71,7 @@ function makePostDeflectMovementState(): GameState {
 function makeDefender5State(): GameState {
   return {
     ...mockMovementState,
-    phase: 'MOVEMENT',
+    phase: 'MOVE',
     attackingTeam: 'home',
     activeTeam: 'away', // defender's turn
     movementSlot: 'DEFENDER_5',

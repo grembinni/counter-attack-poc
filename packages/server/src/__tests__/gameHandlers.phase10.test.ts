@@ -189,7 +189,7 @@ function seedGkDivingPhase(roomCode: string): void {
 
   room.gameState = {
     ...room.gameState,
-    phase: 'GK_DIVING',
+    phase: 'GK_DIVE',
     attackingTeam: 'home',
     activeTeam: 'away',
     ball: { position: shooter.position, carrierId: shooter.id },
@@ -322,7 +322,7 @@ describe('GAME_GK_DIVE handler guards', () => {
     (clientB as any).emit(ClientEvents.GAME_GK_DIVE, { q: 36, r: 13 });
     const [state] = await statePromise;
     // Shot auto-resolves: phase must have left GK_DIVING
-    expect(state.phase).not.toBe('GK_DIVING');
+    expect(state.phase).not.toBe('GK_DIVE');
   });
 });
 
@@ -340,7 +340,7 @@ describe('SNAP_DEFLECT GAME_MOVE guard', () => {
 
     room.gameState = {
       ...room.gameState,
-      phase: 'SNAP_DEFLECT',
+      phase: 'SNAPSHOT_DEFLECT',
       attackingTeam: 'home',
       activeTeam: 'away', // defending team moves
     };

@@ -213,7 +213,7 @@ describe('RULE-02: applyResolveHeaderTarget — WRONG_PHASE guard', () => {
   });
 
   it('returns ok:false reason:WRONG_PHASE for MOVEMENT phase', () => {
-    const state: GameState = { ...baseState, phase: 'MOVEMENT', movementSlot: 'ATTACKER_4' };
+    const state: GameState = { ...baseState, phase: 'MOVE', movementSlot: 'ATTACKER_4' };
     const result = applyResolveHeaderTarget(state, { q: 30, r: 12 });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -358,7 +358,7 @@ describe('RULE-02: applyResolveHeaderTarget — GK_DIVING route for goal-line ta
     const result = applyResolveHeaderTarget(nearGoalState, goalLineHex);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('GK_DIVING');
+    expect(result.state.phase).toBe('GK_DIVE');
     expect(result.state.shotTargetHex).toEqual(goalLineHex);
     // All header fields cleared
     expect(result.state.headerDuelWinner).toBeNull();

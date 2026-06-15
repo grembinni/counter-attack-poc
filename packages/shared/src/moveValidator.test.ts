@@ -21,7 +21,7 @@ const basePiece: PlayerPiece = {
 
 const baseState: GameState = {
   roomCode: 'TEST',
-  phase: 'MOVEMENT',
+  phase: 'MOVE',
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [basePiece],
