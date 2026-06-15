@@ -130,7 +130,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 - [ ] 17.1-06-PLAN.md — ActionPanel FIRST_TIME_PASS_MOVE panel + BallMarker/HexCell visual commit [Wave 3]
 - [x] 17.1-03-PLAN.md — D-03 FIRST_TIME_PASS_MOVE handler + D-06 GK_RESTART trigger + D-07 spill route [Wave 4]
 - [x] 17.1-04-PLAN.md — D-08 board-edge clamping + D-09 regular-shot range gate [Wave 5]
-- [ ] 17.1-05-PLAN.md — D-10 pass intercept shape change (autoIntercepts/rollIntercepts) [Wave 6]
+- [x] 17.1-05-PLAN.md — D-10 pass intercept shape change (autoIntercepts/rollIntercepts) [Wave 6]
 
 ### Phase 18: Design Polish
 
@@ -171,5 +171,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 4/6            | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 5/6            | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
