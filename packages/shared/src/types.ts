@@ -10,7 +10,6 @@ export type PlayerPiece = {
   shooting: number;
   tackling: number;
   dribbling: number;
-  heading: number;
   saving: number;
   handling: number;
   resilience: number;
@@ -73,6 +72,7 @@ export type ActionEventType =
   | 'FULL_TIME'
   | 'HEADER'
   | 'HP_REPOSITION'
+  | 'FTP_REPOSITION' // D-03: first-time pass repositioning slot boundary (mirrors HP_REPOSITION)
   | 'HP_ACCURACY'
   | 'HP_MOVE'
   | 'LOOSE_BALL_LAND'
@@ -233,10 +233,10 @@ export type ActionEvent =
       result: 'ATTACKER_WIN' | 'DEFENDER_WIN' | 'TIE';
       /** Dice and stats — null for uncontested headers (no dice rolled). */
       attackerDie: number | null;
-      attackerHeading: number | null;
+      attackerAerialAbility: number | null;
       attackerCombined: number | null;
       defenderDie: number | null;
-      defenderHeading: number | null;
+      defenderAerialAbility: number | null;
       defenderCombined: number | null;
       timestamp: number;
     }
