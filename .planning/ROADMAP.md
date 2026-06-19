@@ -156,7 +156,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 **Gap closure (re-verification, CR-01-new / CR-02-new — SC3 reposition + no-interception clauses):**
 
 - [x] 17.1-12-PLAN.md — CR-01-new: client FIRST_TIME_PASS_MOVE piece selection (selectPiece branch + canSelectFirstTimePassMove + sticky selection + HexGrid.test coverage) [Gap Wave 4, depends on 17.1-11]
-- [ ] 17.1-13-PLAN.md — CR-02-new: bypass interception loop for FIRST_TIME_PASS in applyRoll so it reaches FIRST_TIME_PASS_MOVE near a defender + regression test [Gap Wave 4, depends on 17.1-11]
+- [x] 17.1-13-PLAN.md — CR-02-new: bypass interception loop for FIRST_TIME_PASS in applyRoll so it reaches FIRST_TIME_PASS_MOVE near a defender + regression test [Gap Wave 4, depends on 17.1-11]
 
 ### Phase 18: Design Polish
 
@@ -197,5 +197,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 12/13          | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 13/13          | Complete    | 2026-06-19 |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |

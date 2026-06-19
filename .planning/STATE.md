@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-19T22:18:36.164Z'
+last_updated: '2026-06-19T22:27:29.037Z'
 last_activity: 2026-06-19 -- Phase 17.1 execution started
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 25
-  completed_plans: 22
-  percent: 40
+  completed_plans: 23
+  percent: 60
 ---
 
 # Project State
@@ -263,7 +263,7 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 2 of 13
+Plan: 3 of 13
 Status: Ready to execute
 Last activity: 2026-06-19 -- Phase 17.1 execution started
 Plan 11 closed CR-01 (Undo non-functional in HIGH_PASS_MOVE/FIRST_TIME_PASS_MOVE —
@@ -307,6 +307,7 @@ Phase 17.1.
 | Phase 17.1-action-flow-cleanup P10        | 6min   | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P11        | 7min   | 3 tasks  | 5 files  |
 | Phase 17.1 P12                            | 25min  | 3 tasks  | 3 files  |
+| Phase 17.1-action-flow-cleanup P13        | 12min  | 1 tasks  | 2 files  |
 
 ## Decisions
 
@@ -357,3 +358,4 @@ Phase 17.1.
 - [Phase ?]: [Phase 17.1-11]: applyUndo moveToUndo cast widened to Extract<ActionEvent, {type:'MOVE'|'HP_MOVE'|'FTP_MOVE'}> -- phase-aware moveTypeForPhase constant mirrored identically in client canUndo
 - [Phase ?]: FIRST_TIME_PASS_MOVE selectPiece branch mirrors HIGH_PASS_MOVE structurally (pace cap 1 via firstTimePassPaceUsed, slot lock via firstTimePassMovedPieceId), returns early, never calls validateMove — validateMove's WRONG_SLOT guard was the CR-01-new root cause; this phase tracks position via firstTimePassMovementSlot, not movementSlot
 - [Phase ?]: setGameState sticky-selection branch extended to cover FIRST_TIME_PASS_MOVE with phase-keyed paceRemaining/lockedId ternaries — keeps locked FTP piece selected across same-slot broadcasts, matching existing HIGH_PASS_MOVE/GK_KICK_MOVE behavior
+- [Phase 17.1-13]: CR-02-new closed: applyRoll interception-loop bypass extended to FIRST_TIME_PASS (newLastActionType === FIRST_TIME_PASS) alongside the existing header-pass bypass — Closes the second newly-confirmed Phase 17.1 verification gap; FTP near a defender now reaches FIRST_TIME_PASS_MOVE instead of SUCCESSFUL_TACKLE
