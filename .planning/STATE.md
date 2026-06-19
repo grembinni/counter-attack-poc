@@ -246,12 +246,15 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 9 complete (9 of 10 plans have summaries; plan 10 remaining)
-Status: Ready to execute
-Last activity: 2026-06-19 -- Phase 17.1 Plan 08 complete (loose-ball scatter geometry fix:
-computeLooseBall rewritten as parity-aware cube-vector hex walk; gameEngine.ts LOOSE_BALL clamp
-walk unified onto the same corrected trajectory via computeLooseBall)
+Phase: 17.1 (action-flow-cleanup) — VERIFICATION: GAPS FOUND
+Plan: 10/10 complete (all plans, including gap-closure plans 07-10, have summaries)
+Status: Phase verification found 1 gap — not yet complete
+Last activity: 2026-06-19 -- Phase 17.1 Plan 10 complete (shot-range highlight filter fix).
+All 10 plans done; code review found CR-01 (Undo non-functional in HIGH_PASS_MOVE/
+FIRST_TIME_PASS_MOVE — event-type mismatch MOVE vs HP_MOVE/FTP_MOVE, predates gap-closure
+plans 07-10). Phase verifier confirmed this independently and scored the phase 4/5 must-haves
+(success criterion 3's undo clause fails). VERIFICATION.md created with gaps_found status.
+Next: /gsd-plan-phase 17.1 --gaps to plan a fix for CR-01.
 
 ## Performance Metrics
 
