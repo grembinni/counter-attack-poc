@@ -58,6 +58,7 @@ import {
   applyUndo,
   buildKickOffPieces,
   buildReplayFrames,
+  computeHeaderDuelWinner,
   computeShotPathDeflection,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
@@ -2148,13 +2149,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         headerConfirmed: updatedConfirmed,
       };
 
-      // Bug 4 fix: when both teams have confirmed, immediately resolve the heading duel
-      // and transition to PASS/GK_DIVING/LOOSE_BALL without a separate target-selection step.
-      // The winning team's ball lands at the winner's position; the PASS phase with
-      // lastActionType='HEADER' then auto-selects FIRST_TIME_PASS so the player clicks a
-      // target hex in the normal pass flow — no intermediate "choose header target" step.
-      // applyRoll HEADER branch handles all outcomes: ATTACKER_WIN → PASS,
-      // DEFENDER_WIN → PASS (new attackingTeam), TIE → LOOSE_BALL.
+      // RULE-02 (Phase 11): when both teams have confirmed, fire the heading duel via
+      // computeHeaderDuelWinner (pure function — no phase transition) and store the result
+      // as headerDuelWinner, staying in HEADER. This re-enables the two-step flow:
+      // the winning team then selects a target hex via GAME_HEADER_TARGET, which routes
+      // to GK_DIVE (goal-line target) or PASS (any other target) without re-rolling dice.
+      // A tie (computeHeaderDuelWinner returns null) has no winner to select a target, so
+      // applyRoll is used for that case only, to resolve directly to LOOSE_BALL.
       const bothConfirmed = updatedConfirmed.home === true && updatedConfirmed.away === true;
       if (bothConfirmed) {
         const atkTeam = room.gameState.attackingTeam;
@@ -2164,13 +2165,24 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         // dice layout: [atk_0..atkN, def_0..defN, atkTieDie, defTieDie]
         const numDice = Math.max(atkCount + defCount + 2, 2);
         const diceArr = Array.from({ length: numDice }, () => rollDice());
-        const result = applyRoll(room.gameState, ...diceArr);
-        if (result.ok) {
-          room.gameState = result.state;
+        const winner = computeHeaderDuelWinner(room.gameState, diceArr);
+        if (winner === null) {
+          // Tie: no winner to choose a target hex — resolve directly via applyRoll (LOOSE_BALL).
+          const result = applyRoll(room.gameState, ...diceArr);
+          if (result.ok) {
+            room.gameState = result.state;
+          }
+          // applyRoll !ok is not expected here (phase is HEADER, contestants are set);
+          // if it somehow fails, state is left in HEADER with contestants confirmed so the
+          // client can retry via GAME_ROLL (existing fallback path).
+        } else {
+          // Winner determined: stay in HEADER, store headerDuelWinner so the winning team
+          // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget).
+          room.gameState = {
+            ...room.gameState,
+            headerDuelWinner: winner,
+          };
         }
-        // applyRoll !ok is not expected here (phase is HEADER, contestants are set);
-        // if it somehow fails, state is left in HEADER with contestants confirmed so the
-        // client can retry via GAME_ROLL (existing fallback path).
       }
 
       // Single broadcastState per handler path (Pitfall 1 — no double-broadcast)
