@@ -192,5 +192,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 11/11          | Complete    | 2026-06-19 |
+| 17.1. Action Flow Cleanup     | v1.2      | 11/11          | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
