@@ -151,7 +151,9 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
     expect((undo as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('Undo is enabled when last event is FTP_REPOSITION', () => {
+  it('Undo is enabled when last event is FTP_REPOSITION followed by a real FTP_MOVE', () => {
+    // CR-01 (17.1-11): use the real FTP_MOVE shape gameHandlers.ts emits during
+    // FIRST_TIME_PASS_MOVE — a fabricated MOVE event here would mask the canUndo bug.
     useGameStore.setState({
       gameState: {
         ...ftpBaseState,
@@ -163,13 +165,12 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
             timestamp: 1,
           },
           {
-            type: 'MOVE',
+            type: 'FTP_MOVE',
+            slot: 'ATTACKER',
             pieceId: 'home-9',
             from: { q: 14, r: 13 },
             to: { q: 15, r: 13 },
-            slot: 'ATTACKER_4',
             timestamp: 2,
-            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
           },
         ],
       },

@@ -116,7 +116,15 @@ export function ActionPanel() {
         (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
       return isBoundary ? idx : acc;
     }, -1);
-    return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
+    // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
+    // emits HP_MOVE during HIGH_PASS_MOVE and FTP_MOVE during FIRST_TIME_PASS_MOVE, never MOVE.
+    const moveTypeForPhase =
+      phase === 'HIGH_PASS_MOVE'
+        ? 'HP_MOVE'
+        : phase === 'FIRST_TIME_PASS_MOVE'
+          ? 'FTP_MOVE'
+          : 'MOVE';
+    return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === moveTypeForPhase);
   })();
 
   // -------------------------------------------------------------------------
