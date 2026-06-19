@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-19T16:06:48.431Z'
-last_activity: '2026-06-19 -- Phase 17.1 Plan 09 complete (ZoI tackle/steal exclusion symmetry fix:'
+last_updated: '2026-06-19T16:18:36.859Z'
+last_activity: '2026-06-19 -- Phase 17.1 Plan 08 complete (loose-ball scatter geometry fix:'
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 22
-  completed_plans: 19
-  percent: 40
+  completed_plans: 20
+  percent: 60
 ---
 
 # Project State
@@ -247,8 +247,8 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 08 complete (9 of 10 plans have summaries; plan 10 remaining)
-Status: Executing
+Plan: 9 complete (9 of 10 plans have summaries; plan 10 remaining)
+Status: Ready to execute
 Last activity: 2026-06-19 -- Phase 17.1 Plan 08 complete (loose-ball scatter geometry fix:
 computeLooseBall rewritten as parity-aware cube-vector hex walk; gameEngine.ts LOOSE_BALL clamp
 walk unified onto the same corrected trajectory via computeLooseBall)
@@ -285,6 +285,7 @@ walk unified onto the same corrected trajectory via computeLooseBall)
 | Phase 17.1-action-flow-cleanup P07        | 4min   | 2 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P09        | 5min   | 2 tasks  | 4 files  |
 | Phase 17.1-action-flow-cleanup P08        | 35min  | 3 tasks  | 6 files  |
+| Phase 17.1-action-flow-cleanup P10        | 6min   | 1 tasks  | 2 files  |
 
 ## Decisions
 
@@ -331,3 +332,4 @@ walk unified onto the same corrected trajectory via computeLooseBall)
 - [Phase 17.1-09]: Phase 17.1-09: moveValidator tackle branch mirrors steal branch exclusion pattern; TACKLE_ALREADY_ATTEMPTED removed from MoveResult union; HexGrid zoiRiskSet filters by stealAttemptedByIds
 - [Phase ?]: [Phase 17.1-08]: computeLooseBall rewritten to use cube-coordinate unit vectors (parity-independent) instead of fixed ODD-Q offset deltas; toCube/fromCube exported from hex.ts as single source of truth for offset<->cube conversion
 - [Phase ?]: [Phase 17.1-08]: gameEngine.ts LOOSE_BALL clamp walk now calls computeLooseBall per step instead of duplicating fixed-delta math; LOOSE_BALL_DIRECTIONS export removed entirely
+- [Phase 17.1-10]: regularShooter resolution mirrors snapCarrier/quickThrowTargetSet ball.carrierId->pieces.find pattern; isShootingModeGoalHex regular-shot branch now gates on hexDistance(regularShooter.position, hex) <= 11 matching server applyDeclareShot D-09 gate
