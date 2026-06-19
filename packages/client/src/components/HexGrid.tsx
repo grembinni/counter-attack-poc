@@ -264,14 +264,21 @@ export function HexGrid() {
 
             // Phase 10: shooting mode goal-line highlight (two-step Shoot flow + SNAPSHOT_TARGET snapshot target)
             // For snapshot (SNAPSHOT_TARGET), apply 6-hex range from carrier — same max as first-time pass.
+            // For regular shot (shootingMode), apply the 11-hex range from the shooter (D-09 gap
+            // closure plan 10) — mirrors the server's applyDeclareShot hexDistance > 11 gate.
             const snapCarrier =
               phase === 'SNAPSHOT_TARGET' && ball.carrierId
                 ? pieces.find((p) => p.id === ball.carrierId)
                 : null;
+            const regularShooter = ball.carrierId
+              ? pieces.find((p) => p.id === ball.carrierId)
+              : null;
             const isShootingModeGoalHex =
               isActivePlayer &&
               goalLineHexSet.has(hexId) &&
-              (shootingMode ||
+              ((shootingMode &&
+                regularShooter != null &&
+                hexDistance(regularShooter.position, hex) <= 11) ||
                 (phase === 'SNAPSHOT_TARGET' &&
                   snapCarrier !== undefined &&
                   snapCarrier !== null &&
