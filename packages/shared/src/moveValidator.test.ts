@@ -244,4 +244,74 @@ describe('validateMove', () => {
       }
     }
   });
+
+  // D-02 (17.1-09 gap closure): tackle branch must mirror the steal branch's exclusion
+  // pattern — excluded tacklers keep a valid move, just without the TACKLE_ATTEMPT effect.
+  it('returns plain ok:true (no effect) when an excluded tackler moves adjacent to the carrier', () => {
+    const carrier: PlayerPiece = {
+      ...basePiece,
+      id: 'carrier3',
+      teamId: 'away',
+      position: { q: 7, r: 5 },
+    };
+    const state: GameState = {
+      ...baseState,
+      pieces: [basePiece, carrier],
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier3' },
+      tackleAttemptedByIds: ['p1'],
+    };
+    const result = validateMove(state, basePiece, { q: 6, r: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect('effect' in result).toBe(false);
+    }
+  });
+
+  it('still returns TACKLE_ATTEMPT when the moving piece is NOT in tackleAttemptedByIds (regression guard)', () => {
+    const carrier: PlayerPiece = {
+      ...basePiece,
+      id: 'carrier4',
+      teamId: 'away',
+      position: { q: 7, r: 5 },
+    };
+    const state: GameState = {
+      ...baseState,
+      pieces: [basePiece, carrier],
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier4' },
+      tackleAttemptedByIds: ['someOtherPieceId'],
+    };
+    const result = validateMove(state, basePiece, { q: 6, r: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect('effect' in result).toBe(true);
+      if ('effect' in result) {
+        expect(result.effect.type).toBe('TACKLE_ATTEMPT');
+        if (result.effect.type === 'TACKLE_ATTEMPT') {
+          expect(result.effect.carrierId).toBe('carrier4');
+        }
+      }
+    }
+  });
+
+  it('produces no effect at all for a piece flagged in BOTH tackleAttemptedByIds and stealAttemptedByIds (carrier moving adjacent to a dual-flagged defender)', () => {
+    // p1 is the ball carrier moving adjacent to a defender flagged in BOTH arrays.
+    const defender: PlayerPiece = {
+      ...basePiece,
+      id: 'defender1',
+      teamId: 'away',
+      position: { q: 7, r: 5 }, // adjacent to destination {q:6,r:5}
+    };
+    const state: GameState = {
+      ...baseState,
+      pieces: [basePiece, defender],
+      ball: { position: { q: 5, r: 5 }, carrierId: 'p1' },
+      tackleAttemptedByIds: ['defender1'],
+      stealAttemptedByIds: ['defender1'],
+    };
+    const result = validateMove(state, basePiece, { q: 6, r: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect('effect' in result).toBe(false);
+    }
+  });
 });

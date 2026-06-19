@@ -33,8 +33,7 @@ export type MoveResult =
         | 'OUT_OF_RANGE'
         | 'OCCUPIED'
         | 'PACE_EXCEEDED'
-        | 'ALREADY_MOVED_IN_ATTACKER4'
-        | 'TACKLE_ALREADY_ATTEMPTED';
+        | 'ALREADY_MOVED_IN_ATTACKER4';
     }
   | { ok: true }
   | { ok: true; effect: { type: 'STEAL_ATTEMPT'; defenders: PlayerPiece[] } }
@@ -114,12 +113,13 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
       piece.teamId !== carrier.teamId &&
       hexDistance(to, carrier.position) === 1
     ) {
-      // D-29: piece already attempted a tackle this phase — block the move so the client
-      // does not highlight adjacent-to-carrier hexes as valid for a spent tackler.
-      if ((state.tackleAttemptedByIds ?? []).includes(piece.id)) {
-        return { ok: false, reason: 'TACKLE_ALREADY_ATTEMPTED' };
+      // D-02 (Phase 17.1): exclude defenders who have already attempted a tackle this sequence.
+      // The move itself remains valid (mirrors the STEAL_ATTEMPT pattern above) — only the
+      // TACKLE_ATTEMPT effect is suppressed for an already-flagged tackler. Falls through to
+      // the function's final plain { ok: true } return below.
+      if (!(state.tackleAttemptedByIds ?? []).includes(piece.id)) {
+        return { ok: true, effect: { type: 'TACKLE_ATTEMPT', carrierId: carrier.id } };
       }
-      return { ok: true, effect: { type: 'TACKLE_ATTEMPT', carrierId: carrier.id } };
     }
   }
 
