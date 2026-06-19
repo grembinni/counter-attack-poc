@@ -1214,9 +1214,40 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         }
       }
 
+      // D-03 (Phase 17.1): FIRST_TIME_PASS → enter two-slot repositioning phase.
+      // This check MUST run before the generic occupant-check below: a first-time pass is
+      // virtually always aimed at a visible teammate's (occupied) hex, so if the occupant-check
+      // ran first it would short-circuit and FIRST_TIME_PASS_MOVE would become unreachable in
+      // real play (see .planning/debug/ftp-no-reposition-prompt.md).
+      // Ball stays in flight (carrierId = null, position = targetHex) until both teams
+      // have ended their repositioning turns, at which point the handler delivers the ball.
+      // passTargetHex is preserved so the GAME_END_TURN handler knows where to deliver.
+      if (newLastActionType === 'FIRST_TIME_PASS') {
+        return {
+          ok: true,
+          state: {
+            ...state,
+            phase: 'FIRST_TIME_PASS_MOVE',
+            ball: { position: targetHex, carrierId: null },
+            lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+            lastActionType: 'FIRST_TIME_PASS',
+            actionCount: state.actionCount + passTimeCost,
+            // passTargetHex preserved — GAME_END_TURN delivers ball here after both slots
+            passTargetHex: targetHex,
+            preGeneratedInterceptionDice: [],
+            firstTimePassMovementSlot: 'ATTACKER',
+            firstTimePassMovedPieceId: null,
+            firstTimePassPaceUsed: 0,
+            activeTeam: state.attackingTeam,
+            eventLog: newEventLog,
+          },
+        };
+      }
+
       // No interception: deliver ball to target hex.
       // BUG-04 (Phase 17 D-08/D-09/D-10): find ANY piece at targetHex (any team).
-      // Applies to STANDARD_PASS, FIRST_TIME_PASS, LONG_BALL — NOT HIGH_PASS (D-10).
+      // Applies to STANDARD_PASS, LONG_BALL — NOT HIGH_PASS (D-10) and NOT FIRST_TIME_PASS
+      // (handled above, before this check, per D-03).
       // HIGH_PASS routes to the HEADER branch below, so we skip the occupant check for it.
       // If a piece occupies targetHex, they pick up the ball.
       // If that piece is on the opposing team, possession transfers to their team (D-09).
@@ -1301,32 +1332,6 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             headerConfirmed: { home: !homeEligible, away: !awayEligible },
             headerTargetHex: null,
             headerAccuracyRollPending: true, // RULE-01 (Phase 11): gate contestant selection until attacker acks roll
-          },
-        };
-      }
-
-      // D-03 (Phase 17.1): FIRST_TIME_PASS → enter two-slot repositioning phase.
-      // Ball stays in flight (carrierId = null, position = targetHex) until both teams
-      // have ended their repositioning turns, at which point the handler delivers the ball.
-      // passTargetHex is preserved so the GAME_END_TURN handler knows where to deliver.
-      if (newLastActionType === 'FIRST_TIME_PASS') {
-        return {
-          ok: true,
-          state: {
-            ...state,
-            phase: 'FIRST_TIME_PASS_MOVE',
-            ball: { position: targetHex, carrierId: null },
-            lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
-            lastActionType: 'FIRST_TIME_PASS',
-            actionCount: state.actionCount + passTimeCost,
-            // passTargetHex preserved — GAME_END_TURN delivers ball here after both slots
-            passTargetHex: targetHex,
-            preGeneratedInterceptionDice: [],
-            firstTimePassMovementSlot: 'ATTACKER',
-            firstTimePassMovedPieceId: null,
-            firstTimePassPaceUsed: 0,
-            activeTeam: state.attackingTeam,
-            eventLog: newEventLog,
           },
         };
       }

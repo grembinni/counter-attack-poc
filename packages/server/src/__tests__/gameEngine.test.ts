@@ -846,18 +846,43 @@ describe('applyRoll', () => {
     expect(result.state.passTargetHex).toBeNull();
   });
 
-  it('FIRST_TIME_PASS (PASS-02): same delivery as STANDARD; lastActionType FIRST_TIME_PASS; passTimeCost 0', () => {
+  it('FIRST_TIME_PASS (PASS-02) occupied target: transitions to FIRST_TIME_PASS_MOVE (D-03), not delivered immediately; passTimeCost 0', () => {
+    // firstTimePassState.passTargetHex equals homeTeammate.position {q:17,r:7} — the
+    // realistic case (passing to a visible teammate). The D-03 FIRST_TIME_PASS_MOVE check
+    // must run BEFORE the generic occupant-check, so this must NOT deliver the ball directly.
     const result = applyRoll(firstTimePassState, 1, 3, 3); // die=1 would fail HIGH accuracy
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Ball delivered despite low die (no accuracy check)
+    // Ball is in flight — not delivered to the occupant despite the hex being occupied.
+    expect(result.state.phase).toBe('FIRST_TIME_PASS_MOVE');
+    expect(result.state.ball.carrierId).toBeNull();
     expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
-    expect(result.state.ball.carrierId).toBe('home-2');
-    expect(result.state.phase).toBe('PASS');
     expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    expect(result.state.firstTimePassMovementSlot).toBe('ATTACKER');
+    // passTargetHex preserved (not cleared) — GAME_END_TURN handler needs it later.
+    expect(result.state.passTargetHex).toEqual({ q: 17, r: 7 });
     // FIRST_TIME_PASS costs 0 minutes
     expect(result.state.actionCount).toBe(0);
-    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('FIRST_TIME_PASS (PASS-02) empty target: also transitions to FIRST_TIME_PASS_MOVE (D-03), unaffected by occupant-check', () => {
+    // Same as above but passTargetHex points at an EMPTY hex (no piece there) — proves the
+    // fix did not special-case "occupied vs empty"; both paths reach FIRST_TIME_PASS_MOVE.
+    const emptyTargetFirstTimePassState: GameState = {
+      ...firstTimePassState,
+      pieces: firstTimePassState.pieces.filter((p) => p.id !== homeTeammate.id),
+      passTargetHex: { q: 20, r: 7 },
+    };
+    const result = applyRoll(emptyTargetFirstTimePassState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FIRST_TIME_PASS_MOVE');
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.position).toEqual({ q: 20, r: 7 });
+    expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    expect(result.state.firstTimePassMovementSlot).toBe('ATTACKER');
+    expect(result.state.passTargetHex).toEqual({ q: 20, r: 7 });
+    expect(result.state.actionCount).toBe(0);
   });
 
   it('HIGH_PASS accurate (PASS-03): highPass=5, die=4 (combined 9 >= 8) → ball delivered; phase HEADER; headerContestants initialized', () => {
