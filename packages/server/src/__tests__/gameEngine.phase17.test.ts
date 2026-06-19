@@ -229,14 +229,15 @@ const highPassMovementStateWithMove: GameState = {
       slot: 'ATTACKER',
       timestamp: 1000,
     } as import('@counter-attack/shared').ActionEvent,
-    // A MOVE after the HP_REPOSITION boundary — should be undoable
+    // A real HP_MOVE after the HP_REPOSITION boundary — should be undoable (CR-01 17.1-11)
     {
-      type: 'MOVE',
+      type: 'HP_MOVE',
+      slot: 'ATTACKER',
       pieceId: 'home-9',
       from: { q: 10, r: 7 },
       to: { q: 11, r: 7 },
       timestamp: 2000,
-    } as import('@counter-attack/shared').ActionEvent,
+    },
   ],
   refereeCard: { leniency: 3 },
   movedPieceIds: [],
@@ -684,12 +685,13 @@ describe('Phase 17.1 D-03: FIRST_TIME_PASS_MOVE two-slot alternating handler', (
           timestamp: 1000,
         },
         {
-          type: 'MOVE' as const,
+          type: 'FTP_MOVE' as const,
+          slot: 'ATTACKER' as const,
           pieceId: 'home-9',
           from: { q: 10, r: 7 },
           to: { q: 11, r: 7 },
           timestamp: 2000,
-        } as import('@counter-attack/shared').ActionEvent,
+        },
       ],
     };
     const result = applyUndo(ftpMoveStateWithMove);

@@ -835,23 +835,35 @@ export function applyUndo(state: GameState): ApplyUndoResult {
     return { ok: false, reason: 'UNDO_LOCKED' };
   }
 
-  // Find the last MOVE in the current slot
+  // CR-01 (17.1-11): the move-type to search for is phase-aware — gameHandlers.ts emits
+  // HP_MOVE during HIGH_PASS_MOVE and FTP_MOVE during FIRST_TIME_PASS_MOVE, never MOVE.
+  const moveTypeForPhase =
+    state.phase === 'HIGH_PASS_MOVE'
+      ? 'HP_MOVE'
+      : state.phase === 'FIRST_TIME_PASS_MOVE'
+        ? 'FTP_MOVE'
+        : 'MOVE';
+
+  // Find the last MOVE (or phase-appropriate HP_MOVE/FTP_MOVE) in the current slot
   const lastMoveRelIdx = currentSlotEvents.reduce<number>((acc, evt, idx) => {
-    return evt.type === 'MOVE' ? idx : acc;
+    return evt.type === moveTypeForPhase ? idx : acc;
   }, -1);
 
   if (lastMoveRelIdx === -1) {
     // No MOVE in current slot — check if prior-slot moves are locked (slot boundary crossed)
     const hasPriorMoves = state.eventLog
       .slice(0, lastSlotAdvanceIdx + 1)
-      .some((e) => e.type === 'MOVE');
+      .some((e) => e.type === moveTypeForPhase);
     if (hasPriorMoves) {
       return { ok: false, reason: 'UNDO_LOCKED' }; // D-09: moves exist but crossed a slot boundary
     }
     return { ok: false, reason: 'NOTHING_TO_UNDO' };
   }
 
-  const moveToUndo = currentSlotEvents[lastMoveRelIdx] as Extract<ActionEvent, { type: 'MOVE' }>;
+  const moveToUndo = currentSlotEvents[lastMoveRelIdx] as Extract<
+    ActionEvent,
+    { type: 'MOVE' | 'HP_MOVE' | 'FTP_MOVE' }
+  >;
 
   // Reverse piece position (D-10)
   const newPieces = state.pieces.map((p) =>
