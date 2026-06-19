@@ -30,16 +30,24 @@ const ODD_Q_NEIGHBORS: readonly [readonly HexCoord[], readonly HexCoord[]] = [
   ],
 ];
 
-/** Convert ODD-Q offset (q, r) → cube (x, y, z). */
-function toCube(h: HexCoord): { x: number; y: number; z: number } {
+/**
+ * Convert ODD-Q offset (q, r) → cube (x, y, z).
+ * Exported so other modules (e.g. scoreUtils.ts computeLooseBall) can perform
+ * offset-to-cube-and-back trajectory math using this package's single source
+ * of truth for the ODD-Q offset <-> cube conversion, mirroring hexLine's approach.
+ */
+export function toCube(h: HexCoord): { x: number; y: number; z: number } {
   const x = h.q;
   // q & 1 works for negative q in JS two's-complement (odd-column flag)
   const z = h.r - (h.q - (h.q & 1)) / 2;
   return { x, y: -x - z, z };
 }
 
-/** Convert cube (x, y, z) → ODD-Q offset (q, r). */
-function fromCube(x: number, y: number, z: number): HexCoord {
+/**
+ * Convert cube (x, y, z) → ODD-Q offset (q, r).
+ * Exported alongside toCube (see toCube doc comment).
+ */
+export function fromCube(x: number, y: number, z: number): HexCoord {
   const q = x;
   const r = z + (q - (q & 1)) / 2;
   return { q, r };

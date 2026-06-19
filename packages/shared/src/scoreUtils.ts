@@ -9,6 +9,7 @@
  */
 
 import type { HexCoord } from './types.js';
+import { toCube, fromCube } from './hex.js';
 
 /**
  * Computes the combined score for a dice resolution.
@@ -36,22 +37,31 @@ export function computeCombinedScore(
 }
 
 /**
- * Loose Ball direction vectors, indexed 0-5 corresponding to dice values 1-6.
+ * Loose Ball direction unit vectors, indexed 0-5 corresponding to dice values 1-6.
  *
  * Source: Counter Attack rulebook v1.4.1 deflection ruler
  * Order: 1=E, 2=NE, 3=NW, 4=W, 5=SW, 6=SE
  *
- * Note: Order matches AXIAL_DIRECTIONS in hex.ts: [E, NE, NW, W, SW, SE].
- * Physical rulebook verification is required before Phase 4 live use
- * (per assumption A2 in 02-RESEARCH.md).
+ * These are CUBE-coordinate unit vectors, not ODD-Q offset deltas. Cube coordinates
+ * have no column-parity concept, so a single fixed cube delta per compass direction
+ * is valid for every starting hex regardless of column parity — unlike a fixed
+ * offset-coordinate delta, which only traces a true straight line for the parity it
+ * was derived from (the bug this table replaces; see
+ * .planning/debug/loose-ball-scatter-rolls.md).
+ *
+ * Each direction's cube delta was derived from `hexNeighbors({q:0,r:0})` (an even-q
+ * hex) by converting both the hex and its neighbour to cube via `toCube` and taking
+ * the difference (neighbor_cube - hex_cube) — the same offset-to-cube conversion
+ * `hexLine`/`hexesInRange` already use, applied here to find the 6 canonical
+ * direction vectors once.
  */
-export const LOOSE_BALL_DIRECTIONS: readonly HexCoord[] = [
-  { q: 1, r: 0 }, // 1 = E
-  { q: 1, r: -1 }, // 2 = NE
-  { q: 0, r: -1 }, // 3 = NW
-  { q: -1, r: 0 }, // 4 = W
-  { q: -1, r: 1 }, // 5 = SW
-  { q: 0, r: 1 }, // 6 = SE
+const LOOSE_BALL_CUBE_DIRECTIONS: readonly { x: number; y: number; z: number }[] = [
+  { x: 1, y: -1, z: 0 }, // 1 = E
+  { x: 1, y: 0, z: -1 }, // 2 = NE
+  { x: 0, y: 1, z: -1 }, // 3 = NW
+  { x: -1, y: 0, z: 1 }, // 4 = W
+  { x: -1, y: 1, z: 0 }, // 5 = SW
+  { x: 0, y: -1, z: 1 }, // 6 = SE
 ];
 
 /**
@@ -60,6 +70,14 @@ export const LOOSE_BALL_DIRECTIONS: readonly HexCoord[] = [
  *
  * Boundary validation (is the result a valid pitch hex?) is deferred to Phase 4
  * when PITCH_HEXES contains real coordinates (per D-06 and CONTEXT.md Deferred Ideas).
+ *
+ * Implementation: converts `from` to cube via `toCube`, adds the direction's cube
+ * unit vector scaled by `distance`, then converts back to ODD-Q offset via
+ * `fromCube`. This produces a true single-direction, single-distance straight line
+ * on the actual ODD-Q offset pitch grid for all 6 directions and both column
+ * parities — matching the same offset-to-cube-and-back pattern `hexLine` uses,
+ * rather than repeatedly applying a fixed offset delta (which only stays straight
+ * for parity-independent axis-aligned directions).
  *
  * @param from - The incident hex where the Loose Ball originates
  * @param direction - Direction die value (1-6); 1=E, 2=NE, 3=NW, 4=W, 5=SW, 6=SE
@@ -73,6 +91,7 @@ export function computeLooseBall(
 ): HexCoord {
   // Non-null assertion required by noUncheckedIndexedAccess.
   // Safe by construction: the literal union 1|2|3|4|5|6 maps to indices 0-5 exactly.
-  const dir = LOOSE_BALL_DIRECTIONS[direction - 1]!;
-  return { q: from.q + dir.q * distance, r: from.r + dir.r * distance };
+  const dir = LOOSE_BALL_CUBE_DIRECTIONS[direction - 1]!;
+  const cube = toCube(from);
+  return fromCube(cube.x + dir.x * distance, cube.y + dir.y * distance, cube.z + dir.z * distance);
 }
