@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: verifying
-last_updated: '2026-06-19T22:06:03.692Z'
-last_activity: '2026-06-19 -- Phase 17.1 Plan 11 complete (CR-01: FTP/HP undo fix).'
+status: executing
+last_updated: '2026-06-19T22:18:36.164Z'
+last_activity: 2026-06-19 -- Phase 17.1 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 23
-  completed_plans: 21
-  percent: 60
+  completed_phases: 2
+  total_plans: 25
+  completed_plans: 22
+  percent: 40
 ---
 
 # Project State
@@ -263,9 +263,9 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 11 of 11 complete
-Status: CR-01 gap-closure plan 11 complete; awaiting re-verification
-Last activity: 2026-06-19 -- Phase 17.1 Plan 11 complete (CR-01: FTP/HP undo fix).
+Plan: 2 of 13
+Status: Ready to execute
+Last activity: 2026-06-19 -- Phase 17.1 execution started
 Plan 11 closed CR-01 (Undo non-functional in HIGH_PASS_MOVE/FIRST_TIME_PASS_MOVE —
 event-type mismatch MOVE vs HP_MOVE/FTP_MOVE). applyUndo and ActionPanel canUndo are now
 phase-aware; de-masked unit/component fixtures; added 2 wire-level GAME_UNDO tests.
@@ -306,6 +306,7 @@ Phase 17.1.
 | Phase 17.1-action-flow-cleanup P08        | 35min  | 3 tasks  | 6 files  |
 | Phase 17.1-action-flow-cleanup P10        | 6min   | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P11        | 7min   | 3 tasks  | 5 files  |
+| Phase 17.1 P12                            | 25min  | 3 tasks  | 3 files  |
 
 ## Decisions
 
@@ -354,3 +355,5 @@ Phase 17.1.
 - [Phase ?]: [Phase 17.1-08]: gameEngine.ts LOOSE_BALL clamp walk now calls computeLooseBall per step instead of duplicating fixed-delta math; LOOSE_BALL_DIRECTIONS export removed entirely
 - [Phase 17.1-10]: regularShooter resolution mirrors snapCarrier/quickThrowTargetSet ball.carrierId->pieces.find pattern; isShootingModeGoalHex regular-shot branch now gates on hexDistance(regularShooter.position, hex) <= 11 matching server applyDeclareShot D-09 gate
 - [Phase ?]: [Phase 17.1-11]: applyUndo moveToUndo cast widened to Extract<ActionEvent, {type:'MOVE'|'HP_MOVE'|'FTP_MOVE'}> -- phase-aware moveTypeForPhase constant mirrored identically in client canUndo
+- [Phase ?]: FIRST_TIME_PASS_MOVE selectPiece branch mirrors HIGH_PASS_MOVE structurally (pace cap 1 via firstTimePassPaceUsed, slot lock via firstTimePassMovedPieceId), returns early, never calls validateMove — validateMove's WRONG_SLOT guard was the CR-01-new root cause; this phase tracks position via firstTimePassMovementSlot, not movementSlot
+- [Phase ?]: setGameState sticky-selection branch extended to cover FIRST_TIME_PASS_MOVE with phase-keyed paceRemaining/lockedId ternaries — keeps locked FTP piece selected across same-slot broadcasts, matching existing HIGH_PASS_MOVE/GK_KICK_MOVE behavior
