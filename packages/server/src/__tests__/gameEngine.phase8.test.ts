@@ -1104,7 +1104,15 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
 // ---------------------------------------------------------------------------
 
 describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () => {
-  /** A piece sitting on a trajectory hex between ball and landing (D-23) */
+  /**
+   * A piece sitting on a trajectory hex between ball and landing (D-23).
+   * Phase 17.1-08: position corrected to {q:17, r:13} — the TRUE 2nd step of a
+   * direction=1 (East) scatter from an odd-q ball position ({q:15,r:12}) drifts
+   * in r (ODD-Q offset diagonal-equivalent row shift), per computeLooseBall's
+   * corrected parity-aware cube-vector walk. {q:17,r:12} was never actually on
+   * this trajectory — it only appeared correct under the old buggy fixed-delta
+   * implementation that incorrectly held r constant for every starting parity.
+   */
   const trajectoryBlocker: PlayerPiece = {
     id: 'home-block',
     teamId: 'home',
@@ -1113,7 +1121,7 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
     number: 6,
     nationality: 'Test',
     role: 'MID',
-    position: { q: 17, r: 12 }, // placed on the trajectory from ball {q:15,r:12} toward landing
+    position: { q: 17, r: 13 }, // true 2nd step of E-direction scatter from {q:15,r:12}
     pace: 7,
     shooting: 5,
     tackling: 4,
@@ -1129,13 +1137,13 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
   const makeLooseBallStateWithBlocker = (): GameState => ({
     ...makePassState(),
     phase: 'LOOSE_BALL',
-    // Ball at {q:15, r:12}; trajectoryBlocker at {q:17, r:12}
+    // Ball at {q:15, r:12}; trajectoryBlocker at {q:17, r:13}
     ball: { position: { q: 15, r: 12 }, carrierId: null },
     pieces: [
       { ...homeFwd, position: { q: 32, r: 12 } }, // away from trajectory
       awayGk,
       homeMid, // at {q:15, r:12} — but that's ball position, not trajectory
-      trajectoryBlocker, // at {q:17, r:12}
+      trajectoryBlocker, // at {q:17, r:13}
     ],
     lastActionType: 'HIGH_PASS',
   });
@@ -1155,19 +1163,17 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
   });
 
   it('PASS-05 D-23: ball stops on first occupied trajectory hex; carrierId is that piece', () => {
-    // dice d1=3 (direction), d2=4 (distance) → computeLooseBall yields a landing hex
-    // trajectoryBlocker is at {q:17, r:12}; if it is between ball and landing, ball stops there
-    // We use dice that push the landing well past {q:17, r:12} on a rightward path
-    // computeLooseBall(ball={q:15,r:12}, direction=1 (East in odd-q), distance=4)
-    // Landing should be far right from ball; trajectory passes through {q:17,r:12}
-    // Use dice d1=1 (direction→hex 0), d2=6 (distance=6 steps) to push far right
+    // dice d1=1 (direction=East), d2=6 (distance=6) → computeLooseBall's corrected
+    // parity-aware walk from ball={q:15,r:12} (odd-q) lands at {q:21,r:15}.
+    // trajectoryBlocker sits at {q:17,r:13} — the TRUE 2nd step of that trajectory
+    // (Phase 17.1-08: corrected from the old buggy {q:17,r:12} fixture value).
     const state = makeLooseBallStateWithBlocker();
     const result = applyRoll(state, 1, 6);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Ball should have stopped at the trajectoryBlocker position (PASS-05 / D-23)
     expect(result.state.ball.carrierId).toBe('home-block');
-    expect(result.state.ball.position).toEqual({ q: 17, r: 12 });
+    expect(result.state.ball.position).toEqual({ q: 17, r: 13 });
     expect(result.state.lastActionType).toBe('DEFLECTION');
     expect(result.state.phase).toBe('PASS'); // D-23: phase is PASS not MOVEMENT
     expect(result.state.attackingTeam).toBe('home'); // attackingTeam unchanged

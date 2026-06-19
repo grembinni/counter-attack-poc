@@ -821,27 +821,32 @@ const looseBallNearEdgeState: GameState = {
 
 describe('Phase 17.1 D-08: loose-ball scatter clamps to board edge', () => {
   it('scatter direction=1 (East, +q) distance=5 from q=34 clamps at q=36; ball stays on-pitch; phase PASS', () => {
-    // Ball at q=34, direction=1 (East: +q), distance=5 → raw landing q=39 (off-pitch: pitch is q∈[0,36])
-    // Clamp walk: step 1→q=35 (valid), step 2→q=36 (valid), step 3→q=37 (off-pitch: break)
-    // clampedPos = {q:36, r:7}
+    // Ball at {q:34,r:7}, direction=1 (East), distance=5.
+    // Phase 17.1-08: computeLooseBall's corrected parity-aware cube-vector walk
+    // drifts r as q increases on this ODD-Q offset grid (true straight-line
+    // geometry — see scoreUtils.ts/hex.ts). Step-by-step from {q:34,r:7}:
+    // step1={q:35,r:7} (on-pitch), step2={q:36,r:8} (on-pitch, q=36 is max
+    // pitch column), step3={q:37,r:8} (off-pitch: q>36, clamp breaks here).
+    // clampedPos = {q:36, r:8}
     const result = applyRoll(looseBallNearEdgeState, 1, 5);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Clamped ball must be on-pitch
     expect(isPitchHex(result.state.ball.position)).toBe(true);
     // Exactly at pitch boundary (q=36 is max pitch column)
-    expect(result.state.ball.position).toEqual({ q: 36, r: 7 });
+    expect(result.state.ball.position).toEqual({ q: 36, r: 8 });
     // LOOSE_BALL always resolves to PASS phase (D-23/D-24)
     expect(result.state.phase).toBe('PASS');
   });
 
   it('scatter that stays fully on-pitch is unchanged by clamping', () => {
-    // Ball at q=10, direction=4 (West: -q), distance=3 → landing q=7 (well within pitch)
+    // Ball at {q:34,r:7}, direction=4 (West), distance=3 → landing well within pitch.
+    // Phase 17.1-08: corrected trajectory drifts r as q decreases (true straight line).
     const result = applyRoll(looseBallNearEdgeState, 4, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Ball should land 3 steps west: q=34-3=31, r=7
-    expect(result.state.ball.position).toEqual({ q: 31, r: 7 });
+    // Ball should land 3 steps west of {q:34,r:7}: {q:31, r:8} (corrected trajectory)
+    expect(result.state.ball.position).toEqual({ q: 31, r: 8 });
     expect(isPitchHex(result.state.ball.position)).toBe(true);
     expect(result.state.phase).toBe('PASS');
   });

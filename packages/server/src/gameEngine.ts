@@ -29,7 +29,7 @@ import {
   isPitchHex,
   validateMove,
   computeCombinedScore,
-  LOOSE_BALL_DIRECTIONS,
+  computeLooseBall,
   validatePass,
   validatePassAccuracy,
   validateShotDuel,
@@ -1978,16 +1978,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const direction = d1 as 1 | 2 | 3 | 4 | 5 | 6;
       const distance = d2 as 1 | 2 | 3 | 4 | 5 | 6;
 
-      // D-08: clamp scatter to last valid pitch hex using direction-delta walk.
+      // D-08: clamp scatter to last valid pitch hex using the corrected parity-aware
+      // trajectory walk (computeLooseBall is the single source of truth for the
+      // scatter path — no duplicated fixed-delta math here, see scoreUtils.ts).
       // pending out-of-bounds rules — ball stopped at board edge for now
       const from = state.ball.position;
-      const dirDelta = LOOSE_BALL_DIRECTIONS[direction - 1]!;
       let clampedPos = from; // fallback: ball stays at current position if first step is off-pitch
-      for (let step = 0; step < distance; step++) {
-        const next: HexCoord = {
-          q: from.q + dirDelta.q * (step + 1),
-          r: from.r + dirDelta.r * (step + 1),
-        };
+      for (let step = 1; step <= distance; step++) {
+        const next: HexCoord = computeLooseBall(from, direction, step as 1 | 2 | 3 | 4 | 5 | 6);
         if (isPitchHex(next)) clampedPos = next;
         else break;
       }
