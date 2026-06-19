@@ -124,12 +124,25 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 5. A STANDARD pass to a defender-occupied hex is allowed and auto-intercepted (case 1); intermediate on-path blocking still returns PATH_BLOCKED (case 2); ZoI defenders roll-intercept (case 3)
 
 **Plans**: 11 plans (gap closure: 5 additional plans — 4 UAT-diagnosed regressions + 1 verification gap)
+**Wave 1**
 
 - [x] 17.1-01-PLAN.md — D-11 GamePhase rename sweep (all source + tests) + FIRST_TIME_PASS_MOVE added to union [Wave 1]
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [x] 17.1-02-PLAN.md — D-01 stat model consolidation + D-02 ZoI exclusion/reset (types, teams, moveValidator, gameEngine) [Wave 3]
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
 - [x] 17.1-06-PLAN.md — ActionPanel FIRST_TIME_PASS_MOVE panel + BallMarker/HexCell visual commit [Wave 3]
 - [x] 17.1-03-PLAN.md — D-03 FIRST_TIME_PASS_MOVE handler + D-06 GK_RESTART trigger + D-07 spill route [Wave 4]
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
 - [x] 17.1-04-PLAN.md — D-08 board-edge clamping + D-09 regular-shot range gate [Wave 5]
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
 - [x] 17.1-05-PLAN.md — D-10 pass intercept shape change (autoIntercepts/rollIntercepts) [Wave 6]
 
 **Gap closure (UAT-diagnosed regressions, post-verification):**
