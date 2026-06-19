@@ -123,7 +123,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 4. GK carrying in its own penalty area at end of MOVE → GK_RESTART; GK save spill → GK_RESTART; loose-ball scatter clamps to the pitch; regular shot beyond 11 hexes is rejected
 5. A STANDARD pass to a defender-occupied hex is allowed and auto-intercepted (case 1); intermediate on-path blocking still returns PATH_BLOCKED (case 2); ZoI defenders roll-intercept (case 3)
 
-**Plans**: 10 plans (gap closure: 4 additional plans for UAT-diagnosed regressions)
+**Plans**: 11 plans (gap closure: 5 additional plans — 4 UAT-diagnosed regressions + 1 verification gap)
 
 - [x] 17.1-01-PLAN.md — D-11 GamePhase rename sweep (all source + tests) + FIRST_TIME_PASS_MOVE added to union [Wave 1]
 - [x] 17.1-02-PLAN.md — D-01 stat model consolidation + D-02 ZoI exclusion/reset (types, teams, moveValidator, gameEngine) [Wave 3]
@@ -138,6 +138,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 - [x] 17.1-09-PLAN.md — Fix ZoI tackle/steal exclusion asymmetry (moveValidator.ts tackle branch + HexGrid.tsx steal-risk tint) [Gap Wave 1]
 - [x] 17.1-08-PLAN.md — Fix loose-ball scatter math (axial deltas on ODD-Q offset grid) [Gap Wave 2, depends on 17.1-07]
 - [x] 17.1-10-PLAN.md — Fix shot-range highlight missing distance filter (HexGrid.tsx) [Gap Wave 2, depends on 17.1-09]
+- [ ] 17.1-11-PLAN.md — Fix FTP/HP undo non-functional: phase-aware move-type lookup in applyUndo + canUndo, de-mask test fixtures, add wire test (CR-01 / SC3 undo clause) [Gap Wave 3, depends on 17.1-10]
 
 ### Phase 18: Design Polish
 
@@ -178,5 +179,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 10/10          | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 10/11          | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
