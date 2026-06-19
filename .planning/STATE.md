@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-19T15:22:55.481Z'
-last_activity: 2026-06-19 -- Phase 17.1 Plan 09 complete (ZoI tackle/steal exclusion symmetry fix)
+last_updated: '2026-06-19T16:06:48.431Z'
+last_activity: '2026-06-19 -- Phase 17.1 Plan 09 complete (ZoI tackle/steal exclusion symmetry fix:'
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 22
-  completed_plans: 18
+  completed_plans: 19
   percent: 40
 ---
 
@@ -220,18 +220,38 @@ Known deferred items at close: 6 (see above)
   HexGrid's zoiRiskSet now filters getZoIDefenders by stealAttemptedByIds so steal-risk tint
   clears correctly after a failed steal attempt. TACKLE_ALREADY_ATTEMPTED removed from MoveResult
   union (confirmed unreferenced elsewhere via grep).
+
 - 245 shared + 98 client + 297 server tests passing (4 pre-existing server RED failures unchanged,
   unrelated to this plan's files). Typecheck clean on shared and client packages.
+
 - Gap closure plan 08 (loose-ball scatter math) has no SUMMARY.md yet — still outstanding.
   Gap closure plan 10 (shot-range highlight filter) remains as the final item in the wave.
+
+- Last updated: 2026-06-19
+- Phase 17.1 Plan 08 complete (gap closure). Rewrote computeLooseBall to use cube-coordinate
+  unit vectors instead of fixed ODD-Q offset deltas — fixes systematic NE/SW overshoot on
+  multi-step scatter rolls (root cause diagnosed in .planning/debug/loose-ball-scatter-rolls.md).
+  gameEngine.ts's D-08 board-edge clamp walk now calls computeLooseBall per step (single source
+  of truth, no duplicated fixed-delta math). Added 72-case parity/direction/distance regression
+  test. Corrected 5 pre-existing test fixtures/expectations across scoreUtils.test.ts,
+  gameEngine.phase8.test.ts, and gameEngine.phase17.test.ts that encoded the old (incorrect)
+  row-preserving trajectory assumption.
+
+- 317 shared + 297 server tests passing (4 pre-existing server RED failures unchanged, confirmed
+  via baseline worktree comparison at commit 1f3d17d — unrelated to this plan's files).
+  Typecheck clean on all packages.
+
+- Gap closure plan 10 (shot-range highlight filter) remains as the final item in the Phase 17.1
+  gap-closure wave.
 
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 09 complete (8 of 10 plans have summaries; plan 08 still outstanding, plan 10 remaining)
+Plan: 08 complete (9 of 10 plans have summaries; plan 10 remaining)
 Status: Executing
-Last activity: 2026-06-19 -- Phase 17.1 Plan 09 complete (ZoI tackle/steal exclusion symmetry fix:
-moveValidator tackle branch mirrors steal branch; HexGrid zoiRiskSet filters stealAttemptedByIds)
+Last activity: 2026-06-19 -- Phase 17.1 Plan 08 complete (loose-ball scatter geometry fix:
+computeLooseBall rewritten as parity-aware cube-vector hex walk; gameEngine.ts LOOSE_BALL clamp
+walk unified onto the same corrected trajectory via computeLooseBall)
 
 ## Performance Metrics
 
@@ -264,6 +284,7 @@ moveValidator tackle branch mirrors steal branch; HexGrid zoiRiskSet filters ste
 | Phase 17.1-action-flow-cleanup P05        | 5min   | 3 tasks  | 4 files  |
 | Phase 17.1-action-flow-cleanup P07        | 4min   | 2 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P09        | 5min   | 2 tasks  | 4 files  |
+| Phase 17.1-action-flow-cleanup P08        | 35min  | 3 tasks  | 6 files  |
 
 ## Decisions
 
@@ -308,3 +329,5 @@ moveValidator tackle branch mirrors steal branch; HexGrid zoiRiskSet filters ste
 - [Phase 17.1 P04]: D-09: hexDistance(shooter.position, goalHex) > 11 guard in applyDeclareShot before GK_DIVE; snapshot 6-hex gate unchanged
 - [Phase 17.1-action-flow-cleanup]: D-03 FIRST_TIME_PASS_MOVE check reordered before generic occupant-check in applyRoll PASS branch (gap closure plan 07) — occupant-check was shadowing the transition for occupied targets, the realistic gameplay case
 - [Phase 17.1-09]: Phase 17.1-09: moveValidator tackle branch mirrors steal branch exclusion pattern; TACKLE_ALREADY_ATTEMPTED removed from MoveResult union; HexGrid zoiRiskSet filters by stealAttemptedByIds
+- [Phase ?]: [Phase 17.1-08]: computeLooseBall rewritten to use cube-coordinate unit vectors (parity-independent) instead of fixed ODD-Q offset deltas; toCube/fromCube exported from hex.ts as single source of truth for offset<->cube conversion
+- [Phase ?]: [Phase 17.1-08]: gameEngine.ts LOOSE_BALL clamp walk now calls computeLooseBall per step instead of duplicating fixed-delta math; LOOSE_BALL_DIRECTIONS export removed entirely
