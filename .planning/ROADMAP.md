@@ -134,7 +134,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 **Gap closure (UAT-diagnosed regressions, post-verification):**
 
-- [ ] 17.1-07-PLAN.md — Fix FIRST_TIME_PASS_MOVE unreachable for occupied target hex (gameEngine.ts PASS branch reorder) [Gap Wave 1]
+- [x] 17.1-07-PLAN.md — Fix FIRST_TIME_PASS_MOVE unreachable for occupied target hex (gameEngine.ts PASS branch reorder) [Gap Wave 1]
 - [ ] 17.1-09-PLAN.md — Fix ZoI tackle/steal exclusion asymmetry (moveValidator.ts tackle branch + HexGrid.tsx steal-risk tint) [Gap Wave 1]
 - [ ] 17.1-08-PLAN.md — Fix loose-ball scatter math (axial deltas on ODD-Q offset grid) [Gap Wave 2, depends on 17.1-07]
 - [ ] 17.1-10-PLAN.md — Fix shot-range highlight missing distance filter (HexGrid.tsx) [Gap Wave 2, depends on 17.1-09]
@@ -178,5 +178,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 6/10           | Gap Closure |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 7/10           | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: verifying
-last_updated: '2026-06-15T21:17:00.273Z'
-last_activity: 2026-06-15 -- Phase 17.1 execution started
+status: executing
+last_updated: '2026-06-19T15:13:30.152Z'
+last_activity: 2026-06-19 -- Phase 17.1 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 18
-  completed_plans: 16
-  percent: 60
+  completed_phases: 2
+  total_plans: 22
+  completed_plans: 17
+  percent: 40
 ---
 
 # Project State
@@ -202,12 +202,21 @@ Known deferred items at close: 6 (see above)
 - Phase 17.1 Plan 04 complete. D-08 board-edge clamp + D-09 shot range gate implemented and tested.
 - 286 server + 91 client + 241 shared tests passing. 4 pre-existing RED stubs unchanged. Typecheck clean.
 
+- Last updated: 2026-06-19
+- Phase 17.1 Plan 07 complete (gap closure wave 1). Reordered applyRoll PASS branch so D-03
+  FIRST_TIME_PASS_MOVE is checked before the generic occupant-check, fixing UAT Test 3
+  (no reposition prompt after first-time pass to an occupied/teammate hex).
+- 297 server tests passing; 4 pre-existing RED failures unchanged (2 MOVE-06 FREE_MOVE scaffolding
+  gaps, 2 abandoned pre-17.1 firstTimePassStep design stubs). Typecheck clean.
+- Gap closure plans 08-10 remain (loose-ball scatter math, ZoI tackle/steal asymmetry, shot-range
+  highlight filter).
+
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-06-15 -- Phase 17.1 execution started
+Plan: 07 of 10 complete (gap closure wave 1; 08-10 remaining)
+Status: Executing
+Last activity: 2026-06-19 -- Phase 17.1 Plan 07 complete (FIRST_TIME_PASS_MOVE occupant-check reorder)
 
 ## Performance Metrics
 
@@ -238,6 +247,7 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 | Phase 17.1-action-flow-cleanup P03        | 9min   | 3 tasks  | 5 files  |
 | Phase 17.1-action-flow-cleanup P04        | 15min  | 2 tasks  | 5 files  |
 | Phase 17.1-action-flow-cleanup P05        | 5min   | 3 tasks  | 4 files  |
+| Phase 17.1-action-flow-cleanup P07        | 4min   | 2 tasks  | 2 files  |
 
 ## Decisions
 
@@ -280,3 +290,4 @@ Last activity: 2026-06-15 -- Phase 17.1 execution started
 - [Phase ?]: D-02: steal exclusion reads stealAttemptedByIds in moveValidator (cross-type)
 - [Phase 17.1 P04]: D-08: LOOSE_BALL_DIRECTIONS exported from scoreUtils; direction-delta clamp walk in applyRoll LOOSE_BALL branch (isPitchHex per step; stops at board edge)
 - [Phase 17.1 P04]: D-09: hexDistance(shooter.position, goalHex) > 11 guard in applyDeclareShot before GK_DIVE; snapshot 6-hex gate unchanged
+- [Phase 17.1-action-flow-cleanup]: D-03 FIRST_TIME_PASS_MOVE check reordered before generic occupant-check in applyRoll PASS branch (gap closure plan 07) — occupant-check was shadowing the transition for occupied targets, the realistic gameplay case
