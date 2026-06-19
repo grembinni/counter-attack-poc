@@ -418,19 +418,18 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
     movedPieceIds: [],
   };
 
-  it('a piece already in tackleAttemptedByIds is rejected when tackle triggers again', () => {
+  it('a piece already in tackleAttemptedByIds moves normally with no TACKLE_ATTEMPT effect', () => {
     const state: GameState = {
       ...tackleTriggerState,
       tackleAttemptedByIds: ['away-def'], // away-def already attempted a tackle this phase
     };
-    // awayDef moves from {31,11} to {31,12} (adjacent to carrier at {32,12}) → TACKLE_ATTEMPT
-    // D-29: should be rejected because 'away-def' is already in tackleAttemptedByIds
+    // awayDef moves from {31,11} to {31,12} (adjacent to carrier at {32,12}).
+    // D-02 (17.1-09 gap closure): excluded tacklers keep a valid move — the move is NOT
+    // rejected, it just produces no TACKLE_ATTEMPT effect (mirrors the steal-side exclusion).
     const result = applyMove(state, 'away-def', { q: 31, r: 12 });
-    if (!result.ok) {
-      expect(result.reason).toBe('MOVE_INVALID');
-    }
-    // After D-29 fix: expect result.ok to be false; currently ok:true (pre-fix RED)
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.tackleAttemptedByIds ?? []).toEqual(['away-def']);
   });
 
   it('a piece not in tackleAttemptedByIds can attempt tackle; its id is added to list', () => {
