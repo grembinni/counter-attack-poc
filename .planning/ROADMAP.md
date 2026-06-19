@@ -151,7 +151,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 - [x] 17.1-09-PLAN.md — Fix ZoI tackle/steal exclusion asymmetry (moveValidator.ts tackle branch + HexGrid.tsx steal-risk tint) [Gap Wave 1]
 - [x] 17.1-08-PLAN.md — Fix loose-ball scatter math (axial deltas on ODD-Q offset grid) [Gap Wave 2, depends on 17.1-07]
 - [x] 17.1-10-PLAN.md — Fix shot-range highlight missing distance filter (HexGrid.tsx) [Gap Wave 2, depends on 17.1-09]
-- [ ] 17.1-11-PLAN.md — Fix FTP/HP undo non-functional: phase-aware move-type lookup in applyUndo + canUndo, de-mask test fixtures, add wire test (CR-01 / SC3 undo clause) [Gap Wave 3, depends on 17.1-10]
+- [x] 17.1-11-PLAN.md — Fix FTP/HP undo non-functional: phase-aware move-type lookup in applyUndo + canUndo, de-mask test fixtures, add wire test (CR-01 / SC3 undo clause) [Gap Wave 3, depends on 17.1-10]
 
 ### Phase 18: Design Polish
 
@@ -192,5 +192,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 10/11          | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 11/11          | Complete    | 2026-06-19 |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |

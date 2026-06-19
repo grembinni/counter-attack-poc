@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: verifying
-last_updated: '2026-06-19T17:00:25.939Z'
-last_activity: 2026-06-19 -- Phase 17.1 Plan 10 complete (shot-range highlight filter fix).
+last_updated: '2026-06-19T17:17:26.904Z'
+last_activity: '2026-06-19 -- Phase 17.1 Plan 11 complete (CR-01: FTP/HP undo fix).'
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 22
-  completed_plans: 20
+  total_plans: 23
+  completed_plans: 21
   percent: 60
 ---
 
@@ -244,17 +244,33 @@ Known deferred items at close: 6 (see above)
 - Gap closure plan 10 (shot-range highlight filter) remains as the final item in the Phase 17.1
   gap-closure wave.
 
+- Last updated: 2026-06-19
+- Phase 17.1 Plan 11 complete (gap closure, CR-01). Made applyUndo's move-type lookup
+  phase-aware (HP_MOVE in HIGH_PASS_MOVE, FTP_MOVE in FIRST_TIME_PASS_MOVE, MOVE otherwise)
+  in both the lastMoveRelIdx search and the hasPriorMoves fallback; mirrored the identical
+  mapping in ActionPanel.tsx's canUndo. De-masked two gameEngine.phase17.test.ts fixtures and
+  one ActionPanel.test.tsx fixture that fabricated MOVE events to fake the FTP/HP undo
+  boundary. Added two end-to-end game.integration.test.ts wire tests driving GAME_UNDO over a
+  real socket during FIRST_TIME_PASS_MOVE and HIGH_PASS_MOVE.
+
+- 297 server + 12/12 ActionPanel client tests passing; 4 pre-existing RED failures unchanged
+  (2 MOVE-06 FREE_MOVE scaffolding gaps, 2 abandoned pre-17.1 firstTimePassStep design stubs).
+  Typecheck clean across shared/server/client.
+
+- CR-01 is closed. Remaining: re-run phase verification to confirm success criterion 3's undo
+  clause now passes, then close out Phase 17.1.
+
 ## Current Position
 
-Phase: 17.1 (action-flow-cleanup) — VERIFICATION: GAPS FOUND
-Plan: 10/10 complete (all plans, including gap-closure plans 07-10, have summaries)
-Status: Phase verification found 1 gap — not yet complete
-Last activity: 2026-06-19 -- Phase 17.1 Plan 10 complete (shot-range highlight filter fix).
-All 10 plans done; code review found CR-01 (Undo non-functional in HIGH_PASS_MOVE/
-FIRST_TIME_PASS_MOVE — event-type mismatch MOVE vs HP_MOVE/FTP_MOVE, predates gap-closure
-plans 07-10). Phase verifier confirmed this independently and scored the phase 4/5 must-haves
-(success criterion 3's undo clause fails). VERIFICATION.md created with gaps_found status.
-Next: /gsd-plan-phase 17.1 --gaps to plan a fix for CR-01.
+Phase: 17.1 (action-flow-cleanup) — EXECUTING
+Plan: 11 of 11 complete
+Status: CR-01 gap-closure plan 11 complete; awaiting re-verification
+Last activity: 2026-06-19 -- Phase 17.1 Plan 11 complete (CR-01: FTP/HP undo fix).
+Plan 11 closed CR-01 (Undo non-functional in HIGH_PASS_MOVE/FIRST_TIME_PASS_MOVE —
+event-type mismatch MOVE vs HP_MOVE/FTP_MOVE). applyUndo and ActionPanel canUndo are now
+phase-aware; de-masked unit/component fixtures; added 2 wire-level GAME_UNDO tests.
+Next: re-run phase verification to confirm success criterion 3 now passes, then close out
+Phase 17.1.
 
 ## Performance Metrics
 
@@ -289,6 +305,7 @@ Next: /gsd-plan-phase 17.1 --gaps to plan a fix for CR-01.
 | Phase 17.1-action-flow-cleanup P09        | 5min   | 2 tasks  | 4 files  |
 | Phase 17.1-action-flow-cleanup P08        | 35min  | 3 tasks  | 6 files  |
 | Phase 17.1-action-flow-cleanup P10        | 6min   | 1 tasks  | 2 files  |
+| Phase 17.1-action-flow-cleanup P11        | 7min   | 3 tasks  | 5 files  |
 
 ## Decisions
 
@@ -336,3 +353,4 @@ Next: /gsd-plan-phase 17.1 --gaps to plan a fix for CR-01.
 - [Phase ?]: [Phase 17.1-08]: computeLooseBall rewritten to use cube-coordinate unit vectors (parity-independent) instead of fixed ODD-Q offset deltas; toCube/fromCube exported from hex.ts as single source of truth for offset<->cube conversion
 - [Phase ?]: [Phase 17.1-08]: gameEngine.ts LOOSE_BALL clamp walk now calls computeLooseBall per step instead of duplicating fixed-delta math; LOOSE_BALL_DIRECTIONS export removed entirely
 - [Phase 17.1-10]: regularShooter resolution mirrors snapCarrier/quickThrowTargetSet ball.carrierId->pieces.find pattern; isShootingModeGoalHex regular-shot branch now gates on hexDistance(regularShooter.position, hex) <= 11 matching server applyDeclareShot D-09 gate
+- [Phase ?]: [Phase 17.1-11]: applyUndo moveToUndo cast widened to Extract<ActionEvent, {type:'MOVE'|'HP_MOVE'|'FTP_MOVE'}> -- phase-aware moveTypeForPhase constant mirrored identically in client canUndo
