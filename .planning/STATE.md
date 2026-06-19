@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: verifying
-last_updated: '2026-06-19T17:17:26.904Z'
+last_updated: '2026-06-19T22:06:03.692Z'
 last_activity: '2026-06-19 -- Phase 17.1 Plan 11 complete (CR-01: FTP/HP undo fix).'
 progress:
   total_phases: 5
