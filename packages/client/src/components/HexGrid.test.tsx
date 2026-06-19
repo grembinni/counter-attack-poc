@@ -234,3 +234,95 @@ describe('HexGrid — D-02 gap closure: zoiRiskSet excludes stealAttemptedByIds 
     expect(countRiskPolygons(container)).toBeGreaterThan(0);
   });
 });
+
+// CR-01-new: FIRST_TIME_PASS_MOVE was completely non-selectable in the browser (selectPiece had
+// no branch for this phase; HexGrid.tsx had zero FIRST_TIME_PASS_MOVE references). These tests
+// exercise the new selectPiece branch (Task 1) and HexGrid wiring (Task 2) added in this plan.
+// Uses CARRIER_ID ('home-9') at CARRIER_POS ({q:14,r:13}) which has open adjacent on-pitch hexes.
+const FTP_OWN_PIECE_ID = CARRIER_ID;
+const FTP_OPPONENT_PIECE_ID = 'away-9';
+
+function ftpMoveState(overrides: {
+  firstTimePassMovedPieceId?: string | null;
+  firstTimePassPaceUsed?: number;
+}) {
+  const pieces = mockMovementState.pieces.map((p) =>
+    p.id === FTP_OWN_PIECE_ID ? { ...p, position: CARRIER_POS } : p,
+  );
+  return {
+    ...mockMovementState,
+    phase: 'FIRST_TIME_PASS_MOVE' as const,
+    attackingTeam: 'home' as const,
+    activeTeam: 'home' as const,
+    pieces,
+    ball: { position: CARRIER_POS, carrierId: FTP_OWN_PIECE_ID },
+    firstTimePassMovementSlot: 'ATTACKER' as const,
+    firstTimePassMovedPieceId: overrides.firstTimePassMovedPieceId ?? null,
+    firstTimePassPaceUsed: overrides.firstTimePassPaceUsed ?? 0,
+  };
+}
+
+describe('HexGrid — CR-01-new: FIRST_TIME_PASS_MOVE piece selection', () => {
+  it('selects an own active-team piece and populates adjacent valid-move hexes (happy path)', () => {
+    const state = ftpMoveState({});
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home — isActivePlayer requires myTeam === activeTeam
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(FTP_OWN_PIECE_ID);
+    const { selectedPieceId, validMoveHexes } = useGameStore.getState();
+    expect(selectedPieceId).toBe(FTP_OWN_PIECE_ID);
+    expect(validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('does NOT select an opponent piece during FIRST_TIME_PASS_MOVE (non-active team rejected)', () => {
+    const state = ftpMoveState({});
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home is active; opponent is away
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(FTP_OPPONENT_PIECE_ID);
+    const { selectedPieceId, validMoveHexes } = useGameStore.getState();
+    expect(selectedPieceId).toBeNull();
+    expect(validMoveHexes).toEqual([]);
+  });
+
+  it('does NOT select any piece for the non-active player during FIRST_TIME_PASS_MOVE', () => {
+    const state = ftpMoveState({});
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2, // away — not the active team (home)
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(FTP_OWN_PIECE_ID);
+    const { selectedPieceId, validMoveHexes } = useGameStore.getState();
+    expect(selectedPieceId).toBeNull();
+    expect(validMoveHexes).toEqual([]);
+  });
+
+  it('selects the piece but leaves validMoveHexes empty once pace is exhausted', () => {
+    const state = ftpMoveState({
+      firstTimePassMovedPieceId: FTP_OWN_PIECE_ID,
+      firstTimePassPaceUsed: 1,
+    });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(FTP_OWN_PIECE_ID);
+    const { selectedPieceId, validMoveHexes } = useGameStore.getState();
+    expect(selectedPieceId).toBe(FTP_OWN_PIECE_ID);
+    expect(validMoveHexes).toEqual([]);
+  });
+});
