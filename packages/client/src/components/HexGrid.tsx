@@ -83,6 +83,8 @@ export function HexGrid() {
   // HIGH_PASS_MOVEMENT: track locked piece and pace so selection gating + spent X match server rule
   const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
   const highPassPaceUsed = useGameStore((s) => s.gameState.highPassPaceUsed);
+  // FIRST_TIME_PASS_MOVE: track locked piece so selection gating matches server rule (CR-01-new)
+  const firstTimePassMovedPieceId = useGameStore((s) => s.gameState.firstTimePassMovedPieceId);
   // GK_KICK_MOVEMENT: track locked piece so multi-step moves stay on the same piece
   const gkKickMovedPieceId = useGameStore((s) => s.gameState.gkKickMovedPieceId);
   // Phase 10: shooting mode, GK dive/header-target actions
@@ -591,6 +593,14 @@ export function HexGrid() {
               myTeam !== null &&
               piece.teamId === myTeam &&
               (gkKickMovedPieceId === null || gkKickMovedPieceId === piece.id);
+            // FIRST_TIME_PASS_MOVE: active team selects 1 own piece to reposition up to 1 hex
+            // (CR-01-new; mirrors canSelectHighPassMove)
+            const canSelectFirstTimePassMove =
+              phase === 'FIRST_TIME_PASS_MOVE' &&
+              isActivePlayer &&
+              myTeam !== null &&
+              piece.teamId === myTeam &&
+              (firstTimePassMovedPieceId === null || firstTimePassMovedPieceId === piece.id);
 
             // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant.
             // Both teams select independently; gated on not yet confirmed for this team.
@@ -626,7 +636,8 @@ export function HexGrid() {
               isHeaderEligible ||
               canSelectHighPassMove ||
               canSelectSnapDeflect ||
-              canSelectGKKickMove;
+              canSelectGKKickMove ||
+              canSelectFirstTimePassMove;
 
             // Plan 04: derive single selectionState enum for PieceOverlay (UX-05, D-04, D-07)
             const isSpentNow =
@@ -659,15 +670,17 @@ export function HexGrid() {
                     ? () => selectPiece(piece.id)
                     : canSelectHighPassMove
                       ? () => selectPiece(piece.id)
-                      : isHeaderEligible
-                        ? () => {
-                            toggleHeaderContestantId(piece.id);
-                          }
-                        : canSelectKickOff
-                          ? () => selectPiece(piece.id)
-                          : canSelect
+                      : canSelectFirstTimePassMove
+                        ? () => selectPiece(piece.id)
+                        : isHeaderEligible
+                          ? () => {
+                              toggleHeaderContestantId(piece.id);
+                            }
+                          : canSelectKickOff
                             ? () => selectPiece(piece.id)
-                            : () => undefined;
+                            : canSelect
+                              ? () => selectPiece(piece.id)
+                              : () => undefined;
 
             return (
               <PieceOverlay
