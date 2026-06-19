@@ -56,6 +56,8 @@ export function HexGrid() {
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
+  // D-02 (Phase 17.1 gap closure, plan 09): steal-risk tint exclusion source
+  const stealAttemptedByIds = useGameStore((s) => s.gameState.stealAttemptedByIds);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -141,10 +143,17 @@ export function HexGrid() {
   // ZoI steal-risk hexes: only when ball carrier is selected (red tint = steal danger)
   const isCarrierSelected = selectedPieceId !== null && selectedPieceId === ball.carrierId;
   const opponents = myTeam !== null ? pieces.filter((p) => p.teamId !== myTeam) : [];
+  // D-02 (Phase 17.1 gap closure, plan 09): exclude defenders already in stealAttemptedByIds
+  // from the steal-risk tint, mirroring moveValidator.ts's STEAL_ATTEMPT exclusion pattern.
   const zoiRiskSet = new Set(
     isCarrierSelected
       ? validMoveHexes
-          .filter((hex) => getZoIDefenders(hex, opponents).length > 0)
+          .filter(
+            (hex) =>
+              getZoIDefenders(hex, opponents).filter(
+                (d) => !(stealAttemptedByIds ?? []).includes(d.id),
+              ).length > 0,
+          )
           .map((h) => `${h.q},${h.r}`)
       : [],
   );
