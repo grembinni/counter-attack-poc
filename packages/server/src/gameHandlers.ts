@@ -2104,7 +2104,91 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      room.gameState = result.state;
+      const headerTargetState = result.state;
+
+      // BUGFIX (snapshot-shot-flow-mismatch continuation): applyResolveHeaderTarget routes a
+      // goal-line target straight to GK_DIVE with no GK-range gate — unlike GAME_SHOT (step 7)
+      // and the SNAPSHOT_DEFLECT end-of-turn handler, which both auto-resolve to GOAL when no
+      // shot-path hex is within 3 hexes of the defending GK. Without this gate, a header-at-goal
+      // against an out-of-range GK enters GK_DIVE with zero clickable dive hexes (the client's
+      // gkDiveTargetSet is correctly empty) and the defending team gets permanently stuck with no
+      // available action — perceived as "the path is shown but it's out of range and unselectable."
+      // Mirror the same auto-GOAL fallback here for consistency across all three GK_DIVE entry
+      // points (regular shot / snapshot / header).
+      if (headerTargetState.phase === 'GK_DIVE') {
+        const headerShooter = headerTargetState.pieces.find(
+          (p) => p.id === headerTargetState.ball.carrierId,
+        );
+        const headerShotTarget = headerTargetState.shotTargetHex;
+        const headerDefTeam: 'home' | 'away' =
+          headerTargetState.attackingTeam === 'home' ? 'away' : 'home';
+        const headerGk = headerTargetState.pieces.find(
+          (p) => p.teamId === headerDefTeam && p.role === 'GK',
+        );
+        const headerReachablePath =
+          headerShooter && headerShotTarget
+            ? hexLine(headerShooter.position, headerShotTarget)
+            : [];
+        const headerGkHasReachable =
+          headerGk !== undefined &&
+          headerReachablePath.some((h) => hexDistance(headerGk.position, h) <= 3);
+
+        if (!headerGkHasReachable) {
+          const scoringTeam = headerTargetState.attackingTeam;
+          const newKickOffTeam = headerDefTeam;
+          const outDie1 = rollDice();
+          const outDie2 = rollDice();
+          const outOfRangeEvent: ActionEvent = {
+            type: 'SHOT_ATTEMPT',
+            shooterId: headerTargetState.ball.carrierId ?? '',
+            targetHex: headerShotTarget ?? { q: 0, r: 0 },
+            outcome: 'GOAL',
+            shooterDie: outDie1,
+            shooterScore: null,
+            gkDie: outDie2,
+            gkScore: null,
+            handlingDie: null,
+            gkHandling: null,
+            shooterPenaltyTotal: 0,
+            gkPenaltyTotal: 0,
+            timestamp: Date.now(),
+            ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+          };
+          const newScore = {
+            ...headerTargetState.score,
+            [scoringTeam]: headerTargetState.score[scoringTeam] + 1,
+          };
+          room.gameState = {
+            ...headerTargetState,
+            pieces: buildKickOffPieces(newKickOffTeam, headerTargetState.selectedTeams),
+            phase: 'KICK_OFF_SETUP',
+            score: newScore,
+            attackingTeam: newKickOffTeam,
+            activeTeam: newKickOffTeam,
+            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            lastDiceRoll: { rolls: [outDie1, outDie2], context: 'SHOT_DUEL' },
+            lastActionType: null,
+            lastShotPath: null,
+            gkDivePosition: null,
+            shotTargetHex: null,
+            snapshotGkPenalty: null,
+            eventLog: [
+              ...headerTargetState.eventLog,
+              outOfRangeEvent,
+              {
+                type: 'GOAL' as const,
+                scoringTeam,
+                timestamp: Date.now(),
+                ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+              },
+            ],
+          };
+          broadcastState(io, room);
+          return;
+        }
+      }
+
+      room.gameState = headerTargetState;
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
