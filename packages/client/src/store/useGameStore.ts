@@ -367,6 +367,44 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // FIRST_TIME_PASS_MOVE: 1 piece per team, up to 1 hex, any direction (D-03, CR-01-new)
+    // Mirrors HIGH_PASS_MOVE structurally but pace cap is 1 (not 3) and uses the
+    // firstTimePass* slot fields. Does NOT call validateMove — that fn's WRONG_SLOT guard
+    // fires for this phase (movementSlot stays null here; position is tracked via
+    // firstTimePassMovementSlot instead), which was the CR-01-new root cause.
+    if (gameState.phase === 'FIRST_TIME_PASS_MOVE') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // Only own team pieces can be selected
+      if (piece.teamId !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // If a different piece is already locked in for this slot, reject selection
+      const lockedId = gameState.firstTimePassMovedPieceId ?? null;
+      if (lockedId !== null && lockedId !== id) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const paceRemaining = 1 - (gameState.firstTimePassPaceUsed ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      // Valid destinations: adjacent hexes on pitch not occupied by another piece
+      const valid = hexesInRange(piece.position, 1).filter((hex) => {
+        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+        if (
+          gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          )
+        )
+          return false;
+        return hexDistance(piece.position, hex) === 1;
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // GK_KICK_MOVE: both teams reposition 1 piece up to 3 hexes while kick is in air
     if (gameState.phase === 'GK_KICK_MOVE') {
       const myTeam = playerSlot === 1 ? 'home' : 'away';
@@ -502,16 +540,24 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
 
-    // HIGH_PASS_MOVE / GK_KICK_MOVE: re-run phase-specific valid move logic
-    if (newState.phase === 'HIGH_PASS_MOVE' || newState.phase === 'GK_KICK_MOVE') {
+    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE: re-run phase-specific valid move logic
+    if (
+      newState.phase === 'HIGH_PASS_MOVE' ||
+      newState.phase === 'GK_KICK_MOVE' ||
+      newState.phase === 'FIRST_TIME_PASS_MOVE'
+    ) {
       const paceRemaining =
         newState.phase === 'GK_KICK_MOVE'
           ? 3 - (newState.gkKickPaceUsed ?? 0)
-          : 3 - (newState.highPassPaceUsed ?? 0);
+          : newState.phase === 'FIRST_TIME_PASS_MOVE'
+            ? 1 - (newState.firstTimePassPaceUsed ?? 0)
+            : 3 - (newState.highPassPaceUsed ?? 0);
       const lockedId =
         newState.phase === 'GK_KICK_MOVE'
           ? (newState.gkKickMovedPieceId ?? null)
-          : (newState.highPassMovedPieceId ?? null);
+          : newState.phase === 'FIRST_TIME_PASS_MOVE'
+            ? (newState.firstTimePassMovedPieceId ?? null)
+            : (newState.highPassMovedPieceId ?? null);
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid =
         locked || paceRemaining <= 0
