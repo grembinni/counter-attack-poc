@@ -339,9 +339,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
 
       // SNAPSHOT_DEFLECT: defending team moves 1 player up to 2 hexes before snapshot resolves.
-      // Pattern mirrors HIGH_PASS_MOVE block: 1 piece per team, max 2 hexes, adjacency,
-      // pitch boundary, no occupied hex. Active team = defending team (opponent of attackingTeam).
-      // D-08 / SNAP-02.
+      // 1 piece per team, max 2-hex total budget, pitch boundary, no occupied hex.
+      // Active team = defending team (opponent of attackingTeam). D-08 / SNAP-02.
+      // BUGFIX (snapshot-shot-flow-mismatch): previously required strict adjacency
+      // (1 hex per click), forcing hex-by-hex movement unlike GK_DIVE's single-click
+      // targeting for regular/headed shots. Now accepts a single click to any hex within
+      // the remaining 2-hex budget, consuming the full distance moved in one step — matching
+      // GK_DIVE's "click a spot directly" UX while preserving the 2-hex total budget.
       if (room.gameState.phase === 'SNAPSHOT_DEFLECT') {
         const sdState = room.gameState;
         const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
@@ -364,15 +368,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
-        // Max 2 hexes total
+        // Max 2 hexes total — a single click may use any remaining budget at once.
         const paceUsed = sdState.snapDeflectPaceUsed ?? 0;
-        if (paceUsed >= 2) {
+        const paceRemaining = 2 - paceUsed;
+        if (paceRemaining <= 0) {
           socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
           broadcastState(io, room);
           return;
         }
-        // Adjacency check (one step at a time)
-        if (hexDistance(sdPiece.position, to) !== 1) {
+        // Distance check: click distance must be within remaining budget (1 or 2 hexes).
+        const clickDistance = hexDistance(sdPiece.position, to);
+        if (clickDistance < 1 || clickDistance > paceRemaining) {
           socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
           broadcastState(io, room);
           return;
@@ -403,7 +409,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           ...sdState,
           pieces: sdState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
           snapDeflectMovedPieceId: pieceId,
-          snapDeflectPaceUsed: paceUsed + 1,
+          snapDeflectPaceUsed: paceUsed + clickDistance,
           snapshotGkPenalty,
         };
         broadcastState(io, room);
@@ -1394,6 +1400,21 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       const declaredState = result.state;
+
+      // BUGFIX (snapshot-shot-flow-mismatch): when applyDeclareShot is called from
+      // SNAPSHOT_TARGET it transitions to 'SNAPSHOT_DEFLECT' (defending team gets a
+      // 2-hex repositioning turn) rather than 'GK_DIVE'. Steps 6/7 below resolve
+      // deflection and GK-range using CURRENT (pre-repositioning) positions, which is
+      // only correct for the regular PASS → GK_DIVE flow. For the snapshot flow, the
+      // equivalent checks already run — correctly, with POST-repositioning positions —
+      // in the SNAPSHOT_DEFLECT end-of-turn handler (GAME_END_TURN). Running them again
+      // here would resolve (or even score) the snapshot before the defending team gets
+      // their repositioning turn. Skip straight to broadcasting the SNAPSHOT_DEFLECT state.
+      if (declaredState.phase === 'SNAPSHOT_DEFLECT') {
+        room.gameState = declaredState;
+        broadcastState(io, room);
+        return;
+      }
 
       // 6. Deflection check (before GK dives — defenders on/near path act first)
       const shotShooter = declaredState.pieces.find((p) => p.id === declaredState.ball.carrierId);

@@ -416,7 +416,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: id, validMoveHexes: [] });
         return;
       }
-      const valid = hexesInRange(piece.position, 1).filter((hex) => {
+      // BUGFIX (snapshot-shot-flow-mismatch): previously hard-capped at hexesInRange(.., 1)
+      // (adjacency-only), forcing hex-by-hex movement. Now mirrors the server's single-click
+      // targeting — any hex within the remaining 2-hex budget is a valid one-click destination,
+      // matching GK_DIVE's "click a spot directly" UX for regular/headed shots.
+      const valid = hexesInRange(piece.position, paceRemaining).filter((hex) => {
         if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
         if (
           gameState.pieces.some(
@@ -424,7 +428,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           )
         )
           return false;
-        return hexDistance(piece.position, hex) === 1;
+        const dist = hexDistance(piece.position, hex);
+        return dist >= 1 && dist <= paceRemaining;
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;

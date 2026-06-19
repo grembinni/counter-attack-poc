@@ -268,7 +268,10 @@ export function HexGrid() {
                   snapCarrier !== null &&
                   hexDistance(snapCarrier.position, hex) <= 6));
 
-            // SNAPSHOT_DEFLECT: danger path tint — shot line from shooter to declared target
+            // SNAPSHOT_DEFLECT: shot path — shot line from shooter to declared target.
+            // BUGFIX (snapshot-shot-flow-mismatch): now rendered with the same white
+            // 'shot-path' tint as regular/headed shots (see isShotPathTint below) instead
+            // of the orange 'risk' tint it previously shared with ZoI/tackle danger hexes.
             const isShotPath = snapDeflectPathSet.has(hexId);
             // GK team = defending team during a shot
             const gkTeamForDive: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
@@ -319,14 +322,17 @@ export function HexGrid() {
               hex.r === PITCH_REGIONS.kickOffHex.r;
 
             // Plan 04 D-12: priority-resolve highlightType (risk > goal > shot-path > kickoff > safe)
-            // isRisk: ZoI steal-risk OR tackle-risk movement OR snap-deflect shot path (all orange).
+            // isRisk: ZoI steal-risk OR tackle-risk movement (orange).
+            // BUGFIX (snapshot-shot-flow-mismatch): snapshot's shot path (isShotPath) was
+            // previously folded into isRisk (orange "danger" tint), making it visually
+            // inconsistent with the regular/headed shot path (white 'shot-path' tint via
+            // lastShotPathSet below). Snapshot path now joins isShotPathTint instead so all
+            // shot-path highlights render the same color regardless of shot type.
             // Header pass is unblockable — suppress ZoI/tackle risk when lastActionType === 'HEADER'.
             const isHeaderPass = phase === 'PASS' && lastActionType === 'HEADER';
             const isRisk =
-              (!isHeaderPass &&
-                ((zoiRiskSet.has(hexId) && isValidMove) ||
-                  (tackleRiskSet.has(hexId) && isValidMove))) ||
-              isShotPath;
+              !isHeaderPass &&
+              ((zoiRiskSet.has(hexId) && isValidMove) || (tackleRiskSet.has(hexId) && isValidMove));
             const isGoalTint =
               isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex;
             // isShotPathActionTint: actionable white hexes — GK dive options and header contest zone
@@ -334,11 +340,13 @@ export function HexGrid() {
             const isShotPathActionTint =
               isGKDiveTarget || (highPassContestZoneSet.has(hexId) && isValidMove);
             // isShotPathTint: informational white — resolved shot path, contest zone preview,
-            // SNAP_DEFLECT reposition targets (lighter/more transparent white).
+            // SNAP_DEFLECT reposition targets, and the snapshot's declared shot path (lighter/
+            // more transparent white) — same classification as a regular/headed shot path.
             const isShotPathTint =
               lastShotPathSet.has(hexId) ||
               isHpMoveTarget ||
               isGKDiveTarget ||
+              isShotPath ||
               highPassContestZoneSet.has(hexId);
             // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex)
             const isKickoffTint = inMyZone && !isCentreHex;
