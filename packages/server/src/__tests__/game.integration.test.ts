@@ -375,6 +375,79 @@ describe('game integration — Movement Phase scenarios', () => {
     expect(afterUndo.pieces.find((p) => p.id === pieceId)?.position).toEqual(origPos);
   });
 
+  it('CR-01 (17.1-11): GAME_UNDO reverses a real FTP_MOVE during FIRST_TIME_PASS_MOVE', async () => {
+    const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
+    const movementState = await startMovement(attackingClient, clientA);
+
+    const teamPrefix = attackingTeam === 'home' ? 'home' : 'away';
+    const pieceId = `${teamPrefix}-9`;
+    const piece = movementState.pieces.find((p) => p.id === pieceId);
+    if (!piece) throw new Error(`Piece ${pieceId} not found in state`);
+    const origPos = piece.position;
+    const toPos = { q: origPos.q + (attackingTeam === 'home' ? 1 : -1), r: origPos.r };
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+    // Seed FIRST_TIME_PASS_MOVE directly: boundary FTP_REPOSITION followed by a real
+    // FTP_MOVE (the shape gameHandlers.ts actually emits — never a fabricated MOVE event).
+    room.gameState = {
+      ...room.gameState,
+      phase: 'FIRST_TIME_PASS_MOVE',
+      activeTeam: attackingTeam,
+      pieces: room.gameState.pieces.map((p) => (p.id === pieceId ? { ...p, position: toPos } : p)),
+      eventLog: [
+        { type: 'FTP_REPOSITION', slot: 'ATTACKER', pieceId: null, timestamp: 1000 },
+        { type: 'FTP_MOVE', slot: 'ATTACKER', pieceId, from: origPos, to: toPos, timestamp: 2000 },
+      ],
+      firstTimePassMovementSlot: 'ATTACKER',
+      firstTimePassMovedPieceId: pieceId,
+      firstTimePassPaceUsed: 1,
+    };
+
+    const afterUndoPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    attackingClient.emit(ClientEvents.GAME_UNDO);
+    const [afterUndo] = await afterUndoPromise;
+    // Must NOT be a GAME_ERROR NOTHING_TO_UNDO snap-back — piece is restored to from-hex.
+    expect(afterUndo.pieces.find((p) => p.id === pieceId)?.position).toEqual(origPos);
+  });
+
+  it('CR-01 (17.1-11): GAME_UNDO reverses a real HP_MOVE during HIGH_PASS_MOVE', async () => {
+    const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
+    const movementState = await startMovement(attackingClient, clientA);
+
+    const teamPrefix = attackingTeam === 'home' ? 'home' : 'away';
+    const pieceId = `${teamPrefix}-9`;
+    const piece = movementState.pieces.find((p) => p.id === pieceId);
+    if (!piece) throw new Error(`Piece ${pieceId} not found in state`);
+    const origPos = piece.position;
+    const toPos = { q: origPos.q + (attackingTeam === 'home' ? 1 : -1), r: origPos.r };
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+    // Seed HIGH_PASS_MOVE directly: boundary HP_REPOSITION followed by a real HP_MOVE.
+    room.gameState = {
+      ...room.gameState,
+      phase: 'HIGH_PASS_MOVE',
+      activeTeam: attackingTeam,
+      pieces: room.gameState.pieces.map((p) => (p.id === pieceId ? { ...p, position: toPos } : p)),
+      eventLog: [
+        { type: 'HP_REPOSITION', slot: 'ATTACKER', pieceId: null, timestamp: 1000 },
+        { type: 'HP_MOVE', slot: 'ATTACKER', pieceId, from: origPos, to: toPos, timestamp: 2000 },
+      ],
+      highPassMovementSlot: 'ATTACKER',
+      highPassMovedPieceId: pieceId,
+      highPassPaceUsed: 1,
+    };
+
+    const afterUndoPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    attackingClient.emit(ClientEvents.GAME_UNDO);
+    const [afterUndo] = await afterUndoPromise;
+    // Must NOT be a GAME_ERROR NOTHING_TO_UNDO snap-back — piece is restored to from-hex.
+    expect(afterUndo.pieces.find((p) => p.id === pieceId)?.position).toEqual(origPos);
+  });
+
   it('D-09 UNDO_LOCKED: undo after a SLOT_ADVANCE is rejected for the defending team', async () => {
     const { clientA, attackingClient, defendingClient } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
