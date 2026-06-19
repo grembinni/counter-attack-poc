@@ -703,6 +703,71 @@ describe('Phase 17.1 D-03: FIRST_TIME_PASS_MOVE two-slot alternating handler', (
 });
 
 // ---------------------------------------------------------------------------
+// Phase 17.1-13 CR-02-new: FIRST_TIME_PASS near a defender must still reach
+// FIRST_TIME_PASS_MOVE — the interception loop must not shadow the transition.
+// ---------------------------------------------------------------------------
+
+/**
+ * PASS state for CR-02-new: homeFWD (q:10,r:7) passes FIRST_TIME to homeMID
+ * at q:14,r:7 (distance 4, within the FIRST_TIME cap of 6 — unlike the
+ * out-of-range firstTimePassState fixture above, whose distance of 7 makes
+ * validatePass return RANGE_EXCEEDED and trivially empties the intercept
+ * lists regardless of defender placement).
+ *
+ * awayDEF is placed at {q:14, r:8} — exactly 1 hex (ZoI) from the target hex
+ * {q:14, r:7} — so passValidator's destination-ZoI scan (passValidator.ts
+ * lines 154-162) populates rollIntercepts with awayDEF for this FIRST_TIME
+ * pass (FIRST_TIME is grouped with STANDARD for interception-list population
+ * per passValidator.ts:140). preGeneratedInterceptionDice includes a 6, which
+ * would auto-intercept (die===6 threshold) if the interception loop ran —
+ * proving this test would FAIL pre-fix (phase 'PASS', lastActionType
+ * 'SUCCESSFUL_TACKLE') and only passes once FIRST_TIME_PASS bypasses the loop.
+ */
+const firstTimePassNearDefenderState: GameState = {
+  ...passState,
+  pieces: [
+    homeFWD,
+    { ...homeMID, position: { q: 14, r: 7 } }, // FTP target, distance 4 from homeFWD
+    awayGK,
+    { ...awayDEF, position: { q: 14, r: 8 } }, // 1 hex (ZoI) from target — would auto-intercept
+  ],
+  lastActionType: 'FIRST_TIME_PASS',
+  passTargetHex: { q: 14, r: 7 },
+  preGeneratedInterceptionDice: [6], // die=6 would normally auto-intercept (rollIntercepts case)
+};
+
+describe('Phase 17.1-13 CR-02-new: FIRST_TIME_PASS bypasses interception loop near a defender', () => {
+  it('accurate FIRST_TIME_PASS near a ZoI defender → FIRST_TIME_PASS_MOVE, not SUCCESSFUL_TACKLE', () => {
+    // This test would FAIL against the pre-fix applyRoll: the interception loop ran for
+    // FIRST_TIME_PASS before the FIRST_TIME_PASS_MOVE check, so the ZoI defender at
+    // {q:14,r:8} would auto-intercept (die=6) and return phase 'PASS' with
+    // lastActionType 'SUCCESSFUL_TACKLE' instead of ever reaching FIRST_TIME_PASS_MOVE.
+    const result = applyRoll(firstTimePassNearDefenderState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FIRST_TIME_PASS_MOVE');
+    expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    // Ball stays in flight at the target hex — not yet delivered to the interceptor.
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.position).toEqual({ q: 14, r: 7 });
+  });
+
+  it('regression: STANDARD_PASS near the same defender still auto-intercepts (loop unchanged)', () => {
+    // Same defender position/dice, but STANDARD_PASS — must still intercept (no regression).
+    const standardPassNearDefenderState: GameState = {
+      ...firstTimePassNearDefenderState,
+      lastActionType: 'STANDARD_PASS',
+    };
+    const result = applyRoll(standardPassNearDefenderState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe('away-1');
+    expect(result.state.attackingTeam).toBe('away');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 17.1 D-06: GK in own penalty area at ATTACKER_2 End Turn → GK_RESTART
 // ---------------------------------------------------------------------------
 

@@ -1150,7 +1150,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // When the carrier just won a header (lastActionType==='HEADER'), their FIRST_TIME_PASS
       // cannot be intercepted. Any other pass type runs the interception loop as normal.
       const isHeaderPass = state.lastActionType === 'HEADER';
-      if (!isHeaderPass) {
+      // CR-02-new (Phase 17.1 D-03): a first-time pass must always reach FIRST_TIME_PASS_MOVE
+      // below, even when aimed near a defender — passValidator groups FIRST_TIME with STANDARD
+      // for interception-list population (passValidator.ts:140), so autoIntercepts/rollIntercepts
+      // can be non-empty for an FTP target. Bypass the loop for FIRST_TIME_PASS too; the
+      // no-interception delivery is part of the FTP design (D-03), not a regression.
+      const isFirstTimePass = newLastActionType === 'FIRST_TIME_PASS';
+      if (!isHeaderPass && !isFirstTimePass) {
         // D-10 case 1: autoIntercepts — destination hex was defender's hex; immediate interception, no dice.
         for (const interceptor of autoIntercepts) {
           const interceptionEvent: ActionEvent = {
