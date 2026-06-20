@@ -405,6 +405,12 @@ describe('Phase 17 BUG-03: applyUndo in HIGH_PASS_MOVEMENT', () => {
     if (!result.ok) return;
     const piece = result.state.pieces.find((p) => p.id === 'home-9');
     expect(piece?.position).toEqual({ q: 10, r: 7 }); // restored to original
+    // Review-CR-01 (17.1-14): undo must also unlock the HP repositioning slot —
+    // pre-fix, these fields retained their pre-undo values (highPassMovedPieceId:
+    // 'home-9', highPassPaceUsed: 1), permanently dead-ending the slot. This
+    // assertion would FAIL against the pre-fix applyUndo.
+    expect(result.state.highPassMovedPieceId).toBeNull();
+    expect(result.state.highPassPaceUsed).toBe(0);
   });
 
   it('returns NOTHING_TO_UNDO when no MOVE exists after HP_REPOSITION boundary', () => {
@@ -699,6 +705,44 @@ describe('Phase 17.1 D-03: FIRST_TIME_PASS_MOVE two-slot alternating handler', (
     if (!result.ok) return;
     const piece = result.state.pieces.find((p) => p.id === 'home-9');
     expect(piece?.position).toEqual({ q: 10, r: 7 }); // restored to original
+    // Review-CR-01 (17.1-14): undo must also unlock the FTP repositioning slot —
+    // pre-fix, these fields retained their pre-undo values (firstTimePassMovedPieceId:
+    // 'home-9', firstTimePassPaceUsed: 1), permanently dead-ending the slot after a
+    // single Undo. This assertion would FAIL against the pre-fix applyUndo.
+    expect(result.state.firstTimePassMovedPieceId).toBeNull();
+    expect(result.state.firstTimePassPaceUsed).toBe(0);
+  });
+
+  it('applyUndo during regular MOVE phase does not touch FTP/HP lock fields', () => {
+    // No-regression guard: a plain MOVE-phase undo must leave the FTP/HP lock fields
+    // exactly as they were on the input state — the reset is gated on
+    // state.phase === FIRST_TIME_PASS_MOVE / HIGH_PASS_MOVE only.
+    const moveStateWithMove: GameState = {
+      ...baseMovementState,
+      pieces: [{ ...homeFWD, position: { q: 11, r: 7 } }, awayGK, awayDEF],
+      paceUsedByPieceId: { 'home-9': 1 },
+      eventLog: [
+        {
+          type: 'MOVE' as const,
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          slot: 'ATTACKER_4' as const,
+          timestamp: 1000,
+          ballAfter: { position: { q: 10, r: 7 }, carrierId: null },
+        },
+      ],
+    };
+    const result = applyUndo(moveStateWithMove);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const piece = result.state.pieces.find((p) => p.id === 'home-9');
+    expect(piece?.position).toEqual({ q: 10, r: 7 }); // restored to original
+    // Untouched — baseMovementState has no FTP/HP fields set (undefined on input)
+    expect(result.state.firstTimePassMovedPieceId).toBeUndefined();
+    expect(result.state.firstTimePassPaceUsed).toBeUndefined();
+    expect(result.state.highPassMovedPieceId).toBeUndefined();
+    expect(result.state.highPassPaceUsed).toBeUndefined();
   });
 });
 

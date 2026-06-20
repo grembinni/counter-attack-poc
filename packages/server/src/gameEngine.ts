@@ -903,6 +903,18 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       ? { ...state.ball, position: moveToUndo.from }
       : state.ball;
 
+  // Review-CR-01 (D-03, 17.1-14): undoing an FTP_MOVE/HP_MOVE must also unlock the
+  // phase-specific repositioning slot — otherwise the stale lock/pace fields leave the
+  // slot permanently dead-ended after a single Undo (only escape was End Turn). Mirrors
+  // the canonical slot-clear shape at gameEngine.ts:1257-1258 and
+  // gameHandlers.ts:693-694/721-722 (null / 0). Other phases are left untouched.
+  const lockReset: Partial<GameState> =
+    state.phase === 'FIRST_TIME_PASS_MOVE'
+      ? { firstTimePassMovedPieceId: null, firstTimePassPaceUsed: 0 }
+      : state.phase === 'HIGH_PASS_MOVE'
+        ? { highPassMovedPieceId: null, highPassPaceUsed: 0 }
+        : {};
+
   return {
     ok: true,
     state: {
@@ -913,6 +925,7 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       eventLog: newEventLog,
       pendingFreeMove: undoPendingFreeMove,
       ball: newBallAfterUndo,
+      ...lockReset,
     },
   };
 }
