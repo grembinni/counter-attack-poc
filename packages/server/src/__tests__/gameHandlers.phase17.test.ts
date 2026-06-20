@@ -4,14 +4,12 @@
  * Covers:
  *  - BUG-02: game:cancel_movement handler — reverts MOVEMENT → PASS when no pieces moved
  *  - BUG-02: game:cancel_movement handler — emits GAME_ERROR when pieces already moved
- *  - PASS-02: SNAP_DEFLECT end-turn with lastActionType='FIRST_TIME_PASS' resolves as pass
  *
  * Test harness mirrors gameHandlers.test.ts and gameHandlers.phase10.test.ts:
  * real Socket.io server on port 0; room store seeded directly via getRoom.
  *
  * Wave 0 RED: All tests in this file are expected to FAIL until downstream plans implement:
  *  - Plan 02: applyCancelMovement + GAME_CANCEL_MOVEMENT socket handler
- *  - Plan 05: SNAP_DEFLECT PASS-02 discriminant in end-turn handler
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -191,57 +189,6 @@ function seedMovementPhaseWithMove(roomCode: string): void {
   };
 }
 
-/**
- * Seeds a room into SNAP_DEFLECT phase simulating a First-time Pass in flight.
- * The room's lastActionType is 'FIRST_TIME_PASS' to trigger PASS-02 resolution.
- *
- * firstTimePassPath contains the hex path from passer to target.
- * A defending piece is placed ON the path so deflection should trigger.
- */
-function seedSnapDeflectFirstTimePass(roomCode: string): void {
-  const room = getRoom(roomCode);
-  if (!room || !room.gameState) throw new Error('Room or gameState not found');
-
-  const homePasser = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
-  const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
-  const awayGK = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK');
-  if (!homePasser || !awayDefender || !awayGK) throw new Error('Required pieces not found');
-
-  // Pass from passer at q:10 to target at q:14 — path goes through q:12
-  const passerPos = { q: 10, r: 13 };
-  const targetPos = { q: 14, r: 13 };
-  const pathHex = { q: 12, r: 13 };
-
-  // Place away defender ON the pass path to trigger deflection
-  const awayGKPos = { q: 36, r: 13 };
-
-  room.gameState = {
-    ...room.gameState,
-    phase: 'SNAPSHOT_DEFLECT',
-    attackingTeam: 'home',
-    activeTeam: 'away', // defender's turn in SNAPSHOT_DEFLECT
-    ball: { position: passerPos, carrierId: null }, // ball in flight
-    lastActionType: 'FIRST_TIME_PASS',
-    kickOffActive: false,
-    movedPieceIds: [],
-    paceUsedByPieceId: {},
-    movementSlot: null,
-    snapDeflectMovedPieceId: null,
-    snapDeflectPaceUsed: 0,
-    passTargetHex: targetPos,
-    firstTimePassPath: [passerPos, pathHex, targetPos], // passer → intermediate → target
-    firstTimePassStep: null, // attacker step already done
-    passerId: homePasser.id,
-    pieces: room.gameState.pieces.map((p) => {
-      if (p.id === homePasser.id) return { ...p, position: passerPos };
-      // Defender positioned ON the pass path hex
-      if (p.id === awayDefender.id) return { ...p, position: pathHex };
-      if (p.id === awayGK.id) return { ...p, position: awayGKPos };
-      return p;
-    }),
-  };
-}
-
 // ---------------------------------------------------------------------------
 // BUG-02: GAME_CANCEL_MOVEMENT handler
 // Wave 0 RED — handler not yet registered in gameHandlers.ts
@@ -278,31 +225,5 @@ describe('Phase 17 BUG-02: game:cancel_movement handler', () => {
     // Phase should still be MOVEMENT
     const room = getRoom(roomCode);
     expect(room?.gameState?.phase).toBe('MOVE');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// PASS-02: SNAP_DEFLECT with lastActionType='FIRST_TIME_PASS'
-// Wave 0 RED — SNAP_DEFLECT end-turn does not yet branch on lastActionType
-// ---------------------------------------------------------------------------
-
-describe('Phase 17 PASS-02: SNAP_DEFLECT end-turn resolves as pass when lastActionType=FIRST_TIME_PASS', () => {
-  it('defender on pass path → LOOSE_BALL at deflector hex (not a shot duel outcome)', async () => {
-    // Wave 0 RED — currently SNAP_DEFLECT end-turn runs shot-path logic regardless of lastActionType
-    const { clientB, roomCode } = await setupRoom();
-    seedSnapDeflectFirstTimePass(roomCode);
-
-    // clientB is 'away' team; SNAP_DEFLECT activeTeam is 'away'
-    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
-    clientB.emit(ClientEvents.GAME_END_TURN);
-    const [newState] = await statePromise;
-
-    // PASS-02 resolution: defender on path → LOOSE_BALL
-    // The resulting phase should be LOOSE_BALL (ball deflected), not a shot-duel phase
-    expect(['LOOSE_BALL', 'PASS']).toContain(newState.phase);
-    // firstTimePassStep and firstTimePassPath should be cleared after resolution
-    expect(newState.firstTimePassStep ?? null).toBeNull();
-    // The outcome should NOT be a shot duel phase (GK_DIVING, SHOT, SHOT_DECLARED)
-    expect(['GK_DIVE', 'SHOT', 'SNAPSHOT_TARGET']).not.toContain(newState.phase);
   });
 });

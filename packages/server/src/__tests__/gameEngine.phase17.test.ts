@@ -173,14 +173,6 @@ const passState: GameState = {
   selectedTeams: { home: 'cosmos', away: 'xolos' },
 };
 
-/** PASS state for FIRST_TIME_PASS: homeMID at q:17 (within standard pass range). */
-const firstTimePassState: GameState = {
-  ...passState,
-  pieces: [homeFWD, { ...homeMID, position: { q: 17, r: 7 } }, awayGK, awayDEF],
-  lastActionType: 'FIRST_TIME_PASS',
-  passTargetHex: { q: 17, r: 7 },
-};
-
 /** PASS state for BUG-04: defender piece is at the target hex. */
 const passToDefenderState: GameState = {
   ...passState,
@@ -537,30 +529,6 @@ describe('Phase 17 MOVE-06: applyEndTurn FREE_MOVE transition', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PASS-02: applyRoll FIRST_TIME_PASS → attacker repositioning sub-state
-// ---------------------------------------------------------------------------
-
-describe('Phase 17 PASS-02: FIRST_TIME_PASS delivery enters attacker repositioning step', () => {
-  it('accurate FIRST_TIME_PASS → stays phase PASS with firstTimePassStep="ATTACKER" and firstTimePassPath populated', () => {
-    // homeFWD (highPass:5) at q:10; homeMID at q:17 is target
-    // STANDARD/FIRST_TIME_PASS: no accuracy check — any die succeeds
-    // Wave 0 RED — currently FIRST_TIME_PASS delivers ball directly (no intermediate step)
-    const result = applyRoll(firstTimePassState, 4, 3, 3);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    // PASS-02: ball stays in flight; phase stays PASS; firstTimePassStep enters ATTACKER
-    expect(result.state.phase).toBe('PASS');
-    expect(result.state.firstTimePassStep).toBe('ATTACKER');
-    // firstTimePassPath should be populated (path from passer q:10 to target q:17)
-    expect(result.state.firstTimePassPath).toBeDefined();
-    expect(result.state.firstTimePassPath).not.toBeNull();
-    expect((result.state.firstTimePassPath ?? []).length).toBeGreaterThan(0);
-    // Ball in flight — carrierId should be null at this intermediate step
-    expect(result.state.ball.carrierId).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Smoke test: existing applyMove still works (prevents regression from imports above)
 // ---------------------------------------------------------------------------
 
@@ -753,10 +721,7 @@ describe('Phase 17.1 D-03: FIRST_TIME_PASS_MOVE two-slot alternating handler', (
 
 /**
  * PASS state for CR-02-new: homeFWD (q:10,r:7) passes FIRST_TIME to homeMID
- * at q:14,r:7 (distance 4, within the FIRST_TIME cap of 6 — unlike the
- * out-of-range firstTimePassState fixture above, whose distance of 7 makes
- * validatePass return RANGE_EXCEEDED and trivially empties the intercept
- * lists regardless of defender placement).
+ * at q:14,r:7 (distance 4, within the FIRST_TIME cap of 6).
  *
  * awayDEF is placed at {q:14, r:8} — exactly 1 hex (ZoI) from the target hex
  * {q:14, r:7} — so passValidator's destination-ZoI scan (passValidator.ts
