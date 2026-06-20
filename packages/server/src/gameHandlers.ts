@@ -36,6 +36,7 @@ import {
   hexDistance,
   hexLine,
   validatePass,
+  triggerOffsideFoul,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
@@ -43,6 +44,7 @@ import {
   applyCancelMovement,
   applyDeclareShot,
   applyEndTurn,
+  applyFreeKickReady,
   applyFreeMoveEnd,
   applyGKDive,
   applyGKKickTarget,
@@ -606,6 +608,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       room.gameState = result.state;
+      // OFFSIDE-02 (D-26): the lone GAME_MOVE applyMove success path covers any loose-ball
+      // pickup AND a successful steal/tackle (both always set ball.carrierId to the
+      // acting/winning piece) — no-op when the new carrier isn't flagged offside.
+      room.gameState = triggerOffsideFoul(room.gameState);
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false;
@@ -954,6 +960,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             snapshotGkPenalty: null,
             eventLog: [...baseSnapState.eventLog, ...deflectEvents],
           };
+          // OFFSIDE-02 D-41: the ball is deliberately left loose (carrierId: null) here, so
+          // the implicit triggerOffsideFoul(state) entry point can't see who touched it.
+          // Pass the deflecting defender's id explicitly — fires (or no-ops) the foul using
+          // their identity even though they never gain clean possession.
+          room.gameState = triggerOffsideFoul(room.gameState, snapDeflectResult.deflectorId);
           broadcastState(io, room);
           return;
         }
@@ -1401,6 +1412,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         } else {
           room.gameState = result.state;
         }
+        // OFFSIDE-02 (D-26): single success path for GAME_ROLL's PASS/HEADER/LOOSE_BALL
+        // resolution — covers any grounded pass pickup and won header; no-op when the
+        // new carrier isn't flagged offside.
+        room.gameState = triggerOffsideFoul(room.gameState);
         broadcastState(io, room); // ARCH-04: single broadcast entry point
         // WR-04: guard against the (currently unreachable) case where applyRoll transitions to
         // FULL_TIME — mirrors the startReplayStream call in GAME_END_TURN / HIGH_PASS_MOVEMENT.
@@ -1552,6 +1567,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           lastShotPath: null,
           eventLog: [...declaredState.eventLog, ...deflectEventsShot],
         };
+        // OFFSIDE-02 D-41: ball is deliberately left loose (carrierId: null) — pass the
+        // deflecting defender's id explicitly so the foul fires using their identity even
+        // though they never gain clean possession (mirrors the SNAPSHOT_DEFLECT site above).
+        room.gameState = triggerOffsideFoul(room.gameState, shotDeflectionResult.deflectorId);
         broadcastState(io, room);
         return;
       }
@@ -1771,6 +1790,148 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
                 : room.gameState.ball,
             },
           ],
+        };
+        room.readyPlayers = null; // clear for next use
+      }
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_FREE_KICK_MOVE — free piece repositioning during FREE_KICK_SETUP phase
+  // OFFSIDE-02 (D-29): both teams may reposition their entire squad anywhere on
+  // the board. Clone of GAME_KICK_OFF_MOVE with the FREE_KICK_SETUP phase guard
+  // and no own-half restriction (unlike kick-off).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_FREE_KICK_MOVE, (pieceId: string, to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be FREE_KICK_SETUP
+      if (room.gameState === null || room.gameState.phase !== 'FREE_KICK_SETUP') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // T-17-06-09: validate HexCoord payload (V5 input validation)
+      if (
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // Piece lookup
+      const piece = room.gameState.pieces.find((p) => p.id === pieceId);
+      if (!piece) {
+        socket.emit(ServerEvents.GAME_ERROR, 'PIECE_NOT_FOUND');
+        broadcastState(io, room);
+        return;
+      }
+      // Only the owning team may reposition their pieces
+      const team = socketTeam(socket);
+      if (piece.teamId !== team) {
+        socket.emit(ServerEvents.GAME_ERROR, 'NOT_YOUR_PIECE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Boundary guard: reject off-pitch destinations
+      if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+        broadcastState(io, room);
+        return;
+      }
+      // Occupancy guard: reject if any other piece already occupies that hex
+      if (
+        room.gameState.pieces.some(
+          (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+        )
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
+        broadcastState(io, room);
+        return;
+      }
+      // Apply free repositioning (no pace/ZoI checks — D-29)
+      const newPieces = room.gameState.pieces.map((p) =>
+        p.id === pieceId ? { ...p, position: { q: to.q, r: to.r } } : p,
+      );
+      room.gameState = { ...room.gameState, pieces: newPieces };
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_FREE_KICK_READY — FREE_KICK_SETUP confirmation ("Ready" button)
+  // OFFSIDE-02 (D-29/D-30/D-31/D-32): applyFreeKickReady validates placement
+  // server-side; snap-back on rejection. Transitions to PASS only when both
+  // teams have confirmed ready, mirroring GAME_READY's both-ready handshake.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_FREE_KICK_READY, () => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be FREE_KICK_SETUP
+      if (room.gameState === null || room.gameState.phase !== 'FREE_KICK_SETUP') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Validate placement rules for this socket's team
+      const team = socketTeam(socket);
+      const result = applyFreeKickReady(room.gameState, team);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Mark this socket's player slot as ready (only the confirming socket's own slot)
+      const slot = socket.data.playerSlot;
+      if (slot === undefined) return;
+      if (!room.readyPlayers) {
+        room.readyPlayers = new Set<1 | 2>();
+      }
+      room.readyPlayers.add(slot);
+      // D-32: transition to PASS only when both teams have confirmed ready. applyFreeKickReady
+      // already validated that the kicking team has exactly one piece on freeKickHex — assign
+      // that piece as ball carrier so possession is reflected in state and graphics immediately.
+      // lastActionType: 'FREE_KICK_RESTART' restricts the next action via its
+      // ELIGIBLE_NEXT_ACTIONS row (Task 1) — do NOT set it to null (would resolve to
+      // MOVEMENT_PHASE and surface Move/Snapshot, defeating D-32).
+      if (room.readyPlayers.size === 2) {
+        const freeKickHex = room.gameState.freeKickHex;
+        const kickingTeam = room.gameState.freeKickAttackingTeam;
+        const kicker = freeKickHex
+          ? room.gameState.pieces.find(
+              (p) =>
+                p.teamId === kickingTeam &&
+                p.position.q === freeKickHex.q &&
+                p.position.r === freeKickHex.r,
+            )
+          : undefined;
+        room.gameState = {
+          ...room.gameState,
+          phase: 'PASS',
+          ball: kicker ? { position: kicker.position, carrierId: kicker.id } : room.gameState.ball,
+          attackingTeam: kickingTeam ?? room.gameState.attackingTeam,
+          activeTeam: kickingTeam ?? room.gameState.activeTeam,
+          lastActionType: 'FREE_KICK_RESTART',
+          freeKickHex: null,
+          freeKickAttackingTeam: null,
         };
         room.readyPlayers = null; // clear for next use
       }
@@ -2262,6 +2423,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
 
       room.gameState = headerTargetState;
+      // OFFSIDE-02 (D-26): header-win resolution success path — applyResolveHeaderTarget
+      // always assigns the winning contestant as the new ball carrier (both its GK_DIVE
+      // and PASS/headed-pass branches), so this single insertion point catches an offside
+      // header winner. No-op when the winner isn't flagged offside.
+      room.gameState = triggerOffsideFoul(room.gameState);
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
