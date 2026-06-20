@@ -412,6 +412,102 @@ describe('game integration — Movement Phase scenarios', () => {
     expect(afterUndo.pieces.find((p) => p.id === pieceId)?.position).toEqual(origPos);
   });
 
+  it('Review-CR-02 (17.1-15): FTP DEFENDER-slot delivery transfers possession to a defending-team occupant on passTargetHex', async () => {
+    const { clientA, roomCode, attackingClient, defendingClient, attackingTeam } =
+      await setupRoomAtKickOff();
+    await startMovement(attackingClient, clientA);
+
+    const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+    const defenderId = `${defendingTeam}-9`;
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+    // Pick a real on-pitch target hex and place the defender exactly on it (Phase 10 P05:
+    // avoid placeholder coords that break adjacency — derive from an existing attacking piece).
+    const attackerPiece = room.gameState.pieces.find((p) => p.teamId === attackingTeam)!;
+    const passTargetHex = {
+      q: attackerPiece.position.q + (attackingTeam === 'home' ? 1 : -1),
+      r: attackerPiece.position.r,
+    };
+
+    // Seed FIRST_TIME_PASS_MOVE in the DEFENDER slot (boundary already crossed: ATTACKER
+    // slot done), with the defending-team piece occupying passTargetHex.
+    room.gameState = {
+      ...room.gameState,
+      phase: 'FIRST_TIME_PASS_MOVE',
+      attackingTeam,
+      activeTeam: defendingTeam,
+      passTargetHex,
+      pieces: room.gameState.pieces.map((p) =>
+        p.id === defenderId ? { ...p, position: passTargetHex } : p,
+      ),
+      eventLog: [
+        ...room.gameState.eventLog,
+        { type: 'FTP_REPOSITION', slot: 'ATTACKER', pieceId: null, timestamp: 1000 },
+      ],
+      firstTimePassMovementSlot: 'DEFENDER',
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+    };
+
+    // The defending client is active in the DEFENDER slot — it ends the turn to complete delivery.
+    // NOTE: against the pre-fix team-restricted lookup (`p.teamId === ftpEndState.attackingTeam`),
+    // this defender would never match, so ball.carrierId would be null and attackingTeam would
+    // stay unchanged — the invalid Review-CR-02 state this test guards against.
+    const afterDeliveryPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    defendingClient.emit(ClientEvents.GAME_END_TURN);
+    const [afterDelivery] = await afterDeliveryPromise;
+
+    expect(afterDelivery.phase).toBe('PASS');
+    expect(afterDelivery.ball.carrierId).toBe(defenderId);
+    expect(afterDelivery.ball.position).toEqual(passTargetHex);
+    expect(afterDelivery.attackingTeam).toBe(defendingTeam);
+    expect(afterDelivery.activeTeam).toBe(defendingTeam);
+  });
+
+  it('Review-CR-02 (17.1-15): FTP DEFENDER-slot delivery to an EMPTY passTargetHex preserves carrierId:null with possession unchanged', async () => {
+    const { clientA, roomCode, attackingClient, defendingClient, attackingTeam } =
+      await setupRoomAtKickOff();
+    await startMovement(attackingClient, clientA);
+
+    const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+    // Choose a target hex with no piece on it at all (empty-target preservation case).
+    const passTargetHex = { q: 18, r: 13 }; // board centre (kickOffHex) — cleared of pieces below
+    room.gameState = {
+      ...room.gameState,
+      phase: 'FIRST_TIME_PASS_MOVE',
+      attackingTeam,
+      activeTeam: defendingTeam,
+      passTargetHex,
+      pieces: room.gameState.pieces.map((p) =>
+        p.position.q === passTargetHex.q && p.position.r === passTargetHex.r
+          ? { ...p, position: { q: p.position.q + 5, r: p.position.r } } // move any occupant off-target
+          : p,
+      ),
+      eventLog: [
+        ...room.gameState.eventLog,
+        { type: 'FTP_REPOSITION', slot: 'ATTACKER', pieceId: null, timestamp: 1000 },
+      ],
+      firstTimePassMovementSlot: 'DEFENDER',
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+    };
+
+    const afterDeliveryPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    defendingClient.emit(ClientEvents.GAME_END_TURN);
+    const [afterDelivery] = await afterDeliveryPromise;
+
+    expect(afterDelivery.phase).toBe('PASS');
+    expect(afterDelivery.ball.carrierId).toBeNull();
+    expect(afterDelivery.ball.position).toEqual(passTargetHex);
+    expect(afterDelivery.attackingTeam).toBe(attackingTeam); // possession unchanged
+  });
+
   it('CR-01 (17.1-11): GAME_UNDO reverses a real HP_MOVE during HIGH_PASS_MOVE', async () => {
     const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);

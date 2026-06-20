@@ -705,18 +705,28 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             timestamp: Date.now(),
           };
           const targetHex = ftpEndState.passTargetHex!;
-          const receiver = ftpEndState.pieces.find(
-            (p) =>
-              p.teamId === ftpEndState.attackingTeam &&
-              p.position.q === targetHex.q &&
-              p.position.r === targetHex.r,
+          // Review-CR-02 / BUG-04 (D-08/D-09) parity: team-agnostic occupant search —
+          // find ANY piece at targetHex (no teamId filter), mirroring gameEngine.ts
+          // BUG-04 (1272-1297) used for STANDARD_PASS/LONG_BALL occupant delivery.
+          // A defending-team occupant must receive the ball (possession transfers);
+          // an attacking-team occupant keeps possession unchanged (happy path);
+          // no occupant delivers to the empty hex with carrierId:null (unchanged).
+          const occupant = ftpEndState.pieces.find(
+            (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
           );
+          const possessionChanges = occupant
+            ? occupant.teamId !== ftpEndState.attackingTeam
+            : false;
+          const deliveryTeam = possessionChanges ? occupant!.teamId : ftpEndState.attackingTeam;
           room.gameState = {
             ...ftpEndState,
             phase: 'PASS',
-            ball: { position: targetHex, carrierId: receiver?.id ?? null },
+            ball: occupant
+              ? { position: occupant.position, carrierId: occupant.id }
+              : { position: targetHex, carrierId: null },
             lastActionType: 'FIRST_TIME_PASS',
-            activeTeam: ftpEndState.attackingTeam,
+            attackingTeam: deliveryTeam,
+            activeTeam: deliveryTeam,
             firstTimePassMovementSlot: null,
             firstTimePassMovedPieceId: null,
             firstTimePassPaceUsed: 0,
