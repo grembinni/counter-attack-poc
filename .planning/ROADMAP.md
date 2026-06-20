@@ -123,7 +123,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 4. GK carrying in its own penalty area at end of MOVE → GK_RESTART; GK save spill → GK_RESTART; loose-ball scatter clamps to the pitch; regular shot beyond 11 hexes is rejected
 5. A STANDARD pass to a defender-occupied hex is allowed and auto-intercepted (case 1); intermediate on-path blocking still returns PATH_BLOCKED (case 2); ZoI defenders roll-intercept (case 3)
 
-**Plans**: 15 plans (gap closure: 9 additional plans — 4 UAT-diagnosed regressions + 5 verification gaps)
+**Plans**: 16 plans (gap closure: 10 additional plans — 4 UAT-diagnosed regressions + 6 verification gaps)
 **Wave 1**
 
 - [x] 17.1-01-PLAN.md — D-11 GamePhase rename sweep (all source + tests) + FIRST_TIME_PASS_MOVE added to union [Wave 1]
@@ -162,6 +162,10 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 - [x] 17.1-14-PLAN.md — Review-CR-01 (Gap A): applyUndo resets firstTimePassMovedPieceId/firstTimePassPaceUsed (and highPass\* equivalents) so Undo unlocks the FTP/HP repositioning slot + lock-field regression tests [Gap Wave 5, depends on 17.1-13]
 - [x] 17.1-15-PLAN.md — Review-CR-02 (Gap B): FTP delivery receiver lookup made team-agnostic (BUG-04 parity) so a defender on passTargetHex receives the ball with possession transfer + integration test [Gap Wave 5, depends on 17.1-13]
+
+**Gap closure (re-verification cycle 4, CR-01 self-pass exploit — SC3 delivery correctness):**
+
+- [ ] 17.1-16-PLAN.md — CR-01 (cycle 4): add firstTimePassCarrierId field + exclude the original passer from FTP repositioning (server GAME_MOVE), delivery occupant lookup, and client selectPiece, closing the self-pass/reclaim exploit + server & client regression tests [Gap Wave 6, depends on 17.1-15]
 
 ### Phase 18: Design Polish
 
@@ -202,5 +206,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 15/15          | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 15/16          | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
