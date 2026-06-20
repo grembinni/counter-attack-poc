@@ -110,7 +110,7 @@ None — no bugs, missing functionality, or blocking issues required Rule 1/2/3 
 
 ### Notable plan-text vs. current-codebase reconciliation (not a deviation — documented for traceability)
 
-The plan's `<read_first>` line-number references for `applyEndTurn` (643-775) and the described shape of `applyFreeMoveEnd` (a single PASS-returning function) reflected an earlier draft of the codebase. By the time this plan executed, plan 17-04's corrected MOVE-06 design had already landed: `applyEndTurn`'s phase check uses `'MOVE'` (not `'MOVEMENT'`), its 4 `ok:true` returns live at lines 779-881, and `applyFreeMoveEnd` has 3 returns (FREE_MOVE_ATTACK->FREE_MOVE_DEFENSE handoff, FREE_MOVE_ATTACK->resume when defense list is empty, FREE_MOVE_DEFENSE->resume) rather than the plan's described single PASS return. The implementation followed the plan's _intent_ (re-evaluate offside at every point where the engine knows movement for a sub-phase has concluded) applied to the _actual_ current shape of both functions, adding `offsidePieceIds: nextOffside` to all 4 `applyEndTurn` returns and all 3 `applyFreeMoveEnd` returns. This is a closer match to the plan's stated D-23 requirement ("re-evaluated at every end-of-phase where pieces can move") than a literal line-number-driven edit would have produced, since two of the three `applyFreeMoveEnd` returns are themselves movement-phase-ends that the plan's stale description didn't anticipate.
+The plan's `<read_first>` line-number references for `applyEndTurn` (643-775) and the described shape of `applyFreeMoveEnd` (a single PASS-returning function) reflected an earlier draft of the codebase. By the time this plan executed, plan 17-04's corrected MOVE-06 design had already landed: `applyEndTurn`'s phase check uses `'MOVE'` (not `'MOVEMENT'`), its 4 `ok:true` returns live at lines 779-881, and `applyFreeMoveEnd` has 3 returns (FREE*MOVE_ATTACK->FREE_MOVE_DEFENSE handoff, FREE_MOVE_ATTACK->resume when defense list is empty, FREE_MOVE_DEFENSE->resume) rather than the plan's described single PASS return. The implementation followed the plan's \_intent* (re-evaluate offside at every point where the engine knows movement for a sub-phase has concluded) applied to the _actual_ current shape of both functions, adding `offsidePieceIds: nextOffside` to all 4 `applyEndTurn` returns and all 3 `applyFreeMoveEnd` returns. This is a closer match to the plan's stated D-23 requirement ("re-evaluated at every end-of-phase where pieces can move") than a literal line-number-driven edit would have produced, since two of the three `applyFreeMoveEnd` returns are themselves movement-phase-ends that the plan's stale description didn't anticipate.
 
 ## Checkpoint Pending
 
@@ -153,3 +153,122 @@ Verification:
 - Human checkpoint (Task 4) pending
 
 ## Self-Check: PASSED
+
+## Correction (2026-06-20): D-39/D-40 — evaluation timing + clear condition
+
+During Task 4's human-verify checkpoint, the user checked the implementation against the
+physical board game's rulebook and found two defects in the offside DETECTION logic (the
+visual marker from Task 3 was confirmed correct and untouched). The orchestrator captured
+the corrected decisions as D-39 and D-40 in `17-CONTEXT.md` ("Offside Rule — Corrections"
+section), and this follow-up commit implements them exactly. D-41 (an extension to the
+OFFSIDE-02 foul trigger, covering redirects/deflections) is explicitly out of scope for
+this plan — it applies to plan 17-06, which has not been executed.
+
+### D-39 — evaluation timing narrowed
+
+The original Task 2 implementation re-evaluated `evaluateOffside` at every `ok:true`
+return inside `applyEndTurn`, including the two intermediate slot-to-slot transitions
+(ATTACKER_4→DEFENDER_5, DEFENDER_5→ATTACKER_2). Per the rulebook, offside is only
+checked when an action genuinely comes to an end, not at every internal FSM step within
+a single movement turn. The corrected behavior:
+
+- `applyEndTurn`'s intermediate slot-to-slot return no longer calls `evaluateOffside` —
+  the sticky `offsidePieceIds` now carries forward unchanged via the existing `...state`
+  spread. Only the three full-MOVEMENT-end returns (HALF_TIME/FULL_TIME, GK_RESTART,
+  normal ATTACKER_2→PASS) still call `evaluateOffside(state)`.
+- `applyMove`'s two "break in play" early-return branches — a successful tackle
+  (`tackleSuccess`, sets `lastActionType: 'SUCCESSFUL_TACKLE'`) and a successful steal
+  (`stealSuccess`, same `lastActionType`) — previously had NO offside evaluation at all,
+  even though they end MOVEMENT immediately on a turnover. Both now call
+  `evaluateOffside` using the post-turnover piece positions (`newPieces`) and the new
+  ball state (`tackleSuccessBall` / `stealSuccessBall`), so the sticky flag reflects the
+  turnover correctly.
+- `applyFreeMoveEnd`'s offside handling was already correct per D-39(c) and required no
+  change.
+
+### D-40 — ball-position clear gated on possession
+
+`isClearedNow`'s ball-position clear condition (the "(a) equal-or-behind the ball" half
+of D-22) previously cleared a flag whenever the player was level-with-or-behind the raw
+ball position, regardless of whether the ball was loose or possessed. Per the rulebook,
+a loose/bouncing ball's position cannot reprieve an offside player — only a possessed
+ball's position can. The corrected `isClearedNow`:
+
+- Checks the opposing-count clear (`>=2` covering opponents) first — unaffected by D-40,
+  clears regardless of ball possession.
+- If the opposing-count clear does not apply, checks `state.ball.carrierId === null`
+  (loose ball) — if loose, returns `false` (does not clear), even if the player is
+  level-with-or-behind the raw ball position.
+- Only when the ball is possessed (`carrierId !== null`) does the original
+  equal-or-behind-ball position check apply.
+- `isOffsideNow` (the trigger condition) is unchanged — D-21's "ahead of the ball" still
+  uses raw ball position regardless of possession; only the clear/reset side gained the
+  D-40 guard.
+
+### Tests added/updated
+
+- `packages/server/src/__tests__/offside.test.ts`:
+  - Updated the pre-existing `isClearedNow` ball-position-clear tests (`equal-or-behind`,
+    `strictly behind`) to use a possessed ball, since a loose ball no longer clears under
+    D-40 — these tests' original intent (testing the position-clear path) requires
+    possession to remain reachable.
+  - Updated the pre-existing `evaluateOffside` "clear (a)" test to use a possessed ball
+    for the same reason.
+  - Added a dedicated `isClearedNow — D-40` describe block: loose ball + equal-or-behind
+    - ≤1 opposing → does NOT clear; same positions with the ball possessed (by either
+      team) → clears; opposing count ≥2 clears regardless of possession (unaffected by
+      D-40).
+  - Added a dedicated `evaluateOffside — D-40 sticky-flag + loose ball` describe block:
+    a previously-flagged piece dropping level-with-the-ball while the ball is loose stays
+    flagged; the same scenario with the ball possessed clears.
+  - Updated the `applyEndTurn — offsidePieceIds wiring` describe block: the original
+    "clears once dropped behind the ball" test now uses a possessed ball in its
+    follow-up state (D-40 requirement); the intermediate-slot test now asserts the flag
+    set is unchanged (not re-evaluated) across ATTACKER_4→DEFENDER_5; added a new test
+    confirming a previously-flagged id also carries forward unchanged across
+    DEFENDER_5→ATTACKER_2 even though its clear condition would apply if evaluated; added
+    a regression test confirming the true end-of-MOVEMENT boundary (ATTACKER_2→PASS)
+    still evaluates correctly after passing through an unevaluated intermediate slot.
+  - Added an `applyMove — offside evaluated at break-in-play (D-39b)` describe block:
+    a successful tackle and a successful steal, each with a third piece positioned to be
+    newly-offside relative to the post-turnover ball position, asserting
+    `offsidePieceIds` includes that piece in the returned state.
+
+### Commits
+
+| Commit    | Description                                                                              |
+| --------- | ---------------------------------------------------------------------------------------- |
+| `95dbb75` | fix(17-05): narrow offside evaluation timing + gate ball-clear on possession (D-39/D-40) |
+
+### Verification (all passed)
+
+- `pnpm --filter @counter-attack/shared typecheck` — exits 0
+- `pnpm --filter @counter-attack/shared test` — 320 passing
+- `pnpm --filter @counter-attack/server typecheck` — exits 0
+- `pnpm --filter @counter-attack/server test` — 388 passing, 1 skipped, 1 todo (pre-existing,
+  unrelated)
+- No client changes were needed — `PieceOverlay`/`HexGrid` rendering is unaffected by this
+  fix (detection/timing only); client typecheck/test were not re-run since no client files
+  were touched.
+
+### Re-verification note for the next human checkpoint pass
+
+Offside should no longer flicker or re-evaluate mid-movement-sequence — it now only
+re-checks at the full end of MOVEMENT (End Turn on ATTACKER_2, or HALF_TIME/FULL_TIME/
+GK_RESTART) or immediately after a successful tackle/steal (a turnover). A flagged player
+should now stay flagged if the ball is loose and merely happens to be level with or behind
+them — only an actual possessed-ball position (by either team), or 2+ covering opponents,
+clears the flag.
+
+### Dev server hygiene
+
+No dev server (`pnpm dev`, `tsx watch`, etc.) was started during this corrective work.
+Only `pnpm --filter ... typecheck/test/build` commands were run. The orchestrator's
+production build (server on 3001, `vite preview` on 5174) was not touched and was not
+running at any point during this session's execution.
+
+## Checkpoint Pending (re-opened)
+
+Task 4 (`checkpoint:human-verify`, gate="blocking") remains pending — this correction must
+be re-verified in a live two-tab session against the note above before the checkpoint can
+be approved.
