@@ -613,8 +613,14 @@ describe('OFFSIDE-02 D-41: SNAPSHOT_DEFLECT deflection triggers the foul for a f
     const [newState] = await statePromise;
 
     expect(newState.phase).toBe('FREE_KICK_SETUP');
+    // D-59 (BUG FIX): the flagged defender (the offender) is now auto-relocated away from
+    // freeKickHex along with every other trapped conceding-team piece — freeKickHex itself
+    // (the foul spot, fixed at the moment of the foul) no longer equals the defender's
+    // CURRENT position post-relocation. Assert freeKickHex is the historical foul spot and
+    // the defender no longer occupies it.
+    expect(newState.freeKickHex).toEqual({ q: 34, r: 13 });
     const defender = newState.pieces.find((p) => p.id === defenderId);
-    expect(newState.freeKickHex).toEqual(defender?.position);
+    expect(defender?.position).not.toEqual(newState.freeKickHex);
     expect(newState.freeKickAttackingTeam).toBe('home');
     expect(newState.ball.carrierId).toBeNull();
     expect(newState.offsidePieceIds).not.toContain(defenderId);
@@ -685,8 +691,12 @@ describe('OFFSIDE-02 D-41: regular GAME_SHOT deflection triggers the foul for a 
     const [newState] = await statePromise;
 
     expect(newState.phase).toBe('FREE_KICK_SETUP');
+    // D-59 (BUG FIX): see the SNAPSHOT_DEFLECT analog above — the flagged defender (the
+    // offender) is now auto-relocated away from freeKickHex, so freeKickHex (the fixed
+    // historical foul spot) no longer equals the defender's CURRENT position.
+    expect(newState.freeKickHex).toEqual({ q: 30, r: 13 });
     const defender = newState.pieces.find((p) => p.id === defenderId);
-    expect(newState.freeKickHex).toEqual(defender?.position);
+    expect(defender?.position).not.toEqual(newState.freeKickHex);
     expect(newState.freeKickAttackingTeam).toBe('home');
     expect(newState.ball.carrierId).toBeNull();
     expect(newState.offsidePieceIds).not.toContain(defenderId);

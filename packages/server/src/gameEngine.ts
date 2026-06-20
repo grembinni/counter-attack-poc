@@ -3351,11 +3351,27 @@ export function applyKickOffReady(
 // ---------------------------------------------------------------------------
 
 /**
- * D-53 (Free Kick Setup — Round 2 Corrections): server-side wrapper around the shared
- * `triggerOffsideFoul` (packages/shared/src/offside.ts). `offside.ts` is an
- * environment-agnostic pure-helpers module with zero Node-only imports (no `crypto`) —
- * D-53's relocation needs `crypto.randomInt` (never `Math.random`, mirroring the
- * `attackingTeam` coin-flip pattern in `createInitialState` above), so the relocation
+ * D-59 (BUG FIX — supersedes D-53's offender exclusion + refines the relocation target
+ * algorithm): the OWN goal-line hex set for `team` — the goal that team DEFENDS, the
+ * OPPOSITE of `goalQ`'s "goal a team attacks/shoots at" convention used elsewhere (e.g.
+ * `applyDeclareShot`'s `goalQ = attackingTeam === 'home' ? 36 : 0`). Home defends q=0,
+ * away defends q=36; both use r∈[10..16] (the same goal-line R range used throughout).
+ */
+function ownGoalLineHexes(team: 'home' | 'away'): HexCoord[] {
+  const ownGoalQ = team === 'home' ? 0 : 36;
+  const hexes: HexCoord[] = [];
+  for (let r = 10; r <= 16; r++) {
+    hexes.push({ q: ownGoalQ, r });
+  }
+  return hexes;
+}
+
+/**
+ * D-53 (Free Kick Setup — Round 2 Corrections), refined by D-59 (BUG FIX — see below):
+ * server-side wrapper around the shared `triggerOffsideFoul` (packages/shared/src/offside.ts).
+ * `offside.ts` is an environment-agnostic pure-helpers module with zero Node-only imports
+ * (no `crypto`) — this relocation needs `crypto.randomInt` (never `Math.random`, mirroring
+ * the `attackingTeam` coin-flip pattern in `createInitialState` above), so the relocation
  * step lives here, server-side, rather than inside `triggerOffsideFoul` itself. This
  * keeps `offside.ts` importable from the client bundle without a Node polyfill.
  *
@@ -3367,20 +3383,35 @@ export function applyKickOffReady(
  * Behavior: calls `triggerOffsideFoul(state, explicitOffenderId)`. If the foul actually
  * fired (phase became 'FREE_KICK_SETUP' — referential/phase check, since a no-op returns
  * `state` unchanged), finds every CONCEDING-team piece (the team that conceded the foul —
- * i.e. NOT `freeKickAttackingTeam`) within 2 hexes of the new `freeKickHex` and relocates
- * each, one at a time, to a random unoccupied on-pitch hex that is >=3 hexes from
- * `freeKickHex`. Processing one piece at a time and accumulating an occupied-hex set
- * (every OTHER piece's position + any already-relocated piece's NEW position) ensures no
- * two relocated pieces ever collide. This is a one-time relocation at the moment the foul
- * triggers, not an ongoing correction — the defending team may freely move any of these
- * (or other) pieces during their own subsequent stages.
+ * i.e. NOT `freeKickAttackingTeam`) within 2 hexes of the new `freeKickHex` — INCLUDING the
+ * offender themselves (D-59) — and relocates each, one at a time. Processing one piece at
+ * a time and accumulating an occupied-hex set (every OTHER piece's position + any
+ * already-relocated piece's NEW position) ensures no two relocated pieces ever collide.
+ * This is a one-time relocation at the moment the foul triggers, not an ongoing
+ * correction — the defending team may freely move any of these (or other) pieces during
+ * their own subsequent stages.
  *
- * The offender themselves is EXCLUDED from relocation, even though they are by
- * definition at distance 0 from `freeKickHex` (D-27: the foul spot IS the offender's
- * position at the moment of the foul) and belongs to the conceding team. D-53's intent
- * is to clear OTHER trapped teammates out of the kicking zone, not to displace the
- * historical foul-spot marker itself — relocating the offender would contradict D-27's
- * "foul spot = offender's position" framing and break the `freeKickHex` reference point.
+ * D-59 (BUG FIX — game-stalling bug, supersedes D-53's offender exclusion): D-53 originally
+ * excluded the offender from this relocation sweep, reasoning that the foul spot IS the
+ * offender's position (D-27) and relocating them would "displace the historical foul-spot
+ * marker." This was wrong and stalled the game: the offender is a CONCEDING-team piece
+ * sitting at distance 0 from `freeKickHex` (trivially within 2), and the KICKING team must
+ * place one of their OWN pieces on that exact same hex (D-31/D-54) — so long as the
+ * offender remains there, the kicking team can never legally complete the mandatory
+ * kicker-first placement (rejected with OCCUPIED at the gameHandlers.ts level), and the
+ * game gets permanently stuck. The offender is now included in the same relocation sweep
+ * as every other trapped piece — nothing occupies `freeKickHex` once this transition
+ * completes (the ball itself stays there per D-27 — only pieces move).
+ *
+ * D-59 also refines the per-piece relocation TARGET algorithm (applies to every relocated
+ * piece, offender included): instead of going straight to a uniformly-random `>=3`-hexes-
+ * away pick, first try the 4 hexes at EXACTLY distance 3 from `freeKickHex` that are
+ * closest to the relocating piece's OWN goal line (the goal that piece's team defends —
+ * see `ownGoalLineHexes` above), tried in closest-first order, skipping any that are
+ * occupied (by another piece's current position, or an earlier relocation in this same
+ * pass). Falls back to D-53's original uniformly-random `>=3` selection only when all 4
+ * preferred hexes are unavailable. This keeps relocated defenders tactically sensible
+ * (pushed back toward their own goal) instead of scattering them randomly by default.
  *
  * @param state              - Current game state (pre-foul)
  * @param explicitOffenderId - Optional named-offender id (D-41) — forwarded unchanged
@@ -3389,10 +3420,6 @@ export function applyOffsideFoulWithRelocation(
   state: GameState,
   explicitOffenderId?: string,
 ): GameState {
-  // Resolve the offender id the SAME way triggerOffsideFoul does, so we can exclude them
-  // from relocation below (they are always at distance 0 from the new freeKickHex).
-  const offenderId = explicitOffenderId ?? state.ball.carrierId;
-
   const afterFoul = triggerOffsideFoul(state, explicitOffenderId);
 
   // No-op: the foul didn't fire (offender not flagged, or no ball-carrier on the
@@ -3405,13 +3432,10 @@ export function applyOffsideFoulWithRelocation(
   const concedingTeam: 'home' | 'away' =
     afterFoul.freeKickAttackingTeam === 'home' ? 'away' : 'home';
 
+  // D-59: the offender is NO LONGER excluded — every conceding-team piece within 2 hexes
+  // of freeKickHex is trapped, including the offender (always at distance 0).
   const trappedIds = afterFoul.pieces
-    .filter(
-      (p) =>
-        p.id !== offenderId &&
-        p.teamId === concedingTeam &&
-        hexDistance(p.position, freeKickHex) <= 2,
-    )
+    .filter((p) => p.teamId === concedingTeam && hexDistance(p.position, freeKickHex) <= 2)
     .map((p) => p.id);
 
   if (trappedIds.length === 0) {
@@ -3423,6 +3447,11 @@ export function applyOffsideFoulWithRelocation(
   const hexKey = (h: HexCoord): string => `${h.q},${h.r}`;
   const occupied = new Set(afterFoul.pieces.map((p) => hexKey(p.position)));
 
+  // Ring-3 candidates (D-59): all on-pitch hexes at EXACTLY distance 3 from freeKickHex.
+  // Computed once — the occupancy filter is re-applied per piece below since the occupied
+  // set mutates across iterations.
+  const ring3Hexes = PITCH_HEXES.filter((h) => isPitchHex(h) && hexDistance(h, freeKickHex) === 3);
+
   let pieces = afterFoul.pieces;
   for (const pieceId of trappedIds) {
     const piece = pieces.find((p) => p.id === pieceId);
@@ -3432,18 +3461,34 @@ export function applyOffsideFoulWithRelocation(
     // vacate it, and a single trapped piece must not be blocked from candidacy by itself.
     occupied.delete(hexKey(piece.position));
 
-    const candidates = PITCH_HEXES.filter(
-      (h) => isPitchHex(h) && hexDistance(h, freeKickHex) >= 3 && !occupied.has(hexKey(h)),
-    );
+    // D-59: prefer the 4 ring-3 hexes closest to this piece's OWN goal line, closest-first,
+    // skipping any currently occupied.
+    const ownGoalHexes = ownGoalLineHexes(piece.teamId);
+    const preferredOrder = [...ring3Hexes].sort((a, b) => {
+      const distA = Math.min(...ownGoalHexes.map((g) => hexDistance(a, g)));
+      const distB = Math.min(...ownGoalHexes.map((g) => hexDistance(b, g)));
+      return distA - distB;
+    });
+    const preferredCandidates = preferredOrder.slice(0, 4).filter((h) => !occupied.has(hexKey(h)));
 
-    if (candidates.length === 0) {
-      // Defensive: no legal destination exists (should not happen on a 962-hex pitch
-      // with only 22 pieces) — leave this piece in place rather than crash.
-      occupied.add(hexKey(piece.position));
-      continue;
+    let destination: HexCoord | undefined = preferredCandidates[0];
+
+    if (!destination) {
+      // Fallback: D-53's original behavior — random unoccupied on-pitch hex >=3 away.
+      const fallbackCandidates = PITCH_HEXES.filter(
+        (h) => isPitchHex(h) && hexDistance(h, freeKickHex) >= 3 && !occupied.has(hexKey(h)),
+      );
+
+      if (fallbackCandidates.length === 0) {
+        // Defensive: no legal destination exists (should not happen on a 962-hex pitch
+        // with only 22 pieces) — leave this piece in place rather than crash.
+        occupied.add(hexKey(piece.position));
+        continue;
+      }
+
+      destination = fallbackCandidates[randomInt(0, fallbackCandidates.length)]!;
     }
 
-    const destination = candidates[randomInt(0, candidates.length)]!;
     pieces = pieces.map((p) => (p.id === pieceId ? { ...p, position: destination } : p));
     occupied.add(hexKey(destination));
   }

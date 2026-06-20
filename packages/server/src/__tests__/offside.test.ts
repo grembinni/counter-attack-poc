@@ -689,10 +689,11 @@ describe('triggerOffsideFoul', () => {
 });
 
 // ---------------------------------------------------------------------------
-// applyOffsideFoulWithRelocation (D-53 — auto-relocate trapped defenders)
+// applyOffsideFoulWithRelocation (D-53 — auto-relocate trapped defenders;
+// D-59 — BUG FIX: offender now included + ring-3-nearest-own-goal target preference)
 // ---------------------------------------------------------------------------
 
-describe('applyOffsideFoulWithRelocation (D-53)', () => {
+describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
   it('is a no-op (referential identity) when the foul does not fire', () => {
     const carrier = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
@@ -706,7 +707,7 @@ describe('applyOffsideFoulWithRelocation (D-53)', () => {
     expect(result).toBe(state);
   });
 
-  it('does NOT relocate the offender themselves, even though they are at distance 0 from the new freeKickHex and belong to the conceding team', () => {
+  it('D-59 (BUG FIX, supersedes D-53s offender exclusion): DOES relocate the offender themselves — freeKickHex ends up unoccupied by any piece, fixing the kicker-placement stall', () => {
     const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [offender],
@@ -720,9 +721,14 @@ describe('applyOffsideFoulWithRelocation (D-53)', () => {
 
     expect(result.phase).toBe('FREE_KICK_SETUP');
     const offenderAfter = result.pieces.find((p) => p.id === 'home-1');
-    // The offender stays exactly at the foul spot — freeKickHex is defined as their position.
-    expect(offenderAfter!.position).toEqual(result.freeKickHex);
-    expect(offenderAfter!.position).toEqual({ q: 25, r: 10 });
+    // The offender is relocated away from the foul spot — they no longer occupy it.
+    expect(offenderAfter!.position).not.toEqual({ q: 25, r: 10 });
+    expect(hexDistance(offenderAfter!.position, result.freeKickHex!)).toBeGreaterThanOrEqual(3);
+    // freeKickHex itself ends up unoccupied by ANY piece after the trigger.
+    const anyoneOnFreeKickHex = result.pieces.some(
+      (p) => p.position.q === result.freeKickHex!.q && p.position.r === result.freeKickHex!.r,
+    );
+    expect(anyoneOnFreeKickHex).toBe(false);
   });
 
   it('relocates a conceding-team piece within 2 hexes of the new freeKickHex to >=3 hexes away, on a legal pitch hex', () => {
@@ -789,7 +795,7 @@ describe('applyOffsideFoulWithRelocation (D-53)', () => {
     expect(untouched!.position).toEqual({ q: 26, r: 10 });
   });
 
-  it('relocates MULTIPLE trapped pieces without any collision between them', () => {
+  it('relocates MULTIPLE trapped pieces (including the offender, per D-59) without any collision between them', () => {
     const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const trapped1 = makePiece({ id: 'home-2', teamId: 'home', position: { q: 26, r: 10 } });
     const trapped2 = makePiece({ id: 'home-3', teamId: 'home', position: { q: 24, r: 10 } });
@@ -804,16 +810,177 @@ describe('applyOffsideFoulWithRelocation (D-53)', () => {
 
     const result = applyOffsideFoulWithRelocation(state);
 
-    const relocatedPositions = ['home-2', 'home-3', 'home-4'].map((id) => {
+    const relocatedIds = ['home-1', 'home-2', 'home-3', 'home-4'];
+    const relocatedPositions = relocatedIds.map((id) => {
       const p = result.pieces.find((pp) => pp.id === id)!;
       return `${p.position.q},${p.position.r}`;
     });
-    // No two relocated pieces collide with each other.
+    // No two relocated pieces (offender included) collide with each other.
     expect(new Set(relocatedPositions).size).toBe(relocatedPositions.length);
     // All relocated pieces are now >=3 hexes from the foul spot.
-    for (const id of ['home-2', 'home-3', 'home-4']) {
+    for (const id of relocatedIds) {
       const p = result.pieces.find((pp) => pp.id === id)!;
       expect(hexDistance(p.position, result.freeKickHex!)).toBeGreaterThanOrEqual(3);
+    }
+    // freeKickHex itself ends up unoccupied.
+    const anyoneOnFreeKickHex = result.pieces.some(
+      (p) => p.position.q === result.freeKickHex!.q && p.position.r === result.freeKickHex!.r,
+    );
+    expect(anyoneOnFreeKickHex).toBe(false);
+  });
+
+  it('D-59: the kicking team CAN subsequently move a piece onto freeKickHex without an OCCUPIED rejection (end-to-end regression for the reported stall)', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 10, r: 5 } });
+    const state = makeState({
+      pieces: [offender, kicker],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const afterFoul = applyOffsideFoulWithRelocation(state);
+    expect(afterFoul.phase).toBe('FREE_KICK_SETUP');
+    expect(afterFoul.freeKickAttackingTeam).toBe('away');
+    expect(afterFoul.freeKickStageIndex).toBe(0); // kicking team's first stage
+
+    // Sanity: freeKickHex is unoccupied — the actual bug being regression-tested.
+    const occupant = afterFoul.pieces.find(
+      (p) => p.position.q === afterFoul.freeKickHex!.q && p.position.r === afterFoul.freeKickHex!.r,
+    );
+    expect(occupant).toBeUndefined();
+
+    // The kicking team (away) attempts the mandatory kicker-first placement onto freeKickHex.
+    const moveResult = applyFreeKickMove(afterFoul, 'away-1', afterFoul.freeKickHex!);
+    expect(moveResult.ok).toBe(true);
+    if (moveResult.ok) {
+      const placedKicker = moveResult.state.pieces.find((p) => p.id === 'away-1');
+      expect(placedKicker!.position).toEqual(afterFoul.freeKickHex);
+      expect(moveResult.state.movedPieceIds).toContain('away-1');
+    }
+  });
+
+  it("D-59: a relocated HOME piece lands on (or as close as possible to) one of the 4 ring-3 hexes nearest home's own goal (q=0, r 10-16) when available", () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 13 } });
+    const trapped = makePiece({ id: 'home-2', teamId: 'home', position: { q: 6, r: 13 } }); // dist 1
+    const state = makeState({
+      pieces: [offender, trapped],
+      ball: { position: { q: 5, r: 13 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    const freeKickHex = result.freeKickHex!;
+
+    // Compute the expected top-4 ring-3-by-distance-to-home-goal set the same way the
+    // implementation does, then assert both relocated home pieces land in that set
+    // (their own goal is q=0, r 10-16).
+    const ringHexes: { q: number; r: number }[] = [];
+    for (let q = -50; q <= 50; q++) {
+      for (let r = -50; r <= 50; r++) {
+        if (hexDistance({ q, r }, freeKickHex) === 3) ringHexes.push({ q, r });
+      }
+    }
+    const ownGoalHexes = Array.from({ length: 7 }, (_, i) => ({ q: 0, r: 10 + i }));
+    const sorted = [...ringHexes].sort((a, b) => {
+      const da = Math.min(...ownGoalHexes.map((g) => hexDistance(a, g)));
+      const db = Math.min(...ownGoalHexes.map((g) => hexDistance(b, g)));
+      return da - db;
+    });
+    const top4Keys = new Set(sorted.slice(0, 4).map((h) => `${h.q},${h.r}`));
+
+    for (const id of ['home-1', 'home-2']) {
+      const p = result.pieces.find((pp) => pp.id === id)!;
+      const key = `${p.position.q},${p.position.r}`;
+      expect(top4Keys.has(key)).toBe(true);
+    }
+  });
+
+  it("D-59: a relocated AWAY piece lands on (or as close as possible to) one of the 4 ring-3 hexes nearest away's own goal (q=36, r 10-16) when available", () => {
+    const offender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 31, r: 13 } });
+    const trapped = makePiece({ id: 'away-2', teamId: 'away', position: { q: 30, r: 13 } }); // dist 1
+    const state = makeState({
+      pieces: [offender, trapped],
+      ball: { position: { q: 31, r: 13 }, carrierId: 'away-1' },
+      attackingTeam: 'away',
+      activeTeam: 'away',
+      offsidePieceIds: ['away-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    const freeKickHex = result.freeKickHex!;
+    const ringHexes: { q: number; r: number }[] = [];
+    for (let q = -50; q <= 50; q++) {
+      for (let r = -50; r <= 50; r++) {
+        if (hexDistance({ q, r }, freeKickHex) === 3) ringHexes.push({ q, r });
+      }
+    }
+    const ownGoalHexes = Array.from({ length: 7 }, (_, i) => ({ q: 36, r: 10 + i }));
+    const sorted = [...ringHexes].sort((a, b) => {
+      const da = Math.min(...ownGoalHexes.map((g) => hexDistance(a, g)));
+      const db = Math.min(...ownGoalHexes.map((g) => hexDistance(b, g)));
+      return da - db;
+    });
+    const top4Keys = new Set(sorted.slice(0, 4).map((h) => `${h.q},${h.r}`));
+
+    for (const id of ['away-1', 'away-2']) {
+      const p = result.pieces.find((pp) => pp.id === id)!;
+      const key = `${p.position.q},${p.position.r}`;
+      expect(top4Keys.has(key)).toBe(true);
+    }
+  });
+
+  it('D-59: falls back to random >=3 placement when all 4 preferred ring-3-nearest-own-goal hexes are occupied', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 13 } });
+    const freeKickHexExpected = { q: 5, r: 13 };
+
+    // Compute the actual top-4 preferred hexes for this fixture and occupy all of them with
+    // unrelated kicking-team (away) pieces so the relocation algorithm must fall back.
+    const ringHexes: { q: number; r: number }[] = [];
+    for (let q = -50; q <= 50; q++) {
+      for (let r = -50; r <= 50; r++) {
+        if (hexDistance({ q, r }, freeKickHexExpected) === 3) ringHexes.push({ q, r });
+      }
+    }
+    const ownGoalHexes = Array.from({ length: 7 }, (_, i) => ({ q: 0, r: 10 + i }));
+    const sorted = [...ringHexes].sort((a, b) => {
+      const da = Math.min(...ownGoalHexes.map((g) => hexDistance(a, g)));
+      const db = Math.min(...ownGoalHexes.map((g) => hexDistance(b, g)));
+      return da - db;
+    });
+    const top4 = sorted.slice(0, 4);
+    const occupiers = top4.map((h, i) =>
+      makePiece({ id: `away-occupier-${i}`, teamId: 'away', position: h }),
+    );
+
+    const trapped = makePiece({ id: 'home-2', teamId: 'home', position: { q: 6, r: 13 } });
+    const state = makeState({
+      pieces: [offender, trapped, ...occupiers],
+      ball: { position: { q: 5, r: 13 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    const top4Keys = new Set(top4.map((h) => `${h.q},${h.r}`));
+    for (const id of ['home-1', 'home-2']) {
+      const p = result.pieces.find((pp) => pp.id === id)!;
+      const key = `${p.position.q},${p.position.r}`;
+      // Did NOT land on a preferred (now-occupied) hex — fell back to the random >=3 pool.
+      expect(top4Keys.has(key)).toBe(false);
+      expect(hexDistance(p.position, result.freeKickHex!)).toBeGreaterThanOrEqual(3);
+    }
+    // The occupiers themselves are undisturbed (they're not the conceding team).
+    for (let i = 0; i < occupiers.length; i++) {
+      const p = result.pieces.find((pp) => pp.id === `away-occupier-${i}`)!;
+      expect(p.position).toEqual(top4[i]);
     }
   });
 });
