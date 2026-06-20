@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: verifying
-last_updated: '2026-06-20T02:05:53.026Z'
-last_activity: 2026-06-20 -- Phase 17.1 Plan 15 complete (Review-CR-02 closed)
+last_updated: '2026-06-20T02:19:36.932Z'
+last_activity: 2026-06-19 -- Plan 16 executed (firstTimePassCarrierId self-pass-reclaim fix)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 27
-  completed_plans: 25
+  total_plans: 28
+  completed_plans: 26
   percent: 60
 ---
 
@@ -260,18 +260,42 @@ Known deferred items at close: 6 (see above)
 - CR-01 is closed. Remaining: re-run phase verification to confirm success criterion 3's undo
   clause now passes, then close out Phase 17.1.
 
+- Last updated: 2026-06-19
+- Phase 17.1 Plan 16 complete (gap closure, fresh-review CR-01 / cycle-4 verifier finding).
+  Added firstTimePassCarrierId to GameState (mirrors highPassCarrierId in type and
+  lifecycle): set at the FIRST_TIME_PASS transition, preserved across FTP_MOVE undo (pass
+  still in flight), cleared only at FTP delivery. Server GAME_MOVE FTP handler now rejects
+  pieceId === firstTimePassCarrierId with GAME_ERROR WRONG_PIECE before the lock check; the
+  FTP delivery occupant lookup excludes the passer (defense in depth); the client selectPiece
+  FTP branch mirrors the exclusion (UX-only). Closes the self-pass-reclaim Elevation-of-
+  Privilege exploit: the original passer could no longer reposition onto the empty
+  passTargetHex and have the ball handed straight back to them.
+
+- 307 server (of 313; 4 documented pre-existing RED failures unchanged: 2 MOVE-06 FREE_MOVE
+  scaffolding gaps, 2 abandoned pre-17.1 firstTimePassStep design stubs) + 108 client + 317
+  shared tests passing. Typecheck clean across shared/server/client.
+
+- HIGH_PASS_MOVE has the identical missing repositioning-exclusion defect (highPassCarrierId
+  is set but never consumed as an exclusion in its GAME_MOVE handler) — documented as a
+  deferred parallel finding, NOT fixed in this plan per scope directive.
+
+- This was the last plan (16 of 16) in the Phase 17.1 gap-closure wave. Next: re-run phase
+  verification to confirm all five success-criterion-3 defects (CR-01-new, CR-02-new,
+  Review-CR-01, Review-CR-02, and this fresh CR-01) are resolved, then close out Phase 17.1.
+
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 15 of 15 (all plans complete)
-Status: Ready for re-verification
-Last activity: 2026-06-20 -- Phase 17.1 Plan 15 complete (Review-CR-02 closed)
-Plan 15 closed Review-CR-02 (FTP DEFENDER-slot delivery used a team-restricted receiver
-lookup, ignoring a defending-team piece on passTargetHex). Receiver lookup is now
-team-agnostic (BUG-04 parity): defending-team occupant transfers possession; attacking-team
-occupant and empty-target behavior unchanged. 2 new integration tests added.
-Next: re-run phase verification to confirm Review-CR-02 and CR-01 (Plan 11/14) are resolved,
-then close out Phase 17.1.
+Plan: 16 of 16 (gap-closure wave complete)
+Status: Ready for phase verification re-run
+Last activity: 2026-06-19 -- Plan 16 executed (firstTimePassCarrierId self-pass-reclaim fix)
+Plan 16 closed the cycle-4 verifier's CR-01 finding (FIRST_TIME_PASS self-pass-reclaim
+exploit). firstTimePassCarrierId added to GameState; server GAME_MOVE FTP handler rejects
+the original passer; FTP delivery occupant lookup excludes them (defense in depth); client
+selectPiece FTP branch mirrors the exclusion. 5 new regression tests added (3 server, 2
+client). HIGH_PASS_MOVE's identical defect is documented but deferred, not fixed.
+Next: re-run phase verification (.planning/phases/17.1-action-flow-cleanup/17.1-VERIFICATION.md)
+to confirm success criterion 3 now passes in full, then close out Phase 17.1.
 
 ## Performance Metrics
 
@@ -311,6 +335,7 @@ then close out Phase 17.1.
 | Phase 17.1-action-flow-cleanup P13        | 12min  | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P14        | 6min   | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P15        | 12min  | 1 tasks  | 2 files  |
+| Phase 17.1-action-flow-cleanup P16        | 10min  | 2 tasks  | 6 files  |
 
 ## Decisions
 
@@ -364,3 +389,4 @@ then close out Phase 17.1.
 - [Phase 17.1-13]: CR-02-new closed: applyRoll interception-loop bypass extended to FIRST_TIME_PASS (newLastActionType === FIRST_TIME_PASS) alongside the existing header-pass bypass — Closes the second newly-confirmed Phase 17.1 verification gap; FTP near a defender now reaches FIRST_TIME_PASS_MOVE instead of SUCCESSFUL_TACKLE
 - [Phase 17.1-14]: applyUndo resets firstTimePassMovedPieceId/firstTimePassPaceUsed (or highPassMovedPieceId/highPassPaceUsed) via a phase-conditional lockReset spread, mirroring the canonical null/0 slot-clear shape — Closes Review-CR-01: undo previously restored piece position but left the repositioning slot permanently locked
 - [Phase 17.1-action-flow-cleanup]: FTP DEFENDER-slot delivery receiver lookup made team-agnostic (BUG-04 parity): occupant search has no teamId filter; possession transfers when occupant.teamId differs from prior attackingTeam, mirroring gameEngine.ts BUG-04 (1272-1297)
+- [Phase ?]: [Phase 17.1-16]: firstTimePassCarrierId added to GameState mirroring highPassCarrierId exactly; set at FIRST_TIME_PASS transition, preserved across FTP_MOVE undo (pass still in flight), cleared only at FTP delivery — closes CR-01 self-pass-reclaim exploit; HIGH_PASS_MOVE has the identical unfixed defect, deferred to a future cycle

@@ -165,7 +165,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 **Gap closure (re-verification cycle 4, CR-01 self-pass exploit — SC3 delivery correctness):**
 
-- [ ] 17.1-16-PLAN.md — CR-01 (cycle 4): add firstTimePassCarrierId field + exclude the original passer from FTP repositioning (server GAME_MOVE), delivery occupant lookup, and client selectPiece, closing the self-pass/reclaim exploit + server & client regression tests [Gap Wave 6, depends on 17.1-15]
+- [x] 17.1-16-PLAN.md — CR-01 (cycle 4): add firstTimePassCarrierId field + exclude the original passer from FTP repositioning (server GAME_MOVE), delivery occupant lookup, and client selectPiece, closing the self-pass/reclaim exploit + server & client regression tests [Gap Wave 6, depends on 17.1-15]
 
 ### Phase 18: Design Polish
 
@@ -206,5 +206,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 15/16          | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 16/16          | Complete    | 2026-06-20 |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
