@@ -309,3 +309,180 @@ possession, both-team repositioning with D-30/D-31 placement rules, and the rest
 post-kick action set), PLUS the D-41 addendum (a flagged-offside defender deflecting a shot
 without gaining possession should still trigger the free kick). See the orchestrator handoff
 for full verification steps. Plan 17-06 cannot close until this checkpoint is approved.
+
+## Corrections Round 1 (D-42..D-46, gathered 2026-06-20 during first Task 4 checkpoint review)
+
+The user's first manual verification pass surfaced five corrections against the original
+Tasks 1-3 implementation. All five are now fixed, tested, and re-verified; the plan returns
+to the Task 4 checkpoint for a second round of manual verification.
+
+### D-42 — offside ring stroke width corrected (5 → 2.5)
+
+**Issue:** The OFFSIDE-01 (D-25) red ring around an offside piece used `strokeWidth={5}` —
+double the width of every other selection ring. The user's correction: the ring should be
+the same stroke width as the other selection rings, not double. The distinct radius
+(`PIECE_RADIUS + 6`, outside the other rings) is fine and intentional — it's what keeps the
+ring visible as its own layer when stacked with a selection ring — only the stroke width
+was wrong.
+
+**Fix:** `PieceOverlay.tsx` — changed `strokeWidth={5}` to `strokeWidth={2.5}` on the
+offside ring `<circle>`. Updated doc comments referencing "double-width" to describe the
+ring as "a distinct radius, normal stroke width."
+
+**Test:** `PieceOverlay.test.tsx` — updated the existing assertion
+(`stroke-width` `'5'` → `'2.5'`) and renamed the describe block to drop the now-incorrect
+"double-width" label.
+
+**Files:** `packages/client/src/components/PieceOverlay.tsx`,
+`packages/client/src/components/PieceOverlay.test.tsx`
+**Commit:** `526e671`
+
+### D-43 — full offside reset on free kick taken (extends D-26/D-28)
+
+**Issue:** `triggerOffsideFoul` (D-26) only ever removes the OFFENDING piece's id from
+`offsidePieceIds`, leaving any other already-flagged pieces sticky. The user's correction:
+when the free kick is actually TAKEN (the `GAME_FREE_KICK_READY` both-ready transition to
+`PASS`), `offsidePieceIds` should reset to `[]` entirely — a major dead-ball restart clears
+all offside positions, not just the offender's.
+
+**Fix:** `gameHandlers.ts` — added `offsidePieceIds: []` to the state object spread inside
+the `room.readyPlayers.size === 2` both-ready transition block, alongside the existing
+`freeKickHex: null` / `freeKickAttackingTeam: null` resets. One-line comment cites D-43.
+
+**Test:** `gameHandlers.phase17-06.test.ts` — added a new test seeding multiple sticky
+`offsidePieceIds` (two home pieces, neither the "offender" — there's no foul-trigger call
+in this fixture, proving the reset is unconditional) before the both-ready transition, then
+asserting the post-transition state's `offsidePieceIds` is `[]`. Also fixed a stale fixture
+in the pre-existing both-ready test: it moved all defenders to `{q:1, r:1}`, which the new
+D-46 restriction (below) now rejects as `DEFENDER_BEHIND_BALL` — relocated to `{q:35, r:1}`
+(equal-to-or-ahead of the ball in the defending team's attacking direction) to keep that
+test's original intent (validating the both-ready PASS transition) isolated from D-46.
+
+**Files:** `packages/server/src/gameHandlers.ts`,
+`packages/server/src/__tests__/gameHandlers.phase17-06.test.ts`
+**Commit:** `9c6dc06`
+
+### D-44 — help text colour unreadable on dark panel background (pure CSS bug)
+
+**Issue:** `FreeKickSetupPanel.module.css`'s `.constraintRow` class had no `color` set,
+inheriting an unreadable dark default against the panel's `#16213e` dark background. The
+orchestrator's pre-diagnosis additionally found the identical bug in
+`KickOffSetupPanel.module.css` (the clone source) — the user only reported the free-kick
+instance, but both were fixed for consistency.
+
+**Fix:** Added `color: #e0e0e0` to `.constraintRow` in both files, matching `.panelHeading`'s
+existing light-text-on-dark-background token in the same component family. Pure CSS fix —
+no rule/logic change, no test changes needed (neither component's test file asserts computed
+style or className presence on this row).
+
+**Files:** `packages/client/src/components/FreeKickSetupPanel.module.css`,
+`packages/client/src/components/KickOffSetupPanel.module.css`
+**Commit:** `622e87f`
+
+### D-45 — free-kick placement highlight uses the wrong tint (yellow instead of light-blue)
+
+**Issue:** During `FREE_KICK_SETUP`, valid placement hexes rendered with the generic yellow
+"safe" tint (the same one normal movement uses) because `HexGrid.tsx`'s highlight-type
+derivation only special-cased `KICK_OFF_SETUP`'s zone as the light-blue "kickoff" tint.
+Correction: `FREE_KICK_SETUP`'s valid placement hexes should ALSO use the light-blue
+"kickoff" tint (`HexHighlightType: 'kickoff'`, already defined in `HexCell.tsx` — no new
+colour). The highlighted (and actually clickable) hex set must also match server truth per
+team, not just "all unoccupied pitch hexes" — this is where D-46 (below) comes in, since the
+light-blue highlight must respect the defending team's new exclusions.
+
+**Fix:** `HexGrid.tsx` — `isKickoffTint` is now `(inMyZone && !isCentreHex) ||
+(phase === 'FREE_KICK_SETUP' && isValidMove)`. Since `isValidMove` reads from the store's
+`validMoveHexes`, which after the D-46 fix is already correctly restricted per team, this
+hex now resolves to the `'kickoff'` highlight type (confirmed via the existing priority
+chain: `isKickoffTint` is checked before the `isSafeTint` fallback) instead of falling
+through to yellow.
+
+**Test:** New describe block in `HexGrid.test.tsx` — seeds a `FREE_KICK_SETUP` state with a
+single `validMoveHexes` entry (a hex ahead of and clear of the freeKickHex zone, mirroring
+what `useGameStore.selectPiece` would compute for a defending-team piece post-D-46) and
+asserts (a) that hex renders with the kickoff fill (`rgba(59,130,246,1)`), located via
+polygon bounding-box center match against `axialToPixel`, and (b) no polygon anywhere renders
+the generic safe fill (`rgba(245,197,24,1)`) in this state.
+
+**Files:** `packages/client/src/components/HexGrid.tsx`,
+`packages/client/src/components/HexGrid.test.tsx`
+**Commit:** `7d56d12`
+
+### D-46 — new defending-team placement constraint: must stay equal-or-ahead of the ball (extends D-30)
+
+**Issue:** D-30 already excludes a 2-hex zone around `freeKickHex` for the defending team
+(the side that committed the offside foul). The user's correction adds a second, independent
+constraint: the defending team may not position ANY piece BEHIND the ball — i.e., on their
+own defensive side of `freeKickHex` in their own attacking direction (the same
+`attackingDirection` convention as D-21/D-24's offside geometry: home attacks toward higher
+q, away toward lower q). Equal-to-or-ahead of the ball is legal; strictly behind it is not.
+Rationale given: getting caught offside denies the offending team the chance to retreat into
+a defensive shape — they're forced to stay pushed up. The kicking team (D-29) has no such
+restriction.
+
+**Fix — server (`gameEngine.ts`, `applyFreeKickReady`):**
+
+- `ApplyFreeKickReadyResult`'s reason union gained `'DEFENDER_BEHIND_BALL'` alongside
+  `'WRONG_PHASE' | 'KICKER_HEX_EMPTY' | 'DEFENDER_TOO_CLOSE'`.
+- Imported `attackingDirection` from `@counter-attack/shared` (already exported per plan
+  17-05), mirroring the import style already used for `evaluateOffside`.
+- In the defending-team branch's per-piece loop, added a second check after the existing
+  `DEFENDER_TOO_CLOSE` distance check: `if ((piece.position.q - freeKickHex.q) * dir < 0)
+return { ok: false, reason: 'DEFENDER_BEHIND_BALL' }`, with `dir` computed once before the
+  loop via `attackingDirection(team)`.
+- Updated the function's JSDoc guard-sequence comment to document this as guard 4, citing
+  D-46.
+
+**Fix — client (`useGameStore.ts`, `selectPiece`'s `FREE_KICK_SETUP` branch):** the branch
+now distinguishes the kicking team (`gameState.freeKickAttackingTeam === myTeam` — keeps the
+original unrestricted D-29 behavior) from the defending team, which additionally excludes:
+(a) any hex within 2 of `freeKickHex` (mirrors D-30, previously only enforced server-side),
+and (b) any hex strictly behind `freeKickHex` in the defending team's own attacking direction
+(mirrors D-46). Imported `attackingDirection` from `@counter-attack/shared`, mirroring the
+existing `hexDistance` import style in this file. This makes the D-45 highlight accurate
+(only legal hexes light up) and prevents the client from attempting a move the server would
+reject.
+
+**Tests:**
+
+- `offside.test.ts` (server) — six new cases under `applyFreeKickReady`: home-defending
+  behind/equal/ahead (3 cases) and away-defending behind/equal/ahead (3 cases), covering both
+  `attackingDirection` signs. Equal-q cases use a different `r` to clear the `DEFENDER_TOO_CLOSE`
+  distance check in isolation, confirmed via the `hexDistance` cube-coordinate formula.
+- `useGameStore.test.ts` (client) — three new cases under the existing
+  `selectPiece FREE_KICK_SETUP` describe block: defending-team piece excludes the 2-hex zone,
+  defending-team piece excludes behind-ball hexes, defending-team piece retains
+  equal-or-ahead hexes outside the zone; plus one regression case confirming the kicking team
+  (away, in the shared fixture) remains fully unrestricted (includes both the 2-hex-zone hex
+  and the behind-ball-for-defenders hex, both illegal for the defending team only).
+
+**Files:** `packages/server/src/gameEngine.ts`, `packages/server/src/__tests__/offside.test.ts`,
+`packages/client/src/store/useGameStore.ts`, `packages/client/src/store/useGameStore.test.ts`
+**Commit:** `7d56d12` (same commit as D-45 — the two are interdependent: D-45's highlight
+accuracy depends on D-46's client-side restriction being in place first)
+
+### Re-verification after corrections
+
+- `pnpm --filter @counter-attack/shared typecheck` — exits 0
+- `pnpm --filter @counter-attack/server typecheck` — exits 0
+- `pnpm --filter @counter-attack/server test -- --run` — 421 passing (1 pre-existing skip,
+  1 pre-existing todo, unrelated), up from 414 (+7: 1 new D-43 test, 6 new D-46 tests)
+- `pnpm --filter @counter-attack/client typecheck` — exits 0
+- `pnpm --filter @counter-attack/client test -- --run` — 158 passing, up from 152 (+2 new
+  D-45 tests in `HexGrid.test.tsx`; D-46's 4 new `useGameStore.test.ts` cases offset by no
+  net test-count change there since one pre-existing case's assertion scope was unchanged)
+- All five commands re-run a second time after lint-staged's eslint/prettier auto-formatting
+  (triggered on each commit) to confirm formatting didn't alter behavior — identical results.
+
+No dev server was started during this corrective session. The orchestrator's production
+build (server on port 3001, `vite preview` on port 5174) was observed running, untouched,
+at both the start and end of this session.
+
+## Checkpoint Pending (Round 2)
+
+Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a SECOND time — the original
+OFFSIDE-02 end-to-end verification (unchanged in substance) PLUS re-verification of the five
+corrections above: ring width (D-42), full offside reset on free-kick-taken (D-43), help text
+readability in both setup panels (D-44), light-blue placement highlight (D-45), and the
+defending team's new behind-ball restriction with its highlight accuracy (D-46). Plan 17-06
+cannot close until this second checkpoint round is approved.
