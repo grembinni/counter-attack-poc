@@ -284,30 +284,51 @@ Known deferred items at close: 6 (see above)
   verification to confirm all five success-criterion-3 defects (CR-01-new, CR-02-new,
   Review-CR-01, Review-CR-02, and this fresh CR-01) are resolved, then close out Phase 17.1.
 
+- Last updated: 2026-06-20
+- Phase 17 Plan 05 (OFFSIDE-01) Tasks 1-3 complete. New packages/shared/src/offside.ts
+  exports pure team-relative geometry helpers (attackingDirection, isPastHalfway, isAheadOf,
+  opposingPiecesEqualOrAhead, isOffsideNow, isClearedNow, evaluateOffside) plus
+  OFFSIDE_HALFWAY_Q; GameState.offsidePieceIds (sticky id-set) added. evaluateOffside wired
+  into every applyEndTurn ok:true return and every applyFreeMoveEnd return. PieceOverlay
+  gains isOffside prop + #dc2626 strokeWidth-5 ring (independent layer, coexists with
+  selectionState rings); HexGrid wires offsidePieceIds.includes(piece.id) through.
+
+- 379 server (1 skipped, 1 todo, pre-existing/unrelated) + 134 client + shared typecheck
+  clean. offside.test.ts: 34/34 new tests green. PieceOverlay.test.tsx: 18/18 green (3 new).
+
+- Task 4 (checkpoint:human-verify, gate=blocking) is pending: two-tab live verification of
+  detection, stickiness across a non-moving turn, both D-22 clear paths, and D-24
+  team-relative defender flagging. Plan 17-05 cannot close until this checkpoint is approved.
+
 ## Current Position
 
 Phase: 17 (rule-bugs) — EXECUTING
-Plan: 17-04 complete (4 of 6); proceeding to 17-05
+Plan: 17-05 (OFFSIDE-01) Tasks 1-3 complete; Task 4 checkpoint:human-verify pending
 Status: Executing Phase 17
-Last activity: 2026-06-20 -- Plan 17-04 (MOVE-06) approved after 3 checkpoint correction rounds (trigger/eligibility/sequencing rework, client click-to-move wiring, activated-piece parity)
+Last activity: 2026-06-20 -- Plan 17-05 Tasks 1-3 executed and committed (shared offside
+geometry helpers + sticky GameState.offsidePieceIds field; evaluateOffside wired into every
+applyEndTurn/applyFreeMoveEnd return; PieceOverlay double-width red ring + HexGrid wiring).
+Awaiting human verification of detection/stickiness/clear/team-relative flagging in a live
+two-tab session before Task 4 (checkpoint) and the plan can close.
+
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
 a deferred follow-up rather than a 6th gap-closure cycle. Captured as
 .planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md.
 
-Quick task 260620-9ql then cancelled Phase 17 plan 17-05 (PASS-02 mid-pass repositioning) —
-it described the old single-step SNAP_DEFLECT-reuse design, which Phase 17.1's two-slot
-FIRST_TIME_PASS_MOVE redesign already superseded and verified. Deleted 17-05-PLAN.md, dropped
-it from ROADMAP.md's Phase 17 plan list (5→4 plans), corrected REQUIREMENTS.md's PASS-02
-attribution to Phase 17.1, and deleted the 2 stale abandoned-design test stubs in
-gameEngine.phase17.test.ts/gameHandlers.phase17.test.ts — these were 2 of the "4 documented
-pre-existing failures" carried through every Phase 17.1 verification cycle. Server suite is
-now down to 2 failures (only MOVE-06 FREE_MOVE, tied to unexecuted plan 17-04).
+The ORIGINAL plan 17-05 (PASS-02 mid-pass repositioning) was cancelled by quick task
+260620-9ql — it described the old single-step SNAP_DEFLECT-reuse design, which Phase 17.1's
+two-slot FIRST_TIME_PASS_MOVE redesign already superseded and verified. Plan 17-04 (MOVE-06)
+then executed and closed (approved 2026-06-20 after 3 checkpoint correction rounds). A new
+offside-rule scope (OFFSIDE-01/OFFSIDE-02, D-21..D-32 in 17-CONTEXT.md) was added to Phase 17
+afterward and re-planned as the current 17-05 (OFFSIDE-01, this plan) and 17-06 (OFFSIDE-02,
+not yet executed).
 
-Next: Phase 17 has one legitimate unfinished plan (17-04, MOVE-06 FREE_MOVE phase) — running
-it would likely fix the 2 remaining pre-existing failures. Also outstanding: HIGH_PASS_MOVE
-has the same missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16
-(documented in 17.1-16-PLAN.md as a deferred parallel finding, not yet filed as its own todo).
+Next: complete plan 17-05's Task 4 human-verify checkpoint, then execute plan 17-06
+(OFFSIDE-02: foul-on-possession-gain consequence, free-kick restart). Also outstanding:
+HIGH_PASS_MOVE has the same missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had
+pre-17.1-16 (documented in 17.1-16-PLAN.md as a deferred parallel finding, not yet filed as
+its own todo).
 
 ## Performance Metrics
 
@@ -402,3 +423,6 @@ has the same missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-
 - [Phase 17.1-14]: applyUndo resets firstTimePassMovedPieceId/firstTimePassPaceUsed (or highPassMovedPieceId/highPassPaceUsed) via a phase-conditional lockReset spread, mirroring the canonical null/0 slot-clear shape — Closes Review-CR-01: undo previously restored piece position but left the repositioning slot permanently locked
 - [Phase 17.1-action-flow-cleanup]: FTP DEFENDER-slot delivery receiver lookup made team-agnostic (BUG-04 parity): occupant search has no teamId filter; possession transfers when occupant.teamId differs from prior attackingTeam, mirroring gameEngine.ts BUG-04 (1272-1297)
 - [Phase ?]: [Phase 17.1-16]: firstTimePassCarrierId added to GameState mirroring highPassCarrierId exactly; set at FIRST_TIME_PASS transition, preserved across FTP_MOVE undo (pass still in flight), cleared only at FTP delivery — closes CR-01 self-pass-reclaim exploit; HIGH_PASS_MOVE has the identical unfixed defect, deferred to a future cycle
+- [Phase 17-05]: OFFSIDE_HALFWAY_Q = PITCH_REGIONS.kickOffHex.q (18) — offside half-boundary reuses the same constant as kick-off own-half enforcement; evaluateOffside is sticky-only (never recomputes from scratch): next set = (prior flagged minus now-cleared) union (newly offside-now)
+- [Phase 17-05]: applyEndTurn computes nextOffside once after the WRONG_SLOT guard and spreads it into all 4 ok:true returns (HALF_TIME/FULL_TIME, GK_RESTART, normal PASS, intermediate-slot) since none of those returns mutate piece positions; applyFreeMoveEnd re-evaluates on all 3 of its returns (FREE_MOVE_ATTACK->FREE_MOVE_DEFENSE handoff plus both resume-phase returns) since pieces may have moved during whichever sub-phase is ending
+- [Phase 17-05]: PieceOverlay isOffside ring uses #dc2626 (deeper red), strokeWidth 5, r=PIECE_RADIUS+6 — distinct from the existing #ef4444 away-team-role rect; rendered as an independent layer alongside (not folded into) the selectionState ring switch, so a piece can show both a selection ring and the offside ring simultaneously
