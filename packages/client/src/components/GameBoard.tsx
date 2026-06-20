@@ -8,6 +8,7 @@ import { ActionLog } from './ActionLog.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
 import { ActionPanel } from './ActionPanel.js';
 import { KickOffSetupPanel } from './KickOffSetupPanel.js';
+import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import styles from './GameBoard.module.css';
@@ -34,6 +35,8 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   FREE_MOVE_ATTACK: 'FREE MOVE — ATTACK',
   FREE_MOVE_DEFENSE: 'FREE MOVE — DEFENSE',
   FIRST_TIME_PASS_MOVE: 'FIRST-TIME PASS — REPOSITION',
+  // OFFSIDE-02 (Phase 17 D-29): both-teams repositioning before an offside free kick is taken.
+  FREE_KICK_SETUP: 'OFFSIDE — FREE KICK SETUP',
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
@@ -259,6 +262,8 @@ export function GameBoard() {
         <div className={styles.topBandRight}>
           {phase === 'KICK_OFF_SETUP' ? (
             <KickOffSetupPanel />
+          ) : phase === 'FREE_KICK_SETUP' ? (
+            <FreeKickSetupPanel />
           ) : phase === 'REPLAY' ? (
             <ReplayPanel />
           ) : (

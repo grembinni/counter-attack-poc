@@ -154,6 +154,13 @@ export type GameStore = {
    * Emits GAME_HEADER_ACCURACY_ACK (zero arguments). No-op if socket not connected.
    */
   emitHeaderAccuracyAck: () => void;
+  /**
+   * OFFSIDE-02 (Phase 17 D-29): reposition a piece during FREE_KICK_SETUP
+   * (no pace limits, no ZoI — mirrors emitKickOffMove).
+   */
+  emitFreeKickMove: (pieceId: string, to: HexCoord) => void;
+  /** OFFSIDE-02 (Phase 17 D-29): emit game:free-kick-ready — FREE_KICK_SETUP confirmation. */
+  emitFreeKickReady: () => void;
 };
 
 /**
@@ -328,6 +335,32 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           // Attacking: q ≥ 18; defending: strictly q > 18 and not in centre circle
           return isAttacking ? hex.q >= kickOffHex.q : hex.q > kickOffHex.q && !inCentre;
         }
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
+    // OFFSIDE-02 (Phase 17 D-29): both teams may reposition their entire squad ANYWHERE on
+    // the board before an offside free kick — no own-half restriction (unlike KICK_OFF_SETUP).
+    if (gameState.phase === 'FREE_KICK_SETUP') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      if (piece.teamId !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const valid = PITCH_HEXES.filter((hex) => {
+        // Exclude hexes occupied by another own piece (can't stack)
+        if (
+          gameState.pieces.some(
+            (p) =>
+              p.id !== id &&
+              p.teamId === myTeam &&
+              p.position.q === hex.q &&
+              p.position.r === hex.r,
+          )
+        )
+          return false;
+        return true;
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
@@ -762,5 +795,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitHeaderAccuracyAck: () => {
     socket.emit(ClientEvents.GAME_HEADER_ACCURACY_ACK);
+  },
+
+  emitFreeKickMove: (pieceId, to) => {
+    socket.emit(ClientEvents.GAME_FREE_KICK_MOVE, pieceId, to);
+    set({ selectedPieceId: null, validMoveHexes: [] });
+  },
+
+  emitFreeKickReady: () => {
+    socket.emit(ClientEvents.GAME_FREE_KICK_READY);
   },
 }));

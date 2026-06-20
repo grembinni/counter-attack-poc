@@ -68,6 +68,8 @@ export function HexGrid() {
   const inspectPiece = useGameStore((s) => s.inspectPiece);
   const emitMove = useGameStore((s) => s.emitMove);
   const emitKickOffMove = useGameStore((s) => s.emitKickOffMove);
+  // OFFSIDE-02 (Phase 17 D-29): free-kick setup repositioning — mirrors emitKickOffMove
+  const emitFreeKickMove = useGameStore((s) => s.emitFreeKickMove);
 
   // Phase 8.2: pass target highlight slices (D-06, D-09)
   const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
@@ -397,6 +399,12 @@ export function HexGrid() {
                 onClick = () => emitKickOffMove(selectedPieceId, hex);
               }
               // Clicking any other hex during setup is a no-op — handled by the piece's own onClick below
+            } else if (phase === 'FREE_KICK_SETUP') {
+              // OFFSIDE-02 (D-29): clicking a valid (anywhere-on-pitch) hex while a piece is
+              // selected → emitFreeKickMove. Mirrors KICK_OFF_SETUP but with no zone restriction.
+              if (isValidMove && selectedPieceId) {
+                onClick = () => emitFreeKickMove(selectedPieceId, hex);
+              }
             } else if (phase === 'GK_DIVE' && isGKDiveTarget && isGKTeamPlayer) {
               // Phase 10: GK team clicks a valid dive hex during GK_DIVE
               onClick = () => emitGKDive(hex);
@@ -576,6 +584,11 @@ export function HexGrid() {
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
+            // OFFSIDE-02 (D-29): both teams reposition their entire squad ANYWHERE on the
+            // board before an offside free kick — mirrors canSelectKickOff (no zone gate here;
+            // the zone-restriction-free placement itself is enforced server-side at Ready).
+            const canSelectFreeKick =
+              phase === 'FREE_KICK_SETUP' && myTeam !== null && piece.teamId === myTeam;
             // HIGH_PASS_MOVE: active team selects 1 own piece to reposition up to 3 hexes
             const canSelectHighPassMove =
               phase === 'HIGH_PASS_MOVE' &&
@@ -656,6 +669,7 @@ export function HexGrid() {
               isQuickThrowTargetPiece ||
               canSelect ||
               canSelectKickOff ||
+              canSelectFreeKick ||
               isHeaderEligible ||
               canSelectHighPassMove ||
               canSelectSnapDeflect ||
@@ -704,9 +718,11 @@ export function HexGrid() {
                               }
                             : canSelectKickOff
                               ? () => selectPiece(piece.id)
-                              : canSelect
+                              : canSelectFreeKick
                                 ? () => selectPiece(piece.id)
-                                : () => undefined;
+                                : canSelect
+                                  ? () => selectPiece(piece.id)
+                                  : () => undefined;
 
             return (
               <PieceOverlay

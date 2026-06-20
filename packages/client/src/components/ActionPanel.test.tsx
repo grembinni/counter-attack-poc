@@ -291,3 +291,82 @@ describe('ActionPanel — PASS phase pass-type selection flow', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+// OFFSIDE-02 (Phase 17 D-32): the free-kick restart action set is entirely data-driven via
+// ELIGIBLE_NEXT_ACTIONS['FREE_KICK_RESTART'] (Task 1) — no bespoke client gating. These tests
+// confirm the existing eligibility-driven chooser (already exercised above for other
+// lastActionType values) renders exactly the four legal free-kick actions for this row too.
+describe('ActionPanel — FREE_KICK_RESTART action set (OFFSIDE-02 D-32)', () => {
+  it('offers Standard Pass, High Pass, and Long Ball but NOT Move/One-Touch/Snapshot', () => {
+    // Carrier far from goal (no Shoot eligibility) isolates this assertion to the
+    // Move/FTP/Snapshot suppression — Shoot-in-range is covered by the next test.
+    const carrier = mockMovementState.pieces.find((p) => p.id === 'home-9');
+    if (!carrier) throw new Error('home-9 not found in mockMovementState fixture');
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastActionType: 'FREE_KICK_RESTART',
+        ball: { position: { q: 1, r: 1 }, carrierId: 'home-9' },
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-9' ? { ...p, position: { q: 1, r: 1 } } : p,
+        ),
+      },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /standard pass/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /high pass/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /long ball/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^move$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /one-touch/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /snapshot/i })).toBeNull();
+  });
+
+  it('offers Shoot when the kicker is within 11 hexes of goal', () => {
+    const homeGoalHex = { q: 36, r: 13 };
+    const nearGoalPos = { q: 25, r: 13 }; // hexDistance to {q:36,r:13} = 11 (in range)
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastActionType: 'FREE_KICK_RESTART',
+        ball: { position: nearGoalPos, carrierId: 'home-9' },
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-9' ? { ...p, position: nearGoalPos } : p,
+        ),
+      },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /shoot/i })).toBeDefined();
+    void homeGoalHex; // documents the goal hex used for the in-range distance comment above
+  });
+
+  it('suppresses Shoot when the kicker is out of the 11-hex range', () => {
+    const farPos = { q: 5, r: 13 }; // hexDistance to {q:36,r:13} = 31 (out of range)
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastActionType: 'FREE_KICK_RESTART',
+        ball: { position: farPos, carrierId: 'home-9' },
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-9' ? { ...p, position: farPos } : p,
+        ),
+      },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /shoot/i })).toBeNull();
+  });
+});

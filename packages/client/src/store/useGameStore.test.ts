@@ -355,4 +355,70 @@ describe('useGameStore — emit actions', () => {
     useGameStore.getState().emitStartMovement();
     expect(emitMock).toHaveBeenCalledWith('game:start-movement');
   });
+
+  it('emitFreeKickMove calls socket.emit with game:free-kick-move, pieceId, hex and clears selection', () => {
+    const targetHex = { q: 2, r: 2 };
+    useGameStore.setState({ selectedPieceId: 'home-8', validMoveHexes: [targetHex] });
+    useGameStore.getState().emitFreeKickMove('home-8', targetHex);
+    expect(emitMock).toHaveBeenCalledWith('game:free-kick-move', 'home-8', targetHex);
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+    expect(useGameStore.getState().validMoveHexes).toHaveLength(0);
+  });
+
+  it('emitFreeKickReady calls socket.emit with game:free-kick-ready', () => {
+    useGameStore.getState().emitFreeKickReady();
+    expect(emitMock).toHaveBeenCalledWith('game:free-kick-ready');
+  });
+});
+
+// OFFSIDE-02 (Phase 17 D-29): both teams may reposition their entire squad ANYWHERE on the
+// board during FREE_KICK_SETUP — mirrors KICK_OFF_SETUP's selectPiece branch but with no
+// own-half zone restriction.
+describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
+  function freeKickSetupState() {
+    return {
+      ...mockMovementState,
+      phase: 'FREE_KICK_SETUP' as const,
+      freeKickHex: { q: 25, r: 13 },
+      freeKickAttackingTeam: 'away' as const,
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({
+      playerSlot: 1, // home
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+  });
+
+  it('selecting an own-team piece populates validMoveHexes with pitch hexes (no zone restriction)', () => {
+    useGameStore.setState({ gameState: freeKickSetupState() });
+    useGameStore.getState().selectPiece('home-8');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-8');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('rejects selecting an opponent-team piece (clears selection)', () => {
+    useGameStore.setState({ gameState: freeKickSetupState() });
+    useGameStore.getState().selectPiece('away-9');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('excludes hexes already occupied by another own-team piece', () => {
+    useGameStore.setState({ gameState: freeKickSetupState() });
+    const otherHomePiece = mockMovementState.pieces.find(
+      (p) => p.teamId === 'home' && p.id !== 'home-8',
+    );
+    if (!otherHomePiece) throw new Error('No other home piece in fixture');
+    useGameStore.getState().selectPiece('home-8');
+    const { validMoveHexes } = useGameStore.getState();
+    const occupiedHexExcluded = !validMoveHexes.some(
+      (h) => h.q === otherHomePiece.position.q && h.r === otherHomePiece.position.r,
+    );
+    expect(occupiedHexExcluded).toBe(true);
+  });
 });
