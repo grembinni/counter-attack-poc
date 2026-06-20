@@ -32,6 +32,8 @@ key-files:
     - packages/server/src/roomStore.ts
     - packages/client/src/components/ActionPanel.tsx
     - packages/client/src/components/GameBoard.tsx
+    - packages/client/src/components/HexGrid.tsx
+    - packages/client/src/store/useGameStore.ts
     - packages/client/src/mock/mockMovementState.ts
     - packages/client/src/mock/mockPassState.ts
     - packages/client/src/mock/mockShotState.ts
@@ -48,17 +50,20 @@ key-files:
     - packages/server/src/__tests__/shotGkRange.test.ts
     - packages/server/src/__tests__/game.integration.test.ts
     - packages/client/src/components/ActionPanel.test.tsx
+    - packages/client/src/components/HexGrid.test.tsx
+    - packages/client/src/store/useGameStore.test.ts
 
 key-decisions:
   - 'D-33..D-38 (CONTEXT.md addendum, 2026-06-20): supersedes D-12..D-16 — trigger is ball-position-based (any action, not just MOVEMENT End Turn), eligibility is ALL players of both teams including GK in the opposite final third, two sequential sub-phases with attacking team moving first.'
   - 'applyFreeMoveZoneCheck runs centrally in broadcastState (single ARCH-04 hook) rather than being duplicated per-handler.'
   - 'freeMoveResume snapshots {phase, activeTeam} at trigger time so the overlay can restore exactly what the triggering action already computed as next, including dynamic activeTeam cases (HIGH_PASS_MOVEMENT, D-30 mid-slot pickups).'
   - 'freeMoveResume kept optional (not required) on GameState, consistent with sibling freeMoveEligibleIds/freeMoveUsedPace fields, to minimize required-field churn across existing fixtures.'
+  - 'Client click-to-move selection (HexGrid.tsx canSelectFreeMove, useGameStore.ts selectPiece/setGameState FREE_MOVE_ATTACK/DEFENSE branches) follows the HIGH_PASS_MOVE pattern exactly, but with no single-piece lock — any number of precomputed-eligible pieces may move independently, each capped at 6 hexes via freeMoveUsedPace.'
 
 requirements-completed: [MOVE-06]
 
 # Metrics
-duration: ~90min (corrective rework after checkpoint correction)
+duration: ~90min (corrective rework after checkpoint correction) + ~30min (client-wiring fix, second checkpoint round)
 completed: 2026-06-20
 ---
 
@@ -170,9 +175,96 @@ None — no external service configuration required.
 
 ## Next Phase Readiness
 
-- MOVE-06 is now fully correct per the physical rulebook and ready for renewed human verification at the Task 4 checkpoint (see orchestrator return for the checkpoint text).
+- MOVE-06 is now fully correct per the physical rulebook AND fully wired client-side (see "Second checkpoint round" section below), ready for renewed human verification at the Task 4 checkpoint (see orchestrator return for the checkpoint text).
 - Phases 17-05/17-06 (offside rule, OFFSIDE-01/02) are unaffected by this rework and can proceed independently once this checkpoint clears.
 - No blockers. The centralized `applyFreeMoveZoneCheck` pattern (single hook in `broadcastState`) is reusable for any future "fires after any action" rule.
+
+---
+
+## IMPORTANT: Second checkpoint round — client click-to-move was never wired
+
+After the corrected design above (commits `f41b020`..`b91185e`) reached the Task 4 human-verify
+checkpoint a second time, the user manually tested it and reported: _"free move phase triggered
+but no move was allowed. Expected to have eligible player highlighted to move. no players are
+moveable."_
+
+This was a distinct, narrower bug from the rulebook-design correction documented above. The
+server-side trigger/eligibility/phase-sequencing logic (`applyFreeMoveZoneCheck`,
+`freeMoveEligibleIds`, `freeMoveUsedPace`, the two-sub-phase FSM) was fully correct and fully
+tested — but **nobody had ever wired the client's click-to-move interaction layer** for the new
+`FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` phases:
+
+- `packages/client/src/components/HexGrid.tsx` had no `canSelectFreeMove`-style branch among its
+  per-phase piece-clickability flags (`canSelectHighPassMove`, `canSelectGKKickMove`, etc.) — so
+  pieces in the opposite final third were never rendered as clickable/highlighted during these
+  phases, and clicking one was a no-op.
+- `packages/client/src/store/useGameStore.ts`'s `selectPiece(id)` had no
+  `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` branch — even if a piece were clickable, no valid
+  destination hexes would ever be computed.
+- The same file's `setGameState` sticky-selection block (the one that keeps HIGH_PASS_MOVE/
+  GK_KICK_MOVE/FIRST_TIME_PASS_MOVE pieces selected and re-highlighted across server broadcasts)
+  also had no FREE_MOVE entry — so even after fixing the two issues above, a player would only be
+  able to move a piece exactly 1 hex before losing the highlight, despite having up to 5 more
+  hexes of budget remaining.
+
+This gap was missed by both the original Task 3 (which only wired `gameHandlers.ts` and
+`ActionPanel.tsx`) and the first MOVE-06 design-correction rework (which touched
+`gameEngine.ts`/`gameHandlers.ts`/`ActionPanel.tsx`/`GameBoard.tsx` but never `HexGrid.tsx` or
+`useGameStore.ts`'s selection logic) — neither task's scope included the piece-selection layer.
+
+### What was fixed
+
+- **`HexGrid.tsx`**: added `freeMoveEligibleIds`/`freeMoveUsedPace` store slices, a
+  `canSelectFreeMove` flag (gated on active sub-phase side, active player, own team, eligibility
+  list membership, and `freeMoveUsedPace[id] < 6`), wired into the combined `isClickable` check and
+  the `handleClick` ternary chain — mirroring `canSelectHighPassMove`/`canSelectFirstTimePassMove`
+  exactly. The hex-click-handling and hex-highlight-rendering code paths needed no changes — both
+  are already phase-agnostic and consume the store's `validMoveHexes` automatically.
+- **`useGameStore.ts` `selectPiece`**: added a `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` branch that
+  rejects ineligible/wrong-team pieces, computes adjacent on-pitch unoccupied 1-hex-step
+  destinations when budget remains, and selects-with-empty-hexes when the 6-hex cap is reached.
+  Unlike `HIGH_PASS_MOVE`, there is no single-piece lock — any number of eligible pieces may be
+  selected and moved independently.
+- **`useGameStore.ts` `setGameState`**: added a separate, parallel sticky-selection block (not
+  folded into the existing HIGH_PASS_MOVE/GK_KICK_MOVE/FIRST_TIME_PASS_MOVE block, since FREE_MOVE
+  has no lock concept) that re-runs the same adjacent-hex computation after every server broadcast,
+  keeping a selected piece highlighted until its budget is exhausted. The existing `phaseChanged`
+  early-return guard already clears selection the instant `FREE_MOVE_ATTACK` hands off to
+  `FREE_MOVE_DEFENSE` (or resumes) — per D-35, each sub-phase starts fresh with no carry-over
+  selection, so no extra logic was needed for that transition.
+
+### Deviation from plan
+
+**[Rule 1 - Bug] Client-side click-to-move selection layer entirely unwired for FREE_MOVE_ATTACK/DEFENSE**
+
+- **Found during:** Task 4 human-verify checkpoint (second attempt, after the rulebook-design correction above)
+- **Issue:** Server logic was correct but no client code rendered eligible pieces as selectable or computed valid-move destinations for the new phases.
+- **Fix:** Added `canSelectFreeMove` to `HexGrid.tsx`'s piece-clickability chain; added `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` branches to `useGameStore.ts`'s `selectPiece` and `setGameState`.
+- **Files modified:** `packages/client/src/components/HexGrid.tsx`, `packages/client/src/store/useGameStore.ts`, plus new test coverage in `packages/client/src/components/HexGrid.test.tsx` and `packages/client/src/store/useGameStore.test.ts`.
+- **Commits:** `daed61e` (fix), `e19760f` (test)
+
+### Test coverage added
+
+- `HexGrid.test.tsx`: 6 new cases — eligible piece selectable during FREE_MOVE_ATTACK, eligible piece selectable during FREE_MOVE_DEFENSE, ineligible own-team piece NOT selectable, pace-exhausted piece (`freeMoveUsedPace >= 6`) NOT selectable, opponent piece NOT selectable even if (incorrectly) listed, non-active player sees no selectable pieces. (One test helper bug caught and fixed during this work: the cosmos/home team's jersey `primaryColor` is `#3b82f6`, identical to the selectable-ring stroke color, so the initial color-only ring-detection helper false-positived on every home piece's base circle — fixed by also matching on ring radius `r=14`, distinct from the base circle's `r=12`.)
+- `useGameStore.test.ts`: 6 new `selectPiece` cases (both sub-phases, eligible/ineligible/wrong-team/pace-exhausted/partial-pace) + 3 new `setGameState` sticky-selection cases (recompute across same-phase broadcast, empty hexes at cap, clear on ATTACK→DEFENSE phase change).
+
+### Verification (second round)
+
+All four commands passed:
+
+- `pnpm --filter @counter-attack/client typecheck` — clean
+- `pnpm --filter @counter-attack/client test` — 128 passed (10 files)
+- `pnpm --filter @counter-attack/server test` — 338 passed, 1 skipped, 1 todo (20 files; no server files modified, confirms no regression)
+- `pnpm --filter @counter-attack/shared typecheck` — clean
+
+### Checkpoint status
+
+Returning to the Task 4 `checkpoint:human-verify` a second time. Not simulated — the user must
+verify two-browser-tab behavior directly. Expected behavior once verified: pieces in the opposite
+final third highlight as selectable/clickable during `FREE_MOVE_ATTACK` (then
+`FREE_MOVE_DEFENSE`), each can be moved up to 6 hexes total via repeated single-hex clicks
+(selection persists and re-highlights after each accepted move, same UX as `HIGH_PASS_MOVE`), and
+End Turn hand-off/resume behavior is unchanged from what was already verified in the prior round.
 
 ---
 
@@ -187,3 +279,7 @@ _Completed: 2026-06-20_
 - FOUND: commit `e13015f` (fix(17-04): update ActionPanel/GameBoard)
 - FOUND: commit `b91185e` (test(17-04): rewrite MOVE-06 tests)
 - FOUND: commit `fd10053` (docs(17-04): add SUMMARY.md)
+- FOUND: commit `daed61e` (fix(17-04): wire FREE_MOVE_ATTACK/DEFENSE client click-to-move selection)
+- FOUND: commit `e19760f` (test(17-04): cover FREE_MOVE_ATTACK/DEFENSE click-to-move selection)
+- FOUND: `packages/client/src/components/HexGrid.tsx` (canSelectFreeMove present)
+- FOUND: `packages/client/src/store/useGameStore.ts` (FREE_MOVE_ATTACK/DEFENSE branches present)
