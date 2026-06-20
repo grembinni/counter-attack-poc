@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: verifying
-last_updated: '2026-06-20T02:19:36.932Z'
-last_activity: 2026-06-19 -- Plan 16 executed (firstTimePassCarrierId self-pass-reclaim fix)
+last_updated: '2026-06-20T02:43:31.744Z'
+last_activity: 2026-06-20
 progress:
   total_phases: 5
   completed_phases: 3
@@ -285,10 +285,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 16 of 16 (gap-closure wave complete)
+Phase: 18
+Plan: Not started
 Status: Ready for phase verification re-run
-Last activity: 2026-06-19 -- Plan 16 executed (firstTimePassCarrierId self-pass-reclaim fix)
+Last activity: 2026-06-20
 Plan 16 closed the cycle-4 verifier's CR-01 finding (FIRST_TIME_PASS self-pass-reclaim
 exploit). firstTimePassCarrierId added to GameState; server GAME_MOVE FTP handler rejects
 the original passer; FTP delivery occupant lookup excludes them (defense in depth); client
