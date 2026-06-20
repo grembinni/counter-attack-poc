@@ -75,12 +75,25 @@ export function isOffsideNow(state: GameState, piece: PlayerPiece): boolean {
  * D-22: true iff the clear condition holds — the logical complement of D-21's
  * conditions 2 and 3 (condition 1, past-halfway, is irrelevant to clearing: D-22 is
  * "equal-or-behind ball OR >=2 opposing equal-or-ahead", independent of halfway status).
+ *
+ * D-40 (correction, 2026-06-20): the ball-position clear (D-22 condition (a),
+ * equal-or-behind ball) only applies when the ball is in possession
+ * (`state.ball.carrierId !== null`) by either team. While the ball is loose
+ * (`carrierId === null`), ONLY the opposing-count clear (condition (b), >=2 opposing
+ * equal-or-ahead) can clear a flag — a loose/bouncing ball's position cannot reprieve
+ * an offside player via position alone. This does NOT affect `isOffsideNow`'s trigger
+ * condition (D-21 condition 2, "ahead of the ball"), which still uses raw ball position
+ * regardless of possession — only the clear/reset side gets this added guard.
  */
 export function isClearedNow(state: GameState, piece: PlayerPiece): boolean {
   const team = piece.teamId;
-  const aheadOfBall = isAheadOf(piece.position.q, state.ball.position.q, team);
   const opposingCount = opposingPiecesEqualOrAhead(state, piece);
-  return !aheadOfBall || opposingCount >= 2;
+  if (opposingCount >= 2) return true;
+  // D-40: the ball-position clear only applies when the ball is possessed — a loose
+  // ball cannot reprieve an offside flag via position alone.
+  if (state.ball.carrierId === null) return false;
+  const aheadOfBall = isAheadOf(piece.position.q, state.ball.position.q, team);
+  return !aheadOfBall;
 }
 
 /**

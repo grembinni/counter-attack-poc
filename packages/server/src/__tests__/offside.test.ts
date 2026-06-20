@@ -10,7 +10,7 @@ import {
   OFFSIDE_HALFWAY_Q,
 } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { applyEndTurn } from '../gameEngine.js';
+import { applyEndTurn, applyMove } from '../gameEngine.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures (mirrors gameEngine.test.ts fixture conventions)
@@ -255,21 +255,24 @@ describe('isOffsideNow', () => {
 // ---------------------------------------------------------------------------
 
 describe('isClearedNow', () => {
-  it('true: equal-or-behind the ball', () => {
+  // NOTE: these cases use a POSSESSED ball (carrierId set) so the ball-position clear
+  // path (D-22 condition (a)) is reachable per D-40 — see the dedicated
+  // "isClearedNow — D-40" describe block below for loose-ball-specific coverage.
+  it('true: equal-or-behind a possessed ball', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null }; // equal
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' }; // equal, possessed
     const state = makeState({ pieces: [piece], ball });
     expect(isClearedNow(state, piece)).toBe(true);
   });
 
-  it('true: strictly behind the ball', () => {
+  it('true: strictly behind a possessed ball', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 15, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
     const state = makeState({ pieces: [piece], ball });
     expect(isClearedNow(state, piece)).toBe(true);
   });
 
-  it('true: ahead of ball but >=2 opposing pieces equal-or-ahead', () => {
+  it('true: ahead of ball but >=2 opposing pieces equal-or-ahead (ball possession irrelevant)', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
     const ball = { position: { q: 20, r: 13 }, carrierId: null };
     const defenderOne = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
@@ -280,7 +283,7 @@ describe('isClearedNow', () => {
 
   it('false: ahead of ball AND <=1 opposing pieces equal-or-ahead', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({ pieces: [piece, oneDefender], ball });
     expect(isClearedNow(state, piece)).toBe(false);
@@ -315,9 +318,9 @@ describe('evaluateOffside', () => {
     expect(evaluateOffside(state)).toEqual(['home-1']);
   });
 
-  it('clear (a): a flagged id that becomes equal-or-behind the ball is dropped', () => {
+  it('clear (a): a flagged id that becomes equal-or-behind a POSSESSED ball is dropped (D-40: requires possession)', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 18, r: 13 } }); // dropped back
-    const ball = { position: { q: 20, r: 13 }, carrierId: null }; // now behind ball
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' }; // now behind ball, possessed
     const state = makeState({
       pieces: [attacker],
       ball,
@@ -368,8 +371,8 @@ describe('evaluateOffside', () => {
 // applyEndTurn — sticky offsidePieceIds wiring (Task 2)
 // ---------------------------------------------------------------------------
 
-describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23)', () => {
-  it('flags a piece past halfway / ahead of ball / <=1 opponent ahead on ATTACKER_2 end, then clears it once dropped behind the ball', () => {
+describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D-39)', () => {
+  it('flags a piece past halfway / ahead of ball / <=1 opponent ahead on ATTACKER_2 end, then clears it once dropped behind a POSSESSED ball (D-39/D-40)', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
@@ -385,15 +388,17 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23)', () => {
     expect(firstResult.state.phase).toBe('PASS');
     expect(firstResult.state.offsidePieceIds).toContain('home-1');
 
-    // Follow-up: attacker drops equal-or-behind the ball; re-run applyEndTurn from a fresh
-    // ATTACKER_2 slot on top of the now-flagged state — id must be cleared (sticky -> cleared).
+    // Follow-up: attacker drops equal-or-behind a POSSESSED ball; re-run applyEndTurn from a
+    // fresh ATTACKER_2 slot on top of the now-flagged state — id must be cleared
+    // (sticky -> cleared). D-40: the ball must be possessed for the position-based clear
+    // to apply, so this follow-up gives the ball a carrier.
     const droppedBack = firstResult.state.pieces.map((p) =>
       p.id === 'home-1' ? { ...p, position: { q: 18, r: 13 } } : p,
     );
     const secondState: GameState = {
       ...firstResult.state,
       pieces: droppedBack,
-      ball: { position: { q: 20, r: 13 }, carrierId: null }, // attacker now behind ball (q18 < q20)
+      ball: { position: { q: 20, r: 13 }, carrierId: 'away-1' }, // possessed, attacker now behind ball (q18 < q20)
       phase: 'MOVE',
       movementSlot: 'ATTACKER_2',
     };
@@ -403,19 +408,281 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23)', () => {
     expect(secondResult.state.offsidePieceIds).not.toContain('home-1');
   });
 
-  it('re-evaluates offsidePieceIds on intermediate slot transitions (ATTACKER_4 -> DEFENDER_5)', () => {
+  it('D-39: does NOT re-evaluate offsidePieceIds on intermediate slot transitions (ATTACKER_4 -> DEFENDER_5) — carries the prior sticky set forward unchanged', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
       pieces: [attacker, oneDefender],
       ball: { position: { q: 20, r: 13 }, carrierId: null },
       movementSlot: 'ATTACKER_4',
+      // home-1 WOULD be newly offside if evaluated here, but it starts un-flagged.
       offsidePieceIds: [],
     });
     const result = applyEndTurn(state);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.movementSlot).toBe('DEFENDER_5');
+    // D-39: intermediate slot transitions do not evaluate offside — the input's
+    // offsidePieceIds (empty) carries forward unchanged, even though home-1 would
+    // qualify as newly-offside if evaluateOffside had been called.
+    expect(result.state.offsidePieceIds).toEqual([]);
+  });
+
+  it('D-39: a previously-flagged id also carries forward unchanged across an intermediate slot transition (DEFENDER_5 -> ATTACKER_2)', () => {
+    const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 15, r: 13 } }); // now behind ball — would clear if evaluated
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const state = makeState({
+      pieces: [attacker, oneDefender],
+      ball: { position: { q: 20, r: 13 }, carrierId: 'away-1' }, // possessed; attacker behind ball — would clear if D-40 evaluated
+      movementSlot: 'DEFENDER_5',
+      offsidePieceIds: ['home-1'], // previously flagged from an earlier full-MOVEMENT-end
+    });
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.movementSlot).toBe('ATTACKER_2');
+    // D-39: still flagged — the intermediate transition does not call evaluateOffside,
+    // so the clear condition (which WOULD apply if evaluated) has no effect here.
+    expect(result.state.offsidePieceIds).toEqual(['home-1']);
+  });
+
+  it('regression: still correctly evaluates at the true end-of-MOVEMENT boundary (ATTACKER_2 -> PASS) after passing through an intermediate slot unevaluated', () => {
+    const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const state = makeState({
+      pieces: [attacker, oneDefender],
+      ball: { position: { q: 20, r: 13 }, carrierId: null },
+      movementSlot: 'ATTACKER_2',
+      offsidePieceIds: [],
+    });
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
     expect(result.state.offsidePieceIds).toContain('home-1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isClearedNow — D-40 possession-gated ball-position clear
+// ---------------------------------------------------------------------------
+
+describe('isClearedNow — D-40 (ball-position clear requires possession)', () => {
+  it('false: equal-or-behind a LOOSE ball with <=1 opposing equal-or-ahead — does NOT clear', () => {
+    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
+    const ball = { position: { q: 20, r: 13 }, carrierId: null }; // level, but loose
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const state = makeState({ pieces: [piece, oneDefender], ball });
+    expect(isClearedNow(state, piece)).toBe(false);
+  });
+
+  it('true: SAME positions but ball is POSSESSED — clears', () => {
+    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const ballHomeCarrier = { position: { q: 20, r: 13 }, carrierId: 'home-1' };
+    const stateHomeCarrier = makeState({ pieces: [piece, oneDefender], ball: ballHomeCarrier });
+    expect(isClearedNow(stateHomeCarrier, piece)).toBe(true);
+
+    const ballAwayCarrier = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const stateAwayCarrier = makeState({ pieces: [piece, oneDefender], ball: ballAwayCarrier });
+    expect(isClearedNow(stateAwayCarrier, piece)).toBe(true);
+  });
+
+  it('true: opposing count >=2 clears regardless of ball possession (unaffected by D-40)', () => {
+    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
+    const defenderOne = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const defenderTwo = makePiece({ id: 'away-2', teamId: 'away', position: { q: 26, r: 13 } });
+
+    const looseBall = { position: { q: 20, r: 13 }, carrierId: null }; // ahead of ball, loose
+    const stateLoose = makeState({ pieces: [piece, defenderOne, defenderTwo], ball: looseBall });
+    expect(isClearedNow(stateLoose, piece)).toBe(true);
+
+    const possessedBall = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const statePossessed = makeState({
+      pieces: [piece, defenderOne, defenderTwo],
+      ball: possessedBall,
+    });
+    expect(isClearedNow(statePossessed, piece)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// evaluateOffside — D-40 sticky-flag interaction with loose vs possessed ball
+// ---------------------------------------------------------------------------
+
+describe('evaluateOffside — D-40 sticky-flag + loose ball', () => {
+  it('a previously-flagged piece that drops level-with-the-ball while the ball is LOOSE stays flagged', () => {
+    const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const looseBall = { position: { q: 20, r: 13 }, carrierId: null }; // level, loose
+    const state = makeState({
+      pieces: [attacker, oneDefender],
+      ball: looseBall,
+      offsidePieceIds: ['home-1'],
+    });
+    expect(evaluateOffside(state)).toEqual(['home-1']);
+  });
+
+  it('the SAME scenario but the ball is possessed — clears', () => {
+    const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const possessedBall = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const state = makeState({
+      pieces: [attacker, oneDefender],
+      ball: possessedBall,
+      offsidePieceIds: ['home-1'],
+    });
+    expect(evaluateOffside(state)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyMove — D-39(b): break-in-play (successful tackle/steal) evaluates offside
+// ---------------------------------------------------------------------------
+
+describe('applyMove — offside evaluated at break-in-play (D-39b)', () => {
+  it('successful tackle: evaluates offsidePieceIds using post-tackle piece positions and ball state', () => {
+    // home-9 (carrier) at {q:10,r:7}; away defender ('away-9') moves adjacent to tackle.
+    // A second home piece ('home-far') is positioned past halfway, ahead of the
+    // post-tackle ball position (which becomes the defender's destination hex), with
+    // 0 away pieces equal-or-ahead of it — newly offside once the tackle resolves.
+    const homePiece: PlayerPiece = {
+      id: 'home-9',
+      teamId: 'home',
+      firstName: 'Home',
+      lastName: 'FWD',
+      number: 10,
+      nationality: 'Test',
+      role: 'FWD',
+      position: { q: 10, r: 7 },
+      pace: 9,
+      shooting: 9,
+      tackling: 1,
+      dribbling: 8,
+      saving: 1,
+      handling: 1,
+      resilience: 6,
+      aerialAbility: 6,
+      highPass: 5,
+    };
+    const homeFar: PlayerPiece = {
+      ...homePiece,
+      id: 'home-far',
+      position: { q: 25, r: 7 }, // past halfway (q>18), ahead of new ball position (q=11)
+    };
+    const defenderPiece: PlayerPiece = {
+      id: 'away-9',
+      teamId: 'away',
+      firstName: 'Away',
+      lastName: 'FWD',
+      number: 9,
+      nationality: 'Test',
+      role: 'FWD',
+      position: { q: 12, r: 7 }, // adjacent to {q:11,r:7}
+      pace: 9,
+      shooting: 9,
+      tackling: 5, // high tackling ensures SUCCESS
+      dribbling: 8,
+      saving: 1,
+      handling: 1,
+      resilience: 6,
+      aerialAbility: 6,
+      highPass: 5,
+    };
+    const state: GameState = makeState({
+      pieces: [homePiece, homeFar, defenderPiece],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      movementSlot: 'DEFENDER_5',
+      activeTeam: 'away',
+      attackingTeam: 'home',
+      offsidePieceIds: [],
+    });
+
+    // away-9 moves from {q:12,r:7} to {q:11,r:7}, adjacent to carrier home-9 at {q:10,r:7}.
+    // defCombined = tackling(5) + tackleDie(6) = 11; carCombined = dribbling(8) + carrierDie(1) = 9.
+    // 11 >= 9 -> SUCCESS. Ball moves to {q:11,r:7}, carrierId: 'away-9'.
+    const result = applyMove(
+      state,
+      'away-9',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 6, carrierDie: 1 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe('away-9');
+    // home-far (q=25) is past halfway, ahead of the new ball position (q=11), with 0 away
+    // pieces equal-or-ahead of it (away-9 is now at q=11, behind home-far) -> newly offside.
+    expect(result.state.offsidePieceIds).toContain('home-far');
+  });
+
+  it('successful steal: evaluates offsidePieceIds using post-steal piece positions and ball state', () => {
+    const homePiece: PlayerPiece = {
+      id: 'home-9',
+      teamId: 'home',
+      firstName: 'Home',
+      lastName: 'FWD',
+      number: 10,
+      nationality: 'Test',
+      role: 'FWD',
+      position: { q: 10, r: 7 },
+      pace: 9,
+      shooting: 9,
+      tackling: 1,
+      dribbling: 8,
+      saving: 1,
+      handling: 1,
+      resilience: 6,
+      aerialAbility: 6,
+      highPass: 5,
+    };
+    const homeFar: PlayerPiece = {
+      ...homePiece,
+      id: 'home-far',
+      position: { q: 25, r: 7 }, // past halfway, ahead of new ball position
+    };
+    const defender: PlayerPiece = {
+      id: 'away-def',
+      teamId: 'away',
+      firstName: 'Away',
+      lastName: 'DEF',
+      number: 4,
+      nationality: 'Test',
+      role: 'DEF',
+      position: { q: 12, r: 7 }, // adjacent to destination {q:11,r:7}
+      pace: 9,
+      shooting: 5,
+      tackling: 1, // low tackling — relies on auto-steal (stealDie === 6)
+      dribbling: 5,
+      saving: 1,
+      handling: 1,
+      resilience: 6,
+      aerialAbility: 6,
+      highPass: 5,
+    };
+    const state: GameState = makeState({
+      pieces: [homePiece, homeFar, defender],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      movementSlot: 'ATTACKER_4',
+      activeTeam: 'home',
+      attackingTeam: 'home',
+      offsidePieceIds: [],
+    });
+
+    // home-9 moves to {q:11,r:7}, adjacent to away defender at {q:12,r:7} -> STEAL_ATTEMPT.
+    // stealDie === 6 -> auto-steal SUCCESS regardless of tackling combined score.
+    const result = applyMove(
+      state,
+      'home-9',
+      { q: 11, r: 7 },
+      { stealDie: 6, tackleDie: 3, carrierDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe('away-def');
+    // home-far (q=25) is past halfway, ahead of the new ball position (q=11), with 0 away
+    // pieces equal-or-ahead of it -> newly offside after the turnover.
+    expect(result.state.offsidePieceIds).toContain('home-far');
   });
 });

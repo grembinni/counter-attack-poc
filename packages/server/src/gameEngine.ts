@@ -624,6 +624,8 @@ export function applyMove(
         // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
         // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
         const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
+        // OFFSIDE-01/D-39: a successful tackle is a "break in play" — MOVEMENT ends early
+        // here, so evaluate offside now using the post-tackle piece positions and ball state.
         return {
           ok: true,
           state: {
@@ -641,6 +643,11 @@ export function applyMove(
             actionCount: state.actionCount + 3,
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
             tackleAttemptedByIds: [], // D-02
+            offsidePieceIds: evaluateOffside({
+              ...state,
+              pieces: newPieces,
+              ball: tackleSuccessBall,
+            }),
           },
         };
       }
@@ -669,6 +676,8 @@ export function applyMove(
     const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     const newOwnerTeam =
       state.pieces.find((p) => p.id === stealDefenderId)?.teamId ?? state.activeTeam;
+    // OFFSIDE-01/D-39: a successful steal is also a "break in play" — MOVEMENT ends early
+    // here, so evaluate offside now using the post-steal piece positions and ball state.
     return {
       ok: true,
       state: {
@@ -686,6 +695,7 @@ export function applyMove(
         actionCount: state.actionCount + 3,
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
+        offsidePieceIds: evaluateOffside({ ...state, pieces: newPieces, ball: stealSuccessBall }),
       },
     };
   }
@@ -741,9 +751,12 @@ export function applyEndTurn(
     return { ok: false, reason: 'WRONG_SLOT' };
   }
 
-  // OFFSIDE-01 (D-23): re-evaluate the sticky offside flag once — none of this function's
-  // returns mutate piece positions (pieces already moved via applyMove), so a single
-  // evaluateOffside(state) call covers every ok:true return below.
+  // OFFSIDE-01/D-39 (corrected 2026-06-20): offside is evaluated ONLY at the true end of
+  // MOVEMENT (the nextSlot===null returns below: HALF_TIME/FULL_TIME, GK_RESTART, normal
+  // ATTACKER_2->PASS) — NOT at the two intermediate slot-to-slot transitions
+  // (ATTACKER_4->DEFENDER_5, DEFENDER_5->ATTACKER_2). None of this function's returns
+  // mutate piece positions (pieces already moved via applyMove), so a single
+  // evaluateOffside(state) call covers all three full-MOVEMENT-end returns below.
   const nextOffside = evaluateOffside(state);
 
   const { nextSlot, nextPhase } = advanceMovementSlot(state);
@@ -863,6 +876,11 @@ export function applyEndTurn(
   //
   // Any piece with paceUsed > 0 that was not yet exhausted (not in movedPieceIds) is
   // locked in now — ending the slot consumes the activation whether or not max pace was used.
+  //
+  // OFFSIDE-01/D-39: intermediate slot transitions do NOT re-evaluate offside — the sticky
+  // `offsidePieceIds` carries forward unchanged via the `...state` spread below. Offside is
+  // only evaluated at the true end of MOVEMENT (see `nextOffside` above) or at a
+  // break-in-play (successful tackle/steal in applyMove).
   const lockedOnEndSlot = Object.keys(state.paceUsedByPieceId).filter(
     (id) => !state.movedPieceIds.includes(id),
   );
@@ -877,7 +895,6 @@ export function applyEndTurn(
       movedPieceIds: [...state.movedPieceIds, ...lockedOnEndSlot],
       paceUsedByPieceId: {}, // reset — new slot counts activations from zero
       lastActionType: 'MOVEMENT_PHASE', // D-17 (WR-02): reset for intermediate slot transitions
-      offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): intermediate slots also re-evaluate (pieces moved during this slot)
     },
   };
 }
