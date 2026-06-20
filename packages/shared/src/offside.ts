@@ -216,5 +216,11 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 5).
     freeKickStageIndex: 0,
     freeKickPlacedPieceIds: [],
+    // D-54/D-56: movedPieceIds is repurposed during free-kick setup to permanently lock
+    // the kicker (D-54) and each stage's placed pieces (D-56) using the SAME generic
+    // 'activated' rendering mechanism MOVEMENT/MOVE-06 already use. Since the foul can
+    // fire mid-MOVEMENT-phase (carrying stale movedPieceIds from whatever phase preceded
+    // it), reset to [] on entry so free-kick setup always starts with a clean lock state.
+    movedPieceIds: [],
   };
 }
