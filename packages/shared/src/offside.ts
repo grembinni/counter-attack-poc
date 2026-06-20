@@ -18,6 +18,39 @@ import { PITCH_REGIONS } from './pitch.js';
 export const OFFSIDE_HALFWAY_Q = PITCH_REGIONS.kickOffHex.q;
 
 /**
+ * D-49 (rulebook correction): fixed, alternating free-kick repositioning stage sequence.
+ * Index = `state.freeKickStageIndex`. `side` resolves to the actual team via
+ * `state.freeKickAttackingTeam` ('kicking') or its opposite ('defending') — see
+ * `freeKickStageTeam` below. `max` is the per-stage cap on DISTINCT NEW pieces touched
+ * this stage (re-placing an already-counted piece is always free).
+ *
+ * Rulebook text (verbatim, quoted by the user from the physical rulebook):
+ *   "Attacking team picks up and places 5 players. (4 for any field player, 1 spot for goalie)
+ *    Defending team picks up and places 5 players. (4 for any field player, 1 spot for goalie)
+ *    Attacking team picks up and places 3 players.
+ *    Defending team picks up and places 2 players."
+ */
+export const FREE_KICK_STAGES = [
+  { side: 'kicking', max: 5 },
+  { side: 'defending', max: 5 },
+  { side: 'kicking', max: 3 },
+  { side: 'defending', max: 2 },
+] as const;
+
+/**
+ * D-49: resolves the actual team ('home' | 'away') acting in a given free-kick stage,
+ * given the team awarded the kick (`freeKickAttackingTeam`).
+ */
+export function freeKickStageTeam(
+  stageIndex: 0 | 1 | 2 | 3,
+  freeKickAttackingTeam: 'home' | 'away',
+): 'home' | 'away' {
+  const stage = FREE_KICK_STAGES[stageIndex];
+  if (stage.side === 'kicking') return freeKickAttackingTeam;
+  return freeKickAttackingTeam === 'home' ? 'away' : 'home';
+}
+
+/**
  * D-24: direction multiplier for a team's attacking direction along the q-axis.
  * home attacks toward higher q (+1); away attacks toward lower q (-1).
  */
@@ -142,9 +175,10 @@ export function evaluateOffside(state: GameState): readonly string[] {
  * (D-27 — the foul spot is the offender's position at the moment of the foul, not the
  * ball's position, so this generalizes cleanly to the explicit-offender/loose-ball case
  * with no special-casing), `freeKickAttackingTeam` = the non-offending team (D-28),
- * `attackingTeam`/`activeTeam` = that team, ball loose at the foul spot, and the offender
+ * `attackingTeam`/`activeTeam` = that team, ball loose at the foul spot, the offender
  * removed from `offsidePieceIds` (the foul resolves that piece's offside state; any other
- * flagged pieces persist).
+ * flagged pieces persist), and the D-49 staged-repositioning sequence initialized at
+ * stage 0 (`freeKickStageIndex: 0`, `freeKickPlacedPieceIds: []`).
  *
  * When the candidate offender is not flagged (or, on the implicit path, the ball isn't
  * possessed) — returns `state` unchanged (referential identity).
@@ -179,5 +213,8 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     activeTeam: otherTeam,
     ball: { position: offender.position, carrierId: null },
     offsidePieceIds: flagged.filter((id) => id !== offenderId),
+    // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 5).
+    freeKickStageIndex: 0,
+    freeKickPlacedPieceIds: [],
   };
 }

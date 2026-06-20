@@ -596,6 +596,23 @@ export type GameState = {
    */
   freeKickAttackingTeam?: 'home' | 'away' | null;
   /**
+   * OFFSIDE-02 (Phase 17 D-49, rulebook-correction rework): which of the four fixed,
+   * alternating free-kick repositioning stages is currently active —
+   * 0 = kicking team, up to 5; 1 = conceding team, up to 5;
+   * 2 = kicking team, up to 3 (their LAST turn — D-51 kicker-hex check fires here);
+   * 3 = conceding team, up to 2 (D-50 2-hex check fires here too, as it does at stage 1).
+   * Indexes into the FREE_KICK_STAGES lookup table (offside.ts). null outside FREE_KICK_SETUP.
+   */
+  freeKickStageIndex?: 0 | 1 | 2 | 3 | null;
+  /**
+   * OFFSIDE-02 (Phase 17 D-49): piece IDs already counted toward the CURRENT stage's
+   * placement cap — i.e. distinct pieces the active stage's team has touched this stage.
+   * Re-placing an already-counted piece is free (doesn't consume another cap slot).
+   * Reset to [] at the start of every new stage (including stage 0's initialization by
+   * triggerOffsideFoul). null outside FREE_KICK_SETUP.
+   */
+  freeKickPlacedPieceIds?: readonly string[] | null;
+  /**
    * MOVE-06 (Phase 17, corrected design D-36): snapshots the phase and activeTeam that
    * were already computed as "next" by the action that triggered the free-move sequence
    * (captured BEFORE the overlay sets phase to FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE).
