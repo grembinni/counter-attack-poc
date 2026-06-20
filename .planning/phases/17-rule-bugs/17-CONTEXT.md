@@ -24,12 +24,12 @@ Fix seven rule-correctness defects in the existing game engine and client UI: su
 
 - **D-03:** Add a "Cancel" button to the MOVEMENT phase ActionPanel. It is visible **only** when `paceUsedByPieceId` is empty (no piece has moved yet in the current slot).
 - **D-04:** Pressing Cancel emits a new `game:cancel_movement` event. The server reverts to PASS phase, restoring full ball/piece state (as if `emitStartMovement` was never called). No movement slot is consumed.
-- **D-05:** This is the only new Back button needed. PASS phase step 2 already has `← Back` to action chooser; no other phases require a new Back control.
+- **D-05 [informational]:** This is the only new Back button needed. PASS phase step 2 already has `← Back` to action chooser; no other phases require a new Back control. (Already implemented and verified by plan 17-03, executed 2026-06-15 — citation backfilled here rather than editing the merged plan doc.)
 
 ### BUG-03: Undo in HIGH_PASS_MOVEMENT
 
 - **D-06:** Extend `applyUndo` (gameEngine.ts:784) to also accept `phase === 'HIGH_PASS_MOVEMENT'`. Currently it returns `WRONG_PHASE` for any phase other than `MOVEMENT`. The same slot-boundary + DICE_ROLL lock logic applies.
-- **D-07:** The client `canUndo` computation in ActionPanel already reads from `eventLog` — show the Undo button in HIGH_PASS_MOVEMENT with the same disabled-when-no-moves logic.
+- **D-07 [informational]:** The client `canUndo` computation in ActionPanel already reads from `eventLog` — show the Undo button in HIGH_PASS_MOVEMENT with the same disabled-when-no-moves logic. (Already implemented and verified by plan 17-03, executed 2026-06-15 — citation backfilled here rather than editing the merged plan doc.)
 
 ### BUG-04: Pass landing on occupied hex → ball pickup
 
@@ -56,8 +56,8 @@ Fix seven rule-correctness defects in the existing game engine and client UI: su
   2. **New PASS step:** Attacker moves 1 non-passer player up to 1 hex. Press End Turn to commit (or skip move and End Turn immediately).
   3. Server transitions to `SNAP_DEFLECT` phase. Defender moves 1 player up to 1 hex onto the pass path.
   4. Deflect resolves as per existing SNAP_DEFLECT logic: if a defending player is on the pass path → LOOSE_BALL; otherwise → ball delivers to target.
-- **D-18:** Reuse the existing `SNAP_DEFLECT` phase for the defender's move. The `lastActionType === 'FIRST_TIME_PASS'` flag distinguishes this context from a snapshot deflect — resolution at SNAP_DEFLECT end follows the pass path (not shot path) when `lastActionType === 'FIRST_TIME_PASS'`.
-- **D-19:** The pass path is highlighted throughout the attacker's repositioning step and the `SNAP_DEFLECT` phase, so the defender can see which hexes to target.
+- **D-18 [informational]:** Reuse the existing `SNAP_DEFLECT` phase for the defender's move. The `lastActionType === 'FIRST_TIME_PASS'` flag distinguishes this context from a snapshot deflect — resolution at SNAP_DEFLECT end follows the pass path (not shot path) when `lastActionType === 'FIRST_TIME_PASS'`. (SUPERSEDED: this single-step design was never executed — its implementing plan, the original 17-05, was cancelled 2026-06-20 because Phase 17.1 independently built and shipped a different, verified two-slot `FIRST_TIME_PASS_MOVE` design that fully satisfies PASS-02. Kept for historical record only; do not implement.)
+- **D-19 [informational]:** The pass path is highlighted throughout the attacker's repositioning step and the `SNAP_DEFLECT` phase, so the defender can see which hexes to target. (SUPERSEDED — see D-18 note. Historical record only.)
 - **D-20:** The attacker's 1-hex repositioning is limited to 1 hex max (not full pace). The passer cannot be moved during this step.
 
 ### Claude's Discretion

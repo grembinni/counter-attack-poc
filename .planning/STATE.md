@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: active
-last_updated: '2026-06-20T12:13:55.611Z'
-last_activity: 2026-06-20
+status: 'Ready to resume Phase 17 (2 plans remain: 17-04 MOVE-06, 17-05 cancelled) or start Phase 18'
+last_updated: '2026-06-20T12:57:13.073Z'
+last_activity: 2026-06-20 -- Phase 17 planning complete
 progress:
   total_phases: 5
   completed_phases: 3
@@ -289,7 +289,7 @@ Known deferred items at close: 6 (see above)
 Phase: 17.1 — Complete (2026-06-20, 16/16 plans, 5 verification cycles)
 Plan: Quick task 260620-9ql complete
 Status: Ready to resume Phase 17 (2 plans remain: 17-04 MOVE-06, 17-05 cancelled) or start Phase 18
-Last activity: 2026-06-20
+Last activity: 2026-06-20 -- Phase 17 planning complete
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
 a deferred follow-up rather than a 6th gap-closure cycle. Captured as
