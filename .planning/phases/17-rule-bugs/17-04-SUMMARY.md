@@ -178,3 +178,12 @@ None — no external service configuration required.
 
 _Phase: 17-rule-bugs_
 _Completed: 2026-06-20_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/17-rule-bugs/17-04-SUMMARY.md`
+- FOUND: commit `f41b020` (fix(17-04): correct MOVE-06 types)
+- FOUND: commit `5efa415` (fix(17-04): implement corrected MOVE-06 trigger)
+- FOUND: commit `e13015f` (fix(17-04): update ActionPanel/GameBoard)
+- FOUND: commit `b91185e` (test(17-04): rewrite MOVE-06 tests)
+- FOUND: commit `fd10053` (docs(17-04): add SUMMARY.md)
