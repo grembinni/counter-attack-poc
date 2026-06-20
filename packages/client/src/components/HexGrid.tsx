@@ -7,6 +7,7 @@ import {
   getZoIDefenders,
   hexDistance,
   hexLine,
+  freeKickStageTeam,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -70,6 +71,11 @@ export function HexGrid() {
   const emitKickOffMove = useGameStore((s) => s.emitKickOffMove);
   // OFFSIDE-02 (Phase 17 D-29): free-kick setup repositioning — mirrors emitKickOffMove
   const emitFreeKickMove = useGameStore((s) => s.emitFreeKickMove);
+  // OFFSIDE-02 (Phase 17 D-49 staged rework): which stage is active + who's awarded the
+  // kick — drives the D-48 persistent geometric highlight and turn-gated clickability.
+  const freeKickHex = useGameStore((s) => s.gameState.freeKickHex);
+  const freeKickAttackingTeam = useGameStore((s) => s.gameState.freeKickAttackingTeam);
+  const freeKickStageIndex = useGameStore((s) => s.gameState.freeKickStageIndex);
 
   // Phase 8.2: pass target highlight slices (D-06, D-09)
   const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
@@ -210,6 +216,29 @@ export function HexGrid() {
       // Attacking: q >= 18; defending: strictly q > 18, not in centre circle
       return isMyAttacking ? hex.q >= 18 : hex.q > 18 && !inCentreCircle;
     }
+  };
+
+  // D-48 (Phase 17, rulebook-correction round): a pure, per-hex geometric placement-zone
+  // check for FREE_KICK_SETUP — mirrors isInMyKickOffZone's "evaluated for every hex on
+  // every render, regardless of selection" shape, fixing the prior isValidMove-gated
+  // (selection-required) highlight. Returns true only during MY team's CURRENTLY-active
+  // stage: unrestricted for the kicking team's stages (0/2, D-29); all pitch hexes except
+  // the 2-hex zone around freeKickHex for the conceding team's stages (1/3, D-30).
+  const isFreeKickSetup = phase === 'FREE_KICK_SETUP';
+  const myFreeKickStageActive =
+    isFreeKickSetup &&
+    myTeam !== null &&
+    freeKickStageIndex !== null &&
+    freeKickStageIndex !== undefined &&
+    !!freeKickAttackingTeam &&
+    myTeam === freeKickStageTeam(freeKickStageIndex, freeKickAttackingTeam);
+  const isMyFreeKickKickingStage = myFreeKickStageActive && myTeam === freeKickAttackingTeam;
+
+  const isInMyFreeKickZone = (hex: HexCoord): boolean => {
+    if (!myFreeKickStageActive) return false;
+    if (isMyFreeKickKickingStage || !freeKickHex) return true;
+    // D-30: conceding team's stages must stay >2 hexes from freeKickHex.
+    return hexDistance(hex, freeKickHex) > 2;
   };
 
   // Shot path highlight: O(1) lookup set for the last resolved shot trajectory
@@ -375,11 +404,11 @@ export function HexGrid() {
               isShotPath ||
               highPassContestZoneSet.has(hexId);
             // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex),
-            // OR a valid placement hex during FREE_KICK_SETUP (D-45 — was falling through to
-            // the generic yellow isSafeTint tint; validMoveHexes is already team-restricted
-            // per D-46, so isValidMove here matches server truth for the defending team too).
-            const isKickoffTint =
-              (inMyZone && !isCentreHex) || (phase === 'FREE_KICK_SETUP' && isValidMove);
+            // OR the D-48 persistent geometric placement zone during FREE_KICK_SETUP — visible
+            // for every pitch hex on every render during MY team's active stage, regardless of
+            // whether a piece is currently selected (corrects the prior D-45 fix, which was
+            // gated on isValidMove/validMoveHexes and thus invisible until a piece was clicked).
+            const isKickoffTint = (inMyZone && !isCentreHex) || isInMyFreeKickZone(hex);
             // isSafeTint: normal valid-move hexes not classified as goal-line
             const isSafeTint = isHighlighted && !isGoalTint;
             const highlightType: HexHighlightType | undefined = isRisk
@@ -404,8 +433,10 @@ export function HexGrid() {
               }
               // Clicking any other hex during setup is a no-op — handled by the piece's own onClick below
             } else if (phase === 'FREE_KICK_SETUP') {
-              // OFFSIDE-02 (D-29): clicking a valid (anywhere-on-pitch) hex while a piece is
-              // selected → emitFreeKickMove. Mirrors KICK_OFF_SETUP but with no zone restriction.
+              // OFFSIDE-02 (D-49 staged rework): clicking a valid hex while a piece is selected
+              // → emitFreeKickMove. validMoveHexes (computed in useGameStore.selectPiece) is
+              // already turn-gated to the CURRENTLY-active stage's team and zone rules — the
+              // click-to-move interaction itself is unchanged from the prior model.
               if (isValidMove && selectedPieceId) {
                 onClick = () => emitFreeKickMove(selectedPieceId, hex);
               }
@@ -588,11 +619,13 @@ export function HexGrid() {
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
-            // OFFSIDE-02 (D-29): both teams reposition their entire squad ANYWHERE on the
-            // board before an offside free kick — mirrors canSelectKickOff (no zone gate here;
-            // the zone-restriction-free placement itself is enforced server-side at Ready).
+            // OFFSIDE-02 (D-49 staged rework): only the CURRENTLY-active stage's team may
+            // select a piece — mirrors canSelectKickOff but additionally gated on
+            // myFreeKickStageActive (the inactive team sees no selectable pieces at all,
+            // since it isn't their turn). Zone-restriction enforcement stays server-side
+            // at stage-end (applyFreeKickReady) — this is selection gating only.
             const canSelectFreeKick =
-              phase === 'FREE_KICK_SETUP' && myTeam !== null && piece.teamId === myTeam;
+              myFreeKickStageActive && myTeam !== null && piece.teamId === myTeam;
             // HIGH_PASS_MOVE: active team selects 1 own piece to reposition up to 3 hexes
             const canSelectHighPassMove =
               phase === 'HIGH_PASS_MOVE' &&

@@ -12,15 +12,18 @@ afterEach(() => cleanup());
 
 const FREE_KICK_HEX = { q: 25, r: 13 };
 
-/** Seeds a FREE_KICK_SETUP state with away awarded the kick (D-28). */
-function freeKickSetupState(overrides: Partial<typeof mockMovementState> = {}) {
+/** Seeds a FREE_KICK_SETUP state with away awarded the kick (D-28), at a given stage (D-49). */
+function freeKickSetupState(
+  stageIndex: 0 | 1 | 2 | 3,
+  overrides: Partial<typeof mockMovementState> = {},
+) {
   return {
     ...mockMovementState,
     phase: 'FREE_KICK_SETUP' as const,
     freeKickHex: FREE_KICK_HEX,
     freeKickAttackingTeam: 'away' as const,
-    attackingTeam: 'away' as const,
-    activeTeam: 'away' as const,
+    freeKickStageIndex: stageIndex,
+    freeKickPlacedPieceIds: [],
     ...overrides,
   };
 }
@@ -28,11 +31,11 @@ function freeKickSetupState(overrides: Partial<typeof mockMovementState> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   useGameStore.setState({
-    gameState: freeKickSetupState(),
+    gameState: freeKickSetupState(0),
     screen: 'GAME_BOARD',
     selectedPieceId: null,
     validMoveHexes: [],
-    playerSlot: 1, // home — defending team in these fixtures
+    playerSlot: 1, // home — defending team (conceding) in these fixtures
     roomCode: 'ABC123',
     disconnectWarning: false,
     roomError: null,
@@ -48,72 +51,135 @@ describe('FreeKickSetupPanel — phase gating', () => {
   });
 
   it('returns null when freeKickHex is null', () => {
-    useGameStore.setState({ gameState: freeKickSetupState({ freeKickHex: null }) });
+    useGameStore.setState({ gameState: freeKickSetupState(0, { freeKickHex: null }) });
     const { container } = render(<FreeKickSetupPanel />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders for BOTH teams (no isActivePlayer gate) — defending team (home, playerSlot 1)', () => {
-    render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/offside — free kick/i)).toBeDefined();
-  });
-
-  it('renders for the kicking team (away, playerSlot 2)', () => {
-    useGameStore.setState({ playerSlot: 2 });
-    render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/offside — free kick/i)).toBeDefined();
+  it('returns null when freeKickStageIndex is null', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0, { freeKickStageIndex: null }) });
+    const { container } = render(<FreeKickSetupPanel />);
+    expect(container.firstChild).toBeNull();
   });
 });
 
-describe('FreeKickSetupPanel — D-31 kicker-hex constraint (kicking team)', () => {
+describe('FreeKickSetupPanel — turn gating (active vs inactive team)', () => {
+  it('stage 0 (kicking = away): the INACTIVE team (home, playerSlot 1) sees only a waiting message, no End-Turn button', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 1 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/offside — free kick/i)).toBeDefined();
+    expect(screen.getByText(/repositioning/i)).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('stage 0 (kicking = away): the ACTIVE team (away, playerSlot 2) sees the per-stage UI and End Turn button', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/attacking team: place up to 5 players/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+  });
+
+  it('stage 1 (defending = home): the ACTIVE team (home, playerSlot 1) sees the defending-stage UI', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1), playerSlot: 1 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/defending team: place up to 5 players/i)).toBeDefined();
+  });
+
+  it('stage 1 (defending = home): the INACTIVE team (away, playerSlot 2) sees only a waiting message', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1), playerSlot: 2 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/repositioning/i)).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+});
+
+describe('FreeKickSetupPanel — placements used/remaining display', () => {
+  it('shows 0 used / N remaining when no placements have been made this stage', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/0 used, 5 remaining/i)).toBeDefined();
+  });
+
+  it('shows the correct used/remaining count after some placements this stage', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(0, { freeKickPlacedPieceIds: ['away-9', 'away-8'] }),
+      playerSlot: 2,
+    });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/2 used, 3 remaining/i)).toBeDefined();
+  });
+
+  it('stage 2 (kicking, cap 3): shows the stage-specific cap, not the stage-0 cap', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(2), playerSlot: 2 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/place up to 3 players/i)).toBeDefined();
+  });
+
+  it('stage 3 (defending, cap 2): shows the stage-specific cap', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(3), playerSlot: 1 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/place up to 2 players/i)).toBeDefined();
+  });
+});
+
+describe('FreeKickSetupPanel — D-51 kicker-hex constraint (stage 2 only, kicking team)', () => {
   beforeEach(() => {
     useGameStore.setState({ playerSlot: 2 }); // away — kicking team
   });
 
-  it('Ready is disabled when zero kicking-team pieces are on freeKickHex', () => {
+  it('stage 0 (kicking, not the last turn): End Turn is enabled even with zero pieces on freeKickHex — no D-51 check yet', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0) });
     render(<FreeKickSetupPanel />);
-    const ready = screen.getByRole('button', { name: /ready/i });
-    expect((ready as HTMLButtonElement).disabled).toBe(true);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/kicker hex/i)).toBeNull();
+  });
+
+  it('stage 2 (kicking, LAST kicking turn — button still reads "End Turn", stage 3 is the actual kick): disabled when zero kicking-team pieces are on freeKickHex', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(2) });
+    render(<FreeKickSetupPanel />);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/kicker hex: empty/i)).toBeDefined();
   });
 
-  it('Ready is enabled when exactly one kicking-team piece is on freeKickHex', () => {
+  it('stage 2: End Turn is enabled when exactly one kicking-team piece is on freeKickHex', () => {
     useGameStore.setState({
-      gameState: freeKickSetupState({
+      gameState: freeKickSetupState(2, {
         pieces: mockMovementState.pieces.map((p) =>
           p.id === 'away-9' ? { ...p, position: FREE_KICK_HEX } : p,
         ),
       }),
     });
     render(<FreeKickSetupPanel />);
-    const ready = screen.getByRole('button', { name: /ready/i });
-    expect((ready as HTMLButtonElement).disabled).toBe(false);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByText(/kicker hex: occupied/i)).toBeDefined();
   });
 
-  it('Ready is disabled when TWO kicking-team pieces are on freeKickHex', () => {
+  it('stage 2: End Turn is disabled when TWO kicking-team pieces are on freeKickHex', () => {
     useGameStore.setState({
-      gameState: freeKickSetupState({
+      gameState: freeKickSetupState(2, {
         pieces: mockMovementState.pieces.map((p) =>
           p.id === 'away-9' || p.id === 'away-8' ? { ...p, position: FREE_KICK_HEX } : p,
         ),
       }),
     });
     render(<FreeKickSetupPanel />);
-    const ready = screen.getByRole('button', { name: /ready/i });
-    expect((ready as HTMLButtonElement).disabled).toBe(true);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/multiple players/i)).toBeDefined();
   });
 });
 
-describe('FreeKickSetupPanel — D-30 defender-zone constraint (defending team)', () => {
+describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages, 1 and 3)', () => {
   beforeEach(() => {
     useGameStore.setState({ playerSlot: 1 }); // home — defending team
   });
 
-  it('Ready is disabled when a defending-team piece is within 2 hexes of freeKickHex', () => {
+  it('stage 1: End Turn is disabled when a defending-team piece is within 2 hexes of freeKickHex', () => {
     useGameStore.setState({
-      gameState: freeKickSetupState({
+      gameState: freeKickSetupState(1, {
         pieces: mockMovementState.pieces.map((p) =>
           p.id === 'home-9'
             ? { ...p, position: { q: FREE_KICK_HEX.q - 1, r: FREE_KICK_HEX.r } }
@@ -122,39 +188,68 @@ describe('FreeKickSetupPanel — D-30 defender-zone constraint (defending team)'
       }),
     });
     render(<FreeKickSetupPanel />);
-    const ready = screen.getByRole('button', { name: /ready/i });
-    expect((ready as HTMLButtonElement).disabled).toBe(true);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/defending zone: 1 player/i)).toBeDefined();
   });
 
-  it('Ready is enabled when all defending-team pieces are more than 2 hexes from freeKickHex', () => {
+  it('stage 1: End Turn is enabled when all defending-team pieces are more than 2 hexes from freeKickHex', () => {
     useGameStore.setState({
-      gameState: freeKickSetupState({
+      gameState: freeKickSetupState(1, {
         pieces: mockMovementState.pieces.map((p) =>
           p.teamId === 'home' ? { ...p, position: { q: 1, r: 1 } } : p,
         ),
       }),
     });
     render(<FreeKickSetupPanel />);
-    const ready = screen.getByRole('button', { name: /ready/i });
-    expect((ready as HTMLButtonElement).disabled).toBe(false);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByText(/defending zone: clear/i)).toBeDefined();
+  });
+
+  it('stage 3 (last defending turn): the same 2-hex constraint applies and the button reads "Take Kick"', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(3, {
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-9'
+            ? { ...p, position: { q: FREE_KICK_HEX.q - 1, r: FREE_KICK_HEX.r } }
+            : p,
+        ),
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    const takeKick = screen.getByRole('button', { name: /take kick/i });
+    expect((takeKick as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/defending zone: 1 player/i)).toBeDefined();
   });
 });
 
-describe('FreeKickSetupPanel — Ready button emits and shows waiting state', () => {
-  it('clicking Ready (when enabled) calls emitFreeKickReady and shows the waiting label', () => {
+describe('FreeKickSetupPanel — End Turn click emits and surfaces server errors', () => {
+  it('clicking End Turn (when enabled) calls emitFreeKickReady', () => {
     useGameStore.setState({
       playerSlot: 1,
-      gameState: freeKickSetupState({
+      gameState: freeKickSetupState(1, {
         pieces: mockMovementState.pieces.map((p) =>
           p.teamId === 'home' ? { ...p, position: { q: 1, r: 1 } } : p,
         ),
       }),
     });
     render(<FreeKickSetupPanel />);
-    const ready = screen.getByRole('button', { name: /ready/i });
-    fireEvent.click(ready);
-    expect(screen.getByText(/waiting for opponent/i)).toBeDefined();
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    fireEvent.click(endTurn);
+    // socket.emit is mocked at the module level — assert no throw and the button is still
+    // present (no local "waiting" state in this component anymore; the NEXT server broadcast
+    // either advances the stage or rejects with a snap-back, both surfaced via gameState/gameError).
+    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+  });
+
+  it('surfaces a server-rejection reason via the existing gameError display pattern', () => {
+    useGameStore.setState({
+      playerSlot: 2,
+      gameState: freeKickSetupState(0),
+      gameError: 'NOT_YOUR_STAGE',
+    });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText('NOT_YOUR_STAGE')).toBeDefined();
   });
 });

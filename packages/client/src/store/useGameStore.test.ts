@@ -371,47 +371,65 @@ describe('useGameStore — emit actions', () => {
   });
 });
 
-// OFFSIDE-02 (Phase 17 D-29/D-30/D-46): the KICKING team may reposition their entire squad
-// ANYWHERE on the board during FREE_KICK_SETUP — mirrors KICK_OFF_SETUP's selectPiece branch
-// but with no own-half zone restriction. The DEFENDING team is additionally restricted (D-30
-// 2-hex exclusion zone, D-46 behind-ball exclusion) to match server truth.
-describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
-  // home (slot 1) is DEFENDING in this fixture — freeKickAttackingTeam is 'away'.
-  function freeKickSetupState() {
+// OFFSIDE-02 (Phase 17 D-49 staged rework): only the piece belonging to the CURRENTLY-active
+// stage's team may be selected. Valid destinations are unrestricted during the kicking team's
+// stages (D-29) or all-pitch-minus-2-hex-zone during the conceding team's stages (D-30) — same
+// geometry as the prior simultaneous model, now turn-gated by freeKickStageIndex.
+describe('useGameStore — selectPiece FREE_KICK_SETUP (D-49 staged/turn-gated)', () => {
+  // freeKickAttackingTeam is 'away' (kicking). home is the conceding/defending team.
+  function freeKickSetupState(stageIndex: 0 | 1 | 2 | 3 = 0) {
     return {
       ...mockMovementState,
       phase: 'FREE_KICK_SETUP' as const,
       freeKickHex: { q: 25, r: 13 },
       freeKickAttackingTeam: 'away' as const,
+      freeKickStageIndex: stageIndex,
+      freeKickPlacedPieceIds: [],
     };
   }
 
   beforeEach(() => {
     useGameStore.setState({
-      playerSlot: 1, // home (defending team in freeKickSetupState)
+      playerSlot: 1, // home
       selectedPieceId: null,
       validMoveHexes: [],
     });
   });
 
-  it('selecting an own-team (defending) piece populates validMoveHexes (restricted set, still non-empty)', () => {
-    useGameStore.setState({ gameState: freeKickSetupState() });
+  it('stage 0 (kicking = away): rejects selecting a home (inactive-stage) piece', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0) });
+    useGameStore.getState().selectPiece('home-8');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('stage 0 (kicking = away): away (slot 2) selecting an own piece populates validMoveHexes unrestricted', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
+    useGameStore.getState().selectPiece('away-9');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('away-9');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('stage 1 (defending = home): home selecting an own piece populates validMoveHexes (restricted set, still non-empty)', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1) });
     useGameStore.getState().selectPiece('home-8');
     const state = useGameStore.getState();
     expect(state.selectedPieceId).toBe('home-8');
     expect(state.validMoveHexes.length).toBeGreaterThan(0);
   });
 
-  it('rejects selecting an opponent-team piece (clears selection)', () => {
-    useGameStore.setState({ gameState: freeKickSetupState() });
+  it('stage 1 (defending = home): rejects selecting an away (inactive-stage, kicking) piece', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1), playerSlot: 2 });
     useGameStore.getState().selectPiece('away-9');
     const state = useGameStore.getState();
     expect(state.selectedPieceId).toBeNull();
     expect(state.validMoveHexes).toEqual([]);
   });
 
-  it('excludes hexes already occupied by another own-team piece', () => {
-    useGameStore.setState({ gameState: freeKickSetupState() });
+  it('stage 1: excludes hexes already occupied by another own-team piece', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1) });
     const otherHomePiece = mockMovementState.pieces.find(
       (p) => p.teamId === 'home' && p.id !== 'home-8',
     );
@@ -424,10 +442,9 @@ describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
     expect(occupiedHexExcluded).toBe(true);
   });
 
-  // D-30/D-46: defending team (home, here) must exclude the 2-hex zone around freeKickHex
-  // AND any hex strictly behind it (home attacks toward +q, so "behind" = q < 25).
-  it('D-30/D-46: defending-team piece excludes the 2-hex zone around freeKickHex', () => {
-    useGameStore.setState({ gameState: freeKickSetupState() });
+  // D-30: defending team's stage (1 or 3) must exclude the 2-hex zone around freeKickHex.
+  it('stage 1 (defending): excludes the 2-hex zone around freeKickHex', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1) });
     useGameStore.getState().selectPiece('home-8');
     const { validMoveHexes } = useGameStore.getState();
     // freeKickHex {q:25, r:13} itself and immediate neighbours must be excluded.
@@ -435,33 +452,31 @@ describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
     expect(withinZoneExcluded).toBe(true);
   });
 
-  it('D-46: defending-team piece excludes hexes strictly behind freeKickHex (lower q, home attacks toward +q)', () => {
-    useGameStore.setState({ gameState: freeKickSetupState() });
+  it('stage 1 (defending): retains hexes outside the 2-hex zone, including hexes behind freeKickHex (no D-46 restriction — REVERTED)', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(1) });
     useGameStore.getState().selectPiece('home-8');
     const { validMoveHexes } = useGameStore.getState();
-    const behindBallHexExcluded = !validMoveHexes.some((h) => h.q < 25);
-    expect(behindBallHexExcluded).toBe(true);
+    // {q: 20, r: 13} is "behind" freeKickHex (q<25) in home's attacking direction — D-46 would
+    // have excluded this, but D-46 is fully reverted, so this hex IS legal (well outside the
+    // 2-hex zone, hexDistance from {q:25,r:13} = 5).
+    expect(validMoveHexes.some((h) => h.q === 20 && h.r === 13)).toBe(true);
   });
 
-  it('D-46: defending-team piece retains hexes equal-to-or-ahead of freeKickHex (q >= 25), outside the 2-hex zone', () => {
-    useGameStore.setState({ gameState: freeKickSetupState() });
+  it('stage 3 (defending = home, last defending turn): same 2-hex-zone restriction as stage 1', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(3) });
     useGameStore.getState().selectPiece('home-8');
     const { validMoveHexes } = useGameStore.getState();
-    // {q: 30, r: 13} is ahead (q>25) and well outside the 2-hex zone — must be legal.
-    expect(validMoveHexes.some((h) => h.q === 30 && h.r === 13)).toBe(true);
+    const withinZoneExcluded = !validMoveHexes.some((h) => h.q === 25 && h.r === 13);
+    expect(withinZoneExcluded).toBe(true);
   });
 
-  // D-29: kicking team (away, playerSlot 2 in this same fixture) has NO restriction beyond
-  // own-piece occupancy — regression check against the new defending-team logic above.
-  it('D-29: kicking-team piece valid hexes are unrestricted (regression — includes behind-ball and near-ball hexes)', () => {
-    useGameStore.setState({ gameState: freeKickSetupState(), playerSlot: 2 }); // away = kicking team
+  // D-29: kicking team's stages (0 and 2) have NO restriction beyond own-piece occupancy.
+  it('stage 2 (kicking = away, last kicking turn): away piece valid hexes are unrestricted', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(2), playerSlot: 2 });
     useGameStore.getState().selectPiece('away-9');
     const { validMoveHexes, selectedPieceId } = useGameStore.getState();
     expect(selectedPieceId).toBe('away-9');
     // A hex within the 2-hex zone (which would be excluded for the defending team) is legal here.
     expect(validMoveHexes.some((h) => h.q === 25 && h.r === 14)).toBe(true);
-    // A hex "behind" freeKickHex in away's own attacking direction (away attacks toward -q,
-    // so behind = q > 25) is also legal for the kicking team.
-    expect(validMoveHexes.some((h) => h.q === 30 && h.r === 13)).toBe(true);
   });
 });

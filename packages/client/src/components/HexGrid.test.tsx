@@ -521,68 +521,111 @@ describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkp
 });
 
 // ---------------------------------------------------------------------------
-// D-45: FREE_KICK_SETUP valid placement hexes must use the light-blue 'kickoff' tint
-// (rgba(59,130,246,1)), not the generic yellow 'safe' tint — and must match server truth
-// (validMoveHexes, already team-restricted by D-46 in useGameStore.ts).
+// D-48: FREE_KICK_SETUP placement-zone highlight is PERSISTENT and GEOMETRIC — visible
+// for every pitch hex on every render during MY team's active stage, WITHOUT requiring
+// a piece to be selected first (corrects the prior D-45 fix, which was gated on
+// isValidMove/validMoveHexes and thus invisible until a piece was clicked). Uses the
+// light-blue 'kickoff' tint (rgba(59,130,246,1)), not the generic yellow 'safe' tint.
 // ---------------------------------------------------------------------------
 
 const KICKOFF_FILL = 'rgba(59,130,246,1)'; // HIGHLIGHT_STYLES.kickoff fill — see HexCell.tsx
 const SAFE_FILL = 'rgba(245,197,24,1)'; // HIGHLIGHT_STYLES.safe fill — see HexCell.tsx
 
-describe('HexGrid — D-45: FREE_KICK_SETUP valid placement hexes render the kickoff (light-blue) tint', () => {
-  function freeKickSetupState() {
+/** Returns true if a polygon with the given fill is centered at (q, r). */
+function hasFillAtHex(container: HTMLElement, fill: string, q: number, r: number): boolean {
+  const { cx, cy } = axialToPixel(q, r);
+  return Array.from(container.querySelectorAll('polygon')).some((p) => {
+    if (p.getAttribute('fill') !== fill) return false;
+    const points = p.getAttribute('points') ?? '';
+    const coords = points
+      .split(' ')
+      .filter(Boolean)
+      .map((pair) => pair.split(',').map(Number));
+    const xs = coords.map((c) => c[0]!);
+    const ys = coords.map((c) => c[1]!);
+    const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    return Math.abs(centerX - cx) < 0.5 && Math.abs(centerY - cy) < 0.5;
+  });
+}
+
+describe('HexGrid — D-48: FREE_KICK_SETUP persistent geometric placement-zone highlight', () => {
+  function freeKickSetupState(stageIndex: 0 | 1 | 2 | 3) {
     return {
       ...mockMovementState,
       phase: 'FREE_KICK_SETUP' as const,
       freeKickHex: { q: 25, r: 13 },
       freeKickAttackingTeam: 'away' as const,
+      freeKickStageIndex: stageIndex,
+      freeKickPlacedPieceIds: [],
     };
   }
 
-  beforeEach(() => {
-    useGameStore.setState({
-      gameState: freeKickSetupState(),
-      screen: 'GAME_BOARD',
-      selectedPieceId: 'home-8',
-      // Mirrors what useGameStore.selectPiece would compute for a defending-team piece
-      // (D-30/D-46 already applied) — a hex ahead of and clear of the freeKickHex zone.
-      validMoveHexes: [{ q: 30, r: 13 }],
+  function baseStoreState(overrides: Record<string, unknown> = {}) {
+    return {
+      screen: 'GAME_BOARD' as const,
+      selectedPieceId: null,
+      validMoveHexes: [],
       tackleRiskHexes: [],
-      playerSlot: 1,
       roomCode: 'ABC12',
       disconnectWarning: false,
       roomError: null,
       gameError: null,
-    });
-  });
+      ...overrides,
+    };
+  }
 
-  it('renders the valid placement hex with the kickoff (light-blue) fill', () => {
+  it('stage 1 (defending = home, playerSlot 1): renders an ahead-of-zone hex with the kickoff fill WITHOUT any piece selected', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(1),
+      ...baseStoreState({ playerSlot: 1 }),
+    });
     const { container } = render(<HexGrid />);
-    const { cx, cy } = axialToPixel(30, 13);
-    const hasKickoffFillAtHex = Array.from(container.querySelectorAll('polygon')).some((p) => {
-      if (p.getAttribute('fill') !== KICKOFF_FILL) return false;
-      const points = p.getAttribute('points') ?? '';
-      // hexPolygonPoints centers each polygon's vertices around (cx, cy) — checking that the
-      // polygon's bounding-box center matches confirms it's the hex at (30, 13), not some
-      // other kickoff-tinted hex coincidentally sharing the fill colour.
-      const coords = points
-        .split(' ')
-        .filter(Boolean)
-        .map((pair) => pair.split(',').map(Number));
-      const xs = coords.map((c) => c[0]!);
-      const ys = coords.map((c) => c[1]!);
-      const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-      const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-      return Math.abs(centerX - cx) < 0.5 && Math.abs(centerY - cy) < 0.5;
-    });
-    expect(hasKickoffFillAtHex).toBe(true);
+    // {q:30, r:13} is well outside the 2-hex zone around freeKickHex {q:25,r:13} — legal.
+    expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(true);
   });
 
-  it('does NOT render any valid placement hex with the generic safe (yellow) fill', () => {
+  it('stage 1 (defending = home): does NOT highlight a hex within the 2-hex zone', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(1),
+      ...baseStoreState({ playerSlot: 1 }),
+    });
+    const { container } = render(<HexGrid />);
+    // {q:25, r:13} is freeKickHex itself — within the 2-hex zone, must NOT be light-blue.
+    expect(hasFillAtHex(container, KICKOFF_FILL, 25, 13)).toBe(false);
+  });
+
+  it('stage 1 (defending = home): does NOT render the generic safe (yellow) fill anywhere', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(1),
+      ...baseStoreState({ playerSlot: 1 }),
+    });
     const { container } = render(<HexGrid />);
     const hasSafeFill = Array.from(container.querySelectorAll('polygon')).some(
       (p) => p.getAttribute('fill') === SAFE_FILL,
     );
     expect(hasSafeFill).toBe(false);
+  });
+
+  it('stage 0 (kicking = away, playerSlot 1 = home INACTIVE this stage): home sees NO kickoff-tinted zone at all', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(0),
+      ...baseStoreState({ playerSlot: 1 }),
+    });
+    const { container } = render(<HexGrid />);
+    // It is NOT home's turn during stage 0 — no geometric highlight should appear for home.
+    expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(false);
+    expect(hasFillAtHex(container, KICKOFF_FILL, 1, 1)).toBe(false);
+  });
+
+  it('stage 0 (kicking = away, playerSlot 2 = away ACTIVE this stage): away sees the unrestricted zone, including the 2-hex area', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(0),
+      ...baseStoreState({ playerSlot: 2 }),
+    });
+    const { container } = render(<HexGrid />);
+    // D-29: kicking team has no zone restriction — even the 2-hex area is legal for them.
+    expect(hasFillAtHex(container, KICKOFF_FILL, 25, 13)).toBe(true);
+    expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(true);
   });
 });

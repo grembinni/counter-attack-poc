@@ -11,7 +11,7 @@ import {
   hexLine,
   hexDistance,
   getZoIDefenders,
-  attackingDirection,
+  freeKickStageTeam,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
@@ -341,21 +341,32 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // OFFSIDE-02 (Phase 17 D-29/D-30/D-46): the KICKING team may reposition their entire
-    // squad ANYWHERE on the board before an offside free kick — no own-half restriction
-    // (unlike KICK_OFF_SETUP). The DEFENDING team is additionally restricted (D-30: must
-    // stay >2 hexes from freeKickHex; D-46: must stay equal-to-or-ahead of freeKickHex in
-    // their own attacking direction) so the highlighted/clickable hex set matches what
-    // applyFreeKickReady will actually accept server-side.
+    // OFFSIDE-02 (Phase 17 D-49 staged rework): only the piece belonging to the
+    // CURRENTLY-active stage's team may be selected — derive the active team the same
+    // way the server does (freeKickStageTeam(stageIndex, freeKickAttackingTeam)). Valid
+    // destinations are unrestricted for the kicking team's stages (D-29), or all-pitch-
+    // minus-2-hex-zone for the conceding team's stages (D-30) — this logic is UNCHANGED
+    // from the prior simultaneous model, just re-gated on "is it my team's stage right now."
     if (gameState.phase === 'FREE_KICK_SETUP') {
       const myTeam = playerSlot === 1 ? 'home' : 'away';
-      if (piece.teamId !== myTeam) {
+      const stageIndex = gameState.freeKickStageIndex;
+      const kickingTeam = gameState.freeKickAttackingTeam;
+      if (
+        piece.teamId !== myTeam ||
+        stageIndex === null ||
+        stageIndex === undefined ||
+        !kickingTeam
+      ) {
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const isKickingTeam = gameState.freeKickAttackingTeam === myTeam;
+      const activeTeamForStage = freeKickStageTeam(stageIndex, kickingTeam);
+      if (myTeam !== activeTeamForStage) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const isKickingTeam = myTeam === kickingTeam;
       const freeKickHex = gameState.freeKickHex;
-      const dir = attackingDirection(myTeam);
       const valid = PITCH_HEXES.filter((hex) => {
         // Exclude hexes occupied by another own piece (can't stack)
         if (
@@ -368,13 +379,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           )
         )
           return false;
-        // D-29: kicking team has no further restriction.
+        // D-29: kicking team's stages have no further restriction.
         if (isKickingTeam || !freeKickHex) return true;
-        // D-30: defending team must stay >2 hexes from freeKickHex.
+        // D-30: defending team's stages must stay >2 hexes from freeKickHex.
         if (hexDistance(hex, freeKickHex) <= 2) return false;
-        // D-46: defending team must stay equal-to-or-ahead of freeKickHex in their own
-        // attacking direction — exclude hexes strictly behind it.
-        if ((hex.q - freeKickHex.q) * dir < 0) return false;
         return true;
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
