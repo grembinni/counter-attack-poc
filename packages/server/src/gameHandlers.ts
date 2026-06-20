@@ -498,6 +498,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
+        // Cycle-4 self-pass-reclaim finding (D-03, Phase 17.1-16): the original passer may
+        // not reposition their own piece during FTP repositioning — doing so would let them
+        // move onto the (empty) passTargetHex and have the delivery lookup hand the ball
+        // straight back to them. Mirrors how highPassCarrierId identifies the kicker; this is
+        // the authoritative server-side guard (the client selectPiece mirror is defense-in-depth).
+        if (pieceId === ftpState.firstTimePassCarrierId) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
+        }
         // Only one piece per slot: lock to the first piece moved
         const lockedId = ftpState.firstTimePassMovedPieceId ?? null;
         if (lockedId !== null && lockedId !== pieceId) {
@@ -711,8 +721,15 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // A defending-team occupant must receive the ball (possession transfers);
           // an attacking-team occupant keeps possession unchanged (happy path);
           // no occupant delivers to the empty hex with carrierId:null (unchanged).
+          // Cycle-4 self-pass-reclaim finding (D-03, Phase 17.1-16): exclude the original
+          // passer (firstTimePassCarrierId) — defense in depth behind the GAME_MOVE rejection
+          // above; even if the passer were somehow standing on passTargetHex, the ball must
+          // not be handed back to them.
           const occupant = ftpEndState.pieces.find(
-            (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+            (p) =>
+              p.position.q === targetHex.q &&
+              p.position.r === targetHex.r &&
+              p.id !== ftpEndState.firstTimePassCarrierId,
           );
           const possessionChanges = occupant
             ? occupant.teamId !== ftpEndState.attackingTeam
@@ -730,6 +747,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             firstTimePassMovementSlot: null,
             firstTimePassMovedPieceId: null,
             firstTimePassPaceUsed: 0,
+            // Carrier id is only cleared once the ball is delivered — mirrors the
+            // HIGH_PASS clear of highPassCarrierId:null (Phase 17.1-16).
+            firstTimePassCarrierId: null,
             passTargetHex: null,
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
             tackleAttemptedByIds: [], // D-02

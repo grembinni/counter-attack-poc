@@ -545,6 +545,16 @@ export type GameState = {
    */
   firstTimePassPaceUsed?: number;
   /**
+   * D-03 (Phase 17.1-16): the piece ID of the player who made the first-time pass.
+   * Preserved so the server and client can exclude the passer from repositioning onto /
+   * receiving back their own pass during FIRST_TIME_PASS_MOVE (cycle-4 verifier self-pass
+   * finding — the original passer must not be able to reclaim their own pass).
+   * Mirrors highPassCarrierId in type and lifecycle: set at the FIRST_TIME_PASS transition,
+   * preserved across FTP_MOVE undo (the pass is still in flight), cleared to null only at
+   * FTP ball delivery. null or absent outside FIRST_TIME_PASS_MOVE.
+   */
+  firstTimePassCarrierId?: string | null;
+  /**
    * MOVE-06 (Phase 17): piece IDs eligible for free 6-hex move (outfield players in opponent's third).
    * Set when entering FREE_MOVE phase; null outside FREE_MOVE.
    */

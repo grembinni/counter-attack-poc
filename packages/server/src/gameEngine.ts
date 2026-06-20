@@ -1269,6 +1269,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             firstTimePassMovementSlot: 'ATTACKER',
             firstTimePassMovedPieceId: null,
             firstTimePassPaceUsed: 0,
+            // D-03 (Phase 17.1-16): record the passer's id so the GAME_MOVE handler and the
+            // delivery occupant lookup can exclude them from repositioning onto / receiving
+            // back their own pass (cycle-4 verifier self-pass-reclaim finding). Mirrors
+            // highPassCarrierId: kickerId at gameHandlers.ts.
+            firstTimePassCarrierId: carrier.id,
             activeTeam: state.attackingTeam,
             eventLog: newEventLog,
           },

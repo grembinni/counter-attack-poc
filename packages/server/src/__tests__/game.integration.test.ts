@@ -508,6 +508,140 @@ describe('game integration — Movement Phase scenarios', () => {
     expect(afterDelivery.attackingTeam).toBe(attackingTeam); // possession unchanged
   });
 
+  it('CR-01 (17.1-16): GAME_MOVE rejects the original passer repositioning onto passTargetHex during FTP ATTACKER slot (self-pass-reclaim exploit)', async () => {
+    const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
+    const movementState = await startMovement(attackingClient, clientA);
+
+    const teamPrefix = attackingTeam === 'home' ? 'home' : 'away';
+    const passerId = `${teamPrefix}-9`;
+    const passer = movementState.pieces.find((p) => p.id === passerId);
+    if (!passer) throw new Error(`Piece ${passerId} not found in state`);
+    // passTargetHex exactly 1 hex from the passer's own position (an ordinary in-range FTP).
+    const passTargetHex = {
+      q: passer.position.q + (attackingTeam === 'home' ? 1 : -1),
+      r: passer.position.r,
+    };
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+    // Seed FIRST_TIME_PASS_MOVE in the ATTACKER slot with firstTimePassCarrierId set to the
+    // passer — this is the exact state produced by the real FIRST_TIME_PASS transition
+    // (gameEngine.ts applyRoll PASS branch) before this fix existed, the passer's own
+    // GAME_MOVE onto passTargetHex would have been silently accepted.
+    room.gameState = {
+      ...room.gameState,
+      phase: 'FIRST_TIME_PASS_MOVE',
+      attackingTeam,
+      activeTeam: attackingTeam,
+      passTargetHex,
+      firstTimePassMovementSlot: 'ATTACKER',
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+      firstTimePassCarrierId: passerId,
+    };
+
+    // The passer attempts to reposition onto the (empty) passTargetHex to reclaim their own pass.
+    const errorPromise = oncePromise(attackingClient, ServerEvents.GAME_ERROR);
+    attackingClient.emit(ClientEvents.GAME_MOVE, passerId, passTargetHex);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_PIECE');
+
+    // Passer's position must be unchanged — no reposition occurred.
+    const roomAfter = getRoom(roomCode);
+    const passerAfter = roomAfter?.gameState?.pieces.find((p) => p.id === passerId);
+    expect(passerAfter?.position).toEqual(passer.position);
+  });
+
+  it('CR-01 (17.1-16): GAME_MOVE accepts a non-passer attacking-team piece repositioning during FTP ATTACKER slot', async () => {
+    const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
+    const movementState = await startMovement(attackingClient, clientA);
+
+    const teamPrefix = attackingTeam === 'home' ? 'home' : 'away';
+    const passerId = `${teamPrefix}-9`;
+    // A different attacking-team piece (non-passer) — piece-5.
+    const nonPasserId = `${teamPrefix}-5`;
+    const nonPasser = movementState.pieces.find((p) => p.id === nonPasserId);
+    if (!nonPasser) throw new Error(`Piece ${nonPasserId} not found in state`);
+    // Empty on-pitch hex 1 hex from the non-passer's position.
+    const destHex = {
+      q: nonPasser.position.q + (attackingTeam === 'home' ? 1 : -1),
+      r: nonPasser.position.r,
+    };
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+    // Ensure destHex is unoccupied (clear any piece that happens to be sitting there).
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) =>
+        p.id !== nonPasserId && p.position.q === destHex.q && p.position.r === destHex.r
+          ? { ...p, position: { q: p.position.q, r: p.position.r + 1 } }
+          : p,
+      ),
+      phase: 'FIRST_TIME_PASS_MOVE',
+      attackingTeam,
+      activeTeam: attackingTeam,
+      passTargetHex: { q: nonPasser.position.q + 5, r: nonPasser.position.r },
+      firstTimePassMovementSlot: 'ATTACKER',
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+      firstTimePassCarrierId: passerId,
+    };
+
+    const afterMovePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    attackingClient.emit(ClientEvents.GAME_MOVE, nonPasserId, destHex);
+    const [afterMove] = await afterMovePromise;
+
+    expect(afterMove.pieces.find((p) => p.id === nonPasserId)?.position).toEqual(destHex);
+    expect(afterMove.firstTimePassMovedPieceId).toBe(nonPasserId);
+  });
+
+  it('CR-01 (17.1-16): GAME_MOVE rejects the original passer regardless of WRONG_TEAM/lock/pace-gate ordering', async () => {
+    // Behaviour-assertion: prior to this fix, the GAME_MOVE FTP handler gated only on
+    // team/lock/pace/adjacency/pitch/occupied-by-other (gameHandlers.ts 488-550) — no
+    // passer-identity exclusion existed, so this same seeded state would have let the
+    // passer's move through to the position-update branch. This test re-confirms the
+    // exclusion fires even when all other gates would have passed (own team, slot unlocked,
+    // pace remaining, exactly 1 hex, on-pitch, unoccupied).
+    const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
+    const movementState = await startMovement(attackingClient, clientA);
+
+    const teamPrefix = attackingTeam === 'home' ? 'home' : 'away';
+    const passerId = `${teamPrefix}-9`;
+    const passer = movementState.pieces.find((p) => p.id === passerId);
+    if (!passer) throw new Error(`Piece ${passerId} not found in state`);
+    const passTargetHex = {
+      q: passer.position.q + (attackingTeam === 'home' ? 1 : -1),
+      r: passer.position.r,
+    };
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+    room.gameState = {
+      ...room.gameState,
+      // Clear any other piece off passTargetHex so OCCUPIED would not otherwise fire.
+      pieces: room.gameState.pieces.map((p) =>
+        p.id !== passerId && p.position.q === passTargetHex.q && p.position.r === passTargetHex.r
+          ? { ...p, position: { q: p.position.q, r: p.position.r + 1 } }
+          : p,
+      ),
+      phase: 'FIRST_TIME_PASS_MOVE',
+      attackingTeam,
+      activeTeam: attackingTeam,
+      passTargetHex,
+      firstTimePassMovementSlot: 'ATTACKER',
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: 0,
+      firstTimePassCarrierId: passerId,
+    };
+
+    const errorPromise = oncePromise(attackingClient, ServerEvents.GAME_ERROR);
+    attackingClient.emit(ClientEvents.GAME_MOVE, passerId, passTargetHex);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_PIECE');
+  });
+
   it('CR-01 (17.1-11): GAME_UNDO reverses a real HP_MOVE during HIGH_PASS_MOVE', async () => {
     const { clientA, roomCode, attackingClient, attackingTeam } = await setupRoomAtKickOff();
     const movementState = await startMovement(attackingClient, clientA);
