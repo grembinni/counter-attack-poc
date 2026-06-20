@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: executing
-last_updated: '2026-06-20T01:34:34.098Z'
-last_activity: 2026-06-20 -- Phase 17.1 execution started
+status: verifying
+last_updated: '2026-06-20T01:41:15.595Z'
+last_activity: 2026-06-20 -- Phase 17.1 Plan 15 complete (Review-CR-02 closed)
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 27
-  completed_plans: 24
-  percent: 40
+  completed_plans: 25
+  percent: 60
 ---
 
 # Project State
@@ -263,14 +263,15 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17.1 (action-flow-cleanup) — EXECUTING
-Plan: 2 of 15
-Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 17.1 execution started
-Plan 11 closed CR-01 (Undo non-functional in HIGH_PASS_MOVE/FIRST_TIME_PASS_MOVE —
-event-type mismatch MOVE vs HP_MOVE/FTP_MOVE). applyUndo and ActionPanel canUndo are now
-phase-aware; de-masked unit/component fixtures; added 2 wire-level GAME_UNDO tests.
-Next: re-run phase verification to confirm success criterion 3 now passes, then close out
-Phase 17.1.
+Plan: 15 of 15 (all plans complete)
+Status: Ready for re-verification
+Last activity: 2026-06-20 -- Phase 17.1 Plan 15 complete (Review-CR-02 closed)
+Plan 15 closed Review-CR-02 (FTP DEFENDER-slot delivery used a team-restricted receiver
+lookup, ignoring a defending-team piece on passTargetHex). Receiver lookup is now
+team-agnostic (BUG-04 parity): defending-team occupant transfers possession; attacking-team
+occupant and empty-target behavior unchanged. 2 new integration tests added.
+Next: re-run phase verification to confirm Review-CR-02 and CR-01 (Plan 11/14) are resolved,
+then close out Phase 17.1.
 
 ## Performance Metrics
 
@@ -309,6 +310,7 @@ Phase 17.1.
 | Phase 17.1 P12                            | 25min  | 3 tasks  | 3 files  |
 | Phase 17.1-action-flow-cleanup P13        | 12min  | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P14        | 6min   | 1 tasks  | 2 files  |
+| Phase 17.1-action-flow-cleanup P15        | 12min  | 1 tasks  | 2 files  |
 
 ## Decisions
 
@@ -361,3 +363,4 @@ Phase 17.1.
 - [Phase ?]: setGameState sticky-selection branch extended to cover FIRST_TIME_PASS_MOVE with phase-keyed paceRemaining/lockedId ternaries — keeps locked FTP piece selected across same-slot broadcasts, matching existing HIGH_PASS_MOVE/GK_KICK_MOVE behavior
 - [Phase 17.1-13]: CR-02-new closed: applyRoll interception-loop bypass extended to FIRST_TIME_PASS (newLastActionType === FIRST_TIME_PASS) alongside the existing header-pass bypass — Closes the second newly-confirmed Phase 17.1 verification gap; FTP near a defender now reaches FIRST_TIME_PASS_MOVE instead of SUCCESSFUL_TACKLE
 - [Phase 17.1-14]: applyUndo resets firstTimePassMovedPieceId/firstTimePassPaceUsed (or highPassMovedPieceId/highPassPaceUsed) via a phase-conditional lockReset spread, mirroring the canonical null/0 slot-clear shape — Closes Review-CR-01: undo previously restored piece position but left the repositioning slot permanently locked
+- [Phase 17.1-action-flow-cleanup]: FTP DEFENDER-slot delivery receiver lookup made team-agnostic (BUG-04 parity): occupant search has no teamId filter; possession transfers when occupant.teamId differs from prior attackingTeam, mirroring gameEngine.ts BUG-04 (1272-1297)
