@@ -95,4 +95,8 @@ export const ELIGIBLE_NEXT_ACTIONS: Record<LastActionType, ReadonlySet<NextActio
   // Shot → outcomes always reset the sequence; this row is never queried in practice.
   // Included for Record exhaustiveness so TypeScript enforces completeness.
   SHOT: new Set<NextActionType>([]),
+
+  // OFFSIDE-02 (Phase 17 D-32): free kick from an offside foul — only Standard/High/Long
+  // Pass and Shot (in range) are legal. No Movement, no First-time Pass, no Snapshot.
+  FREE_KICK_RESTART: new Set<NextActionType>(['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'SHOT']),
 };

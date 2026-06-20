@@ -7,10 +7,12 @@ import {
   isOffsideNow,
   isClearedNow,
   evaluateOffside,
+  triggerOffsideFoul,
   OFFSIDE_HALFWAY_Q,
+  ELIGIBLE_NEXT_ACTIONS,
 } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { applyEndTurn, applyMove } from '../gameEngine.js';
+import { applyEndTurn, applyMove, applyFreeKickReady } from '../gameEngine.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures (mirrors gameEngine.test.ts fixture conventions)
@@ -533,6 +535,212 @@ describe('evaluateOffside — D-40 sticky-flag + loose ball', () => {
       offsidePieceIds: ['home-1'],
     });
     expect(evaluateOffside(state)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// triggerOffsideFoul (OFFSIDE-02 D-26/D-27/D-28; D-41 explicit-offender extension)
+// ---------------------------------------------------------------------------
+
+describe('triggerOffsideFoul', () => {
+  it('fires when the ball carrier is flagged offside (D-26 implicit entry point)', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const teammate = makePiece({ id: 'home-2', teamId: 'home', position: { q: 5, r: 5 } });
+    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 10 } });
+    const state = makeState({
+      pieces: [offender, teammate, defender],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = triggerOffsideFoul(state);
+
+    expect(result.phase).toBe('FREE_KICK_SETUP');
+    expect(result.freeKickHex).toEqual({ q: 25, r: 10 });
+    expect(result.freeKickAttackingTeam).toBe('away');
+    expect(result.attackingTeam).toBe('away');
+    expect(result.activeTeam).toBe('away');
+    expect(result.ball).toEqual({ position: { q: 25, r: 10 }, carrierId: null });
+    expect(result.offsidePieceIds).not.toContain('home-1');
+  });
+
+  it('is a no-op when the ball carrier is NOT flagged offside', () => {
+    const carrier = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const state = makeState({
+      pieces: [carrier],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      offsidePieceIds: [],
+    });
+
+    const result = triggerOffsideFoul(state);
+
+    expect(result).toBe(state); // referential identity — no-op
+    expect(result.phase).not.toBe('FREE_KICK_SETUP');
+  });
+
+  it('is a no-op when the ball is loose and no explicit offender id is given', () => {
+    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const state = makeState({
+      pieces: [piece],
+      ball: { position: { q: 25, r: 10 }, carrierId: null },
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = triggerOffsideFoul(state);
+
+    expect(result).toBe(state);
+  });
+
+  it('clears only the fouling offender, leaving other flagged pieces sticky', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const otherFlagged = makePiece({ id: 'home-2', teamId: 'home', position: { q: 28, r: 12 } });
+    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 10 } });
+    const state = makeState({
+      pieces: [offender, otherFlagged, defender],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1', 'home-2'],
+    });
+
+    const result = triggerOffsideFoul(state);
+
+    expect(result.offsidePieceIds).toEqual(['home-2']);
+  });
+
+  it('D-41: fires for a flagged explicit offender even when ball.carrierId is null (loose ball)', () => {
+    const deflector = makePiece({ id: 'away-1', teamId: 'away', position: { q: 8, r: 9 } });
+    const state = makeState({
+      pieces: [deflector],
+      ball: { position: { q: 25, r: 10 }, carrierId: null }, // ball ends up loose elsewhere
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['away-1'],
+    });
+
+    const result = triggerOffsideFoul(state, 'away-1');
+
+    expect(result.phase).toBe('FREE_KICK_SETUP');
+    // D-27: free kick spot is the offender's CURRENT position, not the ball's loose position.
+    expect(result.freeKickHex).toEqual({ q: 8, r: 9 });
+    expect(result.freeKickAttackingTeam).toBe('home');
+    expect(result.ball).toEqual({ position: { q: 8, r: 9 }, carrierId: null });
+    expect(result.offsidePieceIds).not.toContain('away-1');
+  });
+
+  it('D-41: is a no-op when the explicit offender is NOT flagged offside', () => {
+    const deflector = makePiece({ id: 'away-1', teamId: 'away', position: { q: 8, r: 9 } });
+    const state = makeState({
+      pieces: [deflector],
+      ball: { position: { q: 25, r: 10 }, carrierId: null },
+      offsidePieceIds: [],
+    });
+
+    const result = triggerOffsideFoul(state, 'away-1');
+
+    expect(result).toBe(state);
+  });
+
+  it('D-41: implicit (no second argument) call sites are unaffected by the explicit-offender path', () => {
+    // Same fixture as the first implicit test — confirms the existing behavior is unchanged
+    // now that the function accepts an optional second parameter.
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const state = makeState({
+      pieces: [offender],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = triggerOffsideFoul(state);
+
+    expect(result.phase).toBe('FREE_KICK_SETUP');
+    expect(result.freeKickAttackingTeam).toBe('away');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ELIGIBLE_NEXT_ACTIONS['FREE_KICK_RESTART'] (OFFSIDE-02 D-32)
+// ---------------------------------------------------------------------------
+
+describe("ELIGIBLE_NEXT_ACTIONS['FREE_KICK_RESTART']", () => {
+  it('contains exactly STANDARD_PASS, HIGH_PASS, LONG_BALL, SHOT', () => {
+    const row = ELIGIBLE_NEXT_ACTIONS.FREE_KICK_RESTART;
+    expect(Array.from(row).sort()).toEqual(
+      ['HIGH_PASS', 'LONG_BALL', 'SHOT', 'STANDARD_PASS'].sort(),
+    );
+    expect(row.has('MOVEMENT')).toBe(false);
+    expect(row.has('FIRST_TIME_PASS')).toBe(false);
+    expect(row.has('SNAPSHOT')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyFreeKickReady (OFFSIDE-02 D-29/D-30/D-31)
+// ---------------------------------------------------------------------------
+
+describe('applyFreeKickReady', () => {
+  function freeKickState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): GameState {
+    return makeState({
+      phase: 'FREE_KICK_SETUP',
+      freeKickHex: { q: 25, r: 10 },
+      freeKickAttackingTeam: 'away',
+      ...overrides,
+    });
+  }
+
+  it('WRONG_PHASE when phase is not FREE_KICK_SETUP', () => {
+    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+    const state = makeState({ pieces: [piece], phase: 'MOVE' });
+    const result = applyFreeKickReady(state, 'home');
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('WRONG_PHASE when freeKickHex is null', () => {
+    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+    const state = freeKickState({ pieces: [piece], freeKickHex: null });
+    const result = applyFreeKickReady(state, 'home');
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('KICKER_HEX_EMPTY when the kicking team has zero pieces on freeKickHex', () => {
+    const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 1, r: 1 } });
+    const state = freeKickState({ pieces: [kicker] });
+    const result = applyFreeKickReady(state, 'away'); // away is freeKickAttackingTeam (kicking)
+    expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
+  });
+
+  it('KICKER_HEX_EMPTY when the kicking team has two pieces on freeKickHex', () => {
+    const kicker1 = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+    const kicker2 = makePiece({ id: 'away-2', teamId: 'away', position: { q: 25, r: 10 } });
+    const state = freeKickState({ pieces: [kicker1, kicker2] });
+    const result = applyFreeKickReady(state, 'away');
+    expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
+  });
+
+  it('ok when the kicking team has exactly one piece on freeKickHex', () => {
+    const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+    const other = makePiece({ id: 'away-2', teamId: 'away', position: { q: 1, r: 1 } });
+    const state = freeKickState({ pieces: [kicker, other] });
+    const result = applyFreeKickReady(state, 'away');
+    expect(result.ok).toBe(true);
+  });
+
+  it('DEFENDER_TOO_CLOSE when a defender is exactly 2 hexes from freeKickHex', () => {
+    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 23, r: 10 } }); // dist 2
+    const state = freeKickState({ pieces: [defender] });
+    const result = applyFreeKickReady(state, 'home'); // home is defending (not freeKickAttackingTeam)
+    expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
+  });
+
+  it('ok when all defenders are more than 2 hexes from freeKickHex', () => {
+    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 10 } }); // dist 5
+    const state = freeKickState({ pieces: [defender] });
+    const result = applyFreeKickReady(state, 'home');
+    expect(result.ok).toBe(true);
   });
 });
 

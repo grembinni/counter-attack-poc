@@ -3323,6 +3323,74 @@ export function applyKickOffReady(
 }
 
 // ---------------------------------------------------------------------------
+// applyFreeKickReady (OFFSIDE-02)
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union result for applyFreeKickReady.
+ * OFFSIDE-02: validates an offside free-kick setup placement for one team.
+ */
+export type ApplyFreeKickReadyResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'KICKER_HEX_EMPTY' | 'DEFENDER_TOO_CLOSE' }
+  | { ok: true; state: GameState };
+
+/**
+ * Validates a team's offside free-kick setup placement.
+ *
+ * OFFSIDE-02 / D-29 / D-30 / D-31: mirrors `applyKickOffReady`'s shape and guard
+ * sequence, but with the free-kick zone rules instead of the kick-off own-half rule:
+ * neither team has an own-half restriction (D-29 — both teams may reposition their
+ * entire squad anywhere on the board).
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be 'FREE_KICK_SETUP'
+ * 2. KICKER_HEX_EMPTY — the kicking team (`team === state.freeKickAttackingTeam`) must
+ *    have exactly one piece on `freeKickHex` (D-31)
+ * 3. DEFENDER_TOO_CLOSE — the defending team must have no piece within 2 hexes
+ *    (`hexDistance <= 2`) of `freeKickHex` (D-30)
+ *
+ * Returns `{ok:true, state}` unchanged on success — the handler owns the both-ready
+ * transition (mirrors applyKickOffReady).
+ *
+ * @param state - Current game state (phase must be FREE_KICK_SETUP)
+ * @param team  - Which team's placement to validate ('home' | 'away')
+ */
+export function applyFreeKickReady(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplyFreeKickReadyResult {
+  // 1. Phase guard
+  if (state.phase !== 'FREE_KICK_SETUP' || !state.freeKickHex) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const freeKickHex = state.freeKickHex;
+  const teamPieces = state.pieces.filter((p) => p.teamId === team);
+  const isKicking = team === state.freeKickAttackingTeam;
+
+  if (isKicking) {
+    // 2. KICKER_HEX_EMPTY: kicking team must have exactly one piece on freeKickHex (D-31)
+    const onFreeKickHex = teamPieces.filter(
+      (p) => p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
+    );
+    if (onFreeKickHex.length !== 1) {
+      return { ok: false, reason: 'KICKER_HEX_EMPTY' };
+    }
+  } else {
+    // 3. DEFENDER_TOO_CLOSE: defending team must stay >2 hexes from freeKickHex (D-30)
+    for (const piece of teamPieces) {
+      if (hexDistance(piece.position, freeKickHex) <= 2) {
+        return { ok: false, reason: 'DEFENDER_TOO_CLOSE' };
+      }
+    }
+  }
+
+  // All placement rules satisfied — return ok:true with state unchanged.
+  // The handler tracks both-ready via Room.readyPlayers and triggers the PASS transition.
+  return { ok: true, state };
+}
+
+// ---------------------------------------------------------------------------
 // applyHalfTimeStart
 // ---------------------------------------------------------------------------
 

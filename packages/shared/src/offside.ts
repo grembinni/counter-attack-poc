@@ -118,3 +118,66 @@ export function evaluateOffside(state: GameState): readonly string[] {
 
   return [...stillFlagged, ...newlyFlagged];
 }
+
+/**
+ * OFFSIDE-02: transforms a possession-gain (or ball-touch, D-41) state into the
+ * FREE_KICK_SETUP restart when the relevant offender is flagged offside.
+ *
+ * Two entry points (D-26 implicit, D-41 explicit):
+ *
+ * - **Implicit (no `explicitOffenderId`):** candidate offender is `state.ball.carrierId`.
+ *   Only fires when the ball is actually possessed (`carrierId !== null`) AND that piece
+ *   is in `state.offsidePieceIds`. This is the original D-26 "gains possession" trigger —
+ *   covers any pass pickup, loose-ball pickup, won header, successful steal, or successful
+ *   tackle (all of these always leave the acting/winning piece as the new ball carrier).
+ * - **Explicit (`explicitOffenderId` provided):** candidate offender is the named piece id,
+ *   regardless of `state.ball.carrierId` (which may be null — e.g. a shot deflection that
+ *   intentionally leaves the ball loose). This is the D-41 extension: the foul also fires
+ *   when a flagged-offside player REDIRECTS the ball during a contest (header, deflection,
+ *   steal, tackle) even if the action doesn't end with that player in clean possession.
+ *   The `state.ball.carrierId !== null` guard is skipped on this path — the caller already
+ *   knows who touched the ball even though the ball itself ends up carrierless.
+ *
+ * On fire: transitions to FREE_KICK_SETUP with `freeKickHex` = offender's CURRENT position
+ * (D-27 — the foul spot is the offender's position at the moment of the foul, not the
+ * ball's position, so this generalizes cleanly to the explicit-offender/loose-ball case
+ * with no special-casing), `freeKickAttackingTeam` = the non-offending team (D-28),
+ * `attackingTeam`/`activeTeam` = that team, ball loose at the foul spot, and the offender
+ * removed from `offsidePieceIds` (the foul resolves that piece's offside state; any other
+ * flagged pieces persist).
+ *
+ * When the candidate offender is not flagged (or, on the implicit path, the ball isn't
+ * possessed) — returns `state` unchanged (referential identity).
+ */
+export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string): GameState {
+  const offenderId = explicitOffenderId ?? state.ball.carrierId;
+  if (explicitOffenderId === undefined && state.ball.carrierId === null) {
+    return state;
+  }
+  if (offenderId === null || offenderId === undefined) {
+    return state;
+  }
+
+  const flagged = state.offsidePieceIds ?? [];
+  if (!flagged.includes(offenderId)) {
+    return state;
+  }
+
+  const offender = state.pieces.find((p) => p.id === offenderId);
+  if (!offender) {
+    return state;
+  }
+
+  const otherTeam: 'home' | 'away' = offender.teamId === 'home' ? 'away' : 'home';
+
+  return {
+    ...state,
+    phase: 'FREE_KICK_SETUP',
+    freeKickHex: offender.position,
+    freeKickAttackingTeam: otherTeam,
+    attackingTeam: otherTeam,
+    activeTeam: otherTeam,
+    ball: { position: offender.position, carrierId: null },
+    offsidePieceIds: flagged.filter((id) => id !== offenderId),
+  };
+}

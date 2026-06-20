@@ -312,6 +312,8 @@ export type GamePhase =
   | 'FREE_MOVE_ATTACK'
   | 'FREE_MOVE_DEFENSE'
   | 'FIRST_TIME_PASS_MOVE' // D-03: repositioning phase after first-time pass target selected
+  // OFFSIDE-02 (Phase 17 D-29): both-teams repositioning before an offside free kick is taken.
+  | 'FREE_KICK_SETUP'
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -333,7 +335,10 @@ export type LastActionType =
   | 'HEADER'
   | 'DEFLECTION'
   | 'SNAPSHOT'
-  | 'SHOT';
+  | 'SHOT'
+  // OFFSIDE-02 (Phase 17 D-32): set when an offside free kick is taken — restricts the
+  // next action to STANDARD_PASS/HIGH_PASS/LONG_BALL/SHOT via its ELIGIBLE_NEXT_ACTIONS row.
+  | 'FREE_KICK_RESTART';
 
 export type GameState = {
   roomCode: string;
@@ -579,6 +584,17 @@ export type GameState = {
    * condition holds. Default [] at match start and after every reset/kick-off.
    */
   offsidePieceIds?: readonly string[];
+  /**
+   * OFFSIDE-02 (Phase 17 D-27): the restart hex for an offside free kick — the offending
+   * player's position at the moment the foul triggered (NOT the ball's position).
+   * null outside the FREE_KICK_SETUP flow.
+   */
+  freeKickHex?: HexCoord | null;
+  /**
+   * OFFSIDE-02 (Phase 17 D-28): the team AWARDED the free kick — i.e. the team that did
+   * NOT commit the offside foul. null outside the FREE_KICK_SETUP flow.
+   */
+  freeKickAttackingTeam?: 'home' | 'away' | null;
   /**
    * MOVE-06 (Phase 17, corrected design D-36): snapshots the phase and activeTeam that
    * were already computed as "next" by the action that triggered the free-move sequence

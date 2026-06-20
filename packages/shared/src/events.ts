@@ -51,6 +51,13 @@ export const ClientEvents = {
   GAME_HEADER_ACCURACY_ACK: 'game:header-accuracy-ack',
   /** Phase 16 D-11: client emits chosen TeamId during team selection phase. */
   TEAM_PICK: 'team:pick',
+  /**
+   * OFFSIDE-02 (Phase 17 D-29): piece repositioning during FREE_KICK_SETUP.
+   * Mirrors GAME_KICK_OFF_MOVE — no pace limits, no ZoI enforcement.
+   */
+  GAME_FREE_KICK_MOVE: 'game:free-kick-move',
+  /** OFFSIDE-02 (Phase 17 D-29): both-teams ready confirmation during FREE_KICK_SETUP. */
+  GAME_FREE_KICK_READY: 'game:free-kick-ready',
 } as const;
 
 export const ServerEvents = {
@@ -123,6 +130,10 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_HEADER_ACCURACY_ACK]: () => void;
   /** Phase 16 D-11: client selects a team during team selection phase. Validated server-side. */
   [ClientEvents.TEAM_PICK]: (teamId: TeamId) => void;
+  /** OFFSIDE-02 (Phase 17 D-29): reposition a piece during FREE_KICK_SETUP (no pace limits, no ZoI). */
+  [ClientEvents.GAME_FREE_KICK_MOVE]: (pieceId: string, to: HexCoord) => void;
+  /** OFFSIDE-02 (Phase 17 D-29): Ready confirmation during FREE_KICK_SETUP; transitions when both teams confirm. */
+  [ClientEvents.GAME_FREE_KICK_READY]: () => void;
 }
 
 /**
