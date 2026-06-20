@@ -367,6 +367,36 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // FREE_MOVE_ATTACK / FREE_MOVE_DEFENSE (Phase 17 MOVE-06, corrected design): any number of
+    // eligible pieces (both teams precomputed at trigger time) may each move up to 6 hexes
+    // independently — no single-piece lock like HIGH_PASS_MOVE.
+    if (gameState.phase === 'FREE_MOVE_ATTACK' || gameState.phase === 'FREE_MOVE_DEFENSE') {
+      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      const side = gameState.phase === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
+      const eligibleIds = gameState.freeMoveEligibleIds?.[side] ?? [];
+      if (piece.teamId !== myTeam || !eligibleIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const paceRemaining = 6 - (gameState.freeMoveUsedPace?.[id] ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      const valid = hexesInRange(piece.position, 1).filter((hex) => {
+        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+        if (
+          gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          )
+        )
+          return false;
+        return hexDistance(piece.position, hex) === 1;
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // FIRST_TIME_PASS_MOVE: 1 piece per team, up to 1 hex, any direction (D-03, CR-01-new)
     // Mirrors HIGH_PASS_MOVE structurally but pace cap is 1 (not 3) and uses the
     // firstTimePass* slot fields. Does NOT call validateMove — that fn's WRONG_SLOT guard
@@ -569,6 +599,37 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid =
         locked || paceRemaining <= 0
+          ? []
+          : hexesInRange(piece.position, 1).filter((hex) => {
+              if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+              if (
+                newState.pieces.some(
+                  (p) =>
+                    p.id !== prevSelectedId && p.position.q === hex.q && p.position.r === hex.r,
+                )
+              )
+                return false;
+              return hexDistance(piece.position, hex) === 1;
+            });
+      set({
+        gameState: newState,
+        selectedPieceId: prevSelectedId,
+        validMoveHexes: stickyValid,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+      });
+      return;
+    }
+
+    // FREE_MOVE_ATTACK / FREE_MOVE_DEFENSE: separate, parallel sticky-selection block — FREE_MOVE
+    // has no single-piece lock concept (multiple independently-eligible pieces), so it is not
+    // folded into the HIGH_PASS_MOVE-style block above. phaseChanged (handled earlier) already
+    // clears selection the moment FREE_MOVE_ATTACK transitions to FREE_MOVE_DEFENSE or to the
+    // resume phase — each sub-phase starts fresh, no carry-over selection across sub-phases (D-35).
+    if (newState.phase === 'FREE_MOVE_ATTACK' || newState.phase === 'FREE_MOVE_DEFENSE') {
+      const paceRemaining = 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
+      const stickyValid =
+        paceRemaining <= 0
           ? []
           : hexesInRange(piece.position, 1).filter((hex) => {
               if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;

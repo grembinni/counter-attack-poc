@@ -87,6 +87,10 @@ export function HexGrid() {
   const firstTimePassMovedPieceId = useGameStore((s) => s.gameState.firstTimePassMovedPieceId);
   // GK_KICK_MOVEMENT: track locked piece so multi-step moves stay on the same piece
   const gkKickMovedPieceId = useGameStore((s) => s.gameState.gkKickMovedPieceId);
+  // FREE_MOVE_ATTACK/DEFENSE (Phase 17 MOVE-06, client-wiring fix): precomputed eligible-piece
+  // lists (both teams) and per-piece used-pace tracking, mirrors server's freeMove* fields.
+  const freeMoveEligibleIds = useGameStore((s) => s.gameState.freeMoveEligibleIds);
+  const freeMoveUsedPace = useGameStore((s) => s.gameState.freeMoveUsedPace);
   // Phase 10: shooting mode, GK dive/header-target actions
   const shootingMode = useGameStore((s) => s.shootingMode);
   const emitDeclareShot = useGameStore((s) => s.emitDeclareShot);
@@ -601,6 +605,22 @@ export function HexGrid() {
               myTeam !== null &&
               piece.teamId === myTeam &&
               (firstTimePassMovedPieceId === null || firstTimePassMovedPieceId === piece.id);
+            // FREE_MOVE_ATTACK/DEFENSE (Phase 17 MOVE-06, client-wiring fix): any number of
+            // precomputed-eligible pieces of the active sub-phase's side may each move up to
+            // 6 hexes independently — no single-piece lock like HIGH_PASS_MOVE.
+            const freeMoveSide =
+              phase === 'FREE_MOVE_ATTACK'
+                ? 'attack'
+                : phase === 'FREE_MOVE_DEFENSE'
+                  ? 'defense'
+                  : null;
+            const canSelectFreeMove =
+              freeMoveSide !== null &&
+              isActivePlayer &&
+              myTeam !== null &&
+              piece.teamId === myTeam &&
+              (freeMoveEligibleIds?.[freeMoveSide]?.includes(piece.id) ?? false) &&
+              (freeMoveUsedPace?.[piece.id] ?? 0) < 6;
 
             // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant.
             // Both teams select independently; gated on not yet confirmed for this team.
@@ -637,7 +657,8 @@ export function HexGrid() {
               canSelectHighPassMove ||
               canSelectSnapDeflect ||
               canSelectGKKickMove ||
-              canSelectFirstTimePassMove;
+              canSelectFirstTimePassMove ||
+              canSelectFreeMove;
 
             // Plan 04: derive single selectionState enum for PieceOverlay (UX-05, D-04, D-07)
             const isSpentNow =
@@ -672,15 +693,17 @@ export function HexGrid() {
                       ? () => selectPiece(piece.id)
                       : canSelectFirstTimePassMove
                         ? () => selectPiece(piece.id)
-                        : isHeaderEligible
-                          ? () => {
-                              toggleHeaderContestantId(piece.id);
-                            }
-                          : canSelectKickOff
-                            ? () => selectPiece(piece.id)
-                            : canSelect
+                        : canSelectFreeMove
+                          ? () => selectPiece(piece.id)
+                          : isHeaderEligible
+                            ? () => {
+                                toggleHeaderContestantId(piece.id);
+                              }
+                            : canSelectKickOff
                               ? () => selectPiece(piece.id)
-                              : () => undefined;
+                              : canSelect
+                                ? () => selectPiece(piece.id)
+                                : () => undefined;
 
             return (
               <PieceOverlay
