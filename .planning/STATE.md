@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: verifying
-last_updated: '2026-06-20T02:43:31.744Z'
+status: active
+last_updated: '2026-06-20T12:13:55.611Z'
 last_activity: 2026-06-20
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 28
+  total_plans: 27
   completed_plans: 26
-  percent: 60
+  percent: 96
 ---
 
 # Project State
@@ -165,15 +165,16 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 
 ## Quick Tasks Completed
 
-| Slug                   | Date       | Description                                                              |
-| ---------------------- | ---------- | ------------------------------------------------------------------------ |
-| phase-selection-flow   | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS                |
-| possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2                      |
-| undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser           |
-| 260612-ike             | 2026-06-12 | Refactor GameBoard top-band layout and player card                       |
-| 260612-kvw             | 2026-06-12 | GameBoard UI polish: scores flanking clock, side-panel log               |
-| 260612-l7d             | 2026-06-12 | GameBoard 3-zone top band: centred scoreboard, left/right zones          |
-| 260612-lme             | 2026-06-12 | Scoreboard dot+clock (26px), slot helper text, centred ActionPanel label |
+| Slug                   | Date       | Description                                                                                                                                               |
+| ---------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| phase-selection-flow   | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS                                                                                                 |
+| possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2                                                                                                       |
+| undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser                                                                                            |
+| 260612-ike             | 2026-06-12 | Refactor GameBoard top-band layout and player card                                                                                                        |
+| 260612-kvw             | 2026-06-12 | GameBoard UI polish: scores flanking clock, side-panel log                                                                                                |
+| 260612-l7d             | 2026-06-12 | GameBoard 3-zone top band: centred scoreboard, left/right zones                                                                                           |
+| 260612-lme             | 2026-06-12 | Scoreboard dot+clock (26px), slot helper text, centred ActionPanel label                                                                                  |
+| 260620-9ql             | 2026-06-20 | Cancel Phase 17 plan 17-05 (superseded by Phase 17.1 FTP redesign); delete 2 stale abandoned-design test stubs; correct PASS-02 attribution to Phase 17.1 |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
@@ -285,17 +286,28 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
-Status: Ready for phase verification re-run
+Phase: 17.1 — Complete (2026-06-20, 16/16 plans, 5 verification cycles)
+Plan: Quick task 260620-9ql complete
+Status: Ready to resume Phase 17 (2 plans remain: 17-04 MOVE-06, 17-05 cancelled) or start Phase 18
 Last activity: 2026-06-20
-Plan 16 closed the cycle-4 verifier's CR-01 finding (FIRST_TIME_PASS self-pass-reclaim
-exploit). firstTimePassCarrierId added to GameState; server GAME_MOVE FTP handler rejects
-the original passer; FTP delivery occupant lookup excludes them (defense in depth); client
-selectPiece FTP branch mirrors the exclusion. 5 new regression tests added (3 server, 2
-client). HIGH_PASS_MOVE's identical defect is documented but deferred, not fixed.
-Next: re-run phase verification (.planning/phases/17.1-action-flow-cleanup/17.1-VERIFICATION.md)
-to confirm success criterion 3 now passes in full, then close out Phase 17.1.
+Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
+selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
+a deferred follow-up rather than a 6th gap-closure cycle. Captured as
+.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md.
+
+Quick task 260620-9ql then cancelled Phase 17 plan 17-05 (PASS-02 mid-pass repositioning) —
+it described the old single-step SNAP_DEFLECT-reuse design, which Phase 17.1's two-slot
+FIRST_TIME_PASS_MOVE redesign already superseded and verified. Deleted 17-05-PLAN.md, dropped
+it from ROADMAP.md's Phase 17 plan list (5→4 plans), corrected REQUIREMENTS.md's PASS-02
+attribution to Phase 17.1, and deleted the 2 stale abandoned-design test stubs in
+gameEngine.phase17.test.ts/gameHandlers.phase17.test.ts — these were 2 of the "4 documented
+pre-existing failures" carried through every Phase 17.1 verification cycle. Server suite is
+now down to 2 failures (only MOVE-06 FREE_MOVE, tied to unexecuted plan 17-04).
+
+Next: Phase 17 has one legitimate unfinished plan (17-04, MOVE-06 FREE_MOVE phase) — running
+it would likely fix the 2 remaining pre-existing failures. Also outstanding: HIGH_PASS_MOVE
+has the same missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16
+(documented in 17.1-16-PLAN.md as a deferred parallel finding, not yet filed as its own todo).
 
 ## Performance Metrics
 
