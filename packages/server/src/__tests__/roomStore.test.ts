@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   createRoom,
   joinRoom,
@@ -6,7 +6,11 @@ import {
   findPlayerByToken,
   deleteRoom,
   clearAllRooms,
+  broadcastState,
+  type Room,
 } from '../roomStore.js';
+import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import type { Server } from 'socket.io';
 
 afterEach(() => {
   clearAllRooms();
@@ -128,5 +132,144 @@ describe('deleteRoom', () => {
     expect(getRoom(roomCode)).toBeDefined();
     deleteRoom(roomCode);
     expect(getRoom(roomCode)).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MOVE-06 (Phase 17, corrected design D-33): broadcastState invokes
+// applyFreeMoveZoneCheck centrally before emitting.
+// ---------------------------------------------------------------------------
+
+function makePiece(overrides: Partial<PlayerPiece>): PlayerPiece {
+  return {
+    id: 'home-1',
+    teamId: 'home',
+    firstName: 'Test',
+    lastName: 'Player',
+    number: 2,
+    nationality: 'Test',
+    role: 'DEF',
+    position: { q: 0, r: 0 },
+    pace: 5,
+    shooting: 3,
+    tackling: 5,
+    dribbling: 3,
+    saving: 1,
+    handling: 1,
+    resilience: 5,
+    aerialAbility: 4,
+    highPass: 4,
+    ...overrides,
+  };
+}
+
+/** Minimal valid GameState for broadcastState tests — phase PASS, ball in middleThird. */
+function makeGameState(overrides: Partial<GameState> = {}): GameState {
+  return {
+    roomCode: 'BCAST',
+    phase: 'PASS',
+    activeTeam: 'home',
+    attackingTeam: 'home',
+    pieces: [
+      makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 7 } }),
+      makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 7 } }),
+    ],
+    ball: { position: { q: 18, r: 13 }, carrierId: null },
+    score: { home: 0, away: 0 },
+    actionCount: 0,
+    half: 1,
+    eventLog: [],
+    refereeCard: { leniency: 3 },
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    movementSlot: null,
+    ballZone: 'middle',
+    addedTime: null,
+    lastActionType: null,
+    kickOffTeam: 'home',
+    kickOffActive: false,
+    selectedTeams: { home: 'cosmos', away: 'xolos' },
+    ...overrides,
+  };
+}
+
+/** Minimal fake Socket.io Server — broadcastState only calls io.to(roomCode).emit(...). */
+function makeFakeServer(): Server {
+  const emit = vi.fn();
+  const to = vi.fn(() => ({ emit }));
+  return { to } as unknown as Server;
+}
+
+function makeRoom(gameState: GameState | null): Room {
+  return {
+    roomCode: gameState?.roomCode ?? 'BCAST',
+    players: [null, null],
+    status: 'playing',
+    gameState,
+    isProcessing: false,
+    disconnectTimers: [null, null],
+  };
+}
+
+describe('broadcastState (MOVE-06 corrected design)', () => {
+  it('is a no-op when room.gameState is null', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(null);
+    expect(() => broadcastState(io, room)).not.toThrow();
+    expect(room.gameState).toBeNull();
+  });
+
+  it('does not mutate ballZone or phase when the ball stays in middleThird', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(makeGameState());
+    broadcastState(io, room);
+    expect(room.gameState?.ballZone).toBe('middle');
+    expect(room.gameState?.phase).toBe('PASS');
+  });
+
+  it('updates ballZone and triggers FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE when the ball freshly enters a final third with eligible pieces in the opposite third', () => {
+    const io = makeFakeServer();
+    // Ball at q:30 (awayThird) — fresh entry from the seeded 'middle' ballZone.
+    // home-1 sits in homeThird (q:5) — the OPPOSITE final third from the ball's new
+    // 'away' zone — making it eligible. attackingTeam is 'home', so home-1 lands in
+    // the attack list and FREE_MOVE_ATTACK fires first (D-35).
+    const seeded = makeGameState({
+      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ballZone: 'middle',
+      pieces: [
+        makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 7 } }),
+        makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 7 } }),
+      ],
+    });
+    const room = makeRoom(seeded);
+
+    broadcastState(io, room);
+
+    expect(room.gameState?.ballZone).toBe('away');
+    expect(room.gameState?.phase).toBe('FREE_MOVE_ATTACK');
+    expect(room.gameState?.freeMoveEligibleIds).toEqual({ attack: ['home-1'], defense: [] });
+  });
+
+  it('emits the post-zone-check state to the room (not the pre-check state)', () => {
+    const emit = vi.fn();
+    const to = vi.fn(() => ({ emit }));
+    const io = { to } as unknown as Server;
+    const seeded = makeGameState({
+      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ballZone: 'middle',
+      pieces: [
+        makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 7 } }),
+        makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 7 } }),
+      ],
+    });
+    const room = makeRoom(seeded);
+
+    broadcastState(io, room);
+
+    expect(to).toHaveBeenCalledWith('BCAST');
+    expect(emit).toHaveBeenCalledTimes(1);
+    const [, emittedState] = emit.mock.calls[0] as [string, GameState];
+    expect(emittedState.phase).toBe('FREE_MOVE_ATTACK');
+    expect(emittedState.ballZone).toBe('away');
   });
 });

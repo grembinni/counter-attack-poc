@@ -510,6 +510,10 @@ function seedSnapshotTargetPhase(roomCode: string): void {
     paceUsedByPieceId: {},
     movementSlot: null,
     snapshotGkPenalty: 0,
+    // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+    // broadcastState's applyFreeMoveZoneCheck does not fire mid-test — this fixture tests
+    // the snapshot-shot-flow regression, not MOVE-06.
+    ballZone: 'away',
     pieces: room.gameState.pieces.map((p) => {
       if (p.id === carrier.id) return { ...p, position: carrierPos };
       if (p.id === awayGK.id) return { ...p, position: gkPos };
@@ -554,6 +558,10 @@ function seedSnapshotTargetWithDefenderOnPath(roomCode: string): void {
     paceUsedByPieceId: {},
     movementSlot: null,
     snapshotGkPenalty: 0,
+    // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+    // broadcastState's applyFreeMoveZoneCheck does not fire mid-test — this fixture tests
+    // the snapshot-shot-flow regression, not MOVE-06.
+    ballZone: 'away',
     pieces: room.gameState.pieces.map((p) => {
       if (p.id === carrier.id) return { ...p, position: carrierPos };
       if (p.id === awayGK.id) return { ...p, position: gkPos };

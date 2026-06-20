@@ -113,7 +113,7 @@ const baseState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   addedTime: null,
   lastActionType: null,
   kickOffTeam: 'home',

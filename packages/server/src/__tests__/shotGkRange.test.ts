@@ -37,7 +37,7 @@ import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, computeBallZone } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -155,6 +155,9 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
       activeTeam: 'home',
       lastActionType: null,
       ball: { position: carrierPos, carrierId: homeCarrier.id },
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+      // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
+      ballZone: computeBallZone(carrierPos),
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === homeCarrier.id) return { ...p, position: carrierPos };
         if (p.id === awayGK.id) return { ...p, position: gkPos };
@@ -190,6 +193,9 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
       activeTeam: 'home',
       lastActionType: null,
       ball: { position: carrierPos, carrierId: homeCarrier.id },
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+      // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
+      ballZone: computeBallZone(carrierPos),
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === homeCarrier.id) return { ...p, position: carrierPos, shooting: 1 };
         if (p.id === awayGK.id) return { ...p, position: gkPos, saving: 10, handling: 10 };
@@ -244,6 +250,9 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
       activeTeam: 'home',
       lastActionType: 'SNAPSHOT',
       ball: { position: carrierPos, carrierId: carrier.id },
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+      // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
+      ballZone: computeBallZone(carrierPos),
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === carrier.id) return { ...p, position: carrierPos };
         if (p.id === awayGK.id) return { ...p, position: gkPos };
@@ -287,6 +296,9 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
       activeTeam: 'home',
       lastActionType: 'SNAPSHOT',
       ball: { position: carrierPos, carrierId: carrier.id },
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+      // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
+      ballZone: computeBallZone(carrierPos),
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === carrier.id) return { ...p, position: carrierPos, shooting: 1 };
         if (p.id === awayGK.id) return { ...p, position: gkPos, saving: 10, handling: 10 };
@@ -337,6 +349,9 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       activeTeam: 'home',
       lastActionType: 'HIGH_PASS',
       ball: { position: { q: 33, r: 13 }, carrierId: null },
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+      // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
+      ballZone: computeBallZone({ q: 33, r: 13 }),
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === homeAttacker.id) return { ...p, position: { q: 33, r: 13 } };
         if (p.id === awayGK.id) return { ...p, position: { q: 5, r: 0 } };
@@ -373,6 +388,9 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       activeTeam: 'home',
       lastActionType: 'HIGH_PASS',
       ball: { position: { q: 33, r: 13 }, carrierId: null },
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+      // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
+      ballZone: computeBallZone({ q: 33, r: 13 }),
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === homeAttacker.id) return { ...p, position: { q: 33, r: 13 }, shooting: 1 };
         if (p.id === awayGK.id)

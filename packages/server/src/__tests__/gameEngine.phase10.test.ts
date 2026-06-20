@@ -121,7 +121,7 @@ const baseState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: 'ATTACKER_4',
-  pendingFreeMove: null,
+  ballZone: 'away', // ball at homeFwd.position {q:32,r:12} — awayThird (q>=26)
   addedTime: null,
   lastActionType: null,
   kickOffTeam: 'home',

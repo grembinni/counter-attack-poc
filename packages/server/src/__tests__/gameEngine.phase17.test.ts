@@ -19,6 +19,7 @@ import {
   applyCancelMovement,
   applyDeclareShot,
   applyFreeMoveEnd,
+  applyFreeMoveZoneCheck,
 } from '../gameEngine.js';
 import { isPitchHex } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
@@ -125,29 +126,12 @@ const baseMovementState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: 'ATTACKER_4',
-  pendingFreeMove: null,
+  ballZone: 'middle', // ball at {q:10,r:7} — middleThird (q in [11,25])
   addedTime: null,
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
-};
-
-/** MOVEMENT state at ATTACKER_2 slot with pendingFreeMove set and homeMID in away third. */
-const attacker2StateWithFreeMove: GameState = {
-  ...baseMovementState,
-  movementSlot: 'ATTACKER_2',
-  pieces: [homeFWD, homeMID, awayGK, awayDEF],
-  pendingFreeMove: { team: 'home', hexesAllowed: 6 },
-};
-
-/** MOVEMENT state at ATTACKER_2 slot with pendingFreeMove but NO eligible pieces in away third. */
-const attacker2StateNoEligible: GameState = {
-  ...baseMovementState,
-  movementSlot: 'ATTACKER_2',
-  // homeFWD at q:10, homeMID repositioned to mid-pitch (NOT in away third q>=26)
-  pieces: [homeFWD, { ...homeMID, position: { q: 15, r: 7 } }, awayGK, awayDEF],
-  pendingFreeMove: { team: 'home', hexesAllowed: 6 },
 };
 
 /** Base PASS-phase state for pass delivery tests. */
@@ -166,7 +150,7 @@ const passState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   addedTime: null,
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
@@ -236,7 +220,7 @@ const highPassMovementStateWithMove: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: { 'home-9': 1 },
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   addedTime: null,
   lastActionType: 'HIGH_PASS',
   kickOffTeam: 'home',
@@ -281,7 +265,7 @@ const shotStateNearGK: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   addedTime: null,
   lastActionType: 'SHOT',
   kickOffTeam: 'home',
@@ -501,73 +485,201 @@ describe('Phase 17 BUG-05: save dropped → GK_RESTART with GK holding ball at G
 });
 
 // ---------------------------------------------------------------------------
-// MOVE-06: FREE_MOVE phase transition in applyEndTurn
+// MOVE-06 (corrected design, D-33..D-38): applyFreeMoveZoneCheck
 // ---------------------------------------------------------------------------
 
-describe('Phase 17 MOVE-06: applyEndTurn FREE_MOVE transition', () => {
-  it('ATTACKER_2 end with pendingFreeMove set and eligible pieces → phase FREE_MOVE', () => {
-    // homeMID is at q:27 (away third, q>=26) → eligible for free move
-    // Wave 0 RED — applyEndTurn currently transitions to PASS regardless of pendingFreeMove
-    const result = applyEndTurn(attacker2StateWithFreeMove);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.phase).toBe('FREE_MOVE');
-    expect(result.state.freeMoveEligibleIds).toBeDefined();
-    expect(result.state.freeMoveEligibleIds).not.toBeNull();
-    expect(result.state.freeMoveEligibleIds).toContain('home-2');
-    expect(result.state.pendingFreeMove).toBeNull();
-  });
+/** PASS-phase state with ball in the middle third — baseline for zone-check tests. */
+const middleZonePassState: GameState = {
+  ...baseMovementState,
+  phase: 'PASS',
+  movementSlot: null,
+  ball: { position: { q: 15, r: 7 }, carrierId: 'home-9' },
+  ballZone: 'middle',
+  pieces: [homeFWD, homeMID, awayGK, awayDEF],
+};
 
-  it('ATTACKER_2 end with pendingFreeMove set but no eligible pieces → phase PASS (skip FREE_MOVE)', () => {
-    // All home outfielders are NOT in the away third (q>=26)
-    // Wave 0 RED — once FREE_MOVE is added, this path should short-circuit to PASS
-    const result = applyEndTurn(attacker2StateNoEligible);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.phase).toBe('PASS');
-    expect(result.state.pendingFreeMove).toBeNull();
-  });
-
-  it('half-end (HALF_TIME) discards a pending free move (Pitfall 3)', () => {
-    // addedTime pre-set (simulates a prior end-turn already having rolled it) so this
-    // end-turn's newActionCount(48) >= halfEnd(45+3=48) triggers HALF_TIME.
-    const halfEndState: GameState = {
-      ...attacker2StateWithFreeMove,
-      actionCount: 45,
-      addedTime: 3,
+describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
+  it('does not trigger when the ball stays in the same zone (no retrigger)', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 29, r: 7 }, carrierId: 'home-2' }, // awayThird
+      ballZone: 'away', // already away — same zone as the new position
     };
-    const result = applyEndTurn(halfEndState);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.phase).toBe('HALF_TIME');
-    expect(result.state.pendingFreeMove).toBeNull();
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('PASS');
+    expect(result.ballZone).toBe('away');
+    expect(result.freeMoveEligibleIds ?? null).toBeNull();
+  });
+
+  it('does not trigger when the new zone is middle', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 18, r: 7 }, carrierId: 'home-9' }, // middleThird
+      ballZone: 'home', // was home, now middle — not a final-third entry
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('PASS');
+    expect(result.ballZone).toBe('middle');
+    expect(result.freeMoveEligibleIds ?? null).toBeNull();
+  });
+
+  it('triggers on a direct home→away jump with no intervening middle action', () => {
+    // home-2 (home-2, attacking team) and away-0 (GK, defending team) both sit in homeThird
+    // (the OPPOSITE third from the ball's new 'away' zone) — both eligible.
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ballZone: 'home', // direct home→away jump
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } },
+        { ...homeMID, position: { q: 5, r: 7 } }, // homeThird — opposite of awayThird
+        { ...awayGK, position: { q: 5, r: 8 } }, // GK in homeThird — also opposite, also eligible (D-34)
+        { ...awayDEF, position: { q: 15, r: 7 } }, // middleThird — not eligible
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('FREE_MOVE_ATTACK');
+    expect(result.ballZone).toBe('away');
+    expect(result.freeMoveResume).toEqual({ phase: 'PASS', activeTeam: 'home' });
+    expect(result.freeMoveEligibleIds).toEqual({ attack: ['home-2'], defense: ['away-0'] });
+    expect(result.freeMoveUsedPace).toEqual({});
+    // D-36: attack sub-phase starts with the attacking team active.
+    expect(result.activeTeam).toBe('home');
+  });
+
+  it('eligibility includes GK and splits by attackingTeam, not by role or crossing piece', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      attackingTeam: 'away', // away is attacking this time
+      ball: { position: { q: 5, r: 7 }, carrierId: null }, // homeThird
+      ballZone: 'middle', // fresh entry into 'home'
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } }, // home team, in awayThird (opposite of homeThird)
+        { ...homeMID, position: { q: 31, r: 8 } }, // home team, also in awayThird
+        { ...awayGK, position: { q: 32, r: 9 } }, // away team GK, in awayThird
+        { ...awayDEF, position: { q: 15, r: 7 } }, // middleThird — not eligible
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    // attack list (away-0) is non-empty → FREE_MOVE_ATTACK starts first (D-35).
+    expect(result.phase).toBe('FREE_MOVE_ATTACK');
+    // home pieces (home-9, home-2) are NOT on attackingTeam ('away') → defense list.
+    // away pieces in the opposite third (away-0, the GK) → attack list (D-34: GK included).
+    expect(result.freeMoveEligibleIds).toEqual({
+      attack: ['away-0'],
+      defense: ['home-9', 'home-2'],
+    });
+    expect(result.activeTeam).toBe('away'); // attackingTeam starts the FREE_MOVE_ATTACK sub-phase
+  });
+
+  it('skips straight to FREE_MOVE_DEFENSE when the attack list is empty', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ballZone: 'home',
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } },
+        { ...homeMID, position: { q: 15, r: 7 } }, // middleThird — NOT in homeThird, not eligible
+        { ...awayGK, position: { q: 5, r: 8 } }, // homeThird — defense-eligible (away is defending)
+        { ...awayDEF, position: { q: 15, r: 7 } },
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('FREE_MOVE_DEFENSE');
+    expect(result.freeMoveEligibleIds).toEqual({ attack: [], defense: ['away-0'] });
+    expect(result.activeTeam).toBe('away'); // the other team since attack list is empty
+  });
+
+  it('stays on the triggering phase with ballZone updated when both lists are empty', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ballZone: 'home',
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } },
+        { ...homeMID, position: { q: 15, r: 7 } }, // middleThird — not eligible
+        { ...awayGK, position: { q: 30, r: 8 } }, // awayThird (same as ball) — not opposite, not eligible
+        { ...awayDEF, position: { q: 15, r: 7 } }, // middleThird — not eligible
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('PASS'); // unchanged — nobody to move
+    expect(result.ballZone).toBe('away');
+    expect(result.freeMoveEligibleIds ?? null).toBeNull();
+  });
+
+  it('does not fire while phase is HALF_TIME (D-37)', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      phase: 'HALF_TIME',
+      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ballZone: 'home',
+      pieces: [homeFWD, { ...homeMID, position: { q: 5, r: 7 } }, awayGK, awayDEF],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result).toBe(state); // returned unchanged
+  });
+
+  it('does not fire while phase is FULL_TIME (D-37)', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      phase: 'FULL_TIME',
+      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ballZone: 'home',
+      pieces: [homeFWD, { ...homeMID, position: { q: 5, r: 7 } }, awayGK, awayDEF],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result).toBe(state); // returned unchanged
+  });
+
+  it('does not re-fire while already in FREE_MOVE_ATTACK or FREE_MOVE_DEFENSE (D-37)', () => {
+    const attackState: GameState = {
+      ...middleZonePassState,
+      phase: 'FREE_MOVE_ATTACK',
+      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ballZone: 'away',
+      freeMoveEligibleIds: { attack: ['home-2'], defense: [] },
+      freeMoveUsedPace: {},
+      freeMoveResume: { phase: 'PASS', activeTeam: 'home' },
+    };
+    expect(applyFreeMoveZoneCheck(attackState)).toBe(attackState);
+
+    const defenseState: GameState = { ...attackState, phase: 'FREE_MOVE_DEFENSE' };
+    expect(applyFreeMoveZoneCheck(defenseState)).toBe(defenseState);
   });
 });
 
 // ---------------------------------------------------------------------------
-// MOVE-06: applyMove FREE_MOVE per-piece move handling
+// MOVE-06 (corrected design): applyMove FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE handling
 // ---------------------------------------------------------------------------
 
-/** FREE_MOVE phase state: home-2 and a second eligible home piece in the away third. */
+/** FREE_MOVE_ATTACK phase state: home-2 and a second eligible home piece in the away third. */
 const homeMID2: PlayerPiece = {
   ...homeMID,
   id: 'home-3',
   position: { q: 28, r: 8 },
 };
 
-const freeMoveState: GameState = {
+const freeMoveAttackState: GameState = {
   ...baseMovementState,
-  phase: 'FREE_MOVE',
+  phase: 'FREE_MOVE_ATTACK',
   movementSlot: null,
   pieces: [homeFWD, homeMID, homeMID2, awayGK, awayDEF],
-  freeMoveEligibleIds: ['home-2', 'home-3'],
+  freeMoveEligibleIds: { attack: ['home-2', 'home-3'], defense: ['away-1'] },
   freeMoveUsedPace: {},
-  pendingFreeMove: null,
+  freeMoveResume: { phase: 'PASS', activeTeam: 'home' },
+  ballZone: 'away',
 };
 
-describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => {
-  it('accepts a single-hex move for an eligible piece and tracks freeMoveUsedPace', () => {
-    const result = applyMove(freeMoveState, 'home-2', { q: 28, r: 7 });
+const freeMoveDefenseState: GameState = {
+  ...freeMoveAttackState,
+  phase: 'FREE_MOVE_DEFENSE',
+  activeTeam: 'away',
+};
+
+describe('Phase 17 MOVE-06 (corrected design): applyMove FREE_MOVE_ATTACK per-piece move handling', () => {
+  it('accepts a single-hex move for an eligible attack piece and tracks freeMoveUsedPace', () => {
+    const result = applyMove(freeMoveAttackState, 'home-2', { q: 28, r: 7 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.freeMoveUsedPace).toEqual({ 'home-2': 1 });
@@ -575,19 +687,28 @@ describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => 
     expect(moved?.position).toEqual({ q: 28, r: 7 });
   });
 
-  it('rejects a move for a piece not in freeMoveEligibleIds', () => {
-    const result = applyMove(freeMoveState, 'home-9', { q: 11, r: 7 });
+  it('rejects a move for a piece not in the attack eligible list', () => {
+    const result = applyMove(freeMoveAttackState, 'home-9', { q: 11, r: 7 });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe('MOVE_INVALID');
     expect(result.detail).toBe('NOT_ELIGIBLE');
   });
 
+  it('rejects a defense-eligible piece while phase is FREE_MOVE_ATTACK', () => {
+    // away-1 is in the defense list, but phase is FREE_MOVE_ATTACK — not its turn yet.
+    const result = applyMove(freeMoveAttackState, 'away-1', { q: 16, r: 7 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('WRONG_TEAM'); // activeTeam is 'home' during FREE_MOVE_ATTACK
+  });
+
   it('rejects a move from the wrong team', () => {
-    const result = applyMove({ ...freeMoveState, freeMoveEligibleIds: ['away-1'] }, 'away-1', {
-      q: 16,
-      r: 7,
-    });
+    const result = applyMove(
+      { ...freeMoveAttackState, freeMoveEligibleIds: { attack: ['away-1'], defense: [] } },
+      'away-1',
+      { q: 16, r: 7 },
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe('WRONG_TEAM');
@@ -595,7 +716,7 @@ describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => 
 
   it('accumulates pace across multiple steps and rejects the 7th cumulative hex', () => {
     const stateWith5Used: GameState = {
-      ...freeMoveState,
+      ...freeMoveAttackState,
       freeMoveUsedPace: { 'home-2': 5 },
     };
     // 6th hex within budget — accepted
@@ -606,7 +727,7 @@ describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => 
 
     // 7th cumulative hex — rejected
     const stateWith6Used: GameState = {
-      ...freeMoveState,
+      ...freeMoveAttackState,
       freeMoveUsedPace: { 'home-2': 6 },
     };
     const rejected = applyMove(stateWith6Used, 'home-2', { q: 28, r: 7 });
@@ -617,7 +738,7 @@ describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => 
   });
 
   it('two different eligible pieces can each move up to 6 hexes independently', () => {
-    const first = applyMove(freeMoveState, 'home-2', { q: 28, r: 7 });
+    const first = applyMove(freeMoveAttackState, 'home-2', { q: 28, r: 7 });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     expect(first.state.freeMoveUsedPace).toEqual({ 'home-2': 1 });
@@ -633,7 +754,7 @@ describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => 
     // awayDEF occupies {q:15, r:7}; homeMID2 at {q:28,r:8} cannot reach that in one hex anyway,
     // so use a piece adjacent to an occupied hex instead.
     const occupiedAdjacentState: GameState = {
-      ...freeMoveState,
+      ...freeMoveAttackState,
       pieces: [homeFWD, { ...homeMID, position: { q: 27, r: 8 } }, homeMID2, awayGK, awayDEF],
     };
     const result = applyMove(occupiedAdjacentState, 'home-2', { q: 28, r: 8 });
@@ -644,17 +765,75 @@ describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => 
   });
 });
 
+describe('Phase 17 MOVE-06 (corrected design): applyMove FREE_MOVE_DEFENSE per-piece move handling', () => {
+  it('accepts a single-hex move for an eligible defense piece', () => {
+    const result = applyMove(freeMoveDefenseState, 'away-1', { q: 16, r: 7 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.freeMoveUsedPace).toEqual({ 'away-1': 1 });
+    const moved = result.state.pieces.find((p) => p.id === 'away-1');
+    expect(moved?.position).toEqual({ q: 16, r: 7 });
+  });
+
+  it('rejects an attack-eligible piece while phase is FREE_MOVE_DEFENSE', () => {
+    // home-2 is in the attack list, not the defense list — and activeTeam is 'away' now.
+    const result = applyMove(freeMoveDefenseState, 'home-2', { q: 28, r: 7 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('WRONG_TEAM');
+  });
+});
+
 // ---------------------------------------------------------------------------
-// MOVE-06: applyFreeMoveEnd
+// MOVE-06 (corrected design): applyFreeMoveEnd dual sub-phase transition
 // ---------------------------------------------------------------------------
 
-describe('Phase 17 MOVE-06: applyFreeMoveEnd', () => {
-  it('returns phase PASS with free-move tracking fields cleared', () => {
-    const result = applyFreeMoveEnd(freeMoveState);
+describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveEnd', () => {
+  it('FREE_MOVE_ATTACK → FREE_MOVE_DEFENSE when the defense list is non-empty', () => {
+    const result = applyFreeMoveEnd(freeMoveAttackState);
     expect(result.ok).toBe(true);
-    expect(result.state.phase).toBe('PASS');
+    expect(result.state.phase).toBe('FREE_MOVE_DEFENSE');
+    expect(result.state.activeTeam).toBe('away'); // attackingTeam is 'home', so defense is 'away'
+    // Eligible ids / used-pace are preserved — defense pieces haven't moved yet.
+    expect(result.state.freeMoveEligibleIds).toEqual({
+      attack: ['home-2', 'home-3'],
+      defense: ['away-1'],
+    });
+  });
+
+  it('FREE_MOVE_ATTACK → resume phase when the defense list is empty', () => {
+    const noDefenseState: GameState = {
+      ...freeMoveAttackState,
+      freeMoveEligibleIds: { attack: ['home-2'], defense: [] },
+    };
+    const result = applyFreeMoveEnd(noDefenseState);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('PASS'); // from freeMoveResume
+    expect(result.state.activeTeam).toBe('home'); // from freeMoveResume
+    expect(result.state.freeMoveResume).toBeNull();
     expect(result.state.freeMoveEligibleIds).toBeNull();
     expect(result.state.freeMoveUsedPace).toBeNull();
+  });
+
+  it('FREE_MOVE_DEFENSE → resume phase always, restoring phase/activeTeam from freeMoveResume', () => {
+    const result = applyFreeMoveEnd(freeMoveDefenseState);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.freeMoveResume).toBeNull();
+    expect(result.state.freeMoveEligibleIds).toBeNull();
+    expect(result.state.freeMoveUsedPace).toBeNull();
+  });
+
+  it('restores a non-PASS resume phase correctly (e.g. HIGH_PASS_MOVE)', () => {
+    const highPassResumeState: GameState = {
+      ...freeMoveDefenseState,
+      freeMoveResume: { phase: 'HIGH_PASS_MOVE', activeTeam: 'away' },
+    };
+    const result = applyFreeMoveEnd(highPassResumeState);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('HIGH_PASS_MOVE');
+    expect(result.state.activeTeam).toBe('away');
   });
 });
 
@@ -692,7 +871,7 @@ const ftpMoveAttackerState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   addedTime: null,
   lastActionType: 'FIRST_TIME_PASS',
   kickOffTeam: 'home',
@@ -1017,7 +1196,7 @@ const looseBallNearEdgeState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'away', // ball at {q:34,r:7} — awayThird (q>=26)
   addedTime: null,
   lastActionType: null,
   kickOffTeam: 'home',

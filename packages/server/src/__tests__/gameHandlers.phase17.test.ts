@@ -229,12 +229,16 @@ describe('Phase 17 BUG-02: game:cancel_movement handler', () => {
 });
 
 // ---------------------------------------------------------------------------
-// MOVE-06: FREE_MOVE phase — GAME_MOVE + GAME_END_TURN wiring (Plan 17-04 Task 3)
+// MOVE-06 (Phase 17, corrected design D-33..D-38): FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
+// phases — GAME_MOVE + GAME_END_TURN wiring
 // ---------------------------------------------------------------------------
 
 /**
- * Seeds a room into FREE_MOVE phase with home active and one eligible home outfielder
- * positioned in the away third (q >= 26).
+ * Seeds a room into FREE_MOVE_ATTACK phase with home attacking/active and one eligible
+ * home outfielder positioned in the away third (q >= 26) — the opposite final third from
+ * the ball, which is seeded at q:27 (awayThird) so ballZone='away' matches the ball
+ * position and broadcastState's applyFreeMoveZoneCheck does not perturb the seeded phase
+ * (D-37: it never re-fires while already in FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE anyway).
  */
 function seedFreeMovePhase(roomCode: string): string {
   const room = getRoom(roomCode);
@@ -245,14 +249,16 @@ function seedFreeMovePhase(roomCode: string): string {
 
   room.gameState = {
     ...room.gameState,
-    phase: 'FREE_MOVE',
+    phase: 'FREE_MOVE_ATTACK',
     attackingTeam: 'home',
     activeTeam: 'home',
     movementSlot: null,
     movedPieceIds: [],
     paceUsedByPieceId: {},
-    pendingFreeMove: null,
-    freeMoveEligibleIds: [homeOutfielder.id],
+    ballZone: 'away',
+    ball: { position: { q: 27, r: 7 }, carrierId: null },
+    freeMoveResume: { phase: 'PASS', activeTeam: 'home' },
+    freeMoveEligibleIds: { attack: [homeOutfielder.id], defense: [] },
     freeMoveUsedPace: {},
     pieces: room.gameState.pieces.map((p) =>
       p.id === homeOutfielder.id ? { ...p, position: { q: 27, r: 7 } } : p,
@@ -261,7 +267,7 @@ function seedFreeMovePhase(roomCode: string): string {
   return homeOutfielder.id;
 }
 
-describe('Phase 17 MOVE-06: FREE_MOVE GAME_MOVE handler', () => {
+describe('Phase 17 MOVE-06 (corrected design): FREE_MOVE_ATTACK GAME_MOVE handler', () => {
   it('accepts a single-hex move for an eligible piece and broadcasts the new position', async () => {
     const { clientA, roomCode } = await setupRoom();
     const eligibleId = seedFreeMovePhase(roomCode);
@@ -270,7 +276,7 @@ describe('Phase 17 MOVE-06: FREE_MOVE GAME_MOVE handler', () => {
     clientA.emit(ClientEvents.GAME_MOVE, eligibleId, { q: 28, r: 7 });
     const [newState] = await statePromise;
 
-    expect(newState.phase).toBe('FREE_MOVE');
+    expect(newState.phase).toBe('FREE_MOVE_ATTACK');
     expect(newState.freeMoveUsedPace?.[eligibleId]).toBe(1);
     const moved = newState.pieces.find((p) => p.id === eligibleId);
     expect(moved?.position).toEqual({ q: 28, r: 7 });
@@ -281,7 +287,8 @@ describe('Phase 17 MOVE-06: FREE_MOVE GAME_MOVE handler', () => {
     seedFreeMovePhase(roomCode);
     const room = getRoom(roomCode);
     const ineligible = room?.gameState?.pieces.find(
-      (p) => p.teamId === 'home' && !(room.gameState!.freeMoveEligibleIds ?? []).includes(p.id),
+      (p) =>
+        p.teamId === 'home' && !(room.gameState!.freeMoveEligibleIds?.attack ?? []).includes(p.id),
     );
     if (!ineligible) throw new Error('No ineligible home piece found for test setup');
 
@@ -295,16 +302,69 @@ describe('Phase 17 MOVE-06: FREE_MOVE GAME_MOVE handler', () => {
   });
 });
 
-describe('Phase 17 MOVE-06: FREE_MOVE GAME_END_TURN handler', () => {
-  it('End Turn transitions FREE_MOVE → PASS and clears free-move tracking fields', async () => {
+describe('Phase 17 MOVE-06 (corrected design): FREE_MOVE_ATTACK GAME_END_TURN handler', () => {
+  it('End Turn transitions FREE_MOVE_ATTACK → FREE_MOVE_DEFENSE when the defense list is non-empty', async () => {
     const { clientA, roomCode } = await setupRoom();
     seedFreeMovePhase(roomCode);
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+    // Seed a defense-eligible away piece too, so End Turn hands off instead of resuming.
+    const awayOutfielder = room.gameState.pieces.find(
+      (p) => p.teamId === 'away' && p.role !== 'GK',
+    );
+    if (!awayOutfielder) throw new Error('No away outfielder found');
+    room.gameState = {
+      ...room.gameState,
+      freeMoveEligibleIds: {
+        attack: room.gameState.freeMoveEligibleIds?.attack ?? [],
+        defense: [awayOutfielder.id],
+      },
+    };
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [newState] = await statePromise;
+
+    expect(newState.phase).toBe('FREE_MOVE_DEFENSE');
+    expect(newState.activeTeam).toBe('away');
+    expect(newState.freeMoveEligibleIds?.defense).toEqual([awayOutfielder.id]);
+  });
+
+  it('End Turn transitions FREE_MOVE_ATTACK → resume phase when the defense list is empty', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedFreeMovePhase(roomCode); // defense list is [] by default
 
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_END_TURN);
     const [newState] = await statePromise;
 
     expect(newState.phase).toBe('PASS');
+    expect(newState.activeTeam).toBe('home');
+    expect(newState.freeMoveEligibleIds).toBeNull();
+    expect(newState.freeMoveUsedPace).toBeNull();
+  });
+});
+
+describe('Phase 17 MOVE-06 (corrected design): FREE_MOVE_DEFENSE GAME_END_TURN handler', () => {
+  it('End Turn transitions FREE_MOVE_DEFENSE → resume phase, restoring phase/activeTeam', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedFreeMovePhase(roomCode);
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room or gameState not found');
+    // FREE_MOVE_DEFENSE: away is the defending team here (home is attacking) — clientB
+    // (slot 2 = away) is the active player for this sub-phase.
+    room.gameState = {
+      ...room.gameState,
+      phase: 'FREE_MOVE_DEFENSE',
+      activeTeam: 'away',
+    };
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_END_TURN);
+    const [newState] = await statePromise;
+
+    expect(newState.phase).toBe('PASS');
+    expect(newState.activeTeam).toBe('home');
     expect(newState.freeMoveEligibleIds).toBeNull();
     expect(newState.freeMoveUsedPace).toBeNull();
   });

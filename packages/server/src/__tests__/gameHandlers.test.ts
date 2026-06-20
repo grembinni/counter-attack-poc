@@ -18,7 +18,7 @@ import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, computeBallZone } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -170,6 +170,10 @@ function seedPassPhase(roomCode: string, carrierId = 'home-1'): void {
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
+    // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
+    // broadcastState's applyFreeMoveZoneCheck does not fire mid-test — this fixture tests
+    // PASS-01/D-10 targetHex validation, not MOVE-06.
+    ballZone: computeBallZone(carrier.position),
   };
 }
 

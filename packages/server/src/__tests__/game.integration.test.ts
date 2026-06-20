@@ -23,7 +23,7 @@ import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, computeBallZone } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle (copied verbatim from room.integration.test.ts)
@@ -449,6 +449,11 @@ describe('game integration — Movement Phase scenarios', () => {
       firstTimePassMovementSlot: 'DEFENDER',
       firstTimePassMovedPieceId: null,
       firstTimePassPaceUsed: 0,
+      // MOVE-06 (Phase 17, corrected design): the ball will land on passTargetHex after
+      // delivery — mark that zone as already current so broadcastState's
+      // applyFreeMoveZoneCheck does not fire mid-test. This fixture tests FTP DEFENDER-slot
+      // delivery (Review-CR-02), not MOVE-06.
+      ballZone: computeBallZone(passTargetHex),
     };
 
     // The defending client is active in the DEFENDER slot — it ends the turn to complete delivery.
@@ -815,6 +820,10 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
           ...room.gameState,
           ball: { position: carrier.position, carrierId },
           kickOffActive: false, // clear kick-off enforcement for this general pass test
+          // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current
+          // so broadcastState's applyFreeMoveZoneCheck does not fire mid-test — this
+          // fixture tests game:roll/PASS-01, not MOVE-06.
+          ballZone: computeBallZone(carrier.position),
         };
       }
     }
@@ -897,6 +906,10 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
       ball: { position: awayGK.position, carrierId: awayGK.id },
       attackingTeam: 'home', // home was attacking before the save
       activeTeam: 'away', // GK team is now relevant
+      // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current
+      // (not freshly entered) so broadcastState's applyFreeMoveZoneCheck does not fire
+      // mid-seed — this fixture tests GK_RESTART, not MOVE-06.
+      ballZone: computeBallZone(awayGK.position),
     };
 
     // clientA = slot 1 = 'home' = non-GK team (home was attacking, away GK caught)

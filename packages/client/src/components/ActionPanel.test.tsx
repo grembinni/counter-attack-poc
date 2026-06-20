@@ -192,35 +192,55 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
   });
 });
 
-describe('ActionPanel — FREE_MOVE panel (Phase 17 MOVE-06)', () => {
-  const freeMoveBaseState = {
+describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MOVE-06, corrected design)', () => {
+  const freeMoveAttackBaseState = {
     ...mockMovementState,
-    phase: 'FREE_MOVE' as const,
+    phase: 'FREE_MOVE_ATTACK' as const,
     activeTeam: 'home' as const,
     lastDiceRoll: null,
-    freeMoveEligibleIds: ['home-9'],
+    freeMoveEligibleIds: { attack: ['home-9'], defense: [] },
     freeMoveUsedPace: {},
   };
 
-  it('active player sees the Free Move helper text and an End Turn button', () => {
+  const freeMoveDefenseBaseState = {
+    ...freeMoveAttackBaseState,
+    phase: 'FREE_MOVE_DEFENSE' as const,
+    activeTeam: 'away' as const,
+    freeMoveEligibleIds: { attack: [], defense: ['away-0'] },
+  };
+
+  it('active player sees the Free Move helper text (attacking team) and an End Turn button', () => {
     useGameStore.setState({
-      gameState: freeMoveBaseState,
+      gameState: freeMoveAttackBaseState,
       playerSlot: 1,
     });
     render(<ActionPanel />);
     expect(screen.getByText('Free Move!')).toBeDefined();
     expect(
-      screen.getByText("Move up to 6 hexes per player in the opponent's third."),
+      screen.getByText(/Attacking team.*move up to 6 hexes per player in the opponent's third\./i),
     ).toBeDefined();
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 
-  it('clicking End Turn calls emitEndTurn', () => {
+  it('active player sees the Free Move helper text (defending team) during FREE_MOVE_DEFENSE', () => {
+    useGameStore.setState({
+      gameState: freeMoveDefenseBaseState,
+      playerSlot: 2, // away is active during FREE_MOVE_DEFENSE here
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(
+      screen.getByText(/Defending team.*move up to 6 hexes per player in the opponent's third\./i),
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+  });
+
+  it('clicking End Turn calls emitEndTurn during FREE_MOVE_ATTACK', () => {
     const emitEndTurn = vi.fn();
     useGameStore.setState({
       emitEndTurn,
-      gameState: freeMoveBaseState,
+      gameState: freeMoveAttackBaseState,
       playerSlot: 1,
     });
     render(<ActionPanel />);
@@ -228,10 +248,20 @@ describe('ActionPanel — FREE_MOVE panel (Phase 17 MOVE-06)', () => {
     expect(emitEndTurn).toHaveBeenCalledOnce();
   });
 
-  it('non-active player sees the waiting panel', () => {
+  it('non-active player sees the waiting panel during FREE_MOVE_ATTACK', () => {
     useGameStore.setState({
-      gameState: freeMoveBaseState,
+      gameState: freeMoveAttackBaseState,
       playerSlot: 2, // away player — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
+  });
+
+  it('non-active player sees the waiting panel during FREE_MOVE_DEFENSE', () => {
+    useGameStore.setState({
+      gameState: freeMoveDefenseBaseState,
+      playerSlot: 1, // home player — away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
     expect(screen.getByText('Waiting for Opponent.')).toBeDefined();

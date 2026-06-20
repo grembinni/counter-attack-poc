@@ -71,7 +71,7 @@ const baseMovementState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: 'ATTACKER_4',
-  pendingFreeMove: null,
+  ballZone: 'middle', // ball at {q:12,r:7} — middleThird (q in [11,25])
   // Phase 8 fields (D-06)
   addedTime: null,
   lastActionType: null,
@@ -244,25 +244,21 @@ describe('applyMove', () => {
     }
   });
 
-  it('sets pendingFreeMove when ball carrier crosses between final thirds (MOVE-06, D-15)', () => {
-    // Place home-9 at q:7 (homeThird) with ball, move to q:8 which is NOT awayThird (q>=17).
-    // To trigger MOVE-06 we need a direct homeThird→awayThird crossing in one step.
-    // Adjacent hexes at boundary: q:7→q:8 crosses homeThird to middleThird, not to awayThird.
-    // Use q:16 (still awayThird boundary is q>=17) — actually homeThird is q<=7 and awayThird is q>=17.
-    // For a single-step crossing we need q:7→q:17 which is 10 steps — not possible in one move.
-    // So MOVE-06 on the placeholder grid cannot trigger in 1 step from homeThird to awayThird.
-    // This test verifies the state machine correctly does NOT set it for a standard midfield move,
-    // and that the free-move condition is architecturally wired (future test with custom fixture).
+  it('applyMove no longer performs its own free-move zone detection (MOVE-06, corrected design)', () => {
+    // Corrected design (D-33..D-38, 2026-06-20 rulebook correction): the ball-zone-triggered
+    // free-move check moved entirely out of applyMove and into the centralized
+    // applyFreeMoveZoneCheck (invoked from broadcastState after every resolved action).
+    // applyMove simply propagates state.ballZone unchanged via spread — it does not read
+    // or write it directly.
     const stateWithBall: GameState = {
       ...baseMovementState,
       ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ballZone: 'middle',
     };
     const result = applyMove(stateWithBall, 'home-9', { q: 11, r: 7 });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      // Moving from q:10 to q:11 — both in homeThird (q<=7)? No, q:10 is middleThird.
-      // Neither homeThird→awayThird cross: pendingFreeMove stays null.
-      expect(result.state.pendingFreeMove).toBeNull();
+      expect(result.state.ballZone).toBe('middle');
     }
   });
 
@@ -565,7 +561,7 @@ const passState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   // Phase 8 fields
   addedTime: null,
   lastActionType: 'MOVEMENT_PHASE', // PASS phase is reached after a movement
@@ -592,7 +588,7 @@ const shotState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   // Phase 8 fields
   addedTime: null,
   lastActionType: 'MOVEMENT_PHASE',
@@ -628,7 +624,7 @@ const headerState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   // Phase 8 fields
   addedTime: null,
   lastActionType: 'HIGH_PASS',
@@ -664,7 +660,7 @@ const looseBallState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   // Phase 8 fields
   addedTime: null,
   lastActionType: null,
@@ -1146,7 +1142,7 @@ const gkRestartState: GameState = {
   movedPieceIds: [],
   paceUsedByPieceId: {},
   movementSlot: null,
-  pendingFreeMove: null,
+  ballZone: 'middle',
   // Phase 8 fields
   addedTime: null,
   lastActionType: 'SHOT',
