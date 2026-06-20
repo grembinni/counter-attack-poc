@@ -40,6 +40,7 @@ import {
   hexLine,
   computeBallZone,
   evaluateOffside,
+  attackingDirection,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
@@ -3331,16 +3332,20 @@ export function applyKickOffReady(
  * OFFSIDE-02: validates an offside free-kick setup placement for one team.
  */
 export type ApplyFreeKickReadyResult =
-  | { ok: false; reason: 'WRONG_PHASE' | 'KICKER_HEX_EMPTY' | 'DEFENDER_TOO_CLOSE' }
+  | {
+      ok: false;
+      reason: 'WRONG_PHASE' | 'KICKER_HEX_EMPTY' | 'DEFENDER_TOO_CLOSE' | 'DEFENDER_BEHIND_BALL';
+    }
   | { ok: true; state: GameState };
 
 /**
  * Validates a team's offside free-kick setup placement.
  *
- * OFFSIDE-02 / D-29 / D-30 / D-31: mirrors `applyKickOffReady`'s shape and guard
+ * OFFSIDE-02 / D-29 / D-30 / D-31 / D-46: mirrors `applyKickOffReady`'s shape and guard
  * sequence, but with the free-kick zone rules instead of the kick-off own-half rule:
- * neither team has an own-half restriction (D-29 — both teams may reposition their
- * entire squad anywhere on the board).
+ * the kicking team has no own-half restriction (D-29 — may reposition their entire
+ * squad anywhere on the board); the defending team is additionally constrained by D-30
+ * and D-46 below.
  *
  * Guard sequence (fail-fast):
  * 1. WRONG_PHASE — phase must be 'FREE_KICK_SETUP'
@@ -3348,6 +3353,10 @@ export type ApplyFreeKickReadyResult =
  *    have exactly one piece on `freeKickHex` (D-31)
  * 3. DEFENDER_TOO_CLOSE — the defending team must have no piece within 2 hexes
  *    (`hexDistance <= 2`) of `freeKickHex` (D-30)
+ * 4. DEFENDER_BEHIND_BALL — the defending team must have no piece strictly behind
+ *    `freeKickHex` in their OWN attacking direction (D-46) — equal-to-or-ahead is legal.
+ *    Being caught offside denies the offending team a chance to retreat into a
+ *    defensive shape; they stay forced up the pitch.
  *
  * Returns `{ok:true, state}` unchanged on success — the handler owns the both-ready
  * transition (mirrors applyKickOffReady).
@@ -3378,9 +3387,15 @@ export function applyFreeKickReady(
     }
   } else {
     // 3. DEFENDER_TOO_CLOSE: defending team must stay >2 hexes from freeKickHex (D-30)
+    // 4. DEFENDER_BEHIND_BALL: defending team must stay equal-to-or-ahead of freeKickHex
+    //    in their own attacking direction (D-46)
+    const dir = attackingDirection(team);
     for (const piece of teamPieces) {
       if (hexDistance(piece.position, freeKickHex) <= 2) {
         return { ok: false, reason: 'DEFENDER_TOO_CLOSE' };
+      }
+      if ((piece.position.q - freeKickHex.q) * dir < 0) {
+        return { ok: false, reason: 'DEFENDER_BEHIND_BALL' };
       }
     }
   }

@@ -519,3 +519,70 @@ describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkp
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// D-45: FREE_KICK_SETUP valid placement hexes must use the light-blue 'kickoff' tint
+// (rgba(59,130,246,1)), not the generic yellow 'safe' tint — and must match server truth
+// (validMoveHexes, already team-restricted by D-46 in useGameStore.ts).
+// ---------------------------------------------------------------------------
+
+const KICKOFF_FILL = 'rgba(59,130,246,1)'; // HIGHLIGHT_STYLES.kickoff fill — see HexCell.tsx
+const SAFE_FILL = 'rgba(245,197,24,1)'; // HIGHLIGHT_STYLES.safe fill — see HexCell.tsx
+
+describe('HexGrid — D-45: FREE_KICK_SETUP valid placement hexes render the kickoff (light-blue) tint', () => {
+  function freeKickSetupState() {
+    return {
+      ...mockMovementState,
+      phase: 'FREE_KICK_SETUP' as const,
+      freeKickHex: { q: 25, r: 13 },
+      freeKickAttackingTeam: 'away' as const,
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(),
+      screen: 'GAME_BOARD',
+      selectedPieceId: 'home-8',
+      // Mirrors what useGameStore.selectPiece would compute for a defending-team piece
+      // (D-30/D-46 already applied) — a hex ahead of and clear of the freeKickHex zone.
+      validMoveHexes: [{ q: 30, r: 13 }],
+      tackleRiskHexes: [],
+      playerSlot: 1,
+      roomCode: 'ABC12',
+      disconnectWarning: false,
+      roomError: null,
+      gameError: null,
+    });
+  });
+
+  it('renders the valid placement hex with the kickoff (light-blue) fill', () => {
+    const { container } = render(<HexGrid />);
+    const { cx, cy } = axialToPixel(30, 13);
+    const hasKickoffFillAtHex = Array.from(container.querySelectorAll('polygon')).some((p) => {
+      if (p.getAttribute('fill') !== KICKOFF_FILL) return false;
+      const points = p.getAttribute('points') ?? '';
+      // hexPolygonPoints centers each polygon's vertices around (cx, cy) — checking that the
+      // polygon's bounding-box center matches confirms it's the hex at (30, 13), not some
+      // other kickoff-tinted hex coincidentally sharing the fill colour.
+      const coords = points
+        .split(' ')
+        .filter(Boolean)
+        .map((pair) => pair.split(',').map(Number));
+      const xs = coords.map((c) => c[0]!);
+      const ys = coords.map((c) => c[1]!);
+      const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+      return Math.abs(centerX - cx) < 0.5 && Math.abs(centerY - cy) < 0.5;
+    });
+    expect(hasKickoffFillAtHex).toBe(true);
+  });
+
+  it('does NOT render any valid placement hex with the generic safe (yellow) fill', () => {
+    const { container } = render(<HexGrid />);
+    const hasSafeFill = Array.from(container.querySelectorAll('polygon')).some(
+      (p) => p.getAttribute('fill') === SAFE_FILL,
+    );
+    expect(hasSafeFill).toBe(false);
+  });
+});

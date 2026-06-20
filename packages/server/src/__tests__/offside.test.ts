@@ -737,9 +737,64 @@ describe('applyFreeKickReady', () => {
   });
 
   it('ok when all defenders are more than 2 hexes from freeKickHex', () => {
-    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 10 } }); // dist 5
+    // q:30 (ahead of freeKickHex.q:25 in home's +q attacking direction, so D-46 doesn't
+    // also reject this) and dist 5 from freeKickHex, clear of the D-30 2-hex zone.
+    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
     const state = freeKickState({ pieces: [defender] });
     const result = applyFreeKickReady(state, 'home');
+    expect(result.ok).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------
+  // D-46: defending team must stay equal-to-or-ahead of the ball (in their own
+  // attacking direction), not just >2 hexes away. freeKickHex: {q:25, r:10};
+  // home attacks toward HIGHER q (dir +1), away attacks toward LOWER q (dir -1).
+  // -------------------------------------------------------------------------
+
+  it('D-46: home defending — DEFENDER_BEHIND_BALL when a home piece is strictly behind freeKickHex (lower q)', () => {
+    // home attacks toward +q, so "behind" = lower q than freeKickHex.q (25).
+    // q:20 is also dist 5 from freeKickHex (>2), so DEFENDER_TOO_CLOSE does not mask this.
+    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 10 } });
+    const state = freeKickState({ pieces: [defender] });
+    const result = applyFreeKickReady(state, 'home');
+    expect(result).toEqual({ ok: false, reason: 'DEFENDER_BEHIND_BALL' });
+  });
+
+  it('D-46: home defending — ok when a home piece is exactly equal-q (and far enough away to clear DEFENDER_TOO_CLOSE)', () => {
+    // Equal q (25) but different r so hexDistance > 2 from {q:25, r:10}.
+    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 16 } });
+    const state = freeKickState({ pieces: [defender] });
+    const result = applyFreeKickReady(state, 'home');
+    expect(result.ok).toBe(true);
+  });
+
+  it('D-46: home defending — ok when a home piece is strictly ahead of freeKickHex (higher q)', () => {
+    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
+    const state = freeKickState({ pieces: [defender] });
+    const result = applyFreeKickReady(state, 'home');
+    expect(result.ok).toBe(true);
+  });
+
+  it('D-46: away defending — DEFENDER_BEHIND_BALL when an away piece is strictly behind freeKickHex (higher q)', () => {
+    // For this fixture group, flip freeKickAttackingTeam to 'home' so away is defending.
+    // away attacks toward -q, so "behind" = higher q than freeKickHex.q (25).
+    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 10 } });
+    const state = freeKickState({ pieces: [defender], freeKickAttackingTeam: 'home' });
+    const result = applyFreeKickReady(state, 'away');
+    expect(result).toEqual({ ok: false, reason: 'DEFENDER_BEHIND_BALL' });
+  });
+
+  it('D-46: away defending — ok when an away piece is exactly equal-q (and far enough away to clear DEFENDER_TOO_CLOSE)', () => {
+    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 16 } });
+    const state = freeKickState({ pieces: [defender], freeKickAttackingTeam: 'home' });
+    const result = applyFreeKickReady(state, 'away');
+    expect(result.ok).toBe(true);
+  });
+
+  it('D-46: away defending — ok when an away piece is strictly ahead of freeKickHex (lower q)', () => {
+    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 20, r: 10 } });
+    const state = freeKickState({ pieces: [defender], freeKickAttackingTeam: 'home' });
+    const result = applyFreeKickReady(state, 'away');
     expect(result.ok).toBe(true);
   });
 });

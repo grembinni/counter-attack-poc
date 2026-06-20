@@ -374,8 +374,12 @@ export function HexGrid() {
               isGKDiveTarget ||
               isShotPath ||
               highPassContestZoneSet.has(hexId);
-            // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex)
-            const isKickoffTint = inMyZone && !isCentreHex;
+            // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex),
+            // OR a valid placement hex during FREE_KICK_SETUP (D-45 — was falling through to
+            // the generic yellow isSafeTint tint; validMoveHexes is already team-restricted
+            // per D-46, so isValidMove here matches server truth for the defending team too).
+            const isKickoffTint =
+              (inMyZone && !isCentreHex) || (phase === 'FREE_KICK_SETUP' && isValidMove);
             // isSafeTint: normal valid-move hexes not classified as goal-line
             const isSafeTint = isHighlighted && !isGoalTint;
             const highlightType: HexHighlightType | undefined = isRisk

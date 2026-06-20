@@ -371,10 +371,12 @@ describe('useGameStore — emit actions', () => {
   });
 });
 
-// OFFSIDE-02 (Phase 17 D-29): both teams may reposition their entire squad ANYWHERE on the
-// board during FREE_KICK_SETUP — mirrors KICK_OFF_SETUP's selectPiece branch but with no
-// own-half zone restriction.
+// OFFSIDE-02 (Phase 17 D-29/D-30/D-46): the KICKING team may reposition their entire squad
+// ANYWHERE on the board during FREE_KICK_SETUP — mirrors KICK_OFF_SETUP's selectPiece branch
+// but with no own-half zone restriction. The DEFENDING team is additionally restricted (D-30
+// 2-hex exclusion zone, D-46 behind-ball exclusion) to match server truth.
 describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
+  // home (slot 1) is DEFENDING in this fixture — freeKickAttackingTeam is 'away'.
   function freeKickSetupState() {
     return {
       ...mockMovementState,
@@ -386,13 +388,13 @@ describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
 
   beforeEach(() => {
     useGameStore.setState({
-      playerSlot: 1, // home
+      playerSlot: 1, // home (defending team in freeKickSetupState)
       selectedPieceId: null,
       validMoveHexes: [],
     });
   });
 
-  it('selecting an own-team piece populates validMoveHexes with pitch hexes (no zone restriction)', () => {
+  it('selecting an own-team (defending) piece populates validMoveHexes (restricted set, still non-empty)', () => {
     useGameStore.setState({ gameState: freeKickSetupState() });
     useGameStore.getState().selectPiece('home-8');
     const state = useGameStore.getState();
@@ -420,5 +422,46 @@ describe('useGameStore — selectPiece FREE_KICK_SETUP', () => {
       (h) => h.q === otherHomePiece.position.q && h.r === otherHomePiece.position.r,
     );
     expect(occupiedHexExcluded).toBe(true);
+  });
+
+  // D-30/D-46: defending team (home, here) must exclude the 2-hex zone around freeKickHex
+  // AND any hex strictly behind it (home attacks toward +q, so "behind" = q < 25).
+  it('D-30/D-46: defending-team piece excludes the 2-hex zone around freeKickHex', () => {
+    useGameStore.setState({ gameState: freeKickSetupState() });
+    useGameStore.getState().selectPiece('home-8');
+    const { validMoveHexes } = useGameStore.getState();
+    // freeKickHex {q:25, r:13} itself and immediate neighbours must be excluded.
+    const withinZoneExcluded = !validMoveHexes.some((h) => h.q === 25 && h.r === 13);
+    expect(withinZoneExcluded).toBe(true);
+  });
+
+  it('D-46: defending-team piece excludes hexes strictly behind freeKickHex (lower q, home attacks toward +q)', () => {
+    useGameStore.setState({ gameState: freeKickSetupState() });
+    useGameStore.getState().selectPiece('home-8');
+    const { validMoveHexes } = useGameStore.getState();
+    const behindBallHexExcluded = !validMoveHexes.some((h) => h.q < 25);
+    expect(behindBallHexExcluded).toBe(true);
+  });
+
+  it('D-46: defending-team piece retains hexes equal-to-or-ahead of freeKickHex (q >= 25), outside the 2-hex zone', () => {
+    useGameStore.setState({ gameState: freeKickSetupState() });
+    useGameStore.getState().selectPiece('home-8');
+    const { validMoveHexes } = useGameStore.getState();
+    // {q: 30, r: 13} is ahead (q>25) and well outside the 2-hex zone — must be legal.
+    expect(validMoveHexes.some((h) => h.q === 30 && h.r === 13)).toBe(true);
+  });
+
+  // D-29: kicking team (away, playerSlot 2 in this same fixture) has NO restriction beyond
+  // own-piece occupancy — regression check against the new defending-team logic above.
+  it('D-29: kicking-team piece valid hexes are unrestricted (regression — includes behind-ball and near-ball hexes)', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(), playerSlot: 2 }); // away = kicking team
+    useGameStore.getState().selectPiece('away-9');
+    const { validMoveHexes, selectedPieceId } = useGameStore.getState();
+    expect(selectedPieceId).toBe('away-9');
+    // A hex within the 2-hex zone (which would be excluded for the defending team) is legal here.
+    expect(validMoveHexes.some((h) => h.q === 25 && h.r === 14)).toBe(true);
+    // A hex "behind" freeKickHex in away's own attacking direction (away attacks toward -q,
+    // so behind = q > 25) is also legal for the kicking team.
+    expect(validMoveHexes.some((h) => h.q === 30 && h.r === 13)).toBe(true);
   });
 });
