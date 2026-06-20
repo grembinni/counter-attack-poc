@@ -246,14 +246,14 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
   });
 });
 
-describe('PieceOverlay — OFFSIDE-01 (D-25): double-width red ring', () => {
-  it('isOffside=true renders exactly one circle with stroke #dc2626 and strokeWidth 5', () => {
+describe('PieceOverlay — OFFSIDE-01 (D-25, ring width corrected by D-42): red ring at a distinct radius', () => {
+  it('isOffside=true renders exactly one circle with stroke #dc2626 and strokeWidth 2.5', () => {
     const { container } = renderPiece(homeOutfield, 'none', true);
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const offsideRings = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
     expect(offsideRings.length).toBe(1);
     expect(offsideRings[0]!.getAttribute('fill')).toBe('none');
-    expect(offsideRings[0]!.getAttribute('stroke-width')).toBe('5');
+    expect(offsideRings[0]!.getAttribute('stroke-width')).toBe('2.5');
   });
 
   it('isOffside=true together with selectionState=active renders BOTH the green active ring AND the red offside ring', () => {

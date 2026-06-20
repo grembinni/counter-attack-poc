@@ -36,8 +36,9 @@ type Props = {
   attackingTeam: 'home' | 'away';
   /**
    * OFFSIDE-01 (D-25): true when this piece's id is in `GameState.offsidePieceIds`.
-   * Renders an additional double-width red ring, independent of `selectionState` —
-   * a piece can be simultaneously offside and selectable/active/activated.
+   * Renders an additional red ring at a distinct radius (normal stroke width, per D-42),
+   * independent of `selectionState` — a piece can be simultaneously offside and
+   * selectable/active/activated.
    */
   isOffside?: boolean;
 };
@@ -47,7 +48,7 @@ type Props = {
  * Colors: driven by TEAM_CONFIGS[TEAM_DEFAULTS[piece.teamId]].primaryColor (D-06 refactor).
  * Jersey patterns: four outfield team patterns (cosmos/xolos/city/crew) + GK checker/stripe (D-08, D-10).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
- * Offside marker: independent double-width red ring layer, driven by `isOffside` (OFFSIDE-01, D-25).
+ * Offside marker: independent red ring layer at a distinct radius, driven by `isOffside` (OFFSIDE-01, D-25; stroke width corrected by D-42).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
 export function PieceOverlay({
@@ -277,9 +278,12 @@ export function PieceOverlay({
           />
         </>
       )}
-      {/* OFFSIDE-01 (D-25): double-width red ring — independent layer, not part of the
-          selectionState switch above. A piece can be simultaneously offside and
-          selectable/active/activated (both rings render). */}
+      {/* OFFSIDE-01 (D-25, ring width corrected by D-42): red ring at a distinct radius —
+          independent layer, not part of the selectionState switch above. A piece can be
+          simultaneously offside and selectable/active/activated (both rings render).
+          D-42: strokeWidth matches the other selection rings' normal width (2.5), not double —
+          the distinct PIECE_RADIUS + 6 radius alone is what keeps this layer visible when
+          stacked with a selection ring. */}
       {isOffside && (
         <circle
           cx={cx}
@@ -287,7 +291,7 @@ export function PieceOverlay({
           r={PIECE_RADIUS + 6}
           fill="none"
           stroke="#dc2626"
-          strokeWidth={5}
+          strokeWidth={2.5}
           pointerEvents="none"
         />
       )}
