@@ -38,6 +38,11 @@
 - [x] **MOVE-06**: Server implements the free 6-hex move rule — after completing a normal action, outfield players in the opponent's final third may each move up to 6 hexes for free; the scaffolded handler in `gameEngine.ts:517` is completed and connected
 - [x] **PASS-02**: During a First-time Pass flight, each team may move one player up to 1 hex. Delivered by Phase 17.1 two-slot FIRST_TIME_PASS_MOVE redesign (Phase 17 plan 17-05 single-step design cancelled/superseded).
 
+## Offside Rule (Addendum — Phase 17)
+
+- [ ] **OFFSIDE-01**: The server detects offside per the three-condition trigger (past the half-field line in the player's team attacking direction, ahead of the ball in that direction, and ≤1 opposing piece — any role, GK included — positioned equal-to-or-ahead of the player) and re-evaluates it at every end-of-phase where pieces can move. The flag is **sticky**: once set on a piece it persists across subsequent end-of-phase checks until that piece ends a turn either equal-to-or-behind the ball OR with ≥2 opposing pieces equal-to-or-ahead. The check applies to **every** piece on the pitch, evaluated relative to that piece's own team attacking direction. A flagged piece renders a double-width red ring around its token, independent of and layered over its selection state.
+- [ ] **OFFSIDE-02**: When a flagged-offside player gains possession of the ball — including winning a header — a free kick is immediately awarded to the team that did NOT commit the offside, taken from the offside player's hex at the moment the foul triggered. Before the kick, both teams may reposition their entire squad anywhere on the board, subject to: the defending team (relative to the kicking team) may not place any piece within 2 hexes of the restart hex, and the kicking team must have exactly one piece on the restart hex. From the free kick the only legal actions are Standard Pass, High Pass, Long Ball, and Shot (Shot only if the kicker is within shooting range).
+
 ## Design Review
 
 - [ ] **DESIGN-01**: All player-facing messages and status text (action panel labels, phase prompts, error messages, log entries) are reviewed for consistency in tone, tense, and terminology; inconsistencies are corrected
@@ -54,28 +59,30 @@
 
 ## Traceability
 
-| REQ-ID    | Phase      | Status   |
-| --------- | ---------- | -------- |
-| TEAM-01   | Phase 15   | Pending  |
-| TEAM-02   | Phase 15   | Complete |
-| TEAM-03   | Phase 15   | Complete |
-| TEAM-04   | Phase 15   | Complete |
-| TEAM-05   | Phase 15   | Complete |
-| TEAM-06   | Phase 15   | Complete |
-| PLAY-01   | Phase 16   | Complete |
-| PLAY-02   | Phase 16   | Complete |
-| PLAY-03   | Phase 16   | Complete |
-| SELECT-01 | Phase 16   | Complete |
-| BUG-01    | Phase 17   | Complete |
-| BUG-02    | Phase 17   | Complete |
-| BUG-03    | Phase 17   | Complete |
-| BUG-04    | Phase 17   | Complete |
-| BUG-05    | Phase 17   | Complete |
-| MOVE-06   | Phase 17   | Complete |
-| PASS-02   | Phase 17.1 | Complete |
-| DESIGN-01 | Phase 18   | Pending  |
-| DESIGN-02 | Phase 18   | Pending  |
-| DESIGN-03 | Phase 18   | Pending  |
-| DESIGN-04 | Phase 18   | Pending  |
-| REPLAY-06 | Phase 18   | Pending  |
-| MATCH-06  | Phase 18   | Pending  |
+| REQ-ID     | Phase      | Status   |
+| ---------- | ---------- | -------- |
+| TEAM-01    | Phase 15   | Pending  |
+| TEAM-02    | Phase 15   | Complete |
+| TEAM-03    | Phase 15   | Complete |
+| TEAM-04    | Phase 15   | Complete |
+| TEAM-05    | Phase 15   | Complete |
+| TEAM-06    | Phase 15   | Complete |
+| PLAY-01    | Phase 16   | Complete |
+| PLAY-02    | Phase 16   | Complete |
+| PLAY-03    | Phase 16   | Complete |
+| SELECT-01  | Phase 16   | Complete |
+| BUG-01     | Phase 17   | Complete |
+| BUG-02     | Phase 17   | Complete |
+| BUG-03     | Phase 17   | Complete |
+| BUG-04     | Phase 17   | Complete |
+| BUG-05     | Phase 17   | Complete |
+| MOVE-06    | Phase 17   | Complete |
+| PASS-02    | Phase 17.1 | Complete |
+| OFFSIDE-01 | Phase 17   | Pending  |
+| OFFSIDE-02 | Phase 17   | Pending  |
+| DESIGN-01  | Phase 18   | Pending  |
+| DESIGN-02  | Phase 18   | Pending  |
+| DESIGN-03  | Phase 18   | Pending  |
+| DESIGN-04  | Phase 18   | Pending  |
+| REPLAY-06  | Phase 18   | Pending  |
+| MATCH-06   | Phase 18   | Pending  |

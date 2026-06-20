@@ -94,7 +94,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 **Goal**: Seven rule-correctness defects (blocking headers, action back controls, pre-header undo, pass pickup/possession, loose ball location, free final-third move, mid-pass movement) are fixed and verified.
 **Depends on**: Nothing (rule fixes are independent of team identity work)
-**Requirements**: BUG-01, BUG-02, BUG-03, BUG-04, BUG-05, MOVE-06, PASS-02
+**Requirements**: BUG-01, BUG-02, BUG-03, BUG-04, BUG-05, MOVE-06, PASS-02, OFFSIDE-01, OFFSIDE-02
 **Success Criteria** (what must be TRUE):
 
 1. The header pass executed by the high pass contest winner is not blockable — no block option is presented during header execution and the server rejects any block attempt; the high pass contest (determining who wins the header) is unchanged
@@ -102,12 +102,15 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 3. Piece moves made before a header is triggered can each be individually undone, restoring the piece's position and remaining pace allowance
 4. A grounded pass that lands on an occupied hex results in ball pickup by that player; if the player belongs to the defending team, possession immediately transfers to them
 5. When a goalkeeper save produces a loose ball, the ball spawns at the goalkeeper's hex; outfield players in an opponent's final third each receive a free move of up to 6 hexes after a normal action; during a first-time pass flight both teams may each move one player up to 1 hex
-   **Plans**: 4 plans
+6. A player is flagged offside (sticky, team-relative, all pieces) when past halfway, ahead of the ball, with ≤1 opposing piece equal-or-ahead, shown by a double-width red ring; a flagged player gaining possession (incl. a won header) awards a free kick to the opposing team from the foul spot, with both teams repositioning (defenders 2+ hexes off the ball, kicker one on the ball) and only Standard/High/Long Pass + in-range Shot legal
+   **Plans**: 6 plans
 
 - [x] 17-01-PLAN.md — Foundation: shared FREE_MOVE phase + GameState fields + GAME_CANCEL_MOVEMENT event + Wave-0 failing tests
 - [x] 17-02-PLAN.md — Engine bug fixes: BUG-01 (header unblockable), BUG-04 (occupied-hex pickup/possession), BUG-05 (loose ball at GK)
 - [x] 17-03-PLAN.md — BUG-02 Cancel in MOVEMENT + BUG-03 Undo in HIGH_PASS_MOVEMENT (engine + handler + ActionPanel)
 - [ ] 17-04-PLAN.md — MOVE-06 FREE_MOVE phase end-to-end (transition, per-piece 6-hex move, handlers, panel)
+- [ ] 17-05-PLAN.md — OFFSIDE-01: shared offside detection helpers + sticky offsidePieceIds + evaluateOffside end-of-phase wiring + double-width red ring marker [Wave 5]
+- [ ] 17-06-PLAN.md — OFFSIDE-02: triggerOffsideFoul + FREE_KICK_SETUP phase/fields + applyFreeKickReady (D-30/D-31) + free-kick handlers + restricted action set [Wave 6]
 
 ### Phase 17.1: Action Flow Cleanup
 
@@ -204,6 +207,6 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete    | 2026-06-12 |
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
-| 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
+| 17. Rule Bugs                 | v1.2      | 3/6            | In Progress |            |
 | 17.1. Action Flow Cleanup     | v1.2      | 16/16          | Complete    | 2026-06-20 |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
