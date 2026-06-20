@@ -58,6 +58,8 @@ export function HexGrid() {
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   // D-02 (Phase 17.1 gap closure, plan 09): steal-risk tint exclusion source
   const stealAttemptedByIds = useGameStore((s) => s.gameState.stealAttemptedByIds);
+  // OFFSIDE-01 (D-25): sticky offside flag source for the PieceOverlay red ring
+  const offsidePieceIds = useGameStore((s) => s.gameState.offsidePieceIds);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -715,6 +717,7 @@ export function HexGrid() {
                 onInspect={() => inspectPiece(piece.id)}
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
+                isOffside={(offsidePieceIds ?? []).includes(piece.id)}
               />
             );
           })}

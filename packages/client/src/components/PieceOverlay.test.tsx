@@ -92,7 +92,7 @@ const awayGK: PlayerPiece = {
 };
 
 /** Helper — renders PieceOverlay inside an <svg> wrapper (required for SVG fragment components) */
-function renderPiece(piece: PlayerPiece, selectionState: SelectionState) {
+function renderPiece(piece: PlayerPiece, selectionState: SelectionState, isOffside = false) {
   return render(
     <svg>
       <PieceOverlay
@@ -102,6 +102,7 @@ function renderPiece(piece: PlayerPiece, selectionState: SelectionState) {
         onInspect={() => undefined}
         carrierId={null}
         attackingTeam="home"
+        isOffside={isOffside}
       />
     </svg>,
   );
@@ -242,5 +243,32 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const paths = container.querySelectorAll('path');
     const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#f97316');
     expect(xPaths.length).toBe(0);
+  });
+});
+
+describe('PieceOverlay — OFFSIDE-01 (D-25): double-width red ring', () => {
+  it('isOffside=true renders exactly one circle with stroke #dc2626 and strokeWidth 5', () => {
+    const { container } = renderPiece(homeOutfield, 'none', true);
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const offsideRings = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
+    expect(offsideRings.length).toBe(1);
+    expect(offsideRings[0]!.getAttribute('fill')).toBe('none');
+    expect(offsideRings[0]!.getAttribute('stroke-width')).toBe('5');
+  });
+
+  it('isOffside=true together with selectionState=active renders BOTH the green active ring AND the red offside ring', () => {
+    const { container } = renderPiece(homeOutfield, 'active', true);
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const greenRing = allCircles.filter((c) => c.getAttribute('stroke') === '#22c55e');
+    const redRing = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
+    expect(greenRing.length).toBe(1);
+    expect(redRing.length).toBe(1);
+  });
+
+  it('isOffside=false (default) renders no red ring', () => {
+    const { container } = renderPiece(homeOutfield, 'none');
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const redRing = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
+    expect(redRing.length).toBe(0);
   });
 });

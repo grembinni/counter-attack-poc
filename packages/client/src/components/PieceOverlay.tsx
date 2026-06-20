@@ -34,6 +34,12 @@ type Props = {
   carrierId: string | null;
   /** Which team is currently attacking — passed from HexGrid for ball possession dot direction (D-16). */
   attackingTeam: 'home' | 'away';
+  /**
+   * OFFSIDE-01 (D-25): true when this piece's id is in `GameState.offsidePieceIds`.
+   * Renders an additional double-width red ring, independent of `selectionState` —
+   * a piece can be simultaneously offside and selectable/active/activated.
+   */
+  isOffside?: boolean;
 };
 
 /**
@@ -41,6 +47,7 @@ type Props = {
  * Colors: driven by TEAM_CONFIGS[TEAM_DEFAULTS[piece.teamId]].primaryColor (D-06 refactor).
  * Jersey patterns: four outfield team patterns (cosmos/xolos/city/crew) + GK checker/stripe (D-08, D-10).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
+ * Offside marker: independent double-width red ring layer, driven by `isOffside` (OFFSIDE-01, D-25).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
 export function PieceOverlay({
@@ -50,6 +57,7 @@ export function PieceOverlay({
   onInspect,
   carrierId,
   attackingTeam,
+  isOffside = false,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
@@ -268,6 +276,20 @@ export function PieceOverlay({
             pointerEvents="none"
           />
         </>
+      )}
+      {/* OFFSIDE-01 (D-25): double-width red ring — independent layer, not part of the
+          selectionState switch above. A piece can be simultaneously offside and
+          selectable/active/activated (both rings render). */}
+      {isOffside && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={PIECE_RADIUS + 6}
+          fill="none"
+          stroke="#dc2626"
+          strokeWidth={5}
+          pointerEvents="none"
+        />
       )}
       {/* Ball carrier indicator — directional soccer ball at 45° toward scoring goal (D-15) */}
       {isBallCarrier && (
