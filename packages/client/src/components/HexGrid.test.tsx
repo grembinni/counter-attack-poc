@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
+import { axialToPixel } from '../utils/hexToPixel.js';
 import { HexGrid } from './HexGrid.js';
 
 vi.mock('../socket.js', () => ({
@@ -324,5 +325,154 @@ describe('HexGrid — CR-01-new: FIRST_TIME_PASS_MOVE piece selection', () => {
     const { selectedPieceId, validMoveHexes } = useGameStore.getState();
     expect(selectedPieceId).toBe(FTP_OWN_PIECE_ID);
     expect(validMoveHexes).toEqual([]);
+  });
+});
+
+// Bug fix (second checkpoint round, this plan): FREE_MOVE_ATTACK/DEFENSE had zero client wiring —
+// no canSelect* branch in HexGrid.tsx and no selectPiece/setGameState branches in useGameStore.ts,
+// so pieces never rendered as clickable/selectable and clicks were a no-op even though the server's
+// trigger/eligibility/sequencing logic was fully correct. These tests cover the HexGrid.tsx piece
+// clickability gating only (selectPiece/setGameState store logic is covered in useGameStore.test.ts).
+const FREE_MOVE_ELIGIBLE_ID = 'home-8'; // home FWD 1, distinct from carrier (home-9)
+const FREE_MOVE_INELIGIBLE_ID = 'home-10'; // home FWD 3 — own team, not in eligible list
+
+function freeMoveState(
+  phaseName: 'FREE_MOVE_ATTACK' | 'FREE_MOVE_DEFENSE',
+  overrides: {
+    eligibleIds?: string[];
+    freeMoveUsedPace?: Record<string, number>;
+  } = {},
+) {
+  const side = phaseName === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
+  const eligibleIds = overrides.eligibleIds ?? [FREE_MOVE_ELIGIBLE_ID];
+  return {
+    ...mockMovementState,
+    phase: phaseName,
+    activeTeam: 'home' as const,
+    attackingTeam: 'home' as const,
+    freeMoveEligibleIds:
+      side === 'attack'
+        ? { attack: eligibleIds, defense: [] }
+        : { attack: [], defense: eligibleIds },
+    freeMoveUsedPace: overrides.freeMoveUsedPace ?? {},
+  };
+}
+
+/**
+ * True if a 'selectable' blue ring is rendered at the piece's pixel center.
+ * Matches on BOTH stroke color (#3b82f6) AND radius (PIECE_RADIUS+2=14, PieceOverlay.tsx)
+ * because the cosmos (home) team's jersey primaryColor is also '#3b82f6' (teamConfig.ts) —
+ * matching stroke color alone would false-positive on every home piece's base circle
+ * (r=PIECE_RADIUS=12), which is a distinct, always-rendered element.
+ */
+function hasSelectableRingAt(container: HTMLElement, q: number, r: number): boolean {
+  const { cx, cy } = axialToPixel(q, r);
+  return Array.from(container.querySelectorAll('circle')).some(
+    (c) =>
+      c.getAttribute('stroke') === '#3b82f6' &&
+      c.getAttribute('r') === '14' &&
+      Number(c.getAttribute('cx')) === cx &&
+      Number(c.getAttribute('cy')) === cy,
+  );
+}
+
+describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkpoint round fix)', () => {
+  it('renders an eligible piece as selectable during FREE_MOVE_ATTACK for the active player', () => {
+    const state = freeMoveState('FREE_MOVE_ATTACK');
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === FREE_MOVE_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      true,
+    );
+  });
+
+  it('renders an eligible piece as selectable during FREE_MOVE_DEFENSE for the active (defending) player', () => {
+    const state = freeMoveState('FREE_MOVE_DEFENSE');
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === FREE_MOVE_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      true,
+    );
+  });
+
+  it('does NOT render a piece NOT in freeMoveEligibleIds as selectable', () => {
+    const state = freeMoveState('FREE_MOVE_ATTACK');
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const ineligiblePiece = state.pieces.find((p) => p.id === FREE_MOVE_INELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(
+      hasSelectableRingAt(container, ineligiblePiece.position.q, ineligiblePiece.position.r),
+    ).toBe(false);
+  });
+
+  it('does NOT render a piece with freeMoveUsedPace >= 6 as selectable (budget exhausted)', () => {
+    const state = freeMoveState('FREE_MOVE_ATTACK', {
+      freeMoveUsedPace: { [FREE_MOVE_ELIGIBLE_ID]: 6 },
+    });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === FREE_MOVE_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      false,
+    );
+  });
+
+  it('does NOT render an opponent piece as selectable during FREE_MOVE_ATTACK even if listed (defense in depth)', () => {
+    // attackingTeam='home' so 'attack' side belongs to home — placing an away piece id in the
+    // attack eligible list should never happen server-side, but HexGrid must still gate on
+    // piece.teamId === myTeam regardless.
+    const state = freeMoveState('FREE_MOVE_ATTACK', { eligibleIds: ['away-9'] });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const awayPiece = state.pieces.find((p) => p.id === 'away-9')!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, awayPiece.position.q, awayPiece.position.r)).toBe(false);
+  });
+
+  it('does NOT render any piece as selectable for the non-active player during FREE_MOVE_ATTACK', () => {
+    const state = freeMoveState('FREE_MOVE_ATTACK');
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2, // away — not the active team (home)
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === FREE_MOVE_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      false,
+    );
   });
 });
