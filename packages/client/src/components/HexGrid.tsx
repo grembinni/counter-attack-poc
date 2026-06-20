@@ -76,6 +76,9 @@ export function HexGrid() {
   const freeKickHex = useGameStore((s) => s.gameState.freeKickHex);
   const freeKickAttackingTeam = useGameStore((s) => s.gameState.freeKickAttackingTeam);
   const freeKickStageIndex = useGameStore((s) => s.gameState.freeKickStageIndex);
+  // D-55 (Free Kick Setup — Round 2 Corrections): pieces already counted toward the
+  // CURRENT free-kick stage's placement cap — drives the green "moved this stage" ring.
+  const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
 
   // Phase 8.2: pass target highlight slices (D-06, D-09)
   const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
@@ -771,6 +774,11 @@ export function HexGrid() {
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
                 isOffside={(offsidePieceIds ?? []).includes(piece.id)}
+                // D-55: green "moved this stage" ring — only during FREE_KICK_SETUP,
+                // for a piece already counted in this stage's freeKickPlacedPieceIds.
+                isMovedThisStage={
+                  phase === 'FREE_KICK_SETUP' && (freeKickPlacedPieceIds ?? []).includes(piece.id)
+                }
               />
             );
           })}

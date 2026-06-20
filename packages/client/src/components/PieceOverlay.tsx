@@ -41,6 +41,19 @@ type Props = {
    * selectable/active/activated.
    */
   isOffside?: boolean;
+  /**
+   * D-55 (Free Kick Setup — Round 2 Corrections): true when this piece's id is in
+   * `GameState.freeKickPlacedPieceIds` — i.e. it has used one of the CURRENT free-kick
+   * stage's placement slots but can still be freely re-positioned for free this stage.
+   * Renders an additional green ring at a distinct radius, independent of
+   * `selectionState`/`isOffside` — mirrors the `isOffside` red-ring pattern (a separate
+   * boolean-driven layer, not folded into the `selectionState` switch) so it can coexist
+   * with `selectable`/`active`/`activated`/`isOffside` simultaneously. Reuses the same
+   * green (#22c55e) as the 'active' selection ring for visual consistency, at a radius
+   * (PIECE_RADIUS + 8) outside every other ring layer so none of them get hidden when
+   * stacked together.
+   */
+  isMovedThisStage?: boolean;
 };
 
 /**
@@ -49,6 +62,8 @@ type Props = {
  * Jersey patterns: four outfield team patterns (cosmos/xolos/city/crew) + GK checker/stripe (D-08, D-10).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Offside marker: independent red ring layer at a distinct radius, driven by `isOffside` (OFFSIDE-01, D-25; stroke width corrected by D-42).
+ * Free-kick "moved this stage" marker: independent green ring layer at a distinct radius,
+ * driven by `isMovedThisStage` (D-55).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
 export function PieceOverlay({
@@ -59,6 +74,7 @@ export function PieceOverlay({
   carrierId,
   attackingTeam,
   isOffside = false,
+  isMovedThisStage = false,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
@@ -291,6 +307,23 @@ export function PieceOverlay({
           r={PIECE_RADIUS + 6}
           fill="none"
           stroke="#dc2626"
+          strokeWidth={2.5}
+          pointerEvents="none"
+        />
+      )}
+      {/* D-55 (Free Kick Setup — Round 2 Corrections): green "moved this stage" ring at a
+          distinct radius (PIECE_RADIUS + 8, outside every other ring layer) — independent
+          layer, not part of the selectionState switch above and not the same thing as
+          selectionState='active'. A piece can be simultaneously moved-this-stage and
+          selectable/active/activated/offside (all applicable rings render together).
+          Reuses the 'active' selection ring's green (#22c55e) for visual consistency. */}
+      {isMovedThisStage && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={PIECE_RADIUS + 8}
+          fill="none"
+          stroke="#22c55e"
           strokeWidth={2.5}
           pointerEvents="none"
         />

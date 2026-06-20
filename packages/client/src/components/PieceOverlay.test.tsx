@@ -92,7 +92,12 @@ const awayGK: PlayerPiece = {
 };
 
 /** Helper — renders PieceOverlay inside an <svg> wrapper (required for SVG fragment components) */
-function renderPiece(piece: PlayerPiece, selectionState: SelectionState, isOffside = false) {
+function renderPiece(
+  piece: PlayerPiece,
+  selectionState: SelectionState,
+  isOffside = false,
+  isMovedThisStage = false,
+) {
   return render(
     <svg>
       <PieceOverlay
@@ -103,6 +108,7 @@ function renderPiece(piece: PlayerPiece, selectionState: SelectionState, isOffsi
         carrierId={null}
         attackingTeam="home"
         isOffside={isOffside}
+        isMovedThisStage={isMovedThisStage}
       />
     </svg>,
   );
@@ -270,5 +276,51 @@ describe('PieceOverlay — OFFSIDE-01 (D-25, ring width corrected by D-42): red 
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const redRing = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
     expect(redRing.length).toBe(0);
+  });
+});
+
+describe('PieceOverlay — D-55: green "moved this stage" ring at a distinct radius', () => {
+  it('isMovedThisStage=true renders a green ring (#22c55e) with strokeWidth 2.5 at radius PIECE_RADIUS+8 (distinct from the selectable/active/activated rings)', () => {
+    const { container } = renderPiece(homeOutfield, 'none', false, true);
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const greenRings = allCircles.filter((c) => c.getAttribute('stroke') === '#22c55e');
+    expect(greenRings.length).toBe(1);
+    expect(greenRings[0]!.getAttribute('fill')).toBe('none');
+    expect(greenRings[0]!.getAttribute('stroke-width')).toBe('2.5');
+    expect(greenRings[0]!.getAttribute('r')).toBe('20'); // PIECE_RADIUS(12) + 8
+  });
+
+  it('isMovedThisStage=false (default) renders no green ring when selectionState is none', () => {
+    const { container } = renderPiece(homeOutfield, 'none');
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const greenRings = allCircles.filter((c) => c.getAttribute('stroke') === '#22c55e');
+    expect(greenRings.length).toBe(0);
+  });
+
+  it('isMovedThisStage=true together with selectionState=active renders BOTH green rings (the active-selection ring AND the moved-this-stage ring) at distinct radii', () => {
+    const { container } = renderPiece(homeOutfield, 'active', false, true);
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const greenRings = allCircles.filter((c) => c.getAttribute('stroke') === '#22c55e');
+    expect(greenRings.length).toBe(2);
+    const radii = greenRings.map((c) => c.getAttribute('r')).sort();
+    expect(radii).toEqual(['16', '20']); // active ring (12+4) and moved-this-stage ring (12+8)
+  });
+
+  it('isMovedThisStage=true together with isOffside=true renders BOTH the green moved-this-stage ring AND the red offside ring simultaneously', () => {
+    const { container } = renderPiece(homeOutfield, 'none', true, true);
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const greenRing = allCircles.filter((c) => c.getAttribute('stroke') === '#22c55e');
+    const redRing = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
+    expect(greenRing.length).toBe(1);
+    expect(redRing.length).toBe(1);
+  });
+
+  it('isMovedThisStage=true together with selectionState=activated renders BOTH the orange activated ring/X AND the green moved-this-stage ring', () => {
+    const { container } = renderPiece(homeOutfield, 'activated', false, true);
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const orangeRing = allCircles.filter((c) => c.getAttribute('stroke') === '#f97316');
+    const greenRing = allCircles.filter((c) => c.getAttribute('stroke') === '#22c55e');
+    expect(orangeRing.length).toBe(1);
+    expect(greenRing.length).toBe(1);
   });
 });

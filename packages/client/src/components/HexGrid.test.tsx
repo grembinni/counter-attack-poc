@@ -629,3 +629,85 @@ describe('HexGrid — D-48: FREE_KICK_SETUP persistent geometric placement-zone 
     expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(true);
   });
 });
+
+/**
+ * True if a green "moved this stage" ring (r=PIECE_RADIUS+8=20, stroke #22c55e, D-55) is
+ * rendered at the piece's pixel center — mirrors hasSelectableRingAt/hasActivatedRingAt's
+ * radius+color matching pattern.
+ */
+function hasMovedThisStageRingAt(container: HTMLElement, q: number, r: number): boolean {
+  const { cx, cy } = axialToPixel(q, r);
+  return Array.from(container.querySelectorAll('circle')).some(
+    (c) =>
+      c.getAttribute('stroke') === '#22c55e' &&
+      c.getAttribute('r') === '20' &&
+      Number(c.getAttribute('cx')) === cx &&
+      Number(c.getAttribute('cy')) === cy,
+  );
+}
+
+describe('HexGrid — D-55: isMovedThisStage wiring from freeKickPlacedPieceIds', () => {
+  function freeKickSetupStateWithPlaced(placedIds: string[]) {
+    return {
+      ...mockMovementState,
+      phase: 'FREE_KICK_SETUP' as const,
+      freeKickHex: { q: 25, r: 13 },
+      freeKickAttackingTeam: 'away' as const,
+      freeKickStageIndex: 0 as const,
+      freeKickPlacedPieceIds: placedIds,
+    };
+  }
+
+  it('renders the green ring for a piece whose id is in freeKickPlacedPieceIds', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupStateWithPlaced(['away-1']),
+      screen: 'GAME_BOARD',
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      playerSlot: 2,
+      roomCode: 'ABC12',
+      disconnectWarning: false,
+      roomError: null,
+      gameError: null,
+    });
+    const { container } = render(<HexGrid />);
+    // away-1 is at {q:32, r:7} per mockMovementState's AWAY_POSITIONS.
+    expect(hasMovedThisStageRingAt(container, 32, 7)).toBe(true);
+  });
+
+  it('does NOT render the green ring for a piece NOT in freeKickPlacedPieceIds', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupStateWithPlaced(['away-1']),
+      screen: 'GAME_BOARD',
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      playerSlot: 2,
+      roomCode: 'ABC12',
+      disconnectWarning: false,
+      roomError: null,
+      gameError: null,
+    });
+    const { container } = render(<HexGrid />);
+    // away-2 is at {q:31, r:10} — not in freeKickPlacedPieceIds.
+    expect(hasMovedThisStageRingAt(container, 31, 10)).toBe(false);
+  });
+
+  it('does NOT render the green ring outside FREE_KICK_SETUP, even if the piece id happens to match', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE' as const },
+      screen: 'GAME_BOARD',
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      playerSlot: 2,
+      roomCode: 'ABC12',
+      disconnectWarning: false,
+      roomError: null,
+      gameError: null,
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasMovedThisStageRingAt(container, 32, 7)).toBe(false);
+  });
+});

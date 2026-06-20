@@ -10,9 +10,9 @@ import styles from './FreeKickSetupPanel.module.css';
  * and constraint rows; the inactive team sees a waiting message (mirrors ActionPanel's
  * `!isActivePlayer` waiting-panel pattern). Returns null when phase !== 'FREE_KICK_SETUP'.
  *
- * Sequence (D-49): stage 0 kicking<=5 -> stage 1 defending<=5 -> stage 2 kicking<=3
- * (kicking team's LAST turn — D-51 kicker-hex check) -> stage 3 defending<=2 (D-50
- * 2-hex check) -> kick taken.
+ * Sequence (D-49/D-54): stage 0 kicking<=5 (MANDATORY kicker-first placement, D-54 —
+ * supersedes D-51's old stage-2-end check) -> stage 1 defending<=5 -> stage 2 kicking<=3
+ * -> stage 3 defending<=2 (D-50 2-hex check) -> kick taken.
  */
 export function FreeKickSetupPanel() {
   const phase = useGameStore((s) => s.gameState.phase);
@@ -22,6 +22,8 @@ export function FreeKickSetupPanel() {
   const freeKickAttackingTeam = useGameStore((s) => s.gameState.freeKickAttackingTeam);
   const freeKickStageIndex = useGameStore((s) => s.gameState.freeKickStageIndex);
   const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
+  // D-54: the kicker locks into movedPieceIds the instant it lands on freeKickHex.
+  const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
   const gameError = useGameStore((s) => s.gameError);
   const emitFreeKickReady = useGameStore((s) => s.emitFreeKickReady);
 
@@ -60,16 +62,18 @@ export function FreeKickSetupPanel() {
     );
   }
 
-  // My pieces — used for the D-50/D-51 constraint preview rows.
+  // My pieces — used for the D-50/D-54 constraint preview rows.
   const myPieces = pieces.filter((p) => p.teamId === myTeam);
 
-  // D-51 (kicking team's LAST turn only — stage index 2): exactly one of my pieces
-  // must be on freeKickHex.
-  const onFreeKickHexCount = myPieces.filter(
-    (p) => p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
-  ).length;
-  const checksKickerHex = isKicking && freeKickStageIndex === 2;
-  const kickerHexValid = checksKickerHex ? onFreeKickHexCount === 1 : true;
+  // D-54 (supersedes D-51): mandatory kicker-first placement — checked on EVERY kicking
+  // stage (0 and 2), not just the old stage-2-only D-51 end-of-stage check. The kicker is
+  // permanently locked into movedPieceIds the instant it lands on freeKickHex (server-side,
+  // applyFreeKickMove), so "kicker placed" is simply "any of my pieces is already locked."
+  // Once locked, this constraint stays satisfied for the rest of free-kick setup — it is
+  // never re-checked against current piece position, since the kicker can never move again.
+  const kickerLocked = isKicking && myPieces.some((p) => movedPieceIds.includes(p.id));
+  const checksKickerPlacement = isKicking;
+  const kickerConstraintValid = checksKickerPlacement ? kickerLocked : true;
 
   // D-50 (defending team's stages — index 1 and 3): no piece within 2 hexes of freeKickHex.
   const tooCloseCount = !isKicking
@@ -77,13 +81,14 @@ export function FreeKickSetupPanel() {
     : 0;
   const defenderZoneValid = !isKicking ? tooCloseCount === 0 : true;
 
-  const constraintsMet = kickerHexValid && defenderZoneValid;
+  const constraintsMet = kickerConstraintValid && defenderZoneValid;
 
-  const disabledTitle = checksKickerHex
-    ? 'Place exactly one player on the free-kick hex before ending your last turn'
-    : !isKicking
-      ? 'Move all players at least 3 hexes from the free-kick hex'
-      : undefined;
+  const disabledTitle =
+    checksKickerPlacement && !kickerLocked
+      ? 'Move one of your players onto the free-kick hex before ending your turn'
+      : !isKicking
+        ? 'Move all players at least 3 hexes from the free-kick hex'
+        : undefined;
 
   const stageLabel = isKicking ? 'Attacking team' : 'Defending team';
   const endButtonLabel = freeKickStageIndex === 3 ? 'Take Kick' : 'End Turn';
@@ -101,14 +106,14 @@ export function FreeKickSetupPanel() {
         turn having placed none, some, or all of your allowance.
       </span>
 
-      {checksKickerHex && (
+      {checksKickerPlacement && (
         <span
           className={styles.constraintRow}
-          style={{ color: kickerHexValid ? '#a0a0a0' : '#ef4444' }}
+          style={{ color: kickerLocked ? '#a0a0a0' : '#ef4444' }}
         >
-          {kickerHexValid
-            ? 'Kicker hex: occupied'
-            : `Kicker hex: ${onFreeKickHexCount === 0 ? 'EMPTY' : 'MULTIPLE PLAYERS'} — required exactly one`}
+          {kickerLocked
+            ? 'Kicker: placed and locked'
+            : 'Kicker: move a player onto the free-kick hex first — required before any other move'}
         </span>
       )}
 

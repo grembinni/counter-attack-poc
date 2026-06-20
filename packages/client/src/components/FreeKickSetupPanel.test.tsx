@@ -122,53 +122,59 @@ describe('FreeKickSetupPanel — placements used/remaining display', () => {
   });
 });
 
-describe('FreeKickSetupPanel — D-51 kicker-hex constraint (stage 2 only, kicking team)', () => {
+describe('FreeKickSetupPanel — D-54 mandatory kicker-first placement (supersedes D-51, checked on EVERY kicking stage)', () => {
   beforeEach(() => {
     useGameStore.setState({ playerSlot: 2 }); // away — kicking team
   });
 
-  it('stage 0 (kicking, not the last turn): End Turn is enabled even with zero pieces on freeKickHex — no D-51 check yet', () => {
-    useGameStore.setState({ gameState: freeKickSetupState(0) });
-    render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
-    expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByText(/kicker hex/i)).toBeNull();
-  });
-
-  it('stage 2 (kicking, LAST kicking turn — button still reads "End Turn", stage 3 is the actual kick): disabled when zero kicking-team pieces are on freeKickHex', () => {
-    useGameStore.setState({ gameState: freeKickSetupState(2) });
+  it('stage 0: End Turn is DISABLED when no kicking-team piece is locked into movedPieceIds yet', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0, { movedPieceIds: [] }) });
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /end turn/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/kicker hex: empty/i)).toBeDefined();
+    expect(screen.getByText(/kicker: move a player onto the free-kick hex first/i)).toBeDefined();
   });
 
-  it('stage 2: End Turn is enabled when exactly one kicking-team piece is on freeKickHex', () => {
+  it('stage 0: End Turn is ENABLED once a kicking-team piece is locked into movedPieceIds (kicker placed)', () => {
     useGameStore.setState({
-      gameState: freeKickSetupState(2, {
-        pieces: mockMovementState.pieces.map((p) =>
-          p.id === 'away-9' ? { ...p, position: FREE_KICK_HEX } : p,
-        ),
-      }),
+      gameState: freeKickSetupState(0, { movedPieceIds: ['away-9'] }),
     });
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /end turn/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByText(/kicker hex: occupied/i)).toBeDefined();
+    expect(screen.getByText(/kicker: placed and locked/i)).toBeDefined();
   });
 
-  it('stage 2: End Turn is disabled when TWO kicking-team pieces are on freeKickHex', () => {
+  it('stage 2 (kicking, second kicking turn): End Turn is ENABLED when the kicker was already locked at stage 0 (carries forward in movedPieceIds)', () => {
     useGameStore.setState({
-      gameState: freeKickSetupState(2, {
-        pieces: mockMovementState.pieces.map((p) =>
-          p.id === 'away-9' || p.id === 'away-8' ? { ...p, position: FREE_KICK_HEX } : p,
-        ),
-      }),
+      gameState: freeKickSetupState(2, { movedPieceIds: ['away-9'] }),
+    });
+    render(<FreeKickSetupPanel />);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByText(/kicker: placed and locked/i)).toBeDefined();
+  });
+
+  it('stage 2: End Turn is DISABLED in the (abnormal) case where movedPieceIds has no kicking-team piece locked', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(2, { movedPieceIds: [] }),
     });
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /end turn/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/multiple players/i)).toBeDefined();
+  });
+
+  it('defending stages (1, 3) never show the kicker constraint row', () => {
+    useGameStore.setState({ playerSlot: 1 }); // home — defending team
+    useGameStore.setState({
+      gameState: freeKickSetupState(1, {
+        pieces: mockMovementState.pieces.map((p) =>
+          p.teamId === 'home' ? { ...p, position: { q: 1, r: 1 } } : p,
+        ),
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    expect(screen.queryByText(/kicker/i)).toBeNull();
   });
 });
 
