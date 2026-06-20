@@ -930,14 +930,17 @@ already locked into `movedPieceIds` (for tests not specifically exercising the k
 flow itself) or to exercise the kicker-placement flow directly (for the new D-54-specific test
 cases) — this is expected fallout from the D-54 behavior change, not a bug.
 
-## Checkpoint Pending (Round 4)
+## Checkpoint Pending (Round 4) — superseded by Round 5's D-57 broadening below
 
 Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a FOURTH time — re-verification
 needed for all five Round-2 corrections:
 
-1. **D-52:** Win a header while offside-flagged and confirm you are dropped straight into
-   `FREE_KICK_SETUP` with no target-choice prompt at all (try this for both a would-be headed
-   pass and a would-be headed shot at goal — both should skip straight to the foul).
+1. **D-52 (SUPERSEDED — see "Free Kick Setup — Round 3 Correction (D-57)" below):** Win a
+   header while offside-flagged and confirm you are dropped straight into `FREE_KICK_SETUP`
+   with no target-choice prompt at all (try this for both a would-be headed pass and a
+   would-be headed shot at goal — both should skip straight to the foul). D-52 only checked
+   the eventual winner; D-57 broadens this to check ANY nominated contestant on either side,
+   before dice are even rolled — see below for the corrected re-verification step.
 2. **D-53:** Trigger an offside foul with a conceding-team piece left standing within 2 hexes of
    the restart spot and confirm it auto-relocates to a random legal hex 3+ away before stage 0
    becomes interactive — no manual walking-out required. Confirm a piece NOT within 2 hexes is
@@ -1003,3 +1006,116 @@ Verification:
 - `pnpm --filter @counter-attack/client test -- --run` — 182 passing ✓
 
 ## Self-Check: PASSED
+
+## Free Kick Setup — Round 3 Correction (D-57 supersedes D-52, gathered/implemented 2026-06-20)
+
+A third live playtest of the D-52 header-offside short-circuit surfaced one more correction:
+D-52 only intercepted the duel when the eventual WINNER was offside-flagged — a contestant who
+was flagged but went on to LOSE (or tie) the duel was missed entirely, since
+`computeHeaderDuelWinner` and the dice roll had already run by the time D-52's check executed.
+User correction: "If header is contested by an offside player go directly to the free kick." It
+is not about who wins — merely CONTESTING a header while offside-flagged is itself the foul,
+regardless of outcome.
+
+### The fix
+
+In `GAME_HEADER_CONTESTANT`'s `bothConfirmed` branch (`gameHandlers.ts`), the offside check now
+runs immediately after `updatedContestants` is built and BEFORE any dice are rolled — before
+`numDice`/`diceArr`/`rollDice()` are even computed, and before `computeHeaderDuelWinner` is
+called. The check scans the FULL combined nominated-contestant list
+(`[...updatedContestants.home, ...updatedContestants.away]`, home's ids first) for any id present
+in `offsidePieceIds`. If found, dice are never rolled and `computeHeaderDuelWinner` is never
+invoked — the foul fires immediately via the existing `applyOffsideFoulWithRelocation` (D-53)
+wrapper, using that contestant's id as the explicit offender. Only when NO nominated contestant
+on either side is flagged does the duel proceed exactly as before (roll dice, resolve
+winner/tie, etc.).
+
+The old post-resolution D-52 check — resolve the winning piece via `resolveHeaderWinnerPiece`,
+then check only that one piece — is removed entirely from `gameHandlers.ts` as dead code: by the
+time a winner could ever be resolved under the new D-57 ordering, every nominated contestant has
+already been confirmed not-flagged, so a winner-only check at that point could never fire.
+`resolveHeaderWinnerPiece` itself is kept (not deleted) since `applyResolveHeaderTarget` still
+depends on it to resolve the winning piece's position for D-06 target-distance validation — only
+its now-unused import in `gameHandlers.ts` was removed. Doc comments that previously cited D-52
+as the rationale for this code path were updated to cite D-57 (in `gameEngine.ts`'s
+`resolveHeaderWinnerPiece` JSDoc and `applyResolveHeaderTarget`'s step-3 comment, and in
+`gameHandlers.ts`'s GAME_HEADER_TARGET defensive-no-op comment).
+
+### Tests
+
+New `D-57: header contested by an offside-flagged player triggers the foul immediately
+(supersedes D-52)` describe block added to `gameHandlers.rule11.test.ts` (the file that already
+held the `RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel` coverage this
+extends), six cases:
+
+- A contestant who would clearly LOSE the duel (lowest `aerialAbility`, with `rollDice` mocked
+  deterministic) but is flagged offside still triggers the foul immediately — the exact case
+  D-52 missed.
+- A contestant on the attacking (home) side being flagged also triggers the foul, with
+  possession correctly awarded to the non-offending team (D-28).
+- No dice are rolled when a flagged contestant is present: `lastDiceRoll` is explicitly seeded
+  to `null` beforehand and asserted to remain `null` after the foul fires, confirming
+  `rollDice()`/`computeHeaderDuelWinner` were never invoked for this contest.
+- The normal (no flagged contestant) WIN path is unchanged — duel resolves, stays in `HEADER`
+  with `headerDuelWinner` set, awaiting target selection (regression check).
+- The normal (no flagged contestant) TIE path is unchanged — resolves to `LOOSE_BALL` with a
+  null carrier (regression check).
+- Multiple flagged contestants (one nominated per side) — confirms the deterministic home-first
+  scan order: the home contestant becomes the offender (foul spot = home's position, possession
+  awarded to away), and the away contestant's flag remains sticky (only the chosen offender is
+  cleared from `offsidePieceIds` per D-26/D-43), without crashing.
+
+One pre-existing-pattern test-fixture note: `seedHeaderReadyForContestants`'s default away
+defender position (`{q:26,r:12}`) sits inside `awayThird`. Since the foul's free-kick spot is
+the offender's position (D-27) and the ball is moved there, two of the new tests reposition the
+flagged piece to a middle-third hex (`{q:20,r:12}`) first — otherwise MOVE-06's independent
+ball-zone-triggered free-move check (`applyFreeMoveZoneCheck`, D-33) would also fire on the same
+state transition (a fresh entry into a final third) and overlay `FREE_MOVE_ATTACK` on top of
+`FREE_KICK_SETUP`, an unrelated interaction these tests aren't exercising.
+
+### Files changed this round
+
+- `packages/server/src/gameHandlers.ts` — `GAME_HEADER_CONTESTANT`'s `bothConfirmed` branch
+  reordered: D-57 offside scan moved before dice rolling; old post-resolution D-52 check
+  removed; unused `resolveHeaderWinnerPiece` import removed; stale D-52 doc comments updated
+  to cite D-57
+- `packages/server/src/gameEngine.ts` — `resolveHeaderWinnerPiece` JSDoc and
+  `applyResolveHeaderTarget`'s step-3 comment updated to describe D-57 instead of D-52
+  (function itself unchanged — still used by `applyResolveHeaderTarget`)
+- `packages/server/src/__tests__/gameHandlers.rule11.test.ts` — new D-57 describe block (6
+  cases)
+
+### Commit
+
+| Commit    | Scope                                                                    |
+| --------- | ------------------------------------------------------------------------ |
+| `7086dff` | feat(17-06): broaden offside header-foul check to D-57 (supersedes D-52) |
+
+### Re-verification after this round
+
+- `pnpm --filter @counter-attack/shared typecheck` — exits 0
+- `pnpm --filter @counter-attack/server typecheck` — exits 0
+- `pnpm --filter @counter-attack/server test -- --run` — 455 passing (1 pre-existing skip, 1
+  pre-existing todo, unrelated), up from 449 (+6 new D-57 cases in `gameHandlers.rule11.test.ts`)
+- Client and shared packages required no source changes for this fix (purely a
+  `gameHandlers.ts`/`gameEngine.ts` server-side reordering) — client typecheck/test were not
+  re-run this round since nothing in `packages/client` or `packages/shared` was touched.
+
+No dev server was started during this session. Only `tsc --noEmit` and `vitest run` commands
+were executed. The orchestrator's production build (server on port 3001, `vite preview` on port 5174) was observed running, untouched, at both the start and end of this session.
+
+## Checkpoint Pending (Round 5)
+
+Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a FIFTH time. Re-verification
+needed for D-57 specifically:
+
+1. **D-57:** Nominate an offside-flagged player as a header contestant — even if you expect
+   them to LOSE the duel — and confirm you are dropped straight into `FREE_KICK_SETUP` with no
+   dice roll and no target-choice prompt, regardless of which side (attacking or defending) the
+   flagged player is on.
+
+All prior outstanding re-verification items (D-53 through D-56, the original OFFSIDE-02
+end-to-end flow, and the Round-1/Round-2 corrections) remain in scope per the Round 4 checklist
+above — D-57 only supersedes item 1 (D-52) from that list, narrowing what needs re-checking for
+the header-offside case specifically; nothing else in that list changed this round. Plan 17-06
+cannot close until this round is approved.
