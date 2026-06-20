@@ -12,10 +12,15 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 **v1.1 shipped 2026-06-12.** Visual overhaul complete: team token stripes, persistent top-band layout with MM:00 clock, unified 5-type hex highlight system, kick off enforcement, and all 5 rule-correctness bugs fixed. 77 automated tests green (35 server rule11, 22 client visual, 15 layout/clock, 5 replay/kickoff). Deployed to Render (v1.0 deployment unchanged).
 
+**Phase 17.1 (Action Flow Cleanup) complete 2026-06-20.** Five re-verification cycles closed the v1.4.1 phase/action model alignment: GamePhase rename, aerial stat consolidation, ZoI exclusion fix, FIRST_TIME_PASS_MOVE repositioning (undo phase-awareness, client selection wiring, interception bypass, undo lock-reset, team-agnostic delivery, self-pass-reclaim exclusion), and GK restart/loose-ball/shot-range fixes — all verified against the live codebase. One non-blocking client UX gap (stale selection across FTP/HP slot hand-off; server remains authoritative, no rule bypass) deferred to a backlog todo rather than a sixth gap-closure cycle.
+
 **Known tech debt:**
 
 - REPLAY-06 live-session ball tracking edge cases deferred (minor; unit test passes)
 - Intermittent timing failures in game.integration.test.ts / kickoffSetup.integration.test.ts (pre-existing, not v1.1 introduced)
+- 4 documented pre-existing test failures in gameEngine.phase17.test.ts / gameHandlers.phase17.test.ts (2 MOVE-06 FREE_MOVE scaffolding gaps, 2 abandoned firstTimePassStep design stubs) — out of Phase 17.1 scope per 17.1-CONTEXT.md
+- Stale client selection on FTP/HP ATTACKER→DEFENDER slot hand-off (UX only, server-side guard intact) — see `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md`
+- HIGH_PASS_MOVE has the same missing repositioning-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (highPassCarrierId is set but never consumed as a GAME_MOVE exclusion) — documented as a deferred parallel finding in 17.1-16-PLAN.md, not yet fixed
 
 ## Requirements
 
@@ -152,4 +157,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-13 after v1.1 milestone close; v1.2 goals defined_
+_Last updated: 2026-06-20 after Phase 17.1 (Action Flow Cleanup) close_
