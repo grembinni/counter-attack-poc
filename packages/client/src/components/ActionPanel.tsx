@@ -410,6 +410,30 @@ export function ActionPanel() {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // FREE_MOVE phase (Phase 17 MOVE-06 D-14): the crossing team's eligible outfield
+  // players each get an independent free 6-hex move. Only the team that crossed
+  // thirds acts here — opponent sees the waiting panel.
+  // -------------------------------------------------------------------------
+  if (phase === 'FREE_MOVE') {
+    if (myTeam === null) return null;
+    if (!isActivePlayer) return waitingPanel;
+    return (
+      <div className={styles.panel}>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Free Move!</span>
+          <span className={styles.helperLine2}>
+            Move up to 6 hexes per player in the opponent&apos;s third.
+          </span>
+        </div>
+        <button className={styles.ctaButton} onClick={emitEndTurn}>
+          End Turn
+        </button>
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
   if (!isActivePlayer) return waitingPanel;
 
   // -------------------------------------------------------------------------

@@ -43,6 +43,7 @@ import {
   applyCancelMovement,
   applyDeclareShot,
   applyEndTurn,
+  applyFreeMoveEnd,
   applyGKDive,
   applyGKKickTarget,
   applyGKRestart,
@@ -559,6 +560,25 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // MOVE-06 (Phase 17 D-13): FREE_MOVE — each eligible piece moves up to 6 hexes
+      // independently. Reuses applyMove's FREE_MOVE branch (gameEngine.ts applyFreeMove).
+      if (room.gameState.phase === 'FREE_MOVE') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const freeMoveResult = applyMove(room.gameState, pieceId, to);
+        if (!freeMoveResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, freeMoveResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = freeMoveResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -1007,6 +1027,19 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           snapshotGkPenalty: null,
           eventLog: [...baseSnapState.eventLog, ...deflectEvents],
         };
+        broadcastState(io, room);
+        return;
+      }
+
+      // MOVE-06 (Phase 17 D-14): FREE_MOVE ends on End Turn — transitions back to PASS.
+      if (room.gameState.phase === 'FREE_MOVE') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const result = applyFreeMoveEnd(room.gameState);
+        room.gameState = result.state;
         broadcastState(io, room);
         return;
       }

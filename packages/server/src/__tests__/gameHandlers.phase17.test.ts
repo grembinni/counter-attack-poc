@@ -227,3 +227,85 @@ describe('Phase 17 BUG-02: game:cancel_movement handler', () => {
     expect(room?.gameState?.phase).toBe('MOVE');
   });
 });
+
+// ---------------------------------------------------------------------------
+// MOVE-06: FREE_MOVE phase — GAME_MOVE + GAME_END_TURN wiring (Plan 17-04 Task 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Seeds a room into FREE_MOVE phase with home active and one eligible home outfielder
+ * positioned in the away third (q >= 26).
+ */
+function seedFreeMovePhase(roomCode: string): string {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const homeOutfielder = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+  if (!homeOutfielder) throw new Error('No home outfielder found');
+
+  room.gameState = {
+    ...room.gameState,
+    phase: 'FREE_MOVE',
+    attackingTeam: 'home',
+    activeTeam: 'home',
+    movementSlot: null,
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    pendingFreeMove: null,
+    freeMoveEligibleIds: [homeOutfielder.id],
+    freeMoveUsedPace: {},
+    pieces: room.gameState.pieces.map((p) =>
+      p.id === homeOutfielder.id ? { ...p, position: { q: 27, r: 7 } } : p,
+    ),
+  };
+  return homeOutfielder.id;
+}
+
+describe('Phase 17 MOVE-06: FREE_MOVE GAME_MOVE handler', () => {
+  it('accepts a single-hex move for an eligible piece and broadcasts the new position', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const eligibleId = seedFreeMovePhase(roomCode);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleId, { q: 28, r: 7 });
+    const [newState] = await statePromise;
+
+    expect(newState.phase).toBe('FREE_MOVE');
+    expect(newState.freeMoveUsedPace?.[eligibleId]).toBe(1);
+    const moved = newState.pieces.find((p) => p.id === eligibleId);
+    expect(moved?.position).toEqual({ q: 28, r: 7 });
+  });
+
+  it('rejects a move for an ineligible piece with GAME_ERROR', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedFreeMovePhase(roomCode);
+    const room = getRoom(roomCode);
+    const ineligible = room?.gameState?.pieces.find(
+      (p) => p.teamId === 'home' && !(room.gameState!.freeMoveEligibleIds ?? []).includes(p.id),
+    );
+    if (!ineligible) throw new Error('No ineligible home piece found for test setup');
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_MOVE, ineligible.id, {
+      q: ineligible.position.q + 1,
+      r: ineligible.position.r,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('MOVE_INVALID');
+  });
+});
+
+describe('Phase 17 MOVE-06: FREE_MOVE GAME_END_TURN handler', () => {
+  it('End Turn transitions FREE_MOVE → PASS and clears free-move tracking fields', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedFreeMovePhase(roomCode);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [newState] = await statePromise;
+
+    expect(newState.phase).toBe('PASS');
+    expect(newState.freeMoveEligibleIds).toBeNull();
+    expect(newState.freeMoveUsedPace).toBeNull();
+  });
+});

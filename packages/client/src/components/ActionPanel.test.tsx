@@ -192,6 +192,53 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
   });
 });
 
+describe('ActionPanel — FREE_MOVE panel (Phase 17 MOVE-06)', () => {
+  const freeMoveBaseState = {
+    ...mockMovementState,
+    phase: 'FREE_MOVE' as const,
+    activeTeam: 'home' as const,
+    lastDiceRoll: null,
+    freeMoveEligibleIds: ['home-9'],
+    freeMoveUsedPace: {},
+  };
+
+  it('active player sees the Free Move helper text and an End Turn button', () => {
+    useGameStore.setState({
+      gameState: freeMoveBaseState,
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(
+      screen.getByText("Move up to 6 hexes per player in the opponent's third."),
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+
+  it('clicking End Turn calls emitEndTurn', () => {
+    const emitEndTurn = vi.fn();
+    useGameStore.setState({
+      emitEndTurn,
+      gameState: freeMoveBaseState,
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(emitEndTurn).toHaveBeenCalledOnce();
+  });
+
+  it('non-active player sees the waiting panel', () => {
+    useGameStore.setState({
+      gameState: freeMoveBaseState,
+      playerSlot: 2, // away player — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
+  });
+});
+
 describe('ActionPanel — PASS phase pass-type selection flow', () => {
   it('shows target-hex prompt and Back button in step 2 (pass type selected, no target)', () => {
     useGameStore.setState({
