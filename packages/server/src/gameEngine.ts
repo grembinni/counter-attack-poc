@@ -253,6 +253,72 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
 }
 
 // ---------------------------------------------------------------------------
+// applyFreeMove
+// ---------------------------------------------------------------------------
+
+/**
+ * Handles a single-step piece move during the MOVE-06 FREE_MOVE phase (Phase 17 D-13).
+ *
+ * Each piece in `state.freeMoveEligibleIds` gets an independent 6-hex allowance —
+ * not a shared pool. A step is rejected if the piece is not eligible, belongs to the
+ * wrong team, isn't a single adjacent hex, lands on an occupied hex, or would push the
+ * piece's cumulative `freeMoveUsedPace` beyond 6. Standard adjacency/occupancy rules
+ * (mirroring MOVEMENT) apply unchanged.
+ */
+function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMoveResult {
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.teamId !== state.activeTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  if (!(state.freeMoveEligibleIds ?? []).includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' };
+  }
+
+  // Standard adjacency/occupancy validation (mirrors MOVEMENT's validateMove checks 2+3).
+  if (hexDistance(piece.position, to) !== 1) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
+  }
+
+  const stepDistance = 1; // single-step adjacency already enforced above
+  const usedSoFar = (state.freeMoveUsedPace ?? {})[pieceId] ?? 0;
+  if (usedSoFar + stepDistance > 6) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'FREE_MOVE_EXHAUSTED' };
+  }
+
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+  const moveEvent: ActionEvent = {
+    type: 'MOVE',
+    pieceId,
+    from: piece.position,
+    to,
+    // FREE_MOVE has no movementSlot (it's not part of the 4-5-2 sequence); ATTACKER_2 is
+    // the closest semantic match (independent per-piece activation, no steal/tackle effects).
+    slot: 'ATTACKER_2',
+    timestamp: Date.now(),
+    ballAfter: state.ball,
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      eventLog: [...state.eventLog, moveEvent],
+      freeMoveUsedPace: {
+        ...(state.freeMoveUsedPace ?? {}),
+        [pieceId]: usedSoFar + stepDistance,
+      },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyMove
 // ---------------------------------------------------------------------------
 
@@ -294,6 +360,13 @@ export function applyMove(
   to: HexCoord,
   dice?: { stealDie: number; tackleDie: number; carrierDie: number },
 ): ApplyMoveResult {
+  // MOVE-06 (Phase 17 D-13): FREE_MOVE phase — each eligible outfield player gets an
+  // independent 6-hex allowance tracked in freeMoveUsedPace. Handled before the
+  // MOVEMENT-only phase guard below since FREE_MOVE has no movementSlot.
+  if (state.phase === 'FREE_MOVE') {
+    return applyFreeMove(state, pieceId, to);
+  }
+
   // 1. Phase guard
   if (state.phase !== 'MOVE' || state.movementSlot === null) {
     return { ok: false, reason: 'WRONG_SLOT' };

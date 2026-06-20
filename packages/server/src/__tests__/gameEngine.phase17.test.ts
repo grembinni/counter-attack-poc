@@ -18,6 +18,7 @@ import {
   applyMove,
   applyCancelMovement,
   applyDeclareShot,
+  applyFreeMoveEnd,
 } from '../gameEngine.js';
 import { isPitchHex } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
@@ -525,6 +526,135 @@ describe('Phase 17 MOVE-06: applyEndTurn FREE_MOVE transition', () => {
     if (!result.ok) return;
     expect(result.state.phase).toBe('PASS');
     expect(result.state.pendingFreeMove).toBeNull();
+  });
+
+  it('half-end (HALF_TIME) discards a pending free move (Pitfall 3)', () => {
+    // addedTime pre-set (simulates a prior end-turn already having rolled it) so this
+    // end-turn's newActionCount(48) >= halfEnd(45+3=48) triggers HALF_TIME.
+    const halfEndState: GameState = {
+      ...attacker2StateWithFreeMove,
+      actionCount: 45,
+      addedTime: 3,
+    };
+    const result = applyEndTurn(halfEndState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HALF_TIME');
+    expect(result.state.pendingFreeMove).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MOVE-06: applyMove FREE_MOVE per-piece move handling
+// ---------------------------------------------------------------------------
+
+/** FREE_MOVE phase state: home-2 and a second eligible home piece in the away third. */
+const homeMID2: PlayerPiece = {
+  ...homeMID,
+  id: 'home-3',
+  position: { q: 28, r: 8 },
+};
+
+const freeMoveState: GameState = {
+  ...baseMovementState,
+  phase: 'FREE_MOVE',
+  movementSlot: null,
+  pieces: [homeFWD, homeMID, homeMID2, awayGK, awayDEF],
+  freeMoveEligibleIds: ['home-2', 'home-3'],
+  freeMoveUsedPace: {},
+  pendingFreeMove: null,
+};
+
+describe('Phase 17 MOVE-06: applyMove FREE_MOVE per-piece move handling', () => {
+  it('accepts a single-hex move for an eligible piece and tracks freeMoveUsedPace', () => {
+    const result = applyMove(freeMoveState, 'home-2', { q: 28, r: 7 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.freeMoveUsedPace).toEqual({ 'home-2': 1 });
+    const moved = result.state.pieces.find((p) => p.id === 'home-2');
+    expect(moved?.position).toEqual({ q: 28, r: 7 });
+  });
+
+  it('rejects a move for a piece not in freeMoveEligibleIds', () => {
+    const result = applyMove(freeMoveState, 'home-9', { q: 11, r: 7 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('MOVE_INVALID');
+    expect(result.detail).toBe('NOT_ELIGIBLE');
+  });
+
+  it('rejects a move from the wrong team', () => {
+    const result = applyMove({ ...freeMoveState, freeMoveEligibleIds: ['away-1'] }, 'away-1', {
+      q: 16,
+      r: 7,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('WRONG_TEAM');
+  });
+
+  it('accumulates pace across multiple steps and rejects the 7th cumulative hex', () => {
+    const stateWith5Used: GameState = {
+      ...freeMoveState,
+      freeMoveUsedPace: { 'home-2': 5 },
+    };
+    // 6th hex within budget — accepted
+    const accepted = applyMove(stateWith5Used, 'home-2', { q: 28, r: 7 });
+    expect(accepted.ok).toBe(true);
+    if (!accepted.ok) return;
+    expect(accepted.state.freeMoveUsedPace).toEqual({ 'home-2': 6 });
+
+    // 7th cumulative hex — rejected
+    const stateWith6Used: GameState = {
+      ...freeMoveState,
+      freeMoveUsedPace: { 'home-2': 6 },
+    };
+    const rejected = applyMove(stateWith6Used, 'home-2', { q: 28, r: 7 });
+    expect(rejected.ok).toBe(false);
+    if (rejected.ok) return;
+    expect(rejected.reason).toBe('MOVE_INVALID');
+    expect(rejected.detail).toBe('FREE_MOVE_EXHAUSTED');
+  });
+
+  it('two different eligible pieces can each move up to 6 hexes independently', () => {
+    const first = applyMove(freeMoveState, 'home-2', { q: 28, r: 7 });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.state.freeMoveUsedPace).toEqual({ 'home-2': 1 });
+
+    const second = applyMove(first.state, 'home-3', { q: 27, r: 8 });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    // home-2's entry preserved; home-3's entry added independently
+    expect(second.state.freeMoveUsedPace).toEqual({ 'home-2': 1, 'home-3': 1 });
+  });
+
+  it('rejects a move onto an occupied hex', () => {
+    // awayDEF occupies {q:15, r:7}; homeMID2 at {q:28,r:8} cannot reach that in one hex anyway,
+    // so use a piece adjacent to an occupied hex instead.
+    const occupiedAdjacentState: GameState = {
+      ...freeMoveState,
+      pieces: [homeFWD, { ...homeMID, position: { q: 27, r: 8 } }, homeMID2, awayGK, awayDEF],
+    };
+    const result = applyMove(occupiedAdjacentState, 'home-2', { q: 28, r: 8 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('MOVE_INVALID');
+    expect(result.detail).toBe('OCCUPIED');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MOVE-06: applyFreeMoveEnd
+// ---------------------------------------------------------------------------
+
+describe('Phase 17 MOVE-06: applyFreeMoveEnd', () => {
+  it('returns phase PASS with free-move tracking fields cleared', () => {
+    const result = applyFreeMoveEnd(freeMoveState);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.freeMoveEligibleIds).toBeNull();
+    expect(result.state.freeMoveUsedPace).toBeNull();
   });
 });
 
