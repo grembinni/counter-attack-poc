@@ -285,6 +285,13 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
   if (!eligibleIds.includes(pieceId)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' };
   }
+  // Already activated this sub-phase (exhausted its 6 hexes, or abandoned when the player
+  // switched to a different piece) — mirrors regular MOVEMENT's movedPieceIds lock (UX-parity
+  // fix: previously-active free-move pieces never showed the "activated" state or became
+  // unselectable like they do in regular MOVEMENT).
+  if (state.movedPieceIds.includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'FREE_MOVE_EXHAUSTED' };
+  }
 
   // Standard adjacency/occupancy validation (mirrors MOVEMENT's validateMove checks 2+3).
   if (hexDistance(piece.position, to) !== 1) {
@@ -299,6 +306,23 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
   if (usedSoFar + stepDistance > 6) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'FREE_MOVE_EXHAUSTED' };
   }
+
+  const newUsed = usedSoFar + stepDistance;
+  const paceExhausted = newUsed >= 6;
+  // Mirrors regular MOVEMENT's abandonment rule (see applyMove's paceUsedByPieceId handling
+  // above): starting a brand-new activation on this piece (usedSoFar === 0) abandons any
+  // OTHER piece that has an in-progress, unfinished free-move activation (has a
+  // freeMoveUsedPace entry but isn't yet in movedPieceIds) — the player chose to move on, so
+  // the previous unit is locked in as activated even though it didn't use its full 6 hexes.
+  const isNewActivation = usedSoFar === 0;
+  const abandonedIds = isNewActivation
+    ? Object.keys(state.freeMoveUsedPace ?? {}).filter(
+        (id) => id !== pieceId && !state.movedPieceIds.includes(id),
+      )
+    : [];
+  const newMovedPieceIds = new Set(state.movedPieceIds);
+  for (const id of abandonedIds) newMovedPieceIds.add(id);
+  if (paceExhausted) newMovedPieceIds.add(pieceId);
 
   const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
   const moveEvent: ActionEvent = {
@@ -321,8 +345,9 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
       eventLog: [...state.eventLog, moveEvent],
       freeMoveUsedPace: {
         ...(state.freeMoveUsedPace ?? {}),
-        [pieceId]: usedSoFar + stepDistance,
+        [pieceId]: newUsed,
       },
+      movedPieceIds: [...newMovedPieceIds],
     },
   };
 }
@@ -872,6 +897,9 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
           ...state,
           phase: 'FREE_MOVE_DEFENSE',
           activeTeam: state.attackingTeam === 'home' ? 'away' : 'home',
+          // Defending team's sub-phase starts fresh, independent of which attacking pieces
+          // were activated/abandoned during FREE_MOVE_ATTACK (UX-parity fix).
+          movedPieceIds: [],
         },
       };
     }
@@ -885,6 +913,9 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
         freeMoveResume: null,
         freeMoveEligibleIds: null,
         freeMoveUsedPace: null,
+        // Resumed phase is always a fresh phase boundary — must not inherit free-move
+        // activation bookkeeping (UX-parity fix).
+        movedPieceIds: [],
       },
     };
   }
@@ -899,6 +930,9 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
       freeMoveResume: null,
       freeMoveEligibleIds: null,
       freeMoveUsedPace: null,
+      // Resumed phase is always a fresh phase boundary — must not inherit free-move
+      // activation bookkeeping (UX-parity fix).
+      movedPieceIds: [],
     },
   };
 }
@@ -968,6 +1002,11 @@ export function applyFreeMoveZoneCheck(state: GameState): GameState {
       attackIds.length > 0 ? state.attackingTeam : state.attackingTeam === 'home' ? 'away' : 'home',
     freeMoveEligibleIds: { attack: attackIds, defense: defenseIds },
     freeMoveUsedPace: {},
+    // Fresh sub-phase boundary — must not inherit stale movedPieceIds from whatever phase/
+    // action preceded this trigger (UX-parity fix latent-bug closure: without this reset, a
+    // piece left in movedPieceIds from the prior phase would be incorrectly locked out of
+    // FREE_MOVE_ATTACK/DEFENSE from the start).
+    movedPieceIds: [],
   };
 }
 

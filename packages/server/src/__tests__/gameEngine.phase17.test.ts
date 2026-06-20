@@ -632,6 +632,26 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     expect(result).toBe(state); // returned unchanged
   });
 
+  it('resets movedPieceIds to [] on the trigger-fire transition (UX-parity fix)', () => {
+    // Seed a stale, non-empty movedPieceIds from whatever phase/action preceded this trigger —
+    // it must not leak into the fresh FREE_MOVE_ATTACK/DEFENSE sub-phase.
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ballZone: 'home', // direct home→away jump
+      movedPieceIds: ['home-9', 'away-1'], // stale from a prior phase
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } },
+        { ...homeMID, position: { q: 5, r: 7 } }, // homeThird — eligible
+        { ...awayGK, position: { q: 5, r: 8 } }, // homeThird — eligible
+        { ...awayDEF, position: { q: 15, r: 7 } },
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('FREE_MOVE_ATTACK');
+    expect(result.movedPieceIds).toEqual([]);
+  });
+
   it('does not re-fire while already in FREE_MOVE_ATTACK or FREE_MOVE_DEFENSE (D-37)', () => {
     const attackState: GameState = {
       ...middleZonePassState,
@@ -763,6 +783,50 @@ describe('Phase 17 MOVE-06 (corrected design): applyMove FREE_MOVE_ATTACK per-pi
     expect(result.reason).toBe('MOVE_INVALID');
     expect(result.detail).toBe('OCCUPIED');
   });
+
+  // UX-parity fix: activated/abandoned-piece tracking for FREE_MOVE (reuses movedPieceIds,
+  // mirrors regular MOVEMENT's exhaustion+abandonment rule in applyMove).
+  it('abandons a partially-moved piece (movedPieceIds) when a different eligible piece starts moving', () => {
+    // home-2 moves 2 of its 6 hexes (still has budget remaining)...
+    const stateWith2Used: GameState = {
+      ...freeMoveAttackState,
+      freeMoveUsedPace: { 'home-2': 2 },
+    };
+    // ...then the player switches to home-3 (a brand-new activation: usedSoFar === 0)
+    const result = applyMove(stateWith2Used, 'home-3', { q: 27, r: 8 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // home-2 is abandoned (locked in as activated) even though it only used 2 of 6 hexes.
+    expect(result.state.movedPieceIds).toContain('home-2');
+    // home-3 has just started its own activation — not yet in movedPieceIds.
+    expect(result.state.movedPieceIds).not.toContain('home-3');
+    expect(result.state.freeMoveUsedPace).toEqual({ 'home-2': 2, 'home-3': 1 });
+  });
+
+  it('adds a piece to movedPieceIds directly when it exhausts its own 6th hex', () => {
+    const stateWith5Used: GameState = {
+      ...freeMoveAttackState,
+      freeMoveUsedPace: { 'home-2': 5 },
+    };
+    const result = applyMove(stateWith5Used, 'home-2', { q: 28, r: 7 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.freeMoveUsedPace).toEqual({ 'home-2': 6 });
+    expect(result.state.movedPieceIds).toContain('home-2');
+  });
+
+  it('rejects a move for a piece already in movedPieceIds even if its freeMoveUsedPace is under 6', () => {
+    const alreadyActivatedState: GameState = {
+      ...freeMoveAttackState,
+      freeMoveUsedPace: { 'home-2': 2 }, // under 6 — would otherwise be allowed
+      movedPieceIds: ['home-2'], // abandoned earlier
+    };
+    const result = applyMove(alreadyActivatedState, 'home-2', { q: 28, r: 7 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('MOVE_INVALID');
+    expect(result.detail).toBe('FREE_MOVE_EXHAUSTED');
+  });
 });
 
 describe('Phase 17 MOVE-06 (corrected design): applyMove FREE_MOVE_DEFENSE per-piece move handling', () => {
@@ -801,6 +865,19 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveEnd', () => {
     });
   });
 
+  it('FREE_MOVE_ATTACK → FREE_MOVE_DEFENSE resets movedPieceIds to [] (UX-parity fix)', () => {
+    // Seed attack-side activations present to prove the reset — defending team's sub-phase
+    // must start fresh, independent of which attacking pieces were activated/abandoned.
+    const stateWithAttackActivations: GameState = {
+      ...freeMoveAttackState,
+      movedPieceIds: ['home-2', 'home-3'],
+    };
+    const result = applyFreeMoveEnd(stateWithAttackActivations);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('FREE_MOVE_DEFENSE');
+    expect(result.state.movedPieceIds).toEqual([]);
+  });
+
   it('FREE_MOVE_ATTACK → resume phase when the defense list is empty', () => {
     const noDefenseState: GameState = {
       ...freeMoveAttackState,
@@ -815,6 +892,18 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveEnd', () => {
     expect(result.state.freeMoveUsedPace).toBeNull();
   });
 
+  it('FREE_MOVE_ATTACK → resume phase (empty defense list) resets movedPieceIds to [] (UX-parity fix)', () => {
+    const noDefenseStateWithActivations: GameState = {
+      ...freeMoveAttackState,
+      freeMoveEligibleIds: { attack: ['home-2'], defense: [] },
+      movedPieceIds: ['home-2'],
+    };
+    const result = applyFreeMoveEnd(noDefenseStateWithActivations);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.movedPieceIds).toEqual([]);
+  });
+
   it('FREE_MOVE_DEFENSE → resume phase always, restoring phase/activeTeam from freeMoveResume', () => {
     const result = applyFreeMoveEnd(freeMoveDefenseState);
     expect(result.ok).toBe(true);
@@ -823,6 +912,17 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveEnd', () => {
     expect(result.state.freeMoveResume).toBeNull();
     expect(result.state.freeMoveEligibleIds).toBeNull();
     expect(result.state.freeMoveUsedPace).toBeNull();
+  });
+
+  it('FREE_MOVE_DEFENSE → resume phase resets movedPieceIds to [] (UX-parity fix)', () => {
+    const defenseStateWithActivations: GameState = {
+      ...freeMoveDefenseState,
+      movedPieceIds: ['away-1'],
+    };
+    const result = applyFreeMoveEnd(defenseStateWithActivations);
+    expect(result.ok).toBe(true);
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.movedPieceIds).toEqual([]);
   });
 
   it('restores a non-PASS resume phase correctly (e.g. HIGH_PASS_MOVE)', () => {
