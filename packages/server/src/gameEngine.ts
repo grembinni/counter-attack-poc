@@ -2860,12 +2860,14 @@ export function computeHeaderDuelWinner(state: GameState, dice: number[]): 'home
 }
 
 /**
- * D-52: resolves the actual winning PIECE for a header duel, given the winning team.
- * Extracted from applyResolveHeaderTarget's steps 3 so the same "highest aerialAbility
- * among that team's nominated contestants" resolution algorithm can be reused by the
- * GAME_HEADER_CONTESTANT handler (which needs to know the winning piece's id BEFORE
- * the target-selection step is ever entered, to short-circuit straight to the offside
- * foul when that piece is flagged — see D-52) without duplicating the logic.
+ * Resolves the actual winning PIECE for a header duel, given the winning team.
+ * Extracted from applyResolveHeaderTarget's step 3 as a standalone, reusable resolution
+ * algorithm (originally shared with a pre-resolution offside short-circuit in the
+ * GAME_HEADER_CONTESTANT handler under D-52 — since superseded by D-57, which checks
+ * ALL nominated contestants for an offside flag BEFORE the duel is even resolved, so a
+ * winner-only check here is no longer needed for that purpose. Kept as its own function
+ * since applyResolveHeaderTarget still needs it to resolve the winning piece for target
+ * validation, D-06).
  *
  * Mirrors `pickWinner` in `computeHeaderDuelWinner` — picks the highest-`aerialAbility`
  * contestant nominated by `winnerTeam`, not index [0] (which would ignore intra-team
@@ -2938,8 +2940,7 @@ export function applyResolveHeaderTarget(
 
   const winnerTeam = state.headerDuelWinner;
 
-  // 3. Resolve the winning contestant's piece (D-04) — shared with the D-52 pre-check
-  // in the GAME_HEADER_CONTESTANT handler via resolveHeaderWinnerPiece.
+  // 3. Resolve the winning contestant's piece (D-04) via resolveHeaderWinnerPiece.
   const resolvedWinner = resolveHeaderWinnerPiece(state, winnerTeam);
 
   const referencePosition = resolvedWinner?.position ?? state.ball.position;

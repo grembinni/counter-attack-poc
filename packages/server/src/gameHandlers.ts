@@ -63,7 +63,6 @@ import {
   buildReplayFrames,
   computeHeaderDuelWinner,
   computeShotPathDeflection,
-  resolveHeaderWinnerPiece,
   applyOffsideFoulWithRelocation,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
@@ -2418,10 +2417,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // OFFSIDE-02 (D-26): header-win resolution success path — applyResolveHeaderTarget
       // always assigns the winning contestant as the new ball carrier (both its GK_DIVE
       // and PASS/headed-pass branches), so this single insertion point catches an offside
-      // header winner. No-op when the winner isn't flagged offside. D-52 note: an offside
-      // duel winner is now intercepted earlier, in GAME_HEADER_CONTESTANT, before this
-      // target-selection step is ever reached — this call remains as a defensive no-op
-      // safety net for any other path that could reach here with an offside carrier.
+      // header winner. No-op when the winner isn't flagged offside. D-57 note: any
+      // offside-flagged contestant (winner or not) is now intercepted earlier, in
+      // GAME_HEADER_CONTESTANT, before dice are even rolled — this target-selection step
+      // is never reached when an offside contestant was nominated. This call remains as a
+      // defensive no-op safety net for any other path that could reach here with an
+      // offside carrier.
       // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
       room.gameState = applyOffsideFoulWithRelocation(room.gameState);
       broadcastState(io, room); // ARCH-04
@@ -2498,39 +2499,50 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // applyRoll is used for that case only, to resolve directly to LOOSE_BALL.
       const bothConfirmed = updatedConfirmed.home === true && updatedConfirmed.away === true;
       if (bothConfirmed) {
-        const atkTeam = room.gameState.attackingTeam;
-        const atkCount = updatedContestants[atkTeam]?.length ?? 0;
-        const defTeam: 'home' | 'away' = atkTeam === 'home' ? 'away' : 'home';
-        const defCount = updatedContestants[defTeam]?.length ?? 0;
-        // dice layout: [atk_0..atkN, def_0..defN, atkTieDie, defTieDie]
-        const numDice = Math.max(atkCount + defCount + 2, 2);
-        const diceArr = Array.from({ length: numDice }, () => rollDice());
-        const winner = computeHeaderDuelWinner(room.gameState, diceArr);
-        if (winner === null) {
-          // Tie: no winner to choose a target hex — resolve directly via applyRoll (LOOSE_BALL).
-          const result = applyRoll(room.gameState, ...diceArr);
-          if (result.ok) {
-            room.gameState = result.state;
-          }
-          // applyRoll !ok is not expected here (phase is HEADER, contestants are set);
-          // if it somehow fails, state is left in HEADER with contestants confirmed so the
-          // client can retry via GAME_ROLL (existing fallback path).
+        // D-57 (Free Kick Setup — Round 2 Corrections, supersedes D-52): the foul check
+        // happens HERE, before any dice are rolled and before computeHeaderDuelWinner is
+        // ever called — not after the duel resolves. Merely CONTESTING a header while
+        // offside-flagged is itself the foul, regardless of who would have won, lost, or
+        // tied. Scan the FULL combined nominated-contestant list (home's ids, then away's,
+        // in nomination order — the documented deterministic tiebreak for the rare case of
+        // multiple flagged nominees) for any id present in offsidePieceIds. If found, skip
+        // rolling dice and skip computeHeaderDuelWinner/the win/tie branches entirely —
+        // fire the foul immediately via applyOffsideFoulWithRelocation (D-53) using that
+        // contestant's id. Only if NO nominated contestant on either side is flagged does
+        // the duel proceed normally (roll dice, resolve winner/tie, etc. — unchanged).
+        const allNominatedIds = [
+          ...(updatedContestants.home ?? []),
+          ...(updatedContestants.away ?? []),
+        ];
+        const offsideIds = room.gameState.offsidePieceIds ?? [];
+        const flaggedContestantId = allNominatedIds.find((id) => offsideIds.includes(id));
+
+        if (flaggedContestantId !== undefined) {
+          // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
+          room.gameState = applyOffsideFoulWithRelocation(room.gameState, flaggedContestantId);
         } else {
-          // D-52 (Free Kick Setup — Round 2 Corrections): if the resolved winning PIECE
-          // is already flagged offside, skip the target-selection step entirely — there
-          // is no "choose where to head it" UI for an offside winner; winning the duel
-          // while flagged IS the foul. Resolve the winning piece using the same
-          // highest-aerialAbility-among-nominated-contestants algorithm
-          // applyResolveHeaderTarget uses (extracted as resolveHeaderWinnerPiece so both
-          // call sites share one resolution path), then fire the foul immediately and
-          // transition straight to FREE_KICK_SETUP instead of storing headerDuelWinner.
-          const winnerPiece = resolveHeaderWinnerPiece(room.gameState, winner);
-          if (winnerPiece && (room.gameState.offsidePieceIds ?? []).includes(winnerPiece.id)) {
-            // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
-            room.gameState = applyOffsideFoulWithRelocation(room.gameState, winnerPiece.id);
+          const atkTeam = room.gameState.attackingTeam;
+          const atkCount = updatedContestants[atkTeam]?.length ?? 0;
+          const defTeam: 'home' | 'away' = atkTeam === 'home' ? 'away' : 'home';
+          const defCount = updatedContestants[defTeam]?.length ?? 0;
+          // dice layout: [atk_0..atkN, def_0..defN, atkTieDie, defTieDie]
+          const numDice = Math.max(atkCount + defCount + 2, 2);
+          const diceArr = Array.from({ length: numDice }, () => rollDice());
+          const winner = computeHeaderDuelWinner(room.gameState, diceArr);
+          if (winner === null) {
+            // Tie: no winner to choose a target hex — resolve directly via applyRoll (LOOSE_BALL).
+            const result = applyRoll(room.gameState, ...diceArr);
+            if (result.ok) {
+              room.gameState = result.state;
+            }
+            // applyRoll !ok is not expected here (phase is HEADER, contestants are set);
+            // if it somehow fails, state is left in HEADER with contestants confirmed so the
+            // client can retry via GAME_ROLL (existing fallback path).
           } else {
             // Winner determined: stay in HEADER, store headerDuelWinner so the winning team
-            // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget).
+            // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget). No
+            // offside check needed here — every nominated contestant was already confirmed
+            // not-flagged by the D-57 check above, so the resolved winner can't be flagged.
             room.gameState = {
               ...room.gameState,
               headerDuelWinner: winner,

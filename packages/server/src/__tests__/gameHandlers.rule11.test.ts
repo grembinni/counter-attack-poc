@@ -370,6 +370,228 @@ describe('RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel', (
 });
 
 // ---------------------------------------------------------------------------
+// D-57: header CONTESTED by an offside player goes directly to the free kick
+// (supersedes D-52 — broader trigger: ANY nominated contestant, not just the
+// eventual winner, and checked BEFORE dice are rolled / before
+// computeHeaderDuelWinner is ever called)
+// ---------------------------------------------------------------------------
+
+describe('D-57: header contested by an offside-flagged player triggers the foul immediately (supersedes D-52)', () => {
+  it('a contestant who would LOSE the duel but is flagged offside still triggers the foul (the case D-52 missed)', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    // Stack aerialAbility so home would clearly WIN the duel on a normal resolution
+    // (rollDice is mocked to always return 3, so the higher aerialAbility wins outright).
+    // The away defender — the would-be LOSER — is the one flagged offside.
+    // Reposition the defender to the middle third first: the foul's free-kick spot is
+    // the offender's position (D-27), and seedHeaderReadyForContestants's default
+    // {q:26,r:12} sits in awayThird, which would otherwise spuriously trigger MOVE-06's
+    // ball-zone free-move overlay (D-33) on top of FREE_KICK_SETUP — an unrelated
+    // interaction this test isn't exercising.
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) => {
+        if (p.id === homeAttacker.id) return { ...p, aerialAbility: 9 };
+        if (p.id === awayDefender.id) return { ...p, aerialAbility: 1, position: { q: 20, r: 12 } };
+        return p;
+      }),
+      offsidePieceIds: [awayDefender.id],
+    };
+
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [finalState] = await stateAfterB;
+
+    // Foul fires immediately — straight to FREE_KICK_SETUP, no duel resolution at all.
+    expect(finalState.phase).toBe('FREE_KICK_SETUP');
+    // The would-be loser (the flagged contestant) is the offender — the foul spot is
+    // their position, and they are removed from offsidePieceIds (D-26/D-43 reset on fire).
+    expect(finalState.offsidePieceIds).not.toContain(awayDefender.id);
+    // No duel ever resolved: headerDuelWinner was never set, dice were never rolled for
+    // the heading duel (lastDiceRoll context would be HEADING_DUEL if computeHeaderDuelWinner
+    // / applyRoll had run for this contest).
+    expect(finalState.headerDuelWinner == null).toBe(true);
+    expect(finalState.lastDiceRoll?.context).not.toBe('HEADING_DUEL');
+  });
+
+  it('a contestant on the HOME side (attacking team) being flagged also triggers the foul', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    room.gameState = {
+      ...room.gameState,
+      offsidePieceIds: [homeAttacker.id],
+    };
+
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [finalState] = await stateAfterB;
+
+    expect(finalState.phase).toBe('FREE_KICK_SETUP');
+    expect(finalState.headerDuelWinner == null).toBe(true);
+    // Possession goes to the team NOT committing the foul (D-28) — away conceded the
+    // foul? No: home's contestant fouled, so away is awarded the kick.
+    expect(finalState.freeKickAttackingTeam).toBe('away');
+  });
+
+  it('no dice are rolled / no heading duel resolves when a flagged contestant is present', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    // Reposition the defender to the middle third first (see prior test's comment —
+    // avoids a spurious MOVE-06 ball-zone overlay on top of FREE_KICK_SETUP).
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) =>
+        p.id === awayDefender.id ? { ...p, position: { q: 20, r: 12 } } : p,
+      ),
+      lastDiceRoll: null,
+      offsidePieceIds: [awayDefender.id],
+    };
+
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [finalState] = await stateAfterB;
+
+    // lastDiceRoll stays untouched (null) — confirms rollDice()/computeHeaderDuelWinner
+    // were never invoked for this header contest; the foul path never touches lastDiceRoll.
+    expect(finalState.lastDiceRoll == null).toBe(true);
+    expect(finalState.phase).toBe('FREE_KICK_SETUP');
+  });
+
+  it('the normal (no flagged contestant) path still resolves a winner exactly as before — regression check', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    // No offsidePieceIds set — neither contestant is flagged. Stack aerialAbility so the
+    // outcome is deterministic (rollDice mocked to 3 — higher aerialAbility wins outright).
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) => {
+        if (p.id === homeAttacker.id) return { ...p, aerialAbility: 9 };
+        if (p.id === awayDefender.id) return { ...p, aerialAbility: 1 };
+        return p;
+      }),
+    };
+
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [finalState] = await stateAfterB;
+
+    // Duel resolves normally — home wins outright, stays in HEADER awaiting target choice.
+    expect(finalState.phase).toBe('HEADER');
+    expect(finalState.headerDuelWinner).toBe('home');
+  });
+
+  it('the normal (no flagged contestant) TIE path still resolves to LOOSE_BALL exactly as before — regression check', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    // Equal aerialAbility, no offside flags — deterministic tie (rollDice mocked to 3).
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) => {
+        if (p.id === homeAttacker.id || p.id === awayDefender.id) return { ...p, aerialAbility: 3 };
+        return p;
+      }),
+    };
+
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [finalState] = await stateAfterB;
+
+    expect(finalState.phase).toBe('LOOSE_BALL');
+    expect(finalState.ball.carrierId).toBeNull();
+  });
+
+  it('multiple flagged contestants (one per side) — picks home first per the documented deterministic order, does not crash', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedHeaderReadyForContestants(roomCode);
+
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const homeAttacker = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK');
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!homeAttacker || !awayDefender) throw new Error('Required pieces not found');
+
+    // Both nominated contestants are flagged offside — home's contestant should be
+    // picked first (scan order: home's list, then away's).
+    room.gameState = {
+      ...room.gameState,
+      offsidePieceIds: [homeAttacker.id, awayDefender.id],
+    };
+
+    const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);
+    await stateAfterA;
+
+    const stateAfterB = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
+    const [finalState] = await stateAfterB;
+
+    expect(finalState.phase).toBe('FREE_KICK_SETUP');
+    // Home's contestant was the offender (foul spot = home attacker's position) —
+    // possession is awarded to away (D-28), confirming home's id was the one picked.
+    expect(finalState.freeKickAttackingTeam).toBe('away');
+    // home's offender id was cleared by the foul trigger; away's flagged id (not the
+    // chosen offender this time) remains sticky since only the offender is removed.
+    expect(finalState.offsidePieceIds).not.toContain(homeAttacker.id);
+    expect(finalState.offsidePieceIds).toContain(awayDefender.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // RULE-02: GAME_HEADER_TARGET winner guard (D-05)
 // ---------------------------------------------------------------------------
 
