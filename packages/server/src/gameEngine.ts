@@ -20,11 +20,13 @@ import type {
   ActionEvent,
   HexCoord,
   LastActionType,
+  PlayerPiece,
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import {
   TEAM_SQUADS,
   PITCH_REGIONS,
+  PITCH_HEXES,
   isInRegion,
   isPitchHex,
   validateMove,
@@ -42,6 +44,7 @@ import {
   evaluateOffside,
   FREE_KICK_STAGES,
   freeKickStageTeam,
+  triggerOffsideFoul,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
@@ -2856,6 +2859,38 @@ export function computeHeaderDuelWinner(state: GameState, dice: number[]): 'home
   return null; // tie → LOOSE_BALL path (caller handles)
 }
 
+/**
+ * D-52: resolves the actual winning PIECE for a header duel, given the winning team.
+ * Extracted from applyResolveHeaderTarget's steps 3 so the same "highest aerialAbility
+ * among that team's nominated contestants" resolution algorithm can be reused by the
+ * GAME_HEADER_CONTESTANT handler (which needs to know the winning piece's id BEFORE
+ * the target-selection step is ever entered, to short-circuit straight to the offside
+ * foul when that piece is flagged — see D-52) without duplicating the logic.
+ *
+ * Mirrors `pickWinner` in `computeHeaderDuelWinner` — picks the highest-`aerialAbility`
+ * contestant nominated by `winnerTeam`, not index [0] (which would ignore intra-team
+ * tiebreaks when multiple contestants were nominated). Falls back to the current ball
+ * carrier when `winnerTeam` nominated no contestant (uncontested case).
+ */
+export function resolveHeaderWinnerPiece(
+  state: GameState,
+  winnerTeam: 'home' | 'away',
+): PlayerPiece | null {
+  const winnerContestantIds =
+    winnerTeam === 'home'
+      ? (state.headerContestants?.home ?? [])
+      : (state.headerContestants?.away ?? []);
+  const winnerContestantId = winnerContestantIds.reduce<string | undefined>((bestId, id) => {
+    const p = state.pieces.find((x) => x.id === id);
+    const best = bestId ? state.pieces.find((x) => x.id === bestId) : undefined;
+    return !p ? bestId : !best || p.aerialAbility > best.aerialAbility ? id : bestId;
+  }, undefined);
+  const winnerPiece = state.pieces.find((p) => p.id === winnerContestantId);
+
+  // Fallback: if no contestant, use ball carrier (uncontested case)
+  return winnerPiece ?? state.pieces.find((p) => p.id === state.ball.carrierId) ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // applyResolveHeaderTarget (RULE-02, Phase 11)
 // ---------------------------------------------------------------------------
@@ -2903,23 +2938,9 @@ export function applyResolveHeaderTarget(
 
   const winnerTeam = state.headerDuelWinner;
 
-  // 3. Resolve the winning contestant's piece (D-04)
-  // Use the highest-heading contestant (mirrors pickWinner in computeHeaderDuelWinner),
-  // not [0] which ignores intra-team tiebreaks when multiple contestants were nominated.
-  const winnerContestantIds =
-    winnerTeam === 'home'
-      ? (state.headerContestants?.home ?? [])
-      : (state.headerContestants?.away ?? []);
-  const winnerContestantId = winnerContestantIds.reduce<string | undefined>((bestId, id) => {
-    const p = state.pieces.find((x) => x.id === id);
-    const best = bestId ? state.pieces.find((x) => x.id === bestId) : undefined;
-    return !p ? bestId : !best || p.aerialAbility > best.aerialAbility ? id : bestId;
-  }, undefined);
-  const winnerPiece = state.pieces.find((p) => p.id === winnerContestantId);
-
-  // Fallback: if no contestant, use ball carrier (uncontested case)
-  const resolvedWinner =
-    winnerPiece ?? state.pieces.find((p) => p.id === state.ball.carrierId) ?? null;
+  // 3. Resolve the winning contestant's piece (D-04) — shared with the D-52 pre-check
+  // in the GAME_HEADER_CONTESTANT handler via resolveHeaderWinnerPiece.
+  const resolvedWinner = resolveHeaderWinnerPiece(state, winnerTeam);
 
   const referencePosition = resolvedWinner?.position ?? state.ball.position;
 
@@ -3325,32 +3346,162 @@ export function applyKickOffReady(
 }
 
 // ---------------------------------------------------------------------------
+// applyOffsideFoulWithRelocation (D-53 — auto-relocate trapped defenders)
+// ---------------------------------------------------------------------------
+
+/**
+ * D-53 (Free Kick Setup — Round 2 Corrections): server-side wrapper around the shared
+ * `triggerOffsideFoul` (packages/shared/src/offside.ts). `offside.ts` is an
+ * environment-agnostic pure-helpers module with zero Node-only imports (no `crypto`) —
+ * D-53's relocation needs `crypto.randomInt` (never `Math.random`, mirroring the
+ * `attackingTeam` coin-flip pattern in `createInitialState` above), so the relocation
+ * step lives here, server-side, rather than inside `triggerOffsideFoul` itself. This
+ * keeps `offside.ts` importable from the client bundle without a Node polyfill.
+ *
+ * ALL six `triggerOffsideFoul` call sites in gameHandlers.ts route through this wrapper
+ * instead of calling the shared function directly, so the relocation always happens as
+ * part of the SAME foul-trigger transition, before stage 0 ever becomes interactive to
+ * either team.
+ *
+ * Behavior: calls `triggerOffsideFoul(state, explicitOffenderId)`. If the foul actually
+ * fired (phase became 'FREE_KICK_SETUP' — referential/phase check, since a no-op returns
+ * `state` unchanged), finds every CONCEDING-team piece (the team that conceded the foul —
+ * i.e. NOT `freeKickAttackingTeam`) within 2 hexes of the new `freeKickHex` and relocates
+ * each, one at a time, to a random unoccupied on-pitch hex that is >=3 hexes from
+ * `freeKickHex`. Processing one piece at a time and accumulating an occupied-hex set
+ * (every OTHER piece's position + any already-relocated piece's NEW position) ensures no
+ * two relocated pieces ever collide. This is a one-time relocation at the moment the foul
+ * triggers, not an ongoing correction — the defending team may freely move any of these
+ * (or other) pieces during their own subsequent stages.
+ *
+ * The offender themselves is EXCLUDED from relocation, even though they are by
+ * definition at distance 0 from `freeKickHex` (D-27: the foul spot IS the offender's
+ * position at the moment of the foul) and belongs to the conceding team. D-53's intent
+ * is to clear OTHER trapped teammates out of the kicking zone, not to displace the
+ * historical foul-spot marker itself — relocating the offender would contradict D-27's
+ * "foul spot = offender's position" framing and break the `freeKickHex` reference point.
+ *
+ * @param state              - Current game state (pre-foul)
+ * @param explicitOffenderId - Optional named-offender id (D-41) — forwarded unchanged
+ */
+export function applyOffsideFoulWithRelocation(
+  state: GameState,
+  explicitOffenderId?: string,
+): GameState {
+  // Resolve the offender id the SAME way triggerOffsideFoul does, so we can exclude them
+  // from relocation below (they are always at distance 0 from the new freeKickHex).
+  const offenderId = explicitOffenderId ?? state.ball.carrierId;
+
+  const afterFoul = triggerOffsideFoul(state, explicitOffenderId);
+
+  // No-op: the foul didn't fire (offender not flagged, or no ball-carrier on the
+  // implicit path) — triggerOffsideFoul returns `state` unchanged in that case.
+  if (afterFoul.phase !== 'FREE_KICK_SETUP' || !afterFoul.freeKickHex) {
+    return afterFoul;
+  }
+
+  const freeKickHex = afterFoul.freeKickHex;
+  const concedingTeam: 'home' | 'away' =
+    afterFoul.freeKickAttackingTeam === 'home' ? 'away' : 'home';
+
+  const trappedIds = afterFoul.pieces
+    .filter(
+      (p) =>
+        p.id !== offenderId &&
+        p.teamId === concedingTeam &&
+        hexDistance(p.position, freeKickHex) <= 2,
+    )
+    .map((p) => p.id);
+
+  if (trappedIds.length === 0) {
+    return afterFoul;
+  }
+
+  // Occupied-hex set: starts with every piece's CURRENT position (string-keyed for O(1)
+  // structural-equality checks — PITCH-02 convention, never Array.includes on HexCoord).
+  const hexKey = (h: HexCoord): string => `${h.q},${h.r}`;
+  const occupied = new Set(afterFoul.pieces.map((p) => hexKey(p.position)));
+
+  let pieces = afterFoul.pieces;
+  for (const pieceId of trappedIds) {
+    const piece = pieces.find((p) => p.id === pieceId);
+    if (!piece) continue; // defensive
+
+    // Free this piece's OWN current hex before picking its destination — it's about to
+    // vacate it, and a single trapped piece must not be blocked from candidacy by itself.
+    occupied.delete(hexKey(piece.position));
+
+    const candidates = PITCH_HEXES.filter(
+      (h) => isPitchHex(h) && hexDistance(h, freeKickHex) >= 3 && !occupied.has(hexKey(h)),
+    );
+
+    if (candidates.length === 0) {
+      // Defensive: no legal destination exists (should not happen on a 962-hex pitch
+      // with only 22 pieces) — leave this piece in place rather than crash.
+      occupied.add(hexKey(piece.position));
+      continue;
+    }
+
+    const destination = candidates[randomInt(0, candidates.length)]!;
+    pieces = pieces.map((p) => (p.id === pieceId ? { ...p, position: destination } : p));
+    occupied.add(hexKey(destination));
+  }
+
+  return { ...afterFoul, pieces };
+}
+
+// ---------------------------------------------------------------------------
 // applyFreeKickMove (OFFSIDE-02, D-49 staged rework)
 // ---------------------------------------------------------------------------
 
 /** Discriminated union result for applyFreeKickMove. */
 export type ApplyFreeKickMoveResult =
-  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' | 'PLACEMENT_LIMIT_REACHED' }
+  | {
+      ok: false;
+      reason:
+        | 'WRONG_PHASE'
+        | 'WRONG_TEAM'
+        | 'PLACEMENT_LIMIT_REACHED'
+        | 'KICKER_NOT_YET_PLACED'
+        | 'PIECE_LOCKED';
+    }
   | { ok: true; state: GameState };
 
 /**
- * Repositions a single piece during the active FREE_KICK_SETUP stage (D-49).
+ * Repositions a single piece during the active FREE_KICK_SETUP stage (D-49, D-54).
  *
  * Guard sequence (fail-fast):
  * 1. WRONG_PHASE — phase must be FREE_KICK_SETUP with a valid freeKickHex/stageIndex
  * 2. WRONG_TEAM — `pieceId` must belong to the CURRENTLY-active stage's team
  *    (resolved via `freeKickStageTeam(stageIndex, freeKickAttackingTeam)`)
- * 3. PLACEMENT_LIMIT_REACHED — if `pieceId` is not already in `freeKickPlacedPieceIds`
+ * 3. PIECE_LOCKED — `pieceId` must not already be in `movedPieceIds` (D-54/D-56: the
+ *    kicker is locked the instant it lands on `freeKickHex`; any piece locked in at a
+ *    prior stage's end is permanently locked for the rest of free-kick setup).
+ * 4. KICKER_NOT_YET_PLACED (D-54, stage 0 / kicking-team side only — supersedes the old
+ *    D-51 end-of-stage-2 check): until a kicking-team piece is on `freeKickHex`, the ONLY
+ *    legal move for the kicking team is moving a piece ONTO `freeKickHex`. Any attempt to
+ *    move a piece to a DIFFERENT hex while no kicking-team piece is yet on `freeKickHex`
+ *    is rejected — there is no other legal move available until the kicker is placed.
+ *    This guard only applies on the kicking team's stages (0 and 2); the defending team's
+ *    stages are never gated on the kicker.
+ * 5. PLACEMENT_LIMIT_REACHED — if `pieceId` is not already in `freeKickPlacedPieceIds`
  *    AND the set's size already equals the current stage's `max`, reject. Re-placing an
- *    already-counted piece is always allowed (free, doesn't consume another slot).
+ *    already-counted piece is always allowed (free, doesn't consume another slot). The
+ *    kicker-placement move itself (guard 4's destination) never reaches this check — it
+ *    short-circuits to a dedicated success branch that doesn't touch the budget (D-54:
+ *    kicker placement does NOT consume any of the stage's "up to N" budget).
  *
  * Destination legality (D-29/D-30 — UNCHANGED from the prior simultaneous model):
  * kicking-team stages have no restriction; defending-team stages must stay >2 hexes from
  * `freeKickHex` — checked here for early feedback, and authoritatively re-checked at
  * stage-end (applyFreeKickStageEnd) regardless of this check's outcome.
  *
- * On success: repositions the piece and, if newly counted this stage, adds its id to
- * `freeKickPlacedPieceIds`.
+ * On success (general budget path): repositions the piece and, if newly counted this
+ * stage, adds its id to `freeKickPlacedPieceIds`.
+ * On success (kicker-placement path, D-54): repositions the piece onto `freeKickHex` and
+ * adds its id directly to `movedPieceIds` (NOT `freeKickPlacedPieceIds`) — permanently
+ * locked, doesn't consume the budget, and immediately renders as 'activated' via the
+ * existing generic `movedPieceIds.includes(piece.id)` mechanism (no new client code).
  *
  * @param state   - Current game state (phase must be FREE_KICK_SETUP)
  * @param pieceId - ID of the piece to reposition
@@ -3385,6 +3536,40 @@ export function applyFreeKickMove(
     return { ok: false, reason: 'WRONG_TEAM' };
   }
 
+  const movedIds = state.movedPieceIds;
+  if (movedIds.includes(pieceId)) {
+    // D-54/D-56: permanently locked — either the kicker (locked on placement) or a piece
+    // locked in at the end of a prior stage. Never selectable/movable again.
+    return { ok: false, reason: 'PIECE_LOCKED' };
+  }
+
+  // D-54: mandatory kicker-first placement — kicking-team stages only (0 and 2).
+  if (stage.side === 'kicking') {
+    const kickerAlreadyPlaced = state.pieces.some(
+      (p) =>
+        p.teamId === kickingTeam &&
+        p.position.q === freeKickHex.q &&
+        p.position.r === freeKickHex.r,
+    );
+    if (!kickerAlreadyPlaced) {
+      const movingOntoFreeKickHex = to.q === freeKickHex.q && to.r === freeKickHex.r;
+      if (!movingOntoFreeKickHex) {
+        return { ok: false, reason: 'KICKER_NOT_YET_PLACED' };
+      }
+      // Kicker placement: free, mandatory, doesn't consume the stage budget — locks
+      // directly into movedPieceIds (permanent), not freeKickPlacedPieceIds.
+      const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+      return {
+        ok: true,
+        state: {
+          ...state,
+          pieces: newPieces,
+          movedPieceIds: [...movedIds, pieceId],
+        },
+      };
+    }
+  }
+
   const placedIds = state.freeKickPlacedPieceIds ?? [];
   const alreadyCounted = placedIds.includes(pieceId);
   if (!alreadyCounted && placedIds.length >= stage.max) {
@@ -3415,7 +3600,10 @@ export function applyFreeKickMove(
 export type ApplyFreeKickReadyResult =
   | {
       ok: false;
-      reason: 'WRONG_PHASE' | 'NOT_YOUR_STAGE' | 'DEFENDER_TOO_CLOSE' | 'KICKER_HEX_EMPTY';
+      // D-54 (supersedes D-51): KICKER_HEX_EMPTY removed — the kicker-placed requirement
+      // is now enforced up front in applyFreeKickMove (KICKER_NOT_YET_PLACED), not at
+      // stage-end.
+      reason: 'WRONG_PHASE' | 'NOT_YOUR_STAGE' | 'DEFENDER_TOO_CLOSE';
     }
   | { ok: true; state: GameState };
 
@@ -3434,16 +3622,26 @@ export type ApplyFreeKickReadyResult =
  * 3. DEFENDER_TOO_CLOSE — when ending one of the DEFENDING team's stages (index 1 or 3),
  *    the team must have no piece within 2 hexes of `freeKickHex` (D-30/D-50 — authoritative,
  *    continuous check at the end of EACH defending stage, regardless of any move-time check).
- * 4. KICKER_HEX_EMPTY — when ending the KICKING team's stage index 2 (their LAST turn —
- *    D-31/D-51), the kicking team must have exactly one piece on `freeKickHex`.
+ *
+ * D-54 (supersedes D-51): the KICKER_HEX_EMPTY check formerly here (validated at the end
+ * of the kicking team's LAST stage, index 2) is REMOVED — the kicker-on-freeKickHex
+ * requirement is now enforced up front, as a mandatory first move in stage 0, by
+ * `applyFreeKickMove`'s KICKER_NOT_YET_PLACED guard. By the time a kicking-team stage can
+ * ever end, a kicking-team piece is already permanently locked on `freeKickHex` (added to
+ * `movedPieceIds` at placement time) — there is nothing left to validate here.
  *
  * On success:
- * - stageIndex < 3: advances to stageIndex + 1, resets freeKickPlacedPieceIds to [].
+ * - stageIndex < 3: advances to stageIndex + 1. D-56: merges the CURRENT stage's
+ *   `freeKickPlacedPieceIds` into `movedPieceIds` (locking them in as 'activated' for the
+ *   rest of free-kick setup) BEFORE resetting `freeKickPlacedPieceIds` to `[]` for the
+ *   next stage.
  * - stageIndex === 3 (last stage): finalizes the kick — transitions to PASS with the
  *   kicking-team piece on freeKickHex assigned as ball carrier, attackingTeam/activeTeam
  *   set to the kicking team, lastActionType: 'FREE_KICK_RESTART', offsidePieceIds: []
- *   (D-47/D-43), and clears freeKickHex/freeKickAttackingTeam/freeKickStageIndex/
- *   freeKickPlacedPieceIds to null.
+ *   (D-47/D-43), clears freeKickHex/freeKickAttackingTeam/freeKickStageIndex/
+ *   freeKickPlacedPieceIds to null, and clears `movedPieceIds: []` (D-56: movedPieceIds is
+ *   otherwise a MOVEMENT-phase-scoped field and should start clean for the subsequent
+ *   PASS phase — leftover free-kick-setup activation state must not bleed forward).
  *
  * @param state - Current game state (phase must be FREE_KICK_SETUP)
  * @param team  - The team attempting to end its current stage ('home' | 'away')
@@ -3483,17 +3681,13 @@ export function applyFreeKickReady(
         return { ok: false, reason: 'DEFENDER_TOO_CLOSE' };
       }
     }
-  } else if (stageIndex === 2) {
-    // 4. KICKER_HEX_EMPTY: D-31/D-51 — checked specifically at the kicking team's LAST
-    //    turn (stage index 2), not at stage 0 (they may wait) and not after stage 3
-    //    (they'd have no further turns to fix it).
-    const onFreeKickHex = teamPieces.filter(
-      (p) => p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
-    );
-    if (onFreeKickHex.length !== 1) {
-      return { ok: false, reason: 'KICKER_HEX_EMPTY' };
-    }
   }
+
+  // D-56: merge this stage's freeKickPlacedPieceIds into movedPieceIds — locks them in
+  // as 'activated' for the rest of free-kick setup (the green "moved this stage" ring
+  // naturally stops applying once freeKickPlacedPieceIds resets to [] below).
+  const stagePlacedIds = state.freeKickPlacedPieceIds ?? [];
+  const mergedMovedPieceIds = Array.from(new Set([...state.movedPieceIds, ...stagePlacedIds]));
 
   // All checks passed for this stage — advance or finalize.
   if (stageIndex < 3) {
@@ -3503,6 +3697,7 @@ export function applyFreeKickReady(
         ...state,
         freeKickStageIndex: (stageIndex + 1) as 0 | 1 | 2 | 3,
         freeKickPlacedPieceIds: [],
+        movedPieceIds: mergedMovedPieceIds,
       },
     };
   }
@@ -3528,6 +3723,10 @@ export function applyFreeKickReady(
       // D-43/D-47: a major dead-ball restart clears ALL offside flags, not just the
       // original offender's.
       offsidePieceIds: [],
+      // D-56: movedPieceIds is otherwise a MOVEMENT-phase-scoped field — clear it here so
+      // leftover free-kick-setup activation state (including the locked kicker) doesn't
+      // bleed into the subsequent PASS phase.
+      movedPieceIds: [],
     },
   };
 }

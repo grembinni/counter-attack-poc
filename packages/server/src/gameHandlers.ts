@@ -36,7 +36,6 @@ import {
   hexDistance,
   hexLine,
   validatePass,
-  triggerOffsideFoul,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
@@ -64,6 +63,8 @@ import {
   buildReplayFrames,
   computeHeaderDuelWinner,
   computeShotPathDeflection,
+  resolveHeaderWinnerPiece,
+  applyOffsideFoulWithRelocation,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
@@ -612,7 +613,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // OFFSIDE-02 (D-26): the lone GAME_MOVE applyMove success path covers any loose-ball
       // pickup AND a successful steal/tackle (both always set ball.carrierId to the
       // acting/winning piece) — no-op when the new carrier isn't flagged offside.
-      room.gameState = triggerOffsideFoul(room.gameState);
+      // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + auto-relocates
+      // any conceding-team piece trapped within 2 hexes of the new restart spot.
+      room.gameState = applyOffsideFoulWithRelocation(room.gameState);
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false;
@@ -965,7 +968,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // the implicit triggerOffsideFoul(state) entry point can't see who touched it.
           // Pass the deflecting defender's id explicitly — fires (or no-ops) the foul using
           // their identity even though they never gain clean possession.
-          room.gameState = triggerOffsideFoul(room.gameState, snapDeflectResult.deflectorId);
+          // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
+          room.gameState = applyOffsideFoulWithRelocation(
+            room.gameState,
+            snapDeflectResult.deflectorId,
+          );
           broadcastState(io, room);
           return;
         }
@@ -1416,7 +1423,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         // OFFSIDE-02 (D-26): single success path for GAME_ROLL's PASS/HEADER/LOOSE_BALL
         // resolution — covers any grounded pass pickup and won header; no-op when the
         // new carrier isn't flagged offside.
-        room.gameState = triggerOffsideFoul(room.gameState);
+        // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
+        room.gameState = applyOffsideFoulWithRelocation(room.gameState);
         broadcastState(io, room); // ARCH-04: single broadcast entry point
         // WR-04: guard against the (currently unreachable) case where applyRoll transitions to
         // FULL_TIME — mirrors the startReplayStream call in GAME_END_TURN / HIGH_PASS_MOVEMENT.
@@ -1571,7 +1579,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         // OFFSIDE-02 D-41: ball is deliberately left loose (carrierId: null) — pass the
         // deflecting defender's id explicitly so the foul fires using their identity even
         // though they never gain clean possession (mirrors the SNAPSHOT_DEFLECT site above).
-        room.gameState = triggerOffsideFoul(room.gameState, shotDeflectionResult.deflectorId);
+        // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
+        room.gameState = applyOffsideFoulWithRelocation(
+          room.gameState,
+          shotDeflectionResult.deflectorId,
+        );
         broadcastState(io, room);
         return;
       }
@@ -2406,8 +2418,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // OFFSIDE-02 (D-26): header-win resolution success path — applyResolveHeaderTarget
       // always assigns the winning contestant as the new ball carrier (both its GK_DIVE
       // and PASS/headed-pass branches), so this single insertion point catches an offside
-      // header winner. No-op when the winner isn't flagged offside.
-      room.gameState = triggerOffsideFoul(room.gameState);
+      // header winner. No-op when the winner isn't flagged offside. D-52 note: an offside
+      // duel winner is now intercepted earlier, in GAME_HEADER_CONTESTANT, before this
+      // target-selection step is ever reached — this call remains as a defensive no-op
+      // safety net for any other path that could reach here with an offside carrier.
+      // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
+      room.gameState = applyOffsideFoulWithRelocation(room.gameState);
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -2500,12 +2516,26 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // if it somehow fails, state is left in HEADER with contestants confirmed so the
           // client can retry via GAME_ROLL (existing fallback path).
         } else {
-          // Winner determined: stay in HEADER, store headerDuelWinner so the winning team
-          // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget).
-          room.gameState = {
-            ...room.gameState,
-            headerDuelWinner: winner,
-          };
+          // D-52 (Free Kick Setup — Round 2 Corrections): if the resolved winning PIECE
+          // is already flagged offside, skip the target-selection step entirely — there
+          // is no "choose where to head it" UI for an offside winner; winning the duel
+          // while flagged IS the foul. Resolve the winning piece using the same
+          // highest-aerialAbility-among-nominated-contestants algorithm
+          // applyResolveHeaderTarget uses (extracted as resolveHeaderWinnerPiece so both
+          // call sites share one resolution path), then fire the foul immediately and
+          // transition straight to FREE_KICK_SETUP instead of storing headerDuelWinner.
+          const winnerPiece = resolveHeaderWinnerPiece(room.gameState, winner);
+          if (winnerPiece && (room.gameState.offsidePieceIds ?? []).includes(winnerPiece.id)) {
+            // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
+            room.gameState = applyOffsideFoulWithRelocation(room.gameState, winnerPiece.id);
+          } else {
+            // Winner determined: stay in HEADER, store headerDuelWinner so the winning team
+            // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget).
+            room.gameState = {
+              ...room.gameState,
+              headerDuelWinner: winner,
+            };
+          }
         }
       }
 

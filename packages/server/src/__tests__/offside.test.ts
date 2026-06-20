@@ -12,7 +12,14 @@ import {
   ELIGIBLE_NEXT_ACTIONS,
 } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { applyEndTurn, applyMove, applyFreeKickReady, applyFreeKickMove } from '../gameEngine.js';
+import {
+  applyEndTurn,
+  applyMove,
+  applyFreeKickReady,
+  applyFreeKickMove,
+  applyOffsideFoulWithRelocation,
+} from '../gameEngine.js';
+import { hexDistance } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures (mirrors gameEngine.test.ts fixture conventions)
@@ -566,6 +573,25 @@ describe('triggerOffsideFoul', () => {
     expect(result.offsidePieceIds).not.toContain('home-1');
   });
 
+  // D-54/D-56: movedPieceIds is repurposed during free-kick setup to lock the kicker and
+  // each stage's placed pieces — must start clean even if stale from the preceding phase.
+  it('D-54/D-56: resets movedPieceIds to [] on fire, even when stale from the preceding phase', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const state = makeState({
+      pieces: [offender],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+      movedPieceIds: ['home-1', 'home-9'], // stale from MOVEMENT phase
+    });
+
+    const result = triggerOffsideFoul(state);
+
+    expect(result.phase).toBe('FREE_KICK_SETUP');
+    expect(result.movedPieceIds).toEqual([]);
+  });
+
   it('is a no-op when the ball carrier is NOT flagged offside', () => {
     const carrier = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
@@ -663,6 +689,136 @@ describe('triggerOffsideFoul', () => {
 });
 
 // ---------------------------------------------------------------------------
+// applyOffsideFoulWithRelocation (D-53 — auto-relocate trapped defenders)
+// ---------------------------------------------------------------------------
+
+describe('applyOffsideFoulWithRelocation (D-53)', () => {
+  it('is a no-op (referential identity) when the foul does not fire', () => {
+    const carrier = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const state = makeState({
+      pieces: [carrier],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      offsidePieceIds: [], // not flagged — no foul
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    expect(result).toBe(state);
+  });
+
+  it('does NOT relocate the offender themselves, even though they are at distance 0 from the new freeKickHex and belong to the conceding team', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const state = makeState({
+      pieces: [offender],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    expect(result.phase).toBe('FREE_KICK_SETUP');
+    const offenderAfter = result.pieces.find((p) => p.id === 'home-1');
+    // The offender stays exactly at the foul spot — freeKickHex is defined as their position.
+    expect(offenderAfter!.position).toEqual(result.freeKickHex);
+    expect(offenderAfter!.position).toEqual({ q: 25, r: 10 });
+  });
+
+  it('relocates a conceding-team piece within 2 hexes of the new freeKickHex to >=3 hexes away, on a legal pitch hex', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    // Conceding team is 'away' (the non-offending team becomes freeKickAttackingTeam, so
+    // 'home' — the offender's own team — concedes... wait: D-28 says possession goes to
+    // the team NOT committing the foul. Offender is 'home', so 'away' is awarded the kick
+    // (freeKickAttackingTeam = 'away'), and 'home' (offender's own team) is the CONCEDING
+    // team relocated here, per D-53 ("conceding-team piece").
+    const trappedTeammate = makePiece({ id: 'home-2', teamId: 'home', position: { q: 26, r: 10 } }); // dist 1 from foul spot
+    const state = makeState({
+      pieces: [offender, trappedTeammate],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    expect(result.phase).toBe('FREE_KICK_SETUP');
+    expect(result.freeKickAttackingTeam).toBe('away'); // away awarded the kick — home concedes
+    const relocated = result.pieces.find((p) => p.id === 'home-2');
+    expect(relocated).toBeDefined();
+    expect(relocated!.position).not.toEqual({ q: 26, r: 10 });
+    expect(hexDistance(relocated!.position, result.freeKickHex!)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('does NOT relocate a conceding-team piece that is already >=3 hexes from the new freeKickHex', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const farTeammate = makePiece({ id: 'home-2', teamId: 'home', position: { q: 0, r: 0 } }); // far away
+    const state = makeState({
+      pieces: [offender, farTeammate],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    const untouched = result.pieces.find((p) => p.id === 'home-2');
+    expect(untouched!.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('does NOT relocate a KICKING-team piece even if it is within 2 hexes of the new freeKickHex', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const kickingTeamPiece = makePiece({
+      id: 'away-1',
+      teamId: 'away',
+      position: { q: 26, r: 10 },
+    }); // dist 1, but kicking team
+    const state = makeState({
+      pieces: [offender, kickingTeamPiece],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    const untouched = result.pieces.find((p) => p.id === 'away-1');
+    expect(untouched!.position).toEqual({ q: 26, r: 10 });
+  });
+
+  it('relocates MULTIPLE trapped pieces without any collision between them', () => {
+    const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
+    const trapped1 = makePiece({ id: 'home-2', teamId: 'home', position: { q: 26, r: 10 } });
+    const trapped2 = makePiece({ id: 'home-3', teamId: 'home', position: { q: 24, r: 10 } });
+    const trapped3 = makePiece({ id: 'home-4', teamId: 'home', position: { q: 25, r: 11 } });
+    const state = makeState({
+      pieces: [offender, trapped1, trapped2, trapped3],
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      offsidePieceIds: ['home-1'],
+    });
+
+    const result = applyOffsideFoulWithRelocation(state);
+
+    const relocatedPositions = ['home-2', 'home-3', 'home-4'].map((id) => {
+      const p = result.pieces.find((pp) => pp.id === id)!;
+      return `${p.position.q},${p.position.r}`;
+    });
+    // No two relocated pieces collide with each other.
+    expect(new Set(relocatedPositions).size).toBe(relocatedPositions.length);
+    // All relocated pieces are now >=3 hexes from the foul spot.
+    for (const id of ['home-2', 'home-3', 'home-4']) {
+      const p = result.pieces.find((pp) => pp.id === id)!;
+      expect(hexDistance(p.position, result.freeKickHex!)).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ELIGIBLE_NEXT_ACTIONS['FREE_KICK_RESTART'] (OFFSIDE-02 D-32)
 // ---------------------------------------------------------------------------
 
@@ -679,15 +835,19 @@ describe("ELIGIBLE_NEXT_ACTIONS['FREE_KICK_RESTART']", () => {
 });
 
 // ---------------------------------------------------------------------------
-// applyFreeKickMove / applyFreeKickReady (OFFSIDE-02 D-49/D-50/D-51 staged rework)
+// applyFreeKickMove / applyFreeKickReady (OFFSIDE-02 D-49/D-50/D-54/D-56 staged rework)
 //
 // Replaces the prior simultaneous-both-teams-then-dual-Ready model (D-29 original,
 // D-46 — REVERTED) with the staged, alternating sequence verified against the
 // physical rulebook: kicking-5 -> defending-5 -> kicking-3 -> defending-2 -> kick taken.
 // D-46 (DEFENDER_BEHIND_BALL) no longer exists anywhere in this file.
+// D-54 supersedes D-51: the kicker-on-freeKickHex requirement is now a MANDATORY FIRST
+// MOVE in stage 0 (KICKER_NOT_YET_PLACED), not an end-of-stage-2 check
+// (KICKER_HEX_EMPTY, removed). D-56: each stage's freeKickPlacedPieceIds merges into
+// movedPieceIds at stage-end, locking those pieces as permanently 'activated'.
 // ---------------------------------------------------------------------------
 
-describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
+describe('applyFreeKickReady / applyFreeKickMove (D-49/D-54/D-56 staged rework)', () => {
   /** stage 0: kicking (away), max 5. */
   function freeKickState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): GameState {
     return makeState({
@@ -696,6 +856,7 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
       freeKickAttackingTeam: 'away',
       freeKickStageIndex: 0,
       freeKickPlacedPieceIds: [],
+      movedPieceIds: [],
       ...overrides,
     });
   }
@@ -719,37 +880,78 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
       expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
     });
 
-    it('ok: kicking team (stage 0) may reposition a NEW piece (counted toward the cap)', () => {
-      const awayPiece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
-      const state = freeKickState({ pieces: [awayPiece] });
-      const result = applyFreeKickMove(state, 'away-1', { q: 5, r: 5 });
+    // D-54: mandatory kicker-first placement at stage 0.
+    it('KICKER_NOT_YET_PLACED: stage 0, moving a DIFFERENT piece while no away piece sits on freeKickHex', () => {
+      const kickerCandidate = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const other = makePiece({ id: 'away-2', teamId: 'away', position: { q: 1, r: 1 } });
+      const state = freeKickState({ pieces: [kickerCandidate, other] });
+      // Attempting to move away-2 to some other hex (not freeKickHex) while no away
+      // piece is yet on freeKickHex — rejected, the ONLY legal move is onto freeKickHex.
+      const result = applyFreeKickMove(state, 'away-2', { q: 5, r: 5 });
+      expect(result).toEqual({ ok: false, reason: 'KICKER_NOT_YET_PLACED' });
+    });
+
+    it('ok: stage 0, moving a piece ONTO freeKickHex when none is there yet locks it into movedPieceIds (kicker placement) — does NOT consume the budget', () => {
+      const candidate = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [candidate] });
+      const result = applyFreeKickMove(state, 'away-1', { q: 25, r: 10 });
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.state.pieces.find((p) => p.id === 'away-1')?.position).toEqual({
-          q: 5,
-          r: 5,
+          q: 25,
+          r: 10,
         });
-        expect(result.state.freeKickPlacedPieceIds).toEqual(['away-1']);
+        expect(result.state.movedPieceIds).toEqual(['away-1']);
+        // Kicker placement is free — does not consume the stage-0 "up to 5" budget.
+        expect(result.state.freeKickPlacedPieceIds).toEqual([]);
       }
     });
 
-    it('PLACEMENT_LIMIT_REACHED when stage cap (5 for stage 0) is already full and a NEW piece is attempted', () => {
+    it('PIECE_LOCKED: the locked kicker cannot be moved again, even to a different hex', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const state = freeKickState({ pieces: [kicker], movedPieceIds: ['away-1'] });
+      const result = applyFreeKickMove(state, 'away-1', { q: 5, r: 5 });
+      expect(result).toEqual({ ok: false, reason: 'PIECE_LOCKED' });
+    });
+
+    it('ok: once the kicker is placed, OTHER kicking-team pieces may move (counted toward the cap)', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const other = makePiece({ id: 'away-2', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [kicker, other], movedPieceIds: ['away-1'] });
+      const result = applyFreeKickMove(state, 'away-2', { q: 5, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.pieces.find((p) => p.id === 'away-2')?.position).toEqual({
+          q: 5,
+          r: 5,
+        });
+        expect(result.state.freeKickPlacedPieceIds).toEqual(['away-2']);
+        // Kicker stays locked, untouched.
+        expect(result.state.movedPieceIds).toEqual(['away-1']);
+      }
+    });
+
+    it('PLACEMENT_LIMIT_REACHED when stage cap (5 for stage 0) is already full and a NEW piece is attempted (kicker already placed)', () => {
       const placed = ['a1', 'a2', 'a3', 'a4', 'a5'];
+      const kicker = makePiece({ id: 'away-kicker', teamId: 'away', position: { q: 25, r: 10 } }); // on freeKickHex — locked
       const newPiece = makePiece({ id: 'away-6', teamId: 'away', position: { q: 0, r: 0 } });
       const state = freeKickState({
-        pieces: [newPiece],
+        pieces: [kicker, newPiece],
         freeKickPlacedPieceIds: placed,
+        movedPieceIds: ['away-kicker'], // kicker already locked — budget gate is now reachable
       });
       const result = applyFreeKickMove(state, 'away-6', { q: 1, r: 1 });
       expect(result).toEqual({ ok: false, reason: 'PLACEMENT_LIMIT_REACHED' });
     });
 
-    it('ok: re-placing an ALREADY-counted piece is free even when the cap is full', () => {
+    it('ok: re-placing an ALREADY-counted piece is free even when the cap is full (kicker already placed)', () => {
       const placed = ['away-1', 'a2', 'a3', 'a4', 'a5'];
+      const kicker = makePiece({ id: 'away-kicker', teamId: 'away', position: { q: 25, r: 10 } }); // on freeKickHex — locked
       const awayPiece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
       const state = freeKickState({
-        pieces: [awayPiece],
+        pieces: [kicker, awayPiece],
         freeKickPlacedPieceIds: placed,
+        movedPieceIds: ['away-kicker'],
       });
       const result = applyFreeKickMove(state, 'away-1', { q: 9, r: 9 });
       expect(result.ok).toBe(true);
@@ -769,11 +971,26 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
       expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
     });
 
-    it('ok: defending team (home) may move at stage 1', () => {
+    it('ok: defending team (home) may move at stage 1 — KICKER_NOT_YET_PLACED gate does not apply to defending stages', () => {
       const homePiece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
       const state = freeKickState({ pieces: [homePiece], freeKickStageIndex: 1 });
       const result = applyFreeKickMove(state, 'home-1', { q: 30, r: 10 });
       expect(result.ok).toBe(true);
+    });
+
+    it('ok: stage 2 (kicking, second kicking turn) — kicker already locked from stage 0, general budget move succeeds directly', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const other = makePiece({ id: 'away-3', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({
+        pieces: [kicker, other],
+        freeKickStageIndex: 2,
+        movedPieceIds: ['away-1'],
+      });
+      const result = applyFreeKickMove(state, 'away-3', { q: 30, r: 10 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.freeKickPlacedPieceIds).toEqual(['away-3']);
+      }
     });
 
     it('PLACEMENT_LIMIT_REACHED respects the stage-specific cap (2 for stage 3)', () => {
@@ -815,8 +1032,14 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
       expect(result).toEqual({ ok: false, reason: 'NOT_YOUR_STAGE' });
     });
 
+    // D-54: stage 0 no longer requires a kicker check HERE — applyFreeKickReady doesn't
+    // re-validate kicker presence (the mandatory-first-move gate in applyFreeKickMove
+    // already guarantees a kicking-team piece is locked on freeKickHex by the time stage
+    // 0 could ever be ended with any pieces placed). A team may technically call
+    // GAME_FREE_KICK_READY before ever moving (e.g. testing applyFreeKickReady directly,
+    // bypassing applyFreeKickMove) — this is intentionally permissive at this layer.
     it('stage 0 (kicking, optional up to 5): ok with ZERO pieces placed — advances to stage 1, resets placed ids', () => {
-      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
       const state = freeKickState({ pieces: [piece], freeKickPlacedPieceIds: [] });
       const result = applyFreeKickReady(state, 'away');
       expect(result.ok).toBe(true);
@@ -828,11 +1051,33 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
     });
 
     it('stage 0 -> 1: advances even when fewer than 5 pieces were placed (optional-up-to-N, not mandatory)', () => {
-      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
-      const state = freeKickState({ pieces: [piece], freeKickPlacedPieceIds: ['away-1'] });
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const other = makePiece({ id: 'away-2', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({
+        pieces: [piece, other],
+        movedPieceIds: ['away-1'],
+        freeKickPlacedPieceIds: ['away-2'],
+      });
       const result = applyFreeKickReady(state, 'away');
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.state.freeKickStageIndex).toBe(1);
+    });
+
+    // D-56: stage-end merges freeKickPlacedPieceIds into movedPieceIds before resetting.
+    it('D-56: stage 0 -> 1 merges freeKickPlacedPieceIds into movedPieceIds (kicker + stage-0 placements all locked)', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const placedPiece = makePiece({ id: 'away-2', teamId: 'away', position: { q: 1, r: 1 } });
+      const state = freeKickState({
+        pieces: [kicker, placedPiece],
+        movedPieceIds: ['away-1'], // kicker locked at placement time
+        freeKickPlacedPieceIds: ['away-2'], // moved this stage via the general budget
+      });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.movedPieceIds).toEqual(['away-1', 'away-2']);
+        expect(result.state.freeKickPlacedPieceIds).toEqual([]);
+      }
     });
 
     // D-30/D-50: defending stage (index 1) — continuous 2-hex exclusion check at stage-end.
@@ -861,25 +1106,25 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
       expect(result).toEqual({ ok: false, reason: 'NOT_YOUR_STAGE' });
     });
 
-    // D-31/D-51: kicker-hex check fires specifically at stage index 2 (kicking team's LAST turn).
-    it('stage 2 (kicking, last turn): KICKER_HEX_EMPTY when no away piece sits on freeKickHex', () => {
+    // D-54 (supersedes D-51): KICKER_HEX_EMPTY no longer exists — the kicker is enforced
+    // up front at stage 0 via applyFreeKickMove, not re-validated at stage 2 end.
+    it('stage 2 (kicking, second turn): ok regardless of freeKickHex occupancy — KICKER_HEX_EMPTY check removed (D-54)', () => {
       const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 1, r: 1 } });
       const state = freeKickState({ pieces: [piece], freeKickStageIndex: 2 });
       const result = applyFreeKickReady(state, 'away');
-      expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.freeKickStageIndex).toBe(3);
+      }
     });
 
-    it('stage 2: KICKER_HEX_EMPTY when TWO away pieces sit on freeKickHex', () => {
-      const k1 = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
-      const k2 = makePiece({ id: 'away-2', teamId: 'away', position: { q: 25, r: 10 } });
-      const state = freeKickState({ pieces: [k1, k2], freeKickStageIndex: 2 });
-      const result = applyFreeKickReady(state, 'away');
-      expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
-    });
-
-    it('stage 2: ok when exactly one away piece sits on freeKickHex — advances to stage 3', () => {
+    it('stage 2: ok when exactly one away piece sits on freeKickHex (kicker locked from stage 0) — advances to stage 3', () => {
       const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
-      const state = freeKickState({ pieces: [kicker], freeKickStageIndex: 2 });
+      const state = freeKickState({
+        pieces: [kicker],
+        freeKickStageIndex: 2,
+        movedPieceIds: ['away-1'],
+      });
       const result = applyFreeKickReady(state, 'away');
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -892,18 +1137,23 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
     it('stage 3 (defending, last turn): DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of freeKickHex', () => {
       const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
       const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 24, r: 10 } }); // dist 1
-      const state = freeKickState({ pieces: [kicker, defender], freeKickStageIndex: 3 });
+      const state = freeKickState({
+        pieces: [kicker, defender],
+        freeKickStageIndex: 3,
+        movedPieceIds: ['away-1'],
+      });
       const result = applyFreeKickReady(state, 'home');
       expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
     });
 
     // Full finalize behavior (stage 3 -> PASS).
-    it('stage 3: ok finalizes the kick — phase PASS, carrier/attackingTeam/activeTeam = kicking team, lastActionType, offsidePieceIds reset, fields cleared', () => {
+    it('stage 3: ok finalizes the kick — phase PASS, carrier/attackingTeam/activeTeam = kicking team, lastActionType, offsidePieceIds reset, movedPieceIds cleared, fields cleared', () => {
       const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
       const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
       const state = freeKickState({
         pieces: [kicker, defender],
         freeKickStageIndex: 3,
+        movedPieceIds: ['away-1', 'home-1'], // D-54/D-56 locked-in pieces from prior stages
         offsidePieceIds: ['home-1', 'away-1'], // multiple sticky flags — must ALL clear (D-43/D-47)
       });
       const result = applyFreeKickReady(state, 'home');
@@ -919,6 +1169,8 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
         expect(result.state.freeKickAttackingTeam).toBeNull();
         expect(result.state.freeKickStageIndex).toBeNull();
         expect(result.state.freeKickPlacedPieceIds).toBeNull();
+        // D-56: movedPieceIds is MOVEMENT-phase-scoped — must not bleed into PASS.
+        expect(result.state.movedPieceIds).toEqual([]);
       }
     });
 

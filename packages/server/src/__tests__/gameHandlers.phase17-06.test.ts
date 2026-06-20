@@ -227,12 +227,24 @@ describe('OFFSIDE-02 Task 2: GAME_MOVE loose-ball pickup triggers the foul', () 
 /**
  * Seeds a room directly into FREE_KICK_SETUP stage 0 — as if triggerOffsideFoul had
  * already fired — with the away team awarded the kick.
+ *
+ * D-54: `kickerPlaced` controls whether an away piece starts ALREADY on `freeKickHex`
+ * (and pre-locked into `movedPieceIds`), simulating the post-kicker-placement state —
+ * most stage-0 budget/cap tests need this so they aren't blocked by the new mandatory
+ * KICKER_NOT_YET_PLACED gate, which is tested separately and explicitly.
  */
-function seedFreeKickSetup(roomCode: string): { freeKickHex: { q: number; r: number } } {
+function seedFreeKickSetup(
+  roomCode: string,
+  opts: { kickerPlaced?: boolean } = {},
+): { freeKickHex: { q: number; r: number }; kickerId: string | null } {
   const room = getRoom(roomCode);
   if (!room || !room.gameState) throw new Error('Room or gameState not found');
 
   const freeKickHex = { q: 25, r: 13 };
+  const kickerPlaced = opts.kickerPlaced ?? false;
+  const awayPiece = room.gameState.pieces.find((p) => p.teamId === 'away');
+  const kickerId = kickerPlaced ? (awayPiece?.id ?? null) : null;
+
   room.gameState = {
     ...room.gameState,
     phase: 'FREE_KICK_SETUP',
@@ -240,50 +252,100 @@ function seedFreeKickSetup(roomCode: string): { freeKickHex: { q: number; r: num
     freeKickAttackingTeam: 'away',
     freeKickStageIndex: 0,
     freeKickPlacedPieceIds: [],
+    movedPieceIds: kickerId ? [kickerId] : [],
     attackingTeam: 'away',
     activeTeam: 'away',
     ball: { position: freeKickHex, carrierId: null },
     offsidePieceIds: [],
+    pieces: kickerId
+      ? room.gameState.pieces.map((p) => (p.id === kickerId ? { ...p, position: freeKickHex } : p))
+      : room.gameState.pieces,
   };
-  return { freeKickHex };
+  return { freeKickHex, kickerId };
 }
 
-describe('OFFSIDE-02 D-49: GAME_FREE_KICK_MOVE handler (staged, turn-gated)', () => {
-  it('stage 0 (kicking = away): repositions an owned away piece anywhere on the pitch', async () => {
+describe('OFFSIDE-02 D-49/D-54: GAME_FREE_KICK_MOVE handler (staged, turn-gated, mandatory kicker-first)', () => {
+  it('D-54: stage 0, no kicker on freeKickHex yet — moving a DIFFERENT piece to a non-freeKickHex destination is rejected (KICKER_NOT_YET_PLACED)', async () => {
     const { clientB, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    seedFreeKickSetup(roomCode); // kickerPlaced defaults to false
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const awayPieces = room.gameState.pieces.filter((p) => p.teamId === 'away');
+    if (awayPieces.length < 2) throw new Error('Need at least 2 away pieces');
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_FREE_KICK_MOVE, awayPieces[1]!.id, { q: 2, r: 2 });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('KICKER_NOT_YET_PLACED');
+  });
+
+  it('D-54: stage 0, moving a piece ONTO freeKickHex when none is there yet locks it into movedPieceIds (kicker placement) — does not consume the budget', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const { freeKickHex } = seedFreeKickSetup(roomCode);
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
     const awayPiece = room.gameState.pieces.find((p) => p.teamId === 'away');
     if (!awayPiece) throw new Error('No away piece found');
 
     const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
-    clientB.emit(ClientEvents.GAME_FREE_KICK_MOVE, awayPiece.id, { q: 2, r: 2 });
+    clientB.emit(ClientEvents.GAME_FREE_KICK_MOVE, awayPiece.id, freeKickHex);
     const [newState] = await statePromise;
 
     const moved = newState.pieces.find((p) => p.id === awayPiece.id);
+    expect(moved?.position).toEqual(freeKickHex);
+    expect(newState.phase).toBe('FREE_KICK_SETUP');
+    expect(newState.movedPieceIds).toContain(awayPiece.id);
+    expect(newState.freeKickPlacedPieceIds).not.toContain(awayPiece.id);
+  });
+
+  it('D-54: once the kicker is placed, OTHER away pieces may be moved and counted toward the stage-0 budget', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedFreeKickSetup(roomCode, { kickerPlaced: true });
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+    const otherAwayPiece = room.gameState.pieces.find(
+      (p) => p.teamId === 'away' && !room.gameState!.movedPieceIds.includes(p.id),
+    );
+    if (!otherAwayPiece) throw new Error('No other away piece found');
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_FREE_KICK_MOVE, otherAwayPiece.id, { q: 2, r: 2 });
+    const [newState] = await statePromise;
+
+    const moved = newState.pieces.find((p) => p.id === otherAwayPiece.id);
     expect(moved?.position).toEqual({ q: 2, r: 2 });
     expect(newState.phase).toBe('FREE_KICK_SETUP');
-    expect(newState.freeKickPlacedPieceIds).toContain(awayPiece.id);
+    expect(newState.freeKickPlacedPieceIds).toContain(otherAwayPiece.id);
+  });
+
+  it('D-54: the locked kicker cannot be moved again (PIECE_LOCKED)', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const { kickerId } = seedFreeKickSetup(roomCode, { kickerPlaced: true });
+    if (!kickerId) throw new Error('No kicker seeded');
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_FREE_KICK_MOVE, kickerId, { q: 5, r: 5 });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('PIECE_LOCKED');
   });
 
   it('rejects repositioning a piece not owned by the requesting socket (NOT_YOUR_PIECE)', async () => {
     const { clientA, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    const { freeKickHex } = seedFreeKickSetup(roomCode);
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
     const awayPiece = room.gameState.pieces.find((p) => p.teamId === 'away');
     if (!awayPiece) throw new Error('No away piece found');
 
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    clientA.emit(ClientEvents.GAME_FREE_KICK_MOVE, awayPiece.id, { q: 2, r: 2 });
+    clientA.emit(ClientEvents.GAME_FREE_KICK_MOVE, awayPiece.id, freeKickHex);
     const [reason] = await errorPromise;
     expect(reason).toBe('NOT_YOUR_PIECE');
   });
 
   it('stage 0: rejects the INACTIVE team (home) attempting to move during the kicking stage (WRONG_TEAM)', async () => {
     const { clientA, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    seedFreeKickSetup(roomCode, { kickerPlaced: true });
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
     const homePiece = room.gameState.pieces.find((p) => p.teamId === 'home');
@@ -297,11 +359,14 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_MOVE handler (staged, turn-gated)', ()
 
   it('stage 0: rejects placing a SIXTH distinct away piece once the 5-piece cap is reached (PLACEMENT_LIMIT_REACHED)', async () => {
     const { clientB, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    seedFreeKickSetup(roomCode, { kickerPlaced: true });
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
-    const awayPieces = room.gameState.pieces.filter((p) => p.teamId === 'away');
-    if (awayPieces.length < 6) throw new Error('Need at least 6 away pieces for this test');
+    const awayPieces = room.gameState.pieces.filter(
+      (p) => p.teamId === 'away' && !room.gameState!.movedPieceIds.includes(p.id),
+    );
+    if (awayPieces.length < 6)
+      throw new Error('Need at least 6 unlocked away pieces for this test');
 
     room.gameState = {
       ...room.gameState,
@@ -316,10 +381,12 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_MOVE handler (staged, turn-gated)', ()
 
   it('stage 0: re-placing an ALREADY-counted piece is allowed even when the 5-piece cap is full', async () => {
     const { clientB, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    seedFreeKickSetup(roomCode, { kickerPlaced: true });
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
-    const awayPieces = room.gameState.pieces.filter((p) => p.teamId === 'away');
+    const awayPieces = room.gameState.pieces.filter(
+      (p) => p.teamId === 'away' && !room.gameState!.movedPieceIds.includes(p.id),
+    );
     const placedIds = awayPieces.slice(0, 5).map((p) => p.id);
     room.gameState = { ...room.gameState, freeKickPlacedPieceIds: placedIds };
 
@@ -332,10 +399,10 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_MOVE handler (staged, turn-gated)', ()
   });
 });
 
-describe('OFFSIDE-02 D-49: GAME_FREE_KICK_READY handler (stage-end, single-team)', () => {
+describe('OFFSIDE-02 D-49/D-54/D-56: GAME_FREE_KICK_READY handler (stage-end, single-team)', () => {
   it('stage 0: rejects the INACTIVE team (home) attempting to end the kicking stage (NOT_YOUR_STAGE)', async () => {
     const { clientA, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    seedFreeKickSetup(roomCode, { kickerPlaced: true });
 
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
     clientA.emit(ClientEvents.GAME_FREE_KICK_READY);
@@ -343,9 +410,9 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_READY handler (stage-end, single-team)
     expect(reason).toBe('NOT_YOUR_STAGE');
   });
 
-  it('stage 0 -> 1: the kicking team (away) may end its stage having placed ZERO pieces (optional-up-to-N)', async () => {
+  it('stage 0 -> 1: the kicking team (away) may end its stage having placed ZERO additional pieces (optional-up-to-N) — D-56 merges the kicker into movedPieceIds (already there from placement)', async () => {
     const { clientB, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode);
+    const { kickerId } = seedFreeKickSetup(roomCode, { kickerPlaced: true });
 
     const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
     clientB.emit(ClientEvents.GAME_FREE_KICK_READY);
@@ -354,11 +421,12 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_READY handler (stage-end, single-team)
     expect(newState.phase).toBe('FREE_KICK_SETUP');
     expect(newState.freeKickStageIndex).toBe(1);
     expect(newState.freeKickPlacedPieceIds).toEqual([]);
+    expect(newState.movedPieceIds).toContain(kickerId);
   });
 
   it('stage 1 (defending = home): rejects Ready with DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of the ball', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
-    const { freeKickHex } = seedFreeKickSetup(roomCode);
+    const { freeKickHex } = seedFreeKickSetup(roomCode, { kickerPlaced: true });
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
     const homeDefender = room.gameState.pieces.find((p) => p.teamId === 'home');
@@ -383,27 +451,39 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_READY handler (stage-end, single-team)
     expect(reason).toBe('DEFENDER_TOO_CLOSE');
   });
 
-  it('stage 2 (kicking = away, last kicking turn): rejects Ready with KICKER_HEX_EMPTY when no away piece is on the ball hex', async () => {
+  // D-54 (supersedes D-51): KICKER_HEX_EMPTY no longer exists — the kicker is enforced
+  // up front at stage 0 via GAME_FREE_KICK_MOVE, not re-validated at stage 2 end.
+  //
+  // broadcastState emits to the WHOLE room — both clients receive every broadcast. Wait
+  // for BOTH clients' copies of each step before registering the next listener, or a
+  // listener for the NEXT broadcast can race against a still-in-flight copy of the
+  // PREVIOUS one (mirrors the established pattern from the "full sequence" test below).
+  it('D-54: stage 2 (kicking, second turn) ends successfully regardless of freeKickHex occupancy — KICKER_HEX_EMPTY check removed', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
-    seedFreeKickSetup(roomCode); // default squad layout has no away piece on freeKickHex
+    seedFreeKickSetup(roomCode, { kickerPlaced: true });
 
-    const stage1Promise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    const stage1PromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const stage1PromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
     clientB.emit(ClientEvents.GAME_FREE_KICK_READY); // stage 0 -> 1
-    await stage1Promise;
+    const [[s1]] = await Promise.all([stage1PromiseA, stage1PromiseB]);
+    expect(s1.freeKickStageIndex).toBe(1);
 
-    const stage2Promise = oncePromise(clientA, ServerEvents.GAME_STATE);
-    clientA.emit(ClientEvents.GAME_FREE_KICK_READY); // stage 1 -> 2 (home's defending stage, no pieces nearby by default)
-    await stage2Promise;
+    const stage2PromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const stage2PromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_FREE_KICK_READY); // stage 1 -> 2
+    const [[s2]] = await Promise.all([stage2PromiseA, stage2PromiseB]);
+    expect(s2.freeKickStageIndex).toBe(2);
 
-    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
-    clientB.emit(ClientEvents.GAME_FREE_KICK_READY); // attempt to end stage 2 (kicking, last turn)
-    const [reason] = await errorPromise;
-    expect(reason).toBe('KICKER_HEX_EMPTY');
+    const stage3PromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const stage3PromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_FREE_KICK_READY); // stage 2 -> 3, no KICKER_HEX_EMPTY check anymore
+    const [[stage3State]] = await Promise.all([stage3PromiseA, stage3PromiseB]);
+    expect(stage3State.freeKickStageIndex).toBe(3);
   });
 
-  it('full sequence: all four stages complete, finalizing to PASS with correct carrier/attackingTeam/lastActionType/offsidePieceIds/field-clearing', async () => {
+  it('full sequence: all four stages complete, finalizing to PASS with correct carrier/attackingTeam/lastActionType/offsidePieceIds/movedPieceIds/field-clearing', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
-    const { freeKickHex } = seedFreeKickSetup(roomCode);
+    const { freeKickHex } = seedFreeKickSetup(roomCode, { kickerPlaced: true });
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
 
@@ -445,7 +525,7 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_READY handler (stage-end, single-team)
     const [[stage2State]] = await Promise.all([stage2PromiseA, stage2PromiseB]);
     expect(stage2State.freeKickStageIndex).toBe(2);
 
-    // Stage 2 (kicking/away, last kicking turn): kicker still on freeKickHex — KICKER_HEX_EMPTY check passes.
+    // Stage 2 (kicking/away, second kicking turn): kicker was already locked at stage 0.
     const stage3PromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
     const stage3PromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
     clientB.emit(ClientEvents.GAME_FREE_KICK_READY);
@@ -468,6 +548,8 @@ describe('OFFSIDE-02 D-49: GAME_FREE_KICK_READY handler (stage-end, single-team)
     expect(finalState.freeKickPlacedPieceIds).toBeNull();
     // D-43/D-47: ALL sticky offside flags clear on finalize, not just an offender's.
     expect(finalState.offsidePieceIds).toEqual([]);
+    // D-56: movedPieceIds (including the locked kicker) must not bleed into PASS.
+    expect(finalState.movedPieceIds).toEqual([]);
   });
 });
 
