@@ -958,3 +958,48 @@ and the Round-2/D-49..D-51 staged-sequence behavior (D-47..D-50, still in effect
 now superseded by D-54) remain in scope for re-confirmation since the underlying mechanic has
 changed substantially across multiple rounds. Plan 17-06 cannot close until this round is
 approved.
+
+## Self-Check (this round)
+
+Files exist:
+
+- `packages/shared/src/offside.ts` — modified (`triggerOffsideFoul` resets `movedPieceIds`) ✓
+- `packages/server/src/gameEngine.ts` — modified (`resolveHeaderWinnerPiece`,
+  `applyOffsideFoulWithRelocation`, `applyFreeKickMove`/`applyFreeKickReady` D-54/D-56
+  rework) ✓
+- `packages/server/src/gameHandlers.ts` — modified (D-52 short-circuit in
+  `GAME_HEADER_CONTESTANT`, all six foul-trigger sites routed through
+  `applyOffsideFoulWithRelocation`) ✓
+- `packages/server/src/__tests__/offside.test.ts` — modified (D-52..D-56 + D-53 relocation
+  test coverage) ✓
+- `packages/server/src/__tests__/gameHandlers.phase17-06.test.ts` — modified (D-54 handler
+  coverage rewrite) ✓
+- `packages/client/src/components/PieceOverlay.tsx` — modified (`isMovedThisStage` green
+  ring, D-55) ✓
+- `packages/client/src/components/PieceOverlay.test.tsx` — modified (4 new D-55 cases) ✓
+- `packages/client/src/components/HexGrid.tsx` — modified (`freeKickPlacedPieceIds` wiring) ✓
+- `packages/client/src/components/HexGrid.test.tsx` — modified (3 new D-55 wiring cases) ✓
+- `packages/client/src/components/FreeKickSetupPanel.tsx` — modified (D-54 kicker constraint
+  rewrite) ✓
+- `packages/client/src/components/FreeKickSetupPanel.test.tsx` — modified (D-54 test
+  rewrite) ✓
+- `.planning/phases/17-rule-bugs/17-06-SUMMARY.md` — this file, updated ✓
+
+Commits exist:
+
+- `c44340e` fix(17-06): reset movedPieceIds on offside foul trigger (D-54/D-56 prep) ✓
+- `05a9ce3` feat(17-06): server-side D-52..D-54/D-56 free-kick round-2 corrections ✓
+- `d2a67ff` feat(17-06): client-side D-54/D-55 free-kick round-2 corrections ✓
+- `2feec4d` docs(17-06): document round-2 free-kick corrections (D-52..D-56) in SUMMARY ✓
+
+Verification:
+
+- `pnpm --filter @counter-attack/shared typecheck` — exits 0 ✓
+- `pnpm --filter @counter-attack/shared test -- --run` — 320 passing ✓
+- `pnpm --filter @counter-attack/server typecheck` — exits 0 ✓
+- `pnpm --filter @counter-attack/server test -- --run` — 449 passing, 1 pre-existing skip, 1
+  pre-existing todo (unrelated) ✓
+- `pnpm --filter @counter-attack/client typecheck` — exits 0 ✓
+- `pnpm --filter @counter-attack/client test -- --run` — 182 passing ✓
+
+## Self-Check: PASSED
