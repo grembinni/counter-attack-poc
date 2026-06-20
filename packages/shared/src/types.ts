@@ -574,6 +574,12 @@ export type GameState = {
    */
   freeMoveUsedPace?: Readonly<Record<string, number>> | null;
   /**
+   * OFFSIDE-01 (D-23): sticky set of piece IDs currently flagged offside. Re-evaluated
+   * at every end-of-phase where pieces can move; persists until each piece's D-22 clear
+   * condition holds. Default [] at match start and after every reset/kick-off.
+   */
+  offsidePieceIds?: readonly string[];
+  /**
    * MOVE-06 (Phase 17, corrected design D-36): snapshots the phase and activeTeam that
    * were already computed as "next" by the action that triggered the free-move sequence
    * (captured BEFORE the overlay sets phase to FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE).
