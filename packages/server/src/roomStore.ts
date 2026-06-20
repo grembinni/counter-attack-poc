@@ -15,6 +15,7 @@ import type { GameState, HexCoord } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
+import { applyFreeMoveZoneCheck } from './gameEngine.js';
 
 // Crockford-ish alphabet — excludes 0/O and 1/I to reduce transcription errors.
 // RESEARCH.md Pattern 2: customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 5)
@@ -232,11 +233,17 @@ export function findPlayerByToken(sessionToken: string): { room: Room; slot: 1 |
  *
  * No-op if room.gameState is null (room not yet in-game).
  *
+ * MOVE-06 (Phase 17, corrected design D-33): runs the centralized ball-zone-triggered
+ * free-move check immediately before broadcasting, so the FREE_MOVE_ATTACK/
+ * FREE_MOVE_DEFENSE overlay fires after literally any resolved action with zero
+ * per-handler changes elsewhere.
+ *
  * @param io - Socket.io Server instance
  * @param room - The room whose state should be broadcast
  */
 export function broadcastState(io: Server, room: Room): void {
   if (room.gameState === null) return;
+  room.gameState = applyFreeMoveZoneCheck(room.gameState);
   io.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
 }
 

@@ -560,9 +560,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // MOVE-06 (Phase 17 D-13): FREE_MOVE — each eligible piece moves up to 6 hexes
-      // independently. Reuses applyMove's FREE_MOVE branch (gameEngine.ts applyFreeMove).
-      if (room.gameState.phase === 'FREE_MOVE') {
+      // MOVE-06 (Phase 17, corrected design D-34/D-35): FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE —
+      // each eligible piece moves up to 6 hexes independently. applyMove disambiguates
+      // eligibility by phase (attack vs defense sub-list), so this guard just needs to
+      // accept both sub-phases. Reuses applyMove's FREE_MOVE branch (gameEngine.ts applyFreeMove).
+      if (
+        room.gameState.phase === 'FREE_MOVE_ATTACK' ||
+        room.gameState.phase === 'FREE_MOVE_DEFENSE'
+      ) {
         if (!isActivePlayer(socket, room)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
           broadcastState(io, room);
@@ -1031,8 +1036,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // MOVE-06 (Phase 17 D-14): FREE_MOVE ends on End Turn — transitions back to PASS.
-      if (room.gameState.phase === 'FREE_MOVE') {
+      // MOVE-06 (Phase 17, corrected design D-35/D-36): FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
+      // end on End Turn — applyFreeMoveEnd already knows which sub-phase it's exiting and
+      // does the right thing (hand off to DEFENSE, or restore from freeMoveResume).
+      if (
+        room.gameState.phase === 'FREE_MOVE_ATTACK' ||
+        room.gameState.phase === 'FREE_MOVE_DEFENSE'
+      ) {
         if (!isActivePlayer(socket, room)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
           broadcastState(io, room);

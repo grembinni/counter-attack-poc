@@ -38,6 +38,7 @@ import {
   validateHeading,
   hexDistance,
   hexLine,
+  computeBallZone,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
@@ -128,7 +129,9 @@ export function buildInitialGameState(
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
-    pendingFreeMove: null,
+    // MOVE-06 (Phase 17, corrected design D-33): kick-off hex {q:18,r:13} is in
+    // middleThird — ballZone starts 'middle'.
+    ballZone: 'middle',
     // Phase 8 additions (D-06)
     addedTime: null, // null until actionCount first crosses 45
     lastActionType: null, // null at match start; updated after every action
@@ -257,13 +260,15 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Handles a single-step piece move during the MOVE-06 FREE_MOVE phase (Phase 17 D-13).
+ * Handles a single-step piece move during the MOVE-06 FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
+ * sub-phases (Phase 17, corrected design D-34/D-35).
  *
- * Each piece in `state.freeMoveEligibleIds` gets an independent 6-hex allowance —
- * not a shared pool. A step is rejected if the piece is not eligible, belongs to the
- * wrong team, isn't a single adjacent hex, lands on an occupied hex, or would push the
- * piece's cumulative `freeMoveUsedPace` beyond 6. Standard adjacency/occupancy rules
- * (mirroring MOVEMENT) apply unchanged.
+ * Each piece in the active sub-phase's eligible list (`freeMoveEligibleIds.attack` for
+ * FREE_MOVE_ATTACK, `.defense` for FREE_MOVE_DEFENSE) gets an independent 6-hex
+ * allowance — not a shared pool. A step is rejected if the piece is not eligible for the
+ * CURRENT sub-phase, belongs to the wrong team, isn't a single adjacent hex, lands on an
+ * occupied hex, or would push the piece's cumulative `freeMoveUsedPace` beyond 6.
+ * Standard adjacency/occupancy rules (mirroring MOVEMENT) apply unchanged.
  */
 function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMoveResult {
   const piece = state.pieces.find((p) => p.id === pieceId);
@@ -273,7 +278,11 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
     return { ok: false, reason: 'WRONG_TEAM' };
   }
 
-  if (!(state.freeMoveEligibleIds ?? []).includes(pieceId)) {
+  const eligibleIds =
+    state.phase === 'FREE_MOVE_ATTACK'
+      ? (state.freeMoveEligibleIds?.attack ?? [])
+      : (state.freeMoveEligibleIds?.defense ?? []);
+  if (!eligibleIds.includes(pieceId)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' };
   }
 
@@ -341,7 +350,9 @@ export type ApplyMoveResult =
  * 4. MOVE_INVALID — validateMove must accept the move
  *
  * On success: repositions the piece, increments paceUsedByPieceId, appends MOVE event.
- * MOVE-06: sets pendingFreeMove when the ball carrier crosses between final thirds (D-15).
+ * MOVE-06 (corrected design): the ball-zone-triggered free-move check no longer lives here —
+ * `applyFreeMoveZoneCheck` runs centrally in `broadcastState` after every resolved action,
+ * comparing the post-action ball position's zone against `state.ballZone` (D-33).
  * T-4-03: MOVE event records server-derived from-coord — never the client's claimed position.
  * D-01: movementSlot is NOT auto-advanced on move success; applyEndTurn advances it.
  *
@@ -360,10 +371,11 @@ export function applyMove(
   to: HexCoord,
   dice?: { stealDie: number; tackleDie: number; carrierDie: number },
 ): ApplyMoveResult {
-  // MOVE-06 (Phase 17 D-13): FREE_MOVE phase — each eligible outfield player gets an
-  // independent 6-hex allowance tracked in freeMoveUsedPace. Handled before the
-  // MOVEMENT-only phase guard below since FREE_MOVE has no movementSlot.
-  if (state.phase === 'FREE_MOVE') {
+  // MOVE-06 (Phase 17, corrected design D-34/D-35): FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
+  // sub-phases — each eligible piece (both teams, GK included) gets an independent
+  // 6-hex allowance tracked in freeMoveUsedPace. Handled before the MOVEMENT-only phase
+  // guard below since these sub-phases have no movementSlot.
+  if (state.phase === 'FREE_MOVE_ATTACK' || state.phase === 'FREE_MOVE_DEFENSE') {
     return applyFreeMove(state, pieceId, to);
   }
 
@@ -471,7 +483,6 @@ export function applyMove(
           movementSlot: null,
           movedPieceIds: [],
           paceUsedByPieceId: {},
-          pendingFreeMove: null,
           lastActionType: 'DEFLECTION',
           stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
           tackleAttemptedByIds: [], // D-02
@@ -497,7 +508,6 @@ export function applyMove(
           [pieceId]: newPaceForPiece,
         },
         eventLog: newEventLog,
-        pendingFreeMove: state.pendingFreeMove ?? null,
         lastActionType: state.lastActionType, // preserve; pickup mid-movement doesn't change action type
       },
     };
@@ -601,7 +611,6 @@ export function applyMove(
             paceUsedByPieceId: {},
             ball: tackleSuccessBall,
             eventLog: newEventLog,
-            pendingFreeMove: state.pendingFreeMove ?? null,
             lastActionType: 'SUCCESSFUL_TACKLE',
             actionCount: state.actionCount + 3,
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
@@ -622,22 +631,9 @@ export function applyMove(
           },
           ball: state.ball,
           eventLog: newEventLog,
-          pendingFreeMove: state.pendingFreeMove ?? null,
           tackleAttemptedByIds: newTackleAttemptedByIds, // D-29
         },
       };
-    }
-  }
-
-  // MOVE-06 / D-15: detect ball carrier crossing between final thirds
-  let pendingFreeMove = state.pendingFreeMove ?? null;
-  if (state.ball.carrierId === pieceId) {
-    const fromInHomeThird = isInRegion(piece.position, 'homeThird');
-    const fromInAwayThird = isInRegion(piece.position, 'awayThird');
-    const toInHomeThird = isInRegion(to, 'homeThird');
-    const toInAwayThird = isInRegion(to, 'awayThird');
-    if ((fromInHomeThird && toInAwayThird) || (fromInAwayThird && toInHomeThird)) {
-      pendingFreeMove = { team: piece.teamId, hexesAllowed: 6 };
     }
   }
 
@@ -660,7 +656,6 @@ export function applyMove(
         paceUsedByPieceId: {},
         ball: stealSuccessBall,
         eventLog: newEventLog,
-        pendingFreeMove,
         lastActionType: 'SUCCESSFUL_TACKLE',
         actionCount: state.actionCount + 3,
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
@@ -682,7 +677,6 @@ export function applyMove(
       },
       ball: newBall,
       eventLog: newEventLog,
-      pendingFreeMove,
       stealAttemptedByIds: newStealAttemptedByIds, // D-29: propagate (may have been updated)
     },
   };
@@ -770,9 +764,6 @@ export function applyEndTurn(
           actionCount: newActionCount,
           addedTime: newAddedTime,
           lastActionType: 'MOVEMENT_PHASE',
-          // MOVE-06 (Phase 17 Pitfall 3): a half/full-time ending discards any pending
-          // free move — no FREE_MOVE phase fires after the half ends.
-          pendingFreeMove: null,
         },
       };
     }
@@ -805,50 +796,11 @@ export function applyEndTurn(
       }
     }
 
-    // MOVE-06 (Phase 17 D-12/D-13/D-15, Pitfall 3/7): consume pendingFreeMove at the
-    // ATTACKER_2→null transition only. Compute opponentThird relative to the free
-    // team (not a fixed region — Pitfall 7) and filter outfield (non-GK) pieces.
-    const pendingFreeMoveAtEnd = state.pendingFreeMove ?? null;
-    if (pendingFreeMoveAtEnd !== null) {
-      const freeTeam = pendingFreeMoveAtEnd.team;
-      const opponentThird = freeTeam === 'home' ? 'awayThird' : 'homeThird';
-      const eligibleIds = state.pieces
-        .filter(
-          (p) => p.teamId === freeTeam && p.role !== 'GK' && isInRegion(p.position, opponentThird),
-        )
-        .map((p) => p.id);
-
-      const baseState: GameState = {
-        ...state,
-        phase: 'PASS',
-        movementSlot: null,
-        activeTeam: nextActiveTeam,
-        eventLog: [...state.eventLog, slotAdvanceEvent],
-        movedPieceIds: [],
-        paceUsedByPieceId: {},
-        actionCount: newActionCount,
-        addedTime: newAddedTime,
-        lastActionType: 'MOVEMENT_PHASE',
-        pendingFreeMove: null,
-        stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
-        tackleAttemptedByIds: [], // D-02
-      };
-
-      if (eligibleIds.length === 0) {
-        // D-13 discretion: no eligible players → skip FREE_MOVE entirely, go straight to PASS
-        return { ok: true, state: baseState };
-      }
-
-      return {
-        ok: true,
-        state: {
-          ...baseState,
-          phase: 'FREE_MOVE',
-          freeMoveEligibleIds: eligibleIds,
-          freeMoveUsedPace: {},
-        },
-      };
-    }
+    // MOVE-06 (corrected design): applyEndTurn no longer special-cases a pending free
+    // move here — the ball-zone-triggered FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE overlay is
+    // applied centrally by `applyFreeMoveZoneCheck` (called from `broadcastState` after
+    // every resolved action, D-33). applyEndTurn computes its normal next phase exactly
+    // as if MOVE-06 didn't exist.
 
     // Normal ATTACKER_2→PASS transition with clock updates
     return {
@@ -900,18 +852,122 @@ export function applyEndTurn(
 // ---------------------------------------------------------------------------
 
 /**
- * Ends the MOVE-06 FREE_MOVE phase (Phase 17 D-14) — fired by the active team's End Turn.
- * Transitions back to PASS and clears the free-move tracking fields.
+ * Ends the active MOVE-06 free-move sub-phase (Phase 17, corrected design D-35/D-36) —
+ * fired by the active team's End Turn.
+ *
+ * - FREE_MOVE_ATTACK: if the defense eligible list is non-empty, hands off to
+ *   FREE_MOVE_DEFENSE (flips activeTeam to the other team; keeps freeMoveEligibleIds/
+ *   freeMoveUsedPace as-is since defense pieces haven't moved yet). Otherwise restores
+ *   from freeMoveResume and clears the free-move tracking fields.
+ * - FREE_MOVE_DEFENSE: always restores phase/activeTeam from freeMoveResume and clears
+ *   the free-move tracking fields (freeMoveResume/freeMoveEligibleIds/freeMoveUsedPace).
  */
 export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState } {
+  if (state.phase === 'FREE_MOVE_ATTACK') {
+    const defenseIds = state.freeMoveEligibleIds?.defense ?? [];
+    if (defenseIds.length > 0) {
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: 'FREE_MOVE_DEFENSE',
+          activeTeam: state.attackingTeam === 'home' ? 'away' : 'home',
+        },
+      };
+    }
+    // Defense list empty — skip straight to the resume phase.
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: state.freeMoveResume?.phase ?? 'PASS',
+        activeTeam: state.freeMoveResume?.activeTeam ?? state.activeTeam,
+        freeMoveResume: null,
+        freeMoveEligibleIds: null,
+        freeMoveUsedPace: null,
+      },
+    };
+  }
+
+  // FREE_MOVE_DEFENSE (or defensive fallback): always restore from freeMoveResume.
   return {
     ok: true,
     state: {
       ...state,
-      phase: 'PASS',
+      phase: state.freeMoveResume?.phase ?? 'PASS',
+      activeTeam: state.freeMoveResume?.activeTeam ?? state.activeTeam,
+      freeMoveResume: null,
       freeMoveEligibleIds: null,
       freeMoveUsedPace: null,
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyFreeMoveZoneCheck
+// ---------------------------------------------------------------------------
+
+/**
+ * MOVE-06 (Phase 17, corrected design D-33..D-37): the centralized ball-zone-triggered
+ * free-move check. Called from `broadcastState` (roomStore.ts) after every resolved
+ * action — the single ARCH-04 entry point — so the trigger fires after literally any
+ * action with zero per-handler changes elsewhere.
+ *
+ * Rulebook text (verbatim): "If the ball is in one final third and any action has come
+ * to an end, all players in the opposite final third get a free move of 6 hexes each.
+ * Attacking team moves first."
+ *
+ * - D-37: does not fire while phase is HALF_TIME, FULL_TIME, or already one of
+ *   FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE (no sensible resume phase to interrupt).
+ * - D-33: trigger fires only when the post-action ball zone differs from the stored
+ *   `state.ballZone` AND the new zone is 'home' or 'away' (a fresh entry into a final
+ *   third — including a direct home↔away jump with no intervening middle action).
+ * - D-34: eligible pieces are ALL pieces of both teams (GK included) in the OPPOSITE
+ *   final third from the ball's new zone, split into attack/defense relative to
+ *   `state.attackingTeam`.
+ * - D-35/D-36: if both lists are non-empty, snapshots `{phase, activeTeam}` into
+ *   freeMoveResume and overlays FREE_MOVE_ATTACK (or FREE_MOVE_DEFENSE if the attack
+ *   list is empty) on top of whatever phase the triggering action already produced.
+ *   If both lists are empty, stays on the triggering phase with ballZone updated.
+ */
+export function applyFreeMoveZoneCheck(state: GameState): GameState {
+  if (
+    state.phase === 'HALF_TIME' ||
+    state.phase === 'FULL_TIME' ||
+    state.phase === 'FREE_MOVE_ATTACK' ||
+    state.phase === 'FREE_MOVE_DEFENSE'
+  ) {
+    return state;
+  }
+
+  const newZone = computeBallZone(state.ball.position);
+
+  if (newZone === state.ballZone || newZone === 'middle') {
+    return { ...state, ballZone: newZone };
+  }
+
+  // Fresh entry into a final third (D-33) — the opposite final third gets the free move.
+  const oppositeThird = newZone === 'home' ? 'awayThird' : 'homeThird';
+  const eligiblePieces = state.pieces.filter((p) => isInRegion(p.position, oppositeThird));
+  const attackIds = eligiblePieces.filter((p) => p.teamId === state.attackingTeam).map((p) => p.id);
+  const defenseIds = eligiblePieces
+    .filter((p) => p.teamId !== state.attackingTeam)
+    .map((p) => p.id);
+
+  if (attackIds.length === 0 && defenseIds.length === 0) {
+    // Nobody to move — stay on whatever phase the triggering action already produced.
+    return { ...state, ballZone: newZone };
+  }
+
+  return {
+    ...state,
+    ballZone: newZone,
+    freeMoveResume: { phase: state.phase, activeTeam: state.activeTeam },
+    phase: attackIds.length > 0 ? 'FREE_MOVE_ATTACK' : 'FREE_MOVE_DEFENSE',
+    activeTeam:
+      attackIds.length > 0 ? state.attackingTeam : state.attackingTeam === 'home' ? 'away' : 'home',
+    freeMoveEligibleIds: { attack: attackIds, defense: defenseIds },
+    freeMoveUsedPace: {},
   };
 }
 
@@ -1033,10 +1089,9 @@ export function applyUndo(state: GameState): ApplyUndoResult {
     ...state.eventLog.slice(absoluteMoveIdx + 1),
   ];
 
-  // CR-03: clear pendingFreeMove when the undone piece is the ball carrier —
-  // the final-third crossing that set it never happened once the move is reversed.
-  const undoPendingFreeMove =
-    state.ball.carrierId === moveToUndo.pieceId ? null : (state.pendingFreeMove ?? null);
+  // MOVE-06 (corrected design): no pendingFreeMove field to clear here anymore — undoing
+  // a move simply moves the ball back, and the next broadcastState recomputes ballZone
+  // via applyFreeMoveZoneCheck from the restored ball position (D-33).
 
   // Move ball back with the carrier when undoing their move
   const newBallAfterUndo =
@@ -1064,7 +1119,6 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       paceUsedByPieceId: newPaceUsed,
       movedPieceIds: newMovedPieceIds,
       eventLog: newEventLog,
-      pendingFreeMove: undoPendingFreeMove,
       ball: newBallAfterUndo,
       ...lockReset,
     },
@@ -3255,7 +3309,9 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       pieces: resetPieces, // Pitfall 6: reset to formation starting positions
       ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null }, // reset ball to centre hex
       lastDiceRoll: null,
-      pendingFreeMove: null,
+      // MOVE-06 (Phase 17, corrected design D-33): kick-off hex is in middleThird —
+      // ballZone resets to 'middle' for the fresh second-half kick-off.
+      ballZone: 'middle',
     },
   };
 }
@@ -3328,7 +3384,8 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
-    pendingFreeMove: null,
+    // MOVE-06 (Phase 17, corrected design D-33): kick-off hex is in middleThird.
+    ballZone: 'middle',
     addedTime: null,
     lastActionType: null,
     kickOffTeam: finalState.kickOffTeam,
