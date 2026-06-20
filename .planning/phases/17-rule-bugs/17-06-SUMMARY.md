@@ -1104,18 +1104,131 @@ state transition (a fresh entry into a final third) and overlay `FREE_MOVE_ATTAC
 No dev server was started during this session. Only `tsc --noEmit` and `vitest run` commands
 were executed. The orchestrator's production build (server on port 3001, `vite preview` on port 5174) was observed running, untouched, at both the start and end of this session.
 
-## Checkpoint Pending (Round 5)
+## Checkpoint Pending (Round 5) — superseded by the D-59 stall fix below
 
-Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a FIFTH time. Re-verification
-needed for D-57 specifically:
+Task 4 (`checkpoint:human-verify`, gate="blocking") was pending a FIFTH time, scoped to D-57.
+Before that round could be verified, the user found a GAME-STALLING BUG in D-53's
+auto-relocation logic during manual testing. This session fixes it (D-59) — see below for the
+new, current checkpoint scope, which supersedes Round 5's checklist.
 
-1. **D-57:** Nominate an offside-flagged player as a header contestant — even if you expect
-   them to LOSE the duel — and confirm you are dropped straight into `FREE_KICK_SETUP` with no
-   dice roll and no target-choice prompt, regardless of which side (attacking or defending) the
-   flagged player is on.
+## D-59 (BUG FIX) — the offender was never relocated, permanently blocking kicker placement
 
-All prior outstanding re-verification items (D-53 through D-56, the original OFFSIDE-02
-end-to-end flow, and the Round-1/Round-2 corrections) remain in scope per the Round 4 checklist
-above — D-57 only supersedes item 1 (D-52) from that list, narrowing what needs re-checking for
-the header-offside case specifically; nothing else in that list changed this round. Plan 17-06
-cannot close until this round is approved.
+**The bug:** D-53's auto-relocation explicitly excluded the offending player from the
+trapped-piece sweep — the doc comment reasoned that since `freeKickHex` is defined as "the
+offender's position at the moment of the foul" (D-27), relocating them would "displace the
+historical foul-spot marker." This reasoning was wrong in practice: the offender is a
+CONCEDING-team piece sitting at distance 0 from `freeKickHex` (trivially within the 2-hex
+trap radius), and the KICKING team's mandatory first action (D-31/D-54) is to move one of
+their OWN pieces onto that exact same hex. With the offender permanently parked there, the
+kicking team's placement attempt was rejected at the `gameHandlers.ts` `GAME_FREE_KICK_MOVE`
+handler with `OCCUPIED` (the occupancy guard checked there, before `applyFreeKickMove` is even
+called) — there was no legal move available, ever, and the game stalled permanently the moment
+any offside foul fired with the offender exactly on the restart spot (i.e., every single time,
+since D-27 places the foul spot AT the offender's position by definition).
+
+**The fix:** `applyOffsideFoulWithRelocation` (`packages/server/src/gameEngine.ts`) no longer
+excludes the offender from its trapped-piece search — the `offenderId`-based filter was removed
+entirely from the `trappedIds` computation. The offender now goes through the exact same
+relocation sweep as every other conceding-team piece within 2 hexes of `freeKickHex`. After the
+foul-trigger transition completes, nothing occupies `freeKickHex` (the ball itself stays there
+per D-27 — only pieces move), which is what unblocks the kicking team's mandatory kicker-first
+placement.
+
+**Relocation target algorithm refined (applies to every relocated piece, offender included):**
+previously, every trapped piece went straight to a uniformly-random unoccupied on-pitch hex
+`>=3` hexes from `freeKickHex` (`crypto.randomInt`). D-59 adds a preference step before that
+fallback:
+
+1. Compute the full ring of on-pitch hexes at EXACTLY `hexDistance === 3` from `freeKickHex`
+   (`ring3Hexes`, via `PITCH_HEXES`/`isPitchHex`).
+2. For the piece being relocated, resolve its TEAM's own goal-line hex set via a new helper,
+   `ownGoalLineHexes(team)` — the goal that team DEFENDS, the OPPOSITE of the `goalQ` convention
+   used elsewhere in `gameEngine.ts` for the goal a team shoots AT (e.g. `applyDeclareShot`'s
+   `goalQ = attackingTeam === 'home' ? 36 : 0`): home defends q=0, away defends q=36, both
+   r∈[10..16].
+3. Sort `ring3Hexes` by ascending minimum `hexDistance` to that goal-line set; take the closest 4.
+4. Try those 4 in closest-first order, skipping any already occupied (by another piece's
+   current position, or an earlier relocation already applied in this same pass).
+5. If none of those 4 are available, fall back to D-53's original behavior: a uniformly-random
+   unoccupied on-pitch hex `>=3` hexes from `freeKickHex`.
+
+Pieces are still processed one at a time with an accumulating occupied-hex set (every other
+piece's current position + every already-relocated piece's new position), so no two relocated
+pieces — including the offender now — ever collide with each other or with an unrelated piece.
+
+**Files:** `packages/server/src/gameEngine.ts` (`applyOffsideFoulWithRelocation` rewritten;
+new private helper `ownGoalLineHexes`), `packages/server/src/__tests__/offside.test.ts` (D-53
+describe block renamed to cover D-59; offender-exclusion test flipped to assert inclusion +
+`freeKickHex` ends up unoccupied; multi-piece collision test extended to include the offender;
+four new D-59-specific cases: end-to-end kicker-placement-succeeds regression, home-team
+ring-3-nearest-own-goal preference, away-team ring-3-nearest-own-goal preference, and the
+all-4-preferred-occupied fallback case), `packages/server/src/__tests__/gameHandlers.phase17-06.test.ts`
+(two pre-existing D-41 deflection tests updated — see Deviations below).
+
+### Deviations from Plan (this round)
+
+**1. [Rule 1 — test fallout from the behavior fix] Two pre-existing D-41 deflection tests
+asserted the old (buggy) behavior**
+
+- **Found during:** running the full server suite after the D-59 fix.
+- **Issue:** `gameHandlers.phase17-06.test.ts`'s two D-41 deflection tests ("a FLAGGED defender
+  deflecting a [snapshot/regular] shot triggers FREE_KICK_SETUP at the defender's position")
+  asserted `newState.freeKickHex` equals the flagged defender's (the offender's) CURRENT
+  position post-trigger — true only under the old buggy behavior where the offender never
+  moved. Under the D-59 fix, the offender IS relocated, so their current position no longer
+  equals the (fixed, historical) foul spot.
+- **Fix:** Updated both assertions to check `freeKickHex` against the known fixed foul-spot
+  coordinate from each test's fixture (`{q:34,r:13}` and `{q:30,r:13}` respectively) and added
+  an explicit assertion that the defender's post-relocation position is no longer equal to
+  `freeKickHex` — turning each test into a direct regression check for the fix itself, not just
+  a coincidental pass.
+- **Files modified:** `packages/server/src/__tests__/gameHandlers.phase17-06.test.ts`
+- **Commit:** `0d021b8`
+
+### Commit
+
+| Commit    | Scope                                                                               |
+| --------- | ----------------------------------------------------------------------------------- |
+| `0d021b8` | fix(17-06): include offender in D-53 auto-relocation, fixing free-kick stall (D-59) |
+
+### Re-verification after this fix
+
+- `pnpm --filter @counter-attack/shared typecheck` — exits 0
+- `pnpm --filter @counter-attack/shared test` — 320 passing (unchanged — no shared-package
+  source was touched; `offside.ts`'s `triggerOffsideFoul` is unchanged, only the server-side
+  `applyOffsideFoulWithRelocation` wrapper around it)
+- `pnpm --filter @counter-attack/server typecheck` — exits 0
+- `pnpm --filter @counter-attack/server test -- --run` — 459 passing (1 pre-existing skip, 1
+  pre-existing todo, unrelated), up from 455 (net +4: `offside.test.ts` gained 4 new D-59 cases
+  — end-to-end kicker-placement regression, home/away ring-3-nearest-own-goal preference, and
+  the all-preferred-occupied fallback — while the prior offender-exclusion test and the
+  multi-piece collision test were updated in place, not added; `gameHandlers.phase17-06.test.ts`'s
+  two updated D-41 deflection tests are pre-existing cases with corrected assertions, not new
+  cases). Re-run twice to confirm stability (no flakiness) — identical results both times.
+- Client and shared packages required no source changes for this fix (pure
+  `gameEngine.ts` engine logic plus its own test files) — confirmed via `git status` showing
+  only `packages/server/src/gameEngine.ts` and its two test files modified.
+
+No dev server was started during this session. Only `tsc --noEmit` and `vitest run` commands
+were executed. The orchestrator's production build (server on port 3001, `vite preview` on port 5174) was observed listening, untouched, at both the start and end of this session.
+
+## Checkpoint Pending (Round 6)
+
+Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a SIXTH time. Re-verification
+needed for the D-59 stall fix specifically (this supersedes Round 5's D-57-only scope — D-57
+itself is unchanged this round and remains verified-pending from Round 5, see below):
+
+1. **D-59 (the stall bug):** Trigger an offside foul and confirm the offending player is no
+   longer standing on the ball spot — you should now be able to immediately walk an attacking
+   (kicking-team) piece onto the free-kick spot without it being blocked with an "OCCUPIED"
+   rejection. This is the actual end-to-end reproduction of the originally reported stall.
+2. **D-59 (relocation target preference):** When a defender is auto-relocated (offender or any
+   other trapped teammate), confirm they generally land closer to their own goal than before —
+   not scattered randomly across the pitch — unless those preferred spots happen to already be
+   taken, in which case the old random-placement fallback is fine.
+3. **D-58 (no action needed — informational only):** Already confirmed correct with no code
+   change; not part of this round's verification scope.
+
+All prior outstanding re-verification items (D-53 through D-57, the original OFFSIDE-02
+end-to-end flow, and the Round-1/Round-2 corrections) remain in scope per the Round 4/5
+checklists above. Plan 17-06 cannot close until this round is approved.
