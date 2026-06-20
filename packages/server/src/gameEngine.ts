@@ -697,6 +697,9 @@ export function applyEndTurn(
           actionCount: newActionCount,
           addedTime: newAddedTime,
           lastActionType: 'MOVEMENT_PHASE',
+          // MOVE-06 (Phase 17 Pitfall 3): a half/full-time ending discards any pending
+          // free move — no FREE_MOVE phase fires after the half ends.
+          pendingFreeMove: null,
         },
       };
     }
@@ -727,6 +730,51 @@ export function applyEndTurn(
           },
         };
       }
+    }
+
+    // MOVE-06 (Phase 17 D-12/D-13/D-15, Pitfall 3/7): consume pendingFreeMove at the
+    // ATTACKER_2→null transition only. Compute opponentThird relative to the free
+    // team (not a fixed region — Pitfall 7) and filter outfield (non-GK) pieces.
+    const pendingFreeMoveAtEnd = state.pendingFreeMove ?? null;
+    if (pendingFreeMoveAtEnd !== null) {
+      const freeTeam = pendingFreeMoveAtEnd.team;
+      const opponentThird = freeTeam === 'home' ? 'awayThird' : 'homeThird';
+      const eligibleIds = state.pieces
+        .filter(
+          (p) => p.teamId === freeTeam && p.role !== 'GK' && isInRegion(p.position, opponentThird),
+        )
+        .map((p) => p.id);
+
+      const baseState: GameState = {
+        ...state,
+        phase: 'PASS',
+        movementSlot: null,
+        activeTeam: nextActiveTeam,
+        eventLog: [...state.eventLog, slotAdvanceEvent],
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+        actionCount: newActionCount,
+        addedTime: newAddedTime,
+        lastActionType: 'MOVEMENT_PHASE',
+        pendingFreeMove: null,
+        stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+        tackleAttemptedByIds: [], // D-02
+      };
+
+      if (eligibleIds.length === 0) {
+        // D-13 discretion: no eligible players → skip FREE_MOVE entirely, go straight to PASS
+        return { ok: true, state: baseState };
+      }
+
+      return {
+        ok: true,
+        state: {
+          ...baseState,
+          phase: 'FREE_MOVE',
+          freeMoveEligibleIds: eligibleIds,
+          freeMoveUsedPace: {},
+        },
+      };
     }
 
     // Normal ATTACKER_2→PASS transition with clock updates
@@ -770,6 +818,26 @@ export function applyEndTurn(
       movedPieceIds: [...state.movedPieceIds, ...lockedOnEndSlot],
       paceUsedByPieceId: {}, // reset — new slot counts activations from zero
       lastActionType: 'MOVEMENT_PHASE', // D-17 (WR-02): reset for intermediate slot transitions
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyFreeMoveEnd
+// ---------------------------------------------------------------------------
+
+/**
+ * Ends the MOVE-06 FREE_MOVE phase (Phase 17 D-14) — fired by the active team's End Turn.
+ * Transitions back to PASS and clears the free-move tracking fields.
+ */
+export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState } {
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'PASS',
+      freeMoveEligibleIds: null,
+      freeMoveUsedPace: null,
     },
   };
 }
