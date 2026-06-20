@@ -422,6 +422,70 @@ describe('GAME_READY — kick-off placement confirmation', () => {
     expect(finalState.phase).toBe('KICK_OFF');
     expect(room.readyPlayers).toBeNull();
   });
+
+  // D-47 (Phase 17, free-kick rulebook-correction round): a player cannot be flagged/
+  // remain-flagged offside as a direct result of a kick-off restart — generalizes D-43
+  // (already done for the free-kick restart) to the kick-off restart's GAME_READY
+  // both-ready transition, which previously did not touch offsidePieceIds at all.
+  it('D-47: both-ready transition resets offsidePieceIds to [] even when multiple pieces are flagged', async () => {
+    const { clientA, clientB, roomCode, attackingTeam } = await setupKickOffSetupRoom();
+
+    const room = getRoom(roomCode)!;
+    const kickOffHex = PITCH_REGIONS.kickOffHex;
+
+    const hasCentreHex = room.gameState!.pieces.some(
+      (p) =>
+        p.teamId === attackingTeam &&
+        p.position.q === kickOffHex.q &&
+        p.position.r === kickOffHex.r,
+    );
+    if (!hasCentreHex) {
+      const firstAttackingPiece = room.gameState!.pieces.find((p) => p.teamId === attackingTeam)!;
+      const newPieces = room.gameState!.pieces.map((p) =>
+        p.id === firstAttackingPiece.id ? { ...p, position: kickOffHex } : p,
+      );
+      room.gameState = { ...room.gameState!, pieces: newPieces };
+    }
+
+    const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+    const { isInRegion } = await import('@counter-attack/shared');
+    const newPieces2 = room.gameState!.pieces.map((p) => {
+      if (p.teamId === defendingTeam && isInRegion(p.position, 'centreCircle')) {
+        const safeHex = defendingTeam === 'away' ? { q: 30, r: 20 } : { q: 5, r: 20 };
+        return { ...p, position: safeHex };
+      }
+      return p;
+    });
+    const newPieces3 = newPieces2.map((p) => {
+      if (p.teamId === defendingTeam) {
+        if (defendingTeam === 'home' && p.position.q > kickOffHex.q) {
+          return { ...p, position: { q: 5, r: p.position.r } };
+        }
+        if (defendingTeam === 'away' && p.position.q < kickOffHex.q) {
+          return { ...p, position: { q: 30, r: p.position.r } };
+        }
+      }
+      return p;
+    });
+    // Seed sticky offside flags on BOTH teams' pieces before the restart — proves the
+    // reset is unconditional (not just clearing the attacking/kicking side).
+    const flaggedIds = room.gameState!.pieces.slice(0, 2).map((p) => p.id);
+    room.gameState = { ...room.gameState!, pieces: newPieces3, offsidePieceIds: flaggedIds };
+
+    const attackingClient = attackingTeam === 'home' ? clientA : clientB;
+    const defendingClient = attackingTeam === 'home' ? clientB : clientA;
+
+    const statePromise1 = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+    attackingClient.emit(ClientEvents.GAME_READY);
+    await statePromise1;
+
+    const statePromise2 = oncePromise(attackingClient, ServerEvents.GAME_STATE);
+    defendingClient.emit(ClientEvents.GAME_READY);
+    const [finalState] = await statePromise2;
+
+    expect(finalState.phase).toBe('KICK_OFF');
+    expect(finalState.offsidePieceIds).toEqual([]);
+  });
 });
 
 describe('MATCH-07: only a Standard Pass may be played as the opening action from KICK_OFF', () => {

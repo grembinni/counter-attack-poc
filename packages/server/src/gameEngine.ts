@@ -40,7 +40,8 @@ import {
   hexLine,
   computeBallZone,
   evaluateOffside,
-  attackingDirection,
+  FREE_KICK_STAGES,
+  freeKickStageTeam,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
@@ -3324,85 +3325,211 @@ export function applyKickOffReady(
 }
 
 // ---------------------------------------------------------------------------
-// applyFreeKickReady (OFFSIDE-02)
+// applyFreeKickMove (OFFSIDE-02, D-49 staged rework)
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyFreeKickMove. */
+export type ApplyFreeKickMoveResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' | 'PLACEMENT_LIMIT_REACHED' }
+  | { ok: true; state: GameState };
+
+/**
+ * Repositions a single piece during the active FREE_KICK_SETUP stage (D-49).
+ *
+ * Guard sequence (fail-fast):
+ * 1. WRONG_PHASE — phase must be FREE_KICK_SETUP with a valid freeKickHex/stageIndex
+ * 2. WRONG_TEAM — `pieceId` must belong to the CURRENTLY-active stage's team
+ *    (resolved via `freeKickStageTeam(stageIndex, freeKickAttackingTeam)`)
+ * 3. PLACEMENT_LIMIT_REACHED — if `pieceId` is not already in `freeKickPlacedPieceIds`
+ *    AND the set's size already equals the current stage's `max`, reject. Re-placing an
+ *    already-counted piece is always allowed (free, doesn't consume another slot).
+ *
+ * Destination legality (D-29/D-30 — UNCHANGED from the prior simultaneous model):
+ * kicking-team stages have no restriction; defending-team stages must stay >2 hexes from
+ * `freeKickHex` — checked here for early feedback, and authoritatively re-checked at
+ * stage-end (applyFreeKickStageEnd) regardless of this check's outcome.
+ *
+ * On success: repositions the piece and, if newly counted this stage, adds its id to
+ * `freeKickPlacedPieceIds`.
+ *
+ * @param state   - Current game state (phase must be FREE_KICK_SETUP)
+ * @param pieceId - ID of the piece to reposition
+ * @param to      - Destination hex coordinate
+ */
+export function applyFreeKickMove(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyFreeKickMoveResult {
+  const stageIndex = state.freeKickStageIndex;
+  const freeKickHex = state.freeKickHex;
+  const kickingTeam = state.freeKickAttackingTeam;
+  if (
+    state.phase !== 'FREE_KICK_SETUP' ||
+    !freeKickHex ||
+    stageIndex === null ||
+    stageIndex === undefined ||
+    !kickingTeam
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const stage = FREE_KICK_STAGES[stageIndex];
+  const activeTeamForStage = freeKickStageTeam(stageIndex, kickingTeam);
+  if (piece.teamId !== activeTeamForStage) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const placedIds = state.freeKickPlacedPieceIds ?? [];
+  const alreadyCounted = placedIds.includes(pieceId);
+  if (!alreadyCounted && placedIds.length >= stage.max) {
+    return { ok: false, reason: 'PLACEMENT_LIMIT_REACHED' };
+  }
+
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+  const newPlacedIds = alreadyCounted ? placedIds : [...placedIds, pieceId];
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      freeKickPlacedPieceIds: newPlacedIds,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyFreeKickReady / applyFreeKickStageEnd (OFFSIDE-02, D-49/D-50/D-51 staged rework)
 // ---------------------------------------------------------------------------
 
 /**
  * Discriminated union result for applyFreeKickReady.
- * OFFSIDE-02: validates an offside free-kick setup placement for one team.
+ * OFFSIDE-02 (D-49 staged rework): validates and applies a stage-end attempt for one team.
  */
 export type ApplyFreeKickReadyResult =
   | {
       ok: false;
-      reason: 'WRONG_PHASE' | 'KICKER_HEX_EMPTY' | 'DEFENDER_TOO_CLOSE' | 'DEFENDER_BEHIND_BALL';
+      reason: 'WRONG_PHASE' | 'NOT_YOUR_STAGE' | 'DEFENDER_TOO_CLOSE' | 'KICKER_HEX_EMPTY';
     }
   | { ok: true; state: GameState };
 
 /**
- * Validates a team's offside free-kick setup placement.
- *
- * OFFSIDE-02 / D-29 / D-30 / D-31 / D-46: mirrors `applyKickOffReady`'s shape and guard
- * sequence, but with the free-kick zone rules instead of the kick-off own-half rule:
- * the kicking team has no own-half restriction (D-29 — may reposition their entire
- * squad anywhere on the board); the defending team is additionally constrained by D-30
- * and D-46 below.
+ * Ends the CURRENTLY-active free-kick repositioning stage for `team` (D-49 staged rework
+ * — replaces the prior simultaneous both-Ready handshake entirely; `applyFreeKickReady`'s
+ * name is kept since `GAME_FREE_KICK_READY` still means "I'm done with my stage," but the
+ * semantics are now single-team-at-a-time, not dual-confirm).
  *
  * Guard sequence (fail-fast):
- * 1. WRONG_PHASE — phase must be 'FREE_KICK_SETUP'
- * 2. KICKER_HEX_EMPTY — the kicking team (`team === state.freeKickAttackingTeam`) must
- *    have exactly one piece on `freeKickHex` (D-31)
- * 3. DEFENDER_TOO_CLOSE — the defending team must have no piece within 2 hexes
- *    (`hexDistance <= 2`) of `freeKickHex` (D-30)
- * 4. DEFENDER_BEHIND_BALL — the defending team must have no piece strictly behind
- *    `freeKickHex` in their OWN attacking direction (D-46) — equal-to-or-ahead is legal.
- *    Being caught offside denies the offending team a chance to retreat into a
- *    defensive shape; they stay forced up the pitch.
+ * 1. WRONG_PHASE — phase must be 'FREE_KICK_SETUP' with valid freeKickHex/stageIndex
+ * 2. NOT_YOUR_STAGE — `team` must be the CURRENTLY-active stage's team (resolved via
+ *    `freeKickStageTeam`); an inactive team's stage-end attempt is rejected. This is the
+ *    new reason literal replacing the dual-Ready handshake — only the active team's
+ *    confirm is meaningful now.
+ * 3. DEFENDER_TOO_CLOSE — when ending one of the DEFENDING team's stages (index 1 or 3),
+ *    the team must have no piece within 2 hexes of `freeKickHex` (D-30/D-50 — authoritative,
+ *    continuous check at the end of EACH defending stage, regardless of any move-time check).
+ * 4. KICKER_HEX_EMPTY — when ending the KICKING team's stage index 2 (their LAST turn —
+ *    D-31/D-51), the kicking team must have exactly one piece on `freeKickHex`.
  *
- * Returns `{ok:true, state}` unchanged on success — the handler owns the both-ready
- * transition (mirrors applyKickOffReady).
+ * On success:
+ * - stageIndex < 3: advances to stageIndex + 1, resets freeKickPlacedPieceIds to [].
+ * - stageIndex === 3 (last stage): finalizes the kick — transitions to PASS with the
+ *   kicking-team piece on freeKickHex assigned as ball carrier, attackingTeam/activeTeam
+ *   set to the kicking team, lastActionType: 'FREE_KICK_RESTART', offsidePieceIds: []
+ *   (D-47/D-43), and clears freeKickHex/freeKickAttackingTeam/freeKickStageIndex/
+ *   freeKickPlacedPieceIds to null.
  *
  * @param state - Current game state (phase must be FREE_KICK_SETUP)
- * @param team  - Which team's placement to validate ('home' | 'away')
+ * @param team  - The team attempting to end its current stage ('home' | 'away')
  */
 export function applyFreeKickReady(
   state: GameState,
   team: 'home' | 'away',
 ): ApplyFreeKickReadyResult {
   // 1. Phase guard
-  if (state.phase !== 'FREE_KICK_SETUP' || !state.freeKickHex) {
+  const stageIndex = state.freeKickStageIndex;
+  const freeKickHex = state.freeKickHex;
+  const kickingTeam = state.freeKickAttackingTeam;
+  if (
+    state.phase !== 'FREE_KICK_SETUP' ||
+    !freeKickHex ||
+    stageIndex === null ||
+    stageIndex === undefined ||
+    !kickingTeam
+  ) {
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
-  const freeKickHex = state.freeKickHex;
-  const teamPieces = state.pieces.filter((p) => p.teamId === team);
-  const isKicking = team === state.freeKickAttackingTeam;
+  // 2. NOT_YOUR_STAGE: only the currently-active stage's team may end it.
+  const activeTeamForStage = freeKickStageTeam(stageIndex, kickingTeam);
+  if (team !== activeTeamForStage) {
+    return { ok: false, reason: 'NOT_YOUR_STAGE' };
+  }
 
-  if (isKicking) {
-    // 2. KICKER_HEX_EMPTY: kicking team must have exactly one piece on freeKickHex (D-31)
+  const stage = FREE_KICK_STAGES[stageIndex];
+  const teamPieces = state.pieces.filter((p) => p.teamId === team);
+
+  if (stage.side === 'defending') {
+    // 3. DEFENDER_TOO_CLOSE: D-30/D-50 — checked continuously, at the end of EACH
+    //    defending stage (index 1 and 3), not just once.
+    for (const piece of teamPieces) {
+      if (hexDistance(piece.position, freeKickHex) <= 2) {
+        return { ok: false, reason: 'DEFENDER_TOO_CLOSE' };
+      }
+    }
+  } else if (stageIndex === 2) {
+    // 4. KICKER_HEX_EMPTY: D-31/D-51 — checked specifically at the kicking team's LAST
+    //    turn (stage index 2), not at stage 0 (they may wait) and not after stage 3
+    //    (they'd have no further turns to fix it).
     const onFreeKickHex = teamPieces.filter(
       (p) => p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
     );
     if (onFreeKickHex.length !== 1) {
       return { ok: false, reason: 'KICKER_HEX_EMPTY' };
     }
-  } else {
-    // 3. DEFENDER_TOO_CLOSE: defending team must stay >2 hexes from freeKickHex (D-30)
-    // 4. DEFENDER_BEHIND_BALL: defending team must stay equal-to-or-ahead of freeKickHex
-    //    in their own attacking direction (D-46)
-    const dir = attackingDirection(team);
-    for (const piece of teamPieces) {
-      if (hexDistance(piece.position, freeKickHex) <= 2) {
-        return { ok: false, reason: 'DEFENDER_TOO_CLOSE' };
-      }
-      if ((piece.position.q - freeKickHex.q) * dir < 0) {
-        return { ok: false, reason: 'DEFENDER_BEHIND_BALL' };
-      }
-    }
   }
 
-  // All placement rules satisfied — return ok:true with state unchanged.
-  // The handler tracks both-ready via Room.readyPlayers and triggers the PASS transition.
-  return { ok: true, state };
+  // All checks passed for this stage — advance or finalize.
+  if (stageIndex < 3) {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        freeKickStageIndex: (stageIndex + 1) as 0 | 1 | 2 | 3,
+        freeKickPlacedPieceIds: [],
+      },
+    };
+  }
+
+  // stageIndex === 3: last stage — finalize the kick.
+  const kicker = state.pieces.find(
+    (p) =>
+      p.teamId === kickingTeam && p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
+  );
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'PASS',
+      ball: kicker ? { position: kicker.position, carrierId: kicker.id } : state.ball,
+      attackingTeam: kickingTeam,
+      activeTeam: kickingTeam,
+      lastActionType: 'FREE_KICK_RESTART',
+      freeKickHex: null,
+      freeKickAttackingTeam: null,
+      freeKickStageIndex: null,
+      freeKickPlacedPieceIds: null,
+      // D-43/D-47: a major dead-ball restart clears ALL offside flags, not just the
+      // original offender's.
+      offsidePieceIds: [],
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

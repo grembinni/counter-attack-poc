@@ -12,7 +12,7 @@ import {
   ELIGIBLE_NEXT_ACTIONS,
 } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { applyEndTurn, applyMove, applyFreeKickReady } from '../gameEngine.js';
+import { applyEndTurn, applyMove, applyFreeKickReady, applyFreeKickMove } from '../gameEngine.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures (mirrors gameEngine.test.ts fixture conventions)
@@ -679,123 +679,255 @@ describe("ELIGIBLE_NEXT_ACTIONS['FREE_KICK_RESTART']", () => {
 });
 
 // ---------------------------------------------------------------------------
-// applyFreeKickReady (OFFSIDE-02 D-29/D-30/D-31)
+// applyFreeKickMove / applyFreeKickReady (OFFSIDE-02 D-49/D-50/D-51 staged rework)
+//
+// Replaces the prior simultaneous-both-teams-then-dual-Ready model (D-29 original,
+// D-46 — REVERTED) with the staged, alternating sequence verified against the
+// physical rulebook: kicking-5 -> defending-5 -> kicking-3 -> defending-2 -> kick taken.
+// D-46 (DEFENDER_BEHIND_BALL) no longer exists anywhere in this file.
 // ---------------------------------------------------------------------------
 
-describe('applyFreeKickReady', () => {
+describe('applyFreeKickReady / applyFreeKickMove (D-49 staged rework)', () => {
+  /** stage 0: kicking (away), max 5. */
   function freeKickState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): GameState {
     return makeState({
       phase: 'FREE_KICK_SETUP',
       freeKickHex: { q: 25, r: 10 },
       freeKickAttackingTeam: 'away',
+      freeKickStageIndex: 0,
+      freeKickPlacedPieceIds: [],
       ...overrides,
     });
   }
 
-  it('WRONG_PHASE when phase is not FREE_KICK_SETUP', () => {
-    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
-    const state = makeState({ pieces: [piece], phase: 'MOVE' });
-    const result = applyFreeKickReady(state, 'home');
-    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
-  });
+  // -------------------------------------------------------------------------
+  // applyFreeKickMove
+  // -------------------------------------------------------------------------
 
-  it('WRONG_PHASE when freeKickHex is null', () => {
-    const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
-    const state = freeKickState({ pieces: [piece], freeKickHex: null });
-    const result = applyFreeKickReady(state, 'home');
-    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
-  });
+  describe('applyFreeKickMove', () => {
+    it('WRONG_PHASE when phase is not FREE_KICK_SETUP', () => {
+      const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = makeState({ pieces: [piece], phase: 'MOVE' });
+      const result = applyFreeKickMove(state, 'home-1', { q: 1, r: 1 });
+      expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+    });
 
-  it('KICKER_HEX_EMPTY when the kicking team has zero pieces on freeKickHex', () => {
-    const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 1, r: 1 } });
-    const state = freeKickState({ pieces: [kicker] });
-    const result = applyFreeKickReady(state, 'away'); // away is freeKickAttackingTeam (kicking)
-    expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
-  });
+    it('WRONG_TEAM when the piece does not belong to the currently-active stage team (stage 0 = kicking/away)', () => {
+      const homePiece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [homePiece] });
+      const result = applyFreeKickMove(state, 'home-1', { q: 1, r: 1 });
+      expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+    });
 
-  it('KICKER_HEX_EMPTY when the kicking team has two pieces on freeKickHex', () => {
-    const kicker1 = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
-    const kicker2 = makePiece({ id: 'away-2', teamId: 'away', position: { q: 25, r: 10 } });
-    const state = freeKickState({ pieces: [kicker1, kicker2] });
-    const result = applyFreeKickReady(state, 'away');
-    expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
-  });
+    it('ok: kicking team (stage 0) may reposition a NEW piece (counted toward the cap)', () => {
+      const awayPiece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [awayPiece] });
+      const result = applyFreeKickMove(state, 'away-1', { q: 5, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.pieces.find((p) => p.id === 'away-1')?.position).toEqual({
+          q: 5,
+          r: 5,
+        });
+        expect(result.state.freeKickPlacedPieceIds).toEqual(['away-1']);
+      }
+    });
 
-  it('ok when the kicking team has exactly one piece on freeKickHex', () => {
-    const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
-    const other = makePiece({ id: 'away-2', teamId: 'away', position: { q: 1, r: 1 } });
-    const state = freeKickState({ pieces: [kicker, other] });
-    const result = applyFreeKickReady(state, 'away');
-    expect(result.ok).toBe(true);
-  });
+    it('PLACEMENT_LIMIT_REACHED when stage cap (5 for stage 0) is already full and a NEW piece is attempted', () => {
+      const placed = ['a1', 'a2', 'a3', 'a4', 'a5'];
+      const newPiece = makePiece({ id: 'away-6', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({
+        pieces: [newPiece],
+        freeKickPlacedPieceIds: placed,
+      });
+      const result = applyFreeKickMove(state, 'away-6', { q: 1, r: 1 });
+      expect(result).toEqual({ ok: false, reason: 'PLACEMENT_LIMIT_REACHED' });
+    });
 
-  it('DEFENDER_TOO_CLOSE when a defender is exactly 2 hexes from freeKickHex', () => {
-    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 23, r: 10 } }); // dist 2
-    const state = freeKickState({ pieces: [defender] });
-    const result = applyFreeKickReady(state, 'home'); // home is defending (not freeKickAttackingTeam)
-    expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
-  });
+    it('ok: re-placing an ALREADY-counted piece is free even when the cap is full', () => {
+      const placed = ['away-1', 'a2', 'a3', 'a4', 'a5'];
+      const awayPiece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({
+        pieces: [awayPiece],
+        freeKickPlacedPieceIds: placed,
+      });
+      const result = applyFreeKickMove(state, 'away-1', { q: 9, r: 9 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.freeKickPlacedPieceIds).toEqual(placed); // unchanged — no new slot used
+        expect(result.state.pieces.find((p) => p.id === 'away-1')?.position).toEqual({
+          q: 9,
+          r: 9,
+        });
+      }
+    });
 
-  it('ok when all defenders are more than 2 hexes from freeKickHex', () => {
-    // q:30 (ahead of freeKickHex.q:25 in home's +q attacking direction, so D-46 doesn't
-    // also reject this) and dist 5 from freeKickHex, clear of the D-30 2-hex zone.
-    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
-    const state = freeKickState({ pieces: [defender] });
-    const result = applyFreeKickReady(state, 'home');
-    expect(result.ok).toBe(true);
+    it('WRONG_TEAM at stage 1 (defending = home) when an away (kicking) piece attempts to move', () => {
+      const awayPiece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [awayPiece], freeKickStageIndex: 1 });
+      const result = applyFreeKickMove(state, 'away-1', { q: 1, r: 1 });
+      expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+    });
+
+    it('ok: defending team (home) may move at stage 1', () => {
+      const homePiece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [homePiece], freeKickStageIndex: 1 });
+      const result = applyFreeKickMove(state, 'home-1', { q: 30, r: 10 });
+      expect(result.ok).toBe(true);
+    });
+
+    it('PLACEMENT_LIMIT_REACHED respects the stage-specific cap (2 for stage 3)', () => {
+      const placed = ['h1', 'h2'];
+      const newPiece = makePiece({ id: 'home-3', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = freeKickState({
+        pieces: [newPiece],
+        freeKickStageIndex: 3,
+        freeKickPlacedPieceIds: placed,
+      });
+      const result = applyFreeKickMove(state, 'home-3', { q: 30, r: 10 });
+      expect(result).toEqual({ ok: false, reason: 'PLACEMENT_LIMIT_REACHED' });
+    });
   });
 
   // -------------------------------------------------------------------------
-  // D-46: defending team must stay equal-to-or-ahead of the ball (in their own
-  // attacking direction), not just >2 hexes away. freeKickHex: {q:25, r:10};
-  // home attacks toward HIGHER q (dir +1), away attacks toward LOWER q (dir -1).
+  // applyFreeKickReady — stage-end validation + advance/finalize
   // -------------------------------------------------------------------------
 
-  it('D-46: home defending — DEFENDER_BEHIND_BALL when a home piece is strictly behind freeKickHex (lower q)', () => {
-    // home attacks toward +q, so "behind" = lower q than freeKickHex.q (25).
-    // q:20 is also dist 5 from freeKickHex (>2), so DEFENDER_TOO_CLOSE does not mask this.
-    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 10 } });
-    const state = freeKickState({ pieces: [defender] });
-    const result = applyFreeKickReady(state, 'home');
-    expect(result).toEqual({ ok: false, reason: 'DEFENDER_BEHIND_BALL' });
-  });
+  describe('applyFreeKickReady', () => {
+    it('WRONG_PHASE when phase is not FREE_KICK_SETUP', () => {
+      const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = makeState({ pieces: [piece], phase: 'MOVE' });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+    });
 
-  it('D-46: home defending — ok when a home piece is exactly equal-q (and far enough away to clear DEFENDER_TOO_CLOSE)', () => {
-    // Equal q (25) but different r so hexDistance > 2 from {q:25, r:10}.
-    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 16 } });
-    const state = freeKickState({ pieces: [defender] });
-    const result = applyFreeKickReady(state, 'home');
-    expect(result.ok).toBe(true);
-  });
+    it('WRONG_PHASE when freeKickHex is null', () => {
+      const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [piece], freeKickHex: null });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+    });
 
-  it('D-46: home defending — ok when a home piece is strictly ahead of freeKickHex (higher q)', () => {
-    const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
-    const state = freeKickState({ pieces: [defender] });
-    const result = applyFreeKickReady(state, 'home');
-    expect(result.ok).toBe(true);
-  });
+    it('NOT_YOUR_STAGE when the inactive team attempts to end stage 0 (kicking = away)', () => {
+      const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [piece] });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result).toEqual({ ok: false, reason: 'NOT_YOUR_STAGE' });
+    });
 
-  it('D-46: away defending — DEFENDER_BEHIND_BALL when an away piece is strictly behind freeKickHex (higher q)', () => {
-    // For this fixture group, flip freeKickAttackingTeam to 'home' so away is defending.
-    // away attacks toward -q, so "behind" = higher q than freeKickHex.q (25).
-    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 10 } });
-    const state = freeKickState({ pieces: [defender], freeKickAttackingTeam: 'home' });
-    const result = applyFreeKickReady(state, 'away');
-    expect(result).toEqual({ ok: false, reason: 'DEFENDER_BEHIND_BALL' });
-  });
+    it('stage 0 (kicking, optional up to 5): ok with ZERO pieces placed — advances to stage 1, resets placed ids', () => {
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [piece], freeKickPlacedPieceIds: [] });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.freeKickStageIndex).toBe(1);
+        expect(result.state.freeKickPlacedPieceIds).toEqual([]);
+        expect(result.state.phase).toBe('FREE_KICK_SETUP'); // not finalized yet
+      }
+    });
 
-  it('D-46: away defending — ok when an away piece is exactly equal-q (and far enough away to clear DEFENDER_TOO_CLOSE)', () => {
-    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 16 } });
-    const state = freeKickState({ pieces: [defender], freeKickAttackingTeam: 'home' });
-    const result = applyFreeKickReady(state, 'away');
-    expect(result.ok).toBe(true);
-  });
+    it('stage 0 -> 1: advances even when fewer than 5 pieces were placed (optional-up-to-N, not mandatory)', () => {
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [piece], freeKickPlacedPieceIds: ['away-1'] });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.state.freeKickStageIndex).toBe(1);
+    });
 
-  it('D-46: away defending — ok when an away piece is strictly ahead of freeKickHex (lower q)', () => {
-    const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 20, r: 10 } });
-    const state = freeKickState({ pieces: [defender], freeKickAttackingTeam: 'home' });
-    const result = applyFreeKickReady(state, 'away');
-    expect(result.ok).toBe(true);
+    // D-30/D-50: defending stage (index 1) — continuous 2-hex exclusion check at stage-end.
+    it('stage 1 (defending): DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of freeKickHex', () => {
+      const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 23, r: 10 } }); // dist 2
+      const state = freeKickState({ pieces: [defender], freeKickStageIndex: 1 });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
+    });
+
+    it('stage 1 (defending): ok when all home pieces are more than 2 hexes from freeKickHex — advances to stage 2', () => {
+      const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
+      const state = freeKickState({ pieces: [defender], freeKickStageIndex: 1 });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.freeKickStageIndex).toBe(2);
+        expect(result.state.freeKickPlacedPieceIds).toEqual([]);
+      }
+    });
+
+    it('stage 1: NOT_YOUR_STAGE when the kicking team (away) attempts to end the defending stage', () => {
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 0, r: 0 } });
+      const state = freeKickState({ pieces: [piece], freeKickStageIndex: 1 });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result).toEqual({ ok: false, reason: 'NOT_YOUR_STAGE' });
+    });
+
+    // D-31/D-51: kicker-hex check fires specifically at stage index 2 (kicking team's LAST turn).
+    it('stage 2 (kicking, last turn): KICKER_HEX_EMPTY when no away piece sits on freeKickHex', () => {
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 1, r: 1 } });
+      const state = freeKickState({ pieces: [piece], freeKickStageIndex: 2 });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
+    });
+
+    it('stage 2: KICKER_HEX_EMPTY when TWO away pieces sit on freeKickHex', () => {
+      const k1 = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const k2 = makePiece({ id: 'away-2', teamId: 'away', position: { q: 25, r: 10 } });
+      const state = freeKickState({ pieces: [k1, k2], freeKickStageIndex: 2 });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result).toEqual({ ok: false, reason: 'KICKER_HEX_EMPTY' });
+    });
+
+    it('stage 2: ok when exactly one away piece sits on freeKickHex — advances to stage 3', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const state = freeKickState({ pieces: [kicker], freeKickStageIndex: 2 });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.freeKickStageIndex).toBe(3);
+        expect(result.state.phase).toBe('FREE_KICK_SETUP'); // not finalized — stage 3 still to go
+      }
+    });
+
+    // D-30/D-50: defending stage (index 3) — same continuous 2-hex check as stage 1.
+    it('stage 3 (defending, last turn): DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of freeKickHex', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 24, r: 10 } }); // dist 1
+      const state = freeKickState({ pieces: [kicker, defender], freeKickStageIndex: 3 });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
+    });
+
+    // Full finalize behavior (stage 3 -> PASS).
+    it('stage 3: ok finalizes the kick — phase PASS, carrier/attackingTeam/activeTeam = kicking team, lastActionType, offsidePieceIds reset, fields cleared', () => {
+      const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 30, r: 10 } });
+      const state = freeKickState({
+        pieces: [kicker, defender],
+        freeKickStageIndex: 3,
+        offsidePieceIds: ['home-1', 'away-1'], // multiple sticky flags — must ALL clear (D-43/D-47)
+      });
+      const result = applyFreeKickReady(state, 'home');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.phase).toBe('PASS');
+        expect(result.state.ball).toEqual({ position: { q: 25, r: 10 }, carrierId: 'away-1' });
+        expect(result.state.attackingTeam).toBe('away');
+        expect(result.state.activeTeam).toBe('away');
+        expect(result.state.lastActionType).toBe('FREE_KICK_RESTART');
+        expect(result.state.offsidePieceIds).toEqual([]);
+        expect(result.state.freeKickHex).toBeNull();
+        expect(result.state.freeKickAttackingTeam).toBeNull();
+        expect(result.state.freeKickStageIndex).toBeNull();
+        expect(result.state.freeKickPlacedPieceIds).toBeNull();
+      }
+    });
+
+    it('stage 3: NOT_YOUR_STAGE when the kicking team (away) attempts to end the final defending stage', () => {
+      const piece = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
+      const state = freeKickState({ pieces: [piece], freeKickStageIndex: 3 });
+      const result = applyFreeKickReady(state, 'away');
+      expect(result).toEqual({ ok: false, reason: 'NOT_YOUR_STAGE' });
+    });
   });
 });
 

@@ -44,6 +44,7 @@ import {
   applyCancelMovement,
   applyDeclareShot,
   applyEndTurn,
+  applyFreeKickMove,
   applyFreeKickReady,
   applyFreeMoveEnd,
   applyGKDive,
@@ -1780,6 +1781,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           attackingTeam: kicker ? kicker.teamId : room.gameState.attackingTeam,
           activeTeam: kicker ? kicker.teamId : room.gameState.activeTeam,
           lastActionType: null, // D-10: fresh sequence at kick-off
+          // D-47: a player cannot be flagged/remain-flagged offside as a direct result of
+          // a kick-off restart — generalizes D-43 (already done for the free-kick restart)
+          // to the kick-off restart too.
+          offsidePieceIds: [],
           eventLog: [
             ...room.gameState.eventLog,
             {
@@ -1801,9 +1806,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
   // -------------------------------------------------------------------------
   // GAME_FREE_KICK_MOVE — free piece repositioning during FREE_KICK_SETUP phase
-  // OFFSIDE-02 (D-29): both teams may reposition their entire squad anywhere on
-  // the board. Clone of GAME_KICK_OFF_MOVE with the FREE_KICK_SETUP phase guard
-  // and no own-half restriction (unlike kick-off).
+  // OFFSIDE-02 (D-49 staged rework): only the CURRENTLY-active stage's team may
+  // reposition; applyFreeKickMove validates team-for-stage and the per-stage
+  // placement cap (PLACEMENT_LIMIT_REACHED for a NEW piece beyond the cap; re-placing
+  // an already-counted piece is always free). No pace/ZoI checks (D-29).
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_FREE_KICK_MOVE, (pieceId: string, to: HexCoord) => {
     const { roomCode } = socket.data;
@@ -1837,7 +1843,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      // Only the owning team may reposition their pieces
+      // Only the owning team may reposition their pieces (defense-in-depth — the
+      // applyFreeKickMove team-for-stage check below also catches a wrong-team attempt,
+      // but this distinguishes NOT_YOUR_PIECE (tampering) from WRONG_TEAM (not your stage)).
       const team = socketTeam(socket);
       if (piece.teamId !== team) {
         socket.emit(ServerEvents.GAME_ERROR, 'NOT_YOUR_PIECE');
@@ -1860,11 +1868,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      // Apply free repositioning (no pace/ZoI checks — D-29)
-      const newPieces = room.gameState.pieces.map((p) =>
-        p.id === pieceId ? { ...p, position: { q: to.q, r: to.r } } : p,
-      );
-      room.gameState = { ...room.gameState, pieces: newPieces };
+      // D-49: validate team-for-stage + placement cap, and apply the reposition.
+      const result = applyFreeKickMove(room.gameState, pieceId, { q: to.q, r: to.r });
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
@@ -1872,10 +1883,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // -------------------------------------------------------------------------
-  // GAME_FREE_KICK_READY — FREE_KICK_SETUP confirmation ("Ready" button)
-  // OFFSIDE-02 (D-29/D-30/D-31/D-32): applyFreeKickReady validates placement
-  // server-side; snap-back on rejection. Transitions to PASS only when both
-  // teams have confirmed ready, mirroring GAME_READY's both-ready handshake.
+  // GAME_FREE_KICK_READY — "I'm done with my stage" signal (D-49 staged rework)
+  // OFFSIDE-02 (D-49/D-50/D-51): the event name is kept from the prior dual-Ready
+  // model, but the semantics are now single-team-at-a-time — only the CURRENTLY-active
+  // stage's team may meaningfully end it (applyFreeKickReady rejects an inactive team's
+  // attempt with NOT_YOUR_STAGE). No room.readyPlayers dual-confirm — each stage is
+  // ended by exactly one team's own action, mirroring applyFreeMoveEnd's End-Turn model.
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_FREE_KICK_READY, () => {
     const { roomCode } = socket.data;
@@ -1891,7 +1904,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      // Validate placement rules for this socket's team
+      // Validate + apply the stage-end for this socket's team. applyFreeKickReady owns
+      // the full advance-or-finalize transition (D-49) — including the D-43/D-47
+      // offsidePieceIds reset and FREE_KICK_RESTART lastActionType on finalize.
       const team = socketTeam(socket);
       const result = applyFreeKickReady(room.gameState, team);
       if (!result.ok) {
@@ -1899,45 +1914,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      // Mark this socket's player slot as ready (only the confirming socket's own slot)
-      const slot = socket.data.playerSlot;
-      if (slot === undefined) return;
-      if (!room.readyPlayers) {
-        room.readyPlayers = new Set<1 | 2>();
-      }
-      room.readyPlayers.add(slot);
-      // D-32: transition to PASS only when both teams have confirmed ready. applyFreeKickReady
-      // already validated that the kicking team has exactly one piece on freeKickHex — assign
-      // that piece as ball carrier so possession is reflected in state and graphics immediately.
-      // lastActionType: 'FREE_KICK_RESTART' restricts the next action via its
-      // ELIGIBLE_NEXT_ACTIONS row (Task 1) — do NOT set it to null (would resolve to
-      // MOVEMENT_PHASE and surface Move/Snapshot, defeating D-32).
-      if (room.readyPlayers.size === 2) {
-        const freeKickHex = room.gameState.freeKickHex;
-        const kickingTeam = room.gameState.freeKickAttackingTeam;
-        const kicker = freeKickHex
-          ? room.gameState.pieces.find(
-              (p) =>
-                p.teamId === kickingTeam &&
-                p.position.q === freeKickHex.q &&
-                p.position.r === freeKickHex.r,
-            )
-          : undefined;
-        room.gameState = {
-          ...room.gameState,
-          phase: 'PASS',
-          ball: kicker ? { position: kicker.position, carrierId: kicker.id } : room.gameState.ball,
-          attackingTeam: kickingTeam ?? room.gameState.attackingTeam,
-          activeTeam: kickingTeam ?? room.gameState.activeTeam,
-          lastActionType: 'FREE_KICK_RESTART',
-          freeKickHex: null,
-          freeKickAttackingTeam: null,
-          // D-43: a major dead-ball restart clears ALL offside flags, not just the
-          // original offender's (triggerOffsideFoul only ever removed the offender).
-          offsidePieceIds: [],
-        };
-        room.readyPlayers = null; // clear for next use
-      }
+      room.gameState = result.state;
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
