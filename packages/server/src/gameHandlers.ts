@@ -1932,6 +1932,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           lastActionType: 'FREE_KICK_RESTART',
           freeKickHex: null,
           freeKickAttackingTeam: null,
+          // D-43: a major dead-ball restart clears ALL offside flags, not just the
+          // original offender's (triggerOffsideFoul only ever removed the offender).
+          offsidePieceIds: [],
         };
         room.readyPlayers = null; // clear for next use
       }

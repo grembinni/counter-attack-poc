@@ -315,14 +315,16 @@ describe('OFFSIDE-02 Task 2: GAME_FREE_KICK_READY handler', () => {
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
 
-    // Move all defenders (home) far away, and exactly one away piece onto freeKickHex.
+    // Move all defenders (home) far away (equal-to-or-ahead of the ball per D-46 —
+    // home attacks toward higher q, so q >= freeKickHex.q keeps them legal), and
+    // exactly one away piece onto freeKickHex.
     const awayKicker = room.gameState.pieces.find((p) => p.teamId === 'away');
     if (!awayKicker) throw new Error('No away piece found');
     room.gameState = {
       ...room.gameState,
       pieces: room.gameState.pieces.map((p) => {
         if (p.id === awayKicker.id) return { ...p, position: freeKickHex };
-        if (p.teamId === 'home') return { ...p, position: { q: 1, r: 1 } };
+        if (p.teamId === 'home') return { ...p, position: { q: 35, r: 1 } };
         return { ...p, position: { q: 35, r: 1 } }; // other away pieces, also clear of the hex
       }),
     };
@@ -347,6 +349,47 @@ describe('OFFSIDE-02 Task 2: GAME_FREE_KICK_READY handler', () => {
     expect(finalState.lastActionType).toBe('FREE_KICK_RESTART');
     expect(finalState.freeKickHex).toBeNull();
     expect(finalState.freeKickAttackingTeam).toBeNull();
+  });
+
+  // D-43: a major dead-ball restart (both-ready transition) must clear ALL sticky
+  // offside flags, not just the original offender's — triggerOffsideFoul (D-26) only
+  // ever removed the offender, leaving any other already-flagged pieces sticky.
+  it('both-ready transition resets offsidePieceIds to [] even when multiple pieces are flagged', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const { freeKickHex } = seedFreeKickSetup(roomCode);
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+
+    const awayKicker = room.gameState.pieces.find((p) => p.teamId === 'away');
+    if (!awayKicker) throw new Error('No away piece found');
+    const homePieceIds = room.gameState.pieces
+      .filter((p) => p.teamId === 'home')
+      .map((p) => p.id)
+      .slice(0, 2);
+
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) => {
+        if (p.id === awayKicker.id) return { ...p, position: freeKickHex };
+        if (p.teamId === 'home') return { ...p, position: { q: 35, r: 1 } };
+        return { ...p, position: { q: 35, r: 1 } };
+      }),
+      // Seed multiple sticky offside flags — none of which is "the offender" in this
+      // test (there's no foul-trigger call here), to prove the reset is unconditional.
+      offsidePieceIds: homePieceIds,
+    };
+
+    const homeReadyPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const homeReadyPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_FREE_KICK_READY);
+    await Promise.all([homeReadyPromiseA, homeReadyPromiseB]);
+
+    const bothReadyPromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_FREE_KICK_READY);
+    const [finalState] = await bothReadyPromise;
+
+    expect(finalState.phase).toBe('PASS');
+    expect(finalState.offsidePieceIds).toEqual([]);
   });
 });
 
