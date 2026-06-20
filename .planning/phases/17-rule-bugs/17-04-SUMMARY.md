@@ -268,6 +268,118 @@ End Turn hand-off/resume behavior is unchanged from what was already verified in
 
 ---
 
+## IMPORTANT: Third checkpoint round — UX-parity addition (activated/abandoned-piece tracking)
+
+After the client click-to-move wiring fix above reached the Task 4 checkpoint a third time, the
+user manually tested MOVE-06 and confirmed it works functionally, but raised a UX-parity request
+(not a bug): _"when hitting max free-move pace or when moving a new unit mark previous unit as
+activated just like in the regular move phase."_
+
+In regular MOVEMENT, `applyMove` marks a piece "activated" (added to `movedPieceIds`) in two
+cases — exhaustion (the piece's own pace is fully used) and abandonment (the player starts
+moving a different piece while another piece has a partial, unfinished activation). The client
+already renders any piece in `movedPieceIds` with the `'activated'` visual (orange ring + red X)
+for every phase except `HIGH_PASS_MOVE` via `HexGrid.tsx`'s generic `isSpentNow` ternary, and
+`useGameStore.ts`'s `setGameState` already auto-deselects a piece the instant it appears in
+`movedPieceIds` (the `activationComplete` guard). Neither of these needed to change. The gap was
+entirely that `applyFreeMove`/`applyFreeMoveZoneCheck`/`applyFreeMoveEnd` never populated or reset
+`movedPieceIds` for the FREE_MOVE sub-phases.
+
+### What was fixed
+
+- **`applyFreeMove`** (`gameEngine.ts`): now rejects a move if `pieceId` is already in
+  `state.movedPieceIds` (`FREE_MOVE_EXHAUSTED`). On each accepted step, mirrors regular
+  MOVEMENT's exhaustion+abandonment rule exactly: if the piece's cumulative `freeMoveUsedPace`
+  reaches 6 after this step, it is added to `movedPieceIds`; if this step is a brand-new
+  activation (`usedSoFar === 0`) on a DIFFERENT piece while some other piece has an in-progress,
+  unfinished free-move activation (present in `freeMoveUsedPace`, not yet in `movedPieceIds`),
+  that other piece is abandoned and also added to `movedPieceIds`.
+- **`applyFreeMoveZoneCheck`** (`gameEngine.ts`): the trigger-fire transition now also resets
+  `movedPieceIds: []` — closing a latent bug where a piece left in `movedPieceIds` from whatever
+  phase/action preceded the trigger would have been incorrectly locked out of
+  `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` from the start (this bug pre-existed but had never been
+  exercised by a test or by manual play before now, since `movedPieceIds` happened to already be
+  empty in all prior test fixtures and play-throughs).
+- **`applyFreeMoveEnd`** (`gameEngine.ts`): all three return paths — the `FREE_MOVE_ATTACK` →
+  `FREE_MOVE_DEFENSE` handoff, and both exit-to-resume-phase paths (empty-defense-list fallback
+  inside the `FREE_MOVE_ATTACK` branch, and the `FREE_MOVE_DEFENSE`/fallback branch) — now also
+  reset `movedPieceIds: []`, so the defending team's sub-phase and the resumed phase both start
+  fresh rather than inheriting free-move activation bookkeeping.
+- **`HexGrid.tsx`**: `canSelectFreeMove` gained an additional `!movedPieceIds.includes(piece.id)`
+  condition, mirroring the regular MOVEMENT `canSelect` constant. `movedPieceIds` was already
+  pulled into this component (used by the generic `isSpentNow` check), so no new store binding
+  was needed.
+- **`useGameStore.ts`**: `selectPiece`'s `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` branch gained a
+  defense-in-depth check — if `gameState.movedPieceIds.includes(id)`, selection is rejected
+  before the pace-remaining check, mirroring the equivalent guard pattern used by other phase
+  branches in this file (e.g. `FIRST_TIME_PASS_MOVE`'s locked-slot rejection).
+
+No new client-side rendering logic was added. Both the `'activated'` visual (orange ring + red X)
+and the auto-deselect-on-activation behavior were already generic, phase-agnostic code paths in
+`HexGrid.tsx` and `useGameStore.ts` that simply needed the server to start populating
+`movedPieceIds` for FREE_MOVE — confirmed by inspection of `isSpentNow` (`HexGrid.tsx`) and the
+`activationComplete` guard (`useGameStore.ts`'s `setGameState`) before making any client changes.
+
+### Test coverage added
+
+- `gameEngine.phase17.test.ts`: 7 new cases — abandons a partially-moved piece when a different
+  eligible piece starts moving; adds a piece to `movedPieceIds` directly on its own 6th-hex
+  exhaustion; rejects a move for a piece already in `movedPieceIds` even if its
+  `freeMoveUsedPace` is under 6; `applyFreeMoveZoneCheck`'s trigger-fire transition resets
+  `movedPieceIds: []` (seeded with stale non-empty values to prove the reset); `applyFreeMoveEnd`'s
+  `FREE_MOVE_ATTACK` → `FREE_MOVE_DEFENSE` handoff resets `movedPieceIds: []` (seeded with
+  attack-side activations); `applyFreeMoveEnd`'s empty-defense-list exit-to-resume-phase path
+  resets `movedPieceIds: []`; `applyFreeMoveEnd`'s `FREE_MOVE_DEFENSE` exit-to-resume-phase path
+  resets `movedPieceIds: []`.
+- `HexGrid.test.tsx`: 1 new case (plus a new `hasActivatedRingAt` helper mirroring the existing
+  `hasSelectableRingAt` pattern) — a piece in `movedPieceIds` with pace remaining under 6
+  (simulating abandonment) is NOT selectable/clickable and renders the `'activated'` orange-ring
+  visual via the existing generic `isSpentNow` path.
+- `useGameStore.test.ts`: 2 new `selectPiece` cases (one each for `FREE_MOVE_ATTACK` and
+  `FREE_MOVE_DEFENSE`) confirming a piece already in `movedPieceIds` is rejected (selection
+  cleared) even when pace remaining is under 6.
+
+### Deviation from plan
+
+**[Rule 1 - Bug] Latent `movedPieceIds` staleness bug in `applyFreeMoveZoneCheck`/`applyFreeMoveEnd`**
+
+- **Found during:** Implementing the UX-parity request above (orchestrator-diagnosed, not
+  independently discovered during this execution — the orchestrator's diagnosis explicitly
+  flagged this as a "latent bug this fix must close").
+- **Issue:** Neither `applyFreeMoveZoneCheck` nor `applyFreeMoveEnd` ever touched
+  `movedPieceIds`, so a piece left in that field by whatever phase preceded a FREE_MOVE trigger
+  (or by one FREE_MOVE sub-phase before the next) could leak into the next sub-phase/resumed
+  phase and be incorrectly locked out from the start.
+- **Fix:** Added `movedPieceIds: []` resets at all four sub-phase boundaries (zone-check
+  trigger-fire, ATTACK→DEFENSE handoff, and both exit-to-resume-phase paths).
+- **Files modified:** `packages/server/src/gameEngine.ts`.
+- **Commits:** `bae90ea` (fix, server), `807a209` (fix, client)
+
+### Verification (third round)
+
+All five commands passed:
+
+- `pnpm --filter @counter-attack/shared typecheck` — clean
+- `pnpm --filter @counter-attack/server typecheck` — clean
+- `pnpm --filter @counter-attack/server test` — 345 passed, 1 skipped, 1 todo (20 files; +7 new
+  MOVE-06 cases vs. the prior round's 338)
+- `pnpm --filter @counter-attack/client typecheck` — clean
+- `pnpm --filter @counter-attack/client test` — 131 passed (10 files; +3 new cases vs. the prior
+  round's 128)
+
+### Checkpoint status (third round)
+
+Returning to the Task 4 `checkpoint:human-verify` a third time. Not simulated — the user must
+verify two-browser-tab behavior directly. Re-verification note: once you move a piece during
+`FREE_MOVE_ATTACK`/`DEFENSE` and then click a DIFFERENT eligible piece, the first piece should now
+show the same "activated" visual (orange ring + red X) it would show in the regular Movement
+phase after being abandoned — and become unselectable — even if it hadn't used its full 6 hexes.
+A piece that uses its full 6 hexes shows the same activated state immediately. End Turn hand-off/
+resume behavior and the basic move-up-to-6-hexes mechanic are unchanged from what was already
+verified in the prior two rounds.
+
+---
+
 _Phase: 17-rule-bugs_
 _Completed: 2026-06-20_
 
@@ -281,5 +393,9 @@ _Completed: 2026-06-20_
 - FOUND: commit `fd10053` (docs(17-04): add SUMMARY.md)
 - FOUND: commit `daed61e` (fix(17-04): wire FREE_MOVE_ATTACK/DEFENSE client click-to-move selection)
 - FOUND: commit `e19760f` (test(17-04): cover FREE_MOVE_ATTACK/DEFENSE click-to-move selection)
+- FOUND: commit `18060a2` (docs(17-04): document second-checkpoint client-wiring gap and fix)
+- FOUND: commit `bae90ea` (fix(17-04): track activated/abandoned pieces during FREE_MOVE)
+- FOUND: commit `807a209` (fix(17-04): add clickability defense-in-depth gate for activated FREE_MOVE pieces)
 - FOUND: `packages/client/src/components/HexGrid.tsx` (canSelectFreeMove present)
 - FOUND: `packages/client/src/store/useGameStore.ts` (FREE_MOVE_ATTACK/DEFENSE branches present)
+- FOUND: `packages/server/src/gameEngine.ts` (movedPieceIds tracking in applyFreeMove/applyFreeMoveZoneCheck/applyFreeMoveEnd)
