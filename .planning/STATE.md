@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: 'Ready to resume Phase 17 (2 plans remain: 17-04 MOVE-06, 17-05 cancelled) or start Phase 18'
-last_updated: '2026-06-20T12:57:13.073Z'
-last_activity: 2026-06-20 -- Phase 17 planning complete
+status: executing
+last_updated: '2026-06-20T17:40:10.387Z'
+last_activity: 2026-06-20 -- Phase 17 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 27
-  completed_plans: 26
-  percent: 96
+  total_plans: 29
+  completed_plans: 27
+  percent: 60
 ---
 
 # Project State
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 17.1 — action-flow-cleanup
+**Current focus:** Phase 17 — rule-bugs
 
 ## Phase Status
 
@@ -286,10 +286,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 17.1 — Complete (2026-06-20, 16/16 plans, 5 verification cycles)
-Plan: Quick task 260620-9ql complete
-Status: Ready to resume Phase 17 (2 plans remain: 17-04 MOVE-06, 17-05 cancelled) or start Phase 18
-Last activity: 2026-06-20 -- Phase 17 planning complete
+Phase: 17 (rule-bugs) — EXECUTING
+Plan: 17-04 complete (4 of 6); proceeding to 17-05
+Status: Executing Phase 17
+Last activity: 2026-06-20 -- Plan 17-04 (MOVE-06) approved after 3 checkpoint correction rounds (trigger/eligibility/sequencing rework, client click-to-move wiring, activated-piece parity)
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
 a deferred follow-up rather than a 6th gap-closure cycle. Captured as
