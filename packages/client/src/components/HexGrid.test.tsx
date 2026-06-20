@@ -376,6 +376,21 @@ function hasSelectableRingAt(container: HTMLElement, q: number, r: number): bool
   );
 }
 
+/**
+ * True if an 'activated' orange ring (r=PIECE_RADIUS+3=15, stroke #f97316, UX-05/D-04/D-05) is
+ * rendered at the piece's pixel center — mirrors hasSelectableRingAt's radius+color matching.
+ */
+function hasActivatedRingAt(container: HTMLElement, q: number, r: number): boolean {
+  const { cx, cy } = axialToPixel(q, r);
+  return Array.from(container.querySelectorAll('circle')).some(
+    (c) =>
+      c.getAttribute('stroke') === '#f97316' &&
+      c.getAttribute('r') === '15' &&
+      Number(c.getAttribute('cx')) === cx &&
+      Number(c.getAttribute('cy')) === cy,
+  );
+}
+
 describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkpoint round fix)', () => {
   it('renders an eligible piece as selectable during FREE_MOVE_ATTACK for the active player', () => {
     const state = freeMoveState('FREE_MOVE_ATTACK');
@@ -473,6 +488,34 @@ describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkp
     const { container } = render(<HexGrid />);
     expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
       false,
+    );
+  });
+
+  // UX-parity fix: activated/abandoned-piece tracking for FREE_MOVE (reuses movedPieceIds,
+  // mirrors regular MOVEMENT's abandoned-piece rendering — same isSpentNow/movedPieceIds path).
+  it('does NOT render a piece in movedPieceIds as selectable even with pace remaining under 6 (abandoned)', () => {
+    const state = {
+      ...freeMoveState('FREE_MOVE_ATTACK', {
+        freeMoveUsedPace: { [FREE_MOVE_ELIGIBLE_ID]: 2 }, // under 6 — would otherwise be selectable
+      }),
+      movedPieceIds: [FREE_MOVE_ELIGIBLE_ID], // abandoned when a different piece started moving
+    };
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === FREE_MOVE_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      false,
+    );
+    // Same generic isSpentNow/movedPieceIds path used for regular MOVEMENT renders the
+    // 'activated' visual — no FREE_MOVE-specific rendering logic needed.
+    expect(hasActivatedRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      true,
     );
   });
 });

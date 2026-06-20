@@ -378,6 +378,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
+      // Already activated this sub-phase (exhausted or abandoned) — defense-in-depth, mirrors
+      // other phase branches in this file that guard against already-spent pieces (UX-parity fix).
+      if (gameState.movedPieceIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       const paceRemaining = 6 - (gameState.freeMoveUsedPace?.[id] ?? 0);
       if (paceRemaining <= 0) {
         set({ selectedPieceId: id, validMoveHexes: [] });

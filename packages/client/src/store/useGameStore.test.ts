@@ -197,6 +197,34 @@ describe('useGameStore — selectPiece FREE_MOVE_ATTACK/DEFENSE (second checkpoi
     expect(state.selectedPieceId).toBe(FM_ELIGIBLE_ID);
     expect(state.validMoveHexes.length).toBeGreaterThan(0);
   });
+
+  // UX-parity fix: activated/abandoned-piece tracking for FREE_MOVE (reuses movedPieceIds,
+  // defense-in-depth check mirroring other phase branches in this file).
+  it('FREE_MOVE_ATTACK: rejects a piece already in movedPieceIds even with pace remaining under 6 (abandoned)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...freeMoveAttackState({ freeMoveUsedPace: { [FM_ELIGIBLE_ID]: 2 } }),
+        movedPieceIds: [FM_ELIGIBLE_ID],
+      },
+    });
+    useGameStore.getState().selectPiece(FM_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('FREE_MOVE_DEFENSE: rejects a piece already in movedPieceIds even with pace remaining under 6 (abandoned)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...freeMoveDefenseState({ freeMoveUsedPace: { [FM_ELIGIBLE_ID]: 4 } }),
+        movedPieceIds: [FM_ELIGIBLE_ID],
+      },
+    });
+    useGameStore.getState().selectPiece(FM_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
 });
 
 // Bug fix (second checkpoint round, this plan): setGameState's sticky-selection logic had no

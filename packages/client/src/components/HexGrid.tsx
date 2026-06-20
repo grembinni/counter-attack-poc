@@ -620,7 +620,8 @@ export function HexGrid() {
               myTeam !== null &&
               piece.teamId === myTeam &&
               (freeMoveEligibleIds?.[freeMoveSide]?.includes(piece.id) ?? false) &&
-              (freeMoveUsedPace?.[piece.id] ?? 0) < 6;
+              (freeMoveUsedPace?.[piece.id] ?? 0) < 6 &&
+              !movedPieceIds.includes(piece.id); // already activated this sub-phase (UX-parity fix)
 
             // Phase 8.2 D-17: HEADER phase — eligible own pieces (≤2 hexes from ball) can toggle contestant.
             // Both teams select independently; gated on not yet confirmed for this team.
