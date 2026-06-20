@@ -303,13 +303,11 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 17 (rule-bugs) — EXECUTING
-Plan: 17-05 (OFFSIDE-01) Tasks 1-3 complete; Task 4 checkpoint:human-verify pending
+Plan: 17-05 (OFFSIDE-01) complete (5 of 6); proceeding to 17-06
 Status: Executing Phase 17
-Last activity: 2026-06-20 -- Plan 17-05 Tasks 1-3 executed and committed (shared offside
-geometry helpers + sticky GameState.offsidePieceIds field; evaluateOffside wired into every
-applyEndTurn/applyFreeMoveEnd return; PieceOverlay double-width red ring + HexGrid wiring).
-Awaiting human verification of detection/stickiness/clear/team-relative flagging in a live
-two-tab session before Task 4 (checkpoint) and the plan can close.
+Last activity: 2026-06-20 -- Plan 17-05 approved after one checkpoint correction round
+(evaluation timing narrowed to full-MOVEMENT-end + break-in-play per D-39; ball-clear
+condition gated on possession per D-40). Detection/marker confirmed correct by user.
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
