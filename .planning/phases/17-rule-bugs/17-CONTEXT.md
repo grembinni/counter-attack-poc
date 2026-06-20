@@ -65,6 +65,29 @@ Fix seven rule-correctness defects in the existing game engine and client UI: su
 - BUG-03 slot-boundary logic: whether a HEADER_ACCURACY_ACK event counts as a slot boundary (use existing SLOT_ADVANCE / DICE_ROLL lock logic as written — no new boundary type needed).
 - MOVE-06 test coverage for zero eligible players (empty final third) — FREE_MOVE phase should immediately return to PASS if no eligible players exist.
 
+### Offside Rule (Addendum — gathered 2026-06-20, new scope added to Phase 17 after initial close-out)
+
+New rule, no formal requirement ID yet — assign one (e.g. `OFFSIDE-01`) when planning and add it to `REQUIREMENTS.md` and ROADMAP.md's Phase 17 `Requirements:`/success-criteria list.
+
+- **D-21 (trigger):** A player is flagged offside when, at end of phase, all three hold: (1) past half field in their team's attacking direction (home attacks toward q>36 side, i.e. q>18; away attacks toward q<0 side, i.e. q<18 — mirrors the existing `kickOffHex.q=18` half-boundary convention at gameEngine.ts:2999-3001), (2) ahead of the ball in that same direction, and (3) the count of opposing-team pieces (any role, GK included) positioned equal-to-or-ahead of this player (same direction) is ≤1.
+- **D-22 (clear):** The flag clears when the player ends a turn either (a) equal-to-or-behind the ball, or (b) with ≥2 opposing pieces equal-to-or-ahead of them. This is the logical complement of D-21, evaluated the same way.
+- **D-23 (persistence — STICKY):** Once flagged, a player stays flagged across subsequent end-of-phase checks until D-22's clear condition is actually satisfied — this is NOT a fresh per-phase recompute. Requires a per-piece boolean (or id-set) field on `GameState`, re-evaluated and updated at every phase-end, not derived ad hoc at render time.
+- **D-24 (scope — ALL players, team-relative):** The check applies to every piece on the pitch, not just the attacking team's outfielders. For a given player P on team T, "ahead"/"behind"/"defenders" are all relative to T's attacking direction, and "defenders" means pieces on the OTHER team (relative to P), any role, GK included. A defending-team player can also be flagged if they push forward of the ball and their own opponents (now playing the "defender" role relative to them) leave them with ≤1 covering piece.
+- **D-25 (visual marker):** A flagged piece renders a double-width red circle (an additional ring around the piece token, distinct from and independent of `selectionState` — a piece can be simultaneously offside and selectable/selected). Mirror PieceOverlay.tsx's existing ring pattern (e.g. `selectionState==='active'` green ring at PieceOverlay.tsx:240-246) but as a separate boolean-driven layer, not folded into `selectionState`.
+- **D-26 (consequence):** If a flagged-offside player gains possession of the ball — including winning a header — a free kick is triggered immediately.
+- **D-27 (foul spot):** The free kick is taken from the offside player's position at the moment the foul triggers (not the ball's position).
+- **D-28 (possession):** Possession goes to the team NOT committing the foul (i.e., the opposing team of the flagged player).
+- **D-29 (repositioning):** Both teams may reposition their entire squad anywhere on the board before the kick (mirror `KICK_OFF_SETUP`'s both-teams-place-pieces pattern, gameEngine.ts `applyKickOffReady` ~2997-3040, but with different zone rules — see D-30/D-31, not the kickoff own-half restriction).
+- **D-30 (defender zone restriction):** The defending team (relative to the kicking team) cannot place any piece within 2 hexes of the ball's restart position.
+- **D-31 (kicker requirement):** The kicking team must have exactly one player positioned on the ball's hex before the kick can be taken (mirrors the kickoff centre-hex-occupancy check, `CENTRE_HEX_EMPTY` guard, gameEngine.ts ~3038).
+- **D-32 (action set):** From the free kick, the only legal actions are STANDARD_PASS, HIGH_PASS, LONG_BALL, and SHOT (the last only if the kicker is in shooting range). No MOVE, no other action types.
+
+#### Claude's Discretion (Offside)
+
+- Exact GamePhase name(s)/count for the free-kick flow (e.g. a single `FREE_KICK_SETUP` mirroring `KICK_OFF_SETUP`, or split setup/execution phases) — follow whichever existing restart-phase pattern (KICK_OFF_SETUP vs GK_RESTART) fits best once the planner has read both.
+- Exact new `GameState` field name/shape for offside-flag tracking (e.g. `offsidePieceIds: string[]`) and for the free-kick restart spot/team (e.g. `freeKickHex`, `freeKickAttackingTeam`).
+- Whether offside is checked at every single phase-end transition project-wide, or only at end-of-MOVEMENT-equivalent phases where piece positions can change — use judgment grounded in where pieces can actually move, to avoid needless checks in phases with no movement (e.g. dice-roll-only phases).
+
 </decisions>
 
 <canonical_refs>
