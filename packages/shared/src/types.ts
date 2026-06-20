@@ -307,8 +307,10 @@ export type GamePhase =
   | 'GK_QUICK_THROW' // GK selects target hex for unblockable, uninterceptable throw
   | 'GK_KICK_TARGET' // GK's team selects kick destination (not into opponent's final third)
   | 'GK_KICK_MOVE' // both teams reposition 1 player ≤3 hexes while ball is in air
-  // Phase 17 MOVE-06: free 6-hex move for players in opponent's final third
-  | 'FREE_MOVE'
+  // Phase 17 MOVE-06 (corrected design, D-33..D-38): two sequential sub-phases for the
+  // ball-zone-triggered free 6-hex move — attacking team moves first, then defending team.
+  | 'FREE_MOVE_ATTACK'
+  | 'FREE_MOVE_DEFENSE'
   | 'FIRST_TIME_PASS_MOVE' // D-03: repositioning phase after first-time pass target selected
   | 'HALF_TIME'
   | 'FULL_TIME'
@@ -363,11 +365,13 @@ export type GameState = {
   paceUsedByPieceId: Readonly<Record<string, number>>;
   movementSlot: MovementSlot | null;
   /**
-   * D-15 / MOVE-06: set when the ball carrier crosses between final thirds.
-   * Grants the scoring team a free 6-hex movement. Phase 5 enforces the grant.
-   * null or absent when no free move is pending.
+   * MOVE-06 (Phase 17, corrected design D-33): which final third the ball currently
+   * occupies. Always present (never optional) — every state-construction site must
+   * initialize it. Compared against the post-action zone in `applyFreeMoveZoneCheck`
+   * (centrally invoked from `broadcastState`) to detect a fresh entry into a final
+   * third, which triggers the FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE sequence.
    */
-  pendingFreeMove?: { team: 'home' | 'away'; hexesAllowed: number } | null;
+  ballZone: 'home' | 'middle' | 'away';
   /**
    * D-11 / Phase 5: Dice rolls from the most recent dice action.
    * Embedded in GameState so both clients see the rolls before rendering the outcome.
@@ -555,16 +559,28 @@ export type GameState = {
    */
   firstTimePassCarrierId?: string | null;
   /**
-   * MOVE-06 (Phase 17): piece IDs eligible for free 6-hex move (outfield players in opponent's third).
-   * Set when entering FREE_MOVE phase; null outside FREE_MOVE.
+   * MOVE-06 (Phase 17, corrected design D-34/D-38): piece IDs eligible for the free
+   * 6-hex move, split by sub-phase. Both teams' lists are precomputed together at
+   * trigger time — "attack" = the team in `attackingTeam`, "defense" = the other team.
+   * Includes ALL pieces (both teams, GK included) positioned in the opposite final
+   * third at the moment the trigger fired. null outside FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE.
    */
-  freeMoveEligibleIds?: readonly string[] | null;
+  freeMoveEligibleIds?: { attack: readonly string[]; defense: readonly string[] } | null;
   /**
-   * MOVE-06 (Phase 17): cumulative hexes used per piece during FREE_MOVE phase.
-   * Key = pieceId; value = hexes moved so far (max 6).
-   * null outside FREE_MOVE phase.
+   * MOVE-06 (Phase 17): cumulative hexes used per piece during the FREE_MOVE_ATTACK/
+   * FREE_MOVE_DEFENSE sub-phases. Key = pieceId; value = hexes moved so far (max 6).
+   * Shared across both sub-phases (keyed by piece id; no two pieces share an id).
+   * null outside FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE.
    */
   freeMoveUsedPace?: Readonly<Record<string, number>> | null;
+  /**
+   * MOVE-06 (Phase 17, corrected design D-36): snapshots the phase and activeTeam that
+   * were already computed as "next" by the action that triggered the free-move sequence
+   * (captured BEFORE the overlay sets phase to FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE).
+   * Restored when FREE_MOVE_DEFENSE ends (or is skipped because its eligible list was
+   * empty). null outside the FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE sequence.
+   */
+  freeMoveResume?: { phase: GamePhase; activeTeam: 'home' | 'away' } | null;
   /**
    * PASS-02 (Phase 17): the piece ID of the player who made the First-time Pass.
    * Set when firstTimePassStep: 'ATTACKER' is entered so the handler can reject

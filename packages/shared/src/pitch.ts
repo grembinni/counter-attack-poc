@@ -168,6 +168,19 @@ export function isDifficultAngle(hex: HexCoord): boolean {
   return DIFFICULT_ANGLE_HEXES.has(hexKey(hex));
 }
 
+/**
+ * MOVE-06 (Phase 17, corrected design D-33): classifies a hex into one of the three
+ * pitch thirds for the ball-zone-triggered free-move rule. Mirrors the homeThird/
+ * middleThird/awayThird boundaries already encoded in PITCH_REGIONS (q<=10 / q 11-25 /
+ * q>=26) — exported standalone so gameEngine.ts can compare a ball position's zone
+ * against `GameState.ballZone` without re-deriving the boundary logic.
+ */
+export function computeBallZone(position: HexCoord): 'home' | 'middle' | 'away' {
+  if (isInRegion(position, 'homeThird')) return 'home';
+  if (isInRegion(position, 'awayThird')) return 'away';
+  return 'middle';
+}
+
 /** Pre-built Set for O(1) `isPitchHex` lookups (CR-04: was O(n) Array.some). */
 const PITCH_HEX_SET: ReadonlySet<string> = buildRegion([...PITCH_HEXES]);
 

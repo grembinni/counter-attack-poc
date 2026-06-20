@@ -6,6 +6,7 @@ import {
   isInRegion,
   isDifficultAngle,
   isPitchHex,
+  computeBallZone,
 } from './pitch.js';
 
 describe('PITCH_HEXES', () => {
@@ -130,6 +131,24 @@ describe('DIFFICULT_ANGLE_HEXES', () => {
     expect(isDifficultAngle({ q: 0, r: 8 })).toBe(false); // just below goal-line strip
     expect(isDifficultAngle({ q: 3, r: 3 })).toBe(false); // removed outermost r=3 hex
     expect(isDifficultAngle({ q: 0, r: 18 })).toBe(false); // bottom-left shifted away from r=18
+  });
+});
+
+describe('computeBallZone (Phase 17 MOVE-06, corrected design D-33)', () => {
+  it('returns "home" for q<=10 (homeThird boundary)', () => {
+    expect(computeBallZone({ q: 0, r: 0 })).toBe('home');
+    expect(computeBallZone({ q: 10, r: 12 })).toBe('home');
+  });
+
+  it('returns "middle" for q in [11,25] (middleThird boundary)', () => {
+    expect(computeBallZone({ q: 11, r: 12 })).toBe('middle');
+    expect(computeBallZone({ q: 18, r: 13 })).toBe('middle'); // kick-off hex
+    expect(computeBallZone({ q: 25, r: 12 })).toBe('middle');
+  });
+
+  it('returns "away" for q>=26 (awayThird boundary)', () => {
+    expect(computeBallZone({ q: 26, r: 12 })).toBe('away');
+    expect(computeBallZone({ q: 36, r: 0 })).toBe('away');
   });
 });
 
