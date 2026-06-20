@@ -102,13 +102,12 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 3. Piece moves made before a header is triggered can each be individually undone, restoring the piece's position and remaining pace allowance
 4. A grounded pass that lands on an occupied hex results in ball pickup by that player; if the player belongs to the defending team, possession immediately transfers to them
 5. When a goalkeeper save produces a loose ball, the ball spawns at the goalkeeper's hex; outfield players in an opponent's final third each receive a free move of up to 6 hexes after a normal action; during a first-time pass flight both teams may each move one player up to 1 hex
-   **Plans**: 5 plans
+   **Plans**: 4 plans
 
 - [x] 17-01-PLAN.md — Foundation: shared FREE_MOVE phase + GameState fields + GAME_CANCEL_MOVEMENT event + Wave-0 failing tests
 - [x] 17-02-PLAN.md — Engine bug fixes: BUG-01 (header unblockable), BUG-04 (occupied-hex pickup/possession), BUG-05 (loose ball at GK)
 - [x] 17-03-PLAN.md — BUG-02 Cancel in MOVEMENT + BUG-03 Undo in HIGH_PASS_MOVEMENT (engine + handler + ActionPanel)
 - [ ] 17-04-PLAN.md — MOVE-06 FREE_MOVE phase end-to-end (transition, per-piece 6-hex move, handlers, panel)
-- [ ] 17-05-PLAN.md — PASS-02 First-time Pass mid-flight repositioning (attacker step + SNAP_DEFLECT reuse + path highlight)
 
 ### Phase 17.1: Action Flow Cleanup
 

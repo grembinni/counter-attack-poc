@@ -36,7 +36,7 @@
 ## Carry-forward Bugs
 
 - [x] **MOVE-06**: Server implements the free 6-hex move rule — after completing a normal action, outfield players in the opponent's final third may each move up to 6 hexes for free; the scaffolded handler in `gameEngine.ts:517` is completed and connected
-- [x] **PASS-02**: During a First-time Pass flight, each team may move one player up to 1 hex; the TODO at `gameEngine.ts:1087` is implemented
+- [x] **PASS-02**: During a First-time Pass flight, each team may move one player up to 1 hex. Delivered by Phase 17.1 two-slot FIRST_TIME_PASS_MOVE redesign (Phase 17 plan 17-05 single-step design cancelled/superseded).
 
 ## Design Review
 
@@ -54,28 +54,28 @@
 
 ## Traceability
 
-| REQ-ID    | Phase    | Status   |
-| --------- | -------- | -------- |
-| TEAM-01   | Phase 15 | Pending  |
-| TEAM-02   | Phase 15 | Complete |
-| TEAM-03   | Phase 15 | Complete |
-| TEAM-04   | Phase 15 | Complete |
-| TEAM-05   | Phase 15 | Complete |
-| TEAM-06   | Phase 15 | Complete |
-| PLAY-01   | Phase 16 | Complete |
-| PLAY-02   | Phase 16 | Complete |
-| PLAY-03   | Phase 16 | Complete |
-| SELECT-01 | Phase 16 | Complete |
-| BUG-01    | Phase 17 | Complete |
-| BUG-02    | Phase 17 | Complete |
-| BUG-03    | Phase 17 | Complete |
-| BUG-04    | Phase 17 | Complete |
-| BUG-05    | Phase 17 | Complete |
-| MOVE-06   | Phase 17 | Complete |
-| PASS-02   | Phase 17 | Complete |
-| DESIGN-01 | Phase 18 | Pending  |
-| DESIGN-02 | Phase 18 | Pending  |
-| DESIGN-03 | Phase 18 | Pending  |
-| DESIGN-04 | Phase 18 | Pending  |
-| REPLAY-06 | Phase 18 | Pending  |
-| MATCH-06  | Phase 18 | Pending  |
+| REQ-ID    | Phase      | Status   |
+| --------- | ---------- | -------- |
+| TEAM-01   | Phase 15   | Pending  |
+| TEAM-02   | Phase 15   | Complete |
+| TEAM-03   | Phase 15   | Complete |
+| TEAM-04   | Phase 15   | Complete |
+| TEAM-05   | Phase 15   | Complete |
+| TEAM-06   | Phase 15   | Complete |
+| PLAY-01   | Phase 16   | Complete |
+| PLAY-02   | Phase 16   | Complete |
+| PLAY-03   | Phase 16   | Complete |
+| SELECT-01 | Phase 16   | Complete |
+| BUG-01    | Phase 17   | Complete |
+| BUG-02    | Phase 17   | Complete |
+| BUG-03    | Phase 17   | Complete |
+| BUG-04    | Phase 17   | Complete |
+| BUG-05    | Phase 17   | Complete |
+| MOVE-06   | Phase 17   | Complete |
+| PASS-02   | Phase 17.1 | Complete |
+| DESIGN-01 | Phase 18   | Pending  |
+| DESIGN-02 | Phase 18   | Pending  |
+| DESIGN-03 | Phase 18   | Pending  |
+| DESIGN-04 | Phase 18   | Pending  |
+| REPLAY-06 | Phase 18   | Pending  |
+| MATCH-06  | Phase 18   | Pending  |
