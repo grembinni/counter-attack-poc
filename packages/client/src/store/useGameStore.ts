@@ -379,6 +379,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
+      // Cycle-4 self-pass-reclaim finding (D-03, Phase 17.1-16): the original passer's own
+      // piece is not selectable during FTP repositioning — defense-in-depth UX only; the
+      // server is the authoritative guard (GAME_MOVE rejects WRONG_PIECE) and would reject
+      // this move even if a tampered client bypassed this check.
+      if (id === gameState.firstTimePassCarrierId) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       // If a different piece is already locked in for this slot, reject selection
       const lockedId = gameState.firstTimePassMovedPieceId ?? null;
       if (lockedId !== null && lockedId !== id) {

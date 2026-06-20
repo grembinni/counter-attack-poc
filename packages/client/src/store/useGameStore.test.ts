@@ -59,6 +59,44 @@ describe('useGameStore — selectPiece', () => {
   });
 });
 
+describe('useGameStore — selectPiece FIRST_TIME_PASS_MOVE (CR-01, 17.1-16 self-pass-reclaim fix)', () => {
+  beforeEach(() => {
+    // Seed FTP ATTACKER slot, home team active, playerSlot=1 (home).
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FIRST_TIME_PASS_MOVE',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        firstTimePassMovementSlot: 'ATTACKER',
+        firstTimePassMovedPieceId: null,
+        firstTimePassPaceUsed: 0,
+        firstTimePassCarrierId: 'home-9', // the passer
+      },
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+  });
+
+  it('rejects selection of the original passer (firstTimePassCarrierId) — would have been selectable pre-fix', () => {
+    // Behaviour-assertion: pre-fix, this branch gated only on team/lock/pace, so the passer
+    // (own team, slot unlocked, pace remaining) would have passed every gate and been
+    // selected with non-empty validMoveHexes. This assertion would FAIL pre-fix.
+    useGameStore.getState().selectPiece('home-9');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toHaveLength(0);
+  });
+
+  it('accepts selection of a non-passer own-team piece (existing happy path preserved)', () => {
+    useGameStore.getState().selectPiece('home-5');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-5');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
 describe('useGameStore — Phase 7 setters', () => {
   it('setGameState replaces gameState wholesale', () => {
     const newState = { ...mockMovementState, phase: 'SHOT' as const };
