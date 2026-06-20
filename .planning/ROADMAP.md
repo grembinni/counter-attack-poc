@@ -160,7 +160,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 **Gap closure (re-verification cycle 3, Review-CR-01 / Review-CR-02 — SC3 undo durability + delivery correctness):**
 
-- [ ] 17.1-14-PLAN.md — Review-CR-01 (Gap A): applyUndo resets firstTimePassMovedPieceId/firstTimePassPaceUsed (and highPass\* equivalents) so Undo unlocks the FTP/HP repositioning slot + lock-field regression tests [Gap Wave 5, depends on 17.1-13]
+- [x] 17.1-14-PLAN.md — Review-CR-01 (Gap A): applyUndo resets firstTimePassMovedPieceId/firstTimePassPaceUsed (and highPass\* equivalents) so Undo unlocks the FTP/HP repositioning slot + lock-field regression tests [Gap Wave 5, depends on 17.1-13]
 - [ ] 17.1-15-PLAN.md — Review-CR-02 (Gap B): FTP delivery receiver lookup made team-agnostic (BUG-04 parity) so a defender on passTargetHex receives the ball with possession transfer + integration test [Gap Wave 5, depends on 17.1-13]
 
 ### Phase 18: Design Polish
@@ -202,5 +202,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 15. Team Identity             | v1.2      | 3/3            | Complete    | 2026-06-13 |
 | 16. Player Roster & Selection | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                 | v1.2      | 3/5            | In Progress |            |
-| 17.1. Action Flow Cleanup     | v1.2      | 13/13          | In Progress |            |
+| 17.1. Action Flow Cleanup     | v1.2      | 14/15          | In Progress |            |
 | 18. Design Polish             | v1.2      | 0/TBD          | Pending     | -          |
