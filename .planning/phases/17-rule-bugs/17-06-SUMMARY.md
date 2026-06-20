@@ -478,11 +478,194 @@ No dev server was started during this corrective session. The orchestrator's pro
 build (server on port 3001, `vite preview` on port 5174) was observed running, untouched,
 at both the start and end of this session.
 
-## Checkpoint Pending (Round 2)
+## Rulebook Correction Round (D-46 REVERTED; D-47..D-51 staged rework, gathered/implemented 2026-06-20)
 
-Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a SECOND time — the original
-OFFSIDE-02 end-to-end verification (unchanged in substance) PLUS re-verification of the five
-corrections above: ring width (D-42), full offside reset on free-kick-taken (D-43), help text
-readability in both setup panels (D-44), light-blue placement highlight (D-45), and the
-defending team's new behind-ball restriction with its highlight accuracy (D-46). Plan 17-06
-cannot close until this second checkpoint round is approved.
+The user checked the free-kick setup mechanic built above (D-29's simultaneous-both-teams-
+reposition-then-dual-Ready model, including the Round-1 D-46 correction) against the physical
+rulebook's "streamlined movement phase" section and found it substantially wrong. This round
+fully reverts D-46 and replaces the entire repositioning mechanic with the staged, alternating
+sequence the rulebook actually describes.
+
+### Before vs. After
+
+**Before (D-29 + D-46, now superseded):** Both teams simultaneously repositioned their entire
+squad anywhere on the board (kicking team unrestricted; defending team excluded from a 2-hex
+zone around the ball AND from any hex behind the ball in their own attacking direction — D-46).
+Each team pressed a "Ready" button independently; the kick was taken once BOTH teams had
+confirmed ready (`room.readyPlayers` dual-confirm Set, mirroring `GAME_READY`'s kick-off
+handshake).
+
+**After (D-47..D-51, this round):** Repositioning proceeds in four fixed, alternating stages,
+quoted directly from the rulebook:
+
+1. **Kicking team** picks up and places up to **5** players (anywhere on the board, D-29 — no
+   zone restriction).
+2. **Conceding team** picks up and places up to **5** players, excluding a 2-hex zone around
+   the ball (D-30 — unchanged from before; D-46's behind-ball exclusion is fully reverted).
+3. **Kicking team** picks up and places up to **3** more players, anywhere on the board. This
+   is the kicking team's LAST turn — the kicker-on-ball-hex check (D-31/D-51) fires here.
+4. **Conceding team** picks up and places up to **2** more players, excluding the same 2-hex
+   zone (D-30/D-50 — checked again, continuously, at this stage too).
+
+After stage 4 ends, the kick is taken automatically: phase transitions to `PASS`, the
+kicking-team piece on the ball's hex becomes the carrier, `attackingTeam`/`activeTeam` flip to
+the kicking team, `lastActionType: 'FREE_KICK_RESTART'`, and `offsidePieceIds` resets to `[]`
+(D-43/D-47). Each stage is **optional up to its cap** — a team may end its turn having placed
+zero, some, or all of its allowance; only the cap on NEW (not-yet-counted) pieces is enforced.
+Re-placing an already-counted piece within the same stage is always free.
+
+### D-46 — fully reverted
+
+`DEFENDER_BEHIND_BALL` is removed entirely: from `ApplyFreeKickReadyResult`'s reason union,
+from `applyFreeKickReady`'s guard sequence (server), and from `useGameStore.ts`'s
+`FREE_KICK_SETUP` `selectPiece` branch (client) — no trace remains in either package's
+non-test source. The defending team's only placement restriction is now D-30's 2-hex zone, as
+the physical rulebook actually specifies. All six D-46 test cases (3 server, 4 client) were
+deleted along with the simultaneous-model tests they were embedded in; the staged-model test
+suites written this round (below) contain zero `DEFENDER_BEHIND_BALL` assertions.
+
+### D-47 — offside exemption generalized to kick-off restart
+
+`GAME_READY`'s both-ready transition (`gameHandlers.ts`, KICK_OFF_SETUP → KICK_OFF) now resets
+`offsidePieceIds: []`, generalizing the D-43 reset that previously only applied to the
+free-kick restart. A player cannot be flagged/remain-flagged offside as a direct result of
+either restart type. (Throw-ins will need the same treatment whenever that phase is built — no
+throw-in phase exists yet, so nothing to change there now.)
+
+### D-48 — persistent geometric placement-zone highlight
+
+`HexGrid.tsx` gained `isInMyFreeKickZone(hex)` — a pure per-hex geometric function evaluated
+for every pitch hex on every render, mirroring `isInMyKickOffZone`'s existing shape. It returns
+true only during MY team's CURRENTLY-active stage (per the new turn-gating below): always true
+for the kicking team's stages (0/2); true except within 2 hexes of the ball for the conceding
+team's stages (1/3). This replaces the prior `phase === 'FREE_KICK_SETUP' && isValidMove` term
+in `isKickoffTint`'s derivation, which only lit up the zone AFTER a piece was selected (since
+`isValidMove` reads the store's `validMoveHexes`, populated only on selection). The zone is now
+visible the moment a stage becomes active, with zero clicks. The click-to-move interaction
+itself — select a piece, then click a destination — is unchanged.
+
+### D-49 — staged, alternating sequence
+
+New `GameState` fields: `freeKickStageIndex?: 0 | 1 | 2 | 3 | null` (which stage is active) and
+`freeKickPlacedPieceIds?: readonly string[] | null` (distinct pieces already counted toward the
+CURRENT stage's cap; reset to `[]` at the start of every new stage). A new lookup table in
+`offside.ts`, `FREE_KICK_STAGES`, maps stage index to `{ side: 'kicking' | 'defending'; max:
+number }`; `freeKickStageTeam(stageIndex, freeKickAttackingTeam)` resolves the lookup's `side`
+to an actual `'home' | 'away'` team. `triggerOffsideFoul` (the single funnel point all foul
+triggers go through) initializes `freeKickStageIndex: 0` and `freeKickPlacedPieceIds: []`
+alongside its existing FREE_KICK_SETUP transition fields.
+
+A new pure function, `applyFreeKickMove` (gameEngine.ts), replaces the old free-form
+repositioning logic inside the `GAME_FREE_KICK_MOVE` handler: rejects a piece that doesn't
+belong to the currently-active stage's team (`WRONG_TEAM`), and rejects placing a NEW piece
+once the stage's cap is reached (`PLACEMENT_LIMIT_REACHED`) while always allowing free
+re-placement of an already-counted piece. `applyFreeKickReady` was entirely rewritten from a
+dual-team validator into a single-team stage-end validator: it now takes `(state, team)` and
+either advances `freeKickStageIndex` (resetting `freeKickPlacedPieceIds`) or — on stage 3 —
+finalizes the kick. The `GAME_FREE_KICK_READY` socket handler keeps its event name (still means
+"I'm done with my stage") but no longer touches `room.readyPlayers`; the staged model has
+exactly one acting team per stage, so there is no dual-confirm to track.
+
+### D-50 — 2-hex exclusion enforced continuously
+
+D-30's "defending team must stay >2 hexes from the ball" rule is now checked at the end of
+EACH of the conceding team's two stages (1 and 4, i.e. `freeKickStageIndex` 1 and 3) rather
+than once at a single simultaneous Ready button. A stage-ending attempt by the conceding team
+is rejected with `DEFENDER_TOO_CLOSE` if any of their pieces (moved or not) is still within 2
+hexes of the ball's restart hex at that moment.
+
+### D-51 — kicker-hex check timing
+
+D-31's "kicking team must have exactly one piece on the ball's hex" is validated specifically
+when the kicking team attempts to end stage index 2 (their LAST turn) via `KICKER_HEX_EMPTY` —
+not at stage 0 (they may legitimately wait until stage 2 to finalize the kicker) and not after
+stage 3 (by then they have no further turns to fix it).
+
+### New rejection reason: `NOT_YOUR_STAGE`
+
+Replaces the old "both teams confirm independently" model's lack of any inactive-team
+rejection. An inactive team's `GAME_FREE_KICK_READY` (stage-end) or `GAME_FREE_KICK_MOVE`
+(repositioning, via the `WRONG_TEAM` reason) attempt during another team's active stage is
+rejected and snapped back — only the currently-active stage's team can act.
+
+### Client UI rework
+
+`FreeKickSetupPanel.tsx` was rewritten from a dual-Ready-button panel into a turn-gated,
+per-stage panel: the ACTIVE team sees which side they're on (Attacking/Defending), how many
+placements they've used/have remaining this stage, the relevant constraint row (`Kicker hex:
+...` at stage 2 only; `Defending zone: ...` at stages 1/3 only), and a single End-Turn-style
+button (label is "End Turn" for stages 0-2, "Take Kick" for stage 3 — the user's last action
+before the ball goes live) that still emits the existing `emitFreeKickReady` action (kept the
+name — it's now a "stage done" signal, not a literal both-ready confirmation, but renaming
+would have touched more files for no behavioral gain). The INACTIVE team sees only a waiting
+message ("Attacking/Defending team is repositioning…"), mirroring `ActionPanel`'s established
+`!isActivePlayer` waiting-panel pattern. `useGameStore.ts`'s `selectPiece` `FREE_KICK_SETUP`
+branch and `HexGrid.tsx`'s `canSelectFreeKick` piece-clickability gate both now require "is it
+currently MY team's stage" (via `freeKickStageTeam`), not just "is my team the kicking or
+defending side" — only one team can interact with the board at a time now.
+
+### Files changed this round
+
+- `packages/shared/src/types.ts` — added `freeKickStageIndex`, `freeKickPlacedPieceIds`
+- `packages/shared/src/offside.ts` — added `FREE_KICK_STAGES`, `freeKickStageTeam`; updated
+  `triggerOffsideFoul` to initialize the new stage fields
+- `packages/server/src/gameEngine.ts` — removed `DEFENDER_BEHIND_BALL`; added
+  `applyFreeKickMove`; rewrote `applyFreeKickReady`
+- `packages/server/src/gameHandlers.ts` — reworked `GAME_FREE_KICK_MOVE`/`GAME_FREE_KICK_READY`
+  handlers; added `offsidePieceIds: []` to `GAME_READY`'s KICK_OFF transition (D-47)
+- `packages/server/src/__tests__/offside.test.ts` — full rewrite of the `applyFreeKickReady`
+  describe block into `applyFreeKickReady / applyFreeKickMove (D-49 staged rework)` (24 cases)
+- `packages/server/src/__tests__/gameHandlers.phase17-06.test.ts` — full rewrite of the
+  GAME_FREE_KICK_MOVE/READY describe blocks for the staged model (16 cases)
+- `packages/server/src/__tests__/kickoffSetup.integration.test.ts` — new D-47 test
+- `packages/client/src/store/useGameStore.ts` — reworked `FREE_KICK_SETUP` `selectPiece` branch
+- `packages/client/src/store/useGameStore.test.ts` — rewrote the FREE_KICK_SETUP test block
+- `packages/client/src/components/HexGrid.tsx` — added `isInMyFreeKickZone` (D-48); turn-gated
+  `canSelectFreeKick`
+- `packages/client/src/components/HexGrid.test.tsx` — replaced the D-45 test block with a D-48
+  persistent-highlight test block (5 cases)
+- `packages/client/src/components/FreeKickSetupPanel.tsx` — full rewrite for the staged UI
+- `packages/client/src/components/FreeKickSetupPanel.test.tsx` — full rewrite (20 cases)
+
+### Commits
+
+| Commit    | Scope                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------- |
+| `3498573` | shared types/offside.ts — FREE_KICK_STAGES, freeKickStageTeam, new fields                 |
+| `3d7f517` | server — D-46 revert, applyFreeKickMove, applyFreeKickReady rework, handlers, D-47, tests |
+| `c508082` | client — useGameStore, HexGrid (D-48), FreeKickSetupPanel rework, tests                   |
+
+### Re-verification after this round
+
+- `pnpm --filter @counter-attack/shared typecheck` — exits 0
+- `pnpm --filter @counter-attack/server typecheck` — exits 0
+- `pnpm --filter @counter-attack/server test` — 435 passing (1 pre-existing skip, 1 pre-existing
+  todo, unrelated), up from 421 (+14 net: offside.test.ts's `applyFreeKickReady` block grew from
+  19 to 24 cases testing `applyFreeKickMove`+`applyFreeKickReady` together;
+  gameHandlers.phase17-06.test.ts's free-kick describe blocks grew from 6 to 16 cases;
+  kickoffSetup.integration.test.ts gained 1 new D-47 case)
+- `pnpm --filter @counter-attack/client typecheck` — exits 0
+- `pnpm --filter @counter-attack/client test` — 173 passing, up from 158 (+15 net: useGameStore
+  FREE_KICK_SETUP block restructured to 9 turn-gated cases; HexGrid D-48 block has 5 cases vs.
+  the prior D-45 block's 2; FreeKickSetupPanel rewritten to 20 cases vs. the prior 10)
+- `pnpm --filter @counter-attack/shared test` — 320 passing (unchanged — no shared-package
+  test file exists for `offside.ts`'s new exports beyond what `offside.test.ts` in the SERVER
+  package already covers via its `@counter-attack/shared` import)
+
+No dev server was started during this session. Only `tsc --noEmit`, `tsc` (shared package
+build, needed to refresh `dist/` so the server package's `@counter-attack/shared` resolution
+picked up the new types/exports), and `vitest run` commands were executed. The orchestrator's
+production build (server on port 3001, `vite preview` on port 5174) was not touched.
+
+## Checkpoint Pending (Round 3)
+
+Task 4 (`checkpoint:human-verify`, gate="blocking") is pending a THIRD time — re-verification
+needed for: the staged sequence end-to-end (all four stages, alternating turns, optional-up-to-N
+placements, the two stage-specific constraint checks at the right moments), the persistent
+blue highlight visible immediately on stage activation (D-48), and the offside-exemption fix
+on kick-off restart (D-47, requires triggering a kick-off restart with a sticky offside flag
+present — likely only reachable via a contrived mid-match scenario or a second-half kick-off
+after an offside foul in the first half). The original OFFSIDE-02 end-to-end flow and the five
+Round-1 corrections (D-42..D-45; D-46 is now reverted, not to be re-verified) remain in scope
+for re-confirmation since the underlying mechanic changed substantially. Plan 17-06 cannot
+close until this round is approved.
