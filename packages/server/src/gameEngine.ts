@@ -39,6 +39,7 @@ import {
   hexDistance,
   hexLine,
   computeBallZone,
+  evaluateOffside,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
@@ -740,6 +741,11 @@ export function applyEndTurn(
     return { ok: false, reason: 'WRONG_SLOT' };
   }
 
+  // OFFSIDE-01 (D-23): re-evaluate the sticky offside flag once — none of this function's
+  // returns mutate piece positions (pieces already moved via applyMove), so a single
+  // evaluateOffside(state) call covers every ok:true return below.
+  const nextOffside = evaluateOffside(state);
+
   const { nextSlot, nextPhase } = advanceMovementSlot(state);
 
   const slotAdvanceEvent: ActionEvent = {
@@ -789,6 +795,7 @@ export function applyEndTurn(
           actionCount: newActionCount,
           addedTime: newAddedTime,
           lastActionType: 'MOVEMENT_PHASE',
+          offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
         },
       };
     }
@@ -816,6 +823,7 @@ export function applyEndTurn(
             addedTime: newAddedTime,
             stealAttemptedByIds: [], // D-02: reset on phase transition
             tackleAttemptedByIds: [], // D-02
+            offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
           },
         };
       }
@@ -843,6 +851,7 @@ export function applyEndTurn(
         lastActionType: 'MOVEMENT_PHASE',
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
+        offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
       },
     };
   }
@@ -868,6 +877,7 @@ export function applyEndTurn(
       movedPieceIds: [...state.movedPieceIds, ...lockedOnEndSlot],
       paceUsedByPieceId: {}, // reset — new slot counts activations from zero
       lastActionType: 'MOVEMENT_PHASE', // D-17 (WR-02): reset for intermediate slot transitions
+      offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): intermediate slots also re-evaluate (pieces moved during this slot)
     },
   };
 }
@@ -888,6 +898,10 @@ export function applyEndTurn(
  *   the free-move tracking fields (freeMoveResume/freeMoveEligibleIds/freeMoveUsedPace).
  */
 export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState } {
+  // OFFSIDE-01 (D-23): pieces may have moved during the sub-phase that is ending (either
+  // FREE_MOVE_ATTACK or FREE_MOVE_DEFENSE) — re-evaluate the sticky flag at every return.
+  const nextOffside = evaluateOffside(state);
+
   if (state.phase === 'FREE_MOVE_ATTACK') {
     const defenseIds = state.freeMoveEligibleIds?.defense ?? [];
     if (defenseIds.length > 0) {
@@ -900,6 +914,7 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
           // Defending team's sub-phase starts fresh, independent of which attacking pieces
           // were activated/abandoned during FREE_MOVE_ATTACK (UX-parity fix).
           movedPieceIds: [],
+          offsidePieceIds: nextOffside,
         },
       };
     }
@@ -916,6 +931,7 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
         // Resumed phase is always a fresh phase boundary — must not inherit free-move
         // activation bookkeeping (UX-parity fix).
         movedPieceIds: [],
+        offsidePieceIds: nextOffside,
       },
     };
   }
@@ -933,6 +949,7 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
       // Resumed phase is always a fresh phase boundary — must not inherit free-move
       // activation bookkeeping (UX-parity fix).
       movedPieceIds: [],
+      offsidePieceIds: nextOffside,
     },
   };
 }

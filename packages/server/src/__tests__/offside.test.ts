@@ -10,6 +10,7 @@ import {
   OFFSIDE_HALFWAY_Q,
 } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import { applyEndTurn } from '../gameEngine.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures (mirrors gameEngine.test.ts fixture conventions)
@@ -23,14 +24,11 @@ function makePiece(
   },
 ): PlayerPiece {
   return {
-    id: overrides.id,
-    teamId: overrides.teamId,
     firstName: 'Test',
     lastName: 'Player',
     number: 9,
     nationality: 'Test',
     role: 'FWD',
-    position: overrides.position,
     pace: 5,
     shooting: 5,
     tackling: 5,
@@ -51,7 +49,6 @@ function makeState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): G
     phase: 'MOVE',
     activeTeam: 'home',
     attackingTeam: 'home',
-    pieces: overrides.pieces,
     ball: { position: { q: 18, r: 13 }, carrierId: null },
     score: { home: 0, away: 0 },
     actionCount: 0,
@@ -364,5 +361,61 @@ describe('evaluateOffside', () => {
     const state = makeState({ pieces: [piece], ball });
     delete (state as { offsidePieceIds?: readonly string[] }).offsidePieceIds;
     expect(evaluateOffside(state)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyEndTurn — sticky offsidePieceIds wiring (Task 2)
+// ---------------------------------------------------------------------------
+
+describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23)', () => {
+  it('flags a piece past halfway / ahead of ball / <=1 opponent ahead on ATTACKER_2 end, then clears it once dropped behind the ball', () => {
+    const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const state = makeState({
+      pieces: [attacker, oneDefender],
+      ball: { position: { q: 20, r: 13 }, carrierId: null }, // attacker ahead of ball
+      movementSlot: 'ATTACKER_2',
+      offsidePieceIds: [],
+    });
+
+    const firstResult = applyEndTurn(state);
+    expect(firstResult.ok).toBe(true);
+    if (!firstResult.ok) return;
+    expect(firstResult.state.phase).toBe('PASS');
+    expect(firstResult.state.offsidePieceIds).toContain('home-1');
+
+    // Follow-up: attacker drops equal-or-behind the ball; re-run applyEndTurn from a fresh
+    // ATTACKER_2 slot on top of the now-flagged state — id must be cleared (sticky -> cleared).
+    const droppedBack = firstResult.state.pieces.map((p) =>
+      p.id === 'home-1' ? { ...p, position: { q: 18, r: 13 } } : p,
+    );
+    const secondState: GameState = {
+      ...firstResult.state,
+      pieces: droppedBack,
+      ball: { position: { q: 20, r: 13 }, carrierId: null }, // attacker now behind ball (q18 < q20)
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_2',
+    };
+    const secondResult = applyEndTurn(secondState);
+    expect(secondResult.ok).toBe(true);
+    if (!secondResult.ok) return;
+    expect(secondResult.state.offsidePieceIds).not.toContain('home-1');
+  });
+
+  it('re-evaluates offsidePieceIds on intermediate slot transitions (ATTACKER_4 -> DEFENDER_5)', () => {
+    const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
+    const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
+    const state = makeState({
+      pieces: [attacker, oneDefender],
+      ball: { position: { q: 20, r: 13 }, carrierId: null },
+      movementSlot: 'ATTACKER_4',
+      offsidePieceIds: [],
+    });
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.movementSlot).toBe('DEFENDER_5');
+    expect(result.state.offsidePieceIds).toContain('home-1');
   });
 });
