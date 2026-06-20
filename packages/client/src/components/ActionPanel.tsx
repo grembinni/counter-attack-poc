@@ -411,19 +411,22 @@ export function ActionPanel() {
   }
 
   // -------------------------------------------------------------------------
-  // FREE_MOVE phase (Phase 17 MOVE-06 D-14): the crossing team's eligible outfield
-  // players each get an independent free 6-hex move. Only the team that crossed
-  // thirds acts here — opponent sees the waiting panel.
+  // FREE_MOVE_ATTACK / FREE_MOVE_DEFENSE phases (Phase 17 MOVE-06, corrected design
+  // D-33..D-38): triggered when the ball enters a final third — ALL pieces of both
+  // teams (GK included) in the opposite final third each get an independent free
+  // 6-hex move. Two sequential sub-phases enforce "attacking team moves first";
+  // only the team whose sub-phase is active acts here — the other sees the waiting panel.
   // -------------------------------------------------------------------------
-  if (phase === 'FREE_MOVE') {
+  if (phase === 'FREE_MOVE_ATTACK' || phase === 'FREE_MOVE_DEFENSE') {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
+    const sideLabel = phase === 'FREE_MOVE_ATTACK' ? 'Attacking team' : 'Defending team';
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Free Move!</span>
           <span className={styles.helperLine2}>
-            Move up to 6 hexes per player in the opponent&apos;s third.
+            {sideLabel} — move up to 6 hexes per player in the opponent&apos;s third.
           </span>
         </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>

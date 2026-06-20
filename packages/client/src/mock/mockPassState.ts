@@ -29,5 +29,4 @@ export const mockPassState: GameState = {
     },
   ],
   lastDiceRoll: null,
-  pendingFreeMove: null,
 };

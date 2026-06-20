@@ -71,7 +71,8 @@ export const mockMovementState: GameState = {
   paceUsedByPieceId: {},
   movementSlot: 'ATTACKER_4',
   lastDiceRoll: null,
-  pendingFreeMove: null,
+  // MOVE-06 (Phase 17, corrected design): ball at kick-off hex {q:18,r:13} — middleThird.
+  ballZone: 'middle',
   // Phase 8 fields (D-06)
   addedTime: null,
   lastActionType: null,

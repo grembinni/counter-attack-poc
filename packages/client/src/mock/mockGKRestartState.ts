@@ -34,5 +34,4 @@ export const mockGKRestartState: GameState = {
       ballAfter: { position: { q: 36, r: 13 }, carrierId: null },
     },
   ],
-  pendingFreeMove: null,
 };

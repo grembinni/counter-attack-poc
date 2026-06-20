@@ -27,5 +27,6 @@ export const mockShotState: GameState = {
     },
   ],
   lastDiceRoll: null,
-  pendingFreeMove: null,
+  // MOVE-06 (Phase 17, corrected design): ball moved to {q:33,r:13} — awayThird.
+  ballZone: 'away',
 };
