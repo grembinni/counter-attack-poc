@@ -1,5 +1,6 @@
 node_modules/
 dist/
+*.tsbuildinfo
 .DS_Store
 *.log
 # Environment variable files — never commit any .env variant
