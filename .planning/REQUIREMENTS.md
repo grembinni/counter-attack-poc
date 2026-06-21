@@ -53,7 +53,7 @@
 ## Carry-forward from v1.1
 
 - [ ] **REPLAY-06**: Ball position updates correctly on every replay frame in a live session; ball correctly tracks pickups, intercepted passes, and steals mid-replay; UAT Test 6 from v1.1 passes
-- [ ] **MATCH-06** _(req text only)_: Requirement text is updated to reflect symmetric mirror intent — the formation description is perspective-neutral (e.g., "each team's DEF/MID placed within N hex-columns of the kick-off hex from their own end")
+- [ ] **MATCH-06** _(req text only)_: Each team's DEF/MID pieces are placed within symmetric hex-columns of the kick-off hex from their own end — a perspective-neutral, symmetric-mirror formation description (D-10)
 
 ## Bug Bash (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
