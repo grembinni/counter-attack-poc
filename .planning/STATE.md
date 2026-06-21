@@ -182,6 +182,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 | 260621-ajd             | 2026-06-21 | Remove ActionPanel/kick-off outline borders; add MOVE/FREE_MOVE remaining-player countdown + kick-off helper copy                                         |
 | 260621-awb             | 2026-06-21 | Unify ActionLog duel-log player names (PNamed), result glyphs, and STEAL_ATTEMPT challenge detail to TACKLE's level                                       |
 | 260621-b8f             | 2026-06-21 | Add HEADED_PASS/GK_PUNT ActionEvent types + emission; log HEADER contest, post-header pass, GK punt; split SHOT_ATTEMPT challenge/handling                |
+| 260621-bsy             | 2026-06-21 | Align MOVE log prefixes + slot-advance header to scoreboard naming (team-colored [MOVE N]); rewrite DEFLECT_ATTEMPT entry for clarity                     |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
