@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: executing
-last_updated: '2026-06-20T18:45:00.000Z'
-last_activity: 2026-06-20 -- Plan 17-06 (OFFSIDE-02) Tasks 1-3 complete; Task 4 checkpoint pending
+status: planning
+last_updated: '2026-06-21T02:31:56.085Z'
+last_activity: 2026-06-20 -- Plan 17-06 approved; one known non-blocking bug deferred
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 29
-  completed_plans: 27
-  percent: 60
+  completed_plans: 29
+  percent: 80
 ---
 
 # Project State
