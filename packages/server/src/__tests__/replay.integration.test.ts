@@ -20,7 +20,7 @@ import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
-import { buildReplayFrames } from '../gameEngine.js';
+import { applyMove, buildReplayFrames } from '../gameEngine.js';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -506,78 +506,110 @@ describe('FULL_TIME → REPLAY stream', () => {
     const room = getRoom(roomCode)!;
     const pieces = room.gameState!.pieces;
     const attacker = pieces.find((p) => p.teamId === 'home')!;
-    const defender = pieces.find((p) => p.teamId === 'away')!;
-    const tackler = pieces.find((p) => p.teamId === 'away' && p.id !== defender.id)!;
+    const stealDefender = pieces.find((p) => p.teamId === 'away')!;
+    const tackleDefender = pieces.find((p) => p.teamId === 'away' && p.id !== stealDefender.id)!;
     const moveTo = { q: attacker.position.q + 1, r: attacker.position.r };
 
-    // Steal case: MOVE event's own ballAfter is the STALE pre-contest snapshot (attacker still
-    // carrier) — the buggy current behavior — immediately followed by a successful STEAL_ATTEMPT
-    // whose ballAfter correctly shows the defender as the new carrier.
-    room.gameState = {
+    // Drive a REAL applyMove call (not a hand-crafted eventLog) so this test exercises the
+    // actual root-cause fix location (Pitfall 3): the MOVE event's ballAfter is corrected
+    // in-place on the steal/tackle SUCCESS return path inside applyMove itself, not in
+    // buildReplayFrames. Position stealDefender adjacent to moveTo (ZoI) so validateMove emits
+    // a STEAL_ATTEMPT effect; stealDie=6 forces SUCCESS regardless of combined score (D-06).
+    const stealState: GameState = {
       ...room.gameState!,
-      eventLog: [
-        {
-          type: 'MOVE',
-          pieceId: attacker.id,
-          from: attacker.position,
-          to: moveTo,
-          slot: 'ATTACKER_4' as const,
-          timestamp: 1,
-          // Stale: still shows attacker as carrier (pre-contest snapshot bug)
-          ballAfter: { position: moveTo, carrierId: attacker.id },
-        },
-        {
-          type: 'STEAL_ATTEMPT',
-          defenderId: defender.id,
-          result: 'SUCCESS',
-          defenderDie: 6,
-          defenderCombined: 12,
-          timestamp: 2,
-          ballAfter: { position: moveTo, carrierId: defender.id },
-        },
-      ],
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      activeTeam: attacker.teamId,
+      attackingTeam: attacker.teamId,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+      pieces: pieces.map((p) => {
+        if (p.id === attacker.id) return { ...p, position: attacker.position };
+        if (p.id === stealDefender.id) return { ...p, position: moveTo };
+        // move every other piece far away so it cannot interfere with ZoI/adjacency
+        return { ...p, position: { q: 0, r: 0 } };
+      }),
+      ball: { position: attacker.position, carrierId: attacker.id },
+      eventLog: [],
+    };
+    // stealDefender currently occupies moveTo — move it 1 hex away so `to` is unoccupied
+    // but stealDefender stays adjacent (ZoI) to trigger STEAL_ATTEMPT (MOVE-03 vs MOVE-04/05).
+    const stealDefenderAdjacentPos = { q: moveTo.q, r: moveTo.r + 1 };
+    const stealStateFinal: GameState = {
+      ...stealState,
+      pieces: stealState.pieces.map((p) =>
+        p.id === stealDefender.id ? { ...p, position: stealDefenderAdjacentPos } : p,
+      ),
     };
 
-    const stealFrames = buildReplayFrames(room.gameState);
-    // MOVE accumulates into the move group; the STEAL_ATTEMPT flushes it producing 1 step-frame
-    // for the MOVE, then 1 frame for the STEAL_ATTEMPT itself.
+    const stealResult = applyMove(stealStateFinal, attacker.id, moveTo, {
+      stealDie: 6,
+      tackleDie: 3,
+      carrierDie: 3,
+    });
+    expect(stealResult.ok).toBe(true);
+    if (!stealResult.ok) return;
+    const stealEvent = stealResult.state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
+    expect(stealEvent).toBeDefined();
+    expect(stealEvent && 'result' in stealEvent ? stealEvent.result : undefined).toBe('SUCCESS');
+    const stealMoveEvent = stealResult.state.eventLog.find((e) => e.type === 'MOVE');
+    expect(stealMoveEvent).toBeDefined();
+    // REPLAY-06 Pitfall 3: the MOVE event's OWN ballAfter must already show the post-steal
+    // carrier (the defender), not the stale pre-contest attacker.
+    expect(
+      stealMoveEvent && 'ballAfter' in stealMoveEvent ? stealMoveEvent.ballAfter : undefined,
+    ).toEqual({ position: moveTo, carrierId: stealDefender.id });
+    // The replay frame built from this corrected eventLog must also reflect the corrected carrier.
+    const stealFrames = buildReplayFrames(stealResult.state);
     expect(stealFrames.length).toBeGreaterThanOrEqual(1);
-    // The MOVE step's own frame (first frame) must already show the post-steal carrier.
-    expect(stealFrames[0]!.ball).toEqual({ position: moveTo, carrierId: defender.id });
+    expect(stealFrames[0]!.ball).toEqual({ position: moveTo, carrierId: stealDefender.id });
 
-    // Tackle case: mirrors the steal case structurally.
-    const tackleTo = { q: attacker.position.q + 1, r: attacker.position.r };
-    room.gameState = {
-      ...room.gameState,
-      eventLog: [
-        {
-          type: 'MOVE',
-          pieceId: attacker.id,
-          from: attacker.position,
-          to: tackleTo,
-          slot: 'ATTACKER_4' as const,
-          timestamp: 1,
-          // Stale: still shows attacker as carrier (pre-contest snapshot bug)
-          ballAfter: { position: tackleTo, carrierId: attacker.id },
-        },
-        {
-          type: 'TACKLE_ATTEMPT',
-          defenderId: tackler.id,
-          carrierId: attacker.id,
-          defenderDie: 6,
-          carrierDie: 1,
-          defenderCombined: 12,
-          carrierCombined: 2,
-          result: 'SUCCESS',
-          timestamp: 2,
-          ballAfter: { position: tackleTo, carrierId: tackler.id },
-        },
-      ],
+    // Tackle case: tackleDefender (NOT the carrier) moves adjacent to the attacker (the carrier).
+    // defCombined (tackling+die) >= carCombined (dribbling+die) → SUCCESS (D-09 defender wins tie).
+    const tackleTo = { q: attacker.position.q, r: attacker.position.r + 1 };
+    const tackleState: GameState = {
+      ...room.gameState!,
+      phase: 'MOVE',
+      movementSlot: 'DEFENDER_5',
+      activeTeam: tackleDefender.teamId,
+      attackingTeam: attacker.teamId,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+      pieces: pieces.map((p) => {
+        if (p.id === attacker.id) return { ...p, position: attacker.position };
+        if (p.id === tackleDefender.id) {
+          return { ...p, position: { q: tackleTo.q, r: tackleTo.r + 1 } };
+        }
+        return { ...p, position: { q: 0, r: 0 } };
+      }),
+      ball: { position: attacker.position, carrierId: attacker.id },
+      eventLog: [],
     };
 
-    const tackleFrames = buildReplayFrames(room.gameState);
+    const tackleResult = applyMove(tackleState, tackleDefender.id, tackleTo, {
+      stealDie: 3,
+      tackleDie: 6,
+      carrierDie: 1,
+    });
+    expect(tackleResult.ok).toBe(true);
+    if (!tackleResult.ok) return;
+    const tackleEvent = tackleResult.state.eventLog.find((e) => e.type === 'TACKLE_ATTEMPT');
+    expect(tackleEvent).toBeDefined();
+    expect(tackleEvent && 'result' in tackleEvent ? tackleEvent.result : undefined).toBe('SUCCESS');
+    const tackleMoveEvent = tackleResult.state.eventLog.find((e) => e.type === 'MOVE');
+    expect(tackleMoveEvent).toBeDefined();
+    // REPLAY-06 Pitfall 3: the MOVE event's OWN ballAfter must already show the post-tackle
+    // carrier (the tackler), not the stale pre-contest attacker.
+    expect(
+      tackleMoveEvent && 'ballAfter' in tackleMoveEvent ? tackleMoveEvent.ballAfter : undefined,
+    ).toEqual({ position: tackleTo, carrierId: tackleDefender.id });
+    const tackleFrames = buildReplayFrames(tackleResult.state);
     expect(tackleFrames.length).toBeGreaterThanOrEqual(1);
-    expect(tackleFrames[0]!.ball).toEqual({ position: tackleTo, carrierId: tackler.id });
+    expect(tackleFrames[0]!.ball).toEqual({ position: tackleTo, carrierId: tackleDefender.id });
   });
 
   it('REPLAY-06: HEADED_PASS and GK_PUNT each produce a visible replay frame', async () => {
