@@ -1013,6 +1013,7 @@ describe('buildReplayFrames — REPLAY-02/03', () => {
         {
           type: 'GOAL',
           scoringTeam: 'home',
+          scorerId: 'home-mid',
           timestamp: 5,
           ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
         },

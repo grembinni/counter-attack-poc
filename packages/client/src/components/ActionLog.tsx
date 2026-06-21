@@ -375,9 +375,14 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     }
     case 'GOAL':
       return {
-        prefix: '[GOAL]',
-        prefixColor: pieceColorOf(event.scoringTeam === 'home' ? 'home-0' : 'away-0'),
-        content: ` ${event.scoringTeam.toUpperCase()} scored!`,
+        prefix: '[SHOT]',
+        prefixColor: pieceColorOf(event.scorerId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.scorerId} /> SCORED!
+          </>
+        ),
         isGoal: true,
       };
     case 'KICK_OFF':

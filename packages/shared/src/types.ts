@@ -129,6 +129,8 @@ export type ActionEvent =
   | {
       type: 'GOAL';
       scoringTeam: 'home' | 'away';
+      /** ID of the piece that scored — shown in the ActionLog as "[SHOT] # Name SCORED!". */
+      scorerId: string;
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
     }

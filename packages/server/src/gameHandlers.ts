@@ -1032,6 +1032,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               {
                 type: 'GOAL' as const,
                 scoringTeam,
+                scorerId: outOfRangeEvent.shooterId,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
               },
@@ -1644,6 +1645,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             {
               type: 'GOAL' as const,
               scoringTeam,
+              scorerId: outOfRangeEvent.shooterId,
               timestamp: Date.now(),
               ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
             },
@@ -2403,6 +2405,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               {
                 type: 'GOAL' as const,
                 scoringTeam,
+                scorerId: outOfRangeEvent.shooterId,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
               },

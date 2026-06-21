@@ -30,6 +30,7 @@ export const mockGKRestartState: GameState = {
     {
       type: 'GOAL',
       scoringTeam: 'home',
+      scorerId: 'home-9',
       timestamp: Date.now(),
       ballAfter: { position: { q: 36, r: 13 }, carrierId: null },
     },

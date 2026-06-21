@@ -286,6 +286,22 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     expect(container.textContent).toMatch(/Saving/);
   });
 
+  it('GOAL renders [SHOT] and "{number} {Name} SCORED!" for the scorer', () => {
+    setEventLog([
+      {
+        type: 'GOAL',
+        scoringTeam: 'home',
+        scorerId: 'home-9',
+        timestamp: 0,
+        ballAfter: { position: { q: 36, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[SHOT\]/);
+    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    expect(container.textContent).toMatch(/SCORED!/);
+  });
+
   it('SHOT_ATTEMPT SAVE renders [SHOT ✗]', () => {
     setEventLog([
       {

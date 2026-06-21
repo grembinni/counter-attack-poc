@@ -1742,6 +1742,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               {
                 type: 'GOAL' as const,
                 scoringTeam,
+                scorerId: shooter.id,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
               },
@@ -1824,6 +1825,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               {
                 type: 'GOAL' as const,
                 scoringTeam,
+                scorerId: shooter.id,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
               },
