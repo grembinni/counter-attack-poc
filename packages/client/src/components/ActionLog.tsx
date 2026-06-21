@@ -34,6 +34,25 @@ function P({ pieceId, prefix }: { pieceId: string; prefix: string }) {
   );
 }
 
+/**
+ * Bold, team-colored player label rendered as "{number} {Name}" — the
+ * move-log convention (D-01) extended to duel-style entries (TODO-NAME).
+ * `prefix`, when provided, renders before the number (e.g. "D 7 Jane Doe")
+ * to preserve the existing A/D role semantics used by duel branches.
+ * Falls back to just the number when the piece is unknown (pieceName
+ * already handles the fallback via its second argument).
+ */
+function PNamed({ pieceId, prefix }: { pieceId: string; prefix?: string }) {
+  const num = pieceNum(pieceId);
+  const name = pieceName(pieceId, num);
+  return (
+    <span style={{ color: pieceColorOf(pieceId), fontWeight: 'bold' }}>
+      {prefix ? `${prefix} ` : ''}
+      {num} {name}
+    </span>
+  );
+}
+
 // ─── Display item types ───────────────────────────────────────────────────────
 
 type MoveGroup = {
@@ -228,6 +247,25 @@ function formatEvent(event: ActionEvent): Formatted {
     }
     case 'STEAL_ATTEMPT': {
       const dColor = pieceColorOf(event.defenderId);
+      // D-13 (TODO-STEAL-DETAIL): auto-intercept sentinel — defenderDie===0 &&
+      // defenderCombined===0 means no dice were rolled (gameEngine.ts ~line 1452,
+      // destination hex was the defender's own hex). Render an explicit no-roll
+      // label instead of a misleading "Tackling 0 + 0 - 0 = 0" line.
+      const isAutoIntercept = event.defenderDie === 0 && event.defenderCombined === 0;
+      if (isAutoIntercept) {
+        return {
+          prefix: event.result === 'SUCCESS' ? '[INTERCEPT ✓]' : '[INTERCEPT ✗]',
+          prefixColor: dColor,
+          content: (
+            <>
+              {' '}
+              {event.result} {'-> '}
+              <PNamed pieceId={event.defenderId} prefix="D" /> — auto-intercept (no roll)
+            </>
+          ),
+          isGoal: false,
+        };
+      }
       // D-12: STEAL_ATTEMPT carries no penalty field — always 0.
       const defStat = event.defenderCombined - event.defenderDie;
       const dStr = fmtStatRoll('Tackling', defStat, event.defenderDie, 0, event.defenderCombined);
@@ -237,7 +275,9 @@ function formatEvent(event: ActionEvent): Formatted {
         content: (
           <>
             {' '}
-            <P pieceId={event.defenderId} prefix="D" /> — {event.result} ({dStr})
+            {event.result} {'-> '}
+            <PNamed pieceId={event.defenderId} prefix="D" /> ({dStr}) — intercept if die 6 or total
+            ≥ 10
           </>
         ),
         isGoal: false,
@@ -256,14 +296,14 @@ function formatEvent(event: ActionEvent): Formatted {
         event.carrierCombined,
       );
       return {
-        prefix: '[TACKLE]',
+        prefix: event.result === 'SUCCESS' ? '[TACKLE ✓]' : '[TACKLE ✗]',
         prefixColor: pieceColorOf(event.defenderId),
         content: (
           <>
             {' '}
             {event.result} {'-> '}
-            <P pieceId={event.defenderId} prefix="D" /> ({defStr}) vs{' '}
-            <P pieceId={event.carrierId} prefix="A" /> ({carrStr})
+            <PNamed pieceId={event.defenderId} prefix="D" /> ({defStr}) vs{' '}
+            <PNamed pieceId={event.carrierId} prefix="A" /> ({carrStr})
           </>
         ),
         isGoal: false,
@@ -309,9 +349,19 @@ function formatEvent(event: ActionEvent): Formatted {
       };
     case 'SHOT_ATTEMPT': {
       let shotContent: React.ReactNode;
+      const shooterLabel = event.shooterId ? (
+        <PNamed pieceId={event.shooterId} />
+      ) : (
+        'unknown shooter'
+      );
       if (event.shooterScore === null) {
         // No duel ran: GK out of range — automatic goal
-        shotContent = ` GOAL — GK out of range (die:${event.shooterDie})`;
+        shotContent = (
+          <>
+            {' '}
+            {shooterLabel} GOAL — GK out of range (die:{event.shooterDie})
+          </>
+        );
       } else if (event.handlingDie !== null) {
         // GK won the duel; handling check ran
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
@@ -332,7 +382,13 @@ function formatEvent(event: ActionEvent): Formatted {
         );
         const duelStr = `${shooterStr} vs ${gkStr}`;
         const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
-        shotContent = ` ${event.outcome} — ${duelStr} | handling: ${event.handlingDie} vs ${event.gkHandling} (${handlingResult})`;
+        shotContent = (
+          <>
+            {' '}
+            {shooterLabel} {event.outcome} — {duelStr} | handling: {event.handlingDie} vs{' '}
+            {event.gkHandling} ({handlingResult})
+          </>
+        );
       } else {
         // Regular duel outcome (GOAL or LOOSE_BALL)
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
@@ -352,10 +408,15 @@ function formatEvent(event: ActionEvent): Formatted {
           event.gkPenaltyTotal,
           event.gkScore!,
         );
-        shotContent = ` ${outcomeLabel} — ${shooterStr} vs ${gkStr}`;
+        shotContent = (
+          <>
+            {' '}
+            {shooterLabel} {outcomeLabel} — {shooterStr} vs {gkStr}
+          </>
+        );
       }
       return {
-        prefix: '[SHOT]',
+        prefix: event.outcome === 'GOAL' ? '[SHOT ✓]' : '[SHOT ✗]',
         prefixColor: event.shooterId ? pieceColorOf(event.shooterId) : null,
         content: shotContent,
         isGoal: event.outcome === 'GOAL',
@@ -404,7 +465,7 @@ function formatEvent(event: ActionEvent): Formatted {
           content: (
             <>
               {' '}
-              {winLabel} — <P pieceId={contestantId} prefix={rolePrefix} /> (uncontested)
+              {winLabel} — <PNamed pieceId={contestantId} prefix={rolePrefix} /> (uncontested)
             </>
           ),
           isGoal: false,
@@ -447,8 +508,8 @@ function formatEvent(event: ActionEvent): Formatted {
         content: (
           <>
             {' '}
-            {winLabel} — <P pieceId={event.attackerId!} prefix="A" /> {aScore} vs{' '}
-            <P pieceId={event.defenderId!} prefix="D" /> {dScore}
+            {winLabel} — <PNamed pieceId={event.attackerId!} prefix="A" /> {aScore} vs{' '}
+            <PNamed pieceId={event.defenderId!} prefix="D" /> {dScore}
           </>
         ),
         isGoal: false,
