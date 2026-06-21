@@ -375,9 +375,8 @@ describe('ActionLog — STEAL_ATTEMPT challenge detail parity (TODO-STEAL-DETAIL
       },
     ]);
     const { container } = render(<ActionLog />);
-    // STEAL_ATTEMPT keeps its "D" role prefix (out of scope for requirement 1); requirement 3
-    // adds a # before the number, so the shape is "D #{num} {name}".
-    expect(container.textContent).toMatch(/D #\d+\s+\S+/);
+    // The "D" role prefix was dropped in quick task 260621-hnd.
+    expect(container.textContent).toMatch(/#\d+\s+\S+/);
     expect(container.textContent).toMatch(/Tackling.*=\s*7/);
     expect(container.textContent).toMatch(/intercept if die 6 or total/i);
   });
@@ -528,5 +527,65 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[PUNT\]/);
     expect(container.textContent).toMatch(/23,7 → 23,12/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT name
+// resolution
+// ---------------------------------------------------------------------------
+describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT name resolution', () => {
+  it('an uncontested HEADER renders the contestant "#{num} {name}" with no leading role letter', () => {
+    setEventLog([
+      {
+        type: 'HEADER',
+        attackerId: 'home-9',
+        defenderId: null,
+        result: 'ATTACKER_WIN',
+        attackerDie: null,
+        attackerAerialAbility: null,
+        attackerCombined: null,
+        defenderDie: null,
+        defenderAerialAbility: null,
+        defenderCombined: null,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/#\d+\s+Nicolae Rusu/);
+    // No leading role letter immediately precedes the contestant number.
+    expect(container.textContent).not.toMatch(/\b[AD] #\d/);
+  });
+
+  it('a DEFLECT_ATTEMPT renders the defender "#{num} {name}" with no leading role letter', () => {
+    setEventLog([
+      {
+        type: 'DEFLECT_ATTEMPT',
+        defenderId: 'away-1',
+        band: 'A',
+        die: 6,
+        tackling: 2,
+        result: 'DEFLECTED',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/#\d+\s+\S+/);
+    expect(container.textContent).not.toMatch(/\b[AD] #\d/);
+    expect(container.textContent).toMatch(/\[DEFLECT/);
+  });
+
+  it('a SNAPSHOT event renders the resolved shooter name, not the raw piece id', () => {
+    setEventLog([
+      {
+        type: 'SNAPSHOT',
+        shooterId: 'home-9',
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    expect(container.textContent).not.toMatch(/home-9/);
   });
 });
