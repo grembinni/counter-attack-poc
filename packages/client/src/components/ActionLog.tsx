@@ -1,4 +1,4 @@
-import type { ActionEvent, HexCoord } from '@counter-attack/shared';
+import type { ActionEvent, HexCoord, MovementSlot } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import styles from './ActionLog.module.css';
@@ -22,6 +22,19 @@ function pieceName(pieceId: string, fallback: string): string {
   const piece = pieces.find((p) => p.id === pieceId);
   if (piece === undefined) return fallback;
   return `${piece.firstName} ${piece.lastName}`;
+}
+
+/**
+ * Resolves the team primary color for whichever positional side (home/away)
+ * owns a given MOVE slot — used by SLOT_ADVANCE, which has no single pieceId
+ * to derive a color from via `pieceColorOf`. `ATTACKER_4`/`ATTACKER_2` use the
+ * current `attackingTeam`; `DEFENDER_5` uses the other side.
+ */
+function slotTeamColor(slot: MovementSlot): string {
+  const { selectedTeams, attackingTeam } = useGameStore.getState().gameState;
+  const positional: 'home' | 'away' =
+    slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
+  return TEAM_CONFIGS[selectedTeams[positional]].primaryColor;
 }
 
 /** Bold, team-colored player label rendered inline. */
@@ -85,10 +98,27 @@ type DisplayItem = MoveGroup | EventItem;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Maps a MovementSlot to its scoreboard-matching numbered suffix digit
+ * ('4' / '5' / '2'). Mirrors GameBoard.tsx's MOVE_SLOT_SUFFIX (the canonical
+ * source) so ActionLog's MOVE-event labels never drift from the scoreboard's
+ * `MOVE N` phase label.
+ */
+const MOVE_SLOT_DIGIT: Record<MovementSlot, string> = {
+  ATTACKER_4: '4',
+  DEFENDER_5: '5',
+  ATTACKER_2: '2',
+};
+
+/** Returns the scoreboard-matching numbered digit for a MOVE slot (e.g. '4'). */
+function moveSlotLabel(slot: MovementSlot): string {
+  return MOVE_SLOT_DIGIT[slot];
+}
+
 const SLOT_PREFIX: Record<string, string> = {
-  ATTACKER_4: '[MOVE_A4]',
-  DEFENDER_5: '[MOVE_D5]',
-  ATTACKER_2: '[MOVE_A2]',
+  ATTACKER_4: `[MOVE ${moveSlotLabel('ATTACKER_4')}]`,
+  DEFENDER_5: `[MOVE ${moveSlotLabel('DEFENDER_5')}]`,
+  ATTACKER_2: `[MOVE ${moveSlotLabel('ATTACKER_2')}]`,
 };
 
 /** Extracts the 1-based player number from a piece ID, e.g. 'home-0' → '1', 'home-3' → '4'. */
@@ -231,13 +261,25 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: ` ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
-    case 'SLOT_ADVANCE':
+    case 'SLOT_ADVANCE': {
+      const fromColor = slotTeamColor(event.from);
+      const fromLabel = `[MOVE ${moveSlotLabel(event.from)}]`;
+      const toLabel = event.to !== null ? `[MOVE ${moveSlotLabel(event.to)}]` : '[END]';
+      const toColor = event.to !== null ? slotTeamColor(event.to) : null;
       return {
-        prefix: '[TURN]',
+        prefix: '',
         prefixColor: null,
-        content: ` ${event.from} → ${event.to ?? 'END'}`,
+        content: (
+          <>
+            {' '}
+            <span style={{ color: fromColor, fontWeight: 'bold' }}>{fromLabel}</span>
+            {' -> '}
+            <span style={{ color: toColor ?? undefined, fontWeight: 'bold' }}>{toLabel}</span>
+          </>
+        ),
         isGoal: false,
       };
+    }
     case 'DICE_ROLL':
       // D-12: DICE_ROLL is exempt — no stat+roll+penalty triple exists here.
       return {
@@ -249,16 +291,21 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'DEFLECT_ATTEMPT': {
       const deflected = event.result === 'DEFLECTED';
       const dColor = pieceColorOf(event.defenderId);
+      // Preserve the existing rule: the Tackling bonus only applies on close-range
+      // (Set A) attempts with a die roll under 5; otherwise the bare die decides.
+      const hasBonus = event.band === 'A' && event.die < 5;
+      const rollStr = hasBonus
+        ? `die ${event.die} + Tackling ${event.tackling} = ${event.die + event.tackling}`
+        : `die ${event.die}`;
+      const rangeLabel = event.band === 'A' ? 'close range (Set A)' : 'long range (Set B)';
       return {
         prefix: deflected ? '[DEFLECT ✓]' : '[DEFLECT ✗]',
         prefixColor: dColor,
         content: (
           <>
             {' '}
-            <P pieceId={event.defenderId} prefix="D" /> (Set {event.band}) — die:{event.die}
-            {event.band === 'A' && event.die < 5
-              ? `+${event.tackling}=${event.die + event.tackling}`
-              : ''}
+            <PNamed pieceId={event.defenderId} prefix="D" />{' '}
+            {deflected ? 'deflected the shot' : 'failed to deflect'} — {rangeLabel}, {rollStr}
           </>
         ),
         isGoal: false,
@@ -675,7 +722,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
 /**
  * Action log panel: last 10 display items in reverse-chronological order.
  * Consecutive MOVE / HP_MOVE events for the same slot are merged into a single
- * path entry (e.g. [MOVE_A4] A3 23,3 → 22,4 → 21,4).
+ * path entry (e.g. [MOVE 4] A3 23,3 → 22,4 → 21,4).
  * Prefixes are bold and team-colored; player labels are bold and team-colored.
  */
 export function ActionLog() {
