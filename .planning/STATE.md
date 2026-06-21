@@ -179,6 +179,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 | 260612-l7d             | 2026-06-12 | GameBoard 3-zone top band: centred scoreboard, left/right zones                                                                                           |
 | 260612-lme             | 2026-06-12 | Scoreboard dot+clock (26px), slot helper text, centred ActionPanel label                                                                                  |
 | 260620-9ql             | 2026-06-20 | Cancel Phase 17 plan 17-05 (superseded by Phase 17.1 FTP redesign); delete 2 stale abandoned-design test stubs; correct PASS-02 attribution to Phase 17.1 |
+| 260621-ajd             | 2026-06-21 | Remove ActionPanel/kick-off outline borders; add MOVE/FREE_MOVE remaining-player countdown + kick-off helper copy                                         |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
