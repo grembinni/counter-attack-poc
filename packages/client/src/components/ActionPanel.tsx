@@ -70,7 +70,8 @@ export function ActionPanel() {
   const waitingPanel = (
     <div className={styles.panel}>
       <div className={styles.helperBlock}>
-        <span className={styles.helperLine2}>Waiting for Opponent.</span>
+        <span className={styles.helperLine1}>Opponent&apos;s Turn</span>
+        <span className={styles.helperLine2}>Waiting for opponent...</span>
       </div>
     </div>
   );
@@ -252,14 +253,7 @@ export function ActionPanel() {
           </div>
         );
       }
-      return (
-        <div className={styles.panel}>
-          <div className={styles.helperBlock}>
-            <span className={styles.helperLine1}>Accurate High Pass!</span>
-            <span className={styles.helperLine2}>Waiting for Opponent.</span>
-          </div>
-        </div>
-      );
+      return waitingPanel;
     }
 
     const myConfirmed = headerConfirmed?.[myTeam] ?? false;
@@ -301,7 +295,8 @@ export function ActionPanel() {
         )}
         {myConfirmed && (
           <div className={styles.helperBlock}>
-            <span className={styles.helperLine2}>Waiting for Opponent.</span>
+            <span className={styles.helperLine1}>Opponent&apos;s Turn</span>
+            <span className={styles.helperLine2}>Waiting for opponent...</span>
           </div>
         )}
         {gameError && <span className={styles.errorText}>{gameError}</span>}

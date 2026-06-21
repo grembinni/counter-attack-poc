@@ -31,7 +31,8 @@ describe('ActionPanel — UNDO-03: active player gating', () => {
   it('renders waiting panel for the non-active player', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
   });
 
   it('renders controls for the active player', () => {
@@ -187,7 +188,8 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
       playerSlot: 2, // away player — home is active
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 });
@@ -254,7 +256,8 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 2, // away player — home is active
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
   });
 
@@ -264,7 +267,8 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1, // home player — away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
   });
 });
