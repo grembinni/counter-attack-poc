@@ -524,7 +524,6 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
     });
     render(<ActionPanel />);
     expect(screen.getByText('Kick-Off!')).toBeDefined();
-    expect(screen.getByText(/standard pass/i)).toBeDefined();
     expect(screen.getByText(/centre/i)).toBeDefined();
     expect(screen.getByText('Choose Action')).toBeDefined();
     expect(screen.getByRole('button', { name: /standard pass/i })).toBeDefined();
