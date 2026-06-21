@@ -171,16 +171,19 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 ### Phase 18: Design Polish
 
-**Goal**: Player-facing text is consistent, replay playback is clean, and dead/duplicate code is removed, leaving the codebase in a stable state for the next milestone.
+**Goal**: Player-facing text is consistent, replay playback is clean, dead/duplicate code is removed, a bug-bash addendum of 6 correctness defects is fixed, and 8 UX enhancements are delivered — leaving the codebase in a stable state for the next milestone.
 **Depends on**: Nothing (polish work is independent of team identity and rule fixes)
-**Requirements**: DESIGN-01, DESIGN-02, DESIGN-03, DESIGN-04, REPLAY-06, MATCH-06
+**Requirements**: DESIGN-01, DESIGN-02, DESIGN-03, DESIGN-04, REPLAY-06, MATCH-06, BUG-06, BUG-07, BUG-08, BUG-09, BUG-10, BUG-11, UX-07, UX-08, UX-09, UX-10, UX-11, UX-12, UX-13, UX-14
 **Success Criteria** (what must be TRUE):
 
-1. All action panel labels, phase prompts, error messages, and log entries use consistent tone, tense, and terminology with no contradictory or stale wording
+1. All action panel labels, phase prompts, error messages, and log entries use consistent tone, tense, and terminology with no contradictory or stale wording, following the scoreboard/log naming convention captured in 18-CONTEXT.md
 2. Live-session replay correctly tracks ball position on every frame including pickups, intercepted passes, and steals; UAT Test 6 from v1.1 passes without regression
 3. Post-game replay playback produces no unnecessary re-renders or redundant socket emissions observable in browser DevTools
 4. Duplicate logic across server handlers and client components is consolidated; dead code, unused exports, unreachable branches, stale TODOs, and legacy feature flags are removed
+5. All 6 bug-bash defects (BUG-06..BUG-11) are fixed and covered by regression tests
+6. All 8 UX enhancements (UX-07..UX-14) are implemented per 18-CONTEXT.md decisions
    **Plans**: TBD
+   **Note**: This phase's scope grew substantially during discuss-phase (2026-06-20) — if `/gsd-plan-phase` recommends a split (`## PHASE SPLIT RECOMMENDED`), accept it; this was anticipated when the addendum was approved.
 
 ---
 

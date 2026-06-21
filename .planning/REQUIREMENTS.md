@@ -55,6 +55,26 @@
 - [ ] **REPLAY-06**: Ball position updates correctly on every replay frame in a live session; ball correctly tracks pickups, intercepted passes, and steals mid-replay; UAT Test 6 from v1.1 passes
 - [ ] **MATCH-06** _(req text only)_: Requirement text is updated to reflect symmetric mirror intent — the formation description is perspective-neutral (e.g., "each team's DEF/MID placed within N hex-columns of the kick-off hex from their own end")
 
+## Bug Bash (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
+
+- [ ] **BUG-06**: The server resets `offsidePieceIds` to an empty array for ALL players when a free-kick restart concludes and the ball returns to live play, not only for the offending player (regression/gap in the D-43/D-47 full-reset behavior from Phase 17)
+- [ ] **BUG-07**: After a header duel is won, the subsequent pass is delivered without an intermediate no-op target-selection sub-phase; the resulting pass is non-contestable and is labeled/logged as a header, not as a one-touch/first-time pass
+- [ ] **BUG-08**: Once a defender's tackle or steal attempt against a piece has failed (that action type's `stealAttemptedByIds`/`tackleAttemptedByIds` flag is set), the attacker can move freely adjacent to that defender — no threat highlight and no repeat challenge for that action type — matching the per-action-type ZoI exclusion already defined for `moveValidator` (D-02, Phase 17.1)
+- [ ] **BUG-09**: During response-move phases (header repositioning, snapshot deflect, first-time-pass repositioning, high-pass repositioning, GK-kick repositioning, free-kick setup, etc.), the active piece's move-ring highlight clears once that piece has used its phase-imposed pace allowance, and clears/recomputes correctly when End Turn hands control to the opponent
+- [ ] **BUG-10**: Clicking an already-activated (already-moved) player piece opens that piece's player card, matching the click behavior of unmoved pieces
+- [ ] **BUG-11**: HIGH_PASS_MOVE excludes the original high-pass carrier (`highPassCarrierId`) from repositioning onto the pass target hex during its own GAME_MOVE handler, mirroring the FIRST_TIME_PASS_MOVE self-pass-reclaim fix delivered in Phase 17.1-16
+
+## UX Enhancements (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
+
+- [ ] **UX-07**: A game-speed selector (Slow / Standard / Fast, default Standard) is presented on the team-selection screen; the selection sets how many match-clock minutes elapse per completed MOVE action (Slow = 1, Standard = 2, Fast = 3)
+- [ ] **UX-08**: Any End Turn (or header Confirm Selection) action that would end a phase while eligible pieces remain unmoved/unplaced shows a confirmation prompt ("X players left to move, are you sure you want to end your turn?") with the option to cancel and return to the phase; the End Turn / Confirm Selection control renders orange while eligible moves remain and green once all eligible pieces have moved or been placed
+- [ ] **UX-09**: The board renders a visual marker (red boundary line) across the top and bottom rows marking the boundary of each team's final third
+- [ ] **UX-10**: The Free Move helper text explains that when the ball enters the opposite final third, that team's backline may reposition up to 6 hexes regardless of remaining pace, and shows the count of eligible players still able to move
+- [ ] **UX-11**: The Movement phase helper text tracks and displays the number of players left to move, mirroring the existing header-contestant-selection helper pattern
+- [ ] **UX-12**: Hovering over a player stat bubble shows a tooltip with the stat's full name
+- [ ] **UX-13**: Hovering over an action button shows a tooltip with a short summary of that action
+- [ ] **UX-14**: A transient (1-second) banner appears centered on screen for key match events (e.g., goal, interception, tackle/turnover)
+
 ---
 
 ## Traceability
@@ -86,3 +106,17 @@
 | DESIGN-04  | Phase 18   | Pending  |
 | REPLAY-06  | Phase 18   | Pending  |
 | MATCH-06   | Phase 18   | Pending  |
+| BUG-06     | Phase 18   | Pending  |
+| BUG-07     | Phase 18   | Pending  |
+| BUG-08     | Phase 18   | Pending  |
+| BUG-09     | Phase 18   | Pending  |
+| BUG-10     | Phase 18   | Pending  |
+| BUG-11     | Phase 18   | Pending  |
+| UX-07      | Phase 18   | Pending  |
+| UX-08      | Phase 18   | Pending  |
+| UX-09      | Phase 18   | Pending  |
+| UX-10      | Phase 18   | Pending  |
+| UX-11      | Phase 18   | Pending  |
+| UX-12      | Phase 18   | Pending  |
+| UX-13      | Phase 18   | Pending  |
+| UX-14      | Phase 18   | Pending  |
