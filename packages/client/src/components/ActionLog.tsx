@@ -673,7 +673,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const gkColor = pieceColorOf(event.gkId);
       const accurate = event.accurate;
       return {
-        prefix: accurate ? '[GK KICK ✓]' : '[GK KICK ✗]',
+        prefix: accurate ? '[KEEPER KICK TARGET ✓]' : '[KEEPER KICK TARGET ✗]',
         prefixColor: gkColor,
         content: (
           <>
