@@ -62,6 +62,9 @@ export function ActionPanel() {
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   const emitCancelMovement = useGameStore((s) => s.emitCancelMovement);
+  // 260621-ajd: remaining-player countdown for FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
+  const freeMoveEligibleIds = useGameStore((s) => s.gameState.freeMoveEligibleIds);
+  const freeMoveUsedPace = useGameStore((s) => s.gameState.freeMoveUsedPace);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -428,12 +431,19 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
     const sideLabel = phase === 'FREE_MOVE_ATTACK' ? 'Attacking team' : 'Defending team';
+    // 260621-ajd: countdown of players left to move in the active free-move sub-phase.
+    const freeMoveSide = phase === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
+    const eligibleIds = freeMoveEligibleIds?.[freeMoveSide] ?? [];
+    const eligibleTotal = eligibleIds.length;
+    const movedCount = eligibleIds.filter((id) => (freeMoveUsedPace?.[id] ?? 0) > 0).length;
+    const remaining = Math.max(eligibleTotal - movedCount, 0);
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Free Move!</span>
           <span className={styles.helperLine2}>
-            {sideLabel} — move up to 6 hexes per player in the opponent&apos;s third.
+            {sideLabel} — move up to 6 hexes per player in the opponent&apos;s third. {remaining} of{' '}
+            {eligibleTotal} players left to move.
           </span>
         </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
@@ -508,6 +518,15 @@ export function ActionPanel() {
 
       return (
         <div className={`${styles.panel} ${actionCount >= 5 ? styles.wide : ''}`}>
+          {isKickOff && (
+            <div className={styles.helperBlock}>
+              <span className={styles.helperLine1}>Kick-Off!</span>
+              <span className={styles.helperLine2}>
+                Play starts with a Standard Pass from the centre circle — the only legal opening
+                action.
+              </span>
+            </div>
+          )}
           <span className={styles.phaseLabel}>Choose Action</span>
           {!isKickOff && eligible.has('MOVEMENT') && (
             <button className={styles.ctaButton} onClick={emitStartMovement}>
@@ -603,11 +622,13 @@ export function ActionPanel() {
 
     const slotTotal =
       movementSlot != null ? { ATTACKER_4: 4, DEFENDER_5: 5, ATTACKER_2: 2 }[movementSlot] : null;
+    // 260621-ajd: countdown of players left to move in the active movement slot.
+    const remaining = slotTotal != null ? Math.max(slotTotal - movedPieceIds.length, 0) : null;
     const slotHelperLine2 =
-      slotTotal != null
+      slotTotal != null && remaining != null
         ? movementSlot === 'ATTACKER_2'
-          ? `Move up to ${slotTotal} players. (2 hex max)`
-          : `Move up to ${slotTotal} players.`
+          ? `${remaining} of ${slotTotal} players left to move. (2 hex max)`
+          : `${remaining} of ${slotTotal} players left to move.`
         : null;
 
     return (
