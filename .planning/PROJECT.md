@@ -16,9 +16,12 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 **Phase 18 (Messaging & Logging Consistency) complete 2026-06-21.** All player-facing phase-prompt, scoreboard, and log text now follows one locked naming convention (D-01/D-11/D-12/D-13): GameBoard's PHASE_LABEL map rewritten with the MOVE-slot numbered suffix; ActionLog's dice-roll formatting unified behind a shared `fmtStatRoll` helper with per-player move-log names; ActionPanel's 14 active-player phase prompts and unified non-active-player wait state rewritten, including the GK_RESTART "Kick"→"Punt" rename. MATCH-06's requirement text corrected to its perspective-neutral wording. 56 new/updated tests green; full regression suite (979 tests across shared/server/client) passes.
 
+**Phase 18.1 (Replay Review) complete 2026-06-21.** Server-side REPLAY-06 fixes: `REPLAY_ELIGIBLE_TYPES` now includes `HEADED_PASS`/`GK_PUNT` so their ball movement produces a visible replay frame; `applyMove`'s steal-success and tackle-success paths rewrite the MOVE event's `ballAfter` to the post-contest carrier, eliminating the one-frame stale-carrier glitch on contested pickups. Client-side DESIGN-02 fix: `HexGrid.tsx` short-circuits highlight-set derivation, the onClick cascade, and `isClickable` during `phase === 'REPLAY'`, eliminating wasted per-frame interactive derivation during post-game playback. Both checkpoints (live UAT Test 6 re-run; Profiler/Network inspection) approved by user. Code review (CR-01) found `GK_KICK` ball delivery was missed by the REPLAY-06 fix — excluded based on an incorrect "dead code" claim in 18.1-RESEARCH.md, when it's actually live code with no `ballAfter`. Tracked as a backlog item rather than expanding phase scope.
+
 **Known tech debt:**
 
-- REPLAY-06 live-session ball tracking edge cases deferred (minor; unit test passes)
+- GK_KICK ball delivery invisible during replay (REPLAY-06 gap missed by Phase 18.1; see `.planning/todos/pending/2026-06-21-bug-gk-kick-ball-delivery-invisible-during-replay.md`)
+- LOOSE_BALL_LAND has the same replay-invisibility gap as GK_KICK (pre-existing, flagged alongside it)
 - Intermittent timing failures in game.integration.test.ts / kickoffSetup.integration.test.ts (pre-existing, not v1.1 introduced)
 - 4 documented pre-existing test failures in gameEngine.phase17.test.ts / gameHandlers.phase17.test.ts (2 MOVE-06 FREE_MOVE scaffolding gaps, 2 abandoned firstTimePassStep design stubs) — out of Phase 17.1 scope per 17.1-CONTEXT.md
 - Stale client selection on FTP/HP ATTACKER→DEFENDER slot hand-off (UX only, server-side guard intact) — see `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md`
@@ -57,6 +60,8 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 
 - ✓ **DESIGN-01** — Messaging consistency: scoreboard/log/action-panel text convention sweep — Phase 18
 - ✓ **MATCH-06** — Requirement text corrected to perspective-neutral symmetric-columns wording — Phase 18
+- ✓ **DESIGN-02** — HexGrid REPLAY-phase guard eliminates wasted per-frame interactive derivation — Phase 18.1
+- ✓ **REPLAY-06** — HEADED_PASS/GK_PUNT frame visibility + contested steal/tackle ballAfter correctness fixed and verified — Phase 18.1 (GK_KICK delivery remains a known gap, tracked separately)
 
 ### Active (v1.2 — Team Identity & Core Fixes)
 
@@ -79,10 +84,10 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 
 **Design Review + Carry-forward**
 
-- [ ] **DESIGN-02**: Playback review and optimizations
+- [x] **DESIGN-02**: Playback review and optimizations — Validated in Phase 18.1
 - [ ] **DESIGN-03**: Duplicate code removal
 - [ ] **DESIGN-04**: Dead code removal
-- [ ] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay)
+- [x] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay) — Validated in Phase 18.1 (HEADED_PASS/GK_PUNT frame visibility + contested steal/tackle ballAfter correctness); GK_KICK delivery remains a known gap, see backlog
 
 ### Deferred (v2 candidates)
 
@@ -161,4 +166,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-21 after Phase 18 (Messaging & Logging Consistency) close_
+_Last updated: 2026-06-21 after Phase 18.1 (Replay Review) close_
