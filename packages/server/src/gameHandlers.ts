@@ -61,7 +61,7 @@ import {
   applyUndo,
   buildKickOffPieces,
   buildReplayFrames,
-  computeHeaderDuelWinner,
+  computeHeaderDuelDetail,
   computeShotPathDeflection,
   applyOffsideFoulWithRelocation,
 } from './gameEngine.js';
@@ -2528,7 +2528,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // dice layout: [atk_0..atkN, def_0..defN, atkTieDie, defTieDie]
           const numDice = Math.max(atkCount + defCount + 2, 2);
           const diceArr = Array.from({ length: numDice }, () => rollDice());
-          const winner = computeHeaderDuelWinner(room.gameState, diceArr);
+          const duelDetail = computeHeaderDuelDetail(room.gameState, diceArr);
+          const winner = duelDetail.winner;
           if (winner === null) {
             // Tie: no winner to choose a target hex — resolve directly via applyRoll (LOOSE_BALL).
             const result = applyRoll(room.gameState, ...diceArr);
@@ -2543,9 +2544,29 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget). No
             // offside check needed here — every nominated contestant was already confirmed
             // not-flagged by the D-57 check above, so the resolved winner can't be flagged.
+            //
+            // Quick-task 260621-b8f finding #1: the contested duel previously never emitted a
+            // HEADER event — only the tie path (via applyRoll above) and the uncontested
+            // paths in gameEngine.ts did. Emit one here using the real dice/aerial detail
+            // already computed by computeHeaderDuelDetail, mirroring the contested-branch
+            // event shape in applyRoll's HEADER case (gameEngine.ts).
+            const headerEvent: ActionEvent = {
+              type: 'HEADER',
+              attackerId: duelDetail.attackerId,
+              defenderId: duelDetail.defenderId,
+              result: winner === room.gameState.attackingTeam ? 'ATTACKER_WIN' : 'DEFENDER_WIN',
+              attackerDie: duelDetail.attackerDie,
+              attackerAerialAbility: duelDetail.attackerAerialAbility,
+              attackerCombined: duelDetail.attackerCombined,
+              defenderDie: duelDetail.defenderDie,
+              defenderAerialAbility: duelDetail.defenderAerialAbility,
+              defenderCombined: duelDetail.defenderCombined,
+              timestamp: Date.now(),
+            };
             room.gameState = {
               ...room.gameState,
               headerDuelWinner: winner,
+              eventLog: [...room.gameState.eventLog, headerEvent],
             };
           }
         }
