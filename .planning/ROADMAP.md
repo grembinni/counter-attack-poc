@@ -208,8 +208,14 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 1. Duplicate logic across server handlers and client components is consolidated; dead code, unused exports, unreachable branches, stale TODOs, and legacy feature flags are removed
 2. BUG-08, BUG-09, and BUG-11 are fixed and covered by regression tests
-   **Plans**: TBD
-   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Per D-07 in 18-CONTEXT.md, BUG-08/09/11 are confirmed in scope here (not "too risky") because they are duplicate-logic gaps, not net-new bug hunting — D-08 caps the rest of DESIGN-03/04 to genuinely inert code only. The folded todo `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md` is superseded by BUG-09 — delete it when BUG-09 closes.
+   **Plans**: 4 plans (3 waves)
+
+- [ ] 18.2-01-PLAN.md — BUG-11: HIGH_PASS_MOVE carrier-exclusion (server GAME_MOVE guard + client selectPiece mirror, 2 touch points) [Wave 1]
+- [ ] 18.2-02-PLAN.md — BUG-08 render-level tackle-tint verification test + DESIGN-04 dead-code removal (applyDeclareHeaderTarget + 2 stale comments) [Wave 1]
+- [ ] 18.2-03-PLAN.md — BUG-09: broadened setGameState response-move staleness gate (slot hand-off + pace exhaustion) + folded-todo deletion [Wave 2, depends on 18.2-01]
+- [ ] 18.2-04-PLAN.md — DESIGN-03: consolidate Clusters 1/3/5 into shared response-move + movement valid-hex helpers (Cluster 2/4 left separate) [Wave 3, depends on 18.2-01, 18.2-03]
+
+  **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Per D-07 in 18-CONTEXT.md, BUG-08/09/11 are confirmed in scope here (not "too risky") because they are duplicate-logic gaps, not net-new bug hunting — D-08 caps the rest of DESIGN-03/04 to genuinely inert code only. The folded todo `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md` is superseded by BUG-09 — delete it when BUG-09 closes.
 
 ### Phase 18.3: Bug-Bash (Rule Correctness)
 
@@ -262,6 +268,6 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
 | 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-06-21 |
 | 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 0/TBD          | Pending  | -          |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 0/4            | Pending  | -          |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
 | 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |
