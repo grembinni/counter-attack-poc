@@ -169,47 +169,93 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 - [x] 17.1-16-PLAN.md — CR-01 (cycle 4): add firstTimePassCarrierId field + exclude the original passer from FTP repositioning (server GAME_MOVE), delivery occupant lookup, and client selectPiece, closing the self-pass/reclaim exploit + server & client regression tests [Gap Wave 6, depends on 17.1-15]
 
-### Phase 18: Design Polish
+### Phase 18: Messaging & Logging Consistency
 
-**Goal**: Player-facing text is consistent, replay playback is clean, dead/duplicate code is removed, a bug-bash addendum of 6 correctness defects is fixed, and 8 UX enhancements are delivered — leaving the codebase in a stable state for the next milestone.
+**Goal**: Player-facing text (action panel labels, phase prompts, scoreboard text, log entries) follows one consistent naming convention with no contradictory or stale wording, and the MATCH-06 requirement text is corrected to its perspective-neutral wording.
 **Depends on**: Nothing (polish work is independent of team identity and rule fixes)
-**Requirements**: DESIGN-01, DESIGN-02, DESIGN-03, DESIGN-04, REPLAY-06, MATCH-06, BUG-06, BUG-07, BUG-08, BUG-09, BUG-10, BUG-11, UX-07, UX-08, UX-09, UX-10, UX-11, UX-12, UX-13, UX-14
+**Requirements**: DESIGN-01, MATCH-06
 **Success Criteria** (what must be TRUE):
 
 1. All action panel labels, phase prompts, error messages, and log entries use consistent tone, tense, and terminology with no contradictory or stale wording, following the scoreboard/log naming convention captured in 18-CONTEXT.md
-2. Live-session replay correctly tracks ball position on every frame including pickups, intercepted passes, and steals; UAT Test 6 from v1.1 passes without regression
-3. Post-game replay playback produces no unnecessary re-renders or redundant socket emissions observable in browser DevTools
-4. Duplicate logic across server handlers and client components is consolidated; dead code, unused exports, unreachable branches, stale TODOs, and legacy feature flags are removed
-5. All 6 bug-bash defects (BUG-06..BUG-11) are fixed and covered by regression tests
-6. All 8 UX enhancements (UX-07..UX-14) are implemented per 18-CONTEXT.md decisions
+2. MATCH-06 requirement text in REQUIREMENTS.md is corrected to the perspective-neutral wording already drafted in PROJECT.md (doc-only, no code change)
    **Plans**: TBD
-   **Note**: This phase's scope grew substantially during discuss-phase (2026-06-20) — if `/gsd-plan-phase` recommends a split (`## PHASE SPLIT RECOMMENDED`), accept it; this was anticipated when the addendum was approved.
+   **Note**: Originally scoped as a single large "Design Polish" phase covering 20 requirements across 4 workstreams. `/gsd-plan-phase` returned `## PHASE SPLIT RECOMMENDED` (2026-06-20) — split into this phase (messaging/logging) plus Phase 18.1 (Replay Review), Phase 18.2 (Code Cleanup & Behavioral Dup-Bugs), Phase 18.3 (Bug-Bash: Rule Correctness), and Phase 18.4 (UX Enhancements). Full original discussion remains in `.planning/phases/18-design-polish/18-CONTEXT.md`, `18-UI-SPEC.md`, and `18-PATTERNS.md` — sub-phases reference these as canonical sources for their relevant decisions.
+
+### Phase 18.1: Replay Review
+
+**Goal**: Live-session replay correctly tracks ball position on every frame (pickups, intercepted passes, steals) without regression, and post-game replay playback has no unnecessary re-renders or redundant socket emissions.
+**Depends on**: Nothing (isolated to replay/roomStore code; independent of the messaging sweep)
+**Requirements**: DESIGN-02, REPLAY-06
+**Success Criteria** (what must be TRUE):
+
+1. Live-session replay correctly tracks ball position on every frame including pickups, intercepted passes, and steals; UAT Test 6 from v1.1 passes without regression
+2. Post-game replay playback produces no unnecessary re-renders or redundant socket emissions observable in browser DevTools
+   **Plans**: TBD
+   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). DESIGN-02 is an open-ended audit (D-05 in 18-CONTEXT.md: document findings before fixing) and REPLAY-06 is an open investigation (D-06: read Phase 14 replay artifacts first) — plan accordingly.
+
+### Phase 18.2: Code Cleanup & Behavioral Dup-Bugs
+
+**Goal**: Duplicate logic across server handlers and client components is consolidated, dead code is removed, and the three behavioral defects that are themselves duplicate-logic gaps (BUG-08, BUG-09, BUG-11) are fixed.
+**Depends on**: Phase 18 (the naming-convention sweep touches GameBoard.tsx/ActionLog.tsx first; this phase's dead-code sweep over the same files should follow to avoid edit conflicts)
+**Requirements**: DESIGN-03, DESIGN-04, BUG-08, BUG-09, BUG-11
+**Success Criteria** (what must be TRUE):
+
+1. Duplicate logic across server handlers and client components is consolidated; dead code, unused exports, unreachable branches, stale TODOs, and legacy feature flags are removed
+2. BUG-08, BUG-09, and BUG-11 are fixed and covered by regression tests
+   **Plans**: TBD
+   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Per D-07 in 18-CONTEXT.md, BUG-08/09/11 are confirmed in scope here (not "too risky") because they are duplicate-logic gaps, not net-new bug hunting — D-08 caps the rest of DESIGN-03/04 to genuinely inert code only. The folded todo `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md` is superseded by BUG-09 — delete it when BUG-09 closes.
+
+### Phase 18.3: Bug-Bash (Rule Correctness)
+
+**Goal**: The free-kick offside-reset gap (BUG-06), header-duel pass delivery (BUG-07), and already-moved-piece click behavior (BUG-10) are fixed.
+**Depends on**: Phase 18.2 (sequenced after to avoid HexGrid.tsx/PieceOverlay.tsx edit conflicts with the cleanup sweep)
+**Requirements**: BUG-06, BUG-07, BUG-10
+**Success Criteria** (what must be TRUE):
+
+1. BUG-06, BUG-07, and BUG-10 are fixed and covered by regression tests
+   **Plans**: TBD
+   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). These are net rule/flow fixes (not dup-logic gaps) — see 18-CONTEXT.md's Bug-Bash Addendum section for the full repro/fix-pattern for each.
+
+### Phase 18.4: UX Enhancements
+
+**Goal**: All 8 UX enhancements (UX-07..UX-14) are implemented per 18-CONTEXT.md and 18-UI-SPEC.md decisions.
+**Depends on**: Phase 18 (UX-10/UX-11/UX-12/UX-13 touch the same GameBoard/ActionPanel/ActionLog surfaces the naming sweep finalizes), Phase 18.3 (UX-08/UX-14 overlap PieceOverlay/GameBoard with the bug-bash fixes)
+**Requirements**: UX-07, UX-08, UX-09, UX-10, UX-11, UX-12, UX-13, UX-14
+**Success Criteria** (what must be TRUE):
+
+1. All 8 UX enhancements (UX-07..UX-14) are implemented per 18-CONTEXT.md decisions and the 18-UI-SPEC.md design contract (game speed selector, end-turn confirmation, final-third marker, helper text, tooltips, event banner)
+   **Plans**: TBD
+   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Largest of the 5 sub-phases (8 requirements) — likely needs its own multi-plan breakdown. The existing `.planning/phases/18-design-polish/18-UI-SPEC.md` (approved, all 6 dimensions PASS) already covers every visual/interaction contract these requirements need — no new UI-SPEC required for this sub-phase.
 
 ---
 
 ## Progress
 
-| Phase                         | Milestone | Plans Complete | Status   | Completed  |
-| ----------------------------- | --------- | -------------- | -------- | ---------- |
-| 1. Monorepo Scaffold          | v1.0      | 3/3            | Complete | 2026-05-28 |
-| 2. Move Validator             | v1.0      | 4/4            | Complete | 2026-05-29 |
-| 3. Server Room Manager        | v1.0      | 3/3            | Complete | 2026-05-29 |
-| 4. Game Engine + FSM          | v1.0      | 3/3            | Complete | 2026-05-30 |
-| 5. Dice Resolver              | v1.0      | 4/4            | Complete | 2026-05-30 |
-| 6. React Hex Grid             | v1.0      | 3/3            | Complete | 2026-05-31 |
-| 7. Client-Server Integration  | v1.0      | 4/4            | Complete | 2026-06-03 |
-| 7.1. UI Cleanup               | v1.0      | 3/3            | Complete | 2026-06-04 |
-| 8. Match Lifecycle            | v1.0      | 8/8            | Complete | 2026-06-05 |
-| 8.1. Cleanup                  | v1.0      | 3/3            | Complete | 2026-06-05 |
-| 8.2. Passing Cleanup          | v1.0      | 6/6            | Complete | 2026-06-07 |
-| 9. Render Deployment          | v1.0      | 2/2            | Complete | 2026-06-08 |
-| 10. Remaining Flows           | v1.0      | 5/5            | Complete | 2026-06-11 |
-| 11. Rule Correctness          | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 12. Visual Token & Hex Layer  | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 13. Layout & Clock            | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 14. Kick Off Rules & Replay   | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity             | v1.2      | 3/3            | Complete | 2026-06-13 |
-| 16. Player Roster & Selection | v1.2      | 4/4            | Complete | 2026-06-14 |
-| 17. Rule Bugs                 | v1.2      | 6/6            | Complete | 2026-06-21 |
-| 17.1. Action Flow Cleanup     | v1.2      | 16/16          | Complete | 2026-06-20 |
-| 18. Design Polish             | v1.2      | 0/TBD          | Pending  | -          |
+| Phase                          | Milestone | Plans Complete | Status   | Completed  |
+| ------------------------------ | --------- | -------------- | -------- | ---------- |
+| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete | 2026-05-28 |
+| 2. Move Validator              | v1.0      | 4/4            | Complete | 2026-05-29 |
+| 3. Server Room Manager         | v1.0      | 3/3            | Complete | 2026-05-29 |
+| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete | 2026-05-30 |
+| 5. Dice Resolver               | v1.0      | 4/4            | Complete | 2026-05-30 |
+| 6. React Hex Grid              | v1.0      | 3/3            | Complete | 2026-05-31 |
+| 7. Client-Server Integration   | v1.0      | 4/4            | Complete | 2026-06-03 |
+| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete | 2026-06-04 |
+| 8. Match Lifecycle             | v1.0      | 8/8            | Complete | 2026-06-05 |
+| 8.1. Cleanup                   | v1.0      | 3/3            | Complete | 2026-06-05 |
+| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete | 2026-06-07 |
+| 9. Render Deployment           | v1.0      | 2/2            | Complete | 2026-06-08 |
+| 10. Remaining Flows            | v1.0      | 5/5            | Complete | 2026-06-11 |
+| 11. Rule Correctness           | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 13. Layout & Clock             | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 15. Team Identity              | v1.2      | 3/3            | Complete | 2026-06-13 |
+| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete | 2026-06-14 |
+| 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
+| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
+| 18. Messaging & Logging Cons.  | v1.2      | 0/TBD          | Pending  | -          |
+| 18.1. Replay Review            | v1.2      | 0/TBD          | Pending  | -          |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 0/TBD          | Pending  | -          |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
+| 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |

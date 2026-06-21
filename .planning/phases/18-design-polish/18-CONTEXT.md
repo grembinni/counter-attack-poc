@@ -3,6 +3,8 @@
 **Gathered:** 2026-06-20
 **Status:** Ready for planning
 
+**SPLIT NOTICE (2026-06-20):** `/gsd-plan-phase 18` returned `## PHASE SPLIT RECOMMENDED` — this discussion's 20 requirements are now distributed across 5 phases: Phase 18 (DESIGN-01, MATCH-06), Phase 18.1 Replay Review (DESIGN-02, REPLAY-06), Phase 18.2 Code Cleanup & Behavioral Dup-Bugs (DESIGN-03, DESIGN-04, BUG-08, BUG-09, BUG-11), Phase 18.3 Bug-Bash/Rule Correctness (BUG-06, BUG-07, BUG-10), and Phase 18.4 UX Enhancements (UX-07..UX-14). Each sub-phase has its own derived `{N}-CONTEXT.md` quoting the relevant decisions from this file verbatim — this file remains the full historical record and canonical source for all of them.
+
 <domain>
 ## Phase Boundary
 
