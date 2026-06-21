@@ -629,6 +629,14 @@ export function applyMove(
         // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
         // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
         const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
+        // REPLAY-06 (18.1-01, Pitfall 3): the MOVE event appended above carries a stale
+        // pre-contest ballAfter snapshot. Rewrite it to the post-tackle ball state (immutably —
+        // never mutate state.eventLog/newEventLog in place) so the MOVE event's own replay frame
+        // already shows the tackler as carrier instead of the stale carrier.
+        const correctedMoveEvent: ActionEvent = { ...moveEvent, ballAfter: tackleSuccessBall };
+        const tackleCorrectedEventLog = newEventLog.map((e) =>
+          e === moveEvent ? correctedMoveEvent : e,
+        );
         // OFFSIDE-01/D-39: a successful tackle is a "break in play" — MOVEMENT ends early
         // here, so evaluate offside now using the post-tackle piece positions and ball state.
         return {
@@ -643,7 +651,7 @@ export function applyMove(
             movedPieceIds: [],
             paceUsedByPieceId: {},
             ball: tackleSuccessBall,
-            eventLog: newEventLog,
+            eventLog: tackleCorrectedEventLog,
             lastActionType: 'SUCCESSFUL_TACKLE',
             actionCount: state.actionCount + 3,
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
@@ -681,6 +689,14 @@ export function applyMove(
     const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     const newOwnerTeam =
       state.pieces.find((p) => p.id === stealDefenderId)?.teamId ?? state.activeTeam;
+    // REPLAY-06 (18.1-01, Pitfall 3): the MOVE event appended above carries a stale
+    // pre-contest ballAfter snapshot. Rewrite it to the post-steal ball state (immutably —
+    // never mutate state.eventLog/newEventLog in place) so the MOVE event's own replay frame
+    // already shows the defender as carrier instead of the stale carrier.
+    const correctedMoveEvent: ActionEvent = { ...moveEvent, ballAfter: stealSuccessBall };
+    const stealCorrectedEventLog = newEventLog.map((e) =>
+      e === moveEvent ? correctedMoveEvent : e,
+    );
     // OFFSIDE-01/D-39: a successful steal is also a "break in play" — MOVEMENT ends early
     // here, so evaluate offside now using the post-steal piece positions and ball state.
     return {
@@ -695,7 +711,7 @@ export function applyMove(
         movedPieceIds: [],
         paceUsedByPieceId: {},
         ball: stealSuccessBall,
-        eventLog: newEventLog,
+        eventLog: stealCorrectedEventLog,
         lastActionType: 'SUCCESSFUL_TACKLE',
         actionCount: state.actionCount + 3,
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
@@ -3967,6 +3983,12 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'SNAPSHOT',
   'HALF_TIME',
   'FULL_TIME',
+  // REPLAY-06 (18.1-01, Pitfall 4): added by quick-task 260621-b8f with ballAfter populated,
+  // but never folded into this set — their ball movement produced no visible replay frame.
+  // GK_KICK is intentionally excluded (dead code, zero construction sites — Pitfall 5,
+  // deferred to DESIGN-04). HEADER is intentionally excluded (carries no ballAfter by design).
+  'HEADED_PASS',
+  'GK_PUNT',
 ]);
 
 /**
