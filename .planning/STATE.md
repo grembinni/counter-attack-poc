@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-20T17:40:10.387Z'
-last_activity: 2026-06-20 -- Phase 17 execution started
+last_updated: '2026-06-20T18:45:00.000Z'
+last_activity: 2026-06-20 -- Plan 17-06 (OFFSIDE-02) Tasks 1-3 complete; Task 4 checkpoint pending
 progress:
   total_phases: 5
   completed_phases: 3
@@ -300,14 +300,47 @@ Known deferred items at close: 6 (see above)
   detection, stickiness across a non-moving turn, both D-22 clear paths, and D-24
   team-relative defender flagging. Plan 17-05 cannot close until this checkpoint is approved.
 
+- Last updated: 2026-06-20
+- Phase 17 Plan 06 (OFFSIDE-02) Tasks 1-3 complete. FREE_KICK_SETUP GamePhase +
+  freeKickHex/freeKickAttackingTeam GameState fields + FREE_KICK_RESTART LastActionType +
+  its ELIGIBLE_NEXT_ACTIONS row (D-32) added. triggerOffsideFoul(state, explicitOffenderId?)
+  added to offside.ts — implicit ball-carrier entry point (D-26) plus an explicit-offender
+  entry point (D-41 addendum, gathered during the 17-05 checkpoint review after this plan's
+  PLAN.md was drafted) for the ball-redirect-without-possession case. applyFreeKickReady
+  added to gameEngine.ts mirroring applyKickOffReady with D-30/D-31 zone rules. Wired
+  triggerOffsideFoul at the three possession-gain success paths in gameHandlers.ts
+  (GAME_ROLL, GAME_MOVE, GAME_HEADER_TARGET) plus, per D-41, at both shot-deflection sites
+  (SNAPSHOT_DEFLECT end-turn and regular GAME_SHOT) using the deflecting defender's explicit
+  id since the ball is left loose there. Added GAME_FREE_KICK_MOVE/READY handlers (clone of
+  GAME_KICK_OFF_MOVE/READY). Client: emitFreeKickMove/emitFreeKickReady store actions,
+  selectPiece FREE_KICK_SETUP branch (whole-pitch repositioning, no zone gate per D-29),
+  HexGrid click-handler + piece-gating wiring, and a new FreeKickSetupPanel.tsx component
+  (mirrors KickOffSetupPanel.tsx — the codebase's real established both-teams-setup-phase
+  pattern, used instead of the plan's literal "inline in ActionPanel.tsx" instruction).
+  Restricted action set (D-32) required zero new client gating — falls out of the existing
+  ELIGIBLE_NEXT_ACTIONS-driven chooser once lastActionType='FREE_KICK_RESTART'.
+
+- 414 server (1 skipped, 1 todo, pre-existing/unrelated) + 152 client + 320 shared tests
+  passing. Typecheck clean across shared/server/client. New test files:
+  gameHandlers.phase17-06.test.ts (11/11), FreeKickSetupPanel.test.tsx (10/10); extended
+  offside.test.ts (+23), useGameStore.test.ts (+6), ActionPanel.test.tsx (+3).
+
+- Task 4 (checkpoint:human-verify, gate=blocking) is pending: two-tab live verification of
+  the full OFFSIDE-02 free-kick flow (foul trigger via pass/loose-ball/header possession,
+  D-30/D-31 placement rules, restricted post-kick action set) plus the D-41 addendum
+  (flagged-offside defender deflecting a shot without gaining possession should still
+  trigger the free kick). Plan 17-06 cannot close until this checkpoint is approved.
+
 ## Current Position
 
-Phase: 17 (rule-bugs) — EXECUTING
-Plan: 17-05 (OFFSIDE-01) complete (5 of 6); proceeding to 17-06
-Status: Executing Phase 17
-Last activity: 2026-06-20 -- Plan 17-05 approved after one checkpoint correction round
-(evaluation timing narrowed to full-MOVEMENT-end + break-in-play per D-39; ball-clear
-condition gated on possession per D-40). Detection/marker confirmed correct by user.
+Phase: 17 (rule-bugs) — COMPLETE (6/6 plans)
+Plan: 17-06 (OFFSIDE-02) approved after extensive checkpoint corrections (D-26..D-59:
+free-kick consequence, staged repositioning sequence per rulebook, header-contest foul
+trigger, auto-relocation stall fix). Phase 17 closed 2026-06-20.
+Status: Ready to plan next phase
+Last activity: 2026-06-20 -- Plan 17-06 approved; one known non-blocking bug deferred
+by user (offside flag not re-triggering after the first free-kick foul resolves in some
+as-yet-unconfirmed scenario — user will report again if it recurs; not yet root-caused).
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
@@ -319,14 +352,16 @@ The ORIGINAL plan 17-05 (PASS-02 mid-pass repositioning) was cancelled by quick 
 two-slot FIRST_TIME_PASS_MOVE redesign already superseded and verified. Plan 17-04 (MOVE-06)
 then executed and closed (approved 2026-06-20 after 3 checkpoint correction rounds). A new
 offside-rule scope (OFFSIDE-01/OFFSIDE-02, D-21..D-32 in 17-CONTEXT.md) was added to Phase 17
-afterward and re-planned as the current 17-05 (OFFSIDE-01, this plan) and 17-06 (OFFSIDE-02,
-not yet executed).
+afterward and re-planned as 17-05 (OFFSIDE-01, approved) and 17-06 (OFFSIDE-02, this plan).
+During 17-05's checkpoint review the user additionally surfaced D-39..D-41 corrections; D-41
+(foul also fires on ball-redirect-without-possession, e.g. a deflection) was explicitly
+scoped to 17-06 and is implemented as part of this plan's Tasks 1-2.
 
-Next: complete plan 17-05's Task 4 human-verify checkpoint, then execute plan 17-06
-(OFFSIDE-02: foul-on-possession-gain consequence, free-kick restart). Also outstanding:
-HIGH_PASS_MOVE has the same missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had
-pre-17.1-16 (documented in 17.1-16-PLAN.md as a deferred parallel finding, not yet filed as
-its own todo).
+Next: complete plan 17-06's Task 4 human-verify checkpoint (covering both the original
+OFFSIDE-02 scope and the D-41 addendum), then close out Phase 17 (all 6 plans complete) and
+re-run phase verification. Also outstanding: HIGH_PASS_MOVE has the same
+missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (documented in
+17.1-16-PLAN.md as a deferred parallel finding, not yet filed as its own todo).
 
 ## Performance Metrics
 
