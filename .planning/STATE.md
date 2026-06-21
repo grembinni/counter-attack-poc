@@ -181,6 +181,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 | 260620-9ql             | 2026-06-20 | Cancel Phase 17 plan 17-05 (superseded by Phase 17.1 FTP redesign); delete 2 stale abandoned-design test stubs; correct PASS-02 attribution to Phase 17.1 |
 | 260621-ajd             | 2026-06-21 | Remove ActionPanel/kick-off outline borders; add MOVE/FREE_MOVE remaining-player countdown + kick-off helper copy                                         |
 | 260621-awb             | 2026-06-21 | Unify ActionLog duel-log player names (PNamed), result glyphs, and STEAL_ATTEMPT challenge detail to TACKLE's level                                       |
+| 260621-b8f             | 2026-06-21 | Add HEADED_PASS/GK_PUNT ActionEvent types + emission; log HEADER contest, post-header pass, GK punt; split SHOT_ATTEMPT challenge/handling                |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
