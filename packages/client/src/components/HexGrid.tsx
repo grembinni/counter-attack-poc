@@ -152,8 +152,14 @@ export function HexGrid() {
   // (and other pitch) hexes highlighted here so they can pick a target via GAME_HEADER_TARGET.
   const headerTargetStep = phase === 'HEADER' && myTeam !== null && headerDuelWinner === myTeam;
 
+  // DESIGN-02: during post-game REPLAY no hex is ever clickable and no highlight is ever
+  // meaningful (nothing in any REPLAY-phase code path calls selectPiece, so selectedPieceId
+  // stays null and validMoveHexes/tackleRiskHexes stay empty throughout replay) — short-circuit
+  // these previously-unconditional (not already phase-gated) highlight-set derivations so
+  // HexGrid does no wasted per-frame derivation work while pieces/ball still render normally.
   // O(1) membership check for valid-move highlights
-  const validMoveHexSet = new Set(validMoveHexes.map((h) => `${h.q},${h.r}`));
+  const validMoveHexSet =
+    phase !== 'REPLAY' ? new Set(validMoveHexes.map((h) => `${h.q},${h.r}`)) : new Set<string>();
 
   // Phase 8.2: O(1) sets for pass target highlights (D-06, D-09)
   const validPassTargetHexSet = new Set(validPassTargetHexes.map((h) => `${h.q},${h.r}`));
@@ -165,7 +171,7 @@ export function HexGrid() {
   // D-02 (Phase 17.1 gap closure, plan 09): exclude defenders already in stealAttemptedByIds
   // from the steal-risk tint, mirroring moveValidator.ts's STEAL_ATTEMPT exclusion pattern.
   const zoiRiskSet = new Set(
-    isCarrierSelected
+    phase !== 'REPLAY' && isCarrierSelected
       ? validMoveHexes
           .filter(
             (hex) =>
@@ -177,7 +183,8 @@ export function HexGrid() {
       : [],
   );
   // Tackle-risk hexes: orange when non-carrier's step would land adjacent to ball carrier
-  const tackleRiskSet = new Set(tackleRiskHexes.map((h) => `${h.q},${h.r}`));
+  const tackleRiskSet =
+    phase !== 'REPLAY' ? new Set(tackleRiskHexes.map((h) => `${h.q},${h.r}`)) : new Set<string>();
 
   // SNAPSHOT_DEFLECT: orange-tint shot path from shooter position to declared target hex
   const snapDeflectPathSet = new Set<string>();
@@ -429,55 +436,63 @@ export function HexGrid() {
                         : undefined;
 
             let onClick: (() => void) | undefined;
-            if (phase === 'KICK_OFF_SETUP') {
-              // KICK_OFF_SETUP: clicking a valid zone hex while a piece is selected → emitKickOffMove (T-08-19)
-              if (isValidMove && selectedPieceId) {
-                onClick = () => emitKickOffMove(selectedPieceId, hex);
-              }
-              // Clicking any other hex during setup is a no-op — handled by the piece's own onClick below
-            } else if (phase === 'FREE_KICK_SETUP') {
-              // OFFSIDE-02 (D-49 staged rework): clicking a valid hex while a piece is selected
-              // → emitFreeKickMove. validMoveHexes (computed in useGameStore.selectPiece) is
-              // already turn-gated to the CURRENTLY-active stage's team and zone rules — the
-              // click-to-move interaction itself is unchanged from the prior model.
-              if (isValidMove && selectedPieceId) {
-                onClick = () => emitFreeKickMove(selectedPieceId, hex);
-              }
-            } else if (phase === 'GK_DIVE' && isGKDiveTarget && isGKTeamPlayer) {
-              // Phase 10: GK team clicks a valid dive hex during GK_DIVE
-              onClick = () => emitGKDive(hex);
-            } else if (isShootingModeGoalHex) {
-              // Phase 10: Two-step Shoot flow — clicking goal hex emits declare shot
-              onClick = () => emitDeclareShot(hex);
-            } else if (isHeaderTargetGoalHex) {
-              // Phase 10: HEADER target step — attacker clicks goal-line hex
-              onClick = () => emitHeaderTarget(hex);
-            } else if (isHeaderNonGoalTarget) {
-              // Phase 10: HEADER target step — attacker clicks any other pitch hex (headed pass)
-              onClick = () => emitHeaderTarget(hex);
-            } else if (isValidMove && selectedPieceId) {
-              onClick = () => emitMove(selectedPieceId, hex);
-            } else if (phase === 'GK_KICK_TARGET' && isActivePlayer && gkKickTargetSet.has(hexId)) {
-              onClick = () => emitGKKickTarget(hex);
-            } else if (
-              phase === 'GK_QUICK_THROW' &&
-              isActivePlayer &&
-              quickThrowTargetSet.has(hexId)
-            ) {
-              onClick = () => emitQuickThrow(hex);
-            } else if (isGoalHex) {
-              // D-06: emit target to server (legacy SHOT phase path); optimistic highlight is cosmetic
-              onClick = () => {
-                setShotTargetHighlight(hex);
-                socket.emit(ClientEvents.GAME_SHOT, hex);
-              };
-            } else if (isPassTarget && isActivePlayer) {
-              // Phase 8.2 D-06: click valid pass target to confirm (or deselect confirmed target).
-              // STANDARD/FIRST_TIME: confirmPassTarget auto-emits; HIGH/LONG_BALL: sets passTargetHex for step 3.
-              if (isConfirmedPassTarget) {
-                onClick = () => setPassTargetHex(null);
-              } else if (passTargetHex === null) {
-                onClick = () => confirmPassTarget(hex);
+            // DESIGN-02: REPLAY is never interactive — skip the entire phase-branch cascade so
+            // onClick stays undefined for every hex during post-game replay playback.
+            if (phase !== 'REPLAY') {
+              if (phase === 'KICK_OFF_SETUP') {
+                // KICK_OFF_SETUP: clicking a valid zone hex while a piece is selected → emitKickOffMove (T-08-19)
+                if (isValidMove && selectedPieceId) {
+                  onClick = () => emitKickOffMove(selectedPieceId, hex);
+                }
+                // Clicking any other hex during setup is a no-op — handled by the piece's own onClick below
+              } else if (phase === 'FREE_KICK_SETUP') {
+                // OFFSIDE-02 (D-49 staged rework): clicking a valid hex while a piece is selected
+                // → emitFreeKickMove. validMoveHexes (computed in useGameStore.selectPiece) is
+                // already turn-gated to the CURRENTLY-active stage's team and zone rules — the
+                // click-to-move interaction itself is unchanged from the prior model.
+                if (isValidMove && selectedPieceId) {
+                  onClick = () => emitFreeKickMove(selectedPieceId, hex);
+                }
+              } else if (phase === 'GK_DIVE' && isGKDiveTarget && isGKTeamPlayer) {
+                // Phase 10: GK team clicks a valid dive hex during GK_DIVE
+                onClick = () => emitGKDive(hex);
+              } else if (isShootingModeGoalHex) {
+                // Phase 10: Two-step Shoot flow — clicking goal hex emits declare shot
+                onClick = () => emitDeclareShot(hex);
+              } else if (isHeaderTargetGoalHex) {
+                // Phase 10: HEADER target step — attacker clicks goal-line hex
+                onClick = () => emitHeaderTarget(hex);
+              } else if (isHeaderNonGoalTarget) {
+                // Phase 10: HEADER target step — attacker clicks any other pitch hex (headed pass)
+                onClick = () => emitHeaderTarget(hex);
+              } else if (isValidMove && selectedPieceId) {
+                onClick = () => emitMove(selectedPieceId, hex);
+              } else if (
+                phase === 'GK_KICK_TARGET' &&
+                isActivePlayer &&
+                gkKickTargetSet.has(hexId)
+              ) {
+                onClick = () => emitGKKickTarget(hex);
+              } else if (
+                phase === 'GK_QUICK_THROW' &&
+                isActivePlayer &&
+                quickThrowTargetSet.has(hexId)
+              ) {
+                onClick = () => emitQuickThrow(hex);
+              } else if (isGoalHex) {
+                // D-06: emit target to server (legacy SHOT phase path); optimistic highlight is cosmetic
+                onClick = () => {
+                  setShotTargetHighlight(hex);
+                  socket.emit(ClientEvents.GAME_SHOT, hex);
+                };
+              } else if (isPassTarget && isActivePlayer) {
+                // Phase 8.2 D-06: click valid pass target to confirm (or deselect confirmed target).
+                // STANDARD/FIRST_TIME: confirmPassTarget auto-emits; HIGH/LONG_BALL: sets passTargetHex for step 3.
+                if (isConfirmedPassTarget) {
+                  onClick = () => setPassTargetHex(null);
+                } else if (passTargetHex === null) {
+                  onClick = () => confirmPassTarget(hex);
+                }
               }
             }
 
@@ -704,18 +719,22 @@ export function HexGrid() {
             const isQuickThrowTargetPiece =
               phase === 'GK_QUICK_THROW' && isActivePlayer && quickThrowTargetSet.has(pieceHexId);
 
+            // DESIGN-02: force false during REPLAY — no piece ever registers a click affordance
+            // during post-game replay playback, regardless of what the underlying booleans above
+            // would otherwise compute.
             const isClickable =
-              isPassTargetPiece ||
-              isQuickThrowTargetPiece ||
-              canSelect ||
-              canSelectKickOff ||
-              canSelectFreeKick ||
-              isHeaderEligible ||
-              canSelectHighPassMove ||
-              canSelectSnapDeflect ||
-              canSelectGKKickMove ||
-              canSelectFirstTimePassMove ||
-              canSelectFreeMove;
+              phase !== 'REPLAY' &&
+              (isPassTargetPiece ||
+                isQuickThrowTargetPiece ||
+                canSelect ||
+                canSelectKickOff ||
+                canSelectFreeKick ||
+                isHeaderEligible ||
+                canSelectHighPassMove ||
+                canSelectSnapDeflect ||
+                canSelectGKKickMove ||
+                canSelectFirstTimePassMove ||
+                canSelectFreeMove);
 
             // Plan 04: derive single selectionState enum for PieceOverlay (UX-05, D-04, D-07)
             const isSpentNow =
