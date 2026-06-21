@@ -14,6 +14,8 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 **Phase 17.1 (Action Flow Cleanup) complete 2026-06-20.** Five re-verification cycles closed the v1.4.1 phase/action model alignment: GamePhase rename, aerial stat consolidation, ZoI exclusion fix, FIRST_TIME_PASS_MOVE repositioning (undo phase-awareness, client selection wiring, interception bypass, undo lock-reset, team-agnostic delivery, self-pass-reclaim exclusion), and GK restart/loose-ball/shot-range fixes — all verified against the live codebase. One non-blocking client UX gap (stale selection across FTP/HP slot hand-off; server remains authoritative, no rule bypass) deferred to a backlog todo rather than a sixth gap-closure cycle.
 
+**Phase 18 (Messaging & Logging Consistency) complete 2026-06-21.** All player-facing phase-prompt, scoreboard, and log text now follows one locked naming convention (D-01/D-11/D-12/D-13): GameBoard's PHASE_LABEL map rewritten with the MOVE-slot numbered suffix; ActionLog's dice-roll formatting unified behind a shared `fmtStatRoll` helper with per-player move-log names; ActionPanel's 14 active-player phase prompts and unified non-active-player wait state rewritten, including the GK_RESTART "Kick"→"Punt" rename. MATCH-06's requirement text corrected to its perspective-neutral wording. 56 new/updated tests green; full regression suite (979 tests across shared/server/client) passes.
+
 **Known tech debt:**
 
 - REPLAY-06 live-session ball tracking edge cases deferred (minor; unit test passes)
@@ -49,8 +51,12 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 - ✓ **RULE-01..05** — Header sequencing, snapshot cleanup, deflection pace, post-deflect Movement Phase — v1.1
 - ✓ **MATCH-07** — KICKOFF_STANDARD_PASS_ONLY guard server + client — v1.1 (wired; req unchecked)
 - ✓ **REPLAY-04, REPLAY-05** — 500ms cadence, simultaneous step-frames — v1.1 (wired; req unchecked)
-- ⚠ **MATCH-06** — Symmetric DEF/MID formation (req text ambiguous; design intent met) — v1.1
 - ✗ **REPLAY-06** — Ball tracking live-session bugs deferred to v1.2 — v1.1 partial
+
+### Validated (v1.2, in progress)
+
+- ✓ **DESIGN-01** — Messaging consistency: scoreboard/log/action-panel text convention sweep — Phase 18
+- ✓ **MATCH-06** — Requirement text corrected to perspective-neutral symmetric-columns wording — Phase 18
 
 ### Active (v1.2 — Team Identity & Core Fixes)
 
@@ -73,12 +79,10 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 
 **Design Review + Carry-forward**
 
-- [ ] **DESIGN-01**: App messaging consistency audit and update
 - [ ] **DESIGN-02**: Playback review and optimizations
 - [ ] **DESIGN-03**: Duplicate code removal
 - [ ] **DESIGN-04**: Dead code removal
 - [ ] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay)
-- [ ] **MATCH-06** req text update: rewrite to "each team's DEF/MID within symmetric columns of kick-off hex"
 
 ### Deferred (v2 candidates)
 
@@ -157,4 +161,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-20 after Phase 17.1 (Action Flow Cleanup) close_
+_Last updated: 2026-06-21 after Phase 18 (Messaging & Logging Consistency) close_
