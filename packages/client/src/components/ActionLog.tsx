@@ -291,16 +291,21 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'DEFLECT_ATTEMPT': {
       const deflected = event.result === 'DEFLECTED';
       const dColor = pieceColorOf(event.defenderId);
+      // Preserve the existing rule: the Tackling bonus only applies on close-range
+      // (Set A) attempts with a die roll under 5; otherwise the bare die decides.
+      const hasBonus = event.band === 'A' && event.die < 5;
+      const rollStr = hasBonus
+        ? `die ${event.die} + Tackling ${event.tackling} = ${event.die + event.tackling}`
+        : `die ${event.die}`;
+      const rangeLabel = event.band === 'A' ? 'close range (Set A)' : 'long range (Set B)';
       return {
         prefix: deflected ? '[DEFLECT ✓]' : '[DEFLECT ✗]',
         prefixColor: dColor,
         content: (
           <>
             {' '}
-            <P pieceId={event.defenderId} prefix="D" /> (Set {event.band}) — die:{event.die}
-            {event.band === 'A' && event.die < 5
-              ? `+${event.tackling}=${event.die + event.tackling}`
-              : ''}
+            <PNamed pieceId={event.defenderId} prefix="D" />{' '}
+            {deflected ? 'deflected the shot' : 'failed to deflect'} — {rangeLabel}, {rollStr}
           </>
         ),
         isGoal: false,
@@ -717,7 +722,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
 /**
  * Action log panel: last 10 display items in reverse-chronological order.
  * Consecutive MOVE / HP_MOVE events for the same slot are merged into a single
- * path entry (e.g. [MOVE_A4] A3 23,3 → 22,4 → 21,4).
+ * path entry (e.g. [MOVE 4] A3 23,3 → 22,4 → 21,4).
  * Prefixes are bold and team-colored; player labels are bold and team-colored.
  */
 export function ActionLog() {
