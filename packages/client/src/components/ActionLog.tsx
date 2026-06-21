@@ -302,7 +302,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            <PNamed pieceId={event.defenderId} prefix="D" />{' '}
+            <PNamed pieceId={event.defenderId} />{' '}
             {deflected ? 'deflected the shot' : 'failed to deflect'} — {rangeLabel}, {rollStr}
           </>
         ),
@@ -324,7 +324,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
             <>
               {' '}
               {event.result} {'-> '}
-              <PNamed pieceId={event.defenderId} prefix="D" /> — auto-intercept (no roll)
+              <PNamed pieceId={event.defenderId} /> — auto-intercept (no roll)
             </>
           ),
           isGoal: false,
@@ -340,8 +340,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           <>
             {' '}
             {event.result} {'-> '}
-            <PNamed pieceId={event.defenderId} prefix="D" /> ({dStr}) — intercept if die 6 or total
-            ≥ 10
+            <PNamed pieceId={event.defenderId} /> ({dStr}) — intercept if die 6 or total ≥ 10
           </>
         ),
         isGoal: false,
@@ -521,8 +520,13 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'SNAPSHOT':
       return {
         prefix: '[SNAPSHOT]',
-        prefixColor: event.shooterId ? pieceColorOf(event.shooterId) : null,
-        content: ` ${event.shooterId}`,
+        prefixColor: pieceColorOf(event.shooterId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.shooterId} />
+          </>
+        ),
         isGoal: false,
       };
     case 'HALF_TIME':
@@ -553,7 +557,6 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const isContested = event.attackerDie !== null && event.defenderDie !== null;
       if (!isContested) {
         const contestantId = event.attackerId ?? event.defenderId ?? '';
-        const rolePrefix: 'A' | 'D' = event.attackerId !== null ? 'A' : 'D';
         const prefixColor = contestantId ? pieceColorOf(contestantId) : null;
         return {
           prefix,
@@ -561,7 +564,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           content: (
             <>
               {' '}
-              {winLabel} — <PNamed pieceId={contestantId} prefix={rolePrefix} /> (uncontested)
+              {winLabel} — <PNamed pieceId={contestantId} /> (uncontested)
             </>
           ),
           isGoal: false,
