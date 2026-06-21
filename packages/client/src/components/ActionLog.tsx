@@ -60,8 +60,7 @@ function PNamed({ pieceId, prefix }: { pieceId: string; prefix?: string }) {
   const name = pieceName(pieceId, num);
   return (
     <span style={{ color: pieceColorOf(pieceId), fontWeight: 'bold' }}>
-      {prefix ? `${prefix} ` : ''}
-      {num} {name}
+      {prefix ? `${prefix} ` : ''}#{num} {name}
     </span>
   );
 }
@@ -368,8 +367,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           <>
             {' '}
             {event.result} {'-> '}
-            <PNamed pieceId={event.defenderId} prefix="D" /> ({defStr}) vs{' '}
-            <PNamed pieceId={event.carrierId} prefix="A" /> ({carrStr})
+            <PNamed pieceId={event.defenderId} /> ({defStr}) vs <PNamed pieceId={event.carrierId} />{' '}
+            ({carrStr})
           </>
         ),
         isGoal: false,
@@ -599,8 +598,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            {winLabel} — <PNamed pieceId={event.attackerId!} prefix="A" /> {aScore} vs{' '}
-            <PNamed pieceId={event.defenderId!} prefix="D" /> {dScore}
+            {winLabel} — <PNamed pieceId={event.attackerId!} /> {aScore} vs{' '}
+            <PNamed pieceId={event.defenderId!} /> {dScore}
           </>
         ),
         isGoal: false,
@@ -745,6 +744,7 @@ export function ActionLog() {
             // D-01: resolve display name from pieces by id; fall back to the
             // existing terse pieceLabel (e.g. 'A3') when the piece is not found.
             const name = pieceName(item.pieceId, item.pieceLabel);
+            const num = pieceNum(item.pieceId);
             return (
               <div className={styles.entry} key={index}>
                 <span
@@ -755,8 +755,10 @@ export function ActionLog() {
                 </span>
                 <span className={styles.content}>
                   {' '}
-                  <span style={{ color: item.pieceColor, fontWeight: 'bold' }}>{name}</span> |{' '}
-                  {path}
+                  <span style={{ color: item.pieceColor, fontWeight: 'bold' }}>
+                    #{num} {name}
+                  </span>{' '}
+                  | {path}
                 </span>
               </div>
             );
