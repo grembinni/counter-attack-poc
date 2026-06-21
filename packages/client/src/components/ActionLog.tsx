@@ -41,16 +41,15 @@ function slotTeamColor(slot: MovementSlot): string {
 function P({ pieceId, prefix }: { pieceId: string; prefix: string }) {
   return (
     <span style={{ color: pieceColorOf(pieceId), fontWeight: 'bold' }}>
-      {prefix}
-      {pieceNum(pieceId)}
+      {prefix} #{pieceNum(pieceId)}
     </span>
   );
 }
 
 /**
- * Bold, team-colored player label rendered as "{number} {Name}" — the
+ * Bold, team-colored player label rendered as "#{number} {Name}" — the
  * move-log convention (D-01) extended to duel-style entries (TODO-NAME).
- * `prefix`, when provided, renders before the number (e.g. "D 7 Jane Doe")
+ * `prefix`, when provided, renders before the number (e.g. "D #7 Jane Doe")
  * to preserve the existing A/D role semantics used by duel branches.
  * Falls back to just the number when the piece is unknown (pieceName
  * already handles the fallback via its second argument).
@@ -60,8 +59,7 @@ function PNamed({ pieceId, prefix }: { pieceId: string; prefix?: string }) {
   const name = pieceName(pieceId, num);
   return (
     <span style={{ color: pieceColorOf(pieceId), fontWeight: 'bold' }}>
-      {prefix ? `${prefix} ` : ''}
-      {num} {name}
+      {prefix ? `${prefix} ` : ''}#{num} {name}
     </span>
   );
 }
@@ -205,7 +203,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
     }
 
     if (event.type === 'HP_MOVE') {
-      const prefix = event.slot === 'ATTACKER' ? '[MOVE_HP_A1]' : '[MOVE_HP_D1]';
+      const prefix = '[HIGH PASS MOVE 1]';
       const team = event.slot === 'ATTACKER' ? 'A' : 'D';
       const color = pieceColorOf(event.pieceId);
       const pieceLabel = `${team}${pieceNum(event.pieceId)}`;
@@ -368,8 +366,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           <>
             {' '}
             {event.result} {'-> '}
-            <PNamed pieceId={event.defenderId} prefix="D" /> ({defStr}) vs{' '}
-            <PNamed pieceId={event.carrierId} prefix="A" /> ({carrStr})
+            <PNamed pieceId={event.defenderId} /> ({defStr}) vs <PNamed pieceId={event.carrierId} />{' '}
+            ({carrStr})
           </>
         ),
         isGoal: false,
@@ -599,8 +597,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            {winLabel} — <PNamed pieceId={event.attackerId!} prefix="A" /> {aScore} vs{' '}
-            <PNamed pieceId={event.defenderId!} prefix="D" /> {dScore}
+            {winLabel} — <PNamed pieceId={event.attackerId!} /> {aScore} vs{' '}
+            <PNamed pieceId={event.defenderId!} /> {dScore}
           </>
         ),
         isGoal: false,
@@ -637,7 +635,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'HP_MOVE': {
       const team = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
-        prefix: event.slot === 'ATTACKER' ? '[MOVE_HP_A1]' : '[MOVE_HP_D1]',
+        prefix: '[HIGH PASS MOVE 1]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
@@ -652,7 +650,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'FTP_MOVE': {
       const ftpTeam = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
-        prefix: event.slot === 'ATTACKER' ? '[MOVE_FTP_A1]' : '[MOVE_FTP_D1]',
+        prefix: '[FIRST TIME PASS MOVE 1]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
@@ -745,6 +743,7 @@ export function ActionLog() {
             // D-01: resolve display name from pieces by id; fall back to the
             // existing terse pieceLabel (e.g. 'A3') when the piece is not found.
             const name = pieceName(item.pieceId, item.pieceLabel);
+            const num = pieceNum(item.pieceId);
             return (
               <div className={styles.entry} key={index}>
                 <span
@@ -755,8 +754,10 @@ export function ActionLog() {
                 </span>
                 <span className={styles.content}>
                   {' '}
-                  <span style={{ color: item.pieceColor, fontWeight: 'bold' }}>{name}</span> |{' '}
-                  {path}
+                  <span style={{ color: item.pieceColor, fontWeight: 'bold' }}>
+                    #{num} {name}
+                  </span>{' '}
+                  | {path}
                 </span>
               </div>
             );
