@@ -45,7 +45,7 @@
 
 ## Design Review
 
-- [ ] **DESIGN-01**: All player-facing messages and status text (action panel labels, phase prompts, error messages, log entries) are reviewed for consistency in tone, tense, and terminology; inconsistencies are corrected
+- [x] **DESIGN-01**: All player-facing messages and status text (action panel labels, phase prompts, error messages, log entries) are reviewed for consistency in tone, tense, and terminology; inconsistencies are corrected
 - [ ] **DESIGN-02**: Post-game replay playback is reviewed; unnecessary re-renders, redundant socket emissions, or frame-rate issues are identified and resolved
 - [ ] **DESIGN-03**: Duplicate logic across server handlers and client components is identified and consolidated into shared helpers where appropriate
 - [ ] **DESIGN-04**: Dead code — unused exports, unreachable branches, stale TODO comments, and legacy feature flags — is removed from the client and server packages
@@ -53,7 +53,7 @@
 ## Carry-forward from v1.1
 
 - [ ] **REPLAY-06**: Ball position updates correctly on every replay frame in a live session; ball correctly tracks pickups, intercepted passes, and steals mid-replay; UAT Test 6 from v1.1 passes
-- [ ] **MATCH-06** _(req text only)_: Each team's DEF/MID pieces are placed within symmetric hex-columns of the kick-off hex from their own end — a perspective-neutral, symmetric-mirror formation description (D-10)
+- [x] **MATCH-06** _(req text only)_: Each team's DEF/MID pieces are placed within symmetric hex-columns of the kick-off hex from their own end — a perspective-neutral, symmetric-mirror formation description (D-10)
 
 ## Bug Bash (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
@@ -100,12 +100,12 @@
 | PASS-02    | Phase 17.1 | Complete |
 | OFFSIDE-01 | Phase 17   | Pending  |
 | OFFSIDE-02 | Phase 17   | Pending  |
-| DESIGN-01  | Phase 18   | Pending  |
+| DESIGN-01  | Phase 18   | Complete |
 | DESIGN-02  | Phase 18.1 | Pending  |
 | DESIGN-03  | Phase 18.2 | Pending  |
 | DESIGN-04  | Phase 18.2 | Pending  |
 | REPLAY-06  | Phase 18.1 | Pending  |
-| MATCH-06   | Phase 18   | Pending  |
+| MATCH-06   | Phase 18   | Complete |
 | BUG-06     | Phase 18.3 | Pending  |
 | BUG-07     | Phase 18.3 | Pending  |
 | BUG-08     | Phase 18.2 | Pending  |

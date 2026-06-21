@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-21T04:33:10.706Z'
-last_activity: 2026-06-21 -- Phase 18 execution started
+last_updated: '2026-06-21T12:03:51.683Z'
+last_activity: 2026-06-21
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 32
-  completed_plans: 29
-  percent: 44
+  completed_plans: 32
+  percent: 56
 ---
 
 # Project State
@@ -333,12 +333,12 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18 (design-polish) — EXECUTING
-Plan: 1 of 3
+Phase: 18.1
+Plan: Not started
 free-kick consequence, staged repositioning sequence per rulebook, header-contest foul
 trigger, auto-relocation stall fix). Phase 17 closed 2026-06-20.
 Status: Executing Phase 18
-Last activity: 2026-06-21 -- Phase 18 execution started
+Last activity: 2026-06-21
 by user (offside flag not re-triggering after the first free-kick foul resolves in some
 as-yet-unconfirmed scenario — user will report again if it recurs; not yet root-caused).
 
