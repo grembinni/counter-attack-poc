@@ -181,8 +181,8 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 **Plans**: 2 plans (1 wave)
 
-- [ ] 18-01-PLAN.md — GameBoard PHASE_LABEL convention sweep (stale PASS/GK_DIVE fixes) + MOVE 4/5/2 slot suffix + team-prefixed render [Wave 1]
-- [ ] 18-02-PLAN.md — ActionLog shared dice-roll formatter (always show `- {penalty}`) + per-player move log with first/last name + hex-path arrows + MATCH-06 doc rewrite [Wave 1]
+- [x] 18-01-PLAN.md — GameBoard PHASE_LABEL convention sweep (stale PASS/GK_DIVE fixes) + MOVE 4/5/2 slot suffix + team-prefixed render [Wave 1]
+- [x] 18-02-PLAN.md — ActionLog shared dice-roll formatter (always show `- {penalty}`) + per-player move log with first/last name + hex-path arrows + MATCH-06 doc rewrite [Wave 1]
 
 **Note**: Originally scoped as a single large "Design Polish" phase covering 20 requirements across 4 workstreams. `/gsd-plan-phase` returned `## PHASE SPLIT RECOMMENDED` (2026-06-20) — split into this phase (messaging/logging) plus Phase 18.1 (Replay Review), Phase 18.2 (Code Cleanup & Behavioral Dup-Bugs), Phase 18.3 (Bug-Bash: Rule Correctness), and Phase 18.4 (UX Enhancements). Full original discussion remains in `.planning/phases/18-design-polish/18-CONTEXT.md`, `18-UI-SPEC.md`, and `18-PATTERNS.md` — sub-phases reference these as canonical sources for their relevant decisions.
 
@@ -259,7 +259,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 16. Player Roster & Selection  | v1.2      | 4/4            | Complete | 2026-06-14 |
 | 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
 | 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
-| 18. Messaging & Logging Cons.  | v1.2      | 0/2            | Pending  | -          |
+| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-06-21 |
 | 18.1. Replay Review            | v1.2      | 0/TBD          | Pending  | -          |
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 0/TBD          | Pending  | -          |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
