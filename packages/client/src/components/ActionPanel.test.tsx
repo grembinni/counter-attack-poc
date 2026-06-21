@@ -444,3 +444,89 @@ describe('ActionPanel — D-13 text corrections', () => {
     expect(screen.queryByText(/hex max/)).toBeNull();
   });
 });
+
+// 260621-ajd: countdown helper text for MOVE/FREE_MOVE, and meaningful kick-off copy.
+describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off helper copy', () => {
+  it('MOVE phase, slot ATTACKER_4, no one moved yet — line2 reads "4 of 4 players left to move."', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('4 of 4 players left to move.')).toBeDefined();
+  });
+
+  it('MOVE phase, slot ATTACKER_4, one piece moved — line2 reads "3 of 4 players left to move."', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: ['home-9'],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('3 of 4 players left to move.')).toBeDefined();
+  });
+
+  it('MOVE phase, slot ATTACKER_2 — countdown text appended with the existing "(2 hex max)" note preserved', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_2',
+        movedPieceIds: [],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText(/2 of 2 players left to move\./)).toBeDefined();
+    expect(screen.getByText(/2 hex max/)).toBeDefined();
+  });
+
+  it('FREE_MOVE_ATTACK: 3 eligible, 1 moved — helper reads 2 players left to move', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FREE_MOVE_ATTACK',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        freeMoveEligibleIds: { attack: ['home-9', 'home-8', 'home-7'], defense: [] },
+        freeMoveUsedPace: { 'home-9': 6 },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText(/2 of 3 players left to move\./)).toBeDefined();
+  });
+
+  it('KICK_OFF chooser shows a meaningful kick-off helper block, not just bare "Choose Action"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'KICK_OFF',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastActionType: null,
+      },
+      playerSlot: 1,
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Kick-Off!')).toBeDefined();
+    expect(screen.getByText(/standard pass/i)).toBeDefined();
+    expect(screen.getByText(/centre/i)).toBeDefined();
+    expect(screen.getByText('Choose Action')).toBeDefined();
+    expect(screen.getByRole('button', { name: /standard pass/i })).toBeDefined();
+  });
+});
