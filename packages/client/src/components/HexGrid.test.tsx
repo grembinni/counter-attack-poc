@@ -646,6 +646,67 @@ function hasMovedThisStageRingAt(container: HTMLElement, q: number, r: number): 
   );
 }
 
+// DESIGN-02: post-game replay must not run HexGrid's interactive highlight/click derivation.
+// phase === 'REPLAY' makes every onClick/highlight-set derivation inert (nothing is clickable,
+// no highlight is meaningful) — these tests prove the guard suppresses both even when the
+// underlying geometry (defender adjacent to carrier) would otherwise trigger a risk tint.
+describe('HexGrid — DESIGN-02: phase === REPLAY suppresses interactivity', () => {
+  it('no hex is clickable during replay (every polygon renders cursor: default)', () => {
+    // Seed selectedPieceId + validMoveHexes (the geometry that normally wires onClick =
+    // emitMove(...) on the candidate hex) so this assertion is meaningful — if the REPLAY
+    // guard were absent, isValidMove would be true and the candidate hex would render
+    // cursor: pointer via the highlight overlay polygon.
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, []);
+    useGameStore.setState({
+      gameState: { ...state, phase: 'REPLAY' as const },
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons.length).toBeGreaterThan(0);
+    for (const p of polygons) {
+      expect(p.style.cursor).not.toBe('pointer');
+    }
+  });
+
+  it('the same seeded geometry under phase: MOVE DOES produce at least one cursor: pointer polygon (control case)', () => {
+    // Proves the REPLAY assertion above is meaningful — the underlying mock state is
+    // otherwise capable of producing clickable hexes when not in REPLAY.
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, []);
+    useGameStore.setState({
+      gameState: { ...state, phase: 'MOVE' as const },
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons.some((p) => p.style.cursor === 'pointer')).toBe(true);
+  });
+
+  it('no interactive highlight tints during replay even when geometry would trigger them', () => {
+    // Defender-adjacent-to-carrier geometry from baseStateWithDefender — normally produces a
+    // risk tint (zoiRiskSet) when phase !== 'REPLAY' and the carrier is selected. During REPLAY,
+    // selectedPieceId is never set by any replay-phase code path, and the highlight-set
+    // derivation must be skipped entirely regardless.
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, []);
+    useGameStore.setState({
+      gameState: { ...state, phase: 'REPLAY' as const },
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBe(0);
+    expect(hasGoalTintAt(container)).toBe(false);
+  });
+});
+
 describe('HexGrid — D-55: isMovedThisStage wiring from freeKickPlacedPieceIds', () => {
   function freeKickSetupStateWithPlaced(placedIds: string[]) {
     return {
