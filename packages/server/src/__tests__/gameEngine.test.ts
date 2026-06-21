@@ -8,6 +8,7 @@ import {
   applyUndo,
   applyRoll,
   applyGKRestart,
+  applyGKKickTarget,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -1259,5 +1260,44 @@ describe('applyGKRestart', () => {
     if (!moveResult.ok) {
       expect(moveResult.reason).not.toBe('WRONG_SLOT');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGKKickTarget (Quick-task 260621-b8f, finding #4: GK_PUNT event emission)
+// ---------------------------------------------------------------------------
+
+/** GK_KICK_TARGET state: away GK holds the ball and selects a punt destination. */
+const gkKickTargetState: GameState = {
+  ...gkRestartState,
+  phase: 'GK_KICK_TARGET',
+  ball: { position: gkPiece.position, carrierId: 'away-0' },
+};
+
+describe('applyGKKickTarget', () => {
+  it('appends exactly one GK_PUNT event with correct passerId/from/to and null ballAfter carrier', () => {
+    const targetHex = { q: 23, r: 12 }; // middleThird — not home GK's restricted homeThird, not own hex
+    const result = applyGKKickTarget(gkKickTargetState, targetHex);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const puntEvents = result.state.eventLog.filter((e) => e.type === 'GK_PUNT');
+    expect(puntEvents).toHaveLength(1);
+    const puntEvent = puntEvents[0];
+    expect(puntEvent).toBeDefined();
+    if (puntEvent?.type !== 'GK_PUNT') return;
+    expect(puntEvent.passerId).toBe('away-0');
+    expect(puntEvent.from).toEqual(gkPiece.position);
+    expect(puntEvent.to).toEqual(targetHex);
+    expect(puntEvent.ballAfter).toEqual({ position: targetHex, carrierId: null });
+  });
+
+  it('transitions to GK_KICK_MOVE with ball at targetHex, carrierId null', () => {
+    const targetHex = { q: 23, r: 12 };
+    const result = applyGKKickTarget(gkKickTargetState, targetHex);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_KICK_MOVE');
+    expect(result.state.ball).toEqual({ position: targetHex, carrierId: null });
   });
 });

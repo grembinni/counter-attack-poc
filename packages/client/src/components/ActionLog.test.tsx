@@ -370,3 +370,131 @@ describe('ActionLog — STEAL_ATTEMPT challenge detail parity (TODO-STEAL-DETAIL
     expect(container.textContent).not.toMatch(/Tackling 0/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Quick-task 260621-b8f: ActionLog coverage gaps closed —
+//   #3 SHOT_ATTEMPT handling sub-check renders as two separate log entries;
+//   #2 HEADED_PASS (won-header delivery) renders [HEADER PASS];
+//   #4 GK_PUNT renders [PUNT].
+// ---------------------------------------------------------------------------
+describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-format branches', () => {
+  it('a handling-running SHOT_ATTEMPT renders two entries: one with the Shooting/Saving duel, one with handling: under a separate prefix', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'SAVE',
+        shooterDie: 4,
+        shooterScore: 8,
+        gkDie: 5,
+        gkScore: 9,
+        handlingDie: 2,
+        gkHandling: 8,
+        shooterPenaltyTotal: -2,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: 'away-0' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    // Two distinct entries rendered (one per .entry node). ActionLog renders in
+    // reverse-chronological order, so the handling entry (pushed second into the
+    // underlying consolidated array) appears FIRST, and the duel entry appears second.
+    const entries = container.querySelectorAll('[class*="entry"]');
+    expect(entries.length).toBe(2);
+    // First rendered entry: the handling check under its own [HANDLING] prefix
+    expect(entries[0]?.textContent).toMatch(/\[HANDLING\]/);
+    expect(entries[0]?.textContent).toMatch(/handling: 2 vs 8/);
+    expect(entries[0]?.textContent).toMatch(/caught/);
+    // Second rendered entry: the duel — [SHOT ✗] prefix (SAVE outcome) plus Shooting/Saving stat lines
+    expect(entries[1]?.textContent).toMatch(/\[SHOT ✗\]/);
+    expect(entries[1]?.textContent).toMatch(/Shooting/);
+    expect(entries[1]?.textContent).toMatch(/Saving/);
+    expect(entries[1]?.textContent).not.toMatch(/handling:/);
+  });
+
+  it('a non-handling SHOT_ATTEMPT still renders exactly one entry (regression guard)', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'GOAL',
+        shooterDie: 4,
+        shooterScore: 10,
+        gkDie: 2,
+        gkScore: 6,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: 0,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    const entries = container.querySelectorAll('[class*="entry"]');
+    expect(entries.length).toBe(1);
+    expect(entries[0]?.textContent).toMatch(/\[SHOT ✓\]/);
+  });
+
+  it('a spilled handling check (outcome LOOSE_BALL) renders "spilled" in the handling entry', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'LOOSE_BALL',
+        shooterDie: 4,
+        shooterScore: 8,
+        gkDie: 5,
+        gkScore: 9,
+        handlingDie: 1,
+        gkHandling: 8,
+        shooterPenaltyTotal: -2,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    const entries = container.querySelectorAll('[class*="entry"]');
+    expect(entries.length).toBe(2);
+    // Reverse-chronological order: handling entry renders first (see comment above).
+    expect(entries[0]?.textContent).toMatch(/\[HANDLING\]/);
+    expect(entries[0]?.textContent).toMatch(/spilled/);
+  });
+
+  it('a HEADED_PASS event renders the [HEADER PASS] prefix and from→to', () => {
+    setEventLog([
+      {
+        type: 'HEADED_PASS',
+        passerId: 'home-9',
+        from: { q: 27, r: 12 },
+        to: { q: 30, r: 12 },
+        timestamp: 0,
+        ballAfter: { position: { q: 30, r: 12 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[HEADER PASS\]/);
+    expect(container.textContent).toMatch(/27,12 → 30,12/);
+  });
+
+  it('a GK_PUNT event renders the [PUNT] prefix and from→to', () => {
+    setEventLog([
+      {
+        type: 'GK_PUNT',
+        passerId: 'away-0',
+        from: { q: 23, r: 7 },
+        to: { q: 23, r: 12 },
+        timestamp: 0,
+        ballAfter: { position: { q: 23, r: 12 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[PUNT\]/);
+    expect(container.textContent).toMatch(/23,7 → 23,12/);
+  });
+});

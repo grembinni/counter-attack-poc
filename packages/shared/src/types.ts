@@ -79,7 +79,9 @@ export type ActionEventType =
   | 'LOOSE_BALL_LAND'
   | 'DEFLECT_ATTEMPT'
   | 'GK_KICK'
-  | 'GK_KICK_MOVE';
+  | 'GK_KICK_MOVE'
+  | 'HEADED_PASS'
+  | 'GK_PUNT';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -287,6 +289,22 @@ export type ActionEvent =
       from: HexCoord;
       to: HexCoord;
       timestamp: number;
+    }
+  | {
+      type: 'HEADED_PASS';
+      passerId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      type: 'GK_PUNT';
+      passerId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     };
 
 export type GamePhase =

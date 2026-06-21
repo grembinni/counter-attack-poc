@@ -69,6 +69,16 @@ type MoveGroup = {
 type EventItem = {
   kind: 'event';
   event: ActionEvent;
+  /**
+   * Quick-task 260621-b8f finding #3: SHOT_ATTEMPT events with a handling sub-check
+   * previously rendered the duel AND handling check as one merged log entry. This
+   * discriminator lets consolidateEvents push TWO EventItems sharing the same
+   * underlying SHOT_ATTEMPT event — one for the duel portion, one for the handling
+   * portion — while formatEvent renders only the relevant slice for each.
+   * undefined for all other event types and for non-handling SHOT_ATTEMPT events
+   * (those still render as a single entry, unchanged).
+   */
+  subKind?: 'duel' | 'handling';
 };
 
 type DisplayItem = MoveGroup | EventItem;
@@ -188,6 +198,15 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
       continue;
     }
 
+    // Quick-task 260621-b8f finding #3: a SHOT_ATTEMPT that ran a handling sub-check
+    // (GK won the duel, then a separate handling roll decided caught vs spilled) must
+    // produce TWO log entries — the duel and the handling check — not one merged entry.
+    if (event.type === 'SHOT_ATTEMPT' && event.handlingDie !== null) {
+      items.push({ kind: 'event', event, subKind: 'duel' });
+      items.push({ kind: 'event', event, subKind: 'handling' });
+      continue;
+    }
+
     items.push({ kind: 'event', event });
   }
 
@@ -203,7 +222,7 @@ type Formatted = {
   isGoal: boolean;
 };
 
-function formatEvent(event: ActionEvent): Formatted {
+function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatted {
   switch (event.type) {
     case 'MOVE':
       return {
@@ -354,6 +373,9 @@ function formatEvent(event: ActionEvent): Formatted {
       ) : (
         'unknown shooter'
       );
+      const shotPrefix = event.outcome === 'GOAL' ? '[SHOT ✓]' : '[SHOT ✗]';
+      const shotPrefixColor = event.shooterId ? pieceColorOf(event.shooterId) : null;
+
       if (event.shooterScore === null) {
         // No duel ran: GK out of range — automatic goal
         shotContent = (
@@ -363,7 +385,9 @@ function formatEvent(event: ActionEvent): Formatted {
           </>
         );
       } else if (event.handlingDie !== null) {
-        // GK won the duel; handling check ran
+        // Quick-task 260621-b8f finding #3: GK won the duel; handling check ran.
+        // consolidateEvents pushes TWO EventItems for this case (subKind 'duel' then
+        // 'handling') — render only the requested slice as its own log entry.
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
         const shooterStr = fmtStatRoll(
@@ -381,14 +405,34 @@ function formatEvent(event: ActionEvent): Formatted {
           event.gkScore!,
         );
         const duelStr = `${shooterStr} vs ${gkStr}`;
-        const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
-        shotContent = (
-          <>
-            {' '}
-            {shooterLabel} {event.outcome} — {duelStr} | handling: {event.handlingDie} vs{' '}
-            {event.gkHandling} ({handlingResult})
-          </>
-        );
+
+        if (subKind === 'handling') {
+          const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
+          return {
+            prefix: '[HANDLING]',
+            prefixColor: shotPrefixColor,
+            content: (
+              <>
+                {' '}
+                handling: {event.handlingDie} vs {event.gkHandling} ({handlingResult})
+              </>
+            ),
+            isGoal: false,
+          };
+        }
+
+        // subKind === 'duel' (or undefined — defensive fallback to the duel-only line)
+        return {
+          prefix: shotPrefix,
+          prefixColor: shotPrefixColor,
+          content: (
+            <>
+              {' '}
+              {shooterLabel} {event.outcome} — {duelStr}
+            </>
+          ),
+          isGoal: event.outcome === 'GOAL',
+        };
       } else {
         // Regular duel outcome (GOAL or LOOSE_BALL)
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
@@ -416,8 +460,8 @@ function formatEvent(event: ActionEvent): Formatted {
         );
       }
       return {
-        prefix: event.outcome === 'GOAL' ? '[SHOT ✓]' : '[SHOT ✗]',
-        prefixColor: event.shooterId ? pieceColorOf(event.shooterId) : null,
+        prefix: shotPrefix,
+        prefixColor: shotPrefixColor,
         content: shotContent,
         isGoal: event.outcome === 'GOAL',
       };
@@ -605,6 +649,24 @@ function formatEvent(event: ActionEvent): Formatted {
         isGoal: false,
       };
     }
+    case 'HEADED_PASS':
+      // Quick-task 260621-b8f finding #2: delivery following a won header — no accuracy
+      // check at this point (mirrors STANDARD_PASS's pass-log format, no accurate prefix).
+      return {
+        prefix: '[HEADER PASS]',
+        prefixColor: pieceColorOf(event.passerId),
+        content: ` Headed  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
+    case 'GK_PUNT':
+      // Quick-task 260621-b8f finding #4: GK punt delivery — always delivered (no accuracy
+      // check at this point; mirrors STANDARD_PASS's pass-log format).
+      return {
+        prefix: '[PUNT]',
+        prefixColor: pieceColorOf(event.passerId),
+        content: ` Punt  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
   }
 }
 
@@ -652,7 +714,7 @@ export function ActionLog() {
               </div>
             );
           }
-          const { prefix, prefixColor, content, isGoal } = formatEvent(item.event);
+          const { prefix, prefixColor, content, isGoal } = formatEvent(item.event, item.subKind);
           return (
             <div className={styles.entry} key={index}>
               <span

@@ -307,6 +307,48 @@ describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () =
     if (!result.ok) return;
     expect(result.state.lastActionType).toBe('HEADER');
   });
+
+  // Quick-task 260621-b8f finding #2: the non-goal-line PASS branch previously emitted no
+  // event at all — only the contested HEADER duel itself (finding #1) was loggable, never
+  // the delivery that followed a won header.
+  it('appends exactly one HEADED_PASS event with correct passerId/from/to (D-finding #2)', () => {
+    const state = makeHeaderStateWithWinner();
+    const targetHex = { q: 30, r: 12 };
+    const result = applyResolveHeaderTarget(state, targetHex);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const headedPassEvents = result.state.eventLog.filter((e) => e.type === 'HEADED_PASS');
+    expect(headedPassEvents).toHaveLength(1);
+    const headedPassEvent = headedPassEvents[0];
+    expect(headedPassEvent).toBeDefined();
+    if (headedPassEvent?.type !== 'HEADED_PASS') return;
+    expect(headedPassEvent.passerId).toBe('home-fwd');
+    expect(headedPassEvent.from).toEqual({ q: 27, r: 12 }); // winner's position
+    expect(headedPassEvent.to).toEqual(targetHex);
+    expect(headedPassEvent.ballAfter).toEqual({ position: targetHex, carrierId: 'home-fwd' });
+  });
+
+  it('does NOT append a HEADED_PASS event on the GK_DIVE (goal-line) route', () => {
+    const nearGoalState = makeHeaderStateWithWinner({
+      pieces: [
+        { ...homeFwd, position: { q: 32, r: 12 } },
+        { ...awayDef, position: { q: 33, r: 12 } },
+        awayGk,
+        homeMid,
+      ],
+      ball: { position: { q: 32, r: 12 }, carrierId: null },
+      headerContestants: { home: ['home-fwd'], away: ['away-def'] },
+      headerDuelWinner: 'home',
+    });
+    const goalLineHex = { q: 36, r: 12 };
+    const result = applyResolveHeaderTarget(nearGoalState, goalLineHex);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_DIVE');
+    const headedPassEvents = result.state.eventLog.filter((e) => e.type === 'HEADED_PASS');
+    expect(headedPassEvents).toHaveLength(0);
+  });
 });
 
 describe('RULE-02: applyResolveHeaderTarget — OUT_OF_RANGE (D-06)', () => {
