@@ -588,4 +588,20 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
     expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
     expect(container.textContent).not.toMatch(/home-9/);
   });
+
+  it('a GK_KICK_MOVE OPP-slot event renders [KEEPER KICK RESPONSE MOVE] with no underscore', () => {
+    setEventLog([
+      {
+        type: 'GK_KICK_MOVE',
+        slot: 'OPP',
+        pieceId: 'away-1',
+        from: { q: 30, r: 13 },
+        to: { q: 29, r: 13 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[KEEPER KICK RESPONSE MOVE\]/);
+    expect(container.textContent).not.toMatch(/_/);
+  });
 });
