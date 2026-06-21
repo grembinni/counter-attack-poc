@@ -2190,7 +2190,20 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
         // Not goal-line (or no target set): headed pass.
         // Ball goes to headerTargetHex if set; otherwise to attacker's position.
+        // Quick-task 260621-b8f finding #2 (defense-in-depth mirror): this legacy contested-win
+        // PASS branch is only reachable via direct applyRoll unit tests in the current handler
+        // wiring (the live GAME_ROLL handler guards against re-firing the duel once
+        // headerDuelWinner is set by GAME_HEADER_CONTESTANT), but mirror the HEADED_PASS append
+        // here too for engine-level consistency in case this path is exercised directly.
         const ballPosition = tgtHex ?? attackerPiece.position;
+        const headedPassEventLegacy: ActionEvent = {
+          type: 'HEADED_PASS',
+          passerId: attackerPiece.id,
+          from: attackerPiece.position,
+          to: ballPosition,
+          ballAfter: { position: ballPosition, carrierId: attackerPiece.id },
+          timestamp: Date.now(),
+        };
         return {
           ok: true,
           state: {
@@ -2202,7 +2215,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             contestedPieceIds: contestedIds,
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
             tackleAttemptedByIds: [], // D-02
-            eventLog: [...state.eventLog, headerEventEntry],
+            eventLog: [...state.eventLog, headerEventEntry, headedPassEventLegacy],
             ...headerCleared,
             headerTargetHex: null,
           },
@@ -2512,6 +2525,19 @@ export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyG
     return { ok: false, reason: 'INVALID_TARGET' };
   }
 
+  // Quick-task 260621-b8f finding #4: the punt previously emitted no event at all — only
+  // the quick-throw path (applyQuickThrow's STANDARD_PASS) logged a delivery. Emit a
+  // GK_PUNT event (pass-format, no accuracy field — a punt is always delivered) so the
+  // ActionLog can render a [PUNT] entry.
+  const puntEvent: ActionEvent = {
+    type: 'GK_PUNT',
+    passerId: gk.id,
+    from: gk.position,
+    to: targetHex,
+    ballAfter: { position: targetHex, carrierId: null },
+    timestamp: Date.now(),
+  };
+
   return {
     ok: true,
     state: {
@@ -2523,6 +2549,7 @@ export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyG
       gkKickMovementSlot: 'KICKER',
       gkKickMovedPieceId: null,
       gkKickPaceUsed: 0,
+      eventLog: [...state.eventLog, puntEvent],
     },
   };
 }
@@ -3051,7 +3078,20 @@ export function applyResolveHeaderTarget(
     };
   }
 
-  // Not goal-line: headed pass → PASS with winner as carrier
+  // Not goal-line: headed pass → PASS with winner as carrier.
+  // Quick-task 260621-b8f finding #2: this branch previously emitted no event at all — the
+  // contested HEADER event (finding #1) only logs the contest itself, not the delivery that
+  // follows a won header. Emit a HEADED_PASS event (pass-format, no accuracy field — a won
+  // header is always delivered, no accuracy check at this point) so the ActionLog can render
+  // a [HEADER PASS] entry.
+  const headedPassEvent: ActionEvent = {
+    type: 'HEADED_PASS',
+    passerId: resolvedWinner?.id ?? '',
+    from: referencePosition,
+    to: targetHex,
+    ballAfter: { position: targetHex, carrierId: resolvedWinner?.id ?? null },
+    timestamp: Date.now(),
+  };
   return {
     ok: true,
     state: {
@@ -3064,6 +3104,7 @@ export function applyResolveHeaderTarget(
       contestedPieceIds: contestedIds,
       stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
       tackleAttemptedByIds: [], // D-02
+      eventLog: [...state.eventLog, headedPassEvent],
       ...headerCleared,
     },
   };
