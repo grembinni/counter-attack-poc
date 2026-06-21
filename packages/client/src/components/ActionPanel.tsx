@@ -140,8 +140,8 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Header!</span>
-          <span className={styles.helperLine2}>Move 1 player to challenge.</span>
+          <span className={styles.helperLine1}>High Pass Aerial Challenge!</span>
+          <span className={styles.helperLine2}>Move 1 player to challenge (max 3 hexes).</span>
         </div>
         {/* BUG-03 (Phase 17 D-07): Undo available in HIGH_PASS_MOVEMENT with same boundary logic */}
         <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
@@ -168,8 +168,8 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>First-time pass!</span>
-          <span className={styles.helperLine2}>Move 1 player to receive the ball.</span>
+          <span className={styles.helperLine1}>First-Time Pass!</span>
+          <span className={styles.helperLine2}>Move 1 player to receive the ball (max 1 hex).</span>
         </div>
         {/* D-03 (Phase 17.1): Undo available with FTP_REPOSITION as the slot boundary */}
         <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
@@ -196,8 +196,8 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Attempt save!</span>
-          <span className={styles.helperLine2}>Dive to a highlighted hex. (Max 3 hexes away)</span>
+          <span className={styles.helperLine1}>Attempt Save!</span>
+          <span className={styles.helperLine2}>Dive to a highlighted hex (max 3 hexes).</span>
         </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
@@ -217,9 +217,12 @@ export function ActionPanel() {
     if (!isDefendingTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.phaseLabel}>
-          Move a player to deflect the snapshot (up to 2 hexes)
-        </span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Snapshot - Deflection Attempt!</span>
+          <span className={styles.helperLine2}>
+            Move 1 player to deflect the shot (up to 2 hexes).
+          </span>
+        </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
         </button>
@@ -265,8 +268,8 @@ export function ActionPanel() {
         return (
           <div className={styles.panel}>
             <div className={styles.helperBlock}>
-              <span className={styles.helperLine1}>Header won!</span>
-              <span className={styles.helperLine2}>Choose target.</span>
+              <span className={styles.helperLine1}>Header Won!</span>
+              <span className={styles.helperLine2}>Select a target hex.</span>
             </div>
             {gameError && <span className={styles.errorText}>{gameError}</span>}
           </div>
@@ -280,9 +283,9 @@ export function ActionPanel() {
         {!myConfirmed && (
           <>
             <div className={styles.helperBlock}>
-              <span className={styles.helperLine1}>Contesting Header!</span>
+              <span className={styles.helperLine1}>Contest Header!</span>
               <span className={styles.helperLine2}>
-                ({headerContestantIds.length}) selected within range.
+                {headerContestantIds.length} players selected within range.
               </span>
             </div>
             <button
@@ -313,7 +316,10 @@ export function ActionPanel() {
     if (!isActivePlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.phaseLabel}>Snapshot! Click a goal hex to target</span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Snapshot!</span>
+          <span className={styles.helperLine2}>Select a goal hex to target.</span>
+        </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -333,10 +339,11 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Choose Keeper Action</span>
+          <span className={styles.helperLine1}>Goalie Restart!</span>
+          <span className={styles.helperLine2}>Choose an action.</span>
         </div>
         <button className={styles.ctaButton} onClick={() => emitGKRestart('kick')}>
-          Kick (High Pass)
+          Punt (High Pass)
         </button>
         <button className={styles.ctaButton} onClick={() => emitGKRestart('throw')}>
           Quick Throw
@@ -359,8 +366,10 @@ export function ActionPanel() {
     if (!isGKTeamPlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.gkLabel}>Quick Throw — select target hex</span>
-        <span className={styles.phaseLabel}>Up to 11 hexes · no interception</span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Quick Throw!</span>
+          <span className={styles.helperLine2}>Select a target hex (up to 11 hexes).</span>
+        </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -377,9 +386,9 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Keeper Kick</span>
+          <span className={styles.helperLine1}>Punt!</span>
           <span className={styles.helperLine2}>
-            Target anywhere but the opponent&apos;s final 3rd
+            Target anywhere except the opponent&apos;s final third.
           </span>
         </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -394,9 +403,12 @@ export function ActionPanel() {
     if (!isActivePlayer) return waitingPanel;
     return (
       <div className={styles.panel}>
-        <span className={styles.phaseLabel}>
-          Reposition a player while kick is in air (up to 3 hexes)
-        </span>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Ball in Air!</span>
+          <span className={styles.helperLine2}>
+            Move 1 player to receive the ball (max 3 hexes).
+          </span>
+        </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
         </button>
@@ -496,7 +508,7 @@ export function ActionPanel() {
 
       return (
         <div className={`${styles.panel} ${actionCount >= 5 ? styles.wide : ''}`}>
-          <span className={styles.phaseLabel}>Choose action.</span>
+          <span className={styles.phaseLabel}>Choose Action</span>
           {!isKickOff && eligible.has('MOVEMENT') && (
             <button className={styles.ctaButton} onClick={emitStartMovement}>
               Move
@@ -591,15 +603,19 @@ export function ActionPanel() {
 
     const slotTotal =
       movementSlot != null ? { ATTACKER_4: 4, DEFENDER_5: 5, ATTACKER_2: 2 }[movementSlot] : null;
-    const slotHelperLine1 = slotTotal != null ? `Move up to ${slotTotal} players` : null;
-    const slotHelperLine2 = movementSlot === 'ATTACKER_2' ? '(2 space max)' : null;
+    const slotHelperLine2 =
+      slotTotal != null
+        ? movementSlot === 'ATTACKER_2'
+          ? `Move up to ${slotTotal} players. (2 hex max)`
+          : `Move up to ${slotTotal} players.`
+        : null;
 
     return (
       <div className={styles.panel}>
-        {slotHelperLine1 && (
+        {slotHelperLine2 && (
           <div className={styles.helperBlock}>
-            <span className={styles.helperLine1}>{slotHelperLine1}</span>
-            {slotHelperLine2 && <span className={styles.helperLine2}>{slotHelperLine2}</span>}
+            <span className={styles.helperLine1}>Move!</span>
+            <span className={styles.helperLine2}>{slotHelperLine2}</span>
           </div>
         )}
         {/* D-10: Snapshot wired to emitSnapshot in MOVEMENT phase (was permanently disabled) */}
