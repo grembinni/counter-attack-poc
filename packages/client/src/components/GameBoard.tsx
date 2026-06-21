@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { GamePhase } from '@counter-attack/shared';
+import type { MovementSlot } from '@counter-attack/shared';
 import type { PlayerPiece } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -50,6 +51,19 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
 };
+
+/** DESIGN-01: MOVE-phase numbered slot suffix lookup (D-02 lookup-table-as-data shape). */
+const MOVE_SLOT_SUFFIX: Record<MovementSlot, string> = {
+  ATTACKER_4: ' 4',
+  DEFENDER_5: ' 5',
+  ATTACKER_2: ' 2',
+};
+
+/** Returns the MOVE-phase numbered slot suffix (' 4' / ' 5' / ' 2'), or '' when no slot is active. */
+function moveSlotSuffix(slot: MovementSlot | null): string {
+  if (slot === null) return '';
+  return MOVE_SLOT_SUFFIX[slot] ?? '';
+}
 
 /** Returns the appropriate statBubble color class based on the stat value. */
 function statBubbleClass(value: number): string {
@@ -120,6 +134,7 @@ export function GameBoard() {
   const score = useGameStore((s) => s.gameState.score);
   const phase = useGameStore((s) => s.gameState.phase);
   const actionCount = useGameStore((s) => s.gameState.actionCount);
+  const movementSlot = useGameStore((s) => s.gameState.movementSlot);
 
   // Centre section (absorbed from TurnIndicator)
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
@@ -143,7 +158,8 @@ export function GameBoard() {
   // Centre section derived values (from TurnIndicator)
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
   const teamColor = TEAM_CONFIGS[selectedTeams[activeTeam]].primaryColor;
-  const phaseLabel = PHASE_LABEL[phase];
+  const phaseLabel =
+    phase === 'MOVE' ? PHASE_LABEL[phase] + moveSlotSuffix(movementSlot) : PHASE_LABEL[phase];
 
   // D-03: persistent player card — never blank after first selection
   const lastPieceRef = useRef<PlayerPiece | null>(null);
