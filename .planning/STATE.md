@@ -163,6 +163,10 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 - Six retired files deleted: TurnIndicator.tsx/.module.css, HalfTimeScreen.tsx/.module.css, FullTimeScreen.tsx/.module.css.
 - Wave 0 socket mock pattern: extend { emit, on, off } with socket.io: { on, off } to support ConnectionStatus Manager events in GameBoard tests.
 
+### Pending Todos
+
+15 pending todos in `.planning/todos/pending/` (as of 2026-06-21, after Phase 18 close-out feedback batch). 2 tagged `resolves_phase: "18.3"` (double-tackle-attempt bug, first-time-pass move-phase toggle) — will auto-close when Phase 18.3 completes. Remaining 13 are general ActionPanel/ActionLog UX and logging-format fixes with no phase assignment yet.
+
 ## Quick Tasks Completed
 
 | Slug                   | Date       | Description                                                                                                                                               |
