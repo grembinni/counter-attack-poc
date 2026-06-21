@@ -12,6 +12,18 @@ function pieceColorOf(pieceId: string): string {
   return TEAM_CONFIGS[selectedTeams[positional]].primaryColor;
 }
 
+/**
+ * D-01: Resolves a piece's display name as `{firstName} {lastName}` from
+ * gameState.pieces. Falls back to the pieceNum-style label (passed in by the
+ * caller) when the piece is not found in the current pieces array.
+ */
+function pieceName(pieceId: string, fallback: string): string {
+  const pieces = useGameStore.getState().gameState.pieces;
+  const piece = pieces.find((p) => p.id === pieceId);
+  if (piece === undefined) return fallback;
+  return `${piece.firstName} ${piece.lastName}`;
+}
+
 /** Bold, team-colored player label rendered inline. */
 function P({ pieceId, prefix }: { pieceId: string; prefix: string }) {
   return (
@@ -29,6 +41,7 @@ type MoveGroup = {
   groupKey: string;
   prefix: string;
   prefixColor: string;
+  pieceId: string;
   pieceLabel: string;
   pieceColor: string;
   path: HexCoord[];
@@ -56,12 +69,19 @@ function pieceNum(pieceId: string): string {
 }
 
 /**
- * Formats a heading score as "(die+stat)" or "(die+stat-penalty)" when penalty > 0.
- * penalty = die + stat - combined (from clamping / distance modifier).
+ * D-12: Shared spelled-out stat+roll+penalty formatter used uniformly by
+ * SHOT_ATTEMPT, TACKLE_ATTEMPT, STEAL_ATTEMPT, and HEADER. Always renders the
+ * `- {penalty}` term (including `- 0`) — never a compact parenthetical, never
+ * an omitted penalty term.
  */
-function fmtHeading(die: number, stat: number, combined: number): string {
-  const penalty = die + stat - combined;
-  return penalty > 0 ? `(${die}+${stat}-${penalty})` : `(${die}+${stat})`;
+function fmtStatRoll(
+  statName: string,
+  statValue: number,
+  roll: number,
+  penalty: number,
+  combined: number,
+): string {
+  return `${statName} ${statValue} + ${roll} - ${Math.abs(penalty)} = ${combined}`;
 }
 
 // ─── Consolidation ────────────────────────────────────────────────────────────
@@ -92,6 +112,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
           groupKey,
           prefix,
           prefixColor: color,
+          pieceId: event.pieceId,
           pieceLabel,
           pieceColor: color,
           path: [event.from, event.to],
@@ -115,6 +136,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
           groupKey,
           prefix,
           prefixColor: color,
+          pieceId: event.pieceId,
           pieceLabel,
           pieceColor: color,
           path: [event.from, event.to],
@@ -138,6 +160,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
           groupKey,
           prefix,
           prefixColor: color,
+          pieceId: event.pieceId,
           pieceLabel,
           pieceColor: color,
           path: [event.from, event.to],
@@ -178,6 +201,7 @@ function formatEvent(event: ActionEvent): Formatted {
         isGoal: false,
       };
     case 'DICE_ROLL':
+      // D-12: DICE_ROLL is exempt — no stat+roll+penalty triple exists here.
       return {
         prefix: '[DICE]',
         prefixColor: null,
@@ -204,14 +228,16 @@ function formatEvent(event: ActionEvent): Formatted {
     }
     case 'STEAL_ATTEMPT': {
       const dColor = pieceColorOf(event.defenderId);
+      // D-12: STEAL_ATTEMPT carries no penalty field — always 0.
+      const defStat = event.defenderCombined - event.defenderDie;
+      const dStr = fmtStatRoll('Tackling', defStat, event.defenderDie, 0, event.defenderCombined);
       return {
         prefix: event.result === 'SUCCESS' ? '[INTERCEPT ✓]' : '[INTERCEPT ✗]',
         prefixColor: dColor,
         content: (
           <>
             {' '}
-            <P pieceId={event.defenderId} prefix="D" /> — {event.result} (die: {event.defenderDie},
-            score: {event.defenderCombined})
+            <P pieceId={event.defenderId} prefix="D" /> — {event.result} ({dStr})
           </>
         ),
         isGoal: false,
@@ -220,6 +246,15 @@ function formatEvent(event: ActionEvent): Formatted {
     case 'TACKLE_ATTEMPT': {
       const defStat = event.defenderCombined - event.defenderDie;
       const carrStat = event.carrierCombined - event.carrierDie;
+      // D-12: TACKLE_ATTEMPT carries no penalty field — always 0.
+      const defStr = fmtStatRoll('Tackling', defStat, event.defenderDie, 0, event.defenderCombined);
+      const carrStr = fmtStatRoll(
+        'Dribbling',
+        carrStat,
+        event.carrierDie,
+        0,
+        event.carrierCombined,
+      );
       return {
         prefix: '[TACKLE]',
         prefixColor: pieceColorOf(event.defenderId),
@@ -227,8 +262,8 @@ function formatEvent(event: ActionEvent): Formatted {
           <>
             {' '}
             {event.result} {'-> '}
-            <P pieceId={event.defenderId} prefix="D" /> ({event.defenderDie}+{defStat}) vs{' '}
-            <P pieceId={event.carrierId} prefix="A" /> ({event.carrierDie}+{carrStat})
+            <P pieceId={event.defenderId} prefix="D" /> ({defStr}) vs{' '}
+            <P pieceId={event.carrierId} prefix="A" /> ({carrStr})
           </>
         ),
         isGoal: false,
@@ -273,10 +308,6 @@ function formatEvent(event: ActionEvent): Formatted {
         isGoal: false,
       };
     case 'SHOT_ATTEMPT': {
-      const fmtScore = (die: number, rawStat: number, penalty: number, score: number): string => {
-        if (penalty === 0) return `(${die}+${rawStat}=${score})`;
-        return `(${die}+${rawStat}${penalty < 0 ? penalty : `+${penalty}`}=${score})`;
-      };
       let shotContent: React.ReactNode;
       if (event.shooterScore === null) {
         // No duel ran: GK out of range — automatic goal
@@ -285,7 +316,21 @@ function formatEvent(event: ActionEvent): Formatted {
         // GK won the duel; handling check ran
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
-        const duelStr = `${fmtScore(event.shooterDie, shooterRawStat, event.shooterPenaltyTotal, event.shooterScore)} vs ${fmtScore(event.gkDie, gkRawStat, event.gkPenaltyTotal, event.gkScore!)}`;
+        const shooterStr = fmtStatRoll(
+          'Shooting',
+          shooterRawStat,
+          event.shooterDie,
+          event.shooterPenaltyTotal,
+          event.shooterScore,
+        );
+        const gkStr = fmtStatRoll(
+          'Saving',
+          gkRawStat,
+          event.gkDie,
+          event.gkPenaltyTotal,
+          event.gkScore!,
+        );
+        const duelStr = `${shooterStr} vs ${gkStr}`;
         const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
         shotContent = ` ${event.outcome} — ${duelStr} | handling: ${event.handlingDie} vs ${event.gkHandling} (${handlingResult})`;
       } else {
@@ -293,7 +338,21 @@ function formatEvent(event: ActionEvent): Formatted {
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
         const outcomeLabel = event.outcome === 'LOOSE_BALL' ? 'LOOSE BALL (tie)' : event.outcome;
-        shotContent = ` ${outcomeLabel} — ${fmtScore(event.shooterDie, shooterRawStat, event.shooterPenaltyTotal, event.shooterScore)} vs ${fmtScore(event.gkDie, gkRawStat, event.gkPenaltyTotal, event.gkScore!)}`;
+        const shooterStr = fmtStatRoll(
+          'Shooting',
+          shooterRawStat,
+          event.shooterDie,
+          event.shooterPenaltyTotal,
+          event.shooterScore,
+        );
+        const gkStr = fmtStatRoll(
+          'Saving',
+          gkRawStat,
+          event.gkDie,
+          event.gkPenaltyTotal,
+          event.gkScore!,
+        );
+        shotContent = ` ${outcomeLabel} — ${shooterStr} vs ${gkStr}`;
       }
       return {
         prefix: '[SHOT]',
@@ -353,14 +412,23 @@ function formatEvent(event: ActionEvent): Formatted {
       }
 
       // Contested duel: both teams fielded contestants
-      const aScore = fmtHeading(
-        event.attackerDie!,
+      // D-12: penalty = die + stat - combined (mirrors the prior heading-score derivation)
+      const attackerPenalty =
+        event.attackerDie! + event.attackerAerialAbility! - event.attackerCombined!;
+      const defenderPenalty =
+        event.defenderDie! + event.defenderAerialAbility! - event.defenderCombined!;
+      const aScore = fmtStatRoll(
+        'Aerial Ability',
         event.attackerAerialAbility!,
+        event.attackerDie!,
+        attackerPenalty,
         event.attackerCombined!,
       );
-      const dScore = fmtHeading(
-        event.defenderDie!,
+      const dScore = fmtStatRoll(
+        'Aerial Ability',
         event.defenderAerialAbility!,
+        event.defenderDie!,
+        defenderPenalty,
         event.defenderCombined!,
       );
       const winnerColor = isTie
@@ -504,6 +572,9 @@ export function ActionLog() {
         recent.map((item, index) => {
           if (item.kind === 'move_group') {
             const path = item.path.map((h) => `${h.q},${h.r}`).join(' → ');
+            // D-01: resolve display name from pieces by id; fall back to the
+            // existing terse pieceLabel (e.g. 'A3') when the piece is not found.
+            const name = pieceName(item.pieceId, item.pieceLabel);
             return (
               <div className={styles.entry} key={index}>
                 <span
@@ -514,9 +585,7 @@ export function ActionLog() {
                 </span>
                 <span className={styles.content}>
                   {' '}
-                  <span style={{ color: item.pieceColor, fontWeight: 'bold' }}>
-                    {item.pieceLabel}
-                  </span>{' '}
+                  <span style={{ color: item.pieceColor, fontWeight: 'bold' }}>{name}</span> |{' '}
                   {path}
                 </span>
               </div>
