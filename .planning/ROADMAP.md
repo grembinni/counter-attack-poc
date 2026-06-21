@@ -261,7 +261,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
 | 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
 | 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-06-21 |
-| 18.1. Replay Review            | v1.2      | 0/TBD          | Pending  | -          |
+| 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 0/TBD          | Pending  | -          |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
 | 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |

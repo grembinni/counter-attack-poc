@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-21T22:06:20.109Z'
-last_activity: 2026-06-21 -- Phase 18.1 planning complete
+last_updated: '2026-06-21T22:10:22.724Z'
+last_activity: 2026-06-21 -- Phase 18.1 execution started
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 32
+  total_plans: 34
   completed_plans: 32
   percent: 56
 ---
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 18 — design-polish
+**Current focus:** Phase 18.1 — replay-review
 
 ## Phase Status
 
@@ -344,12 +344,12 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18.1
-Plan: Not started
+Phase: 18.1 (replay-review) — EXECUTING
+Plan: 1 of 2
 free-kick consequence, staged repositioning sequence per rulebook, header-contest foul
 trigger, auto-relocation stall fix). Phase 17 closed 2026-06-20.
-Status: Ready to execute
-Last activity: 2026-06-21 -- Phase 18.1 planning complete
+Status: Executing Phase 18.1
+Last activity: 2026-06-21 -- Phase 18.1 execution started
 by user (offside flag not re-triggering after the first free-kick foul resolves in some
 as-yet-unconfirmed scenario — user will report again if it recurs; not yet root-caused).
 
