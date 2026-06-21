@@ -41,8 +41,7 @@ function slotTeamColor(slot: MovementSlot): string {
 function P({ pieceId, prefix }: { pieceId: string; prefix: string }) {
   return (
     <span style={{ color: pieceColorOf(pieceId), fontWeight: 'bold' }}>
-      {prefix}
-      {pieceNum(pieceId)}
+      {prefix} #{pieceNum(pieceId)}
     </span>
   );
 }
@@ -204,7 +203,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
     }
 
     if (event.type === 'HP_MOVE') {
-      const prefix = event.slot === 'ATTACKER' ? '[MOVE_HP_A1]' : '[MOVE_HP_D1]';
+      const prefix = '[HIGH PASS MOVE 1]';
       const team = event.slot === 'ATTACKER' ? 'A' : 'D';
       const color = pieceColorOf(event.pieceId);
       const pieceLabel = `${team}${pieceNum(event.pieceId)}`;
@@ -636,7 +635,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'HP_MOVE': {
       const team = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
-        prefix: event.slot === 'ATTACKER' ? '[MOVE_HP_A1]' : '[MOVE_HP_D1]',
+        prefix: '[HIGH PASS MOVE 1]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
@@ -651,7 +650,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'FTP_MOVE': {
       const ftpTeam = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
-        prefix: event.slot === 'ATTACKER' ? '[MOVE_FTP_A1]' : '[MOVE_FTP_D1]',
+        prefix: '[FIRST TIME PASS MOVE 1]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
