@@ -1709,6 +1709,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: shooter.id,
+          gkId: gk.id,
           targetHex: shotTarget,
           outcome: 'GOAL',
           shooterDie: shooterDice,
@@ -1792,6 +1793,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: shooter.id,
+          gkId: gk.id,
           targetHex: shotTarget,
           outcome: 'GOAL',
           shooterDie: shooterDice,
@@ -1838,6 +1840,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const shotAttempt: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: shooter.id,
+          gkId: gk.id,
           targetHex: shotTarget,
           outcome: 'LOOSE_BALL',
           shooterDie: shooterDice,
@@ -1874,6 +1877,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const shotAttempt: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: shooter.id,
+          gkId: gk.id,
           targetHex: shotTarget,
           outcome: saveOutcome,
           shooterDie: shooterDice,

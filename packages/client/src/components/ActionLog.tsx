@@ -440,6 +440,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         // 'handling') — render only the requested slice as its own log entry.
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
+        const outcomeLabel = event.outcome === 'LOOSE_BALL' ? 'LOOSE BALL (tie)' : event.outcome;
         const shooterStr = fmtStatRoll(
           'Shooting',
           shooterRawStat,
@@ -454,7 +455,6 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           event.gkPenaltyTotal,
           event.gkScore!,
         );
-        const duelStr = `${shooterStr} vs ${gkStr}`;
 
         if (subKind === 'handling') {
           const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
@@ -478,7 +478,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           content: (
             <>
               {' '}
-              {shooterLabel} {event.outcome} — {duelStr}
+              {outcomeLabel} {'-> '}
+              {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
             </>
           ),
           isGoal: event.outcome === 'GOAL',
@@ -505,7 +506,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         shotContent = (
           <>
             {' '}
-            {shooterLabel} {outcomeLabel} — {shooterStr} vs {gkStr}
+            {outcomeLabel} {'-> '}
+            {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
           </>
         );
       }
