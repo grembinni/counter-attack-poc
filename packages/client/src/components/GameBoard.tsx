@@ -13,30 +13,39 @@ import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import styles from './GameBoard.module.css';
 
-/** Phase label mapping per UI-SPEC Turn Indicator Spec table. Absorbed from TurnIndicator.tsx. */
+/** Phase label mapping per DESIGN-01 (Phase 18) naming convention. Absorbed from TurnIndicator.tsx. */
 const PHASE_LABEL: Record<GamePhase, string> = {
   LOBBY: '',
-  KICK_OFF: 'KICK OFF',
-  KICK_OFF_SETUP: 'KICK OFF SETUP',
-  MOVE: 'MOVEMENT PHASE',
+  KICK_OFF: 'KICKOFF',
+  KICK_OFF_SETUP: 'KICKOFF SETUP',
+  MOVE: 'MOVE',
+  // D-11: gerund kept intentionally per user correction — do NOT change to 'CHOOSE ACTION'.
   PASS: 'CHOOSING ACTION',
-  SNAPSHOT_TARGET: 'SHOT DECLARED',
-  GK_DIVE: 'GK DIVING',
-  SNAPSHOT_DEFLECT: 'SNAP DEFLECT',
-  SHOT: 'SHOT PHASE',
-  HEADER: 'HEADER PHASE',
-  SNAPSHOT: 'SNAPSHOT PHASE',
+  // D-11 correction
+  SNAPSHOT_TARGET: 'SNAPSHOT - SELECT TARGET',
+  // D-11 correction (GK -> GOALIE; also fixes the stale 'GK DIVING')
+  GK_DIVE: 'GOALIE DIVE',
+  // D-11 correction
+  SNAPSHOT_DEFLECT: 'SNAPSHOT - RESPONSE MOVE',
+  SHOT: 'SHOT',
+  HEADER: 'HEADER',
+  SNAPSHOT: 'SNAPSHOT',
   LOOSE_BALL: 'LOOSE BALL',
   HIGH_PASS_MOVE: 'HIGH PASS — REPOSITION',
-  GK_RESTART: 'GK RESTART',
+  // D-11 correction
+  GK_RESTART: 'GOALIE RESTART',
   GK_QUICK_THROW: 'QUICK THROW',
-  GK_KICK_TARGET: 'GK KICK — SELECT TARGET',
-  GK_KICK_MOVE: 'GK KICK — REPOSITION',
+  // D-11 correction
+  GK_KICK_TARGET: 'GOALIE KICK — SELECT TARGET',
+  // D-11 correction
+  GK_KICK_MOVE: 'GOALIE KICK — REPOSITION',
   FREE_MOVE_ATTACK: 'FREE MOVE — ATTACK',
   FREE_MOVE_DEFENSE: 'FREE MOVE — DEFENSE',
-  FIRST_TIME_PASS_MOVE: 'FIRST-TIME PASS — REPOSITION',
+  // D-11 correction (hyphenated FIRST-TIME, em-dash, RESPONSE MOVE not REPOSITION)
+  FIRST_TIME_PASS_MOVE: 'FIRST-TIME PASS — RESPONSE MOVE',
   // OFFSIDE-02 (Phase 17 D-29): both-teams repositioning before an offside free kick is taken.
-  FREE_KICK_SETUP: 'OFFSIDE — FREE KICK SETUP',
+  // D-11 correction
+  FREE_KICK_SETUP: 'OFFSIDES - FREE KICK SETUP',
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
