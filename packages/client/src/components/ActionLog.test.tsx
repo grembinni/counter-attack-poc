@@ -183,10 +183,13 @@ describe('ActionLog — D-01: per-player move log shows name + path', () => {
         ballAfter: { position: { q: 16, r: 13 }, carrierId: 'home-9' },
       },
     ]);
-    render(<ActionLog />);
+    const { container } = render(<ActionLog />);
     // home-9 in the cosmos squad (mockMovementState default) is Nicolae Rusu.
     expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
     expect(screen.getByText(/14,13 → 15,13 → 16,13/)).toBeDefined();
+    // Requirement 2: the consolidated MOVE entry now carries the player's #-prefixed
+    // jersey number ahead of the name.
+    expect(container.textContent).toMatch(/#\d+\s+Nicolae Rusu/);
   });
 
   it('a MOVE event for an unknown pieceId renders without throwing (fallback path)', () => {
@@ -232,8 +235,9 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     expect(container.textContent).toMatch(/\[TACKLE ✓\]/);
     // home-9 in the cosmos squad (mockMovementState default) is Nicolae Rusu.
     expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
-    // away-1's exact seeded name is not hardcoded here — assert the number-then-name shape.
-    expect(container.textContent).toMatch(/D \d+\s+\S+/);
+    // away-1's exact seeded name is not hardcoded here — assert the #number-then-name
+    // shape, with NO leading role letter (requirement 1 dropped D/A from the vs-line).
+    expect(container.textContent).toMatch(/#\d+\s+\S+/);
   });
 
   it('TACKLE_ATTEMPT FAIL renders [TACKLE ✗]', () => {
@@ -348,7 +352,9 @@ describe('ActionLog — STEAL_ATTEMPT challenge detail parity (TODO-STEAL-DETAIL
       },
     ]);
     const { container } = render(<ActionLog />);
-    expect(container.textContent).toMatch(/D \d+\s+\S+/);
+    // STEAL_ATTEMPT keeps its "D" role prefix (out of scope for requirement 1); requirement 3
+    // adds a # before the number, so the shape is "D #{num} {name}".
+    expect(container.textContent).toMatch(/D #\d+\s+\S+/);
     expect(container.textContent).toMatch(/Tackling.*=\s*7/);
     expect(container.textContent).toMatch(/intercept if die 6 or total/i);
   });
