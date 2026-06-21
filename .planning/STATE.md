@@ -185,6 +185,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 | 260621-bsy             | 2026-06-21 | Align MOVE log prefixes + slot-advance header to scoreboard naming (team-colored [MOVE N]); rewrite DEFLECT_ATTEMPT entry for clarity                                           |
 | 260621-gcu             | 2026-06-21 | ActionLog formatting: drop D/A from vs-comparison lines, add # to all player numbers (incl. MOVE logs), rename MOVE*HP*_/MOVE*FTP*_ to human-readable prefixes                  |
 | 260621-h32             | 2026-06-21 | SHOT/SAVE vs-format parity with TACKLE (added gkId); renamed [GK_KICK_K]/[GK KICK] prefixes; tripled retained log entries 10→30; removed kickoffDebug.test.ts console.log noise |
+| 260621-hnd             | 2026-06-21 | Removed last D/A role-letter prefixes (DEFLECT_ATTEMPT, STEAL_ATTEMPT x2, uncontested HEADER); fixed SNAPSHOT raw home/away id leak — resolves to PNamed player name            |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
