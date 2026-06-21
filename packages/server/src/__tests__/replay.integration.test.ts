@@ -501,6 +501,178 @@ describe('FULL_TIME → REPLAY stream', () => {
     expect(getPiecePos(frames[2]!, pieceY.id)).toEqual({ q: yPos.q + 1, r: yPos.r });
   });
 
+  it('REPLAY-06: a MOVE ending in a successful steal/tackle shows the post-contest carrier on the MOVE frame', async () => {
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const attacker = pieces.find((p) => p.teamId === 'home')!;
+    const defender = pieces.find((p) => p.teamId === 'away')!;
+    const tackler = pieces.find((p) => p.teamId === 'away' && p.id !== defender.id)!;
+    const moveTo = { q: attacker.position.q + 1, r: attacker.position.r };
+
+    // Steal case: MOVE event's own ballAfter is the STALE pre-contest snapshot (attacker still
+    // carrier) — the buggy current behavior — immediately followed by a successful STEAL_ATTEMPT
+    // whose ballAfter correctly shows the defender as the new carrier.
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: attacker.id,
+          from: attacker.position,
+          to: moveTo,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 1,
+          // Stale: still shows attacker as carrier (pre-contest snapshot bug)
+          ballAfter: { position: moveTo, carrierId: attacker.id },
+        },
+        {
+          type: 'STEAL_ATTEMPT',
+          defenderId: defender.id,
+          result: 'SUCCESS',
+          defenderDie: 6,
+          defenderCombined: 12,
+          timestamp: 2,
+          ballAfter: { position: moveTo, carrierId: defender.id },
+        },
+      ],
+    };
+
+    const stealFrames = buildReplayFrames(room.gameState);
+    // MOVE accumulates into the move group; the STEAL_ATTEMPT flushes it producing 1 step-frame
+    // for the MOVE, then 1 frame for the STEAL_ATTEMPT itself.
+    expect(stealFrames.length).toBeGreaterThanOrEqual(1);
+    // The MOVE step's own frame (first frame) must already show the post-steal carrier.
+    expect(stealFrames[0]!.ball).toEqual({ position: moveTo, carrierId: defender.id });
+
+    // Tackle case: mirrors the steal case structurally.
+    const tackleTo = { q: attacker.position.q + 1, r: attacker.position.r };
+    room.gameState = {
+      ...room.gameState,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: attacker.id,
+          from: attacker.position,
+          to: tackleTo,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 1,
+          // Stale: still shows attacker as carrier (pre-contest snapshot bug)
+          ballAfter: { position: tackleTo, carrierId: attacker.id },
+        },
+        {
+          type: 'TACKLE_ATTEMPT',
+          defenderId: tackler.id,
+          carrierId: attacker.id,
+          defenderDie: 6,
+          carrierDie: 1,
+          defenderCombined: 12,
+          carrierCombined: 2,
+          result: 'SUCCESS',
+          timestamp: 2,
+          ballAfter: { position: tackleTo, carrierId: tackler.id },
+        },
+      ],
+    };
+
+    const tackleFrames = buildReplayFrames(room.gameState);
+    expect(tackleFrames.length).toBeGreaterThanOrEqual(1);
+    expect(tackleFrames[0]!.ball).toEqual({ position: tackleTo, carrierId: tackler.id });
+  });
+
+  it('REPLAY-06: HEADED_PASS and GK_PUNT each produce a visible replay frame', async () => {
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const passer = pieces.find((p) => p.teamId === 'home')!;
+    const receiver = pieces.find((p) => p.teamId === 'home' && p.id !== passer.id)!;
+    const headedTo = { q: passer.position.q + 2, r: passer.position.r };
+    const laterMoveTo = { q: passer.position.q + 3, r: passer.position.r };
+
+    // HEADED_PASS case: a HEADER event (no ballAfter, no frame expected) immediately followed
+    // by a HEADED_PASS event with a populated ballAfter, then a later distinct eligible MOVE
+    // event so frame indexing is unambiguous.
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'HEADER',
+          attackerId: passer.id,
+          defenderId: null,
+          result: 'ATTACKER_WIN',
+          attackerDie: 6,
+          attackerAerialAbility: 4,
+          attackerCombined: 10,
+          defenderDie: null,
+          defenderAerialAbility: null,
+          defenderCombined: null,
+          timestamp: 1,
+        },
+        {
+          type: 'HEADED_PASS',
+          passerId: passer.id,
+          from: passer.position,
+          to: headedTo,
+          timestamp: 2,
+          ballAfter: { position: headedTo, carrierId: receiver.id },
+        },
+        {
+          type: 'MOVE',
+          pieceId: receiver.id,
+          from: headedTo,
+          to: laterMoveTo,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 3,
+          ballAfter: { position: laterMoveTo, carrierId: receiver.id },
+        },
+      ],
+    };
+
+    const headedPassFrames = buildReplayFrames(room.gameState);
+    // HEADER produces no frame; HEADED_PASS must produce a visible frame; MOVE produces its own.
+    const headedPassFrame = headedPassFrames.find(
+      (f) => f.ball.carrierId === receiver.id && f.ball.position.q === headedTo.q,
+    );
+    expect(headedPassFrame).toBeDefined();
+    expect(headedPassFrame!.ball).toEqual({ position: headedTo, carrierId: receiver.id });
+
+    // GK_PUNT case: mirrors the HEADED_PASS case structurally.
+    const gk = pieces.find((p) => p.teamId === 'home' && p.role === 'GK')!;
+    const puntReceiver = pieces.find((p) => p.teamId === 'home' && p.id !== gk.id)!;
+    const puntTo = { q: gk.position.q + 4, r: gk.position.r };
+    const laterMoveTo2 = { q: gk.position.q + 5, r: gk.position.r };
+
+    room.gameState = {
+      ...room.gameState,
+      eventLog: [
+        {
+          type: 'GK_PUNT',
+          passerId: gk.id,
+          from: gk.position,
+          to: puntTo,
+          timestamp: 1,
+          ballAfter: { position: puntTo, carrierId: puntReceiver.id },
+        },
+        {
+          type: 'MOVE',
+          pieceId: puntReceiver.id,
+          from: puntTo,
+          to: laterMoveTo2,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: { position: laterMoveTo2, carrierId: puntReceiver.id },
+        },
+      ],
+    };
+
+    const gkPuntFrames = buildReplayFrames(room.gameState);
+    const gkPuntFrame = gkPuntFrames.find(
+      (f) => f.ball.carrierId === puntReceiver.id && f.ball.position.q === puntTo.q,
+    );
+    expect(gkPuntFrame).toBeDefined();
+    expect(gkPuntFrame!.ball).toEqual({ position: puntTo, carrierId: puntReceiver.id });
+  });
+
   it('D-31: startReplayStream is triggered when FULL_TIME is reached via GAME_END_TURN', async () => {
     // This test seeds a room where the next GAME_END_TURN will produce FULL_TIME,
     // then verifies that REPLAY-phase frames are eventually emitted.
