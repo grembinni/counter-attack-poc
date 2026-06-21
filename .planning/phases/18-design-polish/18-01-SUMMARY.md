@@ -119,3 +119,12 @@ None - no external service configuration required.
 
 _Phase: 18-design-polish_
 _Completed: 2026-06-21_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/GameBoard.tsx
+- FOUND: packages/client/src/components/GameBoard.test.tsx
+- FOUND: .planning/phases/18-design-polish/18-01-SUMMARY.md
+- FOUND commit: de0d3bc (Task 1)
+- FOUND commit: 8811e05 (Task 2)
+- FOUND commit: 251df12 (docs: SUMMARY.md)
