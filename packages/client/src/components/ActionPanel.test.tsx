@@ -31,7 +31,8 @@ describe('ActionPanel — UNDO-03: active player gating', () => {
   it('renders waiting panel for the non-active player', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
   });
 
   it('renders controls for the active player', () => {
@@ -132,8 +133,8 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    expect(screen.getByText('First-time pass!')).toBeDefined();
-    expect(screen.getByText('Move 1 player to receive the ball.')).toBeDefined();
+    expect(screen.getByText('First-Time Pass!')).toBeDefined();
+    expect(screen.getByText('Move 1 player to receive the ball (max 1 hex).')).toBeDefined();
     expect(screen.getByRole('button', { name: /undo/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
   });
@@ -187,7 +188,8 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
       playerSlot: 2, // away player — home is active
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 });
@@ -254,7 +256,8 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 2, // away player — home is active
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
   });
 
@@ -264,7 +267,8 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1, // home player — away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Waiting for Opponent.')).toBeDefined();
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
   });
 });
@@ -368,5 +372,75 @@ describe('ActionPanel — FREE_KICK_RESTART action set (OFFSIDE-02 D-32)', () =>
     });
     render(<ActionPanel />);
     expect(screen.queryByRole('button', { name: /shoot/i })).toBeNull();
+  });
+});
+
+// D-13 (Phase 18-03): ActionPanel.tsx text corrections — unified wait state,
+// HIGH_PASS_MOVE fix, Kick->Punt rename, and MOVE phase hex-cap scoping.
+describe('ActionPanel — D-13 text corrections', () => {
+  it('non-active player in MOVE phase renders the unified wait state', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      playerSlot: 2, // away player — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
+    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+  });
+
+  it('HIGH_PASS_MOVE active player renders the Aerial Challenge fix, not the old Header! heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'HIGH_PASS_MOVE', activeTeam: 'home' },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('High Pass Aerial Challenge!')).toBeDefined();
+    expect(screen.queryByText(/^Header!$/)).toBeNull();
+  });
+
+  it('GK_RESTART renders a Punt (High Pass) button and not Kick (High Pass)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /punt \(high pass\)/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /kick \(high pass\)/i })).toBeNull();
+  });
+
+  it('MOVE phase with movementSlot ATTACKER_2 renders Move! and the 2 hex max note', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_2',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Move!')).toBeDefined();
+    expect(screen.getByText(/2 hex max/)).toBeDefined();
+  });
+
+  it('MOVE phase with movementSlot ATTACKER_4 renders Move! and no hex-cap text', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Move!')).toBeDefined();
+    expect(screen.queryByText(/hex max/)).toBeNull();
   });
 });
