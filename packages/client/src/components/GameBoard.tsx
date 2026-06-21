@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { GamePhase } from '@counter-attack/shared';
+import type { MovementSlot } from '@counter-attack/shared';
 import type { PlayerPiece } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -13,34 +14,56 @@ import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import styles from './GameBoard.module.css';
 
-/** Phase label mapping per UI-SPEC Turn Indicator Spec table. Absorbed from TurnIndicator.tsx. */
+/** Phase label mapping per DESIGN-01 (Phase 18) naming convention. Absorbed from TurnIndicator.tsx. */
 const PHASE_LABEL: Record<GamePhase, string> = {
   LOBBY: '',
-  KICK_OFF: 'KICK OFF',
-  KICK_OFF_SETUP: 'KICK OFF SETUP',
-  MOVE: 'MOVEMENT PHASE',
+  KICK_OFF: 'KICKOFF',
+  KICK_OFF_SETUP: 'KICKOFF SETUP',
+  MOVE: 'MOVE',
+  // D-11: gerund kept intentionally per user correction — do NOT change to 'CHOOSE ACTION'.
   PASS: 'CHOOSING ACTION',
-  SNAPSHOT_TARGET: 'SHOT DECLARED',
-  GK_DIVE: 'GK DIVING',
-  SNAPSHOT_DEFLECT: 'SNAP DEFLECT',
-  SHOT: 'SHOT PHASE',
-  HEADER: 'HEADER PHASE',
-  SNAPSHOT: 'SNAPSHOT PHASE',
+  // D-11 correction
+  SNAPSHOT_TARGET: 'SNAPSHOT - SELECT TARGET',
+  // D-11 correction (GK -> GOALIE; also fixes the stale 'GK DIVING')
+  GK_DIVE: 'GOALIE DIVE',
+  // D-11 correction
+  SNAPSHOT_DEFLECT: 'SNAPSHOT - RESPONSE MOVE',
+  SHOT: 'SHOT',
+  HEADER: 'HEADER',
+  SNAPSHOT: 'SNAPSHOT',
   LOOSE_BALL: 'LOOSE BALL',
   HIGH_PASS_MOVE: 'HIGH PASS — REPOSITION',
-  GK_RESTART: 'GK RESTART',
+  // D-11 correction
+  GK_RESTART: 'GOALIE RESTART',
   GK_QUICK_THROW: 'QUICK THROW',
-  GK_KICK_TARGET: 'GK KICK — SELECT TARGET',
-  GK_KICK_MOVE: 'GK KICK — REPOSITION',
+  // D-11 correction
+  GK_KICK_TARGET: 'GOALIE KICK — SELECT TARGET',
+  // D-11 correction
+  GK_KICK_MOVE: 'GOALIE KICK — REPOSITION',
   FREE_MOVE_ATTACK: 'FREE MOVE — ATTACK',
   FREE_MOVE_DEFENSE: 'FREE MOVE — DEFENSE',
-  FIRST_TIME_PASS_MOVE: 'FIRST-TIME PASS — REPOSITION',
+  // D-11 correction (hyphenated FIRST-TIME, em-dash, RESPONSE MOVE not REPOSITION)
+  FIRST_TIME_PASS_MOVE: 'FIRST-TIME PASS — RESPONSE MOVE',
   // OFFSIDE-02 (Phase 17 D-29): both-teams repositioning before an offside free kick is taken.
-  FREE_KICK_SETUP: 'OFFSIDE — FREE KICK SETUP',
+  // D-11 correction
+  FREE_KICK_SETUP: 'OFFSIDES - FREE KICK SETUP',
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
 };
+
+/** DESIGN-01: MOVE-phase numbered slot suffix lookup (D-02 lookup-table-as-data shape). */
+const MOVE_SLOT_SUFFIX: Record<MovementSlot, string> = {
+  ATTACKER_4: ' 4',
+  DEFENDER_5: ' 5',
+  ATTACKER_2: ' 2',
+};
+
+/** Returns the MOVE-phase numbered slot suffix (' 4' / ' 5' / ' 2'), or '' when no slot is active. */
+function moveSlotSuffix(slot: MovementSlot | null): string {
+  if (slot === null) return '';
+  return MOVE_SLOT_SUFFIX[slot] ?? '';
+}
 
 /** Returns the appropriate statBubble color class based on the stat value. */
 function statBubbleClass(value: number): string {
@@ -111,6 +134,7 @@ export function GameBoard() {
   const score = useGameStore((s) => s.gameState.score);
   const phase = useGameStore((s) => s.gameState.phase);
   const actionCount = useGameStore((s) => s.gameState.actionCount);
+  const movementSlot = useGameStore((s) => s.gameState.movementSlot);
 
   // Centre section (absorbed from TurnIndicator)
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
@@ -134,7 +158,8 @@ export function GameBoard() {
   // Centre section derived values (from TurnIndicator)
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
   const teamColor = TEAM_CONFIGS[selectedTeams[activeTeam]].primaryColor;
-  const phaseLabel = PHASE_LABEL[phase];
+  const phaseLabel =
+    phase === 'MOVE' ? PHASE_LABEL[phase] + moveSlotSuffix(movementSlot) : PHASE_LABEL[phase];
 
   // D-03: persistent player card — never blank after first selection
   const lastPieceRef = useRef<PlayerPiece | null>(null);

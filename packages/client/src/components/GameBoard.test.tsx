@@ -209,3 +209,52 @@ describe('GameBoard — TEAM-06: scoreboard badge images', () => {
     expect(xolosBadge).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// DESIGN-01: scoreboard phase-label naming convention (D-11 corrected targets)
+// ---------------------------------------------------------------------------
+describe('GameBoard — DESIGN-01: phase label naming convention', () => {
+  it('renders "CHOOSING ACTION" for PASS phase (D-11: gerund kept intentionally)', () => {
+    useGameStore.setState({ gameState: { ...mockMovementState, phase: 'PASS' } });
+    render(<GameBoard />);
+    expect(screen.getByText(/CHOOSING ACTION/)).toBeDefined();
+  });
+
+  it('renders "GOALIE DIVE" for GK_DIVE phase, not "GK DIVING" or "GK DIVE"', () => {
+    useGameStore.setState({ gameState: { ...mockMovementState, phase: 'GK_DIVE' } });
+    render(<GameBoard />);
+    expect(screen.getByText(/GOALIE DIVE/)).toBeDefined();
+    expect(screen.queryByText(/GK DIVING/)).toBeNull();
+    expect(screen.queryByText(/GK DIVE/)).toBeNull();
+  });
+
+  it('renders "MOVE 5" when phase is MOVE and movementSlot is DEFENDER_5', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', movementSlot: 'DEFENDER_5' },
+    });
+    render(<GameBoard />);
+    expect(screen.getByText(/MOVE 5/)).toBeDefined();
+  });
+
+  it('renders "MOVE 4" when phase is MOVE and movementSlot is ATTACKER_4', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', movementSlot: 'ATTACKER_4' },
+    });
+    render(<GameBoard />);
+    expect(screen.getByText(/MOVE 4/)).toBeDefined();
+  });
+
+  it('renders "SNAPSHOT - SELECT TARGET" for SNAPSHOT_TARGET phase', () => {
+    useGameStore.setState({ gameState: { ...mockMovementState, phase: 'SNAPSHOT_TARGET' } });
+    render(<GameBoard />);
+    expect(screen.getByText(/SNAPSHOT - SELECT TARGET/)).toBeDefined();
+  });
+
+  it('renders "FIRST-TIME PASS — RESPONSE MOVE" for FIRST_TIME_PASS_MOVE phase', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'FIRST_TIME_PASS_MOVE' },
+    });
+    render(<GameBoard />);
+    expect(screen.getByText(/FIRST-TIME PASS — RESPONSE MOVE/)).toBeDefined();
+  });
+});
