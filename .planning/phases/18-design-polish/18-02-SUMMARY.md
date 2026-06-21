@@ -107,3 +107,13 @@ None - no external service configuration required.
 
 _Phase: 18-design-polish_
 _Completed: 2026-06-21_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/ActionLog.tsx
+- FOUND: packages/client/src/components/ActionLog.test.tsx
+- FOUND: .planning/REQUIREMENTS.md
+- FOUND: .planning/phases/18-design-polish/18-02-SUMMARY.md
+- FOUND commit: 27f74dc (feat: fmtStatRoll + per-player move-log names)
+- FOUND commit: 49894f0 (docs: MATCH-06 requirement text rewrite)
+- FOUND commit: 04401dd (docs: this summary)
