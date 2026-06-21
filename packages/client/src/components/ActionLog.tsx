@@ -179,7 +179,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
     }
 
     if (event.type === 'GK_KICK_MOVE') {
-      const prefix = event.slot === 'KICKER' ? '[GK_KICK_K]' : '[GK_KICK_O]';
+      const prefix = event.slot === 'KICKER' ? '[KEEPER KICK RESULT]' : '[GK_KICK_O]';
       const team = event.slot === 'KICKER' ? 'K' : 'O';
       const color = pieceColorOf(event.pieceId);
       const pieceLabel = `${team}${pieceNum(event.pieceId)}`;
@@ -689,7 +689,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'GK_KICK_MOVE': {
       const team = event.slot === 'KICKER' ? 'K' : 'O';
       return {
-        prefix: event.slot === 'KICKER' ? '[GK_KICK_K]' : '[GK_KICK_O]',
+        prefix: event.slot === 'KICKER' ? '[KEEPER KICK RESULT]' : '[GK_KICK_O]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
