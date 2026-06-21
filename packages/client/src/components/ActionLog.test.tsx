@@ -73,6 +73,7 @@ describe('ActionLog — D-12: fmtStatRoll spelled-out format', () => {
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'SAVE',
         shooterDie: 4,
@@ -98,6 +99,7 @@ describe('ActionLog — D-12: fmtStatRoll spelled-out format', () => {
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'GOAL',
         shooterDie: 4,
@@ -264,6 +266,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'GOAL',
         shooterDie: 4,
@@ -281,6 +284,8 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[SHOT ✓\]/);
     expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    // GK now rendered as a named PNamed label (TACKLE-parity "vs" shape), not a bare stat string.
+    expect(screen.getByText(/Oliver Walker/)).toBeDefined();
     // fmtStatRoll assertions remain unchanged (still spelled out, still - 0)
     expect(container.textContent).toMatch(/Shooting/);
     expect(container.textContent).toMatch(/Saving/);
@@ -307,6 +312,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'SAVE',
         shooterDie: 4,
@@ -330,6 +336,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'LOOSE_BALL',
         shooterDie: 3,
@@ -405,6 +412,7 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'SAVE',
         shooterDie: 4,
@@ -441,6 +449,7 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'GOAL',
         shooterDie: 4,
@@ -466,6 +475,7 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
       {
         type: 'SHOT_ATTEMPT',
         shooterId: 'home-9',
+        gkId: 'away-0',
         targetHex: { q: 35, r: 13 },
         outcome: 'LOOSE_BALL',
         shooterDie: 4,

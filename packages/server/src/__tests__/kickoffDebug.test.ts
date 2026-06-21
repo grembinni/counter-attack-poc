@@ -9,8 +9,6 @@ describe('kickoff debug', () => {
     const attackingTeam = state.attackingTeam;
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
 
-    console.log('attackingTeam:', attackingTeam, 'defendingTeam:', defendingTeam);
-
     // Simulate driveToKickOff seeding
     let pieces = state.pieces;
     const hasCentreHex = pieces.some(
@@ -19,7 +17,6 @@ describe('kickoff debug', () => {
         p.position.q === kickOffHex.q &&
         p.position.r === kickOffHex.r,
     );
-    console.log('Attacking team has piece on centre hex:', hasCentreHex);
 
     if (!hasCentreHex) {
       const firstAttacking = pieces.find((p) => p.teamId === attackingTeam)!;
@@ -39,26 +36,8 @@ describe('kickoff debug', () => {
 
     const seededState = { ...state, pieces };
 
-    const awayInCircleAfter = seededState.pieces.filter(
-      (p) => p.teamId === 'away' && isInRegion(p.position, 'centreCircle'),
-    );
-    const homeInCircleAfter = seededState.pieces.filter(
-      (p) => p.teamId === 'home' && isInRegion(p.position, 'centreCircle'),
-    );
-    console.log(
-      'Away in circle after seeding:',
-      awayInCircleAfter.map((p) => ({ id: p.id, pos: p.position })),
-    );
-    console.log(
-      'Home in circle after seeding:',
-      homeInCircleAfter.map((p) => ({ id: p.id, pos: p.position })),
-    );
-
     const attackingResult = applyKickOffReady(seededState, attackingTeam);
     const defendingResult = applyKickOffReady(seededState, defendingTeam);
-
-    console.log('Attacking GAME_READY result:', JSON.stringify(attackingResult));
-    console.log('Defending GAME_READY result:', JSON.stringify(defendingResult));
 
     expect(attackingResult.ok).toBe(true);
     expect(defendingResult.ok).toBe(true);

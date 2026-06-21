@@ -180,6 +180,8 @@ export type ActionEvent =
   | {
       type: 'SHOT_ATTEMPT';
       shooterId: string;
+      /** ID of the GK in the shot duel — enables rendering the GK as a named label. */
+      gkId: string;
       targetHex: HexCoord;
       outcome: 'GOAL' | 'SAVE' | 'LOOSE_BALL';
       /** Raw shooter die value. */

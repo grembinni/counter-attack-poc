@@ -994,6 +994,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const outOfRangeEvent: ActionEvent = {
             type: 'SHOT_ATTEMPT',
             shooterId: baseSnapState.ball.carrierId ?? '',
+            gkId: snapGk?.id ?? '',
             targetHex: snapTarget ?? { q: 0, r: 0 },
             outcome: 'GOAL',
             shooterDie: outDie1,
@@ -1607,6 +1608,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const outOfRangeEvent: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: declaredState.ball.carrierId ?? '',
+          gkId: gkForRange?.id ?? '',
           targetHex: shotPathTarget ?? { q: 0, r: 0 },
           outcome: 'GOAL',
           shooterDie: outDie1,
@@ -2368,6 +2370,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const outOfRangeEvent: ActionEvent = {
             type: 'SHOT_ATTEMPT',
             shooterId: headerTargetState.ball.carrierId ?? '',
+            gkId: headerGk?.id ?? '',
             targetHex: headerShotTarget ?? { q: 0, r: 0 },
             outcome: 'GOAL',
             shooterDie: outDie1,

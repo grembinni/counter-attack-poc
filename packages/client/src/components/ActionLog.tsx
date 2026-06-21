@@ -179,7 +179,7 @@ function consolidateEvents(events: readonly ActionEvent[]): DisplayItem[] {
     }
 
     if (event.type === 'GK_KICK_MOVE') {
-      const prefix = event.slot === 'KICKER' ? '[GK_KICK_K]' : '[GK_KICK_O]';
+      const prefix = event.slot === 'KICKER' ? '[KEEPER KICK RESULT]' : '[GK_KICK_O]';
       const team = event.slot === 'KICKER' ? 'K' : 'O';
       const color = pieceColorOf(event.pieceId);
       const pieceLabel = `${team}${pieceNum(event.pieceId)}`;
@@ -440,6 +440,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         // 'handling') — render only the requested slice as its own log entry.
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
+        const outcomeLabel = event.outcome === 'LOOSE_BALL' ? 'LOOSE BALL (tie)' : event.outcome;
         const shooterStr = fmtStatRoll(
           'Shooting',
           shooterRawStat,
@@ -454,7 +455,6 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           event.gkPenaltyTotal,
           event.gkScore!,
         );
-        const duelStr = `${shooterStr} vs ${gkStr}`;
 
         if (subKind === 'handling') {
           const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
@@ -478,7 +478,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           content: (
             <>
               {' '}
-              {shooterLabel} {event.outcome} — {duelStr}
+              {outcomeLabel} {'-> '}
+              {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
             </>
           ),
           isGoal: event.outcome === 'GOAL',
@@ -505,7 +506,8 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         shotContent = (
           <>
             {' '}
-            {shooterLabel} {outcomeLabel} — {shooterStr} vs {gkStr}
+            {outcomeLabel} {'-> '}
+            {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
           </>
         );
       }
@@ -671,7 +673,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const gkColor = pieceColorOf(event.gkId);
       const accurate = event.accurate;
       return {
-        prefix: accurate ? '[GK KICK ✓]' : '[GK KICK ✗]',
+        prefix: accurate ? '[KEEPER KICK TARGET ✓]' : '[KEEPER KICK TARGET ✗]',
         prefixColor: gkColor,
         content: (
           <>
@@ -687,7 +689,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
     case 'GK_KICK_MOVE': {
       const team = event.slot === 'KICKER' ? 'K' : 'O';
       return {
-        prefix: event.slot === 'KICKER' ? '[GK_KICK_K]' : '[GK_KICK_O]',
+        prefix: event.slot === 'KICKER' ? '[KEEPER KICK RESULT]' : '[GK_KICK_O]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
@@ -723,7 +725,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * Action log panel: last 10 display items in reverse-chronological order.
+ * Action log panel: last 30 display items in reverse-chronological order.
  * Consecutive MOVE / HP_MOVE events for the same slot are merged into a single
  * path entry (e.g. [MOVE 4] A3 23,3 → 22,4 → 21,4).
  * Prefixes are bold and team-colored; player labels are bold and team-colored.
@@ -734,7 +736,7 @@ export function ActionLog() {
   useGameStore((s) => s.gameState.selectedTeams);
 
   const consolidated = consolidateEvents(eventLog);
-  const recent = [...consolidated].reverse().slice(0, 10);
+  const recent = [...consolidated].reverse().slice(0, 30);
 
   return (
     <div className={styles.panel}>
