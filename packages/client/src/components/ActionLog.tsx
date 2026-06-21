@@ -725,7 +725,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * Action log panel: last 10 display items in reverse-chronological order.
+ * Action log panel: last 30 display items in reverse-chronological order.
  * Consecutive MOVE / HP_MOVE events for the same slot are merged into a single
  * path entry (e.g. [MOVE 4] A3 23,3 → 22,4 → 21,4).
  * Prefixes are bold and team-colored; player labels are bold and team-colored.
@@ -736,7 +736,7 @@ export function ActionLog() {
   useGameStore((s) => s.gameState.selectedTeams);
 
   const consolidated = consolidateEvents(eventLog);
-  const recent = [...consolidated].reverse().slice(0, 10);
+  const recent = [...consolidated].reverse().slice(0, 30);
 
   return (
     <div className={styles.panel}>
