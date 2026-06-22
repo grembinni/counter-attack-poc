@@ -64,6 +64,16 @@
 - [ ] **BUG-10**: Clicking an already-activated (already-moved) player piece opens that piece's player card, matching the click behavior of unmoved pieces
 - [x] **BUG-11**: HIGH_PASS_MOVE excludes the original high-pass carrier (`highPassCarrierId`) from repositioning onto the pass target hex during its own GAME_MOVE handler, mirroring the FIRST_TIME_PASS_MOVE self-pass-reclaim fix delivered in Phase 17.1-16
 
+## Bug Bash (Addendum — Phase 18.3, gathered 2026-06-22 during discuss-phase)
+
+- [ ] **BUG-12**: A config/feature-flag toggle (default off) bypasses the FIRST_TIME_PASS_MOVE repositioning sub-phase when disabled — the ball is delivered and the engine proceeds directly to the next phase as if no repositioning window existed. The underlying FIRST_TIME_PASS_MOVE phase/handler code is left intact for when the toggle is re-enabled (not deleted).
+- [ ] **BUG-13**: When an attacker moves into a hex within Zone of Influence of two defenders, a second sequential `TACKLE_ATTEMPT` fires against the second contesting defender if the attacker retains the ball after the first tackle attempt resolves (currently only one tackle attempt fires, regardless of how many defenders contest the hex).
+- [ ] **BUG-14**: Snapshot remains available to the ball carrier in the MOVE phase even after they exhaust their pace allowance, as long as the player has not yet selected and moved a different piece. The carrier is not added to `movedPieceIds` purely because `paceExhausted` became true on their own move step — that addition is deferred to the existing "abandoned piece" mechanism (`gameEngine.ts` `computeMovedPieceIds`/`abandonedIds`), which already locks in a piece only once the player moves on to a different one.
+- [ ] **BUG-15**: `SHOT_ATTEMPT`/`GOAL` log entries render their content text in the same standard gray (`.content`, `#e0e0e0`) as every other event type — the `isGoal`-driven amber styling (`.goalContent`, `#e8a020`) is removed entirely; no special goal styling remains.
+- [ ] **BUG-16**: `FTP_MOVE` and `HP_MOVE` log entries render the player using the same `PNamed` (full name) format used by every other event type, with no redundant `A`/`D` role-letter prefix — matching the format already used for `MOVE`, `GOAL`, `SHOT_ATTEMPT`, etc.
+- [ ] **BUG-17**: Piece repositioning during `KICK_OFF_SETUP` (`GAME_KICK_OFF_MOVE`) produces a replay-visible record — the post-game replay correctly shows all player positions resetting into kick-off formation after a goal, instead of jumping straight from the goal frame to the next eventLog-eligible action with no frames in between.
+- [ ] **BUG-18**: Undo works correctly and consistently across every phase where a piece can move — including the standard MOVE phase (where it is currently never enabled due to a stale `lastDiceRoll` carried over from the preceding dice-resolved action) and every other move-bearing phase (`GK_KICK_MOVE`, `SNAPSHOT_DEFLECT`, `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE`, `HEADER` contestant repositioning, `FREE_KICK_SETUP`) that currently has no Undo support at all.
+
 ## UX Enhancements (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
 - [ ] **UX-07**: A game-speed selector (Slow / Standard / Fast, default Standard) is presented on the team-selection screen; the selection sets how many match-clock minutes elapse per completed MOVE action (Slow = 1, Standard = 2, Fast = 3)
@@ -112,6 +122,13 @@
 | BUG-09     | Phase 18.2 | Complete |
 | BUG-10     | Phase 18.3 | Pending  |
 | BUG-11     | Phase 18.2 | Complete |
+| BUG-12     | Phase 18.3 | Pending  |
+| BUG-13     | Phase 18.3 | Pending  |
+| BUG-14     | Phase 18.3 | Pending  |
+| BUG-15     | Phase 18.3 | Pending  |
+| BUG-16     | Phase 18.3 | Pending  |
+| BUG-17     | Phase 18.3 | Pending  |
+| BUG-18     | Phase 18.3 | Pending  |
 | UX-07      | Phase 18.4 | Pending  |
 | UX-08      | Phase 18.4 | Pending  |
 | UX-09      | Phase 18.4 | Pending  |
