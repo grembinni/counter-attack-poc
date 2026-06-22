@@ -18,14 +18,16 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 **Phase 18.1 (Replay Review) complete 2026-06-21.** Server-side REPLAY-06 fixes: `REPLAY_ELIGIBLE_TYPES` now includes `HEADED_PASS`/`GK_PUNT` so their ball movement produces a visible replay frame; `applyMove`'s steal-success and tackle-success paths rewrite the MOVE event's `ballAfter` to the post-contest carrier, eliminating the one-frame stale-carrier glitch on contested pickups. Client-side DESIGN-02 fix: `HexGrid.tsx` short-circuits highlight-set derivation, the onClick cascade, and `isClickable` during `phase === 'REPLAY'`, eliminating wasted per-frame interactive derivation during post-game playback. Both checkpoints (live UAT Test 6 re-run; Profiler/Network inspection) approved by user. Code review (CR-01) found `GK_KICK` ball delivery was missed by the REPLAY-06 fix — excluded based on an incorrect "dead code" claim in 18.1-RESEARCH.md, when it's actually live code with no `ballAfter`. Tracked as a backlog item rather than expanding phase scope.
 
+**Phase 18.2 (Code Cleanup & Behavioral Dup-Bugs) complete 2026-06-22.** Two re-verification cycles closed all three behavioral defects: BUG-11 (HIGH_PASS_MOVE carrier-exclusion mirroring the pre-17.1-16 FIRST_TIME_PASS_MOVE defect), BUG-08 (tackle-tint render verification), and BUG-09 (the `setGameState` clear-vs-retain staleness gate that let a stale piece selection survive response-move slot hand-offs and pace exhaustion, including the SNAPSHOT_DEFLECT non-exhausted sticky-recompute path). DESIGN-03/04 consolidated the response-move/movement valid-hex duplicate-logic clusters and removed dead code (`applyDeclareHeaderTarget`, stale TODOs) after the behavioral fixes landed, so the shared helpers encode corrected behavior. A second gap-closure round (18.2-06) fixed a hollow regression test (Test 7's fixture didn't reproduce the real SNAPSHOT_DEFLECT state) and empirically proved discrimination via temporary revert/restore. Re-verified 5/5 must-haves; code review found 0 critical issues (4 advisory warnings, 5 info carried forward). 1020 tests pass across all packages.
+
 **Known tech debt:**
 
 - GK_KICK ball delivery invisible during replay (REPLAY-06 gap missed by Phase 18.1; see `.planning/todos/pending/2026-06-21-bug-gk-kick-ball-delivery-invisible-during-replay.md`)
 - LOOSE_BALL_LAND has the same replay-invisibility gap as GK_KICK (pre-existing, flagged alongside it)
 - Intermittent timing failures in game.integration.test.ts / kickoffSetup.integration.test.ts (pre-existing, not v1.1 introduced)
 - 4 documented pre-existing test failures in gameEngine.phase17.test.ts / gameHandlers.phase17.test.ts (2 MOVE-06 FREE_MOVE scaffolding gaps, 2 abandoned firstTimePassStep design stubs) — out of Phase 17.1 scope per 17.1-CONTEXT.md
-- Stale client selection on FTP/HP ATTACKER→DEFENDER slot hand-off (UX only, server-side guard intact) — see `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md`
-- HIGH_PASS_MOVE has the same missing repositioning-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (highPassCarrierId is set but never consumed as a GAME_MOVE exclusion) — documented as a deferred parallel finding in 17.1-16-PLAN.md, not yet fixed
+- Code review IN-05 (Phase 18.2): three response-move test fixtures in `useGameStore.test.ts` (`highPassMoveState`, `firstTimePassMoveState`, `gkKickMoveState`) still inherit a stale `movementSlot: 'ATTACKER_4'` value — confirmed currently inert (those phases branch on `phase`, not `movementSlot`) but same fixture-hygiene defect class as the bug just fixed in 18.2-06; latent risk for future refactors
+- Code review WR-01/02/03/04 (Phase 18.2, advisory): `validateHeading` OUT_OF_RANGE/CONSECUTIVE_HEADER rejections silently discarded at 2 call sites (HEAD-01 2-hex range unenforced for `GAME_HEADER_CONTESTANT`); client `lockedPieceIdField` config declared but unread (asymmetric vs. server); `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` sticky-selection geometry duplicated in `selectPiece` and `setGameState`; misleading `NOT_ADJACENT` error reason for range-mode `SNAPSHOT_DEFLECT` pace-budget failures
 
 ## Requirements
 
@@ -62,6 +64,9 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 - ✓ **MATCH-06** — Requirement text corrected to perspective-neutral symmetric-columns wording — Phase 18
 - ✓ **DESIGN-02** — HexGrid REPLAY-phase guard eliminates wasted per-frame interactive derivation — Phase 18.1
 - ✓ **REPLAY-06** — HEADED_PASS/GK_PUNT frame visibility + contested steal/tackle ballAfter correctness fixed and verified — Phase 18.1 (GK_KICK delivery remains a known gap, tracked separately)
+- ✓ **DESIGN-03** — Duplicate response-move/movement valid-hex logic consolidated into shared helpers — Phase 18.2
+- ✓ **DESIGN-04** — Dead code removed (`applyDeclareHeaderTarget`, stale TODOs) — Phase 18.2
+- ✓ **BUG-08, BUG-09, BUG-11** — Tackle-tint render verification, response-move staleness gate (incl. SNAPSHOT_DEFLECT), HIGH_PASS_MOVE carrier-exclusion — fixed and covered by regression tests — Phase 18.2
 
 ### Active (v1.2 — Team Identity & Core Fixes)
 
@@ -85,8 +90,8 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 **Design Review + Carry-forward**
 
 - [x] **DESIGN-02**: Playback review and optimizations — Validated in Phase 18.1
-- [ ] **DESIGN-03**: Duplicate code removal
-- [ ] **DESIGN-04**: Dead code removal
+- [x] **DESIGN-03**: Duplicate code removal — Validated in Phase 18.2
+- [x] **DESIGN-04**: Dead code removal — Validated in Phase 18.2
 - [x] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay) — Validated in Phase 18.1 (HEADED_PASS/GK_PUNT frame visibility + contested steal/tackle ballAfter correctness); GK_KICK delivery remains a known gap, see backlog
 
 ### Deferred (v2 candidates)
@@ -166,4 +171,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-21 after Phase 18.1 (Replay Review) close_
+_Last updated: 2026-06-22 after Phase 18.2 (Code Cleanup & Behavioral Dup-Bugs) close_
