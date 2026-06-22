@@ -236,6 +236,52 @@ describe('HexGrid — D-02 gap closure: zoiRiskSet excludes stealAttemptedByIds 
   });
 });
 
+// BUG-08 re-verification (render-level): tackleRiskSet (HexGrid.tsx) reads directly from the
+// store's tackleRiskHexes slice (no separate client-side filter, unlike zoiRiskSet which derives
+// from getZoIDefenders + an inline stealAttemptedByIds filter). tackleRiskHexes is populated by
+// useGameStore's selectPiece from validateMove's TACKLE_ATTEMPT effect presence per candidate hex
+// (moveValidator.ts lines 109-124), which already falls through to a plain ok:true (no effect)
+// for a piece in tackleAttemptedByIds. These tests seed tackleRiskHexes directly to represent
+// that validator output, mirroring the steal-tint describe block above but for the tackle path:
+// a non-carrier defender's candidate move lands adjacent to the carrier (CANDIDATE_HEX, adjacent
+// to CARRIER_POS), and the tint reflects whether the validator would have emitted the
+// TACKLE_ATTEMPT effect for that defender.
+describe('HexGrid — BUG-08: tackleRiskSet excludes tackleAttemptedByIds defenders', () => {
+  it('shows tackle-risk tint when the candidate hex is adjacent to the carrier and the defender is NOT in tackleAttemptedByIds (regression guard)', () => {
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, []);
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: defenderId,
+      validMoveHexes: [CANDIDATE_HEX],
+      // CANDIDATE_HEX is adjacent to CARRIER_POS — validateMove would emit TACKLE_ATTEMPT here
+      // for an unexcluded defender, so tackleRiskHexes includes it.
+      tackleRiskHexes: [CANDIDATE_HEX],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBeGreaterThan(0);
+  });
+
+  it('suppresses tackle-risk tint when the defender id IS in tackleAttemptedByIds', () => {
+    const defenderId = 'away-9';
+    const state = {
+      ...baseStateWithDefender(defenderId, []),
+      tackleAttemptedByIds: [defenderId],
+    };
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: defenderId,
+      // The move itself remains valid (moveValidator.ts no longer rejects it — D-02 fix), but
+      // the TACKLE_ATTEMPT effect is omitted for the excluded defender, so the validator-derived
+      // tackleRiskHexes is empty for CANDIDATE_HEX even though it's still a valid move.
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBe(0);
+  });
+});
+
 // CR-01-new: FIRST_TIME_PASS_MOVE was completely non-selectable in the browser (selectPiece had
 // no branch for this phase; HexGrid.tsx had zero FIRST_TIME_PASS_MOVE references). These tests
 // exercise the new selectPiece branch (Task 1) and HexGrid wiring (Task 2) added in this plan.
