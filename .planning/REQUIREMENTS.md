@@ -47,8 +47,8 @@
 
 - [x] **DESIGN-01**: All player-facing messages and status text (action panel labels, phase prompts, error messages, log entries) are reviewed for consistency in tone, tense, and terminology; inconsistencies are corrected
 - [x] **DESIGN-02**: Post-game replay playback is reviewed; unnecessary re-renders, redundant socket emissions, or frame-rate issues are identified and resolved
-- [ ] **DESIGN-03**: Duplicate logic across server handlers and client components is identified and consolidated into shared helpers where appropriate
-- [ ] **DESIGN-04**: Dead code — unused exports, unreachable branches, stale TODO comments, and legacy feature flags — is removed from the client and server packages
+- [x] **DESIGN-03**: Duplicate logic across server handlers and client components is identified and consolidated into shared helpers where appropriate
+- [x] **DESIGN-04**: Dead code — unused exports, unreachable branches, stale TODO comments, and legacy feature flags — is removed from the client and server packages
 
 ## Carry-forward from v1.1
 
@@ -59,10 +59,10 @@
 
 - [ ] **BUG-06**: The server resets `offsidePieceIds` to an empty array for ALL players when a free-kick restart concludes and the ball returns to live play, not only for the offending player (regression/gap in the D-43/D-47 full-reset behavior from Phase 17)
 - [ ] **BUG-07**: After a header duel is won, the subsequent pass is delivered without an intermediate no-op target-selection sub-phase; the resulting pass is non-contestable and is labeled/logged as a header, not as a one-touch/first-time pass
-- [ ] **BUG-08**: Once a defender's tackle or steal attempt against a piece has failed (that action type's `stealAttemptedByIds`/`tackleAttemptedByIds` flag is set), the attacker can move freely adjacent to that defender — no threat highlight and no repeat challenge for that action type — matching the per-action-type ZoI exclusion already defined for `moveValidator` (D-02, Phase 17.1)
-- [ ] **BUG-09**: During response-move phases (header repositioning, snapshot deflect, first-time-pass repositioning, high-pass repositioning, GK-kick repositioning, free-kick setup, etc.), the active piece's move-ring highlight clears once that piece has used its phase-imposed pace allowance, and clears/recomputes correctly when End Turn hands control to the opponent
+- [x] **BUG-08**: Once a defender's tackle or steal attempt against a piece has failed (that action type's `stealAttemptedByIds`/`tackleAttemptedByIds` flag is set), the attacker can move freely adjacent to that defender — no threat highlight and no repeat challenge for that action type — matching the per-action-type ZoI exclusion already defined for `moveValidator` (D-02, Phase 17.1)
+- [x] **BUG-09**: During response-move phases (header repositioning, snapshot deflect, first-time-pass repositioning, high-pass repositioning, GK-kick repositioning, free-kick setup, etc.), the active piece's move-ring highlight clears once that piece has used its phase-imposed pace allowance, and clears/recomputes correctly when End Turn hands control to the opponent
 - [ ] **BUG-10**: Clicking an already-activated (already-moved) player piece opens that piece's player card, matching the click behavior of unmoved pieces
-- [ ] **BUG-11**: HIGH_PASS_MOVE excludes the original high-pass carrier (`highPassCarrierId`) from repositioning onto the pass target hex during its own GAME_MOVE handler, mirroring the FIRST_TIME_PASS_MOVE self-pass-reclaim fix delivered in Phase 17.1-16
+- [x] **BUG-11**: HIGH_PASS_MOVE excludes the original high-pass carrier (`highPassCarrierId`) from repositioning onto the pass target hex during its own GAME_MOVE handler, mirroring the FIRST_TIME_PASS_MOVE self-pass-reclaim fix delivered in Phase 17.1-16
 
 ## UX Enhancements (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
@@ -102,16 +102,16 @@
 | OFFSIDE-02 | Phase 17   | Pending  |
 | DESIGN-01  | Phase 18   | Complete |
 | DESIGN-02  | Phase 18.1 | Complete |
-| DESIGN-03  | Phase 18.2 | Pending  |
-| DESIGN-04  | Phase 18.2 | Pending  |
+| DESIGN-03  | Phase 18.2 | Complete |
+| DESIGN-04  | Phase 18.2 | Complete |
 | REPLAY-06  | Phase 18.1 | Complete |
 | MATCH-06   | Phase 18   | Complete |
 | BUG-06     | Phase 18.3 | Pending  |
 | BUG-07     | Phase 18.3 | Pending  |
-| BUG-08     | Phase 18.2 | Pending  |
-| BUG-09     | Phase 18.2 | Pending  |
+| BUG-08     | Phase 18.2 | Complete |
+| BUG-09     | Phase 18.2 | Complete |
 | BUG-10     | Phase 18.3 | Pending  |
-| BUG-11     | Phase 18.2 | Pending  |
+| BUG-11     | Phase 18.2 | Complete |
 | UX-07      | Phase 18.4 | Pending  |
 | UX-08      | Phase 18.4 | Pending  |
 | UX-09      | Phase 18.4 | Pending  |
