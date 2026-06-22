@@ -325,6 +325,173 @@ describe('useGameStore — setGameState sticky-selection for FREE_MOVE_ATTACK/DE
   });
 });
 
+// BUG-09 (Phase 18.2-03): setGameState's clear-condition gate previously only inspected the
+// plain MOVE-phase movementSlot field, so it never fired for response-move sub-phases
+// (HIGH_PASS_MOVE / FIRST_TIME_PASS_MOVE / GK_KICK_MOVE / SNAPSHOT_DEFLECT). When a response-move
+// slot hands off (ATTACKER->DEFENDER) or a piece's phase-imposed pace is exhausted, the
+// previously-selected piece survived into the sticky-selection block, producing a stale,
+// clickable validMoveHexes highlight for a piece that may now belong to the opponent's turn.
+// Supersedes/resolves .planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md.
+describe('useGameStore — setGameState response-move slot hand-off / pace-exhaustion clearing (BUG-09)', () => {
+  const HP_LOCKED_ID = 'home-8';
+  const FTP_LOCKED_ID = 'home-8';
+  const GK_LOCKED_ID = 'home-8';
+  const SNAP_LOCKED_ID = 'home-8';
+
+  function highPassMoveState(overrides: {
+    slot?: 'ATTACKER' | 'DEFENDER';
+    highPassPaceUsed?: number;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'HIGH_PASS_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      highPassMovementSlot: overrides.slot ?? ('ATTACKER' as const),
+      highPassMovedPieceId: null,
+      highPassPaceUsed: overrides.highPassPaceUsed ?? 0,
+      highPassCarrierId: 'home-9',
+    };
+  }
+
+  function firstTimePassMoveState(overrides: {
+    slot?: 'ATTACKER' | 'DEFENDER';
+    firstTimePassPaceUsed?: number;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'FIRST_TIME_PASS_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      firstTimePassMovementSlot: overrides.slot ?? ('ATTACKER' as const),
+      firstTimePassMovedPieceId: null,
+      firstTimePassPaceUsed: overrides.firstTimePassPaceUsed ?? 0,
+      firstTimePassCarrierId: 'home-9',
+    };
+  }
+
+  function gkKickMoveState(overrides: { slot?: 'ATTACKER' | 'DEFENDER'; gkKickPaceUsed?: number }) {
+    return {
+      ...mockMovementState,
+      phase: 'GK_KICK_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      gkKickMovementSlot: overrides.slot ?? ('ATTACKER' as const),
+      gkKickMovedPieceId: null,
+      gkKickPaceUsed: overrides.gkKickPaceUsed ?? 0,
+    };
+  }
+
+  function snapshotDeflectState(overrides: { snapDeflectPaceUsed?: number }) {
+    return {
+      ...mockMovementState,
+      phase: 'SNAPSHOT_DEFLECT' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'away' as const,
+      snapDeflectMovedPieceId: null,
+      snapDeflectPaceUsed: overrides.snapDeflectPaceUsed ?? 0,
+    };
+  }
+
+  it('Test 1: HIGH_PASS_MOVE slot hand-off (ATTACKER->DEFENDER) clears a locked selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: highPassMoveState({ slot: 'ATTACKER' }),
+      selectedPieceId: HP_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = highPassMoveState({ slot: 'DEFENDER' });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('Test 2: FIRST_TIME_PASS_MOVE slot hand-off (ATTACKER->DEFENDER) clears a locked selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: firstTimePassMoveState({ slot: 'ATTACKER' }),
+      selectedPieceId: FTP_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = firstTimePassMoveState({ slot: 'DEFENDER' });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('Test 3: GK_KICK_MOVE slot hand-off (ATTACKER->DEFENDER) clears a locked selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: gkKickMoveState({ slot: 'ATTACKER' }),
+      selectedPieceId: GK_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = gkKickMoveState({ slot: 'DEFENDER' });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('Test 4: HIGH_PASS_MOVE pace exhaustion (highPassPaceUsed reaches cap 3) clears a locked selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: highPassMoveState({ slot: 'ATTACKER', highPassPaceUsed: 1 }),
+      selectedPieceId: HP_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = highPassMoveState({ slot: 'ATTACKER', highPassPaceUsed: 3 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('Test 5 (regression guard): same-slot HIGH_PASS_MOVE broadcast with pace NOT exhausted retains selection and recomputes validMoveHexes', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: highPassMoveState({ slot: 'ATTACKER', highPassPaceUsed: 0 }),
+      selectedPieceId: HP_LOCKED_ID,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    // Same slot, pace advanced by 1 but not yet exhausted (cap 3) — simulates the broadcast
+    // arriving right after emitMove for this piece (sticky behaviour must be preserved).
+    const broadcast = highPassMoveState({ slot: 'ATTACKER', highPassPaceUsed: 1 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(HP_LOCKED_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('Test 6: SNAPSHOT_DEFLECT pace exhaustion (snapDeflectPaceUsed reaches cap 2) clears a locked selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: snapshotDeflectState({ snapDeflectPaceUsed: 1 }),
+      selectedPieceId: SNAP_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = snapshotDeflectState({ snapDeflectPaceUsed: 2 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+});
+
 describe('useGameStore — Phase 7 setters', () => {
   it('setGameState replaces gameState wholesale', () => {
     const newState = { ...mockMovementState, phase: 'SHOT' as const };
