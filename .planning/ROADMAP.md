@@ -215,7 +215,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 - [x] 18.2-03-PLAN.md — BUG-09: broadened setGameState response-move staleness gate (slot hand-off + pace exhaustion) + folded-todo deletion [Wave 2, depends on 18.2-01]
 - [x] 18.2-04-PLAN.md — DESIGN-03: consolidate Clusters 1/3/5 into shared response-move + movement valid-hex helpers (Cluster 2/4 left separate) [Wave 3, depends on 18.2-01, 18.2-03]
 - [x] 18.2-05-PLAN.md — BUG-09 gap closure: SNAPSHOT_DEFLECT non-exhausted sticky-recompute path in setGameState (route through computeResponseMoveValidHexes, paceCap 2 / 'range') + regression test (closes 18.2-VERIFICATION.md CR-01 gap; WR-01 lock-check caveat honored) [Wave 1, gap closure]
-- [ ] 18.2-06-PLAN.md — BUG-09 gap closure: make Test 7's snapshotDeflectState() fixture set movementSlot: null so it reproduces the real SNAPSHOT_DEFLECT WRONG_SLOT failure mode + empirical proof that Test 7 fails when the production branch is reverted (closes 18.2-VERIFICATION.md hollow-test gap; test-fixture-only, no production code change) [Wave 1, gap closure]
+- [x] 18.2-06-PLAN.md — BUG-09 gap closure: make Test 7's snapshotDeflectState() fixture set movementSlot: null so it reproduces the real SNAPSHOT_DEFLECT WRONG_SLOT failure mode + empirical proof that Test 7 fails when the production branch is reverted (closes 18.2-VERIFICATION.md hollow-test gap; test-fixture-only, no production code change) [Wave 1, gap closure]
 
   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Per D-07 in 18-CONTEXT.md, BUG-08/09/11 are confirmed in scope here (not "too risky") because they are duplicate-logic gaps, not net-new bug hunting — D-08 caps the rest of DESIGN-03/04 to genuinely inert code only. The folded todo `.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md` is superseded by BUG-09 — delete it when BUG-09 closes. **Gap closure**: 18.2-VERIFICATION.md (2026-06-22, score 4/5) found BUG-09's "recompute" half broken for SNAPSHOT_DEFLECT's non-exhausted case (CR-01); plan 18.2-05 closes it.
 
@@ -270,6 +270,6 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
 | 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-06-21 |
 | 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 5/5            | Complete | 2026-06-22 |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete | 2026-06-22 |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
 | 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |
