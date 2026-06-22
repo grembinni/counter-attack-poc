@@ -388,6 +388,7 @@ describe('useGameStore — setGameState response-move slot hand-off / pace-exhau
       phase: 'SNAPSHOT_DEFLECT' as const,
       activeTeam: 'home' as const,
       attackingTeam: 'away' as const,
+      movementSlot: null,
       snapDeflectMovedPieceId: null,
       snapDeflectPaceUsed: overrides.snapDeflectPaceUsed ?? 0,
     };
