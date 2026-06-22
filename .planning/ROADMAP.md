@@ -221,15 +221,15 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 ### Phase 18.3: Bug-Bash (Rule Correctness)
 
-**Goal**: The free-kick offside-reset gap (BUG-06), header-duel pass delivery (BUG-07), already-moved-piece click behavior (BUG-10), and seven additional bug-bash items gathered during this phase's discuss-phase session (BUG-12..18 — FTP move-phase toggle, double-tackle-attempt, Snapshot-after-pace-exhaustion, goal-log styling, FTP/HP move-log player format, kickoff-setup replay visibility, and Undo coverage) are fixed.
+**Goal**: The free-kick offside-reset gap (BUG-06), header-duel pass delivery (BUG-07), already-moved-piece click behavior (BUG-10), and ten additional bug-bash items gathered across two discuss-phase sessions (BUG-12..21 — FTP move-phase toggle, double-tackle-attempt, Snapshot-after-pace-exhaustion, goal-log styling, FTP/HP move-log player format, kickoff-setup replay visibility, Undo coverage, player-number consistency, free-move interrupt timing, and Snapshot goal-line highlight visibility) are fixed.
 **Depends on**: Phase 18.2 (sequenced after to avoid HexGrid.tsx/PieceOverlay.tsx edit conflicts with the cleanup sweep)
-**Requirements**: BUG-06, BUG-07, BUG-10, BUG-12, BUG-13, BUG-14, BUG-15, BUG-16, BUG-17, BUG-18
+**Requirements**: BUG-06, BUG-07, BUG-10, BUG-12, BUG-13, BUG-14, BUG-15, BUG-16, BUG-17, BUG-18, BUG-19, BUG-20, BUG-21
 **Success Criteria** (what must be TRUE):
 
 1. BUG-06, BUG-07, and BUG-10 are fixed and covered by regression tests
-2. BUG-12..BUG-18 are fixed and covered by regression tests
+2. BUG-12..BUG-21 are fixed and covered by regression tests
    **Plans**: TBD
-   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). BUG-06/07/10 are net rule/flow fixes (not dup-logic gaps) — see 18-CONTEXT.md's Bug-Bash Addendum section for the full repro/fix-pattern for each. BUG-12..18 were gathered during this sub-phase's own discuss-phase session (2026-06-22) — see 18.3-CONTEXT.md for the full repro/fix-pattern for each, including the root-caused `applyStartMovement` missing `lastDiceRoll: null` reset (BUG-18) and the missing `KICK_OFF_SETUP` repositioning event (BUG-17).
+   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). BUG-06/07/10 are net rule/flow fixes (not dup-logic gaps) — see 18-CONTEXT.md's Bug-Bash Addendum section for the full repro/fix-pattern for each. BUG-12..21 were gathered across two discuss-phase sessions on 18.3 itself (2026-06-22) — see 18.3-CONTEXT.md for the full repro/fix-pattern for each, including the root-caused `applyStartMovement` missing `lastDiceRoll: null` reset (BUG-18), the missing `KICK_OFF_SETUP` repositioning event (BUG-17), the three disagreeing player-number derivations (BUG-19), and the MOVE-06 mid-flow interrupt timing fix (BUG-20).
 
 ### Phase 18.4: UX Enhancements
 

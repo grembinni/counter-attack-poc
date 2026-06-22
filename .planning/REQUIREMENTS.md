@@ -73,6 +73,9 @@
 - [ ] **BUG-16**: `FTP_MOVE` and `HP_MOVE` log entries render the player using the same `PNamed` (full name) format used by every other event type, with no redundant `A`/`D` role-letter prefix — matching the format already used for `MOVE`, `GOAL`, `SHOT_ATTEMPT`, etc.
 - [ ] **BUG-17**: Piece repositioning during `KICK_OFF_SETUP` (`GAME_KICK_OFF_MOVE`) produces a replay-visible record — the post-game replay correctly shows all player positions resetting into kick-off formation after a goal, instead of jumping straight from the goal frame to the next eventLog-eligible action with no frames in between.
 - [ ] **BUG-18**: Undo works correctly and consistently across every phase where a piece can move — including the standard MOVE phase (where it is currently never enabled due to a stale `lastDiceRoll` carried over from the preceding dice-resolved action) and every other move-bearing phase (`GK_KICK_MOVE`, `SNAPSHOT_DEFLECT`, `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE`, `HEADER` contestant repositioning, `FREE_KICK_SETUP`) that currently has no Undo support at all.
+- [ ] **BUG-19**: The displayed jersey number for a player is always derived from `PlayerPiece.number` (the canonical CSV-seeded roster number) on every surface that shows it — the on-pitch token (`PieceOverlay.tsx`) and the action log (`ActionLog.tsx`) are brought in line with `PlayerStatsPanel.tsx`'s already-correct `piece.number`-based rendering, replacing their independent id-slice/role-index derivations.
+- [ ] **BUG-20**: The MOVE-06 free-move check (`applyFreeMoveZoneCheck`) never interrupts a MOVE phase's slot sequence mid-way or a HEADER resolution mid-flow — the in-progress slot/header fully resolves first, and the free-move offer is evaluated and presented at the next clean phase boundary before that phase's standard options are shown.
+- [ ] **BUG-21**: During `SNAPSHOT_TARGET`, the goal-line hex highlights are visible to the attacking player so they can select a target, matching the equivalent highlight already working for the two-step regular-Shoot flow and HEADER target selection.
 
 ## UX Enhancements (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
@@ -129,6 +132,9 @@
 | BUG-16     | Phase 18.3 | Pending  |
 | BUG-17     | Phase 18.3 | Pending  |
 | BUG-18     | Phase 18.3 | Pending  |
+| BUG-19     | Phase 18.3 | Pending  |
+| BUG-20     | Phase 18.3 | Pending  |
+| BUG-21     | Phase 18.3 | Pending  |
 | UX-07      | Phase 18.4 | Pending  |
 | UX-08      | Phase 18.4 | Pending  |
 | UX-09      | Phase 18.4 | Pending  |
