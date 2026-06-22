@@ -397,6 +397,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
+      // BUG-11 (Phase 18.2): the original high-pass kicker's own piece is not selectable
+      // during HIGH_PASS_MOVE repositioning — defense-in-depth UX only; the server is the
+      // authoritative guard (GAME_MOVE rejects WRONG_PIECE) and would reject this move even
+      // if a tampered client bypassed this check. Mirrors the FTP mirror below.
+      if (id === gameState.highPassCarrierId) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       // If a different piece is already locked in for this slot, reject selection
       const lockedId = gameState.highPassMovedPieceId ?? null;
       if (lockedId !== null && lockedId !== id) {

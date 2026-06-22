@@ -97,6 +97,44 @@ describe('useGameStore — selectPiece FIRST_TIME_PASS_MOVE (CR-01, 17.1-16 self
   });
 });
 
+describe('useGameStore — selectPiece HIGH_PASS_MOVE (BUG-11, Phase 18.2 carrier-exclusion fix)', () => {
+  beforeEach(() => {
+    // Seed HIGH_PASS_MOVE ATTACKER slot, home team active, playerSlot=1 (home).
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HIGH_PASS_MOVE',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        highPassMovementSlot: 'ATTACKER',
+        highPassMovedPieceId: null,
+        highPassPaceUsed: 0,
+        highPassCarrierId: 'home-9', // the kicker
+      },
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+  });
+
+  it('rejects selection of the original high-pass kicker (highPassCarrierId) — mirrors the FTP fix', () => {
+    // Behaviour-assertion: pre-fix, this branch gated only on team/lock/pace, so the kicker
+    // (own team, slot unlocked, pace remaining) would have passed every gate and been
+    // selected with non-empty validMoveHexes. This assertion would FAIL pre-fix.
+    useGameStore.getState().selectPiece('home-9');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toHaveLength(0);
+  });
+
+  it('accepts selection of a non-carrier own-team piece (existing happy path preserved)', () => {
+    useGameStore.getState().selectPiece('home-5');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-5');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
 // Bug fix (second checkpoint round, this plan): FREE_MOVE_ATTACK/DEFENSE had zero client wiring —
 // selectPiece had no branch for these phases, so even a clickable piece (once HexGrid.tsx is
 // fixed) would fall through with no destination hexes computed.
