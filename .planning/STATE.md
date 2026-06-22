@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-22T10:07:22.222Z'
+last_updated: '2026-06-22T11:43:20.602Z'
 last_activity: 2026-06-22 -- Phase 18.2 execution started
 progress:
   total_phases: 9
@@ -348,7 +348,7 @@ Phase: 18.2 (code-cleanup-behavioral-dup-bugs) — EXECUTING
 Plan: 1 of 4
 free-kick consequence, staged repositioning sequence per rulebook, header-contest foul
 trigger, auto-relocation stall fix). Phase 17 closed 2026-06-20.
-Status: Executing Phase 18.2
+Status: Ready to execute
 Last activity: 2026-06-22 -- Phase 18.2 execution started
 by user (offside flag not re-triggering after the first free-kick foul resolves in some
 as-yet-unconfirmed scenario — user will report again if it recurs; not yet root-caused).
