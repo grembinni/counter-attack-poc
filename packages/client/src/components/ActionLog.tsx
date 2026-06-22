@@ -48,7 +48,7 @@ function P({ pieceId, prefix }: { pieceId: string; prefix: string }) {
 
 /**
  * Bold, team-colored player label rendered as "#{number} {Name}" — the
- * move-log convention (D-01) extended to duel-style entries (TODO-NAME).
+ * move-log convention (D-01) extended to duel-style entries.
  * `prefix`, when provided, renders before the number (e.g. "D #7 Jane Doe")
  * to preserve the existing A/D role semantics used by duel branches.
  * Falls back to just the number when the piece is unknown (pieceName
