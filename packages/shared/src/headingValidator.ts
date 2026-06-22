@@ -38,8 +38,8 @@ export type HeadingOptions = {
   otherChallengerIds?: readonly string[];
   /**
    * HEAD-03: When true, caller intends a headed shot at goal.
-   * The validateHeading result does not change — Phase 4 FSM uses this to involve the GK.
-   * TODO: Verify head-shot composition with FSM before Phase 4 live use (CONTEXT.md).
+   * The validateHeading result does not change — head-shot/GK composition is live via
+   * applyResolveHeaderTarget (HEAD-03, Phase 11).
    */
   aimedAtGoal?: boolean;
 };

@@ -5,9 +5,9 @@
  * lastActionType='DEFLECTION', D-29 one-steal-one-tackle per piece,
  * applyGKDive parallel-to-goal-line + ≤3-hex guards
  *
- * Wave 0 scaffolds — functions applyDeclareShot, applyGKDive, applyDeclareHeaderTarget
- * are not yet implemented; their describe blocks are skipped until plans 02/03/04 turn
- * them green. Tests that use only existing engine functions are left as failing (red).
+ * Wave 0 scaffolds — functions applyDeclareShot and applyGKDive were not yet implemented
+ * at authoring time; their describe blocks were skipped until plans 02/03/04 turned them
+ * green. Tests that use only existing engine functions are left as failing (red).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -18,7 +18,6 @@ import {
   applyMove,
   applyDeclareShot,
   applyGKDive,
-  applyDeclareHeaderTarget,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -550,37 +549,6 @@ describe('SNAP_DEFLECT transition / applyDeclareShot (Phase 10)', () => {
     const result = applyDeclareShot(state, { q: 20, r: 12 }); // not a goal hex
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('INVALID_TARGET');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// HEAD-03: Goal-line header redirect (Phase 10)
-// (Plan 03 will implement; describe.skip used since applyDeclareHeaderTarget not yet available)
-// ---------------------------------------------------------------------------
-
-describe('HEAD-03: header target hex selection (applyDeclareHeaderTarget)', () => {
-  it('applyDeclareHeaderTarget sets headerTargetHex when both teams confirmed', () => {
-    const state = makeHeaderState();
-    const targetHex = { q: 36, r: 13 };
-    const result = applyDeclareHeaderTarget(state, targetHex);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.headerTargetHex).toEqual(targetHex);
-  });
-
-  it('applyDeclareHeaderTarget rejects when phase is not HEADER (WRONG_PHASE)', () => {
-    const state = makeActionState();
-    const result = applyDeclareHeaderTarget(state, { q: 36, r: 13 });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
-  });
-
-  it('applyDeclareHeaderTarget rejects when teams have not both confirmed', () => {
-    const state = makeHeaderState({
-      headerConfirmed: { home: true, away: false },
-    });
-    const result = applyDeclareHeaderTarget(state, { q: 36, r: 13 });
-    expect(result.ok).toBe(false);
   });
 });
 
