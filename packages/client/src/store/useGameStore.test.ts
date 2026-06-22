@@ -490,6 +490,24 @@ describe('useGameStore — setGameState response-move slot hand-off / pace-exhau
     expect(state.selectedPieceId).toBeNull();
     expect(state.validMoveHexes).toEqual([]);
   });
+
+  it('Test 7 (regression guard): same-phase SNAPSHOT_DEFLECT broadcast with pace NOT exhausted (snapDeflectPaceUsed 1 of 2) retains selection and recomputes a non-empty validMoveHexes', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: snapshotDeflectState({ snapDeflectPaceUsed: 0 }),
+      selectedPieceId: SNAP_LOCKED_ID,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    // Same phase, pace advanced by 1 but not yet exhausted (cap 2) — simulates the broadcast
+    // arriving right after emitMove for this piece (sticky behaviour must be preserved).
+    const broadcast = snapshotDeflectState({ snapDeflectPaceUsed: 1 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(SNAP_LOCKED_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
 });
 
 describe('useGameStore — Phase 7 setters', () => {

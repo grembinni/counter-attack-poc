@@ -747,6 +747,35 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // SNAPSHOT_DEFLECT: defending team's piece can move up to 2 hexes in one click (range mode).
+    // BUG-09 gap closure (18.2-05): previously fell through to the generic computeMovementValidHexes
+    // fallthrough below, which validateMove's WRONG_SLOT guard always rejects for this phase
+    // (SNAPSHOT_DEFLECT never sets movementSlot) — forcing validMoveHexes to [] even when the
+    // defender has pace remaining. This branch routes through the same computeResponseMoveValidHexes
+    // helper selectPiece's SNAPSHOT_DEFLECT branch uses (lines 615-620), keyed by snapDeflectMovedPieceId
+    // / snapDeflectPaceUsed / paceCap 2 / clickDistanceMode 'range'. The lock check (WR-01 caveat) is
+    // done here by the caller — computeResponseMoveValidHexes does not enforce lockedPieceIdField itself.
+    if (newState.phase === 'SNAPSHOT_DEFLECT') {
+      const lockedId = newState.snapDeflectMovedPieceId ?? null;
+      const locked = lockedId !== null && lockedId !== prevSelectedId;
+      const stickyValid = locked
+        ? []
+        : computeResponseMoveValidHexes(prevSelectedId, piece, newState, {
+            lockedPieceIdField: 'snapDeflectMovedPieceId',
+            paceUsedField: 'snapDeflectPaceUsed',
+            paceCap: 2,
+            clickDistanceMode: 'range',
+          });
+      set({
+        gameState: newState,
+        selectedPieceId: prevSelectedId,
+        validMoveHexes: stickyValid,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+      });
+      return;
+    }
+
     // FREE_MOVE_ATTACK / FREE_MOVE_DEFENSE: separate, parallel sticky-selection block — FREE_MOVE
     // has no single-piece lock concept (multiple independently-eligible pieces), so it is not
     // folded into the HIGH_PASS_MOVE-style block above. phaseChanged (handled earlier) already
