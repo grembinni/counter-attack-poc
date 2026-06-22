@@ -370,13 +370,13 @@ describe('useGameStore — setGameState response-move slot hand-off / pace-exhau
     };
   }
 
-  function gkKickMoveState(overrides: { slot?: 'ATTACKER' | 'DEFENDER'; gkKickPaceUsed?: number }) {
+  function gkKickMoveState(overrides: { slot?: 'KICKER' | 'OPP'; gkKickPaceUsed?: number }) {
     return {
       ...mockMovementState,
       phase: 'GK_KICK_MOVE' as const,
       activeTeam: 'home' as const,
       attackingTeam: 'home' as const,
-      gkKickMovementSlot: overrides.slot ?? ('ATTACKER' as const),
+      gkKickMovementSlot: overrides.slot ?? ('KICKER' as const),
       gkKickMovedPieceId: null,
       gkKickPaceUsed: overrides.gkKickPaceUsed ?? 0,
     };
@@ -425,16 +425,16 @@ describe('useGameStore — setGameState response-move slot hand-off / pace-exhau
     expect(state.validMoveHexes).toEqual([]);
   });
 
-  it('Test 3: GK_KICK_MOVE slot hand-off (ATTACKER->DEFENDER) clears a locked selection', () => {
+  it('Test 3: GK_KICK_MOVE slot hand-off (KICKER->OPP) clears a locked selection', () => {
     useGameStore.setState({
       playerSlot: 1,
-      gameState: gkKickMoveState({ slot: 'ATTACKER' }),
+      gameState: gkKickMoveState({ slot: 'KICKER' }),
       selectedPieceId: GK_LOCKED_ID,
       validMoveHexes: [{ q: 5, r: 5 }],
       tackleRiskHexes: [],
       lastMovedPieceId: null,
     });
-    const broadcast = gkKickMoveState({ slot: 'DEFENDER' });
+    const broadcast = gkKickMoveState({ slot: 'OPP' });
     useGameStore.getState().setGameState(broadcast);
     const state = useGameStore.getState();
     expect(state.selectedPieceId).toBeNull();

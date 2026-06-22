@@ -608,7 +608,28 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const prevSelectedId = prev.selectedPieceId ?? prev.lastMovedPieceId;
 
     // Determine whether to retain or clear selection (D-17, D-18, D-19)
-    const slotChanged = newState.movementSlot !== prevState.movementSlot;
+    // BUG-09 (Phase 18.2-03): broadened from plain movementSlot to also cover the
+    // response-move sub-phase slot fields — those phases track ATTACKER->DEFENDER hand-off
+    // via firstTimePassMovementSlot/highPassMovementSlot/gkKickMovementSlot instead of the
+    // plain movementSlot field, which never changes (stays null) during those phases.
+    const responseMoveStateChanged =
+      newState.movementSlot !== prevState.movementSlot ||
+      newState.firstTimePassMovementSlot !== prevState.firstTimePassMovementSlot ||
+      newState.highPassMovementSlot !== prevState.highPassMovementSlot ||
+      newState.gkKickMovementSlot !== prevState.gkKickMovementSlot;
+    // BUG-09: a response-move phase's per-piece pace allowance is exhausted — the stale
+    // selection/highlight must clear even when the slot itself hasn't changed yet (e.g. the
+    // piece that just moved is still locked into the current slot but has no pace left).
+    const responseMovePaceExhausted =
+      newState.phase === 'FIRST_TIME_PASS_MOVE'
+        ? (newState.firstTimePassPaceUsed ?? 0) >= 1
+        : newState.phase === 'HIGH_PASS_MOVE'
+          ? (newState.highPassPaceUsed ?? 0) >= 3
+          : newState.phase === 'GK_KICK_MOVE'
+            ? (newState.gkKickPaceUsed ?? 0) >= 3
+            : newState.phase === 'SNAPSHOT_DEFLECT'
+              ? (newState.snapDeflectPaceUsed ?? 0) >= 2
+              : false;
     const phaseChanged = newState.phase !== prevState.phase;
     const pieceStillExists =
       prevSelectedId !== null && newState.pieces.some((p) => p.id === prevSelectedId);
@@ -617,7 +638,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       prevSelectedId !== null && newState.movedPieceIds.includes(prevSelectedId);
 
     if (
-      slotChanged ||
+      responseMoveStateChanged ||
+      responseMovePaceExhausted ||
       phaseChanged ||
       !pieceStillExists ||
       prevSelectedId === null ||
