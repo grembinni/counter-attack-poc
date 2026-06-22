@@ -210,8 +210,8 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 2. BUG-08, BUG-09, and BUG-11 are fixed and covered by regression tests
    **Plans**: 4 plans (3 waves)
 
-- [ ] 18.2-01-PLAN.md — BUG-11: HIGH_PASS_MOVE carrier-exclusion (server GAME_MOVE guard + client selectPiece mirror, 2 touch points) [Wave 1]
-- [ ] 18.2-02-PLAN.md — BUG-08 render-level tackle-tint verification test + DESIGN-04 dead-code removal (applyDeclareHeaderTarget + 2 stale comments) [Wave 1]
+- [x] 18.2-01-PLAN.md — BUG-11: HIGH_PASS_MOVE carrier-exclusion (server GAME_MOVE guard + client selectPiece mirror, 2 touch points) [Wave 1]
+- [x] 18.2-02-PLAN.md — BUG-08 render-level tackle-tint verification test + DESIGN-04 dead-code removal (applyDeclareHeaderTarget + 2 stale comments) [Wave 1]
 - [ ] 18.2-03-PLAN.md — BUG-09: broadened setGameState response-move staleness gate (slot hand-off + pace exhaustion) + folded-todo deletion [Wave 2, depends on 18.2-01]
 - [ ] 18.2-04-PLAN.md — DESIGN-03: consolidate Clusters 1/3/5 into shared response-move + movement valid-hex helpers (Cluster 2/4 left separate) [Wave 3, depends on 18.2-01, 18.2-03]
 
@@ -243,31 +243,31 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 ## Progress
 
-| Phase                          | Milestone | Plans Complete | Status   | Completed  |
-| ------------------------------ | --------- | -------------- | -------- | ---------- |
-| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete | 2026-05-28 |
-| 2. Move Validator              | v1.0      | 4/4            | Complete | 2026-05-29 |
-| 3. Server Room Manager         | v1.0      | 3/3            | Complete | 2026-05-29 |
-| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete | 2026-05-30 |
-| 5. Dice Resolver               | v1.0      | 4/4            | Complete | 2026-05-30 |
-| 6. React Hex Grid              | v1.0      | 3/3            | Complete | 2026-05-31 |
-| 7. Client-Server Integration   | v1.0      | 4/4            | Complete | 2026-06-03 |
-| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete | 2026-06-04 |
-| 8. Match Lifecycle             | v1.0      | 8/8            | Complete | 2026-06-05 |
-| 8.1. Cleanup                   | v1.0      | 3/3            | Complete | 2026-06-05 |
-| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete | 2026-06-07 |
-| 9. Render Deployment           | v1.0      | 2/2            | Complete | 2026-06-08 |
-| 10. Remaining Flows            | v1.0      | 5/5            | Complete | 2026-06-11 |
-| 11. Rule Correctness           | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 13. Layout & Clock             | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity              | v1.2      | 3/3            | Complete | 2026-06-13 |
-| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete | 2026-06-14 |
-| 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
-| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
-| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-06-21 |
-| 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 0/4            | Pending  | -          |
-| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
-| 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |
+| Phase                          | Milestone | Plans Complete | Status      | Completed  |
+| ------------------------------ | --------- | -------------- | ----------- | ---------- |
+| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete    | 2026-05-28 |
+| 2. Move Validator              | v1.0      | 4/4            | Complete    | 2026-05-29 |
+| 3. Server Room Manager         | v1.0      | 3/3            | Complete    | 2026-05-29 |
+| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete    | 2026-05-30 |
+| 5. Dice Resolver               | v1.0      | 4/4            | Complete    | 2026-05-30 |
+| 6. React Hex Grid              | v1.0      | 3/3            | Complete    | 2026-05-31 |
+| 7. Client-Server Integration   | v1.0      | 4/4            | Complete    | 2026-06-03 |
+| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete    | 2026-06-04 |
+| 8. Match Lifecycle             | v1.0      | 8/8            | Complete    | 2026-06-05 |
+| 8.1. Cleanup                   | v1.0      | 3/3            | Complete    | 2026-06-05 |
+| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete    | 2026-06-07 |
+| 9. Render Deployment           | v1.0      | 2/2            | Complete    | 2026-06-08 |
+| 10. Remaining Flows            | v1.0      | 5/5            | Complete    | 2026-06-11 |
+| 11. Rule Correctness           | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 13. Layout & Clock             | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 15. Team Identity              | v1.2      | 3/3            | Complete    | 2026-06-13 |
+| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete    | 2026-06-14 |
+| 17. Rule Bugs                  | v1.2      | 6/6            | Complete    | 2026-06-21 |
+| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete    | 2026-06-20 |
+| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-06-21 |
+| 18.1. Replay Review            | v1.2      | 2/2            | Complete    | 2026-06-21 |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 2/4            | In Progress |            |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending     | -          |
+| 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending     | -          |
