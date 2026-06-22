@@ -291,6 +291,15 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
+        // BUG-11 (Phase 18.2): the original high-pass kicker may not reposition their own
+        // piece during HIGH_PASS_MOVE — mirrors the FTP firstTimePassCarrierId guard above
+        // (Phase 17.1-16). This is the authoritative server-side guard; the client
+        // selectPiece mirror is defense-in-depth.
+        if (pieceId === hpState.highPassCarrierId) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
+        }
         // Only one piece per slot: lock to the first piece moved
         const lockedId = hpState.highPassMovedPieceId ?? null;
         if (lockedId !== null && lockedId !== pieceId) {
