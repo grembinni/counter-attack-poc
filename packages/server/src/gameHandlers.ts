@@ -68,7 +68,7 @@ import {
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
-import type { ActionEvent, GamePhase, GameState } from '@counter-attack/shared';
+import type { ActionEvent, GamePhase, GameState, PlayerPiece } from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -141,6 +141,118 @@ function controlsGKTeam(socket: AppSocket, room: Room): boolean {
   const gkPiece = room.gameState.pieces.find((p) => p.id === room.gameState!.ball.carrierId);
   if (!gkPiece) return false;
   return socketTeam(socket) === gkPiece.teamId;
+}
+
+/**
+ * Per-phase field-name configuration for {@link validateResponseMoveStep} (Cluster 1,
+ * Phase 18.2 DESIGN-03 consolidation). Each of the 4 GAME_MOVE response-move branches
+ * (HIGH_PASS_MOVE, GK_KICK_MOVE, FIRST_TIME_PASS_MOVE, SNAPSHOT_DEFLECT) supplies its own
+ * field names/values here instead of duplicating the guard sequence inline.
+ */
+type ResponseMoveConfig = {
+  /** Which team is currently allowed to act in this phase. */
+  actingTeam: 'home' | 'away';
+  /** GameState field tracking the single piece locked to this phase's movement slot. */
+  lockedPieceIdKey:
+    | 'highPassMovedPieceId'
+    | 'gkKickMovedPieceId'
+    | 'firstTimePassMovedPieceId'
+    | 'snapDeflectMovedPieceId';
+  /** GameState field tracking cumulative hexes moved this slot. */
+  paceUsedKey:
+    | 'highPassPaceUsed'
+    | 'gkKickPaceUsed'
+    | 'firstTimePassPaceUsed'
+    | 'snapDeflectPaceUsed';
+  /** Maximum hexes (pace) allowed this slot. */
+  paceCap: number;
+  /** GameState field identifying the original carrier/kicker who may not reposition their own piece (BUG-11 class). Omit for phases with no carrier-exclusion concept (GK_KICK_MOVE, SNAPSHOT_DEFLECT). */
+  carrierExclusionKey?: 'highPassCarrierId' | 'firstTimePassCarrierId';
+  /**
+   * 'strict-1': click distance must be exactly 1 hex (HIGH_PASS_MOVE, GK_KICK_MOVE, FIRST_TIME_PASS_MOVE).
+   * 'range': a single click may cover any distance up to the remaining pace budget (SNAPSHOT_DEFLECT).
+   */
+  clickDistanceMode: 'strict-1' | 'range';
+};
+
+/** Successful validation result: the caller applies its own phase-specific state merge. */
+type ResponseMoveValidation = {
+  ok: true;
+  piece: PlayerPiece;
+  /** Distance actually moved this click — equals 1 for 'strict-1', the click distance for 'range'. */
+  distanceMoved: number;
+};
+
+/**
+ * Shared guard sequence for the 4 GAME_MOVE response-move branches (Cluster 1,
+ * Phase 18.2 DESIGN-03). Runs: active-player → ownership → optional carrier-exclusion →
+ * single-piece lock → pace-cap → distance → pitch-boundary → occupancy.
+ *
+ * On any guard failure, emits the matching GAME_ERROR reason, calls broadcastState
+ * (D-06 snap-back), and returns `{ ok: false }` — the caller must `return` immediately.
+ * On success, returns the validated piece and distance moved; the caller applies its own
+ * state-merge shape (event-log entry type and `...MovedPieceId`/`...PaceUsed` field names
+ * differ per phase and are NOT handled here).
+ *
+ * CRITICAL: carrierExclusionKey must be supplied for HIGH_PASS_MOVE (highPassCarrierId,
+ * BUG-11) and FIRST_TIME_PASS_MOVE (firstTimePassCarrierId) to preserve those fixes.
+ */
+function validateResponseMoveStep(
+  io: AppServer,
+  socket: AppSocket,
+  room: Room,
+  pieceId: string,
+  to: HexCoord,
+  config: ResponseMoveConfig,
+): ResponseMoveValidation | { ok: false } {
+  const state = room.gameState as GameState;
+  const fail = (reason: Parameters<typeof socket.emit>[1]): { ok: false } => {
+    socket.emit(ServerEvents.GAME_ERROR, reason as never);
+    broadcastState(io, room);
+    return { ok: false };
+  };
+
+  if (socketTeam(socket) !== config.actingTeam) {
+    return fail('WRONG_TEAM');
+  }
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece || piece.teamId !== config.actingTeam) {
+    return fail('WRONG_TEAM');
+  }
+  // BUG-11 / FTP self-pass-reclaim guard: the original carrier/kicker may not reposition
+  // their own piece. Only checked when the phase has a carrier-exclusion concept.
+  if (config.carrierExclusionKey !== undefined && pieceId === state[config.carrierExclusionKey]) {
+    return fail('WRONG_PIECE');
+  }
+  // Only one piece per slot: lock to the first piece moved.
+  const lockedId = state[config.lockedPieceIdKey] ?? null;
+  if (lockedId !== null && lockedId !== pieceId) {
+    return fail('WRONG_PIECE');
+  }
+  const paceUsed = state[config.paceUsedKey] ?? 0;
+  const paceRemaining = config.paceCap - paceUsed;
+  if (paceRemaining <= 0) {
+    return fail('PACE_EXCEEDED');
+  }
+  const clickDistance = hexDistance(piece.position, to);
+  if (config.clickDistanceMode === 'strict-1') {
+    if (clickDistance !== 1) {
+      return fail('NOT_ADJACENT');
+    }
+  } else {
+    if (clickDistance < 1 || clickDistance > paceRemaining) {
+      return fail('NOT_ADJACENT');
+    }
+  }
+  if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
+    return fail('OFF_PITCH');
+  }
+  if (
+    state.pieces.some((p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r)
+  ) {
+    return fail('OCCUPIED');
+  }
+  return { ok: true, piece, distanceMoved: clickDistance };
 }
 
 /**
@@ -278,60 +390,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
 
       // HIGH_PASS_MOVE: simple piece repositioning — 1 piece per team, max 3 hexes, no ball movement.
+      // BUG-11 (Phase 18.2): the original high-pass kicker may not reposition their own
+      // piece during HIGH_PASS_MOVE — mirrors the FTP firstTimePassCarrierId guard below
+      // (Phase 17.1-16). carrierExclusionKey is the authoritative server-side guard; the
+      // client selectPiece mirror is defense-in-depth.
       if (room.gameState.phase === 'HIGH_PASS_MOVE') {
-        if (!isActivePlayer(socket, room)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
         const hpState = room.gameState;
-        const piece = hpState.pieces.find((p) => p.id === pieceId);
-        if (!piece || piece.teamId !== hpState.activeTeam) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        // BUG-11 (Phase 18.2): the original high-pass kicker may not reposition their own
-        // piece during HIGH_PASS_MOVE — mirrors the FTP firstTimePassCarrierId guard above
-        // (Phase 17.1-16). This is the authoritative server-side guard; the client
-        // selectPiece mirror is defense-in-depth.
-        if (pieceId === hpState.highPassCarrierId) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
-          broadcastState(io, room);
-          return;
-        }
-        // Only one piece per slot: lock to the first piece moved
-        const lockedId = hpState.highPassMovedPieceId ?? null;
-        if (lockedId !== null && lockedId !== pieceId) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
-          broadcastState(io, room);
-          return;
-        }
-        const paceUsed = hpState.highPassPaceUsed ?? 0;
-        if (paceUsed >= 3) {
-          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
-          broadcastState(io, room);
-          return;
-        }
-        if (hexDistance(piece.position, to) !== 1) {
-          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
-          broadcastState(io, room);
-          return;
-        }
-        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
-          broadcastState(io, room);
-          return;
-        }
-        if (
-          hpState.pieces.some(
-            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
-          )
-        ) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
-          broadcastState(io, room);
-          return;
-        }
+        const validation = validateResponseMoveStep(io, socket, room, pieceId, to, {
+          actingTeam: hpState.activeTeam,
+          lockedPieceIdKey: 'highPassMovedPieceId',
+          paceUsedKey: 'highPassPaceUsed',
+          paceCap: 3,
+          carrierExclusionKey: 'highPassCarrierId',
+          clickDistanceMode: 'strict-1',
+        });
+        if (!validation.ok) return;
+        const { piece, distanceMoved } = validation;
         const hpMoveEvent: ActionEvent = {
           type: 'HP_MOVE',
           slot: hpState.highPassMovementSlot === 'ATTACKER' ? 'ATTACKER' : 'DEFENDER',
@@ -344,7 +418,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           ...hpState,
           pieces: hpState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
           highPassMovedPieceId: pieceId,
-          highPassPaceUsed: paceUsed + 1,
+          highPassPaceUsed: (hpState.highPassPaceUsed ?? 0) + distanceMoved,
           eventLog: [...hpState.eventLog, hpMoveEvent],
         };
         broadcastState(io, room);
@@ -362,56 +436,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       if (room.gameState.phase === 'SNAPSHOT_DEFLECT') {
         const sdState = room.gameState;
         const defendingTeam: 'home' | 'away' = sdState.attackingTeam === 'home' ? 'away' : 'home';
-        // Guard: only the defending team may deflect
-        if (socketTeam(socket) !== defendingTeam) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        const sdPiece = sdState.pieces.find((p) => p.id === pieceId);
-        if (!sdPiece || sdPiece.teamId !== defendingTeam) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        // Lock to the first piece moved this phase
-        const lockedId = sdState.snapDeflectMovedPieceId ?? null;
-        if (lockedId !== null && lockedId !== pieceId) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
-          broadcastState(io, room);
-          return;
-        }
-        // Max 2 hexes total — a single click may use any remaining budget at once.
+        const validation = validateResponseMoveStep(io, socket, room, pieceId, to, {
+          actingTeam: defendingTeam,
+          lockedPieceIdKey: 'snapDeflectMovedPieceId',
+          paceUsedKey: 'snapDeflectPaceUsed',
+          paceCap: 2,
+          clickDistanceMode: 'range',
+        });
+        if (!validation.ok) return;
+        const { piece: sdPiece, distanceMoved: clickDistance } = validation;
         const paceUsed = sdState.snapDeflectPaceUsed ?? 0;
-        const paceRemaining = 2 - paceUsed;
-        if (paceRemaining <= 0) {
-          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
-          broadcastState(io, room);
-          return;
-        }
-        // Distance check: click distance must be within remaining budget (1 or 2 hexes).
-        const clickDistance = hexDistance(sdPiece.position, to);
-        if (clickDistance < 1 || clickDistance > paceRemaining) {
-          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
-          broadcastState(io, room);
-          return;
-        }
-        // Pitch boundary
-        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
-          broadcastState(io, room);
-          return;
-        }
-        // No occupied hex
-        if (
-          sdState.pieces.some(
-            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
-          )
-        ) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
-          broadcastState(io, room);
-          return;
-        }
         // SNAP-02: if the GK is being moved, recompute the snapshot GK penalty from new position.
         let snapshotGkPenalty = sdState.snapshotGkPenalty ?? 0;
         if (sdPiece.role === 'GK' && sdState.shotTargetHex) {
@@ -432,49 +466,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // GK_KICK_MOVE: both teams reposition 1 piece ≤3 hexes while kick is in air.
       // Mirrors HIGH_PASS_MOVE block: adjacency, pitch boundary, occupancy, 1-piece lock.
       if (room.gameState.phase === 'GK_KICK_MOVE') {
-        if (!isActivePlayer(socket, room)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
         const gkMoveState = room.gameState;
-        const piece = gkMoveState.pieces.find((p) => p.id === pieceId);
-        if (!piece || piece.teamId !== gkMoveState.activeTeam) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        const lockedId = gkMoveState.gkKickMovedPieceId ?? null;
-        if (lockedId !== null && lockedId !== pieceId) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
-          broadcastState(io, room);
-          return;
-        }
-        const paceUsed = gkMoveState.gkKickPaceUsed ?? 0;
-        if (paceUsed >= 3) {
-          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
-          broadcastState(io, room);
-          return;
-        }
-        if (hexDistance(piece.position, to) !== 1) {
-          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
-          broadcastState(io, room);
-          return;
-        }
-        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
-          broadcastState(io, room);
-          return;
-        }
-        if (
-          gkMoveState.pieces.some(
-            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
-          )
-        ) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
-          broadcastState(io, room);
-          return;
-        }
+        const validation = validateResponseMoveStep(io, socket, room, pieceId, to, {
+          actingTeam: gkMoveState.activeTeam,
+          lockedPieceIdKey: 'gkKickMovedPieceId',
+          paceUsedKey: 'gkKickPaceUsed',
+          paceCap: 3,
+          clickDistanceMode: 'strict-1',
+        });
+        if (!validation.ok) return;
+        const { piece, distanceMoved } = validation;
         const gkKickMoveEvent: ActionEvent = {
           type: 'GK_KICK_MOVE',
           slot: gkMoveState.gkKickMovementSlot === 'KICKER' ? 'KICKER' : 'OPP',
@@ -487,7 +488,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           ...gkMoveState,
           pieces: gkMoveState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
           gkKickMovedPieceId: pieceId,
-          gkKickPaceUsed: paceUsed + 1,
+          gkKickPaceUsed: (gkMoveState.gkKickPaceUsed ?? 0) + distanceMoved,
           eventLog: [...gkMoveState.eventLog, gkKickMoveEvent],
         };
         broadcastState(io, room);
@@ -498,61 +499,24 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Mirrors HIGH_PASS_MOVE block: 1 piece per team, max 1 hex, adjacency,
       // pitch boundary, no occupied hex. Active team alternates ATTACKER→DEFENDER.
       // D-03 (Phase 17.1).
+      // Cycle-4 self-pass-reclaim finding (D-03, Phase 17.1-16): the original passer may
+      // not reposition their own piece during FTP repositioning — doing so would let them
+      // move onto the (empty) passTargetHex and have the delivery lookup hand the ball
+      // straight back to them. Mirrors how highPassCarrierId identifies the kicker;
+      // carrierExclusionKey is the authoritative server-side guard (the client selectPiece
+      // mirror is defense-in-depth).
       if (room.gameState.phase === 'FIRST_TIME_PASS_MOVE') {
-        if (!isActivePlayer(socket, room)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
         const ftpState = room.gameState;
-        const piece = ftpState.pieces.find((p) => p.id === pieceId);
-        if (!piece || piece.teamId !== ftpState.activeTeam) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        // Cycle-4 self-pass-reclaim finding (D-03, Phase 17.1-16): the original passer may
-        // not reposition their own piece during FTP repositioning — doing so would let them
-        // move onto the (empty) passTargetHex and have the delivery lookup hand the ball
-        // straight back to them. Mirrors how highPassCarrierId identifies the kicker; this is
-        // the authoritative server-side guard (the client selectPiece mirror is defense-in-depth).
-        if (pieceId === ftpState.firstTimePassCarrierId) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
-          broadcastState(io, room);
-          return;
-        }
-        // Only one piece per slot: lock to the first piece moved
-        const lockedId = ftpState.firstTimePassMovedPieceId ?? null;
-        if (lockedId !== null && lockedId !== pieceId) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
-          broadcastState(io, room);
-          return;
-        }
-        const paceUsed = ftpState.firstTimePassPaceUsed ?? 0;
-        if (paceUsed >= 1) {
-          socket.emit(ServerEvents.GAME_ERROR, 'PACE_EXCEEDED');
-          broadcastState(io, room);
-          return;
-        }
-        if (hexDistance(piece.position, to) !== 1) {
-          socket.emit(ServerEvents.GAME_ERROR, 'NOT_ADJACENT');
-          broadcastState(io, room);
-          return;
-        }
-        if (!PITCH_HEXES.some((h) => h.q === to.q && h.r === to.r)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
-          broadcastState(io, room);
-          return;
-        }
-        if (
-          ftpState.pieces.some(
-            (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
-          )
-        ) {
-          socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
-          broadcastState(io, room);
-          return;
-        }
+        const validation = validateResponseMoveStep(io, socket, room, pieceId, to, {
+          actingTeam: ftpState.activeTeam,
+          lockedPieceIdKey: 'firstTimePassMovedPieceId',
+          paceUsedKey: 'firstTimePassPaceUsed',
+          paceCap: 1,
+          carrierExclusionKey: 'firstTimePassCarrierId',
+          clickDistanceMode: 'strict-1',
+        });
+        if (!validation.ok) return;
+        const { piece, distanceMoved } = validation;
         const ftpMoveEvent: ActionEvent = {
           type: 'FTP_MOVE',
           slot: ftpState.firstTimePassMovementSlot === 'ATTACKER' ? 'ATTACKER' : 'DEFENDER',
@@ -565,7 +529,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           ...ftpState,
           pieces: ftpState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
           firstTimePassMovedPieceId: pieceId,
-          firstTimePassPaceUsed: paceUsed + 1,
+          firstTimePassPaceUsed: (ftpState.firstTimePassPaceUsed ?? 0) + distanceMoved,
           eventLog: [...ftpState.eventLog, ftpMoveEvent],
         };
         broadcastState(io, room);
