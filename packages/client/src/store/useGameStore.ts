@@ -165,6 +165,85 @@ export type GameStore = {
 };
 
 /**
+ * Plain-MOVEMENT valid-hex + tackle-risk derivation (Cluster 5, Phase 18.2 DESIGN-03).
+ * Shared by selectPiece's normal MOVEMENT branch and setGameState's generic sticky
+ * fallthrough — the two call sites were byte-for-byte identical (hexesInRange(.,1) →
+ * validateMove per candidate → split ok hexes from TACKLE_ATTEMPT-effect hexes).
+ */
+function computeMovementValidHexes(
+  piece: GameState['pieces'][number],
+  gameState: GameState,
+): { validMoveHexes: HexCoord[]; tackleRiskHexes: HexCoord[] } {
+  const candidates = hexesInRange(piece.position, 1);
+  const results = candidates.map((hex) => ({
+    hex,
+    result: validateMove(gameState, piece, hex),
+  }));
+  const validMoveHexes = results.filter(({ result }) => result.ok).map(({ hex }) => hex);
+  const tackleRiskHexes = results
+    .filter(
+      ({ result }) => result.ok && 'effect' in result && result.effect.type === 'TACKLE_ATTEMPT',
+    )
+    .map(({ hex }) => hex);
+  return { validMoveHexes, tackleRiskHexes };
+}
+
+/**
+ * Per-phase field-name configuration for {@link computeResponseMoveValidHexes}
+ * (Cluster 3, Phase 18.2 DESIGN-03). Mirrors the server's ResponseMoveConfig shape
+ * (gameHandlers.ts validateResponseMoveStep) so the two consolidations stay parallel.
+ */
+type ResponseMoveValidHexConfig = {
+  /** GameState field tracking the single piece locked to this phase's movement slot. */
+  lockedPieceIdField:
+    | 'highPassMovedPieceId'
+    | 'gkKickMovedPieceId'
+    | 'firstTimePassMovedPieceId'
+    | 'snapDeflectMovedPieceId';
+  /** GameState field tracking cumulative hexes moved this slot. */
+  paceUsedField:
+    | 'highPassPaceUsed'
+    | 'gkKickPaceUsed'
+    | 'firstTimePassPaceUsed'
+    | 'snapDeflectPaceUsed';
+  /** Maximum hexes (pace) allowed this slot. */
+  paceCap: number;
+  /**
+   * 'strict-1': only adjacent hexes are valid (HIGH_PASS_MOVE, GK_KICK_MOVE, FIRST_TIME_PASS_MOVE).
+   * 'range': any hex within the remaining pace budget is a valid single-click destination (SNAPSHOT_DEFLECT).
+   */
+  clickDistanceMode: 'strict-1' | 'range';
+};
+
+/**
+ * Shared valid-hex computation for the 4 response-move selectPiece branches (Cluster 3,
+ * Phase 18.2 DESIGN-03). The caller does its own ownership/carrier/lock early-return guards
+ * (these differ per branch and stay inline) — this helper only computes the valid
+ * destination hex list once the piece is known to be selectable this slot.
+ */
+function computeResponseMoveValidHexes(
+  id: string,
+  piece: GameState['pieces'][number],
+  gameState: GameState,
+  config: ResponseMoveValidHexConfig,
+): HexCoord[] {
+  const paceUsed = gameState[config.paceUsedField] ?? 0;
+  const paceRemaining = config.paceCap - paceUsed;
+  if (paceRemaining <= 0) return [];
+  const range = config.clickDistanceMode === 'range' ? paceRemaining : 1;
+  return hexesInRange(piece.position, range).filter((hex) => {
+    if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+    if (
+      gameState.pieces.some((p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r)
+    )
+      return false;
+    const dist = hexDistance(piece.position, hex);
+    if (config.clickDistanceMode === 'strict-1') return dist === 1;
+    return dist >= 1 && dist <= paceRemaining;
+  });
+}
+
+/**
  * Zustand 4.x store using curried TypeScript form: create<T>()((set, get) => ...).
  * Required for correct TypeScript type inference in Zustand 4 (Pitfall 1 from RESEARCH.md).
  * Initial state uses mockMovementState (D-10, D-11).
@@ -411,21 +490,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const paceRemaining = 3 - (gameState.highPassPaceUsed ?? 0);
-      if (paceRemaining <= 0) {
-        set({ selectedPieceId: id, validMoveHexes: [] });
-        return;
-      }
-      // Valid destinations: adjacent hexes on pitch not occupied by another piece
-      const valid = hexesInRange(piece.position, 1).filter((hex) => {
-        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-        if (
-          gameState.pieces.some(
-            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          )
-        )
-          return false;
-        return hexDistance(piece.position, hex) === 1;
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
+        lockedPieceIdField: 'highPassMovedPieceId',
+        paceUsedField: 'highPassPaceUsed',
+        paceCap: 3,
+        clickDistanceMode: 'strict-1',
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
@@ -493,21 +562,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const paceRemaining = 1 - (gameState.firstTimePassPaceUsed ?? 0);
-      if (paceRemaining <= 0) {
-        set({ selectedPieceId: id, validMoveHexes: [] });
-        return;
-      }
-      // Valid destinations: adjacent hexes on pitch not occupied by another piece
-      const valid = hexesInRange(piece.position, 1).filter((hex) => {
-        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-        if (
-          gameState.pieces.some(
-            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          )
-        )
-          return false;
-        return hexDistance(piece.position, hex) === 1;
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
+        lockedPieceIdField: 'firstTimePassMovedPieceId',
+        paceUsedField: 'firstTimePassPaceUsed',
+        paceCap: 1,
+        clickDistanceMode: 'strict-1',
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
@@ -525,20 +584,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const paceRemaining = 3 - (gameState.gkKickPaceUsed ?? 0);
-      if (paceRemaining <= 0) {
-        set({ selectedPieceId: id, validMoveHexes: [] });
-        return;
-      }
-      const valid = hexesInRange(piece.position, 1).filter((hex) => {
-        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-        if (
-          gameState.pieces.some(
-            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          )
-        )
-          return false;
-        return hexDistance(piece.position, hex) === 1;
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
+        lockedPieceIdField: 'gkKickMovedPieceId',
+        paceUsedField: 'gkKickPaceUsed',
+        paceCap: 3,
+        clickDistanceMode: 'strict-1',
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
@@ -557,42 +607,26 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const paceRemaining = 2 - (gameState.snapDeflectPaceUsed ?? 0);
-      if (paceRemaining <= 0) {
-        set({ selectedPieceId: id, validMoveHexes: [] });
-        return;
-      }
       // BUGFIX (snapshot-shot-flow-mismatch): previously hard-capped at hexesInRange(.., 1)
       // (adjacency-only), forcing hex-by-hex movement. Now mirrors the server's single-click
       // targeting — any hex within the remaining 2-hex budget is a valid one-click destination,
-      // matching GK_DIVE's "click a spot directly" UX for regular/headed shots.
-      const valid = hexesInRange(piece.position, paceRemaining).filter((hex) => {
-        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-        if (
-          gameState.pieces.some(
-            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          )
-        )
-          return false;
-        const dist = hexDistance(piece.position, hex);
-        return dist >= 1 && dist <= paceRemaining;
+      // matching GK_DIVE's "click a spot directly" UX for regular/headed shots. clickDistanceMode:
+      // 'range' in computeResponseMoveValidHexes preserves this semantic.
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
+        lockedPieceIdField: 'snapDeflectMovedPieceId',
+        paceUsedField: 'snapDeflectPaceUsed',
+        paceCap: 2,
+        clickDistanceMode: 'range',
       });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
 
     // Normal MOVEMENT phase: show only adjacent hexes (step-by-step, D-07)
-    const candidates = hexesInRange(piece.position, 1);
-    const validResults = candidates.map((hex) => ({
-      hex,
-      result: validateMove(gameState, piece, hex),
-    }));
-    const valid = validResults.filter(({ result }) => result.ok).map(({ hex }) => hex);
-    const tackle = validResults
-      .filter(
-        ({ result }) => result.ok && 'effect' in result && result.effect.type === 'TACKLE_ATTEMPT',
-      )
-      .map(({ hex }) => hex);
+    const { validMoveHexes: valid, tackleRiskHexes: tackle } = computeMovementValidHexes(
+      piece,
+      gameState,
+    );
     set({ selectedPieceId: id, validMoveHexes: valid, tackleRiskHexes: tackle });
   },
 
@@ -744,16 +778,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    const stickyResults = hexesInRange(piece.position, 1).map((hex) => ({
-      hex,
-      result: validateMove(newState, piece, hex),
-    }));
-    const stickyValid = stickyResults.filter(({ result }) => result.ok).map(({ hex }) => hex);
-    const stickyTackle = stickyResults
-      .filter(
-        ({ result }) => result.ok && 'effect' in result && result.effect.type === 'TACKLE_ATTEMPT',
-      )
-      .map(({ hex }) => hex);
+    const { validMoveHexes: stickyValid, tackleRiskHexes: stickyTackle } =
+      computeMovementValidHexes(piece, newState);
     set({
       gameState: newState,
       selectedPieceId: prevSelectedId,
