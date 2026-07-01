@@ -228,8 +228,16 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 1. BUG-06, BUG-07, and BUG-10 are fixed and covered by regression tests
 2. BUG-12..BUG-21 are fixed and covered by regression tests
-   **Plans**: TBD
-   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). BUG-06/07/10 are net rule/flow fixes (not dup-logic gaps) — see 18-CONTEXT.md's Bug-Bash Addendum section for the full repro/fix-pattern for each. BUG-12..21 were gathered across two discuss-phase sessions on 18.3 itself (2026-06-22) — see 18.3-CONTEXT.md for the full repro/fix-pattern for each, including the root-caused `applyStartMovement` missing `lastDiceRoll: null` reset (BUG-18), the missing `KICK_OFF_SETUP` repositioning event (BUG-17), the three disagreeing player-number derivations (BUG-19), and the MOVE-06 mid-flow interrupt timing fix (BUG-20).
+
+**Plans**: 5 plans (3 waves)
+
+- [ ] 18.3-01-PLAN.md — Tier-1 client formatting: BUG-15 (remove goal amber), BUG-16 (PNamed in FTP/HP log), BUG-19 (jersey number from piece.number) [Wave 1]
+- [ ] 18.3-02-PLAN.md — Engine rule fixes: BUG-13 (double-tackle sequencing) + BUG-20 (deferred free-move interrupt) [Wave 1]
+- [ ] 18.3-05-PLAN.md — HexGrid: BUG-10 (click-to-card on spent pieces) + BUG-21 (Snapshot goal-line highlight, live-verify checkpoint) [Wave 1]
+- [ ] 18.3-03-PLAN.md — Engine possession transitions: BUG-06 (offside reset gap) + BUG-07 (direct header delivery) + BUG-12 (FTP-move toggle) [Wave 2, depends on 18.3-02]
+- [ ] 18.3-04-PLAN.md — Movement state machine: BUG-17 (KICK_OFF_SETUP replay) → BUG-14 (Snapshot after pace exhaustion) + BUG-18 (Undo regression + coverage) [Wave 3, depends on 18.3-03]
+
+  **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). BUG-06/07/10 are net rule/flow fixes (not dup-logic gaps) — see 18-CONTEXT.md's Bug-Bash Addendum section for the full repro/fix-pattern for each. BUG-12..21 were gathered across two discuss-phase sessions on 18.3 itself (2026-06-22) — see 18.3-CONTEXT.md for the full repro/fix-pattern for each, including the root-caused `applyStartMovement` missing `lastDiceRoll: null` reset (BUG-18), the missing `KICK_OFF_SETUP` repositioning event (BUG-17), the three disagreeing player-number derivations (BUG-19), and the MOVE-06 mid-flow interrupt timing fix (BUG-20).
 
 ### Phase 18.4: UX Enhancements
 
@@ -272,5 +280,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-06-21 |
 | 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/TBD          | Pending  | -          |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 0/5            | Pending  | -          |
 | 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |
