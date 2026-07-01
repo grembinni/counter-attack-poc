@@ -664,7 +664,89 @@ export function applyMove(
           },
         };
       }
-      // FAIL: defender moves to `to` (newPieces already reflects this), carrier keeps ball
+      // FAIL: defender moves to `to` (newPieces already reflects this), carrier keeps ball.
+      // BUG-13: after the first TACKLE FAIL, sequence additional TACKLE_ATTEMPTs for any
+      // other defenders that are ALREADY adjacent to the carrier's (unchanged) position and
+      // have not yet attempted a tackle this movement phase. This mirrors the physical game
+      // rule: when a defender moves adjacent to a carrier contested by multiple defenders,
+      // all adjacent defenders get a chance to tackle before the move fully resolves.
+      // The loop terminates when no more eligible adjacent defenders remain, or when any
+      // subsequent attempt SUCCEEDS (short-circuit — possession is transferred immediately).
+      // Dice injection: subsequent attempts use tackleDie=3 (mid-range fallback per plan),
+      // same carrierDie convention as the first attempt.
+      const carrierCurrentPos = carrier.position; // carrier position is unchanged on FAIL
+      const additionalTacklers = newPieces.filter(
+        (p) =>
+          p.teamId !== carrier.teamId &&
+          !newTackleAttemptedByIds.includes(p.id) &&
+          hexDistance(p.position, carrierCurrentPos) === 1,
+      );
+      for (const additionalTackler of additionalTacklers) {
+        const addDefDie = 3; // fallback die for subsequent attempts (plan: dice param has one set)
+        const addCarDie = dice?.carrierDie ?? 3;
+        const addDefCombined = computeCombinedScore(additionalTackler.tackling, addDefDie, []);
+        const addCarCombined = computeCombinedScore(carrier.dribbling, addCarDie, []);
+        const addTackleResult: 'SUCCESS' | 'FAIL' =
+          addDefCombined >= addCarCombined ? 'SUCCESS' : 'FAIL';
+        const addBallAfter =
+          addTackleResult === 'SUCCESS'
+            ? { position: additionalTackler.position, carrierId: additionalTackler.id }
+            : { position: state.ball.position, carrierId: state.ball.carrierId };
+        const addTackleEvent: ActionEvent = {
+          type: 'TACKLE_ATTEMPT',
+          defenderId: additionalTackler.id,
+          carrierId,
+          defenderDie: addDefDie,
+          carrierDie: addCarDie,
+          defenderCombined: addDefCombined,
+          carrierCombined: addCarCombined,
+          result: addTackleResult,
+          timestamp: Date.now(),
+          ballAfter: addBallAfter,
+        };
+        newEventLog = [...newEventLog, addTackleEvent];
+        newTackleAttemptedByIds = [...newTackleAttemptedByIds, additionalTackler.id];
+
+        if (addTackleResult === 'SUCCESS') {
+          // Short-circuit: ball won by the additional tackler (at their stationary position).
+          const addSuccessBall = {
+            ...state.ball,
+            position: additionalTackler.position,
+            carrierId: additionalTackler.id,
+          };
+          const correctedMoveEventBug13: ActionEvent = {
+            ...moveEvent,
+            ballAfter: addSuccessBall,
+          };
+          const bug13CorrectedEventLog = newEventLog.map((e) =>
+            e === moveEvent ? correctedMoveEventBug13 : e,
+          );
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'PASS',
+              pieces: newPieces,
+              attackingTeam: additionalTackler.teamId,
+              activeTeam: additionalTackler.teamId,
+              movementSlot: null,
+              movedPieceIds: [],
+              paceUsedByPieceId: {},
+              ball: addSuccessBall,
+              eventLog: bug13CorrectedEventLog,
+              lastActionType: 'SUCCESSFUL_TACKLE',
+              actionCount: state.actionCount + 3,
+              stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+              tackleAttemptedByIds: [], // D-02
+              offsidePieceIds: evaluateOffside({
+                ...state,
+                pieces: newPieces,
+                ball: addSuccessBall,
+              }),
+            },
+          };
+        }
+      }
       return {
         ok: true,
         state: {
