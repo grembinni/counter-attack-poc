@@ -781,7 +781,16 @@ export function HexGrid() {
                                 ? () => selectPiece(piece.id)
                                 : canSelect
                                   ? () => selectPiece(piece.id)
-                                  : () => undefined;
+                                  : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
+                                    // player card via inspectPiece — same as unmoved pieces — but does NOT
+                                    // re-trigger move-target highlighting (canSelect already excludes moved
+                                    // pieces so selectPiece is never called here).
+                                    phase === 'MOVE' &&
+                                      myTeam !== null &&
+                                      piece.teamId === myTeam &&
+                                      movedPieceIds.includes(piece.id)
+                                    ? () => inspectPiece(piece.id)
+                                    : () => undefined;
 
             return (
               <PieceOverlay
