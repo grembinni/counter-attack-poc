@@ -667,6 +667,83 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     const defenseState: GameState = { ...attackState, phase: 'FREE_MOVE_DEFENSE' };
     expect(applyFreeMoveZoneCheck(defenseState)).toBe(defenseState);
   });
+
+  // BUG-20: free-move interrupt must be DEFERRED while a MOVE slot is in progress
+  // (phase=MOVE + movementSlot !== null) or while a HEADER is in progress.
+  // The ball-zone crossing is detected but the overlay is withheld until the slot/
+  // header resolves to a clean phase boundary.
+
+  it('BUG-20: defers FREE_MOVE overlay while a MOVE slot is in progress (mid-MOVE-slot)', () => {
+    // Ball has crossed into the away third during an active ATTACKER_4 slot.
+    // D-33 zone check would trigger (middle→away, eligible pieces in home third).
+    const midSlotState: GameState = {
+      ...middleZonePassState,
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ballZone: 'middle', // was middle — fresh entry into final third
+      pieces: [
+        { ...homeFWD, position: { q: 5, r: 7 } }, // homeThird — eligible
+        { ...homeMID, position: { q: 30, r: 7 } }, // awayThird — at ball
+        { ...awayGK, position: { q: 29, r: 7 } },
+        { ...awayDEF, position: { q: 15, r: 7 } },
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(midSlotState);
+    // Must NOT overlay FREE_MOVE_ATTACK — phase stays MOVE
+    expect(result.phase).toBe('MOVE');
+    expect(result.phase).not.toBe('FREE_MOVE_ATTACK');
+    expect(result.phase).not.toBe('FREE_MOVE_DEFENSE');
+    // ballZone must NOT be updated (deferral: stale zone is needed to re-detect
+    // the crossing at the next clean boundary after the slot resolves)
+    expect(result.ballZone).toBe('middle');
+  });
+
+  it('BUG-20: free-move fires correctly AFTER the MOVE slot resolves (deferred trigger)', () => {
+    // Same ball position (awayThird) but now the MOVE slot has resolved (movementSlot=null,
+    // phase=PASS) — the deferral guard no longer applies and the free-move must fire.
+    const postSlotState: GameState = {
+      ...middleZonePassState,
+      phase: 'PASS',
+      movementSlot: null,
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ballZone: 'middle', // still stale from before the MOVE slot (deferral kept it unchanged)
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } }, // awayThird (ball here)
+        { ...homeMID, position: { q: 5, r: 7 } }, // homeThird — attack-eligible
+        { ...awayGK, position: { q: 5, r: 8 } }, // homeThird — defense-eligible
+        { ...awayDEF, position: { q: 15, r: 7 } }, // middleThird — not eligible
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(postSlotState);
+    // Must overlay FREE_MOVE_ATTACK now (deferred trigger fires at clean PASS boundary)
+    expect(result.phase).toBe('FREE_MOVE_ATTACK');
+    expect(result.ballZone).toBe('away');
+    expect(result.freeMoveResume).toEqual({ phase: 'PASS', activeTeam: 'home' });
+  });
+
+  it('BUG-20: defers FREE_MOVE overlay while HEADER is in progress', () => {
+    // Ball has crossed into the home third during an active HEADER phase.
+    const headerState: GameState = {
+      ...middleZonePassState,
+      phase: 'HEADER',
+      movementSlot: null,
+      ball: { position: { q: 5, r: 7 }, carrierId: null }, // homeThird
+      ballZone: 'middle', // was middle — fresh entry
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } }, // awayThird — eligible (opposite of homeThird)
+        { ...homeMID, position: { q: 27, r: 7 } }, // awayThird — eligible
+        { ...awayGK, position: { q: 29, r: 7 } },
+        { ...awayDEF, position: { q: 5, r: 7 } },
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(headerState);
+    // Must NOT overlay FREE_MOVE during HEADER
+    expect(result.phase).toBe('HEADER');
+    expect(result.phase).not.toBe('FREE_MOVE_ATTACK');
+    expect(result.phase).not.toBe('FREE_MOVE_DEFENSE');
+    expect(result.ballZone).toBe('middle'); // ballZone unchanged (deferral)
+  });
 });
 
 // ---------------------------------------------------------------------------

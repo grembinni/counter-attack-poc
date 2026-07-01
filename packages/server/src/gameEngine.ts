@@ -1111,6 +1111,18 @@ export function applyFreeMoveZoneCheck(state: GameState): GameState {
     return state;
   }
 
+  // BUG-20 (Phase 18.3 D-20): Defer the FREE_MOVE interrupt while a MOVE slot is in
+  // progress or while a HEADER is resolving. The D-33 zone-crossing trigger condition
+  // (newZone !== ballZone) is preserved — the crossing will still be detected at the
+  // next clean phase boundary. We intentionally do NOT update ballZone here so that
+  // the stale value re-triggers the zone check when the slot/header resolves.
+  if (state.phase === 'MOVE' && state.movementSlot !== null) {
+    return state; // MOVE slot in progress — defer free-move interrupt
+  }
+  if (state.phase === 'HEADER') {
+    return state; // HEADER in progress — defer free-move interrupt
+  }
+
   const newZone = computeBallZone(state.ball.position);
 
   if (newZone === state.ballZone || newZone === 'middle') {
