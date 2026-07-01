@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-07-01T22:26:25.753Z'
-last_activity: 2026-07-01 -- Phase 18.3 execution started
+last_updated: '2026-07-01T22:46:41.982Z'
+last_activity: 2026-07-01 -- Plan 18.3-01 complete (BUG-15, BUG-16, BUG-19 fixed)
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 41
+  completed_plans: 42
   percent: 78
 ---
 
@@ -345,11 +345,10 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 18.3 (bug-bash-rule-correctness) — EXECUTING
-Plan: 2 of 5
-Status: Executing Plan 02
-Last activity: 2026-07-01 -- Plan 18.3-01 complete (BUG-15, BUG-16, BUG-19 fixed)
-by user (offside flag not re-triggering after the first free-kick foul resolves in some
-as-yet-unconfirmed scenario — user will report again if it recurs; not yet root-caused).
+Plan: 3 of 5
+Status: Executing Plan 03
+Last activity: 2026-07-01 -- Plan 18.3-02 complete (BUG-13 multi-tackle sequencing,
+BUG-20 free-move interrupt deferral). 468 server + 236 client + 320 shared tests passing.
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
@@ -411,6 +410,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 17.1-action-flow-cleanup P14        | 6min   | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P15        | 12min  | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P16        | 10min  | 2 tasks  | 6 files  |
+| Phase 18.3 P02                            | 35min  | 3 tasks  | 3 files  |
 
 ## Decisions
 
@@ -471,3 +471,5 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase 18.3 P01]: BUG-19: piece.number is the canonical source of truth for jersey numbers across all display surfaces; PieceOverlay uses String(piece.number); ActionLog.pieceNum() uses pieces.find() store lookup mirroring pieceName()
 - [Phase 18.3 P01]: BUG-15: goal-content styling removed entirely — all event log entries use .content (gray); .goalContent CSS class deleted; isGoal: boolean field retained on Formatted type for structural consistency
 - [Phase 18.3 P01]: BUG-16: HP_MOVE and FTP_MOVE log entries use PNamed (full name, no A/D prefix); GK_KICK/GK_KICK_MOVE role-label P components untouched
+- [Phase ?]: BUG-13: stationary defenders adjacent to carrier get inline TACKLE_ATTEMPT after moving defender fails — scan newPieces by hexDistance=1 filtered by tackleAttemptedByIds; subsequent dice use tackleDie=3 fallback
+- [Phase ?]: BUG-20: applyFreeMoveZoneCheck returns state UNCHANGED (not ballZone updated) during MOVE mid-slot and HEADER — stale ballZone ensures zone-crossing re-triggers at next clean phase boundary
