@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-06-22T18:28:30.036Z'
-last_activity: 2026-06-22
+last_updated: '2026-07-01T22:26:25.753Z'
+last_activity: 2026-07-01 -- Phase 18.3 execution started
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 40
-  completed_plans: 40
+  total_plans: 45
+  completed_plans: 41
   percent: 78
 ---
 
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 18.2 — code-cleanup-behavioral-dup-bugs
+**Current focus:** Phase 18.3 — bug-bash-rule-correctness
 
 ## Phase Status
 
@@ -344,12 +344,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18.3
-Plan: Not started
-free-kick consequence, staged repositioning sequence per rulebook, header-contest foul
-trigger, auto-relocation stall fix). Phase 17 closed 2026-06-20.
-Status: Executing Phase 18.2
-Last activity: 2026-06-22
+Phase: 18.3 (bug-bash-rule-correctness) — EXECUTING
+Plan: 2 of 5
+Status: Executing Plan 02
+Last activity: 2026-07-01 -- Plan 18.3-01 complete (BUG-15, BUG-16, BUG-19 fixed)
 by user (offside flag not re-triggering after the first free-kick foul resolves in some
 as-yet-unconfirmed scenario — user will report again if it recurs; not yet root-caused).
 
@@ -470,3 +468,6 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase 17-05]: OFFSIDE_HALFWAY_Q = PITCH_REGIONS.kickOffHex.q (18) — offside half-boundary reuses the same constant as kick-off own-half enforcement; evaluateOffside is sticky-only (never recomputes from scratch): next set = (prior flagged minus now-cleared) union (newly offside-now)
 - [Phase 17-05]: applyEndTurn computes nextOffside once after the WRONG_SLOT guard and spreads it into all 4 ok:true returns (HALF_TIME/FULL_TIME, GK_RESTART, normal PASS, intermediate-slot) since none of those returns mutate piece positions; applyFreeMoveEnd re-evaluates on all 3 of its returns (FREE_MOVE_ATTACK->FREE_MOVE_DEFENSE handoff plus both resume-phase returns) since pieces may have moved during whichever sub-phase is ending
 - [Phase 17-05]: PieceOverlay isOffside ring uses #dc2626 (deeper red), strokeWidth 5, r=PIECE_RADIUS+6 — distinct from the existing #ef4444 away-team-role rect; rendered as an independent layer alongside (not folded into) the selectionState ring switch, so a piece can show both a selection ring and the offside ring simultaneously
+- [Phase 18.3 P01]: BUG-19: piece.number is the canonical source of truth for jersey numbers across all display surfaces; PieceOverlay uses String(piece.number); ActionLog.pieceNum() uses pieces.find() store lookup mirroring pieceName()
+- [Phase 18.3 P01]: BUG-15: goal-content styling removed entirely — all event log entries use .content (gray); .goalContent CSS class deleted; isGoal: boolean field retained on Formatted type for structural consistency
+- [Phase 18.3 P01]: BUG-16: HP_MOVE and FTP_MOVE log entries use PNamed (full name, no A/D prefix); GK_KICK/GK_KICK_MOVE role-label P components untouched
