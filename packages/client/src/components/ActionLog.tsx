@@ -388,7 +388,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
             <PNamed pieceId={event.scorerId} /> SCORED!
           </>
         ),
-        isGoal: true,
+        isGoal: false,
       };
     case 'KICK_OFF':
       return { prefix: '[KICK OFF]', prefixColor: null, content: ' Match started', isGoal: false };
@@ -487,7 +487,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
               {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
             </>
           ),
-          isGoal: event.outcome === 'GOAL',
+          isGoal: false,
         };
       } else {
         // Regular duel outcome (GOAL or LOOSE_BALL)
@@ -520,7 +520,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         prefix: shotPrefix,
         prefixColor: shotPrefixColor,
         content: shotContent,
-        isGoal: event.outcome === 'GOAL',
+        isGoal: false,
       };
     }
     case 'SNAPSHOT':
@@ -649,30 +649,28 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         isGoal: false,
       };
     case 'HP_MOVE': {
-      const team = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
         prefix: '[HIGH PASS MOVE 1]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
             {' '}
-            <P pieceId={event.pieceId} prefix={team} /> {event.from.q},{event.from.r} → {event.to.q}
-            ,{event.to.r}
+            <PNamed pieceId={event.pieceId} /> {event.from.q},{event.from.r} → {event.to.q},
+            {event.to.r}
           </>
         ),
         isGoal: false,
       };
     }
     case 'FTP_MOVE': {
-      const ftpTeam = event.slot === 'ATTACKER' ? 'A' : 'D';
       return {
         prefix: '[FIRST TIME PASS MOVE 1]',
         prefixColor: pieceColorOf(event.pieceId),
         content: (
           <>
             {' '}
-            <P pieceId={event.pieceId} prefix={ftpTeam} /> {event.from.q},{event.from.r} →{' '}
-            {event.to.q},{event.to.r}
+            <PNamed pieceId={event.pieceId} /> {event.from.q},{event.from.r} → {event.to.q},
+            {event.to.r}
           </>
         ),
         isGoal: false,
@@ -778,7 +776,7 @@ export function ActionLog() {
               </div>
             );
           }
-          const { prefix, prefixColor, content, isGoal } = formatEvent(item.event, item.subKind);
+          const { prefix, prefixColor, content } = formatEvent(item.event, item.subKind);
           return (
             <div className={styles.entry} key={index}>
               <span
@@ -787,7 +785,7 @@ export function ActionLog() {
               >
                 {prefix}
               </span>
-              <span className={isGoal ? styles.goalContent : styles.content}>{content}</span>
+              <span className={styles.content}>{content}</span>
             </div>
           );
         })
