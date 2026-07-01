@@ -119,10 +119,15 @@ const SLOT_PREFIX: Record<string, string> = {
   ATTACKER_2: `[MOVE ${moveSlotLabel('ATTACKER_2')}]`,
 };
 
-/** Extracts the 1-based player number from a piece ID, e.g. 'home-0' → '1', 'home-3' → '4'. */
+/**
+ * BUG-19: Resolves a piece's jersey number from gameState.pieces via store lookup,
+ * mirroring pieceName()'s lookup pattern exactly. Falls back to the raw pieceId string
+ * on miss (graceful degradation — never throws).
+ */
 function pieceNum(pieceId: string): string {
-  const raw = /(\d+)$/.exec(pieceId)?.[1];
-  return raw !== undefined ? String(Number(raw) + 1) : pieceId;
+  const pieces = useGameStore.getState().gameState.pieces;
+  const piece = pieces.find((p) => p.id === pieceId);
+  return piece !== undefined ? String(piece.number) : pieceId;
 }
 
 /**

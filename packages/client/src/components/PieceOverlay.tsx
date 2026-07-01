@@ -79,14 +79,8 @@ export function PieceOverlay({
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
 
-  // Player number: GK=1, DEF/MID 1-based, FWD idx 6-7 → 7-8, FWD idx 8-9 → 10-11, ST=9
-  const idx = Number(piece.id.slice(piece.id.lastIndexOf('-') + 1));
-  const playerNumber =
-    piece.role === 'ST'
-      ? '9'
-      : piece.role === 'FWD' && idx >= 8
-        ? String(idx + 2)
-        : String(idx + 1);
+  // BUG-19: player number from piece.number (D-08 pattern from PlayerStatsPanel)
+  const playerNumber = String(piece.number);
 
   const isGK = piece.role === 'GK';
 
