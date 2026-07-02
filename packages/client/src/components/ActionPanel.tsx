@@ -33,6 +33,15 @@ const ACTION_SUMMARY: Record<string, string> = {
 const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
 
 /**
+ * UX-08: CTA button color-state selector (mirrors GameBoard's statBubbleClass pattern).
+ * Returns .ctaButtonReady (green) when all eligible pieces have moved/placed,
+ * .ctaButtonPending (orange) while any eligible piece remains unmoved.
+ */
+function ctaButtonClass(eligibleRemaining: number): string {
+  return eligibleRemaining <= 0 ? (styles.ctaButtonReady ?? '') : (styles.ctaButtonPending ?? '');
+}
+
+/**
  * Phase-gated, active-player-gated action controls.
  *
  * PASS phase uses a three-step flow (Phase 8.2 D-06):
@@ -83,6 +92,11 @@ export function ActionPanel() {
   // 260621-ajd: remaining-player countdown for FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
   const freeMoveEligibleIds = useGameStore((s) => s.gameState.freeMoveEligibleIds);
   const freeMoveUsedPace = useGameStore((s) => s.gameState.freeMoveUsedPace);
+  // UX-08: per-phase repositioning tracking fields for eligibleRemaining derivation
+  const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
+  const firstTimePassMovedPieceId = useGameStore((s) => s.gameState.firstTimePassMovedPieceId);
+  const gkKickMovedPieceId = useGameStore((s) => s.gameState.gkKickMovedPieceId);
+  const snapDeflectMovedPieceId = useGameStore((s) => s.gameState.snapDeflectMovedPieceId);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -165,6 +179,8 @@ export function ActionPanel() {
     // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
     // so isActivePlayer correctly reflects whose turn it is in this phase
     if (!isActivePlayer) return waitingPanel;
+    // UX-08: 1 repositioning slot per team — pending until highPassMovedPieceId is set
+    const hpmEligibleRemaining = highPassMovedPieceId == null ? 1 : 0;
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
@@ -181,7 +197,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${ctaButtonClass(hpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={emitEndTurn}
         >
@@ -202,6 +218,8 @@ export function ActionPanel() {
     // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
     // so isActivePlayer correctly reflects whose turn it is in this phase
     if (!isActivePlayer) return waitingPanel;
+    // UX-08: 1 repositioning slot per team — pending until firstTimePassMovedPieceId is set
+    const ftpmEligibleRemaining = firstTimePassMovedPieceId == null ? 1 : 0;
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
@@ -218,7 +236,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${ctaButtonClass(ftpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={emitEndTurn}
         >
@@ -261,6 +279,8 @@ export function ActionPanel() {
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isDefendingTeamPlayer = myTeam === defendingTeam;
     if (!isDefendingTeamPlayer) return waitingPanel;
+    // UX-08: 1 repositioning slot — pending until snapDeflectMovedPieceId is set
+    const sdEligibleRemaining = snapDeflectMovedPieceId == null ? 1 : 0;
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
@@ -270,7 +290,7 @@ export function ActionPanel() {
           </span>
         </div>
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${ctaButtonClass(sdEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={emitEndTurn}
         >
@@ -339,7 +359,7 @@ export function ActionPanel() {
               </span>
             </div>
             <button
-              className={styles.ctaButton}
+              className={`${styles.ctaButton} ${ctaButtonClass(headerContestantIds.length > 0 ? 0 : 1)}`}
               onClick={() => emitHeaderContestant(headerContestantIds)}
             >
               {headerContestantIds.length > 0 ? 'Confirm Selection' : 'Decline (no contestant)'}
@@ -463,6 +483,8 @@ export function ActionPanel() {
   if (phase === 'GK_KICK_MOVE') {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
+    // UX-08: 1 repositioning slot per team — pending until gkKickMovedPieceId is set
+    const gkmEligibleRemaining = gkKickMovedPieceId == null ? 1 : 0;
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
@@ -472,7 +494,7 @@ export function ActionPanel() {
           </span>
         </div>
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${ctaButtonClass(gkmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={emitEndTurn}
         >
@@ -509,7 +531,7 @@ export function ActionPanel() {
           <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${ctaButtonClass(remaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={emitEndTurn}
         >
@@ -747,7 +769,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${ctaButtonClass(remaining ?? 0)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={emitEndTurn}
         >
