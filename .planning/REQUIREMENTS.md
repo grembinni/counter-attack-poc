@@ -80,7 +80,7 @@
 ## UX Enhancements (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
 - [ ] **UX-07**: A game-speed selector (Slow / Standard / Fast, default Standard) is presented on the team-selection screen; the selection sets how many match-clock minutes elapse per completed MOVE action (Slow = 1, Standard = 2, Fast = 3)
-- [ ] **UX-08**: Any End Turn (or header Confirm Selection) action that would end a phase while eligible pieces remain unmoved/unplaced shows a confirmation prompt ("X players left to move, are you sure you want to end your turn?") with the option to cancel and return to the phase; the End Turn / Confirm Selection control renders orange while eligible moves remain and green once all eligible pieces have moved or been placed
+- [x] **UX-08**: Any End Turn (or header Confirm Selection) action that would end a phase while eligible pieces remain unmoved/unplaced shows a confirmation prompt ("X players left to move, are you sure you want to end your turn?") with the option to cancel and return to the phase; the End Turn / Confirm Selection control renders orange while eligible moves remain and green once all eligible pieces have moved or been placed
 - [ ] **UX-09**: The board renders a visual marker (red boundary line) across the top and bottom rows marking the boundary of each team's final third
 - [ ] **UX-10**: The Free Move helper text explains that when the ball enters the opposite final third, that team's backline may reposition up to 6 hexes regardless of remaining pace, and shows the count of eligible players still able to move
 - [ ] **UX-11**: The Movement phase helper text tracks and displays the number of players left to move, mirroring the existing header-contestant-selection helper pattern
@@ -136,7 +136,7 @@
 | BUG-20     | Phase 18.3 | Complete |
 | BUG-21     | Phase 18.3 | Complete |
 | UX-07      | Phase 18.4 | Pending  |
-| UX-08      | Phase 18.4 | Pending  |
+| UX-08      | Phase 18.4 | Complete |
 | UX-09      | Phase 18.4 | Pending  |
 | UX-10      | Phase 18.4 | Pending  |
 | UX-11      | Phase 18.4 | Pending  |

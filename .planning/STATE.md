@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-07-02T13:08:06.601Z'
+last_updated: '2026-07-02T17:05:38.494Z'
 last_activity: 2026-07-02 -- Phase 18.4 execution started
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 50
-  completed_plans: 45
+  completed_plans: 49
   percent: 89
 ---
 
@@ -345,8 +345,8 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 18.4 (ux-enhancements) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 18.4
+Plan: 2 of 5
+Status: Ready to execute
 Last activity: 2026-07-02 -- Phase 18.4 execution started
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
@@ -413,6 +413,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 18.3 P05                            | ~20min | 3 tasks  | 2 files  |
 | Phase 18.3-bug-bash-rule-correctness P03  | 25min  | 3 tasks  | 4 files  |
 | Phase 18.3-bug-bash-rule-correctness P04  | 50m    | 3 tasks  | 7 files  |
+| Phase 18.4-ux-enhancements P04            | 25min  | 2 tasks  | 3 files  |
 
 ## Decisions
 
@@ -481,3 +482,5 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase ?]: BUG-14: defer paceExhausted carrier lock to abandonedIds (activated DIFFERENT piece) instead of eagerly locking on pace exhaustion
 - [Phase ?]: BUG-17: KICK_OFF_SETUP event type added (mirrors MOVE shape) so buildReplayFrames reconstructs kick-off formation resets
 - [Phase ?]: BUG-18: SNAP_DEFLECT_MOVE and FK_SETUP_MOVE event types added to fill eventLog gaps that would otherwise make Undo silently fail in SNAPSHOT_DEFLECT and FREE_KICK_SETUP
+- [Phase ?]: UX-08 Task 1: ctaButtonClass returns ctaButtonReady when eligibleRemaining <= 0, ctaButtonPending otherwise; per-phase derivation for 7 phases
+- [Phase ?]: UX-08 Task 2: pendingEndTurn stores { action, count } so dialog can display live count in prompt; withEndTurnConfirm() wraps all End Turn / Confirm Selection buttons
