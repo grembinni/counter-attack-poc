@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: executing
-last_updated: '2026-07-01T23:30:00.000Z'
-last_activity: 2026-07-01 -- Plan 18.3-05 complete (BUG-10 fixed; BUG-21 verified no-change)
+status: verifying
+last_updated: '2026-07-02T02:32:10.375Z'
+last_activity: 2026-07-01 -- Plan 18.3-05 complete (BUG-10 click-to-inspect fallback for spent pieces; BUG-21 SNAPSHOT_TARGET goal-line highlight verified correct in live session, no fix needed)
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 43
-  percent: 80
+  completed_plans: 44
+  percent: 78
 ---
 
 # Project State
@@ -345,9 +345,9 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 18.3 (bug-bash-rule-correctness) — EXECUTING
-Plan: 5 of 5 COMPLETE; remaining: 18.3-03 and 18.3-04 still open (Wave 2/3)
-Status: Plan 05 complete. BUG-10 fixed (00decb8); BUG-21 verified live — no code change required.
-Last activity: 2026-07-01 -- Plan 18.3-05 complete (BUG-10 click-to-inspect fallback for spent pieces; BUG-21 SNAPSHOT_TARGET goal-line highlight verified correct in live session, no fix needed)
+Plan: 5 of 5 COMPLETE; remaining: 18.3-04 still open (Wave 3)
+Status: Plan 03 complete. BUG-06 (6e1b53d → b08070e), BUG-07 (fedfb19), BUG-12 (6e1b53d) fixed.
+Last activity: 2026-07-01 -- Plan 18.3-03 complete (BUG-06 offsidePieceIds reset on kick-off-after-goal; BUG-07 direct header delivery; BUG-12 FTP_MOVE_ENABLED=false toggle skips FIRST_TIME_PASS_MOVE)
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
@@ -411,6 +411,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 17.1-action-flow-cleanup P16        | 10min  | 2 tasks  | 6 files  |
 | Phase 18.3 P02                            | 35min  | 3 tasks  | 3 files  |
 | Phase 18.3 P05                            | ~20min | 3 tasks  | 2 files  |
+| Phase 18.3-bug-bash-rule-correctness P03  | 25min  | 3 tasks  | 4 files  |
 
 ## Decisions
 
@@ -475,3 +476,4 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase ?]: BUG-20: applyFreeMoveZoneCheck returns state UNCHANGED (not ballZone updated) during MOVE mid-slot and HEADER — stale ballZone ensures zone-crossing re-triggers at next clean phase boundary
 - [Phase 18.3 P05]: BUG-10: spent-piece inspect fallback in handleClick — MOVE + myTeam + movedPieceIds.includes(id) → inspectPiece(piece.id); placed after all positive-selection cases so canSelect/highlight computation is unaffected
 - [Phase 18.3 P05]: BUG-21: live two-tab session confirmed SNAPSHOT_TARGET goal-line hexes highlight correctly in current build; closed as already resolved with no code change
+- [Phase ?]: BUG-12: FTP_MOVE_ENABLED=false const gates FIRST_TIME_PASS_MOVE — toggle-off delivers directly at targetHex, mirroring STANDARD_PASS BUG-04 occupant-pickup; FIRST_TIME_PASS_MOVE handler code untouched

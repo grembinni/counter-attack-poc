@@ -277,7 +277,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 16. Player Roster & Selection  | v1.2      | 4/4            | Complete    | 2026-06-14 |
 | 17. Rule Bugs                  | v1.2      | 6/6            | Complete    | 2026-06-21 |
 | 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete    | 2026-06-20 |
-| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-06-21 |
+| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-07-02 |
 | 18.1. Replay Review            | v1.2      | 2/2            | Complete    | 2026-06-21 |
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete    | 2026-06-22 |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 3/5            | In Progress |            |
