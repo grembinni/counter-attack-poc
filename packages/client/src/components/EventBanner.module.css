@@ -1,0 +1,42 @@
+/* UX-14: Transient event banner — opacity-only fade (in 100ms / hold 800ms / out 100ms) */
+
+@keyframes bannerFade {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.banner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 28px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: bannerFade 1000ms ease forwards;
+}
+
+/* Goal variant: white text — maximum contrast for the highest-stakes event */
+.goal {
+  color: #ffffff;
+}
+
+/* Notable variant (interception, tackle/turnover, loose ball): amber — "notable event" semantic */
+.notable {
+  color: #f39c12;
+}
