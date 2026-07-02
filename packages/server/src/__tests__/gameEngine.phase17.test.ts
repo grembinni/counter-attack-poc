@@ -880,7 +880,11 @@ describe('Phase 17 MOVE-06 (corrected design): applyMove FREE_MOVE_ATTACK per-pi
     expect(result.state.freeMoveUsedPace).toEqual({ 'home-2': 2, 'home-3': 1 });
   });
 
-  it('adds a piece to movedPieceIds directly when it exhausts its own 6th hex', () => {
+  it('BUG-14: does NOT eagerly add a piece to movedPieceIds when it exhausts its own 6th hex', () => {
+    // BUG-14 (Phase 18.3): removing the paceExhausted eager-lock from applyFreeMove mirrors
+    // the fix in computeMovedPieceIds. A FREE_MOVE piece stays out of movedPieceIds until
+    // the player activates a DIFFERENT piece (abandonedIds path). This preserves Snapshot
+    // availability for the exhausted carrier while they are still the actively selected piece.
     const stateWith5Used: GameState = {
       ...freeMoveAttackState,
       freeMoveUsedPace: { 'home-2': 5 },
@@ -889,7 +893,8 @@ describe('Phase 17 MOVE-06 (corrected design): applyMove FREE_MOVE_ATTACK per-pi
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.freeMoveUsedPace).toEqual({ 'home-2': 6 });
-    expect(result.state.movedPieceIds).toContain('home-2');
+    // BUG-14: carrier must NOT be in movedPieceIds yet — they are still the active piece.
+    expect(result.state.movedPieceIds).not.toContain('home-2');
   });
 
   it('rejects a move for a piece already in movedPieceIds even if its freeMoveUsedPace is under 6', () => {

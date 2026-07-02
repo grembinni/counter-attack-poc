@@ -1392,3 +1392,139 @@ describe('HEAD-05: a piece that contested a header is excluded from the subseque
     // RED until 08.2-02 implements HEAD-05 exclusion
   });
 });
+
+// ---------------------------------------------------------------------------
+// BUG-14: Snapshot availability after pace exhaustion
+// ---------------------------------------------------------------------------
+// Regression test: before the fix, computeMovedPieceIds eagerly added a piece to
+// movedPieceIds the instant paceExhausted became true on that piece's OWN move step.
+// canSnapshot relies on `!movedPieceIds.includes(carrierId)`, so Snapshot was permanently
+// disabled as soon as the carrier exhausted their pace — even while they were still the
+// actively selected piece.
+//
+// The fix: only add the carrier to movedPieceIds via the abandonedIds path (when the player
+// activates a DIFFERENT piece). The carrier stays out of movedPieceIds until then.
+
+describe('BUG-14: Snapshot availability after pace exhaustion', () => {
+  // Two adjacent pieces (carrier in penalty area, mid far away).
+  // homeFwdSnap has pace=2; awayGk is isolated so no steal/tackle fires.
+  const homeFwdSnap: PlayerPiece = {
+    id: 'snap-home-fwd',
+    teamId: 'home',
+    firstName: 'Snap',
+    lastName: 'FWD',
+    number: 9,
+    nationality: 'Test',
+    role: 'FWD',
+    position: { q: 30, r: 12 }, // inside awayThird; 2 moves reach q:32 (penalty area)
+    pace: 2, // with 2 moves reaches pace exhaustion
+    shooting: 9,
+    tackling: 1,
+    dribbling: 8,
+    saving: 1,
+    handling: 1,
+    resilience: 6,
+    aerialAbility: 6,
+    highPass: 5,
+  };
+  const awayGkSnap: PlayerPiece = {
+    id: 'snap-away-gk',
+    teamId: 'away',
+    firstName: 'Snap',
+    lastName: 'GK',
+    number: 1,
+    nationality: 'Test',
+    role: 'GK',
+    position: { q: 36, r: 13 },
+    pace: 5,
+    shooting: 1,
+    tackling: 1,
+    dribbling: 1,
+    saving: 8,
+    handling: 8,
+    resilience: 5,
+    aerialAbility: 6,
+    highPass: 0,
+  };
+  const homeMidSnap: PlayerPiece = {
+    id: 'snap-home-mid',
+    teamId: 'home',
+    firstName: 'Snap',
+    lastName: 'MID',
+    number: 6,
+    nationality: 'Test',
+    role: 'MID',
+    position: { q: 5, r: 12 }, // far from carrier — irrelevant to snapshot check
+    pace: 7,
+    shooting: 5,
+    tackling: 4,
+    dribbling: 5,
+    saving: 1,
+    handling: 1,
+    resilience: 6,
+    aerialAbility: 2,
+    highPass: 5,
+  };
+
+  const makeSnapBaseState = (): GameState => ({
+    roomCode: 'TEST',
+    phase: 'MOVE',
+    activeTeam: 'home',
+    attackingTeam: 'home',
+    pieces: [homeFwdSnap, awayGkSnap, homeMidSnap],
+    ball: { position: homeFwdSnap.position, carrierId: homeFwdSnap.id },
+    score: { home: 0, away: 0 },
+    actionCount: 5,
+    half: 1,
+    eventLog: [],
+    refereeCard: { leniency: 2 },
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    movementSlot: 'ATTACKER_4',
+    ballZone: 'middle',
+    addedTime: null,
+    lastActionType: null,
+    kickOffTeam: 'home',
+    kickOffActive: false,
+    selectedTeams: { home: 'cosmos', away: 'xolos' },
+  });
+
+  it('carrier stays out of movedPieceIds after pace exhaustion (Snapshot remains available)', () => {
+    // Move the carrier one step — pace 1/2 used, not yet exhausted.
+    const step1 = applyMove(makeSnapBaseState(), homeFwdSnap.id, { q: 31, r: 12 });
+    expect(step1.ok).toBe(true);
+    if (!step1.ok) return;
+    expect(step1.state.movedPieceIds).not.toContain(homeFwdSnap.id);
+
+    // Move the carrier a second step — pace 2/2 used; pace IS now exhausted.
+    const step2 = applyMove(step1.state, homeFwdSnap.id, { q: 32, r: 12 });
+    expect(step2.ok).toBe(true);
+    if (!step2.ok) return;
+
+    // BUG-14 regression: carrier must NOT be in movedPieceIds yet — they are still
+    // the actively selected piece. Snapshot must remain available to them.
+    expect(step2.state.movedPieceIds).not.toContain(homeFwdSnap.id);
+    expect(step2.state.paceUsedByPieceId[homeFwdSnap.id]).toBe(2); // pace tracked
+  });
+
+  it('carrier is added to movedPieceIds once a DIFFERENT piece is activated (abandonedIds)', () => {
+    // Exhaust the carrier's pace.
+    const step1 = applyMove(makeSnapBaseState(), homeFwdSnap.id, { q: 31, r: 12 });
+    expect(step1.ok).toBe(true);
+    if (!step1.ok) return;
+    const step2 = applyMove(step1.state, homeFwdSnap.id, { q: 32, r: 12 });
+    expect(step2.ok).toBe(true);
+    if (!step2.ok) return;
+
+    // Now activate a DIFFERENT piece (homeMidSnap). The first step of a new activation
+    // triggers the abandonedIds sweep, which locks the exhausted carrier into movedPieceIds.
+    const step3 = applyMove(step2.state, homeMidSnap.id, { q: 6, r: 12 });
+    expect(step3.ok).toBe(true);
+    if (!step3.ok) return;
+
+    // Only now should the carrier appear in movedPieceIds.
+    expect(step3.state.movedPieceIds).toContain(homeFwdSnap.id);
+    // The new piece is NOT yet in movedPieceIds (it's still being moved).
+    expect(step3.state.movedPieceIds).not.toContain(homeMidSnap.id);
+  });
+});

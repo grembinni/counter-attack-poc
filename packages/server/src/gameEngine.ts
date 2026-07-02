@@ -54,7 +54,9 @@ import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 /** 4-5-2 Movement Phase slot sequence. Used by advanceMovementSlot. D-03/D-04. */
 const SLOT_SEQUENCE: readonly MovementSlot[] = ['ATTACKER_4', 'DEFENDER_5', 'ATTACKER_2'];
 
-const TESTING_PACE_OVERRIDE: number | null = null;
+// BUG-14 (Phase 18.3): TESTING_PACE_OVERRIDE was previously used in applyMove to cap pace
+// for test scenarios. Removed along with paceExhausted/effectivePace when the eager lock
+// was removed. Pace enforcement is now handled entirely by validateMove (in moveValidator.ts).
 
 /**
  * D-20 (IN-01): hoisted to module-level const — avoids reallocating the Set on every
@@ -322,7 +324,8 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
   }
 
   const newUsed = usedSoFar + stepDistance;
-  const paceExhausted = newUsed >= 6;
+  // BUG-14 (Phase 18.3): paceExhausted is no longer used to lock the piece into
+  // movedPieceIds. Locking defers to the abandonedIds sweep (isNewActivation check below).
   // Mirrors regular MOVEMENT's abandonment rule (see applyMove's paceUsedByPieceId handling
   // above): starting a brand-new activation on this piece (usedSoFar === 0) abandons any
   // OTHER piece that has an in-progress, unfinished free-move activation (has a
@@ -336,7 +339,10 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
     : [];
   const newMovedPieceIds = new Set(state.movedPieceIds);
   for (const id of abandonedIds) newMovedPieceIds.add(id);
-  if (paceExhausted) newMovedPieceIds.add(pieceId);
+  // BUG-14 (Phase 18.3): mirrors the fix in computeMovedPieceIds — do NOT add pieceId
+  // purely because paceExhausted. The abandonedIds sweep above locks the piece once a
+  // DIFFERENT piece is activated (isNewActivation), preserving Snapshot availability
+  // for as long as the exhausted-pace piece remains the actively-selected piece.
 
   const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
   const moveEvent: ActionEvent = {
@@ -454,10 +460,10 @@ export function applyMove(
   const currentPaceUsed = state.paceUsedByPieceId[pieceId] ?? 0;
   const newPaceForPiece = currentPaceUsed + 1;
   const isNewActivation = currentPaceUsed === 0;
-  // ATTACKER_2 enforces the same artificial cap of 2 hexes used by moveValidator.
-  const rawPace = TESTING_PACE_OVERRIDE ?? piece.pace;
-  const effectivePace = state.movementSlot === 'ATTACKER_2' ? Math.min(rawPace, 2) : rawPace;
-  const paceExhausted = newPaceForPiece >= effectivePace;
+  // BUG-14 (Phase 18.3): paceExhausted and effectivePace removed — they were only used
+  // to eagerly lock the carrier into movedPieceIds. Piece locking now defers to the
+  // abandonedIds sweep (when a DIFFERENT piece is next activated — see computeMovedPieceIds).
+  // The ATTACKER_2 pace cap (2 hexes) is still enforced inside validateMove independently.
   const abandonedIds = isNewActivation
     ? Object.keys(state.paceUsedByPieceId).filter(
         (id) => id !== pieceId && !state.movedPieceIds.includes(id),
@@ -466,7 +472,12 @@ export function applyMove(
   const computeMovedPieceIds = (forceIncludeSelf = false): string[] => {
     const ids = new Set(state.movedPieceIds);
     for (const id of abandonedIds) ids.add(id);
-    if (paceExhausted || forceIncludeSelf) ids.add(pieceId);
+    // BUG-14 (Phase 18.3): do NOT add pieceId here purely because paceExhausted — that
+    // eagerly locks the carrier out of Snapshot while they are still the selected piece.
+    // The abandonedIds sweep (above) already handles locking: a piece is only added to
+    // movedPieceIds when the player next activates a DIFFERENT piece (isNewActivation).
+    // forceIncludeSelf is still respected — it is used to stage end-of-slot slot-advance.
+    if (forceIncludeSelf) ids.add(pieceId);
     return [...ids];
   };
 
