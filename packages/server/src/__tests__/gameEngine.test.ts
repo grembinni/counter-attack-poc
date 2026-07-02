@@ -910,28 +910,28 @@ describe('applyRoll', () => {
     expect(result.state.passTargetHex).toBeNull();
   });
 
-  it('FIRST_TIME_PASS (PASS-02) occupied target: transitions to FIRST_TIME_PASS_MOVE (D-03), not delivered immediately; passTimeCost 0', () => {
-    // firstTimePassState.passTargetHex equals homeTeammate.position {q:17,r:7} — the
-    // realistic case (passing to a visible teammate). The D-03 FIRST_TIME_PASS_MOVE check
-    // must run BEFORE the generic occupant-check, so this must NOT deliver the ball directly.
+  it('FIRST_TIME_PASS (PASS-02) occupied target: BUG-12 toggle off → delivers directly to teammate (no FIRST_TIME_PASS_MOVE); passTimeCost 0', () => {
+    // firstTimePassState.passTargetHex equals homeTeammate.position {q:17,r:7}.
+    // With FTP_MOVE_ENABLED=false (BUG-12 default), ball is delivered directly and phase
+    // transitions to PASS instead of entering the two-slot FIRST_TIME_PASS_MOVE sub-phase.
+    // The interception bypass (isFirstTimePass guard) still applies — this is not an intercept.
     const result = applyRoll(firstTimePassState, 1, 3, 3); // die=1 would fail HIGH accuracy
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Ball is in flight — not delivered to the occupant despite the hex being occupied.
-    expect(result.state.phase).toBe('FIRST_TIME_PASS_MOVE');
-    expect(result.state.ball.carrierId).toBeNull();
+    // BUG-12 toggle off: direct delivery to PASS, skipping FIRST_TIME_PASS_MOVE
+    expect(result.state.phase).toBe('PASS');
+    // homeTeammate picks up the ball at target hex
+    expect(result.state.ball.carrierId).toBe('home-2');
     expect(result.state.ball.position).toEqual({ q: 17, r: 7 });
     expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
-    expect(result.state.firstTimePassMovementSlot).toBe('ATTACKER');
-    // passTargetHex preserved (not cleared) — GAME_END_TURN handler needs it later.
-    expect(result.state.passTargetHex).toEqual({ q: 17, r: 7 });
-    // FIRST_TIME_PASS costs 0 minutes
+    // passTargetHex cleared (no repositioning phase needed)
+    expect(result.state.passTargetHex).toBeNull();
+    // FIRST_TIME_PASS costs 0 minutes (passTimeCost=0 unchanged)
     expect(result.state.actionCount).toBe(0);
   });
 
-  it('FIRST_TIME_PASS (PASS-02) empty target: also transitions to FIRST_TIME_PASS_MOVE (D-03), unaffected by occupant-check', () => {
-    // Same as above but passTargetHex points at an EMPTY hex (no piece there) — proves the
-    // fix did not special-case "occupied vs empty"; both paths reach FIRST_TIME_PASS_MOVE.
+  it('FIRST_TIME_PASS (PASS-02) empty target: BUG-12 toggle off → delivers to empty hex (no FIRST_TIME_PASS_MOVE)', () => {
+    // passTargetHex points at an EMPTY hex — ball delivered with no carrier.
     const emptyTargetFirstTimePassState: GameState = {
       ...firstTimePassState,
       pieces: firstTimePassState.pieces.filter((p) => p.id !== homeTeammate.id),
@@ -940,12 +940,12 @@ describe('applyRoll', () => {
     const result = applyRoll(emptyTargetFirstTimePassState, 1, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('FIRST_TIME_PASS_MOVE');
+    // BUG-12 toggle off: direct delivery to PASS, skipping FIRST_TIME_PASS_MOVE
+    expect(result.state.phase).toBe('PASS');
     expect(result.state.ball.carrierId).toBeNull();
     expect(result.state.ball.position).toEqual({ q: 20, r: 7 });
     expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
-    expect(result.state.firstTimePassMovementSlot).toBe('ATTACKER');
-    expect(result.state.passTargetHex).toEqual({ q: 20, r: 7 });
+    expect(result.state.passTargetHex).toBeNull();
     expect(result.state.actionCount).toBe(0);
   });
 

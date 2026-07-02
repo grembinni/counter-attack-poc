@@ -65,6 +65,14 @@ const TESTING_PACE_OVERRIDE: number | null = null;
  * `lastActionType === 'HIGH_PASS'` is impossible at runtime. Keeping it would be dead
  * code and could mask a regression if the FSM is changed.
  */
+/**
+ * BUG-12 feature toggle: when false (default), the FIRST_TIME_PASS_MOVE repositioning
+ * sub-phase is skipped — the ball is delivered directly at targetHex and the next phase
+ * proceeds as for a grounded pass. All FIRST_TIME_PASS_MOVE phase/handler code remains
+ * intact; flipping this to true restores the repositioning flow.
+ */
+const FTP_MOVE_ENABLED = false;
+
 const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
   'STANDARD_PASS',
   'FIRST_TIME_PASS',
@@ -1636,28 +1644,81 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // Ball stays in flight (carrierId = null, position = targetHex) until both teams
       // have ended their repositioning turns, at which point the handler delivers the ball.
       // passTargetHex is preserved so the GAME_END_TURN handler knows where to deliver.
+      //
+      // BUG-12: FTP_MOVE_ENABLED gates whether the repositioning sub-phase is entered.
+      // When false (default), ball is delivered directly at targetHex — mirroring the
+      // STANDARD_PASS occupant-pickup/delivery path (BUG-04 included). The interception
+      // bypass already applied above still holds for the direct-delivery path.
       if (newLastActionType === 'FIRST_TIME_PASS') {
+        if (FTP_MOVE_ENABLED) {
+          // Toggle ON: enter the two-slot repositioning phase (original behaviour).
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'FIRST_TIME_PASS_MOVE',
+              ball: { position: targetHex, carrierId: null },
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              lastActionType: 'FIRST_TIME_PASS',
+              actionCount: state.actionCount + passTimeCost,
+              // passTargetHex preserved — GAME_END_TURN delivers ball here after both slots
+              passTargetHex: targetHex,
+              preGeneratedInterceptionDice: [],
+              firstTimePassMovementSlot: 'ATTACKER',
+              firstTimePassMovedPieceId: null,
+              firstTimePassPaceUsed: 0,
+              // D-03 (Phase 17.1-16): record the passer's id so the GAME_MOVE handler and the
+              // delivery occupant lookup can exclude them from repositioning onto / receiving
+              // back their own pass (cycle-4 verifier self-pass-reclaim finding). Mirrors
+              // highPassCarrierId: kickerId at gameHandlers.ts.
+              firstTimePassCarrierId: carrier.id,
+              activeTeam: state.attackingTeam,
+              eventLog: newEventLog,
+            },
+          };
+        }
+
+        // Toggle OFF: deliver ball directly at targetHex.
+        // BUG-04 parity: find ANY piece at targetHex (any team) — defender-occupied hex
+        // results in possession transfer, mirroring the STANDARD_PASS occupant-pickup path.
+        const ftpOccupant = state.pieces.find(
+          (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+        );
+        if (ftpOccupant) {
+          const possessionChanges = ftpOccupant.teamId !== carrier.teamId;
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'PASS',
+              ball: { position: ftpOccupant.position, carrierId: ftpOccupant.id },
+              attackingTeam: possessionChanges ? ftpOccupant.teamId : state.attackingTeam,
+              activeTeam: possessionChanges ? ftpOccupant.teamId : state.activeTeam,
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              lastActionType: 'FIRST_TIME_PASS',
+              actionCount: state.actionCount + passTimeCost,
+              passTargetHex: null,
+              preGeneratedInterceptionDice: [],
+              stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+              tackleAttemptedByIds: [], // D-02
+              eventLog: newEventLog,
+            },
+          };
+        }
+        // No occupant: ball delivered to empty targetHex (no carrier).
         return {
           ok: true,
           state: {
             ...state,
-            phase: 'FIRST_TIME_PASS_MOVE',
+            phase: 'PASS',
             ball: { position: targetHex, carrierId: null },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
             lastActionType: 'FIRST_TIME_PASS',
             actionCount: state.actionCount + passTimeCost,
-            // passTargetHex preserved — GAME_END_TURN delivers ball here after both slots
-            passTargetHex: targetHex,
+            passTargetHex: null,
             preGeneratedInterceptionDice: [],
-            firstTimePassMovementSlot: 'ATTACKER',
-            firstTimePassMovedPieceId: null,
-            firstTimePassPaceUsed: 0,
-            // D-03 (Phase 17.1-16): record the passer's id so the GAME_MOVE handler and the
-            // delivery occupant lookup can exclude them from repositioning onto / receiving
-            // back their own pass (cycle-4 verifier self-pass-reclaim finding). Mirrors
-            // highPassCarrierId: kickerId at gameHandlers.ts.
-            firstTimePassCarrierId: carrier.id,
-            activeTeam: state.attackingTeam,
+            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+            tackleAttemptedByIds: [], // D-02
             eventLog: newEventLog,
           },
         };

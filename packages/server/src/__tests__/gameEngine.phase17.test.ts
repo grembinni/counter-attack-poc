@@ -1232,19 +1232,23 @@ const firstTimePassNearDefenderState: GameState = {
 };
 
 describe('Phase 17.1-13 CR-02-new: FIRST_TIME_PASS bypasses interception loop near a defender', () => {
-  it('accurate FIRST_TIME_PASS near a ZoI defender → FIRST_TIME_PASS_MOVE, not SUCCESSFUL_TACKLE', () => {
-    // This test would FAIL against the pre-fix applyRoll: the interception loop ran for
-    // FIRST_TIME_PASS before the FIRST_TIME_PASS_MOVE check, so the ZoI defender at
-    // {q:14,r:8} would auto-intercept (die=6) and return phase 'PASS' with
-    // lastActionType 'SUCCESSFUL_TACKLE' instead of ever reaching FIRST_TIME_PASS_MOVE.
+  it('accurate FIRST_TIME_PASS near a ZoI defender → direct delivery (BUG-12 toggle off), not SUCCESSFUL_TACKLE', () => {
+    // CR-02-new: the interception loop must be bypassed for FIRST_TIME_PASS (isFirstTimePass
+    // guard). With FTP_MOVE_ENABLED = false (BUG-12 default), ball is delivered directly to
+    // the target hex — NOT intercepted by the ZoI defender (die=6 is suppressed) and NOT
+    // entering FIRST_TIME_PASS_MOVE. The pre-17.1-13 bug would have returned
+    // lastActionType='SUCCESSFUL_TACKLE'; the BUG-12 toggle-off path delivers directly.
     const result = applyRoll(firstTimePassNearDefenderState, 4, 3, 3);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('FIRST_TIME_PASS_MOVE');
+    // BUG-12 toggle off: goes straight to PASS, skips FIRST_TIME_PASS_MOVE
+    expect(result.state.phase).toBe('PASS');
     expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
-    // Ball stays in flight at the target hex — not yet delivered to the interceptor.
-    expect(result.state.ball.carrierId).toBeNull();
+    // Ball delivered to target hex; homeMID (home-2) is there and picks it up
     expect(result.state.ball.position).toEqual({ q: 14, r: 7 });
+    expect(result.state.ball.carrierId).toBe('home-2');
+    // Interception was suppressed — attacking team unchanged
+    expect(result.state.attackingTeam).toBe('home');
   });
 
   it('regression: STANDARD_PASS near the same defender still auto-intercepts (loop unchanged)', () => {
@@ -1259,6 +1263,99 @@ describe('Phase 17.1-13 CR-02-new: FIRST_TIME_PASS bypasses interception loop ne
     expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
     expect(result.state.ball.carrierId).toBe('away-1');
     expect(result.state.attackingTeam).toBe('away');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-12: FTP_MOVE_ENABLED toggle-off delivery path regression tests
+// ---------------------------------------------------------------------------
+
+/**
+ * PASS state for BUG-12: homeFWD (q:10,r:7) making a first-time pass to homeMID at q:14,r:7.
+ * awayDEF is far away (q:20,r:7) — no interception risk for a clean delivery test.
+ */
+const ftpToggleOffPassState: GameState = {
+  ...passState,
+  pieces: [
+    homeFWD,
+    { ...homeMID, position: { q: 14, r: 7 } }, // FTP target, teammate at target
+    awayGK,
+    { ...awayDEF, position: { q: 20, r: 7 } }, // far from pass path
+  ],
+  lastActionType: 'FIRST_TIME_PASS',
+  passTargetHex: { q: 14, r: 7 },
+  preGeneratedInterceptionDice: [],
+};
+
+/**
+ * PASS state for BUG-12 defender-occupied: awayDEF is at the FTP target hex.
+ * Ball should transfer to the defender (BUG-04 parity).
+ */
+const ftpToggleOffDefenderOccupiedState: GameState = {
+  ...passState,
+  pieces: [
+    homeFWD,
+    { ...homeMID, position: { q: 20, r: 7 } }, // homeMID is not at target
+    awayGK,
+    { ...awayDEF, position: { q: 14, r: 7 } }, // defender at FTP target hex
+  ],
+  lastActionType: 'FIRST_TIME_PASS',
+  passTargetHex: { q: 14, r: 7 },
+  preGeneratedInterceptionDice: [],
+};
+
+describe('BUG-12: FTP_MOVE_ENABLED=false — direct delivery, no FIRST_TIME_PASS_MOVE', () => {
+  it('first-time pass to teammate hex delivers ball directly and transitions to PASS', () => {
+    // FTP_MOVE_ENABLED=false: no repositioning phase entered; ball goes to teammate at target.
+    const result = applyRoll(ftpToggleOffPassState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Must NOT enter FIRST_TIME_PASS_MOVE
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    // Ball delivered to target hex; homeMID picks it up
+    expect(result.state.ball.position).toEqual({ q: 14, r: 7 });
+    expect(result.state.ball.carrierId).toBe('home-2');
+    // Attacking team unchanged (teammate received)
+    expect(result.state.attackingTeam).toBe('home');
+    // passTargetHex cleared
+    expect(result.state.passTargetHex).toBeNull();
+  });
+
+  it('first-time pass to defender-occupied hex transfers possession (BUG-04 parity)', () => {
+    // FTP_MOVE_ENABLED=false: direct delivery hits defender hex → possession transfer.
+    const result = applyRoll(ftpToggleOffDefenderOccupiedState, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    // Ball delivered to defender's position; awayDEF gains possession
+    expect(result.state.ball.position).toEqual({ q: 14, r: 7 });
+    expect(result.state.ball.carrierId).toBe('away-1');
+    // Possession transferred to away team
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
+  });
+
+  it('first-time pass to empty hex delivers ball with no carrier', () => {
+    // FTP_MOVE_ENABLED=false: no one at target — ball sits at target hex uncarried.
+    const ftpToEmptyHex: GameState = {
+      ...ftpToggleOffPassState,
+      pieces: [
+        homeFWD,
+        { ...homeMID, position: { q: 20, r: 7 } }, // not at target
+        awayGK,
+        { ...awayDEF, position: { q: 22, r: 7 } }, // not at target
+      ],
+    };
+    const result = applyRoll(ftpToEmptyHex, 4, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('FIRST_TIME_PASS');
+    expect(result.state.ball.position).toEqual({ q: 14, r: 7 });
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.attackingTeam).toBe('home');
   });
 });
 
