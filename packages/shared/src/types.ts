@@ -81,7 +81,11 @@ export type ActionEventType =
   | 'GK_KICK'
   | 'GK_KICK_MOVE'
   | 'HEADED_PASS'
-  | 'GK_PUNT';
+  | 'GK_PUNT'
+  // BUG-17 (Phase 18.3): kick-off formation repositioning — mirrors MOVE shape but no
+  // ball component (ball stays at centre hex during KICK_OFF_SETUP). Added so
+  // buildReplayFrames can reconstruct formation resets after a goal.
+  | 'KICK_OFF_SETUP';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -309,6 +313,15 @@ export type ActionEvent =
       to: HexCoord;
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  // BUG-17 (Phase 18.3): formation repositioning during KICK_OFF_SETUP.
+  // Mirrors MOVE's pieceId/from/to shape; no slot/ballAfter (ball stays at centre).
+  | {
+      type: 'KICK_OFF_SETUP';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
     };
 
 export type GamePhase =

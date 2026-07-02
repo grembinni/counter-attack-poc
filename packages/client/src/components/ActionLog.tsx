@@ -726,6 +726,15 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: ` Punt  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
+    case 'KICK_OFF_SETUP':
+      // BUG-17 (Phase 18.3): formation repositioning before kick-off. Logged for replay
+      // visibility; not shown in the action log (no meaningful display needed).
+      return {
+        prefix: '[SETUP]',
+        prefixColor: '#888888',
+        content: ` Formation  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
   }
 }
 

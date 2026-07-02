@@ -4078,6 +4078,9 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // deferred to DESIGN-04). HEADER is intentionally excluded (carries no ballAfter by design).
   'HEADED_PASS',
   'GK_PUNT',
+  // BUG-17 (Phase 18.3): kick-off formation repositioning. Handled like MOVE (piece
+  // repositioning, no ball change). buildReplayFrames treats it as a MOVE-like event.
+  'KICK_OFF_SETUP',
 ]);
 
 /**
@@ -4201,6 +4204,16 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
       // Accumulate into moveGroup for batched simultaneous step-frame emit (REPLAY-05)
       const existing = moveGroup.get(event.pieceId) ?? [];
       existing.push({ to: event.to, ballAfter: event.ballAfter });
+      moveGroup.set(event.pieceId, existing);
+      continue;
+    }
+
+    // BUG-17 (Phase 18.3): KICK_OFF_SETUP repositioning — treated like MOVE (piece reposition,
+    // no ball movement since the ball stays at centre hex during pre-kick-off formation).
+    // Accumulate in moveGroup so consecutive repositions animate as batched step-frames.
+    if (event.type === 'KICK_OFF_SETUP') {
+      const existing = moveGroup.get(event.pieceId) ?? [];
+      existing.push({ to: event.to, ballAfter: current.ball }); // ball unchanged
       moveGroup.set(event.pieceId, existing);
       continue;
     }

@@ -756,4 +756,60 @@ describe('FULL_TIME → REPLAY stream', () => {
     // D-33: frame should carry replayIndex (1-based)
     expect(replayFrames[0]!.replayIndex).toBeGreaterThanOrEqual(1);
   }, 10000); // longer timeout for this test
+
+  it('BUG-17: buildReplayFrames produces frames for KICK_OFF_SETUP repositioning moves', async () => {
+    // Regression test: before BUG-17 fix, GAME_KICK_OFF_MOVE pushed no event to eventLog,
+    // so buildReplayFrames skipped all kick-off formation repositioning (zero replay frames).
+    // After the fix, KICK_OFF_SETUP events are emitted and replayed like MOVE events.
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const piece1 = pieces[0]!;
+    const piece2 = pieces[1]!;
+    const fromPos1 = piece1.position;
+    const fromPos2 = piece2.position;
+    const toPos1 = { q: fromPos1.q + 1, r: fromPos1.r };
+    const toPos2 = { q: fromPos2.q - 1, r: fromPos2.r };
+
+    // Seed an eventLog that starts with two KICK_OFF_SETUP repositioning events,
+    // representing two pieces being placed into formation before kick-off.
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'KICK_OFF_SETUP',
+          pieceId: piece1.id,
+          from: fromPos1,
+          to: toPos1,
+          timestamp: 1,
+        },
+        {
+          type: 'KICK_OFF_SETUP',
+          pieceId: piece2.id,
+          from: fromPos2,
+          to: toPos2,
+          timestamp: 2,
+        },
+      ],
+    };
+
+    const seededState = room.gameState;
+    const frames = buildReplayFrames(seededState);
+
+    // BUG-17: at least one frame must be produced for the KICK_OFF_SETUP repositions.
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) {
+      expect(frame.phase).toBe('REPLAY');
+    }
+
+    // The final frame should reflect the repositioned piece positions.
+    const lastFrame = frames[frames.length - 1]!;
+    const getPiecePos = (frame: GameState, id: string) =>
+      frame.pieces.find((p) => p.id === id)?.position;
+    expect(getPiecePos(lastFrame, piece1.id)).toEqual(toPos1);
+    expect(getPiecePos(lastFrame, piece2.id)).toEqual(toPos2);
+
+    // Ball position must remain unchanged (KICK_OFF_SETUP has no ball component).
+    expect(lastFrame.ball).toEqual(seededState.ball);
+  });
 });

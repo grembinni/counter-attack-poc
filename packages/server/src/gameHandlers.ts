@@ -1707,7 +1707,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       const newPieces = room.gameState.pieces.map((p) =>
         p.id === pieceId ? { ...p, position: { q: to.q, r: to.r } } : p,
       );
-      room.gameState = { ...room.gameState, pieces: newPieces };
+      // BUG-17 (Phase 18.3): push a KICK_OFF_SETUP event so buildReplayFrames can
+      // reconstruct formation repositioning moves (including post-goal resets).
+      // Event and piece-position change commit atomically in the same state assignment.
+      // `piece` is already declared above at the piece-lookup guard.
+      const kickOffSetupEvent: ActionEvent = {
+        type: 'KICK_OFF_SETUP',
+        pieceId,
+        from: piece.position,
+        to: { q: to.q, r: to.r },
+        timestamp: Date.now(),
+      };
+      room.gameState = {
+        ...room.gameState,
+        pieces: newPieces,
+        eventLog: [...room.gameState.eventLog, kickOffSetupEvent],
+      };
       broadcastState(io, room); // ARCH-04
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
