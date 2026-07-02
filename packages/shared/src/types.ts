@@ -85,7 +85,11 @@ export type ActionEventType =
   // BUG-17 (Phase 18.3): kick-off formation repositioning — mirrors MOVE shape but no
   // ball component (ball stays at centre hex during KICK_OFF_SETUP). Added so
   // buildReplayFrames can reconstruct formation resets after a goal.
-  | 'KICK_OFF_SETUP';
+  | 'KICK_OFF_SETUP'
+  // BUG-18 (Phase 18.3): move event types for newly Undo-enabled phases. Required so
+  // applyUndo can locate and reverse a piece's most recent move in each phase.
+  | 'SNAP_DEFLECT_MOVE' // SNAPSHOT_DEFLECT: defender repositions up to 2 hexes
+  | 'FK_SETUP_MOVE'; // FREE_KICK_SETUP: team repositions a piece during staged setup
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -318,6 +322,24 @@ export type ActionEvent =
   // Mirrors MOVE's pieceId/from/to shape; no slot/ballAfter (ball stays at centre).
   | {
       type: 'KICK_OFF_SETUP';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  // BUG-18 (Phase 18.3): move events for newly Undo-enabled phases. Shape mirrors
+  // HP_MOVE/FTP_MOVE/GK_KICK_MOVE — pieceId + from + to for applyUndo reversal.
+  | {
+      type: 'SNAP_DEFLECT_MOVE';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | {
+      type: 'FK_SETUP_MOVE';
+      /** Stage index in the FREE_KICK_SETUP sequence at the time of the move. */
+      stageIndex: number;
       pieceId: string;
       from: HexCoord;
       to: HexCoord;

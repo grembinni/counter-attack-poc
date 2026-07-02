@@ -20,6 +20,7 @@ import {
   applyDeclareShot,
   applyFreeMoveEnd,
   applyFreeMoveZoneCheck,
+  applyStartMovement,
 } from '../gameEngine.js';
 import { isPitchHex } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
@@ -1561,5 +1562,51 @@ describe('Phase 17.1 D-09: regular shot range gate (>11 hexes → INVALID_TARGET
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).toBe('GK_DIVE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-18 (Phase 18.3): Undo regression — applyStartMovement clears lastDiceRoll
+// ---------------------------------------------------------------------------
+
+describe('BUG-18: undo enabled in MOVE entered via applyStartMovement', () => {
+  /** PASS state with a stale lastDiceRoll (simulates the pre-fix regression:
+   *  a dice roll from an accuracy check is left in state when entering MOVE). */
+  const passStateWithDiceRoll: GameState = {
+    ...passState,
+    // Stale dice from e.g. pass accuracy check — must be cleared on MOVE entry (BUG-18)
+    lastDiceRoll: { rolls: [4], context: 'PASS_ACCURACY' },
+  };
+
+  it('applyStartMovement clears lastDiceRoll so Undo is not blocked in MOVE', () => {
+    const moveEntry = applyStartMovement(passStateWithDiceRoll);
+    expect(moveEntry.ok).toBe(true);
+    if (!moveEntry.ok) return;
+
+    // BUG-18 Fix 1: lastDiceRoll must be null on MOVE entry
+    expect(moveEntry.state.lastDiceRoll).toBeNull();
+  });
+
+  it('Undo works in MOVE after applyStartMovement when a move has been made', () => {
+    // Enter MOVE from PASS (with stale lastDiceRoll — the pre-BUG-18 regression path)
+    const moveEntry = applyStartMovement(passStateWithDiceRoll);
+    expect(moveEntry.ok).toBe(true);
+    if (!moveEntry.ok) return;
+
+    // Make a move
+    const afterMove = applyMove(moveEntry.state, 'home-9', { q: 11, r: 7 });
+    expect(afterMove.ok).toBe(true);
+    if (!afterMove.ok) return;
+
+    // Undo must succeed — pre-fix this would return ok:false because lastDiceRoll !== null
+    // blocked canUndo on the client; the server applyUndo itself doesn't check lastDiceRoll
+    // but validating state.lastDiceRoll is null confirms the engine fix is in place.
+    const undoResult = applyUndo(afterMove.state);
+    expect(undoResult.ok).toBe(true);
+    if (!undoResult.ok) return;
+
+    // Piece should be back at original position
+    const piece = undoResult.state.pieces.find((p) => p.id === 'home-9');
+    expect(piece?.position).toEqual(homeFWD.position);
   });
 });

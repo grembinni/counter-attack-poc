@@ -453,12 +453,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const dist = hexDistance(to, sdState.shotTargetHex);
           snapshotGkPenalty = dist <= 1 ? 0 : dist === 2 ? -1 : dist === 3 ? -2 : 0;
         }
+        // BUG-18 (Phase 18.3): log SNAP_DEFLECT_MOVE so applyUndo can reverse
+        // this move if the defender activates Undo before snapshot resolves.
+        const snapDeflectMoveEvent: ActionEvent = {
+          type: 'SNAP_DEFLECT_MOVE',
+          pieceId,
+          from: sdPiece.position,
+          to,
+          timestamp: Date.now(),
+        };
         room.gameState = {
           ...sdState,
           pieces: sdState.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
           snapDeflectMovedPieceId: pieceId,
           snapDeflectPaceUsed: paceUsed + clickDistance,
           snapshotGkPenalty,
+          eventLog: [...sdState.eventLog, snapDeflectMoveEvent],
         };
         broadcastState(io, room);
         return;
@@ -1092,7 +1102,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
     try {
       // BUG-03 (Phase 17 D-06): undo is valid in MOVE and HIGH_PASS_MOVE phases
       // D-03 (Phase 17.1): also valid in FIRST_TIME_PASS_MOVE
-      const validUndoPhases: GamePhase[] = ['MOVE', 'HIGH_PASS_MOVE', 'FIRST_TIME_PASS_MOVE'];
+      // BUG-18 (Phase 18.3): extended to cover all move-bearing phases. KICK_OFF_SETUP
+      // is intentionally excluded — its Undo is out of scope this phase.
+      const validUndoPhases: GamePhase[] = [
+        'MOVE',
+        'HIGH_PASS_MOVE',
+        'FIRST_TIME_PASS_MOVE',
+        'GK_KICK_MOVE',
+        'SNAPSHOT_DEFLECT',
+        'FREE_MOVE_ATTACK',
+        'FREE_MOVE_DEFENSE',
+        'FREE_KICK_SETUP',
+      ];
       if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);

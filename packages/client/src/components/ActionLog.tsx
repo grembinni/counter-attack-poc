@@ -735,6 +735,22 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: ` Formation  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
+    case 'SNAP_DEFLECT_MOVE':
+      // BUG-18 (Phase 18.3): defender repositioning during SNAPSHOT_DEFLECT.
+      return {
+        prefix: '[DEFLECT]',
+        prefixColor: '#888888',
+        content: ` Deflect move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
+    case 'FK_SETUP_MOVE':
+      // BUG-18 (Phase 18.3): piece repositioning during FREE_KICK_SETUP.
+      return {
+        prefix: '[FK]',
+        prefixColor: '#888888',
+        content: ` Setup move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        isGoal: false,
+      };
   }
 }
 

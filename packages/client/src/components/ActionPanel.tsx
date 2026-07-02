@@ -122,12 +122,19 @@ export function ActionPanel() {
     }, -1);
     // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
     // emits HP_MOVE during HIGH_PASS_MOVE and FTP_MOVE during FIRST_TIME_PASS_MOVE, never MOVE.
+    // BUG-18 (Phase 18.3): extended to match the server's expanded validUndoPhases.
     const moveTypeForPhase =
       phase === 'HIGH_PASS_MOVE'
         ? 'HP_MOVE'
         : phase === 'FIRST_TIME_PASS_MOVE'
           ? 'FTP_MOVE'
-          : 'MOVE';
+          : phase === 'GK_KICK_MOVE'
+            ? 'GK_KICK_MOVE'
+            : phase === 'SNAPSHOT_DEFLECT'
+              ? 'SNAP_DEFLECT_MOVE'
+              : phase === 'FREE_KICK_SETUP'
+                ? 'FK_SETUP_MOVE'
+                : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE
     return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === moveTypeForPhase);
   })();
 

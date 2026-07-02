@@ -267,6 +267,11 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       contestedPieceIds: [],
       stealAttemptedByIds: [], // D-29: reset per-phase steal tracking at Movement Phase start
       tackleAttemptedByIds: [], // D-29: reset per-phase tackle tracking at Movement Phase start
+      // BUG-18 (Phase 18.3): clear lastDiceRoll so canUndo's guard (`if (lastDiceRoll) return
+      // false`) does not block Undo in the MOVE phase. applyStartMovement is the dominant entry
+      // point into MOVE (from PASS/KICK_OFF/LOOSE_BALL). Mirror the existing GK_RESTART
+      // 'movement' branch (~line 2470) which already does this correctly.
+      lastDiceRoll: null,
     },
   };
 }
@@ -1175,6 +1180,9 @@ export function applyFreeMoveZoneCheck(state: GameState): GameState {
     // piece left in movedPieceIds from the prior phase would be incorrectly locked out of
     // FREE_MOVE_ATTACK/DEFENSE from the start).
     movedPieceIds: [],
+    // BUG-18 (Phase 18.3): clear lastDiceRoll on FREE_MOVE entry so canUndo is not
+    // blocked by a stale dice value from the action that triggered the zone change.
+    lastDiceRoll: null,
   };
 }
 
@@ -1241,12 +1249,19 @@ export function applyUndo(state: GameState): ApplyUndoResult {
 
   // CR-01 (17.1-11): the move-type to search for is phase-aware — gameHandlers.ts emits
   // HP_MOVE during HIGH_PASS_MOVE and FTP_MOVE during FIRST_TIME_PASS_MOVE, never MOVE.
+  // BUG-18 (Phase 18.3): extended for GK_KICK_MOVE, SNAPSHOT_DEFLECT, FREE_MOVE_*, FREE_KICK_SETUP.
   const moveTypeForPhase =
     state.phase === 'HIGH_PASS_MOVE'
       ? 'HP_MOVE'
       : state.phase === 'FIRST_TIME_PASS_MOVE'
         ? 'FTP_MOVE'
-        : 'MOVE';
+        : state.phase === 'GK_KICK_MOVE'
+          ? 'GK_KICK_MOVE'
+          : state.phase === 'SNAPSHOT_DEFLECT'
+            ? 'SNAP_DEFLECT_MOVE'
+            : state.phase === 'FREE_KICK_SETUP'
+              ? 'FK_SETUP_MOVE'
+              : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE (applyMove emits MOVE)
 
   // Find the last MOVE (or phase-appropriate HP_MOVE/FTP_MOVE) in the current slot
   const lastMoveRelIdx = currentSlotEvents.reduce<number>((acc, evt, idx) => {
@@ -1266,7 +1281,15 @@ export function applyUndo(state: GameState): ApplyUndoResult {
 
   const moveToUndo = currentSlotEvents[lastMoveRelIdx] as Extract<
     ActionEvent,
-    { type: 'MOVE' | 'HP_MOVE' | 'FTP_MOVE' }
+    {
+      type:
+        | 'MOVE'
+        | 'HP_MOVE'
+        | 'FTP_MOVE'
+        | 'GK_KICK_MOVE'
+        | 'SNAP_DEFLECT_MOVE'
+        | 'FK_SETUP_MOVE';
+    }
   >;
 
   // Reverse piece position (D-10)
@@ -1311,12 +1334,29 @@ export function applyUndo(state: GameState): ApplyUndoResult {
   // slot permanently dead-ended after a single Undo (only escape was End Turn). Mirrors
   // the canonical slot-clear shape at gameEngine.ts:1257-1258 and
   // gameHandlers.ts:693-694/721-722 (null / 0). Other phases are left untouched.
+  // BUG-18 (Phase 18.3): extended for GK_KICK_MOVE (reset per-slot lock) and
+  // SNAPSHOT_DEFLECT (reset snap-deflect tracking so the defender can move again).
+  // FK_SETUP_MOVE: freeKickPlacedPieceIds is managed by applyFreeKickMove; Undo removes
+  // the undone piece from the placed list so the stage budget is correctly restored.
   const lockReset: Partial<GameState> =
     state.phase === 'FIRST_TIME_PASS_MOVE'
       ? { firstTimePassMovedPieceId: null, firstTimePassPaceUsed: 0 }
       : state.phase === 'HIGH_PASS_MOVE'
         ? { highPassMovedPieceId: null, highPassPaceUsed: 0 }
-        : {};
+        : state.phase === 'GK_KICK_MOVE'
+          ? { gkKickMovedPieceId: null, gkKickPaceUsed: 0 }
+          : state.phase === 'SNAPSHOT_DEFLECT'
+            ? { snapDeflectMovedPieceId: null, snapDeflectPaceUsed: 0 }
+            : state.phase === 'FREE_KICK_SETUP'
+              ? {
+                  // Restore the placed-piece list: remove the undone piece if it was newly counted.
+                  freeKickPlacedPieceIds: (state.freeKickPlacedPieceIds ?? []).filter(
+                    (id) => id !== moveToUndo.pieceId,
+                  ),
+                  // Also remove from movedPieceIds (kicker and stage-locked pieces live here).
+                  // movedPieceIds is already cleared for the piece via newMovedPieceIds above.
+                }
+              : {};
 
   return {
     ok: true,
@@ -2744,6 +2784,9 @@ export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyG
       gkKickMovedPieceId: null,
       gkKickPaceUsed: 0,
       eventLog: [...state.eventLog, puntEvent],
+      // BUG-18 (Phase 18.3): clear lastDiceRoll on GK_KICK_MOVE entry so canUndo
+      // is not blocked by a stale dice result from the preceding accuracy check.
+      lastDiceRoll: null,
     },
   };
 }
@@ -3359,6 +3402,9 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
         snapDeflectMovedPieceId: null,
         snapDeflectPaceUsed: 0,
         lastShotPath: snapShotPath,
+        // BUG-18 (Phase 18.3): clear lastDiceRoll on SNAPSHOT_DEFLECT entry so
+        // canUndo is not blocked by a stale dice value from the accuracy check.
+        lastDiceRoll: null,
       },
     };
   }
@@ -3824,12 +3870,22 @@ export function applyFreeKickMove(
       // Kicker placement: free, mandatory, doesn't consume the stage budget — locks
       // directly into movedPieceIds (permanent), not freeKickPlacedPieceIds.
       const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+      // BUG-18 (Phase 18.3): log FK_SETUP_MOVE so applyUndo can reverse kicker placement.
+      const kickerPlaceEvent: ActionEvent = {
+        type: 'FK_SETUP_MOVE',
+        stageIndex: stageIndex ?? 0,
+        pieceId,
+        from: piece.position,
+        to,
+        timestamp: Date.now(),
+      };
       return {
         ok: true,
         state: {
           ...state,
           pieces: newPieces,
           movedPieceIds: [...movedIds, pieceId],
+          eventLog: [...state.eventLog, kickerPlaceEvent],
         },
       };
     }
@@ -3843,6 +3899,15 @@ export function applyFreeKickMove(
 
   const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
   const newPlacedIds = alreadyCounted ? placedIds : [...placedIds, pieceId];
+  // BUG-18 (Phase 18.3): log FK_SETUP_MOVE so applyUndo can reverse regular placement.
+  const fkSetupMoveEvent: ActionEvent = {
+    type: 'FK_SETUP_MOVE',
+    stageIndex: stageIndex ?? 0,
+    pieceId,
+    from: piece.position,
+    to,
+    timestamp: Date.now(),
+  };
 
   return {
     ok: true,
@@ -3850,6 +3915,7 @@ export function applyFreeKickMove(
       ...state,
       pieces: newPieces,
       freeKickPlacedPieceIds: newPlacedIds,
+      eventLog: [...state.eventLog, fkSetupMoveEvent],
     },
   };
 }

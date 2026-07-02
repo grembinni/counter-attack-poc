@@ -222,5 +222,8 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     // fire mid-MOVEMENT-phase (carrying stale movedPieceIds from whatever phase preceded
     // it), reset to [] on entry so free-kick setup always starts with a clean lock state.
     movedPieceIds: [],
+    // BUG-18 (Phase 18.3): clear lastDiceRoll on FREE_KICK_SETUP entry so canUndo's
+    // guard (`if (lastDiceRoll) return false`) does not block Undo in this phase.
+    lastDiceRoll: null,
   };
 }
