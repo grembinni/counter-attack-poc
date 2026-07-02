@@ -259,7 +259,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 **Wave 2**
 
 - [x] 18.4-04-PLAN.md — UX-08 end-turn confirmation dialog + orange/green ctaButtonClass color state across all move/place phases (ActionPanel.tsx/.module.css) [Wave 2, depends on 18.4-03]
-- [ ] 18.4-05-PLAN.md — UX-14 transient EventBanner (goal/interception/tackle/loose-ball) subscribed to eventLog, mounted in GameBoard.tsx [Wave 2, depends on 18.4-02]
+- [x] 18.4-05-PLAN.md — UX-14 transient EventBanner (goal/interception/tackle/loose-ball) subscribed to eventLog, mounted in GameBoard.tsx [Wave 2, depends on 18.4-02]
 
 **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Largest of the 5 sub-phases (8 requirements). The existing `.planning/phases/18-design-polish/18-UI-SPEC.md` (approved, all 6 dimensions PASS) covers every visual/interaction contract these requirements need — no new UI-SPEC required. Wave assignment maximizes parallelism: Wave 1's three plans own disjoint file sets (shared/server/selection vs. PitchMarkings+GameBoard vs. ActionPanel); Wave 2 serializes the two same-file conflicts (04 after 03 on ActionPanel.tsx, 05 after 02 on GameBoard.tsx).
 

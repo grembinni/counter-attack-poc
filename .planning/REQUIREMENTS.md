@@ -86,7 +86,7 @@
 - [ ] **UX-11**: The Movement phase helper text tracks and displays the number of players left to move, mirroring the existing header-contestant-selection helper pattern
 - [ ] **UX-12**: Hovering over a player stat bubble shows a tooltip with the stat's full name
 - [ ] **UX-13**: Hovering over an action button shows a tooltip with a short summary of that action
-- [ ] **UX-14**: A transient (1-second) banner appears centered on screen for key match events (e.g., goal, interception, tackle/turnover)
+- [x] **UX-14**: A transient (1-second) banner appears centered on screen for key match events (e.g., goal, interception, tackle/turnover)
 
 ---
 
@@ -142,4 +142,4 @@
 | UX-11      | Phase 18.4 | Pending  |
 | UX-12      | Phase 18.4 | Pending  |
 | UX-13      | Phase 18.4 | Pending  |
-| UX-14      | Phase 18.4 | Pending  |
+| UX-14      | Phase 18.4 | Complete |

@@ -9,8 +9,8 @@ progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 50
-  completed_plans: 49
-  percent: 89
+  completed_plans: 50
+  percent: 90
 ---
 
 # Project State
@@ -345,9 +345,9 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 18.4 (ux-enhancements) — EXECUTING
-Plan: 2 of 5
-Status: Ready to execute
-Last activity: 2026-07-02 -- Phase 18.4 execution started
+Plan: 5 of 5 COMPLETE
+Status: Complete
+Last activity: 2026-07-02 -- Plan 18.4-05 complete (EventBanner UX-14)
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
@@ -414,6 +414,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 18.3-bug-bash-rule-correctness P03  | 25min  | 3 tasks  | 4 files  |
 | Phase 18.3-bug-bash-rule-correctness P04  | 50m    | 3 tasks  | 7 files  |
 | Phase 18.4-ux-enhancements P04            | 25min  | 2 tasks  | 3 files  |
+| Phase 18.4-ux-enhancements P05            | 4min   | 2 tasks  | 4 files  |
 
 ## Decisions
 
@@ -484,3 +485,4 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase ?]: BUG-18: SNAP_DEFLECT_MOVE and FK_SETUP_MOVE event types added to fill eventLog gaps that would otherwise make Undo silently fail in SNAPSHOT_DEFLECT and FREE_KICK_SETUP
 - [Phase ?]: UX-08 Task 1: ctaButtonClass returns ctaButtonReady when eligibleRemaining <= 0, ctaButtonPending otherwise; per-phase derivation for 7 phases
 - [Phase ?]: UX-08 Task 2: pendingEndTurn stores { action, count } so dialog can display live count in prompt; withEndTurnConfirm() wraps all End Turn / Confirm Selection buttons
+- [Phase 18.4-05]: UX-14: EventBanner uses lastProcessedLengthRef (D-03 pattern) to diff eventLog tail; @keyframes bannerFade owns in/hold/out timing; JS setTimeout handles DOM removal at 1000ms total; UI-SPEC 1s overrides CONTEXT.md 2s mention
