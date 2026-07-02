@@ -240,7 +240,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
   });
 
-  it('clicking End Turn calls emitEndTurn during FREE_MOVE_ATTACK', () => {
+  it('clicking End Turn with remaining players opens confirm dialog, Confirm calls emitEndTurn during FREE_MOVE_ATTACK', () => {
     const emitEndTurn = vi.fn();
     useGameStore.setState({
       emitEndTurn,
@@ -248,7 +248,13 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1,
     });
     render(<ActionPanel />);
+    // UX-08: eligibleRemaining > 0 → click End Turn opens the confirm dialog, not emit directly
     fireEvent.click(screen.getByRole('button', { name: /end turn/i }));
+    // Dialog appears with confirm prompt
+    expect(screen.getByText(/are you sure you want to end your turn\?/i)).toBeDefined();
+    expect(emitEndTurn).not.toHaveBeenCalled();
+    // Confirm button invokes the deferred action
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
     expect(emitEndTurn).toHaveBeenCalledOnce();
   });
 

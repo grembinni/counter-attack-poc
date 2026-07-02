@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ELIGIBLE_NEXT_ACTIONS, hexDistance, isInRegion } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
@@ -55,6 +55,11 @@ function ctaButtonClass(eligibleRemaining: number): string {
  * Returns null for the non-active player (UNDO-03).
  */
 export function ActionPanel() {
+  /** UX-08: deferred end-turn/confirm-selection state — set when eligibleRemaining > 0. */
+  const [pendingEndTurn, setPendingEndTurn] = useState<null | {
+    action: () => void;
+    count: number;
+  }>(null);
   const playerSlot = useGameStore((s) => s.playerSlot);
   const phase = useGameStore((s) => s.gameState.phase);
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
@@ -110,6 +115,47 @@ export function ActionPanel() {
       </div>
     </div>
   );
+
+  /**
+   * UX-08: wraps an end-turn/confirm-selection action with a confirmation gate.
+   * When eligibleRemaining > 0 the action and count are stored; the confirm dialog is shown.
+   * When eligibleRemaining <= 0 the action fires immediately with no dialog.
+   */
+  const withEndTurnConfirm = (eligibleRemaining: number, action: () => void): (() => void) => {
+    return () => {
+      if (eligibleRemaining > 0) {
+        setPendingEndTurn({ action, count: eligibleRemaining });
+      } else {
+        action();
+      }
+    };
+  };
+
+  /** UX-08: confirm dialog overlay — rendered inside the phase panel when pendingEndTurn is set. */
+  const confirmDialog =
+    pendingEndTurn !== null ? (
+      <div className={styles.confirmOverlay}>
+        <div className={styles.confirmCard}>
+          <p className={styles.confirmText}>
+            {pendingEndTurn.count} players left to move, are you sure you want to end your turn?
+          </p>
+          <div className={styles.confirmActions}>
+            <button className={styles.ctaButton} onClick={() => setPendingEndTurn(null)}>
+              Cancel
+            </button>
+            <button
+              className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+              onClick={() => {
+                pendingEndTurn.action();
+                setPendingEndTurn(null);
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null;
 
   /** Check if an action is eligible given the current lastActionType. */
   const isEligible = (action: string): boolean => {
@@ -199,10 +245,11 @@ export function ActionPanel() {
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(hpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
-          onClick={emitEndTurn}
+          onClick={withEndTurnConfirm(hpmEligibleRemaining, emitEndTurn)}
         >
           End Turn
         </button>
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -238,10 +285,11 @@ export function ActionPanel() {
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(ftpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
-          onClick={emitEndTurn}
+          onClick={withEndTurnConfirm(ftpmEligibleRemaining, emitEndTurn)}
         >
           End Turn
         </button>
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -292,10 +340,11 @@ export function ActionPanel() {
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(sdEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
-          onClick={emitEndTurn}
+          onClick={withEndTurnConfirm(sdEligibleRemaining, emitEndTurn)}
         >
           End Turn
         </button>
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -358,12 +407,22 @@ export function ActionPanel() {
                 {headerContestantIds.length} players selected within range.
               </span>
             </div>
-            <button
-              className={`${styles.ctaButton} ${ctaButtonClass(headerContestantIds.length > 0 ? 0 : 1)}`}
-              onClick={() => emitHeaderContestant(headerContestantIds)}
-            >
-              {headerContestantIds.length > 0 ? 'Confirm Selection' : 'Decline (no contestant)'}
-            </button>
+            {/* UX-08: eligibleRemaining = 1 while no contestant selected (player has not acted yet);
+                 0 once a contestant is chosen. Confirm Selection has no dialog (already green/ready);
+                 Decline (no contestant) triggers the dialog as it could be accidental. */}
+            {(() => {
+              const headerEligibleRemaining = headerContestantIds.length > 0 ? 0 : 1;
+              return (
+                <button
+                  className={`${styles.ctaButton} ${ctaButtonClass(headerEligibleRemaining)}`}
+                  onClick={withEndTurnConfirm(headerEligibleRemaining, () =>
+                    emitHeaderContestant(headerContestantIds),
+                  )}
+                >
+                  {headerContestantIds.length > 0 ? 'Confirm Selection' : 'Decline (no contestant)'}
+                </button>
+              );
+            })()}
           </>
         )}
         {myConfirmed && (
@@ -372,6 +431,7 @@ export function ActionPanel() {
             <span className={styles.helperLine2}>Waiting for opponent...</span>
           </div>
         )}
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -496,10 +556,11 @@ export function ActionPanel() {
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(gkmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
-          onClick={emitEndTurn}
+          onClick={withEndTurnConfirm(gkmEligibleRemaining, emitEndTurn)}
         >
           End Turn
         </button>
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -533,10 +594,11 @@ export function ActionPanel() {
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(remaining)}`}
           title={ACTION_SUMMARY['End Turn']}
-          onClick={emitEndTurn}
+          onClick={withEndTurnConfirm(remaining, emitEndTurn)}
         >
           End Turn
         </button>
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
@@ -771,7 +833,7 @@ export function ActionPanel() {
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(remaining ?? 0)}`}
           title={ACTION_SUMMARY['End Turn']}
-          onClick={emitEndTurn}
+          onClick={withEndTurnConfirm(remaining ?? 0, emitEndTurn)}
         >
           End Turn
         </button>
@@ -780,6 +842,7 @@ export function ActionPanel() {
             ← Back
           </button>
         )}
+        {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </div>
     );
