@@ -217,10 +217,11 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Free Move!')).toBeDefined();
+    // UX-10: line-1 explains the mechanic; line-2 shows eligible-player count
     expect(
-      screen.getByText(/Attacking team.*move up to 6 hexes per player in the opponent's third\./i),
+      screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
     ).toBeDefined();
+    expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
@@ -231,10 +232,11 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 2, // away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
-    expect(screen.getByText('Free Move!')).toBeDefined();
+    // UX-10: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
     expect(
-      screen.getByText(/Defending team.*move up to 6 hexes per player in the opponent's third\./i),
+      screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
     ).toBeDefined();
+    expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
   });
 
@@ -493,7 +495,7 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
     expect(screen.getByText(/2 hex max/)).toBeDefined();
   });
 
-  it('FREE_MOVE_ATTACK: 3 eligible, 1 moved — helper reads 2 players left to move', () => {
+  it('FREE_MOVE_ATTACK: 3 eligible, 1 moved — helper reads 2 players still eligible to move', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -506,7 +508,8 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    expect(screen.getByText(/2 of 3 players left to move\./)).toBeDefined();
+    // UX-10: line-2 shows "{N} players still eligible to move." (not old "X of Y" format)
+    expect(screen.getByText(/2 players still eligible to move/)).toBeDefined();
   });
 
   it('KICK_OFF chooser shows a meaningful kick-off helper block, not just bare "Choose Action"', () => {

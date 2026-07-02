@@ -437,7 +437,6 @@ export function ActionPanel() {
   if (phase === 'FREE_MOVE_ATTACK' || phase === 'FREE_MOVE_DEFENSE') {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
-    const sideLabel = phase === 'FREE_MOVE_ATTACK' ? 'Attacking team' : 'Defending team';
     // 260621-ajd: countdown of players left to move in the active free-move sub-phase.
     const freeMoveSide = phase === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
     const eligibleIds = freeMoveEligibleIds?.[freeMoveSide] ?? [];
@@ -447,11 +446,11 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Free Move!</span>
-          <span className={styles.helperLine2}>
-            {sideLabel} — move up to 6 hexes per player in the opponent&apos;s third. {remaining} of{' '}
-            {eligibleTotal} players left to move.
+          <span className={styles.helperLine1}>
+            Ball entered the opposite final third — your backline can reposition up to 6 hexes
+            regardless of remaining pace.
           </span>
+          <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
         <button className={styles.ctaButton} onClick={emitEndTurn}>
           End Turn
