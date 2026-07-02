@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: verifying
-last_updated: '2026-07-02T02:32:10.375Z'
-last_activity: 2026-07-01 -- Plan 18.3-05 complete (BUG-10 click-to-inspect fallback for spent pieces; BUG-21 SNAPSHOT_TARGET goal-line highlight verified correct in live session, no fix needed)
+status: completed
+last_updated: '2026-07-02T03:04:45.615Z'
+last_activity: 2026-07-01 -- Plan 18.3-03 complete (BUG-06 offsidePieceIds reset on kick-off-after-goal; BUG-07 direct header delivery; BUG-12 FTP_MOVE_ENABLED=false toggle skips FIRST_TIME_PASS_MOVE)
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 45
-  completed_plans: 44
-  percent: 78
+  completed_plans: 45
+  percent: 89
 ---
 
 # Project State
@@ -412,6 +412,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 18.3 P02                            | 35min  | 3 tasks  | 3 files  |
 | Phase 18.3 P05                            | ~20min | 3 tasks  | 2 files  |
 | Phase 18.3-bug-bash-rule-correctness P03  | 25min  | 3 tasks  | 4 files  |
+| Phase 18.3-bug-bash-rule-correctness P04  | 50m    | 3 tasks  | 7 files  |
 
 ## Decisions
 
@@ -477,3 +478,6 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase 18.3 P05]: BUG-10: spent-piece inspect fallback in handleClick — MOVE + myTeam + movedPieceIds.includes(id) → inspectPiece(piece.id); placed after all positive-selection cases so canSelect/highlight computation is unaffected
 - [Phase 18.3 P05]: BUG-21: live two-tab session confirmed SNAPSHOT_TARGET goal-line hexes highlight correctly in current build; closed as already resolved with no code change
 - [Phase ?]: BUG-12: FTP_MOVE_ENABLED=false const gates FIRST_TIME_PASS_MOVE — toggle-off delivers directly at targetHex, mirroring STANDARD_PASS BUG-04 occupant-pickup; FIRST_TIME_PASS_MOVE handler code untouched
+- [Phase ?]: BUG-14: defer paceExhausted carrier lock to abandonedIds (activated DIFFERENT piece) instead of eagerly locking on pace exhaustion
+- [Phase ?]: BUG-17: KICK_OFF_SETUP event type added (mirrors MOVE shape) so buildReplayFrames reconstructs kick-off formation resets
+- [Phase ?]: BUG-18: SNAP_DEFLECT_MOVE and FK_SETUP_MOVE event types added to fill eventLog gaps that would otherwise make Undo silently fail in SNAPSHOT_DEFLECT and FREE_KICK_SETUP

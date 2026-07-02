@@ -57,8 +57,8 @@
 
 ## Bug Bash (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
-- [ ] **BUG-06**: The server resets `offsidePieceIds` to an empty array for ALL players when a free-kick restart concludes and the ball returns to live play, not only for the offending player (regression/gap in the D-43/D-47 full-reset behavior from Phase 17)
-- [ ] **BUG-07**: After a header duel is won, the subsequent pass is delivered without an intermediate no-op target-selection sub-phase; the resulting pass is non-contestable and is labeled/logged as a header, not as a one-touch/first-time pass
+- [x] **BUG-06**: The server resets `offsidePieceIds` to an empty array for ALL players when a free-kick restart concludes and the ball returns to live play, not only for the offending player (regression/gap in the D-43/D-47 full-reset behavior from Phase 17)
+- [x] **BUG-07**: After a header duel is won, the subsequent pass is delivered without an intermediate no-op target-selection sub-phase; the resulting pass is non-contestable and is labeled/logged as a header, not as a one-touch/first-time pass
 - [x] **BUG-08**: Once a defender's tackle or steal attempt against a piece has failed (that action type's `stealAttemptedByIds`/`tackleAttemptedByIds` flag is set), the attacker can move freely adjacent to that defender — no threat highlight and no repeat challenge for that action type — matching the per-action-type ZoI exclusion already defined for `moveValidator` (D-02, Phase 17.1)
 - [x] **BUG-09**: During response-move phases (header repositioning, snapshot deflect, first-time-pass repositioning, high-pass repositioning, GK-kick repositioning, free-kick setup, etc.), the active piece's move-ring highlight clears once that piece has used its phase-imposed pace allowance, and clears/recomputes correctly when End Turn hands control to the opponent
 - [ ] **BUG-10**: Clicking an already-activated (already-moved) player piece opens that piece's player card, matching the click behavior of unmoved pieces
@@ -66,13 +66,13 @@
 
 ## Bug Bash (Addendum — Phase 18.3, gathered 2026-06-22 during discuss-phase)
 
-- [ ] **BUG-12**: A config/feature-flag toggle (default off) bypasses the FIRST_TIME_PASS_MOVE repositioning sub-phase when disabled — the ball is delivered and the engine proceeds directly to the next phase as if no repositioning window existed. The underlying FIRST_TIME_PASS_MOVE phase/handler code is left intact for when the toggle is re-enabled (not deleted).
+- [x] **BUG-12**: A config/feature-flag toggle (default off) bypasses the FIRST_TIME_PASS_MOVE repositioning sub-phase when disabled — the ball is delivered and the engine proceeds directly to the next phase as if no repositioning window existed. The underlying FIRST_TIME_PASS_MOVE phase/handler code is left intact for when the toggle is re-enabled (not deleted).
 - [x] **BUG-13**: When an attacker moves into a hex within Zone of Influence of two defenders, a second sequential `TACKLE_ATTEMPT` fires against the second contesting defender if the attacker retains the ball after the first tackle attempt resolves (currently only one tackle attempt fires, regardless of how many defenders contest the hex).
-- [ ] **BUG-14**: Snapshot remains available to the ball carrier in the MOVE phase even after they exhaust their pace allowance, as long as the player has not yet selected and moved a different piece. The carrier is not added to `movedPieceIds` purely because `paceExhausted` became true on their own move step — that addition is deferred to the existing "abandoned piece" mechanism (`gameEngine.ts` `computeMovedPieceIds`/`abandonedIds`), which already locks in a piece only once the player moves on to a different one.
+- [x] **BUG-14**: Snapshot remains available to the ball carrier in the MOVE phase even after they exhaust their pace allowance, as long as the player has not yet selected and moved a different piece. The carrier is not added to `movedPieceIds` purely because `paceExhausted` became true on their own move step — that addition is deferred to the existing "abandoned piece" mechanism (`gameEngine.ts` `computeMovedPieceIds`/`abandonedIds`), which already locks in a piece only once the player moves on to a different one.
 - [x] **BUG-15**: `SHOT_ATTEMPT`/`GOAL` log entries render their content text in the same standard gray (`.content`, `#e0e0e0`) as every other event type — the `isGoal`-driven amber styling (`.goalContent`, `#e8a020`) is removed entirely; no special goal styling remains.
 - [x] **BUG-16**: `FTP_MOVE` and `HP_MOVE` log entries render the player using the same `PNamed` (full name) format used by every other event type, with no redundant `A`/`D` role-letter prefix — matching the format already used for `MOVE`, `GOAL`, `SHOT_ATTEMPT`, etc.
-- [ ] **BUG-17**: Piece repositioning during `KICK_OFF_SETUP` (`GAME_KICK_OFF_MOVE`) produces a replay-visible record — the post-game replay correctly shows all player positions resetting into kick-off formation after a goal, instead of jumping straight from the goal frame to the next eventLog-eligible action with no frames in between.
-- [ ] **BUG-18**: Undo works correctly and consistently across every phase where a piece can move — including the standard MOVE phase (where it is currently never enabled due to a stale `lastDiceRoll` carried over from the preceding dice-resolved action) and every other move-bearing phase (`GK_KICK_MOVE`, `SNAPSHOT_DEFLECT`, `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE`, `HEADER` contestant repositioning, `FREE_KICK_SETUP`) that currently has no Undo support at all.
+- [x] **BUG-17**: Piece repositioning during `KICK_OFF_SETUP` (`GAME_KICK_OFF_MOVE`) produces a replay-visible record — the post-game replay correctly shows all player positions resetting into kick-off formation after a goal, instead of jumping straight from the goal frame to the next eventLog-eligible action with no frames in between.
+- [x] **BUG-18**: Undo works correctly and consistently across every phase where a piece can move — including the standard MOVE phase (where it is currently never enabled due to a stale `lastDiceRoll` carried over from the preceding dice-resolved action) and every other move-bearing phase (`GK_KICK_MOVE`, `SNAPSHOT_DEFLECT`, `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE`, `HEADER` contestant repositioning, `FREE_KICK_SETUP`) that currently has no Undo support at all.
 - [x] **BUG-19**: The displayed jersey number for a player is always derived from `PlayerPiece.number` (the canonical CSV-seeded roster number) on every surface that shows it — the on-pitch token (`PieceOverlay.tsx`) and the action log (`ActionLog.tsx`) are brought in line with `PlayerStatsPanel.tsx`'s already-correct `piece.number`-based rendering, replacing their independent id-slice/role-index derivations.
 - [x] **BUG-20**: The MOVE-06 free-move check (`applyFreeMoveZoneCheck`) never interrupts a MOVE phase's slot sequence mid-way or a HEADER resolution mid-flow — the in-progress slot/header fully resolves first, and the free-move offer is evaluated and presented at the next clean phase boundary before that phase's standard options are shown.
 - [ ] **BUG-21**: During `SNAPSHOT_TARGET`, the goal-line hex highlights are visible to the attacking player so they can select a target, matching the equivalent highlight already working for the two-step regular-Shoot flow and HEADER target selection.
@@ -119,19 +119,19 @@
 | DESIGN-04  | Phase 18.2 | Complete |
 | REPLAY-06  | Phase 18.1 | Complete |
 | MATCH-06   | Phase 18   | Complete |
-| BUG-06     | Phase 18.3 | Pending  |
-| BUG-07     | Phase 18.3 | Pending  |
+| BUG-06     | Phase 18.3 | Complete |
+| BUG-07     | Phase 18.3 | Complete |
 | BUG-08     | Phase 18.2 | Complete |
 | BUG-09     | Phase 18.2 | Complete |
 | BUG-10     | Phase 18.3 | Pending  |
 | BUG-11     | Phase 18.2 | Complete |
-| BUG-12     | Phase 18.3 | Pending  |
+| BUG-12     | Phase 18.3 | Complete |
 | BUG-13     | Phase 18.3 | Complete |
-| BUG-14     | Phase 18.3 | Pending  |
+| BUG-14     | Phase 18.3 | Complete |
 | BUG-15     | Phase 18.3 | Complete |
 | BUG-16     | Phase 18.3 | Complete |
-| BUG-17     | Phase 18.3 | Pending  |
-| BUG-18     | Phase 18.3 | Pending  |
+| BUG-17     | Phase 18.3 | Complete |
+| BUG-18     | Phase 18.3 | Complete |
 | BUG-19     | Phase 18.3 | Complete |
 | BUG-20     | Phase 18.3 | Complete |
 | BUG-21     | Phase 18.3 | Pending  |

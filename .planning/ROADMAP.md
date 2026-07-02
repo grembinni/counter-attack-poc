@@ -234,8 +234,8 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 - [x] 18.3-01-PLAN.md — Tier-1 client formatting: BUG-15 (remove goal amber), BUG-16 (PNamed in FTP/HP log), BUG-19 (jersey number from piece.number) [Wave 1]
 - [x] 18.3-02-PLAN.md — Engine rule fixes: BUG-13 (double-tackle sequencing) + BUG-20 (deferred free-move interrupt) [Wave 1]
 - [x] 18.3-05-PLAN.md — HexGrid: BUG-10 (click-to-card on spent pieces) + BUG-21 (Snapshot goal-line highlight — verified correct in live session, no code change) [Wave 1]
-- [ ] 18.3-03-PLAN.md — Engine possession transitions: BUG-06 (offside reset gap) + BUG-07 (direct header delivery) + BUG-12 (FTP-move toggle) [Wave 2, depends on 18.3-02]
-- [ ] 18.3-04-PLAN.md — Movement state machine: BUG-17 (KICK_OFF_SETUP replay) → BUG-14 (Snapshot after pace exhaustion) + BUG-18 (Undo regression + coverage) [Wave 3, depends on 18.3-03]
+- [x] 18.3-03-PLAN.md — Engine possession transitions: BUG-06 (offside reset gap) + BUG-07 (direct header delivery) + BUG-12 (FTP-move toggle) [Wave 2, depends on 18.3-02]
+- [x] 18.3-04-PLAN.md — Movement state machine: BUG-17 (KICK_OFF_SETUP replay) → BUG-14 (Snapshot after pace exhaustion) + BUG-18 (Undo regression + coverage) [Wave 3, depends on 18.3-03]
 
   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). BUG-06/07/10 are net rule/flow fixes (not dup-logic gaps) — see 18-CONTEXT.md's Bug-Bash Addendum section for the full repro/fix-pattern for each. BUG-12..21 were gathered across two discuss-phase sessions on 18.3 itself (2026-06-22) — see 18.3-CONTEXT.md for the full repro/fix-pattern for each, including the root-caused `applyStartMovement` missing `lastDiceRoll: null` reset (BUG-18), the missing `KICK_OFF_SETUP` repositioning event (BUG-17), the three disagreeing player-number derivations (BUG-19), and the MOVE-06 mid-flow interrupt timing fix (BUG-20).
 
@@ -254,31 +254,31 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 ## Progress
 
-| Phase                          | Milestone | Plans Complete | Status      | Completed  |
-| ------------------------------ | --------- | -------------- | ----------- | ---------- |
-| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator              | v1.0      | 4/4            | Complete    | 2026-05-29 |
-| 3. Server Room Manager         | v1.0      | 3/3            | Complete    | 2026-05-29 |
-| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver               | v1.0      | 4/4            | Complete    | 2026-05-30 |
-| 6. React Hex Grid              | v1.0      | 3/3            | Complete    | 2026-05-31 |
-| 7. Client-Server Integration   | v1.0      | 4/4            | Complete    | 2026-06-03 |
-| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle             | v1.0      | 8/8            | Complete    | 2026-06-05 |
-| 8.1. Cleanup                   | v1.0      | 3/3            | Complete    | 2026-06-05 |
-| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete    | 2026-06-07 |
-| 9. Render Deployment           | v1.0      | 2/2            | Complete    | 2026-06-08 |
-| 10. Remaining Flows            | v1.0      | 5/5            | Complete    | 2026-06-11 |
-| 11. Rule Correctness           | v1.1      | 4/4            | Complete    | 2026-06-12 |
-| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete    | 2026-06-12 |
-| 13. Layout & Clock             | v1.1      | 3/3            | Complete    | 2026-06-12 |
-| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete    | 2026-06-12 |
-| 15. Team Identity              | v1.2      | 3/3            | Complete    | 2026-06-13 |
-| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete    | 2026-06-14 |
-| 17. Rule Bugs                  | v1.2      | 6/6            | Complete    | 2026-06-21 |
-| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete    | 2026-06-20 |
-| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-07-02 |
-| 18.1. Replay Review            | v1.2      | 2/2            | Complete    | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete    | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 3/5            | In Progress |            |
-| 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending     | -          |
+| Phase                          | Milestone | Plans Complete | Status   | Completed  |
+| ------------------------------ | --------- | -------------- | -------- | ---------- |
+| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete | 2026-05-28 |
+| 2. Move Validator              | v1.0      | 4/4            | Complete | 2026-05-29 |
+| 3. Server Room Manager         | v1.0      | 3/3            | Complete | 2026-05-29 |
+| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete | 2026-05-30 |
+| 5. Dice Resolver               | v1.0      | 4/4            | Complete | 2026-05-30 |
+| 6. React Hex Grid              | v1.0      | 3/3            | Complete | 2026-05-31 |
+| 7. Client-Server Integration   | v1.0      | 4/4            | Complete | 2026-06-03 |
+| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete | 2026-06-04 |
+| 8. Match Lifecycle             | v1.0      | 8/8            | Complete | 2026-06-05 |
+| 8.1. Cleanup                   | v1.0      | 3/3            | Complete | 2026-06-05 |
+| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete | 2026-06-07 |
+| 9. Render Deployment           | v1.0      | 2/2            | Complete | 2026-06-08 |
+| 10. Remaining Flows            | v1.0      | 5/5            | Complete | 2026-06-11 |
+| 11. Rule Correctness           | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 13. Layout & Clock             | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 15. Team Identity              | v1.2      | 3/3            | Complete | 2026-06-13 |
+| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete | 2026-06-14 |
+| 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
+| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
+| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-07-02 |
+| 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete | 2026-06-22 |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete | 2026-07-02 |
+| 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |
