@@ -6,7 +6,7 @@ import { TeamSelectionScreen } from './components/TeamSelectionScreen.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
-import type { GameState, TeamId } from '@counter-attack/shared';
+import type { GameSpeed, GameState, TeamId } from '@counter-attack/shared';
 
 export function App() {
   const screen = useGameStore((s) => s.screen);
@@ -20,6 +20,8 @@ export function App() {
 
   // D-14: homePickedTeam is local state in App.tsx (not in Zustand store)
   const [homePickedTeam, setHomePickedTeam] = useState<TeamId | null>(null);
+  // UX-07 (Phase 18.4): selectedSpeed is local state in App.tsx, co-located with homePickedTeam
+  const [selectedSpeed, setSelectedSpeed] = useState<GameSpeed>('standard');
 
   useEffect(() => {
     function onGameState(state: GameState) {
@@ -100,12 +102,24 @@ export function App() {
     socket.emit(ClientEvents.TEAM_PICK, teamId);
   }
 
+  // UX-07 (Phase 18.4): emits team:speed-set to server; called when home player changes speed
+  const emitTeamSpeed = useGameStore((s) => s.emitTeamSpeed);
+  function handleSpeedChange(speed: GameSpeed) {
+    setSelectedSpeed(speed);
+    emitTeamSpeed(speed);
+  }
+
   return (
     <div className={styles.app}>
       {screen === 'GAME_BOARD' || screen === 'REPLAY' ? (
         <GameBoard />
       ) : screen === 'TEAM_SELECTION' ? (
-        <TeamSelectionScreen homePickedTeam={homePickedTeam} onPick={handleTeamPick} />
+        <TeamSelectionScreen
+          homePickedTeam={homePickedTeam}
+          onPick={handleTeamPick}
+          selectedSpeed={selectedSpeed}
+          onSpeedChange={handleSpeedChange}
+        />
       ) : (
         <LobbyScreen />
       )}
