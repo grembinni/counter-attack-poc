@@ -53,20 +53,20 @@ export function EventBanner() {
     null,
   );
 
-  // Diff the current tail against the last-seen length on every render.
-  // If new events were appended, check only the tail (most recent new event).
-  if (eventLog.length > lastProcessedLengthRef.current) {
+  // Diff-and-trigger: runs in an effect on eventLog change so setActive is
+  // never called during render. The ref is advanced even when no banner fires
+  // so the same events are never re-processed on subsequent effect invocations.
+  useEffect(() => {
+    if (eventLog.length <= lastProcessedLengthRef.current) return;
     const tailEvent = eventLog[eventLog.length - 1];
     const banner = tailEvent !== undefined ? getBannerMessage(tailEvent) : null;
     // Always advance the ref regardless of whether a banner fired —
     // ensures we don't re-process the same events on the next render.
     lastProcessedLengthRef.current = eventLog.length;
     if (banner !== null) {
-      // Trigger banner synchronously so the state update happens in the same
-      // render cycle as the eventLog change (no stale-closure risk).
       setActive(banner);
     }
-  }
+  }, [eventLog]);
 
   // Auto-dismiss timer: clear the banner after 1000ms (100ms in + 800ms hold + 100ms out).
   // The CSS animation handles the visual fade; this clears the DOM element entirely.

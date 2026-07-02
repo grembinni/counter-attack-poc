@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: completed
-last_updated: '2026-07-02T17:35:06.259Z'
+last_updated: "2026-07-02T18:04:01.133Z"
 last_activity: 2026-07-02 -- Plan 18.4-05 complete (EventBanner UX-14)
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 50
-  completed_plans: 50
-  percent: 90
+  total_plans: 52
+  completed_plans: 51
+  percent: 89
 ---
 
 # Project State
@@ -415,6 +415,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 18.3-bug-bash-rule-correctness P04  | 50m    | 3 tasks  | 7 files  |
 | Phase 18.4-ux-enhancements P04            | 25min  | 2 tasks  | 3 files  |
 | Phase 18.4-ux-enhancements P05            | 4min   | 2 tasks  | 4 files  |
+| Phase 18.4-ux-enhancements PG1 | 11min | 1 tasks | 1 files |
 
 ## Decisions
 
@@ -486,3 +487,4 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase ?]: UX-08 Task 1: ctaButtonClass returns ctaButtonReady when eligibleRemaining <= 0, ctaButtonPending otherwise; per-phase derivation for 7 phases
 - [Phase ?]: UX-08 Task 2: pendingEndTurn stores { action, count } so dialog can display live count in prompt; withEndTurnConfirm() wraps all End Turn / Confirm Selection buttons
 - [Phase 18.4-05]: UX-14: EventBanner uses lastProcessedLengthRef (D-03 pattern) to diff eventLog tail; @keyframes bannerFade owns in/hold/out timing; JS setTimeout handles DOM removal at 1000ms total; UI-SPEC 1s overrides CONTEXT.md 2s mention
+- [Phase ?]: EventBanner diff-and-trigger logic moved to useEffect([eventLog]) — state updates must never occur in render body per React rules of hooks
