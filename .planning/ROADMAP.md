@@ -233,7 +233,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 
 - [x] 18.3-01-PLAN.md — Tier-1 client formatting: BUG-15 (remove goal amber), BUG-16 (PNamed in FTP/HP log), BUG-19 (jersey number from piece.number) [Wave 1]
 - [x] 18.3-02-PLAN.md — Engine rule fixes: BUG-13 (double-tackle sequencing) + BUG-20 (deferred free-move interrupt) [Wave 1]
-- [ ] 18.3-05-PLAN.md — HexGrid: BUG-10 (click-to-card on spent pieces) + BUG-21 (Snapshot goal-line highlight, live-verify checkpoint) [Wave 1]
+- [x] 18.3-05-PLAN.md — HexGrid: BUG-10 (click-to-card on spent pieces) + BUG-21 (Snapshot goal-line highlight — verified correct in live session, no code change) [Wave 1]
 - [ ] 18.3-03-PLAN.md — Engine possession transitions: BUG-06 (offside reset gap) + BUG-07 (direct header delivery) + BUG-12 (FTP-move toggle) [Wave 2, depends on 18.3-02]
 - [ ] 18.3-04-PLAN.md — Movement state machine: BUG-17 (KICK_OFF_SETUP replay) → BUG-14 (Snapshot after pace exhaustion) + BUG-18 (Undo regression + coverage) [Wave 3, depends on 18.3-03]
 
@@ -280,5 +280,5 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-06-21 |
 | 18.1. Replay Review            | v1.2      | 2/2            | Complete    | 2026-06-21 |
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete    | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 2/5            | In Progress |            |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 3/5            | In Progress |            |
 | 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending     | -          |

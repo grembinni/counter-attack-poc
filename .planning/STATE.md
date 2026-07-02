@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: executing
-last_updated: '2026-07-01T22:46:41.982Z'
-last_activity: 2026-07-01 -- Plan 18.3-01 complete (BUG-15, BUG-16, BUG-19 fixed)
+last_updated: '2026-07-01T23:30:00.000Z'
+last_activity: 2026-07-01 -- Plan 18.3-05 complete (BUG-10 fixed; BUG-21 verified no-change)
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 42
-  percent: 78
+  completed_plans: 43
+  percent: 80
 ---
 
 # Project State
@@ -345,10 +345,9 @@ Known deferred items at close: 6 (see above)
 ## Current Position
 
 Phase: 18.3 (bug-bash-rule-correctness) — EXECUTING
-Plan: 3 of 5
-Status: Executing Plan 03
-Last activity: 2026-07-01 -- Plan 18.3-02 complete (BUG-13 multi-tackle sequencing,
-BUG-20 free-move interrupt deferral). 468 server + 236 client + 320 shared tests passing.
+Plan: 5 of 5 COMPLETE; remaining: 18.3-03 and 18.3-04 still open (Wave 2/3)
+Status: Plan 05 complete. BUG-10 fixed (00decb8); BUG-21 verified live — no code change required.
+Last activity: 2026-07-01 -- Plan 18.3-05 complete (BUG-10 click-to-inspect fallback for spent pieces; BUG-21 SNAPSHOT_TARGET goal-line highlight verified correct in live session, no fix needed)
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
@@ -411,6 +410,7 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 17.1-action-flow-cleanup P15        | 12min  | 1 tasks  | 2 files  |
 | Phase 17.1-action-flow-cleanup P16        | 10min  | 2 tasks  | 6 files  |
 | Phase 18.3 P02                            | 35min  | 3 tasks  | 3 files  |
+| Phase 18.3 P05                            | ~20min | 3 tasks  | 2 files  |
 
 ## Decisions
 
@@ -473,3 +473,5 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase 18.3 P01]: BUG-16: HP_MOVE and FTP_MOVE log entries use PNamed (full name, no A/D prefix); GK_KICK/GK_KICK_MOVE role-label P components untouched
 - [Phase ?]: BUG-13: stationary defenders adjacent to carrier get inline TACKLE_ATTEMPT after moving defender fails — scan newPieces by hexDistance=1 filtered by tackleAttemptedByIds; subsequent dice use tackleDie=3 fallback
 - [Phase ?]: BUG-20: applyFreeMoveZoneCheck returns state UNCHANGED (not ballZone updated) during MOVE mid-slot and HEADER — stale ballZone ensures zone-crossing re-triggers at next clean phase boundary
+- [Phase 18.3 P05]: BUG-10: spent-piece inspect fallback in handleClick — MOVE + myTeam + movedPieceIds.includes(id) → inspectPiece(piece.id); placed after all positive-selection cases so canSelect/highlight computation is unaffected
+- [Phase 18.3 P05]: BUG-21: live two-tab session confirmed SNAPSHOT_TARGET goal-line hexes highlight correctly in current build; closed as already resolved with no code change
