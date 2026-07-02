@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: completed
-last_updated: '2026-07-02T03:25:29.126Z'
-last_activity: 2026-07-02
+status: executing
+last_updated: '2026-07-02T13:08:06.601Z'
+last_activity: 2026-07-02 -- Phase 18.4 execution started
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 45
+  total_plans: 50
   completed_plans: 45
   percent: 89
 ---
@@ -24,7 +24,7 @@ v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is firs
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 18.3 — bug-bash-rule-correctness
+**Current focus:** Phase 18.4 — ux-enhancements
 
 ## Phase Status
 
@@ -344,10 +344,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18.4
-Plan: Not started
-Status: Plan 03 complete. BUG-06 (6e1b53d → b08070e), BUG-07 (fedfb19), BUG-12 (6e1b53d) fixed.
-Last activity: 2026-07-02
+Phase: 18.4 (ux-enhancements) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 18.4
+Last activity: 2026-07-02 -- Phase 18.4 execution started
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
