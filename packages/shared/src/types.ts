@@ -397,6 +397,22 @@ export type LastActionType =
   // next action to STANDARD_PASS/HIGH_PASS/LONG_BALL/SHOT via its ELIGIBLE_NEXT_ACTIONS row.
   | 'FREE_KICK_RESTART';
 
+/**
+ * UX-07 (Phase 18.4): Game speed selection — controls how many match-clock minutes
+ * elapse per completed MOVE action.
+ */
+export type GameSpeed = 'slow' | 'standard' | 'fast';
+
+/**
+ * UX-07 (Phase 18.4): Clock minutes added per completed MOVE action per speed setting.
+ * slow = +1 min, standard = +2 min, fast = +3 min.
+ */
+export const GAME_SPEED_MINUTES: Record<GameSpeed, number> = {
+  slow: 1,
+  standard: 2,
+  fast: 3,
+};
+
 export type GameState = {
   roomCode: string;
   phase: GamePhase;
@@ -460,6 +476,12 @@ export type GameState = {
   kickOffActive: boolean;
   /** Phase 16 D-15: teams selected before match start, embedded in every GameState snapshot. */
   selectedTeams: { home: TeamId; away: TeamId };
+  /**
+   * UX-07 (Phase 18.4): Selected game speed — drives the per-MOVE clock increment
+   * via GAME_SPEED_MINUTES[gameSpeed]. Set by home player before match start; defaults
+   * to 'standard'.
+   */
+  gameSpeed: GameSpeed;
   /** D-31: 1-based replay frame position carried on REPLAY-phase frames only; absent outside replay. */
   replayIndex?: number;
   /** D-31: total replay frame count carried on REPLAY-phase frames only; absent outside replay. */

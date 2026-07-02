@@ -133,6 +133,7 @@ const baseMovementState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 /** Base PASS-phase state for pass delivery tests. */
@@ -157,6 +158,7 @@ const passState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 /** PASS state for BUG-04: defender piece is at the target hex. */
@@ -227,6 +229,7 @@ const highPassMovementStateWithMove: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
   highPassMovementSlot: 'ATTACKER',
   highPassMovedPieceId: 'home-9',
   highPassPaceUsed: 1,
@@ -272,6 +275,7 @@ const shotStateNearGK: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
   shotTargetHex: { q: 32, r: 13 }, // away goal hex
   gkDivePosition: { q: 11, r: 7 },
 };
@@ -1060,6 +1064,7 @@ const ftpMoveAttackerState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
   firstTimePassMovementSlot: 'ATTACKER',
   firstTimePassMovedPieceId: null,
   firstTimePassPaceUsed: 0,
@@ -1482,6 +1487,7 @@ const looseBallNearEdgeState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 describe('Phase 17.1 D-08: loose-ball scatter clamps to board edge', () => {

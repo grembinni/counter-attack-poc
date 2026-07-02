@@ -80,6 +80,8 @@ const baseMovementState: GameState = {
   kickOffActive: false,
   // Phase 16 field (D-15)
   selectedTeams: { home: 'cosmos', away: 'xolos' },
+  // UX-07 (Phase 18.4): game speed — default 'standard' in tests
+  gameSpeed: 'standard',
 };
 
 // ---------------------------------------------------------------------------
@@ -636,6 +638,7 @@ const passState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 /** Base SHOT-phase state: homePiece carries the ball near the away goal. */
@@ -663,6 +666,7 @@ const shotState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 /** SHOT state where GK is adjacent (distance 1) to make save scenarios possible. */
@@ -699,6 +703,7 @@ const headerState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 /** HEADER state where DEF is within 2 hexes — contested duel. */
@@ -735,6 +740,7 @@ const looseBallState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 describe('applyRoll', () => {
@@ -1217,6 +1223,7 @@ const gkRestartState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
 /** GK_RESTART state with a high-highPass GK for testing accurate kick branch. */

@@ -134,6 +134,7 @@ const makeAttacker2State = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -159,6 +160,7 @@ const makePassState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -184,6 +186,7 @@ const makeShotState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -209,6 +212,7 @@ const makeGkRestartState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -239,6 +243,7 @@ const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -752,6 +757,7 @@ const makeKickOffSetupState = (overrides: Partial<GameState> = {}): GameState =>
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -855,6 +861,7 @@ const makeHalfTimeState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -1229,6 +1236,7 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -1356,6 +1364,7 @@ describe('HEAD-05: a piece that contested a header is excluded from the subseque
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+    gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
     // D-21 / HEAD-05: this piece contested a header and must not move in the next Movement Phase
     contestedPieceIds: [contestedId],
   });
@@ -1487,6 +1496,7 @@ describe('BUG-14: Snapshot availability after pace exhaustion', () => {
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'cosmos', away: 'xolos' },
+    gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   });
 
   it('carrier stays out of movedPieceIds after pace exhaustion (Snapshot remains available)', () => {
