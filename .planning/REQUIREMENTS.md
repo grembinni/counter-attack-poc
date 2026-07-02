@@ -61,7 +61,7 @@
 - [x] **BUG-07**: After a header duel is won, the subsequent pass is delivered without an intermediate no-op target-selection sub-phase; the resulting pass is non-contestable and is labeled/logged as a header, not as a one-touch/first-time pass
 - [x] **BUG-08**: Once a defender's tackle or steal attempt against a piece has failed (that action type's `stealAttemptedByIds`/`tackleAttemptedByIds` flag is set), the attacker can move freely adjacent to that defender — no threat highlight and no repeat challenge for that action type — matching the per-action-type ZoI exclusion already defined for `moveValidator` (D-02, Phase 17.1)
 - [x] **BUG-09**: During response-move phases (header repositioning, snapshot deflect, first-time-pass repositioning, high-pass repositioning, GK-kick repositioning, free-kick setup, etc.), the active piece's move-ring highlight clears once that piece has used its phase-imposed pace allowance, and clears/recomputes correctly when End Turn hands control to the opponent
-- [ ] **BUG-10**: Clicking an already-activated (already-moved) player piece opens that piece's player card, matching the click behavior of unmoved pieces
+- [x] **BUG-10**: Clicking an already-activated (already-moved) player piece opens that piece's player card, matching the click behavior of unmoved pieces
 - [x] **BUG-11**: HIGH_PASS_MOVE excludes the original high-pass carrier (`highPassCarrierId`) from repositioning onto the pass target hex during its own GAME_MOVE handler, mirroring the FIRST_TIME_PASS_MOVE self-pass-reclaim fix delivered in Phase 17.1-16
 
 ## Bug Bash (Addendum — Phase 18.3, gathered 2026-06-22 during discuss-phase)
@@ -75,7 +75,7 @@
 - [x] **BUG-18**: Undo works correctly and consistently across every phase where a piece can move — including the standard MOVE phase (where it is currently never enabled due to a stale `lastDiceRoll` carried over from the preceding dice-resolved action) and every other move-bearing phase (`GK_KICK_MOVE`, `SNAPSHOT_DEFLECT`, `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE`, `HEADER` contestant repositioning, `FREE_KICK_SETUP`) that currently has no Undo support at all.
 - [x] **BUG-19**: The displayed jersey number for a player is always derived from `PlayerPiece.number` (the canonical CSV-seeded roster number) on every surface that shows it — the on-pitch token (`PieceOverlay.tsx`) and the action log (`ActionLog.tsx`) are brought in line with `PlayerStatsPanel.tsx`'s already-correct `piece.number`-based rendering, replacing their independent id-slice/role-index derivations.
 - [x] **BUG-20**: The MOVE-06 free-move check (`applyFreeMoveZoneCheck`) never interrupts a MOVE phase's slot sequence mid-way or a HEADER resolution mid-flow — the in-progress slot/header fully resolves first, and the free-move offer is evaluated and presented at the next clean phase boundary before that phase's standard options are shown.
-- [ ] **BUG-21**: During `SNAPSHOT_TARGET`, the goal-line hex highlights are visible to the attacking player so they can select a target, matching the equivalent highlight already working for the two-step regular-Shoot flow and HEADER target selection.
+- [x] **BUG-21**: During `SNAPSHOT_TARGET`, the goal-line hex highlights are visible to the attacking player so they can select a target, matching the equivalent highlight already working for the two-step regular-Shoot flow and HEADER target selection.
 
 ## UX Enhancements (Addendum — Phase 18, gathered 2026-06-20 during discuss-phase)
 
@@ -123,7 +123,7 @@
 | BUG-07     | Phase 18.3 | Complete |
 | BUG-08     | Phase 18.2 | Complete |
 | BUG-09     | Phase 18.2 | Complete |
-| BUG-10     | Phase 18.3 | Pending  |
+| BUG-10     | Phase 18.3 | Complete |
 | BUG-11     | Phase 18.2 | Complete |
 | BUG-12     | Phase 18.3 | Complete |
 | BUG-13     | Phase 18.3 | Complete |
@@ -134,7 +134,7 @@
 | BUG-18     | Phase 18.3 | Complete |
 | BUG-19     | Phase 18.3 | Complete |
 | BUG-20     | Phase 18.3 | Complete |
-| BUG-21     | Phase 18.3 | Pending  |
+| BUG-21     | Phase 18.3 | Complete |
 | UX-07      | Phase 18.4 | Pending  |
 | UX-08      | Phase 18.4 | Pending  |
 | UX-09      | Phase 18.4 | Pending  |

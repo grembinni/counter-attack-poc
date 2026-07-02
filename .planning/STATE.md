@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
 status: completed
-last_updated: '2026-07-02T03:04:45.615Z'
-last_activity: 2026-07-01 -- Plan 18.3-03 complete (BUG-06 offsidePieceIds reset on kick-off-after-goal; BUG-07 direct header delivery; BUG-12 FTP_MOVE_ENABLED=false toggle skips FIRST_TIME_PASS_MOVE)
+last_updated: '2026-07-02T03:25:29.126Z'
+last_activity: 2026-07-02
 progress:
   total_phases: 9
   completed_phases: 8
@@ -344,10 +344,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18.3 (bug-bash-rule-correctness) — EXECUTING
-Plan: 5 of 5 COMPLETE; remaining: 18.3-04 still open (Wave 3)
+Phase: 18.4
+Plan: Not started
 Status: Plan 03 complete. BUG-06 (6e1b53d → b08070e), BUG-07 (fedfb19), BUG-12 (6e1b53d) fixed.
-Last activity: 2026-07-01 -- Plan 18.3-03 complete (BUG-06 offsidePieceIds reset on kick-off-after-goal; BUG-07 direct header delivery; BUG-12 FTP_MOVE_ENABLED=false toggle skips FIRST_TIME_PASS_MOVE)
+Last activity: 2026-07-02
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
