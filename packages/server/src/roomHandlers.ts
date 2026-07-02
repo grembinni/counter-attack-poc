@@ -25,6 +25,7 @@
 
 import type {
   ClientToServerEvents,
+  GameSpeed,
   InterServerEvents,
   ServerToClientEvents,
   SocketData,
@@ -37,6 +38,9 @@ import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roo
 
 /** Valid team IDs — allow-list for team:pick validation (ASVS V5). */
 const VALID_TEAM_IDS: readonly TeamId[] = ['cosmos', 'xolos', 'city', 'crew'] as const;
+
+/** Valid game speed values — allow-list for team:speed-set validation (ASVS V5, T-18.4.1-01). */
+const VALID_GAME_SPEEDS: readonly GameSpeed[] = ['slow', 'standard', 'fast'] as const;
 
 /** 90-second grace period before disconnected player's room is deleted. */
 const GRACE_PERIOD_MS = 90_000;
@@ -203,12 +207,47 @@ export function registerRoomHandlers(
           }
           // Both teams chosen — build game state and start the game.
           const selectedTeams = { home: room.homePickedTeam, away: teamId };
-          room.gameState = buildInitialGameState(roomCode, selectedTeams);
+          // UX-07 (Phase 18.4): use the speed the home player set (or 'standard' if unset).
+          room.gameState = buildInitialGameState(
+            roomCode,
+            selectedTeams,
+            room.gameSpeed ?? 'standard',
+          );
           broadcastState(io, room);
         }
       } finally {
         room.isProcessing = false;
       }
+    });
+
+    // -----------------------------------------------------------------------
+    // TEAM_SPEED_SET
+    // UX-07 (Phase 18.4): home player sets the game speed before match start.
+    // T-18.4.1-01: allow-list validates against ['slow','standard','fast'].
+    // T-18.4.1-02: only the home player (slot 1) may set speed — mirrors home-first
+    //              turn-order enforcement in TEAM_PICK.
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.TEAM_SPEED_SET, (speed: GameSpeed) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // T-18.4.1-01: allow-list validation — reject unknown or forged speed values.
+      if (!(VALID_GAME_SPEEDS as readonly string[]).includes(speed)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SPEED');
+        return;
+      }
+
+      // T-18.4.1-02: only home player (slot 1) may set speed.
+      if (socket.data.playerSlot !== 1) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+        return;
+      }
+
+      // Record the speed on the room — consumed by TEAM_PICK away-pick.
+      room.gameSpeed = speed;
     });
   }
 

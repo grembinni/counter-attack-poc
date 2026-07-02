@@ -16,6 +16,7 @@ import { randomInt } from 'crypto';
 import type {
   GameState,
   GamePhase,
+  GameSpeed,
   MovementSlot,
   ActionEvent,
   HexCoord,
@@ -24,6 +25,7 @@ import type {
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import {
+  GAME_SPEED_MINUTES,
   TEAM_SQUADS,
   PITCH_REGIONS,
   PITCH_HEXES,
@@ -104,6 +106,7 @@ const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
 export function buildInitialGameState(
   roomCode: string,
   selectedTeams: { home: TeamId; away: TeamId },
+  gameSpeed: GameSpeed = 'standard',
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -154,6 +157,7 @@ export function buildInitialGameState(
     kickOffTeam: attackingTeam, // coin-flip winner kicks off (D-06, D-26)
     kickOffActive: false,
     selectedTeams, // D-15: embedded in every subsequent snapshot
+    gameSpeed, // UX-07 (Phase 18.4): drives per-MOVE clock increment
   };
 }
 
@@ -677,7 +681,8 @@ export function applyMove(
             ball: tackleSuccessBall,
             eventLog: tackleCorrectedEventLog,
             lastActionType: 'SUCCESSFUL_TACKLE',
-            actionCount: state.actionCount + 3,
+            // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
+            actionCount: state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed],
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
             tackleAttemptedByIds: [], // D-02
             offsidePieceIds: evaluateOffside({
@@ -759,7 +764,8 @@ export function applyMove(
               ball: addSuccessBall,
               eventLog: bug13CorrectedEventLog,
               lastActionType: 'SUCCESSFUL_TACKLE',
-              actionCount: state.actionCount + 3,
+              // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
+              actionCount: state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed],
               stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
               tackleAttemptedByIds: [], // D-02
               offsidePieceIds: evaluateOffside({
@@ -819,7 +825,8 @@ export function applyMove(
         ball: stealSuccessBall,
         eventLog: stealCorrectedEventLog,
         lastActionType: 'SUCCESSFUL_TACKLE',
-        actionCount: state.actionCount + 3,
+        // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
+        actionCount: state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed],
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
         offsidePieceIds: evaluateOffside({ ...state, pieces: newPieces, ball: stealSuccessBall }),
@@ -904,9 +911,10 @@ export function applyEndTurn(
           : 'home'
         : state.attackingTeam;
 
-  // Phase 8 clock hook (D-04/MATCH-01): at ATTACKER_2→null transition, +3 min per cycle.
+  // Phase 8 clock hook (D-04/MATCH-01): at ATTACKER_2→null transition, speed-derived min per cycle.
+  // UX-07 (Phase 18.4): replaces fixed +3 with GAME_SPEED_MINUTES[state.gameSpeed] (1/2/3).
   if (nextSlot === null) {
-    const newActionCount = state.actionCount + 3;
+    const newActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
 
     // D-05/MATCH-02: roll added time inline when half ends (45 for h1, 90 for h2)
     // Guard: only set addedTime once per half (Pitfall 3 — prevents re-roll)
@@ -4213,6 +4221,7 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     kickOffTeam: finalState.kickOffTeam,
     kickOffActive: false,
     selectedTeams: finalState.selectedTeams, // D-15: carry team selection into replay frames
+    gameSpeed: finalState.gameSpeed, // UX-07 (Phase 18.4): carry speed into replay frames
   };
 
   // REPLAY-05: accumulate consecutive MOVE events per pieceId so an entire movement phase
