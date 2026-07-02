@@ -25,6 +25,7 @@ import {
   applyHalfTimeStart,
   buildReplayFrames,
   applyStartMovement,
+  checkHalfEndOnTackle,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 
@@ -1545,5 +1546,281 @@ describe('BUG-14: Snapshot availability after pace exhaustion', () => {
     expect(step3.state.movedPieceIds).toContain(homeFwdSnap.id);
     // The new piece is NOT yet in movedPieceIds (it's still being moved).
     expect(step3.state.movedPieceIds).not.toContain(homeMidSnap.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAP-2 (CR-01): checkHalfEndOnTackle — half-end boundary during tackle/steal success
+// ---------------------------------------------------------------------------
+
+describe('checkHalfEndOnTackle — unit tests (GAP-2/CR-01)', () => {
+  // Helper: build a minimal GameState with only the fields checkHalfEndOnTackle reads
+  const makeCheckState = (overrides: Partial<GameState> = {}): GameState =>
+    makeAttacker2State(overrides);
+
+  it('returns null when addedTime is null (not yet in added time)', () => {
+    const state = makeCheckState({ half: 1, addedTime: null });
+    expect(checkHalfEndOnTackle(state, 46)).toBeNull();
+  });
+
+  it('returns null when newActionCount < halfEnd (addedTime set but threshold not crossed)', () => {
+    // half=1, addedTime=5 → halfEnd=50; newActionCount=48 < 50 → null
+    const state = makeCheckState({ half: 1, addedTime: 5 });
+    expect(checkHalfEndOnTackle(state, 48)).toBeNull();
+  });
+
+  it('returns HALF_TIME when half=1 and newActionCount >= halfEnd', () => {
+    // half=1, addedTime=3 → halfEnd=48; newActionCount=48 → HALF_TIME
+    const state = makeCheckState({ half: 1, addedTime: 3 });
+    expect(checkHalfEndOnTackle(state, 48)).toBe('HALF_TIME');
+  });
+
+  it('returns HALF_TIME when half=1 and newActionCount exceeds halfEnd', () => {
+    // half=1, addedTime=2 → halfEnd=47; newActionCount=51 > 47 → HALF_TIME
+    const state = makeCheckState({ half: 1, addedTime: 2 });
+    expect(checkHalfEndOnTackle(state, 51)).toBe('HALF_TIME');
+  });
+
+  it('returns FULL_TIME when half=2 and newActionCount >= halfEnd', () => {
+    // half=2, addedTime=4 → halfEnd=94; newActionCount=94 → FULL_TIME
+    const state = makeCheckState({ half: 2, addedTime: 4 });
+    expect(checkHalfEndOnTackle(state, 94)).toBe('FULL_TIME');
+  });
+
+  it('returns null exactly at halfEnd - 1 (boundary guard)', () => {
+    // half=1, addedTime=3 → halfEnd=48; newActionCount=47 → null
+    const state = makeCheckState({ half: 1, addedTime: 3 });
+    expect(checkHalfEndOnTackle(state, 47)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAP-2 (CR-01): applyMove tackle success — half-end transitions (end-to-end)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tackle success state: away-def (tackling=8) at {q:12,r:7} moves to {q:11,r:7}
+ * which is adjacent to home carrier (dribbling=8) at {q:10,r:7}.
+ * Dice: tackleDie=6 → defCombined=14; carrierDie=1 → carCombined=9 → SUCCESS.
+ */
+const homeTackleCarrier: PlayerPiece = {
+  id: 'home-carrier',
+  teamId: 'home',
+  firstName: 'Home',
+  lastName: 'Carrier',
+  number: 10,
+  nationality: 'Test',
+  role: 'MID',
+  position: { q: 10, r: 7 },
+  pace: 7,
+  shooting: 5,
+  tackling: 3,
+  dribbling: 8,
+  saving: 1,
+  handling: 1,
+  resilience: 6,
+  aerialAbility: 3,
+  highPass: 5,
+};
+
+const awayTackler: PlayerPiece = {
+  id: 'away-tackler',
+  teamId: 'away',
+  firstName: 'Away',
+  lastName: 'Tackler',
+  number: 4,
+  nationality: 'Test',
+  role: 'DEF',
+  position: { q: 12, r: 7 },
+  pace: 6,
+  shooting: 2,
+  tackling: 8,
+  dribbling: 3,
+  saving: 1,
+  handling: 1,
+  resilience: 7,
+  aerialAbility: 3,
+  highPass: 3,
+};
+
+/** Build a DEFENDER_5 MOVE state ready for a tackle-success scenario. */
+const makeTackleScenarioState = (overrides: Partial<GameState> = {}): GameState => ({
+  roomCode: 'TEST',
+  phase: 'MOVE',
+  activeTeam: 'away',
+  attackingTeam: 'home',
+  pieces: [homeTackleCarrier, awayTackler],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-carrier' },
+  score: { home: 0, away: 0 },
+  actionCount: 44,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 2 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: 'DEFENDER_5',
+  ballZone: 'middle',
+  addedTime: 3, // halfEnd = 45+3 = 48; actionCount+3 (fast)=47 → just below
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'fast' as const,
+  ...overrides,
+});
+
+// Dice that guarantee tackle SUCCESS: tackling(8)+tackleDie(6)=14 >= dribbling(8)+carrierDie(1)=9
+const TACKLE_SUCCESS_DICE = { stealDie: 1, tackleDie: 6, carrierDie: 1 };
+
+describe('applyMove — tackle success triggers half-end (GAP-2/CR-01)', () => {
+  it('tackle success in Fast mode where newActionCount >= halfEnd returns HALF_TIME (half 1)', () => {
+    // actionCount=45, addedTime=3 → halfEnd=48; fast speed +3 → newActionCount=48 >= 48 → HALF_TIME
+    const state = makeTackleScenarioState({ actionCount: 45, half: 1, addedTime: 3 });
+    const result = applyMove(state, 'away-tackler', { q: 11, r: 7 }, TACKLE_SUCCESS_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HALF_TIME');
+    expect(result.state.movementSlot).toBeNull();
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    // (e) returned actionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed]
+    expect(result.state.actionCount).toBe(45 + 3); // fast = +3
+  });
+
+  it('tackle success in Fast mode where newActionCount >= halfEnd returns FULL_TIME (half 2)', () => {
+    // half=2, addedTime=3 → halfEnd=93; actionCount=90, fast +3 → newActionCount=93 >= 93 → FULL_TIME
+    const state = makeTackleScenarioState({ actionCount: 90, half: 2, addedTime: 3 });
+    const result = applyMove(state, 'away-tackler', { q: 11, r: 7 }, TACKLE_SUCCESS_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FULL_TIME');
+  });
+
+  it('tackle success where newActionCount < halfEnd still returns PASS (regression guard)', () => {
+    // actionCount=44, addedTime=3 → halfEnd=48; fast +3 → newActionCount=47 < 48 → PASS
+    const state = makeTackleScenarioState({ actionCount: 44, half: 1, addedTime: 3 });
+    const result = applyMove(state, 'away-tackler', { q: 11, r: 7 }, TACKLE_SUCCESS_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.actionCount).toBe(44 + 3); // fast = +3
+  });
+
+  it('tackle success preserves addedTime unchanged (no re-roll)', () => {
+    // addedTime already set to 3; should remain 3 after tackle
+    const state = makeTackleScenarioState({ actionCount: 45, half: 1, addedTime: 3 });
+    const result = applyMove(state, 'away-tackler', { q: 11, r: 7 }, TACKLE_SUCCESS_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.addedTime).toBe(3); // unchanged
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAP-2 (CR-01): applyMove steal success — half-end transitions (end-to-end)
+// ---------------------------------------------------------------------------
+
+/**
+ * Steal success state: home carrier at {q:10,r:7} moves to {q:11,r:7},
+ * which is 1 hex away from the away defender at {q:12,r:7} → ZoI steal triggered.
+ * stealDie=6 → SUCCESS (always, per D-06: die===6 → SUCCESS).
+ */
+const homeStealCarrier: PlayerPiece = {
+  id: 'home-steal-carrier',
+  teamId: 'home',
+  firstName: 'Home',
+  lastName: 'Carrier',
+  number: 11,
+  nationality: 'Test',
+  role: 'FWD',
+  position: { q: 10, r: 7 },
+  pace: 8,
+  shooting: 7,
+  tackling: 2,
+  dribbling: 7,
+  saving: 1,
+  handling: 1,
+  resilience: 6,
+  aerialAbility: 4,
+  highPass: 4,
+};
+
+const awayStealDefender: PlayerPiece = {
+  id: 'away-steal-def',
+  teamId: 'away',
+  firstName: 'Away',
+  lastName: 'StealDef',
+  number: 5,
+  nationality: 'Test',
+  role: 'DEF',
+  // Defender is 2 hexes from carrier at {q:10,r:7}; carrier moves to {q:11,r:7} (1 hex away) → ZoI
+  position: { q: 12, r: 7 },
+  pace: 6,
+  shooting: 2,
+  tackling: 6,
+  dribbling: 3,
+  saving: 1,
+  handling: 1,
+  resilience: 7,
+  aerialAbility: 3,
+  highPass: 3,
+};
+
+/** Build a steal-scenario state: home carrier moves into the defender's ZoI. */
+const makeStealScenarioState = (overrides: Partial<GameState> = {}): GameState => ({
+  roomCode: 'TEST',
+  phase: 'MOVE',
+  activeTeam: 'home',
+  attackingTeam: 'home',
+  pieces: [homeStealCarrier, awayStealDefender],
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-steal-carrier' },
+  score: { home: 0, away: 0 },
+  actionCount: 44,
+  half: 1,
+  eventLog: [],
+  refereeCard: { leniency: 2 },
+  movedPieceIds: [],
+  paceUsedByPieceId: {},
+  movementSlot: 'ATTACKER_4',
+  ballZone: 'middle',
+  addedTime: 3, // halfEnd = 45+3 = 48
+  lastActionType: null,
+  kickOffTeam: 'home',
+  kickOffActive: false,
+  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  gameSpeed: 'fast' as const,
+  ...overrides,
+});
+
+// stealDie=6 always succeeds (D-06: die===6 → SUCCESS regardless of combined)
+const STEAL_SUCCESS_DICE = { stealDie: 6, tackleDie: 1, carrierDie: 1 };
+
+describe('applyMove — steal success triggers half-end (GAP-2/CR-01)', () => {
+  it('steal success past halfEnd returns HALF_TIME (half 1, Fast mode)', () => {
+    // actionCount=45, addedTime=3 → halfEnd=48; fast +3 → newActionCount=48 >= 48 → HALF_TIME
+    // carrier moves from {q:10,r:7} to {q:11,r:7} (1 hex from defender at {q:12,r:7}) → ZoI steal
+    const state = makeStealScenarioState({ actionCount: 45, half: 1, addedTime: 3 });
+    const result = applyMove(state, 'home-steal-carrier', { q: 11, r: 7 }, STEAL_SUCCESS_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // stealDie=6 → always SUCCESS; expect HALF_TIME
+    const stealEvent = result.state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
+    if (stealEvent && 'result' in stealEvent && stealEvent.result === 'SUCCESS') {
+      expect(result.state.phase).toBe('HALF_TIME');
+      expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+      expect(result.state.actionCount).toBe(45 + 3);
+    }
+  });
+
+  it('steal success where newActionCount < halfEnd still returns PASS (steal regression guard)', () => {
+    // actionCount=44, addedTime=3 → halfEnd=48; fast +3 → newActionCount=47 < 48 → PASS
+    const state = makeStealScenarioState({ actionCount: 44, half: 1, addedTime: 3 });
+    const result = applyMove(state, 'home-steal-carrier', { q: 11, r: 7 }, STEAL_SUCCESS_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const stealEvent = result.state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
+    if (stealEvent && 'result' in stealEvent && stealEvent.result === 'SUCCESS') {
+      expect(result.state.phase).toBe('PASS');
+      expect(result.state.actionCount).toBe(44 + 3);
+    }
   });
 });

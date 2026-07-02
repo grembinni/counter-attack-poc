@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: completed
-last_updated: "2026-07-02T18:04:01.133Z"
-last_activity: 2026-07-02 -- Plan 18.4-05 complete (EventBanner UX-14)
+status: verifying
+last_updated: '2026-07-02T18:09:43.567Z'
+last_activity: 2026-07-02 -- Plans G1+G2 complete (gap closure CR-01/CR-02)
 progress:
   total_phases: 9
   completed_phases: 8
@@ -346,8 +346,8 @@ Known deferred items at close: 6 (see above)
 
 Phase: 18.4 (ux-enhancements) — EXECUTING
 Plan: 5 of 5 COMPLETE
-Status: Complete
-Last activity: 2026-07-02 -- Plan 18.4-05 complete (EventBanner UX-14)
+Status: Phase complete — ready for verification
+Last activity: 2026-07-02
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
@@ -415,7 +415,8 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 | Phase 18.3-bug-bash-rule-correctness P04  | 50m    | 3 tasks  | 7 files  |
 | Phase 18.4-ux-enhancements P04            | 25min  | 2 tasks  | 3 files  |
 | Phase 18.4-ux-enhancements P05            | 4min   | 2 tasks  | 4 files  |
-| Phase 18.4-ux-enhancements PG1 | 11min | 1 tasks | 1 files |
+| Phase 18.4-ux-enhancements PG1            | 11min  | 1 tasks  | 1 files  |
+| Phase 18.4-ux-enhancements PG2            | 16min  | 1 tasks  | 2 files  |
 
 ## Decisions
 
@@ -487,4 +488,5 @@ missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (docu
 - [Phase ?]: UX-08 Task 1: ctaButtonClass returns ctaButtonReady when eligibleRemaining <= 0, ctaButtonPending otherwise; per-phase derivation for 7 phases
 - [Phase ?]: UX-08 Task 2: pendingEndTurn stores { action, count } so dialog can display live count in prompt; withEndTurnConfirm() wraps all End Turn / Confirm Selection buttons
 - [Phase 18.4-05]: UX-14: EventBanner uses lastProcessedLengthRef (D-03 pattern) to diff eventLog tail; @keyframes bannerFade owns in/hold/out timing; JS setTimeout handles DOM removal at 1000ms total; UI-SPEC 1s overrides CONTEXT.md 2s mention
-- [Phase ?]: EventBanner diff-and-trigger logic moved to useEffect([eventLog]) — state updates must never occur in render body per React rules of hooks
+- [Phase 18.4-G1]: EventBanner diff-and-trigger logic moved to useEffect([eventLog]) — state updates must never occur in render body per React rules of hooks
+- [Phase 18.4-G2]: checkHalfEndOnTackle exported for direct unit testing alongside 3 e2e applyMove tackle/steal tests
