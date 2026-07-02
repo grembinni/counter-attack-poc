@@ -52,6 +52,23 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   REPLAY: 'REPLAY',
 };
 
+/**
+ * UX-12 (Phase 18.4): Full stat name + action summary lookup for native title tooltips.
+ * D-02 lookup-table-as-data shape — same flat Record as PHASE_LABEL/MOVE_SLOT_SUFFIX.
+ * Maps every abbreviation rendered by StatRow call sites to full name + what it helps with.
+ */
+const STAT_FULL_NAME: Record<string, string> = {
+  PAC: 'Pace — how far this player can move per turn.',
+  DRB: 'Dribbling — keeping the ball under pressure.',
+  AA: 'Aerial Ability — winning headers and high passes.',
+  SHT: 'Shooting — scoring power on shots.',
+  SAV: "Saving — a goalkeeper's shot-stopping.",
+  HPS: 'High Pass — accuracy of lofted passes.',
+  RES: 'Resilience — resisting fatigue and knocks.',
+  TAC: 'Tackling — contesting the ball from a carrier.',
+  HND: "Handling — a goalkeeper's catch reliability.",
+};
+
 /** DESIGN-01: MOVE-phase numbered slot suffix lookup (D-02 lookup-table-as-data shape). */
 const MOVE_SLOT_SUFFIX: Record<MovementSlot, string> = {
   ATTACKER_4: ' 4',
@@ -76,7 +93,9 @@ function statBubbleClass(value: number): string {
 function StatRow({ label, value }: { label: string; value: number }) {
   return (
     <div className={styles.statRow}>
-      <span className={styles.statLabel}>{label}</span>
+      <span className={styles.statLabel} title={STAT_FULL_NAME[label] ?? label}>
+        {label}
+      </span>
       <span className={`${styles.statBubble} ${statBubbleClass(value)}`}>{value}</span>
     </div>
   );

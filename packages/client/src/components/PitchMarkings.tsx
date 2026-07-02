@@ -7,7 +7,20 @@
  *
  * D-07, D-08, D-12 (Phase 7.1): halfway line, centre circle, penalty boxes,
  * 6-yard boxes, and corner arcs.
+ * UX-09 (Phase 18.4): final-third boundary lines at PITCH_REGIONS.homeThird (q<=10)
+ * and PITCH_REGIONS.awayThird (q>=26) edges.
  */
+
+/**
+ * Hex column pitch in pixels: HEX_SIZE * (3/2) = 20 * 1.5 = 30px per column.
+ * Boundary between q=A and q=A+1 = midpoint of their centres = (30*A + 30*(A+1)) / 2 = 30*A + 15.
+ * homeThird boundary (q=10 / q=11): 30*10 + 15 = 315
+ * awayThird boundary (q=25 / q=26): 30*25 + 15 = 765
+ * (Verify: halfway line q=18 centre = 30*18 = 540 ✓)
+ */
+const HOME_THIRD_X = 315; // boundary between q=10 (homeThird) and q=11 (middleThird)
+const AWAY_THIRD_X = 765; // boundary between q=25 (middleThird) and q=26 (awayThird)
+
 export function PitchMarkings() {
   return (
     <>
@@ -20,6 +33,32 @@ export function PitchMarkings() {
         stroke="white"
         strokeWidth={1.5}
         strokeOpacity={0.6}
+        fill="none"
+        pointerEvents="none"
+      />
+
+      {/* UX-09: Final-third boundary markers — red lines at homeThird/awayThird edges */}
+      {/* Home final-third edge: boundary between PITCH_REGIONS.homeThird (q<=10) and middleThird */}
+      <line
+        x1={HOME_THIRD_X}
+        y1={17.3}
+        x2={HOME_THIRD_X}
+        y2={883.3}
+        stroke="#ef4444"
+        strokeWidth={3}
+        strokeOpacity={1}
+        fill="none"
+        pointerEvents="none"
+      />
+      {/* Away final-third edge: boundary between middleThird and PITCH_REGIONS.awayThird (q>=26) */}
+      <line
+        x1={AWAY_THIRD_X}
+        y1={17.3}
+        x2={AWAY_THIRD_X}
+        y2={883.3}
+        stroke="#ef4444"
+        strokeWidth={3}
+        strokeOpacity={1}
         fill="none"
         pointerEvents="none"
       />
