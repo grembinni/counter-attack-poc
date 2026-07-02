@@ -134,6 +134,7 @@ const makeAttacker2State = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -159,6 +160,7 @@ const makePassState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -184,6 +186,7 @@ const makeShotState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -209,6 +212,7 @@ const makeGkRestartState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -239,6 +243,7 @@ const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -247,12 +252,25 @@ const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
 // ---------------------------------------------------------------------------
 
 describe('applyEndTurn — Phase 8 clock', () => {
-  it('increments actionCount by 3 at ATTACKER_2 end (MATCH-01)', () => {
-    const state = makeAttacker2State({ actionCount: 41 });
-    const result = applyEndTurn(state, { addedTimeRoll: 3 });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.actionCount).toBe(44);
+  it('increments actionCount by GAME_SPEED_MINUTES[gameSpeed] at ATTACKER_2 end (MATCH-01/UX-07)', () => {
+    // standard speed → +2; fast speed → +3
+    const stdState = makeAttacker2State({ actionCount: 41 }); // gameSpeed:'standard' → +2
+    const stdResult = applyEndTurn(stdState, { addedTimeRoll: 3 });
+    expect(stdResult.ok).toBe(true);
+    if (!stdResult.ok) return;
+    expect(stdResult.state.actionCount).toBe(43);
+
+    const fastState = makeAttacker2State({ actionCount: 41, gameSpeed: 'fast' });
+    const fastResult = applyEndTurn(fastState, { addedTimeRoll: 3 });
+    expect(fastResult.ok).toBe(true);
+    if (!fastResult.ok) return;
+    expect(fastResult.state.actionCount).toBe(44);
+
+    const slowState = makeAttacker2State({ actionCount: 41, gameSpeed: 'slow' });
+    const slowResult = applyEndTurn(slowState, { addedTimeRoll: 3 });
+    expect(slowResult.ok).toBe(true);
+    if (!slowResult.ok) return;
+    expect(slowResult.state.actionCount).toBe(42);
   });
 
   it('sets lastActionType to MOVEMENT_PHASE on ATTACKER_2 end', () => {
@@ -264,7 +282,7 @@ describe('applyEndTurn — Phase 8 clock', () => {
   });
 
   it('does NOT set addedTime when actionCount < 45 after increment', () => {
-    const state = makeAttacker2State({ actionCount: 41 }); // 41 + 3 = 44 < 45
+    const state = makeAttacker2State({ actionCount: 42 }); // 42 + 2 (standard) = 44 < 45
     const result = applyEndTurn(state, { addedTimeRoll: 3 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -273,7 +291,7 @@ describe('applyEndTurn — Phase 8 clock', () => {
   });
 
   it('sets addedTime = addedTimeRoll + leniency when actionCount first reaches 45 (MATCH-02)', () => {
-    const state = makeAttacker2State({ actionCount: 42, refereeCard: { leniency: 2 } }); // 42+3=45
+    const state = makeAttacker2State({ actionCount: 43, refereeCard: { leniency: 2 } }); // 43+2=45 (standard speed)
     const result = applyEndTurn(state, { addedTimeRoll: 4 }); // addedTime = 4 + 2 = 6
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -285,7 +303,7 @@ describe('applyEndTurn — Phase 8 clock', () => {
       actionCount: 48,
       addedTime: 5, // already set — should NOT be changed
       refereeCard: { leniency: 2 },
-    }); // 48 + 3 = 51 >= 45
+    }); // 48 + 2 (standard) = 50 >= 45
     const result = applyEndTurn(state, { addedTimeRoll: 99 }); // roll would give 101, but should be ignored
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -293,14 +311,13 @@ describe('applyEndTurn — Phase 8 clock', () => {
   });
 
   it('returns HALF_TIME for half 1 when actionCount >= 45 + addedTime (Pitfall 5)', () => {
-    // actionCount=44+3=47, addedTime=5(already set), threshold=45+5=50 — not yet done
-    // Let's use: actionCount=47, addedTime=2 (already set), threshold=45+2=47 — exactly at threshold
+    // actionCount=45+2=47 (standard speed), addedTime=2 (already set), threshold=45+2=47 — exactly at threshold
     const state = makeAttacker2State({
-      actionCount: 44,
+      actionCount: 45,
       half: 1,
       addedTime: 2, // already set
       refereeCard: { leniency: 1 },
-    }); // 44+3=47 >= 45+2=47
+    }); // 45+2=47 >= 45+2=47
     const result = applyEndTurn(state, { addedTimeRoll: 3 }); // roll should be ignored (addedTime already set)
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -312,11 +329,11 @@ describe('applyEndTurn — Phase 8 clock', () => {
 
   it('returns FULL_TIME for half 2 when actionCount >= 90 + addedTime (Pitfall 5)', () => {
     const state = makeAttacker2State({
-      actionCount: 89,
+      actionCount: 90,
       half: 2,
       addedTime: 2, // already set
       refereeCard: { leniency: 1 },
-    }); // 89+3=92 >= 90+2=92
+    }); // 90+2=92 >= 90+2=92 (standard speed)
     const result = applyEndTurn(state, { addedTimeRoll: 3 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -336,13 +353,10 @@ describe('applyEndTurn — Phase 8 clock', () => {
   });
 
   it('rolls addedTime and then triggers HALF_TIME in the same transition (inline roll at exactly 45)', () => {
-    // actionCount=42+3=45 >= 45, addedTime was null, so we set it = addedTimeRoll(1) + leniency(2) = 3
-    // then 45 >= 45+3=48? No. So no HALF_TIME yet — continues to PASS.
-    // For inline roll + HALF_TIME in same call: newActionCount=45, addedTime=1+leniency(0)=1,
-    // threshold=45+1=46, 45 < 46 → no HALF_TIME.
-    // For HALF_TIME in same call: newActionCount=46, addedTime=1+0=1, threshold=46, 46>=46 → HALF_TIME
+    // actionCount=44+2=46 (standard speed), addedTime was null, so we set it = addedTimeRoll(1) + leniency(0) = 1
+    // newActionCount=46, addedTime=1, threshold=45+1=46, 46>=46 → HALF_TIME
     const state = makeAttacker2State({
-      actionCount: 43, // 43+3=46
+      actionCount: 44, // 44+2=46 (standard speed)
       addedTime: null,
       half: 1,
       refereeCard: { leniency: 0 }, // addedTime = addedTimeRoll
@@ -580,7 +594,7 @@ describe('applyMove — STEAL_ATTEMPT lastActionType + time (D-14)', () => {
       const stealEvent = moveResult.state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
       if (stealEvent && 'result' in stealEvent && stealEvent.result === 'SUCCESS') {
         expect(moveResult.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
-        expect(moveResult.state.actionCount).toBe(13); // 10 + 3
+        expect(moveResult.state.actionCount).toBe(12); // 10 + 2 (standard speed, UX-07)
       }
     }
   });
@@ -752,6 +766,7 @@ const makeKickOffSetupState = (overrides: Partial<GameState> = {}): GameState =>
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -855,6 +870,7 @@ const makeHalfTimeState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -1229,6 +1245,7 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   ...overrides,
 });
 
@@ -1356,6 +1373,7 @@ describe('HEAD-05: a piece that contested a header is excluded from the subseque
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+    gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
     // D-21 / HEAD-05: this piece contested a header and must not move in the next Movement Phase
     contestedPieceIds: [contestedId],
   });
@@ -1487,6 +1505,7 @@ describe('BUG-14: Snapshot availability after pace exhaustion', () => {
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'cosmos', away: 'xolos' },
+    gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
   });
 
   it('carrier stays out of movedPieceIds after pace exhaustion (Snapshot remains available)', () => {

@@ -126,6 +126,7 @@ const baseState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  gameSpeed: 'standard', // UX-07 (Phase 18.4)
   contestedPieceIds: [],
 };
 

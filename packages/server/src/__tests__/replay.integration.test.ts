@@ -719,7 +719,7 @@ describe('FULL_TIME → REPLAY stream', () => {
       movementSlot: 'ATTACKER_2',
       half: 2,
       addedTime: 1, // already set; halfEnd = 90+1=91
-      actionCount: 88, // +3 = 91 >= 91 → FULL_TIME
+      actionCount: 89, // +2 (standard speed) = 91 >= 91 → FULL_TIME
       attackingTeam: room.gameState!.attackingTeam,
       activeTeam: room.gameState!.attackingTeam, // must be the acting team for isActivePlayer check
     };

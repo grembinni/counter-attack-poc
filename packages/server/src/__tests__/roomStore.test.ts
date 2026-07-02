@@ -189,6 +189,7 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'cosmos', away: 'xolos' },
+    gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
     ...overrides,
   };
 }

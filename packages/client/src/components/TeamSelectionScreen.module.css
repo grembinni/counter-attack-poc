@@ -101,3 +101,61 @@
   color: #e0e0e0;
   text-decoration: line-through;
 }
+
+/* UX-07: game speed selector container */
+.speedSelector {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  max-width: 480px;
+  width: 100%;
+}
+
+/* UX-07: speed option buttons row */
+.speedOptions {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+/* UX-07: inactive speed option — Body role: 13px/400, matching .statusLine sizing */
+.speedOption {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  background: #16213e;
+  border: 1px solid #a0a0a0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.speedOption:hover:not(:disabled) {
+  border-color: #e0e0e0;
+  color: #e0e0e0;
+}
+
+.speedOption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* UX-07: active/selected speed option — Emphasis role: 13px/700, matching .teamName sizing */
+.speedOptionActive {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: #16213e;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.speedOptionActive:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

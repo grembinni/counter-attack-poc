@@ -1,4 +1,4 @@
-import type { HexCoord, GameState } from './types.js';
+import type { HexCoord, GameState, GameSpeed } from './types.js';
 import type { TeamId } from './teamConfig.js';
 
 // Typed const objects for Socket.io event names (not TypeScript enums — enums compile
@@ -51,6 +51,11 @@ export const ClientEvents = {
   GAME_HEADER_ACCURACY_ACK: 'game:header-accuracy-ack',
   /** Phase 16 D-11: client emits chosen TeamId during team selection phase. */
   TEAM_PICK: 'team:pick',
+  /**
+   * UX-07 (Phase 18.4): home player emits their chosen game speed before match start.
+   * Payload: 'slow' | 'standard' | 'fast'. Server validates against allow-list.
+   */
+  TEAM_SPEED_SET: 'team:speed-set',
   /**
    * OFFSIDE-02 (Phase 17 D-29): piece repositioning during FREE_KICK_SETUP.
    * Mirrors GAME_KICK_OFF_MOVE — no pace limits, no ZoI enforcement.
@@ -130,6 +135,8 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_HEADER_ACCURACY_ACK]: () => void;
   /** Phase 16 D-11: client selects a team during team selection phase. Validated server-side. */
   [ClientEvents.TEAM_PICK]: (teamId: TeamId) => void;
+  /** UX-07 (Phase 18.4): home player sets the game speed before match start. Validated server-side. */
+  [ClientEvents.TEAM_SPEED_SET]: (speed: GameSpeed) => void;
   /** OFFSIDE-02 (Phase 17 D-29): reposition a piece during FREE_KICK_SETUP (no pace limits, no ZoI). */
   [ClientEvents.GAME_FREE_KICK_MOVE]: (pieceId: string, to: HexCoord) => void;
   /** OFFSIDE-02 (Phase 17 D-29): Ready confirmation during FREE_KICK_SETUP; transitions when both teams confirm. */

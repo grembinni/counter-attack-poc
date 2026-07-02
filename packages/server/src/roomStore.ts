@@ -11,7 +11,7 @@
 
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
-import type { GameState, HexCoord } from '@counter-attack/shared';
+import type { GameState, GameSpeed, HexCoord } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
@@ -73,6 +73,12 @@ export type Room = {
    * Cleared (irrelevant) once gameState is built — gameState.selectedTeams becomes the source of truth.
    */
   homePickedTeam?: TeamId;
+  /**
+   * UX-07 (Phase 18.4): The game speed chosen by the home player before match start.
+   * undefined = not yet set (defaults to 'standard' when building initial state).
+   * Set by TEAM_SPEED_SET handler; consumed when building game state in TEAM_PICK away-pick.
+   */
+  gameSpeed?: GameSpeed;
 };
 
 /**
