@@ -64,6 +64,7 @@ import {
   computeHeaderDuelDetail,
   computeShotPathDeflection,
   applyOffsideFoulWithRelocation,
+  resolveHeaderWinnerPiece,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
@@ -2519,16 +2520,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             // if it somehow fails, state is left in HEADER with contestants confirmed so the
             // client can retry via GAME_ROLL (existing fallback path).
           } else {
-            // Winner determined: stay in HEADER, store headerDuelWinner so the winning team
-            // can select a target hex (GAME_HEADER_TARGET -> applyResolveHeaderTarget). No
-            // offside check needed here — every nominated contestant was already confirmed
-            // not-flagged by the D-57 check above, so the resolved winner can't be flagged.
+            // BUG-07: Winner determined — deliver the pass IMMEDIATELY using the winner's
+            // current hex as the target. Drop the GAME_HEADER_TARGET selection sub-phase
+            // entirely. The delivery is non-contestable (lastActionType === 'HEADER' already
+            // suppresses interception in applyPass — BUG-01 precedent).
             //
-            // Quick-task 260621-b8f finding #1: the contested duel previously never emitted a
-            // HEADER event — only the tie path (via applyRoll above) and the uncontested
-            // paths in gameEngine.ts did. Emit one here using the real dice/aerial detail
-            // already computed by computeHeaderDuelDetail, mirroring the contested-branch
-            // event shape in applyRoll's HEADER case (gameEngine.ts).
+            // Quick-task 260621-b8f finding #1: emit the HEADER contest event first
+            // (attacker/defender duel detail), then applyResolveHeaderTarget appends the
+            // HEADED_PASS delivery event — so the log shows both the contest and the delivery.
             const headerEvent: ActionEvent = {
               type: 'HEADER',
               attackerId: duelDetail.attackerId,
@@ -2542,11 +2541,23 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               defenderCombined: duelDetail.defenderCombined,
               timestamp: Date.now(),
             };
-            room.gameState = {
+            // Set headerDuelWinner so applyResolveHeaderTarget can look it up, then
+            // immediately resolve delivery using the winner's current position as the target.
+            const stateWithWinner = {
               ...room.gameState,
               headerDuelWinner: winner,
               eventLog: [...room.gameState.eventLog, headerEvent],
             };
+            const winnerPiece = resolveHeaderWinnerPiece(stateWithWinner, winner);
+            const deliveryTarget = winnerPiece?.position ?? room.gameState.ball.position;
+            const deliveryResult = applyResolveHeaderTarget(stateWithWinner, deliveryTarget);
+            if (deliveryResult.ok) {
+              room.gameState = deliveryResult.state;
+            } else {
+              // Fallback (should not occur in normal play): leave state with duelWinner set
+              // so the client can still trigger GAME_HEADER_TARGET manually.
+              room.gameState = stateWithWinner;
+            }
           }
         }
       }
