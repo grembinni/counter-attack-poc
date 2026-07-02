@@ -247,8 +247,21 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 **Success Criteria** (what must be TRUE):
 
 1. All 8 UX enhancements (UX-07..UX-14) are implemented per 18-CONTEXT.md decisions and the 18-UI-SPEC.md design contract (game speed selector, end-turn confirmation, final-third marker, helper text, tooltips, event banner)
-   **Plans**: TBD
-   **Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Largest of the 5 sub-phases (8 requirements) — likely needs its own multi-plan breakdown. The existing `.planning/phases/18-design-polish/18-UI-SPEC.md` (approved, all 6 dimensions PASS) already covers every visual/interaction contract these requirements need — no new UI-SPEC required for this sub-phase.
+
+**Plans**: 5 plans (2 waves)
+
+**Wave 1**
+
+- [ ] 18.4-01-PLAN.md — UX-07 game-speed selector: GameSpeed type + GameState.gameSpeed + GAME_SPEED_MINUTES lookup, TEAM_SPEED_SET server handler, speed-derived MOVE clock increment, TeamSelectionScreen selector [Wave 1]
+- [ ] 18.4-02-PLAN.md — UX-09 final-third red boundary marker (PitchMarkings.tsx) + UX-12 stat-bubble title tooltip with STAT_FULL_NAME lookup (GameBoard.tsx) [Wave 1]
+- [ ] 18.4-03-PLAN.md — UX-11 MOVE + UX-10 FREE_MOVE helper-text player counts + UX-13 action-button native title tooltips (ActionPanel.tsx) [Wave 1]
+
+**Wave 2**
+
+- [ ] 18.4-04-PLAN.md — UX-08 end-turn confirmation dialog + orange/green ctaButtonClass color state across all move/place phases (ActionPanel.tsx/.module.css) [Wave 2, depends on 18.4-03]
+- [ ] 18.4-05-PLAN.md — UX-14 transient EventBanner (goal/interception/tackle/loose-ball) subscribed to eventLog, mounted in GameBoard.tsx [Wave 2, depends on 18.4-02]
+
+**Note**: Split out of the original Phase 18 "Design Polish" scope (see Phase 18 note). Largest of the 5 sub-phases (8 requirements). The existing `.planning/phases/18-design-polish/18-UI-SPEC.md` (approved, all 6 dimensions PASS) covers every visual/interaction contract these requirements need — no new UI-SPEC required. Wave assignment maximizes parallelism: Wave 1's three plans own disjoint file sets (shared/server/selection vs. PitchMarkings+GameBoard vs. ActionPanel); Wave 2 serializes the two same-file conflicts (04 after 03 on ActionPanel.tsx, 05 after 02 on GameBoard.tsx).
 
 ---
 
@@ -281,4 +294,4 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 | 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete | 2026-06-22 |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete | 2026-07-02 |
-| 18.4. UX Enhancements          | v1.2      | 0/TBD          | Pending  | -          |
+| 18.4. UX Enhancements          | v1.2      | 0/5            | Pending  | -          |
