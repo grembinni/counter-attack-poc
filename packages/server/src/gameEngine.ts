@@ -382,6 +382,32 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
 }
 
 // ---------------------------------------------------------------------------
+// checkHalfEndOnTackle
+// ---------------------------------------------------------------------------
+
+/**
+ * GAP-2 (CR-01): checks whether a tackle/steal success has pushed the clock past halfEnd.
+ *
+ * Called from the three tackle/steal success return paths in applyMove to mirror the
+ * half-end logic in applyEndTurn (lines 921-932). Does NOT re-roll addedTime — the
+ * "set once per half" invariant is owned by applyEndTurn; here we only READ state.addedTime.
+ *
+ * Returns 'HALF_TIME' (half 1) or 'FULL_TIME' (half 2) when the clock crosses halfEnd;
+ * returns null when addedTime is not yet set (not in added time) or threshold not reached.
+ */
+export function checkHalfEndOnTackle(
+  state: GameState,
+  newActionCount: number,
+): 'HALF_TIME' | 'FULL_TIME' | null {
+  const HALF_LENGTH = state.half * 45;
+  const addedTime = state.addedTime;
+  if (addedTime === null) return null; // not yet in added time — no half-end possible mid-tackle
+  const halfEnd = HALF_LENGTH + addedTime;
+  if (newActionCount < halfEnd) return null;
+  return state.half === 1 ? 'HALF_TIME' : 'FULL_TIME';
+}
+
+// ---------------------------------------------------------------------------
 // applyMove
 // ---------------------------------------------------------------------------
 
@@ -667,11 +693,14 @@ export function applyMove(
         );
         // OFFSIDE-01/D-39: a successful tackle is a "break in play" — MOVEMENT ends early
         // here, so evaluate offside now using the post-tackle piece positions and ball state.
+        // GAP-2 (CR-01): check half-end boundary before returning; mirrors applyEndTurn logic.
+        const tackleNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
+        const tackleEndPhase = checkHalfEndOnTackle(state, tackleNewActionCount);
         return {
           ok: true,
           state: {
             ...state,
-            phase: 'PASS',
+            phase: tackleEndPhase ?? 'PASS',
             pieces: newPieces,
             attackingTeam: piece.teamId,
             activeTeam: piece.teamId,
@@ -682,7 +711,7 @@ export function applyMove(
             eventLog: tackleCorrectedEventLog,
             lastActionType: 'SUCCESSFUL_TACKLE',
             // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
-            actionCount: state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed],
+            actionCount: tackleNewActionCount,
             stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
             tackleAttemptedByIds: [], // D-02
             offsidePieceIds: evaluateOffside({
@@ -750,11 +779,14 @@ export function applyMove(
           const bug13CorrectedEventLog = newEventLog.map((e) =>
             e === moveEvent ? correctedMoveEventBug13 : e,
           );
+          // GAP-2 (CR-01): check half-end boundary before returning; mirrors applyEndTurn logic.
+          const addTackleNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
+          const addTackleEndPhase = checkHalfEndOnTackle(state, addTackleNewActionCount);
           return {
             ok: true,
             state: {
               ...state,
-              phase: 'PASS',
+              phase: addTackleEndPhase ?? 'PASS',
               pieces: newPieces,
               attackingTeam: additionalTackler.teamId,
               activeTeam: additionalTackler.teamId,
@@ -765,7 +797,7 @@ export function applyMove(
               eventLog: bug13CorrectedEventLog,
               lastActionType: 'SUCCESSFUL_TACKLE',
               // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
-              actionCount: state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed],
+              actionCount: addTackleNewActionCount,
               stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
               tackleAttemptedByIds: [], // D-02
               offsidePieceIds: evaluateOffside({
@@ -811,11 +843,14 @@ export function applyMove(
     );
     // OFFSIDE-01/D-39: a successful steal is also a "break in play" — MOVEMENT ends early
     // here, so evaluate offside now using the post-steal piece positions and ball state.
+    // GAP-2 (CR-01): check half-end boundary before returning; mirrors applyEndTurn logic.
+    const stealNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
+    const stealEndPhase = checkHalfEndOnTackle(state, stealNewActionCount);
     return {
       ok: true,
       state: {
         ...state,
-        phase: 'PASS',
+        phase: stealEndPhase ?? 'PASS',
         pieces: newPieces,
         attackingTeam: newOwnerTeam,
         activeTeam: newOwnerTeam,
@@ -826,7 +861,7 @@ export function applyMove(
         eventLog: stealCorrectedEventLog,
         lastActionType: 'SUCCESSFUL_TACKLE',
         // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
-        actionCount: state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed],
+        actionCount: stealNewActionCount,
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
         offsidePieceIds: evaluateOffside({ ...state, pieces: newPieces, ball: stealSuccessBall }),
