@@ -109,3 +109,24 @@
 .wide .ctaButton {
   flex: 0 0 calc(33.333% - 2px);
 }
+
+/* UX-08: End Turn / Confirm Selection color-state modifiers */
+/* Orange while eligible pieces remain — layered on top of .ctaButton base */
+.ctaButtonPending {
+  background: #f39c12;
+  transition: background-color 0.15s ease;
+}
+
+.ctaButtonPending:hover {
+  background: #e67e22;
+}
+
+/* Green once all eligible pieces have moved/placed */
+.ctaButtonReady {
+  background: #27ae60;
+  transition: background-color 0.15s ease;
+}
+
+.ctaButtonReady:hover {
+  background: #219a52;
+}
