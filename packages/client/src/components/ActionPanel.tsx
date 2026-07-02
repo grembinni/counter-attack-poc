@@ -11,6 +11,24 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
   LONG_BALL: 'Long Ball',
 };
 
+/**
+ * UX-13: one-line summary tooltip for each action button (18-UI-SPEC Interaction Contract).
+ * Applied as native `title` attribute on each `<button className={styles.ctaButton}>`.
+ */
+const ACTION_SUMMARY: Record<string, string> = {
+  Move: 'Move a player; distance limited by pace.',
+  'Standard Pass': 'Pass to a nearby teammate; may be intercepted.',
+  'One-Touch': 'First-time pass; both teams reposition before it lands.',
+  'High Pass': 'Lofted pass contested by an aerial header.',
+  'Long Ball': 'A long downfield pass; less accurate.',
+  Snapshot: 'A quick shot from inside the box.',
+  Shoot: 'Take a shot at goal (in range only).',
+  'Punt (High Pass)': 'Goalkeeper clears with a long kick.',
+  'Quick Throw': 'Goalkeeper throws the ball back into play.',
+  Undo: 'Undo your last move this phase.',
+  'End Turn': 'End your turn and pass control to the opponent.',
+};
+
 /** Goal line r-values shared between Shoot two-step and GK_DIVE/SNAPSHOT_DEFLECT wait panels. */
 const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
 
@@ -154,10 +172,19 @@ export function ActionPanel() {
           <span className={styles.helperLine2}>Move 1 player to challenge (max 3 hexes).</span>
         </div>
         {/* BUG-03 (Phase 17 D-07): Undo available in HIGH_PASS_MOVEMENT with same boundary logic */}
-        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Undo']}
+          disabled={!canUndo}
+          onClick={emitUndo}
+        >
           Undo
         </button>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={emitEndTurn}
+        >
           End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -182,10 +209,19 @@ export function ActionPanel() {
           <span className={styles.helperLine2}>Move 1 player to receive the ball (max 1 hex).</span>
         </div>
         {/* D-03 (Phase 17.1): Undo available with FTP_REPOSITION as the slot boundary */}
-        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Undo']}
+          disabled={!canUndo}
+          onClick={emitUndo}
+        >
           Undo
         </button>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={emitEndTurn}
+        >
           End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -233,7 +269,11 @@ export function ActionPanel() {
             Move 1 player to deflect the shot (up to 2 hexes).
           </span>
         </div>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={emitEndTurn}
+        >
           End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -352,13 +392,25 @@ export function ActionPanel() {
           <span className={styles.helperLine1}>Goalie Restart!</span>
           <span className={styles.helperLine2}>Choose an action.</span>
         </div>
-        <button className={styles.ctaButton} onClick={() => emitGKRestart('kick')}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Punt (High Pass)']}
+          onClick={() => emitGKRestart('kick')}
+        >
           Punt (High Pass)
         </button>
-        <button className={styles.ctaButton} onClick={() => emitGKRestart('throw')}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Quick Throw']}
+          onClick={() => emitGKRestart('throw')}
+        >
           Quick Throw
         </button>
-        <button className={styles.ctaButton} onClick={() => emitGKRestart('movement')}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Move']}
+          onClick={() => emitGKRestart('movement')}
+        >
           Move
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -419,7 +471,11 @@ export function ActionPanel() {
             Move 1 player to receive the ball (max 3 hexes).
           </span>
         </div>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={emitEndTurn}
+        >
           End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -437,7 +493,6 @@ export function ActionPanel() {
   if (phase === 'FREE_MOVE_ATTACK' || phase === 'FREE_MOVE_DEFENSE') {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
-    const sideLabel = phase === 'FREE_MOVE_ATTACK' ? 'Attacking team' : 'Defending team';
     // 260621-ajd: countdown of players left to move in the active free-move sub-phase.
     const freeMoveSide = phase === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
     const eligibleIds = freeMoveEligibleIds?.[freeMoveSide] ?? [];
@@ -447,13 +502,17 @@ export function ActionPanel() {
     return (
       <div className={styles.panel}>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Free Move!</span>
-          <span className={styles.helperLine2}>
-            {sideLabel} — move up to 6 hexes per player in the opponent&apos;s third. {remaining} of{' '}
-            {eligibleTotal} players left to move.
+          <span className={styles.helperLine1}>
+            Ball entered the opposite final third — your backline can reposition up to 6 hexes
+            regardless of remaining pace.
           </span>
+          <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={emitEndTurn}
+        >
           End Turn
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -478,7 +537,11 @@ export function ActionPanel() {
             <span className={styles.helperLine1}>Loose Ball!</span>
             <span className={styles.helperLine2}>Move to collect.</span>
           </div>
-          <button className={styles.ctaButton} onClick={emitStartMovement}>
+          <button
+            className={styles.ctaButton}
+            title={ACTION_SUMMARY['Move']}
+            onClick={emitStartMovement}
+          >
             Move
           </button>
           {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -536,13 +599,18 @@ export function ActionPanel() {
           )}
           <span className={styles.phaseLabel}>Choose Action</span>
           {!isKickOff && eligible.has('MOVEMENT') && (
-            <button className={styles.ctaButton} onClick={emitStartMovement}>
+            <button
+              className={styles.ctaButton}
+              title={ACTION_SUMMARY['Move']}
+              onClick={emitStartMovement}
+            >
               Move
             </button>
           )}
           {eligible.has('STANDARD_PASS') && (
             <button
               className={styles.ctaButton}
+              title={ACTION_SUMMARY['Standard Pass']}
               onClick={() => setSelectedPassType('STANDARD_PASS')}
             >
               Standard Pass
@@ -551,29 +619,43 @@ export function ActionPanel() {
           {!isKickOff && eligible.has('FIRST_TIME_PASS') && (
             <button
               className={styles.ctaButton}
+              title={ACTION_SUMMARY['One-Touch']}
               onClick={() => setSelectedPassType('FIRST_TIME_PASS')}
             >
               One-Touch
             </button>
           )}
           {!isKickOff && eligible.has('HIGH_PASS') && (
-            <button className={styles.ctaButton} onClick={() => setSelectedPassType('HIGH_PASS')}>
+            <button
+              className={styles.ctaButton}
+              title={ACTION_SUMMARY['High Pass']}
+              onClick={() => setSelectedPassType('HIGH_PASS')}
+            >
               High Pass
             </button>
           )}
           {!isKickOff && eligible.has('LONG_BALL') && (
-            <button className={styles.ctaButton} onClick={() => setSelectedPassType('LONG_BALL')}>
+            <button
+              className={styles.ctaButton}
+              title={ACTION_SUMMARY['Long Ball']}
+              onClick={() => setSelectedPassType('LONG_BALL')}
+            >
               Long Ball
             </button>
           )}
           {!isKickOff && showSnapshot && (
-            <button className={styles.ctaButton} onClick={emitSnapshot}>
+            <button
+              className={styles.ctaButton}
+              title={ACTION_SUMMARY['Snapshot']}
+              onClick={emitSnapshot}
+            >
               Snapshot
             </button>
           )}
           {!isKickOff && showShoot && (
             <button
               className={styles.ctaButton}
+              title={ACTION_SUMMARY['Shoot']}
               onClick={() => setShootingMode(true)}
               disabled={shootingMode}
             >
@@ -648,14 +730,27 @@ export function ActionPanel() {
         )}
         {/* D-10: Snapshot wired to emitSnapshot in MOVEMENT phase (was permanently disabled) */}
         {canSnapshot && (
-          <button className={styles.ctaButton} onClick={emitSnapshot}>
+          <button
+            className={styles.ctaButton}
+            title={ACTION_SUMMARY['Snapshot']}
+            onClick={emitSnapshot}
+          >
             Snapshot
           </button>
         )}
-        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Undo']}
+          disabled={!canUndo}
+          onClick={emitUndo}
+        >
           Undo
         </button>
-        <button className={styles.ctaButton} onClick={emitEndTurn}>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={emitEndTurn}
+        >
           End Turn
         </button>
         {movementSlot === 'ATTACKER_4' && Object.keys(paceUsedByPieceId).length === 0 && (
