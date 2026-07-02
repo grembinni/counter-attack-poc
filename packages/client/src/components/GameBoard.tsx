@@ -7,6 +7,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { HexGrid } from './HexGrid.js';
 import { ActionLog } from './ActionLog.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
+import { EventBanner } from './EventBanner.js';
 import { ActionPanel } from './ActionPanel.js';
 import { KickOffSetupPanel } from './KickOffSetupPanel.js';
 import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
@@ -326,6 +327,8 @@ export function GameBoard() {
         {/* Pitch area: flex:1, position:relative for overlay anchoring */}
         <div className={styles.pitchContainer}>
           <HexGrid />
+          {/* UX-14: transient event banner — self-gates on eventLog, renders null when idle */}
+          <EventBanner />
 
           {/* Phase overlays — rendered over pitch, top band remains visible above (D-13) */}
           {phase === 'HALF_TIME' && (
