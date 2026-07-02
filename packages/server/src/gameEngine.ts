@@ -1847,6 +1847,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastActionType: null,
             lastShotPath: null,
             snapshotGkPenalty: null,
+            // BUG-06 / D-47: a goal is a major dead-ball restart — clear ALL offside flags
+            // so pieces are not shown as offside during the kick-off setup phase.
+            offsidePieceIds: [],
             eventLog: [
               ...state.eventLog,
               shotAttemptGoal,
@@ -1931,6 +1934,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastActionType: null,
             lastShotPath: null,
             snapshotGkPenalty: null,
+            // BUG-06 / D-47: a goal is a major dead-ball restart — clear ALL offside flags
+            // so pieces are not shown as offside during the kick-off setup phase.
+            offsidePieceIds: [],
             eventLog: [
               ...state.eventLog,
               shotAttemptGoal,
