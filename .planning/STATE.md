@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Phase Details
-status: verifying
-last_updated: '2026-07-02T18:09:43.567Z'
-last_activity: 2026-07-02 -- Plans G1+G2 complete (gap closure CR-01/CR-02)
+status: completed
+last_updated: '2026-07-02T18:16:47.716Z'
+last_activity: 2026-07-02 -- Phase 18.4 marked complete
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 52
-  completed_plans: 51
-  percent: 89
+  completed_plans: 52
+  percent: 100
 ---
 
 # Project State
@@ -344,10 +344,10 @@ Known deferred items at close: 6 (see above)
 
 ## Current Position
 
-Phase: 18.4 (ux-enhancements) — EXECUTING
+Phase: 18.4 — COMPLETE
 Plan: 5 of 5 COMPLETE
-Status: Phase complete — ready for verification
-Last activity: 2026-07-02
+Status: Phase 18.4 complete
+Last activity: 2026-07-02 -- Phase 18.4 marked complete
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
