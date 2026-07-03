@@ -7,9 +7,12 @@ import styles from './ActionLog.module.css';
 
 /** Reads selectedTeams from store state (not a subscription — safe in module-level helpers). */
 function pieceColorOf(pieceId: string): string {
-  const selectedTeams = useGameStore.getState().gameState.selectedTeams;
+  const state = useGameStore.getState();
+  const selectedTeams = state.gameState?.selectedTeams;
+  if (!selectedTeams) return '#888888';
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
-  return TEAM_CONFIGS[selectedTeams[positional]].palette.primary;
+  const teamId = selectedTeams[positional];
+  return TEAM_CONFIGS[teamId]?.palette.primary ?? '#888888';
 }
 
 /**
@@ -21,7 +24,7 @@ function pieceName(pieceId: string, fallback: string): string {
   const pieces = useGameStore.getState().gameState.pieces;
   const piece = pieces.find((p) => p.id === pieceId);
   if (piece === undefined) return fallback;
-  return `${piece.firstName} ${piece.lastName}`;
+  return piece.lastName ? `${piece.firstName} ${piece.lastName}` : piece.firstName;
 }
 
 /**
@@ -31,10 +34,14 @@ function pieceName(pieceId: string, fallback: string): string {
  * current `attackingTeam`; `DEFENDER_5` uses the other side.
  */
 function slotTeamColor(slot: MovementSlot): string {
-  const { selectedTeams, attackingTeam } = useGameStore.getState().gameState;
+  const gameState = useGameStore.getState().gameState;
+  const selectedTeams = gameState?.selectedTeams;
+  if (!selectedTeams) return '#888888';
+  const attackingTeam = gameState.attackingTeam;
   const positional: 'home' | 'away' =
     slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
-  return TEAM_CONFIGS[selectedTeams[positional]].palette.primary;
+  const teamId = selectedTeams[positional];
+  return TEAM_CONFIGS[teamId]?.palette.primary ?? '#888888';
 }
 
 /** Bold, team-colored player label rendered inline. */
@@ -143,6 +150,9 @@ function fmtStatRoll(
   penalty: number,
   combined: number,
 ): string {
+  // Math.abs is intentional display normalization: attackerPenalty (computed as
+  // die + stat - combined) may be zero or negative when the attacker gets a bonus
+  // (combined > die + stat). We always render "- N" for display consistency.
   return `${statName} ${statValue} + ${roll} - ${Math.abs(penalty)} = ${combined}`;
 }
 
@@ -388,7 +398,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
             <PNamed pieceId={event.scorerId} /> SCORED!
           </>
         ),
-        isGoal: false,
+        isGoal: true, // was false — GOAL events must return true
       };
     case 'KICK_OFF':
       return { prefix: '[KICK OFF]', prefixColor: null, content: ' Match started', isGoal: false };
