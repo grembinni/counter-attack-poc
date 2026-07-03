@@ -58,7 +58,7 @@ type Props = {
 
 /**
  * Renders a single PlayerPiece as an SVG circle + text label.
- * Colors: driven by TEAM_CONFIGS[TEAM_DEFAULTS[piece.teamId]].primaryColor (D-06 refactor).
+ * Colors: driven by TEAM_CONFIGS[TEAM_DEFAULTS[piece.teamId]].palette.primary (D-06 refactor).
  * Jersey patterns: four outfield team patterns (cosmos/xolos/city/crew) + GK checker/stripe (D-08, D-10).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Offside marker: independent red ring layer at a distinct radius, driven by `isOffside` (OFFSIDE-01, D-25; stroke width corrected by D-42).
@@ -89,13 +89,17 @@ export function PieceOverlay({
   const teamConfig = TEAM_CONFIGS[teamId];
 
   // GK pieces use distinctive colors regardless of team (physical board convention)
-  // Outfield: primaryColor from TEAM_CONFIGS
+  // Outfield: palette.primary from TEAM_CONFIGS
   const fill = isGK
     ? piece.teamId === 'home'
       ? '#9b59b6' // home GK: purple (replaced by checker pattern on circle fill)
       : '#be185d' // away GK: pink-700 (one shade darker)
-    : teamConfig.primaryColor; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
-  const stroke = isGK ? (piece.teamId === 'home' ? '#6c3483' : '#5f1515') : teamConfig.primaryColor;
+    : teamConfig.palette.primary; // outfield: team primary color (used for stroke calculation only — fill comes from url(#pattern))
+  const stroke = isGK
+    ? piece.teamId === 'home'
+      ? '#6c3483'
+      : '#5f1515'
+    : teamConfig.palette.primary;
 
   // Ball carrier: piece holds the ball — render directional possession dot (D-15)
   const isBallCarrier = carrierId !== null && piece.id === carrierId;

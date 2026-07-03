@@ -58,7 +58,7 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
             height={18}
             patternUnits="userSpaceOnUse"
           >
-            <rect width={18} height={18} fill={TEAM_CONFIGS[teamId].primaryColor} />
+            <rect width={18} height={18} fill={TEAM_CONFIGS[teamId].palette.primary} />
             {/* Horizontal white stripe across centre — matches scaled cosmos jersey */}
             <rect x={0} y={6} width={18} height={6} fill="#ffffff" fillOpacity={0.4} />
           </pattern>

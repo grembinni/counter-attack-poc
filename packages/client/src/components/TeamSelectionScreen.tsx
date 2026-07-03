@@ -116,8 +116,8 @@ export function TeamSelectionScreen({
               disabled={isDisabled}
               className={isStruckOut ? styles.cardStruckOut : styles.card}
               style={{
-                borderColor: TEAM_CONFIGS[teamId].primaryColor,
-                background: TEAM_CONFIGS[teamId].primaryColor,
+                borderColor: TEAM_CONFIGS[teamId].palette.primary,
+                background: TEAM_CONFIGS[teamId].palette.primary,
               }}
               onClick={() => onPick(teamId)}
             >
