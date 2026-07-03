@@ -293,9 +293,9 @@ describe('Room integration tests', () => {
     const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
     const stateOnPickPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE, 2000);
     const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
-    clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+    clientA.emit(ClientEvents.TEAM_PICK, 'city');
     await homePickedPromise;
-    clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
+    clientB.emit(ClientEvents.TEAM_PICK, 'crew');
 
     // Wait for game:state to be delivered to BOTH clients before disconnecting.
     await Promise.all([stateOnPickPromiseA, stateOnPickPromiseB]);

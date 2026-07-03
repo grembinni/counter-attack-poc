@@ -79,7 +79,7 @@ const baseMovementState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   // Phase 16 field (D-15)
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   // UX-07 (Phase 18.4): game speed — default 'standard' in tests
   gameSpeed: 'standard',
 };
@@ -89,7 +89,7 @@ const baseMovementState: GameState = {
 // ---------------------------------------------------------------------------
 
 // Default selectedTeams for existing buildInitialGameState tests (Phase 16 repair).
-const DEFAULT_TEAMS = { home: 'cosmos', away: 'xolos' } as const;
+const DEFAULT_TEAMS = { home: 'city', away: 'crew' } as const;
 
 describe('buildInitialGameState', () => {
   it('returns phase KICK_OFF_SETUP with 22 pieces (TEAM-01, D-23)', () => {
@@ -623,7 +623,7 @@ const passState: GameState = {
   lastActionType: 'MOVEMENT_PHASE', // PASS phase is reached after a movement
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -651,7 +651,7 @@ const shotState: GameState = {
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -688,7 +688,7 @@ const headerState: GameState = {
   lastActionType: 'HIGH_PASS',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -725,7 +725,7 @@ const looseBallState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -1208,7 +1208,7 @@ const gkRestartState: GameState = {
   lastActionType: 'SHOT',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' }, // Phase 16 D-15
+  selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 

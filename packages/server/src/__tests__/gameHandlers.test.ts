@@ -138,9 +138,9 @@ async function setupRoom(): Promise<{
   const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
   const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  clientA.emit(ClientEvents.TEAM_PICK, 'city');
   await homePickedPromise;
-  clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
+  clientB.emit(ClientEvents.TEAM_PICK, 'crew');
   const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   return { clientA, clientB, roomCode, state };

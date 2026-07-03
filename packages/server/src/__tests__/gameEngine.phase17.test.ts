@@ -132,7 +132,7 @@ const baseMovementState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -157,7 +157,7 @@ const passState: GameState = {
   lastActionType: 'MOVEMENT_PHASE',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -228,7 +228,7 @@ const highPassMovementStateWithMove: GameState = {
   lastActionType: 'HIGH_PASS',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   highPassMovementSlot: 'ATTACKER',
   highPassMovedPieceId: 'home-9',
@@ -274,7 +274,7 @@ const shotStateNearGK: GameState = {
   lastActionType: 'SHOT',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   shotTargetHex: { q: 32, r: 13 }, // away goal hex
   gkDivePosition: { q: 11, r: 7 },
@@ -1096,7 +1096,7 @@ const ftpMoveAttackerState: GameState = {
   lastActionType: 'FIRST_TIME_PASS',
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   firstTimePassMovementSlot: 'ATTACKER',
   firstTimePassMovedPieceId: null,
@@ -1519,7 +1519,7 @@ const looseBallNearEdgeState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' },
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 

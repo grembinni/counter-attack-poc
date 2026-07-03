@@ -4,7 +4,7 @@ import { isInRegion, PITCH_REGIONS } from '@counter-attack/shared';
 
 describe('kickoff debug', () => {
   it('applyKickOffReady passes for both teams after driveToKickOff seeding', () => {
-    const state = buildInitialGameState('TEST', { home: 'cosmos', away: 'xolos' });
+    const state = buildInitialGameState('TEST', { home: 'city', away: 'crew' });
     const kickOffHex = PITCH_REGIONS.kickOffHex;
     const attackingTeam = state.attackingTeam;
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';

@@ -73,7 +73,7 @@ function makeState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): G
     lastActionType: null,
     kickOffTeam: 'home',
     kickOffActive: false,
-    selectedTeams: { home: 'cosmos', away: 'xolos' },
+    selectedTeams: { home: 'city', away: 'crew' },
     gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
     ...overrides,
   };
@@ -1561,7 +1561,7 @@ describe('BUG-06: offsidePieceIds reset on GOAL restart path (applyRoll SHOT bra
     ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
     movementSlot: null,
     lastActionType: 'MOVEMENT_PHASE',
-    selectedTeams: { home: 'cosmos', away: 'xolos' },
+    selectedTeams: { home: 'city', away: 'crew' },
     shotTargetHex: { q: 36, r: 13 }, // goal line hex (home attacks toward q=36)
     // Seed a non-empty offsidePieceIds — the invariant is that it MUST be cleared
     // when the goal resets to KICK_OFF_SETUP (D-47 / BUG-06).

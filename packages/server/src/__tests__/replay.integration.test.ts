@@ -142,9 +142,9 @@ async function setupFullTimeRoom(): Promise<{
   const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
   const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
-  clientA.emit(ClientEvents.TEAM_PICK, 'cosmos');
+  clientA.emit(ClientEvents.TEAM_PICK, 'city');
   await homePickedPromise;
-  clientB.emit(ClientEvents.TEAM_PICK, 'xolos');
+  clientB.emit(ClientEvents.TEAM_PICK, 'crew');
   await Promise.all([statePromiseA, statePromiseB]);
 
   // Seed the room with a FULL_TIME state and a non-empty eventLog.

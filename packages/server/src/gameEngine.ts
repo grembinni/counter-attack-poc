@@ -26,7 +26,7 @@ import type {
 import type { TeamId } from '@counter-attack/shared';
 import {
   GAME_SPEED_MINUTES,
-  TEAM_SQUADS,
+  getSquadPlayers,
   PITCH_REGIONS,
   PITCH_HEXES,
   GOAL_R_VALUES,
@@ -50,7 +50,7 @@ import {
   triggerOffsideFoul,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
-// Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by TEAM_SQUADS runtime lookup (Phase 16).
+// Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
 
 // No socket.io imports — pure functions only (ARCH-01, established Phase 2/3 pattern).
 
@@ -113,12 +113,16 @@ function buildSquadPieces(
   attackingTeam: 'home' | 'away',
   selectedTeams: { home: TeamId; away: TeamId },
 ): PlayerPiece[] {
-  const homeSquad = TEAM_SQUADS[selectedTeams.home].map((p) => ({ ...p, teamId: 'home' as const }));
-  const awaySquad = TEAM_SQUADS[selectedTeams.away].map((p) => ({
+  const homeSquad = getSquadPlayers(selectedTeams.home).map((p, i) => ({
+    ...p,
+    teamId: 'home' as const,
+    id: `home-${i}`,
+  }));
+  const awaySquad = getSquadPlayers(selectedTeams.away).map((p, i) => ({
     ...p,
     teamId: 'away' as const,
+    id: `away-${i}`,
     position: { q: 36 - p.position.q, r: p.position.r }, // A1 mirror formula
-    id: p.id.replace('home-', 'away-'),
   }));
   const pieces = [...homeSquad, ...awaySquad];
   const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
