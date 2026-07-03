@@ -208,11 +208,21 @@ export function registerRoomHandlers(
           // Both teams chosen — build game state and start the game.
           const selectedTeams = { home: room.homePickedTeam, away: teamId };
           // UX-07 (Phase 18.4): use the speed the home player set (or 'standard' if unset).
-          room.gameState = buildInitialGameState(
-            roomCode,
-            selectedTeams,
-            room.gameSpeed ?? 'standard',
-          );
+          // CR-03: wrap in try/catch — a throw from buildInitialGameState (e.g. bad playerIds)
+          // would propagate uncaught inside the Socket.io handler and crash the Node process.
+          let gameState: import('@counter-attack/shared').GameState;
+          try {
+            gameState = buildInitialGameState(
+              roomCode,
+              selectedTeams,
+              room.gameSpeed ?? 'standard',
+            );
+          } catch (err) {
+            console.error('buildInitialGameState failed:', err);
+            socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
+            return;
+          }
+          room.gameState = gameState;
           broadcastState(io, room);
         }
       } finally {

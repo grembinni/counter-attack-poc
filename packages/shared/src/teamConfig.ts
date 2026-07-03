@@ -152,13 +152,17 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
   },
 };
 
+/** CR-03: Module-level Map for O(1) player lookup — avoids O(n) linear scan per squad member.
+ * Built once at module load; 11 × 178 = ~1,958 comparisons per team reduced to 11 O(1) lookups. */
+const PLAYER_POOL_MAP = new Map(PLAYER_POOL.map((p) => [p.id, p]));
+
 /** DATA-02/D-03: Resolve a team's squad players from PLAYER_POOL using TEAM_CONFIGS.playerIds.
  * Throws if a referenced player ID is not found in PLAYER_POOL (data integrity guard).
  * Imported by server buildSquadPieces — returns PoolPlayer[] for further spread to PlayerPiece. */
 export function getSquadPlayers(teamId: TeamId): PoolPlayer[] {
   const ids = TEAM_CONFIGS[teamId].playerIds;
   return ids.map((id) => {
-    const player = PLAYER_POOL.find((p) => p.id === id);
+    const player = PLAYER_POOL_MAP.get(id);
     if (!player) throw new Error(`Player ${id} not found in PLAYER_POOL`);
     return player;
   });
