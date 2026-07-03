@@ -35,7 +35,7 @@ export interface PoolPlayer {
   saving: number;
   handling: number;
   resilience: number;
-  /** D-13: Fixed \"Arial Ability\" → \"Aerial Ability\" typo in all CSVs and seed script. */
+  /** D-13: Aerial Ability — CSV header typo corrected in Phase 19. */
   aerialAbility: number;
   highPass: number;
 }
