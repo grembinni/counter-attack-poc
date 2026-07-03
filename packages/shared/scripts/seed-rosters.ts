@@ -308,6 +308,15 @@ async function main() {
     if (rows.length < 2) continue;
 
     const header = rows[0];
+    // CR-02: Validate that no header cell contains a comma — a comma in a header cell
+    // indicates the CSV uses RFC 4180 quoted fields which our bare split(',') cannot parse,
+    // and would silently corrupt all subsequent column lookups for affected rows.
+    for (const cell of header) {
+      if (cell.includes(','))
+        throw new Error(
+          `CSV header cell contains comma: "${cell}" in ${csvFile} — use a quoted-field-aware parser`,
+        );
+    }
     const idx: Record<string, number> = {};
     for (let i = 0; i < header.length; i++) {
       idx[header[i]] = i;
@@ -389,6 +398,15 @@ async function main() {
     for (const e of entries) {
       allEntries.push({ id: `p${String(counter++).padStart(3, '0')}`, ...e });
     }
+  }
+
+  // WR-07: Fail-fast count assertion before writing output — catches silent drops due to
+  // TEAM_ID_MAP mismatches or CSV structure changes at generation time, not only in tests.
+  const EXPECTED_TOTAL = 178;
+  if (allEntries.length !== EXPECTED_TOTAL) {
+    throw new Error(
+      `Expected ${EXPECTED_TOTAL} players, got ${allEntries.length}. Check TEAM_ID_MAP and CSV files.`,
+    );
   }
 
   // ---- Emit teams.ts ----
