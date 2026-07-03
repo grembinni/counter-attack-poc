@@ -1,5 +1,5 @@
 import type { GameState } from '@counter-attack/shared';
-import { TEAM_SQUADS } from '@counter-attack/shared';
+import { PLAYER_POOL } from '@counter-attack/shared';
 
 /**
  * Home team positions on the 37×26 grid (overriding placeholder 25×16 positions).
@@ -39,6 +39,8 @@ const AWAY_POSITIONS: Record<string, { q: number; r: number }> = {
 /**
  * Mock GameState for MOVEMENT phase with 37×26 grid positions.
  * Used as the default initial state for the Zustand store (D-10, D-11).
+ * Phase 19: rebuilt from PLAYER_POOL filtered by sourceTeamId (city=home, crew=away).
+ * selectedTeams uses city/crew — cosmos/xolos are no longer valid TeamId values (D-04).
  */
 export const mockMovementState: GameState = {
   roomCode: 'MOCK1',
@@ -46,19 +48,17 @@ export const mockMovementState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [
-    ...TEAM_SQUADS.cosmos.map((p) => ({
+    ...PLAYER_POOL.filter((p) => p.sourceTeamId === 'city').map((p, i) => ({
       ...p,
       teamId: 'home' as const,
-      position: HOME_POSITIONS[p.id] ?? p.position,
+      id: `home-${i}`,
+      position: HOME_POSITIONS[`home-${i}`] ?? p.position,
     })),
-    ...TEAM_SQUADS.xolos.map((p) => ({
+    ...PLAYER_POOL.filter((p) => p.sourceTeamId === 'crew').map((p, i) => ({
       ...p,
       teamId: 'away' as const,
-      id: p.id.replace('home-', 'away-'),
-      position: AWAY_POSITIONS[p.id.replace('home-', 'away-')] ?? {
-        q: 36 - p.position.q,
-        r: p.position.r,
-      },
+      id: `away-${i}`,
+      position: AWAY_POSITIONS[`away-${i}`] ?? { q: 36 - p.position.q, r: p.position.r },
     })),
   ],
   ball: { position: { q: 18, r: 13 }, carrierId: 'home-9' },
@@ -78,6 +78,6 @@ export const mockMovementState: GameState = {
   lastActionType: null,
   kickOffTeam: 'home',
   kickOffActive: false,
-  selectedTeams: { home: 'cosmos', away: 'xolos' },
+  selectedTeams: { home: 'city', away: 'crew' }, // D-04: cosmos/xolos no longer valid TeamId
   gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
 };

@@ -115,33 +115,39 @@ function renderPiece(
 }
 
 describe('PieceOverlay — TEAM-02..05: per-team jersey pattern fills (D-08)', () => {
-  it('home outfield piece (cosmos) fill references url(#cosmos-jersey-home-5)', () => {
+  it('home outfield piece (city) fill references url(#city-jersey-home-5)', () => {
     const { container } = renderPiece(homeOutfield, 'none');
-    // The base circle should have fill referencing the cosmos-jersey pattern
+    // The base circle should have fill referencing the city-jersey pattern
+    // (store initial selectedTeams.home = 'city' after Phase 19 — D-04)
     const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toContain('url(#cosmos-jersey');
+    expect(baseCircle.getAttribute('fill')).toContain('url(#city-jersey');
     expect(baseCircle.getAttribute('fill')).toContain('home-5');
   });
 
-  it('away outfield piece (xolos) fill references url(#xolos-jersey-away-5)', () => {
+  it('away outfield piece (crew) fill references url(#crew-jersey-away-5)', () => {
     const { container } = renderPiece(awayOutfield, 'none');
-    const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toContain('url(#xolos-jersey');
+    // (store initial selectedTeams.away = 'crew' after Phase 19 — D-04)
+    // For crew pieces, the first circle in the DOM is the clipPath anchor circle (no fill attr).
+    // We select the first circle that is NOT inside a clipPath to get the base piece circle.
+    const allCircles = Array.from(container.querySelectorAll('circle'));
+    const baseCircle = allCircles.find((c) => c.closest('clipPath') === null)!;
+    expect(baseCircle).not.toBeUndefined();
+    expect(baseCircle.getAttribute('fill')).toContain('url(#crew-jersey');
     expect(baseCircle.getAttribute('fill')).toContain('away-5');
   });
 
-  it('cosmos-jersey pattern def is present in defs when home outfield renders', () => {
+  it('city-jersey pattern def is present in defs when home outfield renders', () => {
     const { container } = renderPiece(homeOutfield, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
-    const cosmosPattern = patterns.find((p) => p.id.startsWith('cosmos-jersey-'));
-    expect(cosmosPattern).toBeTruthy();
+    const cityPattern = patterns.find((p) => p.id.startsWith('city-jersey-'));
+    expect(cityPattern).toBeTruthy();
   });
 
-  it('xolos-jersey pattern def is present in defs when away outfield renders', () => {
+  it('crew-jersey pattern def is present in defs when away outfield renders', () => {
     const { container } = renderPiece(awayOutfield, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
-    const xolosPattern = patterns.find((p) => p.id.startsWith('xolos-jersey-'));
-    expect(xolosPattern).toBeTruthy();
+    const crewPattern = patterns.find((p) => p.id.startsWith('crew-jersey-'));
+    expect(crewPattern).toBeTruthy();
   });
 
   it('PieceOverlay source has no #1a56b0 team-identity literal (D-06 color refactor)', () => {
@@ -160,15 +166,17 @@ describe('PieceOverlay — TEAM-02..05: per-team jersey pattern fills (D-08)', (
     expect(hardcodedRed.length).toBe(0);
   });
 
-  it('City arch <path> with stroke #f5c518 and pointerEvents=none is present for city outfield (D-09)', () => {
-    // City arch path is gated on teamId === 'city' — we cannot test this with homeOutfield (cosmos).
-    // We test that the path does NOT appear on cosmos/xolos pieces (sanity).
+  it('City jersey pattern uses #dc143c (crimson) base fill for city outfield (D-09)', () => {
+    // City jersey pattern is gated on teamId === 'city'. Since homeOutfield is a home piece
+    // and store initial selectedTeams.home = 'city', the city jersey pattern WILL appear.
     const { container } = renderPiece(homeOutfield, 'none');
-    const paths = Array.from(container.querySelectorAll('path'));
-    const cityArchPaths = paths.filter(
-      (p) => p.getAttribute('stroke') === '#f5c518' && p.getAttribute('pointer-events') === 'none',
-    );
-    expect(cityArchPaths.length).toBe(0);
+    const patterns = Array.from(container.querySelectorAll('pattern'));
+    const cityPattern = patterns.find((p) => p.id.startsWith('city-jersey-'));
+    expect(cityPattern).toBeTruthy();
+    // City pattern base rect fill is #dc143c (crimson)
+    const rects = cityPattern ? Array.from(cityPattern.querySelectorAll('rect')) : [];
+    const fills = rects.map((r) => r.getAttribute('fill'));
+    expect(fills).toContain('#dc143c');
   });
 });
 
