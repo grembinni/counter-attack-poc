@@ -127,7 +127,14 @@ function buildSquadPieces(
   const pieces = [...homeSquad, ...awaySquad];
   const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
   const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
-  if (homeST && awayST) {
+  if (!homeST || !awayST) {
+    // WR-02: Log a diagnostic error if either striker is absent — game proceeds with
+    // pieces at their formation positions (ball at centre, no carrier until pickup),
+    // but this indicates a data integrity problem that should be investigated.
+    console.error(
+      `buildSquadPieces: missing ST for home=${!homeST} away=${!awayST} (selectedTeams: ${JSON.stringify(selectedTeams ?? {})})`,
+    );
+  } else {
     if (attackingTeam === 'home') {
       homeST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
       awayST.position = { q: 22, r: 13 }; // away-side, just outside centre circle
@@ -228,6 +235,12 @@ export type ApplyStartMovementResult =
  * D-14: the wire path that makes the Movement Phase reachable.
  * T-4-05: the handler (Wave 3) restricts this event to the attacking team's socket;
  *         the engine rejects it outside KICK_OFF phase.
+ *
+ * WR-04: activeTeam validation is intentionally enforced at the handler layer
+ *         (T-4-05), not here. The engine trusts that the handler has already
+ *         confirmed the caller is the activeTeam before invoking this function.
+ *         This is a deliberate architectural choice — the engine remains a pure
+ *         state-transition function, not an authorization boundary.
  *
  * Appends a KICK_OFF ActionEvent to mark the kick-off→movement edge.
  */
