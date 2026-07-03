@@ -95,10 +95,13 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 3. All players (all prior squad members + new pool contributors) are retrievable from a single `PLAYER_POOL` export; team configs reference player IDs rather than embedding inline player objects
 4. Color scheme registry retains Xolos/Cozmos palette entries as named records; TypeScript compiles clean across all packages
    **Plans**: 3 plans
-
-Plans:
+   Plans:
+   **Wave 1**
 
 - [ ] 19-01-PLAN.md — Shared data foundation: 4-color palette, TeamId/ColorSchemeId split, COLOR_SCHEME_REGISTRY, PLAYER_POOL + seed rewrite, CSV typo fix
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 19-02-PLAN.md — Server: buildSquadPieces via getSquadPlayers; VALID_TEAM_IDS shrink to city/crew
 - [ ] 19-03-PLAN.md — Client: primaryColor→palette.primary swaps, TeamId-keyed map shrink, mock + test updates
       **UI hint**: no

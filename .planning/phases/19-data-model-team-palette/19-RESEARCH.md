@@ -628,22 +628,25 @@ style={{ borderColor: TEAM_CONFIGS[teamId].palette.primary, background: TEAM_CON
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **What happens to `FREE_AGENTS` / `sourceTeamId` for free agents?**
    - What we know: CONTEXT.md says all players land in `PLAYER_POOL` with `sourceTeamId` set to their team slug. Free agents have no team.
    - What's unclear: Should `sourceTeamId` be typed as `ColorSchemeId | 'free-agent'`, or should `free-agent` be added to `ColorSchemeId`?
    - Recommendation: Type `PoolPlayer.sourceTeamId` as `ColorSchemeId | string` (wide) in Phase 19, then tighten in Phase 21 once all team slugs are known. Alternatively, add a `PoolTeamId = ColorSchemeId | 'free-agent'` type alias.
+   - **RESOLVED (19-01 Task 3):** `PoolPlayer.sourceTeamId` typed as `ColorSchemeId | string`; free agents use `sourceTeamId: 'free-agent'` string literal.
 
 2. **Should `TeamConfig.playerIds` be populated manually or by the seed script?**
    - What we know: CONTEXT.md D-03 says team configs reference player IDs. D-12 says the seed script assigns IDs.
    - What's unclear: Does the seed script write `TEAM_CONFIGS.city.playerIds = [...]` into `teams.ts`, or does it write `PLAYER_POOL` and the planner manually enters the IDs into `teamConfig.ts`?
    - Recommendation: The seed script should output both `PLAYER_POOL` and a `CITY_PLAYER_IDS` / `CREW_PLAYER_IDS` const block so the planner can copy the IDs into `teamConfig.ts` without guessing. Alternatively the seed script could write `teamConfig.ts` too — but that is a bigger change than needed.
+   - **RESOLVED (19-01 Task 3):** Seed script outputs `PLAYER_POOL` array with all players; executor runs seed script, reads the console output, and manually pastes the City/Crew player ID arrays into `TEAM_CONFIGS.city.playerIds` and `TEAM_CONFIGS.crew.playerIds` in `teamConfig.ts`.
 
 3. **Do `ActionLog.test.tsx` player name assertions need updating?**
    - What we know: `ActionLog.test.tsx` line 189 asserts `expect(screen.getByText(/Nicolae Rusu/))` which relies on the cosmos squad being the home team in `mockMovementState`. After the mock switches to `city`, a different player is at `home-9`.
    - What's unclear: How many test assertions reference specific player names?
    - Recommendation: The planner must audit `ActionLog.test.tsx` and `HexGrid.test.tsx` for player-name or player-ID assertions that depend on cosmos/xolos squad membership, and update them as part of the mock update task.
+   - **RESOLVED (19-03 Task 3):** Player name assertions in `ActionLog.test.tsx` and `GameBoard.test.tsx` are updated to use City/Crew player names read from `19-01-SUMMARY.md` (which records the actual player IDs/names assigned during 19-01 execution).
 
 ---
 
