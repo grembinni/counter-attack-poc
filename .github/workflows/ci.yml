@@ -18,6 +18,7 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @counter-attack/shared build
       - run: pnpm -r typecheck
       - run: pnpm -r test
       - run: pnpm -r build
