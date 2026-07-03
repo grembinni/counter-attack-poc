@@ -64,6 +64,9 @@ export function TeamSelectionScreen({
   const heading = isHomeTurn ? 'Home: choose your team' : 'Away: choose your team';
   const showWaiting = !iAmActive && isHomeTurn;
 
+  // WR-03: compute once — avoids three repeated SPEED_OPTIONS.find() calls in the visitor branch.
+  const selectedOption = SPEED_OPTIONS.find((o) => o.value === selectedSpeed);
+
   return (
     <div className={styles.screen}>
       <h2 className={styles.heading}>{heading}</h2>
@@ -93,12 +96,12 @@ export function TeamSelectionScreen({
           </div>
         ) : (
           <span
-            className={`${styles.speedOptionActive} ${styles[SPEED_OPTIONS.find((o) => o.value === selectedSpeed)?.colorClass ?? 'speedColorStandard']}`}
+            className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
           >
             <span className={styles.speedIcon}>
-              {SPEED_OPTIONS.find((o) => o.value === selectedSpeed)?.icon}
+              {selectedOption?.icon}
             </span>
-            {SPEED_OPTIONS.find((o) => o.value === selectedSpeed)?.label ?? selectedSpeed}
+            {selectedOption?.label ?? selectedSpeed}
           </span>
         )}
       </div>
