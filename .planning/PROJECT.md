@@ -21,6 +21,18 @@ Two friends can open a browser, share a room code, and play a complete match of 
 - Three response-move test fixtures in `useGameStore.test.ts` carry stale `movementSlot: 'ATTACKER_4'` (inert but fixture-hygiene risk)
 - HIGH_PASS_MOVE missing-repositioning-exclusion parallel to the pre-17.1-16 FIRST_TIME_PASS_MOVE defect (documented, not fixed)
 
+## Current Milestone: v1.3 Team Customization & Formation System
+
+**Goal:** Expand from 4 fictional teams to 12 real-league teams grouped by league, add dynamic formation selection at kickoff with stat-driven auto-assignment, decouple team/player data to support v1.4 draft mode, and close all known v1.2 backlog bugs.
+
+**Target features:**
+
+- Team library — 12 selectable teams across MLS (City, Crew + 4 new) and International (6 new); Xolos/Cozmos retired as color schemes + player pool contributors; color scheme entity decoupled from team identity
+- Formation selection — 4-4-2, 5-3-2, 4-3-3, 3-4-3 chosen at each kickoff; hex starting positions placed dynamically per formation
+- Auto-assign with override — System assigns 11 players to roles by stat weight (anchor: CB/CM/CF; flex: FB, winger, flex-mid), player can swap before confirming lineup
+- v1.4 data foundations — Player pool as global entity; color scheme as reusable visual identity; architecture supports random draft next milestone
+- Bug & UX block — OFFSIDE-01/02 UAT closure, GK_KICK/LOOSE_BALL_LAND replay gaps, HIGH_PASS_MOVE carrier exclusion, plus any v1.3 regressions
+
 ## Requirements
 
 ### Validated (v1.0)
@@ -64,16 +76,17 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 - ✓ **UX-07..14** — 8 UX enhancements (game speed, end-turn dialog, final-third lines, tooltips, EventBanner) — Phase 18.4
 - ✗ **OFFSIDE-01, OFFSIDE-02** — Code implemented; human UAT checkpoint deferred — carry to v1.3
 
-### Active (v1.3 — next milestone)
+### Active (v1.3 — current milestone)
 
-_Requirements to be defined via `/gsd-new-milestone`._
+_Full requirements in `.planning/REQUIREMENTS.md`._
 
-Candidates from deferred items:
-
-- OFFSIDE-01/02 human UAT verification
-- GK_KICK replay frame visibility
-- KICK_OFF_SETUP stale shot-path shading fix
-- HIGH_PASS_MOVE missing-repositioning-exclusion (parallel to 17.1-16 FIRST_TIME_PASS_MOVE fix)
+- **LEAGUE-01..03**: League categorization, MLS 6-team set, International 6-team set
+- **TEAM-07..10**: 4 new MLS teams with full visual identity (badge, jersey, color)
+- **INTL-01..06**: 6 international teams with full visual identity
+- **DATA-01..03**: ColorScheme entity, global player pool, team/player decoupling for v1.4 draft
+- **FORM-01..04**: Four formations (4-4-2, 5-3-2, 4-3-3, 3-4-3) with dynamic hex placement
+- **ASSIGN-01..04**: Stat-weight auto-assignment for anchor/flex roles + player swap override
+- **BUG-V13-01..06**: OFFSIDE-01/02 UAT, GK_KICK/LOOSE_BALL_LAND replay, HP exclusion, KO shading
 
 ### Deferred (v2 candidates)
 
@@ -158,4 +171,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-03 after v1.2 milestone (Team Identity & Core Fixes) close_
+_Last updated: 2026-07-03 — v1.3 milestone (Team Customization & Formation System) started_

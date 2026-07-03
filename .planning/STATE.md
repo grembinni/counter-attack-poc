@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Team Identity & Core Fixes
-status: archived
-last_updated: '2026-07-03T12:30:00.000Z'
-last_activity: 2026-07-03 -- v1.2 milestone archived and tagged
+milestone: v1.3
+milestone_name: Team Customization & Formation System
+status: planning
+last_updated: '2026-07-03T14:31:24.570Z'
+last_activity: 2026-07-03
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 52
-  completed_plans: 52
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -365,30 +365,10 @@ Known deferred items at close: 19
 
 ## Current Position
 
-Milestone: v1.2 — ARCHIVED
-Status: Complete — all 52 plans done
-Last activity: 2026-07-03 -- v1.2 archived and tagged
-
-Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
-selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as
-a deferred follow-up rather than a 6th gap-closure cycle. Captured as
-.planning/todos/pending/2026-06-20-fix-stale-client-selection-on-ftp-hp-slot-handoff.md.
-
-The ORIGINAL plan 17-05 (PASS-02 mid-pass repositioning) was cancelled by quick task
-260620-9ql — it described the old single-step SNAP_DEFLECT-reuse design, which Phase 17.1's
-two-slot FIRST_TIME_PASS_MOVE redesign already superseded and verified. Plan 17-04 (MOVE-06)
-then executed and closed (approved 2026-06-20 after 3 checkpoint correction rounds). A new
-offside-rule scope (OFFSIDE-01/OFFSIDE-02, D-21..D-32 in 17-CONTEXT.md) was added to Phase 17
-afterward and re-planned as 17-05 (OFFSIDE-01, approved) and 17-06 (OFFSIDE-02, this plan).
-During 17-05's checkpoint review the user additionally surfaced D-39..D-41 corrections; D-41
-(foul also fires on ball-redirect-without-possession, e.g. a deflection) was explicitly
-scoped to 17-06 and is implemented as part of this plan's Tasks 1-2.
-
-Next: complete plan 17-06's Task 4 human-verify checkpoint (covering both the original
-OFFSIDE-02 scope and the D-41 addendum), then close out Phase 17 (all 6 plans complete) and
-re-run phase verification. Also outstanding: HIGH_PASS_MOVE has the same
-missing-carrier-exclusion defect that FIRST_TIME_PASS_MOVE had pre-17.1-16 (documented in
-17.1-16-PLAN.md as a deferred parallel finding, not yet filed as its own todo).
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-03 — Milestone v1.3 started
 
 ## Performance Metrics
 
