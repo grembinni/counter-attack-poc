@@ -71,7 +71,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 | Phase | Name                            | Requirements                                     | Status      |
 | ----- | ------------------------------- | ------------------------------------------------ | ----------- |
-| 19    | 1/3                             | In Progress                                      |             |
+| 19    | 3/3                             | Complete                                         | 2026-07-03  |
 | 20    | Uniform Style System            | UNIFORM-01, UNIFORM-05                           | Not started |
 | 21    | New Teams (MLS + International) | TEAM-08..11, INTL-01..06, LEAGUE-01..02          | Not started |
 | 22    | Uniform Selection Screen        | UNIFORM-02..04                                   | Not started |
@@ -102,8 +102,8 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 19-02-PLAN.md — Server: buildSquadPieces via getSquadPlayers; VALID_TEAM_IDS shrink to city/crew
-- [ ] 19-03-PLAN.md — Client: primaryColor→palette.primary swaps, TeamId-keyed map shrink, mock + test updates
+- [x] 19-02-PLAN.md — Server: buildSquadPieces via getSquadPlayers; VALID_TEAM_IDS shrink to city/crew
+- [x] 19-03-PLAN.md — Client: primaryColor→palette.primary swaps, TeamId-keyed map shrink, mock + test updates
       **UI hint**: no
 
 ### Phase 20: Uniform Style System
