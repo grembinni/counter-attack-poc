@@ -98,44 +98,44 @@
 
 | REQ-ID     | Phase | Status  | Notes                                           |
 | ---------- | ----- | ------- | ----------------------------------------------- |
-| LEAGUE-01  | —     | Pending |                                                 |
-| LEAGUE-02  | —     | Pending |                                                 |
-| LEAGUE-03  | —     | Pending |                                                 |
-| PALETTE-01 | —     | Pending |                                                 |
-| PALETTE-02 | —     | Pending |                                                 |
-| PALETTE-03 | —     | Pending |                                                 |
-| TEAM-07    | —     | Pending |                                                 |
-| TEAM-08    | —     | Pending |                                                 |
-| TEAM-09    | —     | Pending |                                                 |
-| TEAM-10    | —     | Pending |                                                 |
-| TEAM-11    | —     | Pending |                                                 |
-| INTL-01    | —     | Pending |                                                 |
-| INTL-02    | —     | Pending |                                                 |
-| INTL-03    | —     | Pending |                                                 |
-| INTL-04    | —     | Pending |                                                 |
-| INTL-05    | —     | Pending |                                                 |
-| INTL-06    | —     | Pending |                                                 |
-| UNIFORM-01 | —     | Pending |                                                 |
-| UNIFORM-02 | —     | Pending |                                                 |
-| UNIFORM-03 | —     | Pending |                                                 |
-| UNIFORM-04 | —     | Pending |                                                 |
-| UNIFORM-05 | —     | Pending |                                                 |
-| DATA-01    | —     | Pending |                                                 |
-| DATA-02    | —     | Pending |                                                 |
-| DATA-03    | —     | Pending |                                                 |
-| FORM-01    | —     | Pending |                                                 |
-| FORM-02    | —     | Pending |                                                 |
-| FORM-03    | —     | Pending |                                                 |
-| FORM-04    | —     | Pending |                                                 |
-| ASSIGN-01  | —     | Pending |                                                 |
-| ASSIGN-02  | —     | Pending |                                                 |
-| ASSIGN-03  | —     | Pending |                                                 |
-| ASSIGN-04  | —     | Pending |                                                 |
-| ASSIGN-05  | —     | Pending |                                                 |
-| OFFSIDE-01 | —     | Pending | Carried from v1.2; code implemented in Phase 17 |
-| OFFSIDE-02 | —     | Pending | Carried from v1.2; code implemented in Phase 17 |
-| REPLAY-07  | —     | Pending |                                                 |
-| REPLAY-08  | —     | Pending |                                                 |
-| BUG-22     | —     | Pending |                                                 |
-| BUG-23     | —     | Pending |                                                 |
-| UX-15      | —     | Pending |                                                 |
+| LEAGUE-01  | 21    | Pending |                                                 |
+| LEAGUE-02  | 21    | Pending |                                                 |
+| LEAGUE-03  | 19    | Pending |                                                 |
+| PALETTE-01 | 19    | Pending |                                                 |
+| PALETTE-02 | 19    | Pending |                                                 |
+| PALETTE-03 | 19    | Pending |                                                 |
+| TEAM-07    | 19    | Pending |                                                 |
+| TEAM-08    | 21    | Pending |                                                 |
+| TEAM-09    | 21    | Pending |                                                 |
+| TEAM-10    | 21    | Pending |                                                 |
+| TEAM-11    | 21    | Pending |                                                 |
+| INTL-01    | 21    | Pending |                                                 |
+| INTL-02    | 21    | Pending |                                                 |
+| INTL-03    | 21    | Pending |                                                 |
+| INTL-04    | 21    | Pending |                                                 |
+| INTL-05    | 21    | Pending |                                                 |
+| INTL-06    | 21    | Pending |                                                 |
+| UNIFORM-01 | 20    | Pending |                                                 |
+| UNIFORM-02 | 22    | Pending |                                                 |
+| UNIFORM-03 | 22    | Pending |                                                 |
+| UNIFORM-04 | 22    | Pending |                                                 |
+| UNIFORM-05 | 20    | Pending |                                                 |
+| DATA-01    | 19    | Pending |                                                 |
+| DATA-02    | 19    | Pending |                                                 |
+| DATA-03    | 19    | Pending |                                                 |
+| FORM-01    | 23    | Pending |                                                 |
+| FORM-02    | 23    | Pending |                                                 |
+| FORM-03    | 23    | Pending |                                                 |
+| FORM-04    | 23    | Pending |                                                 |
+| ASSIGN-01  | 24    | Pending |                                                 |
+| ASSIGN-02  | 24    | Pending |                                                 |
+| ASSIGN-03  | 24    | Pending |                                                 |
+| ASSIGN-04  | 24    | Pending |                                                 |
+| ASSIGN-05  | 24    | Pending |                                                 |
+| OFFSIDE-01 | 25    | Pending | Carried from v1.2; code implemented in Phase 17 |
+| OFFSIDE-02 | 25    | Pending | Carried from v1.2; code implemented in Phase 17 |
+| REPLAY-07  | 25    | Pending |                                                 |
+| REPLAY-08  | 25    | Pending |                                                 |
+| BUG-22     | 25    | Pending |                                                 |
+| BUG-23     | 25    | Pending |                                                 |
+| UX-15      | 25    | Pending |                                                 |

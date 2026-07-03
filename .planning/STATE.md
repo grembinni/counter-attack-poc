@@ -6,7 +6,7 @@ status: planning
 last_updated: '2026-07-03T14:31:24.570Z'
 last_activity: 2026-07-03
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -15,35 +15,61 @@ progress:
 
 # Project State
 
-## Current Phase
+## Current Position
 
-v1.2 milestone ARCHIVED 2026-07-03. All 52 plans across 10 sub-phases complete.
-Next: `/gsd-new-milestone` to define v1.3.
+Phase: 19 — Data Model & Team Palette
+Plan: —
+Status: Ready to plan (roadmap defined; requirements → phases mapped)
+Last activity: 2026-07-03 — v1.3 roadmap created (Phases 19–25)
+
+Progress: [----------] 0% (0/7 phases complete)
+
+Next: `/gsd-plan-phase 19` to begin Phase 19 planning
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** v1.3 — planning not yet started
+**Current focus:** v1.3 — Phase 19: Data Model & Team Palette (not yet started)
 
 ## Phase Status
 
-| Phase | Name                                       | Status   | Completed  |
-| ----- | ------------------------------------------ | -------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types           | Complete | 2026-05-28 |
-| 2     | Move Validator + Unit Tests                | Complete | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold   | Complete | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                    | Complete | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches    | Complete | 2026-05-30 |
-| 6     | React Hex Grid Renderer                    | Complete | 2026-05-31 |
-| 7     | Client-Server Integration                  | Complete | 2026-06-03 |
-| 7.1   | UI Cleanup                                 | Complete | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay         | Complete | 2026-06-05 |
-| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
-| 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
-| 9     | Render Deployment                          | Complete | 2026-06-08 |
-| 10    | Remaining Action Flows + Tech Debt         | Complete | 2026-06-11 |
+| Phase | Name                                       | Status      | Completed  |
+| ----- | ------------------------------------------ | ----------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types           | Complete    | 2026-05-28 |
+| 2     | Move Validator + Unit Tests                | Complete    | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold   | Complete    | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                    | Complete    | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches    | Complete    | 2026-05-30 |
+| 6     | React Hex Grid Renderer                    | Complete    | 2026-05-31 |
+| 7     | Client-Server Integration                  | Complete    | 2026-06-03 |
+| 7.1   | UI Cleanup                                 | Complete    | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay         | Complete    | 2026-06-05 |
+| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete    | 2026-06-05 |
+| 8.2   | Passing Cleanup                            | Complete    | 2026-06-07 |
+| 9     | Render Deployment                          | Complete    | 2026-06-08 |
+| 10    | Remaining Action Flows + Tech Debt         | Complete    | 2026-06-11 |
+| 11    | Rule Correctness                           | Complete    | 2026-06-12 |
+| 12    | Visual Token & Hex Layer                   | Complete    | 2026-06-12 |
+| 13    | Layout & Clock                             | Complete    | 2026-06-12 |
+| 14    | Kick Off Rules & Replay                    | Complete    | 2026-06-12 |
+| 15    | Team Identity                              | Complete    | 2026-06-13 |
+| 16    | Player Roster & Team Selection             | Complete    | 2026-06-14 |
+| 17    | Rule Bugs                                  | Complete    | 2026-06-21 |
+| 17.1  | Action Flow Cleanup                        | Complete    | 2026-06-20 |
+| 18    | Messaging & Logging Consistency            | Complete    | 2026-07-02 |
+| 18.1  | Replay Review                              | Complete    | 2026-06-21 |
+| 18.2  | Code Cleanup & Dup-Bugs                    | Complete    | 2026-06-22 |
+| 18.3  | Bug-Bash: Rule Correctness                 | Complete    | 2026-07-02 |
+| 18.4  | UX Enhancements                            | Complete    | 2026-07-02 |
+| 19    | Data Model & Team Palette                  | Not started | —          |
+| 20    | Uniform Style System                       | Not started | —          |
+| 21    | New Teams (MLS + International)            | Not started | —          |
+| 22    | Uniform Selection Screen                   | Not started | —          |
+| 23    | Formation System                           | Not started | —          |
+| 24    | Auto-Assignment & Lineup                   | Not started | —          |
+| 25    | Bug & UAT Closure                          | Not started | —          |
 
 ## Blocking Dependencies
 
@@ -53,12 +79,14 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 - **Referee card behaviour:** Whether Leniency affects anything beyond added time is unconfirmed from rulebook v1.4.1. Hardcode one card for v1; clarify before Phase 8.
 - **Pass range distance type:** Resolved in Phase 2 — implemented as axial hex distance (hexDistance). Physical rulebook verification pending before Phase 5 live use.
 - **ZoI scope:** Resolved in Phase 2 — ZoI triggers a STEAL_ATTEMPT for movement (moveValidator) and produces an interceptors list for passes (passValidator). Physical rulebook verification pending before Phase 5 live use.
+- **Formation hex coordinates (v1.3):** Exact hex positions for 5-3-2, 4-3-3, 3-4-3 formations to be authored during Phase 23 with reference to the physical board. 4-4-2 positions are already established from the existing hardcoded layout.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - Phase 08.1 inserted after Phase 8: cleanup player stats, ball control, movement, tackling (URGENT)
+- v1.3 Phases 19–25 added 2026-07-03
 
 ### Decisions Locked
 
@@ -209,166 +237,31 @@ Known deferred items at close: 6 (see above)
 | ---------------------- | ---------- | ---------------------------------------------------------------------------------- |
 | undo-kickoff-ball-bugs | quick-task | Completed 2026-06-06; no formal artifact directory. Work captured in git log only. |
 
-## Session Continuity
-
-- Last updated: 2026-06-15
-- Phase 17.1 Plan 04 complete. D-08 board-edge clamp + D-09 shot range gate implemented and tested.
-- 286 server + 91 client + 241 shared tests passing. 4 pre-existing RED stubs unchanged. Typecheck clean.
-
-- Last updated: 2026-06-19
-- Phase 17.1 Plan 07 complete (gap closure wave 1). Reordered applyRoll PASS branch so D-03
-  FIRST_TIME_PASS_MOVE is checked before the generic occupant-check, fixing UAT Test 3
-  (no reposition prompt after first-time pass to an occupied/teammate hex).
-
-- 297 server tests passing; 4 pre-existing RED failures unchanged (2 MOVE-06 FREE_MOVE scaffolding
-  gaps, 2 abandoned pre-17.1 firstTimePassStep design stubs). Typecheck clean.
-
-- Gap closure plans 08-10 remain (loose-ball scatter math, ZoI tackle/steal asymmetry, shot-range
-  highlight filter).
-
-- Last updated: 2026-06-19
-- Phase 17.1 Plan 09 complete (gap closure). Fixed both root causes diagnosed in
-  .planning/debug/zoi-tackle-steal-exclusion.md: moveValidator's tackle branch now falls through
-  to plain ok:true (no effect) for excluded tacklers instead of rejecting the move outright;
-  HexGrid's zoiRiskSet now filters getZoIDefenders by stealAttemptedByIds so steal-risk tint
-  clears correctly after a failed steal attempt. TACKLE_ALREADY_ATTEMPTED removed from MoveResult
-  union (confirmed unreferenced elsewhere via grep).
-
-- 245 shared + 98 client + 297 server tests passing (4 pre-existing server RED failures unchanged,
-  unrelated to this plan's files). Typecheck clean on shared and client packages.
-
-- Gap closure plan 08 (loose-ball scatter math) has no SUMMARY.md yet — still outstanding.
-  Gap closure plan 10 (shot-range highlight filter) remains as the final item in the wave.
-
-- Last updated: 2026-06-19
-- Phase 17.1 Plan 08 complete (gap closure). Rewrote computeLooseBall to use cube-coordinate
-  unit vectors instead of fixed ODD-Q offset deltas — fixes systematic NE/SW overshoot on
-  multi-step scatter rolls (root cause diagnosed in .planning/debug/loose-ball-scatter-rolls.md).
-  gameEngine.ts's D-08 board-edge clamp walk now calls computeLooseBall per step (single source
-  of truth, no duplicated fixed-delta math). Added 72-case parity/direction/distance regression
-  test. Corrected 5 pre-existing test fixtures/expectations across scoreUtils.test.ts,
-  gameEngine.phase8.test.ts, and gameEngine.phase17.test.ts that encoded the old (incorrect)
-  row-preserving trajectory assumption.
-
-- 317 shared + 297 server tests passing (4 pre-existing server RED failures unchanged, confirmed
-  via baseline worktree comparison at commit 1f3d17d — unrelated to this plan's files).
-  Typecheck clean on all packages.
-
-- Gap closure plan 10 (shot-range highlight filter) remains as the final item in the Phase 17.1
-  gap-closure wave.
-
-- Last updated: 2026-06-19
-- Phase 17.1 Plan 11 complete (gap closure, CR-01). Made applyUndo's move-type lookup
-  phase-aware (HP_MOVE in HIGH_PASS_MOVE, FTP_MOVE in FIRST_TIME_PASS_MOVE, MOVE otherwise)
-  in both the lastMoveRelIdx search and the hasPriorMoves fallback; mirrored the identical
-  mapping in ActionPanel.tsx's canUndo. De-masked two gameEngine.phase17.test.ts fixtures and
-  one ActionPanel.test.tsx fixture that fabricated MOVE events to fake the FTP/HP undo
-  boundary. Added two end-to-end game.integration.test.ts wire tests driving GAME_UNDO over a
-  real socket during FIRST_TIME_PASS_MOVE and HIGH_PASS_MOVE.
-
-- 297 server + 12/12 ActionPanel client tests passing; 4 pre-existing RED failures unchanged
-  (2 MOVE-06 FREE_MOVE scaffolding gaps, 2 abandoned pre-17.1 firstTimePassStep design stubs).
-  Typecheck clean across shared/server/client.
-
-- CR-01 is closed. Remaining: re-run phase verification to confirm success criterion 3's undo
-  clause now passes, then close out Phase 17.1.
-
-- Last updated: 2026-06-19
-- Phase 17.1 Plan 16 complete (gap closure, fresh-review CR-01 / cycle-4 verifier finding).
-  Added firstTimePassCarrierId to GameState (mirrors highPassCarrierId in type and
-  lifecycle): set at the FIRST_TIME_PASS transition, preserved across FTP_MOVE undo (pass
-  still in flight), cleared only at FTP delivery. Server GAME_MOVE FTP handler now rejects
-  pieceId === firstTimePassCarrierId with GAME_ERROR WRONG_PIECE before the lock check; the
-  FTP delivery occupant lookup excludes the passer (defense in depth); the client selectPiece
-  FTP branch mirrors the exclusion (UX-only). Closes the self-pass-reclaim Elevation-of-
-  Privilege exploit: the original passer could no longer reposition onto the empty
-  passTargetHex and have the ball handed straight back to them.
-
-- 307 server (of 313; 4 documented pre-existing RED failures unchanged: 2 MOVE-06 FREE_MOVE
-  scaffolding gaps, 2 abandoned pre-17.1 firstTimePassStep design stubs) + 108 client + 317
-  shared tests passing. Typecheck clean across shared/server/client.
-
-- HIGH_PASS_MOVE has the identical missing repositioning-exclusion defect (highPassCarrierId
-  is set but never consumed as an exclusion in its GAME_MOVE handler) — documented as a
-  deferred parallel finding, NOT fixed in this plan per scope directive.
-
-- This was the last plan (16 of 16) in the Phase 17.1 gap-closure wave. Next: re-run phase
-  verification to confirm all five success-criterion-3 defects (CR-01-new, CR-02-new,
-  Review-CR-01, Review-CR-02, and this fresh CR-01) are resolved, then close out Phase 17.1.
-
-- Last updated: 2026-06-20
-- Phase 17 Plan 05 (OFFSIDE-01) Tasks 1-3 complete. New packages/shared/src/offside.ts
-  exports pure team-relative geometry helpers (attackingDirection, isPastHalfway, isAheadOf,
-  opposingPiecesEqualOrAhead, isOffsideNow, isClearedNow, evaluateOffside) plus
-  OFFSIDE_HALFWAY_Q; GameState.offsidePieceIds (sticky id-set) added. evaluateOffside wired
-  into every applyEndTurn ok:true return and every applyFreeMoveEnd return. PieceOverlay
-  gains isOffside prop + #dc2626 strokeWidth-5 ring (independent layer, coexists with
-  selectionState rings); HexGrid wires offsidePieceIds.includes(piece.id) through.
-
-- 379 server (1 skipped, 1 todo, pre-existing/unrelated) + 134 client + shared typecheck
-  clean. offside.test.ts: 34/34 new tests green. PieceOverlay.test.tsx: 18/18 green (3 new).
-
-- Task 4 (checkpoint:human-verify, gate=blocking) is pending: two-tab live verification of
-  detection, stickiness across a non-moving turn, both D-22 clear paths, and D-24
-  team-relative defender flagging. Plan 17-05 cannot close until this checkpoint is approved.
-
-- Last updated: 2026-06-20
-- Phase 17 Plan 06 (OFFSIDE-02) Tasks 1-3 complete. FREE_KICK_SETUP GamePhase +
-  freeKickHex/freeKickAttackingTeam GameState fields + FREE_KICK_RESTART LastActionType +
-  its ELIGIBLE_NEXT_ACTIONS row (D-32) added. triggerOffsideFoul(state, explicitOffenderId?)
-  added to offside.ts — implicit ball-carrier entry point (D-26) plus an explicit-offender
-  entry point (D-41 addendum, gathered during the 17-05 checkpoint review after this plan's
-  PLAN.md was drafted) for the ball-redirect-without-possession case. applyFreeKickReady
-  added to gameEngine.ts mirroring applyKickOffReady with D-30/D-31 zone rules. Wired
-  triggerOffsideFoul at the three possession-gain success paths in gameHandlers.ts
-  (GAME_ROLL, GAME_MOVE, GAME_HEADER_TARGET) plus, per D-41, at both shot-deflection sites
-  (SNAPSHOT_DEFLECT end-turn and regular GAME_SHOT) using the deflecting defender's explicit
-  id since the ball is left loose there. Added GAME_FREE_KICK_MOVE/READY handlers (clone of
-  GAME_KICK_OFF_MOVE/READY). Client: emitFreeKickMove/emitFreeKickReady store actions,
-  selectPiece FREE_KICK_SETUP branch (whole-pitch repositioning, no zone gate per D-29),
-  HexGrid click-handler + piece-gating wiring, and a new FreeKickSetupPanel.tsx component
-  (mirrors KickOffSetupPanel.tsx — the codebase's real established both-teams-setup-phase
-  pattern, used instead of the plan's literal "inline in ActionPanel.tsx" instruction).
-  Restricted action set (D-32) required zero new client gating — falls out of the existing
-  ELIGIBLE_NEXT_ACTIONS-driven chooser once lastActionType='FREE_KICK_RESTART'.
-
-- 414 server (1 skipped, 1 todo, pre-existing/unrelated) + 152 client + 320 shared tests
-  passing. Typecheck clean across shared/server/client. New test files:
-  gameHandlers.phase17-06.test.ts (11/11), FreeKickSetupPanel.test.tsx (10/10); extended
-  offside.test.ts (+23), useGameStore.test.ts (+6), ActionPanel.test.tsx (+3).
-
-- Task 4 (checkpoint:human-verify, gate=blocking) is pending: two-tab live verification of
-  the full OFFSIDE-02 free-kick flow (foul trigger via pass/loose-ball/header possession,
-  D-30/D-31 placement rules, restricted post-kick action set) plus the D-41 addendum
-  (flagged-offside defender deflecting a shot without gaining possession should still
-  trigger the free kick). Plan 17-06 cannot close until this checkpoint is approved.
-
 ## Deferred Items (acknowledged at milestone close 2026-07-03, v1.2)
 
 Items acknowledged and deferred at v1.2 milestone close on 2026-07-03:
 
-| Category         | Item                                                                         | Status                    |
-| ---------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| verification_gap | Phase 13: browser UAT (1080p layout, HALF_TIME overlay, log toggle)          | verified 2026-07-03       |
-| verification_gap | Phase 15: browser UAT (badge visual quality, jersey proportions)             | human_needed              |
-| verification_gap | Phase 18.3: BUG-21 SNAPSHOT_TARGET highlights (executor confirmed correct)   | human_needed              |
-| quick_task       | undo-kickoff-ball-bugs (20260606)                                            | missing — work in git log |
-| quick_task       | 260612-ike, 260612-kvw, 260612-l7d, 260612-lme (GameBoard polish)            | unknown — work committed  |
-| quick_task       | 260620-9ql, 260621-ajd, 260621-awb, 260621-b8f, 260621-bsy (ActionLog/Panel) | unknown — work committed  |
-| quick_task       | 260621-gcu, 260621-h32, 260621-hnd (ActionLog formatting)                    | unknown — work committed  |
-| todo             | GK_KICK ball delivery invisible during replay                                | pending — v1.3 candidate  |
-| todo             | KICK_OFF_SETUP shot-path shading persists (root cause unknown)               | pending — v1.3 candidate  |
-| requirements     | OFFSIDE-01: offside detection — code implemented; human UAT not closed       | deferred to v1.3          |
-| requirements     | OFFSIDE-02: free-kick restart — code implemented; human UAT not closed       | deferred to v1.3          |
+| Category         | Item                                                                         | Status                                      |
+| ---------------- | ---------------------------------------------------------------------------- | ------------------------------------------- |
+| verification_gap | Phase 13: browser UAT (1080p layout, HALF_TIME overlay, log toggle)          | verified 2026-07-03                         |
+| verification_gap | Phase 15: browser UAT (badge visual quality, jersey proportions)             | human_needed                                |
+| verification_gap | Phase 18.3: BUG-21 SNAPSHOT_TARGET highlights (executor confirmed correct)   | human_needed                                |
+| quick_task       | undo-kickoff-ball-bugs (20260606)                                            | missing — work in git log                   |
+| quick_task       | 260612-ike, 260612-kvw, 260612-l7d, 260612-lme (GameBoard polish)            | unknown — work committed                    |
+| quick_task       | 260620-9ql, 260621-ajd, 260621-awb, 260621-b8f, 260621-bsy (ActionLog/Panel) | unknown — work committed                    |
+| quick_task       | 260621-gcu, 260621-h32, 260621-hnd (ActionLog formatting)                    | unknown — work committed                    |
+| todo             | GK_KICK ball delivery invisible during replay                                | pending — addressed in Phase 25 (REPLAY-07) |
+| todo             | KICK_OFF_SETUP shot-path shading persists (root cause unknown)               | pending — addressed in Phase 25 (BUG-23)    |
+| requirements     | OFFSIDE-01: offside detection — code implemented; human UAT not closed       | deferred to Phase 25                        |
+| requirements     | OFFSIDE-02: free-kick restart — code implemented; human UAT not closed       | deferred to Phase 25                        |
 
 Known deferred items at close: 19
 
-## Current Position
+## Session Continuity
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-03 — Milestone v1.3 started
+- Last updated: 2026-07-03
+- v1.3 roadmap created. Phases 19–25 defined. All 41 requirements mapped. Phase 19 is the active phase.
+- Next action: `/gsd-plan-phase 19`
 
 ## Performance Metrics
 
