@@ -1,4 +1,4 @@
-<!-- generated-by: gsd-doc-writer -->
+﻿<!-- generated-by: gsd-doc-writer -->
 
 # Architecture
 
@@ -47,7 +47,7 @@ A typical game action flows as follows:
 7. **Client reception** — Both clients receive the snapshot via their `onGameState` listener in `App.tsx`. The Zustand store is updated via `setGameState`, and the UI re-renders selectively based on Zustand subscriptions.
 8. **Optimistic highlighting** — For move validation, the client computes valid move hexes locally using `validateMove` from the shared package to drive highlight rendering without a round-trip. The server remains the sole authority for resolving outcomes.
 
-For reconnections: Socket.io's `sessionMiddleware` reads a `ca_session_token` from the handshake auth, matches it to a room slot, cancels the 90-second grace timer, and re-emits `game:state` directly to the reconnecting socket.
+For reconnections: Socket.io's `sessionMiddleware` reads a `sessionToken` from the handshake auth, matches it to a room slot, cancels the 90-second grace timer, and re-emits `game:state` directly to the reconnecting socket.
 
 ## Key Abstractions
 
@@ -84,7 +84,7 @@ counter-attack-poc/
 │   │       ├── snapshotValidator.ts # Snapshot eligibility and GK penalty calculation
 │   │       ├── offside.ts        # Offside evaluation and free-kick setup helpers
 │   │       ├── actionSequence.ts # ELIGIBLE_NEXT_ACTIONS table — FSM action routing
-│   │       ├── teamConfig.ts     # Team identity types and TEAM_SQUADS roster data
+│   │       ├── teamConfig.ts     # Team identity types and TEAM_CONFIGS (Record<TeamId, TeamConfig>)
 │   │       └── scoreUtils.ts     # Match clock and score helpers
 │   │
 │   ├── server/          # @counter-attack/server — Node.js + Express + Socket.io
