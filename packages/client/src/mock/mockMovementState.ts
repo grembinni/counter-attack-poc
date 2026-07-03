@@ -42,6 +42,10 @@ const AWAY_POSITIONS: Record<string, { q: number; r: number }> = {
  * Phase 19: rebuilt from PLAYER_POOL filtered by sourceTeamId (city=home, crew=away).
  * selectedTeams uses city/crew — cosmos/xolos are no longer valid TeamId values (D-04).
  */
+// WR-06: `: GameState` type annotation catches missing required fields at compile time.
+// Note: `satisfies GameState` cannot be used here because tests rely on
+// `Partial<typeof mockMovementState>` — `satisfies` would narrow the type to the literal
+// object shape, excluding GameState fields not present in this mock (e.g. freeKickHex).
 export const mockMovementState: GameState = {
   roomCode: 'MOCK1',
   phase: 'MOVE',
