@@ -94,8 +94,14 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. Xolos and Cozmos do not appear as selectable teams; their players exist in `PLAYER_POOL` with `sourceTeamId` annotation
 3. All players (all prior squad members + new pool contributors) are retrievable from a single `PLAYER_POOL` export; team configs reference player IDs rather than embedding inline player objects
 4. Color scheme registry retains Xolos/Cozmos palette entries as named records; TypeScript compiles clean across all packages
-   **Plans**: TBD
-   **UI hint**: no
+   **Plans**: 3 plans
+
+Plans:
+
+- [ ] 19-01-PLAN.md — Shared data foundation: 4-color palette, TeamId/ColorSchemeId split, COLOR_SCHEME_REGISTRY, PLAYER_POOL + seed rewrite, CSV typo fix
+- [ ] 19-02-PLAN.md — Server: buildSquadPieces via getSquadPlayers; VALID_TEAM_IDS shrink to city/crew
+- [ ] 19-03-PLAN.md — Client: primaryColor→palette.primary swaps, TeamId-keyed map shrink, mock + test updates
+      **UI hint**: no
 
 ### Phase 20: Uniform Style System
 
@@ -214,7 +220,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete    | 2026-06-22 |
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete    | 2026-07-02 |
 | 18.4. UX Enhancements          | v1.2      | 7/7            | Complete    | 2026-07-02 |
-| 19. Data Model & Team Palette  | v1.3      | 0/?            | Not started | —          |
+| 19. Data Model & Team Palette  | v1.3      | 0/3            | Not started | —          |
 | 20. Uniform Style System       | v1.3      | 0/?            | Not started | —          |
 | 21. New Teams (MLS + Intl)     | v1.3      | 0/?            | Not started | —          |
 | 22. Uniform Selection Screen   | v1.3      | 0/?            | Not started | —          |
