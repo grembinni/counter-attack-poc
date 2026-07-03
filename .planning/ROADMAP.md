@@ -71,7 +71,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 | Phase | Name                            | Requirements                                     | Status      |
 | ----- | ------------------------------- | ------------------------------------------------ | ----------- |
-| 19    | Data Model & Team Palette       | PALETTE-01..03, TEAM-07, DATA-01..03, LEAGUE-03  | Not started |
+| 19    | 1/3                             | In Progress                                      |             |
 | 20    | Uniform Style System            | UNIFORM-01, UNIFORM-05                           | Not started |
 | 21    | New Teams (MLS + International) | TEAM-08..11, INTL-01..06, LEAGUE-01..02          | Not started |
 | 22    | Uniform Selection Screen        | UNIFORM-02..04                                   | Not started |
@@ -98,7 +98,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
    Plans:
    **Wave 1**
 
-- [ ] 19-01-PLAN.md — Shared data foundation: 4-color palette, TeamId/ColorSchemeId split, COLOR_SCHEME_REGISTRY, PLAYER_POOL + seed rewrite, CSV typo fix
+- [x] 19-01-PLAN.md — Shared data foundation: 4-color palette, TeamId/ColorSchemeId split, COLOR_SCHEME_REGISTRY, PLAYER_POOL + seed rewrite, CSV typo fix
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
