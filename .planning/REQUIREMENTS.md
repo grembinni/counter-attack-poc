@@ -8,7 +8,7 @@
 
 ## Team Identity
 
-- [ ] **TEAM-01**: Four teams defined in shared types with name, primary color, and badge component — Cozmos, Xolos, City, Crew
+- [x] **TEAM-01**: Four teams defined in shared types with name, primary color, and badge component — Cozmos, Xolos, City, Crew
 - [x] **TEAM-02**: Cozmos — home blue; badge depicts a galaxy or star pattern; jersey has a horizontal stripe that is 3× wider than the current stripe
 - [x] **TEAM-03**: Xolos — orange; badge depicts a coyote; orange jersey with a grey checker pattern
 - [x] **TEAM-04**: City — red with gold accent; badge is an STL City–style design; red jersey with a gold arch line across the lower half and vertical stripes
@@ -81,11 +81,11 @@
 
 - [x] **UX-07**: A game-speed selector (Slow / Standard / Fast, default Standard) is presented on the team-selection screen; the selection sets how many match-clock minutes elapse per completed MOVE action (Slow = 1, Standard = 2, Fast = 3)
 - [x] **UX-08**: Any End Turn (or header Confirm Selection) action that would end a phase while eligible pieces remain unmoved/unplaced shows a confirmation prompt ("X players left to move, are you sure you want to end your turn?") with the option to cancel and return to the phase; the End Turn / Confirm Selection control renders orange while eligible moves remain and green once all eligible pieces have moved or been placed
-- [ ] **UX-09**: The board renders a visual marker (red boundary line) across the top and bottom rows marking the boundary of each team's final third
-- [ ] **UX-10**: The Free Move helper text explains that when the ball enters the opposite final third, that team's backline may reposition up to 6 hexes regardless of remaining pace, and shows the count of eligible players still able to move
-- [ ] **UX-11**: The Movement phase helper text tracks and displays the number of players left to move, mirroring the existing header-contestant-selection helper pattern
-- [ ] **UX-12**: Hovering over a player stat bubble shows a tooltip with the stat's full name
-- [ ] **UX-13**: Hovering over an action button shows a tooltip with a short summary of that action
+- [x] **UX-09**: The board renders a visual marker (red boundary line) across the top and bottom rows marking the boundary of each team's final third
+- [x] **UX-10**: The Free Move helper text explains that when the ball enters the opposite final third, that team's backline may reposition up to 6 hexes regardless of remaining pace, and shows the count of eligible players still able to move
+- [x] **UX-11**: The Movement phase helper text tracks and displays the number of players left to move, mirroring the existing header-contestant-selection helper pattern
+- [x] **UX-12**: Hovering over a player stat bubble shows a tooltip with the stat's full name
+- [x] **UX-13**: Hovering over an action button shows a tooltip with a short summary of that action
 - [x] **UX-14**: A transient (1-second) banner appears centered on screen for key match events (e.g., goal, interception, tackle/turnover)
 
 ---
@@ -94,7 +94,7 @@
 
 | REQ-ID     | Phase      | Status   |
 | ---------- | ---------- | -------- |
-| TEAM-01    | Phase 15   | Pending  |
+| TEAM-01    | Phase 15   | Complete |
 | TEAM-02    | Phase 15   | Complete |
 | TEAM-03    | Phase 15   | Complete |
 | TEAM-04    | Phase 15   | Complete |
@@ -137,9 +137,9 @@
 | BUG-21     | Phase 18.3 | Complete |
 | UX-07      | Phase 18.4 | Complete |
 | UX-08      | Phase 18.4 | Complete |
-| UX-09      | Phase 18.4 | Pending  |
-| UX-10      | Phase 18.4 | Pending  |
-| UX-11      | Phase 18.4 | Pending  |
-| UX-12      | Phase 18.4 | Pending  |
-| UX-13      | Phase 18.4 | Pending  |
+| UX-09      | Phase 18.4 | Complete |
+| UX-10      | Phase 18.4 | Complete |
+| UX-11      | Phase 18.4 | Complete |
+| UX-12      | Phase 18.4 | Complete |
+| UX-13      | Phase 18.4 | Complete |
 | UX-14      | Phase 18.4 | Complete |

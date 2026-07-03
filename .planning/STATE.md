@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.2
-milestone_name: Phase Details
-status: completed
-last_updated: '2026-07-02T18:16:47.716Z'
-last_activity: 2026-07-02 -- Phase 18.4 marked complete
+milestone_name: Team Identity & Core Fixes
+status: archived
+last_updated: '2026-07-03T12:30:00.000Z'
+last_activity: 2026-07-03 -- v1.2 milestone archived and tagged
 progress:
   total_phases: 9
   completed_phases: 9
@@ -17,14 +17,15 @@ progress:
 
 ## Current Phase
 
-v1.2 milestone defined. Phases 15–18 planned; Phase 15 (Team Identity) is first.
+v1.2 milestone ARCHIVED 2026-07-03. All 52 plans across 10 sub-phases complete.
+Next: `/gsd-new-milestone` to define v1.3.
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-13)
+See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 18.4 — ux-enhancements
+**Current focus:** v1.3 — planning not yet started
 
 ## Phase Status
 
@@ -342,12 +343,31 @@ Known deferred items at close: 6 (see above)
   (flagged-offside defender deflecting a shot without gaining possession should still
   trigger the free kick). Plan 17-06 cannot close until this checkpoint is approved.
 
+## Deferred Items (acknowledged at milestone close 2026-07-03, v1.2)
+
+Items acknowledged and deferred at v1.2 milestone close on 2026-07-03:
+
+| Category         | Item                                                                         | Status                    |
+| ---------------- | ---------------------------------------------------------------------------- | ------------------------- |
+| verification_gap | Phase 13: browser UAT (1080p layout, HALF_TIME overlay, log toggle)          | verified 2026-07-03       |
+| verification_gap | Phase 15: browser UAT (badge visual quality, jersey proportions)             | human_needed              |
+| verification_gap | Phase 18.3: BUG-21 SNAPSHOT_TARGET highlights (executor confirmed correct)   | human_needed              |
+| quick_task       | undo-kickoff-ball-bugs (20260606)                                            | missing — work in git log |
+| quick_task       | 260612-ike, 260612-kvw, 260612-l7d, 260612-lme (GameBoard polish)            | unknown — work committed  |
+| quick_task       | 260620-9ql, 260621-ajd, 260621-awb, 260621-b8f, 260621-bsy (ActionLog/Panel) | unknown — work committed  |
+| quick_task       | 260621-gcu, 260621-h32, 260621-hnd (ActionLog formatting)                    | unknown — work committed  |
+| todo             | GK_KICK ball delivery invisible during replay                                | pending — v1.3 candidate  |
+| todo             | KICK_OFF_SETUP shot-path shading persists (root cause unknown)               | pending — v1.3 candidate  |
+| requirements     | OFFSIDE-01: offside detection — code implemented; human UAT not closed       | deferred to v1.3          |
+| requirements     | OFFSIDE-02: free-kick restart — code implemented; human UAT not closed       | deferred to v1.3          |
+
+Known deferred items at close: 19
+
 ## Current Position
 
-Phase: 18.4 — COMPLETE
-Plan: 5 of 5 COMPLETE
-Status: Phase 18.4 complete
-Last activity: 2026-07-02 -- Phase 18.4 marked complete
+Milestone: v1.2 — ARCHIVED
+Status: Complete — all 52 plans done
+Last activity: 2026-07-03 -- v1.2 archived and tagged
 
 Phase 17.1 closed after a 5th verification cycle found one non-blocking client UX gap (stale
 selection on FTP/HP slot hand-off — server remains authoritative, no rule bypass); accepted as

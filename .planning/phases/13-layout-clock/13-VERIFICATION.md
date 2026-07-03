@@ -1,18 +1,22 @@
 ---
 phase: 13-layout-clock
-verified: 2026-06-12T13:30:00Z
-status: human_needed
-score: 7/8 must-haves verified
-overrides_applied: 0
+verified: 2026-07-03T12:15:00Z
+status: verified
+score: 8/8 must-haves verified
+overrides_applied: 1
 overrides:
   - must_have: 'Match time displays in MM:SS format with real seconds'
     reason: 'CONTEXT.md D-08/D-09 explicitly changed the clock contract to event-driven MM:00 before implementation. Seconds always display as :00 by design; the format is driven by actionCount. This is a deliberate scope narrowing documented in phase planning artifacts before any code was written. ROADMAP wording said MM:SS but the canonical phase spec (CONTEXT.md) and all plans specify MM:00.'
     accepted_by: 'gsd-verifier'
     accepted_at: '2026-06-12T13:30:00Z'
-human_verification:
+human_verification_completed: 2026-07-03T12:15:00Z
+human_verification_results:
   - test: 'Top band renders correctly at 1080p desktop with all six tracks visible'
-    expected: '80px strip across full width — Home score (56px) | centre section | player card | action section | log toggle (collapsed › chevron) | Away score (56px) — all visible simultaneously without overflow or overlap'
-    why_human: 'jsdom does not apply CSS grid layout; pixel dimensions and overflow cannot be verified programmatically'
+    result: PASS
+  - test: 'Clock MM:00 is visible above the HALF_TIME overlay card (not hidden behind it)'
+    result: PASS
+  - test: 'Log section expands and collapses on chevron click'
+    result: PASS
   - test: 'Clock MM:00 is visible above the HALF_TIME overlay card (not hidden behind it)'
     expected: 'When phase reaches HALF_TIME, the overlay covers only the pitchContainer (position:absolute inset:0 on the overlay, position:relative on pitchContainer). The 80px topBand above it remains fully visible including the clockDisplay element showing MM:00'
     why_human: 'CSS stacking context and position:relative scoping to a flex child cannot be asserted in jsdom; only a real browser rendering confirms the overlay is clipped to pitchContainer'

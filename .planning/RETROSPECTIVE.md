@@ -1,5 +1,73 @@
 # Retrospective — Counter Attack Web
 
+## v1.2 Team Identity & Core Fixes (2026-06-13 → 2026-07-03)
+
+**Shipped:** 2026-07-03
+**Phases:** 10 sub-phases | **Plans:** 52 | **Duration:** 20 days
+
+### What Was Built
+
+- **Phase 15**: Four teams (Cozmos, Xolos, City, Crew) with badge PNGs, jersey patterns (outfield + GK), and TEAM_CONFIGS color system
+- **Phase 16**: CSV-seeded player rosters, player card redesign, full team-selection lobby (home picks first)
+- **Phase 17**: Seven rule-correctness fixes + offside detection (OFFSIDE-01/02) + FREE_MOVE phase
+- **Phase 17.1**: Full v1.4.1 action model alignment across 16 plans — GamePhase rename, aerial stat, ZoI, FIRST_TIME_PASS_MOVE, GK restart, loose-ball scatter, shot-range gate, pass intercept shape
+- **Phase 18**: Messaging/logging convention sweep + MATCH-06 text fix
+- **Phase 18.1**: Replay frame visibility (HEADED_PASS/GK_PUNT) + post-game playback optimization
+- **Phase 18.2**: Duplicate-logic consolidation + BUG-08/09/11 behavioral fixes
+- **Phase 18.3**: 16 bug-bash fixes (BUG-06..21)
+- **Phase 18.4**: 8 UX enhancements (game speed, end-turn dialog, final-third lines, tooltips, EventBanner)
+
+### What Worked
+
+**Gap-closure waves caught things the initial plans missed.** Phase 17.1 grew from 6 plans to 16 across five re-verification cycles, closing progressively deeper defects (undo phase-awareness → client selection wiring → interception bypass → delivery correctness → self-pass exploit). Each cycle caught one more layer. The gsd-verifier → gap-closure → re-verify loop is the right pattern for behavior-dense phases.
+
+**Feature flags as escape hatches.** `FTP_MOVE_ENABLED=false` let the FIRST_TIME_PASS_MOVE repositioning sub-phase be implemented completely and toggled off by default. The code shipped without behavioral change while keeping the implementation path verifiable. Same pattern would work for any partially-spec'd rule addition.
+
+**Phase splitting paid off.** What started as a single "Phase 18 Design Polish" was split into 5 sub-phases during planning. Each sub-phase had a clear goal, disjoint file sets, and independent verification — no edit conflicts, no ambiguous "what counts as done." The split was recommended by the planner before any work started, which is the ideal time.
+
+**Cube-coordinate unit vectors for loose ball scatter.** The Phase 17.1 fix (computeLooseBall rewrite using toCube/fromCube + direction unit vectors) was the right level of abstraction. The 72-case regression test proved the old ODD-Q fixed-delta approach was systematically wrong on non-horizontal trajectories; the new one is parity-independent. This is the kind of fix that's hard to discover without a dense test matrix.
+
+### What Was Inefficient
+
+**REQUIREMENTS.md checkbox hygiene.** For the second milestone in a row, requirement checkboxes weren't ticked at the commit that implemented them (TEAM-01, UX-09..13). These needed manual correction at close. Fix: tick the checkbox in the same commit as the plan SUMMARY, not deferred.
+
+**Phase 17 OFFSIDE human-verify checkpoints left open.** Plans 17-05 and 17-06 each had a `checkpoint:human-verify` task (gate=blocking) requiring two-tab live verification. The phase was marked complete on 2026-06-21 without closing these checkpoints. The code is correct but there's no signed-off UAT record. At close, the requirements were marked as deferred rather than verified. Blocking checkpoints should be resolved before marking a phase complete, or explicitly acknowledged and deferred with a todo.
+
+**17.1 accumulated 16 plans.** The initial 6-plan scope was correct, but the 10 gap-closure plans represent significant rework — each gap was addressable earlier if the initial verification had been more thorough. The root causes (CR-01 undo non-functional, CR-02 interception bypass, self-pass exploit) were latent in the first plans. A pre-execution threat-model step asking "what could go wrong with this FTP/HP flow?" might have caught them before 10 extra plans.
+
+**Quick tasks accumulated without artifact directories.** Thirteen quick tasks (260621-\*) were completed in git but never formally closed with artifact directories. The audit counts them as "unknown" every close. Consider using `.planning/quick-tasks/{slug}/SUMMARY.md` (a single file) to formally close quick tasks.
+
+### Patterns Established
+
+- **Phase-splitting at planning time beats discovering scope mid-execute.** The planner's `## PHASE SPLIT RECOMMENDED` output for Phase 18 is a concrete signal worth honoring; it predicted the 5-sub-phase structure that proved correct.
+- **Gap-closure plans are first-class.** Number them sequentially with a descriptive suffix (17.1-07, not "patch-07"); include a SUMMARY.md; run them through the same verification loop.
+- **`firstTypePassCarrierId` / `highPassCarrierId` pattern for pass-flight self-exclusion.** Any future pass type with a repositioning sub-phase needs this field to prevent self-pass reclaim. Document in PATTERNS.md or ARCHITECTURE.md.
+- **cube-coordinate vectors for all scatter/offset math.** Never use fixed ODD-Q offset deltas for multi-step traversals. `toCube` / `fromCube` are now in `hex.ts`; use them everywhere.
+
+### Known Gaps Entering v1.3
+
+| Gap          | Description                                                                          | Location                     |
+| ------------ | ------------------------------------------------------------------------------------ | ---------------------------- |
+| OFFSIDE UAT  | Human two-tab verification of OFFSIDE-01/02 never closed                             | Phase 17 plans 17-05, 17-06  |
+| GK_KICK      | Ball delivery invisible during post-game replay (missing from REPLAY_ELIGIBLE_TYPES) | `gameHandlers.ts:828-836`    |
+| KO shading   | KICK_OFF_SETUP shows stale shot-path hex shading after SNAPSHOT_DEFLECT goal         | `HexGrid.tsx` (root unknown) |
+| HP exclusion | HIGH_PASS_MOVE missing repositioning-exclusion (parallel defect to 17.1-16 fix)      | `gameEngine.ts`              |
+
+### Metrics
+
+| Metric        | Value                                    |
+| ------------- | ---------------------------------------- |
+| Duration      | 20 days (2026-06-13 → 2026-07-03)        |
+| Phases        | 10 sub-phases (9 inserted mid-milestone) |
+| Plans         | 52                                       |
+| Commits       | 544                                      |
+| Files changed | 326                                      |
+| Insertions    | 60,174                                   |
+| Deletions     | 2,235                                    |
+| Requirements  | 48/50 (OFFSIDE-01/02 UAT deferred)       |
+
+---
+
 ## v1.0 MVP (2026-05-27 → 2026-06-11)
 
 ### What We Shipped

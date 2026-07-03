@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A 2-player real-time web implementation of Counter Attack, the hex-grid football strategy board game by Webstar Games. Two players connect via a shared room code and play a complete match through a browser — no installation required. The game models the physical board faithfully: hex movement, dice rolls, pass accuracy checks, Zone of Influence, and shooting duels, with a chess-like click-to-move interface. v1.1 adds stripe-differentiated team tokens, a persistent scoreboard/action top band, MM:00 match clock, unified hex highlight system, kick off enforcement, and 5 rule-correctness fixes.
+A 2-player real-time web implementation of Counter Attack, the hex-grid football strategy board game by Webstar Games. Two players connect via a shared room code and play a complete match through a browser — no installation required. The game models the physical board faithfully: hex movement, dice rolls, pass accuracy checks, Zone of Influence, and shooting duels, with a chess-like click-to-move interface. v1.2 adds four named teams (Cozmos, Xolos, City, Crew) with badge PNGs and jersey patterns, CSV-seeded player rosters with a pre-match team-selection lobby, offside detection, 28 bug fixes, and 8 UX enhancements including game-speed selection, end-turn confirmation, final-third markers, and a transient EventBanner.
 
 ## Core Value
 
@@ -10,24 +10,16 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 ## Current State
 
-**v1.1 shipped 2026-06-12.** Visual overhaul complete: team token stripes, persistent top-band layout with MM:00 clock, unified 5-type hex highlight system, kick off enforcement, and all 5 rule-correctness bugs fixed. 77 automated tests green (35 server rule11, 22 client visual, 15 layout/clock, 5 replay/kickoff). Deployed to Render (v1.0 deployment unchanged).
+**v1.2 shipped 2026-07-03.** 10 sub-phases (52 plans, 544 commits, 326 files changed). Four named teams with badge PNGs and jersey patterns; CSV-seeded rosters; full team-selection lobby; offside detection (OFFSIDE-01/02 code implemented, human UAT deferred to v1.3); v1.4.1 action model alignment across 16 plans (Phase 17.1); 28 bugs fixed; 8 UX enhancements. Full test suite: ~1,050+ tests across shared/server/client. Deployed to Render.
 
-**Phase 17.1 (Action Flow Cleanup) complete 2026-06-20.** Five re-verification cycles closed the v1.4.1 phase/action model alignment: GamePhase rename, aerial stat consolidation, ZoI exclusion fix, FIRST_TIME_PASS_MOVE repositioning (undo phase-awareness, client selection wiring, interception bypass, undo lock-reset, team-agnostic delivery, self-pass-reclaim exclusion), and GK restart/loose-ball/shot-range fixes — all verified against the live codebase. One non-blocking client UX gap (stale selection across FTP/HP slot hand-off; server remains authoritative, no rule bypass) deferred to a backlog todo rather than a sixth gap-closure cycle.
+**Known tech debt entering v1.3:**
 
-**Phase 18 (Messaging & Logging Consistency) complete 2026-06-21.** All player-facing phase-prompt, scoreboard, and log text now follows one locked naming convention (D-01/D-11/D-12/D-13): GameBoard's PHASE_LABEL map rewritten with the MOVE-slot numbered suffix; ActionLog's dice-roll formatting unified behind a shared `fmtStatRoll` helper with per-player move-log names; ActionPanel's 14 active-player phase prompts and unified non-active-player wait state rewritten, including the GK_RESTART "Kick"→"Punt" rename. MATCH-06's requirement text corrected to its perspective-neutral wording. 56 new/updated tests green; full regression suite (979 tests across shared/server/client) passes.
-
-**Phase 18.1 (Replay Review) complete 2026-06-21.** Server-side REPLAY-06 fixes: `REPLAY_ELIGIBLE_TYPES` now includes `HEADED_PASS`/`GK_PUNT` so their ball movement produces a visible replay frame; `applyMove`'s steal-success and tackle-success paths rewrite the MOVE event's `ballAfter` to the post-contest carrier, eliminating the one-frame stale-carrier glitch on contested pickups. Client-side DESIGN-02 fix: `HexGrid.tsx` short-circuits highlight-set derivation, the onClick cascade, and `isClickable` during `phase === 'REPLAY'`, eliminating wasted per-frame interactive derivation during post-game playback. Both checkpoints (live UAT Test 6 re-run; Profiler/Network inspection) approved by user. Code review (CR-01) found `GK_KICK` ball delivery was missed by the REPLAY-06 fix — excluded based on an incorrect "dead code" claim in 18.1-RESEARCH.md, when it's actually live code with no `ballAfter`. Tracked as a backlog item rather than expanding phase scope.
-
-**Phase 18.2 (Code Cleanup & Behavioral Dup-Bugs) complete 2026-06-22.** Two re-verification cycles closed all three behavioral defects: BUG-11 (HIGH_PASS_MOVE carrier-exclusion mirroring the pre-17.1-16 FIRST_TIME_PASS_MOVE defect), BUG-08 (tackle-tint render verification), and BUG-09 (the `setGameState` clear-vs-retain staleness gate that let a stale piece selection survive response-move slot hand-offs and pace exhaustion, including the SNAPSHOT_DEFLECT non-exhausted sticky-recompute path). DESIGN-03/04 consolidated the response-move/movement valid-hex duplicate-logic clusters and removed dead code (`applyDeclareHeaderTarget`, stale TODOs) after the behavioral fixes landed, so the shared helpers encode corrected behavior. A second gap-closure round (18.2-06) fixed a hollow regression test (Test 7's fixture didn't reproduce the real SNAPSHOT_DEFLECT state) and empirically proved discrimination via temporary revert/restore. Re-verified 5/5 must-haves; code review found 0 critical issues (4 advisory warnings, 5 info carried forward). 1020 tests pass across all packages.
-
-**Known tech debt:**
-
-- GK_KICK ball delivery invisible during replay (REPLAY-06 gap missed by Phase 18.1; see `.planning/todos/pending/2026-06-21-bug-gk-kick-ball-delivery-invisible-during-replay.md`)
-- LOOSE_BALL_LAND has the same replay-invisibility gap as GK_KICK (pre-existing, flagged alongside it)
-- Intermittent timing failures in game.integration.test.ts / kickoffSetup.integration.test.ts (pre-existing, not v1.1 introduced)
-- 4 documented pre-existing test failures in gameEngine.phase17.test.ts / gameHandlers.phase17.test.ts (2 MOVE-06 FREE_MOVE scaffolding gaps, 2 abandoned firstTimePassStep design stubs) — out of Phase 17.1 scope per 17.1-CONTEXT.md
-- Code review IN-05 (Phase 18.2): three response-move test fixtures in `useGameStore.test.ts` (`highPassMoveState`, `firstTimePassMoveState`, `gkKickMoveState`) still inherit a stale `movementSlot: 'ATTACKER_4'` value — confirmed currently inert (those phases branch on `phase`, not `movementSlot`) but same fixture-hygiene defect class as the bug just fixed in 18.2-06; latent risk for future refactors
-- Code review WR-01/02/03/04 (Phase 18.2, advisory): `validateHeading` OUT_OF_RANGE/CONSECUTIVE_HEADER rejections silently discarded at 2 call sites (HEAD-01 2-hex range unenforced for `GAME_HEADER_CONTESTANT`); client `lockedPieceIdField` config declared but unread (asymmetric vs. server); `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` sticky-selection geometry duplicated in `selectPiece` and `setGameState`; misleading `NOT_ADJACENT` error reason for range-mode `SNAPSHOT_DEFLECT` pace-budget failures
+- GK_KICK ball delivery invisible during post-game replay (REPLAY_ELIGIBLE_TYPES gap; `.planning/todos/pending/`)
+- KICK_OFF_SETUP shot-path hex shading persists after SNAPSHOT_DEFLECT goal (root cause unidentified; `.planning/todos/pending/`)
+- LOOSE_BALL_LAND replay-invisibility gap (same class as GK_KICK)
+- OFFSIDE-01/02 human UAT checkpoints (two-tab live verification) not formally closed; code is implemented
+- Three response-move test fixtures in `useGameStore.test.ts` carry stale `movementSlot: 'ATTACKER_4'` (inert but fixture-hygiene risk)
+- HIGH_PASS_MOVE missing-repositioning-exclusion parallel to the pre-17.1-16 FIRST_TIME_PASS_MOVE defect (documented, not fixed)
 
 ## Requirements
 
@@ -58,41 +50,30 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 - ✓ **REPLAY-04, REPLAY-05** — 500ms cadence, simultaneous step-frames — v1.1 (wired; req unchecked)
 - ✗ **REPLAY-06** — Ball tracking live-session bugs deferred to v1.2 — v1.1 partial
 
-### Validated (v1.2, in progress)
+### Validated (v1.2)
 
-- ✓ **DESIGN-01** — Messaging consistency: scoreboard/log/action-panel text convention sweep — Phase 18
-- ✓ **MATCH-06** — Requirement text corrected to perspective-neutral symmetric-columns wording — Phase 18
-- ✓ **DESIGN-02** — HexGrid REPLAY-phase guard eliminates wasted per-frame interactive derivation — Phase 18.1
-- ✓ **REPLAY-06** — HEADED_PASS/GK_PUNT frame visibility + contested steal/tackle ballAfter correctness fixed and verified — Phase 18.1 (GK_KICK delivery remains a known gap, tracked separately)
-- ✓ **DESIGN-03** — Duplicate response-move/movement valid-hex logic consolidated into shared helpers — Phase 18.2
-- ✓ **DESIGN-04** — Dead code removed (`applyDeclareHeaderTarget`, stale TODOs) — Phase 18.2
-- ✓ **BUG-08, BUG-09, BUG-11** — Tackle-tint render verification, response-move staleness gate (incl. SNAPSHOT_DEFLECT), HIGH_PASS_MOVE carrier-exclusion — fixed and covered by regression tests — Phase 18.2
+All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md](milestones/v1.2-REQUIREMENTS.md).
 
-### Active (v1.2 — Team Identity & Core Fixes)
+- ✓ **TEAM-01..06** — Four named teams with badge PNGs, jersey patterns, and color system — Phase 15
+- ✓ **PLAY-01..03, SELECT-01** — CSV-seeded rosters, player card redesign, team-selection lobby — Phase 16
+- ✓ **BUG-01..05, MOVE-06, PASS-02** — Seven rule-correctness defects fixed and verified — Phase 17 / 17.1
+- ✓ **DESIGN-01, MATCH-06** — Messaging/logging convention sweep + MATCH-06 text fix — Phase 18
+- ✓ **DESIGN-02, REPLAY-06** — Replay frame visibility + post-game playback optimization — Phase 18.1
+- ✓ **DESIGN-03, DESIGN-04** — Duplicate-logic consolidation + dead-code removal — Phase 18.2
+- ✓ **BUG-06..21** — 16 bug-bash fixes (rule correctness, client UX, movement state machine) — Phases 18.2/18.3
+- ✓ **UX-07..14** — 8 UX enhancements (game speed, end-turn dialog, final-third lines, tooltips, EventBanner) — Phase 18.4
+- ✗ **OFFSIDE-01, OFFSIDE-02** — Code implemented; human UAT checkpoint deferred — carry to v1.3
 
-**Team Identity + Player Roster (highest priority)**
+### Active (v1.3 — next milestone)
 
-- [ ] **TEAM-01..06**: Four teams defined with badge SVG, color, and uniform — Cozmos (blue/galaxy), Xolos (orange/coyote), City (red-gold/STL-style), Crew (gold/Columbus-style)
-- [ ] **PLAY-01**: Player roster updated from fc_stats.csv; 4 team squads populated + remaining players as Free Agents
-- [ ] **PLAY-02**: Player card redesigned — First Name, Last Name, Badge | Position | #
-- [ ] **SELECT-01**: Team selection screen before match; home team picks first, then away team
+_Requirements to be defined via `/gsd-new-milestone`._
 
-**Bug Fixes**
+Candidates from deferred items:
 
-- [ ] **BUG-01**: Headers are not blockable — remove block option from header duel
-- [ ] **BUG-02**: All actions show a back/cancel link until a change is committed or target selected
-- [ ] **BUG-03**: Pre-header moves are undoable
-- [ ] **BUG-04**: Pass landing on occupied hex → ball pickup; if defender → change of possession
-- [ ] **BUG-05**: Loose ball on save spawns at save hex, not shot origin hex
-- [ ] **MOVE-06**: Free 6-hex move for all players in opposite final third — scaffolded in `gameEngine.ts:517`, handler not implemented
-- [ ] **PASS-02 (partial)**: Mid-pass player movement (1 hex per team) during First-time Pass flight — deferred per TODO at `gameEngine.ts:1087`
-
-**Design Review + Carry-forward**
-
-- [x] **DESIGN-02**: Playback review and optimizations — Validated in Phase 18.1
-- [x] **DESIGN-03**: Duplicate code removal — Validated in Phase 18.2
-- [x] **DESIGN-04**: Dead code removal — Validated in Phase 18.2
-- [x] **REPLAY-06** fix: live-session ball tracking edge cases (pickups, passes, steals mid-replay) — Validated in Phase 18.1 (HEADED_PASS/GK_PUNT frame visibility + contested steal/tackle ballAfter correctness); GK_KICK delivery remains a known gap, see backlog
+- OFFSIDE-01/02 human UAT verification
+- GK_KICK replay frame visibility
+- KICK_OFF_SETUP stale shot-path shading fix
+- HIGH_PASS_MOVE missing-repositioning-exclusion (parallel to 17.1-16 FIRST_TIME_PASS_MOVE fix)
 
 ### Deferred (v2 candidates)
 
@@ -135,20 +116,26 @@ All v1.1 requirements are archived in [.planning/milestones/v1.1-REQUIREMENTS.md
 
 ## Key Decisions
 
-| Decision                                  | Rationale                                                                                    | Outcome                                                                                   |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Server-authoritative game state           | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                  | Implemented — full snapshot broadcast after every action; `isProcessing` mutex            |
-| Socket.io over raw WebSockets             | Handles reconnection and room management out of the box; negligible overhead                 | Implemented — typed events via generics; `transports: ['websocket']` only (no polling)    |
-| React + Vite frontend                     | Fast dev loop, static build output suitable for S3+CloudFront                                | Implemented — `vite build` → `dist/`; served by Express in production                     |
-| Hardcoded teams for v1                    | Eliminates card editor scope; lets us validate gameplay loop first                           | Validated — two tier-balanced squads ship in v1.0                                         |
-| Core rules only for v1                    | Fouls/injuries add significant state complexity; validate core loop before adding edge cases | Validated — all 65 core-rule requirements satisfied                                       |
-| Render deployment over AWS EB             | Simpler first deploy; no Elastic Beanstalk config overhead; Render Blueprint IaC             | Validated — single web service, `render.yaml`, CI gate on push; AWS EB path preserved     |
-| SVG over Canvas for rendering             | ≤600 hexes well within SVG performance range; DevTools-inspectable; CSS transitions free     | Validated — 37×26 grid renders performantly; no Canvas needed                             |
-| Zustand over Redux for client state       | Zero boilerplate; per-slice selectors prevent full re-renders; socket handlers call setState | Validated — per-slice selectors throughout; no render-all issues observed                 |
-| MM:00 clock format over MM:SS             | Event-driven actionCount is precise; real-time wall clock would drift from server state      | Validated (v1.1) — D-08 override accepted; CLOCK-01 spec updated in spirit                |
-| HALF_TIME/FULL_TIME as pitch overlays     | Keeps top band + clock always visible; eliminates separate Screen routing paths              | Validated (v1.1) — D-12; 6 dead component files deleted; Screen type trimmed to 6 members |
-| SelectionState enum over boolean bag      | 4 booleans → 1 enum; single ternary for ring color; cleaner prop contract                    | Validated (v1.1) — PieceOverlay selectionState: none/selectable/active/activated          |
-| HexHighlightType union + priority ternary | Eliminates prop drilling of colors; single source of truth in HIGHLIGHT_STYLES table         | Validated (v1.1) — risk > goal > shot-path > kickoff > safe; 5 tint types distinct        |
+| Decision                                  | Rationale                                                                                    | Outcome                                                                                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Server-authoritative game state           | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                  | Implemented — full snapshot broadcast after every action; `isProcessing` mutex             |
+| Socket.io over raw WebSockets             | Handles reconnection and room management out of the box; negligible overhead                 | Implemented — typed events via generics; `transports: ['websocket']` only (no polling)     |
+| React + Vite frontend                     | Fast dev loop, static build output suitable for S3+CloudFront                                | Implemented — `vite build` → `dist/`; served by Express in production                      |
+| Hardcoded teams for v1                    | Eliminates card editor scope; lets us validate gameplay loop first                           | Validated — two tier-balanced squads ship in v1.0                                          |
+| Core rules only for v1                    | Fouls/injuries add significant state complexity; validate core loop before adding edge cases | Validated — all 65 core-rule requirements satisfied                                        |
+| Render deployment over AWS EB             | Simpler first deploy; no Elastic Beanstalk config overhead; Render Blueprint IaC             | Validated — single web service, `render.yaml`, CI gate on push; AWS EB path preserved      |
+| SVG over Canvas for rendering             | ≤600 hexes well within SVG performance range; DevTools-inspectable; CSS transitions free     | Validated — 37×26 grid renders performantly; no Canvas needed                              |
+| Zustand over Redux for client state       | Zero boilerplate; per-slice selectors prevent full re-renders; socket handlers call setState | Validated — per-slice selectors throughout; no render-all issues observed                  |
+| MM:00 clock format over MM:SS             | Event-driven actionCount is precise; real-time wall clock would drift from server state      | Validated (v1.1) — D-08 override accepted; CLOCK-01 spec updated in spirit                 |
+| HALF_TIME/FULL_TIME as pitch overlays     | Keeps top band + clock always visible; eliminates separate Screen routing paths              | Validated (v1.1) — D-12; 6 dead component files deleted; Screen type trimmed to 6 members  |
+| SelectionState enum over boolean bag      | 4 booleans → 1 enum; single ternary for ring color; cleaner prop contract                    | Validated (v1.1) — PieceOverlay selectionState: none/selectable/active/activated           |
+| HexHighlightType union + priority ternary | Eliminates prop drilling of colors; single source of truth in HIGHLIGHT_STYLES table         | Validated (v1.1) — risk > goal > shot-path > kickoff > safe; 5 tint types distinct         |
+| badgeFile as filename key only            | Static Vite import in TeamBadge gives content-hashed URLs; no runtime resolution needed      | Validated (v1.2) — PNG badge renders correctly in scoreboard and player card at build time |
+| TEAM_CONFIGS color source of truth        | Eliminates positional home/away color strings; single lookup per team across all surfaces    | Validated (v1.2) — GameBoard, ActionLog, PlayerStatsPanel all use TEAM_CONFIGS[teamId]     |
+| firstTimePassCarrierId in GameState       | Prevents self-pass reclaim exploit; mirrors highPassCarrierId lifecycle                      | Validated (v1.2) — passer excluded from FTP repositioning target and delivery occupant     |
+| computeLooseBall cube-coordinate vectors  | Eliminates systematic NE/SW overshoot caused by fixed ODD-Q offset deltas on axial grid      | Validated (v1.2) — 72-case regression test; clamp walk per-step from gameEngine.ts         |
+| FTP_MOVE_ENABLED=false feature flag       | Disables FIRST_TIME_PASS_MOVE sub-phase by default; code kept for future toggle              | Validated (v1.2) — direct delivery path mirrors STANDARD_PASS behavior                     |
+| checkHalfEndOnTackle exported helper      | Gates half-end correctly on tackle/steal paths; reads addedTime without re-rolling           | Validated (v1.2) — called at 3 tackle/steal success sites; 9 regression tests              |
 
 ## Evolution
 
@@ -171,4 +158,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-22 after Phase 18.2 (Code Cleanup & Behavioral Dup-Bugs) close_
+_Last updated: 2026-07-03 after v1.2 milestone (Team Identity & Core Fixes) close_
