@@ -29,11 +29,11 @@ const FULL_BADGE_MAP: Record<TeamId, string> = {
   crew: crewFullBadge,
 };
 
-/** UX-07: speed options with display labels. */
-const SPEED_OPTIONS: { value: GameSpeed; label: string }[] = [
-  { value: 'slow', label: 'Slow' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'fast', label: 'Fast' },
+/** UX-07: speed options with display labels, icons, and per-speed CSS color classes. */
+const SPEED_OPTIONS: { value: GameSpeed; label: string; icon: string; colorClass: string }[] = [
+  { value: 'slow', label: 'Slow', icon: '🐢', colorClass: 'speedColorSlow' },
+  { value: 'standard', label: 'Standard', icon: '⚽', colorClass: 'speedColorStandard' },
+  { value: 'fast', label: 'Fast', icon: '⚡', colorClass: 'speedColorFast' },
 ];
 
 type Props = {
@@ -71,24 +71,39 @@ export function TeamSelectionScreen({
     <div className={styles.screen}>
       <h2 className={styles.heading}>{heading}</h2>
       {showWaiting && <p className={styles.statusLine}>Waiting for home player to choose...</p>}
-      {/* UX-07: game speed selector — home player only (T-18.4.1-02) */}
+      {/* UX-07: speed selector — home player controls it (locked once they pick a team);
+           visitor sees only the currently selected speed as a label. */}
       <div className={styles.speedSelector}>
         <span className={styles.statusLine}>Match speed:</span>
-        <div className={styles.speedOptions}>
-          {SPEED_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              disabled={!iAmHome}
-              className={value === selectedSpeed ? styles.speedOptionActive : styles.speedOption}
-              onClick={() => {
-                if (iAmHome) onSpeedChange(value);
-              }}
-              aria-pressed={value === selectedSpeed}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {iAmHome ? (
+          <div className={styles.speedOptions}>
+            {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
+              <button
+                key={value}
+                disabled={homePickedTeam !== null}
+                className={
+                  value === selectedSpeed
+                    ? `${styles.speedOptionActive} ${styles[colorClass]}`
+                    : `${styles.speedOption} ${styles[colorClass]}`
+                }
+                onClick={() => onSpeedChange(value)}
+                aria-pressed={value === selectedSpeed}
+              >
+                <span className={styles.speedIcon}>{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span
+            className={`${styles.speedOptionActive} ${styles[SPEED_OPTIONS.find((o) => o.value === selectedSpeed)?.colorClass ?? 'speedColorStandard']}`}
+          >
+            <span className={styles.speedIcon}>
+              {SPEED_OPTIONS.find((o) => o.value === selectedSpeed)?.icon}
+            </span>
+            {SPEED_OPTIONS.find((o) => o.value === selectedSpeed)?.label ?? selectedSpeed}
+          </span>
+        )}
       </div>
       {/* D-12: 2×2 grid — SELECT-01 */}
       <div className={styles.grid}>

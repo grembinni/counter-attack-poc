@@ -76,6 +76,10 @@ export function App() {
       setHomePickedTeam(teamId);
     }
 
+    function onTeamSpeedChanged(speed: GameSpeed) {
+      setSelectedSpeed(speed);
+    }
+
     socket.on(ServerEvents.GAME_STATE, onGameState);
     socket.on(ServerEvents.ROOM_JOINED, onRoomJoined);
     socket.on(ServerEvents.ROOM_ERROR, onRoomError);
@@ -83,6 +87,7 @@ export function App() {
     socket.on(ServerEvents.GAME_DISCONNECT_WARNING, onDisconnectWarning);
     socket.on(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
     socket.on(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
+    socket.on(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
 
     socket.connect();
 
@@ -94,6 +99,7 @@ export function App() {
       socket.off(ServerEvents.GAME_DISCONNECT_WARNING, onDisconnectWarning);
       socket.off(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
       socket.off(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
+      socket.off(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
     };
   }, []);
 

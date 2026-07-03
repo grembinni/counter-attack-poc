@@ -4,6 +4,22 @@ import { socket } from '../socket.js';
 import { ClientEvents } from '@counter-attack/shared';
 import styles from './LobbyScreen.module.css';
 
+/**
+ * Shared back-to-landing handler for all lobby sub-screens.
+ * Clears the session token so the reconnecting socket is treated as a fresh
+ * anonymous connection (no stale room association), then cycles the socket
+ * to flush any in-flight room state, and resets the Zustand lobby fields.
+ */
+function useLobbyBack() {
+  const resetLobby = useGameStore((s) => s.resetLobby);
+  return function handleBack() {
+    sessionStorage.removeItem('ca_session_token');
+    socket.disconnect();
+    socket.connect();
+    resetLobby();
+  };
+}
+
 /** Copy Code button with 2-second "Copied!" feedback. */
 function CopyButton({ code }: { code: string | null }) {
   const [label, setLabel] = useState<'Copy Code' | 'Copied!'>('Copy Code');
@@ -44,7 +60,7 @@ function LandingScreen() {
 
 /** Create Room sub-screen. */
 function CreateRoomScreen() {
-  const setScreen = useGameStore((s) => s.setScreen);
+  const handleBack = useLobbyBack();
   const roomCode = useGameStore((s) => s.roomCode);
 
   if (!roomCode) {
@@ -55,7 +71,7 @@ function CreateRoomScreen() {
         <button className={styles.ctaButton} onClick={() => socket.emit(ClientEvents.ROOM_CREATE)}>
           Generate Room Code
         </button>
-        <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+        <button className={styles.subLink} onClick={handleBack}>
           &larr; Back
         </button>
       </>
@@ -68,7 +84,7 @@ function CreateRoomScreen() {
       <p className={styles.body}>Share this code with your opponent.</p>
       <div className={styles.roomCode}>{roomCode}</div>
       <CopyButton code={roomCode} />
-      <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+      <button className={styles.subLink} onClick={handleBack}>
         &larr; Back
       </button>
     </>
@@ -77,7 +93,7 @@ function CreateRoomScreen() {
 
 /** Join Room sub-screen. */
 function JoinRoomScreen() {
-  const setScreen = useGameStore((s) => s.setScreen);
+  const handleBack = useLobbyBack();
   const roomError = useGameStore((s) => s.roomError);
   const setRoomError = useGameStore((s) => s.setRoomError);
   const [input, setInput] = useState('');
@@ -127,7 +143,7 @@ function JoinRoomScreen() {
       >
         {isJoining ? 'Joining...' : 'Join Game'}
       </button>
-      <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+      <button className={styles.subLink} onClick={handleBack}>
         &larr; Back
       </button>
     </>
@@ -136,7 +152,7 @@ function JoinRoomScreen() {
 
 /** Waiting for opponent sub-screen. */
 function WaitingScreen() {
-  const setScreen = useGameStore((s) => s.setScreen);
+  const handleBack = useLobbyBack();
   const roomCode = useGameStore((s) => s.roomCode);
 
   return (
@@ -150,7 +166,7 @@ function WaitingScreen() {
         <span className={styles.dot} style={{ animationDelay: '0.2s' }} />
         <span className={styles.dot} style={{ animationDelay: '0.4s' }} />
       </div>
-      <button className={styles.subLink} onClick={() => setScreen('LANDING')}>
+      <button className={styles.subLink} onClick={handleBack}>
         &larr; Back
       </button>
     </>

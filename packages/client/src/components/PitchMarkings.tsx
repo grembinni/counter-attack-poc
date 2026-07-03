@@ -24,6 +24,55 @@ const AWAY_THIRD_X = 765; // boundary between q=25 (middleThird) and q=26 (awayT
 export function PitchMarkings() {
   return (
     <>
+      {/* Field outline — left and right endlines (full height) */}
+      <line
+        x1={-10}
+        y1={17.3}
+        x2={-10}
+        y2={883.3}
+        stroke="white"
+        strokeWidth={3}
+        strokeOpacity={0.6}
+        fill="none"
+        pointerEvents="none"
+      />
+      <line
+        x1={1090}
+        y1={17.3}
+        x2={1090}
+        y2={883.3}
+        stroke="white"
+        strokeWidth={3}
+        strokeOpacity={0.6}
+        fill="none"
+        pointerEvents="none"
+      />
+
+      {/* Field outline — top and bottom touchlines for the middle third only.
+           Final-third segments are already marked in red below. */}
+      <line
+        x1={HOME_THIRD_X}
+        y1={17.3}
+        x2={AWAY_THIRD_X}
+        y2={17.3}
+        stroke="white"
+        strokeWidth={3}
+        strokeOpacity={0.6}
+        fill="none"
+        pointerEvents="none"
+      />
+      <line
+        x1={HOME_THIRD_X}
+        y1={883.3}
+        x2={AWAY_THIRD_X}
+        y2={883.3}
+        stroke="white"
+        strokeWidth={3}
+        strokeOpacity={0.6}
+        fill="none"
+        pointerEvents="none"
+      />
+
       {/* Halfway line — vertical at x=540 (q=18 centre column) */}
       <line
         x1={540}
@@ -37,11 +86,24 @@ export function PitchMarkings() {
         pointerEvents="none"
       />
 
-      {/* UX-09: Final-third boundary markers — red lines at homeThird/awayThird edges */}
-      {/* Home final-third edge: boundary between PITCH_REGIONS.homeThird (q<=10) and middleThird */}
+      {/* UX-09: Final-third boundary markers — horizontal red tick lines along top and bottom
+           touchlines, running from the endline to each third boundary (not full-height verticals).
+           Home third: from left endline (x=-10) to boundary (x=315) at top and bottom.
+           Away third: from boundary (x=765) to right endline (x=1090) at top and bottom. */}
       <line
-        x1={HOME_THIRD_X}
+        x1={-10}
         y1={17.3}
+        x2={HOME_THIRD_X}
+        y2={17.3}
+        stroke="#ef4444"
+        strokeWidth={3}
+        strokeOpacity={1}
+        fill="none"
+        pointerEvents="none"
+      />
+      <line
+        x1={-10}
+        y1={883.3}
         x2={HOME_THIRD_X}
         y2={883.3}
         stroke="#ef4444"
@@ -50,11 +112,21 @@ export function PitchMarkings() {
         fill="none"
         pointerEvents="none"
       />
-      {/* Away final-third edge: boundary between middleThird and PITCH_REGIONS.awayThird (q>=26) */}
       <line
         x1={AWAY_THIRD_X}
         y1={17.3}
-        x2={AWAY_THIRD_X}
+        x2={1090}
+        y2={17.3}
+        stroke="#ef4444"
+        strokeWidth={3}
+        strokeOpacity={1}
+        fill="none"
+        pointerEvents="none"
+      />
+      <line
+        x1={AWAY_THIRD_X}
+        y1={883.3}
+        x2={1090}
         y2={883.3}
         stroke="#ef4444"
         strokeWidth={3}

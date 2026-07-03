@@ -364,22 +364,23 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
     movedPieceIds: [],
   };
 
-  it('a piece already in stealAttemptedByIds is rejected when steal triggers again', () => {
+  it('carrier can move adjacent to defender already in stealAttemptedByIds — no second steal fires', () => {
     const state: GameState = {
       ...stealTriggerState,
-      stealAttemptedByIds: ['home-fwd'], // home-fwd already attempted a steal this phase
+      // Defender's id is tracked (correct). validateMove will exclude away-def from ZoI,
+      // so the carrier enters the hex freely — no STEAL_ATTEMPT event emitted.
+      stealAttemptedByIds: ['away-def'],
     };
-    // Move carrier to {32,13} (adjacent, triggers ZoI with awayDef)
-    // D-29: should be rejected because 'home-fwd' is already in stealAttemptedByIds
     const result = applyMove(state, 'home-fwd', { q: 32, r: 13 });
-    if (!result.ok) {
-      expect(result.reason).toBe('MOVE_INVALID');
-    }
-    // After D-29 fix: expect result.ok to be false (rejected); currently ok:true (pre-fix RED)
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const stealEvents = result.state.eventLog.filter((e) => e.type === 'STEAL_ATTEMPT');
+    expect(stealEvents).toHaveLength(0);
+    // away-def remains in list, still only once
+    expect(result.state.stealAttemptedByIds?.filter((id) => id === 'away-def')).toHaveLength(1);
   });
 
-  it('a piece not in stealAttemptedByIds can attempt a steal; its id is added to list', () => {
+  it('a piece not in stealAttemptedByIds can attempt a steal; defender id is added to list', () => {
     const state: GameState = {
       ...stealTriggerState,
       stealAttemptedByIds: [],
@@ -394,8 +395,9 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // After D-29 fix: 'home-fwd' should be in stealAttemptedByIds after the attempt
-    expect(result.state.stealAttemptedByIds ?? []).toContain('home-fwd');
+    // The DEFENDER's id (away-def) must be recorded, not the carrier's.
+    expect(result.state.stealAttemptedByIds ?? []).toContain('away-def');
+    expect(result.state.stealAttemptedByIds ?? []).not.toContain('home-fwd');
   });
 
   // Tackle scenario: awayDef (non-carrier) moves adjacent to homeFwd (carrier).

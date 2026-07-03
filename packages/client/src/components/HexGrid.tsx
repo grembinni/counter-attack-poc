@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   PITCH_HEXES,
+  GOAL_R_VALUES,
   isInRegion,
   ClientEvents,
   PITCH_REGIONS,
@@ -127,7 +128,7 @@ export function HexGrid() {
   const [shotTargetHighlight, setShotTargetHighlight] = useState<HexCoord | null>(null);
 
   // Phase 10: Goal line hexes (used for shootingMode two-step and HEADER target)
-  const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16];
+  // GOAL_R_VALUES imported from @counter-attack/shared — single source of truth
   const goalQ = attackingTeam === 'home' ? 36 : 0;
   const goalLineHexSet = new Set(GOAL_R_VALUES.map((r) => `${goalQ},${r}`));
 
@@ -312,7 +313,7 @@ export function HexGrid() {
               hex.r === shotTargetHighlight.r;
 
             // Phase 10: shooting mode goal-line highlight (two-step Shoot flow + SNAPSHOT_TARGET snapshot target)
-            // For snapshot (SNAPSHOT_TARGET), apply 6-hex range from carrier — same max as first-time pass.
+            // For snapshot (SNAPSHOT_TARGET), apply 6-hex range from carrier — same gate the server enforces.
             // For regular shot (shootingMode), apply the 11-hex range from the shooter (D-09 gap
             // closure plan 10) — mirrors the server's applyDeclareShot hexDistance > 11 gate.
             const snapCarrier =
@@ -370,12 +371,16 @@ export function HexGrid() {
               (phase === 'SNAPSHOT_DEFLECT' && selectedPieceId !== null && isValidMove) ||
               isGKDiveTarget;
 
+            // Header pass is unblockable — declared here so both isInterceptionRisk and isRisk can use it.
+            const isHeaderPass = phase === 'PASS' && lastActionType === 'HEADER';
+
             // Phase 8.2 D-06/D-09: pass target classification (KICK_OFF uses same three-step flow)
             const isPassTarget =
               (phase === 'PASS' || phase === 'KICK_OFF') &&
               selectedPassType !== null &&
               validPassTargetHexSet.has(hexId);
-            const isInterceptionRisk = isPassTarget && interceptionRiskSet.has(hexId);
+            const isInterceptionRisk =
+              isPassTarget && !isHeaderPass && interceptionRiskSet.has(hexId);
             const isConfirmedPassTarget =
               passTargetHex !== null && hex.q === passTargetHex.q && hex.r === passTargetHex.r;
 
@@ -393,8 +398,6 @@ export function HexGrid() {
             // inconsistent with the regular/headed shot path (white 'shot-path' tint via
             // lastShotPathSet below). Snapshot path now joins isShotPathTint instead so all
             // shot-path highlights render the same color regardless of shot type.
-            // Header pass is unblockable — suppress ZoI/tackle risk when lastActionType === 'HEADER'.
-            const isHeaderPass = phase === 'PASS' && lastActionType === 'HEADER';
             const isRisk =
               !isHeaderPass &&
               ((zoiRiskSet.has(hexId) && isValidMove) || (tackleRiskSet.has(hexId) && isValidMove));
@@ -407,8 +410,10 @@ export function HexGrid() {
             // isShotPathTint: informational white — resolved shot path, contest zone preview,
             // SNAP_DEFLECT reposition targets, and the snapshot's declared shot path (lighter/
             // more transparent white) — same classification as a regular/headed shot path.
+            // Suppress lastShotPath during KICK_OFF_SETUP: it's never relevant there and can
+            // bleed in from the previous half if the server hasn't cleared it yet.
             const isShotPathTint =
-              lastShotPathSet.has(hexId) ||
+              (phase !== 'KICK_OFF_SETUP' && lastShotPathSet.has(hexId)) ||
               isHpMoveTarget ||
               isGKDiveTarget ||
               isShotPath ||
@@ -740,12 +745,18 @@ export function HexGrid() {
             const isSpentNow =
               phase === 'HIGH_PASS_MOVE'
                 ? piece.id === highPassMovedPieceId && (highPassPaceUsed ?? 0) >= 3
-                : movedPieceIds.includes(piece.id);
+                : phase === 'MOVE'
+                  ? movedPieceIds.includes(piece.id) ||
+                    (paceUsedByPieceId[piece.id] ?? 0) >=
+                      (movementSlot === 'ATTACKER_2' ? Math.min(piece.pace, 2) : piece.pace)
+                  : movedPieceIds.includes(piece.id);
             // Bug 3 fix: isHeaderContestant (confirmed contestant) → 'active' (green ring);
             // isHeaderEligible but not yet contestant → 'selectable' (blue ring).
+            // In HEADER phase, selectedPieceId is set by inspectPiece clicks but should NOT
+            // produce a green ring — only confirmed contestants get 'active' there.
             const selectionState: SelectionState = isSpentNow
               ? 'activated'
-              : piece.id === selectedPieceId || isHeaderContestant
+              : (phase !== 'HEADER' && piece.id === selectedPieceId) || isHeaderContestant
                 ? 'active'
                 : isHeaderEligible || isClickable
                   ? 'selectable'

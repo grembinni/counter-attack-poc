@@ -248,10 +248,10 @@ export function PieceOverlay({
         <circle
           cx={cx}
           cy={cy}
-          r={PIECE_RADIUS + 2}
+          r={PIECE_RADIUS + 3}
           fill="none"
-          stroke="#3b82f6"
-          strokeWidth={2}
+          stroke="#60a5fa"
+          strokeWidth={2.5}
           pointerEvents="none"
         />
       )}

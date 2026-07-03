@@ -29,6 +29,7 @@ import {
   TEAM_SQUADS,
   PITCH_REGIONS,
   PITCH_HEXES,
+  GOAL_R_VALUES,
   isInRegion,
   isPitchHex,
   validateMove,
@@ -103,14 +104,15 @@ const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
  * TEAM-01: all 22 players (11 home + 11 away) placed at starting positions.
  * TEAM-03: refereeCard.leniency is randomly assigned in range 1–6 at match start.
  */
-export function buildInitialGameState(
-  roomCode: string,
+/**
+ * Builds a full 22-piece array for both squads at their formation start positions,
+ * with the striker positioned for kick-off based on which team is attacking.
+ * Extracted to eliminate duplication between buildInitialGameState and buildKickOffPieces.
+ */
+function buildSquadPieces(
+  attackingTeam: 'home' | 'away',
   selectedTeams: { home: TeamId; away: TeamId },
-  gameSpeed: GameSpeed = 'standard',
-): GameState {
-  const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
-
-  // Build mutable piece arrays from TEAM_SQUADS. Away pieces mirror home positions. D-16.
+): PlayerPiece[] {
   const homeSquad = TEAM_SQUADS[selectedTeams.home].map((p) => ({ ...p, teamId: 'home' as const }));
   const awaySquad = TEAM_SQUADS[selectedTeams.away].map((p) => ({
     ...p,
@@ -119,8 +121,6 @@ export function buildInitialGameState(
     id: p.id.replace('home-', 'away-'),
   }));
   const pieces = [...homeSquad, ...awaySquad];
-
-  // Apply ST coin-flip positioning (same logic as before, now on the new piece arrays).
   const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
   const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
   if (homeST && awayST) {
@@ -132,6 +132,17 @@ export function buildInitialGameState(
       homeST.position = { q: 14, r: 13 }; // home-side, just outside centre circle
     }
   }
+  return pieces;
+}
+
+export function buildInitialGameState(
+  roomCode: string,
+  selectedTeams: { home: TeamId; away: TeamId },
+  gameSpeed: GameSpeed = 'standard',
+): GameState {
+  const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
+
+  const pieces = buildSquadPieces(attackingTeam, selectedTeams);
 
   return {
     roomCode,
@@ -172,26 +183,7 @@ export function buildKickOffPieces(
   attackingTeam: 'home' | 'away',
   selectedTeams: { home: TeamId; away: TeamId },
 ) {
-  const homeSquad = TEAM_SQUADS[selectedTeams.home].map((p) => ({ ...p, teamId: 'home' as const }));
-  const awaySquad = TEAM_SQUADS[selectedTeams.away].map((p) => ({
-    ...p,
-    teamId: 'away' as const,
-    position: { q: 36 - p.position.q, r: p.position.r }, // A1 mirror formula
-    id: p.id.replace('home-', 'away-'),
-  }));
-  const pieces = [...homeSquad, ...awaySquad];
-  const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
-  const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
-  if (homeST && awayST) {
-    if (attackingTeam === 'home') {
-      homeST.position = { ...PITCH_REGIONS.kickOffHex };
-      awayST.position = { q: 22, r: 13 };
-    } else {
-      awayST.position = { ...PITCH_REGIONS.kickOffHex };
-      homeST.position = { q: 14, r: 13 };
-    }
-  }
-  return pieces;
+  return buildSquadPieces(attackingTeam, selectedTeams);
 }
 
 // ---------------------------------------------------------------------------
@@ -607,34 +599,35 @@ export function applyMove(
   let stealSuccess = false;
   let stealDefenderId: string | undefined;
   if ('effect' in result && result.effect.type === 'STEAL_ATTEMPT') {
-    // D-29: reject if this piece already attempted a steal this movement phase
-    if (newStealAttemptedByIds.includes(pieceId)) {
+    // Resolve defender first so we can use their ID for all tracking (not the carrier's).
+    const die = dice?.stealDie ?? 3;
+    const defender = result.effect.defenders[0];
+    stealDefenderId = defender!.id;
+
+    // D-29: reject if this defender already attempted a steal this movement phase
+    if (newStealAttemptedByIds.includes(stealDefenderId)) {
       return { ok: false, reason: 'MOVE_INVALID', detail: 'ALREADY_ATTEMPTED' };
     }
 
-    // Dice injection: stealDie from caller; fallback 3 for backward compat (D-08)
-    const die = dice?.stealDie ?? 3;
-    const defender = result.effect.defenders[0];
     // D-06: combined score >= 10 threshold; die===6 is always SUCCESS regardless of combined (D-06)
     const combined = computeCombinedScore(defender!.tackling, die, []);
     const stealResult: 'SUCCESS' | 'FAIL' = die === 6 || combined >= 10 ? 'SUCCESS' : 'FAIL';
     stealSuccess = stealResult === 'SUCCESS';
-    stealDefenderId = defender!.id;
     const stealEvent: ActionEvent = {
       type: 'STEAL_ATTEMPT',
-      defenderId: defender!.id,
+      defenderId: stealDefenderId,
       result: stealResult,
       defenderDie: die,
       defenderCombined: combined,
       timestamp: Date.now(),
       ballAfter:
         stealResult === 'SUCCESS'
-          ? { position: to, carrierId: defender!.id }
+          ? { position: to, carrierId: stealDefenderId }
           : { position: to, carrierId: pieceId },
     };
     newEventLog = [...newEventLog, stealEvent];
-    // D-29: record that this piece has now attempted a steal this phase (success or fail)
-    newStealAttemptedByIds = [...newStealAttemptedByIds, pieceId];
+    // D-29: record the DEFENDER (not carrier) as having attempted a steal this phase
+    newStealAttemptedByIds = [...newStealAttemptedByIds, stealDefenderId];
   }
 
   // Handle TACKLE_ATTEMPT effect (D-11/D-12)
@@ -723,92 +716,8 @@ export function applyMove(
         };
       }
       // FAIL: defender moves to `to` (newPieces already reflects this), carrier keeps ball.
-      // BUG-13: after the first TACKLE FAIL, sequence additional TACKLE_ATTEMPTs for any
-      // other defenders that are ALREADY adjacent to the carrier's (unchanged) position and
-      // have not yet attempted a tackle this movement phase. This mirrors the physical game
-      // rule: when a defender moves adjacent to a carrier contested by multiple defenders,
-      // all adjacent defenders get a chance to tackle before the move fully resolves.
-      // The loop terminates when no more eligible adjacent defenders remain, or when any
-      // subsequent attempt SUCCEEDS (short-circuit — possession is transferred immediately).
-      // Dice injection: subsequent attempts use tackleDie=3 (mid-range fallback per plan),
-      // same carrierDie convention as the first attempt.
-      const carrierCurrentPos = carrier.position; // carrier position is unchanged on FAIL
-      const additionalTacklers = newPieces.filter(
-        (p) =>
-          p.teamId !== carrier.teamId &&
-          !newTackleAttemptedByIds.includes(p.id) &&
-          hexDistance(p.position, carrierCurrentPos) === 1,
-      );
-      for (const additionalTackler of additionalTacklers) {
-        const addDefDie = 3; // fallback die for subsequent attempts (plan: dice param has one set)
-        const addCarDie = dice?.carrierDie ?? 3;
-        const addDefCombined = computeCombinedScore(additionalTackler.tackling, addDefDie, []);
-        const addCarCombined = computeCombinedScore(carrier.dribbling, addCarDie, []);
-        const addTackleResult: 'SUCCESS' | 'FAIL' =
-          addDefCombined >= addCarCombined ? 'SUCCESS' : 'FAIL';
-        const addBallAfter =
-          addTackleResult === 'SUCCESS'
-            ? { position: additionalTackler.position, carrierId: additionalTackler.id }
-            : { position: state.ball.position, carrierId: state.ball.carrierId };
-        const addTackleEvent: ActionEvent = {
-          type: 'TACKLE_ATTEMPT',
-          defenderId: additionalTackler.id,
-          carrierId,
-          defenderDie: addDefDie,
-          carrierDie: addCarDie,
-          defenderCombined: addDefCombined,
-          carrierCombined: addCarCombined,
-          result: addTackleResult,
-          timestamp: Date.now(),
-          ballAfter: addBallAfter,
-        };
-        newEventLog = [...newEventLog, addTackleEvent];
-        newTackleAttemptedByIds = [...newTackleAttemptedByIds, additionalTackler.id];
-
-        if (addTackleResult === 'SUCCESS') {
-          // Short-circuit: ball won by the additional tackler (at their stationary position).
-          const addSuccessBall = {
-            ...state.ball,
-            position: additionalTackler.position,
-            carrierId: additionalTackler.id,
-          };
-          const correctedMoveEventBug13: ActionEvent = {
-            ...moveEvent,
-            ballAfter: addSuccessBall,
-          };
-          const bug13CorrectedEventLog = newEventLog.map((e) =>
-            e === moveEvent ? correctedMoveEventBug13 : e,
-          );
-          // GAP-2 (CR-01): check half-end boundary before returning; mirrors applyEndTurn logic.
-          const addTackleNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
-          const addTackleEndPhase = checkHalfEndOnTackle(state, addTackleNewActionCount);
-          return {
-            ok: true,
-            state: {
-              ...state,
-              phase: addTackleEndPhase ?? 'PASS',
-              pieces: newPieces,
-              attackingTeam: additionalTackler.teamId,
-              activeTeam: additionalTackler.teamId,
-              movementSlot: null,
-              movedPieceIds: [],
-              paceUsedByPieceId: {},
-              ball: addSuccessBall,
-              eventLog: bug13CorrectedEventLog,
-              lastActionType: 'SUCCESSFUL_TACKLE',
-              // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
-              actionCount: addTackleNewActionCount,
-              stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
-              tackleAttemptedByIds: [], // D-02
-              offsidePieceIds: evaluateOffside({
-                ...state,
-                pieces: newPieces,
-                ball: addSuccessBall,
-              }),
-            },
-          };
-        }
-      }
+      // Only the moving defender gets a tackle attempt — stationary adjacent defenders do not
+      // auto-tackle. Movement phase continues; the carrier retains possession.
       return {
         ok: true,
         state: {
@@ -979,6 +888,7 @@ export function applyEndTurn(
           addedTime: newAddedTime,
           lastActionType: 'MOVEMENT_PHASE',
           offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+          lastShotPath: null, // prevent stale shot-path tint from bleeding into HALF_TIME screen
         },
       };
     }
@@ -1381,23 +1291,46 @@ export function applyUndo(state: GameState): ApplyUndoResult {
   // SNAPSHOT_DEFLECT (reset snap-deflect tracking so the defender can move again).
   // FK_SETUP_MOVE: freeKickPlacedPieceIds is managed by applyFreeKickMove; Undo removes
   // the undone piece from the placed list so the stage budget is correctly restored.
+  // Only release the single-piece lock when ALL steps for that piece have been undone
+  // (newPaceUsed entry deleted). If the piece still has pace remaining, keep the lock
+  // pointing at them so no other piece can be selected mid-move.
+  // For phases that track pace in a dedicated field (*PaceUsed) rather than paceUsedByPieceId,
+  // derive remaining pace from that field so the lock is preserved on partial undo.
+  const stepDistance = hexDistance(moveToUndo.from, moveToUndo.to);
   const lockReset: Partial<GameState> =
     state.phase === 'FIRST_TIME_PASS_MOVE'
-      ? { firstTimePassMovedPieceId: null, firstTimePassPaceUsed: 0 }
+      ? (() => {
+          const rem = Math.max(0, (state.firstTimePassPaceUsed ?? 0) - stepDistance);
+          return rem > 0
+            ? { firstTimePassPaceUsed: rem }
+            : { firstTimePassMovedPieceId: null, firstTimePassPaceUsed: 0 };
+        })()
       : state.phase === 'HIGH_PASS_MOVE'
-        ? { highPassMovedPieceId: null, highPassPaceUsed: 0 }
+        ? (() => {
+            const rem = Math.max(0, (state.highPassPaceUsed ?? 0) - stepDistance);
+            return rem > 0
+              ? { highPassPaceUsed: rem }
+              : { highPassMovedPieceId: null, highPassPaceUsed: 0 };
+          })()
         : state.phase === 'GK_KICK_MOVE'
-          ? { gkKickMovedPieceId: null, gkKickPaceUsed: 0 }
+          ? (() => {
+              const rem = Math.max(0, (state.gkKickPaceUsed ?? 0) - stepDistance);
+              return rem > 0
+                ? { gkKickPaceUsed: rem }
+                : { gkKickMovedPieceId: null, gkKickPaceUsed: 0 };
+            })()
           : state.phase === 'SNAPSHOT_DEFLECT'
-            ? { snapDeflectMovedPieceId: null, snapDeflectPaceUsed: 0 }
+            ? (() => {
+                const rem = Math.max(0, (state.snapDeflectPaceUsed ?? 0) - stepDistance);
+                return rem > 0
+                  ? { snapDeflectPaceUsed: rem }
+                  : { snapDeflectMovedPieceId: null, snapDeflectPaceUsed: 0 };
+              })()
             : state.phase === 'FREE_KICK_SETUP'
               ? {
-                  // Restore the placed-piece list: remove the undone piece if it was newly counted.
                   freeKickPlacedPieceIds: (state.freeKickPlacedPieceIds ?? []).filter(
                     (id) => id !== moveToUndo.pieceId,
                   ),
-                  // Also remove from movedPieceIds (kicker and stage-locked pieces live here).
-                  // movedPieceIds is already cleared for the piece via newMovedPieceIds above.
                 }
               : {};
 
@@ -2958,6 +2891,15 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
       return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
     }
 
+    // Carrier must be within 6 hexes of the goal line — mirrors client canSnapshot guard.
+    const goalQ = state.attackingTeam === 'home' ? 36 : 0;
+    const inSnapRange = GOAL_R_VALUES.some(
+      (r) => hexDistance(carrier.position, { q: goalQ, r }) <= 6,
+    );
+    if (!inSnapRange) {
+      return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
+    }
+
     // Valid MOVE snapshot — attacker must declare goal hex (SNAPSHOT_TARGET), then opponent deflects
     return {
       ok: true,
@@ -2981,6 +2923,14 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
       }
       const penaltyRegion = state.attackingTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
       if (!isInRegion(carrier.position, penaltyRegion)) {
+        return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
+      }
+      // Carrier must be within 6 hexes of the goal line — mirrors client canSnapshot guard.
+      const goalQ = state.attackingTeam === 'home' ? 36 : 0;
+      const inSnapRange = GOAL_R_VALUES.some(
+        (r) => hexDistance(carrier.position, { q: goalQ, r }) <= 6,
+      );
+      if (!inSnapRange) {
         return { ok: false, reason: 'NOT_IN_PENALTY_AREA' };
       }
       return {
@@ -4165,6 +4115,8 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       pieces: resetPieces, // Pitfall 6: reset to formation starting positions
       ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null }, // reset ball to centre hex
       lastDiceRoll: null,
+      lastShotPath: null, // clear any residual shot path from first half
+      offsidePieceIds: [], // clear stale first-half offside flags
       // MOVE-06 (Phase 17, corrected design D-33): kick-off hex is in middleThird —
       // ballZone resets to 'middle' for the fresh second-half kick-off.
       ballZone: 'middle',

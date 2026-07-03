@@ -75,6 +75,8 @@ export const ServerEvents = {
   TEAM_SELECTION_START: 'team:selection-start',
   /** Phase 16 D-11: emitted to both players when home player picks a team. */
   TEAM_HOME_PICKED: 'team:home-picked',
+  /** UX-07: emitted to both players when home player changes game speed during team selection. */
+  TEAM_SPEED_CHANGED: 'team:speed-changed',
 } as const;
 
 /**
@@ -158,6 +160,8 @@ export interface ServerToClientEvents {
   [ServerEvents.TEAM_SELECTION_START]: () => void;
   /** Phase 16 D-11: informs both players which team home player chose. */
   [ServerEvents.TEAM_HOME_PICKED]: (teamId: TeamId) => void;
+  /** UX-07: informs both players of the current game speed when home player changes it. */
+  [ServerEvents.TEAM_SPEED_CHANGED]: (speed: GameSpeed) => void;
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */

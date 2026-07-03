@@ -402,6 +402,39 @@ describe('Phase 17 BUG-03: applyUndo in HIGH_PASS_MOVEMENT', () => {
     if (result.ok) return;
     expect(result.reason).toBe('NOTHING_TO_UNDO');
   });
+
+  it('keeps highPassMovedPieceId locked when partial undo leaves pace remaining', () => {
+    // Regression: applyUndo was using paceUsedByPieceId (not set by the HP handler)
+    // to detect remaining pace, so the lock always cleared after any undo.
+    // After 2 HP_MOVEs (pace=2), undoing the last should keep the lock at pace=1.
+    const twoMoveState: GameState = {
+      ...highPassMovementStateWithMove,
+      paceUsedByPieceId: {}, // real handler never sets this for HP_MOVE
+      highPassPaceUsed: 2,
+      pieces: highPassMovementStateWithMove.pieces.map((p) =>
+        p.id === 'home-9' ? { ...p, position: { q: 12, r: 7 } } : p,
+      ),
+      eventLog: [
+        ...highPassMovementStateWithMove.eventLog,
+        {
+          type: 'HP_MOVE',
+          slot: 'ATTACKER',
+          pieceId: 'home-9',
+          from: { q: 11, r: 7 },
+          to: { q: 12, r: 7 },
+          timestamp: 3000,
+        },
+      ],
+    };
+    const result = applyUndo(twoMoveState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const piece = result.state.pieces.find((p) => p.id === 'home-9');
+    expect(piece?.position).toEqual({ q: 11, r: 7 }); // stepped back 1
+    // Lock must stay — the piece hasn't fully undone its movement yet
+    expect(result.state.highPassMovedPieceId).toBe('home-9');
+    expect(result.state.highPassPaceUsed).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

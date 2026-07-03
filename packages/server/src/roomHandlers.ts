@@ -246,8 +246,18 @@ export function registerRoomHandlers(
         return;
       }
 
+      // Guard: speed can only be set before the game starts. Once gameState is built
+      // (both teams picked), gameState.gameSpeed is frozen in the engine — updating
+      // room.gameSpeed after that would diverge the UI from the actual running speed.
+      if (room.gameState !== null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'GAME_ALREADY_STARTED');
+        return;
+      }
+
       // Record the speed on the room — consumed by TEAM_PICK away-pick.
       room.gameSpeed = speed;
+      // Broadcast to both players so the visitor's display updates live.
+      io.to(roomCode).emit(ServerEvents.TEAM_SPEED_CHANGED, speed);
     });
   }
 

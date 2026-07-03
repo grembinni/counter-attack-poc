@@ -405,72 +405,58 @@ describe('applyMove', () => {
     }
   });
 
-  // BUG-13: when a defender moves adjacent to a carrier that already has a SECOND defender
-  // adjacent (stationary), both defenders must each get a TACKLE_ATTEMPT before the move
-  // resolves. Currently only one TACKLE_ATTEMPT fires (the moving defender's).
-  // This test is RED until Task 2 (the inline multi-tackle sequencing loop) ships.
-  it(
-    'tackle sequencing: two defenders adjacent to carrier after first move — ' +
-      'both get a TACKLE_ATTEMPT when first tackle FAILs (BUG-13)',
-    () => {
-      // Carrier home-9 at {q:10,r:7}.
-      // away-def1 MOVES from {q:12,r:7} to {q:11,r:7} (adjacent to carrier) → first TACKLE.
-      // away-def2 is ALREADY at {q:9,r:7} (also adjacent to carrier, stationary).
-      // Dice: tackleDie=1 (low), carrierDie=6 (high) → first tackle FAILS.
-      // Expected after fix: TWO TACKLE_ATTEMPT events; both defender ids in tackleAttemptedByIds.
-      const carrier: PlayerPiece = { ...homePiece, id: 'home-9', position: { q: 10, r: 7 } };
-      const def1: PlayerPiece = {
-        ...awayPiece,
-        id: 'away-def1',
-        position: { q: 12, r: 7 },
-        tackling: 1,
-        dribbling: 1,
-      };
-      const def2: PlayerPiece = {
-        ...awayPiece,
-        id: 'away-def2',
-        position: { q: 9, r: 7 }, // already adjacent to carrier — stationary second tackler
-        tackling: 1,
-        dribbling: 1,
-      };
-      const stateWithTwoDefenders: GameState = {
-        ...baseMovementState,
-        movementSlot: 'DEFENDER_5',
-        activeTeam: 'away',
-        attackingTeam: 'home',
-        pieces: [carrier, def1, def2],
-        ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
-      };
-      // away-def1 moves from {q:12,r:7} to {q:11,r:7}, triggering a TACKLE vs carrier.
-      // tackleDie=1, carrierDie=6 → defCombined=1+1=2 vs carCombined=8+6=14 → FAIL.
-      const result = applyMove(
-        stateWithTwoDefenders,
-        'away-def1',
-        { q: 11, r: 7 },
-        {
-          stealDie: 3,
-          tackleDie: 1,
-          carrierDie: 6,
-        },
-      );
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        // Both defenders must appear in tackleAttemptedByIds after resolution.
-        expect(result.state.tackleAttemptedByIds).toContain('away-def1');
-        expect(result.state.tackleAttemptedByIds).toContain('away-def2');
-        // Exactly two TACKLE_ATTEMPT events must be in the event log.
-        const tackleEvents = result.state.eventLog.filter((e) => e.type === 'TACKLE_ATTEMPT');
-        expect(tackleEvents).toHaveLength(2);
-        const defenderIds = tackleEvents.map((e) =>
-          e.type === 'TACKLE_ATTEMPT' ? e.defenderId : null,
-        );
-        expect(defenderIds).toContain('away-def1');
-        expect(defenderIds).toContain('away-def2');
-        // Carrier keeps the ball (both tackles failed).
-        expect(result.state.ball.carrierId).toBe('home-9');
-      }
-    },
-  );
+  it('tackle FAIL: only the moving defender appears in tackleAttemptedByIds — stationary adjacent defenders do NOT auto-tackle', () => {
+    // Carrier home-9 at {q:10,r:7}.
+    // away-def1 MOVES from {q:12,r:7} to {q:11,r:7} (adjacent to carrier) → TACKLE FAIL.
+    // away-def2 is ALREADY at {q:9,r:7} (adjacent to carrier, stationary) — must NOT auto-tackle.
+    const carrier: PlayerPiece = { ...homePiece, id: 'home-9', position: { q: 10, r: 7 } };
+    const def1: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-def1',
+      position: { q: 12, r: 7 },
+      tackling: 1,
+      dribbling: 1,
+    };
+    const def2: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-def2',
+      position: { q: 9, r: 7 },
+      tackling: 1,
+      dribbling: 1,
+    };
+    const stateWithTwoDefenders: GameState = {
+      ...baseMovementState,
+      movementSlot: 'DEFENDER_5',
+      activeTeam: 'away',
+      attackingTeam: 'home',
+      pieces: [carrier, def1, def2],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+    };
+    // tackleDie=1, carrierDie=6 → def1 FAILS (1+1=2 vs 8+6=14).
+    const result = applyMove(
+      stateWithTwoDefenders,
+      'away-def1',
+      { q: 11, r: 7 },
+      {
+        stealDie: 3,
+        tackleDie: 1,
+        carrierDie: 6,
+      },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Only the moving defender is recorded — no auto-chain.
+      expect(result.state.tackleAttemptedByIds).toContain('away-def1');
+      expect(result.state.tackleAttemptedByIds).not.toContain('away-def2');
+      // Exactly one TACKLE_ATTEMPT event in the log.
+      const tackleEvents = result.state.eventLog.filter((e) => e.type === 'TACKLE_ATTEMPT');
+      expect(tackleEvents).toHaveLength(1);
+      // Carrier keeps the ball.
+      expect(result.state.ball.carrierId).toBe('home-9');
+      // Phase stays MOVE (movement continues — carrier keeps possession).
+      expect(result.state.phase).toBe('MOVE');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

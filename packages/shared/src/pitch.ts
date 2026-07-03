@@ -71,6 +71,9 @@ export const PITCH_REGIONS: PitchRegions = {
   kickOffHex: { q: 18, r: 13 },
 };
 
+/** r-values of the home goal (q=0) and away goal (q=36) hexes. Single source of truth for shot-range checks. */
+export const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16] as const;
+
 /**
  * Difficult-angle hexes — corner kick zones where shooting is penalised. PITCH-03.
  * 16 hexes per corner × 4 corners = 64 hexes total.

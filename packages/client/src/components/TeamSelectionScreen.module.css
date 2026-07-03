@@ -107,6 +107,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   max-width: 480px;
   width: 100%;
@@ -158,4 +159,42 @@
 .speedOptionActive:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* UX-07: per-speed accent colors applied alongside .speedOption / .speedOptionActive */
+.speedColorSlow {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.speedColorSlow.speedOptionActive {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: #93c5fd;
+}
+
+.speedColorStandard {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.speedColorStandard.speedOptionActive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border-color: #86efac;
+}
+
+.speedColorFast {
+  border-color: #f97316;
+  color: #f97316;
+}
+.speedColorFast.speedOptionActive {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fdba74;
+  border-color: #fdba74;
+}
+
+/* UX-07: emoji icon spacing inside speed buttons */
+.speedIcon {
+  display: inline-block;
+  margin-right: 4px;
+  font-style: normal;
 }

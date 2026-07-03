@@ -406,8 +406,8 @@ function freeMoveState(
 
 /**
  * True if a 'selectable' blue ring is rendered at the piece's pixel center.
- * Matches on BOTH stroke color (#3b82f6) AND radius (PIECE_RADIUS+2=14, PieceOverlay.tsx)
- * because the cosmos (home) team's jersey primaryColor is also '#3b82f6' (teamConfig.ts) —
+ * Matches on BOTH stroke color (#60a5fa) AND radius (PIECE_RADIUS+3=15, PieceOverlay.tsx)
+ * because the cosmos (home) team's jersey primaryColor is also a blue
  * matching stroke color alone would false-positive on every home piece's base circle
  * (r=PIECE_RADIUS=12), which is a distinct, always-rendered element.
  */
@@ -415,8 +415,8 @@ function hasSelectableRingAt(container: HTMLElement, q: number, r: number): bool
   const { cx, cy } = axialToPixel(q, r);
   return Array.from(container.querySelectorAll('circle')).some(
     (c) =>
-      c.getAttribute('stroke') === '#3b82f6' &&
-      c.getAttribute('r') === '14' &&
+      c.getAttribute('stroke') === '#60a5fa' &&
+      c.getAttribute('r') === '15' &&
       Number(c.getAttribute('cx')) === cx &&
       Number(c.getAttribute('cy')) === cy,
   );

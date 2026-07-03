@@ -107,6 +107,8 @@ export type GameStore = {
   setRoomError: (msg: string | null) => void;
   /** Phase 7: Set/clear the game error message. */
   setGameError: (msg: string | null) => void;
+  /** Reset lobby-related state when navigating back to the landing screen. */
+  resetLobby: () => void;
   /**
    * Emit game:move to the server and clear local selection (D-08, RESEARCH Pitfall 4).
    * Uses POSITIONAL args (pieceId, to) — matches ClientToServerEvents[GAME_MOVE] signature.
@@ -830,6 +832,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   setDisconnectWarning: (v) => set({ disconnectWarning: v }),
 
   setRoomError: (msg) => set({ roomError: msg }),
+
+  resetLobby: () =>
+    set({
+      screen: 'LANDING',
+      roomCode: null,
+      playerSlot: null,
+      roomError: null,
+      gameError: null,
+      disconnectWarning: false,
+      gameState: mockMovementState,
+    }),
 
   setGameError: (msg) => set({ gameError: msg }),
 

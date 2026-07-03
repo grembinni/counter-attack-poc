@@ -478,6 +478,7 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
         activeTeam: 'home',
         movementSlot: 'ATTACKER_4',
         movedPieceIds: ['home-9'],
+        paceUsedByPieceId: { 'home-9': 99 },
       },
       playerSlot: 1,
     });

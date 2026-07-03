@@ -59,15 +59,15 @@ const PHASE_LABEL: Record<GamePhase, string> = {
  * Maps every abbreviation rendered by StatRow call sites to full name + what it helps with.
  */
 const STAT_FULL_NAME: Record<string, string> = {
-  PAC: 'Pace — how far this player can move per turn.',
-  DRB: 'Dribbling — keeping the ball under pressure.',
-  AA: 'Aerial Ability — winning headers and high passes.',
-  SHT: 'Shooting — scoring power on shots.',
-  SAV: "Saving — a goalkeeper's shot-stopping.",
-  HPS: 'High Pass — accuracy of lofted passes.',
-  RES: 'Resilience — resisting fatigue and knocks.',
-  TAC: 'Tackling — contesting the ball from a carrier.',
-  HND: "Handling — a goalkeeper's catch reliability.",
+  PAC: 'Pace — hexes this player can move per turn (equal to PAC value).',
+  DRB: 'Dribbling — Carrier (DRB+D6) vs Tackler (TAC+D6); carrier keeps ball if score is equal or higher.',
+  AA: 'Aerial Ability — both players roll (AA+D6) to win headers and high-pass contests; higher score wins.',
+  SHT: 'Shooting — Attacker (SHT+D6) vs Keeper (SAV+D6); attacker scores if equal or higher.',
+  SAV: 'Saving — Keeper (SAV+D6) vs Attacker (SHT+D6); keeper saves if equal or higher.',
+  HPS: "High Pass — accuracy of lofted passes; compared against the target's AA when the ball lands.",
+  RES: 'Resilience — not used in current rules.',
+  TAC: 'Tackling — Defender (TAC+D6) vs Carrier (DRB+D6); defender wins the ball if equal or higher.',
+  HND: 'Handling — Goalkeeper (HND+D6) to secure catches and high-ball restarts.',
 };
 
 /** DESIGN-01: MOVE-phase numbered slot suffix lookup (D-02 lookup-table-as-data shape). */

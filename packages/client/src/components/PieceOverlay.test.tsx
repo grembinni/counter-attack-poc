@@ -211,13 +211,13 @@ describe('PieceOverlay — D-10: GK jersey patterns', () => {
 });
 
 describe('PieceOverlay — UX-05: selection ring states', () => {
-  it("selectionState='selectable' renders exactly one ring circle with stroke #3b82f6", () => {
+  it("selectionState='selectable' renders exactly one ring circle with stroke #60a5fa", () => {
     const { container } = renderPiece(homeOutfield, 'selectable');
     // Find circles with fill="none" (ring circles, not the base circle)
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const ringCircles = allCircles.filter((c) => c.getAttribute('fill') === 'none');
     expect(ringCircles.length).toBe(1);
-    expect(ringCircles[0]!.getAttribute('stroke')).toBe('#3b82f6');
+    expect(ringCircles[0]!.getAttribute('stroke')).toBe('#60a5fa');
   });
 
   it("selectionState='active' renders exactly one ring circle with stroke #22c55e", () => {
