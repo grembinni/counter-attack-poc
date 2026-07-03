@@ -6,26 +6,18 @@
  * BADGE_MAP uses static imports so Vite content-hashes the URLs at build time.
  * Do NOT use teamConfig.badgeFile as the img src (Pitfall 3 — bypasses Vite).
  */
-import cosmosBadge from '../assets/badges/cosmos.png';
-import xolosBadge from '../assets/badges/xolos.png';
 import cityBadge from '../assets/badges/city.png';
 import crewBadge from '../assets/badges/crew.png';
-import cosmosBadgeFull from '../assets/badges/cosmos-full.png';
-import xolosBadgeFull from '../assets/badges/xolos-full.png';
 import cityBadgeFull from '../assets/badges/city-full.png';
 import crewBadgeFull from '../assets/badges/crew-full.png';
 import type { TeamId } from '@counter-attack/shared';
 
 const BADGE_MAP: Record<TeamId, string> = {
-  cosmos: cosmosBadge,
-  xolos: xolosBadge,
   city: cityBadge,
   crew: crewBadge,
 };
 
 const BADGE_MAP_FULL: Record<TeamId, string> = {
-  cosmos: cosmosBadgeFull,
-  xolos: xolosBadgeFull,
   city: cityBadgeFull,
   crew: crewBadgeFull,
 };

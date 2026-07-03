@@ -1,7 +1,7 @@
 /**
  * Team selection screen — shown to both players after slot-2 joins.
  * Home player picks first; away player sees struck-out home card + 3 active cards.
- * PLAY-03: exactly 4 team cards (no Free Agent card).
+ * PLAY-03: 2 team cards in Phase 19 (city + crew); Phase 21 restores the full 4-team grid.
  * SELECT-01: home-first turn order enforced server-side; client disables cards for waiting player.
  * UX-07 (Phase 18.4): home player may choose Slow/Standard/Fast game speed (default Standard).
  * D-10/D-11/D-12/D-13/D-14: component shape, badge variants, turn order, full-size badges.
@@ -13,18 +13,15 @@ import styles from './TeamSelectionScreen.module.css';
 
 // D-13: static Vite imports for full-size badge variants — content-hashed at build time.
 // These are used ONLY on the TeamSelectionScreen; regular {teamid}.png stays in TeamBadge.
-import cosmosFullBadge from '../assets/badges/cosmos-full.png';
-import xolosFullBadge from '../assets/badges/xolos-full.png';
+// D-04 (Phase 19): cosmos/xolos removed from TeamId; Phase 21 will re-expand the team grid.
 import cityFullBadge from '../assets/badges/city-full.png';
 import crewFullBadge from '../assets/badges/crew-full.png';
 
-/** PLAY-03: exactly 4 selectable teams (never includes Free Agents). */
-const ALL_TEAMS: TeamId[] = ['cosmos', 'xolos', 'city', 'crew'];
+/** PLAY-03: transitional 2-team state (Phase 19); Phase 21 restores the full 4-team grid. */
+const ALL_TEAMS: TeamId[] = ['city', 'crew'];
 
 /** Maps TeamId to full-size badge Vite import URL (110×110 display). */
 const FULL_BADGE_MAP: Record<TeamId, string> = {
-  cosmos: cosmosFullBadge,
-  xolos: xolosFullBadge,
   city: cityFullBadge,
   crew: crewFullBadge,
 };
