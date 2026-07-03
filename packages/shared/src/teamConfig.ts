@@ -111,7 +111,20 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'City',
     colorSchemeId: 'city',
     palette: COLOR_SCHEME_REGISTRY.city.palette,
-    playerIds: [] as readonly string[], // Task 3: populated after pnpm run seed:rosters
+    // Populated from seed script output — pnpm run seed:rosters (Task 3)
+    playerIds: [
+      'p023',
+      'p024',
+      'p025',
+      'p026',
+      'p027',
+      'p028',
+      'p029',
+      'p030',
+      'p031',
+      'p032',
+      'p033',
+    ],
     league: 'mls',
     badgeFile: 'city.png',
   },
@@ -120,7 +133,20 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Crew',
     colorSchemeId: 'crew',
     palette: COLOR_SCHEME_REGISTRY.crew.palette,
-    playerIds: [] as readonly string[], // Task 3: populated after pnpm run seed:rosters
+    // Populated from seed script output — pnpm run seed:rosters (Task 3)
+    playerIds: [
+      'p034',
+      'p035',
+      'p036',
+      'p037',
+      'p038',
+      'p039',
+      'p040',
+      'p041',
+      'p042',
+      'p043',
+      'p044',
+    ],
     league: 'mls',
     badgeFile: 'crew.png',
   },
