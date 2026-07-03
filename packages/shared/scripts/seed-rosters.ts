@@ -126,8 +126,8 @@ function parseRow(row: string[], idx: Record<string, number>): RawPlayer {
   let resilience = toInt(row[idx['Resilience']] ?? '');
   let shooting = toInt(row[idx['Shooting']] ?? '');
   let tackling = toInt(row[idx['Tackling']] ?? '');
-  // D-05: 'Arial Ability' typo is preserved from the CSV — access by exact header string
-  const aerialAbility = toInt(row[idx['Arial Ability']] ?? '');
+  // D-13: CSV header typo fixed — now reads 'Aerial Ability' (was misspelled in original CSVs)
+  const aerialAbility = toInt(row[idx['Aerial Ability']] ?? '');
   const saving = toInt(row[idx['Saving']] ?? '');
   const handling = toInt(row[idx['Handling']] ?? '');
 
