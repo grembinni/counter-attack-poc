@@ -24,7 +24,7 @@ beforeEach(() => {
   useGameStore.setState({
     gameState: {
       ...mockMovementState,
-      selectedTeams: { home: 'cosmos', away: 'xolos' },
+      selectedTeams: { home: 'city', away: 'crew' },
     },
     screen: 'GAME_BOARD',
     selectedPieceId: null,
@@ -46,14 +46,13 @@ describe('PlayerStatsPanel — TEAM-02: renders null when no piece selected', ()
 
 describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstName/lastName/role/number', () => {
   it('renders the GK firstName and lastName on separate lines (D-09, PLAY-02)', () => {
-    // home-0 is the GK. After plan 16-02 seeds data, the cosmos GK is Vinicius Eubsinno.
-    // Until then, this test is RED because PlayerPiece has no firstName/lastName fields.
+    // home-0 is the GK. After Phase 19, the city GK is Roman Bürki (array index 0 in city squad).
     useGameStore.setState({ selectedPieceId: 'home-0' });
     render(<PlayerStatsPanel />);
     // Line 1: firstName must appear as its own text node
-    expect(screen.getByText('Vinicius')).toBeDefined();
+    expect(screen.getByText('Roman')).toBeDefined();
     // Line 2: lastName must appear as its own text node
-    expect(screen.getByText('Eubsinno')).toBeDefined();
+    expect(screen.getByText('Bürki')).toBeDefined();
   });
 
   it('renders the role text (e.g. "GK") on line 3 (D-09)', () => {
@@ -96,15 +95,15 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
   it('renders the correct attribute value from gameState.pieces', () => {
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<PlayerStatsPanel />);
-    // home-9 (Nicolae Rusu, FWD) from real CSV data has pace:4, dribbling:4, highPass:4
+    // home-9 (Cedric Teuchert, FWD) from city squad CSV data has pace:4, dribbling:4
     const statValues = screen.getAllByText('4');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
 });
 
 describe('PlayerStatsPanel — D-08/D-06: MiniTokenBadge team-keyed patterns (15-03)', () => {
-  it('home outfield piece: mini-token circle fill references url(#mini-cosmos-jersey-<id>) and the pattern exists', () => {
-    // home-1 is a DEF (outfield, teamId='home'); selectedTeams.home = cosmos
+  it('home outfield piece: mini-token circle fill references url(#mini-city-jersey-<id>) and the pattern exists', () => {
+    // home-1 is a DEF (outfield, teamId='home'); selectedTeams.home = city (Phase 19 D-04)
     useGameStore.setState({ selectedPieceId: 'home-1' });
     const { container } = render(<PlayerStatsPanel />);
 
@@ -113,7 +112,7 @@ describe('PlayerStatsPanel — D-08/D-06: MiniTokenBadge team-keyed patterns (15
     expect(svg).not.toBeNull();
 
     // The team-keyed jersey pattern def must exist
-    const patternId = 'mini-cosmos-jersey-home-1';
+    const patternId = 'mini-city-jersey-home-1';
     const pattern = container.querySelector(`pattern#${patternId}`);
     expect(pattern).not.toBeNull();
 
@@ -123,15 +122,15 @@ describe('PlayerStatsPanel — D-08/D-06: MiniTokenBadge team-keyed patterns (15
     expect(circle!.getAttribute('fill')).toBe(`url(#${patternId})`);
   });
 
-  it('away outfield piece: mini-token circle fill references url(#mini-xolos-jersey-<id>) and the pattern exists', () => {
-    // away-1 is a DEF (outfield, teamId='away'); selectedTeams.away = xolos
+  it('away outfield piece: mini-token circle fill references url(#mini-crew-jersey-<id>) and the pattern exists', () => {
+    // away-1 is a DEF (outfield, teamId='away'); selectedTeams.away = crew (Phase 19 D-04)
     useGameStore.setState({ selectedPieceId: 'away-1' });
     const { container } = render(<PlayerStatsPanel />);
 
     const svg = container.querySelector('svg');
     expect(svg).not.toBeNull();
 
-    const patternId = 'mini-xolos-jersey-away-1';
+    const patternId = 'mini-crew-jersey-away-1';
     const pattern = container.querySelector(`pattern#${patternId}`);
     expect(pattern).not.toBeNull();
 

@@ -21,7 +21,7 @@ function setEventLog(eventLog: ActionEvent[]) {
   useGameStore.setState({
     gameState: {
       ...mockMovementState,
-      // D-12 tests seed selectedTeams via mockMovementState (cosmos/xolos) — already valid TeamIds.
+      // D-12 tests seed selectedTeams via mockMovementState (city/crew) — valid TeamIds post Phase 19.
       eventLog,
     },
     screen: 'GAME_BOARD',
@@ -186,12 +186,12 @@ describe('ActionLog — D-01: per-player move log shows name + path', () => {
       },
     ]);
     const { container } = render(<ActionLog />);
-    // home-9 in the cosmos squad (mockMovementState default) is Nicolae Rusu.
-    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Cedric Teuchert, jersey #10.
+    expect(screen.getByText(/Cedric Teuchert/)).toBeDefined();
     expect(screen.getByText(/14,13 → 15,13 → 16,13/)).toBeDefined();
     // Requirement 2: the consolidated MOVE entry now carries the player's #-prefixed
     // jersey number ahead of the name.
-    expect(container.textContent).toMatch(/#\d+\s+Nicolae Rusu/);
+    expect(container.textContent).toMatch(/#\d+\s+Cedric Teuchert/);
   });
 
   it('a MOVE event for an unknown pieceId renders without throwing (fallback path)', () => {
@@ -235,8 +235,8 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[TACKLE ✓\]/);
-    // home-9 in the cosmos squad (mockMovementState default) is Nicolae Rusu.
-    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Cedric Teuchert, jersey #10.
+    expect(screen.getByText(/Cedric Teuchert/)).toBeDefined();
     // away-1's exact seeded name is not hardcoded here — assert the #number-then-name
     // shape, with NO leading role letter (requirement 1 dropped D/A from the vs-line).
     expect(container.textContent).toMatch(/#\d+\s+\S+/);
@@ -283,9 +283,11 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[SHOT ✓\]/);
-    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Cedric Teuchert, jersey #10.
+    expect(screen.getByText(/Cedric Teuchert/)).toBeDefined();
     // GK now rendered as a named PNamed label (TACKLE-parity "vs" shape), not a bare stat string.
-    expect(screen.getByText(/Oliver Walker/)).toBeDefined();
+    // away-0 (array index 0 in crew squad) is Patrick Schulte, GK jersey #1.
+    expect(screen.getByText(/Patrick Schulte/)).toBeDefined();
     // fmtStatRoll assertions remain unchanged (still spelled out, still - 0)
     expect(container.textContent).toMatch(/Shooting/);
     expect(container.textContent).toMatch(/Saving/);
@@ -303,7 +305,8 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[SHOT\]/);
-    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Cedric Teuchert, jersey #10.
+    expect(screen.getByText(/Cedric Teuchert/)).toBeDefined();
     expect(container.textContent).toMatch(/SCORED!/);
   });
 
@@ -552,7 +555,8 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
       },
     ]);
     const { container } = render(<ActionLog />);
-    expect(container.textContent).toMatch(/#\d+\s+Nicolae Rusu/);
+    // home-9 (array index 9 in city squad) is Cedric Teuchert, jersey #10.
+    expect(container.textContent).toMatch(/#\d+\s+Cedric Teuchert/);
     // No leading role letter immediately precedes the contestant number.
     expect(container.textContent).not.toMatch(/\b[AD] #\d/);
   });
@@ -585,7 +589,8 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
       },
     ]);
     const { container } = render(<ActionLog />);
-    expect(screen.getByText(/Nicolae Rusu/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Cedric Teuchert, jersey #10.
+    expect(screen.getByText(/Cedric Teuchert/)).toBeDefined();
     expect(container.textContent).not.toMatch(/home-9/);
   });
 

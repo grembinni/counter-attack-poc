@@ -9,7 +9,7 @@ import styles from './ActionLog.module.css';
 function pieceColorOf(pieceId: string): string {
   const selectedTeams = useGameStore.getState().gameState.selectedTeams;
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
-  return TEAM_CONFIGS[selectedTeams[positional]].primaryColor;
+  return TEAM_CONFIGS[selectedTeams[positional]].palette.primary;
 }
 
 /**
@@ -34,7 +34,7 @@ function slotTeamColor(slot: MovementSlot): string {
   const { selectedTeams, attackingTeam } = useGameStore.getState().gameState;
   const positional: 'home' | 'away' =
     slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
-  return TEAM_CONFIGS[selectedTeams[positional]].primaryColor;
+  return TEAM_CONFIGS[selectedTeams[positional]].palette.primary;
 }
 
 /** Bold, team-colored player label rendered inline. */

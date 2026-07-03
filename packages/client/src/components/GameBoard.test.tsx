@@ -195,18 +195,18 @@ describe('GameBoard — TEAM-06: scoreboard badge images', () => {
     expect(badgeImgs.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('home scoreboard badge img alt contains "cosmos" (TEAM_DEFAULTS home → cosmos)', () => {
+  it('home scoreboard badge img alt contains "city" (selectedTeams home → city)', () => {
     render(<GameBoard />);
-    // TEAM_DEFAULTS: home -> cosmos; TeamBadge alt = "{teamId} badge"
-    const cosmosBadge = screen.getByAltText('cosmos badge');
-    expect(cosmosBadge).toBeDefined();
+    // mockMovementState.selectedTeams: home -> city; TeamBadge alt = "{teamId} badge"
+    const cityBadge = screen.getByAltText('city badge');
+    expect(cityBadge).toBeDefined();
   });
 
-  it('away scoreboard badge img alt contains "xolos" (TEAM_DEFAULTS away → xolos)', () => {
+  it('away scoreboard badge img alt contains "crew" (selectedTeams away → crew)', () => {
     render(<GameBoard />);
-    // TEAM_DEFAULTS: away -> xolos; TeamBadge alt = "{teamId} badge"
-    const xolosBadge = screen.getByAltText('xolos badge');
-    expect(xolosBadge).toBeDefined();
+    // mockMovementState.selectedTeams: away -> crew; TeamBadge alt = "{teamId} badge"
+    const crewBadge = screen.getByAltText('crew badge');
+    expect(crewBadge).toBeDefined();
   });
 });
 
