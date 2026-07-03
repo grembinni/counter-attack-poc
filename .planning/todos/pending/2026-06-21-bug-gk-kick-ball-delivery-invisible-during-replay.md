@@ -2,6 +2,7 @@
 created: 2026-06-21T18:14:38.000Z
 title: Bug - GK_KICK ball delivery invisible during post-game replay (REPLAY-06 gap)
 area: replay
+resolves_phase: 25
 files:
   - packages/server/src/gameEngine.ts
   - packages/server/src/gameHandlers.ts
