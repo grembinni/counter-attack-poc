@@ -72,7 +72,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | Phase | Name                            | Requirements                                     | Status      |
 | ----- | ------------------------------- | ------------------------------------------------ | ----------- |
 | 19    | 3/3                             | Complete                                         | 2026-07-03  |
-| 20    | 2/3 | In Progress|  |
+| 20    | 3/3 | Complete   | 2026-07-04 |
 | 21    | New Teams (MLS + International) | TEAM-08..11, INTL-01..06, LEAGUE-01..02          | Not started |
 | 22    | Uniform Selection Screen        | UNIFORM-02..04                                   | Not started |
 | 23    | Formation System                | FORM-01..04                                      | Not started |
@@ -129,7 +129,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
   **Wave 3** _(blocked on Waves 1-2)_
 
-- [ ] 20-03-PLAN.md — Refactor PieceOverlay to pure parameterized renderer (GK swap), update tests, wire HexGrid resolution
+- [x] 20-03-PLAN.md — Refactor PieceOverlay to pure parameterized renderer (GK swap), update tests, wire HexGrid resolution
       **UI hint**: yes
 
 ### Phase 21: New Teams (MLS + International)
