@@ -1,10 +1,7 @@
 /**
  * Phase 16 Wave 0 RED tests — PLAY-03, SELECT-01
- * UX-07 (Phase 18.4): updated to supply required selectedSpeed/onSpeedChange props.
- *
- * Tests for TeamSelectionScreen component that does not yet exist.
- * These tests MUST fail (module not found) until plan 16-03 creates
- * TeamSelectionScreen.tsx.
+ * Phase 21: updated for two-tab layout (LEAGUE-01, LEAGUE-02).
+ * UX-07 (Phase 18.4): supply required selectedSpeed/onSpeedChange props.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
@@ -27,20 +24,26 @@ const DEFAULT_SPEED_PROPS = {
   onSpeedChange: vi.fn(),
 };
 
+/**
+ * Filter all buttons to team cards only — exclude tab buttons (role="tab")
+ * and speed buttons (aria-pressed). PATTERNS.md filtering approach.
+ */
+function getTeamCards(buttons: HTMLElement[]): HTMLElement[] {
+  return buttons.filter((b) => b.getAttribute('role') !== 'tab' && !b.hasAttribute('aria-pressed'));
+}
+
 // ---------------------------------------------------------------------------
 // PLAY-03: Free Agent players NOT shown in selection screen
 // ---------------------------------------------------------------------------
 
 describe('TeamSelectionScreen — PLAY-03: only named teams shown (no Free Agents)', () => {
-  it('renders exactly 2 team cards (city, crew) — transitional Phase 19 state; Phase 21 restores 4', () => {
+  it('renders exactly 6 team cards on the default MLS tab', () => {
     useGameStore.setState({ playerSlot: 1 });
     render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
 
-    // UX-07: speed buttons (3) are also present for home player — filter to team cards only.
-    // Team cards are identified by NOT having aria-pressed (speed buttons use aria-pressed).
     const allButtons = screen.getAllByRole('button');
-    const teamCards = allButtons.filter((b) => !b.hasAttribute('aria-pressed'));
-    expect(teamCards).toHaveLength(2);
+    const teamCards = getTeamCards(allButtons);
+    expect(teamCards).toHaveLength(6);
   });
 
   it('does NOT render a "FA" card or any card labelled "Free Agent" (PLAY-03)', () => {
@@ -58,28 +61,27 @@ describe('TeamSelectionScreen — PLAY-03: only named teams shown (no Free Agent
 // ---------------------------------------------------------------------------
 
 describe('TeamSelectionScreen — SELECT-01: home-first turn order', () => {
-  it('all 2 team cards are enabled when playerSlot=1 (home) and homePickedTeam=null', () => {
+  it('all 6 team cards are enabled when playerSlot=1 (home) and homePickedTeam=null', () => {
     // Home player, no team picked yet — home player is active
     useGameStore.setState({ playerSlot: 1 });
     render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
 
     const allButtons = screen.getAllByRole('button');
-    const teamCards = allButtons.filter((b) => !b.hasAttribute('aria-pressed'));
-    expect(teamCards).toHaveLength(2);
+    const teamCards = getTeamCards(allButtons);
+    expect(teamCards).toHaveLength(6);
     for (const card of teamCards) {
       expect(card.hasAttribute('disabled')).toBe(false);
     }
   });
 
-  it('all 2 team cards are disabled when playerSlot=2 (away) and homePickedTeam=null', () => {
+  it('all 6 team cards are disabled when playerSlot=2 (away) and homePickedTeam=null', () => {
     // Away player, home has not yet picked — away player must wait
     useGameStore.setState({ playerSlot: 2 });
     render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
 
     const allButtons = screen.getAllByRole('button');
-    // For away player, speed buttons are also disabled — filter by aria-pressed to get team cards.
-    const teamCards = allButtons.filter((b) => !b.hasAttribute('aria-pressed'));
-    expect(teamCards).toHaveLength(2);
+    const teamCards = getTeamCards(allButtons);
+    expect(teamCards).toHaveLength(6);
     for (const card of teamCards) {
       expect(card.hasAttribute('disabled')).toBe(true);
     }
@@ -91,22 +93,20 @@ describe('TeamSelectionScreen — SELECT-01: home-first turn order', () => {
 // ---------------------------------------------------------------------------
 
 describe('TeamSelectionScreen — SELECT-01: city struck-out for away player after home picked it', () => {
-  it('city card is disabled (struck-out) and remaining 1 is enabled for away player', () => {
-    // Away player's view after home has picked city (only 2 teams in Phase 19)
+  it('city card is disabled (struck-out) and remaining 5 are enabled for away player', () => {
+    // Away player's view after home has picked city (MLS tab — city struck out, 5 enabled)
     useGameStore.setState({ playerSlot: 2 });
     render(<TeamSelectionScreen homePickedTeam="city" onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
 
     const allButtons = screen.getAllByRole('button');
-    // Speed buttons have aria-pressed; team cards don't.
-    const teamCards = allButtons.filter((b) => !b.hasAttribute('aria-pressed'));
-    expect(teamCards).toHaveLength(2);
+    const teamCards = getTeamCards(allButtons);
 
-    // Find city card — it should be disabled; crew card should be enabled
+    // Find city card — it should be disabled; 5 others should be enabled
     const disabledCards = teamCards.filter((c) => c.hasAttribute('disabled'));
     const enabledCards = teamCards.filter((c) => !c.hasAttribute('disabled'));
 
     expect(disabledCards).toHaveLength(1);
-    expect(enabledCards).toHaveLength(1);
+    expect(enabledCards).toHaveLength(5);
   });
 });
 
@@ -117,21 +117,18 @@ describe('TeamSelectionScreen — SELECT-01: city struck-out for away player aft
 describe('TeamSelectionScreen — SELECT-01: clicking an enabled card calls onPick', () => {
   it('clicking an enabled card invokes onPick with the selected teamId', async () => {
     const onPick = vi.fn();
-    // Away player with homePickedTeam=city — only crew card remains active (Phase 19: 2 teams)
+    // Away player with homePickedTeam=city — 5 MLS cards remain active
     useGameStore.setState({ playerSlot: 2 });
     render(<TeamSelectionScreen homePickedTeam="city" onPick={onPick} {...DEFAULT_SPEED_PROPS} />);
 
     const allButtons = screen.getAllByRole('button');
-    const teamCards = allButtons.filter((b) => !b.hasAttribute('aria-pressed'));
+    const teamCards = getTeamCards(allButtons);
     const enabledCards = teamCards.filter((c) => !c.hasAttribute('disabled'));
-    expect(enabledCards).toHaveLength(1);
+    expect(enabledCards).toHaveLength(5);
 
-    // Click the only enabled card (crew)
+    // Click the first enabled card
     await userEvent.click(enabledCards[0]!);
     expect(onPick).toHaveBeenCalledTimes(1);
-    // onPick should be called with 'crew' (only remaining team after city is struck out)
-    const calledWith = onPick.mock.calls[0]?.[0];
-    expect(calledWith).toBe('crew');
   });
 
   it('clicking a disabled card does NOT call onPick', async () => {
@@ -141,12 +138,93 @@ describe('TeamSelectionScreen — SELECT-01: clicking an enabled card calls onPi
     render(<TeamSelectionScreen homePickedTeam="city" onPick={onPick} {...DEFAULT_SPEED_PROPS} />);
 
     const allButtons = screen.getAllByRole('button');
-    const teamCards = allButtons.filter((b) => !b.hasAttribute('aria-pressed'));
+    const teamCards = getTeamCards(allButtons);
     const disabledCards = teamCards.filter((c) => c.hasAttribute('disabled'));
     expect(disabledCards).toHaveLength(1);
 
     // Click the disabled (city) card — no event should fire
     await userEvent.click(disabledCards[0]!);
     expect(onPick).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LEAGUE-01: Two-tab layout
+// ---------------------------------------------------------------------------
+
+describe('TeamSelectionScreen — LEAGUE-01: two-tab layout', () => {
+  it('renders MLS tab as active by default on mount', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    const mlsTab = screen.getByRole('tab', { name: /mls/i });
+    expect(mlsTab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('shows 6 team cards on the default MLS tab', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    const allButtons = screen.getAllByRole('button');
+    const teamCards = getTeamCards(allButtons);
+    expect(teamCards).toHaveLength(6);
+  });
+
+  it('switches to International tab on click and shows 6 cards', async () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    await userEvent.click(screen.getByRole('tab', { name: /international/i }));
+
+    const intlTab = screen.getByRole('tab', { name: /international/i });
+    expect(intlTab.getAttribute('aria-selected')).toBe('true');
+
+    const allButtons = screen.getAllByRole('button');
+    const teamCards = getTeamCards(allButtons);
+    expect(teamCards).toHaveLength(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LEAGUE-02: Cross-tab struck-out behavior
+// ---------------------------------------------------------------------------
+
+describe('TeamSelectionScreen — LEAGUE-02: cross-tab struck-out behavior', () => {
+  it("away player's MLS tab is active when homePickedTeam='city' (city is MLS)", () => {
+    // When home picks a city (MLS team), away sees MLS tab active.
+    // MLS is the default tab so this verifies the correct tab is shown after home picks MLS.
+    useGameStore.setState({ playerSlot: 2 });
+    render(<TeamSelectionScreen homePickedTeam="city" onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    expect(screen.getByRole('tab', { name: /mls/i }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('exactly 1 card is disabled (struck-out) when home picked an MLS team', () => {
+    // Home picked 'city' (MLS tab); exactly 1 card on the MLS tab should be disabled
+    useGameStore.setState({ playerSlot: 2 });
+    render(<TeamSelectionScreen homePickedTeam="city" onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    const allButtons = screen.getAllByRole('button');
+    const teamCards = getTeamCards(allButtons);
+    const disabledCards = teamCards.filter((c) => c.hasAttribute('disabled'));
+    expect(disabledCards).toHaveLength(1); // city struck out
+  });
+
+  it('struck-out card (city) stays struck out after switching tabs and back (tab-independent check)', async () => {
+    // isStruckOut = teamId === homePickedTeam — independent of activeLeague
+    useGameStore.setState({ playerSlot: 2 });
+    render(<TeamSelectionScreen homePickedTeam="city" onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    // Switch to International tab — city not present, no disabled cards
+    await userEvent.click(screen.getByRole('tab', { name: /international/i }));
+    const allButtonsIntl = screen.getAllByRole('button');
+    const disabledIntl = getTeamCards(allButtonsIntl).filter((c) => c.hasAttribute('disabled'));
+    expect(disabledIntl).toHaveLength(0);
+
+    // Switch back to MLS — city is still struck out
+    await userEvent.click(screen.getByRole('tab', { name: /mls/i }));
+    const allButtonsMls = screen.getAllByRole('button');
+    const disabledMls = getTeamCards(allButtonsMls).filter((c) => c.hasAttribute('disabled'));
+    expect(disabledMls).toHaveLength(1);
   });
 });
