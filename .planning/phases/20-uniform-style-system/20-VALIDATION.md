@@ -55,18 +55,18 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ## Wave 0 Requirements
 
-- [x] `packages/client/src/styles/uniformStyles.test.tsx` — 26 tests covering 12-style completeness, return-shape, id uniqueness, fade gradient, patternDef DOM, pointer-events
-- [x] `packages/client/src/components/PieceOverlay.test.tsx` — updated assertions: `url(#pinstripe-`/`url(#diagonal-`/`url(#checker-`, GK palette-swap colors via `COLOR_SCHEME_REGISTRY` (not hardcoded hex)
+- [x] `packages/client/src/styles/uniformStyles.test.tsx` — 33 tests covering 18-style completeness, return-shape, id uniqueness, patternDef DOM, overlay pointerEvents, sunburst 8-sector paths, centre circle overlay for number legibility (Phase 21 expanded 12→18 styles; `fade` replaced by `sunburst`/`shape-*`/`split-*`/`quarter-*` family)
+- [x] `packages/client/src/components/PieceOverlay.test.tsx` — updated assertions: `url(#ps-v-` (pinstripes-vertical), `url(#bar-diagonal-` (crew outfield, solid fill + clipPath), `url(#checkers-` (GK), GK palette-swap colors via `COLOR_SCHEME_REGISTRY` using `homePrime`/`homeAlt`/`awayPrime`/`awayAlt` fields (Phase 21 renamed palette fields from `primary`/`secondary1`/`primaryLight`/`secondary2`)
 
 ---
 
 ## Manual-Only Verifications
 
-| Behavior                                     | Requirement | Why Manual                                    | Test Instructions                                                                         |
-| -------------------------------------------- | ----------- | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| City pieces render pinstripe pattern in-game | UNIFORM-05  | Visual regression requires browser inspection | Launch dev server, join game as City, verify outfield pieces show vertical stripe pattern |
-| Crew pieces render diagonal stripe in-game   | UNIFORM-05  | Visual regression requires browser inspection | Launch dev server, join game as Crew, verify outfield pieces show diagonal stripe         |
-| GK pieces visually distinct from outfield    | UNIFORM-01  | Color inversion checked visually              | Verify GK piece uses swapped palette (primary↔secondary1) on both teams                   |
+| Behavior                                               | Requirement | Why Manual                                    | Test Instructions                                                                                                              |
+| ------------------------------------------------------ | ----------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| City pieces render pinstripes-vertical pattern in-game | UNIFORM-05  | Visual regression requires browser inspection | Launch dev server, join game as City, verify outfield pieces show vertical pinstripe pattern (style id: `pinstripes-vertical`) |
+| Crew pieces render bar-diagonal pattern in-game        | UNIFORM-05  | Visual regression requires browser inspection | Launch dev server, join game as Crew, verify outfield pieces show diagonal bar pattern (style id: `bar-diagonal`)              |
+| GK pieces visually distinct from outfield              | UNIFORM-01  | Color inversion checked visually              | Verify GK piece uses swapped palette (homePrime↔awayPrime, homeAlt↔awayAlt) on both teams                                      |
 
 ---
 
@@ -81,7 +81,7 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 **Approval:** 2026-07-04
 
-## Validation Audit 2026-07-04
+## Validation Audit 2026-07-04 (first)
 
 | Metric     | Count |
 | ---------- | ----- |
@@ -90,3 +90,13 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 | Escalated  | 0     |
 
 Root cause: `PieceOverlay.test.tsx` had hardcoded City palette hex values (`#dc143c`, `#f5c518`) that became stale when Phase 19 updated the City palette to `#C3153B`/`#E8BA21`. Fixed by replacing with `COLOR_SCHEME_REGISTRY.city.palette.primary/secondary1` references.
+
+## Validation Audit 2026-07-04 (second — post Phase 21 expansion)
+
+| Metric                     | Count |
+| -------------------------- | ----- |
+| Gaps found (coverage)      | 0     |
+| Stale descriptions updated | 3     |
+| Escalated                  | 0     |
+
+Root cause: Phase 21 (new-teams-mls-international) expanded the uniform style system from 12 styles (pinstripe, diagonal, checker, cosmos, plus, v-stripe, quarters, polka-dots, fade, tree-rings, corners, solid) to 18 styles with renamed IDs (pinstripes-vertical, bar-diagonal, checkers, sunburst, etc.) and renamed palette fields (primary→homePrime, secondary1→homeAlt, primaryLight→awayPrime, secondary2→awayAlt). The Wave 0 requirements and Manual-Only sections in this file referenced Phase 20's original style names and test counts; updated to reflect current implementation. All 288 client tests green; no coverage gaps.
