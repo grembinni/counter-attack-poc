@@ -101,9 +101,11 @@ function renderPiece(
   isOffside = false,
   isMovedThisStage = false,
 ) {
-  // Resolve uniform style and palette based on team — mirrors what HexGrid does via TEAM_CONFIGS
+  // Resolve uniform style and palette based on team — mirrors what HexGrid does via TEAM_CONFIGS.
+  // GK pieces use 'checker' so D-13 palette-swap tests can assert swapped checker colors.
   const isHome = piece.teamId === 'home';
-  const uniformStyle = isHome ? ('pinstripe' as const) : ('diagonal' as const);
+  const isGK = piece.role === 'GK';
+  const uniformStyle = isGK ? ('checker' as const) : isHome ? ('pinstripe' as const) : ('diagonal' as const);
   const palette = isHome
     ? COLOR_SCHEME_REGISTRY.city.palette
     : COLOR_SCHEME_REGISTRY.crew.palette;
