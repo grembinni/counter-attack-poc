@@ -56,19 +56,18 @@ Exceptions:
 
 ## Typography
 
-| Role              | Size | Weight                                                | Line Height |
-| ----------------- | ---- | ----------------------------------------------------- | ----------- |
-| Heading           | 20px | 700 (bold)                                            | 1.2         |
-| Label / Team name | 13px | 700 (bold)                                            | 1.2         |
-| Body / Status     | 13px | 400 (regular)                                         | 1.5         |
-| Tab button        | 14px | 600 (semibold) for active, 400 (regular) for inactive | 1.2         |
+| Role              | Size | Weight        | Line Height |
+| ----------------- | ---- | ------------- | ----------- |
+| Heading           | 20px | 700 (bold)    | 1.2         |
+| Label / Team name | 13px | 700 (bold)    | 1.2         |
+| Body / Status     | 13px | 400 (regular) | 1.5         |
+| Tab button active | 14px | 700 (bold)    | 1.2         |
+| Tab button idle   | 14px | 400 (regular) | 1.2         |
 
-**Source:** `TeamSelectionScreen.module.css` — `.heading` (20px/700/1.2), `.teamName` (13px/700), `.statusLine` (13px/400). Tab button sizing is new in Phase 21; 14px/600 active matches the heading/label weight hierarchy without introducing a fifth size.
+**Source:** `TeamSelectionScreen.module.css` — `.heading` (20px/700/1.2), `.teamName` (13px/700), `.statusLine` (13px/400). Tab button sizing is new in Phase 21; active tab uses 700 to match the existing label weight hierarchy.
 
 Declared font sizes: 13, 14, 20 (three sizes only — within the 3–4 size limit).
-Declared font weights: 400 (regular), 600 (semibold, tabs active), 700 (bold, headings + labels).
-
-Note: 600 is added only for the active tab button state. If implementation prefers to use 700 for active tabs (matching `.teamName`), that eliminates the third weight and is equally acceptable.
+Declared font weights: 400 (regular) and 700 (bold) — two weights only.
 
 ---
 
@@ -93,6 +92,8 @@ Accent reserved for:
 
 The active tab underline uses `#e0e0e0` (text primary) as the accent, not a team palette color, because tabs represent leagues, not individual teams.
 
+**Focal point:** Primary visual anchor is the badge image at 80×80px; the team name label below the badge is the secondary element. All other card content (status line, border color) is tertiary.
+
 ---
 
 ## Component Inventory
@@ -110,7 +111,7 @@ The active tab underline uses `#e0e0e0` (text primary) as the accent, not a team
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.tabs`      | Flex row container for tab buttons; `display: flex; gap: 8px; margin-bottom: 8px; border-bottom: 1px solid #0f3460; padding-bottom: 8px; width: 100%; max-width: 600px;`                                                                          |
 | `.tab`       | Inactive tab button; `font-size: 14px; font-weight: 400; color: #a0a0a0; background: transparent; border: none; border-bottom: 2px solid transparent; padding: 8px 16px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease;` |
-| `.tabActive` | Active tab button; `font-size: 14px; font-weight: 600; color: #e0e0e0; background: transparent; border: none; border-bottom: 2px solid #e0e0e0; padding: 8px 16px; cursor: pointer;`                                                              |
+| `.tabActive` | Active tab button; `font-size: 14px; font-weight: 700; color: #e0e0e0; background: transparent; border: none; border-bottom: 2px solid #e0e0e0; padding: 8px 16px; cursor: pointer;`                                                              |
 
 ### Grid Layout Update
 
