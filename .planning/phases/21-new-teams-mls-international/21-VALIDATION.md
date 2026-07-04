@@ -98,3 +98,21 @@ _Verified commands:_
 - `pnpm --filter @counter-attack/shared exec tsc --noEmit` → exits 0
 - `pnpm --filter @counter-attack/server exec tsc --noEmit` → exits 0
 - `pnpm --filter @counter-attack/client exec tsc --noEmit` → exits 0
+
+## Validation Audit 2026-07-04 (re-verify)
+
+| Metric     | Count |
+| ---------- | ----- |
+| Gaps found | 0     |
+| Resolved   | 0     |
+| Escalated  | 0     |
+
+_Re-verification via /gsd-validate-phase 21. All 5 tasks remain COVERED — test counts unchanged from prior audit._
+
+_Verified commands:_
+
+- `pnpm --filter @counter-attack/shared run test` → 538 tests pass (12 files)
+- `pnpm --filter @counter-attack/client run test` → 288 tests pass (14 files)
+- `pnpm --filter @counter-attack/shared exec tsc --noEmit` → exits 0
+- `pnpm --filter @counter-attack/server exec tsc --noEmit` → exits 0
+- `pnpm --filter @counter-attack/client exec tsc --noEmit` → exits 0

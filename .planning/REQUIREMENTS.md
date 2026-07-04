@@ -10,17 +10,17 @@
 
 - [x] **LEAGUE-01**: Team selection screen shows two tabs — MLS and International — defaulting to MLS; each tab displays its league's teams as a card grid
 - [x] **LEAGUE-02**: Team picked by home player shows as taken (struck-out card) on all tabs in both players' views simultaneously
-- [ ] **LEAGUE-03**: `TeamConfig` gains `league: 'mls' | 'international'`; client groups team cards by league tab; team selection logic is otherwise unchanged
+- [x] **LEAGUE-03**: `TeamConfig` gains `league: 'mls' | 'international'`; client groups team cards by league tab; team selection logic is otherwise unchanged
 
 ## Team Palette
 
-- [ ] **PALETTE-01**: Each team's color definition has exactly 4 values: `primary` (main team color), `primaryLight` (primary color lightened 3 shades), `secondary1`, `secondary2`
-- [ ] **PALETTE-02**: All teams (City, Crew, and all new teams) adopt the 4-value palette model; existing 2-field `primaryColor`/`secondaryColor` removed from `TeamConfig`; all client consumers updated
-- [ ] **PALETTE-03**: `primaryLight` is explicitly authored per team at data-definition time, not computed at render time
+- [x] **PALETTE-01**: Each team's color definition has exactly 4 values: `primary` (main team color), `primaryLight` (primary color lightened 3 shades), `secondary1`, `secondary2`
+- [x] **PALETTE-02**: All teams (City, Crew, and all new teams) adopt the 4-value palette model; existing 2-field `primaryColor`/`secondaryColor` removed from `TeamConfig`; all client consumers updated
+- [x] **PALETTE-03**: `primaryLight` is explicitly authored per team at data-definition time, not computed at render time
 
 ## MLS Teams
 
-- [ ] **TEAM-07**: Xolos and Cozmos removed from selectable teams; their players merge into the shared player pool; their palettes and badge identities preserved in the color-scheme registry as reusable entries
+- [x] **TEAM-07**: Xolos and Cozmos removed from selectable teams; their players merge into the shared player pool; their palettes and badge identities preserved in the color-scheme registry as reusable entries
 - [x] **TEAM-08**: New MLS team #1 — name, 4-color palette, badge concept, and default uniform style defined; squad seeded from player pool
 - [x] **TEAM-09**: New MLS team #2 — name, 4-color palette, badge concept, and default uniform style defined; squad seeded from player pool
 - [x] **TEAM-10**: New MLS team #3 — name, 4-color palette, badge concept, and default uniform style defined; squad seeded from player pool
@@ -37,17 +37,17 @@
 
 ## Uniform Style Library
 
-- [ ] **UNIFORM-01**: A uniform style library is defined in `packages/shared`; each style is a named SVG pattern template parameterized by a `TeamPalette`; each style defines both an outfield rendering and a GK variant (same palette, different color emphasis so GK is visually distinct)
+- [x] **UNIFORM-01**: A uniform style library is defined in `packages/shared`; each style is a named SVG pattern template parameterized by a `TeamPalette`; each style defines both an outfield rendering and a GK variant (same palette, different color emphasis so GK is visually distinct)
 - [ ] **UNIFORM-02**: After selecting a team, the player sees a uniform selection screen displaying all styles rendered against that team's 4-color palette; all styles are visible and selectable
 - [ ] **UNIFORM-03**: Each team has a `defaultUniformStyle: UniformStyleId`; this style is pre-selected on the uniform screen when the player arrives
 - [ ] **UNIFORM-04**: Player may select any style from the library; confirmed choice is stored in game state and applied to piece rendering throughout the match for that team
-- [ ] **UNIFORM-05**: `PieceOverlay` renders using `{ uniformStyle, palette, isGK }` — parameterized pattern system replaces the existing hardcoded per-team SVG patterns
+- [x] **UNIFORM-05**: `PieceOverlay` renders using `{ uniformStyle, palette, isGK }` — parameterized pattern system replaces the existing hardcoded per-team SVG patterns
 
 ## Data Model (v1.4 Prep)
 
-- [ ] **DATA-01**: All players (including retired Xolos/Cozmos squads) stored in a unified `PLAYER_POOL` export with `sourceTeamId` annotation; pool is queryable independently of any team assignment
-- [ ] **DATA-02**: Standard team squads assembled from `PLAYER_POOL` by player ID; players are not embedded inline in team definitions — team config references player IDs
-- [ ] **DATA-03**: Color scheme registry retains all team palettes (including retired teams) as named entries; future dynamic teams can reference any existing palette entry
+- [x] **DATA-01**: All players (including retired Xolos/Cozmos squads) stored in a unified `PLAYER_POOL` export with `sourceTeamId` annotation; pool is queryable independently of any team assignment
+- [x] **DATA-02**: Standard team squads assembled from `PLAYER_POOL` by player ID; players are not embedded inline in team definitions — team config references player IDs
+- [x] **DATA-03**: Color scheme registry retains all team palettes (including retired teams) as named entries; future dynamic teams can reference any existing palette entry
 
 ## Formation Selection
 
@@ -96,46 +96,46 @@
 
 ## Traceability
 
-| REQ-ID     | Phase | Status   | Notes                                           |
-| ---------- | ----- | -------- | ----------------------------------------------- |
-| LEAGUE-01  | 21    | Complete |                                                 |
-| LEAGUE-02  | 21    | Complete |                                                 |
-| LEAGUE-03  | 19    | Pending  |                                                 |
-| PALETTE-01 | 19    | Pending  |                                                 |
-| PALETTE-02 | 19    | Pending  |                                                 |
-| PALETTE-03 | 19    | Pending  |                                                 |
-| TEAM-07    | 19    | Pending  |                                                 |
-| TEAM-08    | 21    | Complete |                                                 |
-| TEAM-09    | 21    | Complete |                                                 |
-| TEAM-10    | 21    | Complete |                                                 |
-| TEAM-11    | 21    | Complete |                                                 |
-| INTL-01    | 21    | Complete |                                                 |
-| INTL-02    | 21    | Complete |                                                 |
-| INTL-03    | 21    | Complete |                                                 |
-| INTL-04    | 21    | Complete |                                                 |
-| INTL-05    | 21    | Complete |                                                 |
-| INTL-06    | 21    | Complete |                                                 |
-| UNIFORM-01 | 20    | Pending  |                                                 |
-| UNIFORM-02 | 22    | Pending  |                                                 |
-| UNIFORM-03 | 22    | Pending  |                                                 |
-| UNIFORM-04 | 22    | Pending  |                                                 |
-| UNIFORM-05 | 20    | Pending  |                                                 |
-| DATA-01    | 19    | Pending  |                                                 |
-| DATA-02    | 19    | Pending  |                                                 |
-| DATA-03    | 19    | Pending  |                                                 |
-| FORM-01    | 23    | Pending  |                                                 |
-| FORM-02    | 23    | Pending  |                                                 |
-| FORM-03    | 23    | Pending  |                                                 |
-| FORM-04    | 23    | Pending  |                                                 |
-| ASSIGN-01  | 24    | Pending  |                                                 |
-| ASSIGN-02  | 24    | Pending  |                                                 |
-| ASSIGN-03  | 24    | Pending  |                                                 |
-| ASSIGN-04  | 24    | Pending  |                                                 |
-| ASSIGN-05  | 24    | Pending  |                                                 |
-| OFFSIDE-01 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17 |
-| OFFSIDE-02 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17 |
-| REPLAY-07  | 25    | Pending  |                                                 |
-| REPLAY-08  | 25    | Pending  |                                                 |
-| BUG-22     | 25    | Pending  |                                                 |
-| BUG-23     | 25    | Pending  |                                                 |
-| UX-15      | 25    | Pending  |                                                 |
+| REQ-ID     | Phase | Status   | Notes                                                                  |
+| ---------- | ----- | -------- | ---------------------------------------------------------------------- |
+| LEAGUE-01  | 21    | Complete |                                                                        |
+| LEAGUE-02  | 21    | Complete |                                                                        |
+| LEAGUE-03  | 19    | Complete |                                                                        |
+| PALETTE-01 | 19    | Complete | D-08: field names evolved to 6-field home/away model; intent satisfied |
+| PALETTE-02 | 19    | Complete |                                                                        |
+| PALETTE-03 | 19    | Complete |                                                                        |
+| TEAM-07    | 19    | Complete |                                                                        |
+| TEAM-08    | 21    | Complete |                                                                        |
+| TEAM-09    | 21    | Complete |                                                                        |
+| TEAM-10    | 21    | Complete |                                                                        |
+| TEAM-11    | 21    | Complete |                                                                        |
+| INTL-01    | 21    | Complete |                                                                        |
+| INTL-02    | 21    | Complete |                                                                        |
+| INTL-03    | 21    | Complete |                                                                        |
+| INTL-04    | 21    | Complete |                                                                        |
+| INTL-05    | 21    | Complete |                                                                        |
+| INTL-06    | 21    | Complete |                                                                        |
+| UNIFORM-01 | 20    | Complete |                                                                        |
+| UNIFORM-02 | 22    | Pending  |                                                                        |
+| UNIFORM-03 | 22    | Pending  |                                                                        |
+| UNIFORM-04 | 22    | Pending  |                                                                        |
+| UNIFORM-05 | 20    | Complete |                                                                        |
+| DATA-01    | 19    | Complete |                                                                        |
+| DATA-02    | 19    | Complete |                                                                        |
+| DATA-03    | 19    | Complete |                                                                        |
+| FORM-01    | 23    | Pending  |                                                                        |
+| FORM-02    | 23    | Pending  |                                                                        |
+| FORM-03    | 23    | Pending  |                                                                        |
+| FORM-04    | 23    | Pending  |                                                                        |
+| ASSIGN-01  | 24    | Pending  |                                                                        |
+| ASSIGN-02  | 24    | Pending  |                                                                        |
+| ASSIGN-03  | 24    | Pending  |                                                                        |
+| ASSIGN-04  | 24    | Pending  |                                                                        |
+| ASSIGN-05  | 24    | Pending  |                                                                        |
+| OFFSIDE-01 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                        |
+| OFFSIDE-02 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                        |
+| REPLAY-07  | 25    | Pending  |                                                                        |
+| REPLAY-08  | 25    | Pending  |                                                                        |
+| BUG-22     | 25    | Pending  |                                                                        |
+| BUG-23     | 25    | Pending  |                                                                        |
+| UX-15      | 25    | Pending  |                                                                        |
