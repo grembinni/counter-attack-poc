@@ -9,6 +9,7 @@ import {
   hexDistance,
   hexLine,
   freeKickStageTeam,
+  TEAM_CONFIGS,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -62,6 +63,8 @@ export function HexGrid() {
   const stealAttemptedByIds = useGameStore((s) => s.gameState.stealAttemptedByIds);
   // OFFSIDE-01 (D-25): sticky offside flag source for the PieceOverlay red ring
   const offsidePieceIds = useGameStore((s) => s.gameState.offsidePieceIds);
+  // Phase 20 D-16: resolve uniformStyle + palette per piece from TEAM_CONFIGS (passed to PieceOverlay)
+  const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -627,6 +630,11 @@ export function HexGrid() {
                 ? { ...piece, position: gkDivePosition }
                 : piece;
 
+            // Phase 20 D-16: resolve uniform style + palette from TEAM_CONFIGS per piece.
+            // Uses displayPiece.teamId (the rendered piece) so GK_DIVE visual position matches.
+            const resolvedTeamId = selectedTeams[displayPiece.teamId];
+            const teamConfig = TEAM_CONFIGS[resolvedTeamId];
+
             // Slot quota: how many activations remain in this slot
             const slotQuota =
               movementSlot === 'ATTACKER_4' ? 4 : movementSlot === 'DEFENDER_5' ? 5 : 2;
@@ -807,6 +815,8 @@ export function HexGrid() {
               <PieceOverlay
                 key={piece.id}
                 piece={displayPiece}
+                uniformStyle={teamConfig.defaultUniformStyle}
+                palette={teamConfig.palette}
                 selectionState={selectionState}
                 onClick={handleClick}
                 onInspect={() => inspectPiece(piece.id)}
