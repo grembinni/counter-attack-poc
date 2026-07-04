@@ -72,7 +72,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | Phase | Name                            | Requirements                                     | Status      |
 | ----- | ------------------------------- | ------------------------------------------------ | ----------- |
 | 19    | 3/3                             | Complete                                         | 2026-07-03  |
-| 20    | 3/3 | Complete   | 2026-07-04 |
+| 20    | 3/3                             | Complete                                         | 2026-07-04  |
 | 21    | New Teams (MLS + International) | TEAM-08..11, INTL-01..06, LEAGUE-01..02          | Not started |
 | 22    | Uniform Selection Screen        | UNIFORM-02..04                                   | Not started |
 | 23    | Formation System                | FORM-01..04                                      | Not started |
@@ -143,8 +143,16 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. All 10 new teams appear on their respective league tab with badge, name, and 4-color palette applied to their piece rendering
 3. When home player picks a team, that team's card appears struck out simultaneously in away player's view on any tab; away player cannot select the same team
 4. Each new team's squad is seeded from `PLAYER_POOL` (player IDs, not inline objects); all 12 teams have complete 11-player squads queryable at game start
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 2 plans
+   Plans:
+   **Wave 1**
+
+- [ ] 21-01-PLAN.md — Shared data + server: TeamId union -> 12, 10 new TEAM_CONFIGS entries (playerIds/league/badge/defaultUniformStyle), VALID_TEAM_IDS -> 12, teamConfig.test.ts count assertions
+
+**Wave 2** _(blocked on Wave 1)_
+
+- [ ] 21-02-PLAN.md — Client: TeamSelectionScreen two-tab (MLS/International) refactor, 10 badge imports, activeLeague auto-switch, 3-col grid + tab CSS, component tests
+      **UI hint**: yes
 
 ### Phase 22: Uniform Selection Screen
 
@@ -237,7 +245,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 18.4. UX Enhancements          | v1.2      | 7/7            | Complete    | 2026-07-02 |
 | 19. Data Model & Team Palette  | v1.3      | 0/3            | Not started | —          |
 | 20. Uniform Style System       | v1.3      | 0/3            | Not started | —          |
-| 21. New Teams (MLS + Intl)     | v1.3      | 0/?            | Not started | —          |
+| 21. New Teams (MLS + Intl)     | v1.3      | 0/2            | Not started | —          |
 | 22. Uniform Selection Screen   | v1.3      | 0/?            | Not started | —          |
 | 23. Formation System           | v1.3      | 0/?            | Not started | —          |
 | 24. Auto-Assignment & Lineup   | v1.3      | 0/?            | Not started | —          |
