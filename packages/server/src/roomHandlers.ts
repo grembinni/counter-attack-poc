@@ -36,8 +36,21 @@ import type { Server, Socket } from 'socket.io';
 import { buildInitialGameState } from './gameEngine.js';
 import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roomStore.js';
 
-/** Valid team IDs — allow-list for team:pick validation (ASVS V5, T-19-03: cosmos/xolos removed as retired teams). */
-const VALID_TEAM_IDS: readonly TeamId[] = ['city', 'crew'] as const;
+/** Valid team IDs — allow-list for team:pick validation (ASVS V5, T-21-01: extended to 12 teams in Phase 21). */
+const VALID_TEAM_IDS: readonly TeamId[] = [
+  'city',
+  'crew',
+  'la',
+  'miami',
+  'nashville',
+  'seattle',
+  'canada',
+  'england',
+  'france',
+  'mexico',
+  'spain',
+  'us',
+] as const;
 
 /** Valid game speed values — allow-list for team:speed-set validation (ASVS V5, T-18.4.1-01). */
 const VALID_GAME_SPEEDS: readonly GameSpeed[] = ['slow', 'standard', 'fast'] as const;
