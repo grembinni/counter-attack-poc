@@ -72,7 +72,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | Phase | Name                            | Requirements                                     | Status      |
 | ----- | ------------------------------- | ------------------------------------------------ | ----------- |
 | 19    | 3/3                             | Complete                                         | 2026-07-03  |
-| 20    | 1/3 | In Progress|  |
+| 20    | 2/3 | In Progress|  |
 | 21    | New Teams (MLS + International) | TEAM-08..11, INTL-01..06, LEAGUE-01..02          | Not started |
 | 22    | Uniform Selection Screen        | UNIFORM-02..04                                   | Not started |
 | 23    | Formation System                | FORM-01..04                                      | Not started |
@@ -125,7 +125,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
   **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 20-02-PLAN.md — Client renderer library: 12 UniformStyleRenderer functions + UNIFORM_STYLES registry + colocated unit tests
+- [x] 20-02-PLAN.md — Client renderer library: 12 UniformStyleRenderer functions + UNIFORM_STYLES registry + colocated unit tests
 
   **Wave 3** _(blocked on Waves 1-2)_
 
