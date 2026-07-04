@@ -597,22 +597,25 @@ const teamConfig = TEAM_CONFIGS[resolvedTeamId];
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Crew diagonal color role: `secondary1` vs `secondary2`**
    - What we know: Phase 19 data has `secondary1 = '#111111'` (near-black, matches v1.2); D-02 says use `secondary2`
    - What's unclear: Whether Phase 19 palette values should be amended to move near-black to `secondary2`, or whether D-02's wording should be interpreted as "the near-black accent color, whatever slot it's in"
    - Recommendation: Planner should confirm with user before wave execution. If amending Phase 19 is acceptable, update Crew palette to `secondary1='#14532d'` and `secondary2='#111111'`. If not, use `secondary1` in the diagonal renderer and note the D-02 divergence.
+   - RESOLVED: Use `secondary1` in the diagonal renderer (matches v1.2 exactly). Divergence from D-02 wording documented in plan 20-02 T1 code comment. No Phase 19 changes needed.
 
 2. **Test compatibility: `toContain('url(#city-jersey')` assertion**
    - What we know: PieceOverlay.test.tsx line 123 asserts the base circle fill contains `'url(#city-jersey'`; after refactor this will be something like `url(#pinstripe-home-5)`
    - What's unclear: Whether the success criterion "existing tests pass without modification" requires zero assertion changes or only zero structural changes
    - Recommendation: Update the test assertions in the same wave as PieceOverlay is refactored. The test file IS a modification target in this phase, just a constrained one (update only fill pattern assertions, not the overall test structure).
+   - RESOLVED: Assertions are updated in Plan 20-03 T1 (same wave as PieceOverlay refactor). Test structure is unchanged; only fill-URL pattern strings change.
 
 3. **`defaultUniformStyle` field type location**
    - What we know: CONTEXT.md says the type lives in `packages/shared`; the render functions live in `packages/client`
    - What's unclear: Whether `TeamConfig.defaultUniformStyle: UniformStyleId` can be in `teamConfig.ts` (shared) when `UniformStyleId` is also in shared
    - Recommendation: `UniformStyleId` type union in `packages/shared/src/uniformStyles.ts`; `UNIFORM_STYLE_META` also there; `TeamConfig` imports `UniformStyleId` from `'./uniformStyles.js'`. This creates no circular dependency.
+   - RESOLVED: `UniformStyleId` in `packages/shared/src/uniformStyles.ts`; `teamConfig.ts` imports from `'./uniformStyles.js'`. No circular dependency confirmed (Plan 20-01).
 
 ---
 
