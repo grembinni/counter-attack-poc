@@ -9,20 +9,46 @@ import type { PoolPlayer } from './teams.js';
 import { PLAYER_POOL } from './teams.js';
 import type { UniformStyleId } from './uniformStyles.js';
 
-/** D-04: Active selectable teams only — cosmos and xolos removed (retired). */
-export type TeamId = 'city' | 'crew';
+/** D-04: Active selectable teams — Phase 21 expanded to 12 selectable teams (4 MLS + 6 international). */
+export type TeamId =
+  | 'city'
+  | 'crew'
+  | 'la'
+  | 'miami'
+  | 'nashville'
+  | 'seattle'
+  | 'canada'
+  | 'england'
+  | 'france'
+  | 'mexico'
+  | 'spain'
+  | 'us';
 
 /** D-06: Full historical team set — includes retired teams for palette/badge registry and
  * PoolPlayer.sourceTeamId annotation. Extended in Phase 21 with new MLS/international teams. */
-export type ColorSchemeId = 'cosmos' | 'xolos' | 'city' | 'crew';
+export type ColorSchemeId =
+  | 'cosmos'
+  | 'xolos'
+  | 'city'
+  | 'crew'
+  | 'la'
+  | 'miami'
+  | 'nashville'
+  | 'seattle'
+  | 'canada'
+  | 'england'
+  | 'france'
+  | 'mexico'
+  | 'spain'
+  | 'us';
 
 /** D-08/PALETTE-01: 4-color palette per team — replaces 2-field primaryColor/secondaryColor.
- * primaryLight authored at data-definition time (D-09 / PALETTE-03 — never computed at render). */
+ * homePrime/homeAlt are dark colors (support white numbers); awayPrime/awayAlt are light colors (support black numbers). */
 export interface TeamPalette {
-  primary: string;
-  primaryLight: string;
-  secondary1: string;
-  secondary2: string;
+  homePrime: string;
+  awayPrime: string;
+  homeAlt: string;
+  awayAlt: string;
 }
 
 /** D-06: Color scheme entry for historical/current teams in the registry. */
@@ -58,17 +84,17 @@ export interface TeamConfig {
 
 /** D-06/DATA-03: All historical team palette and badge data.
  * Includes retired teams (cosmos, xolos) so their identity is preserved.
- * Color values: existing primaryColor → palette.primary; existing secondaryColor → palette.secondary1.
- * primaryLight and secondary2 authored per D-09 (Claude's Discretion). */
+ * Color values: existing primaryColor → palette.homePrime; existing secondaryColor → palette.homeAlt.
+ * awayPrime and awayAlt authored per D-09 (Claude's Discretion). */
 export const COLOR_SCHEME_REGISTRY: Record<ColorSchemeId, ColorScheme> = {
   cosmos: {
     id: 'cosmos',
     name: 'Cosmos',
     palette: {
-      primary: '#3b82f6', // existing primaryColor
-      primaryLight: '#93c5fd', // blue-300 — lightened 3 shades
-      secondary1: '#c8a84b', // existing secondaryColor (gold)
-      secondary2: '#1e3a5f', // deep navy accent
+      homePrime: '#1E2741', // Dark Navy (Supports White)
+      awayPrime: '#8EA0CC', // Light Navy Tint (Supports Black)
+      homeAlt: '#A88613', // Darkened Gold (Supports White)
+      awayAlt: '#F8C61C', // Bright Yellow/Gold (Supports Black)
     },
     badgeFile: 'cosmos.png',
   },
@@ -76,10 +102,10 @@ export const COLOR_SCHEME_REGISTRY: Record<ColorSchemeId, ColorScheme> = {
     id: 'xolos',
     name: 'Xolos',
     palette: {
-      primary: '#f59e0b', // existing primaryColor (amber)
-      primaryLight: '#fcd34d', // amber-300 — lightened 2 shades
-      secondary1: '#6b7280', // existing secondaryColor (gray)
-      secondary2: '#1f2937', // dark charcoal accent
+      homePrime: '#C2471B', // Darkened Orange (Supports White)
+      awayPrime: '#F9A482', // Light Peach/Orange Tint (Supports Black)
+      homeAlt: '#181818', // Near Black (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
     },
     badgeFile: 'xolos.png',
   },
@@ -87,10 +113,10 @@ export const COLOR_SCHEME_REGISTRY: Record<ColorSchemeId, ColorScheme> = {
     id: 'city',
     name: 'City',
     palette: {
-      primary: '#dc143c', // existing primaryColor (crimson)
-      primaryLight: '#f87171', // red-400 — lightened
-      secondary1: '#f5c518', // existing secondaryColor (gold)
-      secondary2: '#1e1e2e', // near-black accent
+      homePrime: '#C3153B', // Crimson (Supports White)
+      awayPrime: '#E67A92', // Light Pink/Red Tint (Supports Black)
+      homeAlt: '#0F254B', // Swapped Navy here (Supports White)
+      awayAlt: '#E8BA21', // Swapped Gold here (Supports Black)
     },
     badgeFile: 'city.png',
   },
@@ -98,12 +124,122 @@ export const COLOR_SCHEME_REGISTRY: Record<ColorSchemeId, ColorScheme> = {
     id: 'crew',
     name: 'Crew',
     palette: {
-      primary: '#f5c518', // existing primaryColor (yellow)
-      primaryLight: '#fde68a', // yellow-200 — lightened
-      secondary1: '#111111', // existing secondaryColor (near-black)
-      secondary2: '#14532d', // forest green accent
+      homePrime: '#8A6D0D', // Deepened Gold/Brown (Supports White)
+      awayPrime: '#F5C518', // Original Yellow (Supports Black)
+      homeAlt: '#111111', // Black (Supports White)
+      awayAlt: '#AAAAAA', // Light Grey Tint (Supports Black)
     },
     badgeFile: 'crew.png',
+  },
+  la: {
+    id: 'la',
+    name: 'LA',
+    palette: {
+      homePrime: '#000000', // Black (Supports White)
+      awayPrime: '#777777', // Light Grey Tint (Supports Black)
+      homeAlt: '#8C6D2C', // Darkened Gold (Supports White)
+      awayAlt: '#E8C56A', // Brightened Yellow (Supports Black)
+    },
+    badgeFile: 'la.png',
+  },
+  miami: {
+    id: 'miami',
+    name: 'Miami',
+    palette: {
+      homePrime: '#A35074', // Dark Pink (Supports White)
+      awayPrime: '#E1BCCC', // Light Pink Tint (Supports Black)
+      homeAlt: '#000000', // Black (Supports White)
+      awayAlt: '#66E0EB', // Lightened Cyan (Supports Black)
+    },
+    badgeFile: 'miami.png',
+  },
+  nashville: {
+    id: 'nashville',
+    name: 'Nashville',
+    palette: {
+      homePrime: '#997A00', // Dark Gold (Supports White)
+      awayPrime: '#FFCC00', // Original Yellow (Supports Black)
+      homeAlt: '#264475', // Navy (Supports White)
+      awayAlt: '#6B8ECA', // Light Navy Tint (Supports Black)
+    },
+    badgeFile: 'nashville.png',
+  },
+  seattle: {
+    id: 'seattle',
+    name: 'Seattle',
+    palette: {
+      homePrime: '#3E6A20', // Darkened Green (Supports White)
+      awayPrime: '#84C150', // Light Green Tint (Supports Black)
+      homeAlt: '#264F99', // Blue (Supports White)
+      awayAlt: '#E6E6E6', // Light Grey (Supports Black)
+    },
+    badgeFile: 'seattle.png',
+  },
+  canada: {
+    id: 'canada',
+    name: 'Canada',
+    palette: {
+      homePrime: '#800000', // Darkened Red (Supports White)
+      awayPrime: '#FFB3B3', // Ice Red/Pink Tint (Supports Black)
+      homeAlt: '#000000', // Black (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
+    },
+    badgeFile: 'canada.png',
+  },
+  england: {
+    id: 'england',
+    name: 'England',
+    palette: {
+      homePrime: '#00247D', // Navy (Supports White)
+      awayPrime: '#A3B5D1', // Stormy Blue-Grey Tint (Supports Black)
+      homeAlt: '#CF142B', // Red (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
+    },
+    badgeFile: 'england.png',
+  },
+  france: {
+    id: 'france',
+    name: 'France',
+    palette: {
+      homePrime: '#002395', // Navy (Supports White)
+      awayPrime: '#88AADD', // Periwinkle Blue Tint (Supports Black)
+      homeAlt: '#ED2939', // Red (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
+    },
+    badgeFile: 'france.png',
+  },
+  mexico: {
+    id: 'mexico',
+    name: 'Mexico',
+    palette: {
+      homePrime: '#006847', // Green (Supports White)
+      awayPrime: '#66C296', // Light Green Tint (Supports Black)
+      homeAlt: '#CE1126', // Red (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
+    },
+    badgeFile: 'mexico.png',
+  },
+  spain: {
+    id: 'spain',
+    name: 'Spain',
+    palette: {
+      homePrime: '#AA151B', // Red (Supports White)
+      awayPrime: '#E5878A', // Light Red Tint (Supports Black)
+      homeAlt: '#8C6E00', // Deepened Gold (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
+    },
+    badgeFile: 'spain.png',
+  },
+  us: {
+    id: 'us',
+    name: 'USA',
+    palette: {
+      homePrime: '#002868', // Navy (Supports White)
+      awayPrime: '#99C2FF', // Icy Cyan-Blue Tint (Supports Black)
+      homeAlt: '#BF0A30', // Red (Supports White)
+      awayAlt: '#FFFFFF', // White (Supports Black)
+    },
+    badgeFile: 'us.png',
   },
 };
 
@@ -155,6 +291,226 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     league: 'mls',
     badgeFile: 'crew.png',
     defaultUniformStyle: 'diagonal',
+  },
+  la: {
+    id: 'la',
+    name: 'LA',
+    colorSchemeId: 'la',
+    palette: COLOR_SCHEME_REGISTRY.la.palette,
+    playerIds: [
+      'p080',
+      'p081',
+      'p082',
+      'p083',
+      'p084',
+      'p085',
+      'p086',
+      'p087',
+      'p088',
+      'p089',
+      'p090',
+    ],
+    league: 'mls',
+    badgeFile: 'la.png',
+    defaultUniformStyle: 'checker',
+  },
+  miami: {
+    id: 'miami',
+    name: 'Miami',
+    colorSchemeId: 'miami',
+    palette: COLOR_SCHEME_REGISTRY.miami.palette,
+    playerIds: [
+      'p069',
+      'p070',
+      'p071',
+      'p072',
+      'p073',
+      'p074',
+      'p075',
+      'p076',
+      'p077',
+      'p078',
+      'p079',
+    ],
+    league: 'mls',
+    badgeFile: 'miami.png',
+    defaultUniformStyle: 'fade',
+  },
+  nashville: {
+    id: 'nashville',
+    name: 'Nashville',
+    colorSchemeId: 'nashville',
+    palette: COLOR_SCHEME_REGISTRY.nashville.palette,
+    playerIds: [
+      'p102',
+      'p103',
+      'p104',
+      'p105',
+      'p106',
+      'p107',
+      'p108',
+      'p109',
+      'p110',
+      'p111',
+      'p112',
+    ],
+    league: 'mls',
+    badgeFile: 'nashville.png',
+    defaultUniformStyle: 'corners',
+  },
+  seattle: {
+    id: 'seattle',
+    name: 'Seattle',
+    colorSchemeId: 'seattle',
+    palette: COLOR_SCHEME_REGISTRY.seattle.palette,
+    playerIds: [
+      'p091',
+      'p092',
+      'p093',
+      'p094',
+      'p095',
+      'p096',
+      'p097',
+      'p098',
+      'p099',
+      'p100',
+      'p101',
+    ],
+    league: 'mls',
+    badgeFile: 'seattle.png',
+    defaultUniformStyle: 'v-stripe',
+  },
+  canada: {
+    id: 'canada',
+    name: 'Canada',
+    colorSchemeId: 'canada',
+    palette: COLOR_SCHEME_REGISTRY.canada.palette,
+    playerIds: [
+      'p146',
+      'p147',
+      'p148',
+      'p149',
+      'p150',
+      'p151',
+      'p152',
+      'p153',
+      'p154',
+      'p155',
+      'p156',
+    ],
+    league: 'international',
+    badgeFile: 'canada.png',
+    defaultUniformStyle: 'cosmos',
+  },
+  england: {
+    id: 'england',
+    name: 'England',
+    colorSchemeId: 'england',
+    palette: COLOR_SCHEME_REGISTRY.england.palette,
+    playerIds: [
+      'p124',
+      'p125',
+      'p126',
+      'p127',
+      'p128',
+      'p129',
+      'p130',
+      'p131',
+      'p132',
+      'p133',
+      'p134',
+    ],
+    league: 'international',
+    badgeFile: 'england.png',
+    defaultUniformStyle: 'solid',
+  },
+  france: {
+    id: 'france',
+    name: 'France',
+    colorSchemeId: 'france',
+    palette: COLOR_SCHEME_REGISTRY.france.palette,
+    playerIds: [
+      'p168',
+      'p169',
+      'p170',
+      'p171',
+      'p172',
+      'p173',
+      'p174',
+      'p175',
+      'p176',
+      'p177',
+      'p178',
+    ],
+    league: 'international',
+    badgeFile: 'france.png',
+    defaultUniformStyle: 'quarters',
+  },
+  mexico: {
+    id: 'mexico',
+    name: 'Mexico',
+    colorSchemeId: 'mexico',
+    palette: COLOR_SCHEME_REGISTRY.mexico.palette,
+    playerIds: [
+      'p135',
+      'p136',
+      'p137',
+      'p138',
+      'p139',
+      'p140',
+      'p141',
+      'p142',
+      'p143',
+      'p144',
+      'p145',
+    ],
+    league: 'international',
+    badgeFile: 'mexico.png',
+    defaultUniformStyle: 'tree-rings',
+  },
+  spain: {
+    id: 'spain',
+    name: 'Spain',
+    colorSchemeId: 'spain',
+    palette: COLOR_SCHEME_REGISTRY.spain.palette,
+    playerIds: [
+      'p157',
+      'p158',
+      'p159',
+      'p160',
+      'p161',
+      'p162',
+      'p163',
+      'p164',
+      'p165',
+      'p166',
+      'p167',
+    ],
+    league: 'international',
+    badgeFile: 'spain.png',
+    defaultUniformStyle: 'plus',
+  },
+  us: {
+    id: 'us',
+    name: 'USA',
+    colorSchemeId: 'us',
+    palette: COLOR_SCHEME_REGISTRY.us.palette,
+    playerIds: [
+      'p113',
+      'p114',
+      'p115',
+      'p116',
+      'p117',
+      'p118',
+      'p119',
+      'p120',
+      'p121',
+      'p122',
+      'p123',
+    ],
+    league: 'international',
+    badgeFile: 'us.png',
+    defaultUniformStyle: 'polka-dots',
   },
 };
 
