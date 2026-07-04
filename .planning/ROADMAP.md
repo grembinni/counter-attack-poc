@@ -117,8 +117,20 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. `PieceOverlay` accepts `uniformStyle` and `palette` props; the old hardcoded per-team pattern branches are removed
 3. City and Crew pieces render correctly in-game using the new parameterized system; no visual regression from v1.2 appearance
 4. TypeScript compiles clean; existing tests pass without modification
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 3 plans
+   Plans:
+   **Wave 1**
+
+- [ ] 20-01-PLAN.md — Shared type contract: UniformStyleId union + UNIFORM_STYLE_META, TeamConfig.defaultUniformStyle (City=pinstripe, Crew=diagonal), barrel export
+
+  **Wave 2** _(blocked on Wave 1)_
+
+- [ ] 20-02-PLAN.md — Client renderer library: 12 UniformStyleRenderer functions + UNIFORM_STYLES registry + colocated unit tests
+
+  **Wave 3** _(blocked on Waves 1-2)_
+
+- [ ] 20-03-PLAN.md — Refactor PieceOverlay to pure parameterized renderer (GK swap), update tests, wire HexGrid resolution
+      **UI hint**: yes
 
 ### Phase 21: New Teams (MLS + International)
 
@@ -224,7 +236,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete    | 2026-07-02 |
 | 18.4. UX Enhancements          | v1.2      | 7/7            | Complete    | 2026-07-02 |
 | 19. Data Model & Team Palette  | v1.3      | 0/3            | Not started | —          |
-| 20. Uniform Style System       | v1.3      | 0/?            | Not started | —          |
+| 20. Uniform Style System       | v1.3      | 0/3            | Not started | —          |
 | 21. New Teams (MLS + Intl)     | v1.3      | 0/?            | Not started | —          |
 | 22. Uniform Selection Screen   | v1.3      | 0/?            | Not started | —          |
 | 23. Formation System           | v1.3      | 0/?            | Not started | —          |
