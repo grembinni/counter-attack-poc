@@ -1,10 +1,11 @@
 ---
 phase: 21
 slug: new-teams-mls-international
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-04
+audited: 2026-07-04
 ---
 
 # Phase 21 — Validation Strategy
@@ -15,20 +16,20 @@ created: 2026-07-04
 
 ## Test Infrastructure
 
-| Property               | Value                                                                |
-| ---------------------- | -------------------------------------------------------------------- |
-| **Framework**          | Vitest + @testing-library/react                                      |
-| **Config file**        | `packages/client/vitest.config.ts`                                   |
-| **Quick run command**  | `pnpm --filter @counter-attack/client test`                          |
-| **Full suite command** | `pnpm --filter @counter-attack/client test` + `pnpm -w tsc --noEmit` |
-| **Estimated runtime**  | ~15 seconds                                                          |
+| Property               | Value                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Framework**          | Vitest + @testing-library/react                                                                                                |
+| **Config file**        | `packages/client/vitest.config.ts`                                                                                             |
+| **Quick run command**  | `pnpm --filter @counter-attack/client run test`                                                                                |
+| **Full suite command** | `pnpm --filter @counter-attack/shared run test` + `pnpm --filter @counter-attack/client run test` + per-package `tsc --noEmit` |
+| **Estimated runtime**  | ~8 seconds                                                                                                                     |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `pnpm --filter @counter-attack/client test`
-- **After every plan wave:** Run `pnpm --filter @counter-attack/client test` + `pnpm -w tsc --noEmit`
+- **After every task commit:** Run `pnpm --filter @counter-attack/client run test`
+- **After every plan wave:** Run both test suites + per-package `tsc --noEmit`
 - **Before `/gsd-verify-work`:** Full suite must be green
 - **Max feedback latency:** 30 seconds
 
@@ -36,13 +37,13 @@ created: 2026-07-04
 
 ## Per-Task Verification Map
 
-| Task ID  | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type  | Automated Command                           | File Exists | Status     |
-| -------- | ---- | ---- | ----------- | ---------- | --------------- | ---------- | ------------------------------------------- | ----------- | ---------- |
-| 21-01-01 | 01   | 1    | TEAM-08..11 | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test` | ❌ W0       | ⬜ pending |
-| 21-01-02 | 01   | 1    | INTL-01..06 | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test` | ❌ W0       | ⬜ pending |
-| 21-01-03 | 01   | 1    | TEAM-08..11 | —          | N/A             | type check | `pnpm -w tsc --noEmit`                      | ❌ W0       | ⬜ pending |
-| 21-02-01 | 02   | 2    | LEAGUE-01   | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test` | ❌ W0       | ⬜ pending |
-| 21-02-02 | 02   | 2    | LEAGUE-02   | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test` | ❌ W0       | ⬜ pending |
+| Task ID  | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type  | Automated Command                                                                                                   | File Exists | Status   |
+| -------- | ---- | ---- | ----------- | ---------- | --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- | ----------- | -------- |
+| 21-01-01 | 01   | 1    | TEAM-08..11 | —          | N/A             | unit       | `pnpm --filter @counter-attack/shared run test`                                                                     | ✅          | ✅ green |
+| 21-01-02 | 01   | 1    | INTL-01..06 | —          | N/A             | unit       | `pnpm --filter @counter-attack/shared run test`                                                                     | ✅          | ✅ green |
+| 21-01-03 | 01   | 1    | TEAM-08..11 | T-21-01    | N/A             | type check | `pnpm --filter @counter-attack/shared exec tsc --noEmit` + `pnpm --filter @counter-attack/server exec tsc --noEmit` | ✅          | ✅ green |
+| 21-02-01 | 02   | 2    | LEAGUE-01   | —          | N/A             | unit       | `pnpm --filter @counter-attack/client run test`                                                                     | ✅          | ✅ green |
+| 21-02-02 | 02   | 2    | LEAGUE-02   | —          | N/A             | unit       | `pnpm --filter @counter-attack/client run test`                                                                     | ✅          | ✅ green |
 
 _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
@@ -50,10 +51,10 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ## Wave 0 Requirements
 
-- [ ] `packages/client/src/components/TeamSelectionScreen.test.tsx` — update/extend with league tab assertions (LEAGUE-01, LEAGUE-02)
-- [ ] `packages/shared/src/teamConfig.test.ts` (if exists) — assert 12 TeamId entries, all with `league` field set
+- [x] `packages/client/src/components/TeamSelectionScreen.test.tsx` — LEAGUE-01 and LEAGUE-02 describe blocks added (tab layout, aria-selected, cross-tab struck-out)
+- [x] `packages/shared/src/teamConfig.test.ts` — `toHaveLength(12)` TEAM_CONFIGS assertion; `it.each(TEAM_IDS)` getSquadPlayers returns 11 players for all 12 teams; league field asserts `['mls','international'].toContain(...)`
 
-_Existing test infrastructure (Vitest, @testing-library/react) is already installed — only test updates and new assertions needed._
+_Both test files verified green as of 2026-07-04 audit._
 
 ---
 
@@ -69,11 +70,31 @@ _Existing test infrastructure (Vitest, @testing-library/react) is already instal
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** 2026-07-04
+
+---
+
+## Validation Audit 2026-07-04
+
+| Metric     | Count |
+| ---------- | ----- |
+| Gaps found | 0     |
+| Resolved   | 0     |
+| Escalated  | 0     |
+
+_All 5 tasks were COVERED — tests existed and were green at audit time. VALIDATION.md was in draft/pending state; updated to reflect verified results._
+
+_Verified commands:_
+
+- `pnpm --filter @counter-attack/shared run test` → 538 tests pass (12 files)
+- `pnpm --filter @counter-attack/client run test` → 288 tests pass (14 files)
+- `pnpm --filter @counter-attack/shared exec tsc --noEmit` → exits 0
+- `pnpm --filter @counter-attack/server exec tsc --noEmit` → exits 0
+- `pnpm --filter @counter-attack/client exec tsc --noEmit` → exits 0
