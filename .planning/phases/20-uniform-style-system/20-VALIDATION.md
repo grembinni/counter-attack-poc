@@ -1,10 +1,11 @@
 ---
 phase: 20
 slug: uniform-style-system
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-03
+audited: 2026-07-04
 ---
 
 # Phase 20 — Validation Strategy
@@ -36,15 +37,17 @@ created: 2026-07-03
 
 ## Per-Task Verification Map
 
-| Task ID  | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type  | Automated Command                                                 | File Exists     | Status     |
-| -------- | ---- | ---- | ----------- | ---------- | --------------- | ---------- | ----------------------------------------------------------------- | --------------- | ---------- |
-| 20-01-01 | 01   | 1    | UNIFORM-01  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test -- --reporter=verbose` | ❌ W0           | ⬜ pending |
-| 20-01-02 | 01   | 1    | UNIFORM-01  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test -- --reporter=verbose` | ❌ W0           | ⬜ pending |
-| 20-01-03 | 01   | 1    | UNIFORM-01  | —          | N/A             | type check | `pnpm -w tsc --noEmit`                                            | ❌ W0           | ⬜ pending |
-| 20-02-01 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅ needs update | ⬜ pending |
-| 20-02-02 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅ needs update | ⬜ pending |
-| 20-02-03 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅ needs update | ⬜ pending |
-| 20-02-04 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅ needs update | ⬜ pending |
+| Task ID  | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type  | Automated Command                                                 | File Exists | Status   |
+| -------- | ---- | ---- | ----------- | ---------- | --------------- | ---------- | ----------------------------------------------------------------- | ----------- | -------- |
+| 20-01-01 | 01   | 1    | UNIFORM-01  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test -- --reporter=verbose` | ✅          | ✅ green |
+| 20-01-02 | 01   | 1    | UNIFORM-01  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test -- --reporter=verbose` | ✅          | ✅ green |
+| 20-01-03 | 01   | 1    | UNIFORM-01  | —          | N/A             | type check | `pnpm -w tsc --noEmit`                                            | ✅          | ✅ green |
+| 20-02-01 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅          | ✅ green |
+| 20-02-02 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅          | ✅ green |
+| 20-02-03 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅          | ✅ green |
+| 20-02-04 | 02   | 2    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅          | ✅ green |
+| 20-03-01 | 03   | 3    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅          | ✅ green |
+| 20-03-02 | 03   | 3    | UNIFORM-05  | —          | N/A             | unit       | `pnpm --filter @counter-attack/client test`                       | ✅          | ✅ green |
 
 _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
@@ -52,10 +55,8 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ## Wave 0 Requirements
 
-- [ ] `packages/client/src/styles/uniformStyles.test.tsx` — stubs for UNIFORM-01 (renderer shape, GK swap, 12 styles)
-- [ ] Update `packages/client/src/components/PieceOverlay.test.tsx` assertions — `url(#city-jersey` → `url(#<style>-<pieceId>`, GK color assertions
-
-_Existing test infrastructure (Vitest, @testing-library/react) is already installed — only new test file and assertion updates needed._
+- [x] `packages/client/src/styles/uniformStyles.test.tsx` — 26 tests covering 12-style completeness, return-shape, id uniqueness, fade gradient, patternDef DOM, pointer-events
+- [x] `packages/client/src/components/PieceOverlay.test.tsx` — updated assertions: `url(#pinstripe-`/`url(#diagonal-`/`url(#checker-`, GK palette-swap colors via `COLOR_SCHEME_REGISTRY` (not hardcoded hex)
 
 ---
 
@@ -71,11 +72,21 @@ _Existing test infrastructure (Vitest, @testing-library/react) is already instal
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** 2026-07-04
+
+## Validation Audit 2026-07-04
+
+| Metric     | Count |
+| ---------- | ----- |
+| Gaps found | 2     |
+| Resolved   | 2     |
+| Escalated  | 0     |
+
+Root cause: `PieceOverlay.test.tsx` had hardcoded City palette hex values (`#dc143c`, `#f5c518`) that became stale when Phase 19 updated the City palette to `#C3153B`/`#E8BA21`. Fixed by replacing with `COLOR_SCHEME_REGISTRY.city.palette.primary/secondary1` references.

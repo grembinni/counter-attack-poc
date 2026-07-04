@@ -105,10 +105,12 @@ function renderPiece(
   // GK pieces use 'checker' so D-13 palette-swap tests can assert swapped checker colors.
   const isHome = piece.teamId === 'home';
   const isGK = piece.role === 'GK';
-  const uniformStyle = isGK ? ('checker' as const) : isHome ? ('pinstripe' as const) : ('diagonal' as const);
-  const palette = isHome
-    ? COLOR_SCHEME_REGISTRY.city.palette
-    : COLOR_SCHEME_REGISTRY.crew.palette;
+  const uniformStyle = isGK
+    ? ('checker' as const)
+    : isHome
+      ? ('pinstripe' as const)
+      : ('diagonal' as const);
+  const palette = isHome ? COLOR_SCHEME_REGISTRY.city.palette : COLOR_SCHEME_REGISTRY.crew.palette;
 
   return render(
     <svg>
@@ -177,16 +179,14 @@ describe('PieceOverlay — TEAM-02..05: per-team jersey pattern fills (D-08, Pha
     expect(hardcodedRed.length).toBe(0);
   });
 
-  it('City jersey (pinstripe) pattern uses #dc143c (crimson) base fill for home outfield (D-09)', () => {
-    // City palette.primary = #dc143c (crimson). Pinstripe uses palette.primary as base fill.
+  it('City jersey (pinstripe) pattern uses City palette.primary as base fill for home outfield (D-09)', () => {
     const { container } = renderPiece(homeOutfield, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
     const pinstripePattern = patterns.find((p) => p.id.startsWith('pinstripe-'));
     expect(pinstripePattern).toBeTruthy();
-    // Pinstripe pattern base rect fill is palette.primary = #dc143c (crimson)
     const rects = pinstripePattern ? Array.from(pinstripePattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
-    expect(fills).toContain('#dc143c');
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.primary);
   });
 });
 
@@ -198,19 +198,16 @@ describe('PieceOverlay — D-10 / D-13: GK jersey patterns with palette swap', (
     expect(baseCircle.getAttribute('fill')).not.toBe('#9b59b6');
   });
 
-  it('home GK (city) checker pattern has City.secondary1 (#f5c518) base and City.primary (#dc143c) checker squares after D-13 swap', () => {
+  it('home GK (city) checker pattern has City.secondary1 base and City.primary checker squares after D-13 swap', () => {
     const { container } = renderPiece(homeGK, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
     const gkPattern = patterns.find((p) => p.id.startsWith('checker-'));
     expect(gkPattern).toBeTruthy();
     const rects = gkPattern ? Array.from(gkPattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
-    // D-13 swap: City GK effectivePalette.primary = City.secondary1 = #f5c518
-    //            City GK effectivePalette.secondary1 = City.primary = #dc143c
-    // checker renderer: base fill = effectivePalette.primary = #f5c518
-    //                   checker squares = effectivePalette.secondary1 = #dc143c
-    expect(fills).toContain('#f5c518');
-    expect(fills).toContain('#dc143c');
+    // D-13 swap: effectivePalette.primary = City.secondary1; effectivePalette.secondary1 = City.primary
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.secondary1);
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.primary);
   });
 
   it('away GK fill references url(#checker-...) not solid #db2777', () => {
