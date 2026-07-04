@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Team Customization & Formation System
 status: executing
-last_updated: '2026-07-04T16:05:50.494Z'
-last_activity: 2026-07-04 -- Phase 20 marked complete
+last_updated: '2026-07-04T16:15:40.038Z'
+last_activity: 2026-07-04 -- Phase 21 execution started
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
   percent: 29
 ---
 
@@ -17,10 +17,10 @@ progress:
 
 ## Current Position
 
-Phase: 20 — COMPLETE
-Plan: 1 of 3
+Phase: 21 (new-teams-mls-international) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-07-04 -- Phase 20 marked complete
+Last activity: 2026-07-04 -- Phase 21 execution started
 
 Progress: [----------] 0% (0/7 phases complete)
 
@@ -31,7 +31,7 @@ Next: `/gsd-plan-phase 19` to begin Phase 19 planning
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 20 — uniform-style-system
+**Current focus:** Phase 21 — new-teams-mls-international
 
 ## Phase Status
 
@@ -310,6 +310,7 @@ Known deferred items at close: 19
 | Phase 18.4-ux-enhancements P05            | 4min   | 2 tasks  | 4 files  |
 | Phase 18.4-ux-enhancements PG1            | 11min  | 1 tasks  | 1 files  |
 | Phase 18.4-ux-enhancements PG2            | 16min  | 1 tasks  | 2 files  |
+| Phase 21-new-teams-mls-international P01  | 10m    | 3 tasks  | 3 files  |
 
 ## Decisions
 
@@ -383,3 +384,4 @@ Known deferred items at close: 19
 - [Phase 18.4-05]: UX-14: EventBanner uses lastProcessedLengthRef (D-03 pattern) to diff eventLog tail; @keyframes bannerFade owns in/hold/out timing; JS setTimeout handles DOM removal at 1000ms total; UI-SPEC 1s overrides CONTEXT.md 2s mention
 - [Phase 18.4-G1]: EventBanner diff-and-trigger logic moved to useEffect([eventLog]) — state updates must never occur in render body per React rules of hooks
 - [Phase 18.4-G2]: checkHalfEndOnTackle exported for direct unit testing alongside 3 e2e applyMove tackle/steal tests
+- [Phase ?]: Phase 21-01: seattle=p091-p101 and nashville=p102-p112 (verified against teams.ts; PLAN.md action had ranges reversed)
