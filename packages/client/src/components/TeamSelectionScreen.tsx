@@ -1,11 +1,13 @@
 /**
  * Team selection screen — shown to both players after slot-2 joins.
- * Home player picks first; away player sees struck-out home card + 3 active cards.
- * PLAY-03: 2 team cards in Phase 19 (city + crew); Phase 21 restores the full 4-team grid.
+ * Home player picks first; away player sees struck-out home card + active cards.
+ * LEAGUE-01: two-tab layout (MLS / International); MLS default on mount.
+ * LEAGUE-02: away player auto-switches to the tab containing home's picked team.
  * SELECT-01: home-first turn order enforced server-side; client disables cards for waiting player.
  * UX-07 (Phase 18.4): home player may choose Slow/Standard/Fast game speed (default Standard).
  * D-10/D-11/D-12/D-13/D-14: component shape, badge variants, turn order, full-size badges.
  */
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import type { GameSpeed, TeamId } from '@counter-attack/shared';
@@ -13,17 +15,40 @@ import styles from './TeamSelectionScreen.module.css';
 
 // D-13: static Vite imports for full-size badge variants — content-hashed at build time.
 // These are used ONLY on the TeamSelectionScreen; regular {teamid}.png stays in TeamBadge.
-// D-04 (Phase 19): cosmos/xolos removed from TeamId; Phase 21 will re-expand the team grid.
 import cityFullBadge from '../assets/badges/city-full.png';
 import crewFullBadge from '../assets/badges/crew-full.png';
+// Phase 21: 10 new static Vite imports (content-hashed at build time):
+import laFullBadge from '../assets/badges/la-full.png';
+import miamiFullBadge from '../assets/badges/miami-full.png';
+import nashvilleFullBadge from '../assets/badges/nashville-full.png';
+import seattleFullBadge from '../assets/badges/seattle-full.png';
+import canadaFullBadge from '../assets/badges/canada-full.png';
+import englandFullBadge from '../assets/badges/england-full.png';
+import franceFullBadge from '../assets/badges/france-full.png';
+import mexicoFullBadge from '../assets/badges/mexico-full.png';
+import spainFullBadge from '../assets/badges/spain-full.png';
+import usFullBadge from '../assets/badges/us-full.png';
 
-/** PLAY-03: transitional 2-team state (Phase 19); Phase 21 restores the full 4-team grid. */
-const ALL_TEAMS: TeamId[] = ['city', 'crew'];
+/** D-11: MLS tab order — originals first (city, crew), then alphabetical new MLS teams. */
+const MLS_TEAMS: TeamId[] = ['city', 'crew', 'la', 'miami', 'nashville', 'seattle'];
 
-/** Maps TeamId to full-size badge Vite import URL (110×110 display). */
+/** D-12: International tab order — alphabetical. */
+const INTL_TEAMS: TeamId[] = ['canada', 'england', 'france', 'mexico', 'spain', 'us'];
+
+/** Maps TeamId to full-size badge Vite import URL (80×80 display). */
 const FULL_BADGE_MAP: Record<TeamId, string> = {
   city: cityFullBadge,
   crew: crewFullBadge,
+  la: laFullBadge,
+  miami: miamiFullBadge,
+  nashville: nashvilleFullBadge,
+  seattle: seattleFullBadge,
+  canada: canadaFullBadge,
+  england: englandFullBadge,
+  france: franceFullBadge,
+  mexico: mexicoFullBadge,
+  spain: spainFullBadge,
+  us: usFullBadge,
 };
 
 /** UX-07: speed options with display labels, icons, and per-speed CSS color classes. */
@@ -45,8 +70,9 @@ type Props = {
 };
 
 /**
- * 2×2 grid of team selection cards with a game-speed selector for the home player.
+ * Two-tab team selection screen (MLS / International) with 6 cards per tab.
  * Props are kept in App.tsx local state (D-14 — homePickedTeam not in Zustand).
+ * Tab state is local React useState (D-14 — not Zustand; UI-only, not game state).
  */
 export function TeamSelectionScreen({
   homePickedTeam,
@@ -66,6 +92,21 @@ export function TeamSelectionScreen({
 
   // WR-03: compute once — avoids three repeated SPEED_OPTIONS.find() calls in the visitor branch.
   const selectedOption = SPEED_OPTIONS.find((o) => o.value === selectedSpeed);
+
+  // D-13: Tab state is LOCAL React state — NOT Zustand (D-14 decision).
+  // Default tab is MLS (D-13 / LEAGUE-01).
+  const [activeLeague, setActiveLeague] = useState<'mls' | 'international'>('mls');
+
+  // LEAGUE-02: Auto-switch only fires for the away player when home picks a team.
+  // Guard by !iAmActive to prevent home player's tab jumping after their own pick (Pitfall 5).
+  useEffect(() => {
+    if (homePickedTeam !== null && !iAmActive) {
+      const isInMls = MLS_TEAMS.includes(homePickedTeam);
+      setActiveLeague(isInMls ? 'mls' : 'international');
+    }
+  }, [homePickedTeam, iAmActive]);
+
+  const visibleTeams = activeLeague === 'mls' ? MLS_TEAMS : INTL_TEAMS;
 
   return (
     <div className={styles.screen}>
@@ -98,16 +139,33 @@ export function TeamSelectionScreen({
           <span
             className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
           >
-            <span className={styles.speedIcon}>
-              {selectedOption?.icon}
-            </span>
+            <span className={styles.speedIcon}>{selectedOption?.icon}</span>
             {selectedOption?.label ?? selectedSpeed}
           </span>
         )}
       </div>
-      {/* D-12: 2×2 grid — SELECT-01 */}
-      <div className={styles.grid}>
-        {ALL_TEAMS.map((teamId) => {
+      {/* LEAGUE-01: Tab bar — MLS default (D-13); tab state is local React useState (D-14) */}
+      <div role="tablist" className={styles.tabs}>
+        <button
+          role="tab"
+          aria-selected={activeLeague === 'mls'}
+          className={activeLeague === 'mls' ? styles.tabActive : styles.tab}
+          onClick={() => setActiveLeague('mls')}
+        >
+          MLS
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeLeague === 'international'}
+          className={activeLeague === 'international' ? styles.tabActive : styles.tab}
+          onClick={() => setActiveLeague('international')}
+        >
+          International
+        </button>
+      </div>
+      {/* D-12: 3-column grid — SELECT-01, LEAGUE-01 */}
+      <div className={styles.grid} role="tabpanel">
+        {visibleTeams.map((teamId) => {
           const isStruckOut = teamId === homePickedTeam;
           const isDisabled = !iAmActive || isStruckOut;
           return (
@@ -116,16 +174,16 @@ export function TeamSelectionScreen({
               disabled={isDisabled}
               className={isStruckOut ? styles.cardStruckOut : styles.card}
               style={{
-                borderColor: TEAM_CONFIGS[teamId].palette.primary,
-                background: TEAM_CONFIGS[teamId].palette.primary,
+                borderColor: TEAM_CONFIGS[teamId].palette.homePrime,
+                background: TEAM_CONFIGS[teamId].palette.homePrime,
               }}
               onClick={() => onPick(teamId)}
             >
               <span
                 style={{
                   display: 'inline-flex',
-                  width: 110,
-                  height: 110,
+                  width: 80,
+                  height: 80,
                   borderRadius: '50%',
                   overflow: 'hidden',
                   flexShrink: 0,
@@ -134,8 +192,8 @@ export function TeamSelectionScreen({
                 <img
                   src={FULL_BADGE_MAP[teamId]}
                   alt={`${TEAM_CONFIGS[teamId].name} badge`}
-                  width={110}
-                  height={110}
+                  width={80}
+                  height={80}
                   style={{ display: 'block', objectFit: 'cover' }}
                 />
               </span>

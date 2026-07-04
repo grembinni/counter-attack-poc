@@ -5,21 +5,62 @@
  *   are invisible against the container background (alpha-channel workaround).
  * BADGE_MAP uses static imports so Vite content-hashes the URLs at build time.
  * Do NOT use teamConfig.badgeFile as the img src (Pitfall 3 — bypasses Vite).
+ * Phase 21: extended to all 12 TeamId members.
  */
 import cityBadge from '../assets/badges/city.png';
 import crewBadge from '../assets/badges/crew.png';
+import laBadge from '../assets/badges/la.png';
+import miamiBadge from '../assets/badges/miami.png';
+import nashvilleBadge from '../assets/badges/nashville.png';
+import seattleBadge from '../assets/badges/seattle.png';
+import canadaBadge from '../assets/badges/canada.png';
+import englandBadge from '../assets/badges/england.png';
+import franceBadge from '../assets/badges/france.png';
+import mexicoBadge from '../assets/badges/mexico.png';
+import spainBadge from '../assets/badges/spain.png';
+import usBadge from '../assets/badges/us.png';
 import cityBadgeFull from '../assets/badges/city-full.png';
 import crewBadgeFull from '../assets/badges/crew-full.png';
+import laBadgeFull from '../assets/badges/la-full.png';
+import miamiBadgeFull from '../assets/badges/miami-full.png';
+import nashvilleBadgeFull from '../assets/badges/nashville-full.png';
+import seattleBadgeFull from '../assets/badges/seattle-full.png';
+import canadaBadgeFull from '../assets/badges/canada-full.png';
+import englandBadgeFull from '../assets/badges/england-full.png';
+import franceBadgeFull from '../assets/badges/france-full.png';
+import mexicoBadgeFull from '../assets/badges/mexico-full.png';
+import spainBadgeFull from '../assets/badges/spain-full.png';
+import usBadgeFull from '../assets/badges/us-full.png';
 import type { TeamId } from '@counter-attack/shared';
 
 const BADGE_MAP: Record<TeamId, string> = {
   city: cityBadge,
   crew: crewBadge,
+  la: laBadge,
+  miami: miamiBadge,
+  nashville: nashvilleBadge,
+  seattle: seattleBadge,
+  canada: canadaBadge,
+  england: englandBadge,
+  france: franceBadge,
+  mexico: mexicoBadge,
+  spain: spainBadge,
+  us: usBadge,
 };
 
 const BADGE_MAP_FULL: Record<TeamId, string> = {
   city: cityBadgeFull,
   crew: crewBadgeFull,
+  la: laBadgeFull,
+  miami: miamiBadgeFull,
+  nashville: nashvilleBadgeFull,
+  seattle: seattleBadgeFull,
+  canada: canadaBadgeFull,
+  england: englandBadgeFull,
+  france: franceBadgeFull,
+  mexico: mexicoBadgeFull,
+  spain: spainBadgeFull,
+  us: usBadgeFull,
 };
 
 export function TeamBadge({
@@ -35,7 +76,7 @@ export function TeamBadge({
 
   if (full) {
     // Circular clip removes any white anti-alias fringing at the badge edge.
-    // All four badge PNGs are circular designs so nothing is lost visually.
+    // All badge PNGs are circular designs so nothing is lost visually.
     return (
       <span
         style={{

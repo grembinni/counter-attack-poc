@@ -32,12 +32,52 @@
   margin: 0;
 }
 
-/* 2×2 card grid — SELECT-01 */
+/* LEAGUE-01: Tab bar — two-tab navigation above the grid */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #0f3460;
+  padding-bottom: 8px;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Inactive tab button */
+.tab {
+  font-size: 14px;
+  font-weight: 400;
+  color: #a0a0a0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: #e0e0e0;
+}
+
+/* Active/selected tab */
+.tabActive {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #e0e0e0;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+/* 3-column card grid — SELECT-01, LEAGUE-01 */
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 16px;
-  max-width: 480px;
+  max-width: 600px;
   width: 100%;
 }
 
@@ -53,7 +93,7 @@
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  min-width: 120px;
+  min-width: 100px;
   min-height: 180px;
   transition:
     box-shadow 0.15s ease,
@@ -82,7 +122,7 @@
   justify-content: center;
   gap: 8px;
   cursor: not-allowed;
-  min-width: 120px;
+  min-width: 100px;
   min-height: 180px;
   opacity: 0.4;
 }
