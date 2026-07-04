@@ -73,7 +73,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | ----- | ------------------------ | ------------------------------------------------ | ----------- |
 | 19    | 3/3                      | Complete                                         | 2026-07-03  |
 | 20    | 3/3                      | Complete                                         | 2026-07-04  |
-| 21    | 1/2                      | In Progress                                      |             |
+| 21    | 2/2                      | Complete                                         | 2026-07-04  |
 | 22    | Uniform Selection Screen | UNIFORM-02..04                                   | Not started |
 | 23    | Formation System         | FORM-01..04                                      | Not started |
 | 24    | Auto-Assignment & Lineup | ASSIGN-01..05                                    | Not started |
@@ -151,7 +151,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 21-02-PLAN.md — Client: TeamSelectionScreen two-tab (MLS/International) refactor, 10 badge imports, activeLeague auto-switch, 3-col grid + tab CSS, component tests
+- [x] 21-02-PLAN.md — Client: TeamSelectionScreen two-tab (MLS/International) refactor, 10 badge imports, activeLeague auto-switch, 3-col grid + tab CSS, component tests
       **UI hint**: yes
 
 ### Phase 22: Uniform Selection Screen

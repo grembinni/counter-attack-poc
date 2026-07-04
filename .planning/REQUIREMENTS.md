@@ -8,7 +8,7 @@
 
 ## League Structure
 
-- [ ] **LEAGUE-01**: Team selection screen shows two tabs — MLS and International — defaulting to MLS; each tab displays its league's teams as a card grid
+- [x] **LEAGUE-01**: Team selection screen shows two tabs — MLS and International — defaulting to MLS; each tab displays its league's teams as a card grid
 - [x] **LEAGUE-02**: Team picked by home player shows as taken (struck-out card) on all tabs in both players' views simultaneously
 - [ ] **LEAGUE-03**: `TeamConfig` gains `league: 'mls' | 'international'`; client groups team cards by league tab; team selection logic is otherwise unchanged
 
@@ -98,7 +98,7 @@
 
 | REQ-ID     | Phase | Status   | Notes                                           |
 | ---------- | ----- | -------- | ----------------------------------------------- |
-| LEAGUE-01  | 21    | Pending  |                                                 |
+| LEAGUE-01  | 21    | Complete |                                                 |
 | LEAGUE-02  | 21    | Complete |                                                 |
 | LEAGUE-03  | 19    | Pending  |                                                 |
 | PALETTE-01 | 19    | Pending  |                                                 |
