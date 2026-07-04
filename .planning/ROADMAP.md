@@ -72,7 +72,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | Phase | Name                            | Requirements                                     | Status      |
 | ----- | ------------------------------- | ------------------------------------------------ | ----------- |
 | 19    | 3/3                             | Complete                                         | 2026-07-03  |
-| 20    | Uniform Style System            | UNIFORM-01, UNIFORM-05                           | Not started |
+| 20    | 1/3 | In Progress|  |
 | 21    | New Teams (MLS + International) | TEAM-08..11, INTL-01..06, LEAGUE-01..02          | Not started |
 | 22    | Uniform Selection Screen        | UNIFORM-02..04                                   | Not started |
 | 23    | Formation System                | FORM-01..04                                      | Not started |
@@ -121,7 +121,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
    Plans:
    **Wave 1**
 
-- [ ] 20-01-PLAN.md — Shared type contract: UniformStyleId union + UNIFORM_STYLE_META, TeamConfig.defaultUniformStyle (City=pinstripe, Crew=diagonal), barrel export
+- [x] 20-01-PLAN.md — Shared type contract: UniformStyleId union + UNIFORM_STYLE_META, TeamConfig.defaultUniformStyle (City=pinstripe, Crew=diagonal), barrel export
 
   **Wave 2** _(blocked on Wave 1)_
 
