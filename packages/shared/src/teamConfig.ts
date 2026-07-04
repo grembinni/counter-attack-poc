@@ -7,6 +7,7 @@
 
 import type { PoolPlayer } from './teams.js';
 import { PLAYER_POOL } from './teams.js';
+import type { UniformStyleId } from './uniformStyles.js';
 
 /** D-04: Active selectable teams only — cosmos and xolos removed (retired). */
 export type TeamId = 'city' | 'crew';
@@ -50,6 +51,9 @@ export interface TeamConfig {
   league: 'mls' | 'international';
   /** Filename key only — e.g. 'city.png'. Asset import happens in TeamBadge component. */
   badgeFile: string;
+  /** Phase 20 D-01/D-02: Default uniform pattern for this team (UNIFORM-03).
+   * City = 'pinstripe' (D-01), Crew = 'diagonal' (D-02). */
+  defaultUniformStyle: UniformStyleId;
 }
 
 /** D-06/DATA-03: All historical team palette and badge data.
@@ -127,6 +131,7 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     ],
     league: 'mls',
     badgeFile: 'city.png',
+    defaultUniformStyle: 'pinstripe',
   },
   crew: {
     id: 'crew',
@@ -149,6 +154,7 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     ],
     league: 'mls',
     badgeFile: 'crew.png',
+    defaultUniformStyle: 'diagonal',
   },
 };
 
