@@ -78,7 +78,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 3,
   },
   {
@@ -97,7 +97,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 4,
   },
   {
@@ -116,7 +116,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 4,
   },
   {
@@ -135,7 +135,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 6,
   },
   {
@@ -154,7 +154,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 4,
   },
   {
@@ -173,7 +173,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 1,
     highPass: 5,
   },
   {
@@ -192,7 +192,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -211,7 +211,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 1,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -230,7 +230,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -249,7 +249,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 4,
   },
   {
@@ -287,7 +287,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 6,
   },
   {
@@ -306,7 +306,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 5,
   },
   {
@@ -325,7 +325,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -344,7 +344,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 6,
   },
   {
@@ -363,7 +363,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -382,7 +382,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -401,7 +401,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -420,7 +420,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -439,7 +439,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -458,7 +458,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 4,
   },
   {
@@ -496,7 +496,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -515,7 +515,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 3,
   },
   {
@@ -534,7 +534,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 3,
   },
   {
@@ -553,7 +553,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -572,7 +572,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -591,7 +591,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -610,7 +610,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -629,7 +629,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 3,
   },
   {
@@ -648,7 +648,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 3,
   },
   {
@@ -667,7 +667,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 2,
   },
   {
@@ -705,7 +705,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -724,7 +724,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 5,
   },
   {
@@ -743,7 +743,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -762,7 +762,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -781,7 +781,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -800,7 +800,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -819,7 +819,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 3,
   },
   {
@@ -838,7 +838,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -857,7 +857,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -876,7 +876,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -895,7 +895,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -914,7 +914,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -933,7 +933,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -952,7 +952,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -971,7 +971,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -990,7 +990,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -1009,7 +1009,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 1,
     highPass: 5,
   },
   {
@@ -1028,7 +1028,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1047,7 +1047,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -1066,7 +1066,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 6,
   },
   {
@@ -1085,7 +1085,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1104,7 +1104,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -1123,7 +1123,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -1142,7 +1142,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -1161,7 +1161,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 3,
   },
   {
@@ -1180,7 +1180,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -1199,7 +1199,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -1218,7 +1218,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -1237,7 +1237,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1256,7 +1256,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 5,
   },
   {
@@ -1275,7 +1275,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -1313,7 +1313,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 6,
   },
   {
@@ -1370,7 +1370,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -1389,7 +1389,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 3,
   },
   {
@@ -1408,7 +1408,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -1419,7 +1419,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'Spain',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 5,
     shooting: 3,
     tackling: 4,
@@ -1427,7 +1427,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 6,
   },
   {
@@ -1446,7 +1446,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 6,
   },
   {
@@ -1465,7 +1465,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1476,7 +1476,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'US',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 4,
     shooting: 3,
     tackling: 3,
@@ -1484,7 +1484,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1503,7 +1503,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 6,
   },
   {
@@ -1522,7 +1522,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -1532,8 +1532,8 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     lastName: 'Taylor',
     number: 11,
     nationality: 'Finland',
-    role: 'FWD',
-    position: { q: 15, r: 17 },
+    role: 'ST',
+    position: { q: 18, r: 13 },
     pace: 5,
     shooting: 4,
     tackling: 2,
@@ -1541,7 +1541,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -1579,7 +1579,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -1598,7 +1598,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -1617,7 +1617,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -1628,7 +1628,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'US',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 4,
     shooting: 3,
     tackling: 4,
@@ -1636,7 +1636,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -1655,7 +1655,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1674,7 +1674,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -1685,7 +1685,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'Colombia',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 3,
     shooting: 3,
     tackling: 4,
@@ -1693,7 +1693,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -1712,7 +1712,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 3,
   },
   {
@@ -1731,7 +1731,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 4,
   },
   {
@@ -1741,8 +1741,8 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     lastName: 'Bouanga',
     number: 11,
     nationality: 'Gabon',
-    role: 'FWD',
-    position: { q: 15, r: 17 },
+    role: 'ST',
+    position: { q: 18, r: 13 },
     pace: 6,
     shooting: 5,
     tackling: 2,
@@ -1750,7 +1750,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -1788,7 +1788,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -1807,7 +1807,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -1826,7 +1826,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -1837,7 +1837,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'Cameroon',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 5,
     shooting: 1,
     tackling: 5,
@@ -1845,7 +1845,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 3,
   },
   {
@@ -1864,7 +1864,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -1883,7 +1883,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -1894,7 +1894,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'US',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 4,
     shooting: 3,
     tackling: 4,
@@ -1902,7 +1902,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -1921,7 +1921,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -1940,7 +1940,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 3,
   },
   {
@@ -1950,8 +1950,8 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     lastName: 'Rothrock',
     number: 11,
     nationality: 'US',
-    role: 'FWD',
-    position: { q: 15, r: 17 },
+    role: 'ST',
+    position: { q: 18, r: 13 },
     pace: 4,
     shooting: 3,
     tackling: 3,
@@ -1959,7 +1959,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -1997,7 +1997,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2016,7 +2016,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 6,
     highPass: 3,
   },
   {
@@ -2035,7 +2035,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 3,
   },
   {
@@ -2046,7 +2046,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'US',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 4,
     shooting: 2,
     tackling: 4,
@@ -2054,7 +2054,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2073,7 +2073,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2092,7 +2092,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2103,7 +2103,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'Germany',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 5,
     shooting: 5,
     tackling: 2,
@@ -2111,7 +2111,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -2130,7 +2130,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2149,7 +2149,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -2159,8 +2159,8 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     lastName: 'Boyd',
     number: 11,
     nationality: 'US',
-    role: 'FWD',
-    position: { q: 15, r: 17 },
+    role: 'ST',
+    position: { q: 18, r: 13 },
     pace: 4,
     shooting: 3,
     tackling: 2,
@@ -2168,7 +2168,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2206,7 +2206,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2225,7 +2225,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -2244,7 +2244,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -2255,7 +2255,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'US',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 6,
     shooting: 2,
     tackling: 4,
@@ -2263,7 +2263,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2282,7 +2282,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2301,7 +2301,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -2312,7 +2312,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'US',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 5,
     shooting: 2,
     tackling: 4,
@@ -2320,7 +2320,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2339,7 +2339,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -2358,7 +2358,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2377,7 +2377,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 3,
   },
   {
@@ -2415,7 +2415,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2434,7 +2434,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 5,
   },
   {
@@ -2453,7 +2453,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -2464,7 +2464,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'England',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 4,
     shooting: 3,
     tackling: 4,
@@ -2472,7 +2472,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -2491,7 +2491,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -2510,7 +2510,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -2521,7 +2521,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'England',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 5,
     shooting: 5,
     tackling: 2,
@@ -2529,7 +2529,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -2548,7 +2548,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -2567,7 +2567,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -2586,7 +2586,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 6,
   },
   {
@@ -2624,7 +2624,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 3,
   },
   {
@@ -2643,7 +2643,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -2662,7 +2662,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -2673,7 +2673,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'Mexico',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 5,
     shooting: 3,
     tackling: 4,
@@ -2681,7 +2681,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2700,7 +2700,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -2719,7 +2719,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -2730,7 +2730,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'Mexico',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 4,
     shooting: 3,
     tackling: 4,
@@ -2738,7 +2738,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2757,7 +2757,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2776,7 +2776,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -2786,8 +2786,8 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     lastName: 'Antuna',
     number: 11,
     nationality: 'Mexico',
-    role: 'FWD',
-    position: { q: 15, r: 17 },
+    role: 'ST',
+    position: { q: 18, r: 13 },
     pace: 6,
     shooting: 3,
     tackling: 2,
@@ -2795,7 +2795,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2833,7 +2833,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2852,7 +2852,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 3,
   },
   {
@@ -2871,7 +2871,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -2882,7 +2882,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'Canada',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 6,
     shooting: 4,
     tackling: 4,
@@ -2890,7 +2890,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2909,7 +2909,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -2928,7 +2928,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2939,7 +2939,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'Canada',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 5,
     shooting: 3,
     tackling: 2,
@@ -2947,7 +2947,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -2966,7 +2966,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 4,
   },
   {
@@ -2985,7 +2985,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 3,
   },
   {
@@ -3004,7 +3004,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -3042,7 +3042,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -3061,7 +3061,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 5,
   },
   {
@@ -3080,7 +3080,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -3091,7 +3091,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'Spain',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 5,
     shooting: 2,
     tackling: 5,
@@ -3099,7 +3099,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -3118,7 +3118,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 6,
   },
   {
@@ -3137,7 +3137,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -3148,7 +3148,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'Spain',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 4,
     shooting: 3,
     tackling: 3,
@@ -3156,7 +3156,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 6,
   },
   {
@@ -3175,7 +3175,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 1,
     highPass: 5,
   },
   {
@@ -3194,7 +3194,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -3204,8 +3204,8 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     lastName: 'Williams',
     number: 11,
     nationality: 'Spain',
-    role: 'FWD',
-    position: { q: 15, r: 17 },
+    role: 'ST',
+    position: { q: 18, r: 13 },
     pace: 6,
     shooting: 4,
     tackling: 2,
@@ -3213,7 +3213,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 4,
   },
   {
@@ -3251,7 +3251,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -3270,7 +3270,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -3289,7 +3289,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 5,
     highPass: 4,
   },
   {
@@ -3300,7 +3300,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 5,
     nationality: 'France',
     role: 'DEF',
-    position: { q: 6, r: 6 },
+    position: { q: 6, r: 25 },
     pace: 6,
     shooting: 3,
     tackling: 4,
@@ -3308,7 +3308,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
   {
@@ -3327,7 +3327,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 6,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -3346,7 +3346,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 5,
   },
   {
@@ -3357,7 +3357,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     number: 8,
     nationality: 'France',
     role: 'MID',
-    position: { q: 10, r: 9 },
+    position: { q: 10, r: 3 },
     pace: 4,
     shooting: 5,
     tackling: 3,
@@ -3365,7 +3365,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 6,
   },
   {
@@ -3384,7 +3384,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 3,
-    aerialAbility: 0,
+    aerialAbility: 2,
     highPass: 5,
   },
   {
@@ -3403,7 +3403,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 4,
-    aerialAbility: 0,
+    aerialAbility: 4,
     highPass: 4,
   },
   {
@@ -3422,7 +3422,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     saving: 0,
     handling: 0,
     resilience: 5,
-    aerialAbility: 0,
+    aerialAbility: 3,
     highPass: 5,
   },
 ];

@@ -1,23 +1,32 @@
 /**
  * Phase 16 D-01 / D-02: One-time CSV → teams.ts generator.
  * Phase 19 D-11/D-12: Extended to emit PLAYER_POOL (replaces TEAM_SQUADS + FREE_AGENTS).
+ * Phase 21 Bug-fix: Consolidated to single player-pool.csv with SourceTeam column.
  *
  * Usage: pnpm run seed:rosters
  *
- * Reads the 7 committed CSV files in packages/shared/src/data/ and writes
+ * Reads packages/shared/src/data/player-pool.csv and writes
  * packages/shared/src/teams.ts (PLAYER_POOL only).
  *
- * Source of truth: the 7 CSVs stay in the repo (D-01).
+ * Source of truth: player-pool.csv (D-01).
  * Output teams.ts is committed (D-02 — not a build step).
  *
- * CSV processing order (determines p001..pNNN assignment):
- *   1. cosmos_players.csv  → p001–p011
- *   2. xolos_players.csv   → p012–p022
- *   3. city_players.csv    → p023–p033
- *   4. crew_players.csv    → p034–p044
- *   5. fa_players.csv      → p045–p068
- *   6. mls.csv             → p069–p112
- *   7. national.csv        → p113–p178
+ * CSV processing order within player-pool.csv (determines p001..pNNN assignment):
+ *   cosmos → p001–p011
+ *   xolos  → p012–p022
+ *   city   → p023–p033
+ *   crew   → p034–p044
+ *   free-agent → p045–p068
+ *   inter-miami → p069–p079
+ *   lafc → p080–p090
+ *   seattle → p091–p101
+ *   nashville → p102–p112
+ *   usmnt → p113–p123
+ *   england → p124–p134
+ *   mexico → p135–p145
+ *   canada → p146–p156
+ *   spain → p157–p167
+ *   france → p168–p178
  */
 
 import { createReadStream, writeFileSync } from 'fs';
@@ -31,30 +40,8 @@ const __dirname = dirname(__filename);
 const DATA_DIR = join(__dirname, '..', 'src', 'data');
 const OUTPUT_PATH = join(__dirname, '..', 'src', 'teams.ts');
 
-// D-03: CSV team name → fixed ColorSchemeId slug (for legacy 4 squad CSVs)
-// Multi-team CSVs (mls.csv, national.csv) derive sourceTeamId from Team column via toSlug()
-const TEAM_ID_MAP: Record<string, string | null> = {
-  Cozmos: 'cosmos',
-  CITY: 'city',
-  Crew: 'crew',
-  Xolos: 'xolos',
-  FA: 'free-agent', // Phase 19 A4: free agents use 'free-agent' slug
-};
-
-// CSV files that carry a single team per file (sourceTeamId from TEAM_ID_MAP)
-const SINGLE_TEAM_CSV_FILES = [
-  'cosmos_players.csv',
-  'xolos_players.csv',
-  'city_players.csv',
-  'crew_players.csv',
-  'fa_players.csv',
-];
-
-// CSV files where each row may have a different team name in the Team column (sourceTeamId from toSlug())
-const MULTI_TEAM_CSV_FILES = ['mls.csv', 'national.csv'];
-
-// Phase 19 D-11: full ordered CSV list — processing order determines p001..pNNN assignment
-const CSV_FILES = [...SINGLE_TEAM_CSV_FILES, ...MULTI_TEAM_CSV_FILES];
+// Phase 21: Single consolidated CSV — sourceTeamId comes directly from SourceTeam column
+const PLAYER_POOL_CSV = 'player-pool.csv';
 
 // ROLE_MAP: CSV position string → PlayerPiece role (Pitfall 2: STR → ST, Pitfall 6: national.csv)
 const ROLE_MAP: Record<string, 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST'> = {
@@ -78,10 +65,12 @@ const FORMATION_POSITIONS: Record<string, HexCoord[]> = {
     { q: 6, r: 6 },
     { q: 6, r: 13 },
     { q: 6, r: 19 },
+    { q: 6, r: 25 }, // 4th DEF slot — needed for squads with 4 outfield defenders
   ],
   MID: [
     { q: 10, r: 9 },
     { q: 10, r: 17 },
+    { q: 10, r: 3 }, // 3rd MID slot — needed for squads with 3 midfielders
   ],
   FWD: [
     { q: 15, r: 4 },
@@ -177,10 +166,15 @@ function parseRow(row: string[], idx: Record<string, number>): RawPlayer {
     if (resilience === 0) resilience = 1;
   }
 
+  // Phase 21: SourceTeam column holds the canonical slug directly.
+  // Fall back to toSlug(Team) for backwards compatibility if SourceTeam is absent.
+  const sourceTeamRaw = row[idx['SourceTeam']] ?? '';
+  const teamCsvName = sourceTeamRaw.trim() !== '' ? sourceTeamRaw : (row[idx['Team']] ?? '');
+
   return {
     firstName,
     lastName,
-    teamCsvName: row[idx['Team']] ?? '',
+    teamCsvName,
     nationality: row[idx['Nationality']] ?? '',
     role,
     pace,
@@ -284,128 +278,90 @@ ${indent}}`;
 }
 
 async function main() {
-  // Global sequential ID counter — p001, p002, ... across all CSV files in CSV_FILES order
+  // Global sequential ID counter — p001, p002, ... in CSV row order
   let counter = 1;
 
-  // Per-squad raw players, keyed by ColorSchemeId slug for the 4 legacy squads
-  const squadMap: Record<string, RawPlayer[]> = {
-    cosmos: [],
-    xolos: [],
-    city: [],
-    crew: [],
-  };
-  // Free agents (Team = 'FA')
-  const faRaw: RawPlayer[] = [];
-  // Multi-team CSV players: keyed by toSlug(teamName) → array of raw players per team
-  const multiTeamMap: Map<string, RawPlayer[]> = new Map();
-  // Track order of first appearance for multi-team CSVs (for deterministic ID assignment)
-  const multiTeamOrder: string[] = [];
+  // All teams keyed by sourceTeamId slug — preserves first-appearance order
+  const teamMap: Map<string, RawPlayer[]> = new Map();
+  const teamOrder: string[] = [];
 
-  // ---- Parse all CSVs ----
-  for (const csvFile of CSV_FILES) {
-    const filePath = join(DATA_DIR, csvFile);
-    const rows = await parseCSV(filePath);
-    if (rows.length < 2) continue;
+  // ---- Parse player-pool.csv ----
+  const filePath = join(DATA_DIR, PLAYER_POOL_CSV);
+  const rows = await parseCSV(filePath);
+  if (rows.length < 2) throw new Error(`player-pool.csv is empty or missing: ${filePath}`);
 
-    const header = rows[0];
-    // CR-02: Validate that no header cell contains a comma — a comma in a header cell
-    // indicates the CSV uses RFC 4180 quoted fields which our bare split(',') cannot parse,
-    // and would silently corrupt all subsequent column lookups for affected rows.
-    for (const cell of header) {
-      if (cell.includes(','))
-        throw new Error(
-          `CSV header cell contains comma: "${cell}" in ${csvFile} — use a quoted-field-aware parser`,
-        );
+  const header = rows[0];
+  // CR-02: Validate that no header cell contains a comma
+  for (const cell of header) {
+    if (cell.includes(','))
+      throw new Error(
+        `CSV header cell contains comma: "${cell}" in ${PLAYER_POOL_CSV} — use a quoted-field-aware parser`,
+      );
+  }
+  const idx: Record<string, number> = {};
+  for (let i = 0; i < header.length; i++) {
+    idx[header[i]] = i;
+  }
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (row.length < 2) continue;
+
+    const raw = parseRow(row, idx);
+    // Phase 21: SourceTeam column holds the slug directly (e.g. 'cosmos', 'free-agent', 'inter-miami')
+    const slug = raw.teamCsvName.trim() !== '' ? raw.teamCsvName : toSlug(row[idx['Team']] ?? '');
+
+    if (!teamMap.has(slug)) {
+      teamMap.set(slug, []);
+      teamOrder.push(slug);
     }
-    const idx: Record<string, number> = {};
-    for (let i = 0; i < header.length; i++) {
-      idx[header[i]] = i;
-    }
+    teamMap.get(slug).push(raw);
+  }
 
-    const isMultiTeam = MULTI_TEAM_CSV_FILES.includes(csvFile);
+  // ---- Build entries in CSV row order, assigning global p-IDs ----
+  const allEntries: PlayerEntry[] = [];
 
-    for (let r = 1; r < rows.length; r++) {
-      const row = rows[r];
-      if (row.length < 2) continue;
+  for (const slug of teamOrder) {
+    const rawPlayers = teamMap.get(slug) ?? [];
 
-      const raw = parseRow(row, idx);
-
-      if (isMultiTeam) {
-        // mls.csv / national.csv: sourceTeamId = toSlug(Team column)
-        const slug = toSlug(raw.teamCsvName);
-        if (!multiTeamMap.has(slug)) {
-          multiTeamMap.set(slug, []);
-          multiTeamOrder.push(slug);
-        }
-        multiTeamMap.get(slug).push(raw);
-      } else {
-        // Single-team CSVs: map via TEAM_ID_MAP
-        const teamId = TEAM_ID_MAP[raw.teamCsvName];
-        if (teamId === 'free-agent') {
-          faRaw.push(raw);
-        } else if (teamId !== undefined && teamId !== null && teamId in squadMap) {
-          squadMap[teamId].push(raw);
-        } else {
-          console.warn(
-            `Unknown team CSV name: "${raw.teamCsvName}" for player ${raw.firstName} ${raw.lastName}`,
-          );
-        }
+    if (slug === 'free-agent') {
+      // Free agents use number=0 and always take first slot for their role
+      for (const p of rawPlayers) {
+        const positions = FORMATION_POSITIONS[p.role];
+        const position = positions[0];
+        allEntries.push({
+          id: `p${String(counter++).padStart(3, '0')}`,
+          sourceTeamId: 'free-agent',
+          firstName: p.firstName,
+          lastName: p.lastName,
+          number: 0,
+          nationality: p.nationality,
+          role: p.role,
+          position,
+          pace: p.pace,
+          shooting: p.shooting,
+          tackling: p.tackling,
+          dribbling: p.dribbling,
+          saving: p.saving,
+          handling: p.handling,
+          resilience: p.resilience,
+          aerialAbility: p.aerialAbility,
+          highPass: p.highPass,
+        });
+      }
+    } else {
+      const entries = buildSquadEntries(rawPlayers, slug);
+      for (const e of entries) {
+        allEntries.push({ id: `p${String(counter++).padStart(3, '0')}`, ...e });
       }
     }
   }
 
-  // ---- Build entries in CSV_FILES order, assigning global p-IDs ----
-  const allEntries: PlayerEntry[] = [];
-
-  // 1–4: Legacy squad CSVs in file order (cosmos, xolos, city, crew)
-  for (const squadId of ['cosmos', 'xolos', 'city', 'crew']) {
-    const entries = buildSquadEntries(squadMap[squadId], squadId);
-    for (const e of entries) {
-      allEntries.push({ id: `p${String(counter++).padStart(3, '0')}`, ...e });
-    }
-  }
-
-  // 5: Free agents — numbered 1..N in CSV row order; position from role default
-  const faEntries = faRaw.map((p) => {
-    const positions = FORMATION_POSITIONS[p.role];
-    const position = positions[0]; // FA players use first slot for their role
-    return {
-      id: `p${String(counter++).padStart(3, '0')}`,
-      sourceTeamId: 'free-agent',
-      firstName: p.firstName,
-      lastName: p.lastName,
-      number: 0, // FA players don't have squad jersey numbers; 0 = unassigned
-      nationality: p.nationality,
-      role: p.role,
-      position,
-      pace: p.pace,
-      shooting: p.shooting,
-      tackling: p.tackling,
-      dribbling: p.dribbling,
-      saving: p.saving,
-      handling: p.handling,
-      resilience: p.resilience,
-      aerialAbility: p.aerialAbility,
-      highPass: p.highPass,
-    } satisfies PlayerEntry;
-  });
-  allEntries.push(...faEntries);
-
-  // 6–7: Multi-team CSVs (mls.csv, national.csv) — per-team squads in team appearance order
-  for (const slug of multiTeamOrder) {
-    const rawPlayers = multiTeamMap.get(slug) ?? [];
-    const entries = buildSquadEntries(rawPlayers, slug);
-    for (const e of entries) {
-      allEntries.push({ id: `p${String(counter++).padStart(3, '0')}`, ...e });
-    }
-  }
-
-  // WR-07: Fail-fast count assertion before writing output — catches silent drops due to
-  // TEAM_ID_MAP mismatches or CSV structure changes at generation time, not only in tests.
+  // WR-07: Fail-fast count assertion before writing output
   const EXPECTED_TOTAL = 178;
   if (allEntries.length !== EXPECTED_TOTAL) {
     throw new Error(
-      `Expected ${EXPECTED_TOTAL} players, got ${allEntries.length}. Check TEAM_ID_MAP and CSV files.`,
+      `Expected ${EXPECTED_TOTAL} players, got ${allEntries.length}. Check player-pool.csv.`,
     );
   }
 
@@ -461,7 +417,7 @@ export interface PoolPlayer {
 }
 
 /** DATA-01/D-12: Single unified player pool — replaces TEAM_SQUADS and FREE_AGENTS.
- * ${allEntries.length} total players: 4 legacy squads (44) + free agents (${faEntries.length}) + MLS (44) + national (66). */
+ * ${allEntries.length} total players: 4 legacy squads (44) + free agents (24) + MLS (44) + national (66). */
 export const PLAYER_POOL: readonly PoolPlayer[] = [
 ${playersStr}
 ];
