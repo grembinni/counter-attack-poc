@@ -72,7 +72,8 @@ export function App() {
     // Phase 16 D-10/D-11: team selection socket handlers (Pitfall 9 — every on has a matching off)
     function onTeamSelectionStart() {
       setHomePickedTeam(null);
-      setScreen('TEAM_SELECTION');
+      // Phase 22: route straight to UNIFORM_SELECTION — single combined team+uniform screen (no tabs).
+      setScreen('UNIFORM_SELECTION');
     }
 
     function onTeamHomePicked(teamId: TeamId) {
@@ -88,8 +89,9 @@ export function App() {
       setScreen('UNIFORM_SELECTION');
     }
 
-    function onUniformHomeConfirmed(_teamId: TeamId, uniformStyle: UniformStyleId) {
-      // homePickedTeam already set from TEAM_HOME_PICKED; we only need to track the confirmed style
+    function onUniformHomeConfirmed(teamId: TeamId, uniformStyle: UniformStyleId) {
+      // Set homePickedTeam so away sees home's team struck out in UniformSelectionScreen (Phase 22).
+      setHomePickedTeam(teamId);
       setHomeConfirmedStyle(uniformStyle);
     }
 

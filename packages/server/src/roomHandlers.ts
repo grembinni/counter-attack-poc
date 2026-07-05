@@ -312,13 +312,20 @@ export function registerRoomHandlers(
             socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
             return;
           }
-          // Phase 22 D-15: store home's confirmed style; broadcast to both players.
+          // Phase 22 D-15: store home's confirmed style and team; broadcast to both players.
+          // homePickedTeam is also set here so UNIFORM_CONFIRM works without a prior TEAM_PICK.
+          room.homePickedTeam = teamId;
           room.homePickedUniformStyle = uniformStyle;
           io.to(roomCode).emit(ServerEvents.UNIFORM_HOME_CONFIRMED, teamId, uniformStyle);
         } else {
           // T-22-04: Away confirms second — only slot 2 may act now.
           if (playerSlot !== 2) {
             socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+            return;
+          }
+          // Reject if away picks the same team as home.
+          if (teamId === room.homePickedTeam) {
+            socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
             return;
           }
           // Phase 22 D-12/D-17: both players confirmed — build game state with both
