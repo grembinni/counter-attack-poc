@@ -20,6 +20,7 @@ import {
   applyGKDive,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import type { UniformStyleId } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -126,6 +127,7 @@ const baseState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   contestedPieceIds: [],
 };

@@ -24,6 +24,7 @@ import {
 } from '../gameEngine.js';
 import { isPitchHex } from '@counter-attack/shared';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import type { UniformStyleId } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures (re-used across describe blocks)
@@ -133,6 +134,7 @@ const baseMovementState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' },
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -158,6 +160,7 @@ const passState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' },
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -229,6 +232,7 @@ const highPassMovementStateWithMove: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' },
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   highPassMovementSlot: 'ATTACKER',
   highPassMovedPieceId: 'home-9',
@@ -275,6 +279,7 @@ const shotStateNearGK: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' },
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   shotTargetHex: { q: 32, r: 13 }, // away goal hex
   gkDivePosition: { q: 11, r: 7 },
@@ -1097,6 +1102,7 @@ const ftpMoveAttackerState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' },
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
   firstTimePassMovementSlot: 'ATTACKER',
   firstTimePassMovedPieceId: null,
@@ -1520,6 +1526,7 @@ const looseBallNearEdgeState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' },
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 

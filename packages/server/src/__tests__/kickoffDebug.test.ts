@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { buildInitialGameState, applyKickOffReady } from '../gameEngine.js';
 import { isInRegion, PITCH_REGIONS } from '@counter-attack/shared';
+import type { UniformStyleId } from '@counter-attack/shared';
+
+// Phase 22 D-17: default uniform styles for test call sites.
+const DEFAULT_STYLES: { home: UniformStyleId; away: UniformStyleId } = {
+  home: 'pinstripes-vertical',
+  away: 'bar-diagonal',
+};
 
 describe('kickoff debug', () => {
   it('applyKickOffReady passes for both teams after driveToKickOff seeding', () => {
-    const state = buildInitialGameState('TEST', { home: 'city', away: 'crew' });
+    const state = buildInitialGameState('TEST', { home: 'city', away: 'crew' }, 'standard', DEFAULT_STYLES);
     const kickOffHex = PITCH_REGIONS.kickOffHex;
     const attackingTeam = state.attackingTeam;
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';

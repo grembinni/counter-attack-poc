@@ -11,6 +11,7 @@ import {
   applyGKKickTarget,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import type { UniformStyleId } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -80,6 +81,8 @@ const baseMovementState: GameState = {
   kickOffActive: false,
   // Phase 16 field (D-15)
   selectedTeams: { home: 'city', away: 'crew' },
+  // Phase 22 D-17: uniform styles — defaults for test fixtures
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId },
   // UX-07 (Phase 18.4): game speed — default 'standard' in tests
   gameSpeed: 'standard',
 };
@@ -90,32 +93,37 @@ const baseMovementState: GameState = {
 
 // Default selectedTeams for existing buildInitialGameState tests (Phase 16 repair).
 const DEFAULT_TEAMS = { home: 'city', away: 'crew' } as const;
+// Phase 22 D-17: default uniform styles for existing buildInitialGameState test call sites.
+const DEFAULT_STYLES: { home: UniformStyleId; away: UniformStyleId } = {
+  home: 'pinstripes-vertical',
+  away: 'bar-diagonal',
+};
 
 describe('buildInitialGameState', () => {
   it('returns phase KICK_OFF_SETUP with 22 pieces (TEAM-01, D-23)', () => {
-    const state = buildInitialGameState('ROOM1', DEFAULT_TEAMS);
+    const state = buildInitialGameState('ROOM1', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
     expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.pieces).toHaveLength(22);
     expect(state.roomCode).toBe('ROOM1');
   });
 
   it('attackingTeam is home or away (D-13 coin flip)', () => {
-    const state = buildInitialGameState('ROOM2', DEFAULT_TEAMS);
+    const state = buildInitialGameState('ROOM2', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
     expect(['home', 'away']).toContain(state.attackingTeam);
   });
 
   it('ball.position equals the kick-off hex { q:18, r:13 } (D-04/D-05 37×26 grid)', () => {
-    const state = buildInitialGameState('ROOM3', DEFAULT_TEAMS);
+    const state = buildInitialGameState('ROOM3', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
     expect(state.ball.position).toEqual({ q: 18, r: 13 });
   });
 
   it('eventLog is empty at start', () => {
-    const state = buildInitialGameState('ROOM4', DEFAULT_TEAMS);
+    const state = buildInitialGameState('ROOM4', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
     expect(state.eventLog).toHaveLength(0);
   });
 
   it('refereeCard.leniency is an integer in 1..6 (TEAM-03)', () => {
-    const state = buildInitialGameState('ROOM5', DEFAULT_TEAMS);
+    const state = buildInitialGameState('ROOM5', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
     const { leniency } = state.refereeCard;
     expect(Number.isInteger(leniency)).toBe(true);
     expect(leniency).toBeGreaterThanOrEqual(1);
@@ -125,13 +133,13 @@ describe('buildInitialGameState', () => {
   it('refereeCard.leniency is random — at least 2 distinct values across 10 builds (TEAM-03)', () => {
     const values = new Set<number>();
     for (let i = 0; i < 10; i++) {
-      values.add(buildInitialGameState(`ROOM-${i}`, DEFAULT_TEAMS).refereeCard.leniency);
+      values.add(buildInitialGameState(`ROOM-${i}`, DEFAULT_TEAMS, 'standard', DEFAULT_STYLES).refereeCard.leniency);
     }
     expect(values.size).toBeGreaterThanOrEqual(2);
   });
 
   it('movementSlot is null at KICK_OFF', () => {
-    const state = buildInitialGameState('ROOM6', DEFAULT_TEAMS);
+    const state = buildInitialGameState('ROOM6', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
     expect(state.movementSlot).toBeNull();
   });
 });
@@ -624,6 +632,7 @@ const passState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -652,6 +661,7 @@ const shotState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -689,6 +699,7 @@ const headerState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -726,6 +737,7 @@ const looseBallState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -1209,6 +1221,7 @@ const gkRestartState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
+  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
