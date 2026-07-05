@@ -136,16 +136,19 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Drive team selection: register all listeners BEFORE emitting to avoid races.
-  // Wait for BOTH clients to receive GAME_STATE to ensure clientB's event is drained before
-  // tests register new listeners on clientB (prevents stale buffered events from firing on
-  // tests that use attackingClient=clientB as their primary listener).
-  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
-  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+  // Drive team selection then uniform confirmation (Phase 22 D-13/D-14/D-15).
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
   clientA.emit(ClientEvents.TEAM_PICK, 'city');
   await homePickedPromise;
+  const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START);
   clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+  await uniformStartPromise;
+  const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED);
+  clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical');
+  await homeConfirmedPromise;
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+  clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal');
   const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   const attackingTeam = state.attackingTeam;

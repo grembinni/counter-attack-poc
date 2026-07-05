@@ -289,13 +289,19 @@ describe('Room integration tests', () => {
     await joinedBPromise;
     await selectionStartPromise;
 
-    // Drive team selection: wait for BOTH clients to receive GAME_STATE to drain event buffers.
-    const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
-    const stateOnPickPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE, 2000);
+    // Drive team selection then uniform confirmation (Phase 22 D-13/D-14/D-15).
     const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
     clientA.emit(ClientEvents.TEAM_PICK, 'city');
     await homePickedPromise;
+    const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START, 2000);
     clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+    await uniformStartPromise;
+    const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical');
+    await homeConfirmedPromise;
+    const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
+    const stateOnPickPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal');
 
     // Wait for game:state to be delivered to BOTH clients before disconnecting.
     await Promise.all([stateOnPickPromiseA, stateOnPickPromiseB]);
