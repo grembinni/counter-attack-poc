@@ -45,9 +45,9 @@ Exceptions:
 
 - Style tile cards: 80×80px — dictated by D-10 (content requirement, not spacing token)
 - Piece radius R = 30px inside each tile — dictated by D-10 legibility requirement
-- Speed option buttons: 4px 10px padding (from existing .speedOption pattern — preserve for visual consistency)
+- Speed option buttons: 4px 8px padding (nearest multiple-of-4 to the original .speedOption pattern)
 - Card border-radius: 4px (inherited pattern)
-- Confirm button padding: 10px 20px (matches existing .ctaButton in LobbyScreen)
+- Confirm button padding: 8px 20px (nearest multiple-of-4 to the existing .ctaButton in LobbyScreen)
 
 ---
 
@@ -57,19 +57,19 @@ Exceptions:
 | ------- | ---- | ----------------------------- | ----------- |
 | Heading | 20px | 700                           | 1.2         |
 | Label   | 14px | 400 (inactive) / 700 (active) | 1.2         |
-| Body    | 13px | 400                           | 1.5         |
+| Body    | 12px | 400                           | 1.5         |
 | Micro   | 13px | 700                           | 1.2         |
 
-Source: TeamSelectionScreen.module.css (.heading = 20px/700, .tab = 14px, .statusLine = 13px/400, .teamName = 13px/700).
+Source: TeamSelectionScreen.module.css (.heading = 20px/700, .tab = 14px, .statusLine = 13px/400, .teamName = 13px/700). Body adjusted from 13px → 12px to create a clear visual step from Label (14px).
 
 Specific assignments for Phase 22:
 
 - Screen heading ("Home: choose your team / style"): 20px, weight 700 — Heading role
 - Section sub-heading ("Choose style:" label above style grid): 14px, weight 700 — Label role (active)
-- Status / waiting copy: 13px, weight 400 — Body role
+- Status / waiting copy: 12px, weight 400 — Body role
 - Team name labels (below badge — if rendered in flat team grid): 13px, weight 700 — Micro role
 - Confirm button label: 13px, weight 700 — Micro role
-- Tooltip text (style name on hover — optional): 13px, weight 400 — Body role
+- Tooltip text (style name on hover — optional): 12px, weight 400 — Body role
 - "Opponent confirmed" banner label: 13px, weight 700 — Micro role
 
 ---
