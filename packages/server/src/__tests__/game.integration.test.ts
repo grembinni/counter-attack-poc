@@ -144,14 +144,22 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
   await selectionStartPromise;
 
-  // Drive team selection: wait for BOTH clients to receive GAME_STATE to drain clientB's
-  // event buffer before tests register new listeners on clientB.
-  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
-  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+  // Drive team selection then uniform confirmation (Phase 22 D-13/D-14/D-15).
+  // Away TEAM_PICK now broadcasts UNIFORM_SELECTION_START instead of building game state.
   const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED);
   clientA.emit(ClientEvents.TEAM_PICK, 'city');
   await homePickedPromise;
+  const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START);
   clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+  await uniformStartPromise;
+  // Home confirms uniform first; server broadcasts UNIFORM_HOME_CONFIRMED.
+  const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED);
+  clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical');
+  await homeConfirmedPromise;
+  // Away confirms uniform; server builds game state and broadcasts GAME_STATE to both.
+  const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+  const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+  clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal');
   const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   // clientA = slot 1 = 'home'; attackingTeam from coin flip
