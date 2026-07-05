@@ -38,9 +38,9 @@
 ## Uniform Style Library
 
 - [x] **UNIFORM-01**: A uniform style library is defined in `packages/shared`; each style is a named SVG pattern template parameterized by a `TeamPalette`; each style defines both an outfield rendering and a GK variant (same palette, different color emphasis so GK is visually distinct)
-- [ ] **UNIFORM-02**: After selecting a team, the player sees a uniform selection screen displaying all styles rendered against that team's 4-color palette; all styles are visible and selectable
-- [ ] **UNIFORM-03**: Each team has a `defaultUniformStyle: UniformStyleId`; this style is pre-selected on the uniform screen when the player arrives
-- [ ] **UNIFORM-04**: Player may select any style from the library; confirmed choice is stored in game state and applied to piece rendering throughout the match for that team
+- [x] **UNIFORM-02**: After selecting a team, the player sees a uniform selection screen displaying all styles rendered against that team's 4-color palette; all styles are visible and selectable
+- [x] **UNIFORM-03**: Each team has a `defaultUniformStyle: UniformStyleId`; this style is pre-selected on the uniform screen when the player arrives
+- [x] **UNIFORM-04**: Player may select any style from the library; confirmed choice is stored in game state and applied to piece rendering throughout the match for that team
 - [x] **UNIFORM-05**: `PieceOverlay` renders using `{ uniformStyle, palette, isGK }` — parameterized pattern system replaces the existing hardcoded per-team SVG patterns
 
 ## Data Model (v1.4 Prep)
@@ -116,9 +116,9 @@
 | INTL-05    | 21    | Complete |                                                                        |
 | INTL-06    | 21    | Complete |                                                                        |
 | UNIFORM-01 | 20    | Complete |                                                                        |
-| UNIFORM-02 | 22    | Pending  |                                                                        |
-| UNIFORM-03 | 22    | Pending  |                                                                        |
-| UNIFORM-04 | 22    | Pending  |                                                                        |
+| UNIFORM-02 | 22    | Complete |                                                                        |
+| UNIFORM-03 | 22    | Complete |                                                                        |
+| UNIFORM-04 | 22    | Complete |                                                                        |
 | UNIFORM-05 | 20    | Complete |                                                                        |
 | DATA-01    | 19    | Complete |                                                                        |
 | DATA-02    | 19    | Complete |                                                                        |
