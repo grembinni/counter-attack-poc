@@ -165,8 +165,17 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. The team's `defaultUniformStyle` is pre-selected when the player arrives at the screen; they may change it before confirming
 3. Confirmed uniform choice is stored in game state and applied to that team's piece rendering for the duration of the match; the other player's pieces are unaffected
 4. Both players must confirm their uniform choice before the flow advances; each sees "waiting for opponent" after confirming
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 3 plans
+   Plans:
+   **Wave 1**
+
+- [ ] 22-01-PLAN.md — Shared contracts: 3 uniform socket events, GameState.selectedUniformStyles, buildInitialGameState 4-arg signature + buildReplayFrames, engine test call-site repairs
+
+**Wave 2** _(blocked on Wave 1)_
+
+- [ ] 22-02-PLAN.md — Server: deferred-build TEAM_PICK away branch, Room.awayPickedTeam/homePickedUniformStyle, UNIFORM_CONFIRM handler (allow-list + mutex + home-first + build)
+- [ ] 22-03-PLAN.md — Client: new UniformSelectionScreen + CSS + test, Screen union, App handlers/branch/emit, HexGrid style resolution from selectedUniformStyles
+      **UI hint**: yes
 
 ### Phase 23: Formation System
 
