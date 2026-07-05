@@ -30,9 +30,9 @@ import type {
   ServerToClientEvents,
   SocketData,
   TeamId,
+  UniformStyleId,
 } from '@counter-attack/shared';
-import type { UniformStyleId } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, UNIFORM_STYLE_META } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { buildInitialGameState } from './gameEngine.js';
 import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roomStore.js';
@@ -55,6 +55,11 @@ const VALID_TEAM_IDS: readonly TeamId[] = [
 
 /** Valid game speed values — allow-list for team:speed-set validation (ASVS V5, T-18.4.1-01). */
 const VALID_GAME_SPEEDS: readonly GameSpeed[] = ['slow', 'standard', 'fast'] as const;
+
+/** Valid uniform style IDs — allow-list for UNIFORM_CONFIRM validation (T-22-03). */
+const VALID_UNIFORM_STYLE_IDS: readonly UniformStyleId[] = Object.keys(
+  UNIFORM_STYLE_META,
+) as UniformStyleId[];
 
 /** 90-second grace period before disconnected player's room is deleted. */
 const GRACE_PERIOD_MS = 90_000;
@@ -219,33 +224,11 @@ export function registerRoomHandlers(
             socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
             return;
           }
-          // Both teams chosen — build game state and start the game.
-          const selectedTeams = { home: room.homePickedTeam, away: teamId };
-          // UX-07 (Phase 18.4): use the speed the home player set (or 'standard' if unset).
-          // CR-03: wrap in try/catch — a throw from buildInitialGameState (e.g. bad playerIds)
-          // would propagate uncaught inside the Socket.io handler and crash the Node process.
-          let gameState: import('@counter-attack/shared').GameState;
-          // Phase 22 D-17: selectedUniformStyles will be sourced from room.homePickedUniformStyle
-          // / room.awayPickedUniformStyle after UNIFORM_CONFIRM flow is added in plan 22-02.
-          // Using defaults here to satisfy the required 4th parameter until that flow exists.
-          const selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId } = {
-            home: 'pinstripes-vertical',
-            away: 'bar-diagonal',
-          };
-          try {
-            gameState = buildInitialGameState(
-              roomCode,
-              selectedTeams,
-              room.gameSpeed ?? 'standard',
-              selectedUniformStyles,
-            );
-          } catch (err) {
-            console.error('buildInitialGameState failed:', err);
-            socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
-            return;
-          }
-          room.gameState = gameState;
-          broadcastState(io, room);
+          // Phase 22 D-13: defer game state build — store away's team and broadcast
+          // UNIFORM_SELECTION_START. Game state is built after both players confirm
+          // team + uniform style via UNIFORM_CONFIRM (plan 22-02 UNIFORM_CONFIRM handler).
+          room.awayPickedTeam = teamId;
+          io.to(roomCode).emit(ServerEvents.UNIFORM_SELECTION_START);
         }
       } finally {
         room.isProcessing = false;
@@ -290,6 +273,79 @@ export function registerRoomHandlers(
       room.gameSpeed = speed;
       // Broadcast to both players so the visitor's display updates live.
       io.to(roomCode).emit(ServerEvents.TEAM_SPEED_CHANGED, speed);
+    });
+
+    // -----------------------------------------------------------------------
+    // UNIFORM_CONFIRM
+    // Phase 22 D-14/D-15: enforces home-first confirm order, allow-list validation,
+    // isProcessing mutex. Home confirm stores homePickedUniformStyle and broadcasts
+    // UNIFORM_HOME_CONFIRMED. Away confirm builds game state with both teams + styles.
+    // Threat mitigations: T-22-03 (allow-list), T-22-04 (home-first), T-22-05 (mutex),
+    // T-22-06 (buildInitialGameState error guard).
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.UNIFORM_CONFIRM, (teamId: TeamId, uniformStyle: UniformStyleId) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // T-22-05: isProcessing mutex — drop concurrent UNIFORM_CONFIRM events.
+      if (room.isProcessing) return;
+      room.isProcessing = true;
+      try {
+        // T-22-03: allow-list validation — reject unknown or forged teamId/uniformStyle.
+        if (!(VALID_TEAM_IDS as readonly string[]).includes(teamId)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TEAM');
+          return;
+        }
+        if (!(VALID_UNIFORM_STYLE_IDS as readonly string[]).includes(uniformStyle)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_STYLE');
+          return;
+        }
+
+        const playerSlot = socket.data.playerSlot;
+
+        if (room.homePickedUniformStyle === undefined) {
+          // T-22-04: Home confirms first — only slot 1 may act now.
+          if (playerSlot !== 1) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+            return;
+          }
+          // Phase 22 D-15: store home's confirmed style; broadcast to both players.
+          room.homePickedUniformStyle = uniformStyle;
+          io.to(roomCode).emit(ServerEvents.UNIFORM_HOME_CONFIRMED, teamId, uniformStyle);
+        } else {
+          // T-22-04: Away confirms second — only slot 2 may act now.
+          if (playerSlot !== 2) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+            return;
+          }
+          // Phase 22 D-12/D-17: both players confirmed — build game state with both
+          // teams and both uniform styles, then broadcast to start the game.
+          const selectedTeams = { home: room.homePickedTeam!, away: teamId };
+          const selectedUniformStyles = { home: room.homePickedUniformStyle, away: uniformStyle };
+          // T-22-06: wrap in try/catch — a throw from buildInitialGameState would
+          // propagate uncaught inside the Socket.io handler and crash the Node process.
+          let gameState: import('@counter-attack/shared').GameState;
+          try {
+            gameState = buildInitialGameState(
+              roomCode,
+              selectedTeams,
+              room.gameSpeed ?? 'standard',
+              selectedUniformStyles,
+            );
+          } catch (err) {
+            console.error('buildInitialGameState failed:', err);
+            socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
+            return;
+          }
+          room.gameState = gameState;
+          broadcastState(io, room);
+        }
+      } finally {
+        room.isProcessing = false;
+      }
     });
   }
 
