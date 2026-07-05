@@ -196,8 +196,8 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
   **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 23-02-PLAN.md — Server: room formation fields, UNIFORM_CONFIRM allow-list + defer buildInitialGameState + emit BOTH_FORMATIONS_CONFIRMED, buildSquadPieces/buildKickOffPieces/buildInitialGameState formation rewrite (+4 shift, mirror, #9 anchor) + all callers, placement unit tests
-- [ ] 23-03-PLAN.md — Client: UniformSelectionScreen formation section + CSS, App.tsx extended emit + BOTH_FORMATIONS_CONFIRMED holding state, browser UAT checkpoint
+- [x] 23-02-PLAN.md — Server: room formation fields, UNIFORM_CONFIRM allow-list + defer buildInitialGameState + emit BOTH_FORMATIONS_CONFIRMED, buildSquadPieces/buildKickOffPieces/buildInitialGameState formation rewrite (+4 shift, mirror, #9 anchor) + all callers, placement unit tests
+- [x] 23-03-PLAN.md — Client: UniformSelectionScreen formation section + CSS, App.tsx extended emit + BOTH_FORMATIONS_CONFIRMED holding state, browser UAT checkpoint
       **UI hint**: yes
 
 ### Phase 24: Auto-Assignment & Lineup
