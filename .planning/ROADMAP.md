@@ -74,7 +74,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 19    | 3/3                      | Complete                                         | 2026-07-03  |
 | 20    | 3/3                      | Complete                                         | 2026-07-04  |
 | 21    | 2/2                      | Complete                                         | 2026-07-04  |
-| 22    | Uniform Selection Screen | UNIFORM-02..04                                   | Not started |
+| 22    | 1/3                      | In Progress                                      |             |
 | 23    | Formation System         | FORM-01..04                                      | Not started |
 | 24    | Auto-Assignment & Lineup | ASSIGN-01..05                                    | Not started |
 | 25    | Bug & UAT Closure        | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
@@ -169,7 +169,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
    Plans:
    **Wave 1**
 
-- [ ] 22-01-PLAN.md — Shared contracts: 3 uniform socket events, GameState.selectedUniformStyles, buildInitialGameState 4-arg signature + buildReplayFrames, engine test call-site repairs
+- [x] 22-01-PLAN.md — Shared contracts: 3 uniform socket events, GameState.selectedUniformStyles, buildInitialGameState 4-arg signature + buildReplayFrames, engine test call-site repairs
 
 **Wave 2** _(blocked on Wave 1)_
 
