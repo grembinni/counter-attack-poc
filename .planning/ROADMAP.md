@@ -188,8 +188,17 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. A player who has confirmed their formation sees "waiting for opponent" and cannot change their selection; the game does not advance until both players have confirmed
 3. Piece starting positions in `KICK_OFF_SETUP` are placed from the `FORMATIONS` lookup table keyed by `FormationId`; away positions are the symmetric mirror (`q = 36 − home_q`)
 4. `GameState.selectedFormation` contains both teams' confirmed `FormationId` values after both players confirm
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 3 plans
+   Plans:
+   **Wave 1**
+
+- [ ] 23-01-PLAN.md — Shared foundation: formations.ts (FormationId/SlotRole/FormationSlot/FORMATIONS), barrel export, GameState.selectedFormation, UNIFORM_CONFIRM/UNIFORM_HOME_CONFIRMED + BOTH_FORMATIONS_CONFIRMED event, formations data-integrity test
+
+  **Wave 2** _(blocked on Wave 1)_
+
+- [ ] 23-02-PLAN.md — Server: room formation fields, UNIFORM_CONFIRM allow-list + defer buildInitialGameState + emit BOTH_FORMATIONS_CONFIRMED, buildSquadPieces/buildKickOffPieces/buildInitialGameState formation rewrite (+4 shift, mirror, #9 anchor) + all callers, placement unit tests
+- [ ] 23-03-PLAN.md — Client: UniformSelectionScreen formation section + CSS, App.tsx extended emit + BOTH_FORMATIONS_CONFIRMED holding state, browser UAT checkpoint
+      **UI hint**: yes
 
 ### Phase 24: Auto-Assignment & Lineup
 
