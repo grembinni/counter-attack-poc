@@ -59,11 +59,19 @@ Formation-specific spacing:
 | Formation grid gap               | 10px  | Matches `.teamGrid` gap (10px) — same card density feel        |
 | Formation card padding           | 8px   | Matches `.teamCard` padding (10px) — 8px preserves image space |
 | Formation image height           | 100px | Legible pitch diagram at 4-card-wide grid                      |
-| Formation label margin-top       | 6px   | Tight coupling between image and label                         |
-| Formation description margin-top | 2px   | Label + description read as a unit                             |
+| Formation label margin-top       | 8px   | Tight coupling between image and label; on 4px grid            |
+| Formation description margin-top | 4px   | Label + description read as a unit; on 4px grid                |
 
-Exceptions: formation card image area uses 100px fixed height (non-multiple of 4) to maximize
-pitch diagram legibility at the available card width. All other values remain on the 4/8/16 scale.
+### Spacing Exceptions
+
+Values that deviate from the 8-point (multiples of 4) grid require an explicit named exception:
+
+| Named Exception        | Value | Rationale                                                                                                       |
+| ---------------------- | ----- | --------------------------------------------------------------------------------------------------------------- |
+| Formation image height | 100px | Fixed height maximises pitch diagram legibility at the available card width; not a spacing token                |
+| Formation grid gap     | 10px  | Matches the established `.teamGrid` gap from Phase 22 (`gap: 10px`); aligns card density feel across both grids |
+
+All other formation-specific spacing values (`8px` card padding, `8px` label margin-top, `4px` description margin-top) are on the 4px grid and require no exception.
 
 ---
 
@@ -281,18 +289,18 @@ dependencies introduced in this phase.
 
 ## Pre-Population Source Map
 
-| Decision                           | Source                                            | Value                                                 |
-| ---------------------------------- | ------------------------------------------------- | ----------------------------------------------------- |
-| Formation is not a new screen      | 23-CONTEXT.md D-05                                | Section inserted between team and style grids         |
-| 4 formation cards, PNG assets      | 23-CONTEXT.md D-06                                | 442.png, 532.png, 433.png, 343.png                    |
-| Default formation                  | 23-CONTEXT.md D-07                                | `'4-4-2'` pre-selected                                |
-| Tactical descriptions              | 23-CONTEXT.md D-08                                | Exact strings locked in contract                      |
-| Card selection pattern             | 22-CONTEXT.md + UniformSelectionScreen.module.css | White border-glow (`.teamCardSelected`)               |
-| Spacing scale                      | UniformSelectionScreen.module.css                 | gap:10px grid, gap:16px screen                        |
-| Color tokens                       | UniformSelectionScreen.module.css                 | `#1a1a2e`, `#16213e`, `#0f3460`, `#e0e0e0`, `#a0a0a0` |
-| Typography scale                   | UniformSelectionScreen.module.css                 | 20/14/13/12px, weights 700/400                        |
-| Confirm button copy                | UniformSelectionScreen.tsx line 321               | "Confirm selection"                                   |
-| No struck-out state for formations | 23-CONTEXT.md D-12                                | Both players pick independently                       |
+| Decision                           | Source                                            | Value                                                           |
+| ---------------------------------- | ------------------------------------------------- | --------------------------------------------------------------- |
+| Formation is not a new screen      | 23-CONTEXT.md D-05                                | Section inserted between team and style grids                   |
+| 4 formation cards, PNG assets      | 23-CONTEXT.md D-06                                | 442.png, 532.png, 433.png, 343.png                              |
+| Default formation                  | 23-CONTEXT.md D-07                                | `'4-4-2'` pre-selected                                          |
+| Tactical descriptions              | 23-CONTEXT.md D-08                                | Exact strings locked in contract                                |
+| Card selection pattern             | 22-CONTEXT.md + UniformSelectionScreen.module.css | White border-glow (`.teamCardSelected`)                         |
+| Spacing scale                      | UniformSelectionScreen.module.css                 | gap:10px grid (exception), gap:16px screen; label 8px, desc 4px |
+| Color tokens                       | UniformSelectionScreen.module.css                 | `#1a1a2e`, `#16213e`, `#0f3460`, `#e0e0e0`, `#a0a0a0`           |
+| Typography scale                   | UniformSelectionScreen.module.css                 | 20/14/13/12px, weights 700/400                                  |
+| Confirm button copy                | UniformSelectionScreen.tsx line 321               | "Confirm selection"                                             |
+| No struck-out state for formations | 23-CONTEXT.md D-12                                | Both players pick independently                                 |
 
 ---
 
