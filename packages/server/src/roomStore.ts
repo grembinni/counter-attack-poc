@@ -12,7 +12,7 @@
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
 import type { GameState, GameSpeed, HexCoord } from '@counter-attack/shared';
-import type { TeamId } from '@counter-attack/shared';
+import type { TeamId, UniformStyleId } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
 import { applyFreeMoveZoneCheck } from './gameEngine.js';
@@ -79,6 +79,17 @@ export type Room = {
    * Set by TEAM_SPEED_SET handler; consumed when building game state in TEAM_PICK away-pick.
    */
   gameSpeed?: GameSpeed;
+  /**
+   * Phase 22 D-13: away's team stored on second TEAM_PICK; game state deferred until
+   * both players confirm team + uniform style via UNIFORM_CONFIRM.
+   * undefined = away has not yet picked; set when away sends TEAM_PICK; consumed by UNIFORM_CONFIRM.
+   */
+  awayPickedTeam?: TeamId;
+  /**
+   * Phase 22 D-15: set on home's UNIFORM_CONFIRM; presence gates away's confirm branch.
+   * undefined = home has not yet confirmed; defined = home confirmed, away may now confirm.
+   */
+  homePickedUniformStyle?: UniformStyleId;
 };
 
 /**
