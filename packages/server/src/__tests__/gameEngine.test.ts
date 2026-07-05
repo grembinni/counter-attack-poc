@@ -82,7 +82,7 @@ const baseMovementState: GameState = {
   // Phase 16 field (D-15)
   selectedTeams: { home: 'city', away: 'crew' },
   // Phase 22 D-17: uniform styles — defaults for test fixtures
-  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId },
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' },
   // UX-07 (Phase 18.4): game speed — default 'standard' in tests
   gameSpeed: 'standard',
 };
@@ -133,7 +133,10 @@ describe('buildInitialGameState', () => {
   it('refereeCard.leniency is random — at least 2 distinct values across 10 builds (TEAM-03)', () => {
     const values = new Set<number>();
     for (let i = 0; i < 10; i++) {
-      values.add(buildInitialGameState(`ROOM-${i}`, DEFAULT_TEAMS, 'standard', DEFAULT_STYLES).refereeCard.leniency);
+      values.add(
+        buildInitialGameState(`ROOM-${i}`, DEFAULT_TEAMS, 'standard', DEFAULT_STYLES).refereeCard
+          .leniency,
+      );
     }
     expect(values.size).toBeGreaterThanOrEqual(2);
   });
@@ -632,7 +635,7 @@ const passState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
-  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -661,7 +664,7 @@ const shotState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
-  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -699,7 +702,7 @@ const headerState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
-  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -737,7 +740,7 @@ const looseBallState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
-  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 
@@ -1221,7 +1224,7 @@ const gkRestartState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // Phase 16 D-15
-  selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' }, // Phase 22 D-17
   gameSpeed: 'standard', // UX-07 (Phase 18.4)
 };
 

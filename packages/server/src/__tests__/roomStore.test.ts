@@ -13,6 +13,12 @@ import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
 
+// Phase 22 D-17: default uniform styles for test call sites.
+const DEFAULT_STYLES_RS: { home: UniformStyleId; away: UniformStyleId } = {
+  home: 'pinstripes-vertical',
+  away: 'bar-diagonal',
+};
+
 afterEach(() => {
   clearAllRooms();
 });
@@ -190,7 +196,7 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'city', away: 'crew' },
-    selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+    selectedUniformStyles: DEFAULT_STYLES_RS, // Phase 22 D-17
     gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
     ...overrides,
   };

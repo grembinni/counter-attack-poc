@@ -23,6 +23,12 @@ import {
 } from '../gameEngine.js';
 import { hexDistance } from '@counter-attack/shared';
 
+// Phase 22 D-17: default uniform styles for test call sites.
+const DEFAULT_STYLES_OS: { home: UniformStyleId; away: UniformStyleId } = {
+  home: 'pinstripes-vertical',
+  away: 'bar-diagonal',
+};
+
 // ---------------------------------------------------------------------------
 // Test fixtures (mirrors gameEngine.test.ts fixture conventions)
 // ---------------------------------------------------------------------------
@@ -75,7 +81,7 @@ function makeState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): G
     kickOffTeam: 'home',
     kickOffActive: false,
     selectedTeams: { home: 'city', away: 'crew' },
-    selectedUniformStyles: { home: 'pinstripes-vertical' as UniformStyleId, away: 'bar-diagonal' as UniformStyleId }, // Phase 22 D-17
+    selectedUniformStyles: DEFAULT_STYLES_OS, // Phase 22 D-17
     gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
     ...overrides,
   };
