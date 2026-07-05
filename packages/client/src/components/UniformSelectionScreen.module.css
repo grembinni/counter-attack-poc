@@ -45,59 +45,52 @@
   width: 100%;
 }
 
-/* D-02: flat 6×2 team grid (preferred), collapses to 3×4 at narrow viewports */
+/* D-02: flat 6×2 team grid, collapses to 3×4 at narrow viewports */
 .teamGrid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
+  gap: 10px;
   max-width: 800px;
   width: 100%;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .teamGrid {
     grid-template-columns: repeat(3, 1fr);
-    max-width: 420px;
+    max-width: 360px;
   }
 }
 
-/* Team card — default state */
+/* Team card — background set inline to palette.homePrime */
 .teamCard {
-  border: 2px solid #0f3460;
-  border-radius: 4px;
-  background: #16213e;
-  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: transparent;
+  padding: 10px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   cursor: pointer;
-  min-width: 100px;
-  min-height: 120px;
   transition:
     box-shadow 0.15s ease,
     opacity 0.15s ease;
 }
 
 .teamCard:hover:not(:disabled) {
-  box-shadow: 0 0 0 2px currentColor;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
 }
 
-/* Team card — selected state; border-color set inline via palette.homePrime */
+/* Team card — selected state */
 .teamCardSelected {
-  border: 3px solid #0f3460;
-  border-radius: 4px;
-  background: #16213e;
-  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  background: transparent;
+  padding: 10px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   cursor: pointer;
-  min-width: 100px;
-  min-height: 120px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
   transition:
     box-shadow 0.15s ease,
     opacity 0.15s ease;
@@ -105,27 +98,32 @@
 
 /* Team card — struck-out (away player cannot select home's team) */
 .teamCardStruckOut {
-  border: 2px solid #0f3460;
-  border-radius: 4px;
-  background: #16213e;
-  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: transparent;
+  padding: 10px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   cursor: not-allowed;
-  min-width: 100px;
-  min-height: 120px;
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
-/* D-03: flat 6×3 style tile grid (all 18 styles) */
+/* Badge image — no forced shape, natural aspect ratio; multiply removes white PNG backgrounds */
+.teamBadge {
+  width: 72px;
+  height: 72px;
+  display: block;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+/* D-03: flat 9×2 style tile grid (all 18 styles, 2 rows of 9) */
 .styleGrid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(9, 1fr);
   gap: 8px;
-  max-width: 560px;
+  max-width: 800px;
   width: 100%;
 }
 
@@ -146,6 +144,21 @@
 
 .styleTile:hover:not(:disabled) {
   box-shadow: 0 0 0 1px #a0a0a0;
+}
+
+/* Style tile — struck-out (away player cannot select home's confirmed style) */
+.styleTileStruckOut {
+  width: 80px;
+  height: 80px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #16213e;
+  cursor: not-allowed;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.35;
 }
 
 /* Style tile — selected state; border-color and box-shadow set inline via palette */

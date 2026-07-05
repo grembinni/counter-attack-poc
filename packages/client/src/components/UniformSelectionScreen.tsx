@@ -28,13 +28,12 @@ import mexicoFullBadge from '../assets/badges/mexico-full.png';
 import spainFullBadge from '../assets/badges/spain-full.png';
 import usFullBadge from '../assets/badges/us-full.png';
 
-/** D-05: neutral palette for style tiles before a team is selected. */
 const NEUTRAL_PALETTE: TeamPalette = {
   homePrime: '#555',
-  homeAlt: '#ccc',
+  homeAlt: '#888',
   homeFont: '#fff',
   awayPrime: '#555',
-  awayAlt: '#ccc',
+  awayAlt: '#888',
   awayFont: '#fff',
   uiColor: '#555',
 };
@@ -108,6 +107,9 @@ export function UniformSelectionScreen({
   const playerSlot = useGameStore((s) => s.playerSlot);
 
   const iAmHome = playerSlot === 1;
+  // Away player is locked out until home has confirmed their team + style.
+  const awayLocked = !iAmHome && homeConfirmedStyle === null;
+
   const heading = iAmHome ? 'Home: choose your team + style' : 'Away: choose your team + style';
 
   const [selectedTeam, setSelectedTeam] = useState<TeamId | null>(null);
@@ -121,12 +123,25 @@ export function UniformSelectionScreen({
     }
   }, [selectedTeam]);
 
+  // Style tiles render in the player's own color scheme: away uses awayPrime/awayAlt.
+  const tileRenderPalette: TeamPalette = (() => {
+    if (!selectedTeam) return NEUTRAL_PALETTE;
+    const p = TEAM_CONFIGS[selectedTeam].palette;
+    if (iAmHome) return p;
+    return { ...p, homePrime: p.awayPrime, homeAlt: p.awayAlt, homeFont: p.awayFont };
+  })();
+
   // WR-03: compute once for the speed selector visitor branch.
   const selectedOption = SPEED_OPTIONS.find((o) => o.value === selectedSpeed);
 
   return (
     <div className={styles.screen}>
       <h2 className={styles.heading}>{heading}</h2>
+
+      {/* Away player waiting message — shown until home confirms */}
+      {awayLocked && (
+        <p className={styles.statusLine}>Waiting for home player to confirm their selection…</p>
+      )}
 
       {/* D-11: Opponent confirmed banner — away player only, after home confirms */}
       {homeConfirmedStyle !== null && !iAmHome && homePickedTeam !== null && (
@@ -204,7 +219,8 @@ export function UniformSelectionScreen({
       <div className={styles.teamGrid}>
         {ALL_TEAMS.map((teamId) => {
           const isStruckOut = teamId === homePickedTeam;
-          const isDisabled = isStruckOut || hasConfirmed;
+          const isDisabled = isStruckOut || hasConfirmed || awayLocked;
+          const bgColor = TEAM_CONFIGS[teamId].palette.homePrime;
           return (
             <button
               key={teamId}
@@ -218,11 +234,7 @@ export function UniformSelectionScreen({
                     ? styles.teamCardSelected
                     : styles.teamCard
               }
-              style={
-                teamId === selectedTeam
-                  ? { borderColor: TEAM_CONFIGS[teamId].palette.homePrime }
-                  : undefined
-              }
+              style={{ background: bgColor }}
               onClick={() => {
                 if (!isDisabled) setSelectedTeam(teamId);
               }}
@@ -230,8 +242,7 @@ export function UniformSelectionScreen({
               <img
                 src={FULL_BADGE_MAP[teamId]}
                 alt={`${TEAM_CONFIGS[teamId].name} badge`}
-                width={80}
-                height={80}
+                className={styles.teamBadge}
               />
             </button>
           );
@@ -243,31 +254,34 @@ export function UniformSelectionScreen({
       <div className={styles.styleGrid}>
         {ALL_STYLE_IDS.map((styleId, index) => {
           const n = index + 1;
-          const palette = selectedTeam ? TEAM_CONFIGS[selectedTeam].palette : NEUTRAL_PALETTE;
+          const isHomeStyle = !iAmHome && homeConfirmedStyle === styleId;
           const result = UNIFORM_STYLES[styleId]({
             cx: 40,
             cy: 40,
             R: 30,
-            palette,
+            palette: tileRenderPalette,
             isGK: false,
             pieceId: `style-${n}`,
           });
-          const accentColor = selectedTeam
-            ? TEAM_CONFIGS[selectedTeam].palette.homePrime
-            : '#e0e0e0';
+          const accentColor = selectedTeam ? tileRenderPalette.homePrime : '#e0e0e0';
+          const tileClass = isHomeStyle
+            ? styles.styleTileStruckOut
+            : styleId === selectedStyle
+              ? styles.styleTileSelected
+              : styles.styleTile;
           return (
             <button
               key={styleId}
-              disabled={hasConfirmed}
+              disabled={hasConfirmed || awayLocked || isHomeStyle}
               aria-pressed={styleId === selectedStyle}
               aria-label={UNIFORM_STYLE_META[styleId].name}
-              className={styleId === selectedStyle ? styles.styleTileSelected : styles.styleTile}
+              className={tileClass}
               style={
-                styleId === selectedStyle
+                styleId === selectedStyle && !isHomeStyle
                   ? { borderColor: accentColor, boxShadow: `0 0 0 2px ${accentColor}` }
                   : undefined
               }
-              onClick={() => setSelectedStyle(styleId)}
+              onClick={() => !awayLocked && !isHomeStyle && setSelectedStyle(styleId)}
             >
               <svg width={80} height={80} xmlns="http://www.w3.org/2000/svg">
                 <defs>{result.patternDef}</defs>
@@ -275,11 +289,11 @@ export function UniformSelectionScreen({
                 {result.overlay}
                 <text
                   x={40}
-                  y={44}
+                  y={49}
                   textAnchor="middle"
-                  fontSize={14}
+                  fontSize={26}
                   fontWeight={700}
-                  fill={selectedTeam ? palette.homeFont : '#fff'}
+                  fill={selectedTeam ? tileRenderPalette.homeFont : '#fff'}
                   pointerEvents="none"
                 >
                   {n}
@@ -294,8 +308,8 @@ export function UniformSelectionScreen({
       {!hasConfirmed ? (
         <button
           className={styles.confirmButton}
-          disabled={selectedTeam === null || selectedStyle === null}
-          aria-disabled={selectedTeam === null || selectedStyle === null}
+          disabled={selectedTeam === null || selectedStyle === null || awayLocked}
+          aria-disabled={selectedTeam === null || selectedStyle === null || awayLocked}
           aria-label="Confirm team and style selection"
           onClick={() => {
             if (selectedTeam && selectedStyle) {
