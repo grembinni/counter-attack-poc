@@ -101,6 +101,14 @@ No new security surfaces beyond those already in the threat model. All T-22-03 t
 | T-22-05 (DoS) | isProcessing mutex try/finally | UNIFORM_CONFIRM handler |
 | T-22-06 (DoS) | try/catch around buildInitialGameState emitting GAME_ERROR 'SERVER_ERROR' | UNIFORM_CONFIRM away branch |
 
+## Self-Check: PASSED
+
+- SUMMARY.md: FOUND
+- Commit 390d50e (Task 1): FOUND
+- Commit 8966f7b (Task 2): FOUND
+- Commit 58e5d74 (Task 3): FOUND
+- Commit 2d3f1ab (docs): FOUND
+
 ---
 *Phase: 22-uniform-selection-screen*
 *Completed: 2026-07-05*
