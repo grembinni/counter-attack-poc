@@ -1,0 +1,314 @@
+/**
+ * UniformSelectionScreen — Phase 22 D-01/D-02/D-03.
+ * Combined team + style selection screen. Replaces TeamSelectionScreen in the pre-game flow.
+ * - All 12 teams flat (no tabs), MLS first then International (D-02).
+ * - All 18 style tiles always visible; neutral palette before team selection (D-05).
+ * - defaultUniformStyle pre-selected on team pick (D-09 / UNIFORM-03).
+ * - Single Confirm locks both choices; away sees struck-out home card (D-04).
+ * - After home confirms, away sees "Opponent confirmed" banner (D-11).
+ */
+import { useState, useEffect } from 'react';
+import { useGameStore } from '../store/useGameStore.js';
+import { TEAM_CONFIGS, UNIFORM_STYLE_META } from '@counter-attack/shared';
+import type { GameSpeed, TeamId, TeamPalette, UniformStyleId } from '@counter-attack/shared';
+import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
+import styles from './UniformSelectionScreen.module.css';
+
+// D-13: static Vite imports for full-size badge variants — content-hashed at build time.
+import cityFullBadge from '../assets/badges/city-full.png';
+import crewFullBadge from '../assets/badges/crew-full.png';
+import laFullBadge from '../assets/badges/la-full.png';
+import miamiFullBadge from '../assets/badges/miami-full.png';
+import nashvilleFullBadge from '../assets/badges/nashville-full.png';
+import seattleFullBadge from '../assets/badges/seattle-full.png';
+import canadaFullBadge from '../assets/badges/canada-full.png';
+import englandFullBadge from '../assets/badges/england-full.png';
+import franceFullBadge from '../assets/badges/france-full.png';
+import mexicoFullBadge from '../assets/badges/mexico-full.png';
+import spainFullBadge from '../assets/badges/spain-full.png';
+import usFullBadge from '../assets/badges/us-full.png';
+
+/** D-05: neutral palette for style tiles before a team is selected. */
+const NEUTRAL_PALETTE: TeamPalette = {
+  homePrime: '#555',
+  homeAlt: '#ccc',
+  homeFont: '#fff',
+  awayPrime: '#555',
+  awayAlt: '#ccc',
+  awayFont: '#fff',
+  uiColor: '#555',
+};
+
+/** D-02: MLS teams first, then International — flat layout, no tabs. */
+const ALL_TEAMS: TeamId[] = [
+  'city',
+  'crew',
+  'la',
+  'miami',
+  'nashville',
+  'seattle', // MLS
+  'canada',
+  'england',
+  'france',
+  'mexico',
+  'spain',
+  'us', // International
+];
+
+/** All 18 uniform style IDs in registry order. */
+const ALL_STYLE_IDS = Object.keys(UNIFORM_STYLES) as UniformStyleId[];
+
+/** Maps TeamId to full-size badge Vite import URL. */
+const FULL_BADGE_MAP: Record<TeamId, string> = {
+  city: cityFullBadge,
+  crew: crewFullBadge,
+  la: laFullBadge,
+  miami: miamiFullBadge,
+  nashville: nashvilleFullBadge,
+  seattle: seattleFullBadge,
+  canada: canadaFullBadge,
+  england: englandFullBadge,
+  france: franceFullBadge,
+  mexico: mexicoFullBadge,
+  spain: spainFullBadge,
+  us: usFullBadge,
+};
+
+/** UX-07: speed options with display labels, icons, and per-speed CSS color classes. */
+const SPEED_OPTIONS: { value: GameSpeed; label: string; icon: string; colorClass: string }[] = [
+  { value: 'slow', label: 'Slow', icon: '🐢', colorClass: 'speedColorSlow' },
+  { value: 'standard', label: 'Standard', icon: '⚽', colorClass: 'speedColorStandard' },
+  { value: 'fast', label: 'Fast', icon: '⚡', colorClass: 'speedColorFast' },
+];
+
+type Props = {
+  /** The team that home player has already picked (from TEAM_HOME_PICKED), or null. */
+  homePickedTeam: TeamId | null;
+  /** Set when home player has confirmed their team + style (UNIFORM_HOME_CONFIRMED), or null. */
+  homeConfirmedStyle: UniformStyleId | null;
+  /** Called when the active player clicks Confirm with their team + style choices. */
+  onConfirm: (teamId: TeamId, uniformStyle: UniformStyleId) => void;
+  /** UX-07: current selected game speed (home-player controlled). */
+  selectedSpeed: GameSpeed;
+  /** UX-07: called when home player changes game speed. */
+  onSpeedChange: (speed: GameSpeed) => void;
+};
+
+/**
+ * Combined team + uniform style selection screen (Phase 22).
+ * Both team grid and style tile grid on one screen; one Confirm button locks both choices.
+ */
+export function UniformSelectionScreen({
+  homePickedTeam,
+  homeConfirmedStyle,
+  onConfirm,
+  selectedSpeed,
+  onSpeedChange,
+}: Props) {
+  const playerSlot = useGameStore((s) => s.playerSlot);
+
+  const iAmHome = playerSlot === 1;
+  const heading = iAmHome ? 'Home: choose your team + style' : 'Away: choose your team + style';
+
+  const [selectedTeam, setSelectedTeam] = useState<TeamId | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<UniformStyleId | null>(null);
+  const [hasConfirmed, setHasConfirmed] = useState(false);
+
+  // D-09 / UNIFORM-03: pre-select team's defaultUniformStyle when a team is chosen.
+  useEffect(() => {
+    if (selectedTeam !== null) {
+      setSelectedStyle(TEAM_CONFIGS[selectedTeam].defaultUniformStyle);
+    }
+  }, [selectedTeam]);
+
+  // WR-03: compute once for the speed selector visitor branch.
+  const selectedOption = SPEED_OPTIONS.find((o) => o.value === selectedSpeed);
+
+  return (
+    <div className={styles.screen}>
+      <h2 className={styles.heading}>{heading}</h2>
+
+      {/* D-11: Opponent confirmed banner — away player only, after home confirms */}
+      {homeConfirmedStyle !== null && !iAmHome && homePickedTeam !== null && (
+        <div
+          role="status"
+          className={styles.opponentBanner}
+          style={{ borderLeftColor: TEAM_CONFIGS[homePickedTeam].palette.homePrime }}
+        >
+          <svg
+            width={48}
+            height={48}
+            xmlns="http://www.w3.org/2000/svg"
+            className={styles.bannerPiece}
+          >
+            {(() => {
+              const result = UNIFORM_STYLES[homeConfirmedStyle]({
+                cx: 24,
+                cy: 24,
+                R: 20,
+                palette: TEAM_CONFIGS[homePickedTeam].palette,
+                isGK: false,
+                pieceId: 'banner-home',
+              });
+              return (
+                <>
+                  <defs>{result.patternDef}</defs>
+                  <circle cx={24} cy={24} r={20} fill={result.fill} />
+                  {result.overlay}
+                </>
+              );
+            })()}
+          </svg>
+          <span className={styles.bannerText}>Opponent confirmed</span>
+        </div>
+      )}
+
+      {/* UX-07: speed selector — home player controls it (locked once they confirm) */}
+      {iAmHome && (
+        <div className={styles.speedSelector}>
+          <span className={styles.statusLine}>Match speed:</span>
+          <div className={styles.speedOptions}>
+            {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
+              <button
+                key={value}
+                disabled={hasConfirmed}
+                className={
+                  value === selectedSpeed
+                    ? `${styles.speedOptionActive} ${styles[colorClass]}`
+                    : `${styles.speedOption} ${styles[colorClass]}`
+                }
+                onClick={() => onSpeedChange(value)}
+                aria-pressed={value === selectedSpeed}
+              >
+                <span className={styles.speedIcon}>{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {!iAmHome && (
+        <div className={styles.speedSelector}>
+          <span className={styles.statusLine}>Match speed:</span>
+          <span
+            className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
+          >
+            <span className={styles.speedIcon}>{selectedOption?.icon}</span>
+            {selectedOption?.label ?? selectedSpeed}
+          </span>
+        </div>
+      )}
+
+      {/* Team grid section */}
+      <p className={styles.sectionLabel}>Team</p>
+      <div className={styles.teamGrid}>
+        {ALL_TEAMS.map((teamId) => {
+          const isStruckOut = teamId === homePickedTeam;
+          const isDisabled = isStruckOut || hasConfirmed;
+          return (
+            <button
+              key={teamId}
+              disabled={isDisabled}
+              aria-pressed={teamId === selectedTeam}
+              aria-label={TEAM_CONFIGS[teamId].name}
+              className={
+                isStruckOut
+                  ? styles.teamCardStruckOut
+                  : teamId === selectedTeam
+                    ? styles.teamCardSelected
+                    : styles.teamCard
+              }
+              style={
+                teamId === selectedTeam
+                  ? { borderColor: TEAM_CONFIGS[teamId].palette.homePrime }
+                  : undefined
+              }
+              onClick={() => {
+                if (!isDisabled) setSelectedTeam(teamId);
+              }}
+            >
+              <img
+                src={FULL_BADGE_MAP[teamId]}
+                alt={`${TEAM_CONFIGS[teamId].name} badge`}
+                width={80}
+                height={80}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Style tile grid section */}
+      <p className={styles.sectionLabel}>Style</p>
+      <div className={styles.styleGrid}>
+        {ALL_STYLE_IDS.map((styleId, index) => {
+          const n = index + 1;
+          const palette = selectedTeam ? TEAM_CONFIGS[selectedTeam].palette : NEUTRAL_PALETTE;
+          const result = UNIFORM_STYLES[styleId]({
+            cx: 40,
+            cy: 40,
+            R: 30,
+            palette,
+            isGK: false,
+            pieceId: `style-${n}`,
+          });
+          const accentColor = selectedTeam
+            ? TEAM_CONFIGS[selectedTeam].palette.homePrime
+            : '#e0e0e0';
+          return (
+            <button
+              key={styleId}
+              disabled={hasConfirmed}
+              aria-pressed={styleId === selectedStyle}
+              aria-label={UNIFORM_STYLE_META[styleId].name}
+              className={styleId === selectedStyle ? styles.styleTileSelected : styles.styleTile}
+              style={
+                styleId === selectedStyle
+                  ? { borderColor: accentColor, boxShadow: `0 0 0 2px ${accentColor}` }
+                  : undefined
+              }
+              onClick={() => setSelectedStyle(styleId)}
+            >
+              <svg width={80} height={80} xmlns="http://www.w3.org/2000/svg">
+                <defs>{result.patternDef}</defs>
+                <circle cx={40} cy={40} r={30} fill={result.fill} />
+                {result.overlay}
+                <text
+                  x={40}
+                  y={44}
+                  textAnchor="middle"
+                  fontSize={14}
+                  fontWeight={700}
+                  fill={selectedTeam ? palette.homeFont : '#fff'}
+                  pointerEvents="none"
+                >
+                  {n}
+                </text>
+              </svg>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Confirm / waiting block — D-06 */}
+      {!hasConfirmed ? (
+        <button
+          className={styles.confirmButton}
+          disabled={selectedTeam === null || selectedStyle === null}
+          aria-disabled={selectedTeam === null || selectedStyle === null}
+          aria-label="Confirm team and style selection"
+          onClick={() => {
+            if (selectedTeam && selectedStyle) {
+              onConfirm(selectedTeam, selectedStyle);
+              setHasConfirmed(true);
+            }
+          }}
+        >
+          Confirm selection
+        </button>
+      ) : (
+        <p className={styles.statusLine}>Waiting for opponent…</p>
+      )}
+    </div>
+  );
+}

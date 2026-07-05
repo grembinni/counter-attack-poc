@@ -83,5 +83,6 @@ export const mockMovementState: GameState = {
   kickOffTeam: 'home',
   kickOffActive: false,
   selectedTeams: { home: 'city', away: 'crew' }, // D-04: cosmos/xolos no longer valid TeamId
+  selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' }, // Phase 22 D-16
   gameSpeed: 'standard' as const, // UX-07 (Phase 18.4)
 };

@@ -1,0 +1,307 @@
+/* UniformSelectionScreen — Phase 22 D-01/D-02/D-03
+ * Color palette: dark-theme token set from LobbyScreen / TeamSelectionScreen:
+ * --bg-page: #1a1a2e; --bg-surface: #16213e; --border: #0f3460;
+ * --text: #e0e0e0; --text-dim: #a0a0a0;
+ * Accent colors (team palette.homePrime, selected borders/glows) are set inline in TSX.
+ */
+
+/* Full-viewport centered flex column — mirrors TeamSelectionScreen.module.css .screen */
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #1a1a2e;
+  gap: 16px;
+  padding: 24px;
+}
+
+/* Screen heading: 20px/700 */
+.heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Status line: "Waiting for opponent…" / "Match speed:" */
+.statusLine {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  margin: 0;
+}
+
+/* Section sub-heading above team grid and style grid */
+.sectionLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: #a0a0a0;
+  margin: 0;
+  align-self: flex-start;
+  max-width: 560px;
+  width: 100%;
+}
+
+/* D-02: flat 6×2 team grid (preferred), collapses to 3×4 at narrow viewports */
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  max-width: 800px;
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .teamGrid {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 420px;
+  }
+}
+
+/* Team card — default state */
+.teamCard {
+  border: 2px solid #0f3460;
+  border-radius: 4px;
+  background: #16213e;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 100px;
+  min-height: 120px;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.teamCard:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+/* Team card — selected state; border-color set inline via palette.homePrime */
+.teamCardSelected {
+  border: 3px solid #0f3460;
+  border-radius: 4px;
+  background: #16213e;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 100px;
+  min-height: 120px;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+/* Team card — struck-out (away player cannot select home's team) */
+.teamCardStruckOut {
+  border: 2px solid #0f3460;
+  border-radius: 4px;
+  background: #16213e;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: not-allowed;
+  min-width: 100px;
+  min-height: 120px;
+  opacity: 0.4;
+}
+
+/* D-03: flat 6×3 style tile grid (all 18 styles) */
+.styleGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  max-width: 560px;
+  width: 100%;
+}
+
+/* Style tile — default state (80×80px per D-10) */
+.styleTile {
+  width: 80px;
+  height: 80px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #16213e;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.15s ease;
+}
+
+.styleTile:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px #a0a0a0;
+}
+
+/* Style tile — selected state; border-color and box-shadow set inline via palette */
+.styleTileSelected {
+  width: 80px;
+  height: 80px;
+  border: 3px solid;
+  border-radius: 4px;
+  background: #16213e;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* D-11: Opponent confirmed banner (away player only, after home confirms) */
+.opponentBanner {
+  max-width: 560px;
+  width: 100%;
+  background: #16213e;
+  border-left: 3px solid; /* color set inline via palette.homePrime */
+  border-radius: 4px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bannerPiece {
+  flex-shrink: 0;
+}
+
+.bannerText {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+/* Confirm selection CTA button */
+.confirmButton {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: #0f3460;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  cursor: pointer;
+  min-width: 160px;
+  transition: opacity 0.15s ease;
+}
+
+.confirmButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Speed selector — copied verbatim from TeamSelectionScreen.module.css ─── */
+
+/* UX-07: game speed selector container */
+.speedSelector {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 480px;
+  width: 100%;
+}
+
+/* UX-07: speed option buttons row */
+.speedOptions {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+/* UX-07: inactive speed option */
+.speedOption {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  background: #16213e;
+  border: 1px solid #a0a0a0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.speedOption:hover:not(:disabled) {
+  border-color: #e0e0e0;
+  color: #e0e0e0;
+}
+
+.speedOption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* UX-07: active/selected speed option */
+.speedOptionActive {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: #16213e;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.speedOptionActive:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* UX-07: per-speed accent colors */
+.speedColorSlow {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.speedColorSlow.speedOptionActive {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: #93c5fd;
+}
+
+.speedColorStandard {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.speedColorStandard.speedOptionActive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border-color: #86efac;
+}
+
+.speedColorFast {
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.speedColorFast.speedOptionActive {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fdba74;
+  border-color: #fdba74;
+}
+
+/* UX-07: emoji icon spacing inside speed buttons */
+.speedIcon {
+  display: inline-block;
+  margin-right: 4px;
+  font-style: normal;
+}
