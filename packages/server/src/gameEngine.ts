@@ -25,7 +25,9 @@ import type {
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
+import type { FormationId } from '@counter-attack/shared';
 import {
+  FORMATIONS,
   GAME_SPEED_MINUTES,
   getSquadPlayers,
   PITCH_REGIONS,
@@ -113,37 +115,49 @@ const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
 function buildSquadPieces(
   attackingTeam: 'home' | 'away',
   selectedTeams: { home: TeamId; away: TeamId },
+  selectedFormation: { home: FormationId; away: FormationId },
 ): PlayerPiece[] {
+  const homeSlots = FORMATIONS[selectedFormation.home].slots;
+  const awaySlots = FORMATIONS[selectedFormation.away].slots;
   const homeSquad = getSquadPlayers(selectedTeams.home).map((p, i) => ({
     ...p,
     teamId: 'home' as const,
     id: `home-${i}`,
+    position: { ...homeSlots[i]!.position }, // spread — never mutate the readonly slot (T-23-01)
+    number: homeSlots[i]!.jerseyNumber,
   }));
   const awaySquad = getSquadPlayers(selectedTeams.away).map((p, i) => ({
     ...p,
     teamId: 'away' as const,
     id: `away-${i}`,
-    position: { q: 36 - p.position.q, r: p.position.r }, // A1 mirror formula
+    position: { q: 36 - awaySlots[i]!.position.q, r: awaySlots[i]!.position.r }, // away mirror
+    number: awaySlots[i]!.jerseyNumber,
   }));
   const pieces = [...homeSquad, ...awaySquad];
-  const homeST = pieces.find((p) => p.teamId === 'home' && p.role === 'ST');
-  const awayST = pieces.find((p) => p.teamId === 'away' && p.role === 'ST');
-  if (!homeST || !awayST) {
-    // WR-02: Log a diagnostic error if either striker is absent — game proceeds with
-    // pieces at their formation positions (ball at centre, no carrier until pickup),
-    // but this indicates a data integrity problem that should be investigated.
-    console.error(
-      `buildSquadPieces: missing ST for home=${!homeST} away=${!awayST} (selectedTeams: ${JSON.stringify(selectedTeams ?? {})})`,
-    );
-  } else {
+
+  // Kick-off +4 shift: kicking team outfield pieces move 4 hexes toward the centre.
+  // GK is exempt; non-kicking team positions are unchanged (CONTEXT D-16).
+  for (const piece of pieces) {
+    if (piece.teamId !== attackingTeam) continue;
+    if (piece.role === 'GK') continue;
     if (attackingTeam === 'home') {
-      homeST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
-      awayST.position = { q: 22, r: 13 }; // away-side, just outside centre circle
+      piece.position = { q: piece.position.q + 4, r: piece.position.r };
     } else {
-      awayST.position = { ...PITCH_REGIONS.kickOffHex }; // centre dot
-      homeST.position = { q: 14, r: 13 }; // home-side, just outside centre circle
+      piece.position = { q: piece.position.q - 4, r: piece.position.r };
     }
   }
+
+  // Anchor jersey-#9 of the kicking team to the kick-off hex (Pitfall 2: use number, not role).
+  const kickingStriker = pieces.find((p) => p.teamId === attackingTeam && p.number === 9);
+  if (!kickingStriker) {
+    // WR-02: Log diagnostic if striker absent — game proceeds with pieces at formation positions.
+    console.error(
+      `buildSquadPieces: missing jersey-#9 for attacking team=${attackingTeam} (selectedTeams: ${JSON.stringify(selectedTeams)})`,
+    );
+  } else {
+    kickingStriker.position = { ...PITCH_REGIONS.kickOffHex };
+  }
+
   return pieces;
 }
 
@@ -152,10 +166,11 @@ export function buildInitialGameState(
   selectedTeams: { home: TeamId; away: TeamId },
   gameSpeed: GameSpeed = 'standard',
   selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId },
+  selectedFormation: { home: FormationId; away: FormationId } = { home: '4-4-2', away: '4-4-2' },
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
-  const pieces = buildSquadPieces(attackingTeam, selectedTeams);
+  const pieces = buildSquadPieces(attackingTeam, selectedTeams, selectedFormation);
 
   return {
     roomCode,
@@ -182,6 +197,7 @@ export function buildInitialGameState(
     kickOffActive: false,
     selectedTeams, // D-15: embedded in every subsequent snapshot
     selectedUniformStyles, // Phase 22 D-17: home/away kit choices embedded in every snapshot
+    selectedFormation, // Phase 23 D-11: formation choices embedded in every snapshot
     gameSpeed, // UX-07 (Phase 18.4): drives per-MOVE clock increment
   };
 }
@@ -196,8 +212,9 @@ export function buildInitialGameState(
 export function buildKickOffPieces(
   attackingTeam: 'home' | 'away',
   selectedTeams: { home: TeamId; away: TeamId },
+  selectedFormation: { home: FormationId; away: FormationId } = { home: '4-4-2', away: '4-4-2' },
 ) {
-  return buildSquadPieces(attackingTeam, selectedTeams);
+  return buildSquadPieces(attackingTeam, selectedTeams, selectedFormation);
 }
 
 // ---------------------------------------------------------------------------
@@ -1945,7 +1962,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            pieces: buildKickOffPieces(newKickOffTeam, state.selectedTeams),
+            pieces: buildKickOffPieces(
+              newKickOffTeam,
+              state.selectedTeams,
+              state.selectedFormation,
+            ),
             phase: 'KICK_OFF_SETUP',
             score: newScoreUnsaveable,
             attackingTeam: newKickOffTeam,
@@ -2032,7 +2053,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            pieces: buildKickOffPieces(newKickOffTeam, state.selectedTeams),
+            pieces: buildKickOffPieces(
+              newKickOffTeam,
+              state.selectedTeams,
+              state.selectedFormation,
+            ),
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -4115,7 +4140,11 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
   const newAttackingTeam: 'home' | 'away' = state.kickOffTeam === 'home' ? 'away' : 'home';
 
   // Reset pieces to formation starting positions using selectedTeams (Phase 16, Pitfall 6; "4-5-2" = movement sequence)
-  const resetPieces = buildKickOffPieces(newAttackingTeam, state.selectedTeams);
+  const resetPieces = buildKickOffPieces(
+    newAttackingTeam,
+    state.selectedTeams,
+    state.selectedFormation,
+  );
 
   return {
     ok: true,
@@ -4211,7 +4240,11 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     phase: 'KICK_OFF',
     activeTeam: finalState.kickOffTeam,
     attackingTeam: finalState.kickOffTeam,
-    pieces: buildKickOffPieces(finalState.kickOffTeam, finalState.selectedTeams),
+    pieces: buildKickOffPieces(
+      finalState.kickOffTeam,
+      finalState.selectedTeams,
+      finalState.selectedFormation,
+    ),
     ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
     score: { home: 0, away: 0 },
     actionCount: 0,

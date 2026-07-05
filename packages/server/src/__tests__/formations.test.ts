@@ -35,6 +35,8 @@ describe('FORMATIONS registry — data integrity (Phase 23 Plan 01)', () => {
   it('Test 4: slot index 0 is the GK with the correct position and jersey number in every formation', () => {
     for (const [id, formation] of Object.entries(FORMATIONS)) {
       const gk = formation.slots[0];
+      expect(gk, `${id} slots[0] must exist`).toBeDefined();
+      if (!gk) continue;
       expect(gk.slotId, `${id} slots[0].slotId`).toBe('GK');
       expect(gk.slotRole, `${id} slots[0].slotRole`).toBe('GK');
       expect(gk.position, `${id} slots[0].position`).toEqual({ q: 2, r: 13 });

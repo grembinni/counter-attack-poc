@@ -128,11 +128,11 @@ async function setupRoom(): Promise<{
   clientB.emit(ClientEvents.TEAM_PICK, 'crew');
   await uniformStartPromise;
   const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED);
-  clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical');
+  clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2');
   await homeConfirmedPromise;
   const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
   const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
-  clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal');
+  clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2');
   const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   return { clientA, clientB, roomCode, state };

@@ -25,6 +25,7 @@
 
 import type {
   ClientToServerEvents,
+  FormationId,
   GameSpeed,
   InterServerEvents,
   ServerToClientEvents,
@@ -60,6 +61,9 @@ const VALID_GAME_SPEEDS: readonly GameSpeed[] = ['slow', 'standard', 'fast'] as 
 const VALID_UNIFORM_STYLE_IDS: readonly UniformStyleId[] = Object.keys(
   UNIFORM_STYLE_META,
 ) as UniformStyleId[];
+
+/** Valid formation IDs — allow-list for UNIFORM_CONFIRM formationId validation (T-23-03 / ASVS V5). */
+const VALID_FORMATION_IDS: readonly FormationId[] = ['4-4-2', '5-3-2', '4-3-3', '3-4-3'] as const;
 
 /** 90-second grace period before disconnected player's room is deleted. */
 const GRACE_PERIOD_MS = 90_000;
@@ -277,83 +281,110 @@ export function registerRoomHandlers(
 
     // -----------------------------------------------------------------------
     // UNIFORM_CONFIRM
-    // Phase 22 D-14/D-15: enforces home-first confirm order, allow-list validation,
-    // isProcessing mutex. Home confirm stores homePickedUniformStyle and broadcasts
-    // UNIFORM_HOME_CONFIRMED. Away confirm builds game state with both teams + styles.
-    // Threat mitigations: T-22-03 (allow-list), T-22-04 (home-first), T-22-05 (mutex),
-    // T-22-06 (buildInitialGameState error guard).
+    // Phase 22 D-14/D-15, extended Phase 23 D-12: enforces home-first confirm order,
+    // allow-list validation, isProcessing mutex. Home confirm stores homePickedUniformStyle
+    // and homePickedFormation, broadcasts UNIFORM_HOME_CONFIRMED. Away confirm builds
+    // formation-driven game state (selectedFormation on GameState), broadcasts GAME_STATE,
+    // and ALSO emits BOTH_FORMATIONS_CONFIRMED (Phase 24 listens to this for auto-assignment).
+    // Threat mitigations: T-22-03/T-23-03 (allow-lists), T-22-04 (home-first),
+    // T-22-05 (mutex), T-22-06 (buildInitialGameState error guard).
     // -----------------------------------------------------------------------
-    socket.on(ClientEvents.UNIFORM_CONFIRM, (teamId: TeamId, uniformStyle: UniformStyleId) => {
-      const roomCode = socket.data.roomCode;
-      if (roomCode === undefined) return;
+    socket.on(
+      ClientEvents.UNIFORM_CONFIRM,
+      (teamId: TeamId, uniformStyle: UniformStyleId, formationId: FormationId) => {
+        const roomCode = socket.data.roomCode;
+        if (roomCode === undefined) return;
 
-      const room = getRoom(roomCode);
-      if (!room) return;
+        const room = getRoom(roomCode);
+        if (!room) return;
 
-      // T-22-05: isProcessing mutex — drop concurrent UNIFORM_CONFIRM events.
-      if (room.isProcessing) return;
-      room.isProcessing = true;
-      try {
-        // T-22-03: allow-list validation — reject unknown or forged teamId/uniformStyle.
-        if (!(VALID_TEAM_IDS as readonly string[]).includes(teamId)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TEAM');
-          return;
-        }
-        if (!(VALID_UNIFORM_STYLE_IDS as readonly string[]).includes(uniformStyle)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_STYLE');
-          return;
-        }
-
-        const playerSlot = socket.data.playerSlot;
-
-        if (room.homePickedUniformStyle === undefined) {
-          // T-22-04: Home confirms first — only slot 1 may act now.
-          if (playerSlot !== 1) {
-            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+        // T-22-05: isProcessing mutex — drop concurrent UNIFORM_CONFIRM events.
+        if (room.isProcessing) return;
+        room.isProcessing = true;
+        try {
+          // T-22-03: allow-list validation — reject unknown or forged teamId/uniformStyle.
+          if (!(VALID_TEAM_IDS as readonly string[]).includes(teamId)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TEAM');
             return;
           }
-          // Phase 22 D-15: store home's confirmed style and team; broadcast to both players.
-          // homePickedTeam is also set here so UNIFORM_CONFIRM works without a prior TEAM_PICK.
-          room.homePickedTeam = teamId;
-          room.homePickedUniformStyle = uniformStyle;
-          io.to(roomCode).emit(ServerEvents.UNIFORM_HOME_CONFIRMED, teamId, uniformStyle);
-        } else {
-          // T-22-04: Away confirms second — only slot 2 may act now.
-          if (playerSlot !== 2) {
-            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+          if (!(VALID_UNIFORM_STYLE_IDS as readonly string[]).includes(uniformStyle)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_STYLE');
             return;
           }
-          // Reject if away picks the same team as home.
-          if (teamId === room.homePickedTeam) {
-            socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
+          // T-23-03: allow-list validation — reject unknown or forged formationId (ASVS V5).
+          if (!(VALID_FORMATION_IDS as readonly string[]).includes(formationId)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_FORMATION');
             return;
           }
-          // Phase 22 D-12/D-17: both players confirmed — build game state with both
-          // teams and both uniform styles, then broadcast to start the game.
-          const selectedTeams = { home: room.homePickedTeam!, away: teamId };
-          const selectedUniformStyles = { home: room.homePickedUniformStyle, away: uniformStyle };
-          // T-22-06: wrap in try/catch — a throw from buildInitialGameState would
-          // propagate uncaught inside the Socket.io handler and crash the Node process.
-          let gameState: import('@counter-attack/shared').GameState;
-          try {
-            gameState = buildInitialGameState(
-              roomCode,
-              selectedTeams,
-              room.gameSpeed ?? 'standard',
-              selectedUniformStyles,
+
+          const playerSlot = socket.data.playerSlot;
+
+          if (room.homePickedUniformStyle === undefined) {
+            // T-22-04: Home confirms first — only slot 1 may act now.
+            if (playerSlot !== 1) {
+              socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+              return;
+            }
+            // Phase 22 D-15: store home's confirmed style and team; broadcast to both players.
+            // homePickedTeam is also set here so UNIFORM_CONFIRM works without a prior TEAM_PICK.
+            room.homePickedTeam = teamId;
+            room.homePickedUniformStyle = uniformStyle;
+            room.homePickedFormation = formationId;
+            io.to(roomCode).emit(
+              ServerEvents.UNIFORM_HOME_CONFIRMED,
+              teamId,
+              uniformStyle,
+              formationId,
             );
-          } catch (err) {
-            console.error('buildInitialGameState failed:', err);
-            socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
-            return;
+          } else {
+            // T-22-04: Away confirms second — only slot 2 may act now.
+            if (playerSlot !== 2) {
+              socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+              return;
+            }
+            // Reject if away picks the same team as home.
+            if (teamId === room.homePickedTeam) {
+              socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
+              return;
+            }
+            // Phase 23 D-12: store away's team and formation; build game state with
+            // formation-driven piece placement (selectedFormation embedded in GameState).
+            // Also emit BOTH_FORMATIONS_CONFIRMED — Phase 24 listens to this for auto-assignment.
+            room.awayPickedTeam = teamId;
+            room.awayPickedFormation = formationId;
+            const selectedTeams = { home: room.homePickedTeam!, away: teamId };
+            const selectedUniformStyles = {
+              home: room.homePickedUniformStyle,
+              away: uniformStyle,
+            };
+            const selectedFormation = { home: room.homePickedFormation!, away: formationId };
+            let gameState: import('@counter-attack/shared').GameState;
+            try {
+              gameState = buildInitialGameState(
+                roomCode,
+                selectedTeams,
+                room.gameSpeed ?? 'standard',
+                selectedUniformStyles,
+                selectedFormation,
+              );
+            } catch (err) {
+              console.error('buildInitialGameState failed:', err);
+              socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
+              return;
+            }
+            room.gameState = gameState;
+            broadcastState(io, room);
+            io.to(roomCode).emit(
+              ServerEvents.BOTH_FORMATIONS_CONFIRMED,
+              room.homePickedFormation!,
+              formationId,
+            );
           }
-          room.gameState = gameState;
-          broadcastState(io, room);
+        } finally {
+          room.isProcessing = false;
         }
-      } finally {
-        room.isProcessing = false;
-      }
-    });
+      },
+    );
   }
 
   // -----------------------------------------------------------------------

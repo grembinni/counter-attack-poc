@@ -12,7 +12,7 @@
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
 import type { GameState, GameSpeed, HexCoord } from '@counter-attack/shared';
-import type { TeamId, UniformStyleId } from '@counter-attack/shared';
+import type { TeamId, UniformStyleId, FormationId } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
 import { applyFreeMoveZoneCheck } from './gameEngine.js';
@@ -90,6 +90,16 @@ export type Room = {
    * undefined = home has not yet confirmed; defined = home confirmed, away may now confirm.
    */
   homePickedUniformStyle?: UniformStyleId;
+  /**
+   * Phase 23 D-12: formation chosen by home player on their UNIFORM_CONFIRM.
+   * undefined = home has not yet confirmed; defined once home confirms.
+   */
+  homePickedFormation?: FormationId;
+  /**
+   * Phase 23 D-12: formation chosen by away player on their UNIFORM_CONFIRM.
+   * undefined = away has not yet confirmed; defined once away confirms.
+   */
+  awayPickedFormation?: FormationId;
 };
 
 /**

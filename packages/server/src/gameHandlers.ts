@@ -998,7 +998,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           };
           room.gameState = {
             ...baseSnapState,
-            pieces: buildKickOffPieces(newKickOffTeam, baseSnapState.selectedTeams),
+            pieces: buildKickOffPieces(
+              newKickOffTeam,
+              baseSnapState.selectedTeams,
+              baseSnapState.selectedFormation,
+            ),
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -1623,7 +1627,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         };
         room.gameState = {
           ...declaredState,
-          pieces: buildKickOffPieces(newKickOffTeam, declaredState.selectedTeams),
+          pieces: buildKickOffPieces(
+            newKickOffTeam,
+            declaredState.selectedTeams,
+            declaredState.selectedFormation,
+          ),
           phase: 'KICK_OFF_SETUP',
           score: newScore,
           attackingTeam: newKickOffTeam,
@@ -2400,7 +2408,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           };
           room.gameState = {
             ...headerTargetState,
-            pieces: buildKickOffPieces(newKickOffTeam, headerTargetState.selectedTeams),
+            pieces: buildKickOffPieces(
+              newKickOffTeam,
+              headerTargetState.selectedTeams,
+              headerTargetState.selectedFormation,
+            ),
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
