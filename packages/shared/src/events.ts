@@ -1,6 +1,7 @@
 import type { HexCoord, GameState, GameSpeed } from './types.js';
 import type { TeamId } from './teamConfig.js';
 import type { UniformStyleId } from './uniformStyles.js';
+import type { FormationId } from './formations.js';
 
 // Typed const objects for Socket.io event names (not TypeScript enums — enums compile
 // to IIFEs and don't tree-shake cleanly; const objects emit nothing at runtime).
@@ -84,6 +85,11 @@ export const ServerEvents = {
   UNIFORM_SELECTION_START: 'uniform:selection-start',
   /** Phase 22 D-15: broadcast to all room members after home confirms their team + uniform style. */
   UNIFORM_HOME_CONFIRMED: 'uniform:home-confirmed',
+  /**
+   * Phase 23 D-12: broadcast to both players after away confirms formation; carries both confirmed FormationIds.
+   * buildInitialGameState is NOT called here — Phase 24 owns lineup assignment.
+   */
+  BOTH_FORMATIONS_CONFIRMED: 'formation:both-confirmed',
 } as const;
 
 /**
@@ -150,8 +156,12 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_FREE_KICK_MOVE]: (pieceId: string, to: HexCoord) => void;
   /** OFFSIDE-02 (Phase 17 D-29): Ready confirmation during FREE_KICK_SETUP; transitions when both teams confirm. */
   [ClientEvents.GAME_FREE_KICK_READY]: () => void;
-  /** Phase 22 D-14: client confirms team + uniform style selection. Validated server-side. */
-  [ClientEvents.UNIFORM_CONFIRM]: (teamId: TeamId, uniformStyle: UniformStyleId) => void;
+  /** Phase 22 D-14 / Phase 23 D-09: client confirms team + uniform style + formation selection. Validated server-side. */
+  [ClientEvents.UNIFORM_CONFIRM]: (
+    teamId: TeamId,
+    uniformStyle: UniformStyleId,
+    formationId: FormationId,
+  ) => void;
 }
 
 /**
@@ -173,8 +183,17 @@ export interface ServerToClientEvents {
   [ServerEvents.TEAM_SPEED_CHANGED]: (speed: GameSpeed) => void;
   /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
   [ServerEvents.UNIFORM_SELECTION_START]: () => void;
-  /** Phase 22 D-15: informs both players that home has confirmed their team + uniform style. */
-  [ServerEvents.UNIFORM_HOME_CONFIRMED]: (teamId: TeamId, uniformStyle: UniformStyleId) => void;
+  /** Phase 22 D-15 / Phase 23 D-09: informs both players that home has confirmed their team + uniform style + formation. */
+  [ServerEvents.UNIFORM_HOME_CONFIRMED]: (
+    teamId: TeamId,
+    uniformStyle: UniformStyleId,
+    formationId: FormationId,
+  ) => void;
+  /** Phase 23 D-12: broadcast to both players after away confirms formation; carries both confirmed FormationIds. buildInitialGameState is NOT called here — Phase 24 owns lineup assignment. */
+  [ServerEvents.BOTH_FORMATIONS_CONFIRMED]: (
+    homeFormation: FormationId,
+    awayFormation: FormationId,
+  ) => void;
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */
