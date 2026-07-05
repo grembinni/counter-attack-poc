@@ -52,7 +52,7 @@ describe('UniformSelectionScreen — style tiles always rendered', () => {
       <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam={null} homeConfirmedStyle={null} />,
     );
 
-    const confirmButton = screen.getByRole('button', { name: 'Confirm team and style selection' });
+    const confirmButton = screen.getByRole('button', { name: 'Confirm selection' });
     expect(confirmButton.hasAttribute('disabled')).toBe(true);
   });
 });
@@ -89,7 +89,7 @@ describe('UniformSelectionScreen — pre-selection on team pick', () => {
     );
 
     // Before team pick — disabled
-    const confirmButton = screen.getByRole('button', { name: 'Confirm team and style selection' });
+    const confirmButton = screen.getByRole('button', { name: 'Confirm selection' });
     expect(confirmButton.hasAttribute('disabled')).toBe(true);
 
     // After team pick — enabled (defaultUniformStyle auto-selected)
@@ -119,7 +119,7 @@ describe('UniformSelectionScreen — confirm emit', () => {
     await userEvent.click(screen.getByRole('button', { name: 'City' }));
 
     // Click Confirm
-    const confirmButton = screen.getByRole('button', { name: 'Confirm team and style selection' });
+    const confirmButton = screen.getByRole('button', { name: 'Confirm selection' });
     await userEvent.click(confirmButton);
 
     // onConfirm should be called with city, its defaultUniformStyle, and the default formation
@@ -127,7 +127,7 @@ describe('UniformSelectionScreen — confirm emit', () => {
     expect(onConfirm).toHaveBeenCalledWith('city', 'pinstripes-vertical', '4-4-2');
   });
 
-  it('after confirming, screen shows "Waiting for opponent…" instead of Confirm button', async () => {
+  it('after confirming, Confirm button is hidden and status shows waiting message', async () => {
     useGameStore.setState({ playerSlot: 1 });
     render(
       <UniformSelectionScreen
@@ -139,13 +139,13 @@ describe('UniformSelectionScreen — confirm emit', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'City' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm team and style selection' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm selection' }));
 
     // Confirm button should be gone
-    expect(screen.queryByRole('button', { name: 'Confirm team and style selection' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Confirm selection' })).toBeNull();
 
-    // Waiting status line should appear
-    expect(screen.getByText('Waiting for opponent…')).toBeTruthy();
+    // Waiting status line should appear (home player waits for Visitor)
+    expect(screen.getByText('Waiting for Visitor Player to Lock in their Selection.')).toBeTruthy();
   });
 
   it('selecting a different style then confirming sends the chosen style', async () => {
@@ -166,7 +166,7 @@ describe('UniformSelectionScreen — confirm emit', () => {
     // Override default style with Checkers
     await userEvent.click(screen.getByRole('button', { name: 'Checkers' }));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm team and style selection' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm selection' }));
 
     expect(onConfirm).toHaveBeenCalledWith('city', 'checkers', '4-4-2');
   });
@@ -224,20 +224,22 @@ describe('UniformSelectionScreen — away struck-out card', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Opponent confirmed banner (away player, after home confirms)
+// Step/status heading — after home confirms, UI advances to Step 2
 // ---------------------------------------------------------------------------
 
-describe('UniformSelectionScreen — opponent confirmed banner', () => {
-  it('does NOT show banner when homeConfirmedStyle is null', () => {
+describe('UniformSelectionScreen — step heading and status', () => {
+  it('away player sees STEP 1 — HOME PLAYER (OPPONENT) while waiting for home to confirm', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(
       <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam="city" homeConfirmedStyle={null} />,
     );
 
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('heading').textContent).toContain('STEP 1');
+    expect(screen.getByRole('heading').textContent).toContain('HOME PLAYER (OPPONENT)');
+    expect(screen.getByText('Waiting for Home Player to Lock in their Selection.')).toBeTruthy();
   });
 
-  it('shows "Opponent confirmed" banner (role="status") when homeConfirmedStyle is set (away view)', () => {
+  it('away player sees STEP 2 — VISITOR PLAYER (YOU) and active status after home confirms', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(
       <UniformSelectionScreen
@@ -247,22 +249,19 @@ describe('UniformSelectionScreen — opponent confirmed banner', () => {
       />,
     );
 
-    const banner = screen.getByRole('status');
-    expect(banner).toBeTruthy();
-    expect(banner.textContent).toContain('Opponent confirmed');
+    expect(screen.getByRole('heading').textContent).toContain('STEP 2');
+    expect(screen.getByRole('heading').textContent).toContain('VISITOR PLAYER (YOU)');
+    expect(screen.getByText('Make your selections now!')).toBeTruthy();
   });
 
-  it('does NOT show banner for home player even when homeConfirmedStyle is set', () => {
+  it('home player sees STEP 1 HOME PLAYER (YOU) and active status', () => {
     useGameStore.setState({ playerSlot: 1 });
     render(
-      <UniformSelectionScreen
-        {...DEFAULT_PROPS}
-        homePickedTeam={null}
-        homeConfirmedStyle="pinstripes-vertical"
-      />,
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam={null} homeConfirmedStyle={null} />,
     );
 
-    // Home player (iAmHome=true) never sees the opponent banner
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('heading').textContent).toContain('STEP 1');
+    expect(screen.getByRole('heading').textContent).toContain('HOME PLAYER (YOU)');
+    expect(screen.getByText('Make your selections now!')).toBeTruthy();
   });
 });

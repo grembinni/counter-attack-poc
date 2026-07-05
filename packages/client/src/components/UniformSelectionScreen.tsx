@@ -134,13 +134,18 @@ export function UniformSelectionScreen({
   // Away player is locked out until home has confirmed their team + style.
   const awayLocked = !iAmHome && homeConfirmedStyle === null;
 
-  const heading = iAmHome ? 'Home: choose your team + style' : 'Away: choose your team + style';
-
   const [selectedTeam, setSelectedTeam] = useState<TeamId | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<UniformStyleId | null>(null);
   // Phase 23 D-07: 4-4-2 pre-selected on mount; no useEffect — default is a constant.
   const [selectedFormation, setSelectedFormation] = useState<FormationId>('4-4-2');
   const [hasConfirmed, setHasConfirmed] = useState(false);
+
+  // Step 1 = home choosing; step 2 = visitor choosing (after home confirms).
+  const step = homeConfirmedStyle === null ? 1 : 2;
+  const currentPlayerLabel = step === 1 ? 'HOME' : 'VISITOR';
+  const isActiveNow = !hasConfirmed && !awayLocked;
+  const youOrOpponent = (step === 1 && iAmHome) || (step === 2 && !iAmHome) ? 'YOU' : 'OPPONENT';
+  const waitingForLabel = iAmHome ? 'Visitor' : 'Home';
 
   // D-09 / UNIFORM-03: pre-select team's defaultUniformStyle when a team is chosen.
   useEffect(() => {
@@ -162,75 +167,43 @@ export function UniformSelectionScreen({
 
   return (
     <div className={styles.screen}>
-      <h2 className={styles.heading}>{heading}</h2>
+      {/* MATCH SETUP heading — step + player + you/opponent */}
+      <h2 className={styles.matchSetupHeading}>
+        MATCH SETUP: STEP {step} &mdash; {currentPlayerLabel} PLAYER ({youOrOpponent})
+      </h2>
 
-      {/* Away player waiting message — shown until home confirms */}
-      {awayLocked && (
-        <p className={styles.statusLine}>Waiting for home player to confirm their selection…</p>
-      )}
+      {/* Active/waiting status */}
+      <p className={isActiveNow ? styles.statusActive : styles.statusWaiting}>
+        {isActiveNow
+          ? 'Make your selections now!'
+          : `Waiting for ${waitingForLabel} Player to Lock in their Selection.`}
+      </p>
 
-      {/* D-11: Opponent confirmed banner — away player only, after home confirms */}
-      {homeConfirmedStyle !== null && !iAmHome && homePickedTeam !== null && (
-        <div
-          role="status"
-          className={styles.opponentBanner}
-          style={{ borderLeftColor: TEAM_CONFIGS[homePickedTeam].palette.homePrime }}
-        >
-          <svg
-            width={48}
-            height={48}
-            xmlns="http://www.w3.org/2000/svg"
-            className={styles.bannerPiece}
-          >
-            {(() => {
-              const result = UNIFORM_STYLES[homeConfirmedStyle]({
-                cx: 24,
-                cy: 24,
-                R: 20,
-                palette: TEAM_CONFIGS[homePickedTeam].palette,
-                isGK: false,
-                pieceId: 'banner-home',
-              });
-              return (
-                <>
-                  <defs>{result.patternDef}</defs>
-                  <circle cx={24} cy={24} r={20} fill={result.fill} />
-                  {result.overlay}
-                </>
-              );
-            })()}
-          </svg>
-          <span className={styles.bannerText}>Opponent confirmed</span>
+      <p className={styles.browseNote}>You are browsing your Team, Formation, and Piece Style.</p>
+
+      {/* 0 | MATCH SPEED */}
+      <p className={styles.sectionLabel}>0 | MATCH SPEED</p>
+      {iAmHome ? (
+        <div className={styles.speedOptions}>
+          {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
+            <button
+              key={value}
+              disabled={hasConfirmed}
+              className={
+                value === selectedSpeed
+                  ? `${styles.speedOptionActive} ${styles[colorClass]}`
+                  : `${styles.speedOption} ${styles[colorClass]}`
+              }
+              onClick={() => onSpeedChange(value)}
+              aria-pressed={value === selectedSpeed}
+            >
+              <span className={styles.speedIcon}>{icon}</span>
+              {label}
+            </button>
+          ))}
         </div>
-      )}
-
-      {/* UX-07: speed selector — home player controls it (locked once they confirm) */}
-      {iAmHome && (
-        <div className={styles.speedSelector}>
-          <span className={styles.statusLine}>Match speed:</span>
-          <div className={styles.speedOptions}>
-            {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
-              <button
-                key={value}
-                disabled={hasConfirmed}
-                className={
-                  value === selectedSpeed
-                    ? `${styles.speedOptionActive} ${styles[colorClass]}`
-                    : `${styles.speedOption} ${styles[colorClass]}`
-                }
-                onClick={() => onSpeedChange(value)}
-                aria-pressed={value === selectedSpeed}
-              >
-                <span className={styles.speedIcon}>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {!iAmHome && (
-        <div className={styles.speedSelector}>
-          <span className={styles.statusLine}>Match speed:</span>
+      ) : (
+        <div className={styles.speedOptions}>
           <span
             className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
           >
@@ -240,8 +213,8 @@ export function UniformSelectionScreen({
         </div>
       )}
 
-      {/* Team grid section */}
-      <p className={styles.sectionLabel}>Team</p>
+      {/* 1 | TEAM */}
+      <p className={styles.sectionLabel}>1 | TEAM</p>
       <div className={styles.teamGrid}>
         {ALL_TEAMS.map((teamId) => {
           const isStruckOut = teamId === homePickedTeam;
@@ -275,8 +248,8 @@ export function UniformSelectionScreen({
         })}
       </div>
 
-      {/* Phase 23 D-05: Formation grid section — between team grid and style grid */}
-      <p className={styles.sectionLabel}>Formation</p>
+      {/* 2 | FORMATION */}
+      <p className={styles.sectionLabel}>2 | FORMATION</p>
       <div className={styles.formationGrid}>
         {FORMATION_OPTIONS.map(({ id, asset, label }) => (
           <button
@@ -299,8 +272,8 @@ export function UniformSelectionScreen({
         ))}
       </div>
 
-      {/* Style tile grid section */}
-      <p className={styles.sectionLabel}>Style</p>
+      {/* 3 | STYLE */}
+      <p className={styles.sectionLabel}>3 | STYLE</p>
       <div className={styles.styleGrid}>
         {ALL_STYLE_IDS.map((styleId, index) => {
           const n = index + 1;
@@ -354,13 +327,13 @@ export function UniformSelectionScreen({
         })}
       </div>
 
-      {/* Confirm / waiting block — D-06 */}
-      {!hasConfirmed ? (
+      {/* Confirm button — yellow until team selected, green after */}
+      {!hasConfirmed && (
         <button
-          className={styles.confirmButton}
+          className={selectedTeam !== null ? styles.confirmButtonGreen : styles.confirmButtonYellow}
           disabled={selectedTeam === null || selectedStyle === null || awayLocked}
           aria-disabled={selectedTeam === null || selectedStyle === null || awayLocked}
-          aria-label="Confirm team and style selection"
+          aria-label="Confirm selection"
           onClick={() => {
             if (selectedTeam && selectedStyle) {
               onConfirm(selectedTeam, selectedStyle, selectedFormation);
@@ -368,10 +341,8 @@ export function UniformSelectionScreen({
             }
           }}
         >
-          Confirm selection
+          Confirm
         </button>
-      ) : (
-        <p className={styles.statusLine}>Waiting for opponent…</p>
       )}
     </div>
   );

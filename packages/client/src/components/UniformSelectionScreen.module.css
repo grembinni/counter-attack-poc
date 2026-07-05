@@ -17,32 +17,53 @@
   padding: 24px;
 }
 
-/* Screen heading: 20px/700 */
-.heading {
-  font-size: 20px;
-  font-weight: 700;
+/* MATCH SETUP step heading: larger + bolder than the old .heading */
+.matchSetupHeading {
+  font-size: 22px;
+  font-weight: 800;
   color: #e0e0e0;
   margin: 0;
   line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-align: center;
 }
 
-/* Status line: "Waiting for opponent…" / "Match speed:" */
-.statusLine {
+/* Active player status — bold green */
+.statusActive {
+  font-size: 14px;
+  font-weight: 700;
+  color: #22c55e;
+  margin: 0;
+  text-align: center;
+}
+
+/* Waiting player status — bold red */
+.statusWaiting {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ef4444;
+  margin: 0;
+  text-align: center;
+}
+
+/* Browse note — normal weight, dim */
+.browseNote {
   font-size: 13px;
   font-weight: 400;
   color: #a0a0a0;
   margin: 0;
+  text-align: center;
 }
 
-/* Section sub-heading above team grid and style grid */
+/* Section sub-heading — left-aligned with grid content */
 .sectionLabel {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: #a0a0a0;
   margin: 0;
-  align-self: flex-start;
-  max-width: 560px;
   width: 100%;
+  max-width: 800px;
+  text-align: left;
 }
 
 /* D-02: flat 6×2 team grid, collapses to 3×4 at narrow viewports */
@@ -198,21 +219,48 @@
   color: #e0e0e0;
 }
 
-/* Confirm selection CTA button */
-.confirmButton {
-  font-size: 13px;
-  font-weight: 700;
-  color: #e0e0e0;
-  background: #0f3460;
+/* Confirm button — yellow state (no team selected yet) */
+.confirmButtonYellow {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1a2e;
+  background: #eab308;
   border: none;
-  border-radius: 4px;
-  padding: 8px 20px;
+  border-radius: 6px;
+  padding: 14px 48px;
   cursor: pointer;
-  min-width: 160px;
-  transition: opacity 0.15s ease;
+  min-width: 200px;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
 }
 
-.confirmButton:disabled {
+.confirmButtonYellow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Confirm button — green state (team selected, ready to confirm) */
+.confirmButtonGreen {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1a2e;
+  background: #22c55e;
+  border: none;
+  border-radius: 6px;
+  padding: 14px 48px;
+  cursor: pointer;
+  min-width: 200px;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.confirmButtonGreen:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.confirmButtonGreen:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -230,11 +278,13 @@
   width: 100%;
 }
 
-/* UX-07: speed option buttons row */
+/* UX-07: speed option buttons row — full width so left edge aligns with other sections */
 .speedOptions {
   display: flex;
   flex-direction: row;
   gap: 6px;
+  width: 100%;
+  max-width: 800px;
 }
 
 /* UX-07: inactive speed option */
@@ -319,12 +369,12 @@
   font-style: normal;
 }
 
-/* Phase 23 D-05/D-06: formation selection grid */
+/* Phase 23 D-05/D-06: formation selection grid — matches 800px team/style grids so left edges align */
 .formationGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  max-width: 560px;
+  max-width: 800px;
   width: 100%;
 }
 
