@@ -318,3 +318,77 @@
   margin-right: 4px;
   font-style: normal;
 }
+
+/* Phase 23 D-05/D-06: formation selection grid */
+.formationGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 560px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .formationGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.formationCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #1a1a2e;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.formationCard:hover:not(:disabled) {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+
+.formationCardSelected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #1a1a2e;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+/* D-06 named exception: formation image height fixed at 100px (not 4px-grid) */
+.formationImage {
+  height: 100px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.formationLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin: 8px 0 0;
+}
+
+.formationDescription {
+  font-size: 12px;
+  font-weight: 400;
+  color: #a0a0a0;
+  margin: 4px 0 0;
+  text-align: center;
+  line-height: 1.4;
+}

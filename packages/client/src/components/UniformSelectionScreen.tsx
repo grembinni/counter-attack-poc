@@ -1,18 +1,31 @@
 /**
- * UniformSelectionScreen — Phase 22 D-01/D-02/D-03.
- * Combined team + style selection screen. Replaces TeamSelectionScreen in the pre-game flow.
+ * UniformSelectionScreen — Phase 22 D-01/D-02/D-03, extended in Phase 23 D-05/D-06/D-07.
+ * Combined team + formation + style selection screen. Replaces TeamSelectionScreen in the pre-game flow.
  * - All 12 teams flat (no tabs), MLS first then International (D-02).
+ * - Formation section (4 cards) between team grid and style grid (Phase 23 D-05).
  * - All 18 style tiles always visible; neutral palette before team selection (D-05).
  * - defaultUniformStyle pre-selected on team pick (D-09 / UNIFORM-03).
- * - Single Confirm locks both choices; away sees struck-out home card (D-04).
+ * - Single Confirm locks all three choices; away sees struck-out home card (D-04).
  * - After home confirms, away sees "Opponent confirmed" banner (D-11).
  */
 import { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
-import { TEAM_CONFIGS, UNIFORM_STYLE_META } from '@counter-attack/shared';
-import type { GameSpeed, TeamId, TeamPalette, UniformStyleId } from '@counter-attack/shared';
+import { TEAM_CONFIGS, UNIFORM_STYLE_META, FORMATIONS } from '@counter-attack/shared';
+import type {
+  GameSpeed,
+  TeamId,
+  TeamPalette,
+  UniformStyleId,
+  FormationId,
+} from '@counter-attack/shared';
 import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
 import styles from './UniformSelectionScreen.module.css';
+
+// Phase 23 D-06: static Vite imports for formation PNG pitch diagrams — content-hashed at build time.
+import formation442 from '../assets/formations/442.png';
+import formation532 from '../assets/formations/532.png';
+import formation433 from '../assets/formations/433.png';
+import formation343 from '../assets/formations/343.png';
 
 // D-13: static Vite imports for full-size badge variants — content-hashed at build time.
 import cityFullBadge from '../assets/badges/city-full.png';
@@ -57,6 +70,14 @@ const ALL_TEAMS: TeamId[] = [
 /** All 18 uniform style IDs in registry order. */
 const ALL_STYLE_IDS = Object.keys(UNIFORM_STYLES) as UniformStyleId[];
 
+/** Phase 23 D-06: four formation cards in selection order (4-4-2 first per D-07 default). */
+const FORMATION_OPTIONS: { id: FormationId; asset: string; label: string }[] = [
+  { id: '4-4-2', asset: formation442, label: '4-4-2' },
+  { id: '5-3-2', asset: formation532, label: '5-3-2' },
+  { id: '4-3-3', asset: formation433, label: '4-3-3' },
+  { id: '3-4-3', asset: formation343, label: '3-4-3' },
+];
+
 /** Maps TeamId to full-size badge Vite import URL. */
 const FULL_BADGE_MAP: Record<TeamId, string> = {
   city: cityFullBadge,
@@ -85,8 +106,10 @@ type Props = {
   homePickedTeam: TeamId | null;
   /** Set when home player has confirmed their team + style (UNIFORM_HOME_CONFIRMED), or null. */
   homeConfirmedStyle: UniformStyleId | null;
-  /** Called when the active player clicks Confirm with their team + style choices. */
-  onConfirm: (teamId: TeamId, uniformStyle: UniformStyleId) => void;
+  /** Phase 23 D-12: formation chosen by home player on their confirm (for Phase 24 use). */
+  homeConfirmedFormation: FormationId | null;
+  /** Called when the active player clicks Confirm with their team + style + formation choices. */
+  onConfirm: (teamId: TeamId, uniformStyle: UniformStyleId, formationId: FormationId) => void;
   /** UX-07: current selected game speed (home-player controlled). */
   selectedSpeed: GameSpeed;
   /** UX-07: called when home player changes game speed. */
@@ -100,6 +123,7 @@ type Props = {
 export function UniformSelectionScreen({
   homePickedTeam,
   homeConfirmedStyle,
+  homeConfirmedFormation: _homeConfirmedFormation,
   onConfirm,
   selectedSpeed,
   onSpeedChange,
@@ -114,6 +138,8 @@ export function UniformSelectionScreen({
 
   const [selectedTeam, setSelectedTeam] = useState<TeamId | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<UniformStyleId | null>(null);
+  // Phase 23 D-07: 4-4-2 pre-selected on mount; no useEffect — default is a constant.
+  const [selectedFormation, setSelectedFormation] = useState<FormationId>('4-4-2');
   const [hasConfirmed, setHasConfirmed] = useState(false);
 
   // D-09 / UNIFORM-03: pre-select team's defaultUniformStyle when a team is chosen.
@@ -249,6 +275,30 @@ export function UniformSelectionScreen({
         })}
       </div>
 
+      {/* Phase 23 D-05: Formation grid section — between team grid and style grid */}
+      <p className={styles.sectionLabel}>Formation</p>
+      <div className={styles.formationGrid}>
+        {FORMATION_OPTIONS.map(({ id, asset, label }) => (
+          <button
+            key={id}
+            disabled={hasConfirmed || awayLocked}
+            aria-pressed={id === selectedFormation}
+            aria-label={`${label} formation`}
+            aria-disabled={hasConfirmed || awayLocked}
+            className={
+              id === selectedFormation ? styles.formationCardSelected : styles.formationCard
+            }
+            onClick={() => {
+              if (!hasConfirmed && !awayLocked) setSelectedFormation(id);
+            }}
+          >
+            <img src={asset} alt={`${label} formation diagram`} className={styles.formationImage} />
+            <p className={styles.formationLabel}>{label}</p>
+            <p className={styles.formationDescription}>{FORMATIONS[id].description}</p>
+          </button>
+        ))}
+      </div>
+
       {/* Style tile grid section */}
       <p className={styles.sectionLabel}>Style</p>
       <div className={styles.styleGrid}>
@@ -313,7 +363,7 @@ export function UniformSelectionScreen({
           aria-label="Confirm team and style selection"
           onClick={() => {
             if (selectedTeam && selectedStyle) {
-              onConfirm(selectedTeam, selectedStyle);
+              onConfirm(selectedTeam, selectedStyle, selectedFormation);
               setHasConfirmed(true);
             }
           }}

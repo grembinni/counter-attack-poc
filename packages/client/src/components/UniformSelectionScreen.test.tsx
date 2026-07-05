@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UniformSelectionScreen } from './UniformSelectionScreen.js';
+import type { FormationId } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 
 vi.mock('../socket.js', () => ({
@@ -18,10 +19,11 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-/** Default props shared across most tests — no homePickedTeam or homeConfirmedStyle. */
+/** Default props shared across most tests — no homePickedTeam, homeConfirmedStyle, or homeConfirmedFormation. */
 const DEFAULT_PROPS = {
   homePickedTeam: null as null | string,
   homeConfirmedStyle: null as null | string,
+  homeConfirmedFormation: null as FormationId | null,
   onConfirm: vi.fn(),
   selectedSpeed: 'standard' as const,
   onSpeedChange: vi.fn(),
@@ -120,9 +122,9 @@ describe('UniformSelectionScreen — confirm emit', () => {
     const confirmButton = screen.getByRole('button', { name: 'Confirm team and style selection' });
     await userEvent.click(confirmButton);
 
-    // onConfirm should be called with city and its defaultUniformStyle
+    // onConfirm should be called with city, its defaultUniformStyle, and the default formation
     expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm).toHaveBeenCalledWith('city', 'pinstripes-vertical');
+    expect(onConfirm).toHaveBeenCalledWith('city', 'pinstripes-vertical', '4-4-2');
   });
 
   it('after confirming, screen shows "Waiting for opponent…" instead of Confirm button', async () => {
@@ -166,7 +168,7 @@ describe('UniformSelectionScreen — confirm emit', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirm team and style selection' }));
 
-    expect(onConfirm).toHaveBeenCalledWith('city', 'checkers');
+    expect(onConfirm).toHaveBeenCalledWith('city', 'checkers', '4-4-2');
   });
 });
 
