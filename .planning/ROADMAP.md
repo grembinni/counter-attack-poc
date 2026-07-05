@@ -75,7 +75,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 20    | 3/3                      | Complete                                         | 2026-07-04  |
 | 21    | 2/2                      | Complete                                         | 2026-07-04  |
 | 22    | 3/3                      | Complete                                         | 2026-07-05  |
-| 23    | Formation System         | FORM-01..04                                      | Not started |
+| 23    | 1/3                      | In Progress                                      |             |
 | 24    | Auto-Assignment & Lineup | ASSIGN-01..05                                    | Not started |
 | 25    | Bug & UAT Closure        | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
 
@@ -192,7 +192,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
    Plans:
    **Wave 1**
 
-- [ ] 23-01-PLAN.md — Shared foundation: formations.ts (FormationId/SlotRole/FormationSlot/FORMATIONS), barrel export, GameState.selectedFormation, UNIFORM_CONFIRM/UNIFORM_HOME_CONFIRMED + BOTH_FORMATIONS_CONFIRMED event, formations data-integrity test
+- [x] 23-01-PLAN.md — Shared foundation: formations.ts (FormationId/SlotRole/FormationSlot/FORMATIONS), barrel export, GameState.selectedFormation, UNIFORM_CONFIRM/UNIFORM_HOME_CONFIRMED + BOTH_FORMATIONS_CONFIRMED event, formations data-integrity test
 
   **Wave 2** _(blocked on Wave 1)_
 
