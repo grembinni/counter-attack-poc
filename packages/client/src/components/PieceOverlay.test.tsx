@@ -102,14 +102,14 @@ function renderPiece(
   isMovedThisStage = false,
 ) {
   // Resolve uniform style and palette based on team — mirrors what HexGrid does via TEAM_CONFIGS.
-  // GK pieces use 'checker' so D-13 palette-swap tests can assert swapped checker colors.
+  // GK pieces use 'checkers' so D-13 palette-swap tests can assert swapped checker colors.
   const isHome = piece.teamId === 'home';
   const isGK = piece.role === 'GK';
   const uniformStyle = isGK
-    ? ('checker' as const)
+    ? ('checkers' as const)
     : isHome
-      ? ('pinstripe' as const)
-      : ('diagonal' as const);
+      ? ('pinstripes-vertical' as const)
+      : ('bar-diagonal' as const);
   const palette = isHome ? COLOR_SCHEME_REGISTRY.city.palette : COLOR_SCHEME_REGISTRY.crew.palette;
 
   return render(
@@ -131,36 +131,37 @@ function renderPiece(
 }
 
 describe('PieceOverlay — TEAM-02..05: per-team jersey pattern fills (D-08, Phase 20 D-15)', () => {
-  it('home outfield piece (city/pinstripe) fill references url(#pinstripe-home-5)', () => {
+  it('home outfield piece (city/pinstripes-vertical) fill references url(#ps-v-home-5)', () => {
     const { container } = renderPiece(homeOutfield, 'none');
-    // The base circle should have fill referencing the pinstripe pattern
     const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toContain('url(#pinstripe-');
+    expect(baseCircle.getAttribute('fill')).toContain('url(#ps-v-');
     expect(baseCircle.getAttribute('fill')).toContain('home-5');
   });
 
-  it('away outfield piece (crew/diagonal) fill references url(#diagonal-away-5)', () => {
+  it('away outfield piece (crew/bar-diagonal) uses solid awayAlt fill (away scheme background — no pattern URL)', () => {
     const { container } = renderPiece(awayOutfield, 'none');
-    // For diagonal pieces, the first circle in the DOM that is NOT inside a clipPath is the base piece circle.
+    // bar-diagonal has a clipPath in defs (with a circle inside); find the base piece circle.
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const baseCircle = allCircles.find((c) => c.closest('clipPath') === null)!;
     expect(baseCircle).not.toBeUndefined();
-    expect(baseCircle.getAttribute('fill')).toContain('url(#diagonal-');
-    expect(baseCircle.getAttribute('fill')).toContain('away-5');
+    // Away outfield uses away color scheme: effectivePalette.homeAlt = crew.awayAlt (background)
+    expect(baseCircle.getAttribute('fill')).toBe(COLOR_SCHEME_REGISTRY.crew.palette.awayAlt);
   });
 
-  it('pinstripe- pattern def is present in defs when home outfield renders', () => {
+  it('ps-v- pattern def is present in defs when home outfield renders', () => {
     const { container } = renderPiece(homeOutfield, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
-    const pinstripePattern = patterns.find((p) => p.id.startsWith('pinstripe-'));
+    const pinstripePattern = patterns.find((p) => p.id.startsWith('ps-v-'));
     expect(pinstripePattern).toBeTruthy();
   });
 
-  it('diagonal- pattern def is present in defs when away outfield renders', () => {
+  it('bar-diagonal clipPath def is present in defs when away outfield renders (no pattern)', () => {
     const { container } = renderPiece(awayOutfield, 'none');
-    const patterns = Array.from(container.querySelectorAll('pattern'));
-    const diagonalPattern = patterns.find((p) => p.id.startsWith('diagonal-'));
-    expect(diagonalPattern).toBeTruthy();
+    const clipPaths = container.querySelectorAll('clipPath');
+    expect(clipPaths.length).toBeGreaterThan(0);
+    // bar-diagonal has no pattern element — solid fill
+    const patterns = container.querySelectorAll('pattern');
+    expect(patterns.length).toBe(0);
   });
 
   it('PieceOverlay source has no #1a56b0 team-identity literal (D-06 color refactor)', () => {
@@ -179,57 +180,54 @@ describe('PieceOverlay — TEAM-02..05: per-team jersey pattern fills (D-08, Pha
     expect(hardcodedRed.length).toBe(0);
   });
 
-  it('City jersey (pinstripe) pattern uses City palette.primary as base fill for home outfield (D-09)', () => {
+  it('City jersey (pinstripes-vertical) pattern uses City palette.homePrime as base fill for home outfield (D-09)', () => {
     const { container } = renderPiece(homeOutfield, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
-    const pinstripePattern = patterns.find((p) => p.id.startsWith('pinstripe-'));
+    const pinstripePattern = patterns.find((p) => p.id.startsWith('ps-v-'));
     expect(pinstripePattern).toBeTruthy();
     const rects = pinstripePattern ? Array.from(pinstripePattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
-    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.primary);
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.homePrime);
   });
 });
 
 describe('PieceOverlay — D-10 / D-13: GK jersey patterns with palette swap', () => {
-  it('home GK fill references url(#checker-home-0) not solid #9b59b6', () => {
+  it('home GK fill references url(#checkers-home-0) not solid #9b59b6', () => {
     const { container } = renderPiece(homeGK, 'none');
     const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toContain('url(#checker-');
+    expect(baseCircle.getAttribute('fill')).toContain('url(#checkers-');
     expect(baseCircle.getAttribute('fill')).not.toBe('#9b59b6');
   });
 
-  it('home GK (city) checker pattern has City.secondary1 base and City.primary checker squares after D-13 swap', () => {
+  it('home GK (city) checkers pattern uses City away scheme: awayPrime base + awayAlt squares', () => {
     const { container } = renderPiece(homeGK, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
-    const gkPattern = patterns.find((p) => p.id.startsWith('checker-'));
+    const gkPattern = patterns.find((p) => p.id.startsWith('checkers-'));
     expect(gkPattern).toBeTruthy();
     const rects = gkPattern ? Array.from(gkPattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
-    // D-13 swap: effectivePalette.primary = City.secondary1; effectivePalette.secondary1 = City.primary
-    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.secondary1);
-    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.primary);
+    // home GK uses away scheme: effectivePalette.homePrime = City.awayPrime; effectivePalette.homeAlt = City.awayAlt
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.awayPrime);
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.city.palette.awayAlt);
   });
 
-  it('away GK fill references url(#checker-...) not solid #db2777', () => {
+  it('away GK fill references url(#checkers-...) not solid #db2777', () => {
     const { container } = renderPiece(awayGK, 'none');
     const baseCircle = Array.from(container.querySelectorAll('circle'))[0]!;
-    expect(baseCircle.getAttribute('fill')).toContain('url(#checker-');
+    expect(baseCircle.getAttribute('fill')).toContain('url(#checkers-');
     expect(baseCircle.getAttribute('fill')).not.toBe('#db2777');
   });
 
-  it('away GK (crew) checker pattern has Crew.secondary1 (#111111) base and Crew.primary (#f5c518) checker squares after D-13 swap', () => {
+  it('away GK (crew) checkers pattern uses Crew home scheme: homePrime base + homeAlt squares', () => {
     const { container } = renderPiece(awayGK, 'none');
     const patterns = Array.from(container.querySelectorAll('pattern'));
-    const gkPattern = patterns.find((p) => p.id.startsWith('checker-'));
+    const gkPattern = patterns.find((p) => p.id.startsWith('checkers-'));
     expect(gkPattern).toBeTruthy();
     const rects = gkPattern ? Array.from(gkPattern.querySelectorAll('rect')) : [];
     const fills = rects.map((r) => r.getAttribute('fill'));
-    // D-13 swap: Crew GK effectivePalette.primary = Crew.secondary1 = #111111
-    //            Crew GK effectivePalette.secondary1 = Crew.primary = #f5c518
-    // checker renderer: base fill = effectivePalette.primary = #111111
-    //                   checker squares = effectivePalette.secondary1 = #f5c518
-    expect(fills).toContain('#111111');
-    expect(fills).toContain('#f5c518');
+    // away GK uses home scheme: effectivePalette.homePrime = Crew.homePrime; effectivePalette.homeAlt = Crew.homeAlt
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.crew.palette.homePrime);
+    expect(fills).toContain(COLOR_SCHEME_REGISTRY.crew.palette.homeAlt);
   });
 });
 

@@ -177,7 +177,7 @@ export function GameBoard() {
 
   // Centre section derived values (from TurnIndicator)
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
-  const teamColor = TEAM_CONFIGS[selectedTeams[activeTeam]].palette.primary;
+  const teamColor = TEAM_CONFIGS[selectedTeams[activeTeam]].palette.uiColor;
   const phaseLabel =
     phase === 'MOVE' ? PHASE_LABEL[phase] + moveSlotSuffix(movementSlot) : PHASE_LABEL[phase];
 
@@ -195,16 +195,16 @@ export function GameBoard() {
   const canStart = myTeam !== null && myTeam !== kickOffTeam;
   const secondHalfKickOffTeam = kickOffTeam === 'home' ? 'away' : 'home';
   const secondHalfTeamName = secondHalfKickOffTeam === 'home' ? 'Home' : 'Away';
-  const secondHalfTeamColor = TEAM_CONFIGS[selectedTeams[secondHalfKickOffTeam]].palette.primary;
+  const secondHalfTeamColor = TEAM_CONFIGS[selectedTeams[secondHalfKickOffTeam]].palette.uiColor;
 
   // FULL_TIME overlay: result derivation (from FullTimeScreen.tsx)
   const resultText =
     score.home > score.away ? 'Home wins' : score.away > score.home ? 'Away wins' : 'Draw';
   const resultColor =
     score.home > score.away
-      ? TEAM_CONFIGS[selectedTeams['home']].palette.primary
+      ? TEAM_CONFIGS[selectedTeams['home']].palette.uiColor
       : score.away > score.home
-        ? TEAM_CONFIGS[selectedTeams['away']].palette.primary
+        ? TEAM_CONFIGS[selectedTeams['away']].palette.uiColor
         : '#e0e0e0';
 
   const isGK = displayPiece?.role === 'GK';
@@ -258,7 +258,7 @@ export function GameBoard() {
             <div className={styles.scoreboardHomeCell}>
               <span
                 className={styles.scoreNumeral}
-                style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.primary }}
+                style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.uiColor }}
               >
                 {score.home}
               </span>
@@ -295,7 +295,7 @@ export function GameBoard() {
             <div className={styles.scoreboardAwayCell}>
               <span
                 className={styles.scoreNumeral}
-                style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.primary }}
+                style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.uiColor }}
               >
                 {score.away}
               </span>
@@ -338,7 +338,7 @@ export function GameBoard() {
                 <div className={styles.halfTimeScoreRow}>
                   <span
                     className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.primary }}
+                    style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.uiColor }}
                   >
                     {score.home}
                   </span>
@@ -367,7 +367,7 @@ export function GameBoard() {
                   <TeamBadge teamId={selectedTeams['away']} size={150} full />
                   <span
                     className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.primary }}
+                    style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.uiColor }}
                   >
                     {score.away}
                   </span>
@@ -393,7 +393,7 @@ export function GameBoard() {
                 <div className={styles.halfTimeScoreRow}>
                   <span
                     className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.primary }}
+                    style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.uiColor }}
                   >
                     {score.home}
                   </span>
@@ -409,7 +409,7 @@ export function GameBoard() {
                   <TeamBadge teamId={selectedTeams['away']} size={150} full />
                   <span
                     className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.primary }}
+                    style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.uiColor }}
                   >
                     {score.away}
                   </span>

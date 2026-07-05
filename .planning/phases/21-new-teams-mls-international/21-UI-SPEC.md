@@ -209,7 +209,7 @@ Note: The "away player's view" waiting copy is inferred from Phase 16 behavior. 
 
 - Badge images use static Vite imports (`import laFullBadge from '../assets/badges/la-full.png'`)
 - All 10 new badge imports follow this pattern
-- Seattle import **must** use the typo spelling: `'../assets/badges/seatle-full.png'` (one `t`) — the file on disk has this spelling; do NOT correct it
+- Seattle import: `'../assets/badges/seattle-full.png'` (corrected spelling — file renamed from `seatle-full.png`)
 - Badge `<img>` dimensions: 80×80 (reduced from 110×110 to fit 3-column layout)
 - `alt` text per badge: `"{Team Name} badge"` (e.g., `"LA badge"`, `"Canada badge"`)
 

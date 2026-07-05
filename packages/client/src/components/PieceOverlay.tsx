@@ -66,8 +66,8 @@ type Props = {
  * useGameStore(selectedTeams)/TEAM_CONFIGS color path has been removed.
  *
  * Jersey patterns: delegated to UNIFORM_STYLES[uniformStyle] registry (Phase 20 D-01..D-12).
- * GK variant: full palette swap (D-13) applied before the renderer call — primary<->secondary1,
- * primaryLight<->secondary2.
+ * GK variant: opposite color scheme (D-13) applied before the renderer call — home GK uses away
+ * scheme (awayPrime/awayAlt), away GK uses home scheme (homePrime/homeAlt).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Offside marker: independent red ring layer at a distinct radius, driven by `isOffside` (OFFSIDE-01, D-25; stroke width corrected by D-42).
  * Free-kick "moved this stage" marker: independent green ring layer at a distinct radius,
@@ -93,21 +93,30 @@ export function PieceOverlay({
 
   const isGK = piece.role === 'GK';
 
-  // D-13: GK pieces render with a full palette swap — primary<->secondary1, primaryLight<->secondary2.
-  // The same style's pattern is rendered but with all color roles inverted for visual distinction.
-  const effectivePalette: TeamPalette = isGK
+  // Keeper uses opposite color scheme: home outfield/away GK → home scheme (homePrime/homeAlt, white numbers);
+  // away outfield/home GK → away scheme (awayPrime/awayAlt, black numbers).
+  const useAwayScheme = isGK ? piece.teamId === 'home' : piece.teamId === 'away';
+  const effectivePalette: TeamPalette = useAwayScheme
     ? {
-        primary: palette.secondary1,
-        primaryLight: palette.secondary2,
-        secondary1: palette.primary,
-        secondary2: palette.primaryLight,
+        homePrime: palette.awayPrime,
+        homeAlt: palette.awayAlt,
+        homeFont: palette.awayFont,
+        awayPrime: palette.homePrime,
+        awayAlt: palette.homeAlt,
+        awayFont: palette.homeFont,
+        uiColor: palette.uiColor,
       }
     : palette;
+  const numberColor = effectivePalette.homeFont;
 
   const PIECE_RADIUS = 12;
 
   // Delegate to the parameterized renderer registry (Phase 20 UNIFORM-05 / D-15).
-  const { patternDef, fill: circleFill, overlay } = UNIFORM_STYLES[uniformStyle]({
+  const {
+    patternDef,
+    fill: circleFill,
+    overlay,
+  } = UNIFORM_STYLES[uniformStyle]({
     cx,
     cy,
     R: PIECE_RADIUS,
@@ -135,7 +144,7 @@ export function PieceOverlay({
         cy={cy}
         r={PIECE_RADIUS}
         fill={circleFill}
-        stroke={effectivePalette.primary}
+        stroke={effectivePalette.homePrime}
         strokeWidth={1.5}
         style={{ cursor: selectionState !== 'none' ? 'pointer' : 'default' }}
         onClick={() => {
@@ -249,7 +258,7 @@ export function PieceOverlay({
         dominantBaseline="central"
         fontSize={15}
         fontWeight={700}
-        fill="#ffffff"
+        fill={numberColor}
         fontStyle={piece.role === 'GK' ? 'italic' : 'normal'}
         pointerEvents="none"
       >

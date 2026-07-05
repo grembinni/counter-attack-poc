@@ -1,0 +1,11 @@
+{
+  "orchestrator_root": "D:/dev/repo/counter-attack-poc",
+  "worktrees": [
+    {
+      "agent_id": "a7e1d129b59c3f187",
+      "worktree_path": "D:/dev/repo/counter-attack-poc/.claude/worktrees/agent-a7e1d129b59c3f187",
+      "branch": "worktree-agent-a7e1d129b59c3f187",
+      "expected_base": "ad8c042dbb62748a3e5c380918e0e5665bf15cf5"
+    }
+  ]
+}

@@ -12,7 +12,7 @@ function pieceColorOf(pieceId: string): string {
   if (!selectedTeams) return '#888888';
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
   const teamId = selectedTeams[positional];
-  return TEAM_CONFIGS[teamId]?.palette.primary ?? '#888888';
+  return TEAM_CONFIGS[teamId]?.palette.uiColor ?? '#888888';
 }
 
 /**
@@ -41,7 +41,7 @@ function slotTeamColor(slot: MovementSlot): string {
   const positional: 'home' | 'away' =
     slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
   const teamId = selectedTeams[positional];
-  return TEAM_CONFIGS[teamId]?.palette.primary ?? '#888888';
+  return TEAM_CONFIGS[teamId]?.palette.uiColor ?? '#888888';
 }
 
 /** Bold, team-colored player label rendered inline. */

@@ -1,368 +1,318 @@
-# Features Research — Counter Attack Web
+# Feature Research — v1.3
 
-**Domain:** Real-time 2-player multiplayer web board game
-**Researched:** 2026-05-27
-**Confidence:** MEDIUM — Sources: training knowledge of Socket.io patterns, Lichess/BoardGameArena/Chess.com UX conventions, general multiplayer game design literature. No live web lookups were available in this research session; claims reflect well-established patterns rather than freshly scraped docs. Flag anything domain-specific for validation.
-
----
-
-## Table Stakes
-
-Features users expect as baseline for a functional real-time 2-player web game. Absence makes the product feel broken or untrustworthy.
-
-### 1. Room Code Lobby Flow
-
-| Sub-feature                          | Detail                                                                                                              | Priority |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------- |
-| Create room → get 4–6 character code | Short alphanumeric codes (e.g. "XKCD7") are the industry standard. Avoid codes with ambiguous chars: 0/O, 1/I/l.    | Must     |
-| One-click copy of room code          | Copy-to-clipboard button on the waiting screen. Players share over Discord/WhatsApp — friction here kills sessions. | Must     |
-| Join by code input                   | Simple text input, case-insensitive, instant feedback if code is invalid or room is full.                           | Must     |
-| "Waiting for opponent" state         | Spinner/message while host waits. Show the room code again so host can re-share.                                    | Must     |
-| Room full / game in progress guard   | If a 3rd party tries to join an active room, return a clear error, not a silent failure.                            | Must     |
-
-**Minimum viable flow:** Landing page → [Create Game] or [Join Game with code] → Waiting room → Game starts automatically when 2nd player joins. No account, no auth, no matchmaking queue.
-
-**Why table stakes:** This IS the product entry point. A confusing lobby means the game never starts. The room code pattern is universally understood from Among Us, Jackbox, Skribbl.io.
+**Domain:** Real-time 2-player web board game — team customization, formation selection, stat-based player assignment
+**Researched:** 2026-07-03
+**Builds on:** v1.2 research (lobby, reconnection, dice, hex rendering patterns)
+**Confidence:** HIGH for UX patterns (well-established across BoardGameArena, Lichess, tabletop digital ports); MEDIUM for algorithm specifics (derived from comparable systems — Football Manager, fantasy sports drafts — adapted to Counter Attack's 1–6 stat range)
 
 ---
 
-### 2. Reconnection / Disconnect Handling
+## Team Library
 
-**What goes wrong without it:** Player refreshes tab by accident, mobile network hiccups (even on desktop Wi-Fi), ISP blip. Without reconnection, the game is dead and both players lose their session.
+### Table Stakes
 
-| Sub-feature                     | Detail                                                                                                                                                                                                      | Priority |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| Grace period for reconnection   | Server holds game state for 60–120 seconds after a socket disconnect before treating it as abandonment. Socket.io's built-in reconnection logic handles the transport layer; the server must hold the room. | Must     |
-| Rejoin via same room code       | On reconnect, client sends room code + player identity (session token stored in sessionStorage). Server restores full game state to the reconnecting client.                                                | Must     |
-| Opponent notified of disconnect | Remaining player sees "Opponent disconnected — waiting for reconnect (Xs remaining)" rather than a frozen board.                                                                                            | Must     |
-| Abandonment after grace period  | After timeout: show "Opponent abandoned the match" with option to return to lobby. Do NOT auto-declare a winner — just surface the state clearly.                                                           | Must     |
-| Session token scoped to tab     | Use `sessionStorage` (not `localStorage`) so two tabs from same browser don't collide. A 16-character random token generated on Create/Join is sufficient.                                                  | Must     |
+These are the minimum requirements for a team selection screen with 12 teams across 2 leagues to feel complete and navigable.
 
-**Why table stakes:** Real-time multiplayer without reconnection means any network hiccup kills the session. Players will blame the game, not their router. Socket.io handles transport reconnection automatically but the server-side room persistence and state replay must be explicitly built.
+| Feature                                          | Why Expected                                                                                                                                                                  | Complexity |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| League tabs or category filter                   | 12 teams is too many for a single flat grid; users need visual segmentation to orient. Any app with 2+ categories of the same item uses tabs (App Store, Steam, Google Play). | Low        |
+| Active/selected state on tab                     | Without it, users don't know which category they're viewing. One-line CSS toggle.                                                                                             | Low        |
+| Disabled/struck-out card for already-picked team | Already in the codebase for 4-team layout. Must scale to 12 teams. Away player sees home's pick struck out before choosing.                                                   | Low        |
+| Tab persists while away player waits             | If home player picks from League A, away player's view should default to (or stay on) the same league so they see the struck-out card in context.                             | Low        |
+| Team card shows name + badge                     | Already done. Keep for 12 teams. At 12 cards the badge must be smaller (60–80px vs current 110px).                                                                            | Low        |
 
----
+### Differentiators
 
-### 3. Whose-Turn Indicator
+| Feature                                                           | Value Proposition                                                                                              | Complexity                       |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| "Stat summary pill" on each card (e.g. "ATK 4.2 DEF 3.8")         | Lets players make an informed pick without opening a full squad view. Requires averaging stats per role group. | Low — computed at data-seed time |
+| Hover/focus tooltip showing squad preview (top 3 players + stats) | Richer info without a full extra screen. Common in strategy game unit selectors.                               | Medium                           |
+| League badge / crest beside tab label                             | Visual identity. Not required for function.                                                                    | Low                              |
 
-Clear, persistent, unambiguous display of:
+### Expected Flow
 
-- Which player's turn it is (with their team name/color)
-- What phase they are in (Movement / Pass / Shot / Save / etc.)
-- How many actions remain in the current phase (e.g. "Attacker moves: 2 of 4 used")
+This is the correct flow for the updated team library. Deviating from it adds confusion at a moment when players are still orienting.
 
-**Why table stakes:** Without this, players constantly misread the board. In async games you can email; in real-time games the UI must carry the full cognitive load of turn state. Lichess, Chess.com, and BoardGameArena all make this the largest persistent UI element after the board itself.
+1. Both players are on the Team Selection screen (triggered after slot-2 joins, same as today).
+2. Header: "Home: choose your team" / "Away: choose your team".
+3. Two tabs at top: **MLS** | **International** (or equivalent league names). Default tab = MLS.
+4. 6 team cards shown in a 2×3 or 3×2 grid per tab. Cards show badge + team name.
+5. Home player clicks a card → their pick is recorded; card is struck out in both players' views; tab switches automatically to show away player's turn.
+6. Away player's view: home's pick is struck out (wherever it lives across tabs); away browses both tabs freely and picks.
+7. Both picks confirmed → transition to Formation Selection (new step, see below).
 
----
+**Tab vs filter pattern decision:** Use tabs, not a dropdown filter. Tabs are faster (one click, no menu) and the two leagues are a categorical split, not a faceted filter. Dropdowns imply many values; two leagues = two tabs.
 
-### 4. Valid Move Highlighting
+**Cross-tab struck-out behavior:** The struck-out card must be visible even on the tab the away player isn't currently on. Two options:
 
-When a player selects a piece, the set of legal destination hexes must be visually highlighted before they click. In chess-like UIs this is non-negotiable — it communicates both the rules and the current selection state simultaneously.
+- Option A (recommended): When home picks from MLS, automatically open away player's view on MLS tab so they see the struck-out card. Away can then switch tabs freely.
+- Option B: Show a small "taken" badge on the tab label itself ("MLS (1 taken)") to signal something was picked there. Add only if Option A feels confusing in testing.
 
-- Unselected hex: default color
-- Selected piece: highlight (e.g. yellow ring)
-- Valid destination hex: highlight (e.g. green tint)
-- Invalid / ZOI-blocked hex: no highlight (or subtle red if hovered)
+### Dependencies
 
-**Why table stakes:** Without it, players have no way to discover rules interactively. The game becomes a memory test for the rulebook rather than a playable experience.
-
----
-
-### 5. Last Action Feedback
-
-After every game event (move, pass, dice roll, shot outcome), surface a brief plain-English summary:
-
-- "Red #7 moved to C4"
-- "Blue rolled 5 — pass successful"
-- "GOAL! Red scores. 1–0"
-
-A persistent action log (last 3–5 entries visible) serves both players, not just the active one. The passive player needs to understand what just happened without interpreting board state alone.
-
-**Why table stakes:** Real-time 2-player games have an asymmetric information problem — one player acts, the other watches. Without narration, the watching player is passive and confused. Every successful web board game (Lichess move notation, BGA action log) includes this.
+- `TeamId` type must be expanded to include 12 values.
+- `TEAM_CONFIGS` must gain a `league: 'mls' | 'international'` field per team.
+- `TEAM_SQUADS` in `teams.ts` must have 12 entries (vs current 4). Seed script already exists (`seed-rosters.ts`).
+- Existing 4 teams (cosmos, xolos, city, crew) must be reclassified into leagues or retired — this is a data migration, not a code architecture change.
+- Color scheme decoupling (see Color Scheme section) is NOT a blocker for the team library; teams can still carry `primaryColor`/`secondaryColor` inline for v1.3.
 
 ---
 
-### 6. Game Over Screen
+## Formation Selection
 
-When the match ends (90 actions elapsed, second half complete):
+### Table Stakes
 
-- Final score displayed prominently
-- Winner declared (or draw)
-- Two clear options: [Play Again] and [Back to Lobby]
+| Feature                                                                 | Why Expected                                                                                                                                                             | Complexity |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| Formation picker shown once per player, after team pick, before kickoff | Without it, formation is hardcoded and players have no agency over tactical setup — the feature simply doesn't exist.                                                    | Low-Medium |
+| Visual formation diagram                                                | Players must see what "4-4-2" means spatially before confirming. Text label alone is insufficient. A simplified 2D pitch with dots for positions takes ~30 lines of SVG. | Low        |
+| Confirmation button                                                     | Required to gate auto-assignment. Formation must be locked before position slots are defined.                                                                            | Low        |
+| Both players must confirm before kickoff proceeds                       | Same "both ready" pattern as KICK_OFF_SETUP. Server holds the transition.                                                                                                | Low        |
+| Formation persists through the match                                    | The chosen formation defines starting positions. The game already has KICK_OFF_SETUP for fine repositioning, so the formation just sets initial hex assignments.         | Low        |
 
-**Why table stakes:** Without an explicit end state, players don't know if the game crashed or finished. Closing the loop is part of the core gameplay contract.
+### Differentiators
 
----
+| Feature                                                       | Value Proposition                                                                                                                           | Complexity |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Highlight the "difference" between formations                 | When user hovers 4-3-3, dim the 4-4-2 dots and show the 4-3-3 dots instead in a different color. Helps players visualize tactical tradeoff. | Medium     |
+| Formation description text ("4-3-3: High press, wide attack") | Guides tactical intent for players unfamiliar with football formations.                                                                     | Low        |
+| Opponent's formation revealed after both confirm              | Adds a pre-match tension moment. Mirrors how tabletop Counter Attack works (you don't see opponent's formation until kickoff).              | Low        |
 
-### 7. Dice Roll Visual Feedback
+### Expected Flow
 
-The project already calls for player-triggered dice rolls (click to roll). The visual feedback pattern required:
+Formation selection follows team selection in the pre-match lobby sequence.
 
-- Pending state: "Click to roll" prompt, clearly scoped to the active player only
-- Rolling state: brief indication that the roll is processing (even 200ms fake delay improves perceived fairness)
-- Result state: the number(s) shown clearly, outcome explained ("You rolled 4 — shot saved" vs "You rolled 4 — GOAL!")
+1. Both teams picked → screen transitions to "Choose Formation".
+2. Each player sees 4 formation options: **4-4-2**, **5-3-2**, **4-3-3**, **3-4-3** (displayed as labelled cards with a mini pitch diagram).
+3. Player clicks a formation card → it highlights (selected state). Player clicks "Confirm Formation".
+4. After confirming: player sees "Waiting for opponent to choose formation…".
+5. Once both players have confirmed → **auto-assignment runs server-side** (see Auto-Assignment section). Server emits `game:state` with KICK_OFF_SETUP phase; pieces are positioned per formation + auto-assignment result.
+6. KICK_OFF_SETUP works as today: players may swap pieces before clicking Ready.
 
-**Why table stakes:** Dice rolls are the moment of maximum tension. If the result appears without ceremony, it feels like the game is malfunctioning. The click-to-roll model the project already specifies is correct — never auto-roll.
+**When shown:** Formation selection is a new discrete phase between team selection and KICK_OFF_SETUP. It is NOT shown mid-match or at half-time. It is shown once per match per player.
 
----
+**Server-side enforcement:** The server must receive the formation choice before running auto-assignment. A new socket event (`game:formation_pick` or similar) carries `{ teamId, formation: '4-4-2' | '5-3-2' | '4-3-3' | '3-4-3' }`. Server holds game start until both formations are received.
 
-## Differentiators
+**FSM impact:** A new game phase (e.g. `FORMATION_SELECT`) must be added between team-selection acknowledgment and KICK_OFF_SETUP. Both existing phases are unaffected.
 
-Features that improve the experience meaningfully but whose absence does not make the product feel broken.
+### Formation → Hex Position Mapping
 
-### 1. Rematch Flow
+Each formation defines a set of named position slots. The server maps each slot to a starting hex using a lookup table keyed by `(formation, side: 'home'|'away', slotName)`. The KICK_OFF_SETUP hex grid already has named regions (PITCH_REGIONS); formation starting positions extend that.
 
-After the Game Over screen, both players can click [Rematch]. A simple handshake:
+**4-4-2 (existing, hardcoded):**
 
-- First to click: "Waiting for opponent to accept rematch..."
-- Second to click: same room, sides swapped (home/away alternate), game restarts
+- GK: q=2, r=13
+- DEF (4): q=6, r={6, 10, 16, 20}
+- MID (4): q=10, r={4, 9, 17, 22}
+- FWD (2): q=15, r={9, 17}
+- ST (1): q=18, r=13
 
-**Value:** Reduces friction for a second game. Without it, players must exchange a new room code.
-**Scope:** Low — reuse existing room state, reset game state on server, signal both clients.
-**Verdict:** Build it. It's a 1-session feature that substantially changes the "two friends playing" experience.
+The other three formations shift the midfield and forward line counts. The exact hex coordinates for new formations are a data decision (not a code architecture decision) — they should be authored during the implementation phase with reference to the physical board.
 
----
+### Dependencies
 
-### 2. Move Log / Action History Table
-
-A scrollable table of all actions taken this match:
-
-| #   | Player | Action        | Result             |
-| --- | ------ | ------------- | ------------------ |
-| 1   | Red    | Moved #7 → C4 | —                  |
-| 2   | Red    | Pass #7 → #9  | Success (rolled 4) |
-| 3   | Blue   | Shot          | Saved              |
-
-**Value:** Lets players review what happened, understand momentum, dispute misclicks.
-**Scope:** Medium — requires event sourcing on server (which you should have anyway for reconnect state replay). If you build reconnect replay (table stakes), the log is essentially free.
-**Verdict:** Build it, because the reconnect state replay architecture already produces the raw events. Render them in a side panel. This is nearly free if event sourcing is in place.
-
----
-
-### 3. Turn Timer (Optional, Configurable)
-
-A visible countdown (e.g. 60 seconds per action phase) with auto-forfeit or auto-pass if exceeded.
-
-**Value:** Prevents stalled games when one player goes idle without disconnecting.
-**Scope:** Medium — requires server-side timer, forfeit logic, and UI clock.
-**Verdict:** Defer to v2. The project specifies "real-time only, requires active WebSocket connection." If a player goes idle, the disconnect grace period (table stakes) handles it indirectly. A formal timer adds implementation complexity that the v1 scope doesn't need. Can be added when user feedback reveals stalling is a real problem.
+- Formation selection must complete before auto-assignment can run (strict sequential dependency).
+- Auto-assignment depends on the formation because position slots are derived from the formation.
+- KICK_OFF_SETUP already handles post-assignment repositioning — no changes needed there beyond receiving pre-positioned pieces.
 
 ---
 
-### 4. In-Game Chat
+## Auto-Assignment with Override
 
-A simple text input at the bottom of the game panel. Messages scoped to the room.
+### Table Stakes
 
-**Value:** Friends playing together expect to be able to trash-talk or coordinate.
-**Scope:** Low (Socket.io room broadcast, append to chat log).
-**Verdict:** Nice-to-have but explicitly skip for v1. The target audience (two friends) will have their own voice/text channel open (Discord). Building chat adds a moderation surface and scope creep. Revisit when there are strangers playing (which requires matchmaking, also out of scope).
+| Feature                                                          | Why Expected                                                                                                                                                                          | Complexity         |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| System assigns players to positions automatically                | Without it, players must manually drag 11 pieces to positions before every kickoff — unusable friction. Every digital tabletop game that has formation+roster selection auto-assigns. | Medium (algorithm) |
+| Visual display of the assignment result before confirmation      | Players must see who is where before accepting. A list of "Position → Player Name" rows is sufficient; a mini-pitch with name labels is better.                                       | Low-Medium         |
+| Swap mechanism: player can exchange two pieces before confirming | One-level override is table stakes. Players will immediately see a mis-assignment (e.g. their best striker placed at wing) and expect to fix it.                                      | Medium             |
+| Confirm button to lock assignment                                | Required to gate the KICK_OFF_SETUP transition.                                                                                                                                       | Low                |
+| GK is always locked to the GK slot                               | GK is a distinct role. Auto-assignment must never place an outfielder in goal. This is a hard constraint, not a preference.                                                           | Low                |
 
----
+### Differentiators
 
-### 5. Spectator Mode
+| Feature                                          | Value Proposition                                                                                                                                                           | Complexity |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Highlight "best fit" vs "compromise" assignments | Color-code slots where the assigned player's primary stat is well below the position's ideal (e.g. red tint if shooting < 3 for a CF slot). Helps players prioritize swaps. | Low        |
+| Show stat comparison when selecting a swap       | When player clicks two pieces to swap, show a side-by-side stat comparison so they can confirm the swap is beneficial.                                                      | Medium     |
+| "Re-auto-assign" button                          | Lets players redo the auto-assignment if they've made swaps they regret.                                                                                                    | Low        |
 
-Allow additional connections to a room as read-only observers.
+### Algorithm Notes
 
-**Value:** Useful for streaming, coaching, or a friend watching.
-**Scope:** Medium — requires a third role type, UI for spectator state, and ensuring spectators cannot interact.
-**Verdict:** Defer. The two-player constraint is fundamental to v1. Spectator support requires the server to distinguish socket roles and broadcast appropriately without exposing player identities incorrectly. This is a v2 social feature.
+The algorithm runs server-side (authoritative). Client shows the result; player overrides are sent as swap events. This prevents either player from having a computational advantage.
 
----
+**Position roles in Counter Attack (from codebase):**
 
-### 6. Sound Cues
+- GK (1): saving + handling + aerialAbility
+- DEF (varies by formation — 3, 4, or 5): tackling + resilience + aerialAbility
+- MID (varies — 3 or 4): highPass + dribbling + tackling (balance stat)
+- FWD/winger (varies): pace + dribbling + shooting
+- ST/CF (1–2): shooting + heading (aerialAbility) + pace
 
-Distinct audio events for:
+**Recommended algorithm: weighted score → greedy assignment**
 
-- Your turn starting (soft chime)
-- Opponent's move landing (click)
-- Goal scored (cheer / whistle)
-- Dice result (roll sound)
-
-**Value:** Audio feedback significantly increases engagement in turn-based and real-time board games. Reduces cognitive load on the active player (they don't have to watch the screen every second).
-**Scope:** Low — HTML5 Audio API, small sound files, a toggle in the UI.
-**Verdict:** Nice-to-have. Implement only if a dedicated pass is made for polish. No animations are in scope, so sound would be the only motion feedback — this elevates the experience cheaply.
-
----
-
-## Anti-Features for v1
-
-Features that add scope, complexity, or attack surface without delivering core value in a two-friend, real-time context.
-
-### 1. User Accounts / Authentication
-
-No logins, no profiles, no passwords. Room codes are the access token. Authentication adds a registration funnel that most players will abandon before they play a single match.
-
-**Avoid because:** The core value proposition ("share a room code and play") is destroyed by a signup wall. Validated user accounts belong to a social/ranked product, not a proof-of-concept.
-
-### 2. Matchmaking / Public Lobbies
-
-Random opponent matching, ELO ratings, leaderboards, ranked queues.
-
-**Avoid because:** The project explicitly targets two known players. Public matchmaking requires anti-abuse, rating systems, and significantly more server infrastructure. Distraction from gameplay fidelity.
-
-### 3. Animations
-
-The PROJECT.md already marks this as out of scope. Reinforce: CSS transitions and canvas animations for piece movement add significant frontend complexity, accessibility concerns, and performance work for no rules benefit.
-
-**Avoid because:** Animation is polish. The MVP must validate that the rules implementation is correct and fun before investing in presentation.
-
-### 4. Chat
-
-Listed above under Differentiators with "Defer" verdict — reinforced here. Chat is an anti-feature for v1 specifically because the target users already have a communication channel, and building chat creates a moderation burden with zero additional players to moderate.
-
-### 5. Persistent Game History / Replay
-
-Storing full match replays in a database for later review.
-
-**Avoid because:** The move log (Differentiator #2) covers the in-session case. Full replay persistence requires a database schema, storage costs, and a replay viewer. None of these exist yet. The session event log lives only in memory; that is sufficient for v1.
-
-### 6. Mobile Layout
-
-Already out of scope per PROJECT.md. The hex grid at the required resolution cannot be meaningfully rendered on a phone screen without a dedicated responsive design pass.
-
-### 7. Team Selection / Card Editor
-
-Teams are hardcoded. Exposing team selection adds a lobby step, attribute balancing concerns, and requires more teams to be authored. Hardcoded teams validate that the attribute system works before building a roster management UI.
-
-### 8. Forfeit / Resign Button
-
-**Borderline.** Players might want to concede when losing 5-0 with 10 actions left. However:
-
-- The game is short (90 actions total), so conceding is less critical than in chess
-- Without accounts, a forfeit has no stakes (no rating loss)
-- Misclick risk on a forfeit button is high
-
-**Verdict:** Defer. If it surfaces in playtest feedback, add in a v1.1 patch. The disconnect grace period already handles "I want to stop" implicitly (close tab → opponent sees abandon notice).
-
----
-
-## UX Patterns
-
-Specific conventions used by successful web board games (Lichess, Chess.com, BoardGameArena, Skribbl.io, Jackbox) that should be followed rather than reinvented.
-
-### Lobby / Room Code
-
-- **Code format:** 6 characters, uppercase alphanumeric, no ambiguous chars. Display in a large monospace font.
-- **Copy button:** Clipboard icon next to the code. Show "Copied!" for 1.5 seconds then revert. No browser `alert()`.
-- **Waiting state:** Full-screen "Waiting for opponent..." with the code displayed again. Do not navigate away from this page on game start — update it in place (SPA state transition).
-- **Name/color assignment:** Assign home/away automatically. Display it on the waiting screen ("You are playing as Red — Home") so players know before the game loads.
-
-### Turn Structure
-
-- **Header bar or sidebar pill:** Always-visible indicator: "[Team Name]'s Turn — Movement Phase — Actions: 2/4 remaining"
-- **Disabled controls:** The opponent's click events must be blocked, not just visually suppressed. Server enforces this; client also grays out interactive elements to provide immediate feedback.
-- **Phase transition announcement:** A brief center-screen toast or banner when the phase changes ("Blue's Movement Phase begins") that auto-dismisses after 2 seconds.
-
-### Hex Grid Interaction
-
-- **Single-click select, second-click confirm:** Click a piece to select (highlights valid moves). Click a valid hex to confirm the move. Click elsewhere to deselect. This is the chess.com pattern and is intuitive.
-- **No drag-and-drop:** Drag is unreliable on hex grids and adds touch-handling complexity. Click-to-move only.
-- **Hover state on valid hexes:** On mouseover, show a faint preview of the piece in the target hex. Reduces misclicks.
-- **Confirmation for irreversible actions:** Before a shot or dice roll that cannot be taken back, a brief confirm step ("Roll dice for shot? [Roll] [Cancel]") prevents fat-finger errors.
-
-### Dice Roll
-
-- **Mandatory player trigger:** Click-to-roll as specified. Never auto-roll. The click is the moment of agency.
-- **Display the number:** Show the rolled value(s) in large type for 2–3 seconds. State the outcome in plain English beneath it.
-- **Passive player sees the same result:** Both players see the same roll result simultaneously (server broadcasts). Do not show one player before the other.
-
-### Network / Connection State
-
-- **Connection indicator:** A small dot in the corner (green = connected, yellow = reconnecting, red = disconnected). Lichess uses this pattern. Players should never wonder if their connection is live.
-- **Reconnect banner:** If the socket drops, show a non-blocking banner: "Connection lost — reconnecting..." that resolves automatically. Do not interrupt gameplay state.
-- **Opponent disconnect notice:** A modal or prominent banner: "Opponent disconnected. Waiting for them to reconnect (45s)." with a countdown. Show [Leave Game] but no auto-action.
-
-### Action Log
-
-- **Right-side panel or bottom strip:** A narrow persistent log showing the last 5–8 actions. Auto-scrolls to bottom. Timestamps optional but not required.
-- **Plain English entries:** "Red: Moved #9 to E6", "Blue: Rolled 3 — Pass failed (Loose Ball)"
-- **Both players see the same log:** Server-authoritative log state, broadcast to room.
-
-### Game Over
-
-- **Full-screen overlay** on top of the final board state. Score prominent. Winner in large text.
-- **Two buttons only:** [Rematch] and [Back to Lobby]. No social share (v1 has no accounts to share from).
-- **Board remains visible** underneath the overlay for post-game review.
-
----
-
-## Dependency Map
-
-Which features must be built before others can work.
+This is the simplest correct approach. More sophisticated (Hungarian algorithm / optimal assignment) is not justified for 11 players and 4 formation types.
 
 ```
-Socket.io Room Management
-    └─> Room Code Generation & Sharing          (lobby entry point)
-    └─> Player Identity (session token)         (required for reconnect)
-            └─> Reconnect / State Replay         (requires identity + room persistence)
-                    └─> Opponent Disconnect Notice    (requires reconnect infrastructure)
+type PositionSlot = { slotId: string; role: 'GK'|'CB'|'FB'|'CM'|'CAM'|'W'|'CF'; weights: Record<StatKey, number> }
 
-Server-Authoritative Game State (event log)
-    └─> Game State Broadcast to both clients    (required for turn indicator, move log)
-    └─> Valid Move Calculation (server-side)     (required for hex highlighting)
-    └─> Action Log (in-memory event list)        (required for move log panel)
-            └─> Reconnect State Replay           (replay = re-broadcast event log to rejoining client)
-            └─> Move Log UI Panel                (nearly free once event log exists)
+function scorePlayerForSlot(player: PlayerPiece, slot: PositionSlot): number {
+  return sum over stat in weights: player[stat] * slot.weights[stat]
+}
 
-Turn State Machine
-    └─> Whose-Turn Indicator                    (reads turn state)
-    └─> Input Blocking (opponent's controls)    (reads turn state)
-    └─> Phase Transition Toast                  (fires on turn state change)
-
-Game Over State
-    └─> Score Tracking                          (prerequisite from core game rules)
-    └─> Game Over Screen                        (reads final score + winner)
-            └─> Rematch Flow                    (resets game state on server, reuses room)
+function autoAssign(squad: PlayerPiece[], slots: PositionSlot[]): Map<slotId, playerId> {
+  1. Lock GK first: assign the squad's single GK-role player to the GK slot. Remove both from candidate pool.
+  2. For each remaining slot (sorted by specificity — CF before CM before FB):
+     a. Score all unassigned outfield players against this slot.
+     b. Assign the highest-scoring unassigned player to this slot.
+     c. Remove that player from the pool.
+  3. Return the complete assignment map.
+}
 ```
 
-**Critical path for v1:**
+**Stat weights per role (recommended starting values — tune during playtest):**
 
-1. Room management + session tokens
-2. Server game state + event log
-3. Turn state machine + broadcast
-4. Valid move highlighting
-5. Dice roll flow
-6. Game over screen
+| Role         | Primary Stats                             | Secondary Stats |
+| ------------ | ----------------------------------------- | --------------- |
+| GK           | saving×3, handling×3, aerialAbility×2     | pace×0.5        |
+| CB (anchor)  | tackling×3, resilience×2, aerialAbility×2 | highPass×1      |
+| FB (flex)    | tackling×2, pace×2, resilience×1          | dribbling×1     |
+| CM (anchor)  | highPass×2, tackling×2, dribbling×2       | resilience×1    |
+| CAM/flex-mid | dribbling×3, shooting×2, highPass×1       | pace×1          |
+| W/winger     | pace×3, dribbling×2, shooting×1           | —               |
+| CF (anchor)  | shooting×3, aerialAbility×2, pace×1       | dribbling×1     |
 
-Rematch and move log panel are fast followers once the above are solid.
+**Anchor vs flex distinction:** The milestone context calls out "anchor roles (CB/CM/CF) vs flex roles (FB/winger/flex-mid)". Anchors are filled first in the greedy pass (step 2 above, sorted by specificity). This prevents the best all-rounder from being consumed by a flex role before the critical anchor slots are evaluated.
+
+**Tie-breaking:** When two players score identically for a slot, break ties by:
+
+1. Higher combined stat total (more versatile player goes to the more demanding slot)
+2. If still tied, lower jersey number (deterministic, avoids random outcomes)
+
+Ties are rare on 1–6 integer stats with weighted sums, but the tiebreaker must exist to prevent non-determinism.
+
+**Swap/override UX flow:**
+
+1. Auto-assignment result is displayed (list or mini-pitch).
+2. Player clicks piece A (highlights it). Player clicks piece B → the two pieces swap slots. Server receives `game:formation_swap { pieceIdA, pieceIdB }`.
+3. Server validates swap (both pieces in same team's squad, neither is GK being moved out of GK slot). Emits updated assignment state.
+4. Player can make multiple swaps.
+5. Player clicks "Confirm" → assignment is locked. Server moves pieces to their formation hex positions.
+6. KICK_OFF_SETUP phase begins for fine repositioning.
+
+**GK lock rule:** The GK slot may only receive a player whose `role === 'GK'` in the squad data. The swap validator on the server enforces this. A player may not "promote" an outfielder to GK via the swap UI.
+
+**Server-side execution:** Auto-assignment runs once, after both players have confirmed their formations. The server runs `autoAssign(squad, slotsForFormation)` and stores the result in game state. Both clients receive the assignment simultaneously via `game:state`.
+
+### Dependencies
+
+- Requires formation to be confirmed before it can run (formation defines the slot list).
+- Position hex coordinates for non-4-4-2 formations must be authored before auto-assignment can place pieces.
+- The `PlayerPiece.role` field (`GK|DEF|MID|FWD|ST`) in the current codebase is a coarse role, not a formation slot. Auto-assignment maps the fine-grained slot (CB, FB, CM, etc.) from the formation spec; the coarse role is used only as a GK gate.
+- Swap validation is server-side. Client sends swap intents; server applies them to the assignment map.
 
 ---
 
-## Feature Classification Summary
+## Color Scheme / Visual Identity
 
-| Feature                                  | Classification                | Build in v1?                      |
-| ---------------------------------------- | ----------------------------- | --------------------------------- |
-| Room code create/join                    | Table Stakes                  | Yes                               |
-| Copy-to-clipboard code                   | Table Stakes                  | Yes                               |
-| Waiting for opponent screen              | Table Stakes                  | Yes                               |
-| Reconnect grace period                   | Table Stakes                  | Yes                               |
-| Session token (sessionStorage)           | Table Stakes                  | Yes                               |
-| Opponent disconnect notice               | Table Stakes                  | Yes                               |
-| Whose-turn indicator                     | Table Stakes                  | Yes                               |
-| Valid move highlighting                  | Table Stakes                  | Yes                               |
-| Last action feedback (log)               | Table Stakes                  | Yes                               |
-| Dice roll click-to-roll + result display | Table Stakes                  | Yes                               |
-| Game over screen                         | Table Stakes                  | Yes                               |
-| Connection status indicator              | Table Stakes                  | Yes                               |
-| Rematch flow                             | Differentiator                | Yes — low effort, high value      |
-| Move log panel                           | Differentiator                | Yes — nearly free with event log  |
-| Sound cues                               | Differentiator                | Defer — polish pass only          |
-| Turn timer                               | Differentiator                | Defer to v2                       |
-| In-game chat                             | Differentiator / Anti-feature | Skip for v1                       |
-| Spectator mode                           | Differentiator                | Defer to v2                       |
-| User accounts                            | Anti-feature                  | Never in v1                       |
-| Matchmaking                              | Anti-feature                  | Never in v1                       |
-| Animations                               | Anti-feature                  | Never in v1                       |
-| Persistent replay storage                | Anti-feature                  | Never in v1                       |
-| Mobile layout                            | Anti-feature                  | Never in v1                       |
-| Team selection UI                        | Anti-feature                  | Never in v1                       |
-| Forfeit/resign button                    | Anti-feature                  | Defer — monitor playtest feedback |
+### Table Stakes (for v1.3 and v1.4 prep)
+
+For v1.3 (the team library milestone), color scheme is still inline on `TeamConfig` — no architectural change needed. The decoupling is a v1.4 concern.
+
+| Feature                                                                 | Why Expected                                                                                             | Complexity                           |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Each team has a distinct primary color used on pieces and cards         | Already in codebase. Must continue to work as teams are added.                                           | None — existing                      |
+| Badge image per team                                                    | Already in codebase. Must be authored for 8 new teams.                                                   | Art/asset cost, not code cost        |
+| Colors don't clash when two teams with similar palettes face each other | With 12 teams, color collision probability rises. Need a check at match start (or design-time curation). | Low — enforce at data-authoring time |
+
+### Notes for v1.4 Prep
+
+The architectural goal stated in the milestone context is: **visual identity (badge, colors, jersey) becomes a separate entity from team roster.**
+
+This means a future `ColorScheme` type that can be referenced by team config but also selected independently (e.g. custom team "use Manchester blue scheme with Sydney FC crest"). The separation enables:
+
+- Custom team creation (v1.5+): player defines roster, then picks a color scheme separately
+- Reuse of schemes across teams without duplicating color data
+- Scheme selection UI (color picker or preset palette selector)
+
+**Recommended v1.4 data model (do not build now, design now):**
+
+```typescript
+export type ColorSchemeId = string; // e.g. 'blue-gold', 'red-black', 'custom-abc123'
+
+export interface ColorScheme {
+  id: ColorSchemeId;
+  primaryColor: string; // hex
+  secondaryColor: string; // hex
+  tertiaryColor?: string; // optional trim color
+  badgeFile?: string; // optional crest override
+}
+
+export interface TeamConfig {
+  id: TeamId;
+  name: string;
+  colorSchemeId: ColorSchemeId; // reference, not inline
+  leagueId: 'mls' | 'international';
+}
+```
+
+**v1.3 migration path (zero-breaking-change):** Keep `primaryColor`/`secondaryColor` inline on `TeamConfig` for all 12 v1.3 teams. In v1.4, extract them into a `COLOR_SCHEMES` registry and replace inline fields with `colorSchemeId`. Client components that read `TEAM_CONFIGS[id].primaryColor` will need a one-line lookup change: `COLOR_SCHEMES[TEAM_CONFIGS[id].colorSchemeId].primaryColor`.
+
+**Color scheme selection UX (v1.4 design guidance):**
+
+- Do NOT build a full color picker for v1.4. Offer 10–12 preset palettes as clickable swatches, same pattern as GitHub profile customization and Notion page icon selection.
+- Custom hex input is a v1.5+ feature.
+- Scheme selection happens in a "Customize team" modal accessible from the team library, not inline on the team card.
+
+---
+
+## Feature Dependency Map (v1.3 milestone)
+
+```
+Team Library (12 teams, 2 leagues)
+    └─> League tabs UI                   (new client component)
+    └─> Expanded TeamId union            (shared types change)
+    └─> 8 new team data entries          (teams.ts + seed script)
+    └─> league field on TeamConfig       (shared types change)
+
+Formation Selection
+    └─> Requires team selection complete  (existing flow gated)
+    └─> New FORMATION_SELECT game phase   (FSM addition)
+    └─> Formation→slot mapping table      (new shared data)
+    └─> Both-players-confirm pattern      (same as KICK_OFF_SETUP ready flow)
+            └─> Auto-Assignment runs      (server-side, triggered on both confirms)
+
+Auto-Assignment
+    └─> Requires formation confirmed      (slot list must be known)
+    └─> Requires squad data (12 teams)    (team library dependency)
+    └─> Swap UI                           (client component, server-validated)
+            └─> Confirm locks assignment  (gates KICK_OFF_SETUP transition)
+
+KICK_OFF_SETUP (existing)
+    └─> Receives pre-positioned pieces    (from auto-assignment)
+    └─> No changes needed to constraint logic
+```
+
+**Critical path for v1.3:**
+
+1. Expand `TeamId`, `TEAM_CONFIGS`, `TEAM_SQUADS` with 8 new teams + league field
+2. Formation data model (slot definitions per formation + hex positions)
+3. `FORMATION_SELECT` FSM phase + socket events
+4. Auto-assignment algorithm (server-side `autoAssign` function)
+5. Formation picker UI (client)
+6. Assignment review + swap UI (client)
+7. League tabs on team selection screen (client)
+
+Steps 1–4 are backend/shared; steps 5–7 are client. Steps 1–2 are blocking for all others. Steps 3–4 can develop in parallel with steps 5–7 once the data model is settled.
 
 ---
 
 ## Confidence Notes
 
-- **HIGH confidence:** Lobby/room code flow, reconnection patterns, whose-turn indicator, valid move highlighting — these are universal across Lichess, Chess.com, BGA, Jackbox. Well-established conventions.
-- **HIGH confidence:** Session token via sessionStorage for reconnect identity — standard Socket.io pattern.
-- **MEDIUM confidence:** Specific grace period duration (60–120s recommendation) — based on common practice, but should be tuned by playtesting. Start at 90 seconds.
-- **MEDIUM confidence:** Rematch flow complexity estimate — Socket.io room reuse is straightforward; the game state reset on server is domain-specific to Counter Attack's state machine.
-- **LOW confidence:** Whether a forfeit button is missed in playtesting — cannot know until real users play a 90-action game. Monitor first playtest sessions closely.
+- **HIGH:** Tab vs filter pattern for 2-league team library — this is a universal, well-established UX pattern. No ambiguity.
+- **HIGH:** Both-players-confirm gate for formation — already proven in KICK_OFF_SETUP; the same pattern transfers directly.
+- **HIGH:** GK-lock constraint in auto-assignment — the codebase already distinguishes GK by role; enforcing the lock is trivial.
+- **HIGH:** Greedy weighted-score algorithm for auto-assignment — justified for small N (11 players). Hungarian algorithm is unnecessary complexity. Fantasy sports and Football Manager both use weighted scoring for initial auto-picks.
+- **MEDIUM:** Stat weight values — the weights in the algorithm section are starting points. They require playtest validation. Wrong weights will produce assignments that feel wrong to football-knowledgeable players (e.g. assigning a low-shooting player to CF).
+- **MEDIUM:** Formation hex coordinates for non-4-4-2 formations — positions must be visually correct on the actual hex grid. This depends on the board photo/measurements (already flagged as a blocking dependency in PROJECT.md). Coordinates in this document are illustrative, not final.
+- **LOW:** Whether formation reveal (opponent's choice shown after both confirm) improves the experience — this is a preference call. Recommend building it but treating it as a toggle.

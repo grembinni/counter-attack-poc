@@ -371,15 +371,9 @@ Phase 21 is not a rename/refactor phase in the traditional sense, but it does ex
 
 ## Common Pitfalls
 
-### Pitfall 1: Seattle Badge Filename Typo (`seatle.png`)
+### Pitfall 1: Seattle Badge Filename Typo (resolved)
 
-**What goes wrong:** The badge file on disk is `seatle.png` (one `t`, missing the second `t`). The `COLOR_SCHEME_REGISTRY.seattle` entry in `teamConfig.ts` already uses `badgeFile: 'seatle.png'` (matching the typo). The Vite import in `TeamSelectionScreen` must ALSO use the typo spelling: `import seattleFullBadge from '../assets/badges/seatle-full.png'`.
-
-**Why it happens:** The badge was created/named with a typo that was then carried into `COLOR_SCHEME_REGISTRY`. The registry and the file are consistent with each other (both typo), but a developer fixing the "typo" in the import will break the build.
-
-**How to avoid:** Do NOT "fix" the typo in Phase 21. The badge file is `seatle.png`, the `badgeFile` key is `'seatle.png'`, and the Vite import path must match. A future cleanup phase can rename both together. Document the typo with a comment.
-
-**Warning signs:** Vite import error `Cannot find module '...seatle-full.png'` means the import used the correct spelling but the file still has the typo.
+The badge files were renamed from `seatle.png` / `seatle-full.png` to `seattle.png` / `seattle-full.png`, and `teamConfig.ts` `badgeFile` updated to `'seattle.png'`. Use the correct spelling in all Vite imports and registry references.
 
 ### Pitfall 2: TeamId-to-sourceTeamId slug mismatch for 3 teams
 
@@ -522,7 +516,7 @@ import crewFullBadge from '../assets/badges/crew-full.png';
 import laFullBadge from '../assets/badges/la-full.png';
 import miamiFullBadge from '../assets/badges/miami-full.png';
 import nashvilleFullBadge from '../assets/badges/nashville-full.png';
-import seattleFullBadge from '../assets/badges/seatle-full.png'; // NOTE: typo intentional — matches file
+import seattleFullBadge from '../assets/badges/seattle-full.png';
 import canadaFullBadge from '../assets/badges/canada-full.png';
 import englandFullBadge from '../assets/badges/england-full.png';
 import franceFullBadge from '../assets/badges/france-full.png';

@@ -1,98 +1,129 @@
-/** Uniform style system for Counter Attack — Phase 20.
- * Defines the 12 uniform style identifiers and their display metadata.
+/** Uniform style system for Counter Attack.
+ * Defines the 18 uniform style identifiers (9 families × up to 5 variants) and display metadata.
  * No React/JSX imports — shared package must not reference the JSX runtime.
- * Renderer functions live in packages/client/src/styles/uniformStyles.tsx (Plan 20-02).
+ * Renderer functions live in packages/client/src/styles/uniformStyles.tsx.
  */
 
-/** Phase 20 UNIFORM-01: 12-member string union of all available uniform style identifiers.
- * Order matches the CONTEXT.md decisions D-01 through D-12 and UNIFORM_STYLE_META below. */
+/** 18-member string union of all available uniform style identifiers.
+ * Families: pinstripes (3), bar (5), split (3), quarter (2), shape-oval/circle/diamond (3), sunburst (1), checkers (1). */
 export type UniformStyleId =
-  | 'pinstripe'
-  | 'diagonal'
-  | 'checker'
-  | 'cosmos'
-  | 'plus'
-  | 'v-stripe'
-  | 'quarters'
-  | 'polka-dots'
-  | 'fade'
-  | 'tree-rings'
-  | 'corners'
-  | 'solid';
+  | 'pinstripes-horizontal'
+  | 'pinstripes-vertical'
+  | 'pinstripes-diagonal'
+  | 'bar-horizontal'
+  | 'bar-vertical'
+  | 'bar-diagonal'
+  | 'bar-x'
+  | 'bar-plus'
+  | 'split-horizontal'
+  | 'split-vertical'
+  | 'split-diagonal'
+  | 'quarter-horizontal'
+  | 'quarter-diagonal'
+  | 'shape-oval'
+  | 'shape-circle'
+  | 'shape-diamond'
+  | 'sunburst'
+  | 'checkers';
 
-/** Display metadata for a single uniform style.
- * Used in Phase 22 selection UI and any tooltip/label rendering. */
+/** Display metadata for a single uniform style. Used in selection UI and tooltips. */
 export interface UniformStyleMeta {
-  /** The style identifier — matches its key in UNIFORM_STYLE_META. */
   id: UniformStyleId;
-  /** Human-readable display name (e.g. 'V-Stripe', 'Polka Dots'). */
   name: string;
-  /** One-line visual description for the Phase 22 selection screen. */
   description: string;
 }
 
-/** Phase 20 UNIFORM-05: Full metadata registry for all 12 uniform styles.
- * Typed as Record<UniformStyleId, UniformStyleMeta> so TypeScript enforces all 12 keys.
- * This const is metadata only — no renderer functions or JSX lives here. */
+/** Full metadata registry for all 18 uniform styles.
+ * Typed as Record<UniformStyleId, UniformStyleMeta> so TypeScript enforces all 18 keys. */
 export const UNIFORM_STYLE_META: Record<UniformStyleId, UniformStyleMeta> = {
-  pinstripe: {
-    id: 'pinstripe',
-    name: 'Pinstripe',
-    description: 'Vertical pinstripes',
+  'pinstripes-horizontal': {
+    id: 'pinstripes-horizontal',
+    name: 'Pinstripes (H)',
+    description: 'Narrow horizontal stripes with a solid centre circle',
   },
-  diagonal: {
-    id: 'diagonal',
-    name: 'Diagonal',
-    description: 'Diagonal stripe across the jersey',
+  'pinstripes-vertical': {
+    id: 'pinstripes-vertical',
+    name: 'Pinstripes (V)',
+    description: 'Narrow vertical stripes with a solid centre circle',
   },
-  checker: {
-    id: 'checker',
-    name: 'Checker',
-    description: 'Alternating checker squares',
+  'pinstripes-diagonal': {
+    id: 'pinstripes-diagonal',
+    name: 'Pinstripes (D)',
+    description: 'Narrow diagonal stripes with a solid centre circle',
   },
-  cosmos: {
-    id: 'cosmos',
-    name: 'Cosmos',
-    description: 'Horizontal band across the chest',
+  'bar-horizontal': {
+    id: 'bar-horizontal',
+    name: 'Bar (H)',
+    description: 'Bold horizontal band across the centre',
   },
-  plus: {
-    id: 'plus',
-    name: 'Plus',
-    description: 'Bold plus cross shape on a contrasting background',
+  'bar-vertical': {
+    id: 'bar-vertical',
+    name: 'Bar (V)',
+    description: 'Bold vertical band through the centre',
   },
-  'v-stripe': {
-    id: 'v-stripe',
-    name: 'V-Stripe',
-    description: 'V-shape chevron stripes',
+  'bar-diagonal': {
+    id: 'bar-diagonal',
+    name: 'Bar (Diag)',
+    description: 'Bold diagonal stripe across the piece',
   },
-  quarters: {
-    id: 'quarters',
-    name: 'Quarters',
-    description: 'Four-quadrant colour split',
+  'bar-x': {
+    id: 'bar-x',
+    name: 'Bar (X)',
+    description: 'Two diagonal bars crossing in an X pattern',
   },
-  'polka-dots': {
-    id: 'polka-dots',
-    name: 'Polka Dots',
-    description: 'Dot pattern on a solid base colour',
+  'bar-plus': {
+    id: 'bar-plus',
+    name: 'Bar (+)',
+    description: 'Horizontal and vertical bars forming a plus sign',
   },
-  fade: {
-    id: 'fade',
-    name: 'Fade',
-    description: 'Gradient fade from primary to secondary colour',
+  'split-horizontal': {
+    id: 'split-horizontal',
+    name: 'Split (H)',
+    description: 'Top/bottom 50-50 split between primary and secondary colours',
   },
-  'tree-rings': {
-    id: 'tree-rings',
-    name: 'Tree Rings',
-    description: 'Concentric ring overlay',
+  'split-vertical': {
+    id: 'split-vertical',
+    name: 'Split (V)',
+    description: 'Left/right 50-50 split between primary and secondary colours',
   },
-  corners: {
-    id: 'corners',
-    name: 'Corners',
-    description: 'Primary colour triangles at the four corners',
+  'split-diagonal': {
+    id: 'split-diagonal',
+    name: 'Split (D)',
+    description: 'Diagonal 50-50 split between primary and secondary colours',
   },
-  solid: {
-    id: 'solid',
-    name: 'Solid',
-    description: 'Solid single colour — no pattern',
+  'quarter-horizontal': {
+    id: 'quarter-horizontal',
+    name: 'Quarter (H)',
+    description: 'Four horizontal quarter bands alternating colours',
+  },
+  'quarter-diagonal': {
+    id: 'quarter-diagonal',
+    name: 'Quarter (D)',
+    description: 'Four-quadrant colour split with diagonal emphasis',
+  },
+  'shape-oval': {
+    id: 'shape-oval',
+    name: 'Oval',
+    description: 'Horizontal oval spanning the full width of the piece',
+  },
+  'shape-circle': {
+    id: 'shape-circle',
+    name: 'Circle',
+    description: 'Secondary colour circle on a primary base',
+  },
+  'shape-diamond': {
+    id: 'shape-diamond',
+    name: 'Diamond',
+    description: 'Secondary colour diamond on a primary base',
+  },
+  sunburst: {
+    id: 'sunburst',
+    name: 'Sunburst',
+    description: 'Radiating wedges from a solid central circle',
+  },
+  checkers: {
+    id: 'checkers',
+    name: 'Checkers',
+    description: 'Alternating checker squares with a solid centre circle (GK default)',
   },
 };

@@ -40,12 +40,23 @@ describe('COLOR_SCHEME_REGISTRY — DATA-03: all 14 team palettes (4 historical 
     expect(COLOR_SCHEME_REGISTRY[schemeId].name).toBeTruthy();
   });
 
-  it.each(COLOR_SCHEME_IDS)('%s palette has all 4 required fields', (schemeId) => {
+  it.each(COLOR_SCHEME_IDS)('%s palette has all 7 required fields', (schemeId) => {
     const palette = COLOR_SCHEME_REGISTRY[schemeId].palette;
     expect(palette).toHaveProperty('homePrime');
-    expect(palette).toHaveProperty('awayPrime');
     expect(palette).toHaveProperty('homeAlt');
+    expect(palette).toHaveProperty('homeFont');
+    expect(palette).toHaveProperty('awayPrime');
     expect(palette).toHaveProperty('awayAlt');
+    expect(palette).toHaveProperty('awayFont');
+    expect(palette).toHaveProperty('uiColor');
+  });
+
+  it.each(COLOR_SCHEME_IDS)('%s palette.homeFont matches /^#[0-9a-f]{6}$/i', (schemeId) => {
+    expect(COLOR_SCHEME_REGISTRY[schemeId].palette.homeFont).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it.each(COLOR_SCHEME_IDS)('%s palette.awayFont matches /^#[0-9a-f]{6}$/i', (schemeId) => {
+    expect(COLOR_SCHEME_REGISTRY[schemeId].palette.awayFont).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
   it.each(COLOR_SCHEME_IDS)('%s palette.homePrime matches /^#[0-9a-f]{6}$/i', (schemeId) => {

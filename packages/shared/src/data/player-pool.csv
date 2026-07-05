@@ -1,179 +1,179 @@
 Player,SourceTeam,Team,Nationality,Position,Pace,Dribbling,Highpass,Resilience,Shooting,Tackling,Aerial Ability,Saving,Handling
-Cristiano Ribeiro,cosmos,Cozmos,Portugal,FWD,3,3,5,4,2,1,1,,
-Carlos Yugar,cosmos,Cozmos,Bolivia,FWD,4,1,6,5,2,1,3,,
-Conor McNulty,cosmos,Cozmos,Ireland,FWD,5,4,5,1,5,1,4,,
-Van De Kerkhof,cosmos,Cozmos,Netherlands,MID,5,5,6,4,4,1,2,,
-Andre Attah,cosmos,Cozmos,Ghana,DEF,5,2,3,5,3,5,4,,
-Nicolae Rusu,cosmos,Cozmos,Romania,FWD,4,4,4,5,6,1,4,,
-Memphis Marell,cosmos,Cozmos,Netherlands,DEF,4,1,4,6,2,5,6,,
-Tyler Dionte,cosmos,Cozmos,United States,MID,4,2,4,5,3,4,6,,
-Oliver Fruin,cosmos,Cozmos,England,ST,4,3,4,6,5,1,6,,
-Tomas Vrabec,cosmos,Cozmos,Czech Republic,DEF,5,1,4,6,2,5,6,,
-Vinicius Eubsinno,cosmos,Cozmos,Brazil,GK,5,3,6,6,,,6,4,4
-John Kerr,xolos,Xolos,Scotland,FWD,5,2,4,4,3,3,3,,
-Yaya Abraham,xolos,Xolos,Ivory Coast,MID,5,1,6,4,1,3,4,,
-Emil Nilsson,xolos,Xolos,Sweden,FWD,4,3,5,5,4,2,3,,
-Dusan Pavlovic,xolos,Xolos,Serbia,ST,4,2,4,5,5,1,6,,
-Alphonso Taylor,xolos,Xolos,Canada,DEF,5,2,6,3,2,5,4,,
-Cengiz K. Ozcan,xolos,Xolos,Turkey,DEF,4,1,5,6,2,3,6,,
-Leon Kucklick,xolos,Xolos,Germany,MID,5,5,5,5,3,2,3,,
-Luka Brisic,xolos,Xolos,Croatia,FWD,4,5,4,5,5,2,3,,
-Harry Gilbert,xolos,Xolos,England,FWD,4,4,6,4,4,3,3,,
-Christian Walton,xolos,Xolos,United States,DEF,6,3,6,3,4,3,3,,
-Oliver Walker,xolos,Xolos,England,GK,6,1,4,6,,,5,5,2
-Roman Bürki,city,CITY,Switzerland,GK,3,3,6,3,0,0,4,5,4
-Timo Baumgartl,city,CITY,Germany,DEF,3,2,3,4,2,5,5,,
-Fallou Fall,city,CITY,Senegal,DEF,4,3,3,5,2,5,6,,
-Tomas Totland,city,CITY,Norway,DEF,5,4,3,4,2,4,3,,
-Marcel Hartel,city,CITY,Germany,MID,4,5,5,4,5,3,2,,
-Eduard Löwen,city,CITY,Germany,MID,4,5,6,5,5,4,3,,
-Célio Pompeu,city,CITY,Brazil,FWD,5,5,4,4,4,3,2,,
-Conrad Wallem,city,CITY,Norway,FWD,5,4,4,5,4,4,3,,
-Simon Becher,city,CITY,US,ST,4,4,2,4,5,2,4,,
-Sang-bin Jeong,city,CITY,Korea,FWD,6,5,3,3,4,2,2,,
-Cedric Teuchert,city,CITY,Germany,FWD,4,4,3,4,5,2,3,,
-Patrick Schulte,crew,Crew,US,GK,2,3,5,4,0,0,4,4,5
-Steven Moreira,crew,Crew,Cape Verde,DEF,4,4,4,6,2,5,4,,
-Rudy Camacho,crew,Crew,France,DEF,3,2,5,5,1,5,5,,
-DeJuan Jones,crew,Crew,US,DEF,5,4,4,4,2,4,4,,
-Yaw Yeboah,crew,Crew,Ghana,MID,5,5,5,3,3,4,2,,
-Max Arfsten,crew,Crew,US,MID,4,4,4,3,3,3,3,,
-Sean Zawadzki,crew,Crew,US,FWD,3,3,4,5,3,5,4,,
-Derrick Jones,crew,Crew,US,FWD,3,4,3,4,2,4,4,,
-Cucho Hernandez,crew,Crew,Columbia,ST,5,6,4,5,6,3,4,,
-Diego Rossi,crew,Crew,Uruguay,FWD,5,5,4,4,5,2,2,,
-Christian Ramirez,crew,Crew,US,FWD,3,3,3,4,5,2,5,,
-Liam O'Conner,free-agent,FA,Ireland,DEF,5,1,4,4,1,2,3,,
-Radu Patras,free-agent,FA,Moldova,DEF,5,1,4,4,3,2,3,,
-Victor Sesay,free-agent,FA,Nigeria,DEF,6,2,4,3,5,2,2,,
-Steven Mitchell,free-agent,FA,Northern Ireland,FWD,4,3,5,4,4,1,3,,
-Erling Anderson,free-agent,FA,Norway,DEF,5,1,4,5,2,3,5,,
-Lionel Ruiz,free-agent,FA,Argentina,FWD,6,5,5,3,4,1,2,,
-Andrew Robbie,free-agent,FA,Scotland,FWD,6,4,5,4,4,2,1,,
-Aaron Langdon,free-agent,FA,Australia,DEF,5,4,5,4,4,2,3,,
-Felix Kalla,free-agent,FA,Germany,DEF,5,3,6,5,1,4,3,,
-Ismael Nazef,free-agent,FA,Algeria,DEF,5,2,6,4,3,3,4,,
-Neymar Andre,free-agent,FA,Brazil,FWD,4,6,5,5,4,1,3,,
-Stevan Toothnail,free-agent,FA,Montenegro,DEF,5,2,5,6,2,4,4,,
-Gavi Delgado,free-agent,FA,Spain,DEF,5,4,5,5,2,3,4,,
-Thiago Lessa,free-agent,FA,Brazil,DEF,5,2,5,6,2,5,4,,
-Marco Longo,free-agent,FA,Italy,DEF,4,2,3,6,2,6,6,,
-Virgil Werdekker,free-agent,FA,Netherlands,DEF,4,3,6,4,4,5,3,,
-Oliver Goaley,free-agent,FA,England,FWD,4,4,6,5,4,3,3,,
-Paul Iwu,free-agent,FA,France,DEF,5,3,4,6,4,3,4,,
-Kieran Stewart,free-agent,FA,Scotland,DEF,5,4,5,5,4,3,3,,
-Eden Willems,free-agent,FA,Belgium,DEF,5,3,5,5,3,4,5,,
-Emil Ekstrom,free-agent,FA,Sweden,DEF,5,2,5,6,3,5,4,,
-Tim Firrell,free-agent,FA,Australia,GK,5,1,5,6,,,6,3,4
-Oliver Littlewood,free-agent,FA,England,DEF,4,4,6,5,4,4,4,,
-Itumeleng Nkosi,free-agent,FA,South Africa,GK,6,2,4,6,,,5,4,4
-Drake Callender,inter-miami,Inter Miami,US,GK,2,2,4,5,1,1,4,5,4
-Marcelo Weigandt,inter-miami,Inter Miami,Argentina,DEF,4,3,4,5,2,4,4,,
-Tomas Aviles,inter-miami,Inter Miami,Argentina,DEF,4,2,3,4,1,5,4,,
-Serhiy Kryvtsov,inter-miami,Inter Miami,Ukraine,DEF,2,2,4,4,1,4,5,,
-Jordi Alba,inter-miami,Inter Miami,Spain,DEF,5,5,6,4,3,4,2,,
-Sergio Busquets,inter-miami,Inter Miami,Spain,MID,2,4,6,5,2,5,4,,
-Federico Redondo,inter-miami,Inter Miami,Argentina,MID,3,4,5,4,2,4,3,,
-Julian Gressel,inter-miami,Inter Miami,US,MID,4,3,5,5,3,3,3,,
-Lionel Messi,inter-miami,Inter Miami,Argentina,FWD,4,6,6,4,6,1,2,,
-Luis Suarez,inter-miami,Inter Miami,Uruguay,FWD,3,4,4,4,6,1,4,,
-Robert Taylor,inter-miami,Inter Miami,Finland,ST,5,4,4,4,4,2,2,,
-Hugo Lloris,lafc,LAFC,France,GK,2,2,4,5,1,1,4,5,5
-Sergi Palencia,lafc,LAFC,Spain,DEF,5,3,4,5,2,5,3,,
-Jesus Murillo,lafc,LAFC,Colombia,DEF,4,2,3,5,1,5,5,,
-Aaron Long,lafc,LAFC,US,DEF,4,2,3,4,1,5,5,,
-Ryan Hollingshead,lafc,LAFC,US,DEF,4,3,4,5,3,4,4,,
-Ilie Sanchez,lafc,LAFC,Spain,MID,2,4,5,5,2,5,3,,
-Timothy Tillman,lafc,LAFC,US,MID,4,4,4,5,3,4,3,,
-Eduard Atuesta,lafc,LAFC,Colombia,MID,3,4,5,4,3,4,2,,
-Cristian Olivera,lafc,LAFC,Uruguay,FWD,6,4,3,4,4,2,2,,
-Olivier Giroud,lafc,LAFC,France,FWD,2,3,4,5,5,1,6,,
-Denis Bouanga,lafc,LAFC,Gabon,ST,6,5,4,5,5,2,3,,
-Stefan Frei,seattle,Seattle,Switzerland,GK,2,2,4,5,1,1,4,5,4
-Alex Roldan,seattle,Seattle,El Salvador,DEF,4,3,4,5,2,4,3,,
-Yeimar Gomez,seattle,Seattle,Colombia,DEF,4,2,3,5,1,5,5,,
-Jackson Ragen,seattle,Seattle,US,DEF,3,2,4,4,1,5,5,,
-Nouhou Tolo,seattle,Seattle,Cameroon,DEF,5,3,3,5,1,5,3,,
-Joao Paulo,seattle,Seattle,Brazil,MID,3,4,5,5,3,5,3,,
-Albert Rusnak,seattle,Seattle,Slovakia,MID,4,5,5,4,4,3,2,,
-Cristian Roldan,seattle,Seattle,US,MID,4,4,4,6,3,4,3,,
-Pedro de la Vega,seattle,Seattle,Argentina,FWD,5,5,4,4,4,2,2,,
-Jordan Morris,seattle,Seattle,US,FWD,5,4,3,5,4,2,4,,
-Paul Rothrock,seattle,Seattle,US,ST,4,4,4,4,3,3,2,,
-Joe Willis,nashville,Nashville,US,GK,2,2,4,4,1,1,4,4,4
-Shaq Moore,nashville,Nashville,US,DEF,5,3,4,5,2,4,3,,
-Walker Zimmerman,nashville,Nashville,US,DEF,3,2,3,5,2,5,6,,
-Jack Maher,nashville,Nashville,US,DEF,3,2,3,4,1,4,4,,
-Daniel Lovitz,nashville,Nashville,US,DEF,4,3,4,4,2,4,3,,
-Anibal Godoy,nashville,Nashville,Panama,MID,3,3,4,5,2,5,3,,
-Sean Davis,nashville,Nashville,US,MID,3,3,4,5,2,4,3,,
-Hany Mukhtar,nashville,Nashville,Germany,MID,5,5,5,4,5,2,2,,
-Jacob Shaffelburg,nashville,Nashville,Canada,FWD,6,4,4,4,3,2,2,,
-Sam Surridge,nashville,Nashville,England,FWD,4,3,3,4,4,1,5,,
-Tyler Boyd,nashville,Nashville,US,ST,4,4,4,4,3,2,2,,
-Matt Turner,usmnt,USMNT,US,GK,2,2,4,5,1,1,4,5,4
-Sergino Dest,usmnt,USMNT,US,DEF,5,5,4,4,3,4,2,,
-Chris Richards,usmnt,USMNT,US,DEF,4,3,3,4,2,5,5,,
-Tim Ream,usmnt,USMNT,US,DEF,3,3,5,5,1,5,4,,
-Antonee Robinson,usmnt,USMNT,US,DEF,6,4,4,5,2,4,3,,
-Tyler Adams,usmnt,USMNT,US,MID,4,3,4,6,2,6,3,,
-Weston McKennie,usmnt,USMNT,US,MID,4,4,4,5,4,4,5,,
-Yunus Musah,usmnt,USMNT,US,MID,5,5,4,4,2,4,2,,
-Christian Pulisic,usmnt,USMNT,US,FWD,5,6,5,4,5,2,2,,
-Tim Weah,usmnt,USMNT,US,FWD,6,4,4,4,4,2,2,,
-Folarin Balogun,usmnt,USMNT,US,ST,5,4,3,4,5,1,3,,
-Jordan Pickford,england,England,England,GK,2,2,5,5,1,1,4,5,4
-Kyle Walker,england,England,England,DEF,6,4,4,5,2,5,3,,
-John Stones,england,England,England,DEF,4,4,5,5,2,5,5,,
-Marc Guehi,england,England,England,DEF,4,3,4,5,1,5,5,,
-Luke Shaw,england,England,England,DEF,4,4,5,4,3,4,3,,
-Declan Rice,england,England,England,MID,4,4,5,6,3,6,4,,
-Jude Bellingham,england,England,England,MID,5,5,5,6,5,5,4,,
-Phil Foden,england,England,England,MID,5,6,5,4,5,2,2,,
-Bukayo Saka,england,England,England,FWD,6,6,5,5,5,3,2,,
-Harry Kane,england,England,England,ST,3,4,6,5,6,2,5,,
-Jack Grealish,england,England,England,FWD,4,6,5,4,4,2,2,,
-Guillermo Ochoa,mexico,Mexico,Mexico,GK,2,2,4,5,1,1,4,5,4
-Jorge Sanchez,mexico,Mexico,Mexico,DEF,5,4,3,4,2,4,3,,
-Cesar Montes,mexico,Mexico,Mexico,DEF,3,2,4,4,2,5,5,,
-Johan Vasquez,mexico,Mexico,Mexico,DEF,3,3,4,4,1,5,5,,
-Jesus Gallardo,mexico,Mexico,Mexico,DEF,5,4,4,5,3,4,3,,
-Edson Alvarez,mexico,Mexico,Mexico,MID,3,3,4,6,3,6,5,,
-Luis Chavez,mexico,Mexico,Mexico,MID,4,4,5,4,5,4,2,,
-Erick Sanchez,mexico,Mexico,Mexico,MID,4,5,4,5,3,4,2,,
-Hirving Lozano,mexico,Mexico,Mexico,FWD,6,5,4,4,4,2,2,,
-Santiago Gimenez,mexico,Mexico,Mexico,FWD,4,4,3,5,5,2,5,,
-Uriel Antuna,mexico,Mexico,Mexico,ST,6,4,4,4,3,2,2,,
-Maxime Crepeau,canada,Canada,Canada,GK,2,2,3,4,1,1,4,4,4
-Alistair Johnston,canada,Canada,Canada,DEF,5,4,4,5,2,5,3,,
-Moise Bombito,canada,Canada,Canada,DEF,6,3,3,4,1,4,4,,
-Derek Cornelius,canada,Canada,Canada,DEF,4,2,3,4,1,4,5,,
-Alphonso Davies,canada,Canada,Canada,DEF,6,6,4,5,4,4,3,,
-Stephen Eustaquio,canada,Canada,Canada,MID,3,4,5,5,3,4,3,,
-Ismael Kone,canada,Canada,Canada,MID,5,5,4,4,3,4,3,,
-Tajon Buchanan,canada,Canada,Canada,ST,6,5,4,4,3,3,2,,
-Liam Millar,canada,Canada,Canada,MID,5,4,4,4,3,2,2,,
-Jonathan David,canada,Canada,Canada,FWD,5,5,4,5,5,2,3,,
-Cyle Larin,canada,Canada,Canada,FWD,4,3,3,5,5,2,5,,
-Unai Simon,spain,Spain,Spain,GK,2,3,5,4,1,1,4,5,4
-Dani Carvajal,spain,Spain,Spain,DEF,4,4,5,6,3,5,3,,
-Aymeric Laporte,spain,Spain,Spain,DEF,3,4,5,5,2,5,5,,
-Robin Le Normand,spain,Spain,Spain,DEF,4,3,4,5,1,5,5,,
-Marc Cucurella,spain,Spain,Spain,DEF,5,4,4,6,2,5,2,,
-Rodri,spain,Spain,Spain,MID,3,4,6,6,4,6,4,,
-Fabian Ruiz,spain,Spain,Spain,MID,4,5,5,5,4,4,3,,
-Pedri,spain,Spain,Spain,MID,4,6,6,4,3,3,2,,
-Lamine Yamal,spain,Spain,Spain,FWD,5,6,5,4,4,2,1,,
-Alvaro Morata,spain,Spain,Spain,FWD,4,4,4,5,5,2,5,,
-Nico Williams,spain,Spain,Spain,ST,6,6,4,4,4,2,2,,
-Mike Maignan,france,France,France,GK,3,3,5,5,1,1,5,6,5
-Jules Kounde,france,France,France,DEF,5,4,5,5,2,6,4,,
-Dayot Upamecano,france,France,France,DEF,5,3,4,4,1,5,5,,
-William Saliba,france,France,France,DEF,5,4,4,5,1,6,5,,
-Theo Hernandez,france,France,France,DEF,6,5,5,5,3,4,3,,
-N'Golo Kante,france,France,France,MID,5,4,5,6,3,6,2,,
-Aurelien Tchouameni,france,France,France,MID,4,4,5,5,4,5,4,,
-Antoine Griezmann,france,France,France,MID,4,5,6,5,5,3,3,,
-Ousmane Dembele,france,France,France,FWD,6,6,5,3,4,2,2,,
-Kylian Mbappe,france,France,France,ST,6,6,5,5,6,2,3,,
-Marcus Thuram,france,France,France,FWD,5,5,4,4,4,2,4,,
+Cristiano Ribeiro,cosmos,Cozmos,Portugal,FWD,4,3,5,4,2,1,1,0,0
+Carlos Yugar,cosmos,Cozmos,Bolivia,FWD,4,1,6,5,2,1,3,0,0
+Conor McNulty,cosmos,Cozmos,Ireland,FWD,5,4,5,1,5,1,4,0,0
+Van De Kerkhof,cosmos,Cozmos,Netherlands,MID,5,5,6,4,4,1,2,0,0
+Andre Attah,cosmos,Cozmos,Ghana,DEF,5,3,3,5,3,5,4,0,0
+Nicolae Rusu,cosmos,Cozmos,Romania,FWD,4,4,4,5,6,1,4,0,0
+Memphis Marell,cosmos,Cozmos,Netherlands,DEF,4,1,4,6,3,5,6,0,0
+Tyler Dionte,cosmos,Cozmos,United States,MID,4,2,4,6,3,4,6,0,0
+Oliver Fruin,cosmos,Cozmos,England,ST,4,3,4,6,5,1,6,0,0
+Tomas Vrabec,cosmos,Cozmos,Czech Republic,DEF,5,1,4,6,2,5,6,0,0
+Vinicius Eubsinno,cosmos,Cozmos,Brazil,GK,5,3,6,6,0,0,6,4,3
+John Kerr,xolos,Xolos,Scotland,FWD,5,2,4,4,3,3,3,0,0
+Yaya Abraham,xolos,Xolos,Ivory Coast,MID,5,1,6,4,1,3,4,0,0
+Emil Nilsson,xolos,Xolos,Sweden,FWD,4,3,5,5,4,2,3,0,0
+Dusan Pavlovic,xolos,Xolos,Serbia,ST,4,2,4,5,5,2,6,0,0
+Alphonso Taylor,xolos,Xolos,Canada,DEF,5,2,6,3,3,5,4,0,0
+Cengiz K. Ozcan,xolos,Xolos,Turkey,DEF,4,1,5,6,2,3,6,0,0
+Leon Kucklick,xolos,Xolos,Germany,MID,5,5,5,5,3,2,3,0,0
+Luka Brisic,xolos,Xolos,Croatia,FWD,4,5,4,5,5,2,3,0,0
+Harry Gilbert,xolos,Xolos,England,FWD,4,4,6,4,4,3,3,0,0
+Christian Walton,xolos,Xolos,United States,DEF,6,3,6,3,4,3,3,0,0
+Oliver Walker,xolos,Xolos,England,GK,6,1,4,6,0,0,5,5,3
+Roman Bürki,city,CITY,Switzerland,GK,4,3,6,3,0,0,5,5,4
+Timo Baumgartl,city,CITY,Germany,DEF,4,2,3,4,2,5,4,0,0
+Fallou Fall,city,CITY,Senegal,DEF,4,3,3,5,2,5,6,0,0
+Tomas Totland,city,CITY,Norway,DEF,5,4,3,4,2,4,3,0,0
+Marcel Hartel,city,CITY,Germany,MID,4,5,5,4,5,3,3,0,0
+Eduard Löwen,city,CITY,Germany,MID,5,5,6,5,5,4,3,0,0
+Célio Pompeu,city,CITY,Brazil,FWD,5,5,4,4,4,4,2,0,0
+Conrad Wallem,city,CITY,Norway,FWD,5,4,4,5,4,4,3,0,0
+Simon Becher,city,CITY,US,ST,4,4,2,4,5,2,4,0,0
+Sang-bin Jeong,city,CITY,Korea,FWD,6,4,3,3,4,2,2,0,0
+Cedric Teuchert,city,CITY,Germany,FWD,4,3,3,4,5,2,3,0,0
+Patrick Schulte,crew,Crew,US,GK,5,3,5,4,0,0,5,4,4
+Steven Moreira,crew,Crew,Cape Verde,DEF,4,4,3,6,2,5,4,0,0
+Rudy Camacho,crew,Crew,France,DEF,4,2,5,5,1,5,5,0,0
+DeJuan Jones,crew,Crew,US,DEF,5,5,4,4,2,4,4,0,0
+Yaw Yeboah,crew,Crew,Ghana,MID,5,5,5,3,3,4,2,0,0
+Max Arfsten,crew,Crew,US,MID,4,4,4,3,3,3,3,0,0
+Sean Zawadzki,crew,Crew,US,FWD,4,3,3,5,3,5,4,0,0
+Derrick Jones,crew,Crew,US,FWD,4,4,3,3,2,4,4,0,0
+Cucho Hernandez,crew,Crew,Columbia,ST,5,6,4,5,6,3,3,0,0
+Diego Rossi,crew,Crew,Uruguay,FWD,5,5,3,4,5,2,2,0,0
+Christian Ramirez,crew,Crew,US,FWD,4,3,3,4,5,2,5,0,0
+Liam O'Conner,free-agent,FA,Ireland,DEF,5,1,4,4,1,2,3,0,0
+Radu Patras,free-agent,FA,Moldova,DEF,5,1,4,4,3,2,3,0,0
+Victor Sesay,free-agent,FA,Nigeria,DEF,6,2,4,3,5,2,2,0,0
+Steven Mitchell,free-agent,FA,Northern Ireland,FWD,4,3,5,4,4,1,3,0,0
+Erling Anderson,free-agent,FA,Norway,DEF,5,1,4,5,2,3,5,0,0
+Lionel Ruiz,free-agent,FA,Argentina,FWD,6,5,5,3,4,1,2,0,0
+Andrew Robbie,free-agent,FA,Scotland,FWD,6,4,5,4,4,2,1,0,0
+Aaron Langdon,free-agent,FA,Australia,DEF,5,4,5,4,4,2,3,0,0
+Felix Kalla,free-agent,FA,Germany,DEF,5,3,6,5,1,4,3,0,0
+Ismael Nazef,free-agent,FA,Algeria,DEF,5,2,6,4,3,3,4,0,0
+Neymar Andre,free-agent,FA,Brazil,FWD,4,6,5,5,4,1,3,0,0
+Stevan Toothnail,free-agent,FA,Montenegro,DEF,5,2,5,6,2,4,4,0,0
+Gavi Delgado,free-agent,FA,Spain,DEF,5,4,5,5,2,3,4,0,0
+Thiago Lessa,free-agent,FA,Brazil,DEF,5,2,5,6,2,5,4,0,0
+Marco Longo,free-agent,FA,Italy,DEF,4,2,3,6,2,6,6,0,0
+Virgil Werdekker,free-agent,FA,Netherlands,DEF,4,3,6,4,4,5,3,0,0
+Oliver Goaley,free-agent,FA,England,FWD,4,4,6,5,4,3,3,0,0
+Paul Iwu,free-agent,FA,France,DEF,5,3,4,6,4,3,4,0,0
+Kieran Stewart,free-agent,FA,Scotland,DEF,5,4,5,5,4,3,3,0,0
+Eden Willems,free-agent,FA,Belgium,DEF,5,3,5,5,3,4,5,0,0
+Emil Ekstrom,free-agent,FA,Sweden,DEF,5,2,5,6,3,5,4,0,0
+Tim Firrell,free-agent,FA,Australia,GK,5,1,5,6,0,0,6,3,4
+Oliver Littlewood,free-agent,FA,England,DEF,4,4,6,5,4,4,4,0,0
+Itumeleng Nkosi,free-agent,FA,South Africa,GK,6,2,4,6,0,0,5,4,4
+Drake Callender,inter-miami,Inter Miami,US,GK,4,2,4,5,1,1,4,4,5
+Marcelo Weigandt,inter-miami,Inter Miami,Argentina,DEF,5,3,4,5,2,4,4,0,0
+Tomas Aviles,inter-miami,Inter Miami,Argentina,DEF,4,2,3,4,2,4,4,0,0
+Serhiy Kryvtsov,inter-miami,Inter Miami,Ukraine,DEF,4,3,4,3,2,3,5,0,0
+Jordi Alba,inter-miami,Inter Miami,Spain,DEF,6,4,6,4,3,4,2,0,0
+Sergio Busquets,inter-miami,Inter Miami,Spain,MID,5,4,7,6,2,4,4,0,0
+Federico Redondo,inter-miami,Inter Miami,Argentina,MID,4,4,6,3,2,4,3,0,0
+Julian Gressel,inter-miami,Inter Miami,US,MID,4,3,5,6,3,3,3,0,0
+Lionel Messi,inter-miami,Inter Miami,Argentina,FWD,5,5,6,4,6,1,2,0,0
+Luis Suarez,inter-miami,Inter Miami,Uruguay,FWD,4,4,4,5,6,1,3,0,0
+Robert Taylor,inter-miami,Inter Miami,Finland,ST,6,4,4,4,4,2,3,0,0
+Hugo Lloris,lafc,LAFC,France,GK,4,2,4,5,2,1,4,5,5
+Sergi Palencia,lafc,LAFC,Spain,DEF,5,3,4,4,2,5,3,0,0
+Jesus Murillo,lafc,LAFC,Colombia,DEF,5,3,3,5,1,5,5,0,0
+Aaron Long,lafc,LAFC,US,DEF,4,2,3,4,1,4,5,0,0
+Ryan Hollingshead,lafc,LAFC,US,DEF,4,3,3,5,3,4,4,0,0
+Ilie Sanchez,lafc,LAFC,Spain,MID,5,4,5,4,2,5,3,0,0
+Timothy Tillman,lafc,LAFC,US,MID,4,4,3,5,3,4,3,0,0
+Eduard Atuesta,lafc,LAFC,Colombia,MID,4,3,5,4,3,5,2,0,0
+Cristian Olivera,lafc,LAFC,Uruguay,FWD,6,4,3,5,4,2,2,0,0
+Olivier Giroud,lafc,LAFC,France,FWD,4,3,5,4,5,1,6,0,0
+Denis Bouanga,lafc,LAFC,Gabon,ST,6,4,4,5,5,2,3,0,0
+Stefan Frei,seattle,Seattle,Switzerland,GK,4,2,4,5,1,1,4,5,5
+Alex Roldan,seattle,Seattle,El Salvador,DEF,4,3,4,5,2,4,4,0,0
+Yeimar Gomez,seattle,Seattle,Colombia,DEF,5,3,3,5,1,5,5,0,0
+Jackson Ragen,seattle,Seattle,US,DEF,4,2,3,4,1,5,6,0,0
+Nouhou Tolo,seattle,Seattle,Cameroon,DEF,5,3,3,4,1,6,3,0,0
+Joao Paulo,seattle,Seattle,Brazil,MID,4,4,5,5,3,5,3,0,0
+Albert Rusnak,seattle,Seattle,Slovakia,MID,4,5,6,4,4,3,2,0,0
+Cristian Roldan,seattle,Seattle,US,MID,5,4,4,6,3,5,3,0,0
+Pedro de la Vega,seattle,Seattle,Argentina,FWD,5,5,3,4,4,3,2,0,0
+Jordan Morris,seattle,Seattle,US,FWD,5,4,3,5,4,2,6,0,0
+Paul Rothrock,seattle,Seattle,US,ST,4,4,4,4,3,3,3,0,0
+Joe Willis,nashville,Nashville,US,GK,4,2,4,4,1,1,5,4,4
+Shaq Moore,nashville,Nashville,US,DEF,5,3,3,5,2,5,3,0,0
+Walker Zimmerman,nashville,Nashville,US,DEF,5,3,3,5,2,4,6,0,0
+Jack Maher,nashville,Nashville,US,DEF,4,3,3,4,1,4,4,0,0
+Daniel Lovitz,nashville,Nashville,US,DEF,5,3,3,5,2,4,3,0,0
+Anibal Godoy,nashville,Nashville,Panama,MID,4,3,4,5,3,5,4,0,0
+Sean Davis,nashville,Nashville,US,MID,4,3,4,5,2,6,3,0,0
+Hany Mukhtar,nashville,Nashville,Germany,MID,6,5,5,4,5,2,2,0,0
+Jacob Shaffelburg,nashville,Nashville,Canada,FWD,6,4,3,5,3,2,2,0,0
+Sam Surridge,nashville,Nashville,England,FWD,4,4,3,4,4,1,5,0,0
+Tyler Boyd,nashville,Nashville,US,ST,4,4,4,4,3,3,2,0,0
+Matt Turner,usmnt,USMNT,US,GK,4,2,4,5,1,1,4,5,4
+Sergino Dest,usmnt,USMNT,US,DEF,5,5,4,4,3,4,2,0,0
+Chris Richards,usmnt,USMNT,US,DEF,5,3,3,3,2,5,5,0,0
+Tim Ream,usmnt,USMNT,US,DEF,4,3,5,6,1,5,4,0,0
+Antonee Robinson,usmnt,USMNT,US,DEF,6,4,4,5,2,4,3,0,0
+Tyler Adams,usmnt,USMNT,US,MID,5,3,4,6,2,6,3,0,0
+Weston McKennie,usmnt,USMNT,US,MID,4,5,4,4,4,4,5,0,0
+Yunus Musah,usmnt,USMNT,US,MID,5,5,3,4,3,4,2,0,0
+Christian Pulisic,usmnt,USMNT,US,FWD,6,6,5,4,5,2,2,0,0
+Tim Weah,usmnt,USMNT,US,FWD,6,4,4,4,4,2,2,0,0
+Folarin Balogun,usmnt,USMNT,US,ST,5,4,3,4,5,1,3,0,0
+Jordan Pickford,england,England,England,GK,4,2,5,5,1,1,4,5,4
+Kyle Walker,england,England,England,DEF,6,4,4,5,2,5,3,0,0
+John Stones,england,England,England,DEF,4,4,5,5,2,5,5,0,0
+Marc Guehi,england,England,England,DEF,4,3,4,5,1,4,5,0,0
+Luke Shaw,england,England,England,DEF,4,4,5,4,3,4,3,0,0
+Declan Rice,england,England,England,MID,5,4,5,6,3,6,4,0,0
+Jude Bellingham,england,England,England,MID,5,5,5,6,5,4,4,0,0
+Phil Foden,england,England,England,MID,5,5,5,4,5,2,2,0,0
+Bukayo Saka,england,England,England,FWD,6,6,5,5,5,3,2,0,0
+Harry Kane,england,England,England,ST,4,4,6,5,6,2,5,0,0
+Jack Grealish,england,England,England,FWD,4,6,4,4,4,2,2,0,0
+Guillermo Ochoa,mexico,Mexico,Mexico,GK,4,2,4,5,1,1,4,5,4
+Jorge Sanchez,mexico,Mexico,Mexico,DEF,5,4,3,4,2,4,3,0,0
+Cesar Montes,mexico,Mexico,Mexico,DEF,4,2,3,4,3,5,5,0,0
+Johan Vasquez,mexico,Mexico,Mexico,DEF,4,3,4,4,1,4,5,0,0
+Jesus Gallardo,mexico,Mexico,Mexico,DEF,6,4,4,4,3,4,3,0,0
+Edson Alvarez,mexico,Mexico,Mexico,MID,5,3,4,6,3,6,5,0,0
+Luis Chavez,mexico,Mexico,Mexico,MID,4,4,5,3,5,4,3,0,0
+Erick Sanchez,mexico,Mexico,Mexico,MID,4,5,4,5,3,4,3,0,0
+Hirving Lozano,mexico,Mexico,Mexico,FWD,6,5,4,4,4,2,2,0,0
+Santiago Gimenez,mexico,Mexico,Mexico,FWD,4,4,3,5,5,2,6,0,0
+Uriel Antuna,mexico,Mexico,Mexico,ST,6,3,4,4,3,2,2,0,0
+Maxime Crepeau,canada,Canada,Canada,GK,4,2,3,4,1,2,4,4,4
+Alistair Johnston,canada,Canada,Canada,DEF,5,4,4,5,2,5,3,0,0
+Moise Bombito,canada,Canada,Canada,DEF,6,3,3,4,1,4,4,0,0
+Derek Cornelius,canada,Canada,Canada,DEF,4,2,3,4,1,4,5,0,0
+Alphonso Davies,canada,Canada,Canada,DEF,6,6,3,5,4,4,3,0,0
+Stephen Eustaquio,canada,Canada,Canada,MID,4,4,5,5,3,4,3,0,0
+Ismael Kone,canada,Canada,Canada,MID,5,5,4,4,3,4,3,0,0
+Tajon Buchanan,canada,Canada,Canada,ST,6,6,4,4,3,3,2,0,0
+Liam Millar,canada,Canada,Canada,MID,5,4,5,4,3,2,2,0,0
+Jonathan David,canada,Canada,Canada,FWD,5,4,5,5,5,2,3,0,0
+Cyle Larin,canada,Canada,Canada,FWD,4,3,3,5,6,2,5,0,0
+Unai Simon,spain,Spain,Spain,GK,4,3,5,4,1,1,4,5,4
+Dani Carvajal,spain,Spain,Spain,DEF,4,4,4,6,3,5,3,0,0
+Aymeric Laporte,spain,Spain,Spain,DEF,4,4,5,5,2,5,5,0,0
+Robin Le Normand,spain,Spain,Spain,DEF,5,3,4,5,1,5,4,0,0
+Marc Cucurella,spain,Spain,Spain,DEF,5,4,4,5,2,5,2,0,0
+Rodri,spain,Spain,Spain,MID,4,4,6,6,4,6,3,0,0
+Fabian Ruiz,spain,Spain,Spain,MID,4,5,5,5,4,3,3,0,0
+Pedri,spain,Spain,Spain,MID,5,5,6,4,3,3,2,0,0
+Lamine Yamal,spain,Spain,Spain,FWD,5,6,5,4,4,2,1,0,0
+Alvaro Morata,spain,Spain,Spain,FWD,4,4,4,5,5,2,5,0,0
+Nico Williams,spain,Spain,Spain,ST,6,6,4,4,4,2,2,0,0
+Mike Maignan,france,France,France,GK,4,3,5,5,1,1,5,6,5
+Jules Kounde,france,France,France,DEF,5,4,5,5,2,6,4,0,0
+Dayot Upamecano,france,France,France,DEF,5,3,4,4,1,5,4,0,0
+William Saliba,france,France,France,DEF,5,4,4,5,1,6,5,0,0
+Theo Hernandez,france,France,France,DEF,6,5,5,5,3,4,3,0,0
+N'Golo Kante,france,France,France,MID,5,4,5,6,3,6,2,0,0
+Aurelien Tchouameni,france,France,France,MID,4,4,5,5,4,5,4,0,0
+Antoine Griezmann,france,France,France,MID,4,5,6,5,5,3,3,0,0
+Ousmane Dembele,france,France,France,FWD,6,6,5,3,4,2,2,0,0
+Kylian Mbappe,france,France,France,ST,6,6,5,5,6,2,3,0,0
+Marcus Thuram,france,France,France,FWD,5,5,4,4,4,2,4,0,0
