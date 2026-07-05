@@ -1,5 +1,6 @@
 import type { HexCoord, GameState, GameSpeed } from './types.js';
 import type { TeamId } from './teamConfig.js';
+import type { UniformStyleId } from './uniformStyles.js';
 
 // Typed const objects for Socket.io event names (not TypeScript enums — enums compile
 // to IIFEs and don't tree-shake cleanly; const objects emit nothing at runtime).
@@ -63,6 +64,8 @@ export const ClientEvents = {
   GAME_FREE_KICK_MOVE: 'game:free-kick-move',
   /** OFFSIDE-02 (Phase 17 D-29): both-teams ready confirmation during FREE_KICK_SETUP. */
   GAME_FREE_KICK_READY: 'game:free-kick-ready',
+  /** Phase 22 D-14: client emits team + uniform style confirmation during uniform selection phase. */
+  UNIFORM_CONFIRM: 'uniform:confirm',
 } as const;
 
 export const ServerEvents = {
@@ -77,6 +80,10 @@ export const ServerEvents = {
   TEAM_HOME_PICKED: 'team:home-picked',
   /** UX-07: emitted to both players when home player changes game speed during team selection. */
   TEAM_SPEED_CHANGED: 'team:speed-changed',
+  /** Phase 22 D-13: emitted to both players when away team picks; signals uniform selection phase start. */
+  UNIFORM_SELECTION_START: 'uniform:selection-start',
+  /** Phase 22 D-15: broadcast to all room members after home confirms their team + uniform style. */
+  UNIFORM_HOME_CONFIRMED: 'uniform:home-confirmed',
 } as const;
 
 /**
@@ -143,6 +150,8 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_FREE_KICK_MOVE]: (pieceId: string, to: HexCoord) => void;
   /** OFFSIDE-02 (Phase 17 D-29): Ready confirmation during FREE_KICK_SETUP; transitions when both teams confirm. */
   [ClientEvents.GAME_FREE_KICK_READY]: () => void;
+  /** Phase 22 D-14: client confirms team + uniform style selection. Validated server-side. */
+  [ClientEvents.UNIFORM_CONFIRM]: (teamId: TeamId, uniformStyle: UniformStyleId) => void;
 }
 
 /**
@@ -162,6 +171,10 @@ export interface ServerToClientEvents {
   [ServerEvents.TEAM_HOME_PICKED]: (teamId: TeamId) => void;
   /** UX-07: informs both players of the current game speed when home player changes it. */
   [ServerEvents.TEAM_SPEED_CHANGED]: (speed: GameSpeed) => void;
+  /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
+  [ServerEvents.UNIFORM_SELECTION_START]: () => void;
+  /** Phase 22 D-15: informs both players that home has confirmed their team + uniform style. */
+  [ServerEvents.UNIFORM_HOME_CONFIRMED]: (teamId: TeamId, uniformStyle: UniformStyleId) => void;
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */
