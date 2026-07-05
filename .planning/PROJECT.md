@@ -88,6 +88,12 @@ _Full requirements in `.planning/REQUIREMENTS.md`._
 - **ASSIGN-01..04**: Stat-weight auto-assignment for anchor/flex roles + player swap override
 - **BUG-V13-01..06**: OFFSIDE-01/02 UAT, GK_KICK/LOOSE_BALL_LAND replay, HP exclusion, KO shading
 
+### Validated (v1.3 — Phase 22)
+
+- ✓ **UNIFORM-02** — Away player sees style tiles in their team's away colors (awayPrime/awayAlt) — Phase 22
+- ✓ **UNIFORM-03** — 18 style tiles in 2×9 grid; defaultUniformStyle pre-selected on team pick — Phase 22
+- ✓ **UNIFORM-04** — Full selection flow: home picks first → away unlocks → both confirm → game starts with chosen styles on pieces — Phase 22
+
 ### Deferred (v2 candidates)
 
 - [ ] Fouls, yellow/red cards, booking checks
@@ -129,26 +135,30 @@ _Full requirements in `.planning/REQUIREMENTS.md`._
 
 ## Key Decisions
 
-| Decision                                  | Rationale                                                                                    | Outcome                                                                                    |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Server-authoritative game state           | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                  | Implemented — full snapshot broadcast after every action; `isProcessing` mutex             |
-| Socket.io over raw WebSockets             | Handles reconnection and room management out of the box; negligible overhead                 | Implemented — typed events via generics; `transports: ['websocket']` only (no polling)     |
-| React + Vite frontend                     | Fast dev loop, static build output suitable for S3+CloudFront                                | Implemented — `vite build` → `dist/`; served by Express in production                      |
-| Hardcoded teams for v1                    | Eliminates card editor scope; lets us validate gameplay loop first                           | Validated — two tier-balanced squads ship in v1.0                                          |
-| Core rules only for v1                    | Fouls/injuries add significant state complexity; validate core loop before adding edge cases | Validated — all 65 core-rule requirements satisfied                                        |
-| Render deployment over AWS EB             | Simpler first deploy; no Elastic Beanstalk config overhead; Render Blueprint IaC             | Validated — single web service, `render.yaml`, CI gate on push; AWS EB path preserved      |
-| SVG over Canvas for rendering             | ≤600 hexes well within SVG performance range; DevTools-inspectable; CSS transitions free     | Validated — 37×26 grid renders performantly; no Canvas needed                              |
-| Zustand over Redux for client state       | Zero boilerplate; per-slice selectors prevent full re-renders; socket handlers call setState | Validated — per-slice selectors throughout; no render-all issues observed                  |
-| MM:00 clock format over MM:SS             | Event-driven actionCount is precise; real-time wall clock would drift from server state      | Validated (v1.1) — D-08 override accepted; CLOCK-01 spec updated in spirit                 |
-| HALF_TIME/FULL_TIME as pitch overlays     | Keeps top band + clock always visible; eliminates separate Screen routing paths              | Validated (v1.1) — D-12; 6 dead component files deleted; Screen type trimmed to 6 members  |
-| SelectionState enum over boolean bag      | 4 booleans → 1 enum; single ternary for ring color; cleaner prop contract                    | Validated (v1.1) — PieceOverlay selectionState: none/selectable/active/activated           |
-| HexHighlightType union + priority ternary | Eliminates prop drilling of colors; single source of truth in HIGHLIGHT_STYLES table         | Validated (v1.1) — risk > goal > shot-path > kickoff > safe; 5 tint types distinct         |
-| badgeFile as filename key only            | Static Vite import in TeamBadge gives content-hashed URLs; no runtime resolution needed      | Validated (v1.2) — PNG badge renders correctly in scoreboard and player card at build time |
-| TEAM_CONFIGS color source of truth        | Eliminates positional home/away color strings; single lookup per team across all surfaces    | Validated (v1.2) — GameBoard, ActionLog, PlayerStatsPanel all use TEAM_CONFIGS[teamId]     |
-| firstTimePassCarrierId in GameState       | Prevents self-pass reclaim exploit; mirrors highPassCarrierId lifecycle                      | Validated (v1.2) — passer excluded from FTP repositioning target and delivery occupant     |
-| computeLooseBall cube-coordinate vectors  | Eliminates systematic NE/SW overshoot caused by fixed ODD-Q offset deltas on axial grid      | Validated (v1.2) — 72-case regression test; clamp walk per-step from gameEngine.ts         |
-| FTP_MOVE_ENABLED=false feature flag       | Disables FIRST_TIME_PASS_MOVE sub-phase by default; code kept for future toggle              | Validated (v1.2) — direct delivery path mirrors STANDARD_PASS behavior                     |
-| checkHalfEndOnTackle exported helper      | Gates half-end correctly on tackle/steal paths; reads addedTime without re-rolling           | Validated (v1.2) — called at 3 tackle/steal success sites; 9 regression tests              |
+| Decision                                                   | Rationale                                                                                                                     | Outcome                                                                                    |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Server-authoritative game state                            | Prevents cheating, simplifies sync, maps cleanly to AWS stateful containers                                                   | Implemented — full snapshot broadcast after every action; `isProcessing` mutex             |
+| Socket.io over raw WebSockets                              | Handles reconnection and room management out of the box; negligible overhead                                                  | Implemented — typed events via generics; `transports: ['websocket']` only (no polling)     |
+| React + Vite frontend                                      | Fast dev loop, static build output suitable for S3+CloudFront                                                                 | Implemented — `vite build` → `dist/`; served by Express in production                      |
+| Hardcoded teams for v1                                     | Eliminates card editor scope; lets us validate gameplay loop first                                                            | Validated — two tier-balanced squads ship in v1.0                                          |
+| Core rules only for v1                                     | Fouls/injuries add significant state complexity; validate core loop before adding edge cases                                  | Validated — all 65 core-rule requirements satisfied                                        |
+| Render deployment over AWS EB                              | Simpler first deploy; no Elastic Beanstalk config overhead; Render Blueprint IaC                                              | Validated — single web service, `render.yaml`, CI gate on push; AWS EB path preserved      |
+| SVG over Canvas for rendering                              | ≤600 hexes well within SVG performance range; DevTools-inspectable; CSS transitions free                                      | Validated — 37×26 grid renders performantly; no Canvas needed                              |
+| Zustand over Redux for client state                        | Zero boilerplate; per-slice selectors prevent full re-renders; socket handlers call setState                                  | Validated — per-slice selectors throughout; no render-all issues observed                  |
+| MM:00 clock format over MM:SS                              | Event-driven actionCount is precise; real-time wall clock would drift from server state                                       | Validated (v1.1) — D-08 override accepted; CLOCK-01 spec updated in spirit                 |
+| HALF_TIME/FULL_TIME as pitch overlays                      | Keeps top band + clock always visible; eliminates separate Screen routing paths                                               | Validated (v1.1) — D-12; 6 dead component files deleted; Screen type trimmed to 6 members  |
+| SelectionState enum over boolean bag                       | 4 booleans → 1 enum; single ternary for ring color; cleaner prop contract                                                     | Validated (v1.1) — PieceOverlay selectionState: none/selectable/active/activated           |
+| HexHighlightType union + priority ternary                  | Eliminates prop drilling of colors; single source of truth in HIGHLIGHT_STYLES table                                          | Validated (v1.1) — risk > goal > shot-path > kickoff > safe; 5 tint types distinct         |
+| badgeFile as filename key only                             | Static Vite import in TeamBadge gives content-hashed URLs; no runtime resolution needed                                       | Validated (v1.2) — PNG badge renders correctly in scoreboard and player card at build time |
+| TEAM_CONFIGS color source of truth                         | Eliminates positional home/away color strings; single lookup per team across all surfaces                                     | Validated (v1.2) — GameBoard, ActionLog, PlayerStatsPanel all use TEAM_CONFIGS[teamId]     |
+| firstTimePassCarrierId in GameState                        | Prevents self-pass reclaim exploit; mirrors highPassCarrierId lifecycle                                                       | Validated (v1.2) — passer excluded from FTP repositioning target and delivery occupant     |
+| computeLooseBall cube-coordinate vectors                   | Eliminates systematic NE/SW overshoot caused by fixed ODD-Q offset deltas on axial grid                                       | Validated (v1.2) — 72-case regression test; clamp walk per-step from gameEngine.ts         |
+| FTP_MOVE_ENABLED=false feature flag                        | Disables FIRST_TIME_PASS_MOVE sub-phase by default; code kept for future toggle                                               | Validated (v1.2) — direct delivery path mirrors STANDARD_PASS behavior                     |
+| checkHalfEndOnTackle exported helper                       | Gates half-end correctly on tackle/steal paths; reads addedTime without re-rolling                                            | Validated (v1.2) — called at 3 tackle/steal success sites; 9 regression tests              |
+| UniformSelectionScreen replaces tabbed TeamSelectionScreen | Single screen with flat 6×2 team grid + 2×9 style tile grid; no tabs; home picks first, away locked until home confirms       | Validated (v1.3/Ph22) — UNIFORM-02/03/04; UAT 11/11 passed                                 |
+| awayLocked gate on UNIFORM_CONFIRM ordering                | Server rejects away UNIFORM_CONFIRM before home confirms (WRONG_TURN); client shows locked state until homeConfirmedStyle set | Validated (v1.3/Ph22) — Nyquist G2/G3 integration tests                                    |
+| mix-blend-mode: multiply on team badges                    | Removes white PNG backgrounds on colored card backgrounds without modifying source PNG files                                  | Validated (v1.3/Ph22) — UAT Test 3                                                         |
+| tileRenderPalette for away style tiles                     | Away player sees their team's away colors (awayPrime/awayAlt) on style tiles, not home palette                                | Validated (v1.3/Ph22) — UNIFORM-02; UAT Test 9                                             |
 
 ## Evolution
 
@@ -171,4 +181,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-03 — v1.3 milestone (Team Customization & Formation System) started_
+_Last updated: 2026-07-05 after Phase 22 (Uniform Selection Screen)_
