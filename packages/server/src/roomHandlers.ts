@@ -31,6 +31,7 @@ import type {
   SocketData,
   TeamId,
 } from '@counter-attack/shared';
+import type { UniformStyleId } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { buildInitialGameState } from './gameEngine.js';
@@ -224,11 +225,19 @@ export function registerRoomHandlers(
           // CR-03: wrap in try/catch — a throw from buildInitialGameState (e.g. bad playerIds)
           // would propagate uncaught inside the Socket.io handler and crash the Node process.
           let gameState: import('@counter-attack/shared').GameState;
+          // Phase 22 D-17: selectedUniformStyles will be sourced from room.homePickedUniformStyle
+          // / room.awayPickedUniformStyle after UNIFORM_CONFIRM flow is added in plan 22-02.
+          // Using defaults here to satisfy the required 4th parameter until that flow exists.
+          const selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId } = {
+            home: 'pinstripes-vertical',
+            away: 'bar-diagonal',
+          };
           try {
             gameState = buildInitialGameState(
               roomCode,
               selectedTeams,
               room.gameSpeed ?? 'standard',
+              selectedUniformStyles,
             );
           } catch (err) {
             console.error('buildInitialGameState failed:', err);

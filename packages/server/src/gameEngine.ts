@@ -24,6 +24,7 @@ import type {
   PlayerPiece,
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
+import type { UniformStyleId } from '@counter-attack/shared';
 import {
   GAME_SPEED_MINUTES,
   getSquadPlayers,
@@ -150,6 +151,7 @@ export function buildInitialGameState(
   roomCode: string,
   selectedTeams: { home: TeamId; away: TeamId },
   gameSpeed: GameSpeed = 'standard',
+  selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId },
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -179,6 +181,7 @@ export function buildInitialGameState(
     kickOffTeam: attackingTeam, // coin-flip winner kicks off (D-06, D-26)
     kickOffActive: false,
     selectedTeams, // D-15: embedded in every subsequent snapshot
+    selectedUniformStyles, // Phase 22 D-17: home/away kit choices embedded in every snapshot
     gameSpeed, // UX-07 (Phase 18.4): drives per-MOVE clock increment
   };
 }
@@ -4225,6 +4228,7 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     kickOffTeam: finalState.kickOffTeam,
     kickOffActive: false,
     selectedTeams: finalState.selectedTeams, // D-15: carry team selection into replay frames
+    selectedUniformStyles: finalState.selectedUniformStyles, // Phase 22 D-17: carry uniform styles into replay frames
     gameSpeed: finalState.gameSpeed, // UX-07 (Phase 18.4): carry speed into replay frames
   };
 

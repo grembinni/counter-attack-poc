@@ -1,4 +1,5 @@
 import type { TeamId } from './teamConfig.js';
+import type { UniformStyleId } from './uniformStyles.js';
 
 export type HexCoord = { q: number; r: number };
 
@@ -476,6 +477,8 @@ export type GameState = {
   kickOffActive: boolean;
   /** Phase 16 D-15: teams selected before match start, embedded in every GameState snapshot. */
   selectedTeams: { home: TeamId; away: TeamId };
+  /** Phase 22 D-16: uniform styles selected before match start, embedded in every GameState snapshot. */
+  selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId };
   /**
    * UX-07 (Phase 18.4): Selected game speed — drives the per-MOVE clock increment
    * via GAME_SPEED_MINUTES[gameSpeed]. Set by home player before match start; defaults
