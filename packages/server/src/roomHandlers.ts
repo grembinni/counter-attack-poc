@@ -219,33 +219,11 @@ export function registerRoomHandlers(
             socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
             return;
           }
-          // Both teams chosen — build game state and start the game.
-          const selectedTeams = { home: room.homePickedTeam, away: teamId };
-          // UX-07 (Phase 18.4): use the speed the home player set (or 'standard' if unset).
-          // CR-03: wrap in try/catch — a throw from buildInitialGameState (e.g. bad playerIds)
-          // would propagate uncaught inside the Socket.io handler and crash the Node process.
-          let gameState: import('@counter-attack/shared').GameState;
-          // Phase 22 D-17: selectedUniformStyles will be sourced from room.homePickedUniformStyle
-          // / room.awayPickedUniformStyle after UNIFORM_CONFIRM flow is added in plan 22-02.
-          // Using defaults here to satisfy the required 4th parameter until that flow exists.
-          const selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId } = {
-            home: 'pinstripes-vertical',
-            away: 'bar-diagonal',
-          };
-          try {
-            gameState = buildInitialGameState(
-              roomCode,
-              selectedTeams,
-              room.gameSpeed ?? 'standard',
-              selectedUniformStyles,
-            );
-          } catch (err) {
-            console.error('buildInitialGameState failed:', err);
-            socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
-            return;
-          }
-          room.gameState = gameState;
-          broadcastState(io, room);
+          // Phase 22 D-13: defer game state build — store away's team and broadcast
+          // UNIFORM_SELECTION_START. Game state is built after both players confirm
+          // team + uniform style via UNIFORM_CONFIRM (plan 22-02 UNIFORM_CONFIRM handler).
+          room.awayPickedTeam = teamId;
+          io.to(roomCode).emit(ServerEvents.UNIFORM_SELECTION_START);
         }
       } finally {
         room.isProcessing = false;
