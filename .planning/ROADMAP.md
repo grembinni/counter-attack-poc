@@ -75,7 +75,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 20    | 3/3                      | Complete                                         | 2026-07-04  |
 | 21    | 2/2                      | Complete                                         | 2026-07-04  |
 | 22    | 3/3                      | Complete                                         | 2026-07-05  |
-| 23    | 1/3                      | In Progress                                      |             |
+| 23    | 3/3                      | Complete                                         | 2026-07-05  |
 | 24    | Auto-Assignment & Lineup | ASSIGN-01..05                                    | Not started |
 | 25    | Bug & UAT Closure        | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
 
@@ -265,6 +265,6 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 20. Uniform Style System       | v1.3      | 0/3            | Not started | —          |
 | 21. New Teams (MLS + Intl)     | v1.3      | 0/2            | Not started | —          |
 | 22. Uniform Selection Screen   | v1.3      | 0/?            | Not started | —          |
-| 23. Formation System           | v1.3      | 0/?            | Not started | —          |
+| 23. Formation System           | v1.3      | 3/3            | Complete    | 2026-07-05 |
 | 24. Auto-Assignment & Lineup   | v1.3      | 0/?            | Not started | —          |
 | 25. Bug & UAT Closure          | v1.3      | 0/?            | Not started | —          |
