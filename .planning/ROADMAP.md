@@ -74,7 +74,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 19    | 3/3                      | Complete                                         | 2026-07-03  |
 | 20    | 3/3                      | Complete                                         | 2026-07-04  |
 | 21    | 2/2                      | Complete                                         | 2026-07-04  |
-| 22    | 1/3                      | In Progress                                      |             |
+| 22    | 2/3                      | In Progress                                      |             |
 | 23    | Formation System         | FORM-01..04                                      | Not started |
 | 24    | Auto-Assignment & Lineup | ASSIGN-01..05                                    | Not started |
 | 25    | Bug & UAT Closure        | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
@@ -173,7 +173,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 22-02-PLAN.md — Server: deferred-build TEAM_PICK away branch, Room.awayPickedTeam/homePickedUniformStyle, UNIFORM_CONFIRM handler (allow-list + mutex + home-first + build)
+- [x] 22-02-PLAN.md — Server: deferred-build TEAM_PICK away branch, Room.awayPickedTeam/homePickedUniformStyle, UNIFORM_CONFIRM handler (allow-list + mutex + home-first + build)
 - [ ] 22-03-PLAN.md — Client: new UniformSelectionScreen + CSS + test, Screen union, App handlers/branch/emit, HexGrid style resolution from selectedUniformStyles
       **UI hint**: yes
 
