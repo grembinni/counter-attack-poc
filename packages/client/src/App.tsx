@@ -3,10 +3,11 @@ import { useGameStore } from './store/useGameStore.js';
 import { GameBoard } from './components/GameBoard.js';
 import { LobbyScreen } from './components/LobbyScreen.js';
 import { TeamSelectionScreen } from './components/TeamSelectionScreen.js';
+import { UniformSelectionScreen } from './components/UniformSelectionScreen.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
-import type { GameSpeed, GameState, TeamId } from '@counter-attack/shared';
+import type { GameSpeed, GameState, TeamId, UniformStyleId } from '@counter-attack/shared';
 
 export function App() {
   const screen = useGameStore((s) => s.screen);
@@ -22,6 +23,8 @@ export function App() {
   const [homePickedTeam, setHomePickedTeam] = useState<TeamId | null>(null);
   // UX-07 (Phase 18.4): selectedSpeed is local state in App.tsx, co-located with homePickedTeam
   const [selectedSpeed, setSelectedSpeed] = useState<GameSpeed>('standard');
+  // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
+  const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
 
   useEffect(() => {
     function onGameState(state: GameState) {
@@ -80,6 +83,16 @@ export function App() {
       setSelectedSpeed(speed);
     }
 
+    // Phase 22 D-13/D-15: uniform selection socket handlers (Pitfall 9 — every on has a matching off)
+    function onUniformSelectionStart() {
+      setScreen('UNIFORM_SELECTION');
+    }
+
+    function onUniformHomeConfirmed(_teamId: TeamId, uniformStyle: UniformStyleId) {
+      // homePickedTeam already set from TEAM_HOME_PICKED; we only need to track the confirmed style
+      setHomeConfirmedStyle(uniformStyle);
+    }
+
     socket.on(ServerEvents.GAME_STATE, onGameState);
     socket.on(ServerEvents.ROOM_JOINED, onRoomJoined);
     socket.on(ServerEvents.ROOM_ERROR, onRoomError);
@@ -88,6 +101,8 @@ export function App() {
     socket.on(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
     socket.on(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
     socket.on(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
+    socket.on(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
+    socket.on(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
 
     socket.connect();
 
@@ -100,6 +115,8 @@ export function App() {
       socket.off(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
       socket.off(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
       socket.off(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
+      socket.off(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
+      socket.off(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
     };
   }, []);
 
@@ -115,10 +132,23 @@ export function App() {
     emitTeamSpeed(speed);
   }
 
+  // Phase 22 D-14: emits uniform:confirm to server; called from UniformSelectionScreen onConfirm prop
+  function handleUniformConfirm(teamId: TeamId, uniformStyle: UniformStyleId) {
+    socket.emit(ClientEvents.UNIFORM_CONFIRM, teamId, uniformStyle);
+  }
+
   return (
     <div className={styles.app}>
       {screen === 'GAME_BOARD' || screen === 'REPLAY' ? (
         <GameBoard />
+      ) : screen === 'UNIFORM_SELECTION' ? (
+        <UniformSelectionScreen
+          homePickedTeam={homePickedTeam}
+          homeConfirmedStyle={homeConfirmedStyle}
+          onConfirm={handleUniformConfirm}
+          selectedSpeed={selectedSpeed}
+          onSpeedChange={handleSpeedChange}
+        />
       ) : screen === 'TEAM_SELECTION' ? (
         <TeamSelectionScreen
           homePickedTeam={homePickedTeam}

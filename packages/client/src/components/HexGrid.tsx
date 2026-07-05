@@ -65,6 +65,8 @@ export function HexGrid() {
   const offsidePieceIds = useGameStore((s) => s.gameState.offsidePieceIds);
   // Phase 20 D-16: resolve uniformStyle + palette per piece from TEAM_CONFIGS (passed to PieceOverlay)
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
+  // Phase 22 D-18: resolve uniformStyle per piece from GameState.selectedUniformStyles (not team default)
+  const selectedUniformStyles = useGameStore((s) => s.gameState.selectedUniformStyles);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -634,6 +636,8 @@ export function HexGrid() {
             // Uses displayPiece.teamId (the rendered piece) so GK_DIVE visual position matches.
             const resolvedTeamId = selectedTeams[displayPiece.teamId];
             const teamConfig = TEAM_CONFIGS[resolvedTeamId];
+            // Phase 22 D-18: resolve uniformStyle from GameState.selectedUniformStyles
+            const resolvedUniformStyle = selectedUniformStyles[displayPiece.teamId];
 
             // Slot quota: how many activations remain in this slot
             const slotQuota =
@@ -815,7 +819,7 @@ export function HexGrid() {
               <PieceOverlay
                 key={piece.id}
                 piece={displayPiece}
-                uniformStyle={teamConfig.defaultUniformStyle}
+                uniformStyle={resolvedUniformStyle}
                 palette={teamConfig.palette}
                 selectionState={selectionState}
                 onClick={handleClick}
