@@ -972,3 +972,38 @@ describe('HexGrid — BUG-10: clicking a spent own-team piece in MOVE opens its 
     expect(validMoveHexes.length).toBeGreaterThan(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 22 D-18: HexGrid resolves uniform style from selectedUniformStyles
+// ---------------------------------------------------------------------------
+
+describe('HexGrid — Phase 22 D-18: uniform style from selectedUniformStyles', () => {
+  it('renders home piece with selectedUniformStyles.home, not the team defaultUniformStyle', () => {
+    // mockMovementState has selectedTeams.home = 'city' whose defaultUniformStyle = 'pinstripes-vertical'.
+    // Override selectedUniformStyles.home to 'checkers' — HexGrid must use 'checkers', not 'pinstripes-vertical'.
+    // Checkers produces a <pattern id="ck-home-N"> element; pinstripes-vertical produces <pattern id="pv-home-N">.
+    const HOME_PIECE_ID = 'home-9'; // ball carrier at CARRIER_POS
+    const state = {
+      ...mockMovementState,
+      selectedUniformStyles: { home: 'checkers' as const, away: 'bar-diagonal' as const },
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      playerSlot: 1,
+    });
+
+    const { container } = render(<HexGrid />);
+
+    // The checkers pattern for the home piece uses id="checkers-{pieceId}"
+    const checkersPattern = container.querySelector(`pattern[id="checkers-${HOME_PIECE_ID}"]`);
+    expect(checkersPattern).not.toBeNull();
+
+    // The pinstripes-vertical pattern for the home piece must NOT be present (uses id="ps-v-{pieceId}")
+    const pinstripesPattern = container.querySelector(`pattern[id="ps-v-${HOME_PIECE_ID}"]`);
+    expect(pinstripesPattern).toBeNull();
+  });
+});

@@ -332,3 +332,90 @@ describe('Room integration tests', () => {
     expect(receivedError).toBeUndefined();
   }, 5000);
 });
+
+// ---------------------------------------------------------------------------
+// UNIFORM_CONFIRM guard tests (Phase 22 D-13/D-14/D-15)
+// ---------------------------------------------------------------------------
+
+describe('UNIFORM_CONFIRM — guard: away before home', () => {
+  it('away emitting UNIFORM_CONFIRM before home receives GAME_ERROR WRONG_TURN', async () => {
+    const clientA = createClient();
+    const clientB = createClient();
+    await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
+    const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+    await joinedBPromise;
+    await selectionStartPromise;
+
+    // Home picks their team — away picks theirs, triggering UNIFORM_SELECTION_START
+    const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
+    clientA.emit(ClientEvents.TEAM_PICK, 'city');
+    await homePickedPromise;
+    const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+    await uniformStartPromise;
+
+    // Away emits UNIFORM_CONFIRM before home — should receive WRONG_TURN
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal');
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_TURN');
+  }, 5000);
+});
+
+describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
+  async function setupUniformPhase() {
+    const clientA = createClient();
+    const clientB = createClient();
+    await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
+    const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+    await joinedBPromise;
+    await selectionStartPromise;
+
+    const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
+    clientA.emit(ClientEvents.TEAM_PICK, 'city');
+    await homePickedPromise;
+    const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+    await uniformStartPromise;
+
+    return { clientA, clientB };
+  }
+
+  it('home emitting unknown style ID receives GAME_ERROR INVALID_STYLE', async () => {
+    const { clientA } = await setupUniformPhase();
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'not-a-style' as any);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_STYLE');
+  }, 5000);
+
+  it("away emitting home's team after home confirms receives GAME_ERROR TEAM_ALREADY_PICKED", async () => {
+    const { clientA, clientB } = await setupUniformPhase();
+
+    // Home confirms first
+    const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical');
+    await homeConfirmedPromise;
+
+    // Away tries to pick home's team
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'bar-diagonal');
+    const [reason] = await errorPromise;
+    expect(reason).toBe('TEAM_ALREADY_PICKED');
+  }, 5000);
+});

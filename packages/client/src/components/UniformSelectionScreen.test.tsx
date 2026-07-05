@@ -35,11 +35,7 @@ describe('UniformSelectionScreen — style tiles always rendered', () => {
   it('renders known style tiles before any team is selected (home view)', () => {
     useGameStore.setState({ playerSlot: 1 });
     render(
-      <UniformSelectionScreen
-        {...DEFAULT_PROPS}
-        homePickedTeam={null}
-        homeConfirmedStyle={null}
-      />,
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam={null} homeConfirmedStyle={null} />,
     );
 
     // Check a few known style tiles by their aria-label
@@ -51,11 +47,7 @@ describe('UniformSelectionScreen — style tiles always rendered', () => {
   it('Confirm button is disabled before any team or style is selected', () => {
     useGameStore.setState({ playerSlot: 1 });
     render(
-      <UniformSelectionScreen
-        {...DEFAULT_PROPS}
-        homePickedTeam={null}
-        homeConfirmedStyle={null}
-      />,
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam={null} homeConfirmedStyle={null} />,
     );
 
     const confirmButton = screen.getByRole('button', { name: 'Confirm team and style selection' });
@@ -71,11 +63,7 @@ describe('UniformSelectionScreen — pre-selection on team pick', () => {
   it("selecting 'city' pre-selects 'Pinstripes (V)' (city's defaultUniformStyle)", async () => {
     useGameStore.setState({ playerSlot: 1 });
     render(
-      <UniformSelectionScreen
-        {...DEFAULT_PROPS}
-        homePickedTeam={null}
-        homeConfirmedStyle={null}
-      />,
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam={null} homeConfirmedStyle={null} />,
     );
 
     // Click the City team card
@@ -190,24 +178,35 @@ describe('UniformSelectionScreen — away struck-out card', () => {
   it("away player sees home's team card disabled/struck-out", () => {
     useGameStore.setState({ playerSlot: 2 });
     render(
-      <UniformSelectionScreen
-        {...DEFAULT_PROPS}
-        homePickedTeam="city"
-        homeConfirmedStyle={null}
-      />,
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam="city" homeConfirmedStyle={null} />,
     );
 
     const cityCard = screen.getByRole('button', { name: 'City' });
     expect(cityCard.hasAttribute('disabled')).toBe(true);
   });
 
-  it('away player can still click other team cards (not struck-out)', async () => {
+  it('away player sees ALL cards and style tiles disabled before home confirms', () => {
+    useGameStore.setState({ playerSlot: 2 });
+    render(
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam="city" homeConfirmedStyle={null} />,
+    );
+
+    // Non-struck-out team card is disabled while away is locked
+    const crewCard = screen.getByRole('button', { name: 'Crew' });
+    expect(crewCard.hasAttribute('disabled')).toBe(true);
+
+    // Style tiles are also disabled while away is locked
+    const pinstripeVTile = screen.getByRole('button', { name: 'Pinstripes (V)' });
+    expect(pinstripeVTile.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('away player can click other team cards once home confirms', async () => {
     useGameStore.setState({ playerSlot: 2 });
     render(
       <UniformSelectionScreen
         {...DEFAULT_PROPS}
         homePickedTeam="city"
-        homeConfirmedStyle={null}
+        homeConfirmedStyle="pinstripes-vertical"
       />,
     );
 
@@ -230,11 +229,7 @@ describe('UniformSelectionScreen — opponent confirmed banner', () => {
   it('does NOT show banner when homeConfirmedStyle is null', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(
-      <UniformSelectionScreen
-        {...DEFAULT_PROPS}
-        homePickedTeam="city"
-        homeConfirmedStyle={null}
-      />,
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam="city" homeConfirmedStyle={null} />,
     );
 
     expect(screen.queryByRole('status')).toBeNull();
