@@ -12,21 +12,19 @@
  * Output teams.ts is committed (D-02 — not a build step).
  *
  * CSV processing order within player-pool.csv (determines p001..pNNN assignment):
- *   cosmos → p001–p011
- *   xolos  → p012–p022
- *   city   → p023–p033
- *   crew   → p034–p044
- *   free-agent → p045–p068
- *   inter-miami → p069–p079
- *   lafc → p080–p090
- *   seattle → p091–p101
- *   nashville → p102–p112
- *   usmnt → p113–p123
- *   england → p124–p134
- *   mexico → p135–p145
- *   canada → p146–p156
- *   spain → p157–p167
- *   france → p168–p178
+ *   canada     → p001–p011
+ *   city       → p012–p022
+ *   crew       → p023–p033
+ *   england    → p034–p044
+ *   free-agent → p045–p100
+ *   france     → p101–p111
+ *   miami       → p112–p122
+ *   lafc       → p123–p133
+ *   mexico     → p134–p144
+ *   nashville  → p145–p155
+ *   seattle    → p156–p166
+ *   spain      → p167–p177
+ *   usmnt      → p178–p188
  */
 
 import { createReadStream, writeFileSync } from 'fs';
@@ -169,7 +167,7 @@ function parseRow(row: string[], idx: Record<string, number>): RawPlayer {
   // Phase 21: SourceTeam column holds the canonical slug directly.
   // Fall back to toSlug(Team) for backwards compatibility if SourceTeam is absent.
   const sourceTeamRaw = row[idx['SourceTeam']] ?? '';
-  const teamCsvName = sourceTeamRaw.trim() !== '' ? sourceTeamRaw : (row[idx['Team']] ?? '');
+  const teamCsvName = sourceTeamRaw.trim() !== '' ? sourceTeamRaw : toSlug(row[idx['Team']] ?? '');
 
   return {
     firstName,
@@ -358,7 +356,7 @@ async function main() {
   }
 
   // WR-07: Fail-fast count assertion before writing output
-  const EXPECTED_TOTAL = 178;
+  const EXPECTED_TOTAL = 188;
   if (allEntries.length !== EXPECTED_TOTAL) {
     throw new Error(
       `Expected ${EXPECTED_TOTAL} players, got ${allEntries.length}. Check player-pool.csv.`,
