@@ -13,10 +13,10 @@ const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD', 'ST'] as const;
 // ---------------------------------------------------------------------------
 
 describe('PLAYER_POOL — DATA-01: unified flat player pool', () => {
-  it('has the expected total player count (4 legacy squads + FA + MLS + national)', () => {
-    // 4 legacy squads × 11 = 44; 24 free agents; 4 MLS teams × 11 = 44; 6 national × 11 = 66
-    // Total = 44 + 24 + 44 + 66 = 178
-    expect(PLAYER_POOL).toHaveLength(178);
+  it('has the expected total player count (4 MLS + 8 national squads + FA)', () => {
+    // 4 MLS teams × 11 = 44; 8 national × 11 = 88; 56 free agents
+    // Total = 44 + 88 + 56 = 188
+    expect(PLAYER_POOL).toHaveLength(188);
   });
 
   it('all player IDs are unique', () => {
@@ -33,7 +33,7 @@ describe('PLAYER_POOL — DATA-01: unified flat player pool', () => {
 
   it('IDs are assigned sequentially starting at p001', () => {
     expect(PLAYER_POOL[0].id).toBe('p001');
-    expect(PLAYER_POOL[PLAYER_POOL.length - 1].id).toBe('p178');
+    expect(PLAYER_POOL[PLAYER_POOL.length - 1].id).toBe('p188');
   });
 
   it('every PoolPlayer has a sourceTeamId string', () => {
@@ -102,20 +102,24 @@ describe('PLAYER_POOL — DATA-01: unified flat player pool', () => {
     }
   });
 
-  it('all 4 legacy squad sourceTeamIds are present (cosmos, xolos, city, crew)', () => {
+  it('MLS squad sourceTeamIds are present (city, crew, la, miami, nashville, seattle)', () => {
     const slugs = new Set(PLAYER_POOL.map((p) => p.sourceTeamId));
-    expect(slugs.has('cosmos')).toBe(true);
-    expect(slugs.has('xolos')).toBe(true);
     expect(slugs.has('city')).toBe(true);
     expect(slugs.has('crew')).toBe(true);
+    expect(slugs.has('la')).toBe(true);
+    expect(slugs.has('miami')).toBe(true);
+    expect(slugs.has('nashville')).toBe(true);
+    expect(slugs.has('seattle')).toBe(true);
   });
 
-  it('MLS team slugs are present (inter-miami, lafc, seattle, nashville)', () => {
+  it('international squad sourceTeamIds are present (canada, england, france, mexico, spain, us)', () => {
     const slugs = new Set(PLAYER_POOL.map((p) => p.sourceTeamId));
-    expect(slugs.has('inter-miami')).toBe(true);
-    expect(slugs.has('lafc')).toBe(true);
-    expect(slugs.has('seattle')).toBe(true);
-    expect(slugs.has('nashville')).toBe(true);
+    expect(slugs.has('canada')).toBe(true);
+    expect(slugs.has('england')).toBe(true);
+    expect(slugs.has('france')).toBe(true);
+    expect(slugs.has('mexico')).toBe(true);
+    expect(slugs.has('spain')).toBe(true);
+    expect(slugs.has('us')).toBe(true);
   });
 });
 
@@ -160,15 +164,15 @@ describe('getSquadPlayers — DATA-02: squad resolution from PLAYER_POOL', () =>
     expect(gk.number).toBe(1);
   });
 
-  it('city squad player IDs start at p023', () => {
+  it('city squad players all have sourceTeamId city', () => {
     const players = getSquadPlayers('city');
-    const ids = players.map((p) => p.id).sort();
-    expect(ids[0]).toBe('p023');
+    expect(players.length).toBe(11);
+    expect(players.every((p) => p.sourceTeamId === 'city')).toBe(true);
   });
 
-  it('crew squad player IDs start at p034', () => {
+  it('crew squad players all have sourceTeamId crew', () => {
     const players = getSquadPlayers('crew');
-    const ids = players.map((p) => p.id).sort();
-    expect(ids[0]).toBe('p034');
+    expect(players.length).toBe(11);
+    expect(players.every((p) => p.sourceTeamId === 'crew')).toBe(true);
   });
 });

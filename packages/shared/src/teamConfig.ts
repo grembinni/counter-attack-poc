@@ -69,7 +69,6 @@ export interface ColorScheme {
 
 /** Phase 19 TeamConfig — replaces the 2-color Phase 15 shape.
  * D-08: palette replaces primaryColor/secondaryColor.
- * D-03: playerIds references PLAYER_POOL entries by sequential p001.. IDs.
  * D-14/LEAGUE-03: league field groups teams into tabs in Phase 21 team selection. */
 export interface TeamConfig {
   id: TeamId;
@@ -78,8 +77,6 @@ export interface TeamConfig {
   colorSchemeId: ColorSchemeId;
   /** 4-color palette — duplicated from registry for fast consumer access. */
   palette: TeamPalette;
-  /** References into PLAYER_POOL; populated from seed script output (Task 3). */
-  playerIds: readonly string[];
   /** D-14 / LEAGUE-03: 'mls' for city and crew; 'international' for future teams. */
   league: 'mls' | 'international';
   /** Filename key only — e.g. 'city.png'. Asset import happens in TeamBadge component. */
@@ -292,28 +289,13 @@ export const COLOR_SCHEME_REGISTRY: Record<ColorSchemeId, ColorScheme> = {
   },
 };
 
-/** D-05: Only active/selectable teams. Retired teams (cosmos, xolos) live in COLOR_SCHEME_REGISTRY.
- * playerIds populated from seed script output — see Task 3. */
+/** D-05: Only active/selectable teams. Retired teams (cosmos, xolos) live in COLOR_SCHEME_REGISTRY. */
 export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
   city: {
     id: 'city',
     name: 'City',
     colorSchemeId: 'city',
     palette: COLOR_SCHEME_REGISTRY.city.palette,
-    // Populated from seed script output — pnpm run seed:rosters (Task 3)
-    playerIds: [
-      'p023',
-      'p024',
-      'p025',
-      'p026',
-      'p027',
-      'p028',
-      'p029',
-      'p030',
-      'p031',
-      'p032',
-      'p033',
-    ],
     league: 'mls',
     badgeFile: 'city.png',
     defaultUniformStyle: 'pinstripes-vertical',
@@ -323,20 +305,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Crew',
     colorSchemeId: 'crew',
     palette: COLOR_SCHEME_REGISTRY.crew.palette,
-    // Populated from seed script output — pnpm run seed:rosters (Task 3)
-    playerIds: [
-      'p034',
-      'p035',
-      'p036',
-      'p037',
-      'p038',
-      'p039',
-      'p040',
-      'p041',
-      'p042',
-      'p043',
-      'p044',
-    ],
     league: 'mls',
     badgeFile: 'crew.png',
     defaultUniformStyle: 'bar-diagonal',
@@ -346,19 +314,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'LA',
     colorSchemeId: 'la',
     palette: COLOR_SCHEME_REGISTRY.la.palette,
-    playerIds: [
-      'p080',
-      'p081',
-      'p082',
-      'p083',
-      'p084',
-      'p085',
-      'p086',
-      'p087',
-      'p088',
-      'p089',
-      'p090',
-    ],
     league: 'mls',
     badgeFile: 'la.png',
     defaultUniformStyle: 'pinstripes-horizontal',
@@ -368,19 +323,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Miami',
     colorSchemeId: 'miami',
     palette: COLOR_SCHEME_REGISTRY.miami.palette,
-    playerIds: [
-      'p069',
-      'p070',
-      'p071',
-      'p072',
-      'p073',
-      'p074',
-      'p075',
-      'p076',
-      'p077',
-      'p078',
-      'p079',
-    ],
     league: 'mls',
     badgeFile: 'miami.png',
     defaultUniformStyle: 'shape-oval',
@@ -390,19 +332,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Nashville',
     colorSchemeId: 'nashville',
     palette: COLOR_SCHEME_REGISTRY.nashville.palette,
-    playerIds: [
-      'p102',
-      'p103',
-      'p104',
-      'p105',
-      'p106',
-      'p107',
-      'p108',
-      'p109',
-      'p110',
-      'p111',
-      'p112',
-    ],
     league: 'mls',
     badgeFile: 'nashville.png',
     defaultUniformStyle: 'shape-diamond',
@@ -412,19 +341,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Seattle',
     colorSchemeId: 'seattle',
     palette: COLOR_SCHEME_REGISTRY.seattle.palette,
-    playerIds: [
-      'p091',
-      'p092',
-      'p093',
-      'p094',
-      'p095',
-      'p096',
-      'p097',
-      'p098',
-      'p099',
-      'p100',
-      'p101',
-    ],
     league: 'mls',
     badgeFile: 'seattle.png',
     defaultUniformStyle: 'split-vertical',
@@ -434,19 +350,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Canada',
     colorSchemeId: 'canada',
     palette: COLOR_SCHEME_REGISTRY.canada.palette,
-    playerIds: [
-      'p146',
-      'p147',
-      'p148',
-      'p149',
-      'p150',
-      'p151',
-      'p152',
-      'p153',
-      'p154',
-      'p155',
-      'p156',
-    ],
     league: 'international',
     badgeFile: 'canada.png',
     defaultUniformStyle: 'bar-horizontal',
@@ -456,19 +359,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'England',
     colorSchemeId: 'england',
     palette: COLOR_SCHEME_REGISTRY.england.palette,
-    playerIds: [
-      'p124',
-      'p125',
-      'p126',
-      'p127',
-      'p128',
-      'p129',
-      'p130',
-      'p131',
-      'p132',
-      'p133',
-      'p134',
-    ],
     league: 'international',
     badgeFile: 'england.png',
     defaultUniformStyle: 'bar-plus',
@@ -478,19 +368,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'France',
     colorSchemeId: 'france',
     palette: COLOR_SCHEME_REGISTRY.france.palette,
-    playerIds: [
-      'p168',
-      'p169',
-      'p170',
-      'p171',
-      'p172',
-      'p173',
-      'p174',
-      'p175',
-      'p176',
-      'p177',
-      'p178',
-    ],
     league: 'international',
     badgeFile: 'france.png',
     defaultUniformStyle: 'shape-circle',
@@ -500,19 +377,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Mexico',
     colorSchemeId: 'mexico',
     palette: COLOR_SCHEME_REGISTRY.mexico.palette,
-    playerIds: [
-      'p135',
-      'p136',
-      'p137',
-      'p138',
-      'p139',
-      'p140',
-      'p141',
-      'p142',
-      'p143',
-      'p144',
-      'p145',
-    ],
     league: 'international',
     badgeFile: 'mexico.png',
     defaultUniformStyle: 'sunburst',
@@ -522,19 +386,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'Spain',
     colorSchemeId: 'spain',
     palette: COLOR_SCHEME_REGISTRY.spain.palette,
-    playerIds: [
-      'p157',
-      'p158',
-      'p159',
-      'p160',
-      'p161',
-      'p162',
-      'p163',
-      'p164',
-      'p165',
-      'p166',
-      'p167',
-    ],
     league: 'international',
     badgeFile: 'spain.png',
     defaultUniformStyle: 'split-horizontal',
@@ -544,19 +395,6 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
     name: 'USA',
     colorSchemeId: 'us',
     palette: COLOR_SCHEME_REGISTRY.us.palette,
-    playerIds: [
-      'p113',
-      'p114',
-      'p115',
-      'p116',
-      'p117',
-      'p118',
-      'p119',
-      'p120',
-      'p121',
-      'p122',
-      'p123',
-    ],
     league: 'international',
     badgeFile: 'us.png',
     defaultUniformStyle: 'bar-x',
@@ -565,16 +403,8 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
 
 /** CR-03: Module-level Map for O(1) player lookup — avoids O(n) linear scan per squad member.
  * Built once at module load; 11 × 178 = ~1,958 comparisons per team reduced to 11 O(1) lookups. */
-const PLAYER_POOL_MAP = new Map(PLAYER_POOL.map((p) => [p.id, p]));
-
-/** DATA-02/D-03: Resolve a team's squad players from PLAYER_POOL using TEAM_CONFIGS.playerIds.
- * Throws if a referenced player ID is not found in PLAYER_POOL (data integrity guard).
+/** DATA-02: Resolve a team's squad players from PLAYER_POOL by sourceTeamId.
  * Imported by server buildSquadPieces — returns PoolPlayer[] for further spread to PlayerPiece. */
 export function getSquadPlayers(teamId: TeamId): PoolPlayer[] {
-  const ids = TEAM_CONFIGS[teamId].playerIds;
-  return ids.map((id) => {
-    const player = PLAYER_POOL_MAP.get(id);
-    if (!player) throw new Error(`Player ${id} not found in PLAYER_POOL`);
-    return player;
-  });
+  return PLAYER_POOL.filter((p) => p.sourceTeamId === teamId);
 }

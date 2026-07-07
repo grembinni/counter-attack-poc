@@ -1,4 +1,4 @@
-Player,Team,Nationality,Position,Pace,Dribbling,Highpass,Resilience,Shooting,Tackling,Aerial Ability,Saving,Handling
+﻿Player,Team,Nationality,Position,Pace,Dribbling,Highpass,Resilience,Shooting,Tackling,Aerial Ability,Saving,Handling
 Alphonso Davies,canada,Canada,DEF,6,6,3,5,4,4,3,0,0
 Tajon Buchanan,canada,Canada,ST,6,6,4,4,4,3,4,0,0
 Jonathan David,canada,Canada,FWD,5,4,5,5,5,2,3,0,0
@@ -121,17 +121,17 @@ Sergio Reguilón,miami,Spain,DEF,6,3,4,4,3,4,2,0,0
 Federico Redondo,miami,Argentina,MID,4,4,6,3,2,3,3,0,0
 Germán Berterame,miami,Argentina,FWD,5,4,3,5,5,1,0,0,0
 Tomas Aviles,miami,Argentina,DEF,4,2,3,4,1,4,4,0,0
-Hugo Lloris,lafc,France,GK,4,2,4,6,2,1,4,5,5
-Denis Bouanga,lafc,Gabon,ST,6,4,5,5,5,2,5,0,0
-Son Heung-min,lafc,South Korea,FWD,6,5,5,4,5,1,4,0,0
-Ryan Hollingshead,lafc,US,DEF,4,2,3,6,3,5,5,0,0
-Mark Delgado,lafc,US,MID,4,5,5,4,2,4,4,0,0
-Mathieu Choinière,lafc,Canada,MID,4,4,4,4,4,5,3,0,0
-Timothy Tillman,lafc,US,MID,4,4,4,6,3,3,3,0,0
-David Martínez,lafc,Venezuela,FWD,5,4,4,4,4,2,3,0,0
-Aaron Long,lafc,US,DEF,5,2,3,5,1,4,5,0,0
-Ryan Porteous,lafc,Scotland,DEF,4,2,3,4,2,4,5,0,0
-Eddie Segura,lafc,Colombia,DEF,4,2,4,4,1,4,4,0,0
+Hugo Lloris,la,France,GK,4,2,4,6,2,1,4,5,5
+Denis Bouanga,la,Gabon,ST,6,4,5,5,5,2,5,0,0
+Son Heung-min,la,South Korea,FWD,6,5,5,4,5,1,4,0,0
+Ryan Hollingshead,la,US,DEF,4,2,3,6,3,5,5,0,0
+Mark Delgado,la,US,MID,4,5,5,4,2,4,4,0,0
+Mathieu Choinière,la,Canada,MID,4,4,4,4,4,5,3,0,0
+Timothy Tillman,la,US,MID,4,4,4,6,3,3,3,0,0
+David Martínez,la,Venezuela,FWD,5,4,4,4,4,2,3,0,0
+Aaron Long,la,US,DEF,5,2,3,5,1,4,5,0,0
+Ryan Porteous,la,Scotland,DEF,4,2,3,4,2,4,5,0,0
+Eddie Segura,la,Colombia,DEF,4,2,4,4,1,4,4,0,0
 Edson Alvarez,mexico,Mexico,MID,5,3,4,6,3,6,5,0,0
 Guillermo Ochoa,mexico,Mexico,GK,4,2,4,6,1,1,4,5,4
 Santiago Gimenez,mexico,Mexico,FWD,4,4,3,5,5,2,6,0,0
@@ -176,14 +176,14 @@ Lamine Yamal,spain,Spain,FWD,5,6,5,4,4,2,2,0,0
 Pedri,spain,Spain,MID,5,5,6,4,3,3,2,0,0
 Robin Le Normand,spain,Spain,DEF,5,3,4,5,1,5,4,0,0
 Marc Cucurella,spain,Spain,DEF,5,3,4,5,2,5,2,0,0
-Matt Turner,usmnt,US,GK,4,2,4,6,1,1,5,5,4
-Christian Pulisic,usmnt,US,FWD,6,6,5,4,5,2,2,0,0
-Tyler Adams,usmnt,US,MID,5,3,5,6,2,6,3,0,0
-Weston McKennie,usmnt,US,MID,4,5,4,4,4,4,5,0,0
-Tim Ream,usmnt,US,DEF,4,3,6,6,1,5,4,0,0
-Sergino Dest,usmnt,US,DEF,5,6,4,5,3,4,2,0,0
-Antonee Robinson,usmnt,US,DEF,6,4,4,5,2,4,3,0,0
-Yunus Musah,usmnt,US,MID,6,5,4,4,3,4,2,0,0
-Folarin Balogun,usmnt,US,ST,5,3,4,4,5,2,4,0,0
-Chris Richards,usmnt,US,DEF,5,2,3,4,2,5,5,0,0
-Tim Weah,usmnt,US,FWD,6,4,4,4,4,2,2,0,0
+Matt Turner,us,US,GK,4,2,4,6,1,1,5,5,4
+Christian Pulisic,us,US,FWD,6,6,5,4,5,2,2,0,0
+Tyler Adams,us,US,MID,5,3,5,6,2,6,3,0,0
+Weston McKennie,us,US,MID,4,5,4,4,4,4,5,0,0
+Tim Ream,us,US,DEF,4,3,6,6,1,5,4,0,0
+Sergino Dest,us,US,DEF,5,6,4,5,3,4,2,0,0
+Antonee Robinson,us,US,DEF,6,4,4,5,2,4,3,0,0
+Yunus Musah,us,US,MID,6,5,4,4,3,4,2,0,0
+Folarin Balogun,us,US,ST,5,3,4,4,5,2,4,0,0
+Chris Richards,us,US,DEF,5,2,3,4,2,5,5,0,0
+Tim Weah,us,US,FWD,6,4,4,4,4,2,2,0,0

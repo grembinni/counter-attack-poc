@@ -2363,7 +2363,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p123',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Hugo',
     lastName: 'Lloris',
     number: 1,
@@ -2382,7 +2382,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p124',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Ryan',
     lastName: 'Hollingshead',
     number: 2,
@@ -2401,7 +2401,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p125',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Aaron',
     lastName: 'Long',
     number: 3,
@@ -2420,7 +2420,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p126',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Ryan',
     lastName: 'Porteous',
     number: 4,
@@ -2439,7 +2439,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p127',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Eddie',
     lastName: 'Segura',
     number: 5,
@@ -2458,7 +2458,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p128',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Mark',
     lastName: 'Delgado',
     number: 6,
@@ -2477,7 +2477,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p129',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Mathieu',
     lastName: 'Choinière',
     number: 7,
@@ -2496,7 +2496,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p130',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Timothy',
     lastName: 'Tillman',
     number: 8,
@@ -2515,7 +2515,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p131',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Son',
     lastName: 'Heung-min',
     number: 9,
@@ -2534,7 +2534,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p132',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'David',
     lastName: 'Martínez',
     number: 10,
@@ -2553,7 +2553,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p133',
-    sourceTeamId: 'lafc',
+    sourceTeamId: 'la',
     firstName: 'Denis',
     lastName: 'Bouanga',
     number: 11,
@@ -3408,7 +3408,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p178',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Matt',
     lastName: 'Turner',
     number: 1,
@@ -3427,7 +3427,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p179',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Tim',
     lastName: 'Ream',
     number: 2,
@@ -3446,7 +3446,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p180',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Sergino',
     lastName: 'Dest',
     number: 3,
@@ -3465,7 +3465,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p181',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Antonee',
     lastName: 'Robinson',
     number: 4,
@@ -3484,7 +3484,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p182',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Chris',
     lastName: 'Richards',
     number: 5,
@@ -3503,7 +3503,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p183',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Tyler',
     lastName: 'Adams',
     number: 6,
@@ -3522,7 +3522,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p184',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Weston',
     lastName: 'McKennie',
     number: 7,
@@ -3541,7 +3541,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p185',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Yunus',
     lastName: 'Musah',
     number: 8,
@@ -3560,7 +3560,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p186',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Christian',
     lastName: 'Pulisic',
     number: 9,
@@ -3579,7 +3579,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p187',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Tim',
     lastName: 'Weah',
     number: 10,
@@ -3598,7 +3598,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
   },
   {
     id: 'p188',
-    sourceTeamId: 'usmnt',
+    sourceTeamId: 'us',
     firstName: 'Folarin',
     lastName: 'Balogun',
     number: 11,
