@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Team Customization & Formation System
 status: executing
-stopped_at: Phase 24 Plan 01 complete
-last_updated: '2026-07-10T17:27:41.000Z'
-last_activity: 2026-07-10 -- Phase 24 Plan 01 executed (lineup event contracts)
+stopped_at: Phase 24 UI-SPEC approved
+last_updated: '2026-07-10T17:42:52.712Z'
+last_activity: 2026-07-10 -- Phase 24 Plan 01 complete (lineup event contracts)
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 18
-  completed_plans: 15
-  percent: 75
+  completed_plans: 16
+  percent: 71
 ---
 
 # Project State
@@ -19,8 +19,8 @@ progress:
 ## Current Position
 
 Phase: 24 (auto-assignment-lineup) — EXECUTING
-Plan: 2 of 4
-Status: Executing Phase 24
+Plan: 3 of 4
+Status: Ready to execute
 Last activity: 2026-07-10 -- Phase 24 Plan 01 complete (lineup event contracts)
 
 Progress: [========---] 71% (5/7 phases complete)
@@ -258,7 +258,7 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-10T14:51:27.451Z
+Last session: 2026-07-10T17:42:47.891Z
 Stopped at: Phase 24 UI-SPEC approved
 Resume: Plan Phase 24 (auto-assignment-lineup)
 
@@ -310,6 +310,7 @@ Resume: Plan Phase 24 (auto-assignment-lineup)
 | Phase 18.4-ux-enhancements PG1            | 11min  | 1 tasks  | 1 files  |
 | Phase 18.4-ux-enhancements PG2            | 16min  | 1 tasks  | 2 files  |
 | Phase 21-new-teams-mls-international P01  | 10m    | 3 tasks  | 3 files  |
+| Phase 24-auto-assignment-lineup P02       | 8min   | 3 tasks  | 2 files  |
 
 ## Decisions
 
@@ -384,3 +385,5 @@ Resume: Plan Phase 24 (auto-assignment-lineup)
 - [Phase 18.4-G1]: EventBanner diff-and-trigger logic moved to useEffect([eventLog]) — state updates must never occur in render body per React rules of hooks
 - [Phase 18.4-G2]: checkHalfEndOnTackle exported for direct unit testing alongside 3 e2e applyMove tackle/steal tests
 - [Phase ?]: Phase 21-01: seattle=p091-p101 and nashville=p102-p112 (verified against teams.ts; PLAN.md action had ranges reversed)
+- [Phase ?]: computeAutoAssignment: three-pass greedy (GK-lock→anchors→flex); ST excluded from FWD-wing bonus (literal D-04); pickBest shallow-copy sort for object-identity-safe splice
+- [Phase ?]: buildKickOffPieces NOT given confirmed-order params (Pitfall 8/A2): post-goal resets use getSquadPlayers default order

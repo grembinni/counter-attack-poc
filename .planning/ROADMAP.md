@@ -69,15 +69,15 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 ## v1.3 — Team Customization & Formation System
 
-| Phase | Name                     | Requirements                                     | Status      |
-| ----- | ------------------------ | ------------------------------------------------ | ----------- |
-| 19    | 3/3                      | Complete                                         | 2026-07-03  |
-| 20    | 3/3                      | Complete                                         | 2026-07-04  |
-| 21    | 2/2                      | Complete                                         | 2026-07-04  |
-| 22    | 3/3                      | Complete                                         | 2026-07-05  |
-| 23    | 3/3                      | Complete                                         | 2026-07-05  |
-| 24    | Auto-Assignment & Lineup | ASSIGN-01..05                                    | In Progress |
-| 25    | Bug & UAT Closure        | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
+| Phase | Name              | Requirements                                     | Status      |
+| ----- | ----------------- | ------------------------------------------------ | ----------- |
+| 19    | 3/3               | Complete                                         | 2026-07-03  |
+| 20    | 3/3               | Complete                                         | 2026-07-04  |
+| 21    | 2/2               | Complete                                         | 2026-07-04  |
+| 22    | 3/3               | Complete                                         | 2026-07-05  |
+| 23    | 3/3               | Complete                                         | 2026-07-05  |
+| 24    | 2/4               | In Progress                                      |             |
+| 25    | Bug & UAT Closure | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
 
 ---
 
@@ -216,7 +216,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
    **Wave 1**
 
 - [x] 24-01-PLAN.md — Shared event contracts: LINEUP_SWAP/LINEUP_CONFIRM (C→S) + LINEUP_ASSIGNMENT_READY/LINEUP_ASSIGNMENT_UPDATED (S→C) with typed payload signatures
-- [ ] 24-02-PLAN.md — Server auto-assignment algorithm (TDD): computeAutoAssignment + scoreForRole (D-04 formulas, GK→anchor→flex, deterministic tie-break) + buildSquadPieces/buildInitialGameState confirmed-order params
+- [x] 24-02-PLAN.md — Server auto-assignment algorithm (TDD): computeAutoAssignment + scoreForRole (D-04 formulas, GK→anchor→flex, deterministic tie-break) + buildSquadPieces/buildInitialGameState confirmed-order params
 
   **Wave 2** _(blocked on Wave 1)_
 
