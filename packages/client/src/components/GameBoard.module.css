@@ -168,11 +168,12 @@
   gap: 2px 4px;
 }
 
-/* Each chip: abbr left-aligned, badge right-aligned */
+/* Each chip: abbr and bubble grouped tightly left */
 .statChip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 4px;
   cursor: default;
 }
 

@@ -101,7 +101,7 @@ function LineupStatCard({
       onDragEnd={onDragEnd}
     >
       {/* Flat layout: [TeamBadge] [name/flag/role header + stat chips] */}
-      <TeamBadge teamId={teamId} size={32} full />
+      <TeamBadge teamId={teamId} size={48} full />
       <div className={styles.cardBody}>
         {/* Header: name · [flag · role · #n] */}
         <div className={styles.cardHeader}>
@@ -292,11 +292,22 @@ export function LineupAssignmentScreen({
 
       {rejectionMessage !== null && <p className={styles.swapRejection}>{rejectionMessage}</p>}
 
-      {!lineupConfirmed && (
-        <button className={styles.confirmButtonGreen} onClick={() => onConfirm(assignment)}>
-          Confirm Lineup
-        </button>
-      )}
+      <div className={styles.confirmSection}>
+        {!lineupConfirmed && (
+          <button
+            className={styles.confirmButtonGreen}
+            aria-label="Confirm lineup"
+            onClick={() => onConfirm(assignment)}
+          >
+            Confirm Lineup
+          </button>
+        )}
+        {lineupConfirmed && (
+          <p className={styles.statusActive}>
+            Lineup confirmed — waiting for {waitingForLabel} player…
+          </p>
+        )}
+      </div>
     </div>
   );
 }
