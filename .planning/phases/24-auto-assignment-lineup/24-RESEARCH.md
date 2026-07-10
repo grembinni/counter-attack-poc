@@ -843,22 +843,22 @@ const STAT_LABELS: Array<[keyof PlayerPiece, string]> = [
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **FWD bonus for ST role in FWD-wing scoring (A1)**
    - What we know: D-04 says `(3 if role=FWD)` for FWD-wing; `PoolPlayer.role` has both `'FWD'` and `'ST'` as distinct values
    - What's unclear: Whether ST-role players should receive the FWD-wing +3 bonus
-   - Recommendation: Implement with ST receiving the bonus (forward-oriented role); confirm with user before code review
+   - RESOLVED: ST does not receive the FWD-wing +3 bonus — D-04 is treated literally (`role === 'FWD'` only). Strikers are pulled central by the FWD-central +4 bonus instead. See Plan 02 Task 2 action.
 
 2. **Post-goal piece reset and confirmed lineup order (A2)**
    - What we know: `buildKickOffPieces` is called after each goal; it currently uses `getSquadPlayers` order
    - What's unclear: Whether the confirmed player-slot assignment should persist across goals
-   - Recommendation: v1.3 treats post-goal reset as formation-default (no confirmed order); document as known limitation
+   - RESOLVED: Post-goal resets use `getSquadPlayers` default ordering (v1.3 gap accepted). `buildKickOffPieces` is not modified in this phase. See Plan 02 Task 3 pitfall guard.
 
 3. **Reconnect handling during lineup phase (A3)**
    - What we know: The disconnect/reconnect grace period is 90 seconds; `broadcastState` re-emits `GAME_STATE` on reconnect
    - What's unclear: Whether `LINEUP_ASSIGNMENT_READY` is re-emitted on reconnect
-   - Recommendation: Accept the v1.3 gap (reconnect during lineup is an edge case); add a follow-up todo
+   - RESOLVED: Reconnect during lineup is an accepted v1.3 gap — no `LINEUP_ASSIGNMENT_READY` re-emit on reconnect in this phase.
 
 ---
 
