@@ -32,19 +32,21 @@ No shadcn or Tailwind config found in the project root or `packages/client`. All
 
 Declared values (multiples of 4):
 
-| Token | Value | Usage                                                                         |
-| ----- | ----- | ----------------------------------------------------------------------------- |
-| xs    | 4px   | MiniTokenBadge gap to header text; playerMeta item gaps                       |
-| sm    | 8px   | Column card stack gap; stat row gap between cards; jersey badge inner padding |
-| md    | 16px  | Screen column gap; card inner padding; screen horizontal padding              |
-| lg    | 24px  | Screen vertical padding (top/bottom); bench row top margin                    |
-| xl    | 32px  | Not used in this phase                                                        |
-| 2xl   | 48px  | Not used in this phase                                                        |
-| 3xl   | 64px  | Not used in this phase                                                        |
+| Token      | Value | Usage                                                                         |
+| ---------- | ----- | ----------------------------------------------------------------------------- |
+| xs         | 4px   | MiniTokenBadge gap to header text; playerMeta item gaps                       |
+| sm         | 8px   | Column card stack gap; stat row gap between cards; jersey badge inner padding |
+| card-inner | 12px  | Card inner padding for LineupStatCard                                         |
+| md         | 16px  | Screen column gap; screen horizontal padding                                  |
+| lg         | 24px  | Screen vertical padding (top/bottom); bench row top margin                    |
+| xl         | 32px  | Not used in this phase                                                        |
+| 2xl        | 48px  | Not used in this phase                                                        |
+| 3xl        | 64px  | Not used in this phase                                                        |
 
 Exceptions:
 
-- Stat row internal gap: 3px (inherited from `PlayerStatsPanel.module.css` — matches existing stat grid row gap exactly)
+- `card-inner` (12px): Used as the `padding` value on `.statCard`. Sits between the 8px and 16px standard tokens; 8px is too cramped for the 9-stat layout and 16px wastes horizontal space in a screen that must fit 11 cards side by side.
+- Stat row internal gap: 4px (override to 4px in LineupStatCard — do NOT inherit 3px from `PlayerStatsPanel.module.css`)
 - Column header vertical padding: 4px top/bottom (8px combined — tighter than md to keep column header compact)
 - Drag-over border width: 2px (not a spacing token — a visual state override)
 
@@ -52,12 +54,11 @@ Exceptions:
 
 ## Typography
 
-| Role    | Size | Weight | Line Height | Color   | Usage                                                        |
-| ------- | ---- | ------ | ----------- | ------- | ------------------------------------------------------------ |
-| Display | 22px | 800    | 1.2         | #e0e0e0 | Screen heading ("MATCH SETUP: STEP 3 ...")                   |
-| Heading | 13px | 700    | 1.2         | #e0e0e0 | Player first name, last name in LineupStatCard               |
-| Label   | 12px | 700    | 1.2         | #a0a0a0 | Column headers (GK/DEF/MID/FWD), section labels, status copy |
-| Body    | 12px | 400    | 1.5         | #a0a0a0 | Stat attribute names; player meta (role, jersey number)      |
+| Role    | Size | Weight | Line Height | Color   | Usage                                                                                            |
+| ------- | ---- | ------ | ----------- | ------- | ------------------------------------------------------------------------------------------------ |
+| Display | 22px | 700    | 1.2         | #e0e0e0 | Screen heading ("MATCH SETUP: STEP 3 ...")                                                       |
+| Label   | 12px | 700    | 1.2         | #a0a0a0 | Column headers (GK/DEF/MID/FWD), section labels; player names and LOCKED badge use color #e0e0e0 |
+| Body    | 12px | 400    | 1.5         | #a0a0a0 | Stat attribute names; player meta row (role, jersey number)                                      |
 
 Stat values use: 12px, weight 700, color #f5c518 (inherited from `PlayerStatsPanel.module.css .statValue`).
 
@@ -65,7 +66,7 @@ Active status copy uses: 14px, weight 700, color #22c55e (inherited from `Unifor
 
 Waiting status copy uses: 14px, weight 700, color #ef4444 (inherited from `UniformSelectionScreen.module.css .statusWaiting`).
 
-Confirm button label: 20px, weight 800, color #1a1a2e (inherited from `UniformSelectionScreen.module.css .confirmButtonGreen`).
+Confirm button label: 20px, weight 700, color #1a1a2e (inherited from `UniformSelectionScreen.module.css .confirmButtonGreen`).
 
 ---
 
@@ -96,6 +97,8 @@ Semantic colors not used in this phase:
 
 ## Component Inventory
 
+Primary visual anchor: the formation columns grid. The screen heading orients the player; the stat cards are the dominant interactive region.
+
 ### New: LineupAssignmentScreen
 
 File: `packages/client/src/components/LineupAssignmentScreen.tsx` + `LineupAssignmentScreen.module.css`
@@ -118,7 +121,7 @@ Matches `UniformSelectionScreen.module.css .screen` exactly.
 
 ```
 font-size: 22px;
-font-weight: 800;
+font-weight: 700;
 color: #e0e0e0;
 margin: 0;
 line-height: 1.2;
@@ -264,7 +267,7 @@ cursor: default;
 ```
 display: flex;
 align-items: flex-start;
-gap: 6px;
+gap: 8px;
 ```
 
 **Header text block** (`.cardHeaderText`):
@@ -272,14 +275,14 @@ gap: 6px;
 ```
 display: flex;
 flex-direction: column;
-gap: 2px;
+gap: 4px;
 flex: 1;
 min-width: 0;
 ```
 
-Player first name: 13px, weight 700, color #e0e0e0.
-Player last name: 13px, weight 700, color #e0e0e0.
-Player meta row (role + jersey number): 11px, weight 400, color #a0a0a0, `text-transform: uppercase`, `letter-spacing: 0.05em`.
+Player first name: 12px, weight 700, color #e0e0e0.
+Player last name: 12px, weight 700, color #e0e0e0.
+Player meta row (role + jersey number): 12px, weight 400, color #a0a0a0, `text-transform: uppercase`, `letter-spacing: 0.05em`.
 
 - `role` = `PoolPlayer.role` (source role, e.g. "FWD", "DEF", "GK")
 - Jersey number = `FormationSlot.jerseyNumber` (assigned slot jersey, not source team number) prefixed with "#"
@@ -288,7 +291,7 @@ Player meta row (role + jersey number): 11px, weight 400, color #a0a0a0, `text-t
 Rendered only on GK card. Right-aligned within `.cardHeader`.
 
 ```
-font-size: 10px;
+font-size: 12px;
 font-weight: 700;
 color: #a0a0a0;
 letter-spacing: 0.05em;
@@ -304,10 +307,10 @@ Text: "LOCKED"
 ```
 display: grid;
 grid-template-columns: 1fr auto;
-gap: 3px 8px;
+gap: 4px 8px;
 ```
 
-Matches `PlayerStatsPanel.module.css .statGrid` exactly.
+Overrides the 3px row gap from `PlayerStatsPanel.module.css .statGrid`. LineupStatCard declares 4px to conform to the 4px minimum spacing scale.
 
 **Stat label** (`.statLabel`): 12px, weight 400, color #a0a0a0. Matches PlayerStatsPanel.
 **Stat value** (`.statValue`): 12px, weight 700, color #f5c518. Matches PlayerStatsPanel.
@@ -395,7 +398,7 @@ Copy: "Swap rejected — GK cannot be moved."
 Style:
 
 ```
-font-size: 13px;
+font-size: 12px;
 font-weight: 700;
 color: #ef4444;
 text-align: center;
@@ -464,7 +467,7 @@ No new npm dependencies introduced by this phase. HTML5 native drag-and-drop onl
 | Section                                                | Source                                                            | Decision        |
 | ------------------------------------------------------ | ----------------------------------------------------------------- | --------------- |
 | Screen layout (flex column, min-height 100vh, dark bg) | Codebase — `UniformSelectionScreen.module.css .screen`            | Reuse verbatim  |
-| Heading style (22px, weight 800, #e0e0e0)              | Codebase — `UniformSelectionScreen.module.css .matchSetupHeading` | Reuse verbatim  |
+| Heading style (22px, weight 700, #e0e0e0)              | Codebase — `UniformSelectionScreen.module.css .matchSetupHeading` | Reuse verbatim  |
 | Status copy strings (exact text)                       | CONTEXT.md D-23 + `UniformSelectionScreen.tsx` lines 185-187      | Locked          |
 | Step number = 3                                        | CONTEXT.md D-18                                                   | Locked          |
 | Horizontal GK\|DEF\|MID\|FWD column layout             | CONTEXT.md D-14                                                   | Locked          |
