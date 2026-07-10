@@ -45,14 +45,12 @@ describe('PlayerStatsPanel — TEAM-02: renders null when no piece selected', ()
 });
 
 describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstName/lastName/role/number', () => {
-  it('renders the GK firstName and lastName on separate lines (D-09, PLAY-02)', () => {
+  it('renders the GK full name in the card header (flat layout — PLAY-02)', () => {
     // home-0 is the GK. After Phase 19, the city GK is Roman Bürki (array index 0 in city squad).
     useGameStore.setState({ selectedPieceId: 'home-0' });
     render(<PlayerStatsPanel />);
-    // Line 1: firstName must appear as its own text node
-    expect(screen.getByText('Roman')).toBeDefined();
-    // Line 2: lastName must appear as its own text node
-    expect(screen.getByText('Bürki')).toBeDefined();
+    // Flat card combines firstName + lastName in one span
+    expect(screen.getByText('Roman Bürki')).toBeDefined();
   });
 
   it('renders the role text (e.g. "GK") on line 3 (D-09)', () => {
@@ -76,20 +74,28 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
     expect(screen.queryByText(/Home GK/i)).toBeNull();
   });
 
-  it('renders all 9 attribute labels (heading removed — aerialAbility is the sole aerial stat)', () => {
+  it('renders all 9 stat abbreviations as visible text (flat card layout)', () => {
     useGameStore.setState({ selectedPieceId: 'home-1' });
     render(<PlayerStatsPanel />);
-    expect(screen.getByText('Pace')).toBeDefined();
-    expect(screen.getByText('Shooting')).toBeDefined();
-    expect(screen.getByText('Tackling')).toBeDefined();
-    expect(screen.getByText('Dribbling')).toBeDefined();
-    expect(screen.getByText('Saving')).toBeDefined();
-    expect(screen.getByText('Handling')).toBeDefined();
-    expect(screen.getByText('Resilience')).toBeDefined();
-    expect(screen.getByText('Aerial')).toBeDefined();
-    expect(screen.getByText('High Pass')).toBeDefined();
-    // 'Heading' label removed — aerialAbility is now the sole aerial stat
-    expect(screen.queryByText('Heading')).toBeNull();
+    // Abbreviated labels are shown; full names are title tooltip attributes
+    expect(screen.getByText('PAC')).toBeDefined();
+    expect(screen.getByText('SHO')).toBeDefined();
+    expect(screen.getByText('TAC')).toBeDefined();
+    expect(screen.getByText('DRI')).toBeDefined();
+    expect(screen.getByText('SAV')).toBeDefined();
+    expect(screen.getByText('HND')).toBeDefined();
+    expect(screen.getByText('RES')).toBeDefined();
+    expect(screen.getByText('AER')).toBeDefined();
+    expect(screen.getByText('PAS')).toBeDefined();
+  });
+
+  it('renders full stat names as title tooltip attributes on chip wrappers', () => {
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    expect(screen.getByTitle('Pace')).toBeDefined();
+    expect(screen.getByTitle('Shooting')).toBeDefined();
+    expect(screen.getByTitle('Aerial Ability')).toBeDefined();
+    expect(screen.getByTitle('High Pass')).toBeDefined();
   });
 
   it('renders the correct attribute value from gameState.pieces', () => {

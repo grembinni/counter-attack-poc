@@ -2,75 +2,70 @@ import type { PlayerPiece } from '@counter-attack/shared';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { TeamBadge } from './TeamBadge.js';
+import { NationFlag } from './NationFlag.js';
 import styles from './PlayerStatsPanel.module.css';
 
 /**
- * Ordered list of all 10 PlayerPiece attributes with their display labels.
- * D-05 (Phase 7.1): stats panel shows all attributes for selected piece.
+ * Stat definitions: [attribute key, abbreviation, full label for title tooltip].
+ * Abbreviation shown in card; full label visible on hover via `title`.
+ * Exported so LineupAssignmentScreen can reuse the same ordered list.
  */
-export const STAT_LABELS: Array<[keyof PlayerPiece, string]> = [
-  ['pace', 'Pace'],
-  ['shooting', 'Shooting'],
-  ['tackling', 'Tackling'],
-  ['dribbling', 'Dribbling'],
-  ['saving', 'Saving'],
-  ['handling', 'Handling'],
-  ['resilience', 'Resilience'],
-  ['aerialAbility', 'Aerial'],
-  ['highPass', 'High Pass'],
+export const STAT_LABELS: Array<[keyof PlayerPiece, string, string]> = [
+  ['pace', 'PAC', 'Pace'],
+  ['shooting', 'SHO', 'Shooting'],
+  ['tackling', 'TAC', 'Tackling'],
+  ['dribbling', 'DRI', 'Dribbling'],
+  ['saving', 'SAV', 'Saving'],
+  ['handling', 'HND', 'Handling'],
+  ['resilience', 'RES', 'Resilience'],
+  ['aerialAbility', 'AER', 'Aerial Ability'],
+  ['highPass', 'PAS', 'High Pass'],
 ];
 
+/** Returns color tier for a stat value on the 1-9 scale. */
+function statTier(value: number): 'high' | 'mid' | 'low' {
+  if (value >= 7) return 'high';
+  if (value >= 4) return 'mid';
+  return 'low';
+}
+
 /**
- * D-08/D-09: Inline SVG mini token badge for the PlayerStatsPanel header.
- * Self-contained <defs> patterns — does NOT reference HexGrid's pattern IDs (separate SVG document).
- * Shows the home/away stripe pattern for outfield pieces; solid fill for GK.
+ * Inline SVG mini token badge — self-contained <defs>, no HexGrid dependency.
+ * D-08/D-09/D-10: home outfield = stripe pattern; home GK = checker; away GK = solid amber.
  */
 function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
   const isGK = piece.role === 'GK';
-  const miniR = 9;
-  const miniCx = 10;
-  const miniCy = 10;
-
-  // D-08: player number from piece.number (replaces id-slice derivation)
-  const playerNumber = String(piece.number);
-
-  // D-06/D-17: team-keyed pattern ids (15-03) — reads selectedTeams from store
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
   const teamId = selectedTeams[piece.teamId];
   const jerseyPatId = `mini-${teamId}-jersey-${piece.id}`;
   const homeGkPatId = `mini-home-gk-checker-${piece.id}`;
-
-  // D-10: home GK uses checker pattern; away GK keeps solid amber
   const gkFill = isGK && piece.teamId === 'home' ? `url(#${homeGkPatId})` : '#f59e0b';
   const gkStroke = piece.teamId === 'home' ? '#6c3483' : '#d97706';
   const outfieldStroke = piece.teamId === 'home' ? '#0d3a82' : '#8e1c12';
 
   return (
     <svg width={20} height={20} viewBox="0 0 20 20" className={styles.tokenBadge}>
-      {/* D-09: self-contained team-keyed jersey defs — outfield only */}
       {!isGK && (
         <defs>
           <pattern
             id={jerseyPatId}
-            x={miniCx - miniR}
-            y={miniCy - miniR}
+            x={1}
+            y={1}
             width={18}
             height={18}
             patternUnits="userSpaceOnUse"
           >
             <rect width={18} height={18} fill={TEAM_CONFIGS[teamId].palette.homePrime} />
-            {/* Horizontal white stripe across centre — matches scaled cosmos jersey */}
             <rect x={0} y={6} width={18} height={6} fill="#ffffff" fillOpacity={0.4} />
           </pattern>
         </defs>
       )}
-      {/* D-10: home GK checker pattern def — 10px tile, 5px checkers */}
       {isGK && piece.teamId === 'home' && (
         <defs>
           <pattern
             id={homeGkPatId}
-            x={miniCx - miniR}
-            y={miniCy - miniR}
+            x={1}
+            y={1}
             width={10}
             height={10}
             patternUnits="userSpaceOnUse"
@@ -82,16 +77,16 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
         </defs>
       )}
       <circle
-        cx={miniCx}
-        cy={miniCy}
-        r={miniR}
+        cx={10}
+        cy={10}
+        r={9}
         fill={isGK ? gkFill : `url(#${jerseyPatId})`}
         stroke={isGK ? gkStroke : outfieldStroke}
         strokeWidth={1.5}
       />
       <text
-        x={miniCx}
-        y={miniCy}
+        x={10}
+        y={10}
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={9}
@@ -100,21 +95,21 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
         fontStyle={isGK ? 'italic' : 'normal'}
         pointerEvents="none"
       >
-        {playerNumber}
+        {String(piece.number)}
       </text>
     </svg>
   );
 }
 
 /**
- * Sidebar stats card showing the selected piece's name, role, and all 10 attributes.
- * Reads selectedPieceId and gameState.pieces from Zustand.
- * Returns null when no piece is selected (avoids taking up sidebar space).
+ * Flat player card:
  *
- * D-05 / D-06 (Phase 7.1): both players can inspect any piece — this panel renders
- * for any piece clicked on the board regardless of who is the active player.
- * Inspection is LOCAL CLIENT STATE ONLY — never emits to the server.
- * TEAM-02: player cards display name, position/role, and all attributes.
+ * [TeamBadge 56px] │ [token] Name Surname  [🏳] [ROLE]
+ *                  │ [PAC●][SHO●][TAC●][DRI●][SAV●]
+ *                  │ [HND●][RES●][AER●][PAS●]
+ *
+ * Stat badges: green ≥7 / orange 4-6 / red ≤3 (via data-tier CSS attribute selector).
+ * Abbreviated labels show full name on hover via `title`.
  */
 export function PlayerStatsPanel() {
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -125,29 +120,40 @@ export function PlayerStatsPanel() {
   const piece = pieces.find((p) => p.id === selectedPieceId);
   if (!piece) return null;
 
+  const teamId = selectedTeams[piece.teamId];
+
   return (
     <div className={styles.panel}>
-      <div className={styles.header}>
-        {/* D-08/D-09: inline SVG mini token badge — self-contained defs, no HexGrid dependency */}
-        <MiniTokenBadge piece={piece} />
-        {/* D-08/D-09 (PLAY-02): 3-line header — firstName / lastName / badge|role|#number */}
-        <div className={styles.headerText}>
-          <span className={styles.firstName}>{piece.firstName}</span>
-          <span className={styles.lastName}>{piece.lastName}</span>
-          <span className={styles.playerMeta}>
-            <TeamBadge teamId={selectedTeams[piece.teamId]} size={20} />
-            <span className={styles.role}>{piece.role}</span>
-            <span>#{piece.number}</span>
+      {/* Left column: large team badge */}
+      <TeamBadge teamId={teamId} size={56} full />
+
+      {/* Right column: header + 2-row stat grid */}
+      <div className={styles.cardBody}>
+        {/* Header: token · full name · nation flag · position chip */}
+        <div className={styles.cardHeader}>
+          <MiniTokenBadge piece={piece} />
+          <span className={styles.playerName}>
+            {piece.firstName} {piece.lastName}
           </span>
+          <NationFlag nationality={piece.nationality} size={20} />
+          <span className={styles.roleChip}>{piece.role}</span>
+          <span className={styles.jerseyNum}>#{piece.number}</span>
         </div>
-      </div>
-      <div className={styles.statGrid}>
-        {STAT_LABELS.map(([attr, label]) => (
-          <div key={attr} className={styles.statRow}>
-            <span className={styles.statLabel}>{label}</span>
-            <span className={styles.statValue}>{piece[attr] as number}</span>
-          </div>
-        ))}
+
+        {/* 5-column stat grid → 2 rows (5 + 4) */}
+        <div className={styles.statGrid}>
+          {STAT_LABELS.map(([attr, abbr, fullLabel]) => {
+            const value = piece[attr] as number;
+            return (
+              <div key={attr} className={styles.statChip} title={fullLabel}>
+                <span className={styles.statAbbr}>{abbr}</span>
+                <span className={styles.statBadge} data-tier={statTier(value)}>
+                  {value}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
