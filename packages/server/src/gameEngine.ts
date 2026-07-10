@@ -22,6 +22,9 @@ import type {
   HexCoord,
   LastActionType,
   PlayerPiece,
+  FormationSlot,
+  SlotRole,
+  PoolPlayer,
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
@@ -91,6 +94,129 @@ const SNAPSHOT_ELIGIBLE_PASS_TYPES: ReadonlySet<LastActionType> = new Set([
   'SUCCESSFUL_TACKLE',
   'MOVEMENT_PHASE',
 ]);
+
+// ---------------------------------------------------------------------------
+// computeAutoAssignment — Phase 24 ASSIGN-01
+// ---------------------------------------------------------------------------
+
+/**
+ * Anchor roles are filled in Pass 2 before flex roles (Pass 3). D-02.
+ * DEF-center, MID-central, FWD-central are anchor roles.
+ */
+const ANCHOR_ROLES: readonly SlotRole[] = ['DEF-center', 'MID-central', 'FWD-central'];
+
+/**
+ * Score a player for a specific formation slot role using the D-04 weighted formulas.
+ *
+ * Exported for direct unit testing in gameEngine.phase24.test.ts.
+ * No randomness — pure function of player stats and role label.
+ *
+ * FWD-wing note (resolved assumption A1): `role === 'ST'` does NOT receive the +3 wing bonus.
+ * Strikers are pulled central by the FWD-central +4 bonus instead (literal D-04 wording).
+ */
+export function scoreForRole(player: PoolPlayer, slotRole: SlotRole): number {
+  const r = player.role;
+  switch (slotRole) {
+    case 'FWD-central':
+      // D-04: shooting + aerialAbility + (2 if role=FWD) + (4 if role=ST)
+      return player.shooting + player.aerialAbility + (r === 'FWD' ? 2 : 0) + (r === 'ST' ? 4 : 0);
+    case 'FWD-wing':
+      // D-04: dribbling + highPass + (3 if role=FWD) + (2 if role=MID)
+      // ST intentionally excluded from the +3 bonus (A1 resolved).
+      return player.dribbling + player.highPass + (r === 'FWD' ? 3 : 0) + (r === 'MID' ? 2 : 0);
+    case 'DEF-center':
+      // D-04: tackling + aerialAbility + (2 if role=DEF)
+      return player.tackling + player.aerialAbility + (r === 'DEF' ? 2 : 0);
+    case 'DEF-back':
+      // D-04: tackling + pace + (2 if role=DEF)
+      return player.tackling + player.pace + (r === 'DEF' ? 2 : 0);
+    case 'MID-central':
+      // D-04: dribbling + tackling + pace + shooting + (3 if role=MID)
+      return (
+        player.dribbling + player.tackling + player.pace + player.shooting + (r === 'MID' ? 3 : 0)
+      );
+    case 'MID-wing':
+      // D-04: dribbling + highPass + (3 if role=FWD) + (2 if role=MID)
+      // Identical formula to FWD-wing per Phase 23 deferred design.
+      return player.dribbling + player.highPass + (r === 'FWD' ? 3 : 0) + (r === 'MID' ? 2 : 0);
+    case 'GK':
+      // GK is locked in Pass 1; never scored here.
+      return 0;
+  }
+}
+
+/**
+ * Pick the best available player for a given slot role.
+ * Sorts by score descending, then by original squad index ascending for tie-breaking (D-05).
+ * Never uses Math.random — fully deterministic.
+ *
+ * IMPORTANT: returns the same object reference as found in `available` (not a spread copy)
+ * so that the caller's `available.indexOf(best)` + `splice` correctly removes it.
+ */
+function pickBest(
+  available: Array<{ player: PoolPlayer; origIdx: number }>,
+  slotRole: SlotRole,
+): { player: PoolPlayer; origIdx: number } {
+  // Shallow copy preserves object identity — sorted[0] IS the same reference as in available.
+  return [...available].sort((a, b) => {
+    const sa = scoreForRole(a.player, slotRole);
+    const sb = scoreForRole(b.player, slotRole);
+    // Higher score wins; on tie, prefer lower origIdx (D-05: source-team array order).
+    return sb !== sa ? sb - sa : a.origIdx - b.origIdx;
+  })[0]!;
+}
+
+/**
+ * Assign 11 squad players to 11 formation slots using weighted stat scoring. ASSIGN-01.
+ *
+ * Three-pass greedy strategy (D-01/D-02/D-03):
+ *   Pass 1 — Lock the GK (role === 'GK') to slot index 0.
+ *   Pass 2 — Fill ANCHOR_ROLES slots from remaining players, in slot index order.
+ *   Pass 3 — Fill all remaining (flex) slots from remaining players.
+ *
+ * Tie-breaking: prefer the player with the lower original squad index (D-05).
+ * No randomness — identical squad always produces identical assignment (T-24-06).
+ *
+ * @param squad  - All players eligible for selection (typically getSquadPlayers(teamId)).
+ * @param slots  - The formation's slot definitions (readonly; not mutated).
+ * @returns      - PoolPlayer[] with one entry per slot in the same order as `slots`.
+ */
+export function computeAutoAssignment(
+  squad: PoolPlayer[],
+  slots: readonly FormationSlot[],
+): PoolPlayer[] {
+  const result: (PoolPlayer | null)[] = new Array<PoolPlayer | null>(slots.length).fill(null);
+  // Track original squad indices for deterministic tie-breaking (D-05).
+  const available: Array<{ player: PoolPlayer; origIdx: number }> = squad.map((p, i) => ({
+    player: p,
+    origIdx: i,
+  }));
+
+  // --- Pass 1: Lock GK to slot 0 (D-01) ---
+  const gkEntry = available.find((e) => e.player.role === 'GK');
+  if (gkEntry) {
+    result[0] = gkEntry.player;
+    available.splice(available.indexOf(gkEntry), 1);
+  }
+
+  // --- Pass 2: Fill anchor roles (D-02) ---
+  for (let i = 1; i < slots.length; i++) {
+    if (!ANCHOR_ROLES.includes(slots[i]!.slotRole)) continue;
+    const best = pickBest(available, slots[i]!.slotRole);
+    result[i] = best.player;
+    available.splice(available.indexOf(best), 1);
+  }
+
+  // --- Pass 3: Fill flex roles (D-03) ---
+  for (let i = 1; i < slots.length; i++) {
+    if (result[i] !== null) continue; // already filled in pass 2
+    const best = pickBest(available, slots[i]!.slotRole);
+    result[i] = best.player;
+    available.splice(available.indexOf(best), 1);
+  }
+
+  return result as PoolPlayer[];
+}
 
 // ---------------------------------------------------------------------------
 // buildInitialGameState
