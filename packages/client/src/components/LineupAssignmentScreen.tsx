@@ -7,27 +7,24 @@
  *
  * D-16: only the player's own assignment is shown — server never sends opponent's lineup to this socket.
  */
-import { useState, useEffect, Fragment } from 'react';
-import { FORMATIONS, PLAYER_POOL, TEAM_CONFIGS } from '@counter-attack/shared';
-import type { FormationId, FormationSlot, PoolPlayer } from '@counter-attack/shared';
+import { useState, useEffect } from 'react';
+import { FORMATIONS, PLAYER_POOL } from '@counter-attack/shared';
+import type { FormationId, FormationSlot, PoolPlayer, TeamId } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { TeamBadge } from './TeamBadge.js';
+import { NationFlag } from './NationFlag.js';
+import { STAT_LABELS } from './PlayerStatsPanel.js';
 import styles from './LineupAssignmentScreen.module.css';
 
 /** O(1) lookup map: PlayerId → PoolPlayer. Built once at module load from the immutable PLAYER_POOL. */
 const PLAYER_MAP = new Map<string, PoolPlayer>(PLAYER_POOL.map((p) => [p.id, p]));
 
-/** Same stat order as PlayerStatsPanel.STAT_LABELS, typed against PoolPlayer. */
-const POOL_STAT_LABELS: Array<[keyof PoolPlayer, string]> = [
-  ['pace', 'Pace'],
-  ['shooting', 'Shooting'],
-  ['tackling', 'Tackling'],
-  ['dribbling', 'Dribbling'],
-  ['saving', 'Saving'],
-  ['handling', 'Handling'],
-  ['resilience', 'Resilience'],
-  ['aerialAbility', 'Aerial'],
-  ['highPass', 'High Pass'],
-];
+/** Color tier for stat badge — mirrors PlayerStatsPanel.statTier. */
+function statTier(value: number): 'high' | 'mid' | 'low' {
+  if (value >= 7) return 'high';
+  if (value >= 4) return 'mid';
+  return 'low';
+}
 
 type Props = {
   /** PlayerId[] from server (11 entries), index maps to FORMATIONS[formationId].slots[i]. */
@@ -44,48 +41,18 @@ type Props = {
   lineupConfirmed: boolean;
 };
 
-/* ─── Inline mini token badge ────────────────────────────────────────────── */
-
-function MiniLineupToken({
-  jerseyNumber,
-  fillColor,
-  strokeColor,
-}: {
-  jerseyNumber: number;
-  fillColor: string;
-  strokeColor: string;
-}) {
-  return (
-    <svg width={20} height={20} viewBox="0 0 20 20" aria-hidden="true">
-      <circle cx={10} cy={10} r={9} fill={fillColor} stroke={strokeColor} strokeWidth={1.5} />
-      <text
-        x={10}
-        y={10}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={9}
-        fontWeight={700}
-        fill="#ffffff"
-        pointerEvents="none"
-      >
-        {jerseyNumber}
-      </text>
-    </svg>
-  );
-}
-
-/* ─── Inline LineupStatCard sub-component ────────────────────────────────── */
+/* ─── LineupStatCard — flat format matching GameBoard/PlayerStatsPanel ────── */
 
 type StatCardProps = {
   player: PoolPlayer;
   slotMeta: FormationSlot;
-  /** Absolute slot index in FORMATIONS[formationId].slots — 0 = GK (always locked). */
+  /** Absolute slot index — 0 = GK (always locked). */
   slotIndex: number;
   isDragSource: boolean;
   isDropTarget: boolean;
   lineupConfirmed: boolean;
-  tokenFill: string;
-  tokenStroke: string;
+  /** Team badge ID for the left-column badge. */
+  teamId: TeamId;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
   onDragLeave: () => void;
@@ -93,8 +60,6 @@ type StatCardProps = {
   onDragEnd: () => void;
 };
 
-/** D-15/D-20: full stat card matching PlayerStatsPanel visual format at compact 8px padding.
- * GK (slotIndex 0) is permanently locked. Outfield cards are draggable until lineupConfirmed. */
 function LineupStatCard({
   player,
   slotMeta,
@@ -102,8 +67,7 @@ function LineupStatCard({
   isDragSource,
   isDropTarget,
   lineupConfirmed,
-  tokenFill,
-  tokenStroke,
+  teamId,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -136,33 +100,34 @@ function LineupStatCard({
       onDrop={(e) => onDrop(e, slotIndex)}
       onDragEnd={onDragEnd}
     >
-      {/* Header: mini token + name/role — matches PlayerStatsPanel .header structure */}
-      <div className={styles.cardHeader}>
-        <MiniLineupToken
-          jerseyNumber={slotMeta.jerseyNumber}
-          fillColor={tokenFill}
-          strokeColor={tokenStroke}
-        />
-        <div className={styles.cardHeaderText}>
-          <span className={styles.cardFirstName}>{player.firstName}</span>
-          <span className={styles.cardLastName}>{player.lastName}</span>
-          {/* D-15 Pitfall 5: jersey number from slotMeta.jerseyNumber, NOT player.number */}
-          <span className={styles.cardPlayerMeta}>
-            <span>{player.role}</span>
-            <span>#{slotMeta.jerseyNumber}</span>
-            {isGK && <span className={styles.lockedBadge}>LOCKED</span>}
+      {/* Flat layout: [TeamBadge] [name/flag/role header + stat chips] */}
+      <TeamBadge teamId={teamId} size={32} full />
+      <div className={styles.cardBody}>
+        {/* Header: name · flag · role · jersey# */}
+        <div className={styles.cardHeader}>
+          <span className={styles.cardName}>
+            {player.firstName} {player.lastName}
           </span>
+          <NationFlag nationality={player.nationality} size={14} />
+          <span className={styles.cardRole}>{player.role}</span>
+          {/* D-15 Pitfall 5: jersey number from slotMeta, not player */}
+          <span className={styles.cardNum}>#{slotMeta.jerseyNumber}</span>
+          {isGK && <span className={styles.lockedBadge}>LOCK</span>}
         </div>
-      </div>
-
-      {/* Stats grid — same column/gap values as PlayerStatsPanel.statGrid */}
-      <div className={styles.statGrid}>
-        {POOL_STAT_LABELS.map(([attr, label]) => (
-          <Fragment key={attr}>
-            <span className={styles.statLabel}>{label}</span>
-            <span className={styles.statValue}>{player[attr] as number}</span>
-          </Fragment>
-        ))}
+        {/* 5-column stat chip grid → 2 rows */}
+        <div className={styles.statGrid}>
+          {STAT_LABELS.map(([attr, abbr, fullLabel]) => {
+            const value = player[attr as keyof PoolPlayer] as number;
+            return (
+              <div key={attr} className={styles.statChip} title={fullLabel}>
+                <span className={styles.statAbbr}>{abbr}</span>
+                <span className={styles.statBadge} data-tier={statTier(value)}>
+                  {value}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -184,9 +149,6 @@ export function LineupAssignmentScreen({
 
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
   const myTeamId = playerSlot === 1 ? selectedTeams.home : selectedTeams.away;
-  const teamConfig = TEAM_CONFIGS[myTeamId];
-  const tokenFill = teamConfig?.palette.homePrime ?? '#3b82f6';
-  const tokenStroke = teamConfig?.palette.homePrime ?? '#1d4ed8';
 
   // D-19/D-22: drag state is local — never in Zustand (Pitfall 7)
   const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
@@ -279,8 +241,7 @@ export function LineupAssignmentScreen({
               isDragSource={dragSourceIndex === slotIndex}
               isDropTarget={dropTargetIndex === slotIndex}
               lineupConfirmed={lineupConfirmed}
-              tokenFill={tokenFill}
-              tokenStroke={tokenStroke}
+              teamId={myTeamId}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}

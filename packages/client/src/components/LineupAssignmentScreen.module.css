@@ -105,18 +105,18 @@
   justify-content: center;
 }
 
-/* ─── Stat card — matches PlayerStatsPanel visual format exactly ────────────
-   Same bg/border/radius. Padding reduced to 8px (vs 16px in sidebar panel)
-   so 4 cards fit comfortably without scrolling on typical viewports.        */
+/* ─── Stat card — flat format matching GameBoard/PlayerStatsPanel ───────────
+   Row layout: [TeamBadge 32px] [.cardBody: header + stat chips]            */
 
 .statCard {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   cursor: grab;
   user-select: none;
   transition:
@@ -125,110 +125,131 @@
     box-shadow 0.1s ease;
 }
 
-/* GK card: never draggable */
 .statCardLocked {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   opacity: 0.7;
   cursor: default;
 }
 
-/* Post-confirm: dim, no interaction */
 .statCardConfirmed {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   opacity: 0.85;
   cursor: default;
 }
 
-/* Appended to .statCard during active drag */
 .statCardDragging {
   opacity: 0.45;
   cursor: grabbing;
 }
 
-/* Appended to .statCard when it's a valid drop target */
 .statCardDropTarget {
   border: 2px solid #f5c518;
   box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.3);
 }
 
-/* ─── Card interior — matches PlayerStatsPanel layout ───────────────────── */
+/* Right side of flat card: header row + stat chip grid */
+.cardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 
-/* Header row: [mini-token] [name / meta] — mirrors .header in PlayerStatsPanel */
+/* Header: name · flag · role · #n */
 .cardHeader {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-/* Name column beside the token — mirrors .headerText */
-.cardHeaderText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
+  gap: 4px;
   min-width: 0;
 }
 
-/* Matches PlayerStatsPanel .firstName / .lastName */
-.cardFirstName,
-.cardLastName {
-  font-size: 13px;
+.cardName {
+  font-size: 11px;
   font-weight: 700;
   color: #e0e0e0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-/* Matches PlayerStatsPanel .playerMeta */
-.cardPlayerMeta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
+.cardRole {
+  font-size: 9px;
+  font-weight: 800;
   color: #a0a0a0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
 }
 
-/* LOCKED text for GK */
+.cardNum {
+  font-size: 9px;
+  color: #606080;
+  flex-shrink: 0;
+}
+
 .lockedBadge {
-  font-size: 10px;
-  font-weight: 700;
-  color: #a0a0a0;
-  letter-spacing: 0.05em;
-}
-
-/* Stat grid — matches PlayerStatsPanel .statGrid exactly: 2-col, 3px row, 8px col */
-.statGrid {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 3px 8px;
-}
-
-.statLabel {
-  font-size: 12px;
-  color: #a0a0a0;
-}
-
-.statValue {
-  font-size: 12px;
+  font-size: 8px;
   font-weight: 700;
   color: #f5c518;
-  text-align: right;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
+
+/* 5-column stat chip grid → 2 rows */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px 3px;
+}
+
+.statChip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+}
+
+.statAbbr {
+  font-size: 8px;
+  font-weight: 700;
+  color: #808090;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.statBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 800;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.statBadge[data-tier="high"] { background: #22c55e; }
+.statBadge[data-tier="mid"]  { background: #f97316; }
+.statBadge[data-tier="low"]  { background: #ef4444; }
 
 /* ─── Bench section ─────────────────────────────────────────────────────── */
 

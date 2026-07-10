@@ -13,6 +13,8 @@ import { KickOffSetupPanel } from './KickOffSetupPanel.js';
 import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
+import { NationFlag } from './NationFlag.js';
+import { STAT_LABELS } from './PlayerStatsPanel.js';
 import styles from './GameBoard.module.css';
 
 /** Phase label mapping per DESIGN-01 (Phase 18) naming convention. Absorbed from TurnIndicator.tsx. */
@@ -88,23 +90,11 @@ function moveSlotSuffix(slot: MovementSlot | null): string {
   return MOVE_SLOT_SUFFIX[slot] ?? '';
 }
 
-/** Returns the appropriate statBubble color class based on the stat value. */
+/** Returns the appropriate statBubble color class based on the stat value (1-9 scale). */
 function statBubbleClass(value: number): string {
-  if (value >= 5) return styles.statBubbleGreen ?? '';
-  if (value >= 3) return styles.statBubbleYellow ?? '';
+  if (value >= 7) return styles.statBubbleGreen ?? '';
+  if (value >= 4) return styles.statBubbleYellow ?? '';
   return styles.statBubbleRed ?? '';
-}
-
-/** Renders a single stat row: label + colored bubble. */
-function StatRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div className={styles.statRow}>
-      <span className={styles.statLabel} title={STAT_FULL_NAME[label] ?? label}>
-        {label}
-      </span>
-      <span className={`${styles.statBubble} ${statBubbleClass(value)}`}>{value}</span>
-    </div>
-  );
 }
 
 /**
@@ -212,8 +202,6 @@ export function GameBoard() {
         ? TEAM_CONFIGS[selectedTeams['away']].palette.uiColor
         : '#e0e0e0';
 
-  const isGK = displayPiece?.role === 'GK';
-
   return (
     <div className={styles.gameBoard}>
       {/* Top band: 80px CSS grid strip spanning full width — 3 tracks: 1fr auto 1fr */}
@@ -221,34 +209,36 @@ export function GameBoard() {
         {/* Track 1 — Left zone: player card centred within 1fr */}
         <div className={styles.topBandLeft}>
           {displayPiece ? (
-            <div className={styles.playerCard3Col}>
-              {/* Col 1: name / role / team icon */}
-              <div className={styles.playerCardInfoCol}>
-                <span className={styles.playerCardName}>
-                  {displayPiece.firstName} {displayPiece.lastName}
-                </span>
-                <span className={styles.playerCardRole}>{displayPiece.role}</span>
-                <TeamBadge teamId={selectedTeams[displayPiece.teamId]} size={28} />
-              </div>
-
-              {/* Col 2: Pace / Dribbling / Aerial / Shooting or Saving */}
-              <div className={styles.playerCardStatsCol}>
-                <StatRow label="Pace" value={displayPiece.pace} />
-                <StatRow label="Dribbling" value={displayPiece.dribbling} />
-                <StatRow label="Aerial" value={displayPiece.aerialAbility} />
-                {isGK ? (
-                  <StatRow label="Saving" value={displayPiece.saving} />
-                ) : (
-                  <StatRow label="Shooting" value={displayPiece.shooting} />
-                )}
-              </div>
-
-              {/* Col 3: High Pass / Resilience / Tackling / Handling (GK only) */}
-              <div className={styles.playerCardStatsCol}>
-                <StatRow label="High Pass" value={displayPiece.highPass} />
-                <StatRow label="Resilience" value={displayPiece.resilience} />
-                {!isGK && <StatRow label="Tackling" value={displayPiece.tackling} />}
-                {isGK && <StatRow label="Handling" value={displayPiece.handling} />}
+            <div className={styles.playerCardFlat}>
+              {/* Left: team badge */}
+              <TeamBadge teamId={selectedTeams[displayPiece.teamId]} size={48} full />
+              {/* Right: name/flag/role header + 2-row stat chips */}
+              <div className={styles.playerCardBody}>
+                <div className={styles.playerCardHeader}>
+                  <span className={styles.playerCardName}>
+                    {displayPiece.firstName} {displayPiece.lastName}
+                  </span>
+                  <NationFlag nationality={displayPiece.nationality} size={18} />
+                  <span className={styles.playerCardRole}>{displayPiece.role}</span>
+                  <span className={styles.playerCardNum}>#{displayPiece.number}</span>
+                </div>
+                <div className={styles.playerCardStatGrid}>
+                  {STAT_LABELS.map(([attr, abbr, fullLabel]) => {
+                    const value = displayPiece[attr] as number;
+                    return (
+                      <div
+                        key={attr}
+                        className={styles.statChip}
+                        title={STAT_FULL_NAME[fullLabel] ?? fullLabel}
+                      >
+                        <span className={styles.statAbbr}>{abbr}</span>
+                        <span className={`${styles.statBubble} ${statBubbleClass(value)}`}>
+                          {value}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (
