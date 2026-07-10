@@ -67,6 +67,18 @@ export const ClientEvents = {
   GAME_FREE_KICK_READY: 'game:free-kick-ready',
   /** Phase 22 D-14: client emits team + uniform style confirmation during uniform selection phase. */
   UNIFORM_CONFIRM: 'uniform:confirm',
+  /**
+   * Phase 24 D-08: swap two outfield slot indices before confirming lineup.
+   * Payload: `{ slotIndexA, slotIndexB }` — both must be non-zero (GK slot is immovable per D-09).
+   * Server validates and responds with LINEUP_ASSIGNMENT_UPDATED to the requesting socket only.
+   */
+  LINEUP_SWAP: 'lineup:swap',
+  /**
+   * Phase 24 D-10: confirm current assignment ordering to lock in the lineup.
+   * Payload: `{ confirmedOrder: PlayerId[] }` — server uses stored room assignment (ASVS V5 tamper-prevention).
+   * After both players confirm, server calls buildInitialGameState and emits GAME_STATE.
+   */
+  LINEUP_CONFIRM: 'lineup:confirm',
 } as const;
 
 export const ServerEvents = {
@@ -90,6 +102,18 @@ export const ServerEvents = {
    * buildInitialGameState is NOT called here — Phase 24 owns lineup assignment.
    */
   BOTH_FORMATIONS_CONFIRMED: 'formation:both-confirmed',
+  /**
+   * Phase 24 D-07: sent to individual player socket with their team's auto-assignment.
+   * Payload: `assignment` is a `PlayerId[]` of 11 entries where index i maps to
+   * `FORMATIONS[formationId].slots[i]` (D-06). Emitted per-socket, not broadcast.
+   */
+  LINEUP_ASSIGNMENT_READY: 'lineup:assignment-ready',
+  /**
+   * Phase 24 D-12: sent to the requesting socket after a validated LINEUP_SWAP.
+   * Payload: updated `PlayerId[]` of 11 entries reflecting the post-swap assignment.
+   * Emitted to the requester only (not broadcast) to preserve lineup privacy.
+   */
+  LINEUP_ASSIGNMENT_UPDATED: 'lineup:assignment-updated',
 } as const;
 
 /**
@@ -163,6 +187,18 @@ export interface ClientToServerEvents {
     formationId: FormationId,
     jerseyType: 'home' | 'away',
   ) => void;
+  /**
+   * Phase 24 D-08: swap two outfield slot indices. Both slotIndexA and slotIndexB must be
+   * non-zero (GK slot is immovable, D-09). Server validates, swaps in room state, and responds
+   * with LINEUP_ASSIGNMENT_UPDATED to the requesting socket only (D-12).
+   */
+  [ClientEvents.LINEUP_SWAP]: (payload: { slotIndexA: number; slotIndexB: number }) => void;
+  /**
+   * Phase 24 D-10: confirm current assignment ordering. The server ignores the client's
+   * confirmedOrder and uses room.homeAssignment / room.awayAssignment (ASVS V5 tamper-prevention).
+   * After both players confirm, buildInitialGameState is called and GAME_STATE is broadcast.
+   */
+  [ClientEvents.LINEUP_CONFIRM]: (payload: { confirmedOrder: string[] }) => void;
 }
 
 /**
@@ -195,6 +231,18 @@ export interface ServerToClientEvents {
     homeFormation: FormationId,
     awayFormation: FormationId,
   ) => void;
+  /**
+   * Phase 24 D-07: sent to individual player socket with their team's auto-computed assignment.
+   * `assignment` is a `PlayerId[]` of 11 entries where `assignment[i]` maps to
+   * `FORMATIONS[formationId].slots[i]` (D-06). Client resolves IDs to PoolPlayer via PLAYER_POOL.
+   */
+  [ServerEvents.LINEUP_ASSIGNMENT_READY]: (assignment: string[]) => void;
+  /**
+   * Phase 24 D-12: sent to the requesting socket after a validated LINEUP_SWAP.
+   * `assignment` is the full updated `PlayerId[]` of 11 entries post-swap.
+   * Only the requesting player's socket receives this event (lineup privacy).
+   */
+  [ServerEvents.LINEUP_ASSIGNMENT_UPDATED]: (assignment: string[]) => void;
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */
