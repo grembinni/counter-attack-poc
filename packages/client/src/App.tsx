@@ -4,6 +4,7 @@ import { GameBoard } from './components/GameBoard.js';
 import { LobbyScreen } from './components/LobbyScreen.js';
 import { TeamSelectionScreen } from './components/TeamSelectionScreen.js';
 import { UniformSelectionScreen } from './components/UniformSelectionScreen.js';
+import { LineupAssignmentScreen } from './components/LineupAssignmentScreen.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
@@ -24,6 +25,8 @@ export function App() {
   const setDisconnectWarning = useGameStore((s) => s.setDisconnectWarning);
   const setRoomError = useGameStore((s) => s.setRoomError);
   const setGameError = useGameStore((s) => s.setGameError);
+  // Phase 24: playerSlot read from store to determine own formation in onBothFormationsConfirmed
+  const playerSlot = useGameStore((s) => s.playerSlot);
 
   // D-14: homePickedTeam is local state in App.tsx (not in Zustand store)
   const [homePickedTeam, setHomePickedTeam] = useState<TeamId | null>(null);
@@ -33,7 +36,10 @@ export function App() {
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
   // Phase 23 D-12: homeConfirmedFormation tracks home's choice for passing to away's UI
   const [homeConfirmedFormation, setHomeConfirmedFormation] = useState<FormationId | null>(null);
-  const [formationsLocked, setFormationsLocked] = useState(false);
+  // Phase 24: lineup local state — mirrors homePickedTeam pattern (not in Zustand — Pitfall 7)
+  const [lineupAssignment, setLineupAssignment] = useState<string[] | null>(null);
+  const [lineupConfirmed, setLineupConfirmed] = useState(false);
+  const [myFormationId, setMyFormationId] = useState<FormationId | null>(null);
 
   useEffect(() => {
     function onGameState(state: GameState) {
@@ -109,8 +115,23 @@ export function App() {
       setHomeConfirmedFormation(formationId);
     }
 
-    function onBothFormationsConfirmed(_homeFormation: FormationId, _awayFormation: FormationId) {
-      setFormationsLocked(true);
+    function onBothFormationsConfirmed(homeFormation: FormationId, awayFormation: FormationId) {
+      // Phase 24: no longer sets a locked flag — instead tracks own formation for lineup screen.
+      // playerSlot is read from store outside the effect; snapshot via getState() avoids stale closure.
+      const slot = useGameStore.getState().playerSlot;
+      setMyFormationId(slot === 1 ? homeFormation : awayFormation);
+    }
+
+    // Phase 24 D-21: LINEUP_ASSIGNMENT_READY — routes to lineup screen, resets confirm state
+    function onLineupAssignmentReady(assignment: string[]) {
+      setLineupAssignment(assignment);
+      setLineupConfirmed(false);
+      setScreen('LINEUP_ASSIGNMENT');
+    }
+
+    // Phase 24 D-21/D-22: LINEUP_ASSIGNMENT_UPDATED — server-authoritative swap result (supports repeated swaps)
+    function onLineupAssignmentUpdated(assignment: string[]) {
+      setLineupAssignment(assignment);
     }
 
     socket.on(ServerEvents.GAME_STATE, onGameState);
@@ -124,6 +145,8 @@ export function App() {
     socket.on(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
     socket.on(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
     socket.on(ServerEvents.BOTH_FORMATIONS_CONFIRMED, onBothFormationsConfirmed);
+    socket.on(ServerEvents.LINEUP_ASSIGNMENT_READY, onLineupAssignmentReady);
+    socket.on(ServerEvents.LINEUP_ASSIGNMENT_UPDATED, onLineupAssignmentUpdated);
 
     socket.connect();
 
@@ -139,6 +162,8 @@ export function App() {
       socket.off(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
       socket.off(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
       socket.off(ServerEvents.BOTH_FORMATIONS_CONFIRMED, onBothFormationsConfirmed);
+      socket.off(ServerEvents.LINEUP_ASSIGNMENT_READY, onLineupAssignmentReady);
+      socket.off(ServerEvents.LINEUP_ASSIGNMENT_UPDATED, onLineupAssignmentUpdated);
     };
   }, []);
 
@@ -164,14 +189,30 @@ export function App() {
     socket.emit(ClientEvents.UNIFORM_CONFIRM, teamId, uniformStyle, formationId, jerseyType);
   }
 
+  // Phase 24 D-19: emit LINEUP_SWAP when player drops a card onto another
+  function handleLineupSwap(slotIndexA: number, slotIndexB: number) {
+    socket.emit(ClientEvents.LINEUP_SWAP, { slotIndexA, slotIndexB });
+  }
+
+  // Phase 24 D-23/D-25: emit LINEUP_CONFIRM and set local confirmed state
+  function handleLineupConfirm(confirmedOrder: string[]) {
+    socket.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder });
+    setLineupConfirmed(true);
+  }
+
   return (
     <div className={styles.app}>
       {screen === 'GAME_BOARD' || screen === 'REPLAY' ? (
         <GameBoard />
-      ) : screen === 'UNIFORM_SELECTION' && formationsLocked ? (
-        <p style={{ color: '#e0e0e0', textAlign: 'center', marginTop: '40px' }}>
-          Both formations confirmed. Starting game…
-        </p>
+      ) : screen === 'LINEUP_ASSIGNMENT' ? (
+        <LineupAssignmentScreen
+          assignment={lineupAssignment!}
+          formationId={myFormationId!}
+          playerSlot={playerSlot!}
+          onSwap={handleLineupSwap}
+          onConfirm={handleLineupConfirm}
+          lineupConfirmed={lineupConfirmed}
+        />
       ) : screen === 'UNIFORM_SELECTION' ? (
         <UniformSelectionScreen
           homePickedTeam={homePickedTeam}
