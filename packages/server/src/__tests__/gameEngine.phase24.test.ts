@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeAutoAssignment, scoreForRole } from '../gameEngine.js';
+import { computeAutoAssignment, scoreForRole, buildInitialGameState } from '../gameEngine.js';
 import { FORMATIONS } from '@counter-attack/shared';
 import { getSquadPlayers } from '@counter-attack/shared';
 import type { PoolPlayer } from '@counter-attack/shared';
@@ -302,5 +302,41 @@ describe('Phase 24 — scoreForRole D-04 formulas', () => {
     const player = mkP('st-wing-test', 'ST', { dribbling, highPass });
     // Expected: dribbling + highPass ONLY — ST is intentionally excluded from wing bonus
     expect(scoreForRole(player, 'FWD-wing')).toBe(dribbling + highPass);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3: Thread confirmed-order params through buildSquadPieces / buildInitialGameState
+// ---------------------------------------------------------------------------
+
+describe('Phase 24 — confirmed-order threading (D-11)', () => {
+  it('confirmedHomeOrder drives home-* piece identities; position/number still from formation slot', () => {
+    // Arrange: reverse the default city squad so identities diverge from the default getSquadPlayers order.
+    const defaultOrder = getSquadPlayers('city');
+    const reversedOrder = [...defaultOrder].reverse();
+
+    // Act: call buildInitialGameState with the reversed home order.
+    const state = buildInitialGameState(
+      'test-room-thread',
+      { home: 'city', away: 'crew' },
+      'standard',
+      { home: 'pinstripes-vertical', away: 'bar-diagonal' },
+      { home: '4-4-2', away: '4-4-2' },
+      { home: 'home', away: 'away' },
+      reversedOrder, // confirmedHomeOrder
+      undefined, // confirmedAwayOrder — falls back to getSquadPlayers
+    );
+
+    // Assert: every home-* piece carries the player identity from reversedOrder[i],
+    // not from defaultOrder[i]. Position and number still come from the formation slot.
+    for (let i = 0; i < 11; i++) {
+      const piece = state.pieces.find((p) => p.id === `home-${i}`);
+      expect(piece, `home-${i} must exist`).toBeDefined();
+      // Player identity follows confirmed order (reversedOrder[i])
+      expect(piece!.firstName).toBe(reversedOrder[i]!.firstName);
+      expect(piece!.lastName).toBe(reversedOrder[i]!.lastName);
+      // Number comes from formation slot (not the player's sourceTeam number)
+      expect(piece!.number).toBe(FORMATIONS['4-4-2'].slots[i]!.jerseyNumber);
+    }
   });
 });

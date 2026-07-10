@@ -242,17 +242,25 @@ function buildSquadPieces(
   attackingTeam: 'home' | 'away',
   selectedTeams: { home: TeamId; away: TeamId },
   selectedFormation: { home: FormationId; away: FormationId },
+  /** Phase 24 D-11: explicit player ordering for home; falls back to getSquadPlayers when absent. */
+  confirmedHomeOrder?: PoolPlayer[],
+  /** Phase 24 D-11: explicit player ordering for away; falls back to getSquadPlayers when absent. */
+  confirmedAwayOrder?: PoolPlayer[],
 ): PlayerPiece[] {
   const homeSlots = FORMATIONS[selectedFormation.home].slots;
   const awaySlots = FORMATIONS[selectedFormation.away].slots;
-  const homeSquad = getSquadPlayers(selectedTeams.home).map((p, i) => ({
+  // Use confirmed ordering when provided (Phase 24 LINEUP_CONFIRM path); fall back to default
+  // squad order so that all existing callers (buildKickOffPieces) remain unchanged (Pitfall 8).
+  const homePlayers = confirmedHomeOrder ?? getSquadPlayers(selectedTeams.home);
+  const awayPlayers = confirmedAwayOrder ?? getSquadPlayers(selectedTeams.away);
+  const homeSquad = homePlayers.map((p, i) => ({
     ...p,
     teamId: 'home' as const,
     id: `home-${i}`,
     position: { ...homeSlots[i]!.position }, // spread — never mutate the readonly slot (T-23-01)
     number: homeSlots[i]!.jerseyNumber,
   }));
-  const awaySquad = getSquadPlayers(selectedTeams.away).map((p, i) => ({
+  const awaySquad = awayPlayers.map((p, i) => ({
     ...p,
     teamId: 'away' as const,
     id: `away-${i}`,
@@ -316,10 +324,20 @@ export function buildInitialGameState(
     home: 'home',
     away: 'away',
   },
+  /** Phase 24 D-11: explicit player ordering for home team, produced by LINEUP_CONFIRM handler. */
+  confirmedHomeOrder?: PoolPlayer[],
+  /** Phase 24 D-11: explicit player ordering for away team, produced by LINEUP_CONFIRM handler. */
+  confirmedAwayOrder?: PoolPlayer[],
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
-  const pieces = buildSquadPieces(attackingTeam, selectedTeams, selectedFormation);
+  const pieces = buildSquadPieces(
+    attackingTeam,
+    selectedTeams,
+    selectedFormation,
+    confirmedHomeOrder,
+    confirmedAwayOrder,
+  );
 
   return {
     roomCode,
