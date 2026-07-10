@@ -74,19 +74,30 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
     expect(screen.queryByText(/Home GK/i)).toBeNull();
   });
 
-  it('renders all 9 stat abbreviations as visible text (flat card layout)', () => {
+  it('outfield: shows 7 stats excluding SAV/HND; GK: shows 7 stats excluding SHO/PAS', () => {
+    // home-1 is an outfield player (DEF)
     useGameStore.setState({ selectedPieceId: 'home-1' });
     render(<PlayerStatsPanel />);
-    // Abbreviated labels are shown; full names are title tooltip attributes
     expect(screen.getByText('PAC')).toBeDefined();
     expect(screen.getByText('SHO')).toBeDefined();
     expect(screen.getByText('TAC')).toBeDefined();
     expect(screen.getByText('DRI')).toBeDefined();
-    expect(screen.getByText('SAV')).toBeDefined();
-    expect(screen.getByText('HND')).toBeDefined();
     expect(screen.getByText('RES')).toBeDefined();
     expect(screen.getByText('AER')).toBeDefined();
     expect(screen.getByText('PAS')).toBeDefined();
+    // SAV and HND hidden for outfield
+    expect(screen.queryByText('SAV')).toBeNull();
+    expect(screen.queryByText('HND')).toBeNull();
+    cleanup();
+
+    // home-0 is the GK
+    useGameStore.setState({ selectedPieceId: 'home-0' });
+    render(<PlayerStatsPanel />);
+    expect(screen.getByText('SAV')).toBeDefined();
+    expect(screen.getByText('HND')).toBeDefined();
+    // SHO and PAS hidden for GK
+    expect(screen.queryByText('SHO')).toBeNull();
+    expect(screen.queryByText('PAS')).toBeNull();
   });
 
   it('renders full stat names as title tooltip attributes on chip wrappers', () => {

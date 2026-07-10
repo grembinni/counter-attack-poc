@@ -23,7 +23,7 @@
   gap: 6px;
 }
 
-/* Header row: [token] [name] [flag] [role] [#n] */
+/* Header row: [token] [name] [flag · role · #n] */
 .cardHeader {
   display: flex;
   align-items: center;
@@ -49,29 +49,38 @@
   min-width: 0;
 }
 
-/* Position chip: CDM / FWD / GK etc. — styled like the reference card */
+/* Flag + role + # grouped right with wide spacing between items */
+.playerMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Position chip: same size as name */
 .roleChip {
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   color: #a0a0a0;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   flex-shrink: 0;
 }
 
-/* Jersey number — dim, small */
+/* Jersey number — same size as name */
 .jerseyNum {
-  font-size: 11px;
-  color: #606080;
+  font-size: 13px;
+  font-weight: 700;
+  color: #a0a0a0;
   flex-shrink: 0;
 }
 
 /* ─── 2-row stat grid ─────────────────────────────────────────────────────── */
 
-/* 5 columns: stat chips fill, 2 rows of 5+4 */
+/* 4 columns: 7 role-filtered stats → 2 rows of 4+3 */
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px 6px;
 }
 

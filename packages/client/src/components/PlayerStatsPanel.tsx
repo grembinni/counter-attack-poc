@@ -129,20 +129,26 @@ export function PlayerStatsPanel() {
 
       {/* Right column: header + 2-row stat grid */}
       <div className={styles.cardBody}>
-        {/* Header: token · full name · nation flag · position chip */}
+        {/* Header: token · name · [flag · role · #n] */}
         <div className={styles.cardHeader}>
           <MiniTokenBadge piece={piece} />
           <span className={styles.playerName}>
             {piece.firstName} {piece.lastName}
           </span>
-          <NationFlag nationality={piece.nationality} size={20} />
-          <span className={styles.roleChip}>{piece.role}</span>
-          <span className={styles.jerseyNum}>#{piece.number}</span>
+          <div className={styles.playerMeta}>
+            <NationFlag nationality={piece.nationality} size={20} />
+            <span className={styles.roleChip}>{piece.role}</span>
+            <span className={styles.jerseyNum}>#{piece.number}</span>
+          </div>
         </div>
 
-        {/* 5-column stat grid → 2 rows (5 + 4) */}
+        {/* 4-column stat grid → 2 rows of 4+3 (7 role-filtered stats) */}
         <div className={styles.statGrid}>
-          {STAT_LABELS.map(([attr, abbr, fullLabel]) => {
+          {STAT_LABELS.filter(([attr]) => {
+            const isGK = piece.role === 'GK';
+            if (isGK) return attr !== 'shooting' && attr !== 'highPass';
+            return attr !== 'saving' && attr !== 'handling';
+          }).map(([attr, abbr, fullLabel]) => {
             const value = piece[attr] as number;
             return (
               <div key={attr} className={styles.statChip} title={fullLabel}>

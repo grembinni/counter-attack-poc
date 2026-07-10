@@ -218,12 +218,18 @@ export function GameBoard() {
                   <span className={styles.playerCardName}>
                     {displayPiece.firstName} {displayPiece.lastName}
                   </span>
-                  <NationFlag nationality={displayPiece.nationality} size={18} />
-                  <span className={styles.playerCardRole}>{displayPiece.role}</span>
-                  <span className={styles.playerCardNum}>#{displayPiece.number}</span>
+                  <div className={styles.playerCardMeta}>
+                    <NationFlag nationality={displayPiece.nationality} size={18} />
+                    <span className={styles.playerCardRole}>{displayPiece.role}</span>
+                    <span className={styles.playerCardNum}>#{displayPiece.number}</span>
+                  </div>
                 </div>
                 <div className={styles.playerCardStatGrid}>
-                  {STAT_LABELS.map(([attr, abbr, fullLabel]) => {
+                  {STAT_LABELS.filter(([attr]) => {
+                    const gk = displayPiece.role === 'GK';
+                    if (gk) return attr !== 'shooting' && attr !== 'highPass';
+                    return attr !== 'saving' && attr !== 'handling';
+                  }).map(([attr, abbr, fullLabel]) => {
                     const value = displayPiece[attr] as number;
                     return (
                       <div

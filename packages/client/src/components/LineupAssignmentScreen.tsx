@@ -103,20 +103,25 @@ function LineupStatCard({
       {/* Flat layout: [TeamBadge] [name/flag/role header + stat chips] */}
       <TeamBadge teamId={teamId} size={32} full />
       <div className={styles.cardBody}>
-        {/* Header: name · flag · role · jersey# */}
+        {/* Header: name · [flag · role · #n] */}
         <div className={styles.cardHeader}>
           <span className={styles.cardName}>
             {player.firstName} {player.lastName}
           </span>
-          <NationFlag nationality={player.nationality} size={14} />
-          <span className={styles.cardRole}>{player.role}</span>
-          {/* D-15 Pitfall 5: jersey number from slotMeta, not player */}
-          <span className={styles.cardNum}>#{slotMeta.jerseyNumber}</span>
-          {isGK && <span className={styles.lockedBadge}>LOCK</span>}
+          <div className={styles.cardMeta}>
+            <NationFlag nationality={player.nationality} size={14} />
+            <span className={styles.cardRole}>{player.role}</span>
+            {/* D-15 Pitfall 5: jersey number from slotMeta, not player */}
+            <span className={styles.cardNum}>#{slotMeta.jerseyNumber}</span>
+            {isGK && <span className={styles.lockedBadge}>LOCK</span>}
+          </div>
         </div>
-        {/* 5-column stat chip grid → 2 rows */}
+        {/* 4-column stat chip grid → 2 rows of 4+3 (7 role-filtered stats) */}
         <div className={styles.statGrid}>
-          {STAT_LABELS.map(([attr, abbr, fullLabel]) => {
+          {STAT_LABELS.filter(([attr]) => {
+            if (isGK) return attr !== 'shooting' && attr !== 'highPass';
+            return attr !== 'saving' && attr !== 'handling';
+          }).map(([attr, abbr, fullLabel]) => {
             const value = player[attr as keyof PoolPlayer] as number;
             return (
               <div key={attr} className={styles.statChip} title={fullLabel}>

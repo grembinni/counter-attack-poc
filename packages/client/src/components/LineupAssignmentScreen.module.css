@@ -170,7 +170,7 @@
   gap: 3px;
 }
 
-/* Header: name · flag · role · #n */
+/* Header: [name] [flag · role · #n] */
 .cardHeader {
   display: flex;
   align-items: center;
@@ -189,33 +189,42 @@
   min-width: 0;
 }
 
+/* Flag + role + # grouped right with wider spacing */
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .cardRole {
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
   color: #a0a0a0;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   flex-shrink: 0;
 }
 
 .cardNum {
-  font-size: 9px;
-  color: #606080;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a0a0a0;
   flex-shrink: 0;
 }
 
 .lockedBadge {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   color: #f5c518;
   letter-spacing: 0.05em;
   flex-shrink: 0;
 }
 
-/* 5-column stat chip grid → 2 rows */
+/* 4-column stat chip grid → 2 rows of 4+3 (7 role-filtered stats) */
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 2px 3px;
 }
 
