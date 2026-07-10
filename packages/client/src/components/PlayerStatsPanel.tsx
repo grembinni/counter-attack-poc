@@ -145,6 +145,7 @@ export function PlayerStatsPanel() {
         {/* 4-column stat grid → 2 rows of 4+3 (7 role-filtered stats) */}
         <div className={styles.statGrid}>
           {STAT_LABELS.filter(([attr]) => {
+            if (attr === 'resilience') return false;
             const isGK = piece.role === 'GK';
             if (isGK) return attr !== 'shooting' && attr !== 'highPass';
             return attr !== 'saving' && attr !== 'handling';

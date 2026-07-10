@@ -226,6 +226,7 @@ export function GameBoard() {
                 </div>
                 <div className={styles.playerCardStatGrid}>
                   {STAT_LABELS.filter(([attr]) => {
+                    if (attr === 'resilience') return false;
                     const gk = displayPiece.role === 'GK';
                     if (gk) return attr !== 'shooting' && attr !== 'highPass';
                     return attr !== 'saving' && attr !== 'handling';

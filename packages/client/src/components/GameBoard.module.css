@@ -161,18 +161,18 @@
   flex-shrink: 0;
 }
 
-/* 4-column stat chip grid → 2 rows of 4+3 (7 role-filtered stats) */
+/* 3-column stat chip grid → 2 rows of 3+3 (6 role-filtered stats) */
 .playerCardStatGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 2px 4px;
 }
 
-/* Each chip: [ABB] [●value●] */
+/* Each chip: abbr left-aligned, badge right-aligned */
 .statChip {
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: space-between;
   cursor: default;
 }
 

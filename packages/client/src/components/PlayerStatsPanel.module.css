@@ -77,18 +77,18 @@
 
 /* ─── 2-row stat grid ─────────────────────────────────────────────────────── */
 
-/* 4 columns: 7 role-filtered stats → 2 rows of 4+3 */
+/* 3 columns: 6 role-filtered stats → 2 rows of 3+3 */
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px 6px;
 }
 
-/* Each stat chip: [ABB] [●value●] */
+/* Each stat chip: abbr left-aligned, badge right-aligned */
 .statChip {
   display: flex;
   align-items: center;
-  gap: 3px;
+  justify-content: space-between;
   cursor: default;
 }
 

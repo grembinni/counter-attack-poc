@@ -116,9 +116,10 @@ function LineupStatCard({
             {isGK && <span className={styles.lockedBadge}>LOCK</span>}
           </div>
         </div>
-        {/* 4-column stat chip grid → 2 rows of 4+3 (7 role-filtered stats) */}
+        {/* 3-column stat chip grid → 2 rows of 3+3 (6 role-filtered stats) */}
         <div className={styles.statGrid}>
           {STAT_LABELS.filter(([attr]) => {
+            if (attr === 'resilience') return false;
             if (isGK) return attr !== 'shooting' && attr !== 'highPass';
             return attr !== 'saving' && attr !== 'handling';
           }).map(([attr, abbr, fullLabel]) => {
