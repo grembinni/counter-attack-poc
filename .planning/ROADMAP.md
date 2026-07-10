@@ -76,7 +76,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 21    | 2/2               | Complete                                         | 2026-07-04  |
 | 22    | 3/3               | Complete                                         | 2026-07-05  |
 | 23    | 3/3               | Complete                                         | 2026-07-05  |
-| 24    | 2/4               | In Progress                                      |             |
+| 24    | 3/4               | In Progress                                      |             |
 | 25    | Bug & UAT Closure | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
 
 ---
@@ -220,7 +220,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
   **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 24-03-PLAN.md — Server flow: Room assignment/confirm fields, restructure away-confirm branch to emit LINEUP_ASSIGNMENT_READY, LINEUP_SWAP (GK-lock + range + team-gate) and LINEUP_CONFIRM (parallel both-confirm gate → buildInitialGameState) handlers + integration tests
+- [x] 24-03-PLAN.md — Server flow: Room assignment/confirm fields, restructure away-confirm branch to emit LINEUP_ASSIGNMENT_READY, LINEUP_SWAP (GK-lock + range + team-gate) and LINEUP_CONFIRM (parallel both-confirm gate → buildInitialGameState) handlers + integration tests
 - [ ] 24-04-PLAN.md — Client: LineupAssignmentScreen (4-column stat-card grid + HTML5 drag-swap + bench + confirm) + STAT_LABELS export + 'LINEUP_ASSIGNMENT' screen + App.tsx wiring + browser UAT
       **UI hint**: yes
 

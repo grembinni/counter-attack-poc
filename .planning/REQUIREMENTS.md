@@ -59,10 +59,10 @@
 ## Auto-Assignment with Override
 
 - [x] **ASSIGN-01**: After both formations confirmed, the server auto-assigns all 11 players to formation slots using weighted stat scoring: GK locked to GK slot first; anchor roles (CB/CM/CF) filled by highest weighted score next; flex roles (FB/winger/flex-mid) filled from remaining players
-- [ ] **ASSIGN-02**: Assignment result is displayed to the player (slot label → player name) before the player confirms; both players work independently in parallel
-- [ ] **ASSIGN-03**: Player can swap any two outfield players between position slots; server validates the swap and broadcasts the updated assignment; multiple swaps are permitted before confirming
-- [ ] **ASSIGN-04**: GK slot is locked — only a player with `role='GK'` may occupy it; server rejects any swap that would move the GK out of the GK slot
-- [ ] **ASSIGN-05**: Player confirms the assignment to proceed to KICK_OFF_SETUP; confirmed assignment positions each piece at the corresponding formation hex coordinate
+- [x] **ASSIGN-02**: Assignment result is displayed to the player (slot label → player name) before the player confirms; both players work independently in parallel
+- [x] **ASSIGN-03**: Player can swap any two outfield players between position slots; server validates the swap and broadcasts the updated assignment; multiple swaps are permitted before confirming
+- [x] **ASSIGN-04**: GK slot is locked — only a player with `role='GK'` may occupy it; server rejects any swap that would move the GK out of the GK slot
+- [x] **ASSIGN-05**: Player confirms the assignment to proceed to KICK_OFF_SETUP; confirmed assignment positions each piece at the corresponding formation hex coordinate
 
 ## Bug & UAT Closure (v1.2 Backlog)
 
@@ -128,10 +128,10 @@
 | FORM-03    | 23    | Pending  |                                                                        |
 | FORM-04    | 23    | Pending  |                                                                        |
 | ASSIGN-01  | 24    | Complete |                                                                        |
-| ASSIGN-02  | 24    | Pending  |                                                                        |
-| ASSIGN-03  | 24    | Pending  |                                                                        |
-| ASSIGN-04  | 24    | Pending  |                                                                        |
-| ASSIGN-05  | 24    | Pending  |                                                                        |
+| ASSIGN-02  | 24    | Complete |                                                                        |
+| ASSIGN-03  | 24    | Complete |                                                                        |
+| ASSIGN-04  | 24    | Complete |                                                                        |
+| ASSIGN-05  | 24    | Complete |                                                                        |
 | OFFSIDE-01 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                        |
 | OFFSIDE-02 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                        |
 | REPLAY-07  | 25    | Pending  |                                                                        |
