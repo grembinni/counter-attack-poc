@@ -211,8 +211,18 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. Player can click any two outfield slots to swap their assigned players; the server validates and broadcasts the updated assignment; multiple swaps before confirming are permitted
 3. Server rejects any swap that would move the GK player out of the GK slot; the client reflects the rejection without advancing state
 4. After a player confirms their lineup, pieces are positioned at the corresponding formation hex coordinates and KICK_OFF_SETUP begins; the assigned positions persist through the setup phase
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 4 plans
+   Plans:
+   **Wave 1**
+
+- [ ] 24-01-PLAN.md — Shared event contracts: LINEUP_SWAP/LINEUP_CONFIRM (C→S) + LINEUP_ASSIGNMENT_READY/LINEUP_ASSIGNMENT_UPDATED (S→C) with typed payload signatures
+- [ ] 24-02-PLAN.md — Server auto-assignment algorithm (TDD): computeAutoAssignment + scoreForRole (D-04 formulas, GK→anchor→flex, deterministic tie-break) + buildSquadPieces/buildInitialGameState confirmed-order params
+
+  **Wave 2** _(blocked on Wave 1)_
+
+- [ ] 24-03-PLAN.md — Server flow: Room assignment/confirm fields, restructure away-confirm branch to emit LINEUP_ASSIGNMENT_READY, LINEUP_SWAP (GK-lock + range + team-gate) and LINEUP_CONFIRM (parallel both-confirm gate → buildInitialGameState) handlers + integration tests
+- [ ] 24-04-PLAN.md — Client: LineupAssignmentScreen (4-column stat-card grid + HTML5 drag-swap + bench + confirm) + STAT_LABELS export + 'LINEUP_ASSIGNMENT' screen + App.tsx wiring + browser UAT
+      **UI hint**: yes
 
 ### Phase 25: Bug & UAT Closure
 
