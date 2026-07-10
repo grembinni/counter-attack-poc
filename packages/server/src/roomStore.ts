@@ -102,6 +102,36 @@ export type Room = {
    * undefined = away has not yet confirmed; defined once away confirms.
    */
   awayPickedFormation?: FormationId;
+  /**
+   * Phase 24 D-06: Auto-assignment result for the home team. PlayerId[] of 11 entries where
+   * index i maps to FORMATIONS[homePickedFormation].slots[i].
+   * Set in the UNIFORM_CONFIRM away-branch (after both formations confirmed);
+   * mutated by LINEUP_SWAP (home player may swap outfield entries);
+   * consumed by LINEUP_CONFIRM (resolved to PoolPlayer[] and passed to buildInitialGameState).
+   * null / undefined = assignments not yet computed (UNIFORM_CONFIRM away-branch not yet reached).
+   */
+  homeAssignment?: string[] | null;
+  /**
+   * Phase 24 D-06: Auto-assignment result for the away team. PlayerId[] of 11 entries where
+   * index i maps to FORMATIONS[awayPickedFormation].slots[i].
+   * Set in the UNIFORM_CONFIRM away-branch (after both formations confirmed);
+   * mutated by LINEUP_SWAP (away player may swap outfield entries);
+   * consumed by LINEUP_CONFIRM (resolved to PoolPlayer[] and passed to buildInitialGameState).
+   * null / undefined = assignments not yet computed.
+   */
+  awayAssignment?: string[] | null;
+  /**
+   * Phase 24 D-10: true after home player (slot 1) emits LINEUP_CONFIRM.
+   * Set by the LINEUP_CONFIRM handler; never reset after setting.
+   * When both homeLineupConfirmed and awayLineupConfirmed are true, buildInitialGameState fires.
+   */
+  homeLineupConfirmed?: boolean;
+  /**
+   * Phase 24 D-10: true after away player (slot 2) emits LINEUP_CONFIRM.
+   * Set by the LINEUP_CONFIRM handler; never reset after setting.
+   * When both homeLineupConfirmed and awayLineupConfirmed are true, buildInitialGameState fires.
+   */
+  awayLineupConfirmed?: boolean;
 };
 
 /**
