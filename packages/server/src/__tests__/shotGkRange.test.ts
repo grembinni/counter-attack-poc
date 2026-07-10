@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Deterministic GK-range / save-possession regression tests for the
  * snapshot-shot-flow-mismatch debug session (ROUND 2).
  *
@@ -136,7 +136,7 @@ async function setupRoom(): Promise<{
   const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY);
   const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY);
   clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
-  const [[homeAssignment]] = await readyAPromise;
+  const [homeAssignment] = await readyAPromise;
   await readyBPromise;
   clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
   clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });

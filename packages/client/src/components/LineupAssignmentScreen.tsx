@@ -232,7 +232,9 @@ export function LineupAssignmentScreen({
   }, [gameError]);
 
   // D-14: group the 11 slots into 4 horizontal columns by slotRole prefix
-  const slots = FORMATIONS[formationId].slots;
+  const formation = FORMATIONS[formationId];
+  if (!formation) return null;
+  const slots = formation.slots;
 
   type ColEntry = { slotIndex: number; player: PoolPlayer; slotMeta: FormationSlot };
   const gkColumn: ColEntry[] = [];

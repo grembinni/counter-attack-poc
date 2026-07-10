@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Phase 17 Plan 06 (OFFSIDE-02) handler-level tests.
  *
  * Covers Task 2 (triggerOffsideFoul wiring + FREE_KICK_SETUP handlers) and the
@@ -142,7 +142,7 @@ async function setupRoom(): Promise<{
   const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY);
   const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY);
   clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
-  const [[homeAssignment]] = await readyAPromise;
+  const [homeAssignment] = await readyAPromise;
   await readyBPromise;
   clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
   clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });

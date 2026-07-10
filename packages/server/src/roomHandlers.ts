@@ -389,21 +389,21 @@ export function registerRoomHandlers(
               FORMATIONS[formationId].slots,
             ).map((p) => p.id);
 
+            // Phase 23 D-12 / Phase 24 contract: BOTH_FORMATIONS_CONFIRMED broadcast FIRST
+            // so clients set myFormationId before LINEUP_ASSIGNMENT_READY routes them to the
+            // lineup screen (ordering fix — emitting READY first caused a null formationId crash).
+            io.to(roomCode).emit(
+              ServerEvents.BOTH_FORMATIONS_CONFIRMED,
+              room.homePickedFormation!,
+              formationId,
+            );
+
             // Phase 24 D-07 / D-12: emit LINEUP_ASSIGNMENT_READY to each socket individually.
             // Never io.to(roomCode).emit — assignment data is private per player (D-12).
             const homeSocket = io.sockets.sockets.get(room.players[0]!.socketId);
             const awaySocket = io.sockets.sockets.get(room.players[1]!.socketId);
             homeSocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.homeAssignment);
             awaySocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.awayAssignment);
-
-            // Phase 23 D-12 / Phase 24 contract: BOTH_FORMATIONS_CONFIRMED still broadcast
-            // to the room so clients can track the confirmation step (existing client state
-            // transition preserved — see RESEARCH.md Pattern 6 and PATTERNS.md).
-            io.to(roomCode).emit(
-              ServerEvents.BOTH_FORMATIONS_CONFIRMED,
-              room.homePickedFormation!,
-              formationId,
-            );
           }
         } finally {
           room.isProcessing = false;

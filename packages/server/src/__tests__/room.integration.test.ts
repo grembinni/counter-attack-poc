@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration tests for the Socket.io room lifecycle layer.
  *
  * Each test spins up a real Socket.io server on port 0 (OS-assigned),
@@ -305,7 +305,7 @@ describe('Room integration tests', () => {
     const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
     const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
     clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
-    const [[homeAssignment]] = await readyAPromise;
+    const [homeAssignment] = await readyAPromise;
     await readyBPromise;
     clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
     clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
