@@ -381,6 +381,44 @@
   font-style: normal;
 }
 
+/* Jersey toggle — same base shape as speed buttons; color overridden inline per team palette */
+.jerseyOption {
+  font-size: 13px;
+  font-weight: 400;
+  background: #16213e;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.jerseyOption:hover:not(:disabled) {
+  border-color: #e0e0e0;
+  color: #e0e0e0 !important;
+}
+
+.jerseyOption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.jerseyOptionActive {
+  font-size: 13px;
+  font-weight: 700;
+  background: #16213e;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.jerseyOptionActive:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* Phase 23 D-05/D-06: formation selection grid — matches 800px team/style grids so left edges align */
 .formationGrid {
   display: grid;

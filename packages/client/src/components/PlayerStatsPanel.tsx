@@ -17,7 +17,7 @@ const STAT_LABELS: Array<[keyof PlayerPiece, string]> = [
   ['handling', 'Handling'],
   ['resilience', 'Resilience'],
   ['aerialAbility', 'Aerial'],
-  ['highPass', 'Passing'],
+  ['highPass', 'High Pass'],
 ];
 
 /**

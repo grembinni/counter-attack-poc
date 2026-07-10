@@ -65,6 +65,9 @@ const VALID_UNIFORM_STYLE_IDS: readonly UniformStyleId[] = Object.keys(
 /** Valid formation IDs — allow-list for UNIFORM_CONFIRM formationId validation (T-23-03 / ASVS V5). */
 const VALID_FORMATION_IDS: readonly FormationId[] = ['4-4-2', '5-3-2', '4-3-3', '3-4-3'] as const;
 
+/** Valid jersey type values — allow-list for UNIFORM_CONFIRM jerseyType validation. */
+const VALID_JERSEY_TYPES: readonly string[] = ['home', 'away'] as const;
+
 /** 90-second grace period before disconnected player's room is deleted. */
 const GRACE_PERIOD_MS = 90_000;
 
@@ -291,7 +294,12 @@ export function registerRoomHandlers(
     // -----------------------------------------------------------------------
     socket.on(
       ClientEvents.UNIFORM_CONFIRM,
-      (teamId: TeamId, uniformStyle: UniformStyleId, formationId: FormationId) => {
+      (
+        teamId: TeamId,
+        uniformStyle: UniformStyleId,
+        formationId: FormationId,
+        jerseyType: 'home' | 'away',
+      ) => {
         const roomCode = socket.data.roomCode;
         if (roomCode === undefined) return;
 
@@ -316,6 +324,10 @@ export function registerRoomHandlers(
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_FORMATION');
             return;
           }
+          // allow-list validation — reject unknown or forged jerseyType.
+          const safeJerseyType: 'home' | 'away' = VALID_JERSEY_TYPES.includes(jerseyType)
+            ? jerseyType
+            : 'home';
 
           const playerSlot = socket.data.playerSlot;
 
@@ -330,6 +342,7 @@ export function registerRoomHandlers(
             room.homePickedTeam = teamId;
             room.homePickedUniformStyle = uniformStyle;
             room.homePickedFormation = formationId;
+            room.homePickedJerseyType = safeJerseyType;
             io.to(roomCode).emit(
               ServerEvents.UNIFORM_HOME_CONFIRMED,
               teamId,
@@ -358,6 +371,10 @@ export function registerRoomHandlers(
               away: uniformStyle,
             };
             const selectedFormation = { home: room.homePickedFormation!, away: formationId };
+            const selectedJerseyTypes = {
+              home: room.homePickedJerseyType ?? 'home',
+              away: safeJerseyType,
+            };
             let gameState: import('@counter-attack/shared').GameState;
             try {
               gameState = buildInitialGameState(
@@ -366,6 +383,7 @@ export function registerRoomHandlers(
                 room.gameSpeed ?? 'standard',
                 selectedUniformStyles,
                 selectedFormation,
+                selectedJerseyTypes,
               );
             } catch (err) {
               console.error('buildInitialGameState failed:', err);

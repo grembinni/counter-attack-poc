@@ -480,6 +480,8 @@ export type GameState = {
   selectedTeams: { home: TeamId; away: TeamId };
   /** Phase 22 D-16: uniform styles selected before match start, embedded in every GameState snapshot. */
   selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId };
+  /** Jersey variant each team is wearing — 'home' = home kit colors, 'away' = away kit colors. Defaults to home→home, away→away when absent. */
+  selectedJerseyTypes?: { home: 'home' | 'away'; away: 'home' | 'away' };
   /** Phase 23 D-11: formations selected before match start, embedded in every GameState snapshot. Set after Phase 24 lineup assignment. */
   selectedFormation?: { home: FormationId; away: FormationId };
   /**

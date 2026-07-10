@@ -67,6 +67,8 @@ export function HexGrid() {
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
   // Phase 22 D-18: resolve uniformStyle per piece from GameState.selectedUniformStyles (not team default)
   const selectedUniformStyles = useGameStore((s) => s.gameState.selectedUniformStyles);
+  // Jersey type per team ('home' or 'away' kit); absent = default (home→home, away→away).
+  const selectedJerseyTypes = useGameStore((s) => s.gameState.selectedJerseyTypes);
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -638,6 +640,24 @@ export function HexGrid() {
             const teamConfig = TEAM_CONFIGS[resolvedTeamId];
             // Phase 22 D-18: resolve uniformStyle from GameState.selectedUniformStyles
             const resolvedUniformStyle = selectedUniformStyles[displayPiece.teamId];
+            // Jersey swap: PieceOverlay uses palette.homePrime for home outfield and palette.awayPrime
+            // for away outfield. When a team wears the non-default kit (home wearing away, or away
+            // wearing home), swap the home↔away halves so PieceOverlay picks the right colors.
+            const teamJerseyType =
+              selectedJerseyTypes?.[displayPiece.teamId] ?? displayPiece.teamId;
+            const rawPalette = teamConfig.palette;
+            const resolvedPalette =
+              teamJerseyType !== displayPiece.teamId
+                ? {
+                    ...rawPalette,
+                    homePrime: rawPalette.awayPrime,
+                    homeAlt: rawPalette.awayAlt,
+                    homeFont: rawPalette.awayFont,
+                    awayPrime: rawPalette.homePrime,
+                    awayAlt: rawPalette.homeAlt,
+                    awayFont: rawPalette.homeFont,
+                  }
+                : rawPalette;
 
             // Slot quota: how many activations remain in this slot
             const slotQuota =
@@ -820,7 +840,7 @@ export function HexGrid() {
                 key={piece.id}
                 piece={displayPiece}
                 uniformStyle={resolvedUniformStyle}
-                palette={teamConfig.palette}
+                palette={resolvedPalette}
                 selectionState={selectionState}
                 onClick={handleClick}
                 onInspect={() => inspectPiece(piece.id)}

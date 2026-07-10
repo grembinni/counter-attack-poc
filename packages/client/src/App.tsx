@@ -154,13 +154,14 @@ export function App() {
     emitTeamSpeed(speed);
   }
 
-  // Phase 22 D-14 / Phase 23: emits uniform:confirm with formationId to server
+  // Phase 22 D-14 / Phase 23: emits uniform:confirm with formationId + jerseyType to server
   function handleUniformConfirm(
     teamId: TeamId,
     uniformStyle: UniformStyleId,
     formationId: FormationId,
+    jerseyType: 'home' | 'away',
   ) {
-    socket.emit(ClientEvents.UNIFORM_CONFIRM, teamId, uniformStyle, formationId);
+    socket.emit(ClientEvents.UNIFORM_CONFIRM, teamId, uniformStyle, formationId, jerseyType);
   }
 
   return (

@@ -156,11 +156,12 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_FREE_KICK_MOVE]: (pieceId: string, to: HexCoord) => void;
   /** OFFSIDE-02 (Phase 17 D-29): Ready confirmation during FREE_KICK_SETUP; transitions when both teams confirm. */
   [ClientEvents.GAME_FREE_KICK_READY]: () => void;
-  /** Phase 22 D-14 / Phase 23 D-09: client confirms team + uniform style + formation selection. Validated server-side. */
+  /** Phase 22 D-14 / Phase 23 D-09: client confirms team + uniform style + formation + jersey type selection. Validated server-side. */
   [ClientEvents.UNIFORM_CONFIRM]: (
     teamId: TeamId,
     uniformStyle: UniformStyleId,
     formationId: FormationId,
+    jerseyType: 'home' | 'away',
   ) => void;
 }
 

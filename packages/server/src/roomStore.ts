@@ -90,6 +90,8 @@ export type Room = {
    * undefined = home has not yet confirmed; defined = home confirmed, away may now confirm.
    */
   homePickedUniformStyle?: UniformStyleId;
+  /** Jersey variant chosen by home player ('home' kit or 'away' kit). Defaults to 'home' if absent. */
+  homePickedJerseyType?: 'home' | 'away';
   /**
    * Phase 23 D-12: formation chosen by home player on their UNIFORM_CONFIRM.
    * undefined = home has not yet confirmed; defined once home confirms.

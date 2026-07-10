@@ -108,8 +108,13 @@ type Props = {
   homeConfirmedStyle: UniformStyleId | null;
   /** Phase 23 D-12: formation chosen by home player on their confirm (for Phase 24 use). */
   homeConfirmedFormation: FormationId | null;
-  /** Called when the active player clicks Confirm with their team + style + formation choices. */
-  onConfirm: (teamId: TeamId, uniformStyle: UniformStyleId, formationId: FormationId) => void;
+  /** Called when the active player clicks Confirm with their team + style + formation + jersey type choices. */
+  onConfirm: (
+    teamId: TeamId,
+    uniformStyle: UniformStyleId,
+    formationId: FormationId,
+    jerseyType: 'home' | 'away',
+  ) => void;
   /** UX-07: current selected game speed (home-player controlled). */
   selectedSpeed: GameSpeed;
   /** UX-07: called when home player changes game speed. */
@@ -138,6 +143,8 @@ export function UniformSelectionScreen({
   const [selectedStyle, setSelectedStyle] = useState<UniformStyleId | null>(null);
   // Phase 23 D-07: 4-4-2 pre-selected on mount; no useEffect — default is a constant.
   const [selectedFormation, setSelectedFormation] = useState<FormationId>('4-4-2');
+  // Jersey type defaults to home kit for home player, away kit for visitor.
+  const [jerseyType, setJerseyType] = useState<'home' | 'away'>(iAmHome ? 'home' : 'away');
   const [hasConfirmed, setHasConfirmed] = useState(false);
 
   // Step 1 = home choosing; step 2 = visitor choosing (after home confirms).
@@ -154,11 +161,11 @@ export function UniformSelectionScreen({
     }
   }, [selectedTeam]);
 
-  // Style tiles render in the player's own color scheme: away uses awayPrime/awayAlt.
+  // Style tiles render in the selected jersey's color scheme.
   const tileRenderPalette: TeamPalette = (() => {
     if (!selectedTeam) return NEUTRAL_PALETTE;
     const p = TEAM_CONFIGS[selectedTeam].palette;
-    if (iAmHome) return p;
+    if (jerseyType === 'home') return p;
     return { ...p, homePrime: p.awayPrime, homeAlt: p.awayAlt, homeFont: p.awayFont };
   })();
 
@@ -274,8 +281,39 @@ export function UniformSelectionScreen({
         ))}
       </div>
 
-      {/* 3 | STYLE */}
-      <p className={styles.sectionLabel}>3 | STYLE</p>
+      {/* 3 | STYLE + jersey toggle inline */}
+      <div className={styles.speedBlock}>
+        <div className={styles.speedRow}>
+          <span className={styles.speedSectionLabel}>3 | STYLE</span>
+          <div className={styles.speedOptions}>
+            {(['home', 'away'] as const).map((type) => {
+              const isActive = type === jerseyType;
+              const teamPalette = selectedTeam ? TEAM_CONFIGS[selectedTeam].palette : null;
+              const color = teamPalette
+                ? type === 'home'
+                  ? teamPalette.homePrime
+                  : teamPalette.awayPrime
+                : '#555';
+              return (
+                <button
+                  key={type}
+                  disabled={hasConfirmed || awayLocked}
+                  className={isActive ? styles.jerseyOptionActive : styles.jerseyOption}
+                  style={
+                    isActive
+                      ? { borderColor: color, color, background: `${color}22` }
+                      : { borderColor: `${color}66`, color: `${color}99` }
+                  }
+                  onClick={() => setJerseyType(type)}
+                  aria-pressed={isActive}
+                >
+                  {type === 'home' ? '🏠 Home' : '✈️ Away'}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
       <div className={styles.styleGrid}>
         {ALL_STYLE_IDS.map((styleId, index) => {
           const n = index + 1;
@@ -338,7 +376,7 @@ export function UniformSelectionScreen({
           aria-label="Confirm selection"
           onClick={() => {
             if (selectedTeam && selectedStyle) {
-              onConfirm(selectedTeam, selectedStyle, selectedFormation);
+              onConfirm(selectedTeam, selectedStyle, selectedFormation, jerseyType);
               setHasConfirmed(true);
             }
           }}

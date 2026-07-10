@@ -297,11 +297,11 @@ describe('Room integration tests', () => {
     clientB.emit(ClientEvents.TEAM_PICK, 'crew');
     await uniformStartPromise;
     const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
-    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2');
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
     await homeConfirmedPromise;
     const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
     const stateOnPickPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE, 2000);
-    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2');
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
 
     // Wait for game:state to be delivered to BOTH clients before disconnecting.
     await Promise.all([stateOnPickPromiseA, stateOnPickPromiseB]);
@@ -363,7 +363,7 @@ describe('UNIFORM_CONFIRM — guard: away before home', () => {
 
     // Away emits UNIFORM_CONFIRM before home — should receive WRONG_TURN
     const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR, 2000);
-    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2');
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_TURN');
   }, 5000);
@@ -399,7 +399,7 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
     const { clientA } = await setupUniformPhase();
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'not-a-style' as any, '4-4-2');
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'not-a-style' as any, '4-4-2', 'home');
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_STYLE');
   }, 5000);
@@ -409,12 +409,12 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
 
     // Home confirms first
     const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
-    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2');
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
     await homeConfirmedPromise;
 
     // Away tries to pick home's team
     const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR, 2000);
-    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'bar-diagonal', '4-4-2');
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'bar-diagonal', '4-4-2', 'away');
     const [reason] = await errorPromise;
     expect(reason).toBe('TEAM_ALREADY_PICKED');
   }, 5000);

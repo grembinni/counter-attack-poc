@@ -186,6 +186,10 @@ export function buildInitialGameState(
   gameSpeed: GameSpeed = 'standard',
   selectedUniformStyles: { home: UniformStyleId; away: UniformStyleId },
   selectedFormation: { home: FormationId; away: FormationId } = { home: '4-4-2', away: '4-4-2' },
+  selectedJerseyTypes: { home: 'home' | 'away'; away: 'home' | 'away' } = {
+    home: 'home',
+    away: 'away',
+  },
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -216,6 +220,7 @@ export function buildInitialGameState(
     kickOffActive: false,
     selectedTeams, // D-15: embedded in every subsequent snapshot
     selectedUniformStyles, // Phase 22 D-17: home/away kit choices embedded in every snapshot
+    selectedJerseyTypes, // jersey variant (home/away kit) each team is wearing
     selectedFormation, // Phase 23 D-11: formation choices embedded in every snapshot
     gameSpeed, // UX-07 (Phase 18.4): drives per-MOVE clock increment
   };

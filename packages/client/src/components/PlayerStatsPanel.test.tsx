@@ -95,7 +95,7 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
   it('renders the correct attribute value from gameState.pieces', () => {
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<PlayerStatsPanel />);
-    // home-9 (Cedric Teuchert, FWD) from city squad CSV data has pace:4, dribbling:4
+    // home-9 (Sang-bin Jeong, FWD) from city squad CSV data has pace:4, dribbling:4
     const statValues = screen.getAllByText('4');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });

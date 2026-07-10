@@ -122,9 +122,9 @@ describe('UniformSelectionScreen — confirm emit', () => {
     const confirmButton = screen.getByRole('button', { name: 'Confirm selection' });
     await userEvent.click(confirmButton);
 
-    // onConfirm should be called with city, its defaultUniformStyle, and the default formation
+    // onConfirm should be called with city, its defaultUniformStyle, the default formation, and home jersey (home player)
     expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm).toHaveBeenCalledWith('city', 'pinstripes-vertical', '4-4-2');
+    expect(onConfirm).toHaveBeenCalledWith('city', 'pinstripes-vertical', '4-4-2', 'home');
   });
 
   it('after confirming, Confirm button is hidden and status shows waiting message', async () => {
@@ -168,7 +168,7 @@ describe('UniformSelectionScreen — confirm emit', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirm selection' }));
 
-    expect(onConfirm).toHaveBeenCalledWith('city', 'checkers', '4-4-2');
+    expect(onConfirm).toHaveBeenCalledWith('city', 'checkers', '4-4-2', 'home');
   });
 });
 
