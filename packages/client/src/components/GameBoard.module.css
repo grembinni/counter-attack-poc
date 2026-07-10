@@ -108,7 +108,8 @@
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  width: auto;
+  max-width: 280px;
 }
 
 .playerCardBody {

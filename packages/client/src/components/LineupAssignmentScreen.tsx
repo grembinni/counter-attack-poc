@@ -21,8 +21,8 @@ const PLAYER_MAP = new Map<string, PoolPlayer>(PLAYER_POOL.map((p) => [p.id, p])
 
 /** Color tier for stat badge — mirrors PlayerStatsPanel.statTier. */
 function statTier(value: number): 'high' | 'mid' | 'low' {
-  if (value >= 7) return 'high';
-  if (value >= 4) return 'mid';
+  if (value >= 5) return 'high';
+  if (value >= 3) return 'mid';
   return 'low';
 }
 
@@ -299,7 +299,7 @@ export function LineupAssignmentScreen({
             aria-label="Confirm lineup"
             onClick={() => onConfirm(assignment)}
           >
-            Confirm Lineup
+            Confirm
           </button>
         )}
         {lineupConfirmed && (

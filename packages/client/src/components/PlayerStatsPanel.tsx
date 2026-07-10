@@ -24,8 +24,8 @@ export const STAT_LABELS: Array<[keyof PlayerPiece, string, string]> = [
 
 /** Returns color tier for a stat value on the 1-9 scale. */
 function statTier(value: number): 'high' | 'mid' | 'low' {
-  if (value >= 7) return 'high';
-  if (value >= 4) return 'mid';
+  if (value >= 5) return 'high';
+  if (value >= 3) return 'mid';
   return 'low';
 }
 

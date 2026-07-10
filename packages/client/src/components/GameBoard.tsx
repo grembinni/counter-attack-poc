@@ -92,8 +92,8 @@ function moveSlotSuffix(slot: MovementSlot | null): string {
 
 /** Returns the appropriate statBubble color class based on the stat value (1-9 scale). */
 function statBubbleClass(value: number): string {
-  if (value >= 7) return styles.statBubbleGreen ?? '';
-  if (value >= 4) return styles.statBubbleYellow ?? '';
+  if (value >= 5) return styles.statBubbleGreen ?? '';
+  if (value >= 3) return styles.statBubbleYellow ?? '';
   return styles.statBubbleRed ?? '';
 }
 
