@@ -10,7 +10,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
-import { TEAM_CONFIGS, UNIFORM_STYLE_META, FORMATIONS } from '@counter-attack/shared';
+import { TEAM_CONFIGS, UNIFORM_STYLE_META } from '@counter-attack/shared';
 import type {
   GameSpeed,
   TeamId,
@@ -172,46 +172,49 @@ export function UniformSelectionScreen({
         MATCH SETUP: STEP {step} &mdash; {currentPlayerLabel} PLAYER ({youOrOpponent})
       </h2>
 
-      {/* Active/waiting status */}
+      {/* Status and browse note — centered relative to heading */}
       <p className={isActiveNow ? styles.statusActive : styles.statusWaiting}>
         {isActiveNow
           ? 'Make your selections now!'
           : `Waiting for ${waitingForLabel} Player to Lock in their Selection.`}
       </p>
-
       <p className={styles.browseNote}>You are browsing your Team, Formation, and Piece Style.</p>
 
       {/* 0 | MATCH SPEED */}
-      <p className={styles.sectionLabel}>0 | MATCH SPEED</p>
-      {iAmHome ? (
-        <div className={styles.speedOptions}>
-          {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
-            <button
-              key={value}
-              disabled={hasConfirmed}
-              className={
-                value === selectedSpeed
-                  ? `${styles.speedOptionActive} ${styles[colorClass]}`
-                  : `${styles.speedOption} ${styles[colorClass]}`
-              }
-              onClick={() => onSpeedChange(value)}
-              aria-pressed={value === selectedSpeed}
-            >
-              <span className={styles.speedIcon}>{icon}</span>
-              {label}
-            </button>
-          ))}
+      <div className={styles.speedBlock}>
+        <div className={styles.speedRow}>
+          <span className={styles.speedSectionLabel}>0 | MATCH SPEED</span>
+          {iAmHome ? (
+            <div className={styles.speedOptions}>
+              {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
+                <button
+                  key={value}
+                  disabled={hasConfirmed}
+                  className={
+                    value === selectedSpeed
+                      ? `${styles.speedOptionActive} ${styles[colorClass]}`
+                      : `${styles.speedOption} ${styles[colorClass]}`
+                  }
+                  onClick={() => onSpeedChange(value)}
+                  aria-pressed={value === selectedSpeed}
+                >
+                  <span className={styles.speedIcon}>{icon}</span>
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.speedOptions}>
+              <span
+                className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
+              >
+                <span className={styles.speedIcon}>{selectedOption?.icon}</span>
+                {selectedOption?.label ?? selectedSpeed}
+              </span>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className={styles.speedOptions}>
-          <span
-            className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
-          >
-            <span className={styles.speedIcon}>{selectedOption?.icon}</span>
-            {selectedOption?.label ?? selectedSpeed}
-          </span>
-        </div>
-      )}
+      </div>
 
       {/* 1 | TEAM */}
       <p className={styles.sectionLabel}>1 | TEAM</p>
@@ -267,7 +270,6 @@ export function UniformSelectionScreen({
           >
             <img src={asset} alt={`${label} formation diagram`} className={styles.formationImage} />
             <p className={styles.formationLabel}>{label}</p>
-            <p className={styles.formationDescription}>{FORMATIONS[id].description}</p>
           </button>
         ))}
       </div>

@@ -594,14 +594,14 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const defenderPenalty =
         event.defenderDie! + event.defenderAerialAbility! - event.defenderCombined!;
       const aScore = fmtStatRoll(
-        'Aerial Ability',
+        'Aerial',
         event.attackerAerialAbility!,
         event.attackerDie!,
         attackerPenalty,
         event.attackerCombined!,
       );
       const dScore = fmtStatRoll(
-        'Aerial Ability',
+        'Aerial',
         event.defenderAerialAbility!,
         event.defenderDie!,
         defenderPenalty,

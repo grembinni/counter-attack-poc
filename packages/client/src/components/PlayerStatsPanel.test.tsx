@@ -86,7 +86,7 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
     expect(screen.getByText('Saving')).toBeDefined();
     expect(screen.getByText('Handling')).toBeDefined();
     expect(screen.getByText('Resilience')).toBeDefined();
-    expect(screen.getByText('Aerial Ability')).toBeDefined();
+    expect(screen.getByText('Aerial')).toBeDefined();
     expect(screen.getByText('High Pass')).toBeDefined();
     // 'Heading' label removed — aerialAbility is now the sole aerial stat
     expect(screen.queryByText('Heading')).toBeNull();

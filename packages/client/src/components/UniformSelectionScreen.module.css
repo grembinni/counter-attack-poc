@@ -265,17 +265,29 @@
   cursor: not-allowed;
 }
 
-/* ─── Speed selector — copied verbatim from TeamSelectionScreen.module.css ─── */
+/* ─── Speed block — wraps label+status row and options+browseNote row ─── */
 
-/* UX-07: game speed selector container */
-.speedSelector {
+.speedBlock {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  max-width: 480px;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 800px;
   width: 100%;
+}
+
+.speedRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Inline label for the speed section (no width: 100% unlike .sectionLabel) */
+.speedSectionLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a0a0a0;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* UX-07: speed option buttons row — full width so left edge aligns with other sections */
@@ -419,9 +431,8 @@
     opacity 0.15s ease;
 }
 
-/* D-06 named exception: formation image height fixed at 100px (not 4px-grid) */
 .formationImage {
-  height: 100px;
+  height: 72px;
   width: auto;
   object-fit: contain;
   display: block;
@@ -431,7 +442,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #e0e0e0;
-  margin: 8px 0 0;
+  margin: 4px 0 0;
 }
 
 .formationDescription {

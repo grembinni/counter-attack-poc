@@ -59,15 +59,20 @@ const PHASE_LABEL: Record<GamePhase, string> = {
  * Maps every abbreviation rendered by StatRow call sites to full name + what it helps with.
  */
 const STAT_FULL_NAME: Record<string, string> = {
-  PAC: 'Pace — hexes this player can move per turn (equal to PAC value).',
-  DRB: 'Dribbling — Carrier (DRB+D6) vs Tackler (TAC+D6); carrier keeps ball if score is equal or higher.',
-  AA: 'Aerial Ability — both players roll (AA+D6) to win headers and high-pass contests; higher score wins.',
-  SHT: 'Shooting — Attacker (SHT+D6) vs Keeper (SAV+D6); attacker scores if equal or higher.',
-  SAV: 'Saving — Keeper (SAV+D6) vs Attacker (SHT+D6); keeper saves if equal or higher.',
-  HPS: "High Pass — accuracy of lofted passes; compared against the target's AA when the ball lands.",
-  RES: 'Resilience — not used in current rules.',
-  TAC: 'Tackling — Defender (TAC+D6) vs Carrier (DRB+D6); defender wins the ball if equal or higher.',
-  HND: 'Handling — Goalkeeper (HND+D6) to secure catches and high-ball restarts.',
+  Pace: 'Pace — hexes this player can move per turn (equal to Pace value).',
+  Dribbling:
+    'Dribbling — Carrier (Dribbling+D6) vs Tackler (Tackling+D6); carrier keeps ball if score is equal or higher.',
+  Aerial:
+    'Aerial — both players roll (Aerial+D6) to win headers and high-pass contests; higher score wins.',
+  Shooting:
+    'Shooting — Attacker (Shooting+D6) vs Keeper (Saving+D6); attacker scores if equal or higher.',
+  Saving: 'Saving — Keeper (Saving+D6) vs Attacker (Shooting+D6); keeper saves if equal or higher.',
+  'High Pass':
+    "High Pass — accuracy of lofted passes; compared against the target's Aerial when the ball lands.",
+  Resilience: 'Resilience — not used in current rules.',
+  Tackling:
+    'Tackling — Defender (Tackling+D6) vs Carrier (Dribbling+D6); defender wins the ball if equal or higher.',
+  Handling: 'Handling — Goalkeeper (Handling+D6) to secure catches and high-ball restarts.',
 };
 
 /** DESIGN-01: MOVE-phase numbered slot suffix lookup (D-02 lookup-table-as-data shape). */
@@ -226,24 +231,24 @@ export function GameBoard() {
                 <TeamBadge teamId={selectedTeams[displayPiece.teamId]} size={28} />
               </div>
 
-              {/* Col 2: PAC / DRB / HED or AA / SHT or SAV */}
+              {/* Col 2: Pace / Dribbling / Aerial / Shooting or Saving */}
               <div className={styles.playerCardStatsCol}>
-                <StatRow label="PAC" value={displayPiece.pace} />
-                <StatRow label="DRB" value={displayPiece.dribbling} />
-                <StatRow label="AA" value={displayPiece.aerialAbility} />
+                <StatRow label="Pace" value={displayPiece.pace} />
+                <StatRow label="Dribbling" value={displayPiece.dribbling} />
+                <StatRow label="Aerial" value={displayPiece.aerialAbility} />
                 {isGK ? (
-                  <StatRow label="SAV" value={displayPiece.saving} />
+                  <StatRow label="Saving" value={displayPiece.saving} />
                 ) : (
-                  <StatRow label="SHT" value={displayPiece.shooting} />
+                  <StatRow label="Shooting" value={displayPiece.shooting} />
                 )}
               </div>
 
-              {/* Col 3: HPS / RES / TAC / HND (GK only) */}
+              {/* Col 3: High Pass / Resilience / Tackling / Handling (GK only) */}
               <div className={styles.playerCardStatsCol}>
-                <StatRow label="HPS" value={displayPiece.highPass} />
-                <StatRow label="RES" value={displayPiece.resilience} />
-                {!isGK && <StatRow label="TAC" value={displayPiece.tackling} />}
-                {isGK && <StatRow label="HND" value={displayPiece.handling} />}
+                <StatRow label="High Pass" value={displayPiece.highPass} />
+                <StatRow label="Resilience" value={displayPiece.resilience} />
+                {!isGK && <StatRow label="Tackling" value={displayPiece.tackling} />}
+                {isGK && <StatRow label="Handling" value={displayPiece.handling} />}
               </div>
             </div>
           ) : (

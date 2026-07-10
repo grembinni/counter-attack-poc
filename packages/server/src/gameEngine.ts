@@ -158,6 +158,25 @@ function buildSquadPieces(
     kickingStriker.position = { ...PITCH_REGIONS.kickOffHex };
   }
 
+  // Forward-line wing-forward shift: defending team only.
+  // Attacking team's forward line is already at q:14+4=q:18 (halfway) — adding more would be illegal.
+  // Finds the top (min r) and bottom (max r) pieces on the defending team's forward q column
+  // and advances each by 2 hexes toward the centre.
+  const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
+  const defendingFwdQ = defendingTeam === 'home' ? 14 : 22; // home fwd at q:14; away mirror: 36-14=22
+  const fwdDir = defendingTeam === 'home' ? 1 : -1;
+  const defendingFwdLine = pieces
+    .filter((p) => p.teamId === defendingTeam && p.position.q === defendingFwdQ)
+    .sort((a, b) => a.position.r - b.position.r);
+  if (defendingFwdLine.length >= 2) {
+    defendingFwdLine[0]!.position = {
+      q: defendingFwdLine[0]!.position.q + 2 * fwdDir,
+      r: defendingFwdLine[0]!.position.r,
+    };
+    const last = defendingFwdLine[defendingFwdLine.length - 1]!;
+    last.position = { q: last.position.q + 2 * fwdDir, r: last.position.r };
+  }
+
   return pieces;
 }
 

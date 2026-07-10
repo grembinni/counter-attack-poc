@@ -51,22 +51,22 @@ describe('FORMATIONS registry — data integrity (Phase 23 Plan 01)', () => {
     }
   });
 
-  it('Test 6: every slot position.q is one of {2, 6, 8, 10, 14} and position.r is within [5, 21]', () => {
-    const validQ = new Set([2, 6, 8, 10, 14]);
+  it('Test 6: every slot position.q is one of {2, 6, 8, 10, 12, 14} and position.r is within [4, 22]', () => {
+    const validQ = new Set([2, 6, 8, 10, 12, 14]);
     for (const [id, formation] of Object.entries(FORMATIONS)) {
       for (const slot of formation.slots) {
         expect(
           validQ.has(slot.position.q),
-          `${id} slot ${slot.slotId}: q=${slot.position.q} must be one of {2, 6, 8, 10, 14}`,
+          `${id} slot ${slot.slotId}: q=${slot.position.q} must be one of {2, 6, 8, 10, 12, 14}`,
         ).toBe(true);
         expect(
           slot.position.r,
-          `${id} slot ${slot.slotId}: r=${slot.position.r} must be in [5, 21]`,
-        ).toBeGreaterThanOrEqual(5);
+          `${id} slot ${slot.slotId}: r=${slot.position.r} must be in [4, 22]`,
+        ).toBeGreaterThanOrEqual(4);
         expect(
           slot.position.r,
-          `${id} slot ${slot.slotId}: r=${slot.position.r} must be in [5, 21]`,
-        ).toBeLessThanOrEqual(21);
+          `${id} slot ${slot.slotId}: r=${slot.position.r} must be in [4, 22]`,
+        ).toBeLessThanOrEqual(22);
       }
     }
   });

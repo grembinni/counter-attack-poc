@@ -138,7 +138,7 @@ describe('ActionLog — D-12: fmtStatRoll spelled-out format', () => {
     expect(container.textContent).toMatch(/- 0/);
   });
 
-  it('contested HEADER renders Aerial Ability for both sides', () => {
+  it('contested HEADER renders Aerial for both sides', () => {
     setEventLog([
       {
         type: 'HEADER',
@@ -155,7 +155,7 @@ describe('ActionLog — D-12: fmtStatRoll spelled-out format', () => {
       },
     ]);
     const { container } = render(<ActionLog />);
-    const aerialCount = (container.textContent?.match(/Aerial Ability/g) ?? []).length;
+    const aerialCount = (container.textContent?.match(/Aerial/g) ?? []).length;
     expect(aerialCount).toBeGreaterThanOrEqual(2);
   });
 });
