@@ -1,22 +1,24 @@
-/* LineupAssignmentScreen — Phase 24 D-13/D-14/D-15/D-17/D-18/D-19/D-20/D-21/D-22/D-23
- * Color palette: dark-theme token set (same as all prior setup screens):
+/* LineupAssignmentScreen — Phase 24
+ * Color palette: same dark-theme token set as all prior setup screens.
  * --bg-page: #1a1a2e; --bg-surface: #16213e; --border: #0f3460;
  * --text: #e0e0e0; --text-dim: #a0a0a0; --accent: #f5c518;
- * New classes: .formationColumns, .column, .columnHeader, .statCard family, .bench family, .swapRejection
  */
 
-/* Full-viewport flex column — matches UniformSelectionScreen.module.css .screen verbatim (no justify-content: center — content is too tall) */
+/* .app has height:100vh; overflow:hidden — make THIS element the scroll container
+   so the page clips at the viewport but the lineup content scrolls within it. */
 .screen {
+  height: 100%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
   background: #1a1a2e;
   gap: 16px;
   padding: 24px;
+  box-sizing: border-box;
 }
 
-/* MATCH SETUP step heading — copied verbatim from UniformSelectionScreen.module.css .matchSetupHeading */
+/* MATCH SETUP heading — verbatim from UniformSelectionScreen */
 .matchSetupHeading {
   font-size: 22px;
   font-weight: 800;
@@ -27,7 +29,6 @@
   text-align: center;
 }
 
-/* Active player status — copied verbatim from UniformSelectionScreen.module.css .statusActive */
 .statusActive {
   font-size: 14px;
   font-weight: 700;
@@ -36,7 +37,6 @@
   text-align: center;
 }
 
-/* Waiting player status — copied verbatim from UniformSelectionScreen.module.css .statusWaiting */
 .statusWaiting {
   font-size: 14px;
   font-weight: 700;
@@ -45,7 +45,6 @@
   text-align: center;
 }
 
-/* Confirm button — green state — copied verbatim from UniformSelectionScreen.module.css .confirmButtonGreen */
 .confirmButtonGreen {
   font-size: 20px;
   font-weight: 800;
@@ -56,40 +55,34 @@
   padding: 14px 48px;
   cursor: pointer;
   min-width: 200px;
-  transition:
-    background 0.15s ease,
-    opacity 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .confirmButtonGreen:hover:not(:disabled) {
   background: #16a34a;
 }
 
-.confirmButtonGreen:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* ─── Formation columns ────────────────────────────────────────────────────── */
 
-/* ─── Formation columns grid ─────────────────────────────────────────────── */
-
-/* D-14: 4-column horizontal GK|DEF|MID|FWD grid. 900px (wider than 800px team/style grids — stat cards need more space). */
+/* 4-column grid. align-items: stretch so all columns are the same height
+   (determined by the tallest — typically DEF or MID with 4 cards). */
 .formationColumns {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   max-width: 900px;
   width: 100%;
-  align-items: start;
+  align-items: stretch;
 }
 
-/* Single formation column (flex column, 8px card stack gap) */
+/* One column: header label at top, then a flex-fill card area. */
 .column {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* Column header band — GK / DEF / MID / FWD labels */
+/* Position label band */
 .columnHeader {
   font-size: 12px;
   font-weight: 700;
@@ -102,109 +95,131 @@
   letter-spacing: 0.08em;
 }
 
-/* ─── Stat card states ────────────────────────────────────────────────────── */
+/* Card area: fills remaining column height and centers cards vertically
+   so fewer-card columns (GK = 1, FWD = 2) mirror the formation shape. */
+.columnCards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
 
-/* D-15: base stat card */
+/* ─── Stat card — matches PlayerStatsPanel visual format exactly ────────────
+   Same bg/border/radius. Padding reduced to 8px (vs 16px in sidebar panel)
+   so 4 cards fit comfortably without scrolling on typical viewports.        */
+
 .statCard {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   cursor: grab;
+  user-select: none;
   transition:
     opacity 0.1s ease,
     border-color 0.1s ease,
     box-shadow 0.1s ease;
 }
 
-/* D-09/D-20/D-24: GK card — always locked, never draggable */
+/* GK card: never draggable */
 .statCardLocked {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   opacity: 0.7;
   cursor: default;
-  transition:
-    opacity 0.1s ease,
-    border-color 0.1s ease,
-    box-shadow 0.1s ease;
 }
 
-/* D-19: drag source state (applied via additional class during drag) */
+/* Post-confirm: dim, no interaction */
+.statCardConfirmed {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0.85;
+  cursor: default;
+}
+
+/* Appended to .statCard during active drag */
 .statCardDragging {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: grabbing;
 }
 
-/* D-22: drop target state — accent border + glow */
+/* Appended to .statCard when it's a valid drop target */
 .statCardDropTarget {
   border: 2px solid #f5c518;
   box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.3);
 }
 
-/* Post-confirm state — outfield cards become dim and non-interactive */
-.statCardConfirmed {
-  background: #16213e;
-  border: 1px solid #0f3460;
-  border-radius: 4px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  opacity: 0.85;
-  cursor: default;
-  transition:
-    opacity 0.1s ease,
-    border-color 0.1s ease,
-    box-shadow 0.1s ease;
-}
+/* ─── Card interior — matches PlayerStatsPanel layout ───────────────────── */
 
-/* ─── Card interior ───────────────────────────────────────────────────────── */
-
-/* Card header — mini token + name/role text + optional LOCKED badge */
+/* Header row: [mini-token] [name / meta] — mirrors .header in PlayerStatsPanel */
 .cardHeader {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Text block beside the mini token */
+/* Name column beside the token — mirrors .headerText */
 .cardHeaderText {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
-/* LOCKED badge — GK card only, right-aligned */
+/* Matches PlayerStatsPanel .firstName / .lastName */
+.cardFirstName,
+.cardLastName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Matches PlayerStatsPanel .playerMeta */
+.cardPlayerMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* LOCKED text for GK */
 .lockedBadge {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   color: #a0a0a0;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
-/* Stat grid — 2-column: label 1fr, value auto. 4px row gap (4px minimum spacing scale, not 3px from PlayerStatsPanel) */
+/* Stat grid — matches PlayerStatsPanel .statGrid exactly: 2-col, 3px row, 8px col */
 .statGrid {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 4px 8px;
+  gap: 3px 8px;
 }
 
 .statLabel {
   font-size: 12px;
-  font-weight: 400;
   color: #a0a0a0;
 }
 
@@ -212,22 +227,21 @@
   font-size: 12px;
   font-weight: 700;
   color: #f5c518;
+  text-align: right;
 }
 
-/* ─── Bench section ───────────────────────────────────────────────────────── */
+/* ─── Bench section ─────────────────────────────────────────────────────── */
 
-/* D-17: structural bench row below formation columns */
 .benchSection {
   max-width: 900px;
   width: 100%;
   border-top: 1px solid #0f3460;
-  padding-top: 24px;
+  padding-top: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* BENCH label */
 .benchLabel {
   font-size: 12px;
   font-weight: 700;
@@ -235,25 +249,21 @@
   letter-spacing: 0.08em;
 }
 
-/* Horizontal row of 5 empty bench slots */
 .benchPlaceholders {
   display: flex;
-  flex-direction: row;
   gap: 8px;
 }
 
-/* Empty bench slot — dashed border, no content in v1.3 */
 .benchSlot {
   border: 1px dashed #0f3460;
   border-radius: 4px;
   background: transparent;
-  min-height: 80px;
-  width: 160px;
+  min-height: 50px;
+  flex: 1;
 }
 
-/* ─── Swap rejection message ──────────────────────────────────────────────── */
+/* ─── Swap rejection ────────────────────────────────────────────────────── */
 
-/* Auto-clears after 2000ms via setTimeout in component */
 .swapRejection {
   font-size: 12px;
   font-weight: 700;

@@ -11,11 +11,23 @@ import { useState, useEffect, Fragment } from 'react';
 import { FORMATIONS, PLAYER_POOL, TEAM_CONFIGS } from '@counter-attack/shared';
 import type { FormationId, FormationSlot, PoolPlayer } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
-import { STAT_LABELS } from './PlayerStatsPanel.js';
 import styles from './LineupAssignmentScreen.module.css';
 
 /** O(1) lookup map: PlayerId → PoolPlayer. Built once at module load from the immutable PLAYER_POOL. */
 const PLAYER_MAP = new Map<string, PoolPlayer>(PLAYER_POOL.map((p) => [p.id, p]));
+
+/** Same stat order as PlayerStatsPanel.STAT_LABELS, typed against PoolPlayer. */
+const POOL_STAT_LABELS: Array<[keyof PoolPlayer, string]> = [
+  ['pace', 'Pace'],
+  ['shooting', 'Shooting'],
+  ['tackling', 'Tackling'],
+  ['dribbling', 'Dribbling'],
+  ['saving', 'Saving'],
+  ['handling', 'Handling'],
+  ['resilience', 'Resilience'],
+  ['aerialAbility', 'Aerial'],
+  ['highPass', 'High Pass'],
+];
 
 type Props = {
   /** PlayerId[] from server (11 entries), index maps to FORMATIONS[formationId].slots[i]. */
@@ -34,10 +46,6 @@ type Props = {
 
 /* ─── Inline mini token badge ────────────────────────────────────────────── */
 
-/** Inline 20×20 SVG token badge for LineupStatCard header.
- * Uses team primary color (from selectedTeams in store via prop). No jersey pattern complexity needed here.
- * D-15: all cards show a token with the jersey number.
- */
 function MiniLineupToken({
   jerseyNumber,
   fillColor,
@@ -73,15 +81,10 @@ type StatCardProps = {
   slotMeta: FormationSlot;
   /** Absolute slot index in FORMATIONS[formationId].slots — 0 = GK (always locked). */
   slotIndex: number;
-  /** True when this card is currently being dragged (sets .statCardDragging). */
   isDragSource: boolean;
-  /** True when this card is the active drop target (sets .statCardDropTarget). */
   isDropTarget: boolean;
-  /** True after this player has confirmed the lineup — all outfield cards get .statCardConfirmed. */
   lineupConfirmed: boolean;
-  /** Primary fill color for the mini token circle. */
   tokenFill: string;
-  /** Stroke color for the mini token circle. */
   tokenStroke: string;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
@@ -90,9 +93,8 @@ type StatCardProps = {
   onDragEnd: () => void;
 };
 
-/** D-15: Full stat card showing name, role, jersey number, mini token, and all 9 stats.
- * D-20: GK card (slotIndex 0) always uses .statCardLocked with a LOCKED badge.
- * D-19/D-22: outfield cards are draggable until lineupConfirmed; multiple swaps allowed. */
+/** D-15/D-20: full stat card matching PlayerStatsPanel visual format at compact 8px padding.
+ * GK (slotIndex 0) is permanently locked. Outfield cards are draggable until lineupConfirmed. */
 function LineupStatCard({
   player,
   slotMeta,
@@ -109,19 +111,13 @@ function LineupStatCard({
   onDragEnd,
 }: StatCardProps) {
   const isGK = slotIndex === 0;
-  // D-20: GK never draggable; D-22: outfield draggable until confirmed (supports multiple swaps)
   const isDraggable = !isGK && !lineupConfirmed;
 
-  // Determine card CSS class: GK always locked; outfield follows drag/confirm state
-  // string | undefined because CSS module index access returns `string | undefined` under noUncheckedIndexedAccess
   let cardClass: string | undefined;
   if (isGK) {
     cardClass = styles.statCardLocked;
   } else if (lineupConfirmed) {
     cardClass = styles.statCardConfirmed;
-  } else if (isDragSource && isDropTarget) {
-    // edge case: same card is both — treat as dragging
-    cardClass = `${styles.statCard} ${styles.statCardDragging}`;
   } else if (isDragSource) {
     cardClass = `${styles.statCard} ${styles.statCardDragging}`;
   } else if (isDropTarget) {
@@ -140,7 +136,7 @@ function LineupStatCard({
       onDrop={(e) => onDrop(e, slotIndex)}
       onDragEnd={onDragEnd}
     >
-      {/* Card header: mini token + name/role + LOCKED badge (GK only) */}
+      {/* Header: mini token + name/role — matches PlayerStatsPanel .header structure */}
       <div className={styles.cardHeader}>
         <MiniLineupToken
           jerseyNumber={slotMeta.jerseyNumber}
@@ -148,38 +144,23 @@ function LineupStatCard({
           strokeColor={tokenStroke}
         />
         <div className={styles.cardHeaderText}>
-          {/* D-15: first name, last name on separate lines; role is player's source role */}
-          <span style={{ fontSize: '12px', fontWeight: 700, color: '#e0e0e0' }}>
-            {player.firstName}
-          </span>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: '#e0e0e0' }}>
-            {player.lastName}
-          </span>
+          <span className={styles.cardFirstName}>{player.firstName}</span>
+          <span className={styles.cardLastName}>{player.lastName}</span>
           {/* D-15 Pitfall 5: jersey number from slotMeta.jerseyNumber, NOT player.number */}
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 400,
-              color: '#a0a0a0',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            {player.role} #{slotMeta.jerseyNumber}
+          <span className={styles.cardPlayerMeta}>
+            <span>{player.role}</span>
+            <span>#{slotMeta.jerseyNumber}</span>
+            {isGK && <span className={styles.lockedBadge}>LOCKED</span>}
           </span>
         </div>
-        {/* D-20: LOCKED badge rendered only on GK card */}
-        {isGK && <span className={styles.lockedBadge}>LOCKED</span>}
       </div>
 
-      {/* D-15: all 9 stats via STAT_LABELS — same order as PlayerStatsPanel */}
+      {/* Stats grid — same column/gap values as PlayerStatsPanel.statGrid */}
       <div className={styles.statGrid}>
-        {STAT_LABELS.map(([attr, label]) => (
+        {POOL_STAT_LABELS.map(([attr, label]) => (
           <Fragment key={attr}>
             <span className={styles.statLabel}>{label}</span>
-            <span className={styles.statValue}>
-              {(player as unknown as Record<string, number>)[attr as string] ?? 0}
-            </span>
+            <span className={styles.statValue}>{player[attr] as number}</span>
           </Fragment>
         ))}
       </div>
@@ -189,8 +170,6 @@ function LineupStatCard({
 
 /* ─── LineupAssignmentScreen ─────────────────────────────────────────────── */
 
-/** D-13: Standalone lineup assignment screen. Both players see their own lineup simultaneously
- * (D-16/D-25 corrected: parallel confirm gate, not sequential). */
 export function LineupAssignmentScreen({
   assignment,
   formationId,
@@ -199,27 +178,20 @@ export function LineupAssignmentScreen({
   onConfirm,
   lineupConfirmed,
 }: Props) {
-  // D-18: heading derives player label from slot number
   const currentPlayerLabel = playerSlot === 1 ? 'HOME' : 'VISITOR';
-  // D-16: only own lineup shown — always "YOU"
-  const youOrOpponent = 'YOU';
-  // D-23: status string derives "waiting for" from opposite slot
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
-  // D-25 corrected: both players are active in parallel — neither waits for the other before seeing their lineup
   const isActiveNow = !lineupConfirmed;
 
-  // Read team ID to color mini tokens from the Zustand store
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
   const myTeamId = playerSlot === 1 ? selectedTeams.home : selectedTeams.away;
   const teamConfig = TEAM_CONFIGS[myTeamId];
   const tokenFill = teamConfig?.palette.homePrime ?? '#3b82f6';
   const tokenStroke = teamConfig?.palette.homePrime ?? '#1d4ed8';
 
-  // D-19/D-22: drag state is local to this component — never in Zustand (Pitfall 7)
+  // D-19/D-22: drag state is local — never in Zustand (Pitfall 7)
   const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
-  // Swap rejection message — driven by GAME_ERROR from server (D-21/D-22 rejection path)
   const gameError = useGameStore((s) => s.gameError);
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
 
@@ -231,7 +203,7 @@ export function LineupAssignmentScreen({
     }
   }, [gameError]);
 
-  // D-14: group the 11 slots into 4 horizontal columns by slotRole prefix
+  // D-14: group slots by slotRole prefix into 4 columns
   const formation = FORMATIONS[formationId];
   if (!formation) return null;
   const slots = formation.slots;
@@ -255,12 +227,10 @@ export function LineupAssignmentScreen({
     } else if (slotMeta.slotRole.startsWith('MID')) {
       midColumn.push(entry);
     } else {
-      // FWD-central, FWD-wing
       fwdColumn.push(entry);
     }
   });
 
-  // Shared drag event handlers — keep drag state in this parent component (Pitfall 7)
   function handleDragStart(e: React.DragEvent<HTMLDivElement>, idx: number) {
     setDragSourceIndex(idx);
     e.dataTransfer.setData('text/plain', String(idx));
@@ -268,7 +238,7 @@ export function LineupAssignmentScreen({
   }
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>, idx: number) {
-    // D-20/Pitfall 3: GK slot (index 0) is never a valid drop target — do NOT call preventDefault
+    // D-20/Pitfall 3: GK slot (index 0) is never a valid drop target
     if (idx === 0) return;
     e.preventDefault();
     setDropTargetIndex(idx);
@@ -281,7 +251,6 @@ export function LineupAssignmentScreen({
   function handleDrop(e: React.DragEvent<HTMLDivElement>, targetIdx: number) {
     e.preventDefault();
     const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    // D-20: GK is never a drop target; also reject same-slot drops
     if (targetIdx !== 0 && sourceIdx !== targetIdx) {
       onSwap(sourceIdx, targetIdx);
     }
@@ -294,48 +263,49 @@ export function LineupAssignmentScreen({
     setDropTargetIndex(null);
   }
 
-  /** Render a single column of stat cards. */
+  /** Renders one position column. Cards are wrapped in .columnCards so they
+   * center vertically within the shared column height (formation shape effect). */
   function renderColumn(label: string, entries: ColEntry[]) {
     return (
       <div className={styles.column}>
         <div className={styles.columnHeader}>{label}</div>
-        {entries.map(({ slotIndex, player, slotMeta }) => (
-          <LineupStatCard
-            key={slotIndex}
-            player={player}
-            slotMeta={slotMeta}
-            slotIndex={slotIndex}
-            isDragSource={dragSourceIndex === slotIndex}
-            isDropTarget={dropTargetIndex === slotIndex}
-            lineupConfirmed={lineupConfirmed}
-            tokenFill={tokenFill}
-            tokenStroke={tokenStroke}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
-          />
-        ))}
+        <div className={styles.columnCards}>
+          {entries.map(({ slotIndex, player, slotMeta }) => (
+            <LineupStatCard
+              key={slotIndex}
+              player={player}
+              slotMeta={slotMeta}
+              slotIndex={slotIndex}
+              isDragSource={dragSourceIndex === slotIndex}
+              isDropTarget={dropTargetIndex === slotIndex}
+              lineupConfirmed={lineupConfirmed}
+              tokenFill={tokenFill}
+              tokenStroke={tokenStroke}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className={styles.screen}>
-      {/* D-18: MATCH SETUP heading — Step 3 for both home and visitor */}
       <h2 className={styles.matchSetupHeading}>
-        MATCH SETUP: STEP 3 &mdash; {currentPlayerLabel} PLAYER ({youOrOpponent})
+        MATCH SETUP: STEP 3 &mdash; {currentPlayerLabel} PLAYER (YOU)
       </h2>
 
-      {/* D-23: status line — exact strings from UniformSelectionScreen verbatim */}
       <p className={isActiveNow ? styles.statusActive : styles.statusWaiting}>
         {isActiveNow
           ? 'Make your selections now!'
           : `Waiting for ${waitingForLabel} Player to Lock in their Selection.`}
       </p>
 
-      {/* D-14: horizontal GK | DEF | MID | FWD formation columns */}
+      {/* D-14: horizontal GK | DEF | MID | FWD formation grid */}
       <div className={styles.formationColumns}>
         {renderColumn('GK', gkColumn)}
         {renderColumn('DEF', defColumn)}
@@ -343,27 +313,18 @@ export function LineupAssignmentScreen({
         {renderColumn('FWD', fwdColumn)}
       </div>
 
-      {/* D-17: BENCH section — structural only in v1.3, no functional behavior */}
+      {/* D-17: bench section — structural only in v1.3 */}
       <div className={styles.benchSection}>
         <span className={styles.benchLabel}>BENCH</span>
         <div className={styles.benchPlaceholders}>
           {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className={styles.benchSlot}
-              data-bench-index={i}
-              // v1.4: bench drop target
-              onDragOver={undefined}
-              onDrop={undefined}
-            />
+            <div key={i} className={styles.benchSlot} data-bench-index={i} />
           ))}
         </div>
       </div>
 
-      {/* Swap rejection message — auto-clears after 2000ms */}
       {rejectionMessage !== null && <p className={styles.swapRejection}>{rejectionMessage}</p>}
 
-      {/* Confirm Lineup button — hidden after confirm (D-23/D-25) */}
       {!lineupConfirmed && (
         <button className={styles.confirmButtonGreen} onClick={() => onConfirm(assignment)}>
           Confirm Lineup
