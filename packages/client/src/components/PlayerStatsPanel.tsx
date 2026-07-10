@@ -8,7 +8,7 @@ import styles from './PlayerStatsPanel.module.css';
  * Ordered list of all 10 PlayerPiece attributes with their display labels.
  * D-05 (Phase 7.1): stats panel shows all attributes for selected piece.
  */
-const STAT_LABELS: Array<[keyof PlayerPiece, string]> = [
+export const STAT_LABELS: Array<[keyof PlayerPiece, string]> = [
   ['pace', 'Pace'],
   ['shooting', 'Shooting'],
   ['tackling', 'Tackling'],

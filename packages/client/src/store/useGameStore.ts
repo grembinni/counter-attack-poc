@@ -27,6 +27,7 @@ export type Screen =
   | 'WAITING'
   | 'TEAM_SELECTION' // Phase 16 D-10: team selection screen before game board
   | 'UNIFORM_SELECTION' // Phase 22: combined team + style pre-game screen (D-01)
+  | 'LINEUP_ASSIGNMENT' // Phase 24: standalone lineup assignment screen (D-13)
   | 'GAME_BOARD'
   | 'REPLAY'; // Phase 8: shown when GameState.phase === 'REPLAY' (uses GAME_BOARD layout)
 
