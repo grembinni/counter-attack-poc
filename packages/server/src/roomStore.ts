@@ -93,6 +93,18 @@ export type Room = {
   /** Jersey variant chosen by home player ('home' kit or 'away' kit). Defaults to 'home' if absent. */
   homePickedJerseyType?: 'home' | 'away';
   /**
+   * Phase 24: uniform style confirmed by away player on their UNIFORM_CONFIRM.
+   * Not stored in Phase 22/23 because buildInitialGameState was called immediately.
+   * Phase 24 defers that call to LINEUP_CONFIRM, so away's style must be stored here.
+   * undefined = away has not yet confirmed.
+   */
+  awayPickedUniformStyle?: UniformStyleId;
+  /**
+   * Phase 24: jersey variant ('home'/'away' kit) chosen by away player on their UNIFORM_CONFIRM.
+   * Mirrors homePickedJerseyType. Defaults to 'away' in LINEUP_CONFIRM if absent.
+   */
+  awayPickedJerseyType?: 'home' | 'away';
+  /**
    * Phase 23 D-12: formation chosen by home player on their UNIFORM_CONFIRM.
    * undefined = home has not yet confirmed; defined once home confirms.
    */

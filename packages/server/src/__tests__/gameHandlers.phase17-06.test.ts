@@ -136,9 +136,16 @@ async function setupRoom(): Promise<{
   const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED);
   clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
   await homeConfirmedPromise;
+  // Phase 24: away confirm emits LINEUP_ASSIGNMENT_READY; both players confirm to start game.
   const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
   const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+  const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY);
+  const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY);
   clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+  const [[homeAssignment]] = await readyAPromise;
+  await readyBPromise;
+  clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+  clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
   const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   return { clientA, clientB, roomCode, state };

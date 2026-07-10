@@ -33,9 +33,16 @@ import type {
   TeamId,
   UniformStyleId,
 } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents, UNIFORM_STYLE_META } from '@counter-attack/shared';
+import {
+  ClientEvents,
+  ServerEvents,
+  UNIFORM_STYLE_META,
+  FORMATIONS,
+  PLAYER_POOL,
+  getSquadPlayers,
+} from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
-import { buildInitialGameState } from './gameEngine.js';
+import { buildInitialGameState, computeAutoAssignment } from './gameEngine.js';
 import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roomStore.js';
 
 /** Valid team IDs — allow-list for team:pick validation (ASVS V5, T-21-01: extended to 12 teams in Phase 21). */
@@ -360,38 +367,38 @@ export function registerRoomHandlers(
               socket.emit(ServerEvents.GAME_ERROR, 'TEAM_ALREADY_PICKED');
               return;
             }
-            // Phase 23 D-12: store away's team and formation; build game state with
-            // formation-driven piece placement (selectedFormation embedded in GameState).
-            // Also emit BOTH_FORMATIONS_CONFIRMED — Phase 24 listens to this for auto-assignment.
+            // Phase 23 D-12 / Phase 24 D-07: store away's team, formation, and uniform
+            // style (Phase 24 addition — previously not needed because buildInitialGameState
+            // was called immediately; now deferred to LINEUP_CONFIRM).
+            // buildInitialGameState is NOT called here — game deferred to LINEUP_CONFIRM.
             room.awayPickedTeam = teamId;
             room.awayPickedFormation = formationId;
-            const selectedTeams = { home: room.homePickedTeam!, away: teamId };
-            const selectedUniformStyles = {
-              home: room.homePickedUniformStyle,
-              away: uniformStyle,
-            };
-            const selectedFormation = { home: room.homePickedFormation!, away: formationId };
-            const selectedJerseyTypes = {
-              home: room.homePickedJerseyType ?? 'home',
-              away: safeJerseyType,
-            };
-            let gameState: import('@counter-attack/shared').GameState;
-            try {
-              gameState = buildInitialGameState(
-                roomCode,
-                selectedTeams,
-                room.gameSpeed ?? 'standard',
-                selectedUniformStyles,
-                selectedFormation,
-                selectedJerseyTypes,
-              );
-            } catch (err) {
-              console.error('buildInitialGameState failed:', err);
-              socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
-              return;
-            }
-            room.gameState = gameState;
-            broadcastState(io, room);
+            room.awayPickedUniformStyle = uniformStyle;
+            room.awayPickedJerseyType = safeJerseyType;
+
+            // Phase 24 ASSIGN-01: compute auto-assignment for each team.
+            // PlayerId[] of 11 entries; assignment[i] maps to FORMATIONS[formationId].slots[i].
+            const homeSquad = getSquadPlayers(room.homePickedTeam!);
+            const awaySquad = getSquadPlayers(teamId);
+            room.homeAssignment = computeAutoAssignment(
+              homeSquad,
+              FORMATIONS[room.homePickedFormation!].slots,
+            ).map((p) => p.id);
+            room.awayAssignment = computeAutoAssignment(
+              awaySquad,
+              FORMATIONS[formationId].slots,
+            ).map((p) => p.id);
+
+            // Phase 24 D-07 / D-12: emit LINEUP_ASSIGNMENT_READY to each socket individually.
+            // Never io.to(roomCode).emit — assignment data is private per player (D-12).
+            const homeSocket = io.sockets.sockets.get(room.players[0]!.socketId);
+            const awaySocket = io.sockets.sockets.get(room.players[1]!.socketId);
+            homeSocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.homeAssignment);
+            awaySocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.awayAssignment);
+
+            // Phase 23 D-12 / Phase 24 contract: BOTH_FORMATIONS_CONFIRMED still broadcast
+            // to the room so clients can track the confirmation step (existing client state
+            // transition preserved — see RESEARCH.md Pattern 6 and PATTERNS.md).
             io.to(roomCode).emit(
               ServerEvents.BOTH_FORMATIONS_CONFIRMED,
               room.homePickedFormation!,
@@ -403,6 +410,145 @@ export function registerRoomHandlers(
         }
       },
     );
+
+    // -----------------------------------------------------------------------
+    // LINEUP_SWAP
+    // Phase 24 D-08/D-09/ASSIGN-03/04: swap two outfield slot entries in the
+    // emitter's team assignment. GK slot (index 0) is immovable (T-24-01).
+    // Validates: both indices in [0,10], neither is 0, assignment exists (phase guard).
+    // Emits LINEUP_ASSIGNMENT_UPDATED to requester socket only (D-12 privacy).
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.LINEUP_SWAP, (payload: { slotIndexA: number; slotIndexB: number }) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // SC-5 / mutex: drop concurrent events.
+      if (room.isProcessing) return;
+      room.isProcessing = true;
+      try {
+        const { slotIndexA, slotIndexB } = payload;
+
+        // Determine which assignment array this player may mutate (T-24-03 spoofing guard).
+        const playerSlot = socket.data.playerSlot;
+        const assignment = playerSlot === 1 ? room.homeAssignment : room.awayAssignment;
+
+        // WRONG_PHASE guard: assignments not yet computed.
+        if (!assignment) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+          return;
+        }
+
+        // T-24-02: INVALID_SLOT_INDEX — both indices must be integers in [0, 10].
+        if (
+          !Number.isInteger(slotIndexA) ||
+          !Number.isInteger(slotIndexB) ||
+          slotIndexA < 0 ||
+          slotIndexA > 10 ||
+          slotIndexB < 0 ||
+          slotIndexB > 10
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SLOT_INDEX');
+          return;
+        }
+
+        // T-24-01: GK_SLOT_LOCKED — GK slot (index 0) is immovable (D-09).
+        if (slotIndexA === 0 || slotIndexB === 0) {
+          socket.emit(ServerEvents.GAME_ERROR, 'GK_SLOT_LOCKED');
+          return;
+        }
+
+        // Perform the swap in place.
+        const tmp = assignment[slotIndexA]!;
+        assignment[slotIndexA] = assignment[slotIndexB]!;
+        assignment[slotIndexB] = tmp;
+
+        // Emit updated assignment to the requesting socket only (D-12 privacy).
+        socket.emit(ServerEvents.LINEUP_ASSIGNMENT_UPDATED, assignment);
+      } finally {
+        room.isProcessing = false;
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // LINEUP_CONFIRM
+    // Phase 24 D-10/ASSIGN-05/D-11: mark this player's lineup as confirmed.
+    // Ignores the client's confirmedOrder payload — uses server-stored assignment
+    // (ASVS V5 tamper-prevention, T-24-04). Does NOT use a home-first sequential
+    // gate — either player may confirm first (D-25 corrected).
+    // When BOTH flags are true: resolve PlayerId[] → PoolPlayer[], call
+    // buildInitialGameState with confirmed-order params (D-11), broadcastState.
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.LINEUP_CONFIRM, (_payload: { confirmedOrder: string[] }) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // SC-5 / mutex: drop concurrent events.
+      if (room.isProcessing) return;
+      room.isProcessing = true;
+      try {
+        // WRONG_PHASE guard: assignments not yet computed.
+        if (!room.homeAssignment || !room.awayAssignment) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+          return;
+        }
+
+        const playerSlot = socket.data.playerSlot;
+
+        // Set the confirming player's flag (idempotent — setting true twice is fine).
+        if (playerSlot === 1) {
+          room.homeLineupConfirmed = true;
+        } else {
+          room.awayLineupConfirmed = true;
+        }
+
+        // Both-confirm gate (Pitfall 4): only start game when BOTH flags are true.
+        if (!room.homeLineupConfirmed || !room.awayLineupConfirmed) {
+          return; // still waiting for the other player
+        }
+
+        // D-11: resolve stored PlayerId[] → PoolPlayer[] in assignment order.
+        // Server ignores client's confirmedOrder — uses room.*Assignment (ASVS V5).
+        const confirmedHomeOrder = room.homeAssignment.map(
+          (id) => PLAYER_POOL.find((p) => p.id === id)!,
+        );
+        const confirmedAwayOrder = room.awayAssignment.map(
+          (id) => PLAYER_POOL.find((p) => p.id === id)!,
+        );
+
+        // D-11: build game state from the confirmed player orderings.
+        // All required fields were stored on room during UNIFORM_CONFIRM.
+        let gameState: import('@counter-attack/shared').GameState;
+        try {
+          gameState = buildInitialGameState(
+            roomCode,
+            { home: room.homePickedTeam!, away: room.awayPickedTeam! },
+            room.gameSpeed ?? 'standard',
+            { home: room.homePickedUniformStyle!, away: room.awayPickedUniformStyle! },
+            { home: room.homePickedFormation!, away: room.awayPickedFormation! },
+            {
+              home: room.homePickedJerseyType ?? 'home',
+              away: room.awayPickedJerseyType ?? 'away',
+            },
+            confirmedHomeOrder,
+            confirmedAwayOrder,
+          );
+        } catch (err) {
+          console.error('buildInitialGameState failed in LINEUP_CONFIRM:', err);
+          socket.emit(ServerEvents.GAME_ERROR, 'SERVER_ERROR');
+          return;
+        }
+        room.gameState = gameState;
+        broadcastState(io, room);
+      } finally {
+        room.isProcessing = false;
+      }
+    });
   }
 
   // -----------------------------------------------------------------------

@@ -299,9 +299,16 @@ describe('Room integration tests', () => {
     const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
     clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
     await homeConfirmedPromise;
+    // Phase 24: away confirm emits LINEUP_ASSIGNMENT_READY; both players confirm to start game.
     const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
     const stateOnPickPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE, 2000);
+    const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
     clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+    const [[homeAssignment]] = await readyAPromise;
+    await readyBPromise;
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
 
     // Wait for game:state to be delivered to BOTH clients before disconnecting.
     await Promise.all([stateOnPickPromiseA, stateOnPickPromiseB]);

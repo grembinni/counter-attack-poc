@@ -156,10 +156,17 @@ async function setupRoom(): Promise<{
   const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED);
   clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
   await homeConfirmedPromise;
-  // Away confirms uniform; server builds game state and broadcasts GAME_STATE to both.
+  // Away confirms uniform; Phase 24: server emits LINEUP_ASSIGNMENT_READY per socket.
+  // Both players then confirm lineup to start the game (LINEUP_CONFIRM → GAME_STATE).
   const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
   const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+  const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY);
+  const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY);
   clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+  const [[homeAssignment]] = await readyAPromise;
+  await readyBPromise;
+  clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+  clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
   const [[state]] = await Promise.all([statePromiseA, statePromiseB]);
 
   // clientA = slot 1 = 'home'; attackingTeam from coin flip
