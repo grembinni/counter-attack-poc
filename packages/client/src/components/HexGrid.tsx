@@ -87,7 +87,7 @@ export function HexGrid() {
   // D-55 (Free Kick Setup — Round 2 Corrections): pieces already counted toward the
   // CURRENT free-kick stage's placement cap — drives the green "moved this stage" ring.
   const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
-  // Plan 25-06: kicker-select sub-step gate — suppresses eligible ring during kicker selection.
+  const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
 
   // Phase 8.2: pass target highlight slices (D-06, D-09)
   const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
@@ -265,6 +265,9 @@ export function HexGrid() {
 
   const isInMyFreeKickZone = (hex: HexCoord): boolean => {
     if (!myFreeKickStageActive) return false;
+    // Suppress zone tinting during kicker-select sub-step — the ball hex is the only
+    // relevant destination and gets its own white highlight (isKickerTargetTint).
+    if (freeKickKickerChosen === false) return false;
     if (isMyFreeKickKickingStage || !freeKickHex) return true;
     // D-30: conceding team's stages must stay >2 hexes from freeKickHex.
     return hexDistance(hex, freeKickHex) > 2;
@@ -443,6 +446,15 @@ export function HexGrid() {
             // whether a piece is currently selected (corrects the prior D-45 fix, which was
             // gated on isValidMove/validMoveHexes and thus invisible until a piece was clicked).
             const isKickoffTint = (inMyZone && !isCentreHex) || isInMyFreeKickZone(hex);
+            // Kicker-select target: ball hex shows white when a piece is selected during
+            // the kicker-select sub-step, giving a clear single destination to click.
+            const isKickerTargetTint =
+              freeKickKickerChosen === false &&
+              selectedPieceId !== null &&
+              freeKickHex !== null &&
+              freeKickHex !== undefined &&
+              hex.q === freeKickHex.q &&
+              hex.r === freeKickHex.r;
             // isSafeTint: normal valid-move hexes not classified as goal-line
             const isSafeTint = isHighlighted && !isGoalTint;
             const highlightType: HexHighlightType | undefined = isRisk
@@ -453,11 +465,13 @@ export function HexGrid() {
                   ? 'shot-path-action'
                   : isShotPathTint
                     ? 'shot-path'
-                    : isKickoffTint
-                      ? 'kickoff'
-                      : isSafeTint
-                        ? 'safe'
-                        : undefined;
+                    : isKickerTargetTint
+                      ? 'shot-path'
+                      : isKickoffTint
+                        ? 'kickoff'
+                        : isSafeTint
+                          ? 'safe'
+                          : undefined;
 
             let onClick: (() => void) | undefined;
             // DESIGN-02: REPLAY is never interactive — skip the entire phase-branch cascade so
@@ -692,7 +706,11 @@ export function HexGrid() {
             // since it isn't their turn). Zone-restriction enforcement stays server-side
             // at stage-end (applyFreeKickReady) — this is selection gating only.
             const canSelectFreeKick =
-              myFreeKickStageActive && myTeam !== null && piece.teamId === myTeam;
+              myFreeKickStageActive &&
+              myTeam !== null &&
+              piece.teamId === myTeam &&
+              !movedPieceIds.includes(piece.id) &&
+              !(freeKickPlacedPieceIds ?? []).includes(piece.id);
             // HIGH_PASS_MOVE: active team selects 1 own piece to reposition up to 3 hexes
             const canSelectHighPassMove =
               phase === 'HIGH_PASS_MOVE' &&

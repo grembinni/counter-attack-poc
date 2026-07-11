@@ -672,11 +672,8 @@ export function ActionPanel() {
       return (
         <div className={styles.panel}>
           <div className={styles.helperBlock}>
-            <span className={styles.helperLine1}>Free Kick — Select Kicker</span>
-            <span className={styles.helperLine2}>
-              Click a player and move them to the ball hex to designate the kicker. The kicker
-              cannot be moved again during setup.
-            </span>
+            <span className={styles.helperLine1}>Free Kick</span>
+            <span className={styles.helperLine2}>Select your kicker.</span>
           </div>
           {gameError && <span className={styles.errorText}>{gameError}</span>}
         </div>
