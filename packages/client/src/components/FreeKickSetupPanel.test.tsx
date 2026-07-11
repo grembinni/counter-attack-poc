@@ -75,14 +75,14 @@ describe('FreeKickSetupPanel — turn gating (active vs inactive team)', () => {
   it('stage 0 (kicking = away): the ACTIVE team (away, playerSlot 2) sees the per-stage UI and End Turn button', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/attacking team: place up to 5 players/i)).toBeDefined();
+    expect(screen.getByText(/attacking team: place up to 4 players/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
   });
 
   it('stage 1 (defending = home): the ACTIVE team (home, playerSlot 1) sees the defending-stage UI', () => {
     useGameStore.setState({ gameState: freeKickSetupState(1), playerSlot: 1 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/defending team: place up to 5 players/i)).toBeDefined();
+    expect(screen.getByText(/defending team: place up to 4 players/i)).toBeDefined();
   });
 
   it('stage 1 (defending = home): the INACTIVE team (away, playerSlot 2) sees only a waiting message', () => {
@@ -97,7 +97,7 @@ describe('FreeKickSetupPanel — placements used/remaining display', () => {
   it('shows 0 used / N remaining when no placements have been made this stage', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/0 used, 5 remaining/i)).toBeDefined();
+    expect(screen.getByText(/0 used, 4 remaining/i)).toBeDefined();
   });
 
   it('shows the correct used/remaining count after some placements this stage', () => {
@@ -106,7 +106,7 @@ describe('FreeKickSetupPanel — placements used/remaining display', () => {
       playerSlot: 2,
     });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/2 used, 3 remaining/i)).toBeDefined();
+    expect(screen.getByText(/2 used, 2 remaining/i)).toBeDefined();
   });
 
   it('stage 2 (kicking, cap 3): shows the stage-specific cap, not the stage-0 cap', () => {
