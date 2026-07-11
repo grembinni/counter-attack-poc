@@ -189,6 +189,33 @@ export function ActionPanel() {
     }
   }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
 
+  // D-20 (Phase 25): auto-advance the HEADER accuracy step after 1500ms on the attacking client.
+  // Replaces the push-button Continue confirmation (UX-15 — v1.3 playtesting feedback).
+  // The EventBanner popup (HP_ACCURACY → 'Accurate Pass!' / 'Loose Ball!') provides visual
+  // feedback during the 1500ms window; no additional UI element is needed here.
+  // Guard: only the active player on the attacking team emits the ack — never the defending
+  // client (T-25-04 / Pitfall 6: single emitter invariant).
+  useEffect(() => {
+    if (
+      phase === 'HEADER' &&
+      (headerAccuracyRollPending ?? false) &&
+      isActivePlayer &&
+      myTeam === attackingTeam
+    ) {
+      const timerId = setTimeout(() => {
+        emitHeaderAccuracyAck();
+      }, 1500);
+      return () => clearTimeout(timerId);
+    }
+  }, [
+    phase,
+    headerAccuracyRollPending,
+    isActivePlayer,
+    myTeam,
+    attackingTeam,
+    emitHeaderAccuracyAck,
+  ]);
+
   // Shared canUndo computation — used in both MOVE and HIGH_PASS_MOVE phases.
   // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVE also uses HP_REPOSITION as a slot boundary.
   // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVE).
@@ -363,22 +390,11 @@ export function ActionPanel() {
   if (phase === 'HEADER') {
     if (myTeam === null) return null;
 
-    // RULE-01: gate contestant selection behind accuracy roll acknowledgment
+    // RULE-01: gate contestant selection behind accuracy roll acknowledgment.
+    // D-20 (Phase 25): the auto-advance useEffect (above) fires emitHeaderAccuracyAck()
+    // after 1500ms on the attacking client — no button needed. Both players see the
+    // waiting panel; the EventBanner popup (HP_ACCURACY) provides visual feedback.
     if (headerAccuracyRollPending ?? false) {
-      if (isActivePlayer && myTeam === attackingTeam) {
-        return (
-          <div className={styles.panel}>
-            <div className={styles.helperBlock}>
-              <span className={styles.helperLine1}>Accurate High Pass!</span>
-              <span className={styles.helperLine2}>Click to continue.</span>
-            </div>
-            <button className={styles.ctaButton} onClick={() => emitHeaderAccuracyAck()}>
-              Continue
-            </button>
-            {gameError && <span className={styles.errorText}>{gameError}</span>}
-          </div>
-        );
-      }
       return waitingPanel;
     }
 
