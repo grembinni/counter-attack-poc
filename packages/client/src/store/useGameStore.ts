@@ -695,12 +695,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         validMoveHexes: [],
         tackleRiskHexes: [],
         lastMovedPieceId: null,
-        // Phase 8.2: clear pass target and header contestant slices on phase change
+        // Phase 8.2: clear pass target and header contestant slices on phase change.
+        // UX-15: headerContestantIds must only clear on genuine phase transitions (phaseChanged),
+        // NOT on in-HEADER broadcasts (e.g. opponent confirming). prevSelectedId===null is always
+        // true in HEADER phase (toggleHeaderContestantId never sets selectedPieceId), so this
+        // block fires on every HEADER broadcast — guard headerContestantIds with phaseChanged.
         selectedPassType: null,
         validPassTargetHexes: [],
         interceptionRiskHexes: [],
         passTargetHex: null,
-        headerContestantIds: [],
+        headerContestantIds: phaseChanged ? [] : prev.headerContestantIds,
         // Phase 10: clear shooting mode on new server broadcast
         shootingMode: false,
         shootTargetHex: null,
