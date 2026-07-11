@@ -11,15 +11,15 @@ import styles from './PlayerStatsPanel.module.css';
  * Exported so LineupAssignmentScreen can reuse the same ordered list.
  */
 export const STAT_LABELS: Array<[keyof PlayerPiece, string, string]> = [
-  ['pace', 'PAC', 'Pace'],
-  ['shooting', 'SHO', 'Shooting'],
-  ['tackling', 'TAC', 'Tackling'],
-  ['dribbling', 'DRI', 'Dribbling'],
-  ['saving', 'SAV', 'Saving'],
-  ['handling', 'HND', 'Handling'],
+  ['pace', 'PACE', 'Pace'],
+  ['shooting', 'SHOOTING', 'Shooting'],
+  ['tackling', 'TACKLING', 'Tackling'],
+  ['dribbling', 'DRIBBLING', 'Dribbling'],
+  ['saving', 'SAVE', 'Saving'],
+  ['handling', 'HANDLING', 'Handling'],
   ['resilience', 'RES', 'Resilience'],
-  ['aerialAbility', 'AER', 'Aerial Ability'],
-  ['highPass', 'PAS', 'High Pass'],
+  ['aerialAbility', 'AERIAL', 'Aerial Ability'],
+  ['highPass', 'PASSING', 'High Pass'],
 ];
 
 /** Returns color tier for a stat value on the 1-9 scale. */

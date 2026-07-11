@@ -74,30 +74,30 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
     expect(screen.queryByText(/Home GK/i)).toBeNull();
   });
 
-  it('outfield: shows 6 stats (PAC SHO TAC DRI AER PAS), no SAV/HND/RES; GK: shows 6 stats, no SHO/PAS/RES', () => {
+  it('outfield: shows 6 stats (PACE SHOOTING TACKLING DRIBBLING AERIAL PASSING), no SAVE/HANDLING/RES; GK: shows 6 stats, no SHOOTING/PASSING/RES', () => {
     // home-1 is an outfield player (DEF)
     useGameStore.setState({ selectedPieceId: 'home-1' });
     render(<PlayerStatsPanel />);
-    expect(screen.getByText('PAC')).toBeDefined();
-    expect(screen.getByText('SHO')).toBeDefined();
-    expect(screen.getByText('TAC')).toBeDefined();
-    expect(screen.getByText('DRI')).toBeDefined();
-    expect(screen.getByText('AER')).toBeDefined();
-    expect(screen.getByText('PAS')).toBeDefined();
-    // SAV, HND, RES hidden for outfield
-    expect(screen.queryByText('SAV')).toBeNull();
-    expect(screen.queryByText('HND')).toBeNull();
+    expect(screen.getByText('PACE')).toBeDefined();
+    expect(screen.getByText('SHOOTING')).toBeDefined();
+    expect(screen.getByText('TACKLING')).toBeDefined();
+    expect(screen.getByText('DRIBBLING')).toBeDefined();
+    expect(screen.getByText('AERIAL')).toBeDefined();
+    expect(screen.getByText('PASSING')).toBeDefined();
+    // SAVE, HANDLING, RES hidden for outfield
+    expect(screen.queryByText('SAVE')).toBeNull();
+    expect(screen.queryByText('HANDLING')).toBeNull();
     expect(screen.queryByText('RES')).toBeNull();
     cleanup();
 
     // home-0 is the GK
     useGameStore.setState({ selectedPieceId: 'home-0' });
     render(<PlayerStatsPanel />);
-    expect(screen.getByText('SAV')).toBeDefined();
-    expect(screen.getByText('HND')).toBeDefined();
-    // SHO, PAS, RES hidden for GK
-    expect(screen.queryByText('SHO')).toBeNull();
-    expect(screen.queryByText('PAS')).toBeNull();
+    expect(screen.getByText('SAVE')).toBeDefined();
+    expect(screen.getByText('HANDLING')).toBeDefined();
+    // SHOOTING, PASSING, RES hidden for GK
+    expect(screen.queryByText('SHOOTING')).toBeNull();
+    expect(screen.queryByText('PASSING')).toBeNull();
     expect(screen.queryByText('RES')).toBeNull();
   });
 
