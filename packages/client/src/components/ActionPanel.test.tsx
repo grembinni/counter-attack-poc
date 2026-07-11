@@ -49,6 +49,8 @@ describe('ActionPanel — UNDO-02: undo disabled when dice rolled', () => {
         phase: 'MOVE',
         activeTeam: 'home',
         lastDiceRoll: null,
+        // paceUsedByPieceId must be non-empty so canUndo's Bug-C guard (25-07) passes
+        paceUsedByPieceId: { 'home-9': 1 },
         eventLog: [
           {
             type: 'MOVE',
@@ -100,6 +102,8 @@ describe('ActionPanel — UNDO-01: clicking Undo emits game:undo', () => {
         phase: 'MOVE',
         activeTeam: 'home',
         lastDiceRoll: null,
+        // paceUsedByPieceId must be non-empty so canUndo's Bug-C guard (25-07) passes
+        paceUsedByPieceId: { 'home-9': 1 },
         eventLog: [
           {
             type: 'MOVE',

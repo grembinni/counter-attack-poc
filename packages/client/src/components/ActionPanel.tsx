@@ -100,8 +100,6 @@ export function ActionPanel() {
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   const emitCancelMovement = useGameStore((s) => s.emitCancelMovement);
-  // D-19 (Phase 25): piece selection triggers counter decrement at move-start, not destination commit.
-  const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   // 260621-ajd: remaining-player countdown for FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
   const freeMoveEligibleIds = useGameStore((s) => s.gameState.freeMoveEligibleIds);
   const freeMoveUsedPace = useGameStore((s) => s.gameState.freeMoveUsedPace);
@@ -231,6 +229,18 @@ export function ActionPanel() {
   // Plan 25-06: FK_KICKER_CHOSEN and FK_STAGE_ADVANCE are slot boundaries in FREE_KICK_SETUP.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
+    // Bug-C (Phase 25 gap 25-07): canUndo must be false at the start of a MOVE slot when
+    // no moves have been committed yet. The event-log boundary approach (SLOT_ADVANCE / KICK_OFF)
+    // does not bound the start of every new MOVE phase (no boundary event exists between Team A's
+    // turn end and Team B's next MOVE phase start), so without this guard the button mistakenly
+    // shows as enabled, pointing at stale MOVE events from the previous team's turn.
+    // paceUsedByPieceId resets at each slot boundary (server-side), so an empty map means
+    // no moves have been committed in the current slot — Undo is impossible.
+    if (
+      (phase === 'MOVE' || phase === 'FREE_MOVE_ATTACK' || phase === 'FREE_MOVE_DEFENSE') &&
+      Object.keys(paceUsedByPieceId).length === 0
+    )
+      return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
@@ -925,24 +935,9 @@ export function ActionPanel() {
     const currentSlotLockedCount = movedPieceIds.filter(
       (id) => paceUsedByPieceId[id] !== undefined,
     ).length;
-    // D-19 (Phase 25): decrement the counter the moment a piece is selected (move start),
-    // not when the destination is committed. Restores automatically on undo/deselect because
-    // selectedPieceId returns to null — no extra state needed (Pitfall 7 guard prevents
-    // double-counting a piece already counted by movedPieceIds or paceExhaustedNotLocked).
-    const selectedIsMoving =
-      phase === 'MOVE' &&
-      selectedPieceId !== null &&
-      !movedPieceIds.includes(selectedPieceId) &&
-      (paceUsedByPieceId[selectedPieceId] ?? 0) === 0;
     const remaining =
       slotTotal != null
-        ? Math.max(
-            slotTotal -
-              currentSlotLockedCount -
-              paceExhaustedNotLocked -
-              (selectedIsMoving ? 1 : 0),
-            0,
-          )
+        ? Math.max(slotTotal - currentSlotLockedCount - paceExhaustedNotLocked, 0)
         : null;
     const slotHelperLine2 =
       slotTotal != null && remaining != null
