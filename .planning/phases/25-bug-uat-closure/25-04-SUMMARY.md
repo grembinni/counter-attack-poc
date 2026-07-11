@@ -36,7 +36,7 @@ patterns-established:
 requirements-completed: [UX-15]
 
 # Metrics
-duration: investigation only (Task 1 checkpoint — Task 2 pending approval)
+duration: ~35min
 completed: 2026-07-11
 ---
 
@@ -46,28 +46,27 @@ completed: 2026-07-11
 
 ## Performance
 
-- **Duration:** Investigation only — Task 1 complete, Task 2 awaiting checkpoint approval
+- **Duration:** ~35 min
 - **Started:** 2026-07-11
-- **Completed:** 2026-07-11 (Task 1 checkpoint)
-- **Tasks:** 1 of 2 complete (Task 1 investigation, no fix written)
-- **Files modified:** 0 (investigation only)
+- **Completed:** 2026-07-11
+- **Tasks:** 2 of 2 complete
+- **Files modified:** 1
 
 ## Accomplishments
 
-- Confirmed the root cause of UX-15 at file + line + mechanism level — no hypothesis testing required, the plan's suspected mechanism is exactly correct
+- Confirmed the root cause of UX-15 at file + line + mechanism level — the plan's suspected mechanism is exactly correct
 - Identified the two-file chain: HexGrid.tsx (why selectedPieceId stays null) → useGameStore.ts (why null triggers the reset and why headerContestantIds is cleared)
-- Defined the minimal one-line fix for Task 2 with a precise location and value
+- Applied the minimal one-line fix: `headerContestantIds: phaseChanged ? [] : prev.headerContestantIds`
+- All 303 client tests pass; `tsc --noEmit` clean
 
 ## Task Commits
 
-Investigation only — no commits yet.
-
-1. **Task 1: Confirm root cause** — checkpoint reached, awaiting approval
-2. **Task 2: Fix useGameStore state-update handler** — pending checkpoint approval
+1. **Task 1: Confirm root cause** — `23f081f` (docs — investigation + SUMMARY)
+2. **Task 2: Fix useGameStore state-update handler** — `8cd911e` (fix)
 
 ## Files Created/Modified
 
-- Investigation only — no files modified yet.
+- `packages/client/src/store/useGameStore.ts` — line 703: guard `headerContestantIds` reset with `phaseChanged` so in-HEADER broadcasts no longer clear pending contestant selections
 
 ## Root Cause Finding (Task 1 Checkpoint)
 
@@ -166,11 +165,11 @@ None.
 
 ## Next Phase Readiness
 
-- Task 2 fix is precisely targeted: one line in `useGameStore.ts` line 703
-- Fix uses existing local variables (`phaseChanged` at line 676, `prev` at line 647) — no new variables, no form change on the `set()` call
-- After Task 2: Plan 05 UAT checkpoint will do two-tab confirmation
+- Fix shipped: `headerContestantIds` now survives in-HEADER state broadcasts
+- Plan 05 UAT checkpoint will do two-tab confirmation of the fix
+- No other files touched; no scope creep
 
 ---
 
 _Phase: 25-bug-uat-closure_
-_Completed: 2026-07-11 (Task 1 checkpoint)_
+_Completed: 2026-07-11_
