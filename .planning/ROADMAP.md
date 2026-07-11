@@ -69,15 +69,15 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
 ## v1.3 — Team Customization & Formation System
 
-| Phase | Name              | Requirements                                     | Status      |
-| ----- | ----------------- | ------------------------------------------------ | ----------- |
-| 19    | 3/3               | Complete                                         | 2026-07-03  |
-| 20    | 3/3               | Complete                                         | 2026-07-04  |
-| 21    | 2/2               | Complete                                         | 2026-07-04  |
-| 22    | 3/3               | Complete                                         | 2026-07-05  |
-| 23    | 3/3               | Complete                                         | 2026-07-05  |
-| 24    | 4/4               | Complete                                         | 2026-07-10  |
-| 25    | Bug & UAT Closure | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
+| Phase | Name | Requirements | Status     |
+| ----- | ---- | ------------ | ---------- |
+| 19    | 3/3  | Complete     | 2026-07-03 |
+| 20    | 3/3  | Complete     | 2026-07-04 |
+| 21    | 2/2  | Complete     | 2026-07-04 |
+| 22    | 3/3  | Complete     | 2026-07-05 |
+| 23    | 3/3  | Complete     | 2026-07-05 |
+| 24    | 4/4  | Complete     | 2026-07-10 |
+| 25    | 4/5  | In Progress  |            |
 
 ---
 
@@ -240,10 +240,10 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
    Plans:
    **Wave 1** *(parallel — no file overlap)\_
 
-- [ ] 25-01-PLAN.md — REPLAY-07/08 ballAfter + REPLAY_ELIGIBLE_TYPES + regression tests; BUG-22 doc closure (shared/server)
-- [ ] 25-02-PLAN.md — BUG-23 shot-path/shotTargetHighlight guards + UX-15 player-number centering + Style 12/13 swap (client render)
-- [ ] 25-03-PLAN.md — UX-15 pass-result popup (EventBanner) + HEADER auto-advance + eligible counter (ActionPanel)
-- [ ] 25-04-PLAN.md — UX-15 uniform-selection clearing bug (investigation-first fix in App.tsx/UniformSelectionScreen.tsx)
+- [x] 25-01-PLAN.md — REPLAY-07/08 ballAfter + REPLAY_ELIGIBLE_TYPES + regression tests; BUG-22 doc closure (shared/server)
+- [x] 25-02-PLAN.md — BUG-23 shot-path/shotTargetHighlight guards + UX-15 player-number centering + Style 12/13 swap (client render)
+- [x] 25-03-PLAN.md — UX-15 pass-result popup (EventBanner) + HEADER auto-advance + eligible counter (ActionPanel)
+- [x] 25-04-PLAN.md — UX-15 uniform-selection clearing bug (investigation-first fix in App.tsx/UniformSelectionScreen.tsx)
 
   **Wave 2** _(blocked on Wave 1 — human UAT)_
 
