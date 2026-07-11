@@ -235,17 +235,19 @@
   flex-shrink: 0;
 }
 
-/* 3-column stat chip grid → 2 rows of 3+3 (6 role-filtered stats) */
+/* 3 auto-sized columns spread with space-between — 3rd chip's bubble lands at grid right edge */
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px 3px;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  row-gap: 2px;
 }
 
+/* Chip stays tight: [PAC●] as a pair; spacing comes from grid justify-content */
 .statChip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px;
   cursor: default;
 }
 
