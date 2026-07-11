@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   PITCH_HEXES,
   GOAL_R_VALUES,
@@ -133,6 +133,13 @@ export function HexGrid() {
 
   // Optimistic highlight for SHOT target — cosmetic only; server emit is source of truth (D-06)
   const [shotTargetHighlight, setShotTargetHighlight] = useState<HexCoord | null>(null);
+
+  // BUG-23 (D-14 Fix 2): clear shotTargetHighlight when phase transitions to KICK_OFF_SETUP.
+  // shotTargetHighlight is set on shot-declaration click and never cleared elsewhere; it can
+  // produce a stale red goal-target tint after a SNAPSHOT_DEFLECT goal.
+  useEffect(() => {
+    if (phase === 'KICK_OFF_SETUP') setShotTargetHighlight(null);
+  }, [phase]);
 
   // Phase 10: Goal line hexes (used for shootingMode two-step and HEADER target)
   // GOAL_R_VALUES imported from @counter-attack/shared — single source of truth
@@ -417,14 +424,15 @@ export function HexGrid() {
             // isShotPathTint: informational white — resolved shot path, contest zone preview,
             // SNAP_DEFLECT reposition targets, and the snapshot's declared shot path (lighter/
             // more transparent white) — same classification as a regular/headed shot path.
-            // Suppress lastShotPath during KICK_OFF_SETUP: it's never relevant there and can
-            // bleed in from the previous half if the server hasn't cleared it yet.
+            // BUG-23 (D-14 Fix 1): gate the ENTIRE expression on phase !== 'KICK_OFF_SETUP' so
+            // none of the five sub-conditions can produce a stale tint during kick-off setup.
             const isShotPathTint =
-              (phase !== 'KICK_OFF_SETUP' && lastShotPathSet.has(hexId)) ||
-              isHpMoveTarget ||
-              isGKDiveTarget ||
-              isShotPath ||
-              highPassContestZoneSet.has(hexId);
+              phase !== 'KICK_OFF_SETUP' &&
+              (lastShotPathSet.has(hexId) ||
+                isHpMoveTarget ||
+                isGKDiveTarget ||
+                isShotPath ||
+                highPassContestZoneSet.has(hexId));
             // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex),
             // OR the D-48 persistent geometric placement zone during FREE_KICK_SETUP — visible
             // for every pitch hex on every render during MY team's active stage, regardless of
