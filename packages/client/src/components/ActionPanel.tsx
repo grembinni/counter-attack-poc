@@ -98,6 +98,8 @@ export function ActionPanel() {
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   const emitCancelMovement = useGameStore((s) => s.emitCancelMovement);
+  // D-19 (Phase 25): piece selection triggers counter decrement at move-start, not destination commit.
+  const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   // 260621-ajd: remaining-player countdown for FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
   const freeMoveEligibleIds = useGameStore((s) => s.gameState.freeMoveEligibleIds);
   const freeMoveUsedPace = useGameStore((s) => s.gameState.freeMoveUsedPace);
@@ -188,6 +190,33 @@ export function ActionPanel() {
       setSelectedPassType('FIRST_TIME_PASS');
     }
   }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
+
+  // D-20 (Phase 25): auto-advance the HEADER accuracy step after 1500ms on the attacking client.
+  // Replaces the push-button Continue confirmation (UX-15 — v1.3 playtesting feedback).
+  // The EventBanner popup (HP_ACCURACY → 'Accurate Pass!' / 'Loose Ball!') provides visual
+  // feedback during the 1500ms window; no additional UI element is needed here.
+  // Guard: only the active player on the attacking team emits the ack — never the defending
+  // client (T-25-04 / Pitfall 6: single emitter invariant).
+  useEffect(() => {
+    if (
+      phase === 'HEADER' &&
+      (headerAccuracyRollPending ?? false) &&
+      isActivePlayer &&
+      myTeam === attackingTeam
+    ) {
+      const timerId = setTimeout(() => {
+        emitHeaderAccuracyAck();
+      }, 1500);
+      return () => clearTimeout(timerId);
+    }
+  }, [
+    phase,
+    headerAccuracyRollPending,
+    isActivePlayer,
+    myTeam,
+    attackingTeam,
+    emitHeaderAccuracyAck,
+  ]);
 
   // Shared canUndo computation — used in both MOVE and HIGH_PASS_MOVE phases.
   // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVE also uses HP_REPOSITION as a slot boundary.
@@ -363,22 +392,11 @@ export function ActionPanel() {
   if (phase === 'HEADER') {
     if (myTeam === null) return null;
 
-    // RULE-01: gate contestant selection behind accuracy roll acknowledgment
+    // RULE-01: gate contestant selection behind accuracy roll acknowledgment.
+    // D-20 (Phase 25): the auto-advance useEffect (above) fires emitHeaderAccuracyAck()
+    // after 1500ms on the attacking client — no button needed. Both players see the
+    // waiting panel; the EventBanner popup (HP_ACCURACY) provides visual feedback.
     if (headerAccuracyRollPending ?? false) {
-      if (isActivePlayer && myTeam === attackingTeam) {
-        return (
-          <div className={styles.panel}>
-            <div className={styles.helperBlock}>
-              <span className={styles.helperLine1}>Accurate High Pass!</span>
-              <span className={styles.helperLine2}>Click to continue.</span>
-            </div>
-            <button className={styles.ctaButton} onClick={() => emitHeaderAccuracyAck()}>
-              Continue
-            </button>
-            {gameError && <span className={styles.errorText}>{gameError}</span>}
-          </div>
-        );
-      }
       return waitingPanel;
     }
 
@@ -821,9 +839,24 @@ export function ActionPanel() {
     const currentSlotLockedCount = movedPieceIds.filter(
       (id) => paceUsedByPieceId[id] !== undefined,
     ).length;
+    // D-19 (Phase 25): decrement the counter the moment a piece is selected (move start),
+    // not when the destination is committed. Restores automatically on undo/deselect because
+    // selectedPieceId returns to null — no extra state needed (Pitfall 7 guard prevents
+    // double-counting a piece already counted by movedPieceIds or paceExhaustedNotLocked).
+    const selectedIsMoving =
+      phase === 'MOVE' &&
+      selectedPieceId !== null &&
+      !movedPieceIds.includes(selectedPieceId) &&
+      (paceUsedByPieceId[selectedPieceId] ?? 0) === 0;
     const remaining =
       slotTotal != null
-        ? Math.max(slotTotal - currentSlotLockedCount - paceExhaustedNotLocked, 0)
+        ? Math.max(
+            slotTotal -
+              currentSlotLockedCount -
+              paceExhaustedNotLocked -
+              (selectedIsMoving ? 1 : 0),
+            0,
+          )
         : null;
     const slotHelperLine2 =
       slotTotal != null && remaining != null
