@@ -1389,12 +1389,16 @@ export function applyUndo(state: GameState): ApplyUndoResult {
   // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, HP_REPOSITION, or FTP_REPOSITION)
   // BUG-03 (Phase 17 D-06): also treat HP_REPOSITION as a slot boundary in HIGH_PASS_MOVE
   // D-03 (Phase 17.1): treat FTP_REPOSITION as a slot boundary in FIRST_TIME_PASS_MOVE
+  // Plan 25-06: treat FK_KICKER_CHOSEN and FK_STAGE_ADVANCE as slot boundaries in FREE_KICK_SETUP
+  //   so that Undo cannot reach across kicker-selection or stage transitions.
   const lastSlotAdvanceIdx = state.eventLog.reduce<number>((acc, evt, idx) => {
     const isBoundary =
       evt.type === 'SLOT_ADVANCE' ||
       evt.type === 'KICK_OFF' ||
       (state.phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
-      (state.phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
+      (state.phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION') ||
+      (state.phase === 'FREE_KICK_SETUP' &&
+        (evt.type === 'FK_KICKER_CHOSEN' || evt.type === 'FK_STAGE_ADVANCE'));
     return isBoundary ? idx : acc;
   }, -1);
 
