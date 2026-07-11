@@ -87,6 +87,8 @@ export function HexGrid() {
   // D-55 (Free Kick Setup — Round 2 Corrections): pieces already counted toward the
   // CURRENT free-kick stage's placement cap — drives the green "moved this stage" ring.
   const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
+  // Plan 25-06: kicker-select sub-step gate — suppresses eligible ring during kicker selection.
+  const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
 
   // Phase 8.2: pass target highlight slices (D-06, D-09)
   const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
@@ -250,13 +252,16 @@ export function HexGrid() {
   // stage: unrestricted for the kicking team's stages (0/2, D-29); all pitch hexes except
   // the 2-hex zone around freeKickHex for the conceding team's stages (1/3, D-30).
   const isFreeKickSetup = phase === 'FREE_KICK_SETUP';
-  const myFreeKickStageActive =
+  // Plan 25-06: extract activeTeamForStage separately so the per-piece eligible-ring check
+  // can reference it without recomputing freeKickStageTeam inside the hot render path.
+  const activeTeamForStage =
     isFreeKickSetup &&
-    myTeam !== null &&
     freeKickStageIndex !== null &&
     freeKickStageIndex !== undefined &&
-    !!freeKickAttackingTeam &&
-    myTeam === freeKickStageTeam(freeKickStageIndex, freeKickAttackingTeam);
+    !!freeKickAttackingTeam
+      ? freeKickStageTeam(freeKickStageIndex, freeKickAttackingTeam)
+      : null;
+  const myFreeKickStageActive = isFreeKickSetup && myTeam !== null && myTeam === activeTeamForStage;
   const isMyFreeKickKickingStage = myFreeKickStageActive && myTeam === freeKickAttackingTeam;
 
   const isInMyFreeKickZone = (hex: HexCoord): boolean => {
@@ -790,15 +795,31 @@ export function HexGrid() {
                     (paceUsedByPieceId[piece.id] ?? 0) >=
                       (movementSlot === 'ATTACKER_2' ? Math.min(piece.pace, 2) : piece.pace)
                   : movedPieceIds.includes(piece.id);
+            // Plan 25-06: eligible ring for FREE_KICK_SETUP repositioning stages.
+            // An eligible piece is one that: (a) belongs to the currently-active stage's team,
+            // (b) is NOT permanently locked in movedPieceIds, (c) has NOT already been placed
+            // this stage, and (d) is past the kicker-select sub-step.
+            // Suppressed during kicker-select (freeKickKickerChosen === false) per task 5 spec.
+            const isFreeKickEligible =
+              phase === 'FREE_KICK_SETUP' &&
+              myFreeKickStageActive &&
+              freeKickKickerChosen !== false &&
+              piece.teamId === activeTeamForStage &&
+              !movedPieceIds.includes(piece.id) &&
+              !(freeKickPlacedPieceIds ?? []).includes(piece.id);
             // Bug 3 fix: isHeaderContestant (confirmed contestant) → 'active' (green ring);
             // isHeaderEligible but not yet contestant → 'selectable' (blue ring).
             // In HEADER phase, selectedPieceId is set by inspectPiece clicks but should NOT
             // produce a green ring — only confirmed contestants get 'active' there.
+            // FREE_KICK_SETUP: use isFreeKickEligible for the ring (not the broader isClickable
+            // which would incorrectly include locked/placed/kicker-select-phase pieces).
             const selectionState: SelectionState = isSpentNow
               ? 'activated'
               : (phase !== 'HEADER' && piece.id === selectedPieceId) || isHeaderContestant
                 ? 'active'
-                : isHeaderEligible || isClickable
+                : isFreeKickEligible ||
+                    isHeaderEligible ||
+                    (isClickable && phase !== 'FREE_KICK_SETUP')
                   ? 'selectable'
                   : 'none';
 
