@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   ELIGIBLE_NEXT_ACTIONS,
+  FREE_KICK_STAGES,
   GOAL_R_VALUES,
+  freeKickStageTeam,
   hexDistance,
   isInRegion,
 } from '@counter-attack/shared';
@@ -108,6 +110,11 @@ export function ActionPanel() {
   const firstTimePassMovedPieceId = useGameStore((s) => s.gameState.firstTimePassMovedPieceId);
   const gkKickMovedPieceId = useGameStore((s) => s.gameState.gkKickMovedPieceId);
   const snapDeflectMovedPieceId = useGameStore((s) => s.gameState.snapDeflectMovedPieceId);
+  // Plan 25-06: FREE_KICK_SETUP stage tracking for dedicated ActionPanel block.
+  const freeKickStageIndex = useGameStore((s) => s.gameState.freeKickStageIndex);
+  const freeKickAttackingTeam = useGameStore((s) => s.gameState.freeKickAttackingTeam);
+  const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
+  const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
 
   const myTeam: 'home' | 'away' | null =
     playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
@@ -221,6 +228,7 @@ export function ActionPanel() {
   // Shared canUndo computation — used in both MOVE and HIGH_PASS_MOVE phases.
   // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVE also uses HP_REPOSITION as a slot boundary.
   // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVE).
+  // Plan 25-06: FK_KICKER_CHOSEN and FK_STAGE_ADVANCE are slot boundaries in FREE_KICK_SETUP.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
@@ -228,7 +236,9 @@ export function ActionPanel() {
         evt.type === 'SLOT_ADVANCE' ||
         evt.type === 'KICK_OFF' ||
         (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
-        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
+        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION') ||
+        (phase === 'FREE_KICK_SETUP' &&
+          (evt.type === 'FK_KICKER_CHOSEN' || evt.type === 'FK_STAGE_ADVANCE'));
       return isBoundary ? idx : acc;
     }, -1);
     // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
@@ -613,6 +623,82 @@ export function ActionPanel() {
           </span>
           <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
+        <button
+          className={`${styles.ctaButton} ${ctaButtonClass(remaining)}`}
+          title={ACTION_SUMMARY['End Turn']}
+          onClick={withEndTurnConfirm(remaining, emitEndTurn)}
+        >
+          End Turn
+        </button>
+        {confirmDialog}
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // FREE_KICK_SETUP phase (Plan 25-06): dedicated panel with kicker-select sub-step,
+  // move counter, Undo, and End Turn. Must be before the !isActivePlayer guard so
+  // both teams see the correct waiting / active panel regardless of activeTeam.
+  // -------------------------------------------------------------------------
+  if (phase === 'FREE_KICK_SETUP') {
+    if (myTeam === null) return null;
+
+    const kickingTeam = freeKickAttackingTeam;
+    const activeTeamForStage =
+      freeKickStageIndex !== null &&
+      freeKickStageIndex !== undefined &&
+      kickingTeam !== null &&
+      kickingTeam !== undefined
+        ? freeKickStageTeam(freeKickStageIndex, kickingTeam)
+        : null;
+    const isMyStage = myTeam === activeTeamForStage;
+
+    // Non-active team waits
+    if (!isMyStage) return waitingPanel;
+
+    // Kicker-select sub-step: kicking team must place kicker on freeKickHex first
+    if (!freeKickKickerChosen && myTeam === kickingTeam) {
+      return (
+        <div className={styles.panel}>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>Free Kick — Select Kicker</span>
+            <span className={styles.helperLine2}>
+              Click a player and move them to the ball hex to designate the kicker. The kicker
+              cannot be moved again during setup.
+            </span>
+          </div>
+          {gameError && <span className={styles.errorText}>{gameError}</span>}
+        </div>
+      );
+    }
+
+    // Move-count sub-step: both teams reposition up to stage.max players
+    const stageMax =
+      freeKickStageIndex !== null && freeKickStageIndex !== undefined
+        ? FREE_KICK_STAGES[freeKickStageIndex].max
+        : 0;
+    const placedCount = (freeKickPlacedPieceIds ?? []).length;
+    const remaining = Math.max(stageMax - placedCount, 0);
+    const isKickingTeam = myTeam === kickingTeam;
+    const stageLabel = isKickingTeam ? 'Attacking' : 'Defending';
+
+    return (
+      <div className={styles.panel}>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Free Kick Setup — {stageLabel} Team</span>
+          <span className={styles.helperLine2}>
+            {remaining} of {stageMax} players left to reposition.
+          </span>
+        </div>
+        <button
+          className={styles.ctaButton}
+          title={ACTION_SUMMARY['Undo']}
+          disabled={!canUndo}
+          onClick={emitUndo}
+        >
+          Undo
+        </button>
         <button
           className={`${styles.ctaButton} ${ctaButtonClass(remaining)}`}
           title={ACTION_SUMMARY['End Turn']}
