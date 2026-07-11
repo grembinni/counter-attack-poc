@@ -29,10 +29,15 @@ export const OFFSIDE_HALFWAY_Q = PITCH_REGIONS.kickOffHex.q;
  *    Defending team picks up and places 5 players. (4 for any field player, 1 spot for goalie)
  *    Attacking team picks up and places 3 players.
  *    Defending team picks up and places 2 players."
+ *
+ * Plan 25-06 correction: Stage 0 (kicking) and Stage 1 (defending) max reduced from 5 to 4.
+ * The "1 spot for goalie" from the rulebook text is the kicker — a dedicated prior step
+ * (freeKickKickerChosen sub-step) places the kicker on freeKickHex outside the budget.
+ * The 4-move stage covers only field-player repositioning. Stage 2 and 3 are unchanged.
  */
 export const FREE_KICK_STAGES = [
-  { side: 'kicking', max: 5 },
-  { side: 'defending', max: 5 },
+  { side: 'kicking', max: 4 },
+  { side: 'defending', max: 4 },
   { side: 'kicking', max: 3 },
   { side: 'defending', max: 2 },
 ] as const;
