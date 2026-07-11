@@ -9,6 +9,7 @@ import {
   hexDistance,
   hexLine,
   freeKickStageTeam,
+  FREE_KICK_STAGES,
   TEAM_CONFIGS,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
@@ -262,6 +263,12 @@ export function HexGrid() {
       : null;
   const myFreeKickStageActive = isFreeKickSetup && myTeam !== null && myTeam === activeTeamForStage;
   const isMyFreeKickKickingStage = myFreeKickStageActive && myTeam === freeKickAttackingTeam;
+  // Placement budget remaining for the current stage — used to suppress eligible rings
+  // and selection when all slots are filled.
+  const fkBudgetRemaining =
+    isFreeKickSetup && freeKickStageIndex !== null && freeKickStageIndex !== undefined
+      ? FREE_KICK_STAGES[freeKickStageIndex].max - (freeKickPlacedPieceIds ?? []).length
+      : 0;
 
   const isInMyFreeKickZone = (hex: HexCoord): boolean => {
     if (!myFreeKickStageActive) return false;
@@ -709,6 +716,7 @@ export function HexGrid() {
             // at stage-end (applyFreeKickReady) — this is selection gating only.
             const canSelectFreeKick =
               myFreeKickStageActive &&
+              fkBudgetRemaining > 0 &&
               myTeam !== null &&
               piece.teamId === myTeam &&
               !movedPieceIds.includes(piece.id) &&
@@ -813,14 +821,16 @@ export function HexGrid() {
                   ? movedPieceIds.includes(piece.id) ||
                     (paceUsedByPieceId[piece.id] ?? 0) >=
                       (movementSlot === 'ATTACKER_2' ? Math.min(piece.pace, 2) : piece.pace)
-                  : movedPieceIds.includes(piece.id);
-            // Plan 25-06: eligible ring for FREE_KICK_SETUP repositioning stages.
-            // An eligible piece is one that: (a) belongs to the currently-active stage's team,
-            // (b) is NOT permanently locked in movedPieceIds, and (c) has NOT already been placed
-            // this stage. Shown during kicker-select too so users can see which pieces to click.
+                  : phase === 'FREE_KICK_SETUP'
+                    ? movedPieceIds.includes(piece.id) ||
+                      (freeKickPlacedPieceIds ?? []).includes(piece.id)
+                    : movedPieceIds.includes(piece.id);
+            // Eligible ring: piece can still be selected for placement this stage.
+            // Gated on budget remaining — hides ring once all stage slots are filled.
             const isFreeKickEligible =
               phase === 'FREE_KICK_SETUP' &&
               myFreeKickStageActive &&
+              fkBudgetRemaining > 0 &&
               piece.teamId === activeTeamForStage &&
               !movedPieceIds.includes(piece.id) &&
               !(freeKickPlacedPieceIds ?? []).includes(piece.id);
@@ -895,9 +905,7 @@ export function HexGrid() {
                 isOffside={(offsidePieceIds ?? []).includes(piece.id)}
                 // D-55: green "moved this stage" ring — only during FREE_KICK_SETUP,
                 // for a piece already counted in this stage's freeKickPlacedPieceIds.
-                isMovedThisStage={
-                  phase === 'FREE_KICK_SETUP' && (freeKickPlacedPieceIds ?? []).includes(piece.id)
-                }
+                isMovedThisStage={false}
               />
             );
           })}
