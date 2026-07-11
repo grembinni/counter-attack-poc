@@ -12,15 +12,17 @@ import styles from './PlayerStatsPanel.module.css';
  */
 // Order determines grid position: stats fill 3 columns left-to-right, top-to-bottom.
 // Col 1: pace / dribbling  Col 2: tackling / aerial  Col 3: shooting / passing (or save / handling for GK)
+// shooting+saving are adjacent so the role filter always lands one of them in col-3 row-1;
+// highPass+handling likewise for col-3 row-2.
 export const STAT_LABELS: Array<[keyof PlayerPiece, string, string]> = [
   ['pace', 'PACE', 'Pace'],
   ['tackling', 'TACKLING', 'Tackling'],
-  ['shooting', 'SHOOTING', 'Shooting'],
+  ['shooting', 'SHOOTING', 'Shooting'], // outfield col-3 row-1 (filtered out for GK)
+  ['saving', 'SAVE', 'Saving'], // GK col-3 row-1 (filtered out for outfield)
   ['dribbling', 'DRIBBLING', 'Dribbling'],
   ['aerialAbility', 'AERIAL', 'Aerial Ability'],
-  ['highPass', 'PASSING', 'High Pass'],
-  ['saving', 'SAVE', 'Saving'],
-  ['handling', 'HANDLING', 'Handling'],
+  ['highPass', 'PASSING', 'High Pass'], // outfield col-3 row-2 (filtered out for GK)
+  ['handling', 'HANDLING', 'Handling'], // GK col-3 row-2 (filtered out for outfield)
   ['resilience', 'RES', 'Resilience'],
 ];
 
