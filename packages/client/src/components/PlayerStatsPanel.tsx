@@ -10,16 +10,18 @@ import styles from './PlayerStatsPanel.module.css';
  * Abbreviation shown in card; full label visible on hover via `title`.
  * Exported so LineupAssignmentScreen can reuse the same ordered list.
  */
+// Order determines grid position: stats fill 3 columns left-to-right, top-to-bottom.
+// Col 1: pace / dribbling  Col 2: tackling / aerial  Col 3: shooting / passing (or save / handling for GK)
 export const STAT_LABELS: Array<[keyof PlayerPiece, string, string]> = [
   ['pace', 'PACE', 'Pace'],
-  ['shooting', 'SHOOTING', 'Shooting'],
   ['tackling', 'TACKLING', 'Tackling'],
+  ['shooting', 'SHOOTING', 'Shooting'],
   ['dribbling', 'DRIBBLING', 'Dribbling'],
+  ['aerialAbility', 'AERIAL', 'Aerial Ability'],
+  ['highPass', 'PASSING', 'High Pass'],
   ['saving', 'SAVE', 'Saving'],
   ['handling', 'HANDLING', 'Handling'],
   ['resilience', 'RES', 'Resilience'],
-  ['aerialAbility', 'AERIAL', 'Aerial Ability'],
-  ['highPass', 'PASSING', 'High Pass'],
 ];
 
 /** Returns color tier for a stat value on the 1-9 scale. */
