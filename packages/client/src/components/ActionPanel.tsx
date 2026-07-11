@@ -100,8 +100,6 @@ export function ActionPanel() {
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
   const paceUsedByPieceId = useGameStore((s) => s.gameState.paceUsedByPieceId);
   const emitCancelMovement = useGameStore((s) => s.emitCancelMovement);
-  // D-19 (Phase 25): piece selection triggers counter decrement at move-start, not destination commit.
-  const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   // 260621-ajd: remaining-player countdown for FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
   const freeMoveEligibleIds = useGameStore((s) => s.gameState.freeMoveEligibleIds);
   const freeMoveUsedPace = useGameStore((s) => s.gameState.freeMoveUsedPace);
@@ -925,24 +923,9 @@ export function ActionPanel() {
     const currentSlotLockedCount = movedPieceIds.filter(
       (id) => paceUsedByPieceId[id] !== undefined,
     ).length;
-    // D-19 (Phase 25): decrement the counter the moment a piece is selected (move start),
-    // not when the destination is committed. Restores automatically on undo/deselect because
-    // selectedPieceId returns to null — no extra state needed (Pitfall 7 guard prevents
-    // double-counting a piece already counted by movedPieceIds or paceExhaustedNotLocked).
-    const selectedIsMoving =
-      phase === 'MOVE' &&
-      selectedPieceId !== null &&
-      !movedPieceIds.includes(selectedPieceId) &&
-      (paceUsedByPieceId[selectedPieceId] ?? 0) === 0;
     const remaining =
       slotTotal != null
-        ? Math.max(
-            slotTotal -
-              currentSlotLockedCount -
-              paceExhaustedNotLocked -
-              (selectedIsMoving ? 1 : 0),
-            0,
-          )
+        ? Math.max(slotTotal - currentSlotLockedCount - paceExhaustedNotLocked, 0)
         : null;
     const slotHelperLine2 =
       slotTotal != null && remaining != null
