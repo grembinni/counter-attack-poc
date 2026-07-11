@@ -286,7 +286,13 @@ export type ActionEvent =
       to: HexCoord;
       timestamp: number;
     }
-  | { type: 'LOOSE_BALL_LAND'; from: HexCoord; to: HexCoord; timestamp: number }
+  | {
+      type: 'LOOSE_BALL_LAND';
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
   | {
       type: 'GK_KICK';
       gkId: string;
@@ -295,6 +301,7 @@ export type ActionEvent =
       kickDie: number;
       kickScore: number;
       timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'GK_KICK_MOVE';
