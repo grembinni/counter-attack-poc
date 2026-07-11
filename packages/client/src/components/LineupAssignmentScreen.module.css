@@ -53,7 +53,7 @@
   gap: 12px;
   padding: 8px 0 4px;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1260px;
   border-top: 1px solid #0f3460;
 }
 
@@ -84,7 +84,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  max-width: 1100px;
+  max-width: 1260px;
   width: 100%;
   align-items: stretch;
 }
@@ -132,7 +132,7 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  min-width: 240px;
+  min-width: 260px;
 }
 
 .statCard {
@@ -227,19 +227,19 @@
   flex-shrink: 0;
 }
 
-/* 3 auto-sized columns spread with space-between — 3rd chip's bubble lands at grid right edge */
+/* Equal-width 3-column grid — all columns sized to the widest stat (DRIBBLING) */
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  justify-content: space-between;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 8px;
   row-gap: 3px;
 }
 
-/* Chip stays tight: [PAC●] as a pair; spacing comes from grid justify-content */
+/* Label left-aligned, bubble right-aligned within each equal-width column */
 .statChip {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
   cursor: default;
 }
 
@@ -271,7 +271,7 @@
 /* ─── Bench section ─────────────────────────────────────────────────────── */
 
 .benchSection {
-  max-width: 1100px;
+  max-width: 1260px;
   width: 100%;
   border-top: 1px solid #0f3460;
   padding-top: 16px;

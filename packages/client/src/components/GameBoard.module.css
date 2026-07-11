@@ -108,8 +108,8 @@
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  min-width: 260px;
-  max-width: 300px;
+  min-width: 320px;
+  max-width: 380px;
 }
 
 .playerCardBody {
@@ -162,19 +162,19 @@
   flex-shrink: 0;
 }
 
-/* 3 auto-sized columns spread with space-between — 3rd chip's bubble lands at grid right edge */
+/* Equal-width 3-column grid — all columns sized to the widest stat (DRIBBLING) */
 .playerCardStatGrid {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  justify-content: space-between;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 8px;
   row-gap: 4px;
 }
 
-/* Chip stays tight: [PAC●] as a pair; spacing comes from grid justify-content */
+/* Label left-aligned, bubble right-aligned within each equal-width column */
 .statChip {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
   cursor: default;
 }
 
