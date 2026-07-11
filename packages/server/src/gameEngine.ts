@@ -2756,6 +2756,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         from: state.ball.position,
         to: finalPosition,
         timestamp: Date.now(),
+        ballAfter: { position: finalPosition, carrierId: finalCarrierId },
       };
 
       // If ball lands on a piece, that piece's team becomes the attacking team
@@ -4361,12 +4362,16 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'SNAPSHOT',
   'HALF_TIME',
   'FULL_TIME',
-  // REPLAY-06 (18.1-01, Pitfall 4): added by quick-task 260621-b8f with ballAfter populated,
-  // but never folded into this set — their ball movement produced no visible replay frame.
-  // GK_KICK is intentionally excluded (dead code, zero construction sites — Pitfall 5,
-  // deferred to DESIGN-04). HEADER is intentionally excluded (carries no ballAfter by design).
+  // REPLAY-06 (18.1-01, Pitfall 4): HEADED_PASS and GK_PUNT added with ballAfter populated.
+  // HEADER is intentionally excluded (carries no ballAfter by design).
   'HEADED_PASS',
   'GK_PUNT',
+  // REPLAY-07: GK_KICK ball delivery — carries ballAfter (position: targetHex, carrierId:
+  // receiver.id | null); construction at gameHandlers.ts ~line 823.
+  'GK_KICK',
+  // REPLAY-08: LOOSE_BALL_LAND scatter resolution — carries ballAfter (position: finalPosition,
+  // carrierId: finalCarrierId | null); construction at gameEngine.ts ~line 2754.
+  'LOOSE_BALL_LAND',
   // BUG-17 (Phase 18.3): kick-off formation repositioning. Handled like MOVE (piece
   // repositioning, no ball change). buildReplayFrames treats it as a MOVE-like event.
   'KICK_OFF_SETUP',

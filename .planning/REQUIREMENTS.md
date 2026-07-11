@@ -70,7 +70,7 @@
 - [ ] **OFFSIDE-02**: Two-tab live UAT closure — free-kick restart: foul trigger on possession gain and deflect, D-30/D-31 placement rules, restricted action set, D-41 deflection addendum (code implemented in Phase 17; human UAT checkpoint never closed)
 - [ ] **REPLAY-07**: GK_KICK ball delivery visible during post-game replay — add GK_KICK to `REPLAY_ELIGIBLE_TYPES`; add `ballAfter` field to GK_KICK `ActionEvent`
 - [ ] **REPLAY-08**: LOOSE_BALL_LAND ball delivery visible during post-game replay — same class as GK_KICK; add to `REPLAY_ELIGIBLE_TYPES` with `ballAfter`
-- [ ] **BUG-22**: HIGH_PASS_MOVE excludes `highPassCarrierId` from repositioning target — `highPassCarrierId` is set in `GameState` but not consumed as an exclusion in the `GAME_MOVE` handler; parallel defect to Plan 17.1-16 FIRST_TIME_PASS_MOVE fix
+- [x] **BUG-22**: HIGH_PASS_MOVE excludes `highPassCarrierId` from repositioning target — `highPassCarrierId` is set in `GameState` but not consumed as an exclusion in the `GAME_MOVE` handler; parallel defect to Plan 17.1-16 FIRST_TIME_PASS_MOVE fix. Fix already shipped in Phase 18.2: `carrierExclusionKey: 'highPassCarrierId'` at `gameHandlers.ts:405`, covered by `gameHandlers.phase18-02.test.ts`; checkbox updated in Phase 25 (D-04/D-05).
 - [ ] **BUG-23**: KICK_OFF_SETUP shot-path hex shading clears correctly after a SNAPSHOT_DEFLECT goal — root cause investigation required; fix applied
 - [ ] **UX-15**: UX streamlining — any new issues identified during v1.3 playtesting addressed before milestone close
 
@@ -96,46 +96,46 @@
 
 ## Traceability
 
-| REQ-ID     | Phase | Status   | Notes                                                                  |
-| ---------- | ----- | -------- | ---------------------------------------------------------------------- |
-| LEAGUE-01  | 21    | Complete |                                                                        |
-| LEAGUE-02  | 21    | Complete |                                                                        |
-| LEAGUE-03  | 19    | Complete |                                                                        |
-| PALETTE-01 | 19    | Complete | D-08: field names evolved to 6-field home/away model; intent satisfied |
-| PALETTE-02 | 19    | Complete |                                                                        |
-| PALETTE-03 | 19    | Complete |                                                                        |
-| TEAM-07    | 19    | Complete |                                                                        |
-| TEAM-08    | 21    | Complete |                                                                        |
-| TEAM-09    | 21    | Complete |                                                                        |
-| TEAM-10    | 21    | Complete |                                                                        |
-| TEAM-11    | 21    | Complete |                                                                        |
-| INTL-01    | 21    | Complete |                                                                        |
-| INTL-02    | 21    | Complete |                                                                        |
-| INTL-03    | 21    | Complete |                                                                        |
-| INTL-04    | 21    | Complete |                                                                        |
-| INTL-05    | 21    | Complete |                                                                        |
-| INTL-06    | 21    | Complete |                                                                        |
-| UNIFORM-01 | 20    | Complete |                                                                        |
-| UNIFORM-02 | 22    | Complete |                                                                        |
-| UNIFORM-03 | 22    | Complete |                                                                        |
-| UNIFORM-04 | 22    | Complete |                                                                        |
-| UNIFORM-05 | 20    | Complete |                                                                        |
-| DATA-01    | 19    | Complete |                                                                        |
-| DATA-02    | 19    | Complete |                                                                        |
-| DATA-03    | 19    | Complete |                                                                        |
-| FORM-01    | 23    | Pending  |                                                                        |
-| FORM-02    | 23    | Pending  |                                                                        |
-| FORM-03    | 23    | Pending  |                                                                        |
-| FORM-04    | 23    | Pending  |                                                                        |
-| ASSIGN-01  | 24    | Complete |                                                                        |
-| ASSIGN-02  | 24    | Complete |                                                                        |
-| ASSIGN-03  | 24    | Complete |                                                                        |
-| ASSIGN-04  | 24    | Complete |                                                                        |
-| ASSIGN-05  | 24    | Complete |                                                                        |
-| OFFSIDE-01 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                        |
-| OFFSIDE-02 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                        |
-| REPLAY-07  | 25    | Pending  |                                                                        |
-| REPLAY-08  | 25    | Pending  |                                                                        |
-| BUG-22     | 25    | Pending  |                                                                        |
-| BUG-23     | 25    | Pending  |                                                                        |
-| UX-15      | 25    | Pending  |                                                                        |
+| REQ-ID     | Phase | Status   | Notes                                                                                       |
+| ---------- | ----- | -------- | ------------------------------------------------------------------------------------------- |
+| LEAGUE-01  | 21    | Complete |                                                                                             |
+| LEAGUE-02  | 21    | Complete |                                                                                             |
+| LEAGUE-03  | 19    | Complete |                                                                                             |
+| PALETTE-01 | 19    | Complete | D-08: field names evolved to 6-field home/away model; intent satisfied                      |
+| PALETTE-02 | 19    | Complete |                                                                                             |
+| PALETTE-03 | 19    | Complete |                                                                                             |
+| TEAM-07    | 19    | Complete |                                                                                             |
+| TEAM-08    | 21    | Complete |                                                                                             |
+| TEAM-09    | 21    | Complete |                                                                                             |
+| TEAM-10    | 21    | Complete |                                                                                             |
+| TEAM-11    | 21    | Complete |                                                                                             |
+| INTL-01    | 21    | Complete |                                                                                             |
+| INTL-02    | 21    | Complete |                                                                                             |
+| INTL-03    | 21    | Complete |                                                                                             |
+| INTL-04    | 21    | Complete |                                                                                             |
+| INTL-05    | 21    | Complete |                                                                                             |
+| INTL-06    | 21    | Complete |                                                                                             |
+| UNIFORM-01 | 20    | Complete |                                                                                             |
+| UNIFORM-02 | 22    | Complete |                                                                                             |
+| UNIFORM-03 | 22    | Complete |                                                                                             |
+| UNIFORM-04 | 22    | Complete |                                                                                             |
+| UNIFORM-05 | 20    | Complete |                                                                                             |
+| DATA-01    | 19    | Complete |                                                                                             |
+| DATA-02    | 19    | Complete |                                                                                             |
+| DATA-03    | 19    | Complete |                                                                                             |
+| FORM-01    | 23    | Pending  |                                                                                             |
+| FORM-02    | 23    | Pending  |                                                                                             |
+| FORM-03    | 23    | Pending  |                                                                                             |
+| FORM-04    | 23    | Pending  |                                                                                             |
+| ASSIGN-01  | 24    | Complete |                                                                                             |
+| ASSIGN-02  | 24    | Complete |                                                                                             |
+| ASSIGN-03  | 24    | Complete |                                                                                             |
+| ASSIGN-04  | 24    | Complete |                                                                                             |
+| ASSIGN-05  | 24    | Complete |                                                                                             |
+| OFFSIDE-01 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                                             |
+| OFFSIDE-02 | 25    | Pending  | Carried from v1.2; code implemented in Phase 17                                             |
+| REPLAY-07  | 25    | Pending  |                                                                                             |
+| REPLAY-08  | 25    | Pending  |                                                                                             |
+| BUG-22     | 25    | Complete | Fix shipped Phase 18.2: `carrierExclusionKey: 'highPassCarrierId'` at `gameHandlers.ts:405` |
+| BUG-23     | 25    | Pending  |                                                                                             |
+| UX-15      | 25    | Pending  |                                                                                             |

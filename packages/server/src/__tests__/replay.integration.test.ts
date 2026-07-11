@@ -718,6 +718,93 @@ describe('FULL_TIME → REPLAY stream', () => {
     expect(gkPuntFrame!.ball).toEqual({ position: puntTo, carrierId: puntReceiver.id });
   });
 
+  it('REPLAY-07: GK_KICK produces a visible replay frame with populated ballAfter', async () => {
+    // GK_KICK ball delivery must appear as a visible frame in post-game replay.
+    // Mirrors the HEADED_PASS case in REPLAY-06: seed eventLog with a GK_KICK carrying
+    // ballAfter, then assert buildReplayFrames yields a frame whose ball matches ballAfter.
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const gk = pieces.find((p) => p.role === 'GK' && p.teamId === 'home')!;
+    const receiver = pieces.find((p) => p.teamId === 'home' && p.id !== gk.id)!;
+    const kickTarget = { q: gk.position.q + 5, r: gk.position.r };
+    const laterMoveTo = { q: gk.position.q + 6, r: gk.position.r };
+
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'GK_KICK',
+          gkId: gk.id,
+          targetHex: kickTarget,
+          accurate: true,
+          kickDie: 5,
+          kickScore: 10,
+          timestamp: 1,
+          ballAfter: { position: kickTarget, carrierId: receiver.id },
+        },
+        {
+          type: 'MOVE',
+          pieceId: receiver.id,
+          from: kickTarget,
+          to: laterMoveTo,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: { position: laterMoveTo, carrierId: receiver.id },
+        },
+      ],
+    };
+
+    const frames = buildReplayFrames(room.gameState);
+    const gkKickFrame = frames.find(
+      (f) => f.ball.carrierId === receiver.id && f.ball.position.q === kickTarget.q,
+    );
+    expect(gkKickFrame).toBeDefined();
+    expect(gkKickFrame!.ball).toEqual({ position: kickTarget, carrierId: receiver.id });
+  });
+
+  it('REPLAY-08: LOOSE_BALL_LAND produces a visible replay frame with populated ballAfter', async () => {
+    // LOOSE_BALL_LAND scatter resolution must appear as a visible frame in post-game replay.
+    // Mirrors the GK_PUNT case in REPLAY-06: seed eventLog with a LOOSE_BALL_LAND carrying
+    // ballAfter (null carrier — genuine loose ball), assert the frame ball matches.
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const fromHex = pieces[0]!.position;
+    const landHex = { q: fromHex.q + 3, r: fromHex.r };
+    const laterMoveTo = { q: fromHex.q + 4, r: fromHex.r };
+    const mover = pieces[0]!;
+
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'LOOSE_BALL_LAND',
+          from: fromHex,
+          to: landHex,
+          timestamp: 1,
+          ballAfter: { position: landHex, carrierId: null },
+        },
+        {
+          type: 'MOVE',
+          pieceId: mover.id,
+          from: landHex,
+          to: laterMoveTo,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: { position: laterMoveTo, carrierId: mover.id },
+        },
+      ],
+    };
+
+    const frames = buildReplayFrames(room.gameState);
+    const looseBallFrame = frames.find(
+      (f) => f.ball.carrierId === null && f.ball.position.q === landHex.q,
+    );
+    expect(looseBallFrame).toBeDefined();
+    expect(looseBallFrame!.ball).toEqual({ position: landHex, carrierId: null });
+  });
+
   it('D-31: startReplayStream is triggered when FULL_TIME is reached via GAME_END_TURN', async () => {
     // This test seeds a room where the next GAME_END_TURN will produce FULL_TIME,
     // then verifies that REPLAY-phase frames are eventually emitted.

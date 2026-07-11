@@ -809,6 +809,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const targetHex = gkEndState.gkKickTargetHex!;
           const gkTeam = gkEndState.attackingTeam; // attackingTeam = GK's team throughout GK kick phases
 
+          // Resolve receiver before kickEvent construction so ballAfter.carrierId is populated
+          // (REPLAY-07 / D-09: receiver must be known at event construction, not post-hoc).
+          const receiver = accurate
+            ? gkEndState.pieces.find(
+                (p) =>
+                  p.teamId === gkTeam &&
+                  p.position.q === targetHex.q &&
+                  p.position.r === targetHex.r,
+              )
+            : null;
+
           const kickEvent: ActionEvent = {
             type: 'GK_KICK',
             gkId: gkEndState.gkKickGkId ?? '',
@@ -817,13 +828,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             kickDie,
             kickScore,
             timestamp: Date.now(),
+            ballAfter: { position: targetHex, carrierId: accurate ? (receiver?.id ?? null) : null },
           };
 
           if (accurate) {
-            const receiver = gkEndState.pieces.find(
-              (p) =>
-                p.teamId === gkTeam && p.position.q === targetHex.q && p.position.r === targetHex.r,
-            );
             room.gameState = {
               ...gkEndState,
               phase: 'PASS',
