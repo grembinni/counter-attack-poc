@@ -77,7 +77,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 22    | 3/3  | Complete     | 2026-07-05 |
 | 23    | 3/3  | Complete     | 2026-07-05 |
 | 24    | 4/4  | Complete     | 2026-07-10 |
-| 25    | 5/9  | In Progress  |            |
+| 25    | 9/9  | Complete     | 2026-07-11 |
 
 ---
 
@@ -247,7 +247,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 
   **Wave 2** _(blocked on Wave 1 — human UAT)_
 
-- [ ] 25-05-PLAN.md — OFFSIDE-01/02 + BUG-23 + UX-15 two-tab UAT closure checkpoints
+- [x] 25-05-PLAN.md — OFFSIDE-01/02 + BUG-23 + UX-15 two-tab UAT closure checkpoints
       **UI hint**: no
 
 ---
