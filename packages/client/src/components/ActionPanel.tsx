@@ -229,6 +229,18 @@ export function ActionPanel() {
   // Plan 25-06: FK_KICKER_CHOSEN and FK_STAGE_ADVANCE are slot boundaries in FREE_KICK_SETUP.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
+    // Bug-C (Phase 25 gap 25-07): canUndo must be false at the start of a MOVE slot when
+    // no moves have been committed yet. The event-log boundary approach (SLOT_ADVANCE / KICK_OFF)
+    // does not bound the start of every new MOVE phase (no boundary event exists between Team A's
+    // turn end and Team B's next MOVE phase start), so without this guard the button mistakenly
+    // shows as enabled, pointing at stale MOVE events from the previous team's turn.
+    // paceUsedByPieceId resets at each slot boundary (server-side), so an empty map means
+    // no moves have been committed in the current slot — Undo is impossible.
+    if (
+      (phase === 'MOVE' || phase === 'FREE_MOVE_ATTACK' || phase === 'FREE_MOVE_DEFENSE') &&
+      Object.keys(paceUsedByPieceId).length === 0
+    )
+      return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
