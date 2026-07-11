@@ -408,8 +408,8 @@ export const quarterHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pi
     patternDef: (
       <pattern
         id={`qh-${pieceId}`}
-        x={0}
-        y={0}
+        x={cx - R}
+        y={cy - R}
         width={period}
         height={period}
         patternUnits="userSpaceOnUse"
