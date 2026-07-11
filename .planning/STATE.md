@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Team Customization & Formation System
 status: executing
-stopped_at: Phase 25 UI-SPEC approved
-last_updated: '2026-07-11T11:14:03.601Z'
-last_activity: 2026-07-11 -- Phase 25 execution started
+stopped_at: Phase 25 Plan 05 UAT complete; Wave 3 gap plans 25-06/07/08/09 pending execution
+last_updated: '2026-07-11T12:00:00.000Z'
+last_activity: 2026-07-11 -- Phase 25 Plan 05 UAT completed; four Wave 3 gap plans created
 progress:
   total_phases: 7
   completed_phases: 6
@@ -19,9 +19,9 @@ progress:
 ## Current Position
 
 Phase: 25 (bug-uat-closure) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 25
-Last activity: 2026-07-11 -- Phase 25 execution started
+Plan: 5 of 9 complete (Wave 2 done; Wave 3 gap plans 06/07/08/09 pending)
+Status: Executing Phase 25 — Wave 3 gap plans ready
+Last activity: 2026-07-11 -- Plan 05 UAT complete; OFFSIDE-01 closed; BUG-23 escalated to Phase 26; gap plans 25-07/08/09 created
 
 Progress: [==========--] 86% (6/7 phases complete)
 
@@ -389,3 +389,8 @@ Resume: Plan Phase 24 (auto-assignment-lineup)
 - [Phase ?]: computeAutoAssignment: three-pass greedy (GK-lock→anchors→flex); ST excluded from FWD-wing bonus (literal D-04); pickBest shallow-copy sort for object-identity-safe splice
 - [Phase ?]: buildKickOffPieces NOT given confirmed-order params (Pitfall 8/A2): post-goal resets use getSquadPlayers default order
 - [Phase ?]: D-25 corrected: LINEUP_CONFIRM is a parallel both-confirm gate — either player may confirm first; awayPickedUniformStyle/JerseyType added to Room; D-12 per-socket privacy enforced
+- [Phase 25-05 UAT]: BUG-23 (stale shot-path shading at KICK_OFF_SETUP) not resolved by Plan 25-02 belt-and-suspenders guards — escalated to Phase 26 for console.log instrumentation-based root cause per D-15
+- [Phase 25-05 UAT]: D-19 selectedIsMoving decrement-on-selection (Plan 25-03 Task 3) is a net regression — counter should only change on committed move; Plan 25-07 reverts entirely; canUndo must also be gated on paceUsedByPieceId non-empty for MOVE phase
+- [Phase 25-05 UAT]: D-17 dominantBaseline='middle' (Plan 25-02) overcorrected from 'too low' to 'too high' — Plan 25-08 uses 'central' + dy='-0.5' as midpoint
+- [Phase 25-05 UAT]: Style 12 (quarterHorizontal) x=0, y=0 pattern origin is root cause of off-centre diagonal quarters — Plan 25-09 corrects to x=cx-R, y=cy-R (matching quarterDiagonal anchor)
+- [Phase 25-05 UAT]: OFFSIDE-01 closed (all three scenarios + stickiness/clear confirmed); OFFSIDE-02 not yet closed (free-kick step sequence redesign in Plan 25-06 required first)

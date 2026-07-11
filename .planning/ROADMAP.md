@@ -77,7 +77,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 22    | 3/3  | Complete     | 2026-07-05 |
 | 23    | 3/3  | Complete     | 2026-07-05 |
 | 24    | 4/4  | Complete     | 2026-07-10 |
-| 25    | 4/5  | In Progress  |            |
+| 25    | 5/9  | In Progress  |            |
 
 ---
 
