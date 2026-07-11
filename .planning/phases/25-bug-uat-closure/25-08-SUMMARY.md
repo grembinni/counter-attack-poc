@@ -100,5 +100,14 @@ None — no external service configuration required.
 
 ---
 
+## Self-Check: PASSED
+
+- SUMMARY.md: FOUND at `.planning/phases/25-bug-uat-closure/25-08-SUMMARY.md`
+- PieceOverlay.tsx: FOUND at `packages/client/src/components/PieceOverlay.tsx`
+- Task commit `5eb5ed5`: FOUND
+- Summary commit `e1d8650`: FOUND
+
+---
+
 _Phase: 25-bug-uat-closure_
 _Completed: 2026-07-11_
