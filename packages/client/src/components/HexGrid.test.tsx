@@ -567,11 +567,10 @@ describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkp
 });
 
 // ---------------------------------------------------------------------------
-// D-48: FREE_KICK_SETUP placement-zone highlight is PERSISTENT and GEOMETRIC — visible
-// for every pitch hex on every render during MY team's active stage, WITHOUT requiring
-// a piece to be selected first (corrects the prior D-45 fix, which was gated on
-// isValidMove/validMoveHexes and thus invisible until a piece was clicked). Uses the
-// light-blue 'kickoff' tint (rgba(59,130,246,1)), not the generic yellow 'safe' tint.
+// D-48: FREE_KICK_SETUP placement-zone highlight is GEOMETRIC (zone-based) but
+// SELECTION-GATED — only shown for the active player's valid destinations after a piece
+// is selected. Clears when the move commits and selection is reset. Uses the light-blue
+// 'kickoff' tint (rgba(59,130,246,1)), not the generic yellow 'safe' tint.
 // ---------------------------------------------------------------------------
 
 const KICKOFF_FILL = 'rgba(59,130,246,1)'; // HIGHLIGHT_STYLES.kickoff fill — see HexCell.tsx
@@ -621,14 +620,23 @@ describe('HexGrid — D-48: FREE_KICK_SETUP persistent geometric placement-zone 
     };
   }
 
-  it('stage 1 (defending = home, playerSlot 1): renders an ahead-of-zone hex with the kickoff fill WITHOUT any piece selected', () => {
+  it('stage 1 (defending = home, playerSlot 1): renders an ahead-of-zone hex with the kickoff fill once a piece is selected', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(1),
-      ...baseStoreState({ playerSlot: 1 }),
+      ...baseStoreState({ playerSlot: 1, selectedPieceId: 'home-9' }),
     });
     const { container } = render(<HexGrid />);
     // {q:30, r:13} is well outside the 2-hex zone around freeKickHex {q:25,r:13} — legal.
     expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(true);
+  });
+
+  it('stage 1 (defending = home, playerSlot 1): NO kickoff fill when no piece is selected', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(1),
+      ...baseStoreState({ playerSlot: 1, selectedPieceId: null }),
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(false);
   });
 
   it('stage 1 (defending = home): does NOT highlight a hex within the 2-hex zone', () => {
@@ -664,15 +672,25 @@ describe('HexGrid — D-48: FREE_KICK_SETUP persistent geometric placement-zone 
     expect(hasFillAtHex(container, KICKOFF_FILL, 1, 1)).toBe(false);
   });
 
-  it('stage 0 (kicking = away, playerSlot 2 = away ACTIVE this stage): away sees the unrestricted zone, including the 2-hex area', () => {
+  it('stage 0 (kicking = away, playerSlot 2 = away ACTIVE this stage): away sees the unrestricted zone once a piece is selected, including the 2-hex area', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(0),
-      ...baseStoreState({ playerSlot: 2 }),
+      ...baseStoreState({ playerSlot: 2, selectedPieceId: 'away-9' }),
     });
     const { container } = render(<HexGrid />);
     // D-29: kicking team has no zone restriction — even the 2-hex area is legal for them.
     expect(hasFillAtHex(container, KICKOFF_FILL, 25, 13)).toBe(true);
     expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(true);
+  });
+
+  it('stage 0 (kicking = away, playerSlot 2): NO kickoff fill when no piece is selected', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(0),
+      ...baseStoreState({ playerSlot: 2, selectedPieceId: null }),
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasFillAtHex(container, KICKOFF_FILL, 25, 13)).toBe(false);
+    expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(false);
   });
 });
 

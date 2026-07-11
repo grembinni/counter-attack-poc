@@ -265,9 +265,11 @@ export function HexGrid() {
 
   const isInMyFreeKickZone = (hex: HexCoord): boolean => {
     if (!myFreeKickStageActive) return false;
-    // Suppress zone tinting during kicker-select sub-step — the ball hex is the only
-    // relevant destination and gets its own white highlight (isKickerTargetTint).
+    // Suppress during kicker-select: that step has its own white ball-hex highlight.
     if (freeKickKickerChosen === false) return false;
+    // Suppress until a piece is selected — blue only shows for the selected piece's
+    // valid destinations, and clears automatically when the move commits.
+    if (selectedPieceId === null) return false;
     if (isMyFreeKickKickingStage || !freeKickHex) return true;
     // D-30: conceding team's stages must stay >2 hexes from freeKickHex.
     return hexDistance(hex, freeKickHex) > 2;
