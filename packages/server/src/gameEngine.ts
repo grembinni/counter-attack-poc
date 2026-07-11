@@ -3981,7 +3981,10 @@ export type ApplyFreeKickMoveResult =
         | 'WRONG_TEAM'
         | 'PLACEMENT_LIMIT_REACHED'
         | 'KICKER_NOT_YET_PLACED'
-        | 'PIECE_LOCKED';
+        | 'PIECE_LOCKED'
+        // Plan 25-06: kicker-select sub-step error codes.
+        | 'WRONG_PIECE' // non-kicking-team piece selected during kicker-select sub-step
+        | 'KICKER_PLACEMENT_REQUIRED'; // destination is not freeKickHex during kicker-select
     }
   | { ok: true; state: GameState };
 
@@ -4048,6 +4051,41 @@ export function applyFreeKickMove(
     return { ok: false, reason: 'WRONG_TEAM' };
   }
 
+  // Plan 25-06: kicker-select sub-step — fires when freeKickKickerChosen is explicitly false
+  // (the kicking-team must place their kicker on freeKickHex before any other setup moves).
+  // When freeKickKickerChosen is true or null/undefined (states created before this fix,
+  // treated as already chosen), the existing stage-gated placement logic runs unchanged.
+  if (state.freeKickKickerChosen === false) {
+    // Only kicking-team pieces may be selected during kicker-select.
+    if (piece.teamId !== kickingTeam) {
+      return { ok: false, reason: 'WRONG_PIECE' };
+    }
+    // Destination must be freeKickHex.
+    if (to.q !== freeKickHex.q || to.r !== freeKickHex.r) {
+      return { ok: false, reason: 'KICKER_PLACEMENT_REQUIRED' };
+    }
+    // Valid kicker placement: move piece to freeKickHex, emit FK_KICKER_CHOSEN event,
+    // set freeKickKickerChosen: true, lock kicker in movedPieceIds (D-54 — permanent,
+    // doesn't consume the stage budget).
+    const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+    const kickerChosenEvent: ActionEvent = {
+      type: 'FK_KICKER_CHOSEN',
+      kickerPieceId: pieceId,
+      hex: freeKickHex,
+      timestamp: Date.now(),
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        pieces: newPieces,
+        movedPieceIds: [...state.movedPieceIds, pieceId],
+        freeKickKickerChosen: true,
+        eventLog: [...state.eventLog, kickerChosenEvent],
+      },
+    };
+  }
+
   const stage = FREE_KICK_STAGES[stageIndex];
   const activeTeamForStage = freeKickStageTeam(stageIndex, kickingTeam);
   if (piece.teamId !== activeTeamForStage) {
@@ -4062,20 +4100,26 @@ export function applyFreeKickMove(
   }
 
   // D-54: mandatory kicker-first placement — kicking-team stages only (0 and 2).
+  // With freeKickKickerChosen now tracked explicitly, this guard is a no-op when
+  // freeKickKickerChosen === true (kicker already placed via the kicker-select sub-step above).
+  // For backward-compat states where freeKickKickerChosen is null/undefined, the original
+  // hex-scan check still fires as a fallback.
   if (stage.side === 'kicking') {
-    const kickerAlreadyPlaced = state.pieces.some(
-      (p) =>
-        p.teamId === kickingTeam &&
-        p.position.q === freeKickHex.q &&
-        p.position.r === freeKickHex.r,
-    );
+    const kickerAlreadyPlaced =
+      state.freeKickKickerChosen === true ||
+      state.pieces.some(
+        (p) =>
+          p.teamId === kickingTeam &&
+          p.position.q === freeKickHex.q &&
+          p.position.r === freeKickHex.r,
+      );
     if (!kickerAlreadyPlaced) {
       const movingOntoFreeKickHex = to.q === freeKickHex.q && to.r === freeKickHex.r;
       if (!movingOntoFreeKickHex) {
         return { ok: false, reason: 'KICKER_NOT_YET_PLACED' };
       }
-      // Kicker placement: free, mandatory, doesn't consume the stage budget — locks
-      // directly into movedPieceIds (permanent), not freeKickPlacedPieceIds.
+      // Kicker placement fallback (backward compat — freeKickKickerChosen is null/undefined):
+      // doesn't consume the stage budget — locks directly into movedPieceIds.
       const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
       // BUG-18 (Phase 18.3): log FK_SETUP_MOVE so applyUndo can reverse kicker placement.
       const kickerPlaceEvent: ActionEvent = {
@@ -4229,11 +4273,23 @@ export function applyFreeKickReady(
 
   // All checks passed for this stage — advance or finalize.
   if (stageIndex < 3) {
+    // Plan 25-06: emit FK_STAGE_ADVANCE as a stage boundary event so applyUndo
+    // cannot reach across stage boundaries (FK_STAGE_ADVANCE acts as a slot boundary).
+    const stageAdvanceEvent: ActionEvent = {
+      type: 'FK_STAGE_ADVANCE',
+      fromStageIndex: stageIndex as 0 | 1 | 2,
+      timestamp: Date.now(),
+    };
     return {
       ok: true,
       state: {
         ...state,
         freeKickStageIndex: (stageIndex + 1) as 0 | 1 | 2 | 3,
+        // Plan 25-06: reset kicker-select flag for stage 2 (kicking team again) so the
+        // client can detect we're back in "regular placement" mode.  The kicker is already
+        // locked in movedPieceIds from stage 0, so the kicker-select sub-step does not
+        // re-fire — freeKickKickerChosen stays true after stage 0.
+        eventLog: [...state.eventLog, stageAdvanceEvent],
         freeKickPlacedPieceIds: [],
         movedPieceIds: mergedMovedPieceIds,
       },
@@ -4258,6 +4314,8 @@ export function applyFreeKickReady(
       freeKickAttackingTeam: null,
       freeKickStageIndex: null,
       freeKickPlacedPieceIds: null,
+      // Plan 25-06: clear kicker-select flag on exit.
+      freeKickKickerChosen: null,
       // D-43/D-47: a major dead-ball restart clears ALL offside flags, not just the
       // original offender's.
       offsidePieceIds: [],

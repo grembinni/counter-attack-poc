@@ -218,9 +218,12 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     activeTeam: otherTeam,
     ball: { position: offender.position, carrierId: null },
     offsidePieceIds: flagged.filter((id) => id !== offenderId),
-    // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 5).
+    // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 4).
     freeKickStageIndex: 0,
     freeKickPlacedPieceIds: [],
+    // Plan 25-06: kicker-select sub-step — kicking team must place a piece on freeKickHex
+    // before any other repositioning moves are legal (see applyFreeKickMove).
+    freeKickKickerChosen: false,
     // D-54/D-56: movedPieceIds is repurposed during free-kick setup to permanently lock
     // the kicker (D-54) and each stage's placed pieces (D-56) using the SAME generic
     // 'activated' rendering mechanism MOVEMENT/MOVE-06 already use. Since the foul can
