@@ -169,12 +169,11 @@
   gap: 2px 4px;
 }
 
-/* Each chip: abbr and bubble grouped tightly left */
+/* Each chip: abbr left-aligned, bubble right-aligned — 3rd column bubble lands under #n */
 .statChip {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
+  justify-content: space-between;
   cursor: default;
 }
 
