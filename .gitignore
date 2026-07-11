@@ -3,6 +3,7 @@ dist/
 *.tsbuildinfo
 .DS_Store
 *.log
+*.err
 # Environment variable files — never commit any .env variant
 .env
 .env.*
