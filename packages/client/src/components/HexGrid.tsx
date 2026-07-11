@@ -88,7 +88,6 @@ export function HexGrid() {
   // CURRENT free-kick stage's placement cap — drives the green "moved this stage" ring.
   const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
   // Plan 25-06: kicker-select sub-step gate — suppresses eligible ring during kicker selection.
-  const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
 
   // Phase 8.2: pass target highlight slices (D-06, D-09)
   const validPassTargetHexes = useGameStore((s) => s.validPassTargetHexes);
@@ -797,13 +796,11 @@ export function HexGrid() {
                   : movedPieceIds.includes(piece.id);
             // Plan 25-06: eligible ring for FREE_KICK_SETUP repositioning stages.
             // An eligible piece is one that: (a) belongs to the currently-active stage's team,
-            // (b) is NOT permanently locked in movedPieceIds, (c) has NOT already been placed
-            // this stage, and (d) is past the kicker-select sub-step.
-            // Suppressed during kicker-select (freeKickKickerChosen === false) per task 5 spec.
+            // (b) is NOT permanently locked in movedPieceIds, and (c) has NOT already been placed
+            // this stage. Shown during kicker-select too so users can see which pieces to click.
             const isFreeKickEligible =
               phase === 'FREE_KICK_SETUP' &&
               myFreeKickStageActive &&
-              freeKickKickerChosen !== false &&
               piece.teamId === activeTeamForStage &&
               !movedPieceIds.includes(piece.id) &&
               !(freeKickPlacedPieceIds ?? []).includes(piece.id);

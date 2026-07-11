@@ -455,6 +455,22 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       }
       const isKickingTeam = myTeam === kickingTeam;
       const freeKickHex = gameState.freeKickHex;
+
+      // D-54 kicker-select sub-step: the only valid destination is the ball hex (freeKickHex).
+      // Restricting to one hex ensures the valid-move highlight is visible over the D-48 zone
+      // tint and matches server enforcement (applyFreeKickMove rejects non-freeKickHex moves).
+      if (gameState.freeKickKickerChosen === false) {
+        if (!freeKickHex) {
+          set({ selectedPieceId: null, validMoveHexes: [] });
+          return;
+        }
+        const fkOccupied = gameState.pieces.some(
+          (p) => p.id !== id && p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
+        );
+        set({ selectedPieceId: id, validMoveHexes: fkOccupied ? [] : [freeKickHex] });
+        return;
+      }
+
       const valid = PITCH_HEXES.filter((hex) => {
         // Exclude hexes occupied by another own piece (can't stack)
         if (
