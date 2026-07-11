@@ -40,6 +40,8 @@ export function App() {
   const [lineupAssignment, setLineupAssignment] = useState<string[] | null>(null);
   const [lineupConfirmed, setLineupConfirmed] = useState(false);
   const [myFormationId, setMyFormationId] = useState<FormationId | null>(null);
+  // Phase 24: own confirmed team — set on UNIFORM_CONFIRM so lineup screen has correct badge
+  const [myConfirmedTeamId, setMyConfirmedTeamId] = useState<TeamId | null>(null);
 
   useEffect(() => {
     function onGameState(state: GameState) {
@@ -186,6 +188,7 @@ export function App() {
     formationId: FormationId,
     jerseyType: 'home' | 'away',
   ) {
+    setMyConfirmedTeamId(teamId);
     socket.emit(ClientEvents.UNIFORM_CONFIRM, teamId, uniformStyle, formationId, jerseyType);
   }
 
@@ -209,6 +212,7 @@ export function App() {
           assignment={lineupAssignment!}
           formationId={myFormationId!}
           playerSlot={playerSlot!}
+          myTeamId={myConfirmedTeamId!}
           onSwap={handleLineupSwap}
           onConfirm={handleLineupConfirm}
           lineupConfirmed={lineupConfirmed}

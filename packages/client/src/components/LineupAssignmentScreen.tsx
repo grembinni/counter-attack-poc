@@ -33,6 +33,8 @@ type Props = {
   formationId: FormationId;
   /** Server-assigned slot: 1 = home, 2 = visitor. */
   playerSlot: 1 | 2;
+  /** The player's own confirmed team ID — passed from App.tsx to avoid stale store default. */
+  myTeamId: TeamId;
   /** Called when the player drops a card onto another — emits LINEUP_SWAP to server. */
   onSwap: (slotIndexA: number, slotIndexB: number) => void;
   /** Called when the player clicks Confirm Lineup — emits LINEUP_CONFIRM to server. */
@@ -145,6 +147,7 @@ export function LineupAssignmentScreen({
   assignment,
   formationId,
   playerSlot,
+  myTeamId,
   onSwap,
   onConfirm,
   lineupConfirmed,
@@ -152,9 +155,6 @@ export function LineupAssignmentScreen({
   const currentPlayerLabel = playerSlot === 1 ? 'HOME' : 'VISITOR';
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
   const isActiveNow = !lineupConfirmed;
-
-  const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
-  const myTeamId = playerSlot === 1 ? selectedTeams.home : selectedTeams.away;
 
   // D-19/D-22: drag state is local — never in Zustand (Pitfall 7)
   const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
