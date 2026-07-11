@@ -211,7 +211,7 @@ export function GameBoard() {
           {displayPiece ? (
             <div className={styles.playerCardFlat}>
               {/* Left: team badge */}
-              <TeamBadge teamId={selectedTeams[displayPiece.teamId]} size={32} full />
+              <TeamBadge teamId={selectedTeams[displayPiece.teamId]} size={48} />
               {/* Right: name/flag/role header + 2-row stat chips */}
               <div className={styles.playerCardBody}>
                 <div className={styles.playerCardHeader}>

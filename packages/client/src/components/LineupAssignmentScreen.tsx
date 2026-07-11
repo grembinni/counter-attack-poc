@@ -103,7 +103,7 @@ function LineupStatCard({
       onDragEnd={onDragEnd}
     >
       {/* Flat layout: [TeamBadge] [name/flag/role header + stat chips] */}
-      <TeamBadge teamId={teamId} size={28} full />
+      <TeamBadge teamId={teamId} size={48} />
       <div className={styles.cardBody}>
         {/* Header: name · [flag · role · #n] */}
         <div className={styles.cardHeader}>
