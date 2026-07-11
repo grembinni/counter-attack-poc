@@ -254,8 +254,9 @@ export function PieceOverlay({
       <text
         x={cx}
         y={cy}
+        dy="-0.5"
         textAnchor="middle"
-        dominantBaseline="middle"
+        dominantBaseline="central"
         fontSize={15}
         fontWeight={700}
         fill={numberColor}
