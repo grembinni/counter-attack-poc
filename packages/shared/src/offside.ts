@@ -29,10 +29,15 @@ export const OFFSIDE_HALFWAY_Q = PITCH_REGIONS.kickOffHex.q;
  *    Defending team picks up and places 5 players. (4 for any field player, 1 spot for goalie)
  *    Attacking team picks up and places 3 players.
  *    Defending team picks up and places 2 players."
+ *
+ * Plan 25-06 correction: Stage 0 (kicking) and Stage 1 (defending) max reduced from 5 to 4.
+ * The "1 spot for goalie" from the rulebook text is the kicker — a dedicated prior step
+ * (freeKickKickerChosen sub-step) places the kicker on freeKickHex outside the budget.
+ * The 4-move stage covers only field-player repositioning. Stage 2 and 3 are unchanged.
  */
 export const FREE_KICK_STAGES = [
-  { side: 'kicking', max: 5 },
-  { side: 'defending', max: 5 },
+  { side: 'kicking', max: 4 },
+  { side: 'defending', max: 4 },
   { side: 'kicking', max: 3 },
   { side: 'defending', max: 2 },
 ] as const;
@@ -213,9 +218,12 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     activeTeam: otherTeam,
     ball: { position: offender.position, carrierId: null },
     offsidePieceIds: flagged.filter((id) => id !== offenderId),
-    // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 5).
+    // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 4).
     freeKickStageIndex: 0,
     freeKickPlacedPieceIds: [],
+    // Plan 25-06: kicker-select sub-step — kicking team must place a piece on freeKickHex
+    // before any other repositioning moves are legal (see applyFreeKickMove).
+    freeKickKickerChosen: false,
     // D-54/D-56: movedPieceIds is repurposed during free-kick setup to permanently lock
     // the kicker (D-54) and each stage's placed pieces (D-56) using the SAME generic
     // 'activated' rendering mechanism MOVEMENT/MOVE-06 already use. Since the foul can

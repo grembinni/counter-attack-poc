@@ -91,7 +91,13 @@ export type ActionEventType =
   // BUG-18 (Phase 18.3): move event types for newly Undo-enabled phases. Required so
   // applyUndo can locate and reverse a piece's most recent move in each phase.
   | 'SNAP_DEFLECT_MOVE' // SNAPSHOT_DEFLECT: defender repositions up to 2 hexes
-  | 'FK_SETUP_MOVE'; // FREE_KICK_SETUP: team repositions a piece during staged setup
+  | 'FK_SETUP_MOVE' // FREE_KICK_SETUP: team repositions a piece during staged setup
+  // Plan 25-06: kicker selection and stage-advance boundary events for FREE_KICK_SETUP.
+  // FK_KICKER_CHOSEN fires once when the kicker is placed on freeKickHex (stage 0 entry).
+  // FK_STAGE_ADVANCE fires at each inter-stage transition (applyFreeKickReady stageIndex < 3).
+  // Both act as slot boundaries for applyUndo — see applyUndo boundary scan.
+  | 'FK_KICKER_CHOSEN' // kicker placement confirmed; undo boundary for FREE_KICK_SETUP
+  | 'FK_STAGE_ADVANCE'; // inter-stage transition; undo boundary for FREE_KICK_SETUP
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -352,6 +358,20 @@ export type ActionEvent =
       pieceId: string;
       from: HexCoord;
       to: HexCoord;
+      timestamp: number;
+    }
+  // Plan 25-06: boundary events for FREE_KICK_SETUP undo gating.
+  | {
+      /** Kicker placement confirmed — marks the end of the kicker-select sub-step. */
+      type: 'FK_KICKER_CHOSEN';
+      kickerPieceId: string;
+      hex: HexCoord;
+      timestamp: number;
+    }
+  | {
+      /** Inter-stage transition — marks the end of one repositioning stage. */
+      type: 'FK_STAGE_ADVANCE';
+      fromStageIndex: 0 | 1 | 2;
       timestamp: number;
     };
 
@@ -706,6 +726,20 @@ export type GameState = {
    * triggerOffsideFoul). null outside FREE_KICK_SETUP.
    */
   freeKickPlacedPieceIds?: readonly string[] | null;
+  /**
+   * Plan 25-06 (OFFSIDE-02 fix): kicker-select sub-step gate.
+   * null  — outside FREE_KICK_SETUP.
+   * false — FREE_KICK_SETUP entered; kicking team must place a piece on freeKickHex
+   *          before any other repositioning moves are legal.
+   * true  — kicker has been placed on freeKickHex; normal 4-move repositioning
+   *          stages proceed.
+   *
+   * Initialized to false by triggerOffsideFoul; set to true when the first
+   * FK_KICKER_CHOSEN event is emitted; cleared to null at FREE_KICK_SETUP exit.
+   * Uses `?: boolean | null` (matching the optional pattern of other freeKick fields)
+   * so existing spread patterns do not break.
+   */
+  freeKickKickerChosen?: boolean | null;
   /**
    * MOVE-06 (Phase 17, corrected design D-36): snapshots the phase and activeTeam that
    * were already computed as "next" by the action that triggered the free-move sequence
