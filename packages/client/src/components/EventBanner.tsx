@@ -4,29 +4,42 @@ import { useGameStore } from '../store/useGameStore.js';
 import styles from './EventBanner.module.css';
 
 /**
- * Maps a qualifying ActionEvent to its banner message and variant.
+ * Maps a qualifying ActionEvent to its banner message, variant, and display duration.
  * Returns null when the event does not warrant a banner.
  *
  * Qualifying events (UX-14):
- *   GOAL                           -> 'GOOOOOAL!!!'          (goal variant)
- *   STEAL_ATTEMPT result=SUCCESS   -> 'INTERCEPTION!!'       (notable variant)
- *   TACKLE_ATTEMPT result=SUCCESS  -> 'Tackle! Turnover!'    (notable variant)
- *   LOOSE_BALL_LAND                -> 'Loose Ball.'          (notable variant)
+ *   GOAL                           -> 'GOOOOOAL!!!'          (goal variant,    1000ms)
+ *   STEAL_ATTEMPT result=SUCCESS   -> 'INTERCEPTION!!'       (notable variant, 1000ms)
+ *   TACKLE_ATTEMPT result=SUCCESS  -> 'Tackle! Turnover!'    (notable variant, 1000ms)
+ *   LOOSE_BALL_LAND                -> 'Loose Ball.'          (notable variant, 1000ms)
+ *   HP_ACCURACY accurate=true      -> 'Accurate Pass!'       (notable variant, 1500ms)
+ *   HP_ACCURACY accurate=false     -> 'Loose Ball!'          (notable variant, 1500ms)
  */
 function getBannerMessage(
   event: ActionEvent,
-): { message: string; variant: 'goal' | 'notable' } | null {
+): { message: string; variant: 'goal' | 'notable'; duration: number } | null {
   if (event.type === 'GOAL') {
-    return { message: 'GOOOOOAL!!!', variant: 'goal' };
+    return { message: 'GOOOOOAL!!!', variant: 'goal', duration: 1000 };
   }
   if (event.type === 'STEAL_ATTEMPT' && event.result === 'SUCCESS') {
-    return { message: 'INTERCEPTION!!', variant: 'notable' };
+    return { message: 'INTERCEPTION!!', variant: 'notable', duration: 1000 };
   }
   if (event.type === 'TACKLE_ATTEMPT' && event.result === 'SUCCESS') {
-    return { message: 'Tackle! Turnover!', variant: 'notable' };
+    return { message: 'Tackle! Turnover!', variant: 'notable', duration: 1000 };
   }
   if (event.type === 'LOOSE_BALL_LAND') {
-    return { message: 'Loose Ball.', variant: 'notable' };
+    return { message: 'Loose Ball.', variant: 'notable', duration: 1000 };
+  }
+  // D-20 (Phase 25): pass accuracy result notification — replaces push-button confirmation.
+  // Exact wording from user specification: 'Accurate Pass!' or 'Loose Ball!'.
+  // Holds for 1500ms (longer than other banners) to give players time to register the result
+  // before the game auto-advances to the header contestant selection.
+  if (event.type === 'HP_ACCURACY') {
+    return {
+      message: event.accurate ? 'Accurate Pass!' : 'Loose Ball!',
+      variant: 'notable',
+      duration: 1500,
+    };
   }
   return null;
 }
@@ -49,9 +62,11 @@ export function EventBanner() {
   // the same event on unrelated re-renders (D-03 lastPieceRef pattern).
   const lastProcessedLengthRef = useRef<number>(eventLog.length);
 
-  const [active, setActive] = useState<{ message: string; variant: 'goal' | 'notable' } | null>(
-    null,
-  );
+  const [active, setActive] = useState<{
+    message: string;
+    variant: 'goal' | 'notable';
+    duration: number;
+  } | null>(null);
 
   // Diff-and-trigger: runs in an effect on eventLog change so setActive is
   // never called during render. The ref is advanced even when no banner fires
@@ -68,13 +83,15 @@ export function EventBanner() {
     }
   }, [eventLog]);
 
-  // Auto-dismiss timer: clear the banner after 1000ms (100ms in + 800ms hold + 100ms out).
-  // The CSS animation handles the visual fade; this clears the DOM element entirely.
+  // Auto-dismiss timer: clear the banner after the variant-specific duration.
+  // HP_ACCURACY uses 1500ms (D-20 / UX-15); all other events use 1000ms.
+  // The `animationDuration` inline style keeps the CSS bannerFade animation aligned with the
+  // timer so the fade-out completes at the same moment the DOM element is removed.
   useEffect(() => {
     if (active === null) return;
     const timerId = setTimeout(() => {
       setActive(null);
-    }, 1000);
+    }, active.duration);
     return () => {
       clearTimeout(timerId);
     };
@@ -87,6 +104,7 @@ export function EventBanner() {
       role="status"
       aria-live="assertive"
       className={`${styles.banner} ${active.variant === 'goal' ? styles.goal : styles.notable}`}
+      style={{ animationDuration: `${active.duration}ms` }}
     >
       {active.message}
     </div>
