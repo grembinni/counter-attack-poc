@@ -76,7 +76,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 | 21    | 2/2               | Complete                                         | 2026-07-04  |
 | 22    | 3/3               | Complete                                         | 2026-07-05  |
 | 23    | 3/3               | Complete                                         | 2026-07-05  |
-| 24    | 3/4               | In Progress                                      |             |
+| 24    | 4/4               | Complete                                         | 2026-07-10  |
 | 25    | Bug & UAT Closure | OFFSIDE-01..02, REPLAY-07..08, BUG-22..23, UX-15 | Not started |
 
 ---
@@ -235,9 +235,20 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
 2. Two-tab live session confirms the free-kick restart flow triggers on possession gain and deflect, placement rules are correct, and the restricted action set is enforced (OFFSIDE-02 UAT checkpoint formally closed)
 3. GK_KICK and LOOSE_BALL_LAND delivery moves are visible in post-game replay; the ball marker updates correctly at the frames where these events occur
 4. HIGH_PASS_MOVE no longer allows the original high-pass carrier to reposition onto the pass target hex; behavior matches the FIRST_TIME_PASS_MOVE fix from Phase 17.1
-5. KICK_OFF_SETUP shot-path hex shading clears correctly after a SNAPSHOT_DEFLECT goal; no stale highlights remain at kickoff
-   **Plans**: TBD
-   **UI hint**: no
+5. KICK*OFF_SETUP shot-path hex shading clears correctly after a SNAPSHOT_DEFLECT goal; no stale highlights remain at kickoff
+   **Plans**: 5 plans
+   Plans:
+   **Wave 1** *(parallel — no file overlap)\_
+
+- [ ] 25-01-PLAN.md — REPLAY-07/08 ballAfter + REPLAY_ELIGIBLE_TYPES + regression tests; BUG-22 doc closure (shared/server)
+- [ ] 25-02-PLAN.md — BUG-23 shot-path/shotTargetHighlight guards + UX-15 player-number centering + Style 12/13 swap (client render)
+- [ ] 25-03-PLAN.md — UX-15 pass-result popup (EventBanner) + HEADER auto-advance + eligible counter (ActionPanel)
+- [ ] 25-04-PLAN.md — UX-15 uniform-selection clearing bug (investigation-first fix in App.tsx/UniformSelectionScreen.tsx)
+
+  **Wave 2** _(blocked on Wave 1 — human UAT)_
+
+- [ ] 25-05-PLAN.md — OFFSIDE-01/02 + BUG-23 + UX-15 two-tab UAT closure checkpoints
+      **UI hint**: no
 
 ---
 
