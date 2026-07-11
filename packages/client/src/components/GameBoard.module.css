@@ -108,8 +108,8 @@
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  width: auto;
-  max-width: 280px;
+  min-width: 260px;
+  max-width: 300px;
 }
 
 .playerCardBody {
@@ -167,7 +167,7 @@
   display: grid;
   grid-template-columns: repeat(3, auto);
   justify-content: space-between;
-  row-gap: 2px;
+  row-gap: 4px;
 }
 
 /* Chip stays tight: [PAC●] as a pair; spacing comes from grid justify-content */

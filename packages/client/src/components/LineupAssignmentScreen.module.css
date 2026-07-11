@@ -122,7 +122,8 @@
 /* ─── Stat card — flat format matching GameBoard/PlayerStatsPanel ───────────
    Row layout: [TeamBadge 32px] [.cardBody: header + stat chips]            */
 
-.statCard {
+/* Base shared card shape — min-width keeps all cards the same size regardless of player name */
+.statCardBase {
   background: #16213e;
   border: 1px solid #0f3460;
   border-radius: 4px;
@@ -131,6 +132,11 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
+  min-width: 200px;
+}
+
+.statCard {
+  composes: statCardBase;
   cursor: grab;
   user-select: none;
   transition:
@@ -140,27 +146,13 @@
 }
 
 .statCardLocked {
-  background: #16213e;
-  border: 1px solid #0f3460;
-  border-radius: 4px;
-  padding: 6px 8px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
+  composes: statCardBase;
   opacity: 0.7;
   cursor: default;
 }
 
 .statCardConfirmed {
-  background: #16213e;
-  border: 1px solid #0f3460;
-  border-radius: 4px;
-  padding: 6px 8px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
+  composes: statCardBase;
   opacity: 0.85;
   cursor: default;
 }
@@ -240,7 +232,7 @@
   display: grid;
   grid-template-columns: repeat(3, auto);
   justify-content: space-between;
-  row-gap: 2px;
+  row-gap: 3px;
 }
 
 /* Chip stays tight: [PAC●] as a pair; spacing comes from grid justify-content */
