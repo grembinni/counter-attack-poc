@@ -116,7 +116,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
    Plans:
    **Wave 1**
 
-- [ ] 26-01-PLAN.md — BUG-24: scope Undo to current phase/FREE_KICK_SETUP stage (server regression + client canUndo guard)
+- [x] 26-01-PLAN.md — BUG-24: scope Undo to current phase/FREE_KICK_SETUP stage (server regression + client canUndo guard)
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -217,7 +217,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 | 23. Formation System           | v1.3      | 3/3            | Complete    | 2026-07-05 |
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
-| 26. Bug Fixes                  | v1.4      | 0/3            | Planned     | -          |
+| 26. Bug Fixes                  | v1.4      | 1/3            | In Progress |            |
 | 27. Response Activation Model  | v1.4      | 0/?            | Not started | -          |
 | 28. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
 | 29. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
