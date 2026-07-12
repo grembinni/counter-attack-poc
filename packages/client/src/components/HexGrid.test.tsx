@@ -836,7 +836,12 @@ function spentPieceMoveState() {
   };
 }
 
-/** Finds the base circle (r === PIECE_RADIUS) for a piece at the given axial coordinates. */
+/** Finds the base circle (r === PIECE_RADIUS) for a piece at the given axial coordinates.
+ *
+ * Excludes circles inside <defs> elements (clip-path defs for some uniform styles such as
+ * bar-diagonal create a clip circle at (cx, cy, r=R) that matches the search criteria but
+ * has no onClick handler — this guard ensures we find only the interactive base circle).
+ */
 function findBasePieceCircle(
   container: HTMLElement,
   q: number,
@@ -845,6 +850,7 @@ function findBasePieceCircle(
   const { cx, cy } = axialToPixel(q, r);
   return Array.from(container.querySelectorAll<SVGCircleElement>('circle')).find(
     (c) =>
+      c.closest('defs') === null &&
       Number(c.getAttribute('r')) === PIECE_RADIUS_BASE &&
       Number(c.getAttribute('cx')) === cx &&
       Number(c.getAttribute('cy')) === cy,
@@ -957,6 +963,84 @@ describe('HexGrid — BUG-10: clicking a spent own-team piece in MOVE opens its 
     // selectPiece was called: piece is selected with move targets computed
     expect(selectedPieceId).toBe(UNMOVED_ID);
     expect(validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-26: clicking an opponent's activated (already-moved) piece in MOVE must
+// open its stats card via inspectPiece (selectedPieceId set, validMoveHexes empty).
+// The BUG-10 branch only fires for own-team pieces; opponent activated pieces
+// previously fell through to the () => undefined fallback. The new BUG-26 branch
+// adds a movedPieceIds check without a teamId constraint — because canSelect is
+// already false for non-active-team pieces, no erroneous selectPiece can fire.
+//
+// Test piece: away-9 at {q:22,r:13} in mockMovementState (opponent FWD 2).
+// playerSlot=1 → home is active, away-9 is an opponent piece.
+// ---------------------------------------------------------------------------
+const OPPONENT_PIECE_ID = 'away-9';
+const OPPONENT_PIECE_POS = { q: 22, r: 13 };
+
+describe('HexGrid — BUG-26: clicking an opponent activated piece opens its stats card', () => {
+  it('clicking an opponent piece in movedPieceIds calls inspectPiece (selectedPieceId set, validMoveHexes empty)', () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      movedPieceIds: [OPPONENT_PIECE_ID], // opponent piece already activated
+      paceUsedByPieceId: {},
+    };
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home is active player
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+
+    // away-9 is activated (selectionState === 'activated') so PieceOverlay fires onClick,
+    // which now resolves to () => inspectPiece('away-9') via the new BUG-26 branch.
+    const pieceCircle = findBasePieceCircle(container, OPPONENT_PIECE_POS.q, OPPONENT_PIECE_POS.r);
+    expect(pieceCircle).toBeDefined();
+    fireEvent.click(pieceCircle!);
+
+    const { selectedPieceId, validMoveHexes } = useGameStore.getState();
+    // inspectPiece was called: piece is now inspected (stats card shown)
+    expect(selectedPieceId).toBe(OPPONENT_PIECE_ID);
+    // selectPiece was NOT called: no valid move hexes computed
+    expect(validMoveHexes).toEqual([]);
+  });
+
+  it('clicking an opponent piece NOT in movedPieceIds also opens stats (via onInspect — existing path)', () => {
+    // Non-activated opponent pieces have selectionState === 'none' → PieceOverlay fires
+    // onInspect directly (bypassing handleClick). This verifies no regression — unmoved
+    // opponent pieces still open their stats card, just via a different code path.
+    const state = {
+      ...mockMovementState,
+      phase: 'MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      movedPieceIds: [], // opponent piece NOT activated
+      paceUsedByPieceId: {},
+    };
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+
+    const pieceCircle = findBasePieceCircle(container, OPPONENT_PIECE_POS.q, OPPONENT_PIECE_POS.r);
+    expect(pieceCircle).toBeDefined();
+    fireEvent.click(pieceCircle!);
+
+    const { selectedPieceId, validMoveHexes } = useGameStore.getState();
+    // onInspect fires for selectionState=none pieces — inspectPiece is still called
+    expect(selectedPieceId).toBe(OPPONENT_PIECE_ID);
+    expect(validMoveHexes).toEqual([]);
   });
 });
 

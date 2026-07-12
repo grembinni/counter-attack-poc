@@ -889,7 +889,15 @@ export function HexGrid() {
                                       piece.teamId === myTeam &&
                                       movedPieceIds.includes(piece.id)
                                     ? () => inspectPiece(piece.id)
-                                    : () => undefined;
+                                    : // BUG-26: clicking an opponent's activated (already-moved)
+                                      // piece opens its stats panel via inspectPiece. The
+                                      // canSelect guard above already excludes opponent pieces
+                                      // from selectPiece, so no erroneous selection occurs.
+                                      // No piece.teamId === myTeam constraint is needed here —
+                                      // this branch fires only after canSelect is false.
+                                      movedPieceIds.includes(piece.id)
+                                      ? () => inspectPiece(piece.id)
+                                      : () => undefined;
 
             return (
               <PieceOverlay
