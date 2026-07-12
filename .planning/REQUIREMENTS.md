@@ -19,12 +19,12 @@
 
 ### Bug Fixes (BUG)
 
-- [ ] **BUG-24**: Undo is restricted to moves made in the current phase — undo from a previous turn is not possible; undo button is disabled if no moves have been taken in the current phase or if all moves in the current phase have already been undone
-- [ ] **BUG-25**: The Move End Turn button is yellow while move options remain; it becomes green only when all move options are exhausted
-- [ ] **BUG-26**: Clicking an opponent's activated player opens the stats panel for that player
-- [ ] **BUG-27**: Deflection log entry uses correct format (e.g. `failed to deflect — [reason]`)
-- [ ] **BUG-28**: Header duel resolves to a valid goal-side target hex when attacker wins
-- [ ] **BUG-29**: Standard shot range validation uses the correct distance calculation to determine whether a shot is in range
+- [x] **BUG-24**: Undo is restricted to moves made in the current phase — undo from a previous turn is not possible; undo button is disabled if no moves have been taken in the current phase or if all moves in the current phase have already been undone
+- [x] **BUG-25**: The Move End Turn button is yellow while move options remain; it becomes green only when all move options are exhausted
+- [x] **BUG-26**: Clicking an opponent's activated player opens the stats panel for that player
+- [x] **BUG-27**: Deflection log entry uses correct format (e.g. `failed to deflect — [reason]`)
+- [x] **BUG-28**: Header duel resolves to a valid goal-side target hex when attacker wins
+- [x] **BUG-29**: Standard shot range validation uses the correct distance calculation to determine whether a shot is in range
 
 ### Draft Mode (DRAFT)
 
@@ -63,33 +63,33 @@
 
 ## Traceability
 
-| Requirement | Phase    | Status  |
-| ----------- | -------- | ------- |
-| BUG-24      | Phase 26 | Pending |
-| BUG-25      | Phase 26 | Pending |
-| BUG-26      | Phase 26 | Pending |
-| BUG-27      | Phase 26 | Pending |
-| BUG-28      | Phase 26 | Pending |
-| BUG-29      | Phase 26 | Pending |
-| RESP-01     | Phase 27 | Pending |
-| RESP-02     | Phase 27 | Pending |
-| RESP-03     | Phase 27 | Pending |
-| RESP-04     | Phase 27 | Pending |
-| RESP-05     | Phase 27 | Pending |
-| RESP-06     | Phase 27 | Pending |
-| RESP-07     | Phase 27 | Pending |
-| RESP-08     | Phase 27 | Pending |
-| RESP-09     | Phase 27 | Pending |
-| DRAFT-01    | Phase 28 | Pending |
-| DRAFT-02    | Phase 28 | Pending |
-| DRAFT-03    | Phase 28 | Pending |
-| DRAFT-04    | Phase 29 | Pending |
-| DRAFT-05    | Phase 29 | Pending |
-| DRAFT-06    | Phase 30 | Pending |
-| DRAFT-07    | Phase 30 | Pending |
-| DRAFT-08    | Phase 30 | Pending |
-| DRAFT-09    | Phase 30 | Pending |
-| DRAFT-10    | Phase 30 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| BUG-24      | Phase 26 | Complete |
+| BUG-25      | Phase 26 | Complete |
+| BUG-26      | Phase 26 | Complete |
+| BUG-27      | Phase 26 | Complete |
+| BUG-28      | Phase 26 | Complete |
+| BUG-29      | Phase 26 | Complete |
+| RESP-01     | Phase 27 | Pending  |
+| RESP-02     | Phase 27 | Pending  |
+| RESP-03     | Phase 27 | Pending  |
+| RESP-04     | Phase 27 | Pending  |
+| RESP-05     | Phase 27 | Pending  |
+| RESP-06     | Phase 27 | Pending  |
+| RESP-07     | Phase 27 | Pending  |
+| RESP-08     | Phase 27 | Pending  |
+| RESP-09     | Phase 27 | Pending  |
+| DRAFT-01    | Phase 28 | Pending  |
+| DRAFT-02    | Phase 28 | Pending  |
+| DRAFT-03    | Phase 28 | Pending  |
+| DRAFT-04    | Phase 29 | Pending  |
+| DRAFT-05    | Phase 29 | Pending  |
+| DRAFT-06    | Phase 30 | Pending  |
+| DRAFT-07    | Phase 30 | Pending  |
+| DRAFT-08    | Phase 30 | Pending  |
+| DRAFT-09    | Phase 30 | Pending  |
+| DRAFT-10    | Phase 30 | Pending  |
 
 **Coverage:**
 
