@@ -722,3 +722,51 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
     expect((undo as HTMLButtonElement).disabled).toBe(false);
   });
 });
+
+// BUG-25: MOVE End Turn button color must use ctaButtonClass(remaining) —
+// pending (orange) while move options remain, ready (green) when slot is exhausted.
+describe('ActionPanel — BUG-25: MOVE End Turn button color driven by ctaButtonClass', () => {
+  it('End Turn button has pending class when remaining > 0 (not all players moved)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    // ctaButtonClass(remaining=4) returns styles.ctaButtonPending
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('End Turn button has ready class when remaining <= 0 (all slot players moved)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        // All 4 pieces locked: movedPieceIds + paceUsedByPieceId satisfy remaining=0
+        movedPieceIds: ['home-9', 'home-8', 'home-7', 'home-6'],
+        paceUsedByPieceId: {
+          'home-9': 99,
+          'home-8': 99,
+          'home-7': 99,
+          'home-6': 99,
+        },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    // ctaButtonClass(remaining=0) returns styles.ctaButtonReady
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+});

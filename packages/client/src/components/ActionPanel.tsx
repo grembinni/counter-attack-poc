@@ -978,7 +978,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaButtonClass(remaining ?? 0)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(remaining ?? 0, emitEndTurn)}
         >
