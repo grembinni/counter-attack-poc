@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: — Team Customization & Formation System
-status: completed
-stopped_at: Phase 25 complete — milestone v1.3 all 7 phases done, UAT 3/3 passed
-last_updated: '2026-07-12T03:37:10.518Z'
+milestone: v1.4
+milestone_name: — (not yet defined)
+status: planning
+stopped_at: v1.3 archived 2026-07-12 — ready for /gsd-new-milestone to start v1.4
+last_updated: '2026-07-12T00:00:00.000Z'
 last_activity: 2026-07-12
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 27
-  completed_plans: 27
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 19
-Plan: Not started
-Status: Milestone v1.3 complete — ready for /gsd-complete-milestone
+Phase: —
+Plan: —
+Status: v1.3 archived 2026-07-12 — milestone complete; ready to plan v1.4
 Last activity: 2026-07-12
 
-Progress: [============] 100% (7/7 phases complete)
+Progress: [············] 0% (v1.4 not yet started — run /gsd-new-milestone)
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-05)
+See: .planning/PROJECT.md (updated 2026-07-11 after Phase 25)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Milestone v1.3 complete — run /gsd-complete-milestone to archive and start v1.4
+**Current focus:** v1.4 planning — run `/gsd-new-milestone` to define requirements and roadmap
 
 ## Phase Status
 

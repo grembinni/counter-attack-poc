@@ -61,4 +61,67 @@
 
 ---
 
-_Next milestone: not yet defined. Run `/gsd-new-milestone` to start v1.2._
+## v1.2 Team Identity & Core Fixes — Complete (2026-07-03)
+
+**Tagline:** Four named teams with badge PNGs and jersey patterns, CSV-seeded rosters with team-selection lobby, 28 rule/bug fixes, and 8 UX enhancements including game speed, end-turn dialog, EventBanner, and final-third markers.
+
+**Scope:** 9 sub-phases (15–18.4), 52 plans, 326 files changed, +60,174 / -2,235 lines. 2026-06-13 → 2026-07-03 (20 days).
+
+**Requirements:** 48/50 v1.2 requirements satisfied. Known deferred at close: OFFSIDE-01/02 (human UAT checkpoints not closed — deferred to Phase 25).
+
+**Known deferred items at close:** 19 (see STATE.md Deferred Items — quick tasks with missing/unknown artifact status, Phase 13 browser UAT items, OFFSIDE-01/02 UAT, GK_KICK replay, KO shading, HP exclusion).
+
+### Key Accomplishments
+
+1. **Four named teams (Phase 15)** — Cozmos, Xolos, City, Crew with badge PNGs, outfield + GK jersey patterns (SVG), TEAM_CONFIGS color system as single source of truth across board, scoreboard, action log, and stats panel. 15 new tests.
+
+2. **CSV-seeded rosters + team-selection lobby (Phase 16)** — CSV → `seed-rosters.ts` generates `HOME_SQUAD`/`AWAY_SQUAD` with 9 attributes per player; player card redesign with compact stats grid; full pre-match team-selection lobby (home picks first, away locked until home confirms). 13 new tests.
+
+3. **Rule correctness sweep + offside detection (Phase 17)** — 7 rule-correctness defects fixed (BUG-01..05, MOVE-06, PASS-02); offside detection with sticky `offsidePieceIds`, team-relative boundary, D-22 clear-path clearing; FREE_MOVE phase after GK kick; 22 new server + client tests.
+
+4. **v1.4.1 action model alignment (Phase 17.1)** — 16 plans across 5 verification cycles: GamePhase rename (PASS→ACTION), aerial stat rename (heading→aerialAbility), ZoI steal/tackle exclusion unification, FIRST_TIME_PASS_MOVE sub-phase, computeLooseBall cube-coordinate rewrite, GK restart FREE_MOVE, self-pass exclusion (`firstTimePassCarrierId`). 72-case regression matrix.
+
+5. **Messaging + logging convention sweep (Phases 18/18.1/18.2)** — ActionLog format unification (TACKLE/STEAL/SHOT/SAVE parity), HEADED_PASS/GK_PUNT events + replay frames, duplicate-logic consolidation, dead-code removal. DESIGN-01..04 satisfied.
+
+6. **Bug-bash + UX overhaul (Phases 18.3/18.4)** — 16 bug-bash fixes (BUG-06..21) across movement state machine, client UX, and rule correctness; 8 UX enhancements (game speed selector, end-turn confirmation dialog, final-third boundary markers, stat tooltips, transient EventBanner with CSS fade, KICK_OFF_SETUP helper copy).
+
+### Archives
+
+- [Roadmap archive](v1.2-ROADMAP.md) — full phase details and plan checklists
+- [Requirements archive](v1.2-REQUIREMENTS.md) — all requirements with final status
+
+---
+
+## v1.3 Team Customization & Formation System — Complete (2026-07-11)
+
+**Tagline:** 12 real-league teams (6 MLS + 6 International) with full visual identities; 18-style uniform selection; 4 dynamic formations with stat-driven auto-assignment and player swap; OFFSIDE-01/02 UAT formally closed; FREE_KICK_SETUP redesigned.
+
+**Scope:** 7 phases (19–25), 27 plans, 156 files changed, +11,602 / -2,375 lines. 2026-07-03 → 2026-07-11 (9 days).
+
+**Requirements:** 40/41 v1.3 requirements satisfied.
+
+**Known Gaps at close:**
+
+- BUG-23: KICK_OFF_SETUP shot-path hex shading persists after SNAPSHOT_DEFLECT goal — root cause unresolved; escalated to Phase 26 (v1.4 tech debt)
+
+**Known deferred items at close:** None beyond BUG-23 (acknowledged as v1.4 tech debt in PROJECT.md).
+
+### Key Accomplishments
+
+1. **12-team library — MLS + International (Phases 19–21)** — 6 MLS + 6 International selectable teams; all 10 new teams have 4-color palettes, badge files, default uniform styles, and seeded 11-player squads from PLAYER_POOL; Xolos/Cozmos retired to color-scheme registry; global PLAYER_POOL (178 players) decoupled from team definitions; two-tab TeamSelectionScreen with auto-switch and struck-out cross-player feedback.
+
+2. **18-style parameterized uniform system (Phases 20, 22)** — PieceOverlay rewritten to accept `{ uniformStyle, palette, isGK }` (all hardcoded per-team SVG patterns removed); 18 named styles in UNIFORM_STYLES registry; UniformSelectionScreen with 2×9 tile grid; home-first confirmation gate (away locked with WRONG_TURN until home confirms); away sees awayPrime/awayAlt on tiles; mix-blend-mode:multiply removes white PNG backgrounds.
+
+3. **4 dynamic formations + selection screen (Phase 23)** — 4-4-2, 5-3-2, 4-3-3, 3-4-3 in FORMATIONS table; FormationSelectionScreen on UniformSelectionScreen with mini pitch diagrams; both-player confirmation gate emitting BOTH_FORMATIONS_CONFIRMED; pieces placed at formation hex coordinates with symmetric away mirror (q = 36 − home_q).
+
+4. **Stat-driven auto-assignment + lineup swap (Phase 24)** — computeAutoAssignment 3-pass greedy (GK-lock→anchors→flex) using D-04 stat weights; LineupAssignmentScreen with 4-column stat-card grid and HTML5 drag-swap; GK slot locked server-side; parallel both-confirm gate; pieces positioned at confirmed formation coordinates at KICK_OFF_SETUP.
+
+5. **OFFSIDE-01/02 UAT closure + FREE_KICK_SETUP redesign (Phase 25)** — OFFSIDE-01 formally closed (all three scenarios + stickiness + clear confirmed); FREE_KICK_SETUP 6-step sequence redesigned (kicker-select → 4 repositioning stages → confirm) enabling OFFSIDE-02 UAT closure; GK_KICK + LOOSE_BALL_LAND ball delivery visible in post-game replay (REPLAY-07/08); jersey number vertical centering fixed; Style 12 SVG pattern origin corrected.
+
+6. **Bug & regression closure (Phase 25)** — selectedIsMoving decrement-on-selection regression reverted (Plan 25-07); EventBanner pass-result popup added (Plan 25-03); uniform-selection race condition fixed (Plan 25-04); HIGH_PASS_MOVE carrier exclusion confirmed applied (BUG-22 doc closure).
+
+### Archives
+
+- [Roadmap archive](v1.3-ROADMAP.md) — full phase details and plan checklists
+- [Requirements archive](v1.3-REQUIREMENTS.md) — all 41 requirements with final status (40/41 satisfied)
+- [Milestone audit](v1.3-MILESTONE-AUDIT.md) — audit run at phases 3/7 (passed)
