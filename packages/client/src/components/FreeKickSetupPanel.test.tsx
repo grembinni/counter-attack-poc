@@ -157,7 +157,7 @@ describe('FreeKickSetupPanel — D-54 mandatory kicker-first placement (supersed
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /end turn/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByText(/kicker: placed and locked/i)).toBeDefined();
+    expect(screen.queryByText(/kicker/i)).toBeNull();
   });
 
   it('stage 2 (kicking, second kicking turn): End Turn is ENABLED when the kicker was already locked at stage 0 (carries forward in movedPieceIds)', () => {
@@ -167,7 +167,7 @@ describe('FreeKickSetupPanel — D-54 mandatory kicker-first placement (supersed
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /end turn/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByText(/kicker: placed and locked/i)).toBeDefined();
+    expect(screen.queryByText(/kicker/i)).toBeNull();
   });
 
   it('stage 2: End Turn is DISABLED in the (abnormal) case where movedPieceIds has no kicking-team piece locked', () => {
@@ -225,7 +225,7 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /end turn/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByText(/defending zone: clear/i)).toBeDefined();
+    expect(screen.queryByText(/defending zone/i)).toBeNull();
   });
 
   it('stage 3 (last defending turn): the same 2-hex constraint applies and the button reads "End Turn"', () => {
