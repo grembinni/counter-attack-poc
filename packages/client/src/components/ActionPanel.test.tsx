@@ -543,3 +543,104 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
     expect(screen.getByRole('button', { name: /standard pass/i })).toBeDefined();
   });
 });
+
+// Plan 25-06: FREE_KICK_SETUP dedicated ActionPanel block
+// Requirement: OFFSIDE-02 — kicker-select sub-step, stage counter, Undo/End Turn gating
+const freeKickBase = {
+  ...mockMovementState,
+  phase: 'FREE_KICK_SETUP' as const,
+  activeTeam: 'home' as const,
+  freeKickHex: { q: 25, r: 13 },
+  freeKickAttackingTeam: 'home' as const,
+  freeKickStageIndex: 0 as const,
+  freeKickPlacedPieceIds: [] as string[],
+  freeKickKickerChosen: false,
+  lastDiceRoll: null,
+};
+
+describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
+  it('kicking team sees kicker-select prompt when freeKickKickerChosen is false', () => {
+    useGameStore.setState({ gameState: freeKickBase, playerSlot: 1 });
+    render(<ActionPanel />);
+    expect(screen.getByText('Free Kick')).toBeDefined();
+    expect(screen.getByText(/Select your kicker/i)).toBeDefined();
+  });
+
+  it('defending team sees waiting panel during kicker-select sub-step (stage 0)', () => {
+    // Stage 0 = kicking team's stage; away player (slot 2) must wait
+    useGameStore.setState({ gameState: freeKickBase, playerSlot: 2 });
+    render(<ActionPanel />);
+    expect(screen.getByText("Opponent's Turn")).toBeDefined();
+  });
+
+  it('kicking team sees stage counter and Undo/End Turn when freeKickKickerChosen is true', () => {
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        freeKickPlacedPieceIds: ['home-9'],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    // Stage 0 max=4; 1 placed → 3 remaining
+    expect(screen.getByText(/3 of 4 players left to reposition/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /undo/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+  });
+
+  it('home team sees waiting panel during defending stage (stage 1)', () => {
+    // Stage 1 = defending team's stage; home (kicking) player (slot 1) must wait
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        freeKickStageIndex: 1 as const,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText("Opponent's Turn")).toBeDefined();
+  });
+
+  it('Undo is disabled when no FK_SETUP_MOVE follows the last FK_KICKER_CHOSEN boundary', () => {
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        eventLog: [
+          { type: 'FK_KICKER_CHOSEN', pieceId: 'home-9', hex: { q: 25, r: 13 }, timestamp: 0 },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Undo is enabled when a FK_SETUP_MOVE follows the last FK_KICKER_CHOSEN boundary', () => {
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        freeKickPlacedPieceIds: ['home-8'],
+        eventLog: [
+          { type: 'FK_KICKER_CHOSEN', pieceId: 'home-9', hex: { q: 25, r: 13 }, timestamp: 0 },
+          {
+            type: 'FK_SETUP_MOVE',
+            pieceId: 'home-8',
+            from: { q: 22, r: 9 },
+            to: { q: 23, r: 9 },
+            timestamp: 1,
+            ballAfter: { position: { q: 25, r: 13 }, carrierId: null },
+          },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
+});
