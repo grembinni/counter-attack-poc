@@ -4,6 +4,7 @@ type: todo
 area: free-kick
 created: 2026-07-11
 source: Phase 25 UAT
+resolves_phase: 26
 ---
 
 # FREE_KICK_SETUP: Undo not implemented

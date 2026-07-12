@@ -4,6 +4,7 @@ created: 2026-07-03
 source: user-request
 phase_context: post-19
 priority: low
+resolves_phase: 29
 ---
 
 # Idea: Consolidate all CSV files into a single player-pool.csv
