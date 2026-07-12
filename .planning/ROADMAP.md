@@ -49,17 +49,17 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 <details>
 <summary>✅ v1.2 Team Identity & Core Fixes (Phases 15–18.4) — SHIPPED 2026-07-03</summary>
 
-| Phase | Name                                  | Plans | Completed  |
-| ----- | ------------------------------------- | ----- | ---------- |
-| 15    | Team Identity                         | 3/3   | 2026-06-13 |
-| 16    | Player Roster & Team Selection        | 4/4   | 2026-06-14 |
-| 17    | Rule Bugs                             | 6/6   | 2026-06-21 |
-| 17.1  | Action Flow Cleanup (INSERTED)        | 16/16 | 2026-06-20 |
-| 18    | Messaging & Logging Consistency       | 3/3   | 2026-07-02 |
-| 18.1  | Replay Review (INSERTED)              | 2/2   | 2026-06-21 |
-| 18.2  | Code Cleanup & Dup-Bugs (INSERTED)    | 6/6   | 2026-06-22 |
-| 18.3  | Bug-Bash: Rule Correctness (INSERTED) | 5/5   | 2026-07-02 |
-| 18.4  | UX Enhancements (INSERTED)            | 7/7   | 2026-07-02 |
+| Phase | Name                               | Plans    | Completed  |
+| ----- | ---------------------------------- | -------- | ---------- |
+| 15    | Team Identity                      | 3/3      | 2026-06-13 |
+| 16    | Player Roster & Team Selection     | 4/4      | 2026-06-14 |
+| 17    | Rule Bugs                          | 6/6      | 2026-06-21 |
+| 17.1  | Action Flow Cleanup (INSERTED)     | 16/16    | 2026-06-20 |
+| 18    | Messaging & Logging Consistency    | 3/3      | 2026-07-02 |
+| 18.1  | Replay Review (INSERTED)           | 2/2      | 2026-06-21 |
+| 18.2  | Code Cleanup & Dup-Bugs (INSERTED) | 6/6      | 2026-06-22 |
+| 18.3  | 5/5                                | Complete | 2026-07-12 |
+| 18.4  | UX Enhancements (INSERTED)         | 7/7      | 2026-07-02 |
 
 Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requirements](milestones/v1.2-REQUIREMENTS.md)
 
