@@ -2,73 +2,73 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Team Customization & Formation System
-status: executing
-stopped_at: Phase 25 UI-SPEC approved
-last_updated: '2026-07-11T16:41:18.392Z'
-last_activity: 2026-07-11 -- Phase 25 execution started
+status: complete
+stopped_at: Phase 25 complete — all 7 phases done; v1.3 milestone ready to close
+last_updated: '2026-07-11T19:30:00.000Z'
+last_activity: 2026-07-11 -- Phase 25 UAT passed (3/3); milestone v1.3 complete
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 27
-  completed_plans: 23
-  percent: 85
+  completed_phases: 7
+  total_plans: 32
+  completed_plans: 32
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 25 (bug-uat-closure) — EXECUTING
-Plan: 1 of 9
-Status: Executing Phase 25
-Last activity: 2026-07-11 -- Phase 25 execution started
+Phase: 25 (bug-uat-closure) — COMPLETE
+Plan: 9 of 9
+Status: Milestone v1.3 complete — ready for /gsd-complete-milestone
+Last activity: 2026-07-11 -- Phase 25 UAT passed (3/3); milestone v1.3 complete
 
-Progress: [==========--] 86% (6/7 phases complete)
+Progress: [============] 100% (7/7 phases complete)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 25 — bug-uat-closure
+**Current focus:** Milestone v1.3 complete — run /gsd-complete-milestone to archive and start v1.4
 
 ## Phase Status
 
-| Phase | Name                                       | Status      | Completed  |
-| ----- | ------------------------------------------ | ----------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types           | Complete    | 2026-05-28 |
-| 2     | Move Validator + Unit Tests                | Complete    | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold   | Complete    | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                    | Complete    | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches    | Complete    | 2026-05-30 |
-| 6     | React Hex Grid Renderer                    | Complete    | 2026-05-31 |
-| 7     | Client-Server Integration                  | Complete    | 2026-06-03 |
-| 7.1   | UI Cleanup                                 | Complete    | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay         | Complete    | 2026-06-05 |
-| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete    | 2026-06-05 |
-| 8.2   | Passing Cleanup                            | Complete    | 2026-06-07 |
-| 9     | Render Deployment                          | Complete    | 2026-06-08 |
-| 10    | Remaining Action Flows + Tech Debt         | Complete    | 2026-06-11 |
-| 11    | Rule Correctness                           | Complete    | 2026-06-12 |
-| 12    | Visual Token & Hex Layer                   | Complete    | 2026-06-12 |
-| 13    | Layout & Clock                             | Complete    | 2026-06-12 |
-| 14    | Kick Off Rules & Replay                    | Complete    | 2026-06-12 |
-| 15    | Team Identity                              | Complete    | 2026-06-13 |
-| 16    | Player Roster & Team Selection             | Complete    | 2026-06-14 |
-| 17    | Rule Bugs                                  | Complete    | 2026-06-21 |
-| 17.1  | Action Flow Cleanup                        | Complete    | 2026-06-20 |
-| 18    | Messaging & Logging Consistency            | Complete    | 2026-07-02 |
-| 18.1  | Replay Review                              | Complete    | 2026-06-21 |
-| 18.2  | Code Cleanup & Dup-Bugs                    | Complete    | 2026-06-22 |
-| 18.3  | Bug-Bash: Rule Correctness                 | Complete    | 2026-07-02 |
-| 18.4  | UX Enhancements                            | Complete    | 2026-07-02 |
-| 19    | Data Model & Team Palette                  | Complete    | 2026-07-03 |
-| 20    | Uniform Style System                       | Complete    | 2026-07-04 |
-| 21    | New Teams (MLS + International)            | Complete    | 2026-07-04 |
-| 22    | Uniform Selection Screen                   | Complete    | 2026-07-05 |
-| 23    | Formation System                           | Complete    | 2026-07-05 |
-| 24    | Auto-Assignment & Lineup                   | Complete    | 2026-07-10 |
-| 25    | Bug & UAT Closure                          | Not started | —          |
+| Phase | Name                                       | Status   | Completed  |
+| ----- | ------------------------------------------ | -------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types           | Complete | 2026-05-28 |
+| 2     | Move Validator + Unit Tests                | Complete | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold   | Complete | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                    | Complete | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches    | Complete | 2026-05-30 |
+| 6     | React Hex Grid Renderer                    | Complete | 2026-05-31 |
+| 7     | Client-Server Integration                  | Complete | 2026-06-03 |
+| 7.1   | UI Cleanup                                 | Complete | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay         | Complete | 2026-06-05 |
+| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
+| 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
+| 9     | Render Deployment                          | Complete | 2026-06-08 |
+| 10    | Remaining Action Flows + Tech Debt         | Complete | 2026-06-11 |
+| 11    | Rule Correctness                           | Complete | 2026-06-12 |
+| 12    | Visual Token & Hex Layer                   | Complete | 2026-06-12 |
+| 13    | Layout & Clock                             | Complete | 2026-06-12 |
+| 14    | Kick Off Rules & Replay                    | Complete | 2026-06-12 |
+| 15    | Team Identity                              | Complete | 2026-06-13 |
+| 16    | Player Roster & Team Selection             | Complete | 2026-06-14 |
+| 17    | Rule Bugs                                  | Complete | 2026-06-21 |
+| 17.1  | Action Flow Cleanup                        | Complete | 2026-06-20 |
+| 18    | Messaging & Logging Consistency            | Complete | 2026-07-02 |
+| 18.1  | Replay Review                              | Complete | 2026-06-21 |
+| 18.2  | Code Cleanup & Dup-Bugs                    | Complete | 2026-06-22 |
+| 18.3  | Bug-Bash: Rule Correctness                 | Complete | 2026-07-02 |
+| 18.4  | UX Enhancements                            | Complete | 2026-07-02 |
+| 19    | Data Model & Team Palette                  | Complete | 2026-07-03 |
+| 20    | Uniform Style System                       | Complete | 2026-07-04 |
+| 21    | New Teams (MLS + International)            | Complete | 2026-07-04 |
+| 22    | Uniform Selection Screen                   | Complete | 2026-07-05 |
+| 23    | Formation System                           | Complete | 2026-07-05 |
+| 24    | Auto-Assignment & Lineup                   | Complete | 2026-07-10 |
+| 25    | Bug & UAT Closure                          | Complete | 2026-07-11 |
 
 ## Blocking Dependencies
 
@@ -258,9 +258,9 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-11T03:06:43.180Z
-Stopped at: Phase 25 UI-SPEC approved
-Resume: Plan Phase 24 (auto-assignment-lineup)
+Last session: 2026-07-11T19:30:00.000Z
+Stopped at: Phase 25 complete — milestone v1.3 all 7 phases done, UAT 3/3 passed
+Resume: /gsd-complete-milestone v1.3
 
 ## Performance Metrics
 

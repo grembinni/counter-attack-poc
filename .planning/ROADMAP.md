@@ -221,7 +221,7 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
   **Wave 2** _(blocked on Wave 1)_
 
 - [x] 24-03-PLAN.md — Server flow: Room assignment/confirm fields, restructure away-confirm branch to emit LINEUP_ASSIGNMENT_READY, LINEUP_SWAP (GK-lock + range + team-gate) and LINEUP_CONFIRM (parallel both-confirm gate → buildInitialGameState) handlers + integration tests
-- [ ] 24-04-PLAN.md — Client: LineupAssignmentScreen (4-column stat-card grid + HTML5 drag-swap + bench + confirm) + STAT_LABELS export + 'LINEUP_ASSIGNMENT' screen + App.tsx wiring + browser UAT
+- [x] 24-04-PLAN.md — Client: LineupAssignmentScreen (4-column stat-card grid + HTML5 drag-swap + bench + confirm) + STAT_LABELS export + 'LINEUP_ASSIGNMENT' screen + App.tsx wiring + browser UAT
       **UI hint**: yes
 
 ### Phase 25: Bug & UAT Closure
@@ -248,44 +248,51 @@ Full archive: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · [Requi
   **Wave 2** _(blocked on Wave 1 — human UAT)_
 
 - [x] 25-05-PLAN.md — OFFSIDE-01/02 + BUG-23 + UX-15 two-tab UAT closure checkpoints
+
+  **Wave 3** _(gap plans from Plan 05 UAT)_
+
+- [x] 25-06-PLAN.md — FREE_KICK_SETUP step sequence redesign: kicker select, stage max 4, undo boundary (OFFSIDE-02)
+- [x] 25-07-PLAN.md — Revert D-19 selectedIsMoving decrement-on-selection regression
+- [x] 25-08-PLAN.md — Jersey number vertical centering: dominantBaseline='central' + dy='-0.5'
+- [x] 25-09-PLAN.md — Style 12 (quarterHorizontal) pattern origin fix: x={cx-R} y={cy-R}
       **UI hint**: no
 
 ---
 
 ## Progress
 
-| Phase                          | Milestone | Plans Complete | Status      | Completed  |
-| ------------------------------ | --------- | -------------- | ----------- | ---------- |
-| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator              | v1.0      | 4/4            | Complete    | 2026-05-29 |
-| 3. Server Room Manager         | v1.0      | 3/3            | Complete    | 2026-05-29 |
-| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver               | v1.0      | 4/4            | Complete    | 2026-05-30 |
-| 6. React Hex Grid              | v1.0      | 3/3            | Complete    | 2026-05-31 |
-| 7. Client-Server Integration   | v1.0      | 4/4            | Complete    | 2026-06-03 |
-| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle             | v1.0      | 8/8            | Complete    | 2026-06-05 |
-| 8.1. Cleanup                   | v1.0      | 3/3            | Complete    | 2026-06-05 |
-| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete    | 2026-06-07 |
-| 9. Render Deployment           | v1.0      | 2/2            | Complete    | 2026-06-08 |
-| 10. Remaining Flows            | v1.0      | 5/5            | Complete    | 2026-06-11 |
-| 11. Rule Correctness           | v1.1      | 4/4            | Complete    | 2026-06-12 |
-| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete    | 2026-06-12 |
-| 13. Layout & Clock             | v1.1      | 3/3            | Complete    | 2026-06-12 |
-| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete    | 2026-06-12 |
-| 15. Team Identity              | v1.2      | 3/3            | Complete    | 2026-06-13 |
-| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete    | 2026-06-14 |
-| 17. Rule Bugs                  | v1.2      | 6/6            | Complete    | 2026-06-21 |
-| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete    | 2026-06-20 |
-| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-07-02 |
-| 18.1. Replay Review            | v1.2      | 2/2            | Complete    | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete    | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete    | 2026-07-02 |
-| 18.4. UX Enhancements          | v1.2      | 7/7            | Complete    | 2026-07-02 |
-| 19. Data Model & Team Palette  | v1.3      | 0/3            | Not started | —          |
-| 20. Uniform Style System       | v1.3      | 0/3            | Not started | —          |
-| 21. New Teams (MLS + Intl)     | v1.3      | 0/2            | Not started | —          |
-| 22. Uniform Selection Screen   | v1.3      | 0/?            | Not started | —          |
-| 23. Formation System           | v1.3      | 3/3            | Complete    | 2026-07-05 |
-| 24. Auto-Assignment & Lineup   | v1.3      | 1/4            | In Progress | —          |
-| 25. Bug & UAT Closure          | v1.3      | 0/?            | Not started | —          |
+| Phase                          | Milestone | Plans Complete | Status   | Completed  |
+| ------------------------------ | --------- | -------------- | -------- | ---------- |
+| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete | 2026-05-28 |
+| 2. Move Validator              | v1.0      | 4/4            | Complete | 2026-05-29 |
+| 3. Server Room Manager         | v1.0      | 3/3            | Complete | 2026-05-29 |
+| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete | 2026-05-30 |
+| 5. Dice Resolver               | v1.0      | 4/4            | Complete | 2026-05-30 |
+| 6. React Hex Grid              | v1.0      | 3/3            | Complete | 2026-05-31 |
+| 7. Client-Server Integration   | v1.0      | 4/4            | Complete | 2026-06-03 |
+| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete | 2026-06-04 |
+| 8. Match Lifecycle             | v1.0      | 8/8            | Complete | 2026-06-05 |
+| 8.1. Cleanup                   | v1.0      | 3/3            | Complete | 2026-06-05 |
+| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete | 2026-06-07 |
+| 9. Render Deployment           | v1.0      | 2/2            | Complete | 2026-06-08 |
+| 10. Remaining Flows            | v1.0      | 5/5            | Complete | 2026-06-11 |
+| 11. Rule Correctness           | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 13. Layout & Clock             | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 15. Team Identity              | v1.2      | 3/3            | Complete | 2026-06-13 |
+| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete | 2026-06-14 |
+| 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
+| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
+| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-07-02 |
+| 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete | 2026-06-22 |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete | 2026-07-02 |
+| 18.4. UX Enhancements          | v1.2      | 7/7            | Complete | 2026-07-02 |
+| 19. Data Model & Team Palette  | v1.3      | 3/3            | Complete | 2026-07-03 |
+| 20. Uniform Style System       | v1.3      | 3/3            | Complete | 2026-07-04 |
+| 21. New Teams (MLS + Intl)     | v1.3      | 2/2            | Complete | 2026-07-04 |
+| 22. Uniform Selection Screen   | v1.3      | 3/3            | Complete | 2026-07-05 |
+| 23. Formation System           | v1.3      | 3/3            | Complete | 2026-07-05 |
+| 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete | 2026-07-10 |
+| 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete | 2026-07-11 |

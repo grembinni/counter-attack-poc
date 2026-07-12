@@ -10,18 +10,16 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 ## Current State
 
-**v1.2 shipped 2026-07-03.** 10 sub-phases (52 plans, 544 commits, 326 files changed). Four named teams with badge PNGs and jersey patterns; CSV-seeded rosters; full team-selection lobby; offside detection (OFFSIDE-01/02 code implemented, human UAT deferred to v1.3); v1.4.1 action model alignment across 16 plans (Phase 17.1); 28 bugs fixed; 8 UX enhancements. Full test suite: ~1,050+ tests across shared/server/client. Deployed to Render.
+**v1.3 shipped 2026-07-11.** 7 phases (32 plans). Expanded from 4 fictional teams to 12 real-league teams (6 MLS + 6 International) with full visual identities; 18-style uniform selection screen; 4 dynamic formations (4-4-2, 5-3-2, 4-3-3, 3-4-3) with stat-driven auto-assignment and player swap; OFFSIDE-01/02 human UAT formally closed; FREE_KICK_SETUP 6-step sequence (kicker select + stage repositioning); GK_KICK and LOOSE_BALL_LAND replay visibility fixed; jersey centering and Style 12 SVG pattern fixed. Full test suite: ~1,100+ tests across shared/server/client.
 
-**Known tech debt entering v1.3:**
+**Known tech debt entering v1.4:**
 
-- GK_KICK ball delivery invisible during post-game replay (REPLAY_ELIGIBLE_TYPES gap; `.planning/todos/pending/`)
-- KICK_OFF_SETUP shot-path hex shading persists after SNAPSHOT_DEFLECT goal (root cause unidentified; `.planning/todos/pending/`)
-- LOOSE_BALL_LAND replay-invisibility gap (same class as GK_KICK)
-- OFFSIDE-01/02 human UAT checkpoints (two-tab live verification) not formally closed; code is implemented
-- Three response-move test fixtures in `useGameStore.test.ts` carry stale `movementSlot: 'ATTACKER_4'` (inert but fixture-hygiene risk)
-- HIGH_PASS_MOVE missing-repositioning-exclusion parallel to the pre-17.1-16 FIRST_TIME_PASS_MOVE defect (documented, not fixed)
+- KICK_OFF_SETUP shot-path hex shading persists after SNAPSHOT_DEFLECT goal (BUG-23 — root cause unresolved, escalated; `.planning/todos/pending/`)
+- FREE_KICK_SETUP Undo not implemented (undo within/across stages; `.planning/todos/pending/free-kick-setup-undo-not-implemented.md`)
+- HIGH_PASS_MOVE missing carrier-repositioning exclusion (documented, not fixed; parallel to Phase 17.1-16 FIRST_TIME_PASS_MOVE fix)
+- Three response-move test fixtures in `useGameStore.test.ts` carry stale `movementSlot: 'ATTACKER_4'` (inert fixture-hygiene risk)
 
-## Current Milestone: v1.3 Team Customization & Formation System
+## Completed Milestone: v1.3 Team Customization & Formation System
 
 **Goal:** Expand from 4 fictional teams to 12 real-league teams grouped by league, add dynamic formation selection at kickoff with stat-driven auto-assignment, decouple team/player data to support v1.4 draft mode, and close all known v1.2 backlog bugs.
 
@@ -74,25 +72,22 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 - ✓ **DESIGN-03, DESIGN-04** — Duplicate-logic consolidation + dead-code removal — Phase 18.2
 - ✓ **BUG-06..21** — 16 bug-bash fixes (rule correctness, client UX, movement state machine) — Phases 18.2/18.3
 - ✓ **UX-07..14** — 8 UX enhancements (game speed, end-turn dialog, final-third lines, tooltips, EventBanner) — Phase 18.4
-- ✗ **OFFSIDE-01, OFFSIDE-02** — Code implemented; human UAT checkpoint deferred — carry to v1.3
+- ✓ **OFFSIDE-01, OFFSIDE-02** — Human UAT formally closed (Phase 25 two-tab session)
 
-### Active (v1.3 — current milestone)
-
-_Full requirements in `.planning/REQUIREMENTS.md`._
-
-- **LEAGUE-01..03**: League categorization, MLS 6-team set, International 6-team set
-- **TEAM-07..10**: 4 new MLS teams with full visual identity (badge, jersey, color)
-- **INTL-01..06**: 6 international teams with full visual identity
-- **DATA-01..03**: ColorScheme entity, global player pool, team/player decoupling for v1.4 draft
-- **FORM-01..04**: Four formations (4-4-2, 5-3-2, 4-3-3, 3-4-3) with dynamic hex placement
-- **ASSIGN-01..04**: Stat-weight auto-assignment for anchor/flex roles + player swap override
-- **BUG-V13-01..06**: OFFSIDE-01/02 UAT, GK_KICK/LOOSE_BALL_LAND replay, HP exclusion, KO shading
-
-### Validated (v1.3 — Phase 22)
+### Validated (v1.3 — complete)
 
 - ✓ **UNIFORM-02** — Away player sees style tiles in their team's away colors (awayPrime/awayAlt) — Phase 22
 - ✓ **UNIFORM-03** — 18 style tiles in 2×9 grid; defaultUniformStyle pre-selected on team pick — Phase 22
 - ✓ **UNIFORM-04** — Full selection flow: home picks first → away unlocks → both confirm → game starts with chosen styles on pieces — Phase 22
+- ✓ **LEAGUE-01..03** — League categorization, MLS 6-team + International 6-team sets — Phases 19–21
+- ✓ **TEAM-07..10, INTL-01..06** — 10 new teams with full visual identity (badge, jersey, color) — Phase 21
+- ✓ **DATA-01..03** — ColorScheme entity, global player pool, team/player decoupling — Phase 19
+- ✓ **FORM-01..04** — Four formations with dynamic hex placement — Phase 23
+- ✓ **ASSIGN-01..04** — Stat-weight auto-assignment + player swap override + lineup confirm gate — Phase 24
+- ✓ **REPLAY-07, REPLAY-08** — GK_KICK and LOOSE_BALL_LAND delivery visible in replay — Phase 25
+- ✓ **BUG-22** — HIGH_PASS_MOVE carrier exclusion documented/applied — Phase 25
+- ✓ **UX-15** — Jersey number centering, Style 12 symmetric quarters, EventBanner, uniform-selection race fix — Phase 25
+- ✓ **OFFSIDE-01, OFFSIDE-02** — Free-kick step sequence (kicker select + 6 stages) implemented and UAT-closed — Phases 25
 
 ### Deferred (v2 candidates)
 
@@ -181,4 +176,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-05 after Phase 22 (Uniform Selection Screen)_
+_Last updated: 2026-07-11 after Phase 25 (Bug & UAT Closure) — v1.3 milestone complete_
