@@ -89,7 +89,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 
 **Milestone Goal:** Rework all response-move activations into a consistent single-selection model with proper eligibility gating, fix 6 known gameplay bugs, and add a configurable pack-draft system as an optional pre-game mode.
 
-- [ ] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range)
+- [x] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range) (completed 2026-07-12)
 - [ ] **Phase 27: Response Activation Model** - Rework all response move phases to single-selection with eligibility gating, white range overlays, and auto-skip
 - [ ] **Phase 28: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection
 - [ ] **Phase 29: Draft Data Model** - Player tier classification and configurable pack generation engine
@@ -120,8 +120,8 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 26-02-PLAN.md — BUG-28 + BUG-29: header-duel target range + standard shot range validation
-- [ ] 26-03-PLAN.md — BUG-25 + BUG-26 + BUG-27: End Turn color, opponent stats click, deflection log format
+- [x] 26-02-PLAN.md — BUG-28 + BUG-29: header-duel target range + standard shot range validation
+- [x] 26-03-PLAN.md — BUG-25 + BUG-26 + BUG-27: End Turn color, opponent stats click, deflection log format
 
 ### Phase 27: Response Activation Model
 
@@ -217,7 +217,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 | 23. Formation System           | v1.3      | 3/3            | Complete    | 2026-07-05 |
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
-| 26. Bug Fixes                  | v1.4      | 1/3            | In Progress |            |
+| 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Response Activation Model  | v1.4      | 0/?            | Not started | -          |
 | 28. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
 | 29. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
