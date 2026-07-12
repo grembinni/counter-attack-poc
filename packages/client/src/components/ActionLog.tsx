@@ -761,6 +761,22 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: ` Setup move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
+    case 'FK_KICKER_CHOSEN':
+      // Plan 25-06: undo boundary — kicker placed on free-kick hex.
+      return {
+        prefix: '[FK]',
+        prefixColor: '#888888',
+        content: ` Kicker selected`,
+        isGoal: false,
+      };
+    case 'FK_STAGE_ADVANCE':
+      // Plan 25-06: undo boundary — stage transition during FREE_KICK_SETUP.
+      return {
+        prefix: '[FK]',
+        prefixColor: '#888888',
+        content: ` Stage ${event.fromStageIndex + 1} → ${event.fromStageIndex + 2}`,
+        isGoal: false,
+      };
   }
 }
 

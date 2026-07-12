@@ -609,7 +609,12 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
         ...freeKickBase,
         freeKickKickerChosen: true,
         eventLog: [
-          { type: 'FK_KICKER_CHOSEN', pieceId: 'home-9', hex: { q: 25, r: 13 }, timestamp: 0 },
+          {
+            type: 'FK_KICKER_CHOSEN',
+            kickerPieceId: 'home-9',
+            hex: { q: 25, r: 13 },
+            timestamp: 0,
+          },
         ],
       },
       playerSlot: 1,
@@ -626,14 +631,19 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
         freeKickKickerChosen: true,
         freeKickPlacedPieceIds: ['home-8'],
         eventLog: [
-          { type: 'FK_KICKER_CHOSEN', pieceId: 'home-9', hex: { q: 25, r: 13 }, timestamp: 0 },
+          {
+            type: 'FK_KICKER_CHOSEN',
+            kickerPieceId: 'home-9',
+            hex: { q: 25, r: 13 },
+            timestamp: 0,
+          },
           {
             type: 'FK_SETUP_MOVE',
+            stageIndex: 0,
             pieceId: 'home-8',
             from: { q: 22, r: 9 },
             to: { q: 23, r: 9 },
             timestamp: 1,
-            ballAfter: { position: { q: 25, r: 13 }, carrierId: null },
           },
         ],
       },

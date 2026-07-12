@@ -175,6 +175,7 @@ describe('EventBanner — UX-14: LOOSE_BALL_LAND shows Loose Ball.', () => {
           from: { q: 18, r: 13 },
           to: { q: 19, r: 14 },
           timestamp: 1,
+          ballAfter: { position: { q: 19, r: 14 }, carrierId: null },
         },
       ]);
     });
