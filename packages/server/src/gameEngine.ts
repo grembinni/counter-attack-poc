@@ -1435,7 +1435,11 @@ export function applyUndo(state: GameState): ApplyUndoResult {
     const hasPriorMoves = state.eventLog
       .slice(0, lastSlotAdvanceIdx + 1)
       .some((e) => e.type === moveTypeForPhase);
-    if (hasPriorMoves) {
+    // D-04 (Phase 26): FREE_KICK_SETUP cross-stage undo is impossible in all cases
+    // (the FK_STAGE_ADVANCE boundary always blocks it), so NOTHING_TO_UNDO is the
+    // correct response for an empty current stage — UNDO_LOCKED is misleading here
+    // because there is no actionable "locked" state for the player to resolve.
+    if (hasPriorMoves && state.phase !== 'FREE_KICK_SETUP') {
       return { ok: false, reason: 'UNDO_LOCKED' }; // D-09: moves exist but crossed a slot boundary
     }
     return { ok: false, reason: 'NOTHING_TO_UNDO' };
