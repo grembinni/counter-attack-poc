@@ -241,6 +241,14 @@ export function ActionPanel() {
       Object.keys(paceUsedByPieceId).length === 0
     )
       return false;
+    // BUG-24 D-03 (Phase 26): FREE_KICK_SETUP empty-stage guard — mirrors the MOVE
+    // paceUsedByPieceId guard above. freeKickPlacedPieceIds resets to [] at each
+    // stage transition (server-side); an empty list means no pieces have been
+    // repositioned in the current stage, so there is nothing to undo. This guard
+    // must short-circuit BEFORE the eventLog boundary scan to prevent a stale
+    // FK_SETUP_MOVE (from a prior stage or prior free kick) from incorrectly
+    // enabling the button when the current stage is empty.
+    if (phase === 'FREE_KICK_SETUP' && (freeKickPlacedPieceIds ?? []).length === 0) return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
