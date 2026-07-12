@@ -24,6 +24,7 @@ export function FreeKickSetupPanel() {
   const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
   // D-54: the kicker locks into movedPieceIds the instant it lands on freeKickHex.
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
+  const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
   const gameError = useGameStore((s) => s.gameError);
   const emitFreeKickReady = useGameStore((s) => s.emitFreeKickReady);
 
@@ -47,7 +48,8 @@ export function FreeKickSetupPanel() {
   const stage = FREE_KICK_STAGES[freeKickStageIndex];
   const isKicking = stage.side === 'kicking';
   const placedCount = (freeKickPlacedPieceIds ?? []).length;
-  const remaining = Math.max(0, stage.max - placedCount);
+  // True only during the kicker-select sub-step: kicking stage where kicker hasn't been placed yet.
+  const isKickerSelectionPhase = freeKickKickerChosen === false && isKicking;
 
   // Inactive team: waiting message only — it isn't their turn (mirrors ActionPanel's
   // !isActivePlayer waiting-panel pattern).
@@ -97,14 +99,11 @@ export function FreeKickSetupPanel() {
     <div className={styles.panel}>
       <span className={styles.panelHeading}>Offside — Free Kick</span>
 
-      <span className={styles.constraintRow}>
-        {stageLabel}: place up to {stage.max} players ({placedCount} used, {remaining} remaining).
-      </span>
-
-      <span className={styles.constraintRow}>
-        Reposition players, then press {endButtonLabel}. Placements are optional — you may end your
-        turn having placed none, some, or all of your allowance.
-      </span>
+      {!isKickerSelectionPhase && (
+        <span className={styles.constraintRow}>
+          {stageLabel}: {placedCount} of {stage.max} placed.
+        </span>
+      )}
 
       {checksKickerPlacement && (
         <span
@@ -128,17 +127,18 @@ export function FreeKickSetupPanel() {
         </span>
       )}
 
-      {/* Server game error — auto-clears on next game:state via App.tsx */}
       {gameError && <span className={styles.errorText}>{gameError}</span>}
 
-      <button
-        className={styles.ctaButton}
-        disabled={!constraintsMet}
-        title={!constraintsMet ? disabledTitle : undefined}
-        onClick={emitFreeKickReady}
-      >
-        {endButtonLabel}
-      </button>
+      {!isKickerSelectionPhase && (
+        <button
+          className={styles.ctaButton}
+          disabled={!constraintsMet}
+          title={!constraintsMet ? disabledTitle : undefined}
+          onClick={emitFreeKickReady}
+        >
+          {endButtonLabel}
+        </button>
+      )}
     </div>
   );
 }

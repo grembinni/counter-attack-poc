@@ -24,6 +24,7 @@ function freeKickSetupState(
     freeKickAttackingTeam: 'away' as const,
     freeKickStageIndex: stageIndex,
     freeKickPlacedPieceIds: [],
+    freeKickKickerChosen: null as null | boolean,
     ...overrides,
   };
 }
@@ -75,14 +76,14 @@ describe('FreeKickSetupPanel — turn gating (active vs inactive team)', () => {
   it('stage 0 (kicking = away): the ACTIVE team (away, playerSlot 2) sees the per-stage UI and End Turn button', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/attacking team: place up to 4 players/i)).toBeDefined();
+    expect(screen.getByText(/attacking team: 0 of 4 placed/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
   });
 
   it('stage 1 (defending = home): the ACTIVE team (home, playerSlot 1) sees the defending-stage UI', () => {
     useGameStore.setState({ gameState: freeKickSetupState(1), playerSlot: 1 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/defending team: place up to 4 players/i)).toBeDefined();
+    expect(screen.getByText(/defending team: 0 of 4 placed/i)).toBeDefined();
   });
 
   it('stage 1 (defending = home): the INACTIVE team (away, playerSlot 2) sees only a waiting message', () => {
@@ -93,32 +94,46 @@ describe('FreeKickSetupPanel — turn gating (active vs inactive team)', () => {
   });
 });
 
-describe('FreeKickSetupPanel — placements used/remaining display', () => {
-  it('shows 0 used / N remaining when no placements have been made this stage', () => {
+describe('FreeKickSetupPanel — placements counter display', () => {
+  it('shows 0 of N placed when no placements have been made this stage', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/0 used, 4 remaining/i)).toBeDefined();
+    expect(screen.getByText(/attacking team: 0 of 4 placed/i)).toBeDefined();
   });
 
-  it('shows the correct used/remaining count after some placements this stage', () => {
+  it('shows the correct placed count after some placements this stage', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(0, { freeKickPlacedPieceIds: ['away-9', 'away-8'] }),
       playerSlot: 2,
     });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/2 used, 2 remaining/i)).toBeDefined();
+    expect(screen.getByText(/attacking team: 2 of 4 placed/i)).toBeDefined();
   });
 
   it('stage 2 (kicking, cap 3): shows the stage-specific cap, not the stage-0 cap', () => {
     useGameStore.setState({ gameState: freeKickSetupState(2), playerSlot: 2 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/place up to 3 players/i)).toBeDefined();
+    expect(screen.getByText(/attacking team: 0 of 3 placed/i)).toBeDefined();
   });
 
   it('stage 3 (defending, cap 2): shows the stage-specific cap', () => {
     useGameStore.setState({ gameState: freeKickSetupState(3), playerSlot: 1 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/place up to 2 players/i)).toBeDefined();
+    expect(screen.getByText(/defending team: 0 of 2 placed/i)).toBeDefined();
+  });
+});
+
+describe('FreeKickSetupPanel — kicker selection sub-step (freeKickKickerChosen === false)', () => {
+  it('shows only heading and kicker instruction — no count row, no End Turn button', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(0, { freeKickKickerChosen: false, movedPieceIds: [] }),
+      playerSlot: 2,
+    });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/offside — free kick/i)).toBeDefined();
+    expect(screen.getByText(/kicker: move a player onto the free-kick hex first/i)).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText(/of \d+ placed/i)).toBeNull();
   });
 });
 
