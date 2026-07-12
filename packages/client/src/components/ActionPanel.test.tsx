@@ -653,4 +653,72 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
     const undo = screen.getByRole('button', { name: /undo/i });
     expect((undo as HTMLButtonElement).disabled).toBe(false);
   });
+
+  // ── BUG-24 D-03: freeKickPlacedPieceIds empty-stage guard ────────────────
+  // The canUndo IIFE must short-circuit on empty freeKickPlacedPieceIds before
+  // reaching the eventLog boundary scan. Without this guard, a stale FK_SETUP_MOVE
+  // in the eventLog (with no boundary before it) would incorrectly enable the button.
+
+  it('BUG-24 D-03: Undo button is disabled when freeKickPlacedPieceIds is empty, even if a stale FK_SETUP_MOVE exists in the eventLog before any boundary', () => {
+    // Simulate the bug scenario: an FK_SETUP_MOVE from a prior run sits in the
+    // eventLog with no FK_KICKER_CHOSEN / FK_STAGE_ADVANCE boundary before it,
+    // and the current stage has nothing placed (freeKickPlacedPieceIds: []).
+    // Without the guard the eventLog scan returns true (FK_SETUP_MOVE found) →
+    // button enabled. With the guard it must return false → button disabled.
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        freeKickPlacedPieceIds: [], // current stage is empty — nothing to undo
+        lastDiceRoll: null,
+        eventLog: [
+          // Stale FK_SETUP_MOVE with no boundary preceding it
+          {
+            type: 'FK_SETUP_MOVE',
+            stageIndex: 0,
+            pieceId: 'home-9',
+            from: { q: 22, r: 9 },
+            to: { q: 23, r: 9 },
+            timestamp: 0,
+          },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('BUG-24 D-03: Undo button is enabled when freeKickPlacedPieceIds has one entry and an FK_SETUP_MOVE follows the last boundary', () => {
+    // Positive case: one piece placed in current stage → Undo enabled.
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        freeKickPlacedPieceIds: ['home-9'], // one piece placed in current stage
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'FK_KICKER_CHOSEN',
+            kickerPieceId: 'home-9',
+            hex: { q: 25, r: 13 },
+            timestamp: 0,
+          },
+          {
+            type: 'FK_SETUP_MOVE',
+            stageIndex: 0,
+            pieceId: 'home-9',
+            from: { q: 22, r: 9 },
+            to: { q: 23, r: 9 },
+            timestamp: 1,
+          },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
 });
