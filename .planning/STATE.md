@@ -6,7 +6,7 @@ status: planning
 last_updated: '2026-07-12T13:35:44.445Z'
 last_activity: 2026-07-12
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,55 +17,62 @@ progress:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 26 of 30 (Bug Fixes — not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-12 — Milestone v1.4 started
+Status: Roadmap created — ready to plan Phase 26
+Last activity: 2026-07-12 — v1.4 roadmap created (Phases 26–30)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-11 after Phase 25)
+See: .planning/PROJECT.md (updated 2026-07-12 after v1.4 milestone start)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** v1.4 planning — run `/gsd-new-milestone` to define requirements and roadmap
+**Current focus:** v1.4 — Phase 26: Bug Fixes
 
 ## Phase Status
 
-| Phase | Name                                       | Status   | Completed  |
-| ----- | ------------------------------------------ | -------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types           | Complete | 2026-05-28 |
-| 2     | Move Validator + Unit Tests                | Complete | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold   | Complete | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                    | Complete | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches    | Complete | 2026-05-30 |
-| 6     | React Hex Grid Renderer                    | Complete | 2026-05-31 |
-| 7     | Client-Server Integration                  | Complete | 2026-06-03 |
-| 7.1   | UI Cleanup                                 | Complete | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay         | Complete | 2026-06-05 |
-| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
-| 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
-| 9     | Render Deployment                          | Complete | 2026-06-08 |
-| 10    | Remaining Action Flows + Tech Debt         | Complete | 2026-06-11 |
-| 11    | Rule Correctness                           | Complete | 2026-06-12 |
-| 12    | Visual Token & Hex Layer                   | Complete | 2026-06-12 |
-| 13    | Layout & Clock                             | Complete | 2026-06-12 |
-| 14    | Kick Off Rules & Replay                    | Complete | 2026-06-12 |
-| 15    | Team Identity                              | Complete | 2026-06-13 |
-| 16    | Player Roster & Team Selection             | Complete | 2026-06-14 |
-| 17    | Rule Bugs                                  | Complete | 2026-06-21 |
-| 17.1  | Action Flow Cleanup                        | Complete | 2026-06-20 |
-| 18    | Messaging & Logging Consistency            | Complete | 2026-07-02 |
-| 18.1  | Replay Review                              | Complete | 2026-06-21 |
-| 18.2  | Code Cleanup & Dup-Bugs                    | Complete | 2026-06-22 |
-| 18.3  | Bug-Bash: Rule Correctness                 | Complete | 2026-07-02 |
-| 18.4  | UX Enhancements                            | Complete | 2026-07-02 |
-| 19    | Data Model & Team Palette                  | Complete | 2026-07-03 |
-| 20    | Uniform Style System                       | Complete | 2026-07-04 |
-| 21    | New Teams (MLS + International)            | Complete | 2026-07-04 |
-| 22    | Uniform Selection Screen                   | Complete | 2026-07-05 |
-| 23    | Formation System                           | Complete | 2026-07-05 |
-| 24    | Auto-Assignment & Lineup                   | Complete | 2026-07-10 |
-| 25    | Bug & UAT Closure                          | Complete | 2026-07-11 |
+| Phase | Name                                       | Status      | Completed  |
+| ----- | ------------------------------------------ | ----------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types           | Complete    | 2026-05-28 |
+| 2     | Move Validator + Unit Tests                | Complete    | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold   | Complete    | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                    | Complete    | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches    | Complete    | 2026-05-30 |
+| 6     | React Hex Grid Renderer                    | Complete    | 2026-05-31 |
+| 7     | Client-Server Integration                  | Complete    | 2026-06-03 |
+| 7.1   | UI Cleanup                                 | Complete    | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay         | Complete    | 2026-06-05 |
+| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete    | 2026-06-05 |
+| 8.2   | Passing Cleanup                            | Complete    | 2026-06-07 |
+| 9     | Render Deployment                          | Complete    | 2026-06-08 |
+| 10    | Remaining Action Flows + Tech Debt         | Complete    | 2026-06-11 |
+| 11    | Rule Correctness                           | Complete    | 2026-06-12 |
+| 12    | Visual Token & Hex Layer                   | Complete    | 2026-06-12 |
+| 13    | Layout & Clock                             | Complete    | 2026-06-12 |
+| 14    | Kick Off Rules & Replay                    | Complete    | 2026-06-12 |
+| 15    | Team Identity                              | Complete    | 2026-06-13 |
+| 16    | Player Roster & Team Selection             | Complete    | 2026-06-14 |
+| 17    | Rule Bugs                                  | Complete    | 2026-06-21 |
+| 17.1  | Action Flow Cleanup                        | Complete    | 2026-06-20 |
+| 18    | Messaging & Logging Consistency            | Complete    | 2026-07-02 |
+| 18.1  | Replay Review                              | Complete    | 2026-06-21 |
+| 18.2  | Code Cleanup & Dup-Bugs                    | Complete    | 2026-06-22 |
+| 18.3  | Bug-Bash: Rule Correctness                 | Complete    | 2026-07-02 |
+| 18.4  | UX Enhancements                            | Complete    | 2026-07-02 |
+| 19    | Data Model & Team Palette                  | Complete    | 2026-07-03 |
+| 20    | Uniform Style System                       | Complete    | 2026-07-04 |
+| 21    | New Teams (MLS + International)            | Complete    | 2026-07-04 |
+| 22    | Uniform Selection Screen                   | Complete    | 2026-07-05 |
+| 23    | Formation System                           | Complete    | 2026-07-05 |
+| 24    | Auto-Assignment & Lineup                   | Complete    | 2026-07-10 |
+| 25    | Bug & UAT Closure                          | Complete    | 2026-07-11 |
+| 26    | Bug Fixes                                  | Not started | -          |
+| 27    | Response Activation Model                  | Not started | -          |
+| 28    | Game Creation Settings                     | Not started | -          |
+| 29    | Draft Data Model                           | Not started | -          |
+| 30    | Draft UI + Pick-and-Swap Flow              | Not started | -          |
 
 ## Blocking Dependencies
 
@@ -83,6 +90,7 @@ See: .planning/PROJECT.md (updated 2026-07-11 after Phase 25)
 
 - Phase 08.1 inserted after Phase 8: cleanup player stats, ball control, movement, tackling (URGENT)
 - v1.3 Phases 19–25 added 2026-07-03
+- v1.4 Phases 26–30 added 2026-07-12
 
 ### Decisions Locked
 
@@ -255,9 +263,9 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-11T19:30:00.000Z
-Stopped at: Phase 25 complete — milestone v1.3 all 7 phases done, UAT 3/3 passed
-Resume: /gsd-complete-milestone v1.3
+Last session: 2026-07-12T13:35:44.445Z
+Stopped at: v1.4 roadmap created — Phases 26–30 defined, ROADMAP.md + STATE.md + REQUIREMENTS.md updated
+Resume: `/gsd-plan-phase 26`
 
 ## Performance Metrics
 
@@ -323,7 +331,7 @@ Resume: /gsd-complete-milestone v1.3
 - [Phase 12 P04]: D-11: tint-only polygon overlays folded into HexCell highlightType; .hexZoIRisk removed; .hexTackleRisk retained for interception-risk pass overlay
 - [Phase 12 P04]: D-12: highlightType priority order risk > goal > shot-path > kickoff > safe applied as single ternary in HexGrid
 - [Phase 12 P04]: D-13: isHeaderNonGoalTarget overlay tint changed from cyan to white (rgba(255,255,255,0.35)); two-tier white tint added for shot-path vs shot-path-action
-- [Phase ?]: Wave 0 socket mock pattern: extend { emit, on, off } with socket.io: { on, off } to support ConnectionStatus Manager events in GameBoard tests
+- [Phase ?]: Wave 0 socket mock pattern: extend { emit, on, off } with socket.io: { on, off } to support ConnectionStatus Manager events in GameBoard tests.
 - [Phase ?]: GameBoard.test.tsx Wave 0 RED state: 15 tests, 11 failing until Plan 02 rewrites GameBoard — Nyquist signal design
 - [Phase 13 P02]: PHASE_LABEL and SLOT_TOTAL absorbed verbatim from TurnIndicator into GameBoard module scope
 - [Phase 13 P02]: REPLAY phaseLabel suppressed in centre section to prevent getByText collision with ReplayPanel heading

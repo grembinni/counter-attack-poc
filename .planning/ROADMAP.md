@@ -6,6 +6,7 @@
 - ✅ **v1.1 UX Tuning & Bug Cleanup** — Phases 11–14 (shipped 2026-06-12)
 - ✅ **v1.2 Team Identity & Core Fixes** — Phases 15–18 (shipped 2026-07-03)
 - ✅ **v1.3 Team Customization & Formation System** — Phases 19–25 (shipped 2026-07-11)
+- 🚧 **v1.4 Response Polish + Draft Mode** — Phases 26–30 (in progress)
 
 ## Phases
 
@@ -84,40 +85,131 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 
 ---
 
+### 🚧 v1.4 Response Polish + Draft Mode (Phases 26–30)
+
+**Milestone Goal:** Rework all response-move activations into a consistent single-selection model with proper eligibility gating, fix 6 known gameplay bugs, and add a configurable pack-draft system as an optional pre-game mode.
+
+- [ ] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range)
+- [ ] **Phase 27: Response Activation Model** - Rework all response move phases to single-selection with eligibility gating, white range overlays, and auto-skip
+- [ ] **Phase 28: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection
+- [ ] **Phase 29: Draft Data Model** - Player tier classification and configurable pack generation engine
+- [ ] **Phase 30: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup
+
+---
+
+## Phase Details
+
+### Phase 26: Bug Fixes
+
+**Goal**: Known gameplay defects are corrected — undo is scoped to the current phase, button color logic matches move-slot state, opponent stats are accessible on click, deflection logs use the correct format, header targeting lands on a valid goal-side hex, and shot range validation uses the correct distance calculation.
+**Depends on**: Phase 25
+**Requirements**: BUG-24, BUG-25, BUG-26, BUG-27, BUG-28, BUG-29
+**Success Criteria** (what must be TRUE):
+
+1. Player cannot undo moves from a previous turn or phase; the undo button is disabled when no moves have been made in the current phase or all current-phase moves are already undone
+2. The End Turn button is yellow while move options remain and turns green only when all movement options for the current slot are exhausted
+3. Clicking an opponent's activated player opens that player's stats panel
+4. Deflection log entries appear as `failed to deflect — [reason]` consistently
+5. Winning a header duel results in a valid goal-side target hex being assigned; no invalid or unreachable hex is used
+6. Standard shot range validation correctly rejects shots from outside valid distance using the correct distance calculation
+   **Plans**: TBD
+
+### Phase 27: Response Activation Model
+
+**Goal**: All response move phases (header, deflect, final third, dive, keeper ball in box) activate via a consistent single-selection model, with white range overlays and per-hex challenge-penalty hints, type-specific eligibility gating, auto-repositioning of the keeper on final-third entry, auto-skip with logging when no eligible players are in range, and a ball hex highlight during all response phases.
+**Depends on**: Phase 26
+**Requirements**: RESP-01, RESP-02, RESP-03, RESP-04, RESP-05, RESP-06, RESP-07, RESP-08, RESP-09
+**Success Criteria** (what must be TRUE):
+
+1. Any response move (header, deflect, final third, dive, keeper ball-in-box) activates via a single player selection — no multi-step process; the interaction model is consistent with keeper dive
+2. Valid response hexes are shown in white; hexes that incur a challenge penalty display a −1 indicator on the hex
+3. Only players eligible for each response type are selectable: deflect requires being on or adjacent to the shot path; header requires being within heading range of the ball; dive shows only valid dive hexes; final third shows the 6-hex ring around the ball
+4. When the ball enters the final third, the keeper is auto-repositioned to their starting position and excluded from the eligible-player count; helper text on the action panel notes the repositioning
+5. When no eligible players exist for a response phase, the server auto-skips the response and logs the skip; the ball hex is highlighted during all response phases for visibility
+   **Plans**: TBD
+   **UI hint**: yes
+
+### Phase 28: Game Creation Settings
+
+**Goal**: Game creation has a pre-step settings screen where speed, team type (Standard or Draft), and draft pool are configured before team selection; the speed selector moves off the team-selection page in Standard mode; Draft mode shows a settings summary on the team-selection screen.
+**Depends on**: Phase 27
+**Requirements**: DRAFT-01, DRAFT-02, DRAFT-03
+**Success Criteria** (what must be TRUE):
+
+1. Creating a game shows a settings pre-step screen with a speed selector, team type toggle (Standard / Draft), and — when Draft is selected — player pool checkboxes (Original, MLS, International; at least one required)
+2. In Standard mode, speed is configured on the settings screen (not on team-selection); the existing team-selection flow is otherwise unchanged
+3. In Draft mode, the team-selection screen shows a settings summary line (Speed | Team type | Draft pool) replacing the speed picker; the rest of the team-selection flow is unchanged
+   **Plans**: TBD
+   **UI hint**: yes
+
+### Phase 29: Draft Data Model
+
+**Goal**: The player pool is classified into configurable rarity tiers by total stat count, and the pack generation engine produces correctly-composed 7-card packs from the selected pool using configurable constants.
+**Depends on**: Phase 28
+**Requirements**: DRAFT-04, DRAFT-05
+**Success Criteria** (what must be TRUE):
+
+1. Every player in the pool is assigned a tier (Keeper / Chase / Rare / Uncommon / Common) based on total stat count using configurable percentage thresholds
+2. A 7-card pack generated from the selected player pool contains the correct per-rarity composition (default: 1 Chase, 1 Rare, 1 Uncommon, 3 Common, 1 Keeper)
+3. All tier-boundary percentages and pack composition counts are exported configurable constants — changing a constant alone adjusts tier assignment or pack composition without additional code changes
+   **Plans**: TBD
+
+### Phase 30: Draft UI + Pick-and-Swap Flow
+
+**Goal**: Players can complete a full draft session in real time — a 7-card carousel screen appears between team selection and lineup; 4 pick-and-swap cycles deliver 16 cards per player; keeper safety triggers automatically on the 4th cycle if needed; overflow drafted players appear on a dynamic bench carousel; post-draft, all players are auto-positioned by total stat and team colors are applied.
+**Depends on**: Phase 29
+**Requirements**: DRAFT-06, DRAFT-07, DRAFT-08, DRAFT-09, DRAFT-10
+**Success Criteria** (what must be TRUE):
+
+1. A draft screen appears between formation selection and lineup, displaying a 7-card carousel above the lineup grid
+2. Players complete 4 draft cycles following the pick-and-swap pattern (pick 1 → swap packs; pick 2 → swap packs; pick 1 → open new pack; repeat ×4 = 16 cards per player) via real-time WebSocket coordination
+3. On the 4th cycle, if a player has not yet picked a keeper after their first pick, a keeper is automatically selected as their second pick; that player selects 1 card (not 2) in the following pick phase
+4. All drafted players not placed in the starting 11 appear on a dynamically-sized bench carousel using the same card display as the draft stage
+5. After the draft completes, all drafted players are auto-positioned and numbered by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with sequential numbers
+   **Plans**: TBD
+   **UI hint**: yes
+
+---
+
 ## Progress
 
-| Phase                          | Milestone | Plans Complete | Status   | Completed  |
-| ------------------------------ | --------- | -------------- | -------- | ---------- |
-| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete | 2026-05-28 |
-| 2. Move Validator              | v1.0      | 4/4            | Complete | 2026-05-29 |
-| 3. Server Room Manager         | v1.0      | 3/3            | Complete | 2026-05-29 |
-| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete | 2026-05-30 |
-| 5. Dice Resolver               | v1.0      | 4/4            | Complete | 2026-05-30 |
-| 6. React Hex Grid              | v1.0      | 3/3            | Complete | 2026-05-31 |
-| 7. Client-Server Integration   | v1.0      | 4/4            | Complete | 2026-06-03 |
-| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete | 2026-06-04 |
-| 8. Match Lifecycle             | v1.0      | 8/8            | Complete | 2026-06-05 |
-| 8.1. Cleanup                   | v1.0      | 3/3            | Complete | 2026-06-05 |
-| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete | 2026-06-07 |
-| 9. Render Deployment           | v1.0      | 2/2            | Complete | 2026-06-08 |
-| 10. Remaining Flows            | v1.0      | 5/5            | Complete | 2026-06-11 |
-| 11. Rule Correctness           | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 13. Layout & Clock             | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity              | v1.2      | 3/3            | Complete | 2026-06-13 |
-| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete | 2026-06-14 |
-| 17. Rule Bugs                  | v1.2      | 6/6            | Complete | 2026-06-21 |
-| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete | 2026-06-20 |
-| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete | 2026-07-02 |
-| 18.1. Replay Review            | v1.2      | 2/2            | Complete | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete | 2026-07-02 |
-| 18.4. UX Enhancements          | v1.2      | 7/7            | Complete | 2026-07-02 |
-| 19. Data Model & Team Palette  | v1.3      | 3/3            | Complete | 2026-07-03 |
-| 20. Uniform Style System       | v1.3      | 3/3            | Complete | 2026-07-04 |
-| 21. New Teams (MLS + Intl)     | v1.3      | 2/2            | Complete | 2026-07-04 |
-| 22. Uniform Selection Screen   | v1.3      | 3/3            | Complete | 2026-07-05 |
-| 23. Formation System           | v1.3      | 3/3            | Complete | 2026-07-05 |
-| 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete | 2026-07-10 |
-| 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete | 2026-07-11 |
+| Phase                          | Milestone | Plans Complete | Status      | Completed  |
+| ------------------------------ | --------- | -------------- | ----------- | ---------- |
+| 1. Monorepo Scaffold           | v1.0      | 3/3            | Complete    | 2026-05-28 |
+| 2. Move Validator              | v1.0      | 4/4            | Complete    | 2026-05-29 |
+| 3. Server Room Manager         | v1.0      | 3/3            | Complete    | 2026-05-29 |
+| 4. Game Engine + FSM           | v1.0      | 3/3            | Complete    | 2026-05-30 |
+| 5. Dice Resolver               | v1.0      | 4/4            | Complete    | 2026-05-30 |
+| 6. React Hex Grid              | v1.0      | 3/3            | Complete    | 2026-05-31 |
+| 7. Client-Server Integration   | v1.0      | 4/4            | Complete    | 2026-06-03 |
+| 7.1. UI Cleanup                | v1.0      | 3/3            | Complete    | 2026-06-04 |
+| 8. Match Lifecycle             | v1.0      | 8/8            | Complete    | 2026-06-05 |
+| 8.1. Cleanup                   | v1.0      | 3/3            | Complete    | 2026-06-05 |
+| 8.2. Passing Cleanup           | v1.0      | 6/6            | Complete    | 2026-06-07 |
+| 9. Render Deployment           | v1.0      | 2/2            | Complete    | 2026-06-08 |
+| 10. Remaining Flows            | v1.0      | 5/5            | Complete    | 2026-06-11 |
+| 11. Rule Correctness           | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 12. Visual Token & Hex Layer   | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 13. Layout & Clock             | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 14. Kick Off Rules & Replay    | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 15. Team Identity              | v1.2      | 3/3            | Complete    | 2026-06-13 |
+| 16. Player Roster & Selection  | v1.2      | 4/4            | Complete    | 2026-06-14 |
+| 17. Rule Bugs                  | v1.2      | 6/6            | Complete    | 2026-06-21 |
+| 17.1. Action Flow Cleanup      | v1.2      | 16/16          | Complete    | 2026-06-20 |
+| 18. Messaging & Logging Cons.  | v1.2      | 3/3            | Complete    | 2026-07-02 |
+| 18.1. Replay Review            | v1.2      | 2/2            | Complete    | 2026-06-21 |
+| 18.2. Code Cleanup & Dup-Bugs  | v1.2      | 6/6            | Complete    | 2026-06-22 |
+| 18.3. Bug-Bash (Rule Correct.) | v1.2      | 5/5            | Complete    | 2026-07-02 |
+| 18.4. UX Enhancements          | v1.2      | 7/7            | Complete    | 2026-07-02 |
+| 19. Data Model & Team Palette  | v1.3      | 3/3            | Complete    | 2026-07-03 |
+| 20. Uniform Style System       | v1.3      | 3/3            | Complete    | 2026-07-04 |
+| 21. New Teams (MLS + Intl)     | v1.3      | 2/2            | Complete    | 2026-07-04 |
+| 22. Uniform Selection Screen   | v1.3      | 3/3            | Complete    | 2026-07-05 |
+| 23. Formation System           | v1.3      | 3/3            | Complete    | 2026-07-05 |
+| 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
+| 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
+| 26. Bug Fixes                  | v1.4      | 0/?            | Not started | -          |
+| 27. Response Activation Model  | v1.4      | 0/?            | Not started | -          |
+| 28. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
+| 29. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
+| 30. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |

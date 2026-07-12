@@ -63,41 +63,41 @@
 
 ## Traceability
 
-| Requirement | Phase | Status  |
-| ----------- | ----- | ------- |
-| RESP-01     | —     | Pending |
-| RESP-02     | —     | Pending |
-| RESP-03     | —     | Pending |
-| RESP-04     | —     | Pending |
-| RESP-05     | —     | Pending |
-| RESP-06     | —     | Pending |
-| RESP-07     | —     | Pending |
-| RESP-08     | —     | Pending |
-| RESP-09     | —     | Pending |
-| BUG-24      | —     | Pending |
-| BUG-25      | —     | Pending |
-| BUG-26      | —     | Pending |
-| BUG-27      | —     | Pending |
-| BUG-28      | —     | Pending |
-| BUG-29      | —     | Pending |
-| DRAFT-01    | —     | Pending |
-| DRAFT-02    | —     | Pending |
-| DRAFT-03    | —     | Pending |
-| DRAFT-04    | —     | Pending |
-| DRAFT-05    | —     | Pending |
-| DRAFT-06    | —     | Pending |
-| DRAFT-07    | —     | Pending |
-| DRAFT-08    | —     | Pending |
-| DRAFT-09    | —     | Pending |
-| DRAFT-10    | —     | Pending |
+| Requirement | Phase    | Status  |
+| ----------- | -------- | ------- |
+| BUG-24      | Phase 26 | Pending |
+| BUG-25      | Phase 26 | Pending |
+| BUG-26      | Phase 26 | Pending |
+| BUG-27      | Phase 26 | Pending |
+| BUG-28      | Phase 26 | Pending |
+| BUG-29      | Phase 26 | Pending |
+| RESP-01     | Phase 27 | Pending |
+| RESP-02     | Phase 27 | Pending |
+| RESP-03     | Phase 27 | Pending |
+| RESP-04     | Phase 27 | Pending |
+| RESP-05     | Phase 27 | Pending |
+| RESP-06     | Phase 27 | Pending |
+| RESP-07     | Phase 27 | Pending |
+| RESP-08     | Phase 27 | Pending |
+| RESP-09     | Phase 27 | Pending |
+| DRAFT-01    | Phase 28 | Pending |
+| DRAFT-02    | Phase 28 | Pending |
+| DRAFT-03    | Phase 28 | Pending |
+| DRAFT-04    | Phase 29 | Pending |
+| DRAFT-05    | Phase 29 | Pending |
+| DRAFT-06    | Phase 30 | Pending |
+| DRAFT-07    | Phase 30 | Pending |
+| DRAFT-08    | Phase 30 | Pending |
+| DRAFT-09    | Phase 30 | Pending |
+| DRAFT-10    | Phase 30 | Pending |
 
 **Coverage:**
 
 - v1.4 requirements: 25 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 25 ⚠
+- Mapped to phases: 25 (all mapped)
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-07-12_
-_Last updated: 2026-07-12 after initial v1.4 definition_
+_Last updated: 2026-07-12 — traceability mapped to Phases 26–30_
