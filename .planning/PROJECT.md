@@ -19,6 +19,16 @@ Two friends can open a browser, share a room code, and play a complete match of 
 - HIGH_PASS_MOVE missing carrier-repositioning exclusion (documented, not fixed; parallel to Phase 17.1-16 FIRST_TIME_PASS_MOVE fix)
 - Three response-move test fixtures in `useGameStore.test.ts` carry stale `movementSlot: 'ATTACKER_4'` (inert fixture-hygiene risk)
 
+## Current Milestone: v1.4 Response Polish + Draft Mode
+
+**Goal:** Rework all response-move activations into a consistent single-selection model with proper eligibility gating, fix 6 known gameplay bugs, and add a configurable pack-draft system as an optional pre-game mode.
+
+**Target features:**
+
+- Response activation cleanup — single-selection model for all response moves (header, deflect, final third, dive, keeper ball in box); white range overlays with per-hex challenge penalty hints; eligibility gating per move type; auto-reposition keeper on final third entry; auto-skip + log when no eligible players in range; ball hex highlight during response phases
+- Bug fixes (6) — BUG-24 undo restricted to current phase, BUG-25 end-turn button color logic, BUG-26 opponent activated player stats, BUG-27 deflection log format, BUG-28 header targeting goal, standard shot range validation
+- Draft mode — game creation pre-step (speed + team type + player pool); player pool classification by total stat with configurable rarity thresholds; 7-card packs with configurable composition; pick-and-swap draft flow (1→swap, 2→swap, 1→new pack × 4 cycles = 16 cards per player); keeper safety auto-pick on 4th cycle; dynamic bench carousel; post-draft auto-position and team badge/color application
+
 ## Completed Milestone: v1.3 Team Customization & Formation System
 
 **Goal:** Expand from 4 fictional teams to 12 real-league teams grouped by league, add dynamic formation selection at kickoff with stat-driven auto-assignment, decouple team/player data to support v1.4 draft mode, and close all known v1.2 backlog bugs.
@@ -176,4 +186,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-11 after Phase 25 (Bug & UAT Closure) — v1.3 milestone complete_
+_Last updated: 2026-07-12 — v1.4 milestone started_

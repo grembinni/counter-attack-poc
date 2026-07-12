@@ -1,10 +1,9 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.4
-milestone_name: — (not yet defined)
+milestone_name: Response Polish + Draft Mode
 status: planning
-stopped_at: v1.3 archived 2026-07-12 — ready for /gsd-new-milestone to start v1.4
-last_updated: '2026-07-12T00:00:00.000Z'
+last_updated: '2026-07-12T13:35:44.445Z'
 last_activity: 2026-07-12
 progress:
   total_phases: 0
@@ -18,12 +17,10 @@ progress:
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: v1.3 archived 2026-07-12 — milestone complete; ready to plan v1.4
-Last activity: 2026-07-12
-
-Progress: [············] 0% (v1.4 not yet started — run /gsd-new-milestone)
+Status: Defining requirements
+Last activity: 2026-07-12 — Milestone v1.4 started
 
 ## Project Reference
 
