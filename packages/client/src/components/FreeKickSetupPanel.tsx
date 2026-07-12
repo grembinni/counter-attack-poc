@@ -130,7 +130,7 @@ export function FreeKickSetupPanel() {
         </span>
       )}
 
-      {!isKickerSelectionPhase && <span className={styles.nextActionRow}>{nextActionText}</span>}
+      {!isKickerSelectionPhase && <span className={styles.constraintRow}>{nextActionText}</span>}
 
       {gameError && <span className={styles.errorText}>{gameError}</span>}
 

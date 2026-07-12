@@ -69,9 +69,3 @@
 .ctaButtonReady:hover:not(:disabled) {
   background: #219a52;
 }
-
-.nextActionRow {
-  font-size: 10px;
-  font-weight: 400;
-  color: #606060;
-}
