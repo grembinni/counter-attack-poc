@@ -51,3 +51,27 @@
   opacity: 0.5;
   cursor: default;
 }
+
+.ctaButtonPending {
+  background: #f39c12;
+  transition: background-color 0.15s ease;
+}
+
+.ctaButtonPending:hover:not(:disabled) {
+  background: #e67e22;
+}
+
+.ctaButtonReady {
+  background: #27ae60;
+  transition: background-color 0.15s ease;
+}
+
+.ctaButtonReady:hover:not(:disabled) {
+  background: #219a52;
+}
+
+.nextActionRow {
+  font-size: 10px;
+  font-weight: 400;
+  color: #606060;
+}

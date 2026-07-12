@@ -93,7 +93,20 @@ export function FreeKickSetupPanel() {
         : undefined;
 
   const stageLabel = isKicking ? 'Attacking team' : 'Defending team';
-  const endButtonLabel = freeKickStageIndex === 3 ? 'Take Kick' : 'End Turn';
+
+  // Next-stage preview text shown at the bottom of the panel.
+  const nextStageIdx = freeKickStageIndex + 1;
+  const nextStage = nextStageIdx < FREE_KICK_STAGES.length ? FREE_KICK_STAGES[nextStageIdx] : null;
+  const nextActionText = nextStage
+    ? `Next: ${nextStage.side === 'kicking' ? 'Attacking' : 'Defending'} team will move up to ${nextStage.max} players.`
+    : 'Next: Free kick will be taken.';
+
+  // End Turn button color: yellow while placements remain, green when all used.
+  const endTurnColorClass = constraintsMet
+    ? placedCount >= stage.max
+      ? (styles.ctaButtonReady ?? '')
+      : (styles.ctaButtonPending ?? '')
+    : '';
 
   return (
     <div className={styles.panel}>
@@ -127,16 +140,18 @@ export function FreeKickSetupPanel() {
         </span>
       )}
 
+      {!isKickerSelectionPhase && <span className={styles.nextActionRow}>{nextActionText}</span>}
+
       {gameError && <span className={styles.errorText}>{gameError}</span>}
 
       {!isKickerSelectionPhase && (
         <button
-          className={styles.ctaButton}
+          className={`${styles.ctaButton} ${endTurnColorClass}`}
           disabled={!constraintsMet}
           title={!constraintsMet ? disabledTitle : undefined}
           onClick={emitFreeKickReady}
         >
-          {endButtonLabel}
+          End Turn
         </button>
       )}
     </div>

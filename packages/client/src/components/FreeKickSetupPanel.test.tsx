@@ -228,7 +228,7 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
     expect(screen.getByText(/defending zone: clear/i)).toBeDefined();
   });
 
-  it('stage 3 (last defending turn): the same 2-hex constraint applies and the button reads "Take Kick"', () => {
+  it('stage 3 (last defending turn): the same 2-hex constraint applies and the button reads "End Turn"', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(3, {
         pieces: mockMovementState.pieces.map((p) =>
@@ -239,9 +239,43 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
       }),
     });
     render(<FreeKickSetupPanel />);
-    const takeKick = screen.getByRole('button', { name: /take kick/i });
-    expect((takeKick as HTMLButtonElement).disabled).toBe(true);
+    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/defending zone: 1 player/i)).toBeDefined();
+  });
+});
+
+describe('FreeKickSetupPanel — next-action preview text', () => {
+  it('stage 0 (kicking): shows next defending stage max', () => {
+    useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/next: defending team will move up to 4 players/i)).toBeDefined();
+  });
+
+  it('stage 1 (defending): shows next attacking stage max', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(1, {
+        pieces: mockMovementState.pieces.map((p) =>
+          p.teamId === 'home' ? { ...p, position: { q: 1, r: 1 } } : p,
+        ),
+      }),
+      playerSlot: 1,
+    });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/next: attacking team will move up to 3 players/i)).toBeDefined();
+  });
+
+  it('stage 3 (last stage): shows free kick will be taken', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(3, {
+        pieces: mockMovementState.pieces.map((p) =>
+          p.teamId === 'home' ? { ...p, position: { q: 1, r: 1 } } : p,
+        ),
+      }),
+      playerSlot: 1,
+    });
+    render(<FreeKickSetupPanel />);
+    expect(screen.getByText(/next: free kick will be taken/i)).toBeDefined();
   });
 });
 
