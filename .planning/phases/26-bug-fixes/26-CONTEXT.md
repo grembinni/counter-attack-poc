@@ -13,7 +13,7 @@ Fix 6 known gameplay defects (BUG-24 through BUG-29) in the running codebase. Al
 <decisions>
 ## Implementation Decisions
 
-### BUG-23 Status
+### Claude's Discretion
 
 - **D-01:** BUG-23 (KICK_OFF_SETUP stale shot-path shading after SNAPSHOT_DEFLECT goal) is **Out of Scope** for Phase 26. REQUIREMENTS.md is authoritative. It requires a dedicated `/gsd-debug` instrumentation session to identify the root cause. Do not attempt to fix it here.
 
@@ -24,10 +24,10 @@ Fix 6 known gameplay defects (BUG-24 through BUG-29) in the running codebase. Al
 - **D-04:** Undo boundary for FREE_KICK_SETUP: applyUndo must not cross `FK_STAGE_ADVANCE` events. Scan eventLog backward from the current position; stop and return disabled if a `FK_STAGE_ADVANCE` or `FK_KICKER_CHOSEN` boundary is hit before finding an `FK_SETUP_MOVE` to undo.
 - **D-05:** For MOVE-phase undo (non-FK): undo is disabled if no moves have been taken in the current phase (checked via `paceUsedByPieceId` empty) or all current-phase moves are already undone. Cross-turn undo is not allowed.
 
-### Bug Discovery Policy
+### Claude's Discretion
 
-- **D-06:** If a discovered adjacent bug is a trivial same-file fix (one-liner, same function, no test additions needed), the executor may fold it in opportunistically with a note in the plan task.
-- **D-07:** If a discovered bug requires changes outside the file being edited, new tests, or is non-trivial, the executor must surface it to the user with a recommendation (fold vs. todo) before proceeding. Do not create todos silently for user-confirmable bugs.
+- **D-06:** [informational] If a discovered adjacent bug is a trivial same-file fix (one-liner, same function, no test additions needed), the executor may fold it in opportunistically with a note in the plan task.
+- **D-07:** [informational] If a discovered bug requires changes outside the file being edited, new tests, or is non-trivial, the executor must surface it to the user with a recommendation (fold vs. todo) before proceeding. Do not create todos silently for user-confirmable bugs.
 
 ### Folded Todos
 

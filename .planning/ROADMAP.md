@@ -113,10 +113,13 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 5. Winning a header duel results in a valid goal-side target hex being assigned; no invalid or unreachable hex is used
 6. Standard shot range validation correctly rejects shots from outside valid distance using the correct distance calculation
    **Plans**: 3 plans
-
-Plans:
+   Plans:
+   **Wave 1**
 
 - [ ] 26-01-PLAN.md — BUG-24: scope Undo to current phase/FREE_KICK_SETUP stage (server regression + client canUndo guard)
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 26-02-PLAN.md — BUG-28 + BUG-29: header-duel target range + standard shot range validation
 - [ ] 26-03-PLAN.md — BUG-25 + BUG-26 + BUG-27: End Turn color, opponent stats click, deflection log format
 

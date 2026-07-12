@@ -4,7 +4,7 @@ milestone: v1.4
 milestone_name: Response Polish + Draft Mode
 status: planning
 stopped_at: Phase 26 context gathered
-last_updated: '2026-07-12T14:25:40.667Z'
+last_updated: '2026-07-12T15:11:13.932Z'
 last_activity: 2026-07-12 — v1.4 roadmap created (Phases 26–30)
 progress:
   total_phases: 5
