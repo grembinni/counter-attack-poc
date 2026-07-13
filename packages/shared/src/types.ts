@@ -598,6 +598,8 @@ export type GameState = {
    * null or absent outside HEADER phase after duel resolves.
    */
   headerDuelWinner?: 'home' | 'away' | null;
+  /** ID of the winning contestant piece during HEADER target selection. Cleared when target resolves. */
+  headerWinnerId?: string | null;
   /** Phase 10 SNAPSHOT_TARGET: goal hex the shooter declared. */
   shotTargetHex?: HexCoord | null;
   /** Phase 10 GK_DIVE: GK's current position during GK_DIVE phase. */

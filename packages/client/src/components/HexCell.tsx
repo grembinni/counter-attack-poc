@@ -9,7 +9,8 @@ export type HexHighlightType =
   | 'goal'
   | 'kickoff'
   | 'shot-path'
-  | 'shot-path-action';
+  | 'shot-path-action'
+  | 'header-target';
 
 const HIGHLIGHT_STYLES: Record<
   HexHighlightType,
@@ -56,6 +57,13 @@ const HIGHLIGHT_STYLES: Record<
     hoverOpacity: 0.7,
     stroke: '#aaaaaa',
     strokeWidth: 2,
+  },
+  'header-target': {
+    fill: 'rgba(34,197,94,0.4)',
+    restOpacity: 1,
+    hoverOpacity: 1,
+    stroke: 'none',
+    strokeWidth: 0,
   },
 };
 

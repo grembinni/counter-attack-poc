@@ -247,13 +247,14 @@ describe('RULE-02: applyResolveHeaderTarget — DUEL_NOT_RESOLVED guard', () => 
 });
 
 describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () => {
-  it('returns ok:true and transitions phase to PASS on a valid in-range target', () => {
+  it('returns ok:true and transitions to PASS loose-ball on a valid in-range empty target', () => {
     const state = makeHeaderStateWithWinner();
-    // winner is homeFwd at {q:27,r:12}; target {q:30,r:12} is 3 hexes away — within 6
+    // winner is homeFwd at {q:27,r:12}; target {q:30,r:12} is 3 hexes away — within 6, empty hex
     const result = applyResolveHeaderTarget(state, { q: 30, r: 12 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.carrierId).toBeNull();
   });
 
   it('places ball at targetHex after resolve', () => {
@@ -335,7 +336,7 @@ describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () =
     expect(headedPassEvent.passerId).toBe('home-fwd');
     expect(headedPassEvent.from).toEqual({ q: 27, r: 12 }); // winner's position
     expect(headedPassEvent.to).toEqual(targetHex);
-    expect(headedPassEvent.ballAfter).toEqual({ position: targetHex, carrierId: 'home-fwd' });
+    expect(headedPassEvent.ballAfter).toEqual({ position: targetHex, carrierId: null });
   });
 
   it('does NOT append a HEADED_PASS event on the GK_DIVE (goal-line) route', () => {

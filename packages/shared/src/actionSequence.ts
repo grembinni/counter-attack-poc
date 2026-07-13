@@ -81,8 +81,8 @@ export const ELIGIBLE_NEXT_ACTIONS: Record<LastActionType, ReadonlySet<NextActio
   // Long Ball → can be headed or the team can start movement.
   LONG_BALL: new Set<NextActionType>(['MOVEMENT', 'HEADER']),
 
-  // Header → winner can move, chain a first-time pass, or snapshot. No standard pass (tests: 3 entries).
-  HEADER: new Set<NextActionType>(['MOVEMENT', 'FIRST_TIME_PASS', 'SNAPSHOT']),
+  // Header → winner can move, chain a first-time pass, long ball, or snapshot. No standard pass.
+  HEADER: new Set<NextActionType>(['MOVEMENT', 'FIRST_TIME_PASS', 'LONG_BALL', 'SNAPSHOT']),
 
   // Deflection (Loose Ball) → movement, first-time pass, long ball, or snapshot.
   // No Standard Pass (ball is loose — must be reached first via movement).

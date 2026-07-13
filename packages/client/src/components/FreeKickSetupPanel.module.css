@@ -4,16 +4,27 @@
 .panel {
   background: #16213e;
   border-radius: 4px;
-  padding: 6px 8px;
+  padding: 4px 6px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Full-width items */
+.panelHeading,
+.constraintRow,
+.errorText {
+  flex: 0 0 100%;
 }
 
 .panelHeading {
   font-size: 12px;
   font-weight: 700;
   color: #e0e0e0;
+  text-align: center;
 }
 
 .constraintRow {
@@ -23,6 +34,7 @@
   /* D-44: was missing a color, inheriting an unreadable dark default against the
      panel's dark background — match .panelHeading's light-text-on-dark token. */
   color: #e0e0e0;
+  text-align: center;
 }
 
 .errorText {
@@ -32,11 +44,14 @@
 }
 
 .ctaButton {
+  flex: 0 0 calc(50% - 2px);
+  max-width: 120px;
+  min-width: 0;
   background: #0f3460;
   color: #ffffff;
   border: none;
   border-radius: 4px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -50,6 +65,48 @@
 .ctaButton:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 20;
+}
+
+.confirmCard {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 280px;
+  width: 100%;
+}
+
+.confirmText {
+  font-size: 13px;
+  font-weight: 400;
+  color: #e0e0e0;
+  margin: 0;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.confirmActions .ctaButton {
+  flex: 1;
+  max-width: none;
 }
 
 .ctaButtonPending {

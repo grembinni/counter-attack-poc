@@ -659,12 +659,11 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
   // reaching the eventLog boundary scan. Without this guard, a stale FK_SETUP_MOVE
   // in the eventLog (with no boundary before it) would incorrectly enable the button.
 
-  it('BUG-24 D-03: Undo button is disabled when freeKickPlacedPieceIds is empty, even if a stale FK_SETUP_MOVE exists in the eventLog before any boundary', () => {
-    // Simulate the bug scenario: an FK_SETUP_MOVE from a prior run sits in the
-    // eventLog with no FK_KICKER_CHOSEN / FK_STAGE_ADVANCE boundary before it,
-    // and the current stage has nothing placed (freeKickPlacedPieceIds: []).
-    // Without the guard the eventLog scan returns true (FK_SETUP_MOVE found) →
-    // button enabled. With the guard it must return false → button disabled.
+  it('BUG-24 D-03: Undo button is disabled when freeKickPlacedPieceIds is empty and no FK_SETUP_MOVE exists after the last FK_STAGE_ADVANCE boundary', () => {
+    // Simulate the correct stale-move scenario: an FK_SETUP_MOVE from a prior stage sits
+    // in the eventLog BEFORE a FK_STAGE_ADVANCE boundary. The current stage is empty
+    // (freeKickPlacedPieceIds: []). The boundary scan correctly finds no FK_SETUP_MOVE
+    // after the FK_STAGE_ADVANCE, so the button must be disabled.
     useGameStore.setState({
       gameState: {
         ...freeKickBase,
@@ -672,7 +671,7 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
         freeKickPlacedPieceIds: [], // current stage is empty — nothing to undo
         lastDiceRoll: null,
         eventLog: [
-          // Stale FK_SETUP_MOVE with no boundary preceding it
+          // FK_SETUP_MOVE from the PREVIOUS stage (before the FK_STAGE_ADVANCE boundary)
           {
             type: 'FK_SETUP_MOVE',
             stageIndex: 0,
@@ -681,6 +680,8 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
             to: { q: 23, r: 9 },
             timestamp: 0,
           },
+          // FK_STAGE_ADVANCE acts as the undo boundary — nothing after it in current stage
+          { type: 'FK_STAGE_ADVANCE', fromStageIndex: 0 as const, timestamp: 1 },
         ],
       },
       playerSlot: 1,
@@ -688,6 +689,40 @@ describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
     render(<ActionPanel />);
     const undo = screen.getByRole('button', { name: /undo/i });
     expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('BUG-24 kicker undo: Undo button is enabled when freeKickKickerChosen is true and FK_SETUP_MOVE follows the FK_KICKER_CHOSEN boundary', () => {
+    // Kicker was placed: FK_KICKER_CHOSEN is the boundary, FK_SETUP_MOVE is after it.
+    // freeKickPlacedPieceIds is empty (no regular pieces placed yet), but freeKickKickerChosen
+    // is true — the kicker's FK_SETUP_MOVE is undoable.
+    useGameStore.setState({
+      gameState: {
+        ...freeKickBase,
+        freeKickKickerChosen: true,
+        freeKickPlacedPieceIds: [],
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'FK_KICKER_CHOSEN',
+            kickerPieceId: 'home-9',
+            hex: { q: 25, r: 13 },
+            timestamp: 0,
+          },
+          {
+            type: 'FK_SETUP_MOVE',
+            stageIndex: 0,
+            pieceId: 'home-9',
+            from: { q: 22, r: 9 },
+            to: { q: 25, r: 13 },
+            timestamp: 1,
+          },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('BUG-24 D-03: Undo button is enabled when freeKickPlacedPieceIds has one entry and an FK_SETUP_MOVE follows the last boundary', () => {

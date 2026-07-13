@@ -103,6 +103,7 @@ export function HexGrid() {
   const toggleHeaderContestantId = useGameStore((s) => s.toggleHeaderContestantId);
   const headerConfirmed = useGameStore((s) => s.gameState.headerConfirmed);
   const headerDuelWinner = useGameStore((s) => s.gameState.headerDuelWinner);
+  const headerWinnerId = useGameStore((s) => s.gameState.headerWinnerId);
   // HIGH_PASS_MOVEMENT: track locked piece and pace so selection gating + spent X match server rule
   const highPassMovedPieceId = useGameStore((s) => s.gameState.highPassMovedPieceId);
   const highPassPaceUsed = useGameStore((s) => s.gameState.highPassPaceUsed);
@@ -168,6 +169,11 @@ export function HexGrid() {
   // headerDuelWinner while the server stays in HEADER. The winning team then sees the goal-line
   // (and other pitch) hexes highlighted here so they can pick a target via GAME_HEADER_TARGET.
   const headerTargetStep = phase === 'HEADER' && myTeam !== null && headerDuelWinner === myTeam;
+  // Winner's piece position for header target range — headerWinnerId is set alongside headerDuelWinner.
+  // Falls back to ball.position if the winner piece is not found (should not occur in normal play).
+  const headerWinnerPiece = headerWinnerId
+    ? (pieces.find((p) => p.id === headerWinnerId) ?? null)
+    : null;
 
   // DESIGN-02: during post-game REPLAY no hex is ever clickable and no highlight is ever
   // meaningful (nothing in any REPLAY-phase code path calls selectPiece, so selectedPieceId
@@ -376,8 +382,10 @@ export function HexGrid() {
             const isGKDiveTarget =
               phase === 'GK_DIVE' && gkDiveTargetSet.has(hexId) && isGKTeamPlayer;
 
-            // Phase 10: HEADER target hex selection step — same range as first-time pass (≤6 hexes)
-            const headerDist = headerTargetStep ? hexDistance(hex, ball.position) : Infinity;
+            // Phase 10: HEADER target hex selection step — range from winner's position (≤6 hexes)
+            const headerDist = headerTargetStep
+              ? hexDistance(hex, headerWinnerPiece?.position ?? ball.position)
+              : Infinity;
             const isHeaderTargetGoalHex =
               headerTargetStep && goalLineHexSet.has(hexId) && headerDist <= 6;
             const isHeaderNonGoalTarget =
@@ -391,6 +399,7 @@ export function HexGrid() {
             const isHighlighted =
               isShootingModeGoalHex ||
               isHeaderTargetGoalHex ||
+              isHeaderNonGoalTarget ||
               (phase !== 'GK_DIVE' &&
                 phase !== 'SNAPSHOT_DEFLECT' &&
                 !headerTargetStep &&
@@ -430,6 +439,7 @@ export function HexGrid() {
             // shot-path highlights render the same color regardless of shot type.
             const isRisk =
               !isHeaderPass &&
+              !headerTargetStep &&
               ((zoiRiskSet.has(hexId) && isValidMove) || (tackleRiskSet.has(hexId) && isValidMove));
             const isGoalTint =
               isGoalHex || isShotTarget || isShootingModeGoalHex || isHeaderTargetGoalHex;
@@ -444,6 +454,7 @@ export function HexGrid() {
             // none of the five sub-conditions can produce a stale tint during kick-off setup.
             const isShotPathTint =
               phase !== 'KICK_OFF_SETUP' &&
+              !headerTargetStep &&
               (lastShotPathSet.has(hexId) ||
                 isHpMoveTarget ||
                 isGKDiveTarget ||
@@ -466,21 +477,23 @@ export function HexGrid() {
               hex.r === freeKickHex.r;
             // isSafeTint: normal valid-move hexes not classified as goal-line
             const isSafeTint = isHighlighted && !isGoalTint;
-            const highlightType: HexHighlightType | undefined = isRisk
-              ? 'risk'
-              : isGoalTint
-                ? 'goal'
-                : isShotPathActionTint
-                  ? 'shot-path-action'
-                  : isShotPathTint
-                    ? 'shot-path'
-                    : isKickerTargetTint
+            const highlightType: HexHighlightType | undefined = isHeaderNonGoalTarget
+              ? 'header-target'
+              : isRisk
+                ? 'risk'
+                : isGoalTint
+                  ? 'goal'
+                  : isShotPathActionTint
+                    ? 'shot-path-action'
+                    : isShotPathTint
                       ? 'shot-path'
-                      : isKickoffTint
-                        ? 'kickoff'
-                        : isSafeTint
-                          ? 'safe'
-                          : undefined;
+                      : isKickerTargetTint
+                        ? 'shot-path'
+                        : isKickoffTint
+                          ? 'kickoff'
+                          : isSafeTint
+                            ? 'safe'
+                            : undefined;
 
             let onClick: (() => void) | undefined;
             // DESIGN-02: REPLAY is never interactive — skip the entire phase-branch cascade so
@@ -582,17 +595,6 @@ export function HexGrid() {
                     stroke="#f5c518"
                     strokeWidth={2}
                     pointerEvents="none"
-                  />
-                )}
-                {/* HEADER target step: white shot-path tint on all non-goal-line pitch hexes (headed pass targets) — D-13 */}
-                {isHeaderNonGoalTarget && (
-                  <polygon
-                    points={points}
-                    fill="rgba(255,255,255,0.35)"
-                    stroke="#cccccc"
-                    strokeWidth={0.5}
-                    onClick={onClick}
-                    style={{ cursor: 'pointer' }}
                   />
                 )}
                 {/* GK_KICK_TARGET: sky-blue tint on valid kick destinations */}
@@ -795,6 +797,13 @@ export function HexGrid() {
             // GK_QUICK_THROW: clicking a piece on a valid target hex emits throw to that hex (not selectPiece)
             const isQuickThrowTargetPiece =
               phase === 'GK_QUICK_THROW' && isActivePlayer && quickThrowTargetSet.has(pieceHexId);
+            // HEADER target step: pieces in range are clickable targets. Pieces are in a
+            // separate SVG layer from hexes so click events don't bubble from piece to hex —
+            // this handler bridges the gap so clicking a piece emits the target directly.
+            const pieceHeaderDist = headerTargetStep
+              ? hexDistance(piece.position, headerWinnerPiece?.position ?? ball.position)
+              : Infinity;
+            const isPieceAtHeaderTarget = headerTargetStep && pieceHeaderDist <= 6;
 
             // DESIGN-02: force false during REPLAY — no piece ever registers a click affordance
             // during post-game replay playback, regardless of what the underlying booleans above
@@ -803,6 +812,7 @@ export function HexGrid() {
               phase !== 'REPLAY' &&
               (isPassTargetPiece ||
                 isQuickThrowTargetPiece ||
+                isPieceAtHeaderTarget ||
                 canSelect ||
                 canSelectKickOff ||
                 canSelectFreeKick ||
@@ -850,54 +860,56 @@ export function HexGrid() {
                   ? 'selectable'
                   : 'none';
 
-            const handleClick = isQuickThrowTargetPiece
-              ? () => emitQuickThrow(piece.position)
-              : isPassTargetPiece
-                ? () => {
-                    if (pieceHexConfirmed) {
-                      setPassTargetHex(null);
-                    } else if (passTargetHex === null) {
-                      confirmPassTarget(piece.position);
+            const handleClick = isPieceAtHeaderTarget
+              ? () => emitHeaderTarget(piece.position)
+              : isQuickThrowTargetPiece
+                ? () => emitQuickThrow(piece.position)
+                : isPassTargetPiece
+                  ? () => {
+                      if (pieceHexConfirmed) {
+                        setPassTargetHex(null);
+                      } else if (passTargetHex === null) {
+                        confirmPassTarget(piece.position);
+                      }
                     }
-                  }
-                : canSelectGKKickMove
-                  ? () => selectPiece(piece.id)
-                  : canSelectSnapDeflect
+                  : canSelectGKKickMove
                     ? () => selectPiece(piece.id)
-                    : canSelectHighPassMove
+                    : canSelectSnapDeflect
                       ? () => selectPiece(piece.id)
-                      : canSelectFirstTimePassMove
+                      : canSelectHighPassMove
                         ? () => selectPiece(piece.id)
-                        : canSelectFreeMove
+                        : canSelectFirstTimePassMove
                           ? () => selectPiece(piece.id)
-                          : isHeaderEligible
-                            ? () => {
-                                toggleHeaderContestantId(piece.id);
-                              }
-                            : canSelectKickOff
-                              ? () => selectPiece(piece.id)
-                              : canSelectFreeKick
+                          : canSelectFreeMove
+                            ? () => selectPiece(piece.id)
+                            : isHeaderEligible
+                              ? () => {
+                                  toggleHeaderContestantId(piece.id);
+                                }
+                              : canSelectKickOff
                                 ? () => selectPiece(piece.id)
-                                : canSelect
+                                : canSelectFreeKick
                                   ? () => selectPiece(piece.id)
-                                  : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
-                                    // player card via inspectPiece — same as unmoved pieces — but does NOT
-                                    // re-trigger move-target highlighting (canSelect already excludes moved
-                                    // pieces so selectPiece is never called here).
-                                    phase === 'MOVE' &&
-                                      myTeam !== null &&
-                                      piece.teamId === myTeam &&
-                                      movedPieceIds.includes(piece.id)
-                                    ? () => inspectPiece(piece.id)
-                                    : // BUG-26: clicking an opponent's activated (already-moved)
-                                      // piece opens its stats panel via inspectPiece. The
-                                      // canSelect guard above already excludes opponent pieces
-                                      // from selectPiece, so no erroneous selection occurs.
-                                      // No piece.teamId === myTeam constraint is needed here —
-                                      // this branch fires only after canSelect is false.
-                                      movedPieceIds.includes(piece.id)
+                                  : canSelect
+                                    ? () => selectPiece(piece.id)
+                                    : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
+                                      // player card via inspectPiece — same as unmoved pieces — but does NOT
+                                      // re-trigger move-target highlighting (canSelect already excludes moved
+                                      // pieces so selectPiece is never called here).
+                                      phase === 'MOVE' &&
+                                        myTeam !== null &&
+                                        piece.teamId === myTeam &&
+                                        movedPieceIds.includes(piece.id)
                                       ? () => inspectPiece(piece.id)
-                                      : () => undefined;
+                                      : // BUG-26: clicking an opponent's activated (already-moved)
+                                        // piece opens its stats panel via inspectPiece. The
+                                        // canSelect guard above already excludes opponent pieces
+                                        // from selectPiece, so no erroneous selection occurs.
+                                        // No piece.teamId === myTeam constraint is needed here —
+                                        // this branch fires only after canSelect is false.
+                                        movedPieceIds.includes(piece.id)
+                                        ? () => inspectPiece(piece.id)
+                                        : () => undefined;
 
             return (
               <PieceOverlay

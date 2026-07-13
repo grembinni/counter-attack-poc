@@ -182,20 +182,6 @@ export function ActionPanel() {
     }
   }, [phase, isActivePlayer, emitRoll]);
 
-  // After a header win the active player gets a First-time Pass (non-interceptable per isHeaderPass).
-  // Auto-select so the valid-target hexes appear without an extra click.
-  // ELIGIBLE_NEXT_ACTIONS['HEADER'] does not include STANDARD_PASS — use FIRST_TIME_PASS.
-  useEffect(() => {
-    if (
-      phase === 'PASS' &&
-      lastActionType === 'HEADER' &&
-      isActivePlayer &&
-      selectedPassType === null
-    ) {
-      setSelectedPassType('FIRST_TIME_PASS');
-    }
-  }, [phase, lastActionType, isActivePlayer, selectedPassType, setSelectedPassType]);
-
   // D-20 (Phase 25): auto-advance the HEADER accuracy step after 1500ms on the attacking client.
   // Replaces the push-button Continue confirmation (UX-15 — v1.3 playtesting feedback).
   // The EventBanner popup (HP_ACCURACY → 'Accurate Pass!' / 'Loose Ball!') provides visual
@@ -248,7 +234,12 @@ export function ActionPanel() {
     // must short-circuit BEFORE the eventLog boundary scan to prevent a stale
     // FK_SETUP_MOVE (from a prior stage or prior free kick) from incorrectly
     // enabling the button when the current stage is empty.
-    if (phase === 'FREE_KICK_SETUP' && (freeKickPlacedPieceIds ?? []).length === 0) return false;
+    if (
+      phase === 'FREE_KICK_SETUP' &&
+      (freeKickPlacedPieceIds ?? []).length === 0 &&
+      !freeKickKickerChosen
+    )
+      return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||

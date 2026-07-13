@@ -33,6 +33,7 @@ import {
   PITCH_HEXES,
   PITCH_REGIONS,
   ServerEvents,
+  freeKickStageTeam,
   hexDistance,
   hexLine,
   validatePass,
@@ -1131,7 +1132,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      if (!isActivePlayer(socket, room)) {
+      // During FREE_KICK_SETUP, activeTeam is not updated between stages — use the stage
+      // team from freeKickStageTeam instead of isActivePlayer (which reads activeTeam).
+      if (room.gameState.phase === 'FREE_KICK_SETUP') {
+        const fkState = room.gameState;
+        const stageTeam =
+          fkState.freeKickStageIndex !== null &&
+          fkState.freeKickStageIndex !== undefined &&
+          fkState.freeKickAttackingTeam
+            ? freeKickStageTeam(fkState.freeKickStageIndex, fkState.freeKickAttackingTeam)
+            : null;
+        if (!stageTeam || socketTeam(socket) !== stageTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+      } else if (!isActivePlayer(socket, room)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
         broadcastState(io, room);
         return;
@@ -2450,15 +2466,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
 
       room.gameState = headerTargetState;
-      // OFFSIDE-02 (D-26): header-win resolution success path — applyResolveHeaderTarget
-      // always assigns the winning contestant as the new ball carrier (both its GK_DIVE
-      // and PASS/headed-pass branches), so this single insertion point catches an offside
-      // header winner. No-op when the winner isn't flagged offside. D-57 note: any
-      // offside-flagged contestant (winner or not) is now intercepted earlier, in
-      // GAME_HEADER_CONTESTANT, before dice are even rolled — this target-selection step
-      // is never reached when an offside contestant was nominated. This call remains as a
-      // defensive no-op safety net for any other path that could reach here with an
-      // offside carrier.
+      // OFFSIDE-02 (D-26): applyResolveHeaderTarget now re-evaluates offsidePieceIds
+      // (post-HIGH_PASS_MOVE repositioning) before returning — so triggerOffsideFoul here
+      // sees fresh offside data. GK_DIVE path: carrier is the winner piece; PASS occupant
+      // path: carrier is the receiving player; PASS loose-ball path: carrierId=null (no-op).
       // D-53: applyOffsideFoulWithRelocation wraps triggerOffsideFoul + relocation.
       room.gameState = applyOffsideFoulWithRelocation(room.gameState);
       broadcastState(io, room); // ARCH-04
@@ -2576,14 +2587,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             // if it somehow fails, state is left in HEADER with contestants confirmed so the
             // client can retry via GAME_ROLL (existing fallback path).
           } else {
-            // BUG-07: Winner determined — deliver the pass IMMEDIATELY using the winner's
-            // current hex as the target. Drop the GAME_HEADER_TARGET selection sub-phase
-            // entirely. The delivery is non-contestable (lastActionType === 'HEADER' already
-            // suppresses interception in applyPass — BUG-01 precedent).
-            //
-            // Quick-task 260621-b8f finding #1: emit the HEADER contest event first
-            // (attacker/defender duel detail), then applyResolveHeaderTarget appends the
-            // HEADED_PASS delivery event — so the log shows both the contest and the delivery.
+            // Winner determined — stay in HEADER so the winning team can pick a target hex.
+            // Goal-line hexes trigger a shot (GK_DIVE); any other hex is a headed pass (PASS).
+            // Quick-task 260621-b8f finding #1: emit the HEADER contest event here so the
+            // log shows the contest result before the delivery event.
             const headerEvent: ActionEvent = {
               type: 'HEADER',
               attackerId: duelDetail.attackerId,
@@ -2597,23 +2604,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               defenderCombined: duelDetail.defenderCombined,
               timestamp: Date.now(),
             };
-            // Set headerDuelWinner so applyResolveHeaderTarget can look it up, then
-            // immediately resolve delivery using the winner's current position as the target.
-            const stateWithWinner = {
+            const stateForWinner = {
               ...room.gameState,
               headerDuelWinner: winner,
               eventLog: [...room.gameState.eventLog, headerEvent],
             };
-            const winnerPiece = resolveHeaderWinnerPiece(stateWithWinner, winner);
-            const deliveryTarget = winnerPiece?.position ?? room.gameState.ball.position;
-            const deliveryResult = applyResolveHeaderTarget(stateWithWinner, deliveryTarget);
-            if (deliveryResult.ok) {
-              room.gameState = deliveryResult.state;
-            } else {
-              // Fallback (should not occur in normal play): leave state with duelWinner set
-              // so the client can still trigger GAME_HEADER_TARGET manually.
-              room.gameState = stateWithWinner;
-            }
+            const winnerPiece = resolveHeaderWinnerPiece(stateForWinner, winner);
+            room.gameState = {
+              ...stateForWinner,
+              headerWinnerId: winnerPiece?.id ?? null,
+            };
           }
         }
       }

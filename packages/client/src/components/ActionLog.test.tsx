@@ -618,7 +618,7 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
 // already appends '— {rangeLabel}, {rollStr}' unconditionally. This test locks
 // the format for both bands to prevent regression.
 describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent failed-to-deflect format', () => {
-  it('band A NO_DEFLECT renders "failed to deflect — close range (Set A), die X"', () => {
+  it('band A NO_DEFLECT renders "failed to deflect — close range, die X"', () => {
     setEventLog([
       {
         type: 'DEFLECT_ATTEMPT',
@@ -635,11 +635,11 @@ describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent fa
     expect(container.textContent).toMatch(/failed to deflect\s*—\s*.+/);
     // Specific reason format for band A without bonus (die >= 5 threshold not met for bonus here)
     // die=3 < 5 → hasBonus is true → 'die 3 + Tackling 2 = 5'
-    expect(container.textContent).toContain('close range (Set A)');
+    expect(container.textContent).toContain('close range');
     expect(container.textContent).toContain('die 3 + Tackling 2 = 5');
   });
 
-  it('band B NO_DEFLECT renders "failed to deflect — long range (Set B), die X"', () => {
+  it('band B NO_DEFLECT renders "failed to deflect — long range, die X"', () => {
     setEventLog([
       {
         type: 'DEFLECT_ATTEMPT',
@@ -654,7 +654,7 @@ describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent fa
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/failed to deflect\s*—\s*.+/);
     // Band B has no tackling bonus regardless of die value
-    expect(container.textContent).toContain('long range (Set B)');
+    expect(container.textContent).toContain('long range');
     expect(container.textContent).toContain('die 4');
   });
 });

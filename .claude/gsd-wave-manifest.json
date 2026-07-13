@@ -1,0 +1,17 @@
+{
+  "orchestrator_root": "D:/dev/repo/counter-attack-poc",
+  "worktrees": [
+    {
+      "agent_id": "a08ccda09a2ea046d",
+      "worktree_path": "D:/dev/repo/counter-attack-poc/.claude/worktrees/agent-a08ccda09a2ea046d",
+      "branch": "worktree-agent-a08ccda09a2ea046d",
+      "expected_base": "6a37d6bc48aa6f8da20b607b8c73ec0ced5944d9"
+    },
+    {
+      "agent_id": "a0d7a34ee2b75d144",
+      "worktree_path": "D:/dev/repo/counter-attack-poc/.claude/worktrees/agent-a0d7a34ee2b75d144",
+      "branch": "worktree-agent-a0d7a34ee2b75d144",
+      "expected_base": "6a37d6bc48aa6f8da20b607b8c73ec0ced5944d9"
+    }
+  ]
+}

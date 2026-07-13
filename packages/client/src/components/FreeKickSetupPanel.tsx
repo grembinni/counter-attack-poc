@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { hexDistance, FREE_KICK_STAGES, freeKickStageTeam } from '@counter-attack/shared';
 import styles from './FreeKickSetupPanel.module.css';
@@ -15,6 +16,10 @@ import styles from './FreeKickSetupPanel.module.css';
  * -> stage 3 defending<=2 (D-50 2-hex check) -> kick taken.
  */
 export function FreeKickSetupPanel() {
+  const [pendingEndTurn, setPendingEndTurn] = useState<null | {
+    action: () => void;
+    count: number;
+  }>(null);
   const phase = useGameStore((s) => s.gameState.phase);
   const playerSlot = useGameStore((s) => s.playerSlot);
   const pieces = useGameStore((s) => s.gameState.pieces);
@@ -25,8 +30,11 @@ export function FreeKickSetupPanel() {
   // D-54: the kicker locks into movedPieceIds the instant it lands on freeKickHex.
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
   const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
+  const eventLog = useGameStore((s) => s.gameState.eventLog);
+  const lastDiceRoll = useGameStore((s) => s.gameState.lastDiceRoll);
   const gameError = useGameStore((s) => s.gameError);
   const emitFreeKickReady = useGameStore((s) => s.emitFreeKickReady);
+  const emitUndo = useGameStore((s) => s.emitUndo);
 
   // Return null unless in FREE_KICK_SETUP phase with a fully-initialized stage.
   if (
@@ -101,6 +109,55 @@ export function FreeKickSetupPanel() {
     ? `Next: ${nextStage.side === 'kicking' ? 'Attacking' : 'Defending'} team will move up to ${nextStage.max} players.`
     : 'Next: Free kick will be taken.';
 
+  const remaining = Math.max(stage.max - placedCount, 0);
+
+  const withEndTurnConfirm = (eligibleRemaining: number, action: () => void): (() => void) => {
+    return () => {
+      if (eligibleRemaining > 0) {
+        setPendingEndTurn({ action, count: eligibleRemaining });
+      } else {
+        action();
+      }
+    };
+  };
+
+  const confirmDialog =
+    pendingEndTurn !== null ? (
+      <div className={styles.confirmOverlay}>
+        <div className={styles.confirmCard}>
+          <p className={styles.confirmText}>
+            {pendingEndTurn.count} players left to reposition, are you sure you want to end your
+            turn?
+          </p>
+          <div className={styles.confirmActions}>
+            <button className={styles.ctaButton} onClick={() => setPendingEndTurn(null)}>
+              Cancel
+            </button>
+            <button
+              className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+              onClick={() => {
+                pendingEndTurn.action();
+                setPendingEndTurn(null);
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
+  // Undo: enabled when at least one FK_SETUP_MOVE exists after the last FK boundary in the log.
+  const canUndo = (() => {
+    if (lastDiceRoll) return false;
+    if ((freeKickPlacedPieceIds ?? []).length === 0 && !freeKickKickerChosen) return false;
+    const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
+      const isBoundary = evt.type === 'FK_KICKER_CHOSEN' || evt.type === 'FK_STAGE_ADVANCE';
+      return isBoundary ? idx : acc;
+    }, -1);
+    return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'FK_SETUP_MOVE');
+  })();
+
   // End Turn button color: yellow while placements remain, green when all used.
   const endTurnColorClass = constraintsMet
     ? placedCount >= stage.max
@@ -135,15 +192,23 @@ export function FreeKickSetupPanel() {
       {gameError && <span className={styles.errorText}>{gameError}</span>}
 
       {!isKickerSelectionPhase && (
+        <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>
+          Undo
+        </button>
+      )}
+
+      {!isKickerSelectionPhase && (
         <button
           className={`${styles.ctaButton} ${endTurnColorClass}`}
           disabled={!constraintsMet}
           title={!constraintsMet ? disabledTitle : undefined}
-          onClick={emitFreeKickReady}
+          onClick={withEndTurnConfirm(remaining, emitFreeKickReady)}
         >
           End Turn
         </button>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

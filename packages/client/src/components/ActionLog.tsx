@@ -311,7 +311,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const rollStr = hasBonus
         ? `die ${event.die} + Tackling ${event.tackling} = ${event.die + event.tackling}`
         : `die ${event.die}`;
-      const rangeLabel = event.band === 'A' ? 'close range (Set A)' : 'long range (Set B)';
+      const rangeLabel = event.band === 'A' ? 'close range' : 'long range';
       return {
         prefix: deflected ? '[DEFLECT ✓]' : '[DEFLECT ✗]',
         prefixColor: dColor,

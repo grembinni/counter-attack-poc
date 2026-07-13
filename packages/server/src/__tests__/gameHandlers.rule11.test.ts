@@ -502,7 +502,7 @@ describe('D-57: header contested by an offside-flagged player triggers the foul 
     expect(finalState.phase).toBe('FREE_KICK_SETUP');
   });
 
-  it('BUG-07: the normal (no flagged contestant) path delivers pass DIRECTLY after winner resolves — no HEADER phase stop', async () => {
+  it('the normal (no flagged contestant) path stays in HEADER after winner resolves — winning team selects target hex', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
     seedHeaderReadyForContestants(roomCode);
 
@@ -531,16 +531,19 @@ describe('D-57: header contested by an offside-flagged player triggers the foul 
     clientB.emit(ClientEvents.GAME_HEADER_CONTESTANT, [awayDefender.id]);
     const [finalState] = await stateAfterB;
 
-    // BUG-07: duel resolves and pass is delivered IMMEDIATELY — no HEADER phase stop.
-    // Phase must be PASS (or GK_DIVE if winner's position is goal-line-adjacent), not HEADER.
-    // lastActionType must be HEADER (non-contestable delivery per BUG-01 precedent).
-    expect(finalState.phase).not.toBe('HEADER');
-    expect(finalState.lastActionType).toBe('HEADER');
-    // The event log must contain a HEADED_PASS event (not FIRST_TIME_PASS) for the delivery.
+    // After duel resolves the server stays in HEADER so the winning team can pick a target hex
+    // (including goal-line hexes to trigger a shot). Target selection via GAME_HEADER_TARGET
+    // then transitions to PASS or GK_DIVE — no immediate delivery here.
+    expect(finalState.phase).toBe('HEADER');
+    expect(finalState.headerDuelWinner).toBe('home'); // home has higher aerialAbility
+    expect(typeof finalState.headerWinnerId).toBe('string'); // winner piece ID set for client range check
+    // The HEADER contest event is logged immediately; HEADED_PASS comes after target selection.
+    const headerEvent = finalState.eventLog.find((e: { type: string }) => e.type === 'HEADER');
+    expect(headerEvent).toBeDefined();
     const headedPassEvent = finalState.eventLog.find(
       (e: { type: string }) => e.type === 'HEADED_PASS',
     );
-    expect(headedPassEvent).toBeDefined();
+    expect(headedPassEvent).toBeUndefined();
   });
 
   it('the normal (no flagged contestant) TIE path still resolves to LOOSE_BALL exactly as before — regression check', async () => {

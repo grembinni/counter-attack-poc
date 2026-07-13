@@ -1540,11 +1540,20 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                   : { snapDeflectMovedPieceId: null, snapDeflectPaceUsed: 0 };
               })()
             : state.phase === 'FREE_KICK_SETUP'
-              ? {
-                  freeKickPlacedPieceIds: (state.freeKickPlacedPieceIds ?? []).filter(
-                    (id) => id !== moveToUndo.pieceId,
-                  ),
-                }
+              ? (() => {
+                  // Detect kicker undo: a FK_KICKER_CHOSEN event exists with this piece ID.
+                  // When true, also clear freeKickKickerChosen so the kicker-select sub-step
+                  // re-activates and the kicker can be repositioned again.
+                  const isKickerUndo = state.eventLog.some(
+                    (e) => e.type === 'FK_KICKER_CHOSEN' && e.kickerPieceId === moveToUndo.pieceId,
+                  );
+                  return {
+                    freeKickPlacedPieceIds: (state.freeKickPlacedPieceIds ?? []).filter(
+                      (id) => id !== moveToUndo.pieceId,
+                    ),
+                    ...(isKickerUndo ? { freeKickKickerChosen: false } : {}),
+                  };
+                })()
               : {};
 
   return {
@@ -3020,7 +3029,12 @@ export function applyQuickThrow(state: GameState, targetHex: HexCoord): ApplyQui
 
   if (!isPitchHex(targetHex)) return { ok: false, reason: 'INVALID_TARGET' };
 
-  // Find a teammate at the target hex to become the new carrier
+  // Find a teammate at the target hex to become the new carrier.
+  // TODO: if an OPPOSING player occupies targetHex, they should immediately gain possession
+  // (change of possession; ball.carrierId = opponent piece, attackingTeam flips). Currently
+  // the ball lands as a loose ball (carrierId: null) and the opponent never gets possession.
+  // Fix: also search for an opponent piece at targetHex; if found, set carrierId to that piece
+  // and flip attackingTeam/activeTeam to the opponent's team before transitioning to PASS.
   const receiver = state.pieces.find(
     (p) => p.teamId === gk.teamId && p.position.q === targetHex.q && p.position.r === targetHex.r,
   );
@@ -3419,6 +3433,7 @@ export function applyResolveHeaderTarget(
     headerTargetHex: null,
     headerAccuracyRollPending: null,
     headerDuelWinner: null,
+    headerWinnerId: null,
   };
 
   // 5. Route to GK_DIVE if the target is a goal-line hex for the attacking team (HEAD-03)
@@ -3458,20 +3473,56 @@ export function applyResolveHeaderTarget(
     };
   }
 
-  // Not goal-line: headed pass → PASS with winner as carrier.
-  // Quick-task 260621-b8f finding #2: this branch previously emitted no event at all — the
-  // contested HEADER event (finding #1) only logs the contest itself, not the delivery that
-  // follows a won header. Emit a HEADED_PASS event (pass-format, no accuracy field — a won
-  // header is always delivered, no accuracy check at this point) so the ActionLog can render
-  // a [HEADER PASS] entry.
+  // Not goal-line: check who (if anyone) occupies targetHex.
+  // Winner piece stays at its original position — only the ball moves.
+  const occupant = state.pieces.find(
+    (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+  );
+
   const headedPassEvent: ActionEvent = {
     type: 'HEADED_PASS',
     passerId: resolvedWinner?.id ?? '',
     from: referencePosition,
     to: targetHex,
-    ballAfter: { position: targetHex, carrierId: resolvedWinner?.id ?? null },
+    ballAfter: { position: targetHex, carrierId: occupant?.id ?? null },
     timestamp: Date.now(),
   };
+
+  if (occupant) {
+    // A player is at targetHex — they receive the ball.
+    // If it's a teammate: winnerTeam keeps attacking.
+    // If it's an opponent: possession changes, that team now attacks.
+    const receiverTeam = occupant.teamId;
+    const occupantBall = { position: targetHex, carrierId: occupant.id };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'PASS',
+        attackingTeam: receiverTeam,
+        activeTeam: receiverTeam,
+        ball: occupantBall,
+        lastActionType: 'HEADER',
+        contestedPieceIds: contestedIds,
+        stealAttemptedByIds: [],
+        tackleAttemptedByIds: [],
+        // Re-evaluate offside with current piece positions (post-HIGH_PASS_MOVE repositioning)
+        // so triggerOffsideFoul in the handler works against fresh data — mirrors applyEndTurn.
+        offsidePieceIds: evaluateOffside({
+          ...state,
+          attackingTeam: receiverTeam,
+          ball: occupantBall,
+        }),
+        eventLog: [...state.eventLog, headedPassEvent],
+        ...headerCleared,
+      },
+    };
+  }
+
+  // Empty hex: loose ball — go to PASS (carrierId=null) so the ActionPanel shows the
+  // "Loose Ball — Move" gate. The player must explicitly start movement, matching the
+  // regular loose-ball UX (standard pass landing on empty hex).
+  const looseBall = { position: targetHex, carrierId: null };
   return {
     ok: true,
     state: {
@@ -3479,11 +3530,13 @@ export function applyResolveHeaderTarget(
       phase: 'PASS',
       attackingTeam: winnerTeam,
       activeTeam: winnerTeam,
-      ball: { position: targetHex, carrierId: resolvedWinner?.id ?? null },
+      ball: looseBall,
       lastActionType: 'HEADER',
       contestedPieceIds: contestedIds,
-      stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
-      tackleAttemptedByIds: [], // D-02
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+      // Re-evaluate offside with current piece positions (post-HIGH_PASS_MOVE repositioning).
+      offsidePieceIds: evaluateOffside({ ...state, attackingTeam: winnerTeam, ball: looseBall }),
       eventLog: [...state.eventLog, headedPassEvent],
       ...headerCleared,
     },
@@ -4082,6 +4135,17 @@ export function applyFreeKickMove(
       hex: freeKickHex,
       timestamp: Date.now(),
     };
+    // Emit FK_SETUP_MOVE AFTER FK_KICKER_CHOSEN so applyUndo can find and reverse
+    // the kicker placement. FK_KICKER_CHOSEN acts as the undo boundary; the
+    // FK_SETUP_MOVE sits after it and is the target of the Undo operation.
+    const kickerMoveEvent: ActionEvent = {
+      type: 'FK_SETUP_MOVE',
+      stageIndex: stageIndex ?? 0,
+      pieceId,
+      from: piece.position,
+      to,
+      timestamp: Date.now(),
+    };
     return {
       ok: true,
       state: {
@@ -4089,7 +4153,7 @@ export function applyFreeKickMove(
         pieces: newPieces,
         movedPieceIds: [...state.movedPieceIds, pieceId],
         freeKickKickerChosen: true,
-        eventLog: [...state.eventLog, kickerChosenEvent],
+        eventLog: [...state.eventLog, kickerChosenEvent, kickerMoveEvent],
       },
     };
   }
