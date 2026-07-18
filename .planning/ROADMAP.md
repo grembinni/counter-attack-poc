@@ -90,10 +90,9 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 **Milestone Goal:** Rework all response-move activations into a consistent single-selection model with proper eligibility gating, fix 6 known gameplay bugs, and add a configurable pack-draft system as an optional pre-game mode.
 
 - [x] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range) (completed 2026-07-12)
-- [ ] **Phase 27: Response Activation Model** - Rework all response move phases to single-selection with eligibility gating, white range overlays, and auto-skip
-- [ ] **Phase 28: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection
-- [ ] **Phase 29: Draft Data Model** - Player tier classification and configurable pack generation engine
-- [ ] **Phase 30: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup
+- [ ] **Phase 27: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection
+- [ ] **Phase 28: Draft Data Model** - Player tier classification and configurable pack generation engine
+- [ ] **Phase 29: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup
 
 ---
 
@@ -123,58 +122,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 - [x] 26-02-PLAN.md — BUG-28 + BUG-29: header-duel target range + standard shot range validation
 - [x] 26-03-PLAN.md — BUG-25 + BUG-26 + BUG-27: End Turn color, opponent stats click, deflection log format
 
-### Phase 27: Response Activation Model
-
-**Goal**: All response move phases (header, deflect, final third, dive, keeper ball in box) activate via a consistent single-selection model, with white range overlays and per-hex challenge-penalty hints, type-specific eligibility gating, auto-repositioning of the keeper on final-third entry, auto-skip with logging when no eligible players are in range, and a ball hex highlight during all response phases.
-**Depends on**: Phase 26
-**Requirements**: RESP-01, RESP-02, RESP-03, RESP-04, RESP-05, RESP-06, RESP-07, RESP-08, RESP-09
-**Success Criteria** (what must be TRUE):
-
-1. Any response move (header, deflect, final third, dive, keeper ball-in-box) activates via a single player selection — no multi-step process; the interaction model is consistent with keeper dive
-2. Valid response hexes are shown in white; hexes that incur a challenge penalty display a −1 indicator on the hex
-3. Only players eligible for each response type are selectable: deflect requires being on or adjacent to the shot path; header requires being within heading range of the ball; dive shows only valid dive hexes; final third shows the 6-hex ring around the ball
-4. When the ball enters the final third, the keeper is auto-repositioned to their starting position and excluded from the eligible-player count; helper text on the action panel notes the repositioning
-5. When no eligible players exist for a response phase, the server auto-skips the response and logs the skip; the ball hex is highlighted during all response phases for visibility
-   **Plans**: 12 plans
-   Plans:
-   **Wave 1**
-
-- [ ] 27-01-PLAN.md — Shared GamePhase/GameState/ActionEvent contracts + deflectValidator (D-01–D-21 vocabulary)
-- [ ] 27-02-PLAN.md — HexCell.tsx: new 'response' highlightType + −1 penalty badge
-
-**Wave 2** _(blocked on Wave 1)_
-
-- [ ] 27-03-PLAN.md — HexGrid.tsx: ball-hex ring generalization + DIVE/DEFLECT visual retrofit
-- [ ] 27-04-PLAN.md — DEFLECT: shot-path eligibility filter + auto-fire-on-move refactor
-
-**Wave 3** _(blocked on Wave 2)_
-
-- [ ] 27-05-PLAN.md — HEADER: server-side sequential positioning engine
-
-**Wave 4** _(blocked on Wave 3)_
-
-- [ ] 27-06-PLAN.md — HEADER: client positioning UI
-- [ ] 27-07-PLAN.md — FINAL_THIRD_RESPONSE: server movement engine (applyFinalThirdMove/End)
-
-**Wave 5** _(blocked on Wave 4)_
-
-- [ ] 27-08-PLAN.md — Keeper auto-snap (D-15) + FINAL_THIRD_RESPONSE zone-crossing trigger
-
-**Wave 6** _(blocked on Wave 5)_
-
-- [ ] 27-09-PLAN.md — Keeper ball-in-box: server engine, trigger, and handler
-- [ ] 27-10-PLAN.md — FINAL_THIRD_RESPONSE: client UI
-
-**Wave 7** _(blocked on Wave 6)_
-
-- [ ] 27-11-PLAN.md — Keeper ball-in-box: client UI
-
-**Wave 8** _(blocked on Wave 7)_
-
-- [ ] 27-12-PLAN.md — Full regression + end-to-end live verification (UAT)
-      **UI hint**: yes
-
-### Phase 28: Game Creation Settings
+### Phase 27: Game Creation Settings
 
 **Goal**: Game creation has a pre-step settings screen where speed, team type (Standard or Draft), and draft pool are configured before team selection; the speed selector moves off the team-selection page in Standard mode; Draft mode shows a settings summary on the team-selection screen.
 **Depends on**: Phase 27
@@ -187,10 +135,10 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
    **Plans**: TBD
    **UI hint**: yes
 
-### Phase 29: Draft Data Model
+### Phase 28: Draft Data Model
 
 **Goal**: The player pool is classified into configurable rarity tiers by total stat count, and the pack generation engine produces correctly-composed 7-card packs from the selected pool using configurable constants.
-**Depends on**: Phase 28
+**Depends on**: Phase 27
 **Requirements**: DRAFT-04, DRAFT-05
 **Success Criteria** (what must be TRUE):
 
@@ -199,10 +147,10 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 3. All tier-boundary percentages and pack composition counts are exported configurable constants — changing a constant alone adjusts tier assignment or pack composition without additional code changes
    **Plans**: TBD
 
-### Phase 30: Draft UI + Pick-and-Swap Flow
+### Phase 29: Draft UI + Pick-and-Swap Flow
 
 **Goal**: Players can complete a full draft session in real time — a 7-card carousel screen appears between team selection and lineup; 4 pick-and-swap cycles deliver 16 cards per player; keeper safety triggers automatically on the 4th cycle if needed; overflow drafted players appear on a dynamic bench carousel; post-draft, all players are auto-positioned by total stat and team colors are applied.
-**Depends on**: Phase 29
+**Depends on**: Phase 28
 **Requirements**: DRAFT-06, DRAFT-07, DRAFT-08, DRAFT-09, DRAFT-10
 **Success Criteria** (what must be TRUE):
 
@@ -254,7 +202,6 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Response Activation Model  | v1.4      | 0/12           | Not started | -          |
-| 28. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
-| 29. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
-| 30. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
+| 27. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
+| 28. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
+| 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
