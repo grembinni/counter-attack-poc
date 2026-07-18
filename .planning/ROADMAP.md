@@ -135,8 +135,44 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 3. Only players eligible for each response type are selectable: deflect requires being on or adjacent to the shot path; header requires being within heading range of the ball; dive shows only valid dive hexes; final third shows the 6-hex ring around the ball
 4. When the ball enters the final third, the keeper is auto-repositioned to their starting position and excluded from the eligible-player count; helper text on the action panel notes the repositioning
 5. When no eligible players exist for a response phase, the server auto-skips the response and logs the skip; the ball hex is highlighted during all response phases for visibility
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 12 plans
+   Plans:
+   **Wave 1**
+
+- [ ] 27-01-PLAN.md — Shared GamePhase/GameState/ActionEvent contracts + deflectValidator (D-01–D-21 vocabulary)
+- [ ] 27-02-PLAN.md — HexCell.tsx: new 'response' highlightType + −1 penalty badge
+
+**Wave 2** _(blocked on Wave 1)_
+
+- [ ] 27-03-PLAN.md — HexGrid.tsx: ball-hex ring generalization + DIVE/DEFLECT visual retrofit
+- [ ] 27-04-PLAN.md — DEFLECT: shot-path eligibility filter + auto-fire-on-move refactor
+
+**Wave 3** _(blocked on Wave 2)_
+
+- [ ] 27-05-PLAN.md — HEADER: server-side sequential positioning engine
+
+**Wave 4** _(blocked on Wave 3)_
+
+- [ ] 27-06-PLAN.md — HEADER: client positioning UI
+- [ ] 27-07-PLAN.md — FINAL_THIRD_RESPONSE: server movement engine (applyFinalThirdMove/End)
+
+**Wave 5** _(blocked on Wave 4)_
+
+- [ ] 27-08-PLAN.md — Keeper auto-snap (D-15) + FINAL_THIRD_RESPONSE zone-crossing trigger
+
+**Wave 6** _(blocked on Wave 5)_
+
+- [ ] 27-09-PLAN.md — Keeper ball-in-box: server engine, trigger, and handler
+- [ ] 27-10-PLAN.md — FINAL_THIRD_RESPONSE: client UI
+
+**Wave 7** _(blocked on Wave 6)_
+
+- [ ] 27-11-PLAN.md — Keeper ball-in-box: client UI
+
+**Wave 8** _(blocked on Wave 7)_
+
+- [ ] 27-12-PLAN.md — Full regression + end-to-end live verification (UAT)
+      **UI hint**: yes
 
 ### Phase 28: Game Creation Settings
 
@@ -218,7 +254,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Response Activation Model  | v1.4      | 0/?            | Not started | -          |
+| 27. Response Activation Model  | v1.4      | 0/12           | Not started | -          |
 | 28. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
 | 29. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
 | 30. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
