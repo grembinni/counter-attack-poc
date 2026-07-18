@@ -54,6 +54,12 @@ This phase covers the **pre-challenge positioning/movement step** for all respon
 - Naming/internal structure of the new `response` highlightType and its priority ordering relative to existing types (`risk > goal > shot-path > kickoff > safe`) — research/planning should determine where `response` and the new ball-hex ring sit in that precedence.
 - Whether the −1 badge is a new SVG `<text>` element pattern or reuses an existing text-rendering approach (e.g. jersey number rendering) — implementation detail for planning.
 
+### Post-research clarifications (resolved 2026-07-18, after RESEARCH.md open questions)
+
+- **D-19 (keeper ball-in-box trigger):** Fires on any ball entry into the penalty area (zone-crossing detection, same category as the final-third crossing check in D-15) — not restricted to `LOOSE_BALL` landings. Applies to whichever penalty area (home/away) is relevant to the defending keeper.
+- **D-20 (deflect eligibility vs. movement budget):** D-12's hex-distance-3-from-shot-path-line is an eligibility filter only (which defenders/hexes are shown as valid). It does not replace the existing 2-hex movement pace cap — actual move distance from a defender's start hex stays capped at 2.
+- **D-21 (final third turn order):** Attacker moves all desired eligible pieces first (each a single-select move, mark activated, End Turn/pass when done), then hands off to the defender who does the same. Sequential single-sided turns, not free-for-all interleaving and not per-piece HEADER-style alternation.
+
 </decisions>
 
 <canonical_refs>
