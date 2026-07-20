@@ -128,6 +128,17 @@ async function setupRoom(): Promise<{
   clientA.emit(ClientEvents.ROOM_CREATE);
   const [roomCode] = await createPromise;
 
+  // Phase 27 D-01/T-27-05: TEAM_SELECTION_START is gated on settings-confirmed AND
+  // slot-2-joined — confirm settings before the joiner arrives so this helper's
+  // join-then-team-selection-start flow still holds under the new both-conditions gate.
+  const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+  clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+    speed: 'standard',
+    teamType: 'standard',
+    draftPools: [],
+  });
+  await settingsConfirmedPromise;
+
   // Join: both clients receive team:selection-start (Phase 16 D-10)
   const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START);
   clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
