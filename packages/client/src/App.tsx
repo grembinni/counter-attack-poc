@@ -6,6 +6,7 @@ import { GameSettingsScreen } from './components/GameSettingsScreen.js';
 import { TeamSelectionScreen } from './components/TeamSelectionScreen.js';
 import { UniformSelectionScreen } from './components/UniformSelectionScreen.js';
 import { LineupAssignmentScreen } from './components/LineupAssignmentScreen.js';
+import { formatSettingsSummary } from './constants/settingsSummary.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
@@ -37,11 +38,9 @@ export function App() {
   const [selectedSpeed, setSelectedSpeed] = useState<GameSpeed>('standard');
   // Phase 27: teamType/draftPools set only via GameSettingsScreen's confirm callback
   // (handleSettingsConfirm) or the ROOM_SETTINGS_CONFIRMED broadcast (joiner, host echo).
-  // Not yet read in this plan — 27-04 threads these into the read-only settings summary
-  // on TeamSelectionScreen/UniformSelectionScreen.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Threaded into formatSettingsSummary(...) for the read-only settings summary shown on
+  // TeamSelectionScreen/UniformSelectionScreen (27-04, D-07/D-09).
   const [teamType, setTeamType] = useState<TeamType>('standard');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>([]);
   // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
@@ -269,7 +268,7 @@ export function App() {
           homeConfirmedFormation={homeConfirmedFormation}
           onConfirm={handleUniformConfirm}
           selectedSpeed={selectedSpeed}
-          onSpeedChange={handleSpeedChange}
+          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}
         />
       ) : screen === 'TEAM_SELECTION' ? (
         <TeamSelectionScreen
