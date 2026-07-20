@@ -202,13 +202,6 @@ export function App() {
     socket.emit(ClientEvents.TEAM_PICK, teamId);
   }
 
-  // UX-07 (Phase 18.4): emits team:speed-set to server; called when home player changes speed
-  const emitTeamSpeed = useGameStore((s) => s.emitTeamSpeed);
-  function handleSpeedChange(speed: GameSpeed) {
-    setSelectedSpeed(speed);
-    emitTeamSpeed(speed);
-  }
-
   // Phase 27 (DRAFT-01/D-01/D-03): called from GameSettingsScreen's onConfirm; stores the
   // bundled settings locally and emits ROOM_SETTINGS_CONFIRM. The screen transition to
   // WAITING happens on the ROOM_SETTINGS_CONFIRMED echo (onRoomSettingsConfirmed), not here.
@@ -275,7 +268,7 @@ export function App() {
           homePickedTeam={homePickedTeam}
           onPick={handleTeamPick}
           selectedSpeed={selectedSpeed}
-          onSpeedChange={handleSpeedChange}
+          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}
         />
       ) : (
         <LobbyScreen />
