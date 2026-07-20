@@ -132,6 +132,36 @@ function waitForConnect(
   });
 }
 
+/**
+ * Asserts that a given event is NOT emitted to the socket within windowMs.
+ * Resolves once the window elapses without the event firing; rejects immediately
+ * if the event fires during the window.
+ *
+ * Used for the race-gate negative assertion (T-27-05 / Pitfall 1): proving
+ * TEAM_SELECTION_START is deferred, not just eventually correct.
+ */
+function assertEventNotEmitted<E extends keyof ServerToClientEvents>(
+  socket: Socket<ServerToClientEvents, ClientToServerEvents>,
+  event: E,
+  windowMs = 250,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const handler = (...args: unknown[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (socket as any).off(event, handler);
+      clearTimeout(timer);
+      reject(new Error(`Unexpected event "${String(event)}" was emitted: ${JSON.stringify(args)}`));
+    };
+    const timer = setTimeout(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (socket as any).off(event, handler);
+      resolve();
+    }, windowMs);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (socket as any).once(event, handler);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -425,4 +455,181 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
     const [reason] = await errorPromise;
     expect(reason).toBe('TEAM_ALREADY_PICKED');
   }, 5000);
+});
+
+// ---------------------------------------------------------------------------
+// ROOM_SETTINGS_CONFIRM (Phase 27, DRAFT-01/D-01/D-02/D-03)
+//
+// Covers: host-only guard (T-27-01), draft-pool allow-list (T-27-02),
+// re-confirm-after-lock guard (T-27-03), conditional pool-required validation
+// (T-27-04), and the settings-confirmed / joiner-present race gate (T-27-05,
+// Pitfall 1). RED at plan 27-02 task 1 — ROOM_SETTINGS_CONFIRM handler does
+// not exist yet, so every case below fails because no response is ever
+// emitted (oncePromise times out), not because of an assertion mismatch.
+// ---------------------------------------------------------------------------
+
+describe('ROOM_SETTINGS_CONFIRM', () => {
+  it('non-host (slot 2) ROOM_SETTINGS_CONFIRM is rejected with WRONG_TURN and does not fire TEAM_SELECTION_START (T-27-01)', async () => {
+    const clientA = createClient();
+    const clientB = createClient();
+    await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+    await joinedBPromise;
+
+    // Joiner (slot 2) is not the host — must be rejected, and the rejected
+    // attempt itself must not cause a (new) TEAM_SELECTION_START emission.
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR, 2000);
+    const noStartPromise = assertEventNotEmitted(clientB, ServerEvents.TEAM_SELECTION_START);
+    clientB.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'fast',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_TURN');
+    await noStartPromise;
+  }, 5000);
+
+  it('draft mode with an empty draftPools array is rejected with DRAFT_POOL_REQUIRED (T-27-04)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      draftPools: [],
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('DRAFT_POOL_REQUIRED');
+  }, 5000);
+
+  it('standard mode with an empty draftPools array succeeds; re-confirm after lock is rejected with SETTINGS_ALREADY_CONFIRMED (T-27-03)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const confirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    const [speed, teamType, draftPools] = await confirmedPromise;
+    expect(speed).toBe('standard');
+    expect(teamType).toBe('standard');
+    expect(draftPools).toEqual([]);
+    // No DRAFT_POOL_REQUIRED should fire for standard mode's empty pool array.
+
+    // D-03: settings are locked after the first confirm — a second confirm attempt
+    // (even with different values) must be rejected and must not mutate the room.
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'fast',
+      teamType: 'draft',
+      draftPools: ['original'],
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
+  }, 5000);
+
+  it("draftPools allow-list rejects 'legends' even though it is a valid DraftPoolId (T-27-02)", async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      draftPools: ['legends'],
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_DRAFT_POOL');
+  }, 5000);
+
+  it('TEAM_SELECTION_START fires only once both host-confirmed and slot-2-joined are true, regardless of order (T-27-05 / Pitfall 1)', async () => {
+    // --- Ordering 1: host confirms settings BEFORE the joiner joins. ---
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromiseA = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCodeA] = await createJoinedPromiseA;
+
+    const noStartPromiseA = assertEventNotEmitted(clientA, ServerEvents.TEAM_SELECTION_START);
+    const confirmedPromiseA = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    await confirmedPromiseA;
+    // Host must NOT prematurely receive TEAM_SELECTION_START before a joiner exists (D-01).
+    await noStartPromiseA;
+
+    const clientB = createClient();
+    await waitForConnect(clientB);
+
+    const selectionStartAPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
+    const selectionStartBPromise = oncePromise(clientB, ServerEvents.TEAM_SELECTION_START, 2000);
+    const joinerSettingsPromise = oncePromise(clientB, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCodeA);
+    await joinedBPromise;
+
+    // Both clients receive TEAM_SELECTION_START once the joiner arrives (settings already confirmed).
+    await selectionStartAPromise;
+    await selectionStartBPromise;
+    // D-02: the joiner receives the host's stored settings at join time.
+    const [joinerSpeed, joinerTeamType, joinerPools] = await joinerSettingsPromise;
+    expect(joinerSpeed).toBe('standard');
+    expect(joinerTeamType).toBe('standard');
+    expect(joinerPools).toEqual([]);
+
+    // --- Ordering 2 (reverse): the joiner joins BEFORE the host confirms settings. ---
+    const clientC = createClient();
+    const clientD = createClient();
+    await Promise.all([waitForConnect(clientC), waitForConnect(clientD)]);
+
+    const createJoinedPromiseC = oncePromise(clientC, ServerEvents.ROOM_JOINED);
+    clientC.emit(ClientEvents.ROOM_CREATE);
+    const [roomCodeC] = await createJoinedPromiseC;
+
+    const noStartPromiseC = assertEventNotEmitted(clientC, ServerEvents.TEAM_SELECTION_START);
+    const noStartPromiseD = assertEventNotEmitted(clientD, ServerEvents.TEAM_SELECTION_START);
+    const joinedDPromise = oncePromise(clientD, ServerEvents.ROOM_JOINED);
+    clientD.emit(ClientEvents.ROOM_JOIN, roomCodeC);
+    await joinedDPromise;
+    // Joiner arrived first — settings not yet confirmed, so TEAM_SELECTION_START must be deferred.
+    await noStartPromiseC;
+    await noStartPromiseD;
+
+    const selectionStartCPromise = oncePromise(clientC, ServerEvents.TEAM_SELECTION_START, 2000);
+    const selectionStartDPromise = oncePromise(clientD, ServerEvents.TEAM_SELECTION_START, 2000);
+    clientC.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    // Host confirm is the "second" condition here — must fire TEAM_SELECTION_START for both.
+    await selectionStartCPromise;
+    await selectionStartDPromise;
+  }, 8000);
 });
