@@ -39,17 +39,19 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
     expect(screen.getByText('Draft Pool')).toBeTruthy();
-    const original = screen.getByRole('checkbox', { name: /original/i });
-    const mls = screen.getByRole('checkbox', { name: /^mls/i });
-    const international = screen.getByRole('checkbox', { name: /international/i });
-    const legends = screen.getByRole('checkbox', { name: /legends/i });
-    const icons = screen.getByRole('checkbox', { name: /icons/i });
+    const original = screen.getByRole<HTMLInputElement>('checkbox', { name: /original/i });
+    const mls = screen.getByRole<HTMLInputElement>('checkbox', { name: /^mls/i });
+    const international = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: /international/i,
+    });
+    const legends = screen.getByRole<HTMLInputElement>('checkbox', { name: /legends/i });
+    const icons = screen.getByRole<HTMLInputElement>('checkbox', { name: /icons/i });
 
-    expect((original as HTMLInputElement).checked).toBe(true);
-    expect((mls as HTMLInputElement).checked).toBe(false);
-    expect((international as HTMLInputElement).checked).toBe(false);
-    expect((legends as HTMLInputElement).checked).toBe(false);
-    expect((icons as HTMLInputElement).checked).toBe(false);
+    expect(original.checked).toBe(true);
+    expect(mls.checked).toBe(false);
+    expect(international.checked).toBe(false);
+    expect(legends.checked).toBe(false);
+    expect(icons.checked).toBe(false);
   });
 
   it('Legends and Icons checkboxes are disabled and labelled "(coming soon)"', async () => {
@@ -57,11 +59,11 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
-    const legends = screen.getByRole('checkbox', { name: /legends/i });
-    const icons = screen.getByRole('checkbox', { name: /icons/i });
+    const legends = screen.getByRole<HTMLInputElement>('checkbox', { name: /legends/i });
+    const icons = screen.getByRole<HTMLInputElement>('checkbox', { name: /icons/i });
 
-    expect((legends as HTMLInputElement).disabled).toBe(true);
-    expect((icons as HTMLInputElement).disabled).toBe(true);
+    expect(legends.disabled).toBe(true);
+    expect(icons.disabled).toBe(true);
     expect(screen.getAllByText('(coming soon)')).toHaveLength(2);
   });
 
@@ -69,7 +71,7 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
     render(<GameSettingsScreen onConfirm={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
-    const legends = screen.getByRole('checkbox', { name: /legends/i });
+    const legends = screen.getByRole<HTMLInputElement>('checkbox', { name: /legends/i });
 
     await userEvent.click(legends);
 
@@ -83,7 +85,7 @@ describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
-    const confirmButton = screen.getByRole('button', {
+    const confirmButton = screen.getByRole<HTMLButtonElement>('button', {
       name: 'Confirm Settings',
     });
     expect(confirmButton.disabled).toBe(false);
@@ -95,7 +97,7 @@ describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     const original = screen.getByRole('checkbox', { name: /original/i });
     const mls = screen.getByRole('checkbox', { name: /^mls/i });
-    const confirmButton = screen.getByRole('button', {
+    const confirmButton = screen.getByRole<HTMLButtonElement>('button', {
       name: 'Confirm Settings',
     });
 
