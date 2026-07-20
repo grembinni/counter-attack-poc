@@ -139,7 +139,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 27-01-PLAN.md — Shared vocabulary: TeamType/DraftPoolId/SELECTABLE_DRAFT_POOLS types + ROOM_SETTINGS_CONFIRM/ROOM_SETTINGS_CONFIRMED event pair
+- [x] 27-01-PLAN.md — Shared vocabulary: TeamType/DraftPoolId/SELECTABLE_DRAFT_POOLS types + ROOM_SETTINGS_CONFIRM/ROOM_SETTINGS_CONFIRMED event pair
 
 **Wave 2** _(blocked on Wave 1)_
 
@@ -221,6 +221,6 @@ Plans:
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Game Creation Settings     | v1.4      | 0/5            | Not started | -          |
+| 27. Game Creation Settings     | v1.4      | 1/5            | In Progress |            |
 | 28. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
