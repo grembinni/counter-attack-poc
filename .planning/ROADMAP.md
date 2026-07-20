@@ -125,15 +125,34 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 ### Phase 27: Game Creation Settings
 
 **Goal**: Game creation has a pre-step settings screen where speed, team type (Standard or Draft), and draft pool are configured before team selection; the speed selector moves off the team-selection page in Standard mode; Draft mode shows a settings summary on the team-selection screen.
-**Depends on**: Phase 27
+**Depends on**: Phase 26
 **Requirements**: DRAFT-01, DRAFT-02, DRAFT-03
 **Success Criteria** (what must be TRUE):
 
 1. Creating a game shows a settings pre-step screen with a speed selector, team type toggle (Standard / Draft), and — when Draft is selected — player pool checkboxes (Original, MLS, International; at least one required)
 2. In Standard mode, speed is configured on the settings screen (not on team-selection); the existing team-selection flow is otherwise unchanged
 3. In Draft mode, the team-selection screen shows a settings summary line (Speed | Team type | Draft pool) replacing the speed picker; the rest of the team-selection flow is unchanged
-   **Plans**: TBD
+   **Plans**: 5 plans
    **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 27-01-PLAN.md — Shared vocabulary: TeamType/DraftPoolId/SELECTABLE_DRAFT_POOLS types + ROOM_SETTINGS_CONFIRM/ROOM_SETTINGS_CONFIRMED event pair
+
+**Wave 2** _(blocked on Wave 1)_
+
+- [ ] 27-02-PLAN.md — Server: host-only ROOM_SETTINGS_CONFIRM handler, Room settings fields, and the settings-confirmed/joiner-present race gate (test-first)
+- [ ] 27-03-PLAN.md — Client: GameSettingsScreen (speed + team type + draft pools), GAME_SETTINGS routing, shared SPEED_OPTIONS extraction
+
+**Wave 3** _(blocked on 27-03)_
+
+- [ ] 27-04-PLAN.md — Read-only speed subheader (DRAFT-02) + Draft settings summary line (DRAFT-03) on both pre-game screens
+
+**Wave 4** _(final)_
+
+- [ ] 27-05-PLAN.md — D-08 scoreboard speed reminder + phase-level human verification checkpoint
 
 ### Phase 28: Draft Data Model
 
@@ -202,6 +221,6 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Game Creation Settings     | v1.4      | 0/?            | Not started | -          |
+| 27. Game Creation Settings     | v1.4      | 0/5            | Not started | -          |
 | 28. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |

@@ -1,9 +1,9 @@
 ---
 phase: 27
 slug: game-creation-settings
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: planned
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-20
 ---
 
@@ -36,13 +36,19 @@ created: 2026-07-20
 
 ## Per-Task Verification Map
 
-| Task ID  | Plan | Wave | Requirement   | Threat Ref | Secure Behavior                                                                                 | Test Type                                   | Automated Command                                                                        | File Exists                       | Status     |
-| -------- | ---- | ---- | ------------- | ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------- | ---------- |
-| 27-01-xx | TBD  | 0    | DRAFT-01      | V4/V5      | Host-only `ROOM_SETTINGS_CONFIRM`, allow-list validated `teamType`/`draftPools`                 | unit + integration                          | `vitest run roomHandlers` / `vitest run room.integration.test.ts`                        | ❌ W0 (new handler test coverage) | ⬜ pending |
-| 27-01-xx | TBD  | 0    | DRAFT-01      | —          | `GameSettingsScreen` renders speed/team-type/pool controls; Confirm disabled at 0 pools checked | unit (component)                            | `vitest run GameSettingsScreen.test.tsx`                                                 | ❌ W0 — new file                  | ⬜ pending |
-| 27-02-xx | TBD  | 1    | DRAFT-02      | —          | Standard mode: read-only speed subheader replaces interactive picker on both screens            | unit (component)                            | `vitest run TeamSelectionScreen.test.tsx` / `vitest run UniformSelectionScreen.test.tsx` | ✅ (extend existing)              | ⬜ pending |
-| 27-03-xx | TBD  | 1    | DRAFT-03      | —          | Draft mode: settings summary line replaces speed picker on both screens                         | unit (component)                            | same files as above, extend                                                              | ✅ (extend existing)              | ⬜ pending |
-| 27-01-xx | TBD  | 0    | — (Pitfall 1) | T-27-01    | `TEAM_SELECTION_START` deferred until both settings confirmed AND joiner present (race fix)     | integration (socket wire, timing-sensitive) | new cases in `room.integration.test.ts`                                                  | ⚠️ file exists, cases new         | ⬜ pending |
+| Task ID  | Plan  | Wave | Requirement           | Threat Ref      | Secure Behavior                                                                                                          | Test Type                                | Automated Command                                                     | File Exists                        | Status     |
+| -------- | ----- | ---- | --------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------- | ---------------------------------- | ---------- |
+| 27-01-01 | 27-01 | 1    | DRAFT-01              | T-27-01/T-27-02 | `TeamType`/`DraftPoolId`/`SELECTABLE_DRAFT_POOLS` defined; allow-list narrower than the type (Pitfall 3)                 | typecheck                                | `pnpm --filter @counter-attack/shared typecheck`                      | ✅ (existing file, additive)       | ⬜ pending |
+| 27-01-02 | 27-01 | 1    | DRAFT-01              | —               | `ROOM_SETTINGS_CONFIRM`/`ROOM_SETTINGS_CONFIRMED` typed event pair compiles; `TEAM_SPEED_SET` unchanged                  | typecheck                                | `pnpm --filter @counter-attack/shared typecheck`                      | ✅ (existing file, additive)       | ⬜ pending |
+| 27-02-01 | 27-02 | 2    | DRAFT-01 (Pitfall 1)  | T-27-01..05     | RED: 5 failing integration cases (host-only, allow-list, lock, conditional pool count, race gate)                        | integration (socket wire)                | `pnpm --filter @counter-attack/server test -- room.integration`       | ⚠️ file exists, new cases (Wave 0) | ⬜ pending |
+| 27-02-02 | 27-02 | 2    | DRAFT-01 (Pitfall 1)  | T-27-01..05     | GREEN: handler + Room fields + gated `TEAM_SELECTION_START` implemented; all 5 cases pass                                | integration (socket wire) + typecheck    | `pnpm --filter @counter-attack/server test -- room.integration`       | ⚠️ file exists, new cases (Wave 0) | ⬜ pending |
+| 27-03-01 | 27-03 | 2    | DRAFT-01              | —               | Shared `SPEED_OPTIONS` extracted; `GAME_SETTINGS` Screen union member added                                              | typecheck                                | `pnpm --filter @counter-attack/client typecheck`                      | ❌ W0 — new file                   | ⬜ pending |
+| 27-03-02 | 27-03 | 2    | DRAFT-01              | T-27-02/T-27-04 | `GameSettingsScreen` renders speed/team-type/pool controls; Confirm disabled at 0 pools checked (D-06)                   | unit (component)                         | `pnpm --filter @counter-attack/client test -- GameSettingsScreen`     | ❌ W0 — new file                   | ⬜ pending |
+| 27-03-03 | 27-03 | 2    | DRAFT-01              | T-27-06         | Host routes to `GAME_SETTINGS` after Create Room; Confirm emits `ROOM_SETTINGS_CONFIRM`; joiner never sees the screen    | unit (component/integration) + typecheck | `pnpm --filter @counter-attack/client test -- App`                    | ✅ (extend existing)               | ⬜ pending |
+| 27-04-01 | 27-04 | 3    | DRAFT-02, DRAFT-03    | —               | `UniformSelectionScreen` (live path): read-only speed subheader (standard) / summary line (draft), no interactive picker | unit (component)                         | `pnpm --filter @counter-attack/client test -- UniformSelectionScreen` | ✅ (extend existing)               | ⬜ pending |
+| 27-04-02 | 27-04 | 3    | DRAFT-02, DRAFT-03    | —               | `TeamSelectionScreen` (dead twin, consistency-only): identical conversion; `handleSpeedChange` removed from App.tsx      | unit (component) + typecheck + lint      | `pnpm --filter @counter-attack/client test -- TeamSelectionScreen`    | ✅ (extend existing)               | ⬜ pending |
+| 27-05-01 | 27-05 | 4    | DRAFT-01 (D-08, soft) | T-27-08         | Scoreboard shows read-only active-speed segment derived from `gameState.gameSpeed` — additive, no layout rework          | unit (component)                         | `pnpm --filter @counter-attack/client test -- GameBoard`              | ✅ (extend existing)               | ⬜ pending |
+| 27-05-02 | 27-05 | 4    | DRAFT-01/02/03        | —               | Human checkpoint: full two-tab flow incl. race ordering, approved                                                        | manual (blocking checkpoint)             | n/a — `checkpoint:human-verify`                                       | n/a                                | ⬜ pending |
 
 _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
@@ -67,11 +73,11 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-07-20 (verified against final PLAN.md task IDs post plan-checker pass)
