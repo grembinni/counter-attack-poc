@@ -113,3 +113,15 @@ None - no external service configuration required.
 
 _Phase: 27-game-creation-settings_
 _Completed: 2026-07-20_
+
+## Self-Check: PASSED
+
+All created/modified files and task commit hashes verified present:
+
+- `packages/client/src/constants/settingsSummary.ts` — FOUND
+- `packages/client/src/components/UniformSelectionScreen.tsx` — FOUND
+- `packages/client/src/components/TeamSelectionScreen.tsx` — FOUND
+- `.planning/phases/27-game-creation-settings/27-04-SUMMARY.md` — FOUND
+- Commit `56ed809` (Task 1) — FOUND
+- Commit `6b466af` (Task 2) — FOUND
+- Commit `a520e34` (docs: summary) — FOUND
