@@ -258,3 +258,14 @@ describe('GameBoard — DESIGN-01: phase label naming convention', () => {
     expect(screen.getByText(/FIRST-TIME PASS — RESPONSE MOVE/)).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// D-08 (soft): read-only active match-speed reminder in the scoreboard
+// ---------------------------------------------------------------------------
+describe('GameBoard — D-08: scoreboard active-speed reminder', () => {
+  it('renders the active speed label (Fast) in the scoreboard for a known gameSpeed', () => {
+    useGameStore.setState({ gameState: { ...mockMovementState, gameSpeed: 'fast' } });
+    render(<GameBoard />);
+    expect(screen.getByText(/Fast/)).toBeDefined();
+  });
+});

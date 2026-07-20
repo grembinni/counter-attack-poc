@@ -15,6 +15,7 @@ import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
+import { SPEED_OPTIONS } from '../constants/speedOptions.js';
 import styles from './GameBoard.module.css';
 
 /** Phase label mapping per DESIGN-01 (Phase 18) naming convention. Absorbed from TurnIndicator.tsx. */
@@ -154,6 +155,9 @@ export function GameBoard() {
   // Centre section (absorbed from TurnIndicator)
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
 
+  // D-08 (soft): read-only active match-speed reminder in the scoreboard phase summary
+  const gameSpeed = useGameStore((s) => s.gameState.gameSpeed);
+
   // Compact player card
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const pieces = useGameStore((s) => s.gameState.pieces);
@@ -175,6 +179,10 @@ export function GameBoard() {
   const teamColor = TEAM_CONFIGS[selectedTeams[activeTeam]].palette.uiColor;
   const phaseLabel =
     phase === 'MOVE' ? PHASE_LABEL[phase] + moveSlotSuffix(movementSlot) : PHASE_LABEL[phase];
+
+  // D-08 (soft): derive the display label from the shared SPEED_OPTIONS source of truth
+  const speedOption = SPEED_OPTIONS.find((o) => o.value === gameSpeed);
+  const speedSegmentLabel = speedOption ? `${speedOption.icon} ${speedOption.label}` : null;
 
   // D-03: persistent player card — never blank after first selection
   const lastPieceRef = useRef<PlayerPiece | null>(null);
@@ -289,6 +297,9 @@ export function GameBoard() {
                 </span>
                 {phaseLabel && phase !== 'REPLAY' && (
                   <span className={styles.phaseLabel}>&nbsp;&middot;&nbsp;{phaseLabel}</span>
+                )}
+                {speedSegmentLabel && phase !== 'REPLAY' && (
+                  <span className={styles.phaseLabel}>&nbsp;&middot;&nbsp;{speedSegmentLabel}</span>
                 )}
               </div>
             </div>
