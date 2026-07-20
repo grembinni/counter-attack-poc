@@ -25,6 +25,7 @@ export type Screen =
   | 'CREATE_ROOM'
   | 'JOIN_ROOM'
   | 'WAITING'
+  | 'GAME_SETTINGS' // Phase 27: host-only pre-team-selection settings screen (DRAFT-01, D-01)
   | 'TEAM_SELECTION' // Phase 16 D-10: team selection screen before game board
   | 'UNIFORM_SELECTION' // Phase 22: combined team + style pre-game screen (D-01)
   | 'LINEUP_ASSIGNMENT' // Phase 24: standalone lineup assignment screen (D-13)
