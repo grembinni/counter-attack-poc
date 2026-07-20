@@ -1,0 +1,209 @@
+/* GameSettingsScreen — Phase 27 DRAFT-01. Duplicates relevant tokens from
+ * LobbyScreen.module.css (.page/.card/.ctaButton) and TeamSelectionScreen.module.css
+ * (.tab/.tabActive/.speedOption*) per project convention (no shared CSS partial).
+ * Spacing: new elements use only 4/8/16/24/32 (27-UI-SPEC.md Spacing Scale).
+ * Color: dark theme verbatim — gold (#f5c518) reserved for brand/room-code, NOT used here.
+ */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a2e;
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+/* Match Speed picker — duplicated from TeamSelectionScreen's interactive branch. */
+.speedOptions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.speedOption {
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  background: #16213e;
+  border: 1px solid #a0a0a0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.speedOption:hover {
+  border-color: #e0e0e0;
+  color: #e0e0e0;
+}
+
+.speedOptionActive {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: #16213e;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.speedIcon {
+  display: inline-block;
+  margin-right: 4px;
+  font-style: normal;
+}
+
+.speedColorSlow {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.speedColorSlow.speedOptionActive {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: #93c5fd;
+}
+
+.speedColorStandard {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.speedColorStandard.speedOptionActive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border-color: #86efac;
+}
+
+.speedColorFast {
+  border-color: #f97316;
+  color: #f97316;
+}
+.speedColorFast.speedOptionActive {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fdba74;
+  border-color: #fdba74;
+}
+
+/* Team Type toggle — duplicated .tab/.tabActive pattern from TeamSelectionScreen. */
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #0f3460;
+  padding-bottom: 8px;
+}
+
+.tab {
+  font-size: 14px;
+  font-weight: 400;
+  color: #a0a0a0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: #e0e0e0;
+}
+
+.tabActive {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #e0e0e0;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+/* Draft pool checkbox list */
+.poolList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.poolRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+/* Disabled Legends/Icons rows — reuses the existing .card:disabled { opacity: 0.4 } treatment. */
+.poolRowDisabled {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #a0a0a0;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.comingSoon {
+  font-size: 13px;
+  color: #a0a0a0;
+}
+
+/* Primary CTA — reuses LobbyScreen's .ctaButton color/hover/disabled treatment. */
+.ctaButton {
+  background: #0f3460;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ctaButton:hover:not(:disabled) {
+  background: #1a56b0;
+}
+
+.ctaButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
