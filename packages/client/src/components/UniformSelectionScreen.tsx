@@ -19,6 +19,7 @@ import type {
   FormationId,
 } from '@counter-attack/shared';
 import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
+import { SPEED_OPTIONS } from '../constants/speedOptions.js';
 import styles from './UniformSelectionScreen.module.css';
 
 // Phase 23 D-06: static Vite imports for formation PNG pitch diagrams — content-hashed at build time.
@@ -94,13 +95,6 @@ const FULL_BADGE_MAP: Record<TeamId, string> = {
   us: usFullBadge,
 };
 
-/** UX-07: speed options with display labels, icons, and per-speed CSS color classes. */
-const SPEED_OPTIONS: { value: GameSpeed; label: string; icon: string; colorClass: string }[] = [
-  { value: 'slow', label: 'Slow', icon: '🐢', colorClass: 'speedColorSlow' },
-  { value: 'standard', label: 'Standard', icon: '⚽', colorClass: 'speedColorStandard' },
-  { value: 'fast', label: 'Fast', icon: '⚡', colorClass: 'speedColorFast' },
-];
-
 type Props = {
   /** The team that home player has already picked (from TEAM_HOME_PICKED), or null. */
   homePickedTeam: TeamId | null;
@@ -115,10 +109,15 @@ type Props = {
     formationId: FormationId,
     jerseyType: 'home' | 'away',
   ) => void;
-  /** UX-07: current selected game speed (home-player controlled). */
+  /** UX-07: current selected game speed (read-only display; set only on GameSettingsScreen). */
   selectedSpeed: GameSpeed;
-  /** UX-07: called when home player changes game speed. */
-  onSpeedChange: (speed: GameSpeed) => void;
+  /**
+   * Phase 27 (D-07/D-09): pre-computed read-only settings line — null in Standard mode
+   * (falls back to the plain speed label), a single "Speed | Team Type | Draft Pool" line
+   * in Draft mode. Computed once in App.tsx via formatSettingsSummary — this component
+   * never touches DraftPoolId formatting.
+   */
+  settingsSummary: string | null;
 };
 
 /**
@@ -131,7 +130,7 @@ export function UniformSelectionScreen({
   homeConfirmedFormation: _homeConfirmedFormation,
   onConfirm,
   selectedSpeed,
-  onSpeedChange,
+  settingsSummary,
 }: Props) {
   const playerSlot = useGameStore((s) => s.playerSlot);
 
@@ -187,38 +186,23 @@ export function UniformSelectionScreen({
       </p>
       <p className={styles.browseNote}>You are browsing your Team, Formation, and Piece Style.</p>
 
-      {/* 0 | MATCH SPEED */}
+      {/* 0 | MATCH SPEED (standard, D-07) or single settings summary line (draft, D-09) — read-only */}
       <div className={styles.speedBlock}>
         <div className={styles.speedRow}>
-          <span className={styles.speedSectionLabel}>0 | MATCH SPEED</span>
-          {iAmHome ? (
-            <div className={styles.speedOptions}>
-              {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
-                <button
-                  key={value}
-                  disabled={hasConfirmed}
-                  className={
-                    value === selectedSpeed
-                      ? `${styles.speedOptionActive} ${styles[colorClass]}`
-                      : `${styles.speedOption} ${styles[colorClass]}`
-                  }
-                  onClick={() => onSpeedChange(value)}
-                  aria-pressed={value === selectedSpeed}
-                >
-                  <span className={styles.speedIcon}>{icon}</span>
-                  {label}
-                </button>
-              ))}
-            </div>
+          {settingsSummary !== null ? (
+            <span className={styles.speedOptionActive}>{settingsSummary}</span>
           ) : (
-            <div className={styles.speedOptions}>
-              <span
-                className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
-              >
-                <span className={styles.speedIcon}>{selectedOption?.icon}</span>
-                {selectedOption?.label ?? selectedSpeed}
-              </span>
-            </div>
+            <>
+              <span className={styles.speedSectionLabel}>0 | MATCH SPEED</span>
+              <div className={styles.speedOptions}>
+                <span
+                  className={`${styles.speedOptionActive} ${styles[selectedOption?.colorClass ?? 'speedColorStandard']}`}
+                >
+                  <span className={styles.speedIcon}>{selectedOption?.icon}</span>
+                  {selectedOption?.label ?? selectedSpeed}
+                </span>
+              </div>
+            </>
           )}
         </div>
       </div>

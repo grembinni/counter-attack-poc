@@ -26,7 +26,7 @@ const DEFAULT_PROPS = {
   homeConfirmedFormation: null as FormationId | null,
   onConfirm: vi.fn(),
   selectedSpeed: 'standard' as const,
-  onSpeedChange: vi.fn(),
+  settingsSummary: null as string | null,
 };
 
 // ---------------------------------------------------------------------------
@@ -263,5 +263,54 @@ describe('UniformSelectionScreen — step heading and status', () => {
     expect(screen.getByRole('heading').textContent).toContain('STEP 1');
     expect(screen.getByRole('heading').textContent).toContain('HOME PLAYER (YOU)');
     expect(screen.getByText('Make your selections now!')).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 27 (DRAFT-02/DRAFT-03, D-07/D-09): read-only speed subheader / settings summary
+// ---------------------------------------------------------------------------
+
+describe('UniformSelectionScreen — read-only speed subheader / settings summary (D-07/D-09)', () => {
+  it('renders NO interactive speed picker button for the home player', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(
+      <UniformSelectionScreen {...DEFAULT_PROPS} homePickedTeam={null} homeConfirmedStyle={null} />,
+    );
+
+    expect(screen.queryByRole('button', { name: /^Slow$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Standard$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Fast$/i })).toBeNull();
+  });
+
+  it('standard mode (settingsSummary=null) renders the read-only speed label', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(
+      <UniformSelectionScreen
+        {...DEFAULT_PROPS}
+        homePickedTeam={null}
+        homeConfirmedStyle={null}
+        selectedSpeed="standard"
+        settingsSummary={null}
+      />,
+    );
+
+    expect(screen.getByText('0 | MATCH SPEED')).toBeTruthy();
+    expect(screen.getByText('Standard')).toBeTruthy();
+  });
+
+  it('draft mode renders the provided settings summary line verbatim', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    const summary = 'Speed: ⚽ Standard · Team Type: Draft · Draft Pool: Original';
+    render(
+      <UniformSelectionScreen
+        {...DEFAULT_PROPS}
+        homePickedTeam={null}
+        homeConfirmedStyle={null}
+        settingsSummary={summary}
+      />,
+    );
+
+    expect(screen.getByText(summary)).toBeTruthy();
+    expect(screen.queryByText('0 | MATCH SPEED')).toBeNull();
   });
 });

@@ -1,7 +1,9 @@
 /**
  * Phase 16 Wave 0 RED tests — PLAY-03, SELECT-01
  * Phase 21: updated for two-tab layout (LEAGUE-01, LEAGUE-02).
- * UX-07 (Phase 18.4): supply required selectedSpeed/onSpeedChange props.
+ * UX-07 (Phase 18.4): supply required selectedSpeed prop.
+ * Phase 27 (D-07/D-09): speed picker converted to read-only subheader/summary — onSpeedChange
+ * removed, settingsSummary added (dead-twin conversion, no live-app effect — see 27-RESEARCH.md).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
@@ -21,7 +23,7 @@ beforeEach(() => {
 /** Default UX-07 props — pass to every render so existing tests stay focused on PLAY-03/SELECT-01. */
 const DEFAULT_SPEED_PROPS = {
   selectedSpeed: 'standard' as const,
-  onSpeedChange: vi.fn(),
+  settingsSummary: null as string | null,
 };
 
 /**
@@ -226,5 +228,51 @@ describe('TeamSelectionScreen — LEAGUE-02: cross-tab struck-out behavior', () 
     const allButtonsMls = screen.getAllByRole('button');
     const disabledMls = getTeamCards(allButtonsMls).filter((c) => c.hasAttribute('disabled'));
     expect(disabledMls).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 27 (DRAFT-02/DRAFT-03, D-07/D-09): read-only speed subheader / settings summary
+// ---------------------------------------------------------------------------
+
+describe('TeamSelectionScreen — read-only speed subheader / settings summary (D-07/D-09)', () => {
+  it('renders NO interactive speed picker button for the home player', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(<TeamSelectionScreen homePickedTeam={null} onPick={vi.fn()} {...DEFAULT_SPEED_PROPS} />);
+
+    expect(screen.queryByRole('button', { name: /^Slow$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Standard$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Fast$/i })).toBeNull();
+  });
+
+  it('standard mode (settingsSummary=null) renders the read-only speed label', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    render(
+      <TeamSelectionScreen
+        homePickedTeam={null}
+        onPick={vi.fn()}
+        selectedSpeed="standard"
+        settingsSummary={null}
+      />,
+    );
+
+    expect(screen.getByText('Match speed:')).toBeTruthy();
+    expect(screen.getByText('Standard')).toBeTruthy();
+  });
+
+  it('draft mode renders the provided settings summary line verbatim', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    const summary = 'Speed: ⚽ Standard · Team Type: Draft · Draft Pool: Original';
+    render(
+      <TeamSelectionScreen
+        homePickedTeam={null}
+        onPick={vi.fn()}
+        selectedSpeed="standard"
+        settingsSummary={summary}
+      />,
+    );
+
+    expect(screen.getByText(summary)).toBeTruthy();
+    expect(screen.queryByText('Match speed:')).toBeNull();
   });
 });

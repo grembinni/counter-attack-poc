@@ -6,6 +6,7 @@ import { GameSettingsScreen } from './components/GameSettingsScreen.js';
 import { TeamSelectionScreen } from './components/TeamSelectionScreen.js';
 import { UniformSelectionScreen } from './components/UniformSelectionScreen.js';
 import { LineupAssignmentScreen } from './components/LineupAssignmentScreen.js';
+import { formatSettingsSummary } from './constants/settingsSummary.js';
 import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
@@ -37,11 +38,9 @@ export function App() {
   const [selectedSpeed, setSelectedSpeed] = useState<GameSpeed>('standard');
   // Phase 27: teamType/draftPools set only via GameSettingsScreen's confirm callback
   // (handleSettingsConfirm) or the ROOM_SETTINGS_CONFIRMED broadcast (joiner, host echo).
-  // Not yet read in this plan — 27-04 threads these into the read-only settings summary
-  // on TeamSelectionScreen/UniformSelectionScreen.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Threaded into formatSettingsSummary(...) for the read-only settings summary shown on
+  // TeamSelectionScreen/UniformSelectionScreen (27-04, D-07/D-09).
   const [teamType, setTeamType] = useState<TeamType>('standard');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>([]);
   // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
@@ -203,13 +202,6 @@ export function App() {
     socket.emit(ClientEvents.TEAM_PICK, teamId);
   }
 
-  // UX-07 (Phase 18.4): emits team:speed-set to server; called when home player changes speed
-  const emitTeamSpeed = useGameStore((s) => s.emitTeamSpeed);
-  function handleSpeedChange(speed: GameSpeed) {
-    setSelectedSpeed(speed);
-    emitTeamSpeed(speed);
-  }
-
   // Phase 27 (DRAFT-01/D-01/D-03): called from GameSettingsScreen's onConfirm; stores the
   // bundled settings locally and emits ROOM_SETTINGS_CONFIRM. The screen transition to
   // WAITING happens on the ROOM_SETTINGS_CONFIRMED echo (onRoomSettingsConfirmed), not here.
@@ -269,14 +261,14 @@ export function App() {
           homeConfirmedFormation={homeConfirmedFormation}
           onConfirm={handleUniformConfirm}
           selectedSpeed={selectedSpeed}
-          onSpeedChange={handleSpeedChange}
+          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}
         />
       ) : screen === 'TEAM_SELECTION' ? (
         <TeamSelectionScreen
           homePickedTeam={homePickedTeam}
           onPick={handleTeamPick}
           selectedSpeed={selectedSpeed}
-          onSpeedChange={handleSpeedChange}
+          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}
         />
       ) : (
         <LobbyScreen />
