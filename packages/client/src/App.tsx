@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useGameStore } from './store/useGameStore.js';
 import { GameBoard } from './components/GameBoard.js';
 import { LobbyScreen } from './components/LobbyScreen.js';
+import { GameSettingsScreen } from './components/GameSettingsScreen.js';
 import { TeamSelectionScreen } from './components/TeamSelectionScreen.js';
 import { UniformSelectionScreen } from './components/UniformSelectionScreen.js';
 import { LineupAssignmentScreen } from './components/LineupAssignmentScreen.js';
@@ -9,10 +10,12 @@ import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
 import type {
+  DraftPoolId,
   FormationId,
   GameSpeed,
   GameState,
   TeamId,
+  TeamType,
   UniformStyleId,
 } from '@counter-attack/shared';
 
@@ -32,6 +35,14 @@ export function App() {
   const [homePickedTeam, setHomePickedTeam] = useState<TeamId | null>(null);
   // UX-07 (Phase 18.4): selectedSpeed is local state in App.tsx, co-located with homePickedTeam
   const [selectedSpeed, setSelectedSpeed] = useState<GameSpeed>('standard');
+  // Phase 27: teamType/draftPools set only via GameSettingsScreen's confirm callback
+  // (handleSettingsConfirm) or the ROOM_SETTINGS_CONFIRMED broadcast (joiner, host echo).
+  // Not yet read in this plan — 27-04 threads these into the read-only settings summary
+  // on TeamSelectionScreen/UniformSelectionScreen.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [teamType, setTeamType] = useState<TeamType>('standard');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [draftPools, setDraftPools] = useState<DraftPoolId[]>([]);
   // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
   // Phase 23 D-12: homeConfirmedFormation tracks home's choice for passing to away's UI
@@ -66,7 +77,9 @@ export function App() {
         setPlayerSlot(slot);
       }
       const s = useGameStore.getState().screen;
-      if (slot === 1 && (s === 'LANDING' || s === 'CREATE_ROOM')) setScreen('WAITING');
+      // Phase 27 D-01: host lands on the settings pre-step screen (was 'WAITING') — the host
+      // explicitly transitions to WAITING themselves after ROOM_SETTINGS_CONFIRMED arrives.
+      if (slot === 1 && (s === 'LANDING' || s === 'CREATE_ROOM')) setScreen('GAME_SETTINGS');
     }
 
     function onRoomError(reason: string) {
@@ -99,6 +112,20 @@ export function App() {
 
     function onTeamSpeedChanged(speed: GameSpeed) {
       setSelectedSpeed(speed);
+    }
+
+    // Phase 27 (DRAFT-01/D-02/D-03): broadcast carrying the host's confirmed settings.
+    // Host receives this as the echo of their own ROOM_SETTINGS_CONFIRM emit and moves off
+    // GAME_SETTINGS to WAITING; joiner receives it at join-time and never sees GAME_SETTINGS.
+    function onRoomSettingsConfirmed(
+      speed: GameSpeed,
+      confirmedTeamType: TeamType,
+      pools: DraftPoolId[],
+    ) {
+      setSelectedSpeed(speed);
+      setTeamType(confirmedTeamType);
+      setDraftPools(pools);
+      if (useGameStore.getState().screen === 'GAME_SETTINGS') setScreen('WAITING');
     }
 
     // Phase 22 D-13/D-15: uniform selection socket handlers (Pitfall 9 — every on has a matching off)
@@ -144,6 +171,7 @@ export function App() {
     socket.on(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
     socket.on(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
     socket.on(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
+    socket.on(ServerEvents.ROOM_SETTINGS_CONFIRMED, onRoomSettingsConfirmed);
     socket.on(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
     socket.on(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
     socket.on(ServerEvents.BOTH_FORMATIONS_CONFIRMED, onBothFormationsConfirmed);
@@ -161,6 +189,7 @@ export function App() {
       socket.off(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
       socket.off(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
       socket.off(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
+      socket.off(ServerEvents.ROOM_SETTINGS_CONFIRMED, onRoomSettingsConfirmed);
       socket.off(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
       socket.off(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
       socket.off(ServerEvents.BOTH_FORMATIONS_CONFIRMED, onBothFormationsConfirmed);
@@ -179,6 +208,20 @@ export function App() {
   function handleSpeedChange(speed: GameSpeed) {
     setSelectedSpeed(speed);
     emitTeamSpeed(speed);
+  }
+
+  // Phase 27 (DRAFT-01/D-01/D-03): called from GameSettingsScreen's onConfirm; stores the
+  // bundled settings locally and emits ROOM_SETTINGS_CONFIRM. The screen transition to
+  // WAITING happens on the ROOM_SETTINGS_CONFIRMED echo (onRoomSettingsConfirmed), not here.
+  function handleSettingsConfirm(settings: {
+    speed: GameSpeed;
+    teamType: TeamType;
+    draftPools: DraftPoolId[];
+  }) {
+    setSelectedSpeed(settings.speed);
+    setTeamType(settings.teamType);
+    setDraftPools(settings.draftPools);
+    socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, settings);
   }
 
   // Phase 22 D-14 / Phase 23: emits uniform:confirm with formationId + jerseyType to server
@@ -217,6 +260,8 @@ export function App() {
           onConfirm={handleLineupConfirm}
           lineupConfirmed={lineupConfirmed}
         />
+      ) : screen === 'GAME_SETTINGS' ? (
+        <GameSettingsScreen onConfirm={handleSettingsConfirm} />
       ) : screen === 'UNIFORM_SELECTION' ? (
         <UniformSelectionScreen
           homePickedTeam={homePickedTeam}

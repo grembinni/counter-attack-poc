@@ -83,7 +83,9 @@ describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
-    const confirmButton = screen.getByRole('button', { name: 'Confirm Settings' });
+    const confirmButton = screen.getByRole('button', {
+      name: 'Confirm Settings',
+    });
     expect(confirmButton.disabled).toBe(false);
   });
 
@@ -93,7 +95,9 @@ describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     const original = screen.getByRole('checkbox', { name: /original/i });
     const mls = screen.getByRole('checkbox', { name: /^mls/i });
-    const confirmButton = screen.getByRole('button', { name: 'Confirm Settings' });
+    const confirmButton = screen.getByRole('button', {
+      name: 'Confirm Settings',
+    });
 
     // Uncheck Original — zero of the three enabled pools checked.
     await userEvent.click(original);
