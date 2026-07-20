@@ -1,4 +1,4 @@
-import type { HexCoord, GameState, GameSpeed } from './types.js';
+import type { HexCoord, GameState, GameSpeed, TeamType, DraftPoolId } from './types.js';
 import type { TeamId } from './teamConfig.js';
 import type { UniformStyleId } from './uniformStyles.js';
 import type { FormationId } from './formations.js';
@@ -10,6 +10,8 @@ import type { FormationId } from './formations.js';
 export const ClientEvents = {
   ROOM_CREATE: 'room:create',
   ROOM_JOIN: 'room:join',
+  /** DRAFT-01/D-03 (Phase 27): host confirms speed + team type + draft pools atomically on the pre-game settings screen. */
+  ROOM_SETTINGS_CONFIRM: 'room:settings-confirm',
   GAME_MOVE: 'game:move',
   GAME_ROLL: 'game:roll',
   /** D-06: client emits the SHOT target coord; server records it for UX/broadcast — duel still resolves from dice via game:roll. */
@@ -93,6 +95,8 @@ export const ServerEvents = {
   TEAM_HOME_PICKED: 'team:home-picked',
   /** UX-07: emitted to both players when home player changes game speed during team selection. */
   TEAM_SPEED_CHANGED: 'team:speed-changed',
+  /** DRAFT-01 (Phase 27): broadcast to room members carrying the host's confirmed settings (speed, team type, draft pools). */
+  ROOM_SETTINGS_CONFIRMED: 'room:settings-confirmed',
   /** Phase 22 D-13: emitted to both players when away team picks; signals uniform selection phase start. */
   UNIFORM_SELECTION_START: 'uniform:selection-start',
   /** Phase 22 D-15: broadcast to all room members after home confirms their team + uniform style. */
@@ -123,6 +127,16 @@ export const ServerEvents = {
 export interface ClientToServerEvents {
   [ClientEvents.ROOM_CREATE]: () => void;
   [ClientEvents.ROOM_JOIN]: (roomCode: string) => void;
+  /**
+   * DRAFT-01/D-03 (Phase 27): host confirms speed + team type + draft pools together on the
+   * pre-game settings screen. Object payload (three always-sent-together fields, consistent
+   * with LINEUP_CONFIRM's object payload). Untrusted — fully re-validated server-side.
+   */
+  [ClientEvents.ROOM_SETTINGS_CONFIRM]: (settings: {
+    speed: GameSpeed;
+    teamType: TeamType;
+    draftPools: DraftPoolId[];
+  }) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
   /**
@@ -218,6 +232,15 @@ export interface ServerToClientEvents {
   [ServerEvents.TEAM_HOME_PICKED]: (teamId: TeamId) => void;
   /** UX-07: informs both players of the current game speed when home player changes it. */
   [ServerEvents.TEAM_SPEED_CHANGED]: (speed: GameSpeed) => void;
+  /**
+   * DRAFT-01 (Phase 27): broadcast to room members carrying the host's confirmed settings.
+   * Positional args (consistent with TEAM_SPEED_CHANGED(speed) / UNIFORM_HOME_CONFIRMED(...)).
+   */
+  [ServerEvents.ROOM_SETTINGS_CONFIRMED]: (
+    speed: GameSpeed,
+    teamType: TeamType,
+    draftPools: DraftPoolId[],
+  ) => void;
   /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
   [ServerEvents.UNIFORM_SELECTION_START]: () => void;
   /** Phase 22 D-15 / Phase 23 D-09: informs both players that home has confirmed their team + uniform style + formation. */

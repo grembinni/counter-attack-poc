@@ -442,6 +442,30 @@ export const GAME_SPEED_MINUTES: Record<GameSpeed, number> = {
   fast: 3,
 };
 
+/** DRAFT-01/02/03 (Phase 27): team type selected on the pre-game settings screen. */
+export type TeamType = 'standard' | 'draft';
+
+/**
+ * DRAFT-01 (Phase 27): selectable draft player pools. Legends/Icons exist in the type
+ * for forward-compat with DRAFT-11 but are NOT selectable in this phase (D-04) — the
+ * server-side allow-list for the confirm handler must reject them even though the
+ * client renders their (disabled) checkboxes.
+ */
+export type DraftPoolId = 'original' | 'mls' | 'international' | 'legends' | 'icons';
+
+/**
+ * DRAFT-01 (Phase 27): pools selectable in v1.4 — Legends/Icons excluded (D-04, DRAFT-11
+ * deferred). This is deliberately NARROWER than `DraftPoolId` (3 of 5 values): the
+ * server-side validation allow-list for `ROOM_SETTINGS_CONFIRM` must use this const, not
+ * the full `DraftPoolId` type's keys, or a modified client could select 'legends'/'icons'
+ * even though they are disabled/greyed client-side (Pitfall 3 / ASVS V5 Input Validation).
+ */
+export const SELECTABLE_DRAFT_POOLS: readonly DraftPoolId[] = [
+  'original',
+  'mls',
+  'international',
+] as const;
+
 export type GameState = {
   roomCode: string;
   phase: GamePhase;
