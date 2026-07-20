@@ -12,7 +12,13 @@
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
 import type { GameState, GameSpeed, HexCoord } from '@counter-attack/shared';
-import type { TeamId, UniformStyleId, FormationId } from '@counter-attack/shared';
+import type {
+  TeamId,
+  UniformStyleId,
+  FormationId,
+  TeamType,
+  DraftPoolId,
+} from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
 import { applyFreeMoveZoneCheck } from './gameEngine.js';
@@ -79,6 +85,15 @@ export type Room = {
    * Set by TEAM_SPEED_SET handler; consumed when building game state in TEAM_PICK away-pick.
    */
   gameSpeed?: GameSpeed;
+  /** DRAFT-01 (Phase 27): team type confirmed on the settings pre-step. undefined until confirmed. */
+  teamType?: TeamType;
+  /** DRAFT-01 (Phase 27): draft pools confirmed on the settings pre-step (only meaningful if teamType === 'draft'). */
+  draftPools?: DraftPoolId[];
+  /**
+   * DRAFT-01/D-03 (Phase 27): true once host has confirmed settings — gates TEAM_SELECTION_START
+   * alongside "slot 2 has joined" (see roomHandlers.ts ROOM_SETTINGS_CONFIRM / ROOM_JOIN).
+   */
+  settingsConfirmed?: boolean;
   /**
    * Phase 22 D-13: away's team stored on second TEAM_PICK; game state deferred until
    * both players confirm team + uniform style via UNIFORM_CONFIRM.

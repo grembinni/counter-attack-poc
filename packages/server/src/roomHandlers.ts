@@ -25,12 +25,14 @@
 
 import type {
   ClientToServerEvents,
+  DraftPoolId,
   FormationId,
   GameSpeed,
   InterServerEvents,
   ServerToClientEvents,
   SocketData,
   TeamId,
+  TeamType,
   UniformStyleId,
 } from '@counter-attack/shared';
 import {
@@ -39,6 +41,7 @@ import {
   UNIFORM_STYLE_META,
   FORMATIONS,
   PLAYER_POOL,
+  SELECTABLE_DRAFT_POOLS,
   getSquadPlayers,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
@@ -63,6 +66,9 @@ const VALID_TEAM_IDS: readonly TeamId[] = [
 
 /** Valid game speed values — allow-list for team:speed-set validation (ASVS V5, T-18.4.1-01). */
 const VALID_GAME_SPEEDS: readonly GameSpeed[] = ['slow', 'standard', 'fast'] as const;
+
+/** Valid team type values — allow-list for ROOM_SETTINGS_CONFIRM validation (DRAFT-01/T-27-04, ASVS V5). */
+const VALID_TEAM_TYPES: readonly TeamType[] = ['standard', 'draft'] as const;
 
 /** Valid uniform style IDs — allow-list for UNIFORM_CONFIRM validation (T-22-03). */
 const VALID_UNIFORM_STYLE_IDS: readonly UniformStyleId[] = Object.keys(
@@ -188,10 +194,26 @@ export function registerRoomHandlers(
       // on this "room is full / game starting" notification.
       socket.to(normalizedCode).emit(ServerEvents.ROOM_JOINED, normalizedCode, 2, '');
 
-      // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
-      // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
-      // Do NOT call broadcastState here; room.gameState is null at this point.
-      io.to(normalizedCode).emit(ServerEvents.TEAM_SELECTION_START);
+      // DRAFT-01/D-01/D-02/T-27-05 (Phase 27): TEAM_SELECTION_START is gated on BOTH
+      // "host has confirmed settings" AND "slot 2 has joined" (this join). If the host
+      // has not confirmed settings yet, do nothing further here — the ROOM_SETTINGS_CONFIRM
+      // handler below fires TEAM_SELECTION_START once the host confirms, since room.players[1]
+      // is already non-null by then (Pitfall 1: without this gate, a fast-joining client
+      // would reach team selection with unset settings).
+      const joinedRoom = getRoom(normalizedCode);
+      if (joinedRoom?.settingsConfirmed) {
+        // D-02: deliver the host's already-confirmed settings to the late-joining player.
+        socket.emit(
+          ServerEvents.ROOM_SETTINGS_CONFIRMED,
+          joinedRoom.gameSpeed!,
+          joinedRoom.teamType!,
+          joinedRoom.draftPools ?? [],
+        );
+        // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
+        // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
+        // Do NOT call broadcastState here; room.gameState is null at this point.
+        io.to(normalizedCode).emit(ServerEvents.TEAM_SELECTION_START);
+      }
     });
 
     // -----------------------------------------------------------------------
@@ -288,6 +310,99 @@ export function registerRoomHandlers(
       // Broadcast to both players so the visitor's display updates live.
       io.to(roomCode).emit(ServerEvents.TEAM_SPEED_CHANGED, speed);
     });
+
+    // -----------------------------------------------------------------------
+    // ROOM_SETTINGS_CONFIRM
+    // DRAFT-01/D-01/D-02/D-03 (Phase 27): host confirms speed + team type + draft pools
+    // atomically on the pre-game settings screen. Host-only, one-shot lock, allow-list
+    // validated (T-27-01..T-27-05). On success, gates TEAM_SELECTION_START on
+    // "slot 2 has joined" — mirrors the ROOM_JOIN-side gate on "settings confirmed"
+    // (see ROOM_JOIN above) to close the settings-confirmed/joiner-present race (Pitfall 1).
+    // -----------------------------------------------------------------------
+    socket.on(
+      ClientEvents.ROOM_SETTINGS_CONFIRM,
+      ({
+        speed,
+        teamType,
+        draftPools,
+      }: {
+        speed: GameSpeed;
+        teamType: TeamType;
+        draftPools: DraftPoolId[];
+      }) => {
+        const roomCode = socket.data.roomCode;
+        if (roomCode === undefined) return;
+
+        const room = getRoom(roomCode);
+        if (!room) return;
+
+        // D-03/T-27-03: settings lock after the first confirm — reject before any mutation.
+        if (room.settingsConfirmed) {
+          socket.emit(ServerEvents.GAME_ERROR, 'SETTINGS_ALREADY_CONFIRMED');
+          return;
+        }
+
+        // T-27-01: only the host (slot 1) may confirm settings.
+        if (socket.data.playerSlot !== 1) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TURN');
+          return;
+        }
+
+        // Guard: settings can only be confirmed before the game starts.
+        if (room.gameState !== null) {
+          socket.emit(ServerEvents.GAME_ERROR, 'GAME_ALREADY_STARTED');
+          return;
+        }
+
+        // ASVS V5: allow-list validation — reject unknown or forged speed/teamType values.
+        if (!(VALID_GAME_SPEEDS as readonly string[]).includes(speed)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SPEED');
+          return;
+        }
+        if (!(VALID_TEAM_TYPES as readonly string[]).includes(teamType)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TEAM_TYPE');
+          return;
+        }
+
+        // T-27-04: draft-pool requirement only applies in draft mode.
+        // T-27-02/Pitfall 3: validate against SELECTABLE_DRAFT_POOLS (3 values), NOT the
+        // full 5-value DraftPoolId type — Legends/Icons are disabled client-side only (D-04).
+        if (teamType === 'draft') {
+          if (!Array.isArray(draftPools) || draftPools.length < 1) {
+            socket.emit(ServerEvents.GAME_ERROR, 'DRAFT_POOL_REQUIRED');
+            return;
+          }
+          if (
+            !draftPools.every((pool) =>
+              (SELECTABLE_DRAFT_POOLS as readonly string[]).includes(pool),
+            )
+          ) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_DRAFT_POOL');
+            return;
+          }
+        }
+
+        // Store settings and lock.
+        room.gameSpeed = speed;
+        room.teamType = teamType;
+        room.draftPools = teamType === 'draft' ? draftPools : [];
+        room.settingsConfirmed = true;
+
+        io.to(roomCode).emit(
+          ServerEvents.ROOM_SETTINGS_CONFIRMED,
+          room.gameSpeed,
+          room.teamType,
+          room.draftPools,
+        );
+
+        // T-27-05/Pitfall 1: both-conditions gate — only fire TEAM_SELECTION_START once
+        // slot 2 has also joined. If not, the ROOM_JOIN handler's settingsConfirmed gate
+        // fires it later when the joiner arrives.
+        if (room.players[1] !== null) {
+          io.to(roomCode).emit(ServerEvents.TEAM_SELECTION_START);
+        }
+      },
+    );
 
     // -----------------------------------------------------------------------
     // UNIFORM_CONFIRM

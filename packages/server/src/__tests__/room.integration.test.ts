@@ -204,6 +204,17 @@ describe('Room integration tests', () => {
     clientA.emit(ClientEvents.ROOM_CREATE);
     const [roomCode] = await createJoinedPromise;
 
+    // Phase 27 D-01/T-27-05: TEAM_SELECTION_START is now gated on settings-confirmed
+    // AND slot-2-joined — host confirms settings before the joiner arrives so this test's
+    // existing join-then-team-selection-start flow still holds.
+    const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    await settingsConfirmedPromise;
+
     // Register listeners BEFORE emitting join, so we don't miss the event.
     const joinedAPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
     const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
@@ -312,6 +323,16 @@ describe('Room integration tests', () => {
     clientA.emit(ClientEvents.ROOM_CREATE);
     const [roomCode, , sessionTokenA] = await createJoinedPromise;
 
+    // Phase 27 D-01/T-27-05: confirm settings before the joiner arrives so the existing
+    // join-then-team-selection-start flow still holds under the new both-conditions gate.
+    const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    await settingsConfirmedPromise;
+
     // Client B joins — both receive team:selection-start (Phase 16 D-10).
     const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
     const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
@@ -384,6 +405,16 @@ describe('UNIFORM_CONFIRM — guard: away before home', () => {
     clientA.emit(ClientEvents.ROOM_CREATE);
     const [roomCode] = await createJoinedPromise;
 
+    // Phase 27 D-01/T-27-05: confirm settings before the joiner arrives so the existing
+    // join-then-team-selection-start flow still holds under the new both-conditions gate.
+    const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    await settingsConfirmedPromise;
+
     const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
     const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
     clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
@@ -415,6 +446,16 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
     const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
     clientA.emit(ClientEvents.ROOM_CREATE);
     const [roomCode] = await createJoinedPromise;
+
+    // Phase 27 D-01/T-27-05: confirm settings before the joiner arrives so the existing
+    // join-then-team-selection-start flow still holds under the new both-conditions gate.
+    const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+    });
+    await settingsConfirmedPromise;
 
     const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
     const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);

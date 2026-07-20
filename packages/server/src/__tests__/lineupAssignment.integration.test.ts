@@ -131,6 +131,17 @@ async function setupThroughUniformConfirm(): Promise<{
   clientA.emit(ClientEvents.ROOM_CREATE);
   const [roomCode] = await createJoinedPromise;
 
+  // Phase 27 D-01/T-27-05: TEAM_SELECTION_START is gated on settings-confirmed AND
+  // slot-2-joined — confirm settings before the joiner arrives so this helper's
+  // join-then-team-selection-start flow still holds under the new both-conditions gate.
+  const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+  clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+    speed: 'standard',
+    teamType: 'standard',
+    draftPools: [],
+  });
+  await settingsConfirmedPromise;
+
   // Join room
   const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
   const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
