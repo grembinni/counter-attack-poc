@@ -143,8 +143,8 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 27-02-PLAN.md — Server: host-only ROOM_SETTINGS_CONFIRM handler, Room settings fields, and the settings-confirmed/joiner-present race gate (test-first)
-- [ ] 27-03-PLAN.md — Client: GameSettingsScreen (speed + team type + draft pools), GAME_SETTINGS routing, shared SPEED_OPTIONS extraction
+- [x] 27-02-PLAN.md — Server: host-only ROOM_SETTINGS_CONFIRM handler, Room settings fields, and the settings-confirmed/joiner-present race gate (test-first)
+- [x] 27-03-PLAN.md — Client: GameSettingsScreen (speed + team type + draft pools), GAME_SETTINGS routing, shared SPEED_OPTIONS extraction
 
 **Wave 3** _(blocked on 27-03)_
 
@@ -221,6 +221,6 @@ Plans:
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Game Creation Settings     | v1.4      | 1/5            | In Progress |            |
+| 27. Game Creation Settings     | v1.4      | 3/5            | In Progress |            |
 | 28. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
