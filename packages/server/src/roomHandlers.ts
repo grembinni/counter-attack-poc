@@ -277,6 +277,13 @@ export function registerRoomHandlers(
     // T-18.4.1-01: allow-list validates against ['slow','standard','fast'].
     // T-18.4.1-02: only the home player (slot 1) may set speed — mirrors home-first
     //              turn-order enforcement in TEAM_PICK.
+    // WR-01 (Phase 27 review): no current client build emits this event anymore —
+    // ROOM_SETTINGS_CONFIRM (below) is the only UI path to setting game speed, and it
+    // locks speed + team type + draft pools together atomically via
+    // room.settingsConfirmed (D-03). This handler is kept wired (rather than removed,
+    // see WR-02) as a defensive fallback for a stale client build that could still emit
+    // the raw socket event; the settingsConfirmed guard below ensures it can never
+    // bypass the atomic lock even if reached.
     // -----------------------------------------------------------------------
     socket.on(ClientEvents.TEAM_SPEED_SET, (speed: GameSpeed) => {
       const roomCode = socket.data.roomCode;
@@ -284,6 +291,13 @@ export function registerRoomHandlers(
 
       const room = getRoom(roomCode);
       if (!room) return;
+
+      // WR-01: reject once settings have been locked via ROOM_SETTINGS_CONFIRM —
+      // otherwise this legacy handler could silently bypass the D-03 atomic lock.
+      if (room.settingsConfirmed) {
+        socket.emit(ServerEvents.GAME_ERROR, 'SETTINGS_ALREADY_CONFIRMED');
+        return;
+      }
 
       // T-18.4.1-01: allow-list validation — reject unknown or forged speed values.
       if (!(VALID_GAME_SPEEDS as readonly string[]).includes(speed)) {
