@@ -25,7 +25,9 @@
 
 import type {
   ClientToServerEvents,
+  DraftPickPayload,
   DraftPoolId,
+  DraftRearrangePayload,
   FormationId,
   GameSpeed,
   InterServerEvents,
@@ -48,8 +50,19 @@ import type { Server, Socket } from 'socket.io';
 import { randomInt } from 'crypto';
 import { buildInitialGameState, computeAutoAssignment } from './gameEngine.js';
 import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roomStore.js';
+import type { Room } from './roomStore.js';
 import { generateMatchPacks } from './draftPacks.js';
-import { createDraftSession, openNextPack, buildDraftView } from './draftSession.js';
+import {
+  createDraftSession,
+  openNextPack,
+  applyPick,
+  applyRearrange,
+  advanceSubStep,
+  checkKeeperSafety,
+  assignBenchNumbers,
+  buildDraftView,
+} from './draftSession.js';
+import type { DraftSide } from './draftSession.js';
 
 /** Valid team IDs — allow-list for team:pick validation (ASVS V5, T-21-01: extended to 12 teams in Phase 21). */
 const VALID_TEAM_IDS: readonly TeamId[] = [
@@ -92,6 +105,19 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerE
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+
+/**
+ * T-29-05/D-14: unicasts each player's own privacy-scoped DraftClientView. NEVER
+ * `io.to(roomCode).emit` — a player's pack contents must never reach the opponent's socket.
+ * No-op if the room has no draftSession (defensive — callers only invoke this when one exists).
+ */
+function emitDraftViews(io: AppServer, room: Room): void {
+  if (!room.draftSession) return;
+  const homeSocket = io.sockets.sockets.get(room.players[0]!.socketId);
+  const awaySocket = io.sockets.sockets.get(room.players[1]!.socketId);
+  homeSocket?.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, 'home'));
+  awaySocket?.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, 'away'));
+}
 
 /**
  * Registers room lifecycle event handlers on a socket.
@@ -721,6 +747,185 @@ export function registerRoomHandlers(
         }
         room.gameState = gameState;
         broadcastState(io, room);
+      } finally {
+        room.isProcessing = false;
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // DRAFT_PICK
+    // Phase 29 DRAFT-06/07/08 (T-29-01..T-29-06): drafts `cardId` out of the sender's
+    // server-stored current pack and places it at `destination` in one motion. Server is
+    // the sole authority on legality — validates card membership, GK-slot role in both
+    // directions, and slot-index range before ever delegating to the pure applyPick.
+    // Mirrors LINEUP_SWAP's mutex/spoofing-guard/private-emit skeleton exactly.
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.DRAFT_PICK, (payload: DraftPickPayload) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // T-29-04 / SC-5: isProcessing mutex — drop concurrent/replayed DRAFT_PICK events.
+      if (room.isProcessing) return;
+      room.isProcessing = true;
+      try {
+        // NOT_DRAFTING guard: no session yet, or already complete.
+        if (!room.draftSession || room.draftSession.draftComplete) {
+          socket.emit(ServerEvents.GAME_ERROR, 'NOT_DRAFTING');
+          return;
+        }
+
+        // T-29-02: resolve side from socket.data ONLY — never from any client payload field.
+        const side: DraftSide = socket.data.playerSlot === 1 ? 'home' : 'away';
+
+        const { cardId, destination } = payload;
+
+        // T-29-06: allow-list slotIndex range before touching any state.
+        if (
+          destination.type === 'slot' &&
+          (!Number.isInteger(destination.slotIndex) ||
+            destination.slotIndex < 0 ||
+            destination.slotIndex > 10)
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SLOT_INDEX');
+          return;
+        }
+
+        // T-29-01: card must resolve against the server's own pool — never trust a
+        // client-echoed card shape. applyPick below separately enforces that the card is
+        // actually present in the SENDER's own current pack (INVALID_CARD).
+        const card = PLAYER_POOL.find((p) => p.id === cardId);
+        if (!card) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_CARD');
+          return;
+        }
+
+        // D-09/Pitfall 4: GK-slot role rule enforced in BOTH directions.
+        if (destination.type === 'slot') {
+          const formationId = side === 'home' ? room.homePickedFormation : room.awayPickedFormation;
+          const slotRole = FORMATIONS[formationId!].slots[destination.slotIndex]!.slotRole;
+          if (slotRole === 'GK' && card.role !== 'GK') {
+            socket.emit(ServerEvents.GAME_ERROR, 'GK_SLOT_REQUIRES_GK');
+            return;
+          }
+          if (slotRole !== 'GK' && card.role === 'GK') {
+            socket.emit(ServerEvents.GAME_ERROR, 'NON_GK_SLOT_REJECTS_GK');
+            return;
+          }
+        }
+
+        const result = applyPick(room.draftSession, side, cardId, destination);
+        if (!result.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, result.error ?? 'INVALID_CARD');
+          return;
+        }
+        room.draftSession = result.session;
+
+        // DRAFT-08: cycle-4 keeper safety net — must run BEFORE advanceSubStep so the
+        // reduced picksRemaining lands on the correct player's PICK2 (draftSession.ts doc).
+        if (
+          room.draftSession.cycle === 4 &&
+          room.draftSession.subStep === 'PICK1' &&
+          room.draftSession.homePicksRemaining === 0 &&
+          room.draftSession.awayPicksRemaining === 0
+        ) {
+          room.draftSession = checkKeeperSafety(room.draftSession, randomInt);
+        }
+
+        room.draftSession = advanceSubStep(room.draftSession);
+
+        // D-15/D-16/D-23: on the transition into draftComplete, assign bench numbers once.
+        if (room.draftSession.draftComplete) {
+          room.draftSession = {
+            ...room.draftSession,
+            homeBenchNumbers: assignBenchNumbers(room.draftSession.homeBenchIds, randomInt),
+            awayBenchNumbers: assignBenchNumbers(room.draftSession.awayBenchIds, randomInt),
+          };
+        }
+
+        // D-14: both players' views may have changed (packs may have swapped) — unicast both.
+        emitDraftViews(io, room);
+      } finally {
+        room.isProcessing = false;
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // DRAFT_REARRANGE
+    // Phase 29 D-08/D-10: moves an ALREADY-DRAFTED card between lineup slot(s) and/or the
+    // bench. Never touches cycle/subStep/picksRemaining (D-10) — carries NO move logic of
+    // its own, mirroring how DRAFT_PICK delegates placement to applyPick.
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.DRAFT_REARRANGE, (payload: DraftRearrangePayload) => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      if (room.isProcessing) return;
+      room.isProcessing = true;
+      try {
+        if (!room.draftSession || room.draftSession.draftComplete) {
+          socket.emit(ServerEvents.GAME_ERROR, 'NOT_DRAFTING');
+          return;
+        }
+
+        // T-29-02: resolve side from socket.data ONLY.
+        const side: DraftSide = socket.data.playerSlot === 1 ? 'home' : 'away';
+
+        const { from, to } = payload;
+
+        // T-29-06: allow-list slot indices on both ends before touching any state.
+        const refs = [from, to];
+        for (const ref of refs) {
+          if (
+            ref.type === 'slot' &&
+            (!Number.isInteger(ref.slotIndex) || ref.slotIndex < 0 || ref.slotIndex > 10)
+          ) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SLOT_INDEX');
+            return;
+          }
+        }
+
+        // D-09: enforce the GK-slot role rule in both directions when the destination is a
+        // lineup slot. Resolve the moving card's identity from whichever side it currently
+        // occupies (slot or bench) before delegating to applyRearrange.
+        if (to.type === 'slot') {
+          const session = room.draftSession;
+          const lineupSlots = side === 'home' ? session.homeLineupSlots : session.awayLineupSlots;
+          const benchIds = side === 'home' ? session.homeBenchIds : session.awayBenchIds;
+          const movingCardId =
+            from.type === 'slot' ? lineupSlots[from.slotIndex] : benchIds[from.benchIndex];
+          const movingCard = movingCardId
+            ? PLAYER_POOL.find((p) => p.id === movingCardId)
+            : undefined;
+          if (movingCard) {
+            const formationId =
+              side === 'home' ? room.homePickedFormation : room.awayPickedFormation;
+            const slotRole = FORMATIONS[formationId!].slots[to.slotIndex]!.slotRole;
+            if (slotRole === 'GK' && movingCard.role !== 'GK') {
+              socket.emit(ServerEvents.GAME_ERROR, 'GK_SLOT_REQUIRES_GK');
+              return;
+            }
+            if (slotRole !== 'GK' && movingCard.role === 'GK') {
+              socket.emit(ServerEvents.GAME_ERROR, 'NON_GK_SLOT_REJECTS_GK');
+              return;
+            }
+          }
+        }
+
+        const result = applyRearrange(room.draftSession, side, from, to);
+        if (!result.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, result.error ?? 'INVALID_REARRANGE');
+          return;
+        }
+        room.draftSession = result.session;
+
+        // Requester-private emit only — mirrors LINEUP_SWAP (D-12/D-14 privacy).
+        socket.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, side));
       } finally {
         room.isProcessing = false;
       }
