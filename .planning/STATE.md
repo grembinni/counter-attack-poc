@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: executing
-stopped_at: Phase 29 gaps found in human verification — pending gap-closure
-last_updated: '2026-07-21T17:51:01.162Z'
-last_activity: 2026-07-21 -- Phase 29 execution started
+status: verifying
+stopped_at: Phase 29 UI-SPEC approved
+last_updated: '2026-07-21T18:21:27.264Z'
+last_activity: 2026-07-21 -- Phase 29 human verification found gaps
 progress:
   total_phases: 4
   completed_phases: 3

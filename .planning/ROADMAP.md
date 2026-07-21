@@ -92,7 +92,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 - [x] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range) (completed 2026-07-12)
 - [x] **Phase 27: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection (completed 2026-07-21)
 - [x] **Phase 28: Draft Data Model** - Player tier classification and configurable pack generation engine (completed 2026-07-21)
-- [ ] **Phase 29: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup (gaps found in human verification 2026-07-21 — see 29-VERIFICATION.md)
+- [ ] **Phase 29: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup (gaps found in human verification 2026-07-21; gap-closure plans 29-07/29-08/29-09 queued — see 29-VERIFICATION.md)
 
 ---
 
@@ -210,6 +210,12 @@ Plans:
 - [x] 29-05-PLAN.md — Client screen: LineupAssignmentScreen draftMode + App routing + DRAFT_STATE_UPDATED wiring (+ component tests) [Wave 3, blocked on 29-03]
 - [x] 29-06-PLAN.md — Full-suite gate + two-browser human-verify checkpoint [Wave 4, blocked on 29-04/29-05]
 
+**Gap Closure (from 29-06 human verification — see 29-VERIFICATION.md)**
+
+- [ ] 29-07-PLAN.md — Server draft→game lifecycle fixes: allow post-draft DRAFT_REARRANGE before Confirm + resolve drafted roster (draftSession.\*LineupSlots) into LINEUP_CONFIRM/game start (+ integration tests) [Wave 1]
+- [ ] 29-08-PLAN.md — Client bench carousel chrome + wider legible cards + drag-state robustness + Confirm-gating on full lineup (+ component tests) [Wave 1]
+- [ ] 29-09-PLAN.md — Re-verification: full automated gate + two-browser walkthrough (post-draft rearrange, bench carousel, hand-off stats, DRAFT-08 keeper-safety re-test, D-13 reconnect) [Wave 2, blocked on 29-07/29-08]
+
 ---
 
 ## Progress
@@ -252,4 +258,4 @@ Plans:
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete   | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete   | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 4/4            | Complete   | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap   | v1.4      | 6/6            | Gaps Found |            |
+| 29. Draft UI + Pick-and-Swap   | v1.4      | 6/9            | Gaps Found |            |
