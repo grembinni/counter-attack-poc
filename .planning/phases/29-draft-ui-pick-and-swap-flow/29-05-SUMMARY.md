@@ -108,3 +108,7 @@ None — plan executed exactly as written. The `DraftSlotRef` benchIndex-on-dest
 
 _Phase: 29-draft-ui-pick-and-swap-flow_
 _Completed: 2026-07-21_
+
+## Self-Check: PASSED
+
+All claimed files exist (LineupAssignmentScreen.tsx, App.tsx, LineupAssignmentScreen.test.tsx, this SUMMARY.md) and all four commits (`d7c9afd`, `f6be17f`, `1fce268`, `3b111c5`) are present in git log.
