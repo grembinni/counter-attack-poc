@@ -28,9 +28,9 @@
 
 ### Draft Mode (DRAFT)
 
-- [ ] **DRAFT-01**: Game creation includes a pre-step screen for game settings: speed selector, team type (Standard / Draft), and — if Draft selected — player pool checkboxes (Original, MLS, International, Legends, Icons; at least one of the first three required)
-- [ ] **DRAFT-02**: In Standard mode the existing team-selection flow is unchanged; the speed setting moves off the team-selection page to the settings pre-step
-- [ ] **DRAFT-03**: In Draft mode, team-selection flow is the same as Standard but with a settings summary line (Speed | Team type | Draft pool) replacing the speed picker
+- [x] **DRAFT-01**: Game creation includes a pre-step screen for game settings: speed selector, team type (Standard / Draft), and — if Draft selected — player pool checkboxes (Original, MLS, International, Legends, Icons; at least one of the first three required)
+- [x] **DRAFT-02**: In Standard mode the existing team-selection flow is unchanged; the speed setting moves off the team-selection page to the settings pre-step
+- [x] **DRAFT-03**: In Draft mode, team-selection flow is the same as Standard but with a settings summary line (Speed | Team type | Draft pool) replacing the speed picker
 - [ ] **DRAFT-04**: Player pool is classified by total stat count into five tiers — Keeper (own pool), Chase (top 90–100%), Rare (80–89%), Uncommon (60–79%), Common (below 60%); all percentage boundaries are configurable constants
 - [ ] **DRAFT-05**: Packs are generated from the selected player pool: each pack is 7 cards with a configurable per-rarity composition (default: 1 chase, 1 rare, 1 uncommon, 3 common, 1 keeper); composition counts are configurable constants
 - [ ] **DRAFT-06**: Draft screen appears between team/formation selection and lineup; displays a carousel of 7 cards above the lineup grid
@@ -80,9 +80,9 @@
 | RESP-07     | Phase 27 | Pending  |
 | RESP-08     | Phase 27 | Pending  |
 | RESP-09     | Phase 27 | Pending  |
-| DRAFT-01    | Phase 28 | Pending  |
-| DRAFT-02    | Phase 28 | Pending  |
-| DRAFT-03    | Phase 28 | Pending  |
+| DRAFT-01    | Phase 27 | Complete |
+| DRAFT-02    | Phase 27 | Complete |
+| DRAFT-03    | Phase 27 | Complete |
 | DRAFT-04    | Phase 29 | Pending  |
 | DRAFT-05    | Phase 29 | Pending  |
 | DRAFT-06    | Phase 30 | Pending  |
