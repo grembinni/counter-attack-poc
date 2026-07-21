@@ -17,3 +17,4 @@ export * from './teamConfig.js'; // Phase 15: team identity types and TEAM_CONFI
 export * from './offside.js'; // Phase 17 OFFSIDE-01: team-relative offside geometry + sticky flag helpers
 export * from './uniformStyles.js'; // Phase 20: UniformStyleId type + UNIFORM_STYLE_META
 export * from './formations.js'; // Phase 23: FormationId, FormationSlot, SlotRole, FORMATIONS
+export * from './draftEngine.js'; // Phase 28: pool derivation + tier classification (DRAFT-04)
