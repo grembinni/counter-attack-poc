@@ -83,8 +83,8 @@
 | DRAFT-01    | Phase 27 | Complete |
 | DRAFT-02    | Phase 27 | Complete |
 | DRAFT-03    | Phase 27 | Complete |
-| DRAFT-04    | Phase 29 | Complete |
-| DRAFT-05    | Phase 29 | Complete |
+| DRAFT-04    | Phase 28 | Complete |
+| DRAFT-05    | Phase 28 | Complete |
 | DRAFT-06    | Phase 30 | Pending  |
 | DRAFT-07    | Phase 30 | Pending  |
 | DRAFT-08    | Phase 30 | Pending  |
