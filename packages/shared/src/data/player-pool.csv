@@ -1,4 +1,4 @@
-﻿Player,Team,Nationality,Position,Pace,Dribbling,Highpass,Resilience,Shooting,Tackling,Aerial Ability,Saving,Handling
+﻿Player,Team,Nationality,Position,Pace,Dribbling,Highpass,Resilience,Shooting,Tackling,Aerial Ability,Saving,Handling,PoolTag
 Alistair Johnston,canada,Canada,DEF,5,3,4,6,3,5,3,0,0
 Alphonso Davies,canada,Canada,DEF,6,6,4,5,3,4,3,0,0
 Cyle Larin,canada,Canada,FWD,5,3,5,5,6,1,6,0,0
@@ -63,21 +63,21 @@ Cengiz K. Ozcan,free-agent,Turkey,DEF,4,1,5,6,2,3,6,0,0
 Christian Walton,free-agent,United States,MID,6,3,6,3,4,3,3,0,0
 Conor McNulty,free-agent,Ireland,MID,5,4,5,1,5,1,4,0,0
 Cristiano Ribeiro,free-agent,Portugal,FWD,6,4,5,4,2,1,1,0,0
-Cristiano Ronaldo (M),free-agent,Portugal,FWD,6,6,4,6,6,2,4,0,0
-Diego Maradona (L),free-agent,Argentina,MID,5,6,6,6,5,4,3,0,0
+Cristiano Ronaldo,free-agent,Portugal,FWD,6,6,4,6,6,2,4,0,0,icon
+Diego Maradona,free-agent,Argentina,MID,5,6,6,6,5,4,3,0,0,legend
 Dusan Pavlovic,free-agent,Serbia,ST,4,2,4,5,5,2,6,0,0
 Eden Willems,free-agent,Belgium,DEF,5,3,5,5,3,4,5,0,0
 Emil Ekstrom,free-agent,Sweden,DEF,5,2,5,6,3,5,4,0,0
 Emil Nilsson,free-agent,Sweden,FWD,4,3,5,5,4,2,3,0,0
 Erling Anderson,free-agent,Norway,MID,5,1,4,5,2,3,5,0,0
-Erling Haaland (M),free-agent,Norway,FWD,6,6,4,6,6,2,4,0,0
+Erling Haaland,free-agent,Norway,FWD,6,6,4,6,6,2,4,0,0,icon
 Felix Kalla,free-agent,Germany,DEF,5,3,6,5,1,4,3,0,0
 Gavi Delgado,free-agent,Spain,MID,5,4,5,5,2,3,4,0,0
 Harry Gilbert,free-agent,England,FWD,4,4,6,4,4,3,3,0,0
 Ismael Nazef,free-agent,Algeria,MID,5,2,6,4,3,3,4,0,0
 Itumeleng Nkosi,free-agent,South Africa,GK,6,2,4,6,0,0,5,4,4
 John Kerr,free-agent,Scotland,FWD,5,2,4,4,3,3,3,0,0
-Kevin De Bruyne (M),free-agent,Belgium,MID,5,6,6,5,5,4,3,0,0
+Kevin De Bruyne,free-agent,Belgium,MID,5,6,6,5,5,4,3,0,0,icon
 Kieran Stewart,free-agent,Scotland,MID,5,4,5,5,4,3,3,0,0
 Leon Kucklick,free-agent,Germany,FWD,5,5,5,5,3,2,3,0,0
 Liam O'Conner,free-agent,Ireland,DEF,5,2,5,4,1,3,3,0,0
@@ -86,17 +86,17 @@ Luka Brisic,free-agent,Croatia,FWD,4,5,4,5,5,2,3,0,0
 Marco Longo,free-agent,Italy,DEF,4,2,3,6,2,6,6,0,0
 Memphis Marell,free-agent,Netherlands,DEF,4,1,4,6,3,5,6,0,0
 Neymar Andre,free-agent,Brazil,FWD,4,6,5,5,4,1,3,0,0
-Neymar Jr (M),free-agent,Brazil,FWD,6,6,4,5,6,2,4,0,0
+Neymar Jr,free-agent,Brazil,FWD,6,6,4,5,6,2,4,0,0,icon
 Nicolae Rusu,free-agent,Romania,ST,4,4,4,5,6,1,4,0,0
 Oliver Fruin,free-agent,England,ST,4,3,4,6,5,1,6,0,0
 Oliver Goaley,free-agent,England,FWD,4,4,6,5,4,3,3,0,0
 Oliver Littlewood,free-agent,England,DEF,4,4,6,5,4,4,4,0,0
 Oliver Walker,free-agent,England,GK,6,1,4,6,0,0,5,5,3
-Paolo Maldini (L),free-agent,Italy,DEF,5,4,4,6,2,6,6,0,0
+Paolo Maldini,free-agent,Italy,DEF,5,4,4,6,2,6,6,0,0,legend
 Paul Iwu,free-agent,France,MID,5,3,4,6,4,3,4,0,0
-Pelé (L),free-agent,Brazil,FWD,6,6,4,6,6,2,4,0,0
+Pelé,free-agent,Brazil,FWD,6,6,4,6,6,2,4,0,0,legend
 Radu Patras,free-agent,Moldova,DEF,6,1,4,4,3,2,3,0,0
-Ronaldinho (L),free-agent,Brazil,FWD,6,6,4,6,6,2,4,0,0
+Ronaldinho,free-agent,Brazil,FWD,6,6,4,6,6,2,4,0,0,legend
 Stevan Toothnail,free-agent,Montenegro,DEF,5,2,5,6,2,4,4,0,0
 Steven Mitchell,free-agent,Northern Ireland,FWD,4,3,5,4,4,1,3,0,0
 Thiago Lessa,free-agent,Brazil,DEF,5,2,5,6,2,5,4,0,0
@@ -106,10 +106,10 @@ Tyler Dionte,free-agent,United States,DEF,4,2,4,6,3,4,6,0,0
 Van De Kerkhof,free-agent,Netherlands,FWD,5,5,6,4,4,1,2,0,0
 Victor Sesay,free-agent,Nigeria,ST,6,2,4,3,5,2,2,0,0
 Vinicius Eubsinno,free-agent,Brazil,GK,5,3,6,6,0,0,6,4,3
-Virgil van Dijk (M),free-agent,Netherlands,DEF,5,4,4,6,2,6,6,0,0
+Virgil van Dijk,free-agent,Netherlands,DEF,5,4,4,6,2,6,6,0,0,icon
 Virgil Werdekker,free-agent,Netherlands,DEF,4,3,6,4,4,5,3,0,0
 Yaya Abraham,free-agent,Ivory Coast,MID,5,1,6,4,1,3,4,0,0
-Zinedine Zidane (L),free-agent,France,MID,5,6,6,5,5,4,3,0,0
+Zinedine Zidane,free-agent,France,MID,5,6,6,5,5,4,3,0,0,legend
 Aaron Long,la,US,DEF,5,2,4,6,2,4,5,0,0
 David Martínez,la,Venezuela,FWD,5,3,6,4,5,3,2,0,0
 Denis Bouanga,la,Gabon,ST,6,3,5,5,6,1,5,0,0

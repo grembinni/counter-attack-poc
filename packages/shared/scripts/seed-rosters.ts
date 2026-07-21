@@ -104,6 +104,8 @@ interface RawPlayer {
   saving: number;
   handling: number;
   // NOTE: 'heading' intentionally omitted — D-01 (Phase 17): removed from PlayerPiece
+  /** D-02 (Phase 28): reserved Legends/Icons tag; undefined = ordinary free agent. */
+  poolTag?: 'legend' | 'icon';
 }
 
 /** Convert blank-or-non-numeric CSV cell to integer (blanks → 0). D-05 */
@@ -169,6 +171,10 @@ function parseRow(row: string[], idx: Record<string, number>): RawPlayer {
   const sourceTeamRaw = row[idx['SourceTeam']] ?? '';
   const teamCsvName = sourceTeamRaw.trim() !== '' ? sourceTeamRaw : toSlug(row[idx['Team']] ?? '');
 
+  // D-02 (Phase 28): whitelist-parse PoolTag — only 'legend'/'icon' accepted, else undefined (T-28-DATA).
+  const poolTagRaw = (row[idx['PoolTag']] ?? '').trim();
+  const poolTag = poolTagRaw === 'legend' || poolTagRaw === 'icon' ? poolTagRaw : undefined;
+
   return {
     firstName,
     lastName,
@@ -184,6 +190,7 @@ function parseRow(row: string[], idx: Record<string, number>): RawPlayer {
     aerialAbility,
     saving,
     handling,
+    poolTag,
   };
 }
 
@@ -205,6 +212,8 @@ interface PlayerEntry {
   resilience: number;
   aerialAbility: number;
   highPass: number;
+  /** D-02 (Phase 28): reserved Legends/Icons tag; undefined = ordinary player. */
+  poolTag?: 'legend' | 'icon';
 }
 
 /** Assign jersey numbers and positions to a squad of raw players.
@@ -248,6 +257,7 @@ function buildSquadEntries(
       resilience: p.resilience,
       aerialAbility: p.aerialAbility,
       highPass: p.highPass,
+      poolTag: p.poolTag,
     };
   });
 }
@@ -272,7 +282,7 @@ ${indent}  handling: ${p.handling},
 ${indent}  resilience: ${p.resilience},
 ${indent}  aerialAbility: ${p.aerialAbility},
 ${indent}  highPass: ${p.highPass},
-${indent}}`;
+${p.poolTag ? `${indent}  poolTag: '${p.poolTag}',\n` : ''}${indent}}`;
 }
 
 async function main() {
@@ -345,6 +355,7 @@ async function main() {
           resilience: p.resilience,
           aerialAbility: p.aerialAbility,
           highPass: p.highPass,
+          poolTag: p.poolTag,
         });
       }
     } else {
@@ -412,6 +423,8 @@ export interface PoolPlayer {
   /** D-13: Aerial Ability — CSV header typo corrected in Phase 19. */
   aerialAbility: number;
   highPass: number;
+  /** D-02 (Phase 28): reserved Legends/Icons tag; undefined = ordinary free agent, included in the 'original' pool. */
+  poolTag?: 'legend' | 'icon';
 }
 
 /** DATA-01/D-12: Single unified player pool — replaces TEAM_SQUADS and FREE_AGENTS.

@@ -38,6 +38,8 @@ export interface PoolPlayer {
   /** D-13: Aerial Ability — CSV header typo corrected in Phase 19. */
   aerialAbility: number;
   highPass: number;
+  /** D-02 (Phase 28): reserved Legends/Icons tag; undefined = ordinary free agent, included in the 'original' pool. */
+  poolTag?: 'legend' | 'icon';
 }
 
 /** DATA-01/D-12: Single unified player pool — replaces TEAM_SQUADS and FREE_AGENTS.
@@ -1263,7 +1265,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p065',
     sourceTeamId: 'free-agent',
     firstName: 'Cristiano',
-    lastName: 'Ronaldo (M)',
+    lastName: 'Ronaldo',
     number: 0,
     nationality: 'Portugal',
     role: 'FWD',
@@ -1277,12 +1279,13 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 4,
     highPass: 4,
+    poolTag: 'icon',
   },
   {
     id: 'p066',
     sourceTeamId: 'free-agent',
     firstName: 'Diego',
-    lastName: 'Maradona (L)',
+    lastName: 'Maradona',
     number: 0,
     nationality: 'Argentina',
     role: 'MID',
@@ -1296,6 +1299,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 3,
     highPass: 6,
+    poolTag: 'legend',
   },
   {
     id: 'p067',
@@ -1396,7 +1400,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p072',
     sourceTeamId: 'free-agent',
     firstName: 'Erling',
-    lastName: 'Haaland (M)',
+    lastName: 'Haaland',
     number: 0,
     nationality: 'Norway',
     role: 'FWD',
@@ -1410,6 +1414,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 4,
     highPass: 4,
+    poolTag: 'icon',
   },
   {
     id: 'p073',
@@ -1529,7 +1534,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p079',
     sourceTeamId: 'free-agent',
     firstName: 'Kevin',
-    lastName: 'De Bruyne (M)',
+    lastName: 'De Bruyne',
     number: 0,
     nationality: 'Belgium',
     role: 'MID',
@@ -1543,6 +1548,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 5,
     aerialAbility: 3,
     highPass: 6,
+    poolTag: 'icon',
   },
   {
     id: 'p080',
@@ -1700,7 +1706,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p088',
     sourceTeamId: 'free-agent',
     firstName: 'Neymar',
-    lastName: 'Jr (M)',
+    lastName: 'Jr',
     number: 0,
     nationality: 'Brazil',
     role: 'FWD',
@@ -1714,6 +1720,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 5,
     aerialAbility: 4,
     highPass: 4,
+    poolTag: 'icon',
   },
   {
     id: 'p089',
@@ -1814,7 +1821,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p094',
     sourceTeamId: 'free-agent',
     firstName: 'Paolo',
-    lastName: 'Maldini (L)',
+    lastName: 'Maldini',
     number: 0,
     nationality: 'Italy',
     role: 'DEF',
@@ -1828,6 +1835,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 6,
     highPass: 4,
+    poolTag: 'legend',
   },
   {
     id: 'p095',
@@ -1852,7 +1860,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p096',
     sourceTeamId: 'free-agent',
     firstName: 'Pelé',
-    lastName: '(L)',
+    lastName: '',
     number: 0,
     nationality: 'Brazil',
     role: 'FWD',
@@ -1866,6 +1874,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 4,
     highPass: 4,
+    poolTag: 'legend',
   },
   {
     id: 'p097',
@@ -1890,7 +1899,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p098',
     sourceTeamId: 'free-agent',
     firstName: 'Ronaldinho',
-    lastName: '(L)',
+    lastName: '',
     number: 0,
     nationality: 'Brazil',
     role: 'FWD',
@@ -1904,6 +1913,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 4,
     highPass: 4,
+    poolTag: 'legend',
   },
   {
     id: 'p099',
@@ -2080,7 +2090,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p108',
     sourceTeamId: 'free-agent',
     firstName: 'Virgil',
-    lastName: 'van Dijk (M)',
+    lastName: 'van Dijk',
     number: 0,
     nationality: 'Netherlands',
     role: 'DEF',
@@ -2094,6 +2104,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 6,
     aerialAbility: 6,
     highPass: 4,
+    poolTag: 'icon',
   },
   {
     id: 'p109',
@@ -2137,7 +2148,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     id: 'p111',
     sourceTeamId: 'free-agent',
     firstName: 'Zinedine',
-    lastName: 'Zidane (L)',
+    lastName: 'Zidane',
     number: 0,
     nationality: 'France',
     role: 'MID',
@@ -2151,6 +2162,7 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 5,
     aerialAbility: 3,
     highPass: 6,
+    poolTag: 'legend',
   },
   {
     id: 'p112',
