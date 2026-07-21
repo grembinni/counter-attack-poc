@@ -337,11 +337,6 @@
   cursor: default;
 }
 
-.speedOptionActive:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
 /* UX-07: per-speed accent colors */
 .speedColorSlow {
   border-color: #3b82f6;
