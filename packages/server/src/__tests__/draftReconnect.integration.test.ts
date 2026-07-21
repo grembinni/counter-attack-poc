@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
-import { clearAllRooms } from '../roomStore.js';
+import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 
@@ -259,6 +259,91 @@ describe('Phase 29 Plan 04 Task 3 — mid-draft reconnect resends DRAFT_STATE_UP
 
     // Give any rogue broadcast a brief window to arrive.
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    expect(clientBReceivedExtraUpdate).toBe(false);
+  }, 8000);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 29 Plan 11 — CR-03 reconnect re-sync in post-complete window
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 11 — CR-03 reconnect re-sync in post-complete window', () => {
+  it('a reconnect with draftComplete=true and gameState=null still receives DRAFT_STATE_UPDATED (previously silence), and no GAME_STATE arrives', async () => {
+    const clientA = createClient();
+    const clientB = createClient();
+    await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode, , sessionTokenA] = await createJoinedPromise;
+
+    const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      draftPools: ['original'],
+    });
+    await settingsConfirmedPromise;
+
+    const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
+    const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+    await joinedBPromise;
+    await selectionStartPromise;
+
+    const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
+    clientA.emit(ClientEvents.TEAM_PICK, 'city');
+    await homePickedPromise;
+
+    const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+    await uniformStartPromise;
+
+    const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
+    await homeConfirmedPromise;
+
+    const draftAPromise = oncePromise(clientA, ServerEvents.DRAFT_STATE_UPDATED, 2000);
+    const draftBPromise = oncePromise(clientB, ServerEvents.DRAFT_STATE_UPDATED, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+    await draftAPromise;
+    await draftBPromise;
+
+    // Simulate the post-complete/pre-confirm window directly: flip draftComplete true while
+    // leaving room.gameState null (benchNumbers default to {}, so buildDraftView is safe).
+    const room = getRoom(roomCode)!;
+    room.draftSession = { ...room.draftSession!, draftComplete: true };
+    expect(room.gameState).toBeNull();
+
+    clientA.disconnect();
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+    let gameStateReceived = false;
+    const clientAReconnected = createClient({ auth: { sessionToken: sessionTokenA } });
+    clientAReconnected.once(ServerEvents.GAME_STATE, () => {
+      gameStateReceived = true;
+    });
+
+    // Register the DRAFT_STATE_UPDATED listener BEFORE waitForConnect — the server emits it
+    // synchronously inside the connection handler.
+    const reconnectDraftPromise = oncePromise(
+      clientAReconnected,
+      ServerEvents.DRAFT_STATE_UPDATED,
+      2000,
+    );
+
+    let clientBReceivedExtraUpdate = false;
+    clientB.once(ServerEvents.DRAFT_STATE_UPDATED, () => {
+      clientBReceivedExtraUpdate = true;
+    });
+
+    await waitForConnect(clientAReconnected);
+
+    const [reconnectView] = await reconnectDraftPromise;
+    expect(reconnectView.draftComplete).toBe(true);
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    expect(gameStateReceived).toBe(false);
     expect(clientBReceivedExtraUpdate).toBe(false);
   }, 8000);
 });

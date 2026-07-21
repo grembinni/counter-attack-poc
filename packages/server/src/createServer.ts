@@ -147,7 +147,13 @@ export function buildServer(): {
         // for a mid-draft reconnect — close that gap by re-sending the reconnecting
         // player's own private draft view. T-29-05: emit ONLY to this socket (never
         // io.to/socket.to) — the opponent's pack must never leak via a reconnect re-sync.
-        if (room.teamType === 'draft' && room.draftSession && !room.draftSession.draftComplete) {
+        // Phase 29 Plan 11 (CR-03): gate on room.gameState === null rather than
+        // !draftSession.draftComplete — draft-mode rooms have no gameState until BOTH
+        // LINEUP_CONFIRMs land, so gameState === null correctly scopes the re-sync to the
+        // entire pre-game draft flow, including the post-complete/pre-confirm window that
+        // the old !draftComplete condition excluded (stranding a reconnecting socket there
+        // with no re-sync event at all).
+        if (room.gameState === null && room.teamType === 'draft' && room.draftSession) {
           const side = socket.data.playerSlot === 1 ? 'home' : 'away';
           socket.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, side));
         }
