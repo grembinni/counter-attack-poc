@@ -314,6 +314,39 @@ export function generateDraftPacks(
   // (5) FINAL CLASSIFY
   const pool = assignTiers(union);
 
+  // WR-01 (Phase 28 review): assert every tier's post-backfill population meets its
+  // need. Today this is provably dormant for the default constants + full three-pool
+  // universe (confirmed by stress-execution across every reachable pool combination),
+  // but nothing upstream enforces it — if PACKS_PER_MATCH/PACK_COMPOSITION are ever
+  // tuned past what the fixed player pool can support, fail loudly here instead of
+  // silently producing short packs (dealing loop's `tierArray.length === 0` skip) or
+  // cross-pack duplicate cards (dealing loop's cursor wraparound), both of which
+  // violate the D-09 contract.
+  const finalKeeperCount = pool.filter((p) => p.tier === 'keeper').length;
+  if (finalKeeperCount < keeperNeed) {
+    throw new Error(
+      `generateDraftPacks: insufficient 'keeper' supply (${finalKeeperCount}/${keeperNeed}) after backfill`,
+    );
+  }
+  const finalOutfieldCounts: Record<Exclude<DraftTier, 'keeper'>, number> = {
+    chase: 0,
+    rare: 0,
+    uncommon: 0,
+    common: 0,
+  };
+  for (const p of pool) {
+    if (p.tier !== 'keeper') {
+      finalOutfieldCounts[p.tier]++;
+    }
+  }
+  for (const tier of OUTFIELD_TIERS) {
+    if (finalOutfieldCounts[tier] < need[tier]) {
+      throw new Error(
+        `generateDraftPacks: insufficient '${tier}' supply (${finalOutfieldCounts[tier]}/${need[tier]}) after backfill`,
+      );
+    }
+  }
+
   // (6) DEAL
   const tierDealOrder: DraftTier[] = ['chase', 'rare', 'uncommon', 'common', 'keeper'];
   const byTier: Record<DraftTier, TieredPoolPlayer[]> = {
