@@ -102,3 +102,7 @@ None - no external service configuration required.
 
 _Phase: 29-draft-ui-pick-and-swap-flow_
 _Completed: 2026-07-21_
+
+## Self-Check: PASSED
+
+All claimed files exist (`packages/server/src/draftSession.ts`, `packages/server/src/draftSession.test.ts`, this SUMMARY.md) and all four commits (`61615da`, `09f2ef3`, `6fa47ac`, `64c7b43`) are present in git log.
