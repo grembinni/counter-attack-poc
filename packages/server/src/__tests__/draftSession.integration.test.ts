@@ -22,6 +22,7 @@ import type {
   ServerToClientEvents,
   DraftClientView,
   DraftPickPayload,
+  GameState,
 } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents, FORMATIONS } from '@counter-attack/shared';
 
@@ -710,4 +711,75 @@ describe('Phase 29 Plan 07 Task 1 — post-draft rearrangement', () => {
     expect(reason).toBe('LINEUP_ALREADY_CONFIRMED');
     expect(stateUpdated).toBe(false);
   }, 25000);
+});
+
+// ---------------------------------------------------------------------------
+// Gap-closure Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolution (DRAFT-10)
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolution', () => {
+  it('after both draft-mode confirms, all 22 built pieces have real stats and board positions', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+    expect(driver.getViewA().draftComplete).toBe(true);
+    expect(driver.getViewB().draftComplete).toBe(true);
+    // Both sides must have fully filled starting lineups from our pickIntoLineup driver.
+    expect(driver.getViewA().lineupSlots.every((s) => s !== null)).toBe(true);
+    expect(driver.getViewB().lineupSlots.every((s) => s !== null)).toBe(true);
+
+    const gameStateAPromise = new Promise<GameState>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 2000);
+      clientA.once(ServerEvents.GAME_STATE, (state) => {
+        clearTimeout(timer);
+        resolve(state);
+      });
+    });
+    const gameStateBPromise = new Promise<GameState>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 2000);
+      clientB.once(ServerEvents.GAME_STATE, (state) => {
+        clearTimeout(timer);
+        resolve(state);
+      });
+    });
+
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+
+    const [gameStateA] = await Promise.all([gameStateAPromise, gameStateBPromise]);
+
+    expect(gameStateA.pieces).toHaveLength(22);
+    for (const piece of gameStateA.pieces) {
+      expect(piece.position).toBeDefined();
+      expect(piece.position.q).not.toBeNull();
+      expect(piece.position.r).not.toBeNull();
+      expect(piece.pace).toBeGreaterThan(0);
+      expect(piece.tackling).toBeGreaterThan(0);
+    }
+  }, 25000);
+
+  it('a draft LINEUP_CONFIRM with a null starting slot emits LINEUP_INCOMPLETE and does not start the game', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
+
+    // Drive only ONE pick (destined to the bench) — draftComplete never reached, so home's
+    // homeLineupSlots stay entirely null. Confirming now must be rejected server-side.
+    await driver.pick(clientA, driver.getViewA().currentPack[0]!.id, { type: 'bench' });
+
+    let gameStateReceived = false;
+    clientA.once(ServerEvents.GAME_STATE, () => {
+      gameStateReceived = true;
+    });
+
+    const errorPromise = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    const reason = await errorPromise;
+    expect(reason).toBe('LINEUP_INCOMPLETE');
+    expect(gameStateReceived).toBe(false);
+  }, 10000);
 });

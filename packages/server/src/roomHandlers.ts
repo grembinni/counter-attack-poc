@@ -694,13 +694,48 @@ export function registerRoomHandlers(
       if (room.isProcessing) return;
       room.isProcessing = true;
       try {
-        // WRONG_PHASE guard: assignments not yet computed.
-        if (!room.homeAssignment || !room.awayAssignment) {
+        const isDraftRoom = room.teamType === 'draft' && room.draftSession != null;
+
+        // WRONG_PHASE guard: assignments not yet computed (Standard mode only — draft mode
+        // sources its starting order from draftSession.*LineupSlots instead, checked below).
+        if (!isDraftRoom && (!room.homeAssignment || !room.awayAssignment)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
           return;
         }
 
         const playerSlot = socket.data.playerSlot;
+
+        // Gap-closure Plan 07 (T-29-07-03): for draft rooms, resolve the confirming side's
+        // starting order from the server-held draftSession — never from room.*Assignment
+        // (which stays an Array(11).fill(null) shell for the lifetime of a draft room) and
+        // never from the client's confirmedOrder payload (T-29-07-02/ASVS V5). Reject BEFORE
+        // setting the confirmed flag if the confirming side's resolved starting order has any
+        // unfilled slot or any id that fails to resolve against PLAYER_POOL — this prevents an
+        // undefined player from ever reaching buildInitialGameState. Both sides pass this same
+        // check independently (each on its own LINEUP_CONFIRM), so by the time both
+        // homeLineupConfirmed/awayLineupConfirmed are true, both starting orders are known-complete.
+        const resolveDraftOrder = (
+          lineupSlots: (string | null)[],
+        ): import('@counter-attack/shared').PoolPlayer[] | null => {
+          const resolved: import('@counter-attack/shared').PoolPlayer[] = [];
+          for (const id of lineupSlots) {
+            if (id === null) return null;
+            const player = PLAYER_POOL.find((p) => p.id === id);
+            if (!player) return null;
+            resolved.push(player);
+          }
+          return resolved;
+        };
+
+        if (isDraftRoom) {
+          const session = room.draftSession!;
+          const side = playerSlot === 1 ? 'home' : 'away';
+          const slotsToCheck = side === 'home' ? session.homeLineupSlots : session.awayLineupSlots;
+          if (resolveDraftOrder(slotsToCheck) === null) {
+            socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_INCOMPLETE');
+            return;
+          }
+        }
 
         // Set the confirming player's flag (idempotent — setting true twice is fine).
         if (playerSlot === 1) {
@@ -714,14 +749,25 @@ export function registerRoomHandlers(
           return; // still waiting for the other player
         }
 
-        // D-11: resolve stored PlayerId[] → PoolPlayer[] in assignment order.
-        // Server ignores client's confirmedOrder — uses room.*Assignment (ASVS V5).
-        const confirmedHomeOrder = room.homeAssignment.map(
-          (id) => PLAYER_POOL.find((p) => p.id === id)!,
-        );
-        const confirmedAwayOrder = room.awayAssignment.map(
-          (id) => PLAYER_POOL.find((p) => p.id === id)!,
-        );
+        let confirmedHomeOrder: import('@counter-attack/shared').PoolPlayer[];
+        let confirmedAwayOrder: import('@counter-attack/shared').PoolPlayer[];
+
+        if (isDraftRoom) {
+          const session = room.draftSession!;
+          // Both sides already passed the per-side completeness check above (on their own
+          // confirm) before their flag was set — resolveDraftOrder cannot return null here.
+          confirmedHomeOrder = resolveDraftOrder(session.homeLineupSlots)!;
+          confirmedAwayOrder = resolveDraftOrder(session.awayLineupSlots)!;
+        } else {
+          // D-11: resolve stored PlayerId[] → PoolPlayer[] in assignment order.
+          // Server ignores client's confirmedOrder — uses room.*Assignment (ASVS V5).
+          confirmedHomeOrder = room.homeAssignment!.map(
+            (id) => PLAYER_POOL.find((p) => p.id === id)!,
+          );
+          confirmedAwayOrder = room.awayAssignment!.map(
+            (id) => PLAYER_POOL.find((p) => p.id === id)!,
+          );
+        }
 
         // D-11: build game state from the confirmed player orderings.
         // All required fields were stored on room during UNIFORM_CONFIRM.
