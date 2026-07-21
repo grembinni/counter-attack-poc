@@ -174,7 +174,7 @@ Plans:
 
 **Wave 2** _(blocked on 28-01)_
 
-- [ ] 28-02-PLAN.md — draftEngine.ts: pool derivation + total-stat + rank-based tier classification (DRAFT-04)
+- [x] 28-02-PLAN.md — draftEngine.ts: pool derivation + total-stat + rank-based tier classification (DRAFT-04)
 
 **Wave 3** _(blocked on 28-02)_
 
@@ -240,5 +240,5 @@ Plans:
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
-| 28. Draft Data Model           | v1.4      | 1/4            | In Progress |            |
+| 28. Draft Data Model           | v1.4      | 2/4            | In Progress |            |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
