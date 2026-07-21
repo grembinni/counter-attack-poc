@@ -206,8 +206,8 @@ Plans:
 - [x] 29-01-PLAN.md — Shared draft contract: DraftSession/DraftClientView/DraftDestination types + DRAFT_PICK/DRAFT_REARRANGE/DRAFT_STATE_UPDATED events + Room.draftSession field
 - [x] 29-02-PLAN.md — Server pure state machine (draftSession.ts): pack→player assignment, pick application, 1+2+1 cycle machine, keeper safety, bench numbering (+ unit tests) [Wave 2, blocked on 29-01]
 - [x] 29-03-PLAN.md — Client carousels: DraftPackCarousel + BenchCarousel + tier-border/carousel CSS (+ component tests) [Wave 2, blocked on 29-01]
-- [ ] 29-04-PLAN.md — Server wiring: settings pack-gen, UNIFORM_CONFIRM draft gate, DRAFT_PICK/DRAFT_REARRANGE handlers, reconnect resume (+ integration tests) [Wave 3, blocked on 29-02]
-- [ ] 29-05-PLAN.md — Client screen: LineupAssignmentScreen draftMode + App routing + DRAFT_STATE_UPDATED wiring (+ component tests) [Wave 3, blocked on 29-03]
+- [x] 29-04-PLAN.md — Server wiring: settings pack-gen, UNIFORM_CONFIRM draft gate, DRAFT_PICK/DRAFT_REARRANGE handlers, reconnect resume (+ integration tests) [Wave 3, blocked on 29-02]
+- [x] 29-05-PLAN.md — Client screen: LineupAssignmentScreen draftMode + App routing + DRAFT_STATE_UPDATED wiring (+ component tests) [Wave 3, blocked on 29-03]
 - [ ] 29-06-PLAN.md — Full-suite gate + two-browser human-verify checkpoint [Wave 4, blocked on 29-04/29-05]
 
 ---
@@ -252,4 +252,4 @@ Plans:
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 4/4            | Complete    | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap   | v1.4      | 3/6            | In Progress |            |
+| 29. Draft UI + Pick-and-Swap   | v1.4      | 5/6            | In Progress |            |
