@@ -178,7 +178,7 @@ Plans:
 
 **Wave 3** _(blocked on 28-02)_
 
-- [ ] 28-03-PLAN.md — draftEngine.ts: batch pack generation + pool-shortage backfill + injected RNG (DRAFT-05)
+- [x] 28-03-PLAN.md — draftEngine.ts: batch pack generation + pool-shortage backfill + injected RNG (DRAFT-05)
 
 **Wave 4** _(blocked on 28-03)_
 
@@ -240,5 +240,5 @@ Plans:
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
-| 28. Draft Data Model           | v1.4      | 2/4            | In Progress |            |
+| 28. Draft Data Model           | v1.4      | 3/4            | In Progress |            |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
