@@ -31,8 +31,8 @@
 - [x] **DRAFT-01**: Game creation includes a pre-step screen for game settings: speed selector, team type (Standard / Draft), and — if Draft selected — player pool checkboxes (Original, MLS, International, Legends, Icons; at least one of the first three required)
 - [x] **DRAFT-02**: In Standard mode the existing team-selection flow is unchanged; the speed setting moves off the team-selection page to the settings pre-step
 - [x] **DRAFT-03**: In Draft mode, team-selection flow is the same as Standard but with a settings summary line (Speed | Team type | Draft pool) replacing the speed picker
-- [ ] **DRAFT-04**: Player pool is classified by total stat count into five tiers — Keeper (own pool), Chase (top 90–100%), Rare (80–89%), Uncommon (60–79%), Common (below 60%); all percentage boundaries are configurable constants
-- [ ] **DRAFT-05**: Packs are generated from the selected player pool: each pack is 7 cards with a configurable per-rarity composition (default: 1 chase, 1 rare, 1 uncommon, 3 common, 1 keeper); composition counts are configurable constants
+- [x] **DRAFT-04**: Player pool is classified by total stat count into five tiers — Keeper (own pool), Chase (top 90–100%), Rare (80–89%), Uncommon (60–79%), Common (below 60%); all percentage boundaries are configurable constants
+- [x] **DRAFT-05**: Packs are generated from the selected player pool: each pack is 7 cards with a configurable per-rarity composition (default: 1 chase, 1 rare, 1 uncommon, 3 common, 1 keeper); composition counts are configurable constants
 - [ ] **DRAFT-06**: Draft screen appears between team/formation selection and lineup; displays a carousel of 7 cards above the lineup grid
 - [ ] **DRAFT-07**: Pick-and-swap draft flow per cycle: pick 1 card → swap packs; pick 2 cards → swap packs; pick 1 card → open new pack; repeat for 4 cycles (16 cards drafted per player)
 - [ ] **DRAFT-08**: On the 4th draft cycle, if a player has not yet selected a keeper after their first pick, a keeper is automatically selected as their second pick; the pack passed has one fewer card; in the next pick phase that player selects 1 card instead of 2
@@ -83,8 +83,8 @@
 | DRAFT-01    | Phase 27 | Complete |
 | DRAFT-02    | Phase 27 | Complete |
 | DRAFT-03    | Phase 27 | Complete |
-| DRAFT-04    | Phase 29 | Pending  |
-| DRAFT-05    | Phase 29 | Pending  |
+| DRAFT-04    | Phase 29 | Complete |
+| DRAFT-05    | Phase 29 | Complete |
 | DRAFT-06    | Phase 30 | Pending  |
 | DRAFT-07    | Phase 30 | Pending  |
 | DRAFT-08    | Phase 30 | Pending  |
