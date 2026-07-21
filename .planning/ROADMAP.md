@@ -170,7 +170,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 28-01-PLAN.md — Data foundation: thread `poolTag` through CSV→seed→teams.ts; add `DraftTier` / `TIER_PERCENTILE_BOUNDS` / `PACKS_PER_MATCH` / `PACK_COMPOSITION` to types.ts
+- [x] 28-01-PLAN.md — Data foundation: thread `poolTag` through CSV→seed→teams.ts; add `DraftTier` / `TIER_PERCENTILE_BOUNDS` / `PACKS_PER_MATCH` / `PACK_COMPOSITION` to types.ts
 
 **Wave 2** _(blocked on 28-01)_
 
@@ -240,5 +240,5 @@ Plans:
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
-| 28. Draft Data Model           | v1.4      | 0/4            | Not started | -          |
+| 28. Draft Data Model           | v1.4      | 1/4            | In Progress |            |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
