@@ -447,17 +447,19 @@ if (teamType === 'draft') {
 | A3  | Auto-selected keeper (DRAFT-08) is drawn from the player's OWN currently-visible pack at the point keeper-safety triggers (after cycle-4 PICK1), not from a "search all remaining cards" pool                               | Architecture Patterns §4                          | Low — backed by the verified Phase 28 invariant that every pack has exactly 1 keeper card; only fails if a future change to `PACK_COMPOSITION` ever reduces `keeper` below 1, which the Phase 28 `generateDraftPacks` code explicitly guards against with a throw (line 326-330)                                                                                                                   |
 | A4  | Bench random jersey numbers (15-99) are ephemeral — they do not need to be threaded into `GameState`/`PlayerPiece` at all, since bench players never enter live gameplay (no substitution mechanic exists in this codebase) | Don't Hand-Roll, Architectural Responsibility Map | Low — verified directly: `buildInitialGameState`/`buildSquadPieces` only ever consumes the 11-entry `confirmedHomeOrder`/`confirmedAwayOrder`, and no substitution/bench-swap-during-match feature exists anywhere in `gameEngine.ts`                                                                                                                                                              |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact mutual-wait granularity for the 2-card PICK2 sub-step (see A1).**
    - What we know: D-01 groups "pick 2 cards" as one labeled phase; D-03 confirms a mutual-wait gate exists at "the next sub-step"; UI-SPEC shows a `Pick {k} of {2}` counter.
    - What's unclear: whether the counter blocks per-card or only at the phase boundary.
    - Recommendation: proceed with phase-boundary-only gating (simpler, matches "sub-step" language) but flag this specific mechanic for a quick human confirmation during plan review, since it's the single largest behavioral ambiguity in an otherwise fully-specified phase.
+   - **RESOLVED:** Plan 02 implements phase-boundary-only mutual-wait gating — `advanceSubStep` is a no-op until BOTH players' `picksRemaining` reach 0 within a sub-step (no per-card gate); Plan 06's two-browser human-verify checkpoint re-confirms this A1 behavior in the live run.
 
 2. **Should `DraftSession` cycle/sub-step advancement logic live in a new `draftSession.ts` module or inline in `roomHandlers.ts`?**
    - What we know: the existing codebase separates pure state-transition logic (`gameEngine.ts`) from socket-wiring (`roomHandlers.ts`) for testability.
    - What's unclear: whether this phase's state machine is complex enough to warrant its own module vs. being a contained block in the existing `DRAFT_PICK` handler.
    - Recommendation: given the state machine has ~7 distinct sub-step transitions plus the keeper-safety branch, extract to `packages/server/src/draftSession.ts` (pure functions, unit-testable in isolation) — mirrors the `gameEngine.ts` precedent exactly.
+   - **RESOLVED:** Plan 02 extracts the state machine into `packages/server/src/draftSession.ts` as pure, unit-tested functions (mirroring `gameEngine.ts`); Plan 04 wires them into `roomHandlers.ts`. The dedicated module was chosen over an inline handler block.
 
 ## Environment Availability
 

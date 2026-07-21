@@ -1,9 +1,9 @@
 ---
 phase: 29
 slug: draft-ui-pick-and-swap-flow
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: planned
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-21
 ---
 
@@ -36,17 +36,17 @@ created: 2026-07-21
 
 ## Per-Task Verification Map
 
-> Task ID / Plan / Wave are TBD — assigned when the planner creates `PLAN.md`. Rows below map each phase requirement to its expected test coverage per `29-RESEARCH.md`'s Validation Architecture and Security Domain sections; the planner/executor must fill in exact Task IDs and confirm this table stays accurate.
+> Task ID / Plan / Wave below are filled in from the final Phase 29 plans (29-01 … 29-06, plan-checker pass complete). Each row maps a phase requirement to the plan/task that creates its test coverage per `29-RESEARCH.md`'s Validation Architecture and Security Domain sections.
 
-| Task ID | Plan | Wave | Requirement      | Threat Ref                                      | Secure Behavior                                                                                                                                                               | Test Type            | Automated Command                                                                                     | File Exists                                                                                    | Status     |
-| ------- | ---- | ---- | ---------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------- |
-| TBD     | TBD  | TBD  | DRAFT-06         | —                                               | Draft carousel renders above the lineup grid on the correct screen                                                                                                            | component            | `vitest run src/components/LineupAssignmentScreen.test.tsx -t "draft"`                                | ❌ Wave 0 — no existing `LineupAssignmentScreen.test.tsx` found; new test file needed          | ⬜ pending |
-| TBD     | TBD  | TBD  | DRAFT-07         | DRAFT_PICK spoofing/tampering (Security Domain) | Pick-and-swap cycle sequencing (1+2+1 ×4, pack swap, new-pack-open) resolves 16 cards/player; server validates `cardId`/`playerSlot` server-side, never trusts client payload | integration (socket) | `vitest run src/__tests__/draftSession.integration.test.ts`                                           | ❌ Wave 0 — new file, model on `lineupAssignment.integration.test.ts`'s real Socket.io harness | ⬜ pending |
-| TBD     | TBD  | TBD  | DRAFT-07         | RNG fairness (T-28-04-FAIR precedent)           | Random pack→player assignment is not a fixed 0-3/4-7 split; uses `crypto.randomInt` exclusively                                                                               | unit                 | `vitest run src/__tests__/draftPacks.test.ts -t "assignment"`                                         | 🟡 existing file (`draftPacks.test.ts`) covers pack generation only — extend, don't duplicate  | ⬜ pending |
-| TBD     | TBD  | TBD  | DRAFT-08         | —                                               | Keeper-safety auto-pick triggers correctly on cycle 4 when no keeper drafted yet                                                                                              | unit                 | `vitest run src/draftSession.test.ts -t "keeper"`                                                     | ❌ Wave 0 — new `draftSession.ts` module needs its own unit test file                          | ⬜ pending |
-| TBD     | TBD  | TBD  | DRAFT-09         | —                                               | Bench renders dynamically-sized card list (0 to 16 cards), same visual as draft row                                                                                           | component            | `vitest run src/components/BenchCarousel.test.tsx` (or folded into `LineupAssignmentScreen.test.tsx`) | ❌ Wave 0                                                                                      | ⬜ pending |
-| TBD     | TBD  | TBD  | DRAFT-10         | —                                               | Starters get slot-based numbers; bench gets random unique 15-99 numbers; no auto-repositioning occurs                                                                         | unit + integration   | `vitest run src/__tests__/draftSession.test.ts -t "numbering"`                                        | ❌ Wave 0                                                                                      | ⬜ pending |
-| TBD     | TBD  | TBD  | D-13 (reconnect) | Session/reconnect (V3 Session Management)       | Mid-draft reconnect resumes with correct private pack/lineup state — extends existing `sessionToken` mechanism                                                                | integration (socket) | `vitest run src/__tests__/draftReconnect.integration.test.ts`                                         | ❌ Wave 0 — also exposes/closes the pre-existing reconnect gap noted in RESEARCH.md Pitfall 3  | ⬜ pending |
+| Task ID    | Plan          | Wave  | Requirement      | Threat Ref                                      | Secure Behavior                                                                                                                                                               | Test Type            | Automated Command                                                      | File Exists                                                                                                                                             | Status     |
+| ---------- | ------------- | ----- | ---------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| T3         | 29-05         | 3     | DRAFT-06         | —                                               | Draft carousel renders above the lineup grid on the correct screen                                                                                                            | component            | `vitest run src/components/LineupAssignmentScreen.test.tsx -t "draft"` | ✅ Plan 05 Task 3 creates `LineupAssignmentScreen.test.tsx` (new file)                                                                                  | ⬜ pending |
+| T2         | 29-04         | 3     | DRAFT-07         | DRAFT_PICK spoofing/tampering (Security Domain) | Pick-and-swap cycle sequencing (1+2+1 ×4, pack swap, new-pack-open) resolves 16 cards/player; server validates `cardId`/`playerSlot` server-side, never trusts client payload | integration (socket) | `vitest run src/__tests__/draftSession.integration.test.ts`            | ✅ Plan 04 Tasks 1-2 create `draftSession.integration.test.ts`                                                                                          | ⬜ pending |
+| T1         | 29-02         | 2     | DRAFT-07         | RNG fairness (T-28-04-FAIR precedent)           | Random pack→player assignment is not a fixed 0-3/4-7 split; uses `crypto.randomInt` exclusively                                                                               | unit                 | `vitest run src/draftSession.test.ts`                                  | ✅ Plan 02 Task 1 asserts `assignPackOrders` no-overlap permutation + non-identity shuffle (supersedes the earlier plan to extend `draftPacks.test.ts`) | ⬜ pending |
+| T3         | 29-02         | 2     | DRAFT-08         | —                                               | Keeper-safety auto-pick triggers correctly on cycle 4 when no keeper drafted yet                                                                                              | unit                 | `vitest run src/draftSession.test.ts -t "keeper"`                      | ✅ Plan 02 Task 3 (keeper-safety) in `draftSession.test.ts`                                                                                             | ⬜ pending |
+| T3         | 29-05         | 3     | DRAFT-09         | —                                               | Bench renders dynamically-sized card list (0 to 16 cards), same visual as draft row                                                                                           | component            | `vitest run src/components/LineupAssignmentScreen.test.tsx`            | ✅ `BenchCarousel` built in Plan 03 Task 2; dynamic-bench render asserted in `LineupAssignmentScreen.test.tsx` (Plan 05 Task 3)                         | ⬜ pending |
+| T3 / 04-T2 | 29-02 / 29-04 | 2 / 3 | DRAFT-10         | —                                               | Starters get slot-based numbers; bench gets random unique 15-99 numbers; no auto-repositioning occurs                                                                         | unit + integration   | `vitest run src/draftSession.test.ts -t "numbering"`                   | ✅ Plan 02 Task 3 (`assignBenchNumbers` unit) + Plan 04 Task 2 (integration: distinct 15-99)                                                            | ⬜ pending |
+| T3         | 29-04         | 3     | D-13 (reconnect) | Session/reconnect (V3 Session Management)       | Mid-draft reconnect resumes with correct private pack/lineup state — extends existing `sessionToken` mechanism                                                                | integration (socket) | `vitest run src/__tests__/draftReconnect.integration.test.ts`          | ✅ Plan 04 Task 3 creates `draftReconnect.integration.test.ts`                                                                                          | ⬜ pending |
 
 _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
@@ -54,28 +54,30 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ## Wave 0 Requirements
 
-- [ ] `packages/server/src/draftSession.ts` + `packages/server/src/draftSession.test.ts` — new pure state-machine module and its unit tests (cycle advance, keeper-safety, bench numbering)
-- [ ] `packages/server/src/__tests__/draftSession.integration.test.ts` — full socket-wire pick-and-swap cycle test, modeled on `lineupAssignment.integration.test.ts`'s existing real-server harness
-- [ ] `packages/server/src/__tests__/draftReconnect.integration.test.ts` — closes the reconnect gap identified in RESEARCH.md Pitfall 3 (only `GAME_STATE` is re-emitted on reconnect today, which is `null` throughout the entire pre-game-start flow)
-- [ ] `packages/client/src/components/LineupAssignmentScreen.test.tsx` — currently does not exist at all; needed to cover draft-mode rendering branches without regressing Standard-mode behavior
-- [ ] `packages/client/src/components/DraftPackCarousel.test.tsx` (or equivalent) — carousel nav, tier-sort, variable pack size (6 vs 7 cards)
-- [ ] Extend `packages/server/src/__tests__/draftPacks.test.ts` with a pack→player random-assignment case (currently only tests `generateDraftPacks`/`generateMatchPacks` directly, not the room-level assignment step, which doesn't exist yet)
+> Every gap below is now owned by a specific plan/task (see the map above). `wave_0_complete: true` means the planning coverage is closed; the test files themselves are authored during execution of the owning plan.
+
+- [ ] `packages/server/src/draftSession.ts` + `packages/server/src/draftSession.test.ts` — new pure state-machine module and its unit tests (cycle advance, keeper-safety, bench numbering) — **Plan 02 (Wave 2)**
+- [ ] `packages/server/src/__tests__/draftSession.integration.test.ts` — full socket-wire pick-and-swap cycle test, modeled on `lineupAssignment.integration.test.ts`'s existing real-server harness — **Plan 04 Tasks 1-2 (Wave 3)**
+- [ ] `packages/server/src/__tests__/draftReconnect.integration.test.ts` — closes the reconnect gap identified in RESEARCH.md Pitfall 3 (only `GAME_STATE` is re-emitted on reconnect today, which is `null` throughout the entire pre-game-start flow) — **Plan 04 Task 3 (Wave 3)**
+- [ ] `packages/client/src/components/LineupAssignmentScreen.test.tsx` — currently does not exist at all; needed to cover draft-mode rendering branches without regressing Standard-mode behavior — **Plan 05 Task 3 (Wave 3)**
+- [ ] `packages/client/src/components/DraftPackCarousel.test.tsx` — carousel nav, tier-sort, variable pack size (6 vs 7 cards) — **Plan 03 Task 2 (Wave 2)**
+- [ ] Pack→player random-assignment coverage — covered by Plan 02 Task 1's `assignPackOrders`/`createDraftSession` fairness tests in `draftSession.test.ts` (the room-level assignment now lives in `draftSession.ts`, not `draftPacks.ts`) — **Plan 02 (Wave 2)**
 
 ---
 
 ## Manual-Only Verifications
 
-_All phase behaviors have automated verification per the map above._
+_All phase behaviors have automated verification per the map above. The Plan 06 two-browser human-verify checkpoint is a confirmation layer on top of the automated coverage (re-confirms A1 phase-boundary gating), not a substitute for it._
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending — to be reconciled against final `PLAN.md` task IDs after the plan-checker pass
+**Approval:** reconciled against final `PLAN.md` task IDs (plan-checker pass complete, 2026-07-21).
