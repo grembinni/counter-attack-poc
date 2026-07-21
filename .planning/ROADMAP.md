@@ -224,6 +224,10 @@ Plans:
 
 - [x] 29-11-PLAN.md — Draft→game lifecycle guards: reject premature LINEUP_CONFIRM (CR-01, new DRAFT_NOT_COMPLETE), reject post-start DRAFT_PICK (CR-02, mirror DRAFT_REARRANGE guard), widen reconnect re-sync to the post-complete/pre-confirm window (CR-03); + regression tests (WR-02) [Wave 1]
 
+**Gap Closure (from 29-11 re-verification — see 29-VERIFICATION.md Critical Gaps #1 / 29-REVIEW.md CR-02: bench carousel scroll instability)**
+
+- [ ] 29-12-PLAN.md — Bench carousel scroll stability (DRAFT-09): memoize `benchCards` in LineupAssignmentScreen (stable reference) + re-key BenchCarousel's scroll-reset effect on a content-derived `benchKey` (not `cards` identity) so drag-over/rejection-timeout re-renders no longer snap scroll to leftmost; + regression test [Wave 1]
+
 ---
 
 ## Progress
