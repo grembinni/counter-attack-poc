@@ -34,10 +34,10 @@
 - [x] **DRAFT-04**: Player pool is classified by total stat count into five tiers — Keeper (own pool), Chase (top 90–100%), Rare (80–89%), Uncommon (60–79%), Common (below 60%); all percentage boundaries are configurable constants
 - [x] **DRAFT-05**: Packs are generated from the selected player pool: each pack is 7 cards with a configurable per-rarity composition (default: 1 chase, 1 rare, 1 uncommon, 3 common, 1 keeper); composition counts are configurable constants
 - [ ] **DRAFT-06**: Draft screen appears between team/formation selection and lineup; displays a carousel of 7 cards above the lineup grid
-- [ ] **DRAFT-07**: Pick-and-swap draft flow per cycle: pick 1 card → swap packs; pick 2 cards → swap packs; pick 1 card → open new pack; repeat for 4 cycles (16 cards drafted per player)
-- [ ] **DRAFT-08**: On the 4th draft cycle, if a player has not yet selected a keeper after their first pick, a keeper is automatically selected as their second pick; the pack passed has one fewer card; in the next pick phase that player selects 1 card instead of 2
+- [x] **DRAFT-07**: Pick-and-swap draft flow per cycle: pick 1 card → swap packs; pick 2 cards → swap packs; pick 1 card → open new pack; repeat for 4 cycles (16 cards drafted per player)
+- [x] **DRAFT-08**: On the 4th draft cycle, if a player has not yet selected a keeper after their first pick, a keeper is automatically selected as their second pick; the pack passed has one fewer card; in the next pick phase that player selects 1 card instead of 2
 - [ ] **DRAFT-09**: Bench is dynamically sized to hold all drafted cards not placed in the 11-player starting lineup; bench uses the same card-carousel display as the draft stage
-- [ ] **DRAFT-10**: After draft is complete, the lineup screen auto-positions and auto-numbers all drafted players by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with sequential numbers
+- [x] **DRAFT-10**: After draft is complete, the lineup screen auto-positions and auto-numbers all drafted players by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with sequential numbers
 
 ## Future Requirements
 
@@ -86,10 +86,10 @@
 | DRAFT-04    | Phase 28 | Complete |
 | DRAFT-05    | Phase 28 | Complete |
 | DRAFT-06    | Phase 30 | Pending  |
-| DRAFT-07    | Phase 30 | Pending  |
-| DRAFT-08    | Phase 30 | Pending  |
+| DRAFT-07    | Phase 30 | Complete |
+| DRAFT-08    | Phase 30 | Complete |
 | DRAFT-09    | Phase 30 | Pending  |
-| DRAFT-10    | Phase 30 | Pending  |
+| DRAFT-10    | Phase 30 | Complete |
 
 **Coverage:**
 
