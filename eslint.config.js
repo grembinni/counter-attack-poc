@@ -9,8 +9,9 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           allowDefaultProject: [
-            'packages/*/src/*.test.ts',
-            'packages/*/src/*.test.tsx',
+            // Only packages/shared excludes *.test.ts from its tsconfig project;
+            // client/server test files are already covered by the project service.
+            'packages/shared/src/*.test.ts',
             'packages/*/scripts/*.ts',
           ],
         },
