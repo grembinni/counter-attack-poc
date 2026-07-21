@@ -857,6 +857,12 @@ export function registerRoomHandlers(
     // Phase 29 D-08/D-10: moves an ALREADY-DRAFTED card between lineup slot(s) and/or the
     // bench. Never touches cycle/subStep/picksRemaining (D-10) — carries NO move logic of
     // its own, mirroring how DRAFT_PICK delegates placement to applyPick.
+    // Gap-closure Plan 07 (T-29-07-01): rearrangement remains legal AFTER draftComplete —
+    // the whole point of D-08/D-15 is that a player can freely arrange lineup/bench once
+    // the draft ends and before they confirm. Only reject when there is no session at all,
+    // or when the REQUESTING side has already locked in (confirmed lineup) or the match has
+    // already started (room.gameState set) — resolved from socket.data.playerSlot, never a
+    // client-supplied field (T-29-02).
     // -----------------------------------------------------------------------
     socket.on(ClientEvents.DRAFT_REARRANGE, (payload: DraftRearrangePayload) => {
       const roomCode = socket.data.roomCode;
@@ -868,13 +874,22 @@ export function registerRoomHandlers(
       if (room.isProcessing) return;
       room.isProcessing = true;
       try {
-        if (!room.draftSession || room.draftSession.draftComplete) {
+        if (!room.draftSession) {
           socket.emit(ServerEvents.GAME_ERROR, 'NOT_DRAFTING');
           return;
         }
 
         // T-29-02: resolve side from socket.data ONLY.
         const side: DraftSide = socket.data.playerSlot === 1 ? 'home' : 'away';
+
+        // T-29-07-01: lifecycle guard — once the requesting side has confirmed its lineup,
+        // or the match has started, rearrangement is tampering, not a legal pre-confirm move.
+        const requesterConfirmed =
+          side === 'home' ? room.homeLineupConfirmed : room.awayLineupConfirmed;
+        if (requesterConfirmed || room.gameState !== null) {
+          socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_ALREADY_CONFIRMED');
+          return;
+        }
 
         const { from, to } = payload;
 
