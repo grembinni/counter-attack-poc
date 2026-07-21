@@ -220,6 +220,10 @@ Plans:
 
 - [x] 29-10-PLAN.md — Fix lineup slot↔slot rearrangement to be a true two-way swap (applyRearrange), preserve D-07 bench-displacement for draft/bench-origin moves; narrow D-07 + add D-24; unit + integration tests [Wave 1]
 
+**Gap Closure (from 29-10 re-verification — see 29-VERIFICATION.md Critical Gaps #1 / 29-REVIEW.md CR-01/CR-02/CR-03)**
+
+- [ ] 29-11-PLAN.md — Draft→game lifecycle guards: reject premature LINEUP_CONFIRM (CR-01, new DRAFT_NOT_COMPLETE), reject post-start DRAFT_PICK (CR-02, mirror DRAFT_REARRANGE guard), widen reconnect re-sync to the post-complete/pre-confirm window (CR-03); + regression tests (WR-02) [Wave 1]
+
 ---
 
 ## Progress
