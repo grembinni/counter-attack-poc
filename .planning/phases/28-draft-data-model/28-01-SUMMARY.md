@@ -113,3 +113,7 @@ None - no external service configuration required.
 
 _Phase: 28-draft-data-model_
 _Completed: 2026-07-21_
+
+## Self-Check: PASSED
+
+All created/modified files exist on disk and all task/summary commit hashes are present in git history.
