@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
 status: verifying
-stopped_at: Phase 29-10 gap-closure plan executed and re-verified — slot-to-slot swap fix confirmed correct, but re-verification found 1 new gap (3 pre-existing CRITICAL findings in draft→game lifecycle handling, roomHandlers.ts/createServer.ts) plus an outstanding human two-browser walkthrough; 29-VERIFICATION.md updated to gaps_found
-last_updated: '2026-07-21T21:15:00.000Z'
-last_activity: 2026-07-21 -- Phase 29-10 executed, merged, and re-verified; gaps_found (new gap-closure cycle needed before phase completion)
+stopped_at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
+last_updated: '2026-07-21T22:40:10.378Z'
+last_activity: 2026-07-21 -- Phase 29-10 executed, merged, and re-verified; gaps_found
 progress:
   total_phases: 4
   completed_phases: 3
