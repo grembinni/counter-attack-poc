@@ -222,7 +222,7 @@ Plans:
 
 **Gap Closure (from 29-10 re-verification — see 29-VERIFICATION.md Critical Gaps #1 / 29-REVIEW.md CR-01/CR-02/CR-03)**
 
-- [ ] 29-11-PLAN.md — Draft→game lifecycle guards: reject premature LINEUP_CONFIRM (CR-01, new DRAFT_NOT_COMPLETE), reject post-start DRAFT_PICK (CR-02, mirror DRAFT_REARRANGE guard), widen reconnect re-sync to the post-complete/pre-confirm window (CR-03); + regression tests (WR-02) [Wave 1]
+- [x] 29-11-PLAN.md — Draft→game lifecycle guards: reject premature LINEUP_CONFIRM (CR-01, new DRAFT_NOT_COMPLETE), reject post-start DRAFT_PICK (CR-02, mirror DRAFT_REARRANGE guard), widen reconnect re-sync to the post-complete/pre-confirm window (CR-03); + regression tests (WR-02) [Wave 1]
 
 ---
 
@@ -266,4 +266,4 @@ Plans:
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 4/4            | Complete | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap   | v1.4      | 10/10          | Complete | 2026-07-21 |
+| 29. Draft UI + Pick-and-Swap   | v1.4      | 11/11          | Complete | 2026-07-21 |

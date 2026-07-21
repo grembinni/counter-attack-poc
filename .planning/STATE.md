@@ -2,28 +2,32 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: verifying
-stopped_at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
-last_updated: '2026-07-21T22:40:10.378Z'
-last_activity: 2026-07-21 -- Phase 29-10 executed, merged, and re-verified; gaps_found
+status: executing
+stopped_at: Phase 29-11 executed — CR-01/CR-02/CR-03 draft lifecycle guards closed with regression tests (611/611 server tests passing); pending live two-browser slot-to-swap walkthrough (29-10 fix) and 29-VERIFICATION.md re-verification before Phase 29 can be marked complete
+last_updated: '2026-07-21T22:55:42.352Z'
+last_activity: 2026-07-21 -- Phase 29 execution started
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 22
-  completed_plans: 22
-  percent: 75
+  completed_phases: 4
+  total_plans: 23
+  completed_plans: 23
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — VERIFYING (gap-closure re-verification)
-Plan: 10 of 10 (all plans executed)
-Status: Phase 29 NOT complete. Plan 29-10 fixed the lineup slot-to-slot swap bug (confirmed by direct code/test inspection during re-verification). Re-verification then surfaced a pre-existing, out-of-scope gap: 3 CRITICAL findings in the draft→game lifecycle (LINEUP_CONFIRM not checking draftComplete, DRAFT_PICK not checking match-already-started, a reconnect dead-window after draft completes but before both sides confirm) — see 29-VERIFICATION.md and 29-REVIEW.md. A live two-browser human walkthrough targeting the slot-to-slot swap fix is also still outstanding.
-Last activity: 2026-07-21 -- Phase 29-10 executed, merged, and re-verified; gaps_found
+Phase: 29 (draft-ui-pick-and-swap-flow) — VERIFYING (gap-closure re-verification pending)
+Plan: 11 of 11 (all plans executed)
+Status: Phase 29 NOT complete. Plan 29-11 closed the CR-01/CR-02/CR-03 draft→game lifecycle
+guard gaps from 29-VERIFICATION.md's Critical Gaps #1 (source-controlled, full server suite
+611/611 passing). Remaining before Phase 29 can be marked complete: (1) re-run 29-VERIFICATION.md
+against this fix to confirm zero open gaps, and (2) the still-outstanding live two-browser
+slot-to-slot swap human walkthrough (for the already-code-complete 29-10 fix).
+Last activity: 2026-07-21 -- Phase 29-11 executed (CR-01/CR-02/CR-03 draft lifecycle guards)
 
-Progress: [██████████] 100% plans executed (10/10); Phase 29 gated on one more gap-closure cycle for the draft→game lifecycle findings before it can be marked complete
+Progress: [██████████] 100% plans executed (11/11); Phase 29 gated on 29-VERIFICATION.md re-verification (zero open gaps) and the pending human two-browser walkthrough before it can be marked complete
 
 ## Project Reference
 
@@ -264,8 +268,8 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-21T19:36:38Z
-Stopped at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
+Last session: 2026-07-21T22:55:42.344Z
+Stopped at: Phase 29-11 executed — CR-01/CR-02/CR-03 draft lifecycle guards closed with regression tests (611/611 server tests passing); pending live two-browser slot-to-swap walkthrough (29-10 fix) and 29-VERIFICATION.md re-verification before Phase 29 can be marked complete
 Resume: orchestrator to plan/execute 29-10-PLAN.md (fix `applyRearrange` slot-to-slot swap in `packages/server/src/draftSession.ts` per 29-VERIFICATION.md Gap 1), then re-run human re-verification before Phase 29 can be marked complete. Do NOT advance ROADMAP.md for Phase 29 until 29-VERIFICATION.md shows zero open gaps.
 
 ## Performance Metrics
@@ -318,6 +322,7 @@ Resume: orchestrator to plan/execute 29-10-PLAN.md (fix `applyRearrange` slot-to
 | Phase 21-new-teams-mls-international P01  | 10m    | 3 tasks  | 3 files  |
 | Phase 24-auto-assignment-lineup P02       | 8min   | 3 tasks  | 2 files  |
 | Phase 24-auto-assignment-lineup P03       | 180    | 3 tasks  | 13 files |
+| Phase 29 P11                              | 6min   | 3 tasks  | 4 files  |
 
 ## Decisions
 
@@ -402,3 +407,7 @@ Resume: orchestrator to plan/execute 29-10-PLAN.md (fix `applyRearrange` slot-to
 - [Phase 25-05 UAT]: OFFSIDE-01 closed (all three scenarios + stickiness/clear confirmed); OFFSIDE-02 not yet closed (free-kick step sequence redesign in Plan 25-06 required first)
 - [Phase ?]: 27-05 Task 1: speed segment format is icon+label derived from SPEED_OPTIONS, appended to .phaseSummary via existing flex-wrap
 - [Phase 27-05]: Phase 27 holistic human-verify checkpoint APPROVED (all 6 steps: settings pre-step, Standard read-only speed, Draft summary line, race-condition ordering, scoreboard speed reminder), contingent on one UI gap-closure fix (settings-summary subheader centered under heading, wider separators, button-style border removed — commit cc49503) which was applied and re-verified before approval
+- [Phase 29]: CR-01 guard ordering: draftComplete check placed before LINEUP_INCOMPLETE slot check and before setting confirmed flag
+- [Phase 29]: CR-01 regression fix: pre-existing LINEUP_INCOMPLETE test updated to drive draft to full completion via bench-only picks (driveDraftToCompletionBenchOnly), since the new draftComplete guard now shadows its original in-progress scenario
+- [Phase 29]: CR-02 guard mirrors DRAFT_REARRANGE exactly, reusing the existing LINEUP_ALREADY_CONFIRMED literal instead of a new error code
+- [Phase 29]: CR-03 gates reconnect draft re-sync on room.gameState === null (superset of prior !draftComplete condition), closing the post-complete/pre-confirm reconnect dead-window
