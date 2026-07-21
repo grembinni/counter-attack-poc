@@ -37,6 +37,10 @@ export function GameSettingsScreen({ onConfirm }: Props) {
   const [teamType, setTeamType] = useState<TeamType>('standard');
   // D-05: Original pre-checked by default when Draft mode is first selected.
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>(['original']);
+  // WR-03 (Phase 27 review): guard against a rapid double-click firing
+  // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
+  // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
+  const [hasConfirmed, setHasConfirmed] = useState(false);
 
   function toggleDraftPool(poolId: DraftPoolId) {
     // D-04: Legends/Icons are non-interactive — SELECTABLE_DRAFT_POOLS is the single
@@ -51,6 +55,7 @@ export function GameSettingsScreen({ onConfirm }: Props) {
   const confirmDisabled = teamType === 'draft' && draftPools.length === 0;
 
   function handleConfirm() {
+    setHasConfirmed(true);
     onConfirm({ speed, teamType, draftPools: teamType === 'draft' ? draftPools : [] });
   }
 
@@ -132,14 +137,16 @@ export function GameSettingsScreen({ onConfirm }: Props) {
           </div>
         )}
 
-        <button
-          type="button"
-          className={styles.ctaButton}
-          disabled={confirmDisabled}
-          onClick={handleConfirm}
-        >
-          Confirm Settings
-        </button>
+        {!hasConfirmed && (
+          <button
+            type="button"
+            className={styles.ctaButton}
+            disabled={confirmDisabled}
+            onClick={handleConfirm}
+          >
+            Confirm Settings
+          </button>
+        )}
       </div>
     </div>
   );
