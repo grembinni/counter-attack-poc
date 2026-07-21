@@ -466,6 +466,40 @@ export const SELECTABLE_DRAFT_POOLS: readonly DraftPoolId[] = [
   'international',
 ] as const;
 
+/**
+ * DRAFT-04 (Phase 28): rarity tier assigned to a pooled player for a draft session
+ * (D-13 — tier value only this phase; display constants like card-back color are
+ * deferred to Phase 29).
+ */
+export type DraftTier = 'chase' | 'rare' | 'uncommon' | 'common' | 'keeper';
+
+/**
+ * DRAFT-04 (Phase 28): percentile floors (0-100 scale, 100 = highest total stat) used to
+ * classify outfield players into tiers (D-05, D-06). An outfield player's rank-based
+ * percentile is tested `>= chase -> 'chase'`, else `>= rare -> 'rare'`, else
+ * `>= uncommon -> 'uncommon'`, else `'common'`. Configurable per DRAFT-04.
+ */
+export const TIER_PERCENTILE_BOUNDS: Readonly<Record<'chase' | 'rare' | 'uncommon', number>> = {
+  chase: 90,
+  rare: 80,
+  uncommon: 60,
+};
+
+/** DRAFT-05 (Phase 28): configurable packs generated per match (D-10). */
+export const PACKS_PER_MATCH = 8;
+
+/**
+ * DRAFT-05 (Phase 28): per-pack composition counts (D-11 — confirmed 1 chase, 1 rare,
+ * 1 uncommon, 3 common, 1 keeper; sums to 7). Configurable.
+ */
+export const PACK_COMPOSITION: Readonly<Record<DraftTier, number>> = {
+  chase: 1,
+  rare: 1,
+  uncommon: 1,
+  common: 3,
+  keeper: 1,
+};
+
 export type GameState = {
   roomCode: string;
   phase: GamePhase;
