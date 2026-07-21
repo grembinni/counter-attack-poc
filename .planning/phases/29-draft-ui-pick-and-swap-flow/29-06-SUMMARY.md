@@ -37,7 +37,7 @@ completed: 2026-07-21
 
 # Phase 29: Draft UI + Pick-and-Swap Flow — Final Verification Summary
 
-**Automated gate fully green (typecheck, 1527 tests, build) but live two-browser human verification surfaced 5 gaps — phase held open for gap-closure, not marked complete.**
+**Automated gate fully green (typecheck, 1527 tests, build); the draft itself (4 cycles, 16 cards/player) works, but live two-browser verification surfaced 5 gaps in post-draft rearrangement, bench carousel, and game-start hand-off — phase held open for gap-closure, not marked complete.**
 
 ## Performance
 
@@ -74,13 +74,13 @@ None — plan executed exactly as written. Task 1 (automated gate) passed; Task 
 
 Human testing surfaced 5 issues not caught by the automated suite (full detail in `29-VERIFICATION.md`):
 
-1. **Critical:** Drag-and-drop stops working after the first roster adjustment (blocks DRAFT-07 — cannot complete a draft past the first move)
+1. **Critical:** Post-draft roster rearrangement (dragging between lineup/bench after the draft ends) breaks after the first adjustment (blocks the "arrangement made during the draft stands" capability, D-15). In-draft drag-and-drop worked correctly — both players completed all 4 cycles with 16 cards each.
 2. **Critical:** Bench is not set up as a carousel (fails DRAFT-09's explicit carousel requirement)
 3. **Critical:** After the draft completes and the match starts, on-pitch players have no stats or positions (fails DRAFT-10 and breaks the actual playable match)
 4. **Non-critical:** Draft cards are not wide enough to legibly display player stats
 5. **Out of scope:** Request to enable 'legends'/'icons' draft pools — already deferred by design to a future DRAFT-11 requirement, not a Phase 29 defect
 
-Keeper safety (DRAFT-08) and reconnect (D-13) could not be re-tested this session — the drag-and-drop failure blocked reaching cycle 4.
+DRAFT-07 (4-cycle pick-and-swap) is confirmed working. Keeper safety (DRAFT-08) and reconnect (D-13) were not deliberately exercised this session even though the draft completed — re-test both in the next walkthrough.
 
 ## User Setup Required
 

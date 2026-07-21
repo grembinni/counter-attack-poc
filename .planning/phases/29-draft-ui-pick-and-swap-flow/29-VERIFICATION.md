@@ -2,7 +2,7 @@
 phase: 29-draft-ui-pick-and-swap-flow
 verified: 2026-07-21T17:49:19Z
 status: gaps_found
-score: 2/5 must-haves verified (human walkthrough interrupted by functional gaps)
+score: 2/5 must-haves fully verified (1 additional partial, 1 not exercised, 2 failed)
 ---
 
 # Phase 29: Draft UI + Pick-and-Swap Flow Verification Report
@@ -15,44 +15,45 @@ score: 2/5 must-haves verified (human walkthrough interrupted by functional gaps
 
 ### Observable Truths
 
-| #   | Truth                                                                              | Status               | Evidence                                                                                                                      |
-| --- | ---------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Draft screen appears with 7-card carousel above lineup grid (DRAFT-06)             | ✓ VERIFIED (partial) | Screen appears and carousel renders, but cards are too narrow to display player stats legibly                                 |
-| 2   | Two players complete 4 pick-and-swap cycles delivering 16 cards each (DRAFT-07)    | ✗ FAILED             | Drag-and-drop stopped working after the first roster adjustment, blocking further picks                                       |
-| 3   | Cycle-4 keeper safety auto-selects a keeper (DRAFT-08)                             | ? UNCERTAIN          | Not reachable in walkthrough — blocked by drag-and-drop failure before cycle 4                                                |
-| 4   | Overflow drafted players appear on a dynamic bench carousel (DRAFT-09)             | ✗ FAILED             | Bench renders as a static list/row, not a carousel                                                                            |
-| 5   | Post-draft: no auto-repositioning, jersey numbers + team colors applied (DRAFT-10) | ✗ FAILED             | After the draft completes and the match starts, players have no stats or positions — they don't render correctly on the pitch |
+| #   | Truth                                                                              | Status               | Evidence                                                                                                                                                                             |
+| --- | ---------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Draft screen appears with 7-card carousel above lineup grid (DRAFT-06)             | ✓ VERIFIED (partial) | Screen appears and carousel renders, but cards are too narrow to display player stats legibly                                                                                        |
+| 2   | Two players complete 4 pick-and-swap cycles delivering 16 cards each (DRAFT-07)    | ✓ VERIFIED           | Both players completed all 4 cycles, 16 cards each — drag-and-drop worked reliably during the draft itself                                                                           |
+| 3   | Cycle-4 keeper safety auto-selects a keeper (DRAFT-08)                             | ? NOT EXERCISED      | Draft completed but this session didn't deliberately test the keeperless-until-cycle-4 scenario                                                                                      |
+| 4   | Overflow drafted players appear on a dynamic bench carousel (DRAFT-09)             | ✗ FAILED             | Bench renders as a static list/row, not a carousel                                                                                                                                   |
+| 5   | Post-draft: no auto-repositioning, jersey numbers + team colors applied (DRAFT-10) | ✗ FAILED             | Post-draft roster rearrangement (dragging between lineup/bench after the draft ends) breaks after the first adjustment, and players have no stats or positions once the match starts |
 
-**Score:** 1/5 truths fully verified (truth 1 partially verified — carousel present but cards too narrow)
+**Score:** 2/5 truths fully verified, 1 partial (DRAFT-06), 1 not exercised (DRAFT-08), 2 failed (DRAFT-09, DRAFT-10)
 
 ### Required Artifacts
 
-| Artifact                                               | Expected                             | Status                     | Details                                                                                                                                                                                             |
-| ------------------------------------------------------ | ------------------------------------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/client/src/components/DraftPackCarousel.tsx` | Draft carousel (built in 29-03)      | ✓ EXISTS                   | Renders, but card width insufficient for stat display (human-reported)                                                                                                                              |
-| `packages/client/src/components/BenchCarousel.tsx`     | Bench carousel (built in 29-03)      | ✗ NOT BEHAVING AS CAROUSEL | Component exists but human testing shows it does not present/navigate as a carousel                                                                                                                 |
-| `packages/server/src/draftSession.ts`                  | Draft state machine (built in 29-02) | ? UNCERTAIN                | Automated unit/integration tests pass; live drag-and-drop failure after first pick suggests a client-side state desync with server, or a rearrange/pick payload issue not covered by existing tests |
+| Artifact                                               | Expected                             | Status                     | Details                                                                                                                             |
+| ------------------------------------------------------ | ------------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/client/src/components/DraftPackCarousel.tsx` | Draft carousel (built in 29-03)      | ✓ EXISTS                   | Renders, but card width insufficient for stat display (human-reported)                                                              |
+| `packages/client/src/components/BenchCarousel.tsx`     | Bench carousel (built in 29-03)      | ✗ NOT BEHAVING AS CAROUSEL | Component exists but human testing shows it does not present/navigate as a carousel                                                 |
+| `packages/server/src/draftSession.ts`                  | Draft state machine (built in 29-02) | ✓ HOLDS UP UNDER LIVE PLAY | Automated unit/integration tests pass; live session confirms the 4-cycle pick-and-swap machine works correctly through a full draft |
 
 ### Key Link Verification
 
-| From                         | To                                     | Via                                                                                   | Status                | Details                                                                                                                                                       |
-| ---------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `LineupAssignmentScreen.tsx` | `roomHandlers.ts`                      | `DRAFT_PICK` emit → server handler → `DRAFT_STATE_UPDATED` unicast → client re-render | ✗ NOT HOLDING UP      | Works for the first pick/adjustment; breaks on the second drag-and-drop attempt (human-reported)                                                              |
-| Draft hand-off               | Standard lineup-confirm → `GAME_STATE` | Existing `LINEUP_CONFIRM` flow reused per plan objective                              | ✗ NOT WIRED CORRECTLY | Match starts after draft-mode lineup-confirm, but on-pitch players have no stats or positions — the draft-drafted roster is not correctly reaching game start |
+| From                                           | To                                     | Via                                                                                   | Status                  | Details                                                                                                                                                       |
+| ---------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LineupAssignmentScreen.tsx`                   | `roomHandlers.ts`                      | `DRAFT_PICK` emit → server handler → `DRAFT_STATE_UPDATED` unicast → client re-render | ✓ HOLDS UP DURING DRAFT | All in-draft picks/swaps across 4 cycles worked correctly for both players                                                                                    |
+| `LineupAssignmentScreen.tsx` (post-draft mode) | `roomHandlers.ts` (`DRAFT_REARRANGE`)  | Free lineup/bench drag-and-drop after the draft ends, before Confirm                  | ✗ NOT HOLDING UP        | Breaks after the first post-draft adjustment attempt (human-reported)                                                                                         |
+| Draft hand-off                                 | Standard lineup-confirm → `GAME_STATE` | Existing `LINEUP_CONFIRM` flow reused per plan objective                              | ✗ NOT WIRED CORRECTLY   | Match starts after draft-mode lineup-confirm, but on-pitch players have no stats or positions — the draft-drafted roster is not correctly reaching game start |
 
-**Wiring:** 0/2 connections fully holding up under human testing (automated tests for these paths were green, but did not catch the live-session failures)
+**Wiring:** 1/3 connections fully holding up under human testing (in-draft pick/swap wiring holds; post-draft rearrange and post-confirm hand-off do not)
 
 ## Requirements Coverage
 
-| Requirement                                                | Status          | Blocking Issue                                        |
-| ---------------------------------------------------------- | --------------- | ----------------------------------------------------- |
-| DRAFT-06: Draft carousel screen                            | ⚠️ PARTIAL      | Card width too narrow for player stats                |
-| DRAFT-07: 4-cycle pick-and-swap via WebSocket              | ✗ BLOCKED       | Drag-and-drop breaks after first roster adjustment    |
-| DRAFT-08: Cycle-4 keeper safety                            | ? NEEDS RE-TEST | Blocked from reaching cycle 4 in this session         |
-| DRAFT-09: Dynamic bench carousel                           | ✗ BLOCKED       | Bench is not implemented/behaving as a carousel       |
-| DRAFT-10: Post-draft numbering, no auto-reposition, colors | ✗ BLOCKED       | Players missing stats/positions once the match starts |
+| Requirement                                                | Status          | Blocking Issue                                                                                                |
+| ---------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------- |
+| DRAFT-06: Draft carousel screen                            | ⚠️ PARTIAL      | Card width too narrow for player stats                                                                        |
+| DRAFT-07: 4-cycle pick-and-swap via WebSocket              | ✓ SATISFIED     | -                                                                                                             |
+| DRAFT-08: Cycle-4 keeper safety                            | ? NEEDS RE-TEST | Not deliberately exercised this session                                                                       |
+| DRAFT-09: Dynamic bench carousel                           | ✗ BLOCKED       | Bench is not implemented/behaving as a carousel; post-draft bench↔lineup drag also broken                     |
+| DRAFT-10: Post-draft numbering, no auto-reposition, colors | ✗ BLOCKED       | Post-draft rearrangement breaks after first adjustment; players missing stats/positions once the match starts |
 
-**Coverage:** 0/5 requirements fully satisfied under live human testing (all 5 have automated coverage from Plans 01-05, but the live session surfaced gaps the automated suite did not catch)
+**Coverage:** 1/5 requirements fully satisfied under live human testing (DRAFT-07); DRAFT-06 partial; DRAFT-08 needs re-test; DRAFT-09/DRAFT-10 blocked
 
 ## Anti-Patterns Found
 
@@ -62,16 +63,16 @@ None identified via code inspection at this stage — gaps below were surfaced b
 
 Re-run after gap-closure fixes land:
 
-1. Full 8-step two-browser walkthrough from `29-06-PLAN.md` Task 2, including cycle-4 keeper safety and reconnect (not reached this session due to the drag-and-drop blocker).
+1. Full 8-step two-browser walkthrough from `29-06-PLAN.md` Task 2 — specifically re-confirm cycle-4 keeper safety (deliberately withhold a keeper until cycle 4) and reconnect, neither of which was deliberately exercised this session even though the draft itself completed.
 
 ## Gaps Summary
 
 ### Critical Gaps (Block Progress)
 
-1. **Drag-and-drop stops working after the first roster adjustment**
-   - Missing: Reliable repeat drag-and-drop across multiple picks/rearranges in a single draft session
-   - Impact: Blocks DRAFT-07 entirely — a draft cannot be completed past the first move; this is the core interaction of the phase
-   - Fix: Investigate client-side drag state (`LineupAssignmentScreen.tsx` `dragState`, built in 29-05) for a reset/stale-reference bug after the first successful drop, and/or a server round-trip (`DRAFT_STATE_UPDATED`) that isn't correctly re-enabling drag sources on re-render
+1. **Post-draft roster rearrangement breaks after the first adjustment**
+   - Missing: Reliable repeat drag-and-drop for freely rearranging the already-drafted lineup/bench after the draft ends and before Confirm
+   - Impact: In-draft drag-and-drop (the pick mechanism across all 4 cycles) works correctly — both players completed the draft with 16 cards each. The break is specifically in post-draft free rearrangement: after the first lineup/bench adjustment post-draft, further drags stop working. This blocks the documented "arrangement made during the draft stands" capability (D-15) and likely compounds into the DRAFT-10 hand-off gap below
+   - Fix: Investigate client-side drag state (`LineupAssignmentScreen.tsx` `dragState`, built in 29-05) specifically in the post-draft mode branch — likely a mode-transition flag (in-draft vs. post-draft-free-rearrange) or `DRAFT_REARRANGE` round-trip isn't correctly re-enabling drag sources after the first successful post-draft drop
 
 2. **Bench is not set up as a carousel**
    - Missing: Left-right navigable carousel behavior for the bench (DRAFT-09 requires "the same card display as the draft stage")
@@ -97,15 +98,15 @@ Re-run after gap-closure fixes land:
 
 ## Recommended Fix Plans
 
-### 29-07-PLAN.md: Fix drag-and-drop reliability + bench carousel
+### 29-07-PLAN.md: Fix post-draft drag-and-drop reliability + bench carousel
 
-**Objective:** Restore repeat drag-and-drop across a full draft session and bring the bench in line with the carousel UI-SPEC contract
+**Objective:** Restore repeat drag-and-drop for post-draft roster rearrangement and bring the bench in line with the carousel UI-SPEC contract
 
 **Tasks:**
 
-1. Diagnose and fix drag-state reset bug in `LineupAssignmentScreen.tsx` after the first successful pick/rearrange
+1. Diagnose and fix drag-state reset bug in `LineupAssignmentScreen.tsx`'s post-draft rearrange mode, specifically after the first successful post-draft adjustment (in-draft pick/swap drag-and-drop already works correctly — do not regress it)
 2. Rework `BenchCarousel.tsx` to match the carousel nav/chrome contract used by `DraftPackCarousel.tsx`
-3. Verify: complete a full 4-cycle draft in a real two-browser session without drag-and-drop failure; confirm bench carousel navigation
+3. Verify: after completing a full 4-cycle draft, perform multiple consecutive post-draft lineup/bench rearrangements in a real two-browser session without drag-and-drop failure; confirm bench carousel navigation
 
 **Estimated scope:** Medium
 
