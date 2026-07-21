@@ -216,6 +216,10 @@ Plans:
 - [x] 29-08-PLAN.md — Client bench carousel chrome + wider legible cards + drag-state robustness + Confirm-gating on full lineup (+ component tests) [Wave 1]
 - [ ] 29-09-PLAN.md — Re-verification: full automated gate + two-browser walkthrough (post-draft rearrange, bench carousel, hand-off stats, DRAFT-08 keeper-safety re-test, D-13 reconnect) [Wave 2, blocked on 29-07/29-08]
 
+**Gap Closure (from 29-09 re-verification — see 29-VERIFICATION.md Gap 1)**
+
+- [ ] 29-10-PLAN.md — Fix lineup slot↔slot rearrangement to be a true two-way swap (applyRearrange), preserve D-07 bench-displacement for draft/bench-origin moves; narrow D-07 + add D-24; unit + integration tests [Wave 1]
+
 ---
 
 ## Progress
