@@ -11,7 +11,7 @@
  * - Standard-mode non-regression (draftMode falsy renders exactly as before)
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { PLAYER_POOL, computeTotalStat } from '@counter-attack/shared';
 import type {
   DraftClientView,
@@ -132,7 +132,7 @@ describe('LineupAssignmentScreen — DRAFT-06/D-05: drag-to-pick', () => {
 
 describe('LineupAssignmentScreen — D-12: waiting-for-opponent state', () => {
   it('disables the draft-pack row and shows the waiting text', () => {
-    render(
+    const { container } = render(
       <LineupAssignmentScreen
         assignment={[]}
         formationId="4-4-2"
@@ -149,7 +149,12 @@ describe('LineupAssignmentScreen — D-12: waiting-for-opponent state', () => {
     );
 
     expect(screen.getByText('Waiting for Visitor Player to pick…')).toBeDefined();
-    const prevBtn = screen.getByLabelText('Previous card');
+    // Scoped to the draft-pack row specifically — gap-closure 29-08 gives
+    // BenchCarousel its own "Previous card"/"Next card" nav buttons too
+    // (DRAFT-09/D-21), so an unscoped screen-level query is now ambiguous.
+    const draftPackRow = container.querySelector('[class*="draftPackRow"]') as HTMLElement;
+    expect(draftPackRow).not.toBeNull();
+    const prevBtn = within(draftPackRow).getByLabelText('Previous card');
     expect(prevBtn.closest('[class*="draftRowDisabled"]')).not.toBeNull();
   });
 });
@@ -176,9 +181,48 @@ describe('LineupAssignmentScreen — D-01: cycle/pick counter', () => {
   });
 });
 
+/** All 11 starting lineup slots filled — a complete lineup, paired with
+ * draftComplete: true (gap-closure 29-08: Confirm now also requires this). */
+const FULL_LINEUP: (string | null)[] = [
+  'p001',
+  'p002',
+  'p003',
+  'p004',
+  'p005',
+  'p006',
+  'p007',
+  'p008',
+  'p009',
+  'p010',
+  'p011',
+];
+
 describe('LineupAssignmentScreen — D-23: draft-complete hand-off', () => {
-  it('hides the DraftPackCarousel and shows the Confirm button when draftComplete is true', () => {
+  it('hides the DraftPackCarousel and shows the Confirm button when draftComplete is true and the lineup is full', () => {
     const { container } = render(
+      <LineupAssignmentScreen
+        assignment={[]}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={NOOP}
+        onConfirm={NOOP}
+        lineupConfirmed={false}
+        draftMode
+        draftView={makeDraftView({ draftComplete: true, lineupSlots: FULL_LINEUP })}
+        onDraftPick={NOOP}
+        onDraftRearrange={NOOP}
+      />,
+    );
+
+    expect(container.querySelector(`.${TIER_CARD_CLASS.chase}`)).toBeNull();
+    expect(screen.getByLabelText('Confirm lineup')).toBeDefined();
+  });
+});
+
+describe('LineupAssignmentScreen — DRAFT-09 gap-closure: Confirm gated on a complete lineup', () => {
+  it('renders no Confirm button and shows helper copy when draftComplete is true but a lineup slot is still null', () => {
+    render(
       <LineupAssignmentScreen
         assignment={[]}
         formationId="4-4-2"
@@ -194,8 +238,74 @@ describe('LineupAssignmentScreen — D-23: draft-complete hand-off', () => {
       />,
     );
 
-    expect(container.querySelector(`.${TIER_CARD_CLASS.chase}`)).toBeNull();
-    expect(screen.getByLabelText('Confirm lineup')).toBeDefined();
+    expect(screen.queryByLabelText('Confirm lineup')).toBeNull();
+    expect(screen.getByText('Fill all 11 lineup positions to confirm.')).toBeDefined();
+  });
+
+  it('renders the Confirm button and calls onConfirm when all 11 lineup slots are filled', () => {
+    const onConfirm = vi.fn();
+    render(
+      <LineupAssignmentScreen
+        assignment={[]}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={NOOP}
+        onConfirm={onConfirm}
+        lineupConfirmed={false}
+        draftMode
+        draftView={makeDraftView({ draftComplete: true, lineupSlots: FULL_LINEUP })}
+        onDraftPick={NOOP}
+        onDraftRearrange={NOOP}
+      />,
+    );
+
+    const confirmBtn = screen.getByLabelText('Confirm lineup');
+    expect(confirmBtn).toBeDefined();
+    fireEvent.click(confirmBtn);
+    expect(onConfirm).toHaveBeenCalledWith(FULL_LINEUP);
+  });
+});
+
+describe('LineupAssignmentScreen — DRAFT-09 gap-closure: drag-state never wedges', () => {
+  it('after a pack-sourced drag ends without a commit, a subsequent drag+drop still emits onDraftPick', () => {
+    const onDraftPick = vi.fn();
+    const { container } = render(
+      <LineupAssignmentScreen
+        assignment={[]}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={NOOP}
+        onConfirm={NOOP}
+        lineupConfirmed={false}
+        draftMode
+        draftView={makeDraftView()}
+        onDraftPick={onDraftPick}
+        onDraftRearrange={NOOP}
+      />,
+    );
+
+    const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    expect(packCard).not.toBeNull();
+
+    // Drag starts (dragState set to the pack card) then ends WITHOUT a drop —
+    // the container-level onDragEnd must reset dragState so it never wedges.
+    fireEvent.dragStart(packCard, {
+      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
+    });
+    fireEvent.dragEnd(packCard, { dataTransfer: {} });
+
+    // A fresh drag+drop on the same card completes normally — proves no stale
+    // dragState from the cancelled drag blocked this rearrangement.
+    fireEvent.dragStart(packCard, {
+      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
+    });
+    const emptySlot = container.querySelector('[data-slot-index="2"]');
+    expect(emptySlot).not.toBeNull();
+    fireEvent.drop(emptySlot!, { dataTransfer: { getData: () => '' } });
+
+    expect(onDraftPick).toHaveBeenCalledWith('p013', { type: 'slot', slotIndex: 2 });
   });
 });
 

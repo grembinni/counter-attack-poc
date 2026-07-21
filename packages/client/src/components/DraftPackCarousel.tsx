@@ -128,8 +128,9 @@ type DraftPackCarouselProps = {
   onCardDragStart: (cardId: string) => void;
 };
 
-/** Approximate per-card scroll step (card min-width 260px + 8px gap). */
-const SCROLL_STEP_PX = 268;
+/** Approximate per-card scroll step (card min-width 320px + 8px gap, DRAFT-06
+ * gap-closure card-widening — 29-08-PLAN.md Task 1). */
+const SCROLL_STEP_PX = 328;
 
 export function DraftPackCarousel({
   cards,

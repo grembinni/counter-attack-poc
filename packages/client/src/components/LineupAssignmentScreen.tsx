@@ -212,6 +212,13 @@ export function LineupAssignmentScreen({
       message = 'Swap rejected — goalkeeper slot requires a GK card.';
     } else if (gameError === 'INVALID_CARD') {
       message = 'Swap rejected — invalid card.';
+    } else if (gameError === 'LINEUP_ALREADY_CONFIRMED') {
+      // Phase 29 gap-closure (29-08-PLAN.md Task 2): server-authoritative
+      // post-draft lifecycle guard (29-07) — additive/harmless if 29-07 has
+      // not merged yet, since gameError is a plain string comparison.
+      message = 'Rearrange rejected — lineup already confirmed.';
+    } else if (gameError === 'LINEUP_INCOMPLETE') {
+      message = 'Fill all 11 lineup positions before confirming.';
     }
     if (message === null) return;
     setRejectionMessage(message);
@@ -522,9 +529,18 @@ export function LineupAssignmentScreen({
       .map(resolveTieredCard)
       .filter((c): c is TieredPoolPlayer => c !== null);
     const draftConfirmedOrder = draftView.lineupSlots.map((id) => id ?? '');
+    const isLineupComplete = draftView.lineupSlots.every((id) => id !== null);
 
     return (
-      <div className={styles.screen}>
+      // Phase 29 gap-closure (29-08-PLAN.md Task 2): a single container-level
+      // `onDragEnd` guarantees `dragState` is cleared after ANY drag gesture
+      // completes — success, cancel, or drop on empty space — even for
+      // pack-sourced and bench-sourced drags, which have no per-card
+      // `onDragEnd` of their own. The native `dragend` event always fires on
+      // the drag source and bubbles up through this container regardless of
+      // which descendant (pack card, bench card, or lineup-slot card)
+      // initiated it, so no dragState wedges between rearrangements.
+      <div className={styles.screen} onDragEnd={handleDraftSlotDragEnd}>
         <h2 className={styles.matchSetupHeading}>
           MATCH SETUP: STEP 4 &mdash; {currentPlayerLabel} PLAYER (YOU)
         </h2>
@@ -578,7 +594,11 @@ export function LineupAssignmentScreen({
         {rejectionMessage !== null && <p className={styles.swapRejection}>{rejectionMessage}</p>}
 
         <div className={styles.confirmSection}>
-          {draftView.draftComplete && !lineupConfirmed && (
+          {/* Phase 29 gap-closure (29-08-PLAN.md Task 2/DRAFT-09): Confirm is
+              only rendered once every one of the 11 starting lineup slots is
+              filled — mirrors the server-side LINEUP_INCOMPLETE guard (29-07)
+              so the player can never confirm a partial roster. */}
+          {draftView.draftComplete && !lineupConfirmed && isLineupComplete && (
             <button
               className={styles.confirmButtonGreen}
               aria-label="Confirm lineup"
@@ -586,6 +606,9 @@ export function LineupAssignmentScreen({
             >
               Confirm
             </button>
+          )}
+          {draftView.draftComplete && !lineupConfirmed && !isLineupComplete && (
+            <p className={styles.cyclePickCounter}>Fill all 11 lineup positions to confirm.</p>
           )}
           {draftView.draftComplete && lineupConfirmed && (
             <p className={styles.statusActive}>
