@@ -90,7 +90,7 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 **Milestone Goal:** Rework all response-move activations into a consistent single-selection model with proper eligibility gating, fix 6 known gameplay bugs, and add a configurable pack-draft system as an optional pre-game mode.
 
 - [x] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range) (completed 2026-07-12)
-- [ ] **Phase 27: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection
+- [x] **Phase 27: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection (completed 2026-07-21)
 - [ ] **Phase 28: Draft Data Model** - Player tier classification and configurable pack generation engine
 - [ ] **Phase 29: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup
 
@@ -152,7 +152,7 @@ Plans:
 
 **Wave 4** _(final)_
 
-- [ ] 27-05-PLAN.md — D-08 scoreboard speed reminder + phase-level human verification checkpoint
+- [x] 27-05-PLAN.md — D-08 scoreboard speed reminder + phase-level human verification checkpoint
 
 ### Phase 28: Draft Data Model
 
@@ -221,6 +221,6 @@ Plans:
 | 24. Auto-Assignment & Lineup   | v1.3      | 4/4            | Complete    | 2026-07-10 |
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Game Creation Settings     | v1.4      | 4/5            | In Progress |            |
+| 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
