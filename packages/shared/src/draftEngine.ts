@@ -23,7 +23,12 @@ import { PLAYER_POOL } from './teams.js';
 import { TEAM_CONFIGS } from './teamConfig.js';
 import type { TeamId } from './teamConfig.js';
 import type { DraftPoolId, DraftTier } from './types.js';
-import { PACKS_PER_MATCH, PACK_COMPOSITION, TIER_PERCENTILE_BOUNDS } from './types.js';
+import {
+  PACKS_PER_MATCH,
+  PACK_COMPOSITION,
+  TIER_PERCENTILE_BOUNDS,
+  SELECTABLE_DRAFT_POOLS,
+} from './types.js';
 
 /**
  * DRAFT-04 (Phase 28), D-13: A pooled player annotated with its classified rarity tier
@@ -221,6 +226,20 @@ export function generateDraftPacks(
   selectedPools: DraftPoolId[],
   rng: RandomIntFn,
 ): { pool: TieredPoolPlayer[]; packs: DraftPack[] } {
+  // CR-01 (Phase 28 review): fail closed on empty/unselectable input instead of
+  // silently broadening the fallback draw to the entire real-pool universe. This is
+  // defense-in-depth alongside the Phase 29 ROOM_SETTINGS_CONFIRM allow-list check —
+  // pack contents are gameplay-affecting (T-28-04-FAIR), so this module (its own
+  // "single authoritative entry point") must not have a fail-open gap.
+  if (
+    selectedPools.length === 0 ||
+    !selectedPools.every((p) => SELECTABLE_DRAFT_POOLS.includes(p))
+  ) {
+    throw new Error(
+      `generateDraftPacks: selectedPools must be a non-empty subset of SELECTABLE_DRAFT_POOLS, got ${JSON.stringify(selectedPools)}`,
+    );
+  }
+
   const selected = resolvePoolPlayers(selectedPools);
 
   // (2) FALLBACK ORDER
