@@ -139,3 +139,7 @@ None - no external service configuration required.
 
 _Phase: 29-draft-ui-pick-and-swap-flow_
 _Completed: 2026-07-21_
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk; all three commits (`63f73df`, `b3431f6`, `c912d70`) verified present in git log.
