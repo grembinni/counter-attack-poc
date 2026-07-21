@@ -196,8 +196,19 @@ Plans:
 3. On the 4th cycle, if a player has not yet picked a keeper after their first pick, a keeper is automatically selected as their second pick; that player selects 1 card (not 2) in the following pick phase
 4. All drafted players not placed in the starting 11 appear on a dynamically-sized bench carousel using the same card display as the draft stage
 5. After the draft completes, all drafted players are auto-positioned and numbered by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with sequential numbers
-   **Plans**: TBD
+   **Plans**: 6 plans
    **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 29-01-PLAN.md — Shared draft contract: DraftSession/DraftClientView/DraftDestination types + DRAFT_PICK/DRAFT_REARRANGE/DRAFT_STATE_UPDATED events + Room.draftSession field
+- [ ] 29-02-PLAN.md — Server pure state machine (draftSession.ts): pack→player assignment, pick application, 1+2+1 cycle machine, keeper safety, bench numbering (+ unit tests) [Wave 2, blocked on 29-01]
+- [ ] 29-03-PLAN.md — Client carousels: DraftPackCarousel + BenchCarousel + tier-border/carousel CSS (+ component tests) [Wave 2, blocked on 29-01]
+- [ ] 29-04-PLAN.md — Server wiring: settings pack-gen, UNIFORM_CONFIRM draft gate, DRAFT_PICK/DRAFT_REARRANGE handlers, reconnect resume (+ integration tests) [Wave 3, blocked on 29-02]
+- [ ] 29-05-PLAN.md — Client screen: LineupAssignmentScreen draftMode + App routing + DRAFT_STATE_UPDATED wiring (+ component tests) [Wave 3, blocked on 29-03]
+- [ ] 29-06-PLAN.md — Full-suite gate + two-browser human-verify checkpoint [Wave 4, blocked on 29-04/29-05]
 
 ---
 
@@ -241,4 +252,4 @@ Plans:
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 4/4            | Complete    | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
+| 29. Draft UI + Pick-and-Swap   | v1.4      | 0/6            | Not started | -          |
