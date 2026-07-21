@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
 status: executing
-stopped_at: Phase 29 Plan 09 paused at Task 2 checkpoint (human two-browser re-verification walkthrough)
-last_updated: '2026-07-21T19:15:52.922Z'
-last_activity: 2026-07-21 -- Phase 29-09 Task 1 automated gate green (typecheck/1542 tests/build); paused at Task 2 blocking human-verify checkpoint
+stopped_at: Phase 29 Plan 09 Task 2 checkpoint resolved — human walkthrough found 1 new gap (lineup slot-to-slot swap sends displaced player to bench instead of trading places); gap-closure plan 29-10 recommended; Phase 29 NOT yet complete
+last_updated: '2026-07-21T19:36:38Z'
+last_activity: 2026-07-21 -- Phase 29-09 Task 2 human walkthrough: 7/8 steps pass (3 original critical gaps confirmed closed, keeper safety + reconnect re-tested and passing); 1 new gap found and recorded in 29-VERIFICATION.md for a 29-10 gap-closure cycle
 progress:
   total_phases: 4
   completed_phases: 4
@@ -19,11 +19,11 @@ progress:
 ## Current Position
 
 Phase: 29 (draft-ui-pick-and-swap-flow) — EXECUTING (gap-closure re-verification)
-Plan: 9 of 9 (29-09 gap-closure re-verification) — Task 1 (automated gate) complete; Task 2 (human two-browser walkthrough) PAUSED at blocking checkpoint
-Status: Awaiting human verification — dev servers running at http://localhost:5173 (client) and http://localhost:3001 (server)
-Last activity: 2026-07-21 -- Phase 29-09 Task 1 automated gate green; paused at Task 2 checkpoint
+Plan: 9 of 9 (29-09 gap-closure re-verification) — COMPLETE (Task 1 automated gate green; Task 2 human two-browser walkthrough resolved — 7/8 steps pass, 1 new gap found)
+Status: Phase 29 NOT complete. A new, isolated gap was found this pass: lineup-slot-to-lineup-slot drag-and-drop displaces the previous occupant to the bench instead of trading places with the dragged card (root cause traced, read-only, to `applyRearrange` in `packages/server/src/draftSession.ts`; documented in `29-VERIFICATION.md` Gap 1 along with a 29-10 recommended fix plan). Next step: execute a 29-10 gap-closure plan, then re-run the human walkthrough targeting slot-to-slot swaps specifically.
+Last activity: 2026-07-21 -- Phase 29-09 Task 2 human walkthrough resolved with 1 new gap recorded; 29-VERIFICATION.md updated to gaps_found (4/5 truths verified, 1 failed)
 
-Progress: [██████████] 100% plans executed, gate not yet passed (29-09 human-verify checkpoint pending)
+Progress: [██████████] 100% plans executed for the 29-07/29-08/29-09 gap-closure cycle; Phase 29 still gated on one more gap-closure cycle (29-10) before it can be marked complete
 
 ## Project Reference
 
@@ -264,9 +264,9 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-21T19:15:52.913Z
-Stopped at: Phase 29 UI-SPEC approved
-Resume: orchestrator to run phase-completion/ROADMAP.md update for Phase 27
+Last session: 2026-07-21T19:36:38Z
+Stopped at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
+Resume: orchestrator to plan/execute 29-10-PLAN.md (fix `applyRearrange` slot-to-slot swap in `packages/server/src/draftSession.ts` per 29-VERIFICATION.md Gap 1), then re-run human re-verification before Phase 29 can be marked complete. Do NOT advance ROADMAP.md for Phase 29 until 29-VERIFICATION.md shows zero open gaps.
 
 ## Performance Metrics
 
