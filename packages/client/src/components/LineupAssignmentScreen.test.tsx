@@ -11,7 +11,7 @@
  * - Standard-mode non-regression (draftMode falsy renders exactly as before)
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { PLAYER_POOL, computeTotalStat } from '@counter-attack/shared';
 import type {
   DraftClientView,
@@ -132,7 +132,7 @@ describe('LineupAssignmentScreen — DRAFT-06/D-05: drag-to-pick', () => {
 
 describe('LineupAssignmentScreen — D-12: waiting-for-opponent state', () => {
   it('disables the draft-pack row and shows the waiting text', () => {
-    render(
+    const { container } = render(
       <LineupAssignmentScreen
         assignment={[]}
         formationId="4-4-2"
@@ -149,7 +149,12 @@ describe('LineupAssignmentScreen — D-12: waiting-for-opponent state', () => {
     );
 
     expect(screen.getByText('Waiting for Visitor Player to pick…')).toBeDefined();
-    const prevBtn = screen.getByLabelText('Previous card');
+    // Scoped to the draft-pack row specifically — gap-closure 29-08 gives
+    // BenchCarousel its own "Previous card"/"Next card" nav buttons too
+    // (DRAFT-09/D-21), so an unscoped screen-level query is now ambiguous.
+    const draftPackRow = container.querySelector('[class*="draftPackRow"]') as HTMLElement;
+    expect(draftPackRow).not.toBeNull();
+    const prevBtn = within(draftPackRow).getByLabelText('Previous card');
     expect(prevBtn.closest('[class*="draftRowDisabled"]')).not.toBeNull();
   });
 });

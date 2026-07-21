@@ -314,29 +314,40 @@
    3px tier-colored border replacing the base card's 1px solid #0f3460;
    card content itself is unchanged (D-18) — border/frame only (D-19). */
 
+/* Widened min-width (260px -> 320px) so every role-filtered stat chip renders
+   legibly without truncation/crowding (DRAFT-06 gap-closure, 29-08-PLAN.md
+   Task 1). Applied ONLY to the tier classes (draft-pack/bench cards) — NOT
+   to .statCardBase, which Standard-mode lineup cards also compose and which
+   live in the fixed 1260px 4-column grid (a base-level change risks a
+   Standard-mode layout regression). */
 .cardTierChase {
   composes: statCardBase;
   border: 3px solid #f5c518;
+  min-width: 320px;
 }
 
 .cardTierRare {
   composes: statCardBase;
   border: 3px solid #c0c0c0;
+  min-width: 320px;
 }
 
 .cardTierUncommon {
   composes: statCardBase;
   border: 3px solid #cd7f32;
+  min-width: 320px;
 }
 
 .cardTierCommon {
   composes: statCardBase;
   border: 3px solid #3b82f6;
+  min-width: 320px;
 }
 
 .cardTierKeeper {
   composes: statCardBase;
   border: 3px solid #22c55e;
+  min-width: 320px;
 }
 
 /* ─── Phase 29: Draft-pack carousel chrome (D-20) ──────────────────────────
@@ -434,12 +445,15 @@
 }
 
 /* ─── Phase 29: Bench carousel (D-08/D-09/D-21) ────────────────────────────
-   Identical card style to the draft-pack row; dynamically sized 0..16, no
-   fixed slot count. */
+   Identical card style AND carousel chrome (viewport/track/nav) to the
+   draft-pack row; dynamically sized 0..16, no fixed slot count. Reworked
+   from a `flex-wrap: wrap` row to a single-track horizontal carousel in
+   Phase 29 gap-closure (DRAFT-09/D-21, 29-08-PLAN.md Task 1) — bench cards
+   now scroll on one row via .carouselViewport/.carouselTrack instead of
+   wrapping onto multiple lines. */
 
 .benchCarousel {
   display: flex;
-  flex-direction: row;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  width: 100%;
 }
