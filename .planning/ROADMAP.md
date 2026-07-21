@@ -164,7 +164,25 @@ Plans:
 1. Every player in the pool is assigned a tier (Keeper / Chase / Rare / Uncommon / Common) based on total stat count using configurable percentage thresholds
 2. A 7-card pack generated from the selected player pool contains the correct per-rarity composition (default: 1 Chase, 1 Rare, 1 Uncommon, 3 Common, 1 Keeper)
 3. All tier-boundary percentages and pack composition counts are exported configurable constants — changing a constant alone adjusts tier assignment or pack composition without additional code changes
-   **Plans**: TBD
+   **Plans**: 4 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 28-01-PLAN.md — Data foundation: thread `poolTag` through CSV→seed→teams.ts; add `DraftTier` / `TIER_PERCENTILE_BOUNDS` / `PACKS_PER_MATCH` / `PACK_COMPOSITION` to types.ts
+
+**Wave 2** _(blocked on 28-01)_
+
+- [ ] 28-02-PLAN.md — draftEngine.ts: pool derivation + total-stat + rank-based tier classification (DRAFT-04)
+
+**Wave 3** _(blocked on 28-02)_
+
+- [ ] 28-03-PLAN.md — draftEngine.ts: batch pack generation + pool-shortage backfill + injected RNG (DRAFT-05)
+
+**Wave 4** _(blocked on 28-03)_
+
+- [ ] 28-04-PLAN.md — Server-authoritative `generateMatchPacks` binding `crypto.randomInt` + end-to-end integration test
 
 ### Phase 29: Draft UI + Pick-and-Swap Flow
 
@@ -222,5 +240,5 @@ Plans:
 | 25. Bug & UAT Closure          | v1.3      | 9/9            | Complete    | 2026-07-11 |
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete    | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete    | 2026-07-21 |
-| 28. Draft Data Model           | v1.4      | 0/?            | Not started | -          |
+| 28. Draft Data Model           | v1.4      | 0/4            | Not started | -          |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 0/?            | Not started | -          |
