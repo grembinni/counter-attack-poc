@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
-import { clearAllRooms } from '../roomStore.js';
+import { clearAllRooms, getRoom } from '../roomStore.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -152,6 +152,7 @@ async function setupThroughDraftUniformConfirm(): Promise<{
   clientB: Socket<ServerToClientEvents, ClientToServerEvents>;
   viewA: DraftClientView;
   viewB: DraftClientView;
+  roomCode: string;
 }> {
   const clientA = createClient();
   const clientB = createClient();
@@ -192,7 +193,7 @@ async function setupThroughDraftUniformConfirm(): Promise<{
   clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
   const [[viewA], [viewB]] = await Promise.all([draftAPromise, draftBPromise]);
 
-  return { clientA, clientB, viewA, viewB };
+  return { clientA, clientB, viewA, viewB, roomCode };
 }
 
 // ---------------------------------------------------------------------------
@@ -963,4 +964,65 @@ describe('Phase 29 Plan 11 — CR-01 LINEUP_CONFIRM draftComplete guard', () => 
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
     expect(gameStateReceived).toBe(false);
   }, 20000);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 29 Plan 11 — CR-02 DRAFT_PICK post-start guard
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 11 — CR-02 DRAFT_PICK post-start guard', () => {
+  it('rejects DRAFT_PICK with LINEUP_ALREADY_CONFIRMED when room.gameState is forced non-null, without mutating draftSession or broadcasting DRAFT_STATE_UPDATED', async () => {
+    const { clientA, viewA, roomCode } = await setupThroughDraftUniformConfirm();
+    const room = getRoom(roomCode)!;
+
+    // (a) Force room.gameState to a non-null placeholder — the guard only tests `!== null`
+    // and returns before ever touching its contents.
+    room.gameState = {} as unknown as GameState;
+
+    let stateUpdatedReceived = false;
+    clientA.once(ServerEvents.DRAFT_STATE_UPDATED, () => {
+      stateUpdatedReceived = true;
+    });
+
+    const homePicksBefore = room.draftSession!.homePicksRemaining;
+    const homePackLengthBefore = room.draftSession!.homeCurrentPack.length;
+
+    const errorPromise1 = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_PICK, {
+      cardId: viewA.currentPack[0]!.id,
+      destination: { type: 'bench' },
+    });
+    const reason1 = await errorPromise1;
+    expect(reason1).toBe('LINEUP_ALREADY_CONFIRMED');
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    expect(stateUpdatedReceived).toBe(false);
+    expect(room.draftSession!.homePicksRemaining).toBe(homePicksBefore);
+    expect(room.draftSession!.homeCurrentPack.length).toBe(homePackLengthBefore);
+
+    // (b) Reset gameState to null, set homeLineupConfirmed = true instead — the OTHER
+    // sub-condition of the guard must independently reject the same way.
+    room.gameState = null;
+    room.homeLineupConfirmed = true;
+
+    const errorPromise2 = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_PICK, {
+      cardId: viewA.currentPack[0]!.id,
+      destination: { type: 'bench' },
+    });
+    const reason2 = await errorPromise2;
+    expect(reason2).toBe('LINEUP_ALREADY_CONFIRMED');
+  }, 15000);
 });

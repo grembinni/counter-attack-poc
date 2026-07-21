@@ -837,6 +837,18 @@ export function registerRoomHandlers(
         // T-29-02: resolve side from socket.data ONLY — never from any client payload field.
         const side: DraftSide = socket.data.playerSlot === 1 ? 'home' : 'away';
 
+        // Phase 29 Plan 11 (CR-02): mirror DRAFT_REARRANGE's lifecycle guard — once the
+        // requesting side has confirmed its lineup, or the match has already started
+        // (room.gameState set), a DRAFT_PICK is tampering, not a legal in-progress pick.
+        // Without this guard, a post-kickoff DRAFT_PICK could mutate draftSession and yank
+        // both clients back to the draft screen via emitDraftViews below.
+        const requesterConfirmed =
+          side === 'home' ? room.homeLineupConfirmed : room.awayLineupConfirmed;
+        if (requesterConfirmed || room.gameState !== null) {
+          socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_ALREADY_CONFIRMED');
+          return;
+        }
+
         const { cardId, destination } = payload;
 
         // T-29-06: allow-list slotIndex range before touching any state.
