@@ -52,26 +52,6 @@ result: pass
 expected: Once the match is underway (not on the Replay screen), the in-game scoreboard shows a read-only speed segment (icon + label matching the confirmed speed) alongside the existing phase label.
 result: pass
 
-### 4. Joiner never sees Game Settings; race gate holds until host confirms
-
-expected: Open a second browser tab and join the room code before the host confirms settings. The joiner should NOT be taken to Team Selection yet — it should wait. Only after the host clicks "Confirm Settings" does the joiner (and host) advance to Team Selection.
-result: [pending]
-
-### 5. Standard mode: read-only speed subheader on selection screens
-
-expected: After confirming Standard-mode settings, the Team/Uniform selection screen shows a read-only match-speed subheader (e.g. an icon + "Standard") directly under the screen heading, centered — no interactive speed buttons to click.
-result: [pending]
-
-### 6. Draft mode: single settings summary line on selection screens
-
-expected: After confirming Draft-mode settings (e.g. Fast speed, Original + MLS pools), the Team/Uniform selection screen shows one centered summary line like "Speed: ⚡ Fast · Team Type: Draft · Draft Pool: Original, MLS" instead of the plain speed subheader.
-result: [pending]
-
-### 7. Scoreboard shows active match speed during play
-
-expected: Once the match is underway (not on the Replay screen), the in-game scoreboard shows a read-only speed segment (icon + label matching the confirmed speed) alongside the existing phase label.
-result: [pending]
-
 ## Summary
 
 total: 7
