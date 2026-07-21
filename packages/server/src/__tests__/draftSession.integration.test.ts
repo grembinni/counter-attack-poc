@@ -612,6 +612,36 @@ async function driveDraftToCompletionFillingLineups(
   return driver;
 }
 
+/**
+ * Phase 29 Plan 11 (CR-01 regression fix): drives all 4 cycles to draftComplete for both
+ * sides while sending EVERY pick to the bench, never a lineup slot. Used to reach the
+ * "mechanically complete draft, still-empty starting lineup" window — the scenario the
+ * LINEUP_INCOMPLETE guard actually protects, now that the new draftComplete guard (CR-01)
+ * runs first and would otherwise shadow LINEUP_INCOMPLETE for any still-incomplete draft.
+ */
+async function driveDraftToCompletionBenchOnly(
+  clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
+  clientB: Socket<ServerToClientEvents, ClientToServerEvents>,
+  viewA: DraftClientView,
+  viewB: DraftClientView,
+): Promise<ReturnType<typeof makeDraftDriver>> {
+  const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
+
+  let guard = 0;
+  while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 200) {
+    guard++;
+    if (driver.getViewA().picksRemaining > 0) {
+      await driver.pick(clientA, driver.getViewA().currentPack[0]!.id, { type: 'bench' });
+    } else if (driver.getViewB().picksRemaining > 0) {
+      await driver.pick(clientB, driver.getViewB().currentPack[0]!.id, { type: 'bench' });
+    } else {
+      break;
+    }
+  }
+
+  return driver;
+}
+
 // ---------------------------------------------------------------------------
 // Gap-closure Plan 07 Task 1 — post-draft rearrangement (DRAFT-09/DRAFT-10/D-08/D-15)
 // ---------------------------------------------------------------------------
@@ -759,11 +789,22 @@ describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolutio
 
   it('a draft LINEUP_CONFIRM with a null starting slot emits LINEUP_INCOMPLETE and does not start the game', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
-    const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
-
-    // Drive only ONE pick (destined to the bench) — draftComplete never reached, so home's
-    // homeLineupSlots stay entirely null. Confirming now must be rejected server-side.
-    await driver.pick(clientA, driver.getViewA().currentPack[0]!.id, { type: 'bench' });
+    // Phase 29 Plan 11 (CR-01 regression fix): drive the FULL draft to draftComplete=true
+    // while sending every pick to the bench, so home's lineupSlots stay entirely null. This
+    // reaches the LINEUP_INCOMPLETE window without also tripping the new draftComplete guard
+    // (CR-01), which now runs first and would otherwise shadow this check for any draft that
+    // is still mechanically in progress.
+    const driver = await driveDraftToCompletionBenchOnly(clientA, clientB, viewA, viewB);
+    expect(driver.getViewA().draftComplete).toBe(true);
+    // Slot 0 (GK) may be force-filled by the cycle-4 keeper safety net (DRAFT-08) even though
+    // every pick went to the bench — the outfield slots (1-10) stay null regardless, which is
+    // the LINEUP_INCOMPLETE window under test.
+    expect(
+      driver
+        .getViewA()
+        .lineupSlots.slice(1)
+        .every((s) => s === null),
+    ).toBe(true);
 
     let gameStateReceived = false;
     clientA.once(ServerEvents.GAME_STATE, () => {
@@ -867,4 +908,59 @@ describe('Phase 29 Plan 10 — slot<->slot swap GK-slot enforcement', () => {
     expect(afterLegalSwap.benchIds).not.toContain(cardAt1);
     expect(afterLegalSwap.benchIds).not.toContain(cardAt2);
   }, 25000);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 29 Plan 11 — CR-01 LINEUP_CONFIRM draftComplete guard
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 11 — CR-01 LINEUP_CONFIRM draftComplete guard', () => {
+  it('rejects a home LINEUP_CONFIRM with DRAFT_NOT_COMPLETE when all 11 lineup slots are filled but draftComplete is still false', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
+
+    // Drive picks (filling lineup slots) until home's 11 slots are all filled OR draftComplete
+    // flips — stop the instant we reach the cycle-3-full / cycle-4-incomplete window.
+    let guard = 0;
+    while (
+      !(
+        driver.getViewA().lineupSlots.every((s) => s !== null) && !driver.getViewA().draftComplete
+      ) &&
+      guard < 200
+    ) {
+      guard++;
+      if (driver.getViewA().draftComplete) break; // safety: never overshoot into completion
+      if (driver.getViewA().picksRemaining > 0) {
+        await pickIntoLineup(clientA, driver, 'A');
+      } else if (driver.getViewB().picksRemaining > 0) {
+        await pickIntoLineup(clientB, driver, 'B');
+      } else {
+        break;
+      }
+    }
+
+    // Precondition: all 11 home slots filled, draft mechanically incomplete.
+    expect(driver.getViewA().lineupSlots.every((s) => s !== null)).toBe(true);
+    expect(driver.getViewA().draftComplete).toBe(false);
+
+    let gameStateReceived = false;
+    clientA.once(ServerEvents.GAME_STATE, () => {
+      gameStateReceived = true;
+    });
+
+    const errorPromise = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    const reason = await errorPromise;
+    expect(reason).toBe('DRAFT_NOT_COMPLETE');
+
+    // No GAME_STATE within a further wait window — the match must not have started.
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    expect(gameStateReceived).toBe(false);
+  }, 20000);
 });

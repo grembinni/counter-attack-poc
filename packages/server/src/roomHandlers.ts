@@ -729,6 +729,17 @@ export function registerRoomHandlers(
 
         if (isDraftRoom) {
           const session = room.draftSession!;
+
+          // Phase 29 Plan 11 (CR-01): a draft is only mechanically complete once
+          // draftSession.draftComplete flips (cycle 4 / 16 cards) — all 11 lineup slots
+          // can fill as early as cycle 3 / 12 cards while bench picks are still pending.
+          // Reject BEFORE the slot-completeness check and BEFORE setting the confirmed
+          // flag, or a full-but-incomplete draft could start a match a full cycle early.
+          if (!session.draftComplete) {
+            socket.emit(ServerEvents.GAME_ERROR, 'DRAFT_NOT_COMPLETE');
+            return;
+          }
+
           const side = playerSlot === 1 ? 'home' : 'away';
           const slotsToCheck = side === 'home' ? session.homeLineupSlots : session.awayLineupSlots;
           if (resolveDraftOrder(slotsToCheck) === null) {
