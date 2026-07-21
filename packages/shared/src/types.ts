@@ -1,6 +1,13 @@
 import type { TeamId } from './teamConfig.js';
 import type { UniformStyleId } from './uniformStyles.js';
 import type { FormationId } from './formations.js';
+/**
+ * DRAFT-06..10 (Phase 29): type-only import from draftEngine.ts (Phase 28). draftEngine.ts
+ * imports DraftPoolId/DraftTier/PACKS_PER_MATCH/etc. (values) from this file — this import
+ * stays `import type` only (verbatimModuleSyntax erases it at compile time) so no runtime
+ * circular dependency is introduced between types.ts and draftEngine.ts.
+ */
+import type { TieredPoolPlayer, DraftPack } from './draftEngine.js';
 
 export type HexCoord = { q: number; r: number };
 
@@ -498,6 +505,116 @@ export const PACK_COMPOSITION: Readonly<Record<DraftTier, number>> = {
   uncommon: 1,
   common: 3,
   keeper: 1,
+};
+
+/**
+ * DRAFT-06/07 (Phase 29), D-01: the three player-facing picking sub-steps within one
+ * draft cycle. SWAP / SWAP_BACK / NEW_PACK are automatic server-driven transitions
+ * between sub-steps, not player-facing sub-steps themselves.
+ */
+export type DraftSubStep = 'PICK1' | 'PICK2' | 'PICK3';
+
+/**
+ * DRAFT-06 (Phase 29), D-05: the drop target of a draft pick — a specific lineup slot
+ * (0..10) or the bench (append). Sent by the client as part of DraftPickPayload.
+ */
+export type DraftDestination = { type: 'slot'; slotIndex: number } | { type: 'bench' };
+
+/**
+ * DRAFT-06 (Phase 29), D-08: addresses an already-placed drafted card for rearrangement
+ * (lineup <-> bench, or lineup <-> lineup). Distinct from DraftDestination — a slot ref
+ * also needs to identify a *source* bench card by its index (benchIndex), whereas a
+ * destination bench drop is always an append with no index needed.
+ */
+export type DraftSlotRef =
+  | { type: 'slot'; slotIndex: number }
+  | { type: 'bench'; benchIndex: number };
+
+/** DRAFT-06/07 (Phase 29): DRAFT_PICK client payload — drafts `cardId` and places it at `destination`. */
+export type DraftPickPayload = { cardId: string; destination: DraftDestination };
+
+/**
+ * DRAFT-06 (Phase 29), D-08/D-10: DRAFT_REARRANGE client payload — moves an already-drafted
+ * card between `from` and `to`. Never advances cycle/sub-step state (D-10) — only dragging a
+ * card off the draft-pack row counts as "the pick".
+ */
+export type DraftRearrangePayload = { from: DraftSlotRef; to: DraftSlotRef };
+
+/**
+ * DRAFT-06..10 (Phase 29): the full server-authoritative draft session state for one room,
+ * covering both players' packs, drafted ids, lineup/bench state, and cycle progress.
+ * Stored as `Room.draftSession` (packages/server/src/roomStore.ts) — never sent to a client
+ * directly; each player receives only their own privacy-scoped `DraftClientView` (D-14).
+ */
+export type DraftSession = {
+  /** 0 before the first pack is opened; 1..4 during the four pick-and-swap cycles (D-01). */
+  cycle: number;
+  /** Current player-facing picking sub-step within the active cycle (D-01). */
+  subStep: DraftSubStep;
+  /** All 8 pre-generated packs for this match (D-04) — the single source of truth for card contents. */
+  draftPacks: DraftPack[];
+  /** Indices into draftPacks assigned to home, in sequential open order across the 4 cycles (D-04). Length 4. */
+  homePackOrder: number[];
+  /** Indices into draftPacks assigned to away, in sequential open order across the 4 cycles (D-04). Length 4. */
+  awayPackOrder: number[];
+  /** Home player's currently-visible pack contents (D-14 — never sent to away). */
+  homeCurrentPack: TieredPoolPlayer[];
+  /** Away player's currently-visible pack contents (D-14 — never sent to home). */
+  awayCurrentPack: TieredPoolPlayer[];
+  /** Accumulates to 16 entries by draft end (D-01). */
+  homeDraftedIds: string[];
+  /** Accumulates to 16 entries by draft end (D-01). */
+  awayDraftedIds: string[];
+  /** DRAFT-08: true once home has drafted a 'keeper'-tier card. Drives cycle-4 auto-pick check. */
+  homeHasKeeper: boolean;
+  /** DRAFT-08: true once away has drafted a 'keeper'-tier card. Drives cycle-4 auto-pick check. */
+  awayHasKeeper: boolean;
+  /**
+   * Picks left in the current sub-step for home (PICK1=1, PICK2=2, PICK3=1 — reduced to 1
+   * on cycle 4 by the DRAFT-08 keeper-safety auto-pick when triggered). Decrements on each
+   * DRAFT_PICK; sub-step/cycle advances only once both players reach 0 (D-03 mutual-wait gate).
+   */
+  homePicksRemaining: number;
+  /** Picks left in the current sub-step for away — mirrors homePicksRemaining. */
+  awayPicksRemaining: number;
+  /** 11 entries; null = empty formation slot (D-11/D-22). Index i maps to the formation's slot i. */
+  homeLineupSlots: (string | null)[];
+  /** 11 entries; null = empty formation slot (D-11/D-22). */
+  awayLineupSlots: (string | null)[];
+  /** Dynamic length — grows as home drafts cards not placed into a lineup slot (D-09). */
+  homeBenchIds: string[];
+  /** Dynamic length — grows as away drafts cards not placed into a lineup slot (D-09). */
+  awayBenchIds: string[];
+  /** Filled at draft-complete: playerId -> random unused jersey number 15-99 (D-15/D-16). */
+  homeBenchNumbers: Record<string, number>;
+  /** Filled at draft-complete: playerId -> random unused jersey number 15-99 (D-15/D-16). */
+  awayBenchNumbers: Record<string, number>;
+  /** DRAFT-08: true for a side the moment a keeper is auto-picked this cycle — drives the UI banner. */
+  keeperAutoPickedThisCycle: { home: boolean; away: boolean };
+  /** True once all 16 picks are resolved for both players (D-23 — draft-pack row disappears). */
+  draftComplete: boolean;
+};
+
+/**
+ * DRAFT-06..10 (Phase 29), D-14: the per-socket private payload for DRAFT_STATE_UPDATED.
+ * Structurally excludes any home/away pair or opponent-pack field — `currentPack` is always
+ * THIS receiving player's pack only, never the opponent's (T-29-PRIV: privacy enforced by
+ * the type shape itself, not just by emit discipline).
+ */
+export type DraftClientView = {
+  cycle: number;
+  subStep: DraftSubStep;
+  /** THIS player's pack only — never the opponent's (D-14). */
+  currentPack: TieredPoolPlayer[];
+  picksRemaining: number;
+  /** True once this player has used all picksRemaining for the current sub-step and is waiting on the opponent (D-03/D-12). */
+  waitingForOpponent: boolean;
+  lineupSlots: (string | null)[];
+  benchIds: string[];
+  benchNumbers: Record<string, number>;
+  /** True if a keeper was auto-picked for THIS player this cycle — drives the DRAFT-08 banner. */
+  keeperAutoPickedThisCycle: boolean;
+  draftComplete: boolean;
 };
 
 export type GameState = {
