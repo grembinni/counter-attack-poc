@@ -20,6 +20,7 @@ import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
+import { confirmDefaultRoomSettings } from './testHelpers.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 
@@ -133,13 +134,7 @@ async function setupRoom(): Promise<{
   // Phase 27 D-01/T-27-05: TEAM_SELECTION_START is gated on settings-confirmed AND
   // slot-2-joined — confirm settings before the joiner arrives so this helper's
   // join-then-team-selection-start flow still holds under the new both-conditions gate.
-  const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
-  clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
-    speed: 'standard',
-    teamType: 'standard',
-    draftPools: [],
-  });
-  await settingsConfirmedPromise;
+  await confirmDefaultRoomSettings(clientA);
 
   // Join: both clients receive team:selection-start (Phase 16 D-10)
   const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START);
