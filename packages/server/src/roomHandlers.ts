@@ -45,8 +45,11 @@ import {
   getSquadPlayers,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
+import { randomInt } from 'crypto';
 import { buildInitialGameState, computeAutoAssignment } from './gameEngine.js';
 import { broadcastState, createRoom, deleteRoom, getRoom, joinRoom } from './roomStore.js';
+import { generateMatchPacks } from './draftPacks.js';
+import { createDraftSession, openNextPack, buildDraftView } from './draftSession.js';
 
 /** Valid team IDs — allow-list for team:pick validation (ASVS V5, T-21-01: extended to 12 teams in Phase 21). */
 const VALID_TEAM_IDS: readonly TeamId[] = [
@@ -410,6 +413,15 @@ export function registerRoomHandlers(
         room.draftPools = teamType === 'draft' ? draftPools : [];
         room.settingsConfirmed = true;
 
+        // DRAFT-07/D-04 (Phase 29): bootstrap a DraftSession the moment draft mode is
+        // locked in. generateMatchPacks produces the 8 packs; createDraftSession performs
+        // its OWN independent crypto.randomInt pack-to-player index shuffle internally
+        // (D-04/Pitfall 5) — never slice packs[0-3]/[4-7] here.
+        if (teamType === 'draft') {
+          const { packs } = generateMatchPacks(room.draftPools);
+          room.draftSession = createDraftSession(packs, randomInt);
+        }
+
         io.to(roomCode).emit(
           ServerEvents.ROOM_SETTINGS_CONFIRMED,
           room.gameSpeed,
@@ -513,34 +525,61 @@ export function registerRoomHandlers(
             room.awayPickedUniformStyle = uniformStyle;
             room.awayPickedJerseyType = safeJerseyType;
 
-            // Phase 24 ASSIGN-01: compute auto-assignment for each team.
-            // PlayerId[] of 11 entries; assignment[i] maps to FORMATIONS[formationId].slots[i].
-            const homeSquad = getSquadPlayers(room.homePickedTeam!);
-            const awaySquad = getSquadPlayers(teamId);
-            room.homeAssignment = computeAutoAssignment(
-              homeSquad,
-              FORMATIONS[room.homePickedFormation!].slots,
-            ).map((p) => p.id);
-            room.awayAssignment = computeAutoAssignment(
-              awaySquad,
-              FORMATIONS[formationId].slots,
-            ).map((p) => p.id);
-
             // Phase 23 D-12 / Phase 24 contract: BOTH_FORMATIONS_CONFIRMED broadcast FIRST
-            // so clients set myFormationId before LINEUP_ASSIGNMENT_READY routes them to the
-            // lineup screen (ordering fix — emitting READY first caused a null formationId crash).
+            // so clients set myFormationId before LINEUP_ASSIGNMENT_READY/DRAFT_STATE_UPDATED
+            // routes them to the next screen (ordering fix — emitting READY first caused a
+            // null formationId crash). Identical for both team types.
             io.to(roomCode).emit(
               ServerEvents.BOTH_FORMATIONS_CONFIRMED,
               room.homePickedFormation!,
               formationId,
             );
 
-            // Phase 24 D-07 / D-12: emit LINEUP_ASSIGNMENT_READY to each socket individually.
-            // Never io.to(roomCode).emit — assignment data is private per player (D-12).
             const homeSocket = io.sockets.sockets.get(room.players[0]!.socketId);
             const awaySocket = io.sockets.sockets.get(room.players[1]!.socketId);
-            homeSocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.homeAssignment);
-            awaySocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.awayAssignment);
+
+            // Pitfall 2 (RESEARCH.md): Draft-mode rooms must NOT run Standard-mode's
+            // computeAutoAssignment (that would pre-fill an 11-player lineup from the
+            // real team squad, not the drafted-pool cards, before the draft even starts).
+            if (room.teamType === 'draft') {
+              // D-11: empty formation shell — LINEUP_CONFIRM still references these arrays
+              // once the draft completes and slots are filled in by DRAFT_PICK/DRAFT_REARRANGE.
+              room.homeAssignment = Array(11).fill(null) as string[];
+              room.awayAssignment = Array(11).fill(null) as string[];
+
+              // Open cycle-1 packs for both players now that both formations are locked in.
+              room.draftSession = openNextPack(room.draftSession!);
+
+              // D-14/Pitfall privacy: unicast each player's own view — never io.to(roomCode).emit.
+              // Do NOT emit LINEUP_ASSIGNMENT_READY here — the client routes to the draft
+              // screen off DRAFT_STATE_UPDATED instead (coordinated with Plan 05).
+              homeSocket?.emit(
+                ServerEvents.DRAFT_STATE_UPDATED,
+                buildDraftView(room.draftSession, 'home'),
+              );
+              awaySocket?.emit(
+                ServerEvents.DRAFT_STATE_UPDATED,
+                buildDraftView(room.draftSession, 'away'),
+              );
+            } else {
+              // Phase 24 ASSIGN-01: compute auto-assignment for each team.
+              // PlayerId[] of 11 entries; assignment[i] maps to FORMATIONS[formationId].slots[i].
+              const homeSquad = getSquadPlayers(room.homePickedTeam!);
+              const awaySquad = getSquadPlayers(teamId);
+              room.homeAssignment = computeAutoAssignment(
+                homeSquad,
+                FORMATIONS[room.homePickedFormation!].slots,
+              ).map((p) => p.id);
+              room.awayAssignment = computeAutoAssignment(
+                awaySquad,
+                FORMATIONS[formationId].slots,
+              ).map((p) => p.id);
+
+              // Phase 24 D-07 / D-12: emit LINEUP_ASSIGNMENT_READY to each socket individually.
+              // Never io.to(roomCode).emit — assignment data is private per player (D-12).
+              homeSocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.homeAssignment);
+              awaySocket?.emit(ServerEvents.LINEUP_ASSIGNMENT_READY, room.awayAssignment);
+            }
           }
         } finally {
           room.isProcessing = false;
