@@ -78,4 +78,23 @@ describe('generateMatchPacks — end-to-end structural invariants over real cryp
       expect(() => generateMatchPacks([poolId])).not.toThrow();
     }
   });
+
+  // WR-02 (Phase 28 review): 'mls' and 'international' each have only 6 goalkeepers
+  // (vs. a keeper need of 8) and a comparatively small outfield population — they are
+  // the tightest-supply, backfill-dependent single-pool scenarios. Test 3 above only
+  // asserts `not.toThrow()`; exercise the FULL structural invariants (pack size,
+  // composition, no cross-pack duplication) for these two so a regression that
+  // reintroduces duplication or short packs specifically for 'mls'-only or
+  // 'international'-only selections cannot pass this suite silently.
+  it(`Test 4: ['mls'] yields 8 correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
+    for (let i = 0; i < ITERATIONS; i++) {
+      assertStructuralInvariants(['mls']);
+    }
+  });
+
+  it(`Test 5: ['international'] yields 8 correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
+    for (let i = 0; i < ITERATIONS; i++) {
+      assertStructuralInvariants(['international']);
+    }
+  });
 });
