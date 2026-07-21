@@ -783,3 +783,88 @@ describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolutio
     expect(gameStateReceived).toBe(false);
   }, 10000);
 });
+
+// ---------------------------------------------------------------------------
+// Plan 10 (gap-closure) — D-09 GK-slot enforcement on both ends of a slot<->slot swap
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 10 — slot<->slot swap GK-slot enforcement', () => {
+  it('rejects a non-GK card swapping into the GK slot, rejects the GK swapping out into an outfield slot, and applies a legal outfield swap', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+
+    expect(driver.getViewA().draftComplete).toBe(true);
+    expect(driver.getViewA().lineupSlots[0]).not.toBeNull(); // GK, placed by pickIntoLineup
+    expect(driver.getViewA().lineupSlots[1]).not.toBeNull(); // non-GK outfield slot
+
+    // (1) ILLEGAL: non-GK (slot 1) swaps into the GK slot (slot 0) -> GK_SLOT_REQUIRES_GK,
+    // no DRAFT_STATE_UPDATED fired.
+    let stateUpdated1 = false;
+    clientA.once(ServerEvents.DRAFT_STATE_UPDATED, () => {
+      stateUpdated1 = true;
+    });
+    const errorPromise1 = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 1 },
+      to: { type: 'slot', slotIndex: 0 },
+    });
+    const reason1 = await errorPromise1;
+    expect(reason1).toBe('GK_SLOT_REQUIRES_GK');
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    expect(stateUpdated1).toBe(false);
+
+    // (2) ILLEGAL: the GK (slot 0) swaps out into an outfield slot (slot 1) ->
+    // NON_GK_SLOT_REJECTS_GK, no DRAFT_STATE_UPDATED fired.
+    let stateUpdated2 = false;
+    clientA.once(ServerEvents.DRAFT_STATE_UPDATED, () => {
+      stateUpdated2 = true;
+    });
+    const errorPromise2 = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 0 },
+      to: { type: 'slot', slotIndex: 1 },
+    });
+    const reason2 = await errorPromise2;
+    expect(reason2).toBe('NON_GK_SLOT_REJECTS_GK');
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    expect(stateUpdated2).toBe(false);
+
+    // Positive control: a LEGAL outfield<->outfield swap (slot 1 <-> slot 2) applies and
+    // trades the two cards — neither ends up on the bench.
+    const beforeView = driver.getViewA();
+    const cardAt1 = beforeView.lineupSlots[1]!;
+    const cardAt2 = beforeView.lineupSlots[2]!;
+    expect(cardAt1).not.toBeNull();
+    expect(cardAt2).not.toBeNull();
+
+    const legalSwapPromise = new Promise<DraftClientView>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 1 },
+      to: { type: 'slot', slotIndex: 2 },
+    });
+    const afterLegalSwap = await legalSwapPromise;
+
+    expect(afterLegalSwap.lineupSlots[1]).toBe(cardAt2);
+    expect(afterLegalSwap.lineupSlots[2]).toBe(cardAt1);
+    expect(afterLegalSwap.benchIds).not.toContain(cardAt1);
+    expect(afterLegalSwap.benchIds).not.toContain(cardAt2);
+  }, 25000);
+});
