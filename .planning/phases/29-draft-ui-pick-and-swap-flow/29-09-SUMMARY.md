@@ -125,3 +125,9 @@ See the CHECKPOINT REACHED message (returned separately to the orchestrator) for
 
 _Phase: 29-draft-ui-pick-and-swap-flow_
 _Completed: paused at checkpoint — 2026-07-21_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/29-draft-ui-pick-and-swap-flow/29-09-SUMMARY.md`
+- FOUND: commit `2f895ea` (SUMMARY.md creation)
+- FOUND: commit `c4a7a2b` (STATE.md checkpoint-pause update)
