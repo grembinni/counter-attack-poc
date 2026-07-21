@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: executing
-stopped_at: Phase 29 Plan 09 Task 2 checkpoint resolved — human walkthrough found 1 new gap (lineup slot-to-slot swap sends displaced player to bench instead of trading places); gap-closure plan 29-10 recommended; Phase 29 NOT yet complete
-last_updated: '2026-07-21T19:36:38Z'
-last_activity: 2026-07-21 -- Phase 29-09 Task 2 human walkthrough: 7/8 steps pass (3 original critical gaps confirmed closed, keeper safety + reconnect re-tested and passing); 1 new gap found and recorded in 29-VERIFICATION.md for a 29-10 gap-closure cycle
+status: verifying
+stopped_at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
+last_updated: '2026-07-21T20:21:26.855Z'
+last_activity: 2026-07-21 -- Phase 29-09 Task 2 human walkthrough resolved with 1 new gap recorded; 29-VERIFICATION.md updated to gaps_found (4/5 truths verified, 1 failed)
 progress:
   total_phases: 4
   completed_phases: 4
