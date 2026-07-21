@@ -1,6 +1,6 @@
 ---
 phase: 29-draft-ui-pick-and-swap-flow
-reviewed: 2026-07-21T21:00:00Z
+reviewed: 2026-07-21T18:05:01-05:00
 depth: standard
 files_reviewed: 17
 files_reviewed_list:
@@ -22,192 +22,179 @@ files_reviewed_list:
   - packages/shared/src/events.ts
   - packages/shared/src/types.ts
 findings:
-  critical: 3
-  warning: 2
+  critical: 2
+  warning: 4
   info: 3
-  total: 8
+  total: 9
 status: issues_found
 ---
 
 # Phase 29: Code Review Report
 
-**Reviewed:** 2026-07-21T21:00:00Z
+**Reviewed:** 2026-07-21T18:05:01-05:00
 **Depth:** standard
 **Files Reviewed:** 17
 **Status:** issues_found
 
 ## Summary
 
-This is a full re-review of the 17-file Phase 29 draft-mode scope (plans 01-10), with two explicit
-goals: (1) re-verify, against the current code, the three server-lifecycle findings raised in the
-prior review committed at `a2eb259` (`LINEUP_CONFIRM` draftComplete gap, `DRAFT_PICK`
-gameState gap, and a reconnect DRAFT_STATE_UPDATED gap in `roomHandlers.ts`/`createServer.ts`),
-and (2) audit the 29-10 gap-closure change to `applyRearrange`'s slot-to-slot swap semantics and
-its test coverage. A prior, narrower pass at this same task only looked at
-`draftSession.ts`/`draftSession.test.ts`/`draftSession.integration.test.ts` and never re-checked
-`roomHandlers.ts` — this review supersedes that pass with the full required scope.
+This review re-verifies the 29-11 gap-closure fixes (CR-01/CR-02/CR-03 from the prior review at
+this path) against the current code, then performs an independent adversarial pass across all 17
+files rather than assuming the prior findings were the only defects.
 
-**The 29-10 swap-semantics fix itself is solid.** `applyRearrange`'s true two-way swap (D-24) is
-correctly implemented for every reachable input (slot↔slot with distinct indices, slot→slot onto
-an empty destination, slot→slot self-swap, bench→slot displacement, slot→bench), returns a new
-session object without mutating the input, and correctly leaves `cycle`/`subStep`/`picksRemaining`
-untouched (D-10). The GK-slot role rule is now enforced on **both** ends of a slot↔slot swap in
-`roomHandlers.ts`'s `DRAFT_REARRANGE` handler. Unit coverage in `draftSession.test.ts` and
-integration coverage in `draftSession.integration.test.ts` (the Plan 10 describe block) both
-directly exercise the swap and its GK-slot boundary cases.
+**The three previously-flagged CR-01/CR-02/CR-03 findings are confirmed fixed and tested:**
 
-**All three previously-flagged server-lifecycle findings are still present in the current code.**
-Re-reading them together with the 29-10 change shows they compose into a single exploitable
-chain: a player can force the match to start with a mechanically-incomplete draft (CR-01), keep
-issuing `DRAFT_PICK` after the match has started and force both players' clients back onto the
-draft screen mid-match via the resulting broadcast (CR-02), and a reconnect during the window
-after the draft naturally completes but before both sides confirm gets no re-sync event at all
-and is stranded on the wrong screen (CR-03). None of the three has any test coverage — every
-integration test that reaches `LINEUP_CONFIRM` first drives `draftComplete` to `true`, and both
-reconnect tests disconnect while `draftComplete` is still `false`.
+- `LINEUP_CONFIRM`'s draft branch now rejects with `DRAFT_NOT_COMPLETE` before the
+  `LINEUP_INCOMPLETE` completeness check (`roomHandlers.ts:738-741`), exercised by "Phase 29 Plan
+  11 — CR-01 LINEUP_CONFIRM draftComplete guard".
+- `DRAFT_PICK` now carries the same `requesterConfirmed || room.gameState !== null` guard
+  `DRAFT_REARRANGE` already had (`roomHandlers.ts:845-850`), exercised by "Phase 29 Plan 11 — CR-02
+  DRAFT_PICK post-start guard".
+- The reconnect handler's draft re-sync is now gated on `room.gameState === null` rather than
+  `!draftSession.draftComplete` (`createServer.ts:156-159`), exercised by "Phase 29 Plan 11 —
+  CR-03 reconnect re-sync in post-complete window".
+
+**However, this pass surfaced two new BLOCKER-level defects in the same reviewed scope:**
+
+1. `createServer.ts`'s reconnect handler has a misplaced `return` that discards the documented
+   "fall through to fresh connection" behavior for a session token that resolves to a `'waiting'`
+   (not yet `'playing'`) or deleted room — leaving the socket with **no registered event handlers
+   at all**. This is 100%-reproducible (no race needed): a host who refreshes the page while
+   still alone in their own room (before the second player joins) gets a permanently dead socket.
+2. `BenchCarousel`'s scroll-to-start effect fires on every unrelated re-render of
+   `LineupAssignmentScreen`, not just on genuine bench changes, because the `benchCards` array
+   passed to it is rebuilt with a fresh reference every render. This is most visible during a
+   drag-over of a lineup slot (which updates state on every native `dragover` tick), snapping the
+   bench scroll position back to 0 mid-drag and defeating the carousel feature this phase built.
+
+Additional warnings cover a jersey-number gap for bench cards rearranged after `draftComplete`, a
+client-only tier-color cache that silently degrades to a heuristic guess after any reconnect or
+reload, a carried-forward input-validation asymmetry between `slotIndex` and `benchIndex`
+allow-listing in `DRAFT_REARRANGE` (still unfixed from the prior review), and minor duplication
+findings.
 
 ## Critical Issues
 
-### CR-01: LINEUP_CONFIRM (draft mode) never verifies `draftSession.draftComplete` before accepting a confirm
+### CR-01: Reconnect handler drops all event registration for stale/waiting-room sessions
 
-**File:** `packages/server/src/roomHandlers.ts:697-738`
+**File:** `packages/server/src/createServer.ts:99-167`
 
-**Issue:** The `isDraftRoom` branch of the `LINEUP_CONFIRM` handler only checks that the
-confirming side's `homeLineupSlots`/`awayLineupSlots` has no `null` entry
-(`resolveDraftOrder`, lines 717-728) before setting `homeLineupConfirmed`/`awayLineupConfirmed`.
-It never checks `room.draftSession.draftComplete`.
-
-`PACK_COMPOSITION.keeper === 1` guarantees a keeper card appears in every pack, and a player can
-choose to place every drafted card directly into a lineup slot instead of the bench. All 11
-starting slots can therefore legally fill by the end of cycle 3 (12 cards drafted: 4 per cycle ×
-3 cycles) — a full cycle before the draft naturally completes at cycle 4 (16 cards, `draftComplete
-= true`). A player (or a modified/malicious client emitting `LINEUP_CONFIRM` directly) can lock
-in a "confirmed" lineup while `draftSession.draftComplete` is still `false`. If both players do
-this, `buildInitialGameState` fires and the match starts with the draft mechanically unfinished —
-a server-authoritative-state violation, not merely a UX inconsistency, and it directly enables
-CR-02 below (`DRAFT_PICK`'s guard only checks `draftComplete`, which is still `false` in this
-scenario).
-
-**Fix:** Reject the confirm before setting the confirmed flag, mirroring the existing
-`LINEUP_INCOMPLETE` guard:
+**Issue:** The `if (room && room.status === 'playing') { ... }` block is followed by an
+unconditional `return;` that sits **outside** that inner `if` but still **inside** the outer
+`if (socket.data.sessionToken !== undefined && ...)` block:
 
 ```ts
-if (isDraftRoom) {
-  const session = room.draftSession!;
-  if (!session.draftComplete) {
-    socket.emit(ServerEvents.GAME_ERROR, 'DRAFT_NOT_COMPLETE');
-    return;
+if (
+  socket.data.sessionToken !== undefined &&
+  socket.data.roomCode !== undefined &&
+  socket.data.playerSlot !== undefined
+) {
+  const room = getRoom(socket.data.roomCode);
+  if (room && room.status === 'playing') {
+    // ... reconnect logic ...
   }
-  const side = playerSlot === 1 ? 'home' : 'away';
-  const slotsToCheck = side === 'home' ? session.homeLineupSlots : session.awayLineupSlots;
-  if (resolveDraftOrder(slotsToCheck) === null) {
-    socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_INCOMPLETE');
-    return;
+  return; // <-- runs even when the inner `if` above was false
+}
+```
+
+The comment directly above this code states the intended behavior: _"A 'waiting' room has no
+game state to restore — fall through to fresh connection so the socket can freely create or
+join another room."_ The code does not do this. Any socket for which the session middleware
+resolved `sessionToken`/`roomCode`/`playerSlot` (a real, still-valid session token) but for which
+`room.status !== 'playing'` or the room no longer exists, hits the bare `return` and:
+
+- never reaches the "stale token" `SESSION_EXPIRED` emit a few lines below — that entire branch
+  is unreachable for this socket,
+- never calls `registerRoomHandlers(io, socket, false)` / `registerGameHandlers(io, socket)`.
+
+Concretely: the host creates a room and is waiting alone on the settings/waiting screen
+(`room.status` stays `'waiting'` until the second player joins — see `roomStore.ts`'s `joinRoom`).
+If the host refreshes their browser at this point, `sessionMiddleware` finds their still-valid
+token, populates `socket.data`, and this handler then does nothing useful: no reconnect resync,
+no fresh registration, no error surfaced to the client. `ROOM_CREATE`/`ROOM_JOIN` emitted by the
+client afterward have no listener on this socket, so the client hangs indefinitely. This requires
+no race condition — it reproduces on every host refresh while waiting for the second player, and
+directly contradicts the code's own documented intent.
+
+**Fix:** Only `return` when the reconnect path actually ran; otherwise fall through:
+
+```ts
+if (
+  socket.data.sessionToken !== undefined &&
+  socket.data.roomCode !== undefined &&
+  socket.data.playerSlot !== undefined
+) {
+  const room = getRoom(socket.data.roomCode);
+  if (room && room.status === 'playing') {
+    // ... reconnect logic ...
+    return; // only skip fresh-connection setup when the reconnect path actually ran
   }
+  // fall through — do NOT return here.
 }
 ```
 
-### CR-02: DRAFT_PICK never checks `room.gameState !== null` or the requester's confirmed status — asymmetric with DRAFT_REARRANGE
+### CR-02: BenchCarousel scroll position resets on every unrelated parent re-render
 
-**File:** `packages/server/src/roomHandlers.ts:809-899` (contrast with `DRAFT_REARRANGE`'s guard at `roomHandlers.ts:931-938`)
+**File:** `packages/client/src/components/LineupAssignmentScreen.tsx:528-530`,
+`packages/client/src/components/BenchCarousel.tsx:63-68`
 
-**Issue:** `DRAFT_PICK`'s only lifecycle guard is:
+**Issue:** `LineupAssignmentScreen` computes the bench cards inline on every render:
 
 ```ts
-if (!room.draftSession || room.draftSession.draftComplete) {
-  socket.emit(ServerEvents.GAME_ERROR, 'NOT_DRAFTING');
-  return;
-}
+const benchCards = draftView.benchIds
+  .map(resolveTieredCard)
+  .filter((c): c is TieredPoolPlayer => c !== null);
 ```
 
-`DRAFT_REARRANGE`, by contrast, explicitly checks:
+`.map()`/`.filter()` always return a brand-new array, so `benchCards` gets a new reference on
+**every** render of `LineupAssignmentScreen`, regardless of whether `draftView.benchIds` actually
+changed. This is passed straight through as `<BenchCarousel cards={benchCards} .../>`, whose own
+effect is:
 
 ```ts
-const requesterConfirmed = side === 'home' ? room.homeLineupConfirmed : room.awayLineupConfirmed;
-if (requesterConfirmed || room.gameState !== null) {
-  socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_ALREADY_CONFIRMED');
-  return;
-}
+useEffect(() => {
+  const el = trackRef.current;
+  if (!el) return;
+  el.scrollLeft = 0;
+  updateScrollState();
+}, [cards]);
 ```
 
-`DRAFT_PICK` has neither check. In the intended flow this is masked because `draftComplete` is
-always `true` by the time `gameState` gets built — but CR-01 shows `draftComplete` can still be
-`false` when `gameState` is built. Once that happens, a player can keep emitting `DRAFT_PICK`
-after kickoff: the handler still processes it (mutating `draftSession`), and
-`emitDraftViews(io, room)` unicasts a fresh `DRAFT_STATE_UPDATED` to **both** sockets. On the
-client, `onDraftStateUpdated` in `App.tsx` (lines 165-171) unconditionally calls
-`setScreen('LINEUP_ASSIGNMENT')` whenever the screen isn't already that value — so a single
-post-kickoff `DRAFT_PICK` can pull both players' clients off the live `GAME_BOARD` and back onto
-the draft screen mid-match. Even setting CR-01 aside, the asymmetry itself is a defect: two
-handlers that mutate the same `draftSession` state should share the same lifecycle guard, and
-`DRAFT_PICK` is missing the one `DRAFT_REARRANGE` already has.
+Documented as resetting scroll "whenever the bench (cards prop identity/length) changes," this
+effect actually fires on **every** render of the parent for **any** reason, because `cards` gets a
+new reference each time. In practice this includes `handleDraftSlotDragOver`, which calls
+`setDraftDropTargetIndex(idx)` on every native `dragover` event (firing continuously, many times
+per second) while a user drags a card over any lineup slot. The result: mid-drag, the bench
+carousel's scroll position keeps snapping back to the leftmost card; the same happens on any other
+incidental re-render (e.g. the `rejectionMessage` timeout firing). This defeats the exact carousel
+feature this phase built (D-21) whenever the bench has enough cards to require scrolling.
 
-**Fix:** Add the same guard `DRAFT_REARRANGE` already has, before doing any pick processing:
+By contrast, `DraftPackCarousel` does not have this problem: `cards={draftView.currentPack}` is
+passed directly from state without an intervening `.map()`/`.filter()`, so its reference is stable
+across unrelated re-renders of the parent.
+
+**Fix:** Memoize `benchCards` on a dependency that only changes when the underlying draft state
+legitimately changes (`draftView.benchIds` is itself a stable reference unless the session's bench
+array actually changed — see `draftSession.ts`'s copy-on-write discipline):
 
 ```ts
-const side: DraftSide = socket.data.playerSlot === 1 ? 'home' : 'away';
-const requesterConfirmed = side === 'home' ? room.homeLineupConfirmed : room.awayLineupConfirmed;
-if (requesterConfirmed || room.gameState !== null) {
-  socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_ALREADY_CONFIRMED');
-  return;
-}
+const benchCards = useMemo(
+  () => draftView.benchIds.map(resolveTieredCard).filter((c): c is TieredPoolPlayer => c !== null),
+  [draftView.benchIds, cardCache],
+);
 ```
 
-### CR-03: Mid-flow reconnect sends no re-sync event during the "draft complete, not yet both-confirmed" window
-
-**File:** `packages/server/src/createServer.ts:140-153`
-
-**Issue:** The reconnect handler re-syncs state with two mutually-exclusive branches:
-
-```ts
-if (room.gameState !== null) {
-  socket.emit(ServerEvents.GAME_STATE, room.gameState);
-  socket.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
-}
-
-if (room.teamType === 'draft' && room.draftSession && !room.draftSession.draftComplete) {
-  const side = socket.data.playerSlot === 1 ? 'home' : 'away';
-  socket.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, side));
-}
-```
-
-Once a side's draft naturally completes (`draftSession.draftComplete === true`) but before
-**both** sides have called `LINEUP_CONFIRM` — i.e. during the "confirm your completed lineup"
-screen, where `room.gameState` is still `null` — neither branch fires: the first is skipped
-because `gameState` is `null`, and the second is skipped because its `!draftSession.draftComplete`
-guard excludes exactly this window. A reconnecting socket during this window receives no state
-re-sync at all.
-
-On the client this is visibly broken: `onRoomJoined` (still fired on every reconnect) only
-redirects the home player (`slot === 1`) back to `GAME_SETTINGS` when the screen was
-`LANDING`/`CREATE_ROOM` — throwing the host back to the pre-game settings screen and losing the
-completed draft entirely — and does nothing for the away player, who is simply stranded on
-`LANDING`.
-
-This directly reproduces the reconnect gap flagged in the prior review (`a2eb259`);
-`draftReconnect.integration.test.ts`'s two tests both disconnect/reconnect while
-`draftSession.draftComplete` is still `false` (mid-draft), so this specific window remains
-untested.
-
-**Fix:** Widen the draft re-sync condition to also cover the post-complete/pre-confirm window —
-draft-mode rooms have no `gameState` until both `LINEUP_CONFIRM`s land, so gating purely on
-`gameState === null` is sufficient and correct:
-
-```ts
-if (room.gameState === null && room.teamType === 'draft' && room.draftSession) {
-  const side = socket.data.playerSlot === 1 ? 'home' : 'away';
-  socket.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, side));
-}
-```
+(Import `useMemo` from `react`.) Alternatively, change `BenchCarousel`'s effect dependency to a
+content-derived key (e.g. `cards.map((c) => c.id).join(',')`) so identity churn in the parent no
+longer matters.
 
 ## Warnings
 
-### WR-01: `DRAFT_REARRANGE`'s "allow-list slot indices on both ends" check silently skips bench-ref bounds validation
+### WR-01: `DRAFT_REARRANGE` validates `slotIndex` but not `benchIndex` (carried forward, still unfixed)
 
-**File:** `packages/server/src/roomHandlers.ts:942-952`
+**File:** `packages/server/src/roomHandlers.ts:965-975`
 
-**Issue:** The T-29-06 comment claims "allow-list slot indices on both ends before touching any
-state," but the loop only validates `ref.type === 'slot'` refs:
+**Issue:** The slot-index allow-list loop only checks `ref.type === 'slot'`:
 
 ```ts
 const refs = [from, to];
@@ -222,15 +209,16 @@ for (const ref of refs) {
 }
 ```
 
-A `{ type: 'bench', benchIndex: -1 }` or `{ type: 'bench', benchIndex: 4.7 }` payload passes this
-loop untouched. It is not currently exploitable — `applyRearrange` in `draftSession.ts`
-defensively treats any out-of-range/non-integer `benchIndex` as `benchIds[from.benchIndex] ===
-undefined` and returns `INVALID_REARRANGE` — but the safety net is implicit and lives in a
-different module than the comment claiming the validation happens here. A future refactor of
-`applyRearrange` (e.g. switching `benchIds` to a `Map` keyed by id) could silently drop this
-fallback without the `roomHandlers.ts` comment's promise ever being made true.
+There is no equivalent explicit check for `ref.type === 'bench'` / `ref.benchIndex`, even though
+the surrounding comment (T-29-06) claims indices are allow-listed "on both ends." Not currently
+exploitable — `applyRearrange` reads `benchIds[from.benchIndex]`, and any out-of-range, negative,
+non-integer, or non-numeric index simply evaluates to `undefined`, which the existing
+`if (!occupant) return { ok: false, error: 'INVALID_REARRANGE' }` guard catches — but this is an
+implicit safety net (JS array-indexing semantics) rather than an explicit validation step, and it
+lives in a different module than the comment claiming the check happens here. This finding was
+raised in the prior review of this phase and remains unaddressed.
 
-**Fix:** Make the bench-side validation explicit and colocated with the slot-side check:
+**Fix:**
 
 ```ts
 for (const ref of refs) {
@@ -248,91 +236,136 @@ for (const ref of refs) {
 }
 ```
 
-### WR-02: No test coverage for any of CR-01/CR-02/CR-03
+### WR-02: Bench jersey numbers are never assigned for cards benched after `draftComplete`
 
-**Files:** `packages/server/src/__tests__/draftSession.integration.test.ts`,
-`packages/server/src/__tests__/draftReconnect.integration.test.ts`
+**File:** `packages/server/src/roomHandlers.ts:908-915`, `packages/server/src/draftSession.ts:437-449`
 
-**Issue:** Every integration test that reaches `LINEUP_CONFIRM` in draft mode first drives the
-session to `draftComplete: true` via `driveDraftToCompletionFillingLineups`
-(`draftSession.integration.test.ts:592-613`), so the premature-confirm path (CR-01) is never
-exercised, and by extension neither is the post-kickoff `DRAFT_PICK` path (CR-02). Likewise,
-`draftReconnect.integration.test.ts`'s two tests both disconnect/reconnect while
-`draftSession.draftComplete` is still `false` (mid-draft), never in the post-complete,
-pre-both-confirm window (CR-03). This is why all three regressions from the prior review survived
-a full round of gap-closure work (plans 07-10) aimed at other bugs — the suite has no negative-path
-coverage for the lifecycle boundary itself.
+**Issue:** `assignBenchNumbers` runs exactly once, the instant `draftSession.draftComplete` first
+flips true:
 
-**Fix:** Add regression tests once CR-01/CR-02/CR-03 are fixed:
+```ts
+if (room.draftSession.draftComplete) {
+  room.draftSession = {
+    ...room.draftSession,
+    homeBenchNumbers: assignBenchNumbers(room.draftSession.homeBenchIds, randomInt),
+    awayBenchNumbers: assignBenchNumbers(room.draftSession.awayBenchIds, randomInt),
+  };
+}
+```
 
-- A test that calls `LINEUP_CONFIRM` with a full-but-not-yet-`draftComplete` session (fill all 11
-  slots by cycle 3) and asserts `GAME_ERROR` is returned and no `GAME_STATE` is ever emitted.
-- A test that builds `gameState` (via the CR-01 fix path or by directly setting
-  `room.gameState`/`draftSession.draftComplete = false` in a unit-level harness) then emits
-  `DRAFT_PICK` and asserts `GAME_ERROR` rather than a `draftSession` mutation or a
-  `DRAFT_STATE_UPDATED` broadcast.
-- A reconnect test that disconnects after `draftComplete` becomes `true` but before the
-  reconnecting side has called `LINEUP_CONFIRM`, asserting a `DRAFT_STATE_UPDATED` (not silence)
-  is received on reconnect.
+`DRAFT_REARRANGE` is explicitly documented and tested as remaining legal _after_ `draftComplete`
+(D-08/D-15; see "Phase 29 Plan 07 Task 1 — post-draft rearrangement" in
+`draftSession.integration.test.ts`), letting a player move a card from a lineup slot onto the bench
+post-completion. `applyRearrange` never touches `benchNumbers`, so any card that lands on the bench
+via a post-`draftComplete` rearrange has no entry in `homeBenchNumbers`/`awayBenchNumbers`. On the
+client, `DraftCardBody` simply omits the `#N` badge when `benchNumbers?.[card.id]` is `undefined`
+— not a crash, but a silent, permanent data gap (that bench card never gets a jersey number for the
+rest of the match).
+
+**Fix:** Either (a) reassign bench numbers for any _new_ bench entries after every
+`DRAFT_REARRANGE` that changes `benchIds` (diff old vs. new ids, assign numbers only to the new
+ones so existing numbers stay stable), or (b) derive jersey numbers deterministically/lazily
+instead of via a one-shot random assignment.
+
+### WR-03: Client-side tier-color cache does not survive reconnect/reload, mis-coloring already-drafted cards
+
+**File:** `packages/client/src/components/LineupAssignmentScreen.tsx:237-277`
+
+**Issue:** `cardCache` (local `useState<Record<string, TieredPoolPlayer>>({})`) is the only place
+the client remembers a card's true `DraftTier` for already-placed lineup/bench cards — the
+server's `DraftClientView.lineupSlots`/`benchIds` are plain id arrays with no tier metadata (D-14
+privacy-scoped view intentionally omits it). `cardCache` is populated only from cards the client
+has personally seen in `draftView.currentPack` during the current mount (`useEffect` at lines
+242-255). On any full reconnect/reload, the component remounts and `cardCache` resets to `{}`.
+The reconnect resync (`createServer.ts`, CR-03) sends only the reconnecting player's _current_
+pack — not the full history of every previously-drafted card. `resolveTieredCard`'s fallback then
+applies to every already-placed card:
+
+```ts
+function resolveTieredCard(cardId: string): TieredPoolPlayer | null {
+  const cached = cardCache[cardId];
+  if (cached) return cached;
+  const player = PLAYER_MAP.get(cardId);
+  if (!player) return null;
+  const tier: DraftTier = player.role === 'GK' ? 'keeper' : 'common';
+  return { ...player, tier, totalStat: computeTotalStat(player) };
+}
+```
+
+Every previously-drafted non-GK card (including chase/rare/uncommon cards) renders with a
+`common` (green) tier border after a reconnect, and every GK card renders as `keeper` regardless
+of its actual tier. Cosmetic only (border color; no gameplay impact), but a real, reproducible
+display regression for exactly the reconnect flow this phase's own tests exercise on the server
+side without an equivalent client-side check.
+
+**Fix:** Have the server include a lightweight tier lookup for placed cards in `DraftClientView`
+(or a small `cardId -> tier` map alongside `lineupSlots`/`benchIds`), rather than relying on
+session-local, transient client state to reconstruct display-only tier information.
+
+### WR-04: `SCROLL_STEP_PX` magic number duplicated verbatim across two components
+
+**File:** `packages/client/src/components/DraftPackCarousel.tsx:133`,
+`packages/client/src/components/BenchCarousel.tsx:40`
+
+**Issue:** Both files independently declare `const SCROLL_STEP_PX = 328;`, each with a comment
+noting the two must stay in sync ("mirrors DraftPackCarousel's SCROLL_STEP_PX exactly"). This is
+exactly the kind of duplicated magic number that silently drifts the next time the card min-width
+or gap in `LineupAssignmentScreen.module.css` changes (only one of the two constants would likely
+get updated by whoever makes that change).
+
+**Fix:** Extract `SCROLL_STEP_PX` to a single shared export (e.g. alongside `TIER_ORDER`/
+`TIER_CARD_CLASS` in `DraftPackCarousel.tsx`, or a small shared `carousel.ts` module) and import it
+in both components.
 
 ## Info
 
-### IN-01: No regression test for the slot→slot self-swap edge case (`from.slotIndex === to.slotIndex`)
+### IN-01: Duplicated GK-slot-role validation block across DRAFT_PICK and DRAFT_REARRANGE
 
-**File:** `packages/server/src/draftSession.ts:258-306`, `packages/server/src/draftSession.test.ts:285-303`
+**File:** `packages/server/src/roomHandlers.ts:874-886` and `packages/server/src/roomHandlers.ts:977-1001`
+
+**Issue:** The GK-slot role check (`slotRole === 'GK' && card.role !== 'GK'` /
+`slotRole !== 'GK' && card.role === 'GK'`) is implemented twice, nearly verbatim — once in
+`DRAFT_PICK`, once in `DRAFT_REARRANGE`. Not a correctness bug today (both copies are currently
+consistent and both are exercised by tests), but duplicated security-relevant validation logic is
+exactly the kind of thing that drifts apart during a future edit (e.g. someone "fixing" one copy's
+error-message wording without touching the other).
+
+**Fix:** Extract a shared helper (e.g. `validateGKSlotRule(slotRole, cardRole): string | null`
+returning the error reason or `null`) used by both handlers.
+
+### IN-02: Stat-chip filtering/rendering logic duplicated between `LineupStatCard` and `DraftCardBody`
+
+**File:** `packages/client/src/components/LineupAssignmentScreen.tsx:156-173`,
+`packages/client/src/components/DraftPackCarousel.tsx:99-115`
+
+**Issue:** The same `STAT_LABELS.filter(...)`/`.map(...)` block (role-based stat exclusion plus
+`statTier`-driven badge coloring) is written out twice — once in `LineupStatCard`, once in
+`DraftCardBody`. `statTier()` itself is also duplicated verbatim in both files. Correct today, but
+any future change to which stats are shown/excluded per role has to be applied in two places, and
+the two `statTier` copies can already silently drift.
+
+**Fix:** Extract the stat-chip-grid render logic (and `statTier`) into one shared helper/component
+consumed by both `LineupStatCard` and `DraftCardBody`.
+
+### IN-03: No regression test for the slot→slot self-swap edge case (carried forward, still untested)
+
+**File:** `packages/server/src/draftSession.ts:286-306`
 
 **Issue:** The D-24 two-way-swap branch reads `lineupSlots[to.slotIndex]` (the `displaced`
 occupant) _after_ `lineupSlots[from.slotIndex]` has already been nulled out. When
-`from.slotIndex === to.slotIndex`, `displaced` correctly evaluates to `null` (a true no-op that
-restores the same card to the same slot), but this correctness depends entirely on the exact
-ordering of "null out `from`" before "read `displaced` at `to`". This is currently correct but
-untested, and the client-side drag handler in `LineupAssignmentScreen.tsx`
+`from.slotIndex === to.slotIndex`, this correctly evaluates to a no-op, but only because of the
+exact ordering of "null out `from`" before "read `displaced` at `to`" — a fragile-by-construction
+invariant with no dedicated test. The client-side drag handler in `LineupAssignmentScreen.tsx`
 (`if (ds.slotIndex === slotIndex) return;`) prevents the shipped UI from ever emitting this
-payload — but the server has no independent guard, and a raw/malformed `DRAFT_REARRANGE` socket
-payload can still reach this code path.
+payload, but the server has no independent guard, and a raw/malformed `DRAFT_REARRANGE` payload can
+still reach this code path.
 
 **Fix:** Add a unit test asserting `applyRearrange(session, side, { type: 'slot', slotIndex: N },
 { type: 'slot', slotIndex: N })` returns `ok: true` with the lineup slot unchanged and the bench
 untouched, so a future refactor that reorders the null-out/read sequence is caught.
 
-### IN-02: `applyRearrange`'s GK-slot invariant is validated only by the caller, not defensively inside the function
-
-**File:** `packages/server/src/draftSession.ts:18-21, 258-306`
-
-**Issue:** The two-way swap's correctness relies on an invariant maintained entirely outside this
-file: every occupied lineup slot always holds a card whose role matches that slot's role — an
-invariant enforced only by the paired checks in `roomHandlers.ts` at the `DRAFT_PICK` (lines
-851-863) and `DRAFT_REARRANGE` (lines 957-979) call sites. This is a deliberate, documented module
-boundary ("Card-placement boundary" comment, `draftSession.ts:18-21`), so it is not a bug in this
-file — but the correctness argument for the new two-way-swap logic (that checking only the moving
-card's role against the destination is sufficient, because the vacated source slot's role always
-matches the displaced card's role by the same invariant) is non-obvious and is not documented
-anywhere near the swap code itself. A future caller of `applyRearrange` that does not replicate
-both `roomHandlers.ts` GK-slot checks (a script, an admin tool, or a refactor that consolidates
-the two nearly-identical validation blocks in `roomHandlers.ts` and drops one branch) could
-silently place a GK card in an outfield slot or vice versa with no error.
-
-**Fix:** Add a short comment near the `applyRearrange` swap branch (or in the module docstring)
-spelling out the invariant this function depends on, so the next person touching
-`roomHandlers.ts`'s validation doesn't unknowingly weaken it.
-
-### IN-03: Duplicated GK-slot-role validation block across DRAFT_PICK and DRAFT_REARRANGE
-
-**File:** `packages/server/src/roomHandlers.ts:851-863` and `packages/server/src/roomHandlers.ts:966-978`
-
-**Issue:** The GK-slot role check (`slotRole === 'GK' && card.role !== 'GK'` /
-`slotRole !== 'GK' && card.role === 'GK'`) is implemented twice, nearly verbatim, once in
-`DRAFT_PICK` and once in `DRAFT_REARRANGE`. This is a maintainability smell rather than a
-correctness bug today (both copies are currently consistent and both are exercised by tests), but
-duplicated security-relevant validation logic is exactly the kind of thing that drifts apart
-during a future edit — e.g. someone "fixing" one copy's error-message wording without touching
-the other, or a future third call site copy-pasting a stale version.
-
-**Fix:** Extract a shared helper (e.g. `validateGKSlotRule(slotRole, cardRole): string | null`
-returning the error reason or `null`) used by both handlers.
-
 ---
 
-_Reviewed: 2026-07-21T21:00:00Z_
+_Reviewed: 2026-07-21T18:05:01-05:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
