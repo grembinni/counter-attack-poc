@@ -100,8 +100,6 @@ type Props = {
   homePickedTeam: TeamId | null;
   /** Set when home player has confirmed their team + style (UNIFORM_HOME_CONFIRMED), or null. */
   homeConfirmedStyle: UniformStyleId | null;
-  /** Phase 23 D-12: formation chosen by home player on their confirm (for Phase 24 use). */
-  homeConfirmedFormation: FormationId | null;
   /** Called when the active player clicks Confirm with their team + style + formation + jersey type choices. */
   onConfirm: (
     teamId: TeamId,
@@ -127,7 +125,6 @@ type Props = {
 export function UniformSelectionScreen({
   homePickedTeam,
   homeConfirmedStyle,
-  homeConfirmedFormation: _homeConfirmedFormation,
   onConfirm,
   selectedSpeed,
   settingsSummary,

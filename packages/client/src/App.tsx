@@ -44,8 +44,6 @@ export function App() {
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>([]);
   // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
-  // Phase 23 D-12: homeConfirmedFormation tracks home's choice for passing to away's UI
-  const [homeConfirmedFormation, setHomeConfirmedFormation] = useState<FormationId | null>(null);
   // Phase 24: lineup local state — mirrors homePickedTeam pattern (not in Zustand — Pitfall 7)
   const [lineupAssignment, setLineupAssignment] = useState<string[] | null>(null);
   const [lineupConfirmed, setLineupConfirmed] = useState(false);
@@ -128,15 +126,12 @@ export function App() {
       setScreen('UNIFORM_SELECTION');
     }
 
-    function onUniformHomeConfirmed(
-      teamId: TeamId,
-      uniformStyle: UniformStyleId,
-      formationId: FormationId,
-    ) {
+    function onUniformHomeConfirmed(teamId: TeamId, uniformStyle: UniformStyleId) {
       // Set homePickedTeam so away sees home's team struck out in UniformSelectionScreen (Phase 22).
+      // IN-04 (Phase 27 review): formationId (3rd arg) is no longer consumed here — Phase 24
+      // moved formation-for-lineup plumbing to BOTH_FORMATIONS_CONFIRMED/myFormationId below.
       setHomePickedTeam(teamId);
       setHomeConfirmedStyle(uniformStyle);
-      setHomeConfirmedFormation(formationId);
     }
 
     function onBothFormationsConfirmed(homeFormation: FormationId, awayFormation: FormationId) {
@@ -252,7 +247,6 @@ export function App() {
         <UniformSelectionScreen
           homePickedTeam={homePickedTeam}
           homeConfirmedStyle={homeConfirmedStyle}
-          homeConfirmedFormation={homeConfirmedFormation}
           onConfirm={handleUniformConfirm}
           selectedSpeed={selectedSpeed}
           settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}

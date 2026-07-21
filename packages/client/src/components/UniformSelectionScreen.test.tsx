@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UniformSelectionScreen } from './UniformSelectionScreen.js';
-import type { FormationId } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 
 vi.mock('../socket.js', () => ({
@@ -19,11 +18,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-/** Default props shared across most tests — no homePickedTeam, homeConfirmedStyle, or homeConfirmedFormation. */
+/** Default props shared across most tests — no homePickedTeam or homeConfirmedStyle. */
 const DEFAULT_PROPS = {
   homePickedTeam: null as null | string,
   homeConfirmedStyle: null as null | string,
-  homeConfirmedFormation: null as FormationId | null,
   onConfirm: vi.fn(),
   selectedSpeed: 'standard' as const,
   settingsSummary: null as string | null,
