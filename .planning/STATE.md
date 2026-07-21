@@ -4,24 +4,24 @@ milestone: v1.4
 milestone_name: Response Polish + Draft Mode
 status: executing
 stopped_at: Phase 29 UI-SPEC approved
-last_updated: '2026-07-21T15:59:03.241Z'
-last_activity: 2026-07-21 -- Phase 29 planning complete
+last_updated: '2026-07-21T16:29:42.773Z'
+last_activity: 2026-07-21 -- Phase 29 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 12
+  total_plans: 18
   completed_plans: 12
-  percent: 75
+  percent: 67
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 29
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-21 -- Phase 29 planning complete
+Phase: 29 (draft-ui-pick-and-swap-flow) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 29
+Last activity: 2026-07-21 -- Phase 29 execution started
 
 Progress: [████░░░░░░] 40%
 
@@ -30,7 +30,7 @@ Progress: [████░░░░░░] 40%
 See: .planning/PROJECT.md (updated 2026-07-12 after v1.4 milestone start)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 28 — draft-data-model
+**Current focus:** Phase 29 — draft-ui-pick-and-swap-flow
 
 ## Phase Status
 
