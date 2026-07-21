@@ -10,6 +10,8 @@ Two friends can open a browser, share a room code, and play a complete match of 
 
 ## Current State
 
+**Phase 27 complete (2026-07-21)** — game-creation pre-step settings screen (speed, Standard/Draft team type, draft-pool checkboxes) with server-authoritative confirm/lock and a settings-confirmed/joiner-present race gate; Standard-mode speed moved off team-selection to a read-only subheader; Draft-mode shows a settings summary line in its place; scoreboard gains a soft active-speed reminder (D-08). First phase of v1.4 (Draft Mode track) shipped.
+
 **v1.3 shipped 2026-07-11.** 7 phases (32 plans). Expanded from 4 fictional teams to 12 real-league teams (6 MLS + 6 International) with full visual identities; 18-style uniform selection screen; 4 dynamic formations (4-4-2, 5-3-2, 4-3-3, 3-4-3) with stat-driven auto-assignment and player swap; OFFSIDE-01/02 human UAT formally closed; FREE_KICK_SETUP 6-step sequence (kicker select + stage repositioning); GK_KICK and LOOSE_BALL_LAND replay visibility fixed; jersey centering and Style 12 SVG pattern fixed. Full test suite: ~1,100+ tests across shared/server/client.
 
 **Known tech debt entering v1.4:**
@@ -99,6 +101,10 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 - ✓ **UX-15** — Jersey number centering, Style 12 symmetric quarters, EventBanner, uniform-selection race fix — Phase 25
 - ✓ **OFFSIDE-01, OFFSIDE-02** — Free-kick step sequence (kicker select + 6 stages) implemented and UAT-closed — Phases 25
 
+### Validated (v1.4 — in progress)
+
+- ✓ **DRAFT-01..03** — Game-creation pre-step settings screen (speed + team type + draft pool), Standard-mode speed moved off team-selection, Draft-mode settings summary line — Phase 27
+
 ### Deferred (v2 candidates)
 
 - [ ] Fouls, yellow/red cards, booking checks
@@ -186,4 +192,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-12 — v1.4 milestone started_
+_Last updated: 2026-07-21 — Phase 27 (game-creation-settings) complete_
