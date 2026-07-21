@@ -102,3 +102,17 @@ None - no external service configuration required.
 
 - The `applyRearrange` fix is unit- and integration-tested and the full server suite (608 tests, 33 files) passes, along with `typecheck` and `build`.
 - Per the plan's `<success_criteria>`, the orchestrator must still re-run the two-browser walkthrough targeting lineup-slot ↔ lineup-slot drags (29-VERIFICATION.md "Human Verification Required" item 1) and confirm both cards trade places before Phase 29 can be marked complete. This plan does not perform that human walkthrough.
+
+## Self-Check: PASSED
+
+All files created/modified and all task commit hashes verified present on disk / in git log:
+
+- `packages/server/src/draftSession.ts` — FOUND
+- `packages/server/src/draftSession.test.ts` — FOUND
+- `packages/server/src/__tests__/draftSession.integration.test.ts` — FOUND
+- `.planning/phases/29-draft-ui-pick-and-swap-flow/29-CONTEXT.md` — FOUND
+- `.planning/phases/29-draft-ui-pick-and-swap-flow/29-10-SUMMARY.md` — FOUND
+- `0591146` (Task 1) — FOUND
+- `f5875ca` (Task 2) — FOUND
+- `9c80fd0` (Task 3) — FOUND
+- `6f50f1a` (SUMMARY commit) — FOUND
