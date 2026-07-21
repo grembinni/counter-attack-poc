@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: verifying
+status: executing
 stopped_at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
-last_updated: '2026-07-21T20:21:26.855Z'
-last_activity: 2026-07-21 -- Phase 29-09 Task 2 human walkthrough resolved with 1 new gap recorded; 29-VERIFICATION.md updated to gaps_found (4/5 truths verified, 1 failed)
+last_updated: '2026-07-21T20:23:52.169Z'
+last_activity: 2026-07-21 -- Phase 29 execution started
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 21
+  completed_phases: 3
+  total_plans: 22
   completed_plans: 21
-  percent: 100
+  percent: 75
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — EXECUTING (gap-closure re-verification)
-Plan: 9 of 9 (29-09 gap-closure re-verification) — COMPLETE (Task 1 automated gate green; Task 2 human two-browser walkthrough resolved — 7/8 steps pass, 1 new gap found)
-Status: Phase 29 NOT complete. A new, isolated gap was found this pass: lineup-slot-to-lineup-slot drag-and-drop displaces the previous occupant to the bench instead of trading places with the dragged card (root cause traced, read-only, to `applyRearrange` in `packages/server/src/draftSession.ts`; documented in `29-VERIFICATION.md` Gap 1 along with a 29-10 recommended fix plan). Next step: execute a 29-10 gap-closure plan, then re-run the human walkthrough targeting slot-to-slot swaps specifically.
-Last activity: 2026-07-21 -- Phase 29-09 Task 2 human walkthrough resolved with 1 new gap recorded; 29-VERIFICATION.md updated to gaps_found (4/5 truths verified, 1 failed)
+Phase: 29 (draft-ui-pick-and-swap-flow) — EXECUTING
+Plan: 1 of 10
+Status: Executing Phase 29
+Last activity: 2026-07-21 -- Phase 29 execution started
 
 Progress: [██████████] 100% plans executed for the 29-07/29-08/29-09 gap-closure cycle; Phase 29 still gated on one more gap-closure cycle (29-10) before it can be marked complete
 
