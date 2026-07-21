@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
 status: executing
-stopped_at: Phase 27 UI-SPEC approved
-last_updated: '2026-07-20T23:34:28.491Z'
-last_activity: 2026-07-20 -- Phase 27 execution started
+stopped_at: Phase 27-05 complete — Phase 27 (game-creation-settings) human-verify checkpoint approved, all 5 plans done, awaiting orchestrator phase closure
+last_updated: '2026-07-21T00:27:57Z'
+last_activity: 2026-07-20 -- Phase 27 execution complete (5/5 plans)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 8
   percent: 25
 ---
 
@@ -18,12 +18,12 @@ progress:
 
 ## Current Position
 
-Phase: 27 (game-creation-settings) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 27
-Last activity: 2026-07-20 -- Phase 27 execution started
+Phase: 27 (game-creation-settings) — plans complete, awaiting orchestrator phase closure
+Plan: 5 of 5
+Status: Phase 27 execution complete — human-verify checkpoint approved
+Last activity: 2026-07-20 -- Phase 27 execution complete (5/5 plans)
 
-Progress: [██░░░░░░░░] 40%
+Progress: [████░░░░░░] 40%
 
 ## Project Reference
 
@@ -264,9 +264,9 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-20T19:10:15.063Z
-Stopped at: Phase 27 UI-SPEC approved
-Resume: `/gsd-plan-phase 27`
+Last session: 2026-07-21T00:27:57Z
+Stopped at: Phase 27-05 complete — Phase 27 (game-creation-settings) human-verify checkpoint approved, all 5 plans done, awaiting orchestrator phase closure
+Resume: orchestrator to run phase-completion/ROADMAP.md update for Phase 27
 
 ## Performance Metrics
 
@@ -400,3 +400,5 @@ Resume: `/gsd-plan-phase 27`
 - [Phase 25-05 UAT]: D-17 dominantBaseline='middle' (Plan 25-02) overcorrected from 'too low' to 'too high' — Plan 25-08 uses 'central' + dy='-0.5' as midpoint
 - [Phase 25-05 UAT]: Style 12 (quarterHorizontal) x=0, y=0 pattern origin is root cause of off-centre diagonal quarters — Plan 25-09 corrects to x=cx-R, y=cy-R (matching quarterDiagonal anchor)
 - [Phase 25-05 UAT]: OFFSIDE-01 closed (all three scenarios + stickiness/clear confirmed); OFFSIDE-02 not yet closed (free-kick step sequence redesign in Plan 25-06 required first)
+- [Phase ?]: 27-05 Task 1: speed segment format is icon+label derived from SPEED_OPTIONS, appended to .phaseSummary via existing flex-wrap
+- [Phase 27-05]: Phase 27 holistic human-verify checkpoint APPROVED (all 6 steps: settings pre-step, Standard read-only speed, Draft summary line, race-condition ordering, scoreboard speed reminder), contingent on one UI gap-closure fix (settings-summary subheader centered under heading, wider separators, button-style border removed — commit cc49503) which was applied and re-verified before approval
