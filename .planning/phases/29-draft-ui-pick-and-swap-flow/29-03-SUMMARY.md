@@ -127,3 +127,7 @@ No Rule 4 (architectural) deviations — plan's component boundaries, file owner
 
 _Phase: 29-draft-ui-pick-and-swap-flow_
 _Completed: 2026-07-21_
+
+## Self-Check: PASSED
+
+All claimed files exist (DraftPackCarousel.tsx, BenchCarousel.tsx, DraftPackCarousel.test.tsx, this SUMMARY.md) and all three commits (`f103717`, `b237e36`, `a0d0ad6`) are present in git log.
