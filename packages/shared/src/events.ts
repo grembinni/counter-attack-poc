@@ -1,4 +1,13 @@
-import type { HexCoord, GameState, GameSpeed, TeamType, DraftPoolId } from './types.js';
+import type {
+  HexCoord,
+  GameState,
+  GameSpeed,
+  TeamType,
+  DraftPoolId,
+  DraftClientView,
+  DraftPickPayload,
+  DraftRearrangePayload,
+} from './types.js';
 import type { TeamId } from './teamConfig.js';
 import type { UniformStyleId } from './uniformStyles.js';
 import type { FormationId } from './formations.js';
@@ -81,6 +90,17 @@ export const ClientEvents = {
    * After both players confirm, server calls buildInitialGameState and emits GAME_STATE.
    */
   LINEUP_CONFIRM: 'lineup:confirm',
+  /**
+   * DRAFT-06/07 (Phase 29), D-05/D-14: drafts `cardId` from the player's current pack and
+   * simultaneously places it at `destination` (lineup slot or bench). This is the only
+   * client action that counts as "the pick" and can advance cycle/sub-step state (D-10).
+   */
+  DRAFT_PICK: 'draft:pick',
+  /**
+   * DRAFT-06/09 (Phase 29), D-08/D-10: rearranges an already-drafted card between lineup
+   * and bench (either direction). Never advances cycle/sub-step state (D-10).
+   */
+  DRAFT_REARRANGE: 'draft:rearrange',
 } as const;
 
 export const ServerEvents = {
@@ -118,6 +138,12 @@ export const ServerEvents = {
    * Emitted to the requester only (not broadcast) to preserve lineup privacy.
    */
   LINEUP_ASSIGNMENT_UPDATED: 'lineup:assignment-updated',
+  /**
+   * DRAFT-06..10 (Phase 29), D-14: emitted per-socket (never `io.to(room).emit`) after every
+   * validated DRAFT_PICK/DRAFT_REARRANGE — mirrors LINEUP_ASSIGNMENT_UPDATED's unicast privacy
+   * pattern. Carries a DraftClientView scoped to the receiving player only (T-29-PRIV).
+   */
+  DRAFT_STATE_UPDATED: 'draft:state-updated',
 } as const;
 
 /**
@@ -213,6 +239,17 @@ export interface ClientToServerEvents {
    * After both players confirm, buildInitialGameState is called and GAME_STATE is broadcast.
    */
   [ClientEvents.LINEUP_CONFIRM]: (payload: { confirmedOrder: string[] }) => void;
+  /**
+   * DRAFT-06/07 (Phase 29), D-05/D-14: drafts `cardId` from the sender's current pack and
+   * places it at `destination`. Server validates `cardId` is present in the caller's
+   * server-tracked current pack — never trusts client-supplied pack contents.
+   */
+  [ClientEvents.DRAFT_PICK]: (payload: DraftPickPayload) => void;
+  /**
+   * DRAFT-06/09 (Phase 29), D-08/D-10: rearranges an already-drafted card between `from`
+   * and `to` (lineup/bench). Never advances cycle/sub-step state.
+   */
+  [ClientEvents.DRAFT_REARRANGE]: (payload: DraftRearrangePayload) => void;
 }
 
 /**
@@ -266,6 +303,12 @@ export interface ServerToClientEvents {
    * Only the requesting player's socket receives this event (lineup privacy).
    */
   [ServerEvents.LINEUP_ASSIGNMENT_UPDATED]: (assignment: string[]) => void;
+  /**
+   * DRAFT-06..10 (Phase 29), D-14: emitted per-socket (never broadcast) after every
+   * validated DRAFT_PICK/DRAFT_REARRANGE. `view` is scoped to the receiving player only —
+   * `currentPack` is THIS player's pack, never the opponent's (T-29-PRIV).
+   */
+  [ServerEvents.DRAFT_STATE_UPDATED]: (view: DraftClientView) => void;
 }
 
 /** Inter-server events (unused in single-instance POC, required for type param). */

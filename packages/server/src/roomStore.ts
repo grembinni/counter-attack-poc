@@ -18,6 +18,7 @@ import type {
   FormationId,
   TeamType,
   DraftPoolId,
+  DraftSession,
 } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
@@ -159,6 +160,12 @@ export type Room = {
    * When both homeLineupConfirmed and awayLineupConfirmed are true, buildInitialGameState fires.
    */
   awayLineupConfirmed?: boolean;
+  /**
+   * Phase 29 (DRAFT-06..10): live draft session for teamType==='draft' rooms.
+   * undefined/null until ROOM_SETTINGS_CONFIRM bootstraps it. Holds cycle/sub-step,
+   * per-player packs, drafted ids, lineup/bench state (D-04/D-13).
+   */
+  draftSession?: DraftSession | null;
 };
 
 /**
