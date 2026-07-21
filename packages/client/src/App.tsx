@@ -11,7 +11,10 @@ import styles from './App.module.css';
 import { socket } from './socket.js';
 import { ServerEvents, ClientEvents } from '@counter-attack/shared';
 import type {
+  DraftClientView,
+  DraftDestination,
   DraftPoolId,
+  DraftSlotRef,
   FormationId,
   GameSpeed,
   GameState,
@@ -50,6 +53,9 @@ export function App() {
   const [myFormationId, setMyFormationId] = useState<FormationId | null>(null);
   // Phase 24: own confirmed team — set on UNIFORM_CONFIRM so lineup screen has correct badge
   const [myConfirmedTeamId, setMyConfirmedTeamId] = useState<TeamId | null>(null);
+  // Phase 29 D-14: this player's privacy-scoped draft view — local (non-Zustand, Pitfall 7),
+  // mirrors the lineupAssignment local-state pattern. Null until the first DRAFT_STATE_UPDATED.
+  const [draftView, setDraftView] = useState<DraftClientView | null>(null);
 
   useEffect(() => {
     function onGameState(state: GameState) {
@@ -153,6 +159,17 @@ export function App() {
       setLineupAssignment(assignment);
     }
 
+    // Phase 29 D-05/D-14: DRAFT_STATE_UPDATED — per-socket private draft view. Draft rooms route
+    // to LINEUP_ASSIGNMENT off the FIRST arrival of this event (sent from the UNIFORM_CONFIRM
+    // away-branch, Plan 04) instead of LINEUP_ASSIGNMENT_READY; also covers reconnect resume (D-13).
+    function onDraftStateUpdated(view: DraftClientView) {
+      setDraftView(view);
+      if (useGameStore.getState().screen !== 'LINEUP_ASSIGNMENT') {
+        setLineupConfirmed(false);
+        setScreen('LINEUP_ASSIGNMENT');
+      }
+    }
+
     socket.on(ServerEvents.GAME_STATE, onGameState);
     socket.on(ServerEvents.ROOM_JOINED, onRoomJoined);
     socket.on(ServerEvents.ROOM_ERROR, onRoomError);
@@ -166,6 +183,7 @@ export function App() {
     socket.on(ServerEvents.BOTH_FORMATIONS_CONFIRMED, onBothFormationsConfirmed);
     socket.on(ServerEvents.LINEUP_ASSIGNMENT_READY, onLineupAssignmentReady);
     socket.on(ServerEvents.LINEUP_ASSIGNMENT_UPDATED, onLineupAssignmentUpdated);
+    socket.on(ServerEvents.DRAFT_STATE_UPDATED, onDraftStateUpdated);
 
     socket.connect();
 
@@ -183,6 +201,7 @@ export function App() {
       socket.off(ServerEvents.BOTH_FORMATIONS_CONFIRMED, onBothFormationsConfirmed);
       socket.off(ServerEvents.LINEUP_ASSIGNMENT_READY, onLineupAssignmentReady);
       socket.off(ServerEvents.LINEUP_ASSIGNMENT_UPDATED, onLineupAssignmentUpdated);
+      socket.off(ServerEvents.DRAFT_STATE_UPDATED, onDraftStateUpdated);
     };
   }, []);
 
@@ -227,19 +246,33 @@ export function App() {
     setLineupConfirmed(true);
   }
 
+  // Phase 29 D-05/D-06: emitted when a draft-pack card is dropped onto a lineup slot or the bench
+  function handleDraftPick(cardId: string, destination: DraftDestination) {
+    socket.emit(ClientEvents.DRAFT_PICK, { cardId, destination });
+  }
+
+  // Phase 29 D-08/D-10: emitted when an already-drafted card is rearranged (lineup<->bench, lineup<->lineup)
+  function handleDraftRearrange(from: DraftSlotRef, to: DraftSlotRef) {
+    socket.emit(ClientEvents.DRAFT_REARRANGE, { from, to });
+  }
+
   return (
     <div className={styles.app}>
       {screen === 'GAME_BOARD' || screen === 'REPLAY' ? (
         <GameBoard />
       ) : screen === 'LINEUP_ASSIGNMENT' ? (
         <LineupAssignmentScreen
-          assignment={lineupAssignment!}
+          assignment={lineupAssignment ?? []}
           formationId={myFormationId!}
           playerSlot={playerSlot!}
           myTeamId={myConfirmedTeamId!}
           onSwap={handleLineupSwap}
           onConfirm={handleLineupConfirm}
           lineupConfirmed={lineupConfirmed}
+          draftMode={teamType === 'draft'}
+          draftView={draftView}
+          onDraftPick={handleDraftPick}
+          onDraftRearrange={handleDraftRearrange}
         />
       ) : screen === 'GAME_SETTINGS' ? (
         <GameSettingsScreen onConfirm={handleSettingsConfirm} />
