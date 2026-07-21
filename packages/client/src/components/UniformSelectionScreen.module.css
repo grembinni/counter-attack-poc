@@ -278,6 +278,7 @@
 .speedRow {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16px;
 }
 
@@ -322,17 +323,18 @@
   cursor: not-allowed;
 }
 
-/* UX-07: active/selected speed option */
+/* UX-07: active/selected speed option — read-only in this file (no interactive speed
+   buttons remain post-27-04), so the button-style outline is dropped; kept as a plain
+   pill with no border. */
 .speedOptionActive {
   font-size: 13px;
   font-weight: 700;
   color: #e0e0e0;
   background: #16213e;
-  border: 1px solid #e0e0e0;
+  border: none;
   border-radius: 4px;
   padding: 4px 10px;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
+  cursor: default;
 }
 
 .speedOptionActive:disabled {

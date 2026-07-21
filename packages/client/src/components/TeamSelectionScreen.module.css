@@ -183,17 +183,18 @@
   cursor: not-allowed;
 }
 
-/* UX-07: active/selected speed option — Emphasis role: 13px/700, matching .teamName sizing */
+/* UX-07: active/selected speed option — Emphasis role: 13px/700, matching .teamName sizing.
+   Read-only in this file (no interactive speed buttons remain post-27-04), so the
+   button-style outline is dropped; kept as a plain pill with no border. */
 .speedOptionActive {
   font-size: 13px;
   font-weight: 700;
   color: #e0e0e0;
   background: #16213e;
-  border: 1px solid #e0e0e0;
+  border: none;
   border-radius: 4px;
   padding: 4px 10px;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
+  cursor: default;
 }
 
 .speedOptionActive:disabled {

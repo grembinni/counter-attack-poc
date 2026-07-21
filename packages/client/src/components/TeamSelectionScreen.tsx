@@ -110,10 +110,10 @@ export function TeamSelectionScreen({
   return (
     <div className={styles.screen}>
       <h2 className={styles.heading}>{heading}</h2>
-      {showWaiting && <p className={styles.statusLine}>Waiting for home player to choose...</p>}
       {/* Phase 27 (D-07/D-09): speed is now set only on GameSettingsScreen — this section is
            always a read-only element: the plain speed label (Standard) or the single settings
-           summary line (Draft), which stands alone with no "Match speed:" prefix. */}
+           summary line (Draft), which stands alone with no "Match speed:" prefix.
+           Rendered directly under the heading, above the waiting status line, per checkpoint feedback. */}
       <div className={styles.speedSelector}>
         {settingsSummary !== null ? (
           <span className={styles.speedOptionActive}>{settingsSummary}</span>
@@ -129,6 +129,7 @@ export function TeamSelectionScreen({
           </>
         )}
       </div>
+      {showWaiting && <p className={styles.statusLine}>Waiting for home player to choose...</p>}
       {/* LEAGUE-01: Tab bar — MLS default (D-13); tab state is local React useState (D-14) */}
       <div role="tablist" className={styles.tabs}>
         <button

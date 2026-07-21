@@ -178,15 +178,8 @@ export function UniformSelectionScreen({
         MATCH SETUP: STEP {step} &mdash; {currentPlayerLabel} PLAYER ({youOrOpponent})
       </h2>
 
-      {/* Status and browse note — centered relative to heading */}
-      <p className={isActiveNow ? styles.statusActive : styles.statusWaiting}>
-        {isActiveNow
-          ? 'Make your selections now!'
-          : `Waiting for ${waitingForLabel} Player to Lock in their Selection.`}
-      </p>
-      <p className={styles.browseNote}>You are browsing your Team, Formation, and Piece Style.</p>
-
-      {/* 0 | MATCH SPEED (standard, D-07) or single settings summary line (draft, D-09) — read-only */}
+      {/* 0 | MATCH SPEED (standard, D-07) or single settings summary line (draft, D-09) — read-only.
+          Rendered directly under the heading, above the status/browse note, per checkpoint feedback. */}
       <div className={styles.speedBlock}>
         <div className={styles.speedRow}>
           {settingsSummary !== null ? (
@@ -206,6 +199,14 @@ export function UniformSelectionScreen({
           )}
         </div>
       </div>
+
+      {/* Status and browse note — centered relative to heading */}
+      <p className={isActiveNow ? styles.statusActive : styles.statusWaiting}>
+        {isActiveNow
+          ? 'Make your selections now!'
+          : `Waiting for ${waitingForLabel} Player to Lock in their Selection.`}
+      </p>
+      <p className={styles.browseNote}>You are browsing your Team, Formation, and Piece Style.</p>
 
       {/* 1 | TEAM */}
       <p className={styles.sectionLabel}>1 | TEAM</p>
