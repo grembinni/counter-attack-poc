@@ -23,6 +23,9 @@ import {
   applyRearrange,
   openNextPack,
   advanceSubStep,
+  checkKeeperSafety,
+  assignBenchNumbers,
+  buildDraftView,
 } from './draftSession.js';
 
 /** Always returns the same value regardless of (min, max) — deterministic, non-identity shuffle driver. */
@@ -434,5 +437,199 @@ describe('full 4-cycle drive — 16 drafted cards per player cross-check (DRAFT-
     expect(session.awayDraftedIds.length).toBe(16);
     expect(new Set(session.homeDraftedIds).size).toBe(16);
     expect(new Set(session.awayDraftedIds).size).toBe(16);
+  });
+});
+
+describe('checkKeeperSafety (DRAFT-08)', () => {
+  it('auto-selects a keeper for a keeperless player at the cycle-4 PICK1 boundary, places it into the empty GK slot, and marks the auto-pick flag', () => {
+    const packs = makeEightPacks();
+    const cycle4Pack = packs[0]!;
+    const session = baseSession({
+      cycle: 4,
+      subStep: 'PICK1',
+      homePicksRemaining: 0,
+      awayPicksRemaining: 0,
+      homeCurrentPack: [...cycle4Pack.cards],
+      homeHasKeeper: false,
+      homeLineupSlots: new Array<string | null>(11).fill(null),
+    });
+    const keeperCard = cycle4Pack.cards.find((c) => c.tier === 'keeper')!;
+
+    const result = checkKeeperSafety(session, constantRng(0));
+
+    expect(result.homeDraftedIds).toContain(keeperCard.id);
+    expect(result.homeHasKeeper).toBe(true);
+    expect(result.keeperAutoPickedThisCycle.home).toBe(true);
+    expect(result.homeLineupSlots[0]).toBe(keeperCard.id);
+    expect(result.homeCurrentPack.find((c) => c.id === keeperCard.id)).toBeUndefined();
+  });
+
+  it("reduces the auto-picked side's next PICK2 requirement to 1 (via advanceSubStep)", () => {
+    const packs = makeEightPacks();
+    const cycle4Pack = packs[0]!;
+    const session = baseSession({
+      cycle: 4,
+      subStep: 'PICK1',
+      homePicksRemaining: 0,
+      awayPicksRemaining: 0,
+      homeCurrentPack: [...cycle4Pack.cards],
+      homeHasKeeper: false,
+      awayHasKeeper: true,
+      homeLineupSlots: new Array<string | null>(11).fill(null),
+    });
+
+    const afterKeeperSafety = checkKeeperSafety(session, constantRng(0));
+    const advanced = advanceSubStep(afterKeeperSafety);
+
+    expect(advanced.subStep).toBe('PICK2');
+    expect(advanced.homePicksRemaining).toBe(1); // reduced — auto-pick counted as one of the two
+    expect(advanced.awayPicksRemaining).toBe(2); // untouched — away already had a keeper
+  });
+
+  it('places the auto-selected keeper onto the bench when the GK slot is already occupied', () => {
+    const packs = makeEightPacks();
+    const cycle4Pack = packs[0]!;
+    const lineupSlots = new Array<string | null>(11).fill(null);
+    lineupSlots[0] = 'already-here';
+    const session = baseSession({
+      cycle: 4,
+      subStep: 'PICK1',
+      homePicksRemaining: 0,
+      awayPicksRemaining: 0,
+      homeCurrentPack: [...cycle4Pack.cards],
+      homeHasKeeper: false,
+      homeLineupSlots: lineupSlots,
+    });
+    const keeperCard = cycle4Pack.cards.find((c) => c.tier === 'keeper')!;
+
+    const result = checkKeeperSafety(session, constantRng(0));
+
+    expect(result.homeLineupSlots[0]).toBe('already-here');
+    expect(result.homeBenchIds).toContain(keeperCard.id);
+  });
+
+  it('leaves a side untouched if it already has a keeper', () => {
+    const session = baseSession({
+      cycle: 4,
+      subStep: 'PICK1',
+      homePicksRemaining: 0,
+      awayPicksRemaining: 0,
+      awayHasKeeper: true,
+    });
+
+    const result = checkKeeperSafety(session, constantRng(0));
+
+    expect(result.awayHasKeeper).toBe(true);
+    expect(result.awayDraftedIds).toEqual([]);
+    expect(result.keeperAutoPickedThisCycle.away).toBe(false);
+  });
+
+  it('is a no-op outside the cycle-4 PICK1 boundary (wrong cycle)', () => {
+    const session = baseSession({
+      cycle: 2,
+      subStep: 'PICK1',
+      homePicksRemaining: 0,
+      awayPicksRemaining: 0,
+      homeHasKeeper: false,
+    });
+
+    const result = checkKeeperSafety(session, constantRng(0));
+
+    expect(result).toBe(session);
+  });
+
+  it('is a no-op while either player still has a PICK1 pick remaining (wrong sub-step boundary)', () => {
+    const session = baseSession({
+      cycle: 4,
+      subStep: 'PICK1',
+      homePicksRemaining: 1,
+      awayPicksRemaining: 0,
+      homeHasKeeper: false,
+    });
+
+    const result = checkKeeperSafety(session, constantRng(0));
+
+    expect(result).toBe(session);
+  });
+});
+
+describe('assignBenchNumbers (D-15/D-16)', () => {
+  it('returns N distinct integers within [15,99] across repeated real-RNG runs', () => {
+    const benchIds = ['a', 'b', 'c', 'd', 'e', 'f'];
+    for (let iter = 0; iter < 20; iter++) {
+      const numbers = assignBenchNumbers(benchIds, randomInt);
+      const values = Object.values(numbers);
+
+      expect(Object.keys(numbers).length).toBe(benchIds.length);
+      expect(new Set(values).size).toBe(benchIds.length);
+      for (const v of values) {
+        expect(v).toBeGreaterThanOrEqual(15);
+        expect(v).toBeLessThanOrEqual(99);
+      }
+    }
+  });
+
+  it('returns an empty record for an empty bench', () => {
+    expect(assignBenchNumbers([], randomInt)).toEqual({});
+  });
+});
+
+describe('buildDraftView (D-14/T-29-PRIV)', () => {
+  it('exposes no opponent-prefixed keys and only this players own pack', () => {
+    const session = baseSession({ homePicksRemaining: 0, awayPicksRemaining: 1 });
+
+    const view = buildDraftView(session, 'home');
+
+    const keys = Object.keys(view);
+    expect(keys).not.toContain('awayCurrentPack');
+    expect(keys).not.toContain('homeCurrentPack');
+    expect(keys.some((k) => /^away/i.test(k))).toBe(false);
+    expect(keys.some((k) => /^home/i.test(k))).toBe(false);
+    expect(view.currentPack).toEqual(session.homeCurrentPack);
+  });
+
+  it('computes waitingForOpponent true once this player is done and the opponent is not', () => {
+    const session = baseSession({
+      homePicksRemaining: 0,
+      awayPicksRemaining: 1,
+      draftComplete: false,
+    });
+
+    const view = buildDraftView(session, 'home');
+
+    expect(view.waitingForOpponent).toBe(true);
+  });
+
+  it('computes waitingForOpponent false while this player still has picks remaining', () => {
+    const session = baseSession({ homePicksRemaining: 1, awayPicksRemaining: 0 });
+
+    const view = buildDraftView(session, 'home');
+
+    expect(view.waitingForOpponent).toBe(false);
+  });
+
+  it('computes waitingForOpponent false once the draft is complete, even if picksRemaining is stale', () => {
+    const session = baseSession({
+      homePicksRemaining: 0,
+      awayPicksRemaining: 0,
+      draftComplete: true,
+    });
+
+    const view = buildDraftView(session, 'home');
+
+    expect(view.waitingForOpponent).toBe(false);
+    expect(view.draftComplete).toBe(true);
+  });
+
+  it("reflects this side's own keeperAutoPickedThisCycle flag only", () => {
+    const session = baseSession({
+      keeperAutoPickedThisCycle: { home: true, away: false },
+    });
+
+    const homeView = buildDraftView(session, 'home');
+    const awayView = buildDraftView(session, 'away');
+
+    expect(homeView.keeperAutoPickedThisCycle).toBe(true);
+    expect(awayView.keeperAutoPickedThisCycle).toBe(false);
   });
 });
