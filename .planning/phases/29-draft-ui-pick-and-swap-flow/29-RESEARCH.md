@@ -21,7 +21,7 @@
 
 - D-05 (major departure from a literal separate-screen reading): The draft-pack carousel renders directly over/above the lineup screen (same screen as `LineupAssignmentScreen`, not a separate step). Dragging a card from the draft-pack carousel onto a lineup slot or onto the bench is the pick action — it simultaneously drafts the card and places it. No intermediate "drafted but unplaced" state.
 - D-06: Cards can only move **out of** the draft-pack row (row → lineup, row → bench). Cards can never be dragged back into the draft-pack row once picked.
-- D-07: Dragging a card onto an already-occupied lineup slot replaces the occupant, and the replaced player moves to the bench (not discarded, not lost).
+- D-07: Dragging a card onto an already-occupied lineup slot replaces the occupant, and the replaced player moves to the bench (not discarded, not lost). Exception (D-24, 29-10 gap closure): when the source is itself a lineup slot, this is a true two-way swap instead — the displaced occupant returns to the source slot, never the bench.
 - D-08: Once drafted, cards move freely between lineup and bench (both directions) for the rest of the draft process — same drag-and-drop swap pattern `LineupAssignmentScreen` already has for Standard mode.
 - D-09: Slot-role restriction: only a GK card can be dropped on the GK slot (and only the GK slot accepts a GK card). Every other slot accepts any drafted player regardless of role.
 - D-10: Pack-swap cycle gating (D-01/D-03) is fully independent of lineup/bench rearrangement. Only dragging a card off the draft-pack row counts as "the pick" and advances cycle state; freely rearranging already-drafted cards between lineup and bench afterward has no effect on cycle progression.

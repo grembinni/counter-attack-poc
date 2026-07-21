@@ -286,8 +286,15 @@ export function applyRearrange(
   if (to.type === 'slot') {
     const displaced = lineupSlots[to.slotIndex];
     if (displaced) {
-      // D-07: displace the destination slot's current occupant to the bench.
-      benchIds = [...benchIds, displaced];
+      if (from.type === 'slot') {
+        // D-24: slot->slot is a true two-way swap — the displaced occupant returns to the
+        // dragged card's just-vacated source slot, never the bench.
+        lineupSlots[from.slotIndex] = displaced;
+      } else {
+        // D-07: bench-origin moves displace the destination slot's current occupant to the
+        // bench — there is no source lineup slot to return it to.
+        benchIds = [...benchIds, displaced];
+      }
     }
     lineupSlots[to.slotIndex] = cardId;
   } else {

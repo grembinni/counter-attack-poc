@@ -36,7 +36,7 @@
 - [ ] **DRAFT-06**: Draft screen appears between team/formation selection and lineup; displays a carousel of 7 cards above the lineup grid
 - [x] **DRAFT-07**: Pick-and-swap draft flow per cycle: pick 1 card → swap packs; pick 2 cards → swap packs; pick 1 card → open new pack; repeat for 4 cycles (16 cards drafted per player)
 - [x] **DRAFT-08**: On the 4th draft cycle, if a player has not yet selected a keeper after their first pick, a keeper is automatically selected as their second pick; the pack passed has one fewer card; in the next pick phase that player selects 1 card instead of 2
-- [ ] **DRAFT-09**: Bench is dynamically sized to hold all drafted cards not placed in the 11-player starting lineup; bench uses the same card-carousel display as the draft stage
+- [x] **DRAFT-09**: Bench is dynamically sized to hold all drafted cards not placed in the 11-player starting lineup; bench uses the same card-carousel display as the draft stage
 - [x] **DRAFT-10**: After draft is complete, the lineup screen auto-positions and auto-numbers all drafted players by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with a random unused number in the 15-99 range (D-16: random 15-99, supersedes the earlier "sequential" wording)
 
 ## Future Requirements
@@ -88,7 +88,7 @@
 | DRAFT-06    | Phase 30 | Pending  |
 | DRAFT-07    | Phase 30 | Complete |
 | DRAFT-08    | Phase 30 | Complete |
-| DRAFT-09    | Phase 30 | Pending  |
+| DRAFT-09    | Phase 30 | Complete |
 | DRAFT-10    | Phase 30 | Complete |
 
 **Coverage:**

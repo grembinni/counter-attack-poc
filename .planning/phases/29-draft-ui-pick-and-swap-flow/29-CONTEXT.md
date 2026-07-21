@@ -26,7 +26,7 @@ Build the real-time draft UI: a 7-card draft-pack carousel rendered directly abo
 
 - **D-05 (major departure from a literal separate-screen reading):** The draft-pack carousel renders directly over/above the lineup screen (same screen as `LineupAssignmentScreen`, not a separate step). Dragging a card from the draft-pack carousel onto a lineup slot **or** onto the bench is the pick action — it simultaneously drafts the card and places it. There is no intermediate "drafted but unplaced" state.
 - **D-06:** Cards can only move **out of** the draft-pack row (row → lineup, row → bench). Cards can never be dragged back into the draft-pack row once picked.
-- **D-07:** Dragging a card onto an already-occupied lineup slot replaces the occupant, and the replaced player moves to the bench (not discarded, not lost).
+- **D-07 (narrowed by D-24, 29-10 gap closure):** Dragging a card onto an already-occupied lineup slot replaces the occupant, and the replaced player moves to the bench (not discarded, not lost) — this applies only when the move's SOURCE is NOT a lineup slot: drafting a fresh pack card onto an occupied slot (`applyPick`), and bench→slot rearrangement. See D-24 for the slot↔slot exception.
 - **D-08:** Once drafted, cards move freely between lineup and bench (both directions) for the rest of the draft process — same drag-and-drop swap pattern `LineupAssignmentScreen` already has for Standard mode (`handleDragStart`/`handleDragOver`/`handleDrop`/`handleDragEnd`).
 - **D-09:** Slot-role restriction: only a GK card can be dropped on the GK slot (and only the GK slot accepts a GK card). Every other slot accepts any drafted player regardless of role — no DEF/MID/FWD role matching.
 - **D-10:** Pack-swap cycle gating (D-01/D-03) is fully independent of lineup/bench rearrangement. Only dragging a card _off the draft-pack row_ counts as "the pick" and advances cycle state; freely rearranging already-drafted cards between lineup and bench afterward has no effect on cycle progression.
@@ -53,6 +53,7 @@ Build the real-time draft UI: a 7-card draft-pack carousel rendered directly abo
 - **D-21:** The bench uses the identical carousel card style as the draft-pack row, positioned below the main lineup grid.
 - **D-22:** Empty (unfilled) lineup slots during the draft reuse the existing `LineupAssignmentScreen` empty-slot placeholder style — no new empty-state component.
 - **D-23:** The draft-pack carousel row disappears entirely once the draft completes (all 16 picks resolved) — leaving just the finalized lineup + bench, which then proceeds into the existing lineup-confirm flow.
+- **D-24 (29-10 gap closure, 29-VERIFICATION.md Gap 1):** When BOTH `from` and `to` are lineup slots, `applyRearrange` performs a TRUE two-way swap — the displaced destination occupant returns to the dragged card's just-vacated source slot, never the bench. This is the correct semantics for a same-lineup drag (a trade between two starters). D-07's bench-displacement rule applies ONLY when the move originates from the bench or the draft pack (i.e. `applyPick`'s occupied-slot branch, and bench→slot rearrangement) — never when the source is itself a lineup slot. Do not re-introduce bench-displacement on slot↔slot moves.
 
 ### Claude's Discretion
 
