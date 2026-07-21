@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: verifying
+status: executing
 stopped_at: Phase 29 UI-SPEC approved
-last_updated: '2026-07-21T18:21:27.264Z'
-last_activity: 2026-07-21 -- Phase 29 human verification found gaps
+last_updated: '2026-07-21T18:33:48.435Z'
+last_activity: 2026-07-21 -- Phase 29 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 18
-  completed_plans: 12
-  percent: 67
+  total_plans: 21
+  completed_plans: 18
+  percent: 75
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — GAPS FOUND
-Plan: 6 of 6 executed
-Status: All 6 plans executed; human verification (29-06) found 3 critical gaps — see 29-VERIFICATION.md. Phase not complete; next step is /gsd-plan-phase 29 --gaps
-Last activity: 2026-07-21 -- Phase 29 human verification found gaps
+Phase: 29 (draft-ui-pick-and-swap-flow) — EXECUTING
+Plan: 1 of 9
+Status: Executing Phase 29
+Last activity: 2026-07-21 -- Phase 29 execution started
 
 Progress: [██████████] 100% plans executed, gate not yet passed
 
