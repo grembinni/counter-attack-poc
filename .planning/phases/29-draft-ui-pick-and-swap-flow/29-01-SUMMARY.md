@@ -96,3 +96,7 @@ None - plan executed exactly as written. Both tasks matched their `<action>` blo
 
 _Phase: 29-draft-ui-pick-and-swap-flow_
 _Completed: 2026-07-21_
+
+## Self-Check: PASSED
+
+All claimed files exist and both task commits (`93b0860`, `a225a69`) are present in git log.
