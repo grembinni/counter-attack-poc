@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: executing
-stopped_at: Phase 29-09 Task 2 checkpoint resolved — human two-browser walkthrough found 1 new gap (lineup slot-to-slot swap semantics); 29-VERIFICATION.md updated to gaps_found; 29-10 gap-closure plan recommended
-last_updated: '2026-07-21T20:23:52.169Z'
-last_activity: 2026-07-21 -- Phase 29 execution started
+status: verifying
+stopped_at: Phase 29-10 gap-closure plan executed and re-verified — slot-to-slot swap fix confirmed correct, but re-verification found 1 new gap (3 pre-existing CRITICAL findings in draft→game lifecycle handling, roomHandlers.ts/createServer.ts) plus an outstanding human two-browser walkthrough; 29-VERIFICATION.md updated to gaps_found
+last_updated: '2026-07-21T21:15:00.000Z'
+last_activity: 2026-07-21 -- Phase 29-10 executed, merged, and re-verified; gaps_found (new gap-closure cycle needed before phase completion)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 75
 ---
 
@@ -18,12 +18,12 @@ progress:
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — EXECUTING
-Plan: 1 of 10
-Status: Executing Phase 29
-Last activity: 2026-07-21 -- Phase 29 execution started
+Phase: 29 (draft-ui-pick-and-swap-flow) — VERIFYING (gap-closure re-verification)
+Plan: 10 of 10 (all plans executed)
+Status: Phase 29 NOT complete. Plan 29-10 fixed the lineup slot-to-slot swap bug (confirmed by direct code/test inspection during re-verification). Re-verification then surfaced a pre-existing, out-of-scope gap: 3 CRITICAL findings in the draft→game lifecycle (LINEUP_CONFIRM not checking draftComplete, DRAFT_PICK not checking match-already-started, a reconnect dead-window after draft completes but before both sides confirm) — see 29-VERIFICATION.md and 29-REVIEW.md. A live two-browser human walkthrough targeting the slot-to-slot swap fix is also still outstanding.
+Last activity: 2026-07-21 -- Phase 29-10 executed, merged, and re-verified; gaps_found
 
-Progress: [██████████] 100% plans executed for the 29-07/29-08/29-09 gap-closure cycle; Phase 29 still gated on one more gap-closure cycle (29-10) before it can be marked complete
+Progress: [██████████] 100% plans executed (10/10); Phase 29 gated on one more gap-closure cycle for the draft→game lifecycle findings before it can be marked complete
 
 ## Project Reference
 
