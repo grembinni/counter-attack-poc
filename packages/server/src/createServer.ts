@@ -28,6 +28,7 @@ import { registerRoomHandlers } from './roomHandlers.js';
 import { registerGameHandlers } from './gameHandlers.js';
 import { sessionMiddleware } from './sessionMiddleware.js';
 import { getRoom } from './roomStore.js';
+import { buildDraftView } from './draftSession.js';
 import { ServerEvents } from '@counter-attack/shared';
 
 /**
@@ -139,6 +140,16 @@ export function buildServer(): {
         if (room.gameState !== null) {
           socket.emit(ServerEvents.GAME_STATE, room.gameState);
           socket.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
+        }
+
+        // Phase 29 D-13/Pitfall 3: GAME_STATE is null throughout the entire pre-game draft
+        // flow (team select -> uniform -> formation -> draft), so the re-emit above no-ops
+        // for a mid-draft reconnect — close that gap by re-sending the reconnecting
+        // player's own private draft view. T-29-05: emit ONLY to this socket (never
+        // io.to/socket.to) — the opponent's pack must never leak via a reconnect re-sync.
+        if (room.teamType === 'draft' && room.draftSession && !room.draftSession.draftComplete) {
+          const side = socket.data.playerSlot === 1 ? 'home' : 'away';
+          socket.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, side));
         }
 
         // Re-register disconnect handler so the reconnected socket can disconnect again.

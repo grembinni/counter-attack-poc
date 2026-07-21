@@ -186,7 +186,7 @@ Plans:
 
 ### Phase 29: Draft UI + Pick-and-Swap Flow
 
-**Goal**: Players can complete a full draft session in real time — a 7-card carousel screen appears between team selection and lineup; 4 pick-and-swap cycles deliver 16 cards per player; keeper safety triggers automatically on the 4th cycle if needed; overflow drafted players appear on a dynamic bench carousel; post-draft, all players are auto-positioned by total stat and team colors are applied.
+**Goal**: Players can complete a full draft session in real time — a 7-card carousel screen appears between team selection and lineup; 4 pick-and-swap cycles deliver 16 cards per player; keeper safety triggers automatically on the 4th cycle if needed; overflow drafted players appear on a dynamic bench carousel; post-draft, players are NOT auto-repositioned (the lineup/bench arrangement made during the draft stands, D-15) — jersey numbers are applied automatically (starters keep their role-appropriate slot numbers; bench players receive a random unused number in the 15-99 range, D-15/D-16) and team colors are applied.
 **Depends on**: Phase 28
 **Requirements**: DRAFT-06, DRAFT-07, DRAFT-08, DRAFT-09, DRAFT-10
 **Success Criteria** (what must be TRUE):
@@ -195,7 +195,7 @@ Plans:
 2. Players complete 4 draft cycles following the pick-and-swap pattern (pick 1 → swap packs; pick 2 → swap packs; pick 1 → open new pack; repeat ×4 = 16 cards per player) via real-time WebSocket coordination
 3. On the 4th cycle, if a player has not yet picked a keeper after their first pick, a keeper is automatically selected as their second pick; that player selects 1 card (not 2) in the following pick phase
 4. All drafted players not placed in the starting 11 appear on a dynamically-sized bench carousel using the same card display as the draft stage
-5. After the draft completes, all drafted players are auto-positioned and numbered by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with sequential numbers
+5. After the draft completes, players are NOT auto-repositioned — the lineup/bench arrangement made during the draft stands (D-15); jersey numbers are applied automatically (starters keep their role-appropriate slot numbers; bench players receive a random unused number in the 15-99 range, not sequential, D-15/D-16); team badge and colors are applied to all player cards
    **Plans**: 6 plans
    **UI hint**: yes
 
