@@ -394,6 +394,14 @@ export function registerRoomHandlers(
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_DRAFT_POOL');
             return;
           }
+          // IN-03 (Phase 27 review): reject duplicate entries — the checkbox UI can
+          // never produce them, but a hand-crafted socket payload
+          // (draftPools: ['original', 'original']) would otherwise pass the allow-list
+          // check above and get stored/broadcast as-is.
+          if (new Set(draftPools).size !== draftPools.length) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_DRAFT_POOL');
+            return;
+          }
         }
 
         // Store settings and lock.
