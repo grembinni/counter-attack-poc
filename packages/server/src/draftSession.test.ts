@@ -281,6 +281,45 @@ describe('applyRearrange (D-08/D-10)', () => {
     expect(result.error).toBe('INVALID_REARRANGE');
     expect(result.session).toBe(session);
   });
+
+  it('performs a true two-way swap when both from and to are occupied lineup slots (D-24)', () => {
+    const lineupSlots = new Array<string | null>(11).fill(null);
+    lineupSlots[3] = 'card-a';
+    lineupSlots[7] = 'card-b';
+    const preBenchIds = ['unrelated-bench-card'];
+    const session = baseSession({ homeLineupSlots: lineupSlots, homeBenchIds: preBenchIds });
+
+    const result = applyRearrange(
+      session,
+      'home',
+      { type: 'slot', slotIndex: 3 },
+      { type: 'slot', slotIndex: 7 },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.session.homeLineupSlots[7]).toBe('card-a');
+    expect(result.session.homeLineupSlots[3]).toBe('card-b');
+    expect(result.session.homeBenchIds).toEqual(preBenchIds);
+  });
+
+  it('moves a card slot-to-slot onto an EMPTY destination without touching the bench', () => {
+    const lineupSlots = new Array<string | null>(11).fill(null);
+    lineupSlots[4] = 'card-c';
+    const preBenchIds = ['unrelated-bench-card'];
+    const session = baseSession({ homeLineupSlots: lineupSlots, homeBenchIds: preBenchIds });
+
+    const result = applyRearrange(
+      session,
+      'home',
+      { type: 'slot', slotIndex: 4 },
+      { type: 'slot', slotIndex: 9 },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.session.homeLineupSlots[9]).toBe('card-c');
+    expect(result.session.homeLineupSlots[4]).toBeNull();
+    expect(result.session.homeBenchIds).toEqual(preBenchIds);
+  });
 });
 
 describe('openNextPack (D-01/D-04)', () => {
