@@ -109,10 +109,6 @@ export function App() {
       setHomePickedTeam(teamId);
     }
 
-    function onTeamSpeedChanged(speed: GameSpeed) {
-      setSelectedSpeed(speed);
-    }
-
     // Phase 27 (DRAFT-01/D-02/D-03): broadcast carrying the host's confirmed settings.
     // Host receives this as the echo of their own ROOM_SETTINGS_CONFIRM emit and moves off
     // GAME_SETTINGS to WAITING; joiner receives it at join-time and never sees GAME_SETTINGS.
@@ -169,7 +165,6 @@ export function App() {
     socket.on(ServerEvents.GAME_DISCONNECT_WARNING, onDisconnectWarning);
     socket.on(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
     socket.on(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
-    socket.on(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
     socket.on(ServerEvents.ROOM_SETTINGS_CONFIRMED, onRoomSettingsConfirmed);
     socket.on(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
     socket.on(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);
@@ -187,7 +182,6 @@ export function App() {
       socket.off(ServerEvents.GAME_DISCONNECT_WARNING, onDisconnectWarning);
       socket.off(ServerEvents.TEAM_SELECTION_START, onTeamSelectionStart);
       socket.off(ServerEvents.TEAM_HOME_PICKED, onTeamHomePicked);
-      socket.off(ServerEvents.TEAM_SPEED_CHANGED, onTeamSpeedChanged);
       socket.off(ServerEvents.ROOM_SETTINGS_CONFIRMED, onRoomSettingsConfirmed);
       socket.off(ServerEvents.UNIFORM_SELECTION_START, onUniformSelectionStart);
       socket.off(ServerEvents.UNIFORM_HOME_CONFIRMED, onUniformHomeConfirmed);

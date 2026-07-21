@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameSpeed, GameState, HexCoord } from '@counter-attack/shared';
+import type { GameState, HexCoord } from '@counter-attack/shared';
 import {
   validateMove,
   hexesInRange,
@@ -167,11 +167,6 @@ export type GameStore = {
   emitFreeKickMove: (pieceId: string, to: HexCoord) => void;
   /** OFFSIDE-02 (Phase 17 D-29): emit game:free-kick-ready — FREE_KICK_SETUP confirmation. */
   emitFreeKickReady: () => void;
-  /**
-   * UX-07 (Phase 18.4): home player emits chosen game speed (before match start).
-   * Emits TEAM_SPEED_SET event with the selected speed value.
-   */
-  emitTeamSpeed: (speed: GameSpeed) => void;
 };
 
 /**
@@ -953,10 +948,5 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitFreeKickReady: () => {
     socket.emit(ClientEvents.GAME_FREE_KICK_READY);
-  },
-
-  emitTeamSpeed: (speed) => {
-    // UX-07 (Phase 18.4): home player emits chosen game speed before match start.
-    socket.emit(ClientEvents.TEAM_SPEED_SET, speed);
   },
 }));
