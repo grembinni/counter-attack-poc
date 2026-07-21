@@ -176,3 +176,74 @@ describe('getSquadPlayers — DATA-02: squad resolution from PLAYER_POOL', () =>
     expect(players.every((p) => p.sourceTeamId === 'crew')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// PoolPlayer poolTag — DRAFT-04 / D-01 / D-02 / D-03
+// ---------------------------------------------------------------------------
+
+describe('PoolPlayer poolTag — DRAFT-04 / D-01 / D-02 / D-03: reserved Legends/Icons tagging', () => {
+  it('exactly 10 players have a defined poolTag; 5 legend and 5 icon', () => {
+    const tagged = PLAYER_POOL.filter((p) => p.poolTag !== undefined);
+    expect(tagged).toHaveLength(10);
+    expect(tagged.filter((p) => p.poolTag === 'legend')).toHaveLength(5);
+    expect(tagged.filter((p) => p.poolTag === 'icon')).toHaveLength(5);
+  });
+
+  it('the 5 legends match the expected players', () => {
+    const legends = PLAYER_POOL.filter((p) => p.poolTag === 'legend');
+    const names = legends.map((p) => `${p.firstName} ${p.lastName}`.trim());
+    expect(names).toContain('Diego Maradona');
+    expect(names).toContain('Paolo Maldini');
+    expect(names).toContain('Pelé');
+    expect(names).toContain('Ronaldinho');
+    expect(names).toContain('Zinedine Zidane');
+  });
+
+  it('the 5 icons match the expected players', () => {
+    const icons = PLAYER_POOL.filter((p) => p.poolTag === 'icon');
+    const names = icons.map((p) => `${p.firstName} ${p.lastName}`.trim());
+    expect(names).toContain('Cristiano Ronaldo');
+    expect(names).toContain('Erling Haaland');
+    expect(names).toContain('Kevin De Bruyne');
+    expect(names).toContain('Neymar Jr');
+    expect(names).toContain('Virgil van Dijk');
+  });
+
+  it('no player firstName or lastName contains a (L) or (M) suffix', () => {
+    for (const p of PLAYER_POOL) {
+      expect(p.firstName).not.toMatch(/\((L|M)\)/);
+      expect(p.lastName).not.toMatch(/\((L|M)\)/);
+    }
+  });
+
+  it('mononym Pelé has empty lastName and poolTag legend', () => {
+    const pele = PLAYER_POOL.find((p) => p.firstName === 'Pelé');
+    expect(pele).toBeDefined();
+    expect(pele.lastName).toBe('');
+    expect(pele.poolTag).toBe('legend');
+  });
+
+  it('mononym Ronaldinho has empty lastName and poolTag legend', () => {
+    const ronaldinho = PLAYER_POOL.find((p) => p.firstName === 'Ronaldinho');
+    expect(ronaldinho).toBeDefined();
+    expect(ronaldinho.lastName).toBe('');
+    expect(ronaldinho.poolTag).toBe('legend');
+  });
+
+  it('decoys Neymar Andre and Cristiano Ribeiro stay untagged', () => {
+    const neymarAndre = PLAYER_POOL.find((p) => p.firstName === 'Neymar' && p.lastName === 'Andre');
+    const cristianoRibeiro = PLAYER_POOL.find(
+      (p) => p.firstName === 'Cristiano' && p.lastName === 'Ribeiro',
+    );
+    expect(neymarAndre).toBeDefined();
+    expect(neymarAndre.poolTag).toBeUndefined();
+    expect(cristianoRibeiro).toBeDefined();
+    expect(cristianoRibeiro.poolTag).toBeUndefined();
+  });
+
+  it("'original' pool derivation (free-agent AND no poolTag) yields exactly 46 players", () => {
+    const original = PLAYER_POOL.filter((p) => p.sourceTeamId === 'free-agent' && !p.poolTag);
+    expect(original).toHaveLength(46);
+    expect(original.filter((p) => p.role === 'GK')).toHaveLength(4);
+  });
+});
