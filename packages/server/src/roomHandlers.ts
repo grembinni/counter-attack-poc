@@ -694,13 +694,48 @@ export function registerRoomHandlers(
       if (room.isProcessing) return;
       room.isProcessing = true;
       try {
-        // WRONG_PHASE guard: assignments not yet computed.
-        if (!room.homeAssignment || !room.awayAssignment) {
+        const isDraftRoom = room.teamType === 'draft' && room.draftSession != null;
+
+        // WRONG_PHASE guard: assignments not yet computed (Standard mode only — draft mode
+        // sources its starting order from draftSession.*LineupSlots instead, checked below).
+        if (!isDraftRoom && (!room.homeAssignment || !room.awayAssignment)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
           return;
         }
 
         const playerSlot = socket.data.playerSlot;
+
+        // Gap-closure Plan 07 (T-29-07-03): for draft rooms, resolve the confirming side's
+        // starting order from the server-held draftSession — never from room.*Assignment
+        // (which stays an Array(11).fill(null) shell for the lifetime of a draft room) and
+        // never from the client's confirmedOrder payload (T-29-07-02/ASVS V5). Reject BEFORE
+        // setting the confirmed flag if the confirming side's resolved starting order has any
+        // unfilled slot or any id that fails to resolve against PLAYER_POOL — this prevents an
+        // undefined player from ever reaching buildInitialGameState. Both sides pass this same
+        // check independently (each on its own LINEUP_CONFIRM), so by the time both
+        // homeLineupConfirmed/awayLineupConfirmed are true, both starting orders are known-complete.
+        const resolveDraftOrder = (
+          lineupSlots: (string | null)[],
+        ): import('@counter-attack/shared').PoolPlayer[] | null => {
+          const resolved: import('@counter-attack/shared').PoolPlayer[] = [];
+          for (const id of lineupSlots) {
+            if (id === null) return null;
+            const player = PLAYER_POOL.find((p) => p.id === id);
+            if (!player) return null;
+            resolved.push(player);
+          }
+          return resolved;
+        };
+
+        if (isDraftRoom) {
+          const session = room.draftSession!;
+          const side = playerSlot === 1 ? 'home' : 'away';
+          const slotsToCheck = side === 'home' ? session.homeLineupSlots : session.awayLineupSlots;
+          if (resolveDraftOrder(slotsToCheck) === null) {
+            socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_INCOMPLETE');
+            return;
+          }
+        }
 
         // Set the confirming player's flag (idempotent — setting true twice is fine).
         if (playerSlot === 1) {
@@ -714,14 +749,25 @@ export function registerRoomHandlers(
           return; // still waiting for the other player
         }
 
-        // D-11: resolve stored PlayerId[] → PoolPlayer[] in assignment order.
-        // Server ignores client's confirmedOrder — uses room.*Assignment (ASVS V5).
-        const confirmedHomeOrder = room.homeAssignment.map(
-          (id) => PLAYER_POOL.find((p) => p.id === id)!,
-        );
-        const confirmedAwayOrder = room.awayAssignment.map(
-          (id) => PLAYER_POOL.find((p) => p.id === id)!,
-        );
+        let confirmedHomeOrder: import('@counter-attack/shared').PoolPlayer[];
+        let confirmedAwayOrder: import('@counter-attack/shared').PoolPlayer[];
+
+        if (isDraftRoom) {
+          const session = room.draftSession!;
+          // Both sides already passed the per-side completeness check above (on their own
+          // confirm) before their flag was set — resolveDraftOrder cannot return null here.
+          confirmedHomeOrder = resolveDraftOrder(session.homeLineupSlots)!;
+          confirmedAwayOrder = resolveDraftOrder(session.awayLineupSlots)!;
+        } else {
+          // D-11: resolve stored PlayerId[] → PoolPlayer[] in assignment order.
+          // Server ignores client's confirmedOrder — uses room.*Assignment (ASVS V5).
+          confirmedHomeOrder = room.homeAssignment!.map(
+            (id) => PLAYER_POOL.find((p) => p.id === id)!,
+          );
+          confirmedAwayOrder = room.awayAssignment!.map(
+            (id) => PLAYER_POOL.find((p) => p.id === id)!,
+          );
+        }
 
         // D-11: build game state from the confirmed player orderings.
         // All required fields were stored on room during UNIFORM_CONFIRM.
@@ -857,6 +903,12 @@ export function registerRoomHandlers(
     // Phase 29 D-08/D-10: moves an ALREADY-DRAFTED card between lineup slot(s) and/or the
     // bench. Never touches cycle/subStep/picksRemaining (D-10) — carries NO move logic of
     // its own, mirroring how DRAFT_PICK delegates placement to applyPick.
+    // Gap-closure Plan 07 (T-29-07-01): rearrangement remains legal AFTER draftComplete —
+    // the whole point of D-08/D-15 is that a player can freely arrange lineup/bench once
+    // the draft ends and before they confirm. Only reject when there is no session at all,
+    // or when the REQUESTING side has already locked in (confirmed lineup) or the match has
+    // already started (room.gameState set) — resolved from socket.data.playerSlot, never a
+    // client-supplied field (T-29-02).
     // -----------------------------------------------------------------------
     socket.on(ClientEvents.DRAFT_REARRANGE, (payload: DraftRearrangePayload) => {
       const roomCode = socket.data.roomCode;
@@ -868,13 +920,22 @@ export function registerRoomHandlers(
       if (room.isProcessing) return;
       room.isProcessing = true;
       try {
-        if (!room.draftSession || room.draftSession.draftComplete) {
+        if (!room.draftSession) {
           socket.emit(ServerEvents.GAME_ERROR, 'NOT_DRAFTING');
           return;
         }
 
         // T-29-02: resolve side from socket.data ONLY.
         const side: DraftSide = socket.data.playerSlot === 1 ? 'home' : 'away';
+
+        // T-29-07-01: lifecycle guard — once the requesting side has confirmed its lineup,
+        // or the match has started, rearrangement is tampering, not a legal pre-confirm move.
+        const requesterConfirmed =
+          side === 'home' ? room.homeLineupConfirmed : room.awayLineupConfirmed;
+        if (requesterConfirmed || room.gameState !== null) {
+          socket.emit(ServerEvents.GAME_ERROR, 'LINEUP_ALREADY_CONFIRMED');
+          return;
+        }
 
         const { from, to } = payload;
 

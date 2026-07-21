@@ -22,8 +22,9 @@ import type {
   ServerToClientEvents,
   DraftClientView,
   DraftPickPayload,
+  GameState,
 } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, FORMATIONS } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -551,4 +552,234 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
     expect(afterRearrange.subStep).toBe(afterPick.subStep);
     expect(afterRearrange.picksRemaining).toBe(afterPick.picksRemaining);
   }, 8000);
+});
+
+// ---------------------------------------------------------------------------
+// Gap-closure Plan 07 helpers — drive a full 4-cycle draft while explicitly placing picks
+// into lineup slots (not just the bench) so BOTH sides end draftComplete with all 11
+// starting slots filled. Needed for Task 1's post-draft-rearrange tests (which need a
+// side to be able to legally LINEUP_CONFIRM) and Task 2's full-roster resolution tests.
+// ---------------------------------------------------------------------------
+
+const SLOT_ROLES = FORMATIONS['4-4-2'].slots.map((s) => s.slotRole);
+
+/** Picks the front card of the side's current pack into the first compatible empty lineup
+ * slot (GK card -> GK slot, non-GK card -> any empty non-GK slot); falls back to the bench
+ * once no compatible empty slot remains. Mirrors the GK-slot role rule enforced server-side. */
+async function pickIntoLineup(
+  who: Socket<ServerToClientEvents, ClientToServerEvents>,
+  driver: ReturnType<typeof makeDraftDriver>,
+  which: 'A' | 'B',
+): Promise<void> {
+  const view = which === 'A' ? driver.getViewA() : driver.getViewB();
+  const card = view.currentPack[0]!;
+  let destSlotIndex = -1;
+  for (let i = 0; i < SLOT_ROLES.length; i++) {
+    if (view.lineupSlots[i] !== null) continue;
+    const isGKSlot = SLOT_ROLES[i] === 'GK';
+    const isGKCard = card.role === 'GK';
+    if (isGKSlot === isGKCard) {
+      destSlotIndex = i;
+      break;
+    }
+  }
+  const destination: DraftPickPayload['destination'] =
+    destSlotIndex >= 0 ? { type: 'slot', slotIndex: destSlotIndex } : { type: 'bench' };
+  await driver.pick(who, card.id, destination);
+}
+
+/** Drives all 4 cycles to draftComplete for both sides, filling lineup slots along the way. */
+async function driveDraftToCompletionFillingLineups(
+  clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
+  clientB: Socket<ServerToClientEvents, ClientToServerEvents>,
+  viewA: DraftClientView,
+  viewB: DraftClientView,
+): Promise<ReturnType<typeof makeDraftDriver>> {
+  const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
+
+  let guard = 0;
+  while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 200) {
+    guard++;
+    if (driver.getViewA().picksRemaining > 0) {
+      await pickIntoLineup(clientA, driver, 'A');
+    } else if (driver.getViewB().picksRemaining > 0) {
+      await pickIntoLineup(clientB, driver, 'B');
+    } else {
+      break;
+    }
+  }
+
+  return driver;
+}
+
+// ---------------------------------------------------------------------------
+// Gap-closure Plan 07 Task 1 — post-draft rearrangement (DRAFT-09/DRAFT-10/D-08/D-15)
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 07 Task 1 — post-draft rearrangement', () => {
+  it('after draftComplete, two consecutive DRAFT_REARRANGE round-trips from the same side both apply', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+
+    expect(driver.getViewA().draftComplete).toBe(true);
+
+    // Round-trip 1: move the home GK-slot occupant... no — move a non-GK slot (index 1) card
+    // to the bench, then move it right back. Both must succeed and be reflected in the
+    // server-emitted DRAFT_STATE_UPDATED.
+    const beforeView = driver.getViewA();
+    const movedCardId = beforeView.lineupSlots[1]!;
+    expect(movedCardId).not.toBeNull();
+
+    const firstMove = new Promise<DraftClientView>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 1 },
+      to: { type: 'bench', benchIndex: 0 },
+    });
+    const afterFirstMove = await firstMove;
+    expect(afterFirstMove.lineupSlots[1]).toBeNull();
+    expect(afterFirstMove.benchIds).toContain(movedCardId);
+
+    // Round-trip 2: move it straight back from the bench into slot 1 — a SECOND, consecutive
+    // rearrange from the same side after draftComplete (the repeat-rearrange regression).
+    const benchIndex = afterFirstMove.benchIds.indexOf(movedCardId);
+    const secondMove = new Promise<DraftClientView>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'bench', benchIndex },
+      to: { type: 'slot', slotIndex: 1 },
+    });
+    const afterSecondMove = await secondMove;
+    expect(afterSecondMove.lineupSlots[1]).toBe(movedCardId);
+    expect(afterSecondMove.benchIds).not.toContain(movedCardId);
+
+    // D-10: cycle/subStep never touched by either rearrange.
+    expect(afterSecondMove.cycle).toBe(beforeView.cycle);
+    expect(afterSecondMove.subStep).toBe(beforeView.subStep);
+  }, 25000);
+
+  it('DRAFT_REARRANGE from a side is rejected with LINEUP_ALREADY_CONFIRMED once that side has confirmed', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+    expect(driver.getViewA().draftComplete).toBe(true);
+
+    // Home confirms its (fully filled) lineup.
+    const homeConfirmedPromise = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        reject(new Error(`Unexpected GAME_ERROR during confirm: ${reason}`));
+      });
+      // No dedicated "confirmed" ack event fired to a single side when the other hasn't
+      // confirmed yet (both-confirm mutual-wait gate) — just wait a tick for processing.
+      setTimeout(() => {
+        clearTimeout(timer);
+        resolve();
+      }, 200);
+    });
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    await homeConfirmedPromise;
+
+    // Now a further DRAFT_REARRANGE from home must be rejected — no DRAFT_STATE_UPDATED,
+    // LINEUP_ALREADY_CONFIRMED error instead.
+    let stateUpdated = false;
+    clientA.once(ServerEvents.DRAFT_STATE_UPDATED, () => {
+      stateUpdated = true;
+    });
+    const errorPromise = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 1 },
+      to: { type: 'bench', benchIndex: 0 },
+    });
+    const reason = await errorPromise;
+    expect(reason).toBe('LINEUP_ALREADY_CONFIRMED');
+    expect(stateUpdated).toBe(false);
+  }, 25000);
+});
+
+// ---------------------------------------------------------------------------
+// Gap-closure Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolution (DRAFT-10)
+// ---------------------------------------------------------------------------
+
+describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolution', () => {
+  it('after both draft-mode confirms, all 22 built pieces have real stats and board positions', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+    expect(driver.getViewA().draftComplete).toBe(true);
+    expect(driver.getViewB().draftComplete).toBe(true);
+    // Both sides must have fully filled starting lineups from our pickIntoLineup driver.
+    expect(driver.getViewA().lineupSlots.every((s) => s !== null)).toBe(true);
+    expect(driver.getViewB().lineupSlots.every((s) => s !== null)).toBe(true);
+
+    const gameStateAPromise = new Promise<GameState>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 2000);
+      clientA.once(ServerEvents.GAME_STATE, (state) => {
+        clearTimeout(timer);
+        resolve(state);
+      });
+    });
+    const gameStateBPromise = new Promise<GameState>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 2000);
+      clientB.once(ServerEvents.GAME_STATE, (state) => {
+        clearTimeout(timer);
+        resolve(state);
+      });
+    });
+
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+
+    const [gameStateA] = await Promise.all([gameStateAPromise, gameStateBPromise]);
+
+    expect(gameStateA.pieces).toHaveLength(22);
+    for (const piece of gameStateA.pieces) {
+      expect(piece.position).toBeDefined();
+      expect(piece.position.q).not.toBeNull();
+      expect(piece.position.r).not.toBeNull();
+      expect(piece.pace).toBeGreaterThan(0);
+      expect(piece.tackling).toBeGreaterThan(0);
+    }
+  }, 25000);
+
+  it('a draft LINEUP_CONFIRM with a null starting slot emits LINEUP_INCOMPLETE and does not start the game', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
+
+    // Drive only ONE pick (destined to the bench) — draftComplete never reached, so home's
+    // homeLineupSlots stay entirely null. Confirming now must be rejected server-side.
+    await driver.pick(clientA, driver.getViewA().currentPack[0]!.id, { type: 'bench' });
+
+    let gameStateReceived = false;
+    clientA.once(ServerEvents.GAME_STATE, () => {
+      gameStateReceived = true;
+    });
+
+    const errorPromise = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    const reason = await errorPromise;
+    expect(reason).toBe('LINEUP_INCOMPLETE');
+    expect(gameStateReceived).toBe(false);
+  }, 10000);
 });
