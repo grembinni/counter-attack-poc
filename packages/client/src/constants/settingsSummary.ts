@@ -3,7 +3,8 @@ import { SPEED_OPTIONS } from './speedOptions.js';
 
 /**
  * Phase 27 (DRAFT-02/DRAFT-03, D-07/D-09): shared label map for draft pool copy, reused by
- * `formatSettingsSummary` and (independently) `GameSettingsScreen.tsx`'s own checkbox labels.
+ * `formatSettingsSummary` and imported directly by `GameSettingsScreen.tsx`'s checkbox labels
+ * (WR-04 code review fix — was previously duplicated).
  */
 export const DRAFT_POOL_LABELS: Record<DraftPoolId, string> = {
   original: 'Original',

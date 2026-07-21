@@ -10,18 +10,11 @@ import { useState } from 'react';
 import { SELECTABLE_DRAFT_POOLS } from '@counter-attack/shared';
 import type { GameSpeed, TeamType, DraftPoolId } from '@counter-attack/shared';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
+import { DRAFT_POOL_LABELS } from '../constants/settingsSummary.js';
 import styles from './GameSettingsScreen.module.css';
 
 /** All 5 draft pools shown in the checkbox list; disabled-state derived from SELECTABLE_DRAFT_POOLS (D-04). */
 const ALL_DRAFT_POOLS: DraftPoolId[] = ['original', 'mls', 'international', 'legends', 'icons'];
-
-const DRAFT_POOL_LABELS: Record<DraftPoolId, string> = {
-  original: 'Original',
-  mls: 'MLS',
-  international: 'International',
-  legends: 'Legends',
-  icons: 'Icons',
-};
 
 type Props = {
   /** Called once with the bundled settings when the host clicks Confirm Settings. */
