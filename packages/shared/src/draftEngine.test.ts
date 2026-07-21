@@ -6,8 +6,15 @@ import { describe, it, expect } from 'vitest';
 import { PLAYER_POOL } from './teams.js';
 import type { PoolPlayer } from './teams.js';
 import { TEAM_CONFIGS } from './teamConfig.js';
-import { TIER_PERCENTILE_BOUNDS } from './types.js';
-import { computeTotalStat, isInPool, resolvePoolPlayers, assignTiers } from './draftEngine.js';
+import { PACKS_PER_MATCH, PACK_COMPOSITION, TIER_PERCENTILE_BOUNDS } from './types.js';
+import {
+  computeTotalStat,
+  isInPool,
+  resolvePoolPlayers,
+  assignTiers,
+  generateDraftPacks,
+} from './draftEngine.js';
+import type { RandomIntFn } from './draftEngine.js';
 
 // ---------------------------------------------------------------------------
 // Pool derivation — DRAFT-04: D-04
@@ -210,5 +217,114 @@ describe('assignTiers — DRAFT-04: D-05/D-06/D-08 rank-based percentile classif
 describe('TIER_PERCENTILE_BOUNDS — DRAFT-04: boundary constants used by classification', () => {
   it('matches the documented chase/rare/uncommon floors', () => {
     expect(TIER_PERCENTILE_BOUNDS).toEqual({ chase: 90, rare: 80, uncommon: 60 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateDraftPacks — DRAFT-05: D-09/D-10/D-11/D-12 pack composition, no-duplication,
+// backfill order, and determinism.
+// ---------------------------------------------------------------------------
+
+/**
+ * Tiny deterministic seeded PRNG (mulberry32) mapped to the `RandomIntFn` contract
+ * (min-inclusive, max-exclusive) — mirrors Node `crypto.randomInt(min, max)`. This is
+ * test-only code, so `Math` is permitted here; the SHARED engine itself stays
+ * `Math.random`-free (no global RNG is imported into draftEngine.ts).
+ */
+function createSeededRng(seed: number): RandomIntFn {
+  let state = seed >>> 0;
+  const next = (): number => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return (minInclusive: number, maxExclusive: number) =>
+    minInclusive + Math.floor(next() * (maxExclusive - minInclusive));
+}
+
+const leagueOf = (sourceTeamId: string): string | undefined =>
+  TEAM_CONFIGS[sourceTeamId as keyof typeof TEAM_CONFIGS]?.league;
+
+describe('generateDraftPacks — DRAFT-05: D-10/D-11 pack count and composition', () => {
+  it('all-pools: exactly PACKS_PER_MATCH packs of 7 cards, composed per PACK_COMPOSITION, keeper slots are always GK', () => {
+    const rng = createSeededRng(1);
+    const { packs } = generateDraftPacks(['original', 'mls', 'international'], rng);
+
+    expect(packs).toHaveLength(PACKS_PER_MATCH);
+
+    for (const pack of packs) {
+      expect(pack.cards).toHaveLength(7);
+
+      const counts: Record<string, number> = {};
+      for (const card of pack.cards) {
+        counts[card.tier] = (counts[card.tier] ?? 0) + 1;
+        if (card.tier === 'keeper') {
+          expect(card.role).toBe('GK');
+        } else {
+          expect(card.role).not.toBe('GK');
+        }
+      }
+      expect(counts).toEqual(PACK_COMPOSITION);
+    }
+  });
+});
+
+describe('generateDraftPacks — DRAFT-05: D-09 no cross-pack duplication', () => {
+  it('all-pools: no player id appears in more than one pack across the batch', () => {
+    const rng = createSeededRng(2);
+    const { packs } = generateDraftPacks(['original', 'mls', 'international'], rng);
+
+    const allIds = packs.flatMap((pack) => pack.cards.map((c) => c.id));
+    expect(allIds).toHaveLength(PACKS_PER_MATCH * 7);
+    expect(new Set(allIds).size).toBe(allIds.length);
+  });
+});
+
+describe('generateDraftPacks — DRAFT-05: D-12 pool-shortage backfill order', () => {
+  it('original-only: backfills from MLS, includes non-free-agent keepers, and pulls ZERO international cards', () => {
+    const rng = createSeededRng(3);
+    const { packs } = generateDraftPacks(['original'], rng);
+
+    expect(packs).toHaveLength(PACKS_PER_MATCH);
+    const allCards = packs.flatMap((pack) => pack.cards);
+    expect(allCards).toHaveLength(PACKS_PER_MATCH * 7);
+
+    const internationalCards = allCards.filter((c) => leagueOf(c.sourceTeamId) === 'international');
+    expect(internationalCards).toHaveLength(0);
+
+    const mlsCards = allCards.filter((c) => leagueOf(c.sourceTeamId) === 'mls');
+    expect(mlsCards.length).toBeGreaterThan(0);
+
+    const keeperCards = allCards.filter((c) => c.tier === 'keeper');
+    expect(keeperCards).toHaveLength(PACKS_PER_MATCH * PACK_COMPOSITION.keeper);
+    const nonFreeAgentKeepers = keeperCards.filter((c) => c.sourceTeamId !== 'free-agent');
+    expect(nonFreeAgentKeepers.length).toBeGreaterThan(0);
+  });
+
+  it('mls-only: backfills from Original first (fallback order); International untouched', () => {
+    const rng = createSeededRng(4);
+    const { packs } = generateDraftPacks(['mls'], rng);
+
+    expect(packs).toHaveLength(PACKS_PER_MATCH);
+    const allCards = packs.flatMap((pack) => pack.cards);
+
+    const internationalCards = allCards.filter((c) => leagueOf(c.sourceTeamId) === 'international');
+    expect(internationalCards).toHaveLength(0);
+
+    const originalCards = allCards.filter((c) => c.sourceTeamId === 'free-agent' && !c.poolTag);
+    expect(originalCards.length).toBeGreaterThan(0);
+  });
+});
+
+describe('generateDraftPacks — DRAFT-05: determinism given the same injected RNG', () => {
+  it('two runs with identically-seeded rng produce deep-equal packs', () => {
+    const rngA = createSeededRng(42);
+    const rngB = createSeededRng(42);
+
+    const resultA = generateDraftPacks(['original', 'mls', 'international'], rngA);
+    const resultB = generateDraftPacks(['original', 'mls', 'international'], rngB);
+
+    expect(resultA.packs).toEqual(resultB.packs);
   });
 });
