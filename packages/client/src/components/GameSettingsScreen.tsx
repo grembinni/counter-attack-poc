@@ -40,7 +40,12 @@ export function GameSettingsScreen({ onConfirm }: Props) {
     // source of truth for which pools may be toggled (not a hardcoded id check).
     if (!SELECTABLE_DRAFT_POOLS.includes(poolId)) return;
     setDraftPools((prev) =>
-      prev.includes(poolId) ? prev.filter((p) => p !== poolId) : [...prev, poolId],
+      prev.includes(poolId)
+        ? prev.filter((p) => p !== poolId)
+        : // IN-02 (Phase 27 review): keep the array in canonical ALL_DRAFT_POOLS order
+          // (not click order) so the settings summary always reads e.g. "MLS,
+          // International" instead of the order the host happened to click checkboxes in.
+          [...prev, poolId].sort((a, b) => ALL_DRAFT_POOLS.indexOf(a) - ALL_DRAFT_POOLS.indexOf(b)),
     );
   }
 
