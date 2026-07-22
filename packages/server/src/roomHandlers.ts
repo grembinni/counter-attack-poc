@@ -54,11 +54,10 @@ import type { Room } from './roomStore.js';
 import { generateMatchPacks } from './draftPacks.js';
 import {
   createDraftSession,
-  openNextPack,
+  openNextRound,
   applyPick,
   applyRearrange,
   advanceSubStep,
-  checkKeeperSafety,
   assignBenchNumbers,
   buildDraftView,
 } from './draftSession.js';
@@ -408,8 +407,9 @@ export function registerRoomHandlers(
         }
 
         // T-27-04: draft-pool requirement only applies in draft mode.
-        // T-27-02/Pitfall 3: validate against SELECTABLE_DRAFT_POOLS (3 values), NOT the
-        // full 5-value DraftPoolId type — Legends/Icons are disabled client-side only (D-04).
+        // T-30-01/D-08: validate against SELECTABLE_DRAFT_POOLS (now 5 values — legends/icons
+        // admitted per Phase 30 D-08) rather than any hardcoded pool-name literal. This is the
+        // single source of truth shared with the client's checkbox gating.
         if (teamType === 'draft') {
           if (!Array.isArray(draftPools) || draftPools.length < 1) {
             socket.emit(ServerEvents.GAME_ERROR, 'DRAFT_POOL_REQUIRED');
@@ -573,8 +573,8 @@ export function registerRoomHandlers(
               room.homeAssignment = Array(11).fill(null) as string[];
               room.awayAssignment = Array(11).fill(null) as string[];
 
-              // Open cycle-1 packs for both players now that both formations are locked in.
-              room.draftSession = openNextPack(room.draftSession!);
+              // Open round-1 (GK) packs for both players now that both formations are locked in.
+              room.draftSession = openNextRound(room.draftSession!);
 
               // D-14/Pitfall privacy: unicast each player's own view — never io.to(roomCode).emit.
               // Do NOT emit LINEUP_ASSIGNMENT_READY here — the client routes to the draft
@@ -731,10 +731,10 @@ export function registerRoomHandlers(
           const session = room.draftSession!;
 
           // Phase 29 Plan 11 (CR-01): a draft is only mechanically complete once
-          // draftSession.draftComplete flips (cycle 4 / 16 cards) — all 11 lineup slots
-          // can fill as early as cycle 3 / 12 cards while bench picks are still pending.
+          // draftSession.draftComplete flips (round 6 / 17 cards) — all 11 lineup slots
+          // can fill before the final round completes while bench picks are still pending.
           // Reject BEFORE the slot-completeness check and BEFORE setting the confirmed
-          // flag, or a full-but-incomplete draft could start a match a full cycle early.
+          // flag, or a full-but-incomplete draft could start a match a round early.
           if (!session.draftComplete) {
             socket.emit(ServerEvents.GAME_ERROR, 'DRAFT_NOT_COMPLETE');
             return;
@@ -891,17 +891,6 @@ export function registerRoomHandlers(
           return;
         }
         room.draftSession = result.session;
-
-        // DRAFT-08: cycle-4 keeper safety net — must run BEFORE advanceSubStep so the
-        // reduced picksRemaining lands on the correct player's PICK2 (draftSession.ts doc).
-        if (
-          room.draftSession.cycle === 4 &&
-          room.draftSession.subStep === 'PICK1' &&
-          room.draftSession.homePicksRemaining === 0 &&
-          room.draftSession.awayPicksRemaining === 0
-        ) {
-          room.draftSession = checkKeeperSafety(room.draftSession, randomInt);
-        }
 
         room.draftSession = advanceSubStep(room.draftSession);
 
