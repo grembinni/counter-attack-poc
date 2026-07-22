@@ -1,572 +1,265 @@
-# Pitfalls Research — Counter Attack Web
+# Pitfalls Research
 
-**Domain:** Real-time 2-player multiplayer hex-grid board game (Node.js + Socket.io + React)
-**Researched:** 2026-05-27
-**Overall confidence:** HIGH (patterns well-established in training data; external tool access unavailable for verification pass — flag any individual item marked MEDIUM/LOW before acting on it)
+**Domain:** Large-scale visual/theme refactor + code cleanup on an already-shipped, test-covered, real-time multiplayer web game (React 18 + Vite + Zustand client; Node/Express + Socket.io server; pnpm monorepo)
+**Researched:** 2026-07-22
+**Confidence:** HIGH (all findings grounded in direct inspection of this repository's source and tests — see file/line citations in each pitfall)
 
----
+> Supersedes the v1.0-era generic multiplayer/AWS pitfalls previously in this file (Socket.io listener leaks, ALB timeouts, hex-coordinate choice, etc.) for the purposes of the v1.5 "visual refresh + cleanup" milestone. Those v1.0 concerns are already resolved in the shipped codebase (server-authoritative FSM, pure `gameEngine.ts`, cube-coordinate hex math) and are not re-litigated here; this file is scoped to the specific risks of a theme/highlight/cleanup pass on top of that already-shipped system.
 
 ## Critical Pitfalls
 
-These mistakes cause rewrites, data corruption, or an unplayable game if not addressed before the phase that introduces them.
+### Pitfall 1: Literal-color test assertions break en masse when a design-token layer is introduced
 
----
+**What goes wrong:**
+The client test suite asserts directly on literal color strings (hex codes and `rgba(...)`), not on semantic identifiers. `HexCell.test.tsx` alone has 17 assertions like `expect(fills).toContain('rgba(220,50,50,1)')`. Across `HexCell.test.tsx`, `HexGrid.test.tsx`, `PieceOverlay.test.tsx`, and `PlayerStatsPanel.test.tsx` there are **60 literal-color assertions total**. If the theme work replaces raw values in `HIGHLIGHT_STYLES` (in `packages/client/src/components/HexCell.tsx`) or in `PieceOverlay.tsx`'s ring colors (`#60a5fa`, `#22c55e`, `#f97316`, `#dc2626`) with token references, all 60 assertions fail simultaneously in one commit — a "big bang" test rewrite that makes it hard to tell a real regression from an expected value-string change.
 
-### Pitfall C1: Duplicate Event Listener Accumulation (Socket.io)
+**Why it happens:**
+The tests were written to verify a value (`HIGHLIGHT_STYLES.goal.fill === 'rgba(220,50,50,1)'`) rather than a semantic contract (`HIGHLIGHT_STYLES.goal` renders as the "goal" role, whatever color that role currently maps to). This is because `HIGHLIGHT_STYLES` today is itself the terminal source of truth — there is no indirection layer between "highlight type" and "literal color" for the tests to assert against instead.
 
-**Confidence:** HIGH
-
-**What goes wrong:** Every time a React component re-renders or re-mounts, it calls `socket.on('event', handler)` again without first removing the previous listener. After 10 re-renders, 10 handlers fire on every event — state is applied 10x, causing ghost moves, double dice rolls, and impossible scores.
-
-**Why it happens:** React strict mode double-invokes effects in development; component navigation (lobby → game → lobby) re-mounts components; developers assume `socket.on` is idempotent.
-
-**Warning signs:**
-
-- Actions appear to fire twice or more in dev mode but not obviously in production
-- Game state jumps by double the expected amount (score 2 instead of 1)
-- Browser heap grows unboundedly during a session
-- `socket.eventNames()` shows the same event registered 3+ times
-
-**Prevention:**
-
-```
-// In every useEffect that registers socket listeners:
-useEffect(() => {
-  socket.on('game:state', handleState);
-  return () => {
-    socket.off('game:state', handleState);   // cleanup is mandatory
-  };
-}, []);
-```
-
-- Use a single socket instance module (not created per-component)
-- Prefer `socket.once` for one-shot handshakes
-- Add a dev-mode invariant: log a warning if the same event is registered more than twice
-
-**Phase to address:** Socket infrastructure phase (before any game events are wired)
-
----
-
-### Pitfall C2: Game State Lives on the Wrong Side
-
-**Confidence:** HIGH
-
-**What goes wrong:** Developers start with "the client knows what move is valid, so let's just trust it and update client state immediately, then tell the server." Over time, the server becomes a relay instead of an authority. Two clients develop diverging state that is never reconciled. One player sees a different board than the other.
-
-**Why it happens:** It is faster to prototype with optimistic updates; server validation gets added "later" and never fully is.
+**How to avoid:**
+Before touching any color value, refactor the _lookup_, not the values: introduce a design-token module (e.g., `packages/client/src/theme/colors.ts` or a shared `THEME_TOKENS` table) and have `HIGHLIGHT_STYLES`, `PieceOverlay`'s ring colors, and CSS modules reference token names. Update the existing tests in the _same_ commit to assert against the token's exported value (`HIGHLIGHT_STYLES.goal.fill === THEME_TOKENS.dangerRed` or similar) instead of a literal string, so the test still encodes "goal renders as the red/danger role" without being tied to the literal RGB. This converts the tests from a liability into the exact regression guard needed once the palette actually changes — do this refactor-the-assertion step _before_ changing any visual value, as its own reviewable commit, so the "tests broke because we changed how they assert" commit is separated from and precedes "tests broke because the palette changed."
 
 **Warning signs:**
 
-- The server's `gameState` object only stores the last action, not the full board
-- Client has logic to compute next legal moves before the server response arrives
-- Players occasionally see different positions for the same piece
+- Grep for `rgba(` and `#[0-9a-fA-F]{3,6}` in `*.test.tsx` returns non-trivial matches before starting (already confirmed: 4 files, 60 occurrences).
+- A palette-value commit's diff touches test files only to update expected strings, with no change to test _intent_ — a sign the tests were re-baselined rather than re-architected.
 
-**Prevention:**
-
-- Server owns the single canonical `GameState` object from day one
-- Server sends full state delta (or full state snapshot) after every action
-- Client is read-only: it renders what the server sends, it sends what the player inputs
-- Define the server state shape before writing a single socket handler
-
-**Phase to address:** Project setup / architecture phase; do not defer
+**Phase to address:**
+Design-token / theme-foundation phase, as the first plan (before any component restyling plan). Treat "tests assert on token identity, not literal value" as an explicit exit criterion for that plan.
 
 ---
 
-### Pitfall C3: Room Not Cleaned Up on Disconnect
+### Pitfall 2: The "goal-line shot target" vs. "offside" red collision is two colors in two different DOM layers, not one shared constant — fixing it naively risks widening the collision or breaking the game's own visual language
 
-**Confidence:** HIGH
+**What goes wrong:**
+The described red/red collision is real but is **not a single duplicated value** — it is two independently-defined reds in two different rendering layers:
 
-**What goes wrong:** Player disconnects mid-game. The room stays in memory holding the full game state, the other player's socket, and both socket references. Over hours or days, a server accumulates hundreds of zombie rooms. Memory grows until the process crashes or the server is restarted, wiping all live games.
+- `HIGHLIGHT_STYLES.goal.fill = 'rgba(220,50,50,1)'` — a hex-tint polygon overlay (`HexCell.tsx`), used for goal-line shot targets (positive: "you may shoot here").
+- `isOffside` ring `stroke="#dc2626"` — a piece-level SVG ring (`PieceOverlay.tsx`), used for an illegal-position warning (negative: "this piece is offside").
 
-**Why it happens:** `socket.on('disconnect')` is often wired late, or only handles the "intentional leave" case, not the browser-close/network-drop case.
+Because they live in different components with different rendering roles (hex-fill vs. piece-ring), a search for "the red color" only finds one instance unless both files are checked. A naive fix (e.g., "just make offside orange") changes only the piece-ring red without auditing whether red is _also_ used elsewhere with the same "danger/stop" semantic that the physical board's rulebook and player intuition already associate with red (offside flag, danger zone). Conversely, recoloring the _goal_ highlight instead breaks an established "red = you can act here (shoot)" cue that has shipped since Phase 12 (v1.1) per the retrospective ("unified 5-type hex highlight system risk/goal/safe/kickoff/shot-path").
+
+**Why it happens:**
+Color meaning was assigned locally, component-by-component, with no central semantic registry mapping "role" (danger, warning, actionable-target, safe, neutral-info) to color. Two developers (or two phases) independently reached for red for two different roles because nothing recorded that red was already spoken for.
+
+**How to avoid:**
+Before recoloring anything, build a one-page semantic-role table enumerating every existing use of every color by _meaning_, not by hex value — e.g.: red = {goal-target (positive/actionable), offside (negative/illegal), risk/steal-danger (uses orange today, not red — confirm no drift)}, gold/`#f5c518` = {brand/room-code, kickoff centre-hex marker, header ball-position marker, confirmed-pass-target ring — already 4 unrelated meanings sharing one hex value, per the explicit comment in `GameSettingsScreen.module.css`: _"gold (#f5c518) reserved for brand/room-code, NOT used here"_}. Resolve the offside/goal collision by giving offside a **new, currently-unused hue** (do not reuse orange — it already means "risk/tackle-danger" via `HIGHLIGHT_STYLES.risk` and `.hexTackleRisk`) rather than recoloring the goal highlight, since goal-target red is the older, more load-bearing convention (shipped in v1.1) and offside is the newer addition (v1.3). Validate the choice against the physical rulebook's own color conventions if the rulebook uses a marker color for offside, to avoid contradicting players' physical-board intuition.
 
 **Warning signs:**
 
-- `rooms` Map size only grows, never shrinks
-- Server memory climbs linearly with uptime
-- After a crash, all in-progress games are lost (this is expected, but the climb should not be unbounded)
+- Any color token named generically (`red`, `danger`) rather than by role (`goalTargetRed`, `offsideWarningRed`) — a sign meanings are being merged that shouldn't be.
+- A new token that collapses two previously-distinguishable colors (e.g., risk-orange and offside-red both mapped to a single "warning" token) — check that hue, not just token name, stays distinct per role.
 
-**Prevention:**
-
-```
-socket.on('disconnect', (reason) => {
-  const room = findRoomBySocket(socket.id);
-  if (!room) return;
-  notifyOpponent(room, 'opponent_disconnected');
-  // For a POC: destroy room immediately.
-  // For production: hold room for N seconds to allow reconnect.
-  destroyRoom(room.id);
-});
-```
-
-- For POC scope: destroy room on any disconnect, notify remaining player
-- Emit `room_destroyed` to the surviving player so the client shows a proper message, not an indefinitely waiting screen
-- Add a periodic cleanup job (setInterval) that sweeps rooms older than X minutes as a safety net
-
-**Phase to address:** Room/lobby phase — wire the disconnect handler in the same commit that creates rooms
+**Phase to address:**
+Highlight-system standardization phase, specifically before implementing the new "ball location" highlight (which needs its own unused color/marker style, not a rehash of existing gold).
 
 ---
 
-### Pitfall C4: Turn Race Condition — Double Move
+### Pitfall 3: "10 highlight types" undercounts the real surface — several highlight colors are raw inline JSX polygons that never go through `HIGHLIGHT_STYLES`, so a token sweep of the lookup table alone will miss them
 
-**Confidence:** HIGH
+**What goes wrong:**
+`HexCell.tsx`'s `HIGHLIGHT_STYLES` table only declares **7** types (`safe`, `risk`, `goal`, `kickoff`, `shot-path`, `shot-path-action`, `header-target`). But `HexGrid.tsx` independently renders several more highlight colors as raw `<polygon fill="rgba(...)".../>` elements that bypass `HIGHLIGHT_STYLES` entirely:
 
-**What goes wrong:** Player A double-clicks a move button. Two `action:move` events arrive at the server within milliseconds. Server processes the first: it is valid, state advances. Server processes the second: the state check at the top of the handler passes (it still sees the first event's result before it has been fully written), and a second move is applied. The game is now in an illegal state.
+- GK_KICK_TARGET sky-blue `rgba(56,189,248,0.30)` (~line 601-610)
+- QUICK_THROW green `rgba(34,197,94,0.35)` (~line 611-621)
+- Safe pass-target green `rgba(34,197,94,0.4)` (~line 622-631)
+- Interception-risk amber via CSS module class `styles.hexTackleRisk` → `rgba(255,140,0,0.55)` defined separately in `HexGrid.module.css` (a _third_, independent definition of "risk orange" alongside `HIGHLIGHT_STYLES.risk`'s `rgba(255,140,0,1)` fill)
+- Confirmed-pass-target gold ring `#f5c518` (no fill, stroke only)
+- Centre-hex gold fill + ring `#f5c518` (KICK_OFF_SETUP)
+- HEADER-phase ball-position gold overlay `#f5c518`
 
-**Why it happens:** JavaScript is single-threaded but async operations (even synchronous-looking Map lookups) interleave if any await is used inside a handler. Also, client sends multiple events before the acknowledgment arrives.
+If "standardize the highlight system" is scoped as "edit `HIGHLIGHT_STYLES`," these 6-7 ad-hoc cases are silently left un-migrated, producing a codebase where _some_ highlights use the new token system and others still hardcode the old palette — the opposite of the goal.
+
+**Why it happens:**
+`HIGHLIGHT_STYLES` was introduced (per its own code comment, "D-10") to replace free-form props for the _original_ 5-7 highlight types, but later phases (GK_KICK_TARGET, QUICK_THROW, pass-target flows, kickoff centre-hex) added new highlight needs directly inline rather than extending the table — likely because those were added phase-by-phase under time pressure without a mandate to route through the shared lookup.
+
+**How to avoid:**
+Before writing any token, grep `HexGrid.tsx` and `HexGrid.module.css` for every `fill="rgba(` / `fill="#` / `stroke="#` / CSS-module-based fill and enumerate all of them (this research already surfaced ~7 beyond the 7 formal `HexHighlightType`s — treat 13-14 as the real starting count, matching the "10+" figure in scope). Extend `HexHighlightType`/`HIGHLIGHT_STYLES` to cover every one of them (including the new "ball location" highlight) so there is exactly one lookup table and zero raw inline color literals left in `HexGrid.tsx`'s hex-rendering branch. Add a lint-style check (even a simple test that scans the rendered HexGrid output, or a code comment convention) asserting new highlight needs must add a `HexHighlightType` member rather than an inline `fill=`.
 
 **Warning signs:**
 
-- A player can move a piece twice in one turn
-- Turn counter and action counter drift out of sync
-- Intermittent "illegal state" bugs that are hard to reproduce
+- Any `fill=` or `stroke=` attribute value in `HexGrid.tsx` that is a literal string rather than `HIGHLIGHT_STYLES[x].fill` — after the phase, this pattern should not exist.
+- Two independent-looking definitions producing the same visual hue (e.g., `HIGHLIGHT_STYLES.risk` and `.hexTackleRisk` both being "the orange risk color" but defined in two files) — a sign the token sweep missed a spot.
 
-**Prevention:**
-
-- Each room has an `isProcessing: boolean` mutex (simple flag for single-process Node.js)
-- Set flag to true when handler starts, false when state is written and broadcast
-- Reject any action event that arrives while `isProcessing === true` (return early with an error ack)
-- On the client, disable all interactive elements immediately after an action is submitted, re-enable when server broadcasts the new state
-- If using any async inside handlers: use a per-room async queue (e.g. a promise chain) not a bare flag
-
-**Phase to address:** First game action handler written — add mutex before adding any game logic
+**Phase to address:**
+Highlight-system standardization phase — should be scoped explicitly against "all hex-tint rendering paths in `HexGrid.tsx`/`HexGrid.module.css`," not just the `HIGHLIGHT_STYLES` object, with the "ball location" highlight designed alongside this full inventory (not bolted onto the pre-existing 7-entry table in isolation).
 
 ---
 
-### Pitfall C5: Hex Coordinate System Chosen Too Late (or Mixed)
+### Pitfall 4: Dynamic CSS-module class lookup (`styles[colorClass]`) is invisible to naive dead-code search and will not survive a careless cleanup pass
 
-**Confidence:** HIGH — this specific pattern is extremely well-documented in the hex grid community
+**What goes wrong:**
+`GameSettingsScreen.tsx`, `TeamSelectionScreen.tsx`, and `UniformSelectionScreen.tsx` compute CSS-module class names at runtime via bracket notation: `` `${styles.speedOptionActive} ${styles[colorClass]}` ``, where `colorClass` is a string (`'speedColorSlow'`/`'speedColorStandard'`/`'speedColorFast'`) sourced from `packages/client/src/constants/speedOptions.ts`. There is **no static text `styles.speedColorSlow` anywhere in the `.tsx` files** — only the string literal in the constants table and the CSS class definitions in each component's `.module.css`. A grep-based "is this class used?" check (or a human doing manual dead-code review) will find zero static references to `.speedColorSlow`/`.speedColorFast` in the component code and may conclude they're dead and delete them, silently breaking the speed-picker color coding at runtime with no compile-time or type error (CSS Modules' generated types, if any, don't validate bracket-accessed keys).
 
-**What goes wrong:** Developer starts with offset coordinates (col/row) because they look like a spreadsheet. A month later they need to compute ZoI ranges and shortest paths. These are O(1) in cube coordinates, O(n) hacks in offset. The conversion is added as a shim everywhere, creating subtle inconsistencies. Some functions use offset internally, others expect cube — the mismatch causes wrong highlight calculations and ZoI bugs.
+**Why it happens:**
+CSS Modules import as a plain object; TypeScript does not (by default) type-check that `colorClass` is a valid key of `styles`, so bracket access compiles cleanly even if the class doesn't exist, and removing the class doesn't produce a build error — only a silent visual regression (missing color, default cursor/border) that a snapshot-less test suite (no `toHaveClass`/CSS-based test assertions currently exist in this repo) won't catch either.
 
-**Why it happens:** Offset coordinates "feel" natural; cube coordinates look intimidating at first. The pain of offset only becomes apparent when implementing game mechanics.
+**How to avoid:**
+Before removing _any_ CSS-module class during cleanup, grep specifically for the class name as a **string literal** across the whole `packages/client/src` tree (not just as a `styles.X` dot-reference) — e.g. `grep -rn "speedColorSlow"` — to catch bracket-notation and data-table references. Treat any class referenced from a shared constants file (`speedOptions.ts` and similarly-shaped tables) as a "referenced-by-data" class, not dead code, even with zero static `styles.foo` hits. Since `TeamSelectionScreen.module.css`, `UniformSelectionScreen.module.css`, and `GameSettingsScreen.module.css` each maintain their own independent copies of `.speedColorSlow/.speedColorStandard/.speedColorFast` (duplicated per the project's own "no shared CSS partial" convention — see Pitfall 6), removing or renaming one copy without the other two produces inconsistent speed-picker coloring across screens, not a build failure. Consider this dynamic-class-lookup pattern the highest-risk deletion target in the whole cleanup effort and audit it explicitly as a named checklist item, rather than relying on IDE "find usages."
 
 **Warning signs:**
 
-- Range calculation function has nested loops and special cases for grid edges
-- Coordinate conversion functions appear in unexpected places (rendering, physics, rule logic)
-- ZoI / adjacency calculations produce wrong results for the top or bottom rows of the hex grid
+- Any `styles[someVariable]` or ``styles[`prefix${x}`]`` pattern in a `.tsx` file — every one of these needs its class-name _source_ (the variable's possible values) traced back to a constants file/table before any related CSS class is touched.
+- A CSS class with zero IDE "find usages" hits that nonetheless has a semantically meaningful name matching a value in a nearby `constants/*.ts` file.
 
-**Prevention:**
-
-- Use axial/cube coordinates internally for all game logic from day one
-- Only convert to pixel/screen coordinates at render time (one conversion function, called once)
-- Counter Attack uses a fixed-size pitch — define all hex positions in cube coordinates at startup, never derive them from offset
-- Reference: redblobgames.com/grids/hexagons is the canonical resource; bookmark it before writing any coordinate code
-
-**Phase to address:** Hex grid rendering phase — choose coordinate system before placing the first hex
+**Phase to address:**
+Code-cleanup phase, but **only after** the design-token/highlight phases have finished touching CSS modules — see Pitfall 7 (sequencing) for why cleanup of CSS classes specifically should be the _last_ step, not the first, of the visual work.
 
 ---
 
-### Pitfall C6: Game Phase State Machine Implemented as Nested if/else
+### Pitfall 5: Theme "chrome" colors and `TEAM_CONFIGS`/`uniformStyles` gameplay-branding colors are easy to conflate — the charcoal refresh must not touch team palette data
 
-**Confidence:** HIGH
+**What goes wrong:**
+`TEAM_CONFIGS[teamId].palette.uiColor` drives per-team-branded text color in `ActionLog.tsx` (2 call sites), `GameBoard.tsx` (7 call sites — scoreboard, half-time banners, action-log team labels), and is threaded through `PieceOverlay.tsx`. These are **gameplay-semantic** (which team said/did this) not **decorative theme chrome** (page background, panel border, button color). A broad "replace deep-blue with charcoal" sweep done by string-matching hex values or by regex-replacing `.module.css` files risks touching `teamConfig.ts`'s `TeamPalette`/`COLOR_SCHEME_REGISTRY` entries if the sweep isn't scoped carefully, corrupting per-team jersey/branding colors that have nothing to do with app chrome.
 
-**What goes wrong:** The game has 10+ distinct phases (KickOff, MovementPhase, PassPhase, DuelPhase, LooseBallPhase, SavePhase, etc.). Developers implement phase transitions with `if (phase === 'movement' && action === 'pass') { ... }` chains. After 3 phases, the logic is unreadable. After all phases, it is impossible to test individual transitions and adding a new phase requires modifying every existing condition.
+**Why it happens:**
+Both "the app is dark blue" and "team X's uiColor happens to be a similar-looking blue" can be true simultaneously (e.g., a team's `uiColor` might legitimately be a navy blue close to the chrome's `#0f3460`), making a value-based search-and-replace dangerous — it cannot distinguish "this blue is decorative chrome" from "this blue is Team X's brand color" by value alone.
 
-**Why it happens:** State machines feel like over-engineering when you have 2 phases. By the time you have 6, refactoring is expensive.
+**How to avoid:**
+Scope the theme refactor strictly to files that render UI chrome (`*.module.css` for lobby/settings/team-selection/action-panel _layout_ elements, `index.css`, `App.module.css`) and explicitly exclude `packages/shared/src/teamConfig.ts` and any file whose colors are read from `TEAM_CONFIGS`/`palette`/`uiColor`/`UNIFORM_STYLES`. When introducing design tokens, keep "app theme tokens" (background/border/text-chrome) and "team palette data" (`TeamPalette`) as two separate, non-overlapping systems — do not attempt to route team colors through the new theme-token module, and do not let the theme-token module's color choices be influenced by what a specific team's palette looks like.
 
 **Warning signs:**
 
-- A single `handleAction` function is over 100 lines
-- Phase-specific validation is scattered across multiple handlers
-- A bug fix in DuelPhase accidentally breaks LooseBallPhase
+- Any theme-token PR diff that touches `packages/shared/src/teamConfig.ts`, `COLOR_SCHEME_REGISTRY`, or `UNIFORM_STYLES` — should not happen in the theme-refresh phase at all.
+- A visual regression where a specific team's jersey/branding color looks different only for that team (vs. the docs' "one dark charcoal palette app-wide") — signals team-palette and chrome-theme data got entangled.
 
-**Prevention:**
-
-- Model the game as an explicit finite state machine from the first phase
-- Use a lightweight pattern: `{ [phase]: { validActions: [], onAction: fn, onEnter: fn, onExit: fn } }`
-- XState is an option but adds learning overhead; a plain object-based FSM is sufficient for this game's complexity
-- Every phase transition goes through a single `transition(room, action, payload)` function
-- This structure makes unit testing trivial: call `transition()` directly, assert resulting phase
-
-**Phase to address:** Game rules architecture phase — define the FSM structure before implementing the first rule
+**Phase to address:**
+Design-token / theme-foundation phase — state the file-scope boundary explicitly as a phase constraint (chrome CSS only, no `packages/shared` team/uniform files) before work begins.
 
 ---
 
-## Common Mistakes
+### Pitfall 6: There is no shared CSS partial — colors are duplicated verbatim per-component by explicit project convention, so "change the theme" means "edit N files identically," and missing one produces a silent visual inconsistency, not a build error
 
-Frequent errors that cause bugs or significant rework but are recoverable.
+**What goes wrong:**
+`GameSettingsScreen.module.css`'s own header comment states the convention plainly: _"Duplicates relevant tokens from LobbyScreen.module.css (.page/.card/.ctaButton) and TeamSelectionScreen.module.css (.tab/.tabActive/.speedOption_) per project convention (no shared CSS partial)."* The "deep blue" literal values (`#1a1a2e` page bg, `#16213e` card bg, `#0f3460` border/CTA, `#1a56b0` CTA hover, `#e0e0e0`/`#a0a0a0` text) recur across at least `LobbyScreen.module.css`, `TeamSelectionScreen.module.css`, `GameSettingsScreen.module.css`, `UniformSelectionScreen.module.css`, `ActionPanel.module.css`, and `ActionLog.module.css` (18 `.module.css` files total in the client) as independent literal copies, not a single imported source. A full-repo find/replace on the literal hex strings works *only if every occurrence is caught\* — there is no compiler or test that will flag a missed file, since each `.module.css` is scoped and independent. A missed file simply renders the old blue next to the new charcoal, and nothing fails.
 
----
+**Why it happens:**
+The project intentionally chose "duplicate per component" over a shared CSS partial (likely to keep each CSS Module self-contained and avoid cross-file CSS specificity/ordering issues) — a reasonable choice for incremental feature delivery, but one that turns any _global_ theme change into a manual, non-enforced, whole-repo sweep.
 
-### Pitfall M1: Socket.io Namespace / Room Naming Collisions
-
-**Confidence:** HIGH
-
-**What goes wrong:** Room codes are short (4-6 chars). Two concurrent games share a room code because the generation function uses `Math.random()` without checking for existing rooms. Events meant for one game reach both games.
-
-**Prevention:**
-
-- Generate room codes with `crypto.randomUUID()` or at minimum check the rooms Map before issuing a code
-- Prefix all game events with the room id: `game:${roomId}:state` — or use Socket.io rooms exclusively (not manual filtering) so Socket.io handles isolation
-- Use `io.to(roomId).emit()` exclusively; never broadcast to the default namespace for game events
-
----
-
-### Pitfall M2: Reconnection Leaves Client in Stale State
-
-**Confidence:** HIGH
-
-**What goes wrong:** Player's browser reconnects after a brief network drop. Socket.io reconnects automatically. But the client's React state still holds the pre-disconnect snapshot. The server has advanced two turns. The client shows the old board; the player makes a move from an invalid position; the server rejects it; the client shows nothing. Player thinks the game is frozen.
-
-**Prevention:**
-
-- On `connect` event (not just the first connection — Socket.io fires `connect` on every reconnect), always request a full state snapshot: `socket.emit('game:request-sync')`
-- Server responds with complete current state; client replaces (not merges) its state
-- Show a "Reconnecting..." overlay while the socket is disconnected (`socket.on('disconnect')` → show overlay; `socket.on('connect')` → hide overlay + request sync)
-
----
-
-### Pitfall M3: Dice Roll Authoritative on Client
-
-**Confidence:** HIGH — specific to this project's design
-
-**What goes wrong:** Dice animation and "click to roll" interaction is implemented client-side. The result is generated client-side and sent to the server. One player modifies the client to always send `[6, 6]`. The game is exploitable.
-
-**Prevention:**
-
-- Server generates all dice results using `Math.random()` (or a seeded PRNG)
-- Client sends "I clicked roll" — server rolls, broadcasts result to both players
-- Client animates the result the server sent, not a locally generated one
-- This is a POC so cheat-proofing is not the primary concern, but this pattern costs nothing extra and avoids a future rewrite
-
----
-
-### Pitfall M4: SVG Rendering Performance Degrades With Piece Count
-
-**Confidence:** MEDIUM (training data; no benchmark verified)
-
-**What goes wrong:** The full Counter Attack pitch has 22 player pieces + the ball + highlighted cells. If every state update re-renders the entire SVG (each hex as a separate SVG element), React's reconciliation slows on low-end hardware. With animated state transitions (even simple CSS transitions), frame drops become noticeable.
+**How to avoid:**
+This is the strongest argument for introducing actual shared design tokens (CSS custom properties in a single root file, e.g. `:root { --color-bg-page: ...; --color-bg-card: ...; }`, imported/used by every `.module.css`) as the _mechanism_ of the refresh, not just a naming convention. Once tokens exist, changing the palette becomes "edit N token values in one place" instead of "edit the same literal in 18 files." Before writing new tokens, grep every `.module.css` for the known "deep blue" literals (`#1a1a2e`, `#16213e`, `#0f3460`, `#1a56b0`, `#e0e0e0`, `#a0a0a0`, `#f5c518`) and build a literal exhaustive list of every file+line to touch — do not rely on visual QA alone to catch stragglers, since a missed file is not a functional bug and easy to miss in a two-tab human playtest that doesn't visit every screen.
 
 **Warning signs:**
 
-- React DevTools Profiler shows the entire SVG component re-rendering on every socket event
-- Renders take >16ms on mid-range hardware
+- Any new `.module.css` file added mid-refactor that still hardcodes a literal color instead of a CSS variable/token — signals the "no shared partial" convention is quietly reasserting itself even after tokens are introduced.
+- A post-refactor grep for the _old_ literal values (`#1a1a2e` etc.) returning any hits at all outside of the token-definition file itself.
 
-**Prevention:**
-
-- Memoize individual hex cells with `React.memo`; only re-render hexes whose state actually changed
-- Use a stable key per hex coordinate (not array index)
-- Keep piece rendering as a separate component layer from the static pitch grid
-- If performance is still poor: migrate rendering layer to Canvas (PixiJS), keeping React for UI chrome only — but do not optimize prematurely; validate the SVG approach first
+**Phase to address:**
+Design-token / theme-foundation phase should introduce the CSS-custom-property (or equivalent) token mechanism as its primary deliverable — not merely a document of hex values — specifically because this codebase's "no shared partial" convention makes literal-value duplication the default failure mode.
 
 ---
 
-### Pitfall M5: ZoI Rule Applied Inconsistently
+### Pitfall 7: Sequencing cleanup before vs. after theme work — the two workstreams contend for the same files, and this project's own retrospective history shows combined/broad phases lose scope silently
 
-**Confidence:** HIGH — specific to Counter Attack rule complexity
+**What goes wrong:**
+The highlight-standardization and theme work both need to modify `HexGrid.tsx`, `HexGrid.module.css`, `HexCell.tsx`, `PieceOverlay.tsx`, and most `.module.css` files under `packages/client/src/components/`. General code cleanup (dead-code removal, duplicated-logic consolidation, Zustand review) _also_ wants to touch these same files. If both workstreams run as one undifferentiated phase, cleanup's dynamic-class deletions (Pitfall 4) and the theme work's palette renames can land in the same file in an order that makes each change harder to review and revert independently. This project's own `RETROSPECTIVE.md` records two directly relevant precedents: (1) v1.4's Phase 27 was silently redefined mid-milestone and its original scope (RESP-01..09) was never reassigned or flagged, surviving as "Pending" for an entire milestone before being caught at close; (2) v1.3's BUG-23 was fixed with "speculative fixes... applied... without confirming the root cause first," later shown not to have worked. Both are examples of broad, loosely-bounded phases in _this exact codebase_ losing track of scope or shipping unverified fixes — the same risk pattern applies to a combined "cleanup + reskin" phase.
 
-**What goes wrong:** Zone of Influence blocks passes and dribbles through opponent-controlled hexes. Developers implement ZoI checks for passing but forget to apply it to dribble paths, or apply it to movement but forget the "first-time pass bypasses ZoI" exception. The rule is tested manually and appears correct until a specific board configuration reveals the gap.
+**Why it happens:**
+It is tempting to do cleanup and reskinning together "since you're already in the file," but the two have different verification needs: cleanup needs behavioral regression tests (does the game still work), while theme work needs visual/token-identity regression tests (does the right semantic role render, per Pitfall 1). Merging them means a single PR's test failures could be either kind, slowing triage, and a revert of "the redesign" would also revert unrelated dead-code removal.
 
-**Prevention:**
+**How to avoid:**
+Split into an explicit sequence, not a single phase:
 
-- Write the ZoI function once, with clear inputs: `isZoIBlocked(fromHex, toHex, boardState, ruleVariant)`
-- The `ruleVariant` parameter encodes exceptions (e.g. `firstTimePass`, `highPass`)
-- Cover this function with 10+ unit tests covering edge cases: adjacent opponent, path-crossing ZoI, corner hexes
-- Make the ZoI function pure (no side effects, no socket.io references) so it can be imported directly into test files
+1. **Non-visual cleanup first** (Zustand selector review, duplicated JS/TS logic consolidation, genuinely dead exports/handlers with no CSS/color involvement) — this can proceed immediately since it's independent of the color system and gives the subsequent token work a cleaner base.
+2. **Design-token/semantic-color-map phase** — build the full color-role inventory (Pitfall 2), extend `HIGHLIGHT_STYLES` to cover every ad-hoc highlight (Pitfall 3), introduce the CSS-variable token mechanism (Pitfall 6), and refactor test assertions to use tokens (Pitfall 1) — but do **not** delete any CSS class yet.
+3. **Component restyling phase** — apply the charcoal palette and standardize `ActionPanel`/`ActionLog` borders/help-text/button behavior against the new tokens.
+4. **CSS dead-code removal last** — only once the token migration is complete can a class safely be identified as truly unreferenced (Pitfall 4's dynamic-lookup risk is resolved once every `styles[x]` site has been traced during step 2/3's token work), so this specific cleanup sub-task belongs at the _end_ of the visual work, not the beginning.
 
----
+Each of these four steps should be its own phase or sub-phase with its own test-passing gate, mirroring this project's own successful pattern (per the retrospective) of "phase splitting at planning time" and "Wave 0 data-integrity tests before behavioral code" — apply the same discipline here: a Wave 0 that inventories every color usage (a grep-and-list exercise, written down before any edit) is the direct analogue of the `formations.test.ts` data-integrity-first pattern that worked well in Phase 23.
 
-### Pitfall M6: Half/Game Clock Managed on Client
+**Warning signs:**
 
-**Confidence:** HIGH
+- A single phase/PR whose diff touches both a `HIGHLIGHT_STYLES` value and an unrelated Zustand selector deletion — a sign the two workstreams weren't separated.
+- "cleanup" commits that also change visual output, or "theme" commits that also delete code paths — either direction of bleed makes bisecting a later regression harder.
+- Scope silently narrowing mid-phase without an explicit "descoped, moved to Phase N" note — this project's REQUIREMENTS.md/roadmap has drifted this way twice before (RESP-01..09; REQUIREMENTS checkbox drift in three consecutive milestones per the retrospective) and is a known institutional risk, not a hypothetical one.
 
-**What goes wrong:** The "45 actions per half" counter is tracked in client state. On reconnect, it is reset. Players disagree on the action count. Added time calculation (dice + referee Leniency) is done differently on each client.
-
-**Prevention:**
-
-- Action counter, half number, added time, and score live exclusively in server `GameState`
-- Broadcast the full counter state with every state update — clients never compute it independently
-
----
-
-### Pitfall M7: "Just Add One More Small Feature" — Scope Creep Vectors
-
-**Confidence:** HIGH — universal project management pattern
-
-**What commonly balloons timeline:**
-
-| Feature                           | Why It Seems Small                  | Why It Isn't                                                                                 |
-| --------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------- |
-| Corner kicks                      | "One more game phase"               | Introduces new board positions, kick-off variant, heading duel integration                   |
-| Throw-ins                         | "Just put the ball on the sideline" | Requires sideline detection, directional throw rules, ZoI interaction                        |
-| Offside                           | "Just check a coordinate"           | Requires tracking all player positions at the moment of pass, correct timing relative to ZoI |
-| Player attributes affecting rolls | "Just subtract from dice"           | Requires all attributes to be tested across all duel types                                   |
-| Spectator mode                    | "Read-only socket join"             | Requires room capacity management, spectator-only events, preventing spectator actions       |
-| Replay / undo                     | "Just store moves"                  | Requires full state history, deterministic replay, client seeking                            |
-| Mobile layout                     | "Just media queries"                | Hex grid SVG layout requires complete responsive rewrite                                     |
-
-**Prevention:**
-
-- For each "small" feature request: estimate by mapping out every state transition it touches, not just the UI change
-- Counter Attack has a defined rulebook; use it as a hard boundary — if it is not in the rulebook section you have scoped, it is out of scope
+**Phase to address:**
+Roadmap structure itself — this pitfall should shape _how many phases_ the milestone has, not be "addressed within" a single phase. Recommend 4 sequential phases/sub-phases as listed above (cleanup → token foundation → restyling → CSS pruning), each with its own explicit test-passing gate, rather than 1-2 broad phases.
 
 ---
 
-## AWS-Specific Pitfalls
+## Technical Debt Patterns
+
+| Shortcut                                                                                                         | Immediate Benefit                            | Long-term Cost                                                                                                                                                  | When Acceptable                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Re-baseline the 60 literal-color test assertions to new literal values instead of refactoring to token identity  | Fast, mechanical, unblocks CI quickly        | Every future palette tweak re-triggers the same 60-assertion "big bang" edit; tests never gain regression value for "is this still the goal-target role"        | Never — this is exactly the failure mode the milestone should eliminate, not repeat                                                        |
+| Recolor the offside ring or goal highlight without a full color-role inventory                                   | Quick collision fix, single-file change      | Risk of merging two previously-distinct meanings (e.g., risk-orange and offside) into a new collision, or breaking players' rulebook-trained color associations | Never for the offside/goal pair specifically; acceptable only for genuinely decorative (non-semantic) colors                               |
+| Delete a CSS-module class with zero static `styles.foo` references without checking constants-table string usage | Looks like straightforward dead-code removal | Silent runtime visual regression (missing speed-picker color, etc.) with no compiler or test failure                                                            | Never — always grep the literal class-name string across the whole client tree first                                                       |
+| Do theme + cleanup in one combined phase "since the files overlap anyway"                                        | Fewer phases, seemingly less overhead        | Harder-to-bisect regressions, scope drift (per this project's own two documented precedents), mixed-purpose diffs                                               | Only for genuinely tiny scope (e.g., a single component's obviously-dead unused import) — not for the highlight-system or theme-wide sweep |
+
+## Integration Gotchas
+
+| Integration                                        | Common Mistake                                                                                                                                                               | Correct Approach                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSS Modules (`*.module.css` + TS import)           | Assuming bracket-accessed classes (`styles[dynamicKey]`) are statically type-checked or IDE-discoverable                                                                     | Explicitly grep the string literal across the repo (constants tables, not just `.tsx` dot-access) before treating any class as unused                                                                                                                                                                       |
+| Vitest + Testing Library color assertions          | Asserting on `getAttribute('fill')`/`getAttribute('stroke')` literal values                                                                                                  | Assert against the exported token/constant identity (`HIGHLIGHT_STYLES.goal.fill === TOKENS.x`) so the test survives a palette value change but still catches a role/mapping regression                                                                                                                     |
+| Zustand selector review during cleanup             | Deleting a selector that appears unused because it's only read in one hard-to-grep branch (e.g., a phase-gated conditional deep in `HexGrid.tsx`'s 30+ `phase ===` branches) | Grep the selector name across `packages/client/src` including test files before removal; cross-reference against `ELIGIBLE_NEXT_ACTIONS`/phase-gated branches, since several state slices (e.g., `freeKickPlacedPieceIds`, `headerContestantIds`) are read only inside single, deeply-nested phase branches |
+| Team palette (`TEAM_CONFIGS`) vs. app chrome theme | Treating both as "the color system" and refactoring them together                                                                                                            | Keep `packages/shared/src/teamConfig.ts` and `UNIFORM_STYLES` entirely out of scope for the chrome-theme refresh; they are gameplay data, not decorative theme                                                                                                                                              |
+
+## Performance Traps
+
+| Trap                                                                                                 | Symptoms                                                                                                                                                                                                                    | Prevention                                                                                                                                                                                                      | When It Breaks                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Introducing CSS custom properties resolved via inline `style` objects in React instead of static CSS | Unnecessary re-renders of `HexGrid`/`PieceOverlay` (already Zustand-slice-optimized per the "Pitfall 6" code comment in `HexGrid.tsx`) if token values are threaded through React props/state instead of pure CSS variables | Keep chrome-theme tokens as CSS custom properties resolved by the browser, not by React state/props; only gameplay-conditional colors (already prop-driven, e.g., `HIGHLIGHT_STYLES` lookups) should stay in JS | Not likely to bite at this project's 2-player scale, but avoid establishing the pattern since `HexGrid` already renders ~962 hex cells per frame and is deliberately optimized with per-slice selectors |
+
+## Security Mistakes
+
+No domain-specific security concerns apply to a client-side visual/theme refactor and code cleanup — this work does not touch authentication, room-code validation, or Socket.io event handling. (If the cleanup phase touches `roomHandlers.ts` — noted in the retrospective's "Draft-mode cosmetic debt" gap — treat that as server-logic work outside this milestone's visual scope, not as part of the theme refresh.)
+
+## UX Pitfalls
+
+| Pitfall                                                                                                                                                                                                                                           | User Impact                                                                                                                                                                                                                                                      | Better Approach                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolving the goal/offside red collision by picking an arbitrary new hue for offside without checking it against the existing risk-orange (`HIGHLIGHT_STYLES.risk`, `.hexTackleRisk`) or kickoff-blue (`HIGHLIGHT_STYLES.kickoff`) already in use | Players re-learn a 4th ambiguous color pairing instead of gaining clarity                                                                                                                                                                                        | Cross-check the new offside color against every existing role in the semantic-role table (Pitfall 2) before finalizing, not just against the one color it's replacing                                                        |
+| Introducing a new "ball location" highlight that collides visually with the existing ad-hoc HEADER-phase gold ball-position overlay (`#f5c518`, `HexGrid.tsx` ~line 589-599)                                                                      | Two different code paths could both try to mark the ball's hex during HEADER phase with slightly different styling, or the new generic highlight could get suppressed/overridden by the old one-off HEADER-specific overlay that still exists in the render tree | Explicitly find and replace the existing ad-hoc HEADER gold ball-position overlay with the new formalized "ball location" `HexHighlightType` entry, rather than adding the new highlight type alongside the old one-off code |
+| Standardizing ActionPanel/ActionLog help text/button behavior across ~29 `phase ===` conditional branches (`ActionPanel.tsx` is 1000 lines) without a per-phase checklist                                                                         | Easy to standardize the common phases (MOVE, PASS) and miss edge phases (`FREE_KICK_SETUP`, `SNAPSHOT_DEFLECT`, `GK_QUICK_THROW`) that have their own bespoke copy/behavior, leaving an inconsistent subset                                                      | Enumerate every `phase ===` branch in `ActionPanel.tsx` explicitly as a checklist before starting, mirroring the file's own 29 branches, and verify each one against the new standard rather than spot-checking              |
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **Highlight-color token sweep:** Often misses the ~7 ad-hoc inline-`fill=` highlights in `HexGrid.tsx` that never went through `HIGHLIGHT_STYLES` (GK_KICK_TARGET, QUICK_THROW, pass-target green/amber, centre-hex gold, HEADER ball-position gold) — verify by grepping `HexGrid.tsx` for any remaining literal `fill="rgba(` / `fill="#` after the phase.
+- [ ] **Theme literal-value replacement:** Often misses one or more of the 18 `.module.css` files due to the project's "no shared CSS partial" duplication convention — verify with a post-phase grep for every known old literal (`#1a1a2e`, `#16213e`, `#0f3460`, `#1a56b0`, `#e0e0e0`, `#a0a0a0`) returning zero hits outside the token-definition file.
+- [ ] **CSS dead-code removal:** Often deletes a class reachable only via `styles[dynamicKey]` bracket notation sourced from a `constants/*.ts` table — verify by grepping the literal class-name string (not just `styles.foo`) across the whole client tree before deleting.
+- [ ] **Team-branding isolation:** Often accidentally touches `TEAM_CONFIGS`/`UNIFORM_STYLES` colors while doing a broad "replace blue" sweep — verify the theme-phase diff contains zero changes to `packages/shared/src/teamConfig.ts` or `packages/client/src/styles/uniformStyles.ts`.
+- [ ] **Test-assertion migration:** Often re-baselines literal-color test expectations to new literal values instead of migrating to token-identity assertions — verify by grepping `*.test.tsx` for `rgba(`/`#[0-9a-fA-F]` after the phase; a healthy end-state should show these replaced by references to the shared token/constant, not new hardcoded strings.
+- [ ] **Requirement/scope tracking:** Given this project's own retrospective history (RESP-01..09 falling through a mid-milestone phase redefinition; REQUIREMENTS.md checkbox drift across 3 consecutive milestones), verify at milestone close that every named sub-feature (theme overhaul, highlight standardization, ActionPanel/ActionLog standardization, cleanup) is explicitly checked off or explicitly marked descoped — not silently absent.
+
+## Recovery Strategies
+
+| Pitfall                                                                                                                      | Recovery Cost | Recovery Steps                                                                                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 60 literal-color test assertions re-baselined instead of token-migrated                                                      | LOW           | Revert the test-only diff, reapply the token-identity refactor described in Pitfall 1 as a follow-up commit; no game logic is at risk since these are purely presentational tests                                                                    |
+| A CSS class deleted that was reachable only via dynamic bracket lookup                                                       | LOW–MEDIUM    | Restore the class from git history; add the specific class name to the checklist in Pitfall 4 as a permanent "known dynamic-lookup site" comment in the constants file to prevent recurrence                                                         |
+| Offside/goal color collision "fixed" by introducing a third collision (e.g., new offside color matches existing risk-orange) | MEDIUM        | Requires re-running the full semantic-role inventory (Pitfall 2) and picking a genuinely unused hue; low code cost but requires a second design pass and a second round of human (two-tab) visual verification                                       |
+| Team-branding colors (`TEAM_CONFIGS`) accidentally altered by a broad theme sweep                                            | MEDIUM–HIGH   | Diff `packages/shared/src/teamConfig.ts` against the pre-refactor commit specifically; team palettes are load-bearing for jersey rendering across 12 teams and any accidental change needs a dedicated regression check against `teamConfig.test.ts` |
+| Combined cleanup+theme phase produces an unbisectable regression                                                             | HIGH          | Requires manually splitting the combined commit's diff after the fact into "behavioral" vs. "visual" hunks to isolate the regression — the exact cost this milestone's phase-splitting (Pitfall 7) is meant to avoid paying                          |
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall                                                      | Prevention Phase                                                      | Verification                                                                                                                                                                             |
+| ------------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Literal-color test assertions break en masse              | Design-token / theme-foundation phase (first plan)                    | Grep `*.test.tsx` for `rgba(`/hex literals shows zero net-new occurrences; existing 60 assertions are migrated to token-identity references in the same commit that introduces tokens    |
+| 2. Goal/offside red collision & broader semantic-role drift  | Highlight-system standardization phase (before any recoloring)        | A written color-role table exists and is referenced in the PR description; offside's new color does not match any other role's hue                                                       |
+| 3. Ad-hoc inline highlight colors outside `HIGHLIGHT_STYLES` | Highlight-system standardization phase                                | Post-phase grep of `HexGrid.tsx` for literal `fill=`/`stroke=` values returns none inside the hex-rendering map (only `HIGHLIGHT_STYLES[...]` references remain)                         |
+| 4. Dynamic `styles[colorClass]` dead-code risk               | Code-cleanup phase, sequenced _last_ (Pitfall 7)                      | Every CSS-module class removal is preceded by a literal-string grep across the client tree, documented in the plan/summary                                                               |
+| 5. Team-palette vs. chrome-theme conflation                  | Design-token / theme-foundation phase (scope constraint set up front) | Phase diff contains zero changes to `packages/shared/src/teamConfig.ts` / `uniformStyles.ts`                                                                                             |
+| 6. No shared CSS partial — literal duplication               | Design-token / theme-foundation phase                                 | CSS custom properties (or equivalent token mechanism) introduced; post-phase grep for old literal hex values returns zero hits outside the token file                                    |
+| 7. Cleanup/theme sequencing risk                             | Roadmap structuring (applies across all phases)                       | Milestone roadmap shows 4 distinct phases/sub-phases in the order: non-visual cleanup → token foundation → component restyling → CSS pruning, each with an independent test-passing gate |
+
+## Sources
+
+- Direct inspection of this repository (primary source for all findings above):
+  - `packages/client/src/components/HexCell.tsx` (HIGHLIGHT_STYLES table, 7 declared highlight types)
+  - `packages/client/src/components/HexGrid.tsx` (ad-hoc inline highlight colors, phase-gated render branches, offside/goal usage sites)
+  - `packages/client/src/components/HexGrid.module.css` (`.hexTackleRisk` independent risk-orange definition)
+  - `packages/client/src/components/PieceOverlay.tsx` (selection-ring colors, `isOffside` red ring)
+  - `packages/client/src/components/HexCell.test.tsx`, `HexGrid.test.tsx`, `PieceOverlay.test.tsx`, `PlayerStatsPanel.test.tsx` (literal-color assertion count)
+  - `packages/client/src/components/GameSettingsScreen.module.css`, `GameSettingsScreen.tsx`, `TeamSelectionScreen.tsx`, `UniformSelectionScreen.tsx`, `packages/client/src/constants/speedOptions.ts` (dynamic `styles[colorClass]` pattern; "no shared CSS partial" convention comment)
+  - `packages/client/src/components/LobbyScreen.module.css`, `ActionPanel.module.css`, `ActionLog.module.css` (deep-blue literal duplication)
+  - `packages/shared/src/teamConfig.ts`, `packages/client/src/components/ActionLog.tsx`, `GameBoard.tsx` (`TEAM_CONFIGS.palette.uiColor` gameplay-branding usage)
+  - `.planning/RETROSPECTIVE.md` (v1.2–v1.4 process history: phase-scope drift, requirement-checkbox drift, speculative-fix inefficiency, pure-module pattern, phase-splitting pattern)
+  - `eslint.config.js`, root `package.json` (confirms no `knip`/`ts-prune`/CSS-unused-class tooling is configured — dead-code verification relies on manual grep + the existing 1,568-test suite)
 
 ---
 
-### Pitfall A1: WebSocket Connections Dropped by Load Balancer Idle Timeout
-
-**Confidence:** HIGH
-
-**What goes wrong:** AWS Application Load Balancer (ALB) has a default idle timeout of 60 seconds. If the WebSocket connection carries no traffic for 60 seconds (player is thinking), the ALB drops the connection. Socket.io reconnects, but the server may not correctly re-associate the new socket with the existing game room.
-
-**Prevention:**
-
-- Set ALB idle timeout to 3600 seconds (1 hour) for the target group serving the game server
-- Configure Socket.io server-side ping interval to be shorter than the ALB timeout: `pingInterval: 25000, pingTimeout: 20000`
-- Socket.io's built-in heartbeat (ping/pong) keeps the connection alive — ensure it is not disabled
-
-**AWS console path:** EC2 → Load Balancers → [ALB] → Attributes → Idle timeout
-
----
-
-### Pitfall A2: Sticky Sessions Not Configured on ALB (If Scaling Beyond One Instance)
-
-**Confidence:** HIGH
-
-**What goes wrong:** If you run more than one EC2 instance (or ECS task), a player's HTTP polling fallback (Socket.io's long-polling) may hit a different instance than the one holding their game state. The player appears connected to Socket.io but their game events go to the wrong instance.
-
-**Why it matters for this POC:** You are starting with a single instance, so this does not bite immediately. But if you add a second instance for redundancy without sticky sessions, you get silent failures.
-
-**Prevention:**
-
-- For a POC with one instance: no action needed
-- For any multi-instance setup: enable ALB sticky sessions (duration-based, 1 hour) on the target group
-- Better long-term: migrate to Redis-backed Socket.io adapter (`socket.io-redis` / `@socket.io/redis-adapter`) so any instance can serve any socket
-- Strongly prefer WebSocket transport over polling from the start: `transports: ['websocket']` on the client — this eliminates the need for sticky sessions entirely (WebSockets are connection-affine by definition)
-
----
-
-### Pitfall A3: ELB Health Check Fails WebSocket Endpoint
-
-**Confidence:** HIGH
-
-**What goes wrong:** The ALB health check pings `/` every 30 seconds. If the Node.js app only serves WebSocket connections and returns 404 on HTTP GET to `/`, the target group marks the instance unhealthy and deregisters it.
-
-**Prevention:**
-
-- Add a simple HTTP health check endpoint:
-  ```
-  app.get('/health', (req, res) => res.json({ status: 'ok' }));
-  ```
-- Set the ALB target group health check path to `/health`
-- Return HTTP 200; the health check does not need to validate game state
-
----
-
-### Pitfall A4: Process Crash Wipes All In-Flight Games
-
-**Confidence:** HIGH
-
-**What goes wrong:** A Node.js exception (unhandled promise rejection, OOM) kills the process. All game states held in memory are lost. Both players are disconnected with no recovery path.
-
-**Prevention:**
-
-- Wrap all Socket.io event handlers in try/catch; emit an error event to the client on catch rather than letting the process crash
-- Use a process manager (PM2 with `--no-autorestart` in prod is wrong; use `pm2 start --restart-delay=1000`)
-- For a POC: accept that crashes lose games (document this); do not invest in persistence unless the POC validates the product
-- Add `process.on('uncaughtException')` and `process.on('unhandledRejection')` handlers that log and optionally notify before exiting gracefully
-
----
-
-### Pitfall A5: Static Files Served From Node.js Process
-
-**Confidence:** MEDIUM — common pattern that wastes compute
-
-**What goes wrong:** Developer runs `express.static()` to serve the React build from the same Node.js process that handles WebSockets. Under any meaningful load, static file serving competes with game logic for the same event loop. Not a problem for 2 concurrent players, but it adds risk of interference and is unnecessary.
-
-**Prevention:**
-
-- For the POC: acceptable to serve static files from Express while validating
-- For deployment: serve the React Vite build from S3 + CloudFront; point the backend URL at the EC2/ECS WebSocket endpoint
-- This separation also enables independent scaling and zero-downtime frontend deploys
-
----
-
-## Phase-Specific Warnings
-
-| Development Phase            | Most Likely Pitfall                              | Mitigation                                                          |
-| ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
-| Project setup / repo init    | State lives in the wrong place from day one (C2) | Define server GameState shape before any socket handler             |
-| Room / lobby implementation  | Room not cleaned up on disconnect (C3)           | Wire `disconnect` handler in the same PR as room creation           |
-| Socket.io event wiring       | Duplicate listener accumulation (C1)             | Enforce cleanup pattern in code review before merging first handler |
-| Hex grid rendering           | Wrong coordinate system chosen (C5)              | Decide axial vs cube before first hex is drawn; document the choice |
-| First game action (movement) | Turn race condition (C4)                         | Add per-room mutex before adding move validation                    |
-| ZoI + passing rules          | ZoI applied inconsistently (M5)                  | Write ZoI unit tests before wiring it to socket events              |
-| Dice roll mechanics          | Dice authoritative on client (M3)                | Server-side roll from the first implementation                      |
-| Full game loop               | Phase FSM as if/else (C6)                        | Refactor to explicit FSM before adding DuelPhase                    |
-| Half / added time            | Clock on client (M6)                             | Broadcast full counter state from server; client never computes it  |
-| AWS deployment               | ALB idle timeout drops connections (A1)          | Set timeout + verify Socket.io ping before going live               |
-| AWS deployment               | Health check fails (A3)                          | Add `/health` endpoint before deploying to ALB                      |
-| Any phase                    | Scope creep (M7)                                 | Use rulebook section list as a hard feature gate                    |
-
----
-
-## Testing Strategy
-
-How to test real-time multiplayer game logic without a running server.
-
----
-
-### Strategy T1: Isolate Game Logic From Transport
-
-**Confidence:** HIGH — this is the most important testing enabler
-
-**What to do:** The game rules engine (phase FSM, move validation, ZoI, dice resolution, score tracking) must have zero imports from `socket.io` or `express`. It is a pure JavaScript module that takes state in and returns new state out.
-
-```
-// game/engine.ts
-export function applyAction(state: GameState, action: Action): GameState { ... }
-export function isValidMove(state: GameState, move: Move): boolean { ... }
-export function computeZoI(boardState: BoardState, hex: Hex): HexSet { ... }
-```
-
-The Socket.io layer becomes a thin adapter:
-
-```
-socket.on('action:move', (payload) => {
-  if (!isValidMove(room.state, payload)) return socket.emit('error', 'invalid');
-  room.state = applyAction(room.state, payload);
-  io.to(room.id).emit('game:state', room.state);
-});
-```
-
-**Why it matters:** You can unit test 100% of game rules with plain `node --test` or Jest, no sockets involved. This is the single highest-leverage testing decision.
-
----
-
-### Strategy T2: Unit Test the FSM Transitions
-
-**Confidence:** HIGH
-
-Use the pure engine module to assert every legal phase transition and every illegal one:
-
-```javascript
-// game.test.js
-test('movement phase: valid move advances state', () => {
-  const state = makeState({ phase: 'MovementPhase', actionsRemaining: 4 });
-  const next = applyAction(state, { type: 'MOVE', pieceId: 'A1', to: { q: 2, r: 3 } });
-  assert.equal(next.phase, 'MovementPhase');
-  assert.equal(next.actionsRemaining, 3);
-});
-
-test('movement phase: move out of turn is rejected', () => {
-  const state = makeState({ phase: 'MovementPhase', currentTeam: 'home' });
-  const result = isValidMove(state, { type: 'MOVE', pieceId: 'B1', submittedBy: 'away' });
-  assert.equal(result, false);
-});
-```
-
-Target: every phase transition + every ZoI case + every duel resolution path covered before wiring to Socket.io.
-
----
-
-### Strategy T3: Integration Test With Socket.io Test Client
-
-**Confidence:** MEDIUM — Socket.io's own test client works; setup overhead is real
-
-For testing the full socket layer (not just logic), use `socket.io-client` pointed at a test server spun up in `beforeAll`:
-
-```javascript
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import { io as Client } from 'socket.io-client';
-
-let server, ioServer, clientA, clientB;
-
-beforeAll((done) => {
-  server = createServer();
-  ioServer = new Server(server);
-  server.listen(() => {
-    const port = server.address().port;
-    clientA = Client(`http://localhost:${port}`);
-    clientB = Client(`http://localhost:${port}`);
-    clientB.on('connect', done);
-  });
-});
-
-afterAll(() => {
-  ioServer.close();
-  clientA.close();
-  clientB.close();
-  server.close();
-});
-```
-
-This covers: room creation, join, action dispatch, state broadcast to both clients, disconnect cleanup.
-
-Limit integration tests to connection flows and broadcast correctness — do not re-test game rules here, that is Strategy T1's job.
-
----
-
-### Strategy T4: Hex Coordinate Tests First
-
-**Confidence:** HIGH
-
-Before wiring the hex grid to the UI, test all coordinate math:
-
-- Neighbors of a hex return exactly 6 hexes (or fewer at grid boundary — know which behavior you want)
-- Range-N returns the correct count of hexes
-- ZoI intersection: given a path from A to B, the function identifies the correct blocking hexes
-- Coordinate round-trip: pixel → axial → pixel returns within 1px of origin
-
-These are pure math functions. Zero sockets needed. Run them with any test runner.
-
----
-
-### Strategy T5: Use Fixtures for Board States
-
-**Confidence:** HIGH
-
-For testing complex rule interactions (ZoI + pass range + duel), predefine JSON board fixtures representing specific game situations. This avoids rebuilding board state from scratch in every test and makes test intentions readable.
-
-```javascript
-// fixtures/zoi-blocked-pass.json
-{
-  "phase": "PassPhase",
-  "ball": { "q": 0, "r": 0 },
-  "pieces": [
-    { "id": "A1", "team": "home", "hex": { "q": 0, "r": 0 } },
-    { "id": "B1", "team": "away", "hex": { "q": 1, "r": 0 } },  // adjacent — creates ZoI
-    { "id": "A2", "team": "home", "hex": { "q": 2, "r": 0 } }   // target of pass
-  ]
-}
-```
-
-Load fixtures with `JSON.parse(fs.readFileSync(...))` — no framework needed.
-
----
-
-### Strategy T6: What NOT to Test (for POC scope)
-
-Avoid over-investing in test infrastructure for a POC:
-
-- Do not write Cypress/Playwright E2E tests for the full game loop — the game state space is too large, and rule changes will break tests constantly
-- Do not mock Socket.io at the unit level — either test the pure engine (no Socket.io involved) or use a real test server (Strategy T3)
-- Do not test rendering pixel-accuracy of the hex grid — verify coordinate math (T4) and treat visual output as manually verified
-
----
-
-## Sources and Confidence Notes
-
-All findings are drawn from training data (knowledge cutoff August 2025). External tool access (WebSearch, WebFetch, Bash/Context7 CLI) was unavailable during this research session.
-
-| Area                                 | Confidence | Basis                                                                                             |
-| ------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------- |
-| Socket.io listener accumulation (C1) | HIGH       | Documented Socket.io pattern; extremely common community issue                                    |
-| Server-authority model (C2)          | HIGH       | Standard game server architecture; no external verification needed                                |
-| Room cleanup on disconnect (C3)      | HIGH       | Socket.io disconnect event is well-documented                                                     |
-| Turn race condition (C4)             | HIGH       | Node.js concurrency model is deterministic; mutex pattern is standard                             |
-| Hex coordinate system (C5)           | HIGH       | redblobgames.com is canonical; axial/cube vs offset distinction is settled                        |
-| FSM over if/else (C6)                | HIGH       | Standard software engineering principle                                                           |
-| Reconnection stale state (M2)        | HIGH       | Known Socket.io pattern                                                                           |
-| SVG performance (M4)                 | MEDIUM     | General browser rendering knowledge; Counter Attack piece count is low enough this may not matter |
-| ALB idle timeout (A1)                | HIGH       | AWS docs confirm 60s default; WebSocket heartbeat mitigation is standard                          |
-| ALB sticky sessions (A2)             | HIGH       | AWS ALB documentation                                                                             |
-| ELB health check (A3)                | HIGH       | AWS target group health check behavior is standard                                                |
-| Process crash / persistence (A4)     | HIGH       | Node.js unhandled exception behavior                                                              |
-| Testing strategy (T1-T6)             | HIGH       | Standard software engineering; Socket.io test client is documented                                |
+_Pitfalls research for: Visual/theme refactor + code cleanup on an existing real-time multiplayer game (Counter Attack Web, v1.5)_
+_Researched: 2026-07-22_

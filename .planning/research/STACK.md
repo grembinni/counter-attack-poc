@@ -1,271 +1,128 @@
-# Stack Research — v1.3
+# Stack Research
 
-**Project:** Counter Attack POC — Team Library, Formation System, Player Assignment
-**Researched:** 2026-07-03
-**Scope:** Incremental additions to existing pnpm monorepo with packages/shared, packages/server, packages/client
+**Domain:** Design-token / visual-refresh tooling for an existing React 18 + CSS Modules + Zustand app (no new UI framework, no CSS-in-JS, no Tailwind)
+**Researched:** 2026-07-22
+**Confidence:** HIGH
+
+## Codebase Facts That Drove These Recommendations
+
+Verified directly in `packages/client/src` before researching tools (not assumptions):
+
+- **Zero CSS custom properties exist today** (`grep -rl "var(--" packages/client/src --include=*.css` → 0 matches). This is a greenfield introduction, not a migration of an existing token system.
+- **297 hardcoded hex/rgba color literals** across 18 `*.module.css` files — this is the actual size of the "deep blue → broadcast" recolor surface.
+- **No `stylelint`, no `postcss.config.*`, no CSS lint of any kind** currently in the repo.
+- **`eslint.config.js` has no React-specific plugins** — only `typescript-eslint` (`8.60.0`) + `eslint-config-prettier`. No `eslint-plugin-react-hooks`, no `eslint-plugin-react-refresh`. This matters directly for the "Zustand state-management review" ask: there is currently no lint rule catching stale closures/missing deps in `useEffect`/`useMemo` over store values.
+- **`HIGHLIGHT_STYLES`** (in `packages/client/src/components/HexCell.tsx`) is a `Record<HexHighlightType, {...}>` with only **7** formal entries (`safe`, `risk`, `goal`, `kickoff`, `shot-path`, `shot-path-action`, `header-target`). Several _other_ semantic tints (offside repositioning zones, free-kick hex, kick-off centre-hex gold overlay) are applied as **inline, ad-hoc colors directly in `HexGrid.tsx`**, outside this table. This is almost certainly the source of the "10 known highlight types, ad-hoc" and the red-for-goal / red-for-offside conflict described in the brief — `goal` already hardcodes `rgba(220,50,50,1)` (red) in the formal table, and offside is one of the ad-hoc inline ones. The fix belongs in requirements/design, but the **tooling** fix is: fold every ad-hoc inline tint into the existing `HIGHLIGHT_STYLES` record so there is exactly one semantic-color lookup table, not two.
+- **`TEAM_CONFIGS`** (in `packages/shared/src/teamConfig.ts`) already carries a decoupled `palette.uiColor` per team, described in-code as "UI text color for scoreboard numerals, action log labels, etc." — this is already the intended single-team-accent hook; it's just never been wired into CSS.
+- No `stylelint`, `knip`, or contrast-checking tooling is installed anywhere in the workspace (root `package.json` devDependencies: `eslint`, `eslint-config-prettier`, `husky`, `lint-staged`, `prettier`, `typescript`, `typescript-eslint` only).
+
+## Recommended Stack
+
+### Core Technologies
+
+| Technology                                                                                                                                        | Version                                     | Purpose                                                                                                                                                                            | Why Recommended                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Native CSS Custom Properties**                                                                                                                  | CSS3 (no package, baseline browser feature) | Design-token layer for the broadcast theme (charcoal/graphite surfaces, white text, spacing/radius/typography scale)                                                               | Zero dependency, zero build step, works natively inside CSS Modules (`var(--color-bg-base)` in any `*.module.css`), and is the only token mechanism that can also be **set at runtime from React** — required for the single dynamic team-accent color. Sass/Less variables are compile-time-only and can't express "accent = whichever team is active" without JS↔CSS duplication. |
+| **A single `:root` tokens stylesheet** (new file, e.g. `packages/client/src/styles/tokens.css`, imported once in `main.tsx` before any component) | n/a (project file, not a package)           | Canonical source of the _static_ broadcast palette (charcoal scale, white text scale, spacing/radius/font-size scale)                                                              | Mirrors the project's existing "one lookup table is the source of truth" convention (`HIGHLIGHT_STYLES`, `TEAM_CONFIGS`) — this is the CSS-side equivalent for chrome colors that ~18 CSS Modules currently hardcode independently. Importing once at the app root (not per-component) guarantees every `*.module.css` file sees the same values without re-declaring them.         |
+| **Runtime CSS variable bridge for the team accent** (a few lines in `App.tsx` / a small `useTeamTheme` hook, not a package)                       | n/a                                         | Wires `TEAM_CONFIGS[teamId].palette.uiColor` (already exists, already decoupled from uniforms) into a single `--team-accent` CSS variable set via inline `style` on a root element | This is the concrete mechanism for "single team-color accent" applied everywhere via CSS Modules, **without** touching `TEAM_CONFIGS` itself or introducing a second color source. `TEAM_CONFIGS` stays authoritative; CSS just reads whatever it currently outputs. Avoids prop-drilling a color through every panel/button component.                                             |
+
+### Supporting Libraries
+
+| Library                        | Version   | Purpose                                                                                                                                                                                      | When to Use                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `stylelint`                    | `17.14.1` | Lints all `*.module.css` for consistency during the refresh (enforces `var()` usage over new hardcoded hex, catches duplicate/near-duplicate color declarations, enforces property ordering) | Add now, at the start of the recolor work — its main value here is a rule like `color-no-hex` (or a custom `declaration-property-value-disallowed-list` for raw `#`/`rgb(` in color-bearing properties) that stops _new_ ad-hoc colors from being reintroduced once the tokens file exists. Requires Node ≥20.19 — compatible with the project's Node 22 engine.                                                                                                                     |
+| `stylelint-config-standard`    | `40.0.0`  | Baseline sane-defaults rule set for stylelint                                                                                                                                                | Extend from this rather than hand-picking every rule; standard in the ecosystem.                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `stylelint-config-css-modules` | `4.6.0`   | Teaches stylelint about CSS Modules syntax (`:global`, `composes`, camelCase class names)                                                                                                    | Required alongside `stylelint-config-standard` — without it, stylelint's standard config flags CSS Modules' `composes:` and `:global(...)` as errors (they're not part of plain CSS). Peer-compatible with stylelint `^17.0.0`.                                                                                                                                                                                                                                                      |
+| `knip`                         | `6.29.0`  | Cross-package dead-code detection: unused exports, unused files, unused dependencies, across the whole pnpm workspace (`packages/shared`, `packages/server`, `packages/client`) in one run   | This is the direct tool for the "general code cleanup: dead code removal, de-duplication" ask. Actively maintained (published within the last day as of this research). Understands pnpm workspaces and TypeScript path aliases out of the box — a single `knip` run at the repo root will surface, e.g., leftover highlight-type branches, orphaned CSS Module class names no longer referenced after the color refresh, and unused team-config fields.                             |
+| `eslint-plugin-react-hooks`    | `7.1.1`   | Lints `useEffect`/`useMemo`/`useCallback` dependency arrays and hook-call rules                                                                                                              | Currently **absent** from `eslint.config.js`. Add this specifically for the "Zustand state-management review" — the most common Zustand bug class is a `useEffect` that reads a store selector but omits it from its dependency array, causing stale UI after a refactor. This rule catches that mechanically instead of relying on manual review. Actively maintained (published yesterday relative to this research date), peer-compatible with ESLint `^9.0.0` already installed. |
+| `eslint-plugin-react-refresh`  | `0.5.3`   | Warns when a file exports anything other than components (breaks Vite Fast Refresh / HMR)                                                                                                    | Lower priority, but cheap to add alongside `react-hooks` — during a broad component-file refactor (theme wiring touches every screen component) it's easy to accidentally add a non-component export (e.g. a helper or a token constant) to a component file and silently lose HMR. Peer-compatible with ESLint `^9`.                                                                                                                                                                |
+| `wcag-contrast`                | `3.0.0`   | One-off contrast-ratio calculation for a small audit script                                                                                                                                  | Use only as a **devDependency**, invoked from a throwaway Node script (e.g. `packages/client/scripts/check-contrast.ts`, not imported by any React component), to verify all 12 `TEAM_CONFIGS[*].palette.uiColor` accent values meet WCAG AA against the new charcoal background and against white text before locking the palette. Tiny (single small dependency, `relative-luminance`), no React/build coupling, run manually/in CI — not a runtime dependency of the app.         |
+
+### Development Tools
+
+| Tool                                                        | Purpose                                                                                                                          | Notes                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zustand's built-in `devtools` middleware                    | Inspect store shape/transitions in the Redux DevTools browser extension during the state-management review                       | Already ships inside the installed `zustand@4.5.7` package (`import { devtools } from 'zustand/middleware'`) — **zero new dependency**. Wrap the existing store creator in `devtools(...)` temporarily during the cleanup pass to visually spot duplicate/derived state that should be computed instead of stored. Remove or gate behind `import.meta.env.DEV` before shipping if it shouldn't ship to production. |
+| Browser DevTools contrast inspector (Chrome/Edge/Firefox)   | Manual, zero-install verification of any individual color pair against WCAG AA/AAA while iterating on the palette in the browser | Chrome and Firefox both show a live contrast ratio (and pass/fail badge) in the color picker attached to any computed style — sufficient for spot-checking during design iteration without installing anything. Use `wcag-contrast` (above) only when you want a single scripted pass across all 12 team accents at once.                                                                                          |
+| VS Code "CSS Var Complete" (or equivalent) editor extension | Autocomplete for `var(--...)` token names while migrating 297 hardcoded colors into token references                             | Optional editor-only aid, not a project dependency — doesn't appear in `package.json` at all. Mentioned because the migration volume (18 files) benefits from autocomplete to avoid typos in variable names.                                                                                                                                                                                                       |
+
+## Installation
+
+```bash
+# CSS lint (root devDependency — lints across all packages/client CSS Modules)
+pnpm add -D -w stylelint@17.14.1 stylelint-config-standard@40.0.0 stylelint-config-css-modules@4.6.0
+
+# Dead-code / unused-export detection (root devDependency — scans the whole workspace)
+pnpm add -D -w knip@6.29.0
+
+# React-specific ESLint rules (root devDependency — eslint.config.js is at repo root)
+pnpm add -D -w eslint-plugin-react-hooks@7.1.1 eslint-plugin-react-refresh@0.5.3
+
+# One-off contrast-audit script only (client-local devDependency, not imported by app code)
+pnpm add -D --filter @counter-attack/client wcag-contrast@3.0.0
+```
+
+No new **runtime** dependency is introduced anywhere — CSS custom properties are a browser feature, not a package. `packages/client/package.json` `dependencies` (react, react-dom, zustand, honeycomb-grid, socket.io-client) are unchanged.
+
+## Alternatives Considered
+
+| Recommended                                                 | Alternative                                                                                                | When to Use Alternative                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Native CSS Custom Properties + one `:root` tokens file      | Sass/Less `$variables`                                                                                     | Only if the team wanted compile-time-only constants and didn't need the runtime-dynamic team-accent color. Sass variables can't be reassigned at runtime from React state, so you'd still need a CSS-var bridge for the accent anyway — at that point you're maintaining two token mechanisms for one problem. Also adds a preprocessor + build-step dependency this project doesn't currently have.                                                                                  |
+| `stylelint` + `stylelint-config-css-modules`                | Manual code review of all 18 `.module.css` files                                                           | Only viable for a single one-time pass with no regression protection. Given this refresh touches lobby, settings, draft, and in-game board (i.e., every screen), a lint rule that runs in CI/pre-commit (the repo already has `lint-staged` + `husky` wired up) catches regressions on every future commit, not just at refresh time.                                                                                                                                                 |
+| `knip`                                                      | `ts-prune`                                                                                                 | Never for new work — `ts-prune` is unmaintained (last published 2022, project archived). `knip` is its actively-maintained, workspace-aware successor and is the current community default for this exact task.                                                                                                                                                                                                                                                                       |
+| `knip`                                                      | `eslint-plugin-unused-imports`                                                                             | If you only want unused-_import_ detection inside a single file at edit time. The project's existing `@typescript-eslint/no-unused-vars` (already configured in `eslint.config.js`) already flags unused imports — adding `eslint-plugin-unused-imports` on top would be redundant. `knip` is recommended instead because it additionally finds unused _exports_ and unused _files_ across package boundaries (shared → client/server), which ESLint structurally cannot do per-file. |
+| `wcag-contrast` for a one-off audit script                  | `colord` (with a contrast plugin)                                                                          | If contrast checking needs to become a recurring, richer color-manipulation need (e.g., programmatically generating tint/shade variants, not just checking one ratio). For this milestone's narrow "verify 12 accents pass contrast" need, `wcag-contrast` is a smaller, single-purpose dependency; `colord` is a heavier general color-math library that would be over-scoped for this one check.                                                                                    |
+| Runtime CSS-var bridge for team accent (few lines in React) | Duplicating each team's `uiColor` into a CSS file per team / a `data-team="..."` attribute + 12 CSS blocks | The `data-team` + per-team CSS-block approach requires touching CSS every time a team is added (there are already 12, and the roster has grown across phases per `teamConfig.ts` history). Setting one CSS variable from the existing `TEAM_CONFIGS` object scales to any number of teams with zero CSS changes.                                                                                                                                                                      |
+
+## What NOT to Use
+
+| Avoid                                                                                    | Why                                                                                                                                                                                                                                                                                                 | Use Instead                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Any component/design-system library (Radix UI, MUI, Chakra, Ant Design, shadcn/ui)       | Explicitly out of scope for this milestone (refresh, not rewrite) — these bring their own theming API that would conflict with the existing CSS-Modules-per-component convention and require rewriting every screen's markup, not just its colors.                                                  | Native CSS custom properties layered on the existing CSS Modules, per above.                                                                                                                                                                                                                    |
+| CSS-in-JS (styled-components, Emotion, vanilla-extract, Panda CSS)                       | Out of scope per constraints; also would mean re-authoring all 18 `.module.css` files, which is a rewrite-scale change, not a refresh.                                                                                                                                                              | Keep CSS Modules; add a `:root` tokens stylesheet consumed via `var()`.                                                                                                                                                                                                                         |
+| Tailwind CSS                                                                             | Out of scope per constraints; utility-class approach is structurally incompatible with "one CSS Module per component" without a parallel rewrite of every JSX file's className usage.                                                                                                               | Keep CSS Modules + design tokens.                                                                                                                                                                                                                                                               |
+| Sass/Less/PostCSS-preset-env as a preprocessor layer                                     | Adds a compile step and a second token mechanism (compile-time vars) alongside the runtime CSS-var bridge the team-accent feature needs anyway — redundant complexity for a project with zero preprocessor usage today.                                                                             | Plain CSS + native custom properties; Vite already runs a CSS pipeline with zero extra config needed for `var()`.                                                                                                                                                                               |
+| `ts-prune`                                                                               | Unmaintained since 2022 (repository archived); will not track newer TypeScript syntax reliably.                                                                                                                                                                                                     | `knip@6.29.0`                                                                                                                                                                                                                                                                                   |
+| `eslint-plugin-css-modules`                                                              | Last published October 2023, effectively stale relative to the project's current ESLint 9 flat-config setup and CSS Modules' evolved syntax; risk of subtly wrong/missing rules with no maintenance to fix them.                                                                                    | `stylelint` + `stylelint-config-css-modules` covers CSS-Modules-aware linting from the CSS side instead, which is the side that actually needs linting for this refresh (color/property usage, not JS import correctness).                                                                      |
+| A second, parallel "theme" color table separate from `HIGHLIGHT_STYLES` / `TEAM_CONFIGS` | The brief's own "at least one known conflict" (red used for both goal-target and offside) is a direct symptom of semantic colors living in more than one place (the formal `HIGHLIGHT_STYLES` record _and_ ad-hoc inline colors in `HexGrid.tsx`). Adding a third table would compound the problem. | Extend the existing `HIGHLIGHT_STYLES` `Record<HexHighlightType, {...}>` to cover every currently-inline ad-hoc tint (offside zones, free-kick hex, kickoff centre-hex), so there is exactly one semantic-highlight lookup table, matching the existing `TEAM_CONFIGS` pattern for team colors. |
+
+## Stack Patterns by Variant
+
+**If the color/token migration is done incrementally (file-by-file), not all-at-once:**
+
+- Land the `tokens.css` file and `stylelint` config _first_, in their own commit, with zero `.module.css` files migrated yet.
+- Turn on the "no new raw hex" stylelint rule immediately — it will only fire on files touched after that point, so it guards new work without requiring all 297 existing literals to be fixed before it's useful.
+- Because it's an additive `:root` file, this is safe to land before any visual change ships.
+
+**If a fully automated contrast gate in CI is wanted (not just a one-off script):**
+
+- Wire the `wcag-contrast` script into a `pnpm test` or a dedicated `pnpm check:contrast` script and call it from CI, asserting all 12 `TEAM_CONFIGS[*].palette.uiColor` values pass AA against both the new charcoal background and white text.
+- If only a one-time manual check before shipping is wanted, skip the dependency entirely and use the browser DevTools contrast inspector instead — don't add a package for a check you'll run once.
+
+**If `knip` reports a large number of false positives on public API surfaces (e.g., `packages/shared/src/index.ts` re-exports):**
+
+- Configure `knip.json` with an `entry` pointing at each package's real entry point (`packages/client/src/main.tsx`, `packages/server/src/index.ts`, `packages/shared/src/index.ts`) rather than running with zero config — this is standard knip setup for a workspace with an explicit shared-package barrel file, and avoids flagging intentionally-public shared exports as unused.
+
+## Version Compatibility
+
+| Package A                                      | Compatible With                                                       | Notes                                                                                                                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stylelint@17.14.1`                            | Node `>=20.19.0`                                                      | Project engine is Node `>=22`, satisfies this with margin.                                                                                          |
+| `stylelint-config-css-modules@4.6.0`           | `stylelint@^14.5.1 \|\| ^15.0.0 \|\| ^16.0.0 \|\| ^17.0.0`            | Satisfied by the recommended `stylelint@17.14.1`.                                                                                                   |
+| `knip@6.29.0`                                  | Node `^20.19.0 \|\| >=22.12.0`                                        | Project engine is Node `>=22`; confirm the exact patch in use is `>=22.12.0` (any current Node 22 LTS install will be).                             |
+| `eslint-plugin-react-hooks@7.1.1`              | `eslint@^9.0.0 \|\| ^10.0.0` (also supports older majors)             | Satisfied by the project's installed `eslint@9.39.4`.                                                                                               |
+| `eslint-plugin-react-refresh@0.5.3`            | `eslint@^9 \|\| ^10`                                                  | Satisfied by `eslint@9.39.4`.                                                                                                                       |
+| `typescript-eslint@8.60.0` (already installed) | `eslint@^8.57.0 \|\| ^9.0.0 \|\| ^10.0.0`, `typescript>=4.8.4 <6.1.0` | Confirmed compatible with the project's existing `eslint@9.39.4` / `typescript@5.9.3` — no version bump needed to add the new ESLint plugins above. |
+| `wcag-contrast@3.0.0`                          | Any Node the project already supports                                 | Single small dependency (`relative-luminance`); no framework coupling.                                                                              |
+
+## Sources
+
+- npm registry (`npm view <pkg> version / time.modified / deprecated / engines / peerDependencies`) — direct primary-source version and maintenance verification for `stylelint`, `stylelint-config-standard`, `stylelint-config-css-modules`, `knip`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `wcag-contrast`, `ts-prune`, `eslint-plugin-css-modules`, `colord`, `culori`. HIGH confidence — official package registry metadata, checked same day as this research (2026-07-22).
+- Direct repository inspection (`packages/shared/src/teamConfig.ts`, `packages/client/src/components/HexCell.tsx`, `packages/client/src/components/HexGrid.tsx`, `packages/client/vite.config.ts`, `eslint.config.js`, root and client `package.json`) — HIGH confidence, ground truth for what already exists vs. what's genuinely new.
+- `gsd-tools` research-plan/classify-confidence seam was unavailable in this environment (`gsd-tools: command not found`); confidence levels above are therefore assigned directly from source tier (official npm registry = HIGH, direct codebase read = HIGH) rather than via the automated seam.
 
 ---
 
-## New Dependencies
-
-| Package       | Version | Purpose | Verdict                                        |
-| ------------- | ------- | ------- | ---------------------------------------------- |
-| None required | —       | —       | All features implementable with existing stack |
-
-**Rationale for zero new npm dependencies:**
-
-The three feature areas — team library, formation system, and player auto-assignment — are pure data-modeling and algorithmic problems that the existing TypeScript stack handles without additional libraries.
-
-- **Sorting/matching for auto-assignment:** The stat-weight algorithm is a weighted sum (`tackling * w1 + pace * w2 + ...`) then sort. Native `Array.sort` + arithmetic suffices. No need for a Hungarian algorithm library — the problem is positional slot filling (11 slots, 11+ candidates), not an NP-hard assignment problem requiring munkres or similar. The greedy approach (score each player for each role, assign highest-scoring player to each anchor slot first, fill flex slots from remainder) is O(n²) worst case for 11 players, which is imperceptible.
-- **Formation layout hex coordinates:** honeycomb-grid 4.x is already installed in packages/client. For server-side formation coordinate generation, honeycomb-grid is also already available since packages/shared imports it via packages/client's workspace. However, the current codebase does NOT use honeycomb-grid for formation positions — `FORMATION_POSITIONS` in `seed-rosters.ts` and `buildSquadPieces` in `gameEngine.ts` use hardcoded `{q, r}` literals. The four new formations are also fixed coordinate sets. There is no spatial computation needed at runtime; the hex positions for 4-4-2, 5-3-2, 4-3-3, and 3-4-3 are lookup tables, not derived geometry. Adding honeycomb-grid to packages/shared would be premature; keep formation coordinates as typed constant objects.
-- **CSV parsing:** The existing seed script uses Node.js `readline` + `createReadStream` with manual comma-splitting. This works. For adding 8 new team CSV files (12 teams total: 4 existing + 8 new), the same parsing logic extends trivially. No csv-parse or papaparse needed.
-- **International player data:** No third-party data-fetching library needed. The CSVs are hand-authored source data, not fetched from an API. International players already exist in the FA pool (Algeria, Brazil, Netherlands, etc.). New team CSV files follow the same schema.
-
----
-
-## Existing Stack Changes
-
-### 1. packages/shared/src/teamConfig.ts — Extend TeamId union and TEAM_CONFIGS
-
-**Current state:** `TeamId = 'cosmos' | 'xolos' | 'city' | 'crew'` — 4 teams, colors embedded in `TeamConfig`.
-
-**Required changes:**
-
-- Expand `TeamId` to include 8 new teams across 2 leagues. Example: `'la-galaxy' | 'inter-miami' | ...` (exact ids TBD by product).
-- Add a `LeagueId` type: `'mls' | 'international'`.
-- Add `league: LeagueId` field to `TeamConfig` so the lobby UI can group teams by league.
-- Extract color scheme into a `ColorScheme` type separate from `TeamConfig`, because the milestone context says "color scheme as a separate entity":
-
-```typescript
-export type ColorScheme = {
-  primary: string;
-  secondary: string;
-  // optional: accent for jersey trim
-};
-
-export interface TeamConfig {
-  id: TeamId;
-  name: string;
-  league: LeagueId;
-  colorScheme: ColorScheme;
-  badgeFile: string;
-}
-```
-
-- `primaryColor`/`secondaryColor` flat fields on `TeamConfig` become `colorScheme.primary`/`colorScheme.secondary`. **This is a breaking rename** — every consumer of `TEAM_CONFIGS[id].primaryColor` must update to `TEAM_CONFIGS[id].colorScheme.primary`. Grep the client for `primaryColor` and `secondaryColor` before executing.
-
-**Migration path:** Add both old and new fields during transition, then remove old fields once all consumers updated. Single-PR atomic rename is also fine given the small codebase.
-
-### 2. packages/shared/src/teams.ts — Add 8 new team squads
-
-**Current state:** `TEAM_SQUADS: Record<TeamId, readonly PlayerPiece[]>` with 4 entries; `FREE_AGENTS: readonly PlayerPiece[]` with 24 players.
-
-**Required changes:**
-
-- Add entries for 8 new teams. The `Record<TeamId, ...>` type will enforce compile-time completeness — TypeScript will error if any `TeamId` value lacks a squad entry.
-- Player pool decoupling for v1.4 prep: the current design conflates "team squad" (a fixed 11) with "player pool" (a larger set from which a squad can be assembled). To support future random draft without a breaking rewrite:
-  - Keep `TEAM_SQUADS` as the authoritative set of pre-built squads (used when a team is selected in the current flow).
-  - Add a separate `PLAYER_POOL: readonly PlayerPiece[]` export that aggregates all players across all teams + free agents, each carrying a `teamId: TeamId | 'pool'` field or a separate `poolTeamId?: TeamId` annotation. This is additive — no breaking change to existing `TEAM_SQUADS` consumers.
-  - A `PlayerPool` type can be `readonly PlayerPiece[]` with a `sourceTeamId?: TeamId` annotation field added to `PlayerPiece` (optional, so backward-compatible with existing pieces that don't set it).
-
-### 3. packages/shared/src/types.ts — FormationId type and PlayerPiece annotation
-
-**Required changes:**
-
-- Add `FormationId`:
-
-```typescript
-export type FormationId = '4-4-2' | '5-3-2' | '4-3-3' | '3-4-3';
-```
-
-- Add `PositionalRole` for the auto-assignment system (anchor vs. flex):
-
-```typescript
-export type PositionalRole = 'GK' | 'CB' | 'FB' | 'CM' | 'DM' | 'AM' | 'W' | 'CF' | 'ST';
-```
-
-Note: the existing `role: 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST'` on `PlayerPiece` is the coarse game-mechanic role (governs formation slot assignment). `PositionalRole` is finer-grained and used only for auto-assignment scoring — it does NOT replace `role` on `PlayerPiece`. Keep them separate to avoid touching game-logic validators.
-
-- `GameState.selectedFormation` — add as an optional field initially, required once formation selection is wired:
-
-```typescript
-selectedFormation?: { home: FormationId; away: FormationId };
-```
-
-This is **additive** on `GameState` (optional field) so existing `buildInitialGameState` callers don't break. The server sets it when both players confirm their formations.
-
-### 4. packages/shared/scripts/seed-rosters.ts — Support 12 teams
-
-**Required changes:**
-
-- Add 8 new team CSV name → TeamId mappings in `TEAM_ID_MAP`.
-- Add 8 new entries to `squadMap` initialization.
-- Add corresponding `buildSquadEntries` calls and serialization in `main()`.
-- The `FORMATION_POSITIONS` hardcoded in the seed script represents the default (4-5-2 equivalent) starting layout. For the new formation system, formation positions are NOT baked into `teams.ts` at seed time — they are resolved at runtime when the player selects a formation. The seed script only needs to store player stats; `position` in `teams.ts` becomes the default/fallback used before formation selection resolves. **No breaking change to the seed output shape** — `PlayerPiece.position` stays in `teams.ts` as the formation-default position.
-
-### 5. packages/shared/src/ — New file: formations.ts
-
-Add a new module (not a new npm package) to packages/shared:
-
-```typescript
-// packages/shared/src/formations.ts
-export type FormationId = '4-4-2' | '5-3-2' | '4-3-3' | '3-4-3';
-
-export type FormationSlot = {
-  role: 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST';
-  position: HexCoord; // home-side coordinates; away mirrors via q = 36 - q
-  label: string;      // 'CB-L', 'CM', 'ST', etc. for assignment UI
-};
-
-export const FORMATIONS: Record<FormationId, readonly FormationSlot[]> = {
-  '4-4-2': [...],
-  '5-3-2': [...],
-  '4-3-3': [...],
-  '3-4-3': [...],
-};
-```
-
-This replaces the hardcoded `FORMATION_POSITIONS` in `seed-rosters.ts` as the single source of truth for hex coordinates per formation. The seed script can import from `formations.ts` for the default positions it writes into `teams.ts`.
-
-**Export from packages/shared/src/index.ts** — additive barrel export, no breaking change.
-
-### 6. packages/shared/src/ — New file: playerAssignment.ts
-
-Pure function, no new dependencies:
-
-```typescript
-// packages/shared/src/playerAssignment.ts
-export function assignPlayersToFormation(
-  players: readonly PlayerPiece[], // the pool to assign from (team squad or player pool)
-  formation: FormationId,
-): AssignmentResult;
-```
-
-Where `AssignmentResult` maps each `FormationSlot` to a `PlayerPiece`. The algorithm:
-
-1. GK slot: pick the single GK (role === 'GK') — always unambiguous.
-2. Anchor slots (CB, CM, CF — positional roles where stat fit is tightest): score each candidate by weighted stat sum for the role, assign highest scorer. No external library needed.
-3. Flex slots (FB, winger, flex-mid): assign from remaining players by next-best fit.
-4. Allow pre-swap: return `AssignmentResult` as a mutable record so the UI can override individual slot → player mappings before confirming.
-
-This is entirely implementable with `Array.sort` and plain arithmetic in ~80 lines. The test suite (vitest) covers it with property-based checks (does every player appear exactly once? does GK always go to GK slot?).
-
-### 7. packages/server/src/gameEngine.ts — Formation-aware buildInitialGameState
-
-**Required changes:**
-
-- `buildInitialGameState` signature gains optional `formations` parameter:
-
-```typescript
-export function buildInitialGameState(
-  roomCode: string,
-  selectedTeams: { home: TeamId; away: TeamId },
-  gameSpeed: GameSpeed = 'standard',
-  formations?: { home: FormationId; away: FormationId },
-): GameState;
-```
-
-- `buildSquadPieces` reads hex positions from `FORMATIONS[formationId]` instead of relying on the positions baked into `TEAM_SQUADS[teamId]`. The baked positions in `teams.ts` remain as the default (used when `formations` is undefined), ensuring backward-compat with tests that call `buildInitialGameState` without the new param.
-
-### 8. packages/server/src/events.ts (ClientToServerEvents) — Formation selection events
-
-Add two new client events for the pre-match flow:
-
-```typescript
-FORMATION_PICK: 'formation:pick'; // player selects formation for their team
-FORMATION_CONFIRM: 'formation:confirm'; // player locks in formation + player assignments
-```
-
-And corresponding server events:
-
-```typescript
-FORMATION_SELECTED: 'formation:selected'; // broadcast to both players
-FORMATION_READY: 'formation:ready'; // both formations confirmed, match can start
-```
-
-**This extends the Socket.io event schema** — it adds new events but does not modify existing event signatures. Existing tests remain valid. The lobby FSM gains a `FORMATION_SELECTION` phase between team selection and `KICK_OFF_SETUP`.
-
-**If formation selection is skipped (default formation):** The server can auto-assign 4-4-2 if a player doesn't pick, allowing the game to start without requiring this UI. This means the new events are truly optional at the protocol level, reducing risk.
-
-### 9. packages/client — New React components (no new deps)
-
-- `FormationPicker` — renders 4 formation cards with a pitch diagram; uses existing SVG approach, no new rendering library.
-- `AssignmentBoard` — shows the 11 slots with drag-to-swap. For a 2-player POC, drag-and-drop via native HTML5 DnD or simple click-to-select-then-click-to-assign is sufficient. **Do not add react-dnd, @dnd-kit, or similar** — the interaction is too simple to justify a library.
-
----
-
-## What NOT to Add
-
-| Rejected Package                                 | Reason                                                                                                                                                                                                                                                      |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `munkres-js` or any Hungarian algorithm library  | Player assignment is a 11-slot fill problem, not a full assignment matrix. Greedy weighted-sort is O(n²) and produces good-enough results for a board game.                                                                                                 |
-| `react-dnd` / `@dnd-kit/core`                    | Formation slot swapping is 11 elements max. Click-select-then-click-place is simpler, more accessible, and touch-friendly without a drag library.                                                                                                           |
-| `csv-parse` / `papaparse`                        | The seed script is a dev-time tool run once. The existing readline + manual split handles the same flat CSV schema. Adding a parser library adds a dependency to packages/shared devDependencies for zero functional gain.                                  |
-| `zod` for runtime validation                     | The existing pattern is TypeScript compile-time types + server-side if-guards in game handlers. Zod would require refactoring the entire validation surface. The new formation/assignment types are simpler than the existing game logic — stay consistent. |
-| `immer`                                          | GameState is already handled as plain object spreads. The formation assignment result is a simple lookup record. Immer adds no value here.                                                                                                                  |
-| `honeycomb-grid` in packages/shared              | Formation coordinates are static lookup tables, not computed geometry. honeycomb-grid is appropriate for gameplay math (move validation, ZoI, distance) — already used in packages/client. Formation slot positions are authored constants.                 |
-| Any UI component library (MUI, Radix, shadcn)    | The existing client uses custom SVG + CSS. Adding a component library mid-project would require either a full UI audit or two inconsistent visual systems.                                                                                                  |
-| A separate `packages/formation-engine` workspace | The formation and assignment logic is ~200 lines. A new workspace package adds build configuration overhead with no benefit at this scale. Put it in packages/shared/src alongside other pure logic modules.                                                |
-
----
-
-## Breaking Change Risks
-
-### Risk 1: TeamId union expansion — MEDIUM risk, contained blast radius
-
-**What changes:** Adding 8 new values to `TeamId` union in `teamConfig.ts`.
-
-**What breaks:** `Record<TeamId, ...>` types — specifically `TEAM_SQUADS` in `teams.ts` and `TEAM_CONFIGS` in `teamConfig.ts`. TypeScript will error at compile time if any new `TeamId` value lacks an entry in these records. This is a **good** breaking change — the compiler catches omissions.
-
-**What does NOT break:** `GameState.selectedTeams: { home: TeamId; away: TeamId }` is already a union — adding values is additive. Existing `switch`/`if` statements on `TeamId` that have a `default` case continue to work. Statements without `default` will cause TS exhaustiveness errors, which are the correct signal to update.
-
-**Mitigation:** Expand `teams.ts` and `TEAM_CONFIGS` atomically with the `TeamId` expansion. Never commit `TeamId` expansion without the corresponding record entries.
-
-### Risk 2: TeamConfig shape change (ColorScheme extraction) — LOW-MEDIUM risk
-
-**What changes:** `primaryColor: string` and `secondaryColor: string` become `colorScheme: ColorScheme`.
-
-**What breaks:** Client components that read `TEAM_CONFIGS[id].primaryColor` directly. Grep shows these are in jersey SVG pattern components and team badge color logic — roughly 3–6 call sites.
-
-**What does NOT break:** `GameState`, Socket.io events, server-side game logic (the server never reads `primaryColor`). Zero test coverage of TeamConfig color fields, so no test breakage.
-
-**Mitigation:** A single rename pass across the client. Low risk, but should be done in a dedicated commit separate from team data additions.
-
-### Risk 3: GameState.selectedFormation addition — NEGLIGIBLE risk
-
-**What changes:** Optional field added to `GameState`.
-
-**What breaks:** Nothing. TypeScript optional fields are backward-compatible. `buildInitialGameState` tests that snapshot the full state object will see `selectedFormation: undefined` (or the field absent) — existing tests continue to pass. New tests assert the field when formations are chosen.
-
-**Mitigation:** None needed. Additive optional field is the safest possible `GameState` change.
-
-### Risk 4: New Socket.io events for formation selection — NEGLIGIBLE risk
-
-**What changes:** New entries added to `ClientEvents` / `ServerEvents` const objects and corresponding interfaces.
-
-**What breaks:** Nothing. Socket.io typed event maps are extended with new keys; existing keys are untouched. The server and client both ignore events they don't handle. Existing integration tests that don't exercise formation events continue to pass.
-
-**Watch for:** If a test file asserts the exact set of keys on `ClientEvents`, it will fail. Grep for `Object.keys(ClientEvents)` before adding new events.
-
-### Risk 5: seed-rosters.ts output format — LOW risk
-
-**What changes:** The generated `teams.ts` gains 8 new entries in `TEAM_SQUADS`.
-
-**What breaks:** `Record<TeamId, readonly PlayerPiece[]>` will TypeScript-error if the new `TeamId` values exist but `TEAM_SQUADS` is not regenerated. Since `teams.ts` is committed (not generated at build time), the developer must run `pnpm run seed:rosters` after adding new CSV files and expanding `TeamId`.
-
-**Mitigation:** Document in the phase execution plan: expand `TeamId` → add CSV files → run `seed:rosters` → commit `teams.ts`. This is the same flow that produced the existing 4-team file.
-
----
-
-## Confidence Assessment
-
-| Area                              | Confidence | Notes                                                                               |
-| --------------------------------- | ---------- | ----------------------------------------------------------------------------------- |
-| No new npm packages needed        | HIGH       | All capabilities present in existing stack; verified against codebase               |
-| TeamId/TeamConfig changes         | HIGH       | TypeScript record exhaustiveness ensures correctness; client call sites are few     |
-| formations.ts as shared module    | HIGH       | Matches existing pattern (pitch.ts, offside.ts as pure shared modules)              |
-| playerAssignment.ts algorithm     | HIGH       | Greedy weighted-sort is standard; 11-player domain makes complexity irrelevant      |
-| GameState optional field addition | HIGH       | Additive optional fields are the safest GameState change possible                   |
-| Socket.io event additions         | HIGH       | Extension, not modification; existing event contracts unchanged                     |
-| ColorScheme extraction rename     | MEDIUM     | Requires a grep-and-replace client pass; low complexity but must be done atomically |
-| Seed script extension to 12 teams | HIGH       | Existing script is straightforward; same CSV schema assumed for new teams           |
+_Stack research for: design-token / visual-refresh tooling for React 18 + CSS Modules + Zustand (Counter Attack Web v1.5)_
+_Researched: 2026-07-22_

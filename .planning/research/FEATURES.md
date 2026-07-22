@@ -1,318 +1,181 @@
-# Feature Research — v1.3
+# Feature Research — v1.5 (Visual/UX Refresh)
 
-**Domain:** Real-time 2-player web board game — team customization, formation selection, stat-based player assignment
-**Researched:** 2026-07-03
-**Builds on:** v1.2 research (lobby, reconnection, dice, hex rendering patterns)
-**Confidence:** HIGH for UX patterns (well-established across BoardGameArena, Lichess, tabletop digital ports); MEDIUM for algorithm specifics (derived from comparable systems — Football Manager, fantasy sports drafts — adapted to Counter Attack's 1–6 stat range)
-
----
-
-## Team Library
-
-### Table Stakes
-
-These are the minimum requirements for a team selection screen with 12 teams across 2 leagues to feel complete and navigable.
-
-| Feature                                          | Why Expected                                                                                                                                                                  | Complexity |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| League tabs or category filter                   | 12 teams is too many for a single flat grid; users need visual segmentation to orient. Any app with 2+ categories of the same item uses tabs (App Store, Steam, Google Play). | Low        |
-| Active/selected state on tab                     | Without it, users don't know which category they're viewing. One-line CSS toggle.                                                                                             | Low        |
-| Disabled/struck-out card for already-picked team | Already in the codebase for 4-team layout. Must scale to 12 teams. Away player sees home's pick struck out before choosing.                                                   | Low        |
-| Tab persists while away player waits             | If home player picks from League A, away player's view should default to (or stay on) the same league so they see the struck-out card in context.                             | Low        |
-| Team card shows name + badge                     | Already done. Keep for 12 teams. At 12 cards the badge must be smaller (60–80px vs current 110px).                                                                            | Low        |
-
-### Differentiators
-
-| Feature                                                           | Value Proposition                                                                                              | Complexity                       |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| "Stat summary pill" on each card (e.g. "ATK 4.2 DEF 3.8")         | Lets players make an informed pick without opening a full squad view. Requires averaging stats per role group. | Low — computed at data-seed time |
-| Hover/focus tooltip showing squad preview (top 3 players + stats) | Richer info without a full extra screen. Common in strategy game unit selectors.                               | Medium                           |
-| League badge / crest beside tab label                             | Visual identity. Not required for function.                                                                    | Low                              |
-
-### Expected Flow
-
-This is the correct flow for the updated team library. Deviating from it adds confusion at a moment when players are still orienting.
-
-1. Both players are on the Team Selection screen (triggered after slot-2 joins, same as today).
-2. Header: "Home: choose your team" / "Away: choose your team".
-3. Two tabs at top: **MLS** | **International** (or equivalent league names). Default tab = MLS.
-4. 6 team cards shown in a 2×3 or 3×2 grid per tab. Cards show badge + team name.
-5. Home player clicks a card → their pick is recorded; card is struck out in both players' views; tab switches automatically to show away player's turn.
-6. Away player's view: home's pick is struck out (wherever it lives across tabs); away browses both tabs freely and picks.
-7. Both picks confirmed → transition to Formation Selection (new step, see below).
-
-**Tab vs filter pattern decision:** Use tabs, not a dropdown filter. Tabs are faster (one click, no menu) and the two leagues are a categorical split, not a faceted filter. Dropdowns imply many values; two leagues = two tabs.
-
-**Cross-tab struck-out behavior:** The struck-out card must be visible even on the tab the away player isn't currently on. Two options:
-
-- Option A (recommended): When home picks from MLS, automatically open away player's view on MLS tab so they see the struck-out card. Away can then switch tabs freely.
-- Option B: Show a small "taken" badge on the tab label itself ("MLS (1 taken)") to signal something was picked there. Add only if Option A feels confusing in testing.
-
-### Dependencies
-
-- `TeamId` type must be expanded to include 12 values.
-- `TEAM_CONFIGS` must gain a `league: 'mls' | 'international'` field per team.
-- `TEAM_SQUADS` in `teams.ts` must have 12 entries (vs current 4). Seed script already exists (`seed-rosters.ts`).
-- Existing 4 teams (cosmos, xolos, city, crew) must be reclassified into leagues or retired — this is a data migration, not a code architecture change.
-- Color scheme decoupling (see Color Scheme section) is NOT a blocker for the team library; teams can still carry `primaryColor`/`secondaryColor` inline for v1.3.
+**Domain:** Broadcast-sports digital UI — dark color palette, board/highlight color semantics, and colorblind accessibility for a real-time hex-grid football board game
+**Researched:** 2026-07-22
+**Builds on:** v1.0–v1.4 (existing dark theme, hex highlight system, selection rings, draft-tier card borders)
+**Confidence:** HIGH for the external UX conventions (chess.com/lichess forum evidence, WCAG 1.4.1 spec, Okabe-Ito palette are all primary/authoritative sources); MEDIUM for the specific hex-code recommendations (these are a synthesis of those conventions applied to this codebase's existing, already-reserved colors — a design decision, not a sourced fact)
 
 ---
 
-## Formation Selection
+## Existing Palette Inventory (ground truth from codebase — read before assigning new colors)
 
-### Table Stakes
+This is not new research, but it is load-bearing: every recommendation below is designed to avoid colliding with what's _already_ reserved. Confirmed by direct source read (`packages/client/src/components/HexCell.tsx`, `PieceOverlay.tsx`, `LineupAssignmentScreen.module.css`):
 
-| Feature                                                                 | Why Expected                                                                                                                                                             | Complexity |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| Formation picker shown once per player, after team pick, before kickoff | Without it, formation is hardcoded and players have no agency over tactical setup — the feature simply doesn't exist.                                                    | Low-Medium |
-| Visual formation diagram                                                | Players must see what "4-4-2" means spatially before confirming. Text label alone is insufficient. A simplified 2D pitch with dots for positions takes ~30 lines of SVG. | Low        |
-| Confirmation button                                                     | Required to gate auto-assignment. Formation must be locked before position slots are defined.                                                                            | Low        |
-| Both players must confirm before kickoff proceeds                       | Same "both ready" pattern as KICK_OFF_SETUP. Server holds the transition.                                                                                                | Low        |
-| Formation persists through the match                                    | The chosen formation defines starting positions. The game already has KICK_OFF_SETUP for fine repositioning, so the formation just sets initial hex assignments.         | Low        |
+| Reserved for                                                              | Color(s)                                                                                                                           | Notes                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Global broadcast base theme                                               | `--bg-page:#1a1a2e`, `--bg-surface:#16213e`, `--border:#0f3460`, `--text:#e0e0e0`, `--text-dim:#a0a0a0`, `--accent:#f5c518` (gold) | Already a correct dark-broadcast palette. Single accent color already in place — do not add a second accent.                                                                                                                                                                                |
+| Team kits (home/away)                                                     | Arbitrary per-team `homePrime/homeAlt/awayPrime/awayAlt` hex                                                                       | Not controllable — any new highlight/system color must survive being placed next to _any_ team's colors, not just one.                                                                                                                                                                      |
+| Draft-tier card borders                                                   | chase=`#a855f7` (purple), rare=`#ef4444` (red), uncommon=`#22c55e` (green), common=`#ffffff` (white)                               | 4 reserved colors. New board highlight colors must not reuse these, or a player will subconsciously read "this hex = rare tier" on the board.                                                                                                                                               |
+| `kickoff` highlight (free-move)                                           | `rgba(59,130,246,1)` (blue-500)                                                                                                    | Hex fill.                                                                                                                                                                                                                                                                                   |
+| `safe` highlight (valid-step-move)                                        | `rgba(245,197,24,1)` (== `--accent` almost exactly)                                                                                | Hex fill. Intentional-looking reuse of the accent gold for "you can act here."                                                                                                                                                                                                              |
+| `risk` highlight (pass-threat)                                            | `rgba(255,140,0,1)` (orange)                                                                                                       | Hex fill.                                                                                                                                                                                                                                                                                   |
+| `goal` highlight (goal-line-target)                                       | `rgba(220,50,50,1)`, stroke `#cc2222`                                                                                              | Hex fill. **Red.**                                                                                                                                                                                                                                                                          |
+| `shot-path` / `shot-path-action` (automove-target, e.g. keeper save path) | `rgba(255,255,255,*)`                                                                                                              | Hex fill, white, opacity-differentiated.                                                                                                                                                                                                                                                    |
+| `header-target` (target-area / header contest range)                      | `rgba(34,197,94,0.4)` (green)                                                                                                      | **Correction to the brief:** this renders green, not white — same green as `active`/`uncommon`. Confirmed by direct source read (`HexGrid.tsx` `isHeaderNonGoalTarget` branch). Flag this mismatch to whoever wrote the original highlight list; it's already a soft collision (see below). |
+| `selectable` ring (eligible-to-be-targeted)                               | `#60a5fa` (blue-400)                                                                                                               | Piece ring.                                                                                                                                                                                                                                                                                 |
+| `active` ring (selected)                                                  | `#22c55e` (green)                                                                                                                  | Piece ring. Reused verbatim (per in-code comment) for `isMovedThisStage` ring — two different meanings, one color, differentiated only by ring radius.                                                                                                                                      |
+| `activated` ring (piece used this turn)                                   | `#f97316` (orange) + red X glyph                                                                                                   | Piece ring. Already uses redundant color+shape encoding — the good pattern to imitate elsewhere.                                                                                                                                                                                            |
+| `isOffside` ring                                                          | `#dc2626` (red-600)                                                                                                                | Piece ring. **Red.**                                                                                                                                                                                                                                                                        |
+| ball location                                                             | _(none — not implemented)_                                                                                                         | Confirmed missing: no `HexHighlightType` member, no token/marker in `PieceOverlay.tsx` or `HexGrid.tsx` represents "where the ball currently is" independent of the carrying piece.                                                                                                         |
 
-### Differentiators
+**Confirmed collision (the one named in the question):** `goal` (`rgba(220,50,50)`/`#cc2222`) and `isOffside` (`#dc2626`) are the same hue family at nearly the same saturation/lightness — a "great shooting chance" hex and a "you broke the offside rule" ring read as the same red. This is real, not hypothetical — verified against the literal RGB values in the source.
 
-| Feature                                                       | Value Proposition                                                                                                                           | Complexity |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Highlight the "difference" between formations                 | When user hovers 4-3-3, dim the 4-4-2 dots and show the 4-3-3 dots instead in a different color. Helps players visualize tactical tradeoff. | Medium     |
-| Formation description text ("4-3-3: High press, wide attack") | Guides tactical intent for players unfamiliar with football formations.                                                                     | Low        |
-| Opponent's formation revealed after both confirm              | Adds a pre-match tension moment. Mirrors how tabletop Counter Attack works (you don't see opponent's formation until kickoff).              | Low        |
-
-### Expected Flow
-
-Formation selection follows team selection in the pre-match lobby sequence.
-
-1. Both teams picked → screen transitions to "Choose Formation".
-2. Each player sees 4 formation options: **4-4-2**, **5-3-2**, **4-3-3**, **3-4-3** (displayed as labelled cards with a mini pitch diagram).
-3. Player clicks a formation card → it highlights (selected state). Player clicks "Confirm Formation".
-4. After confirming: player sees "Waiting for opponent to choose formation…".
-5. Once both players have confirmed → **auto-assignment runs server-side** (see Auto-Assignment section). Server emits `game:state` with KICK_OFF_SETUP phase; pieces are positioned per formation + auto-assignment result.
-6. KICK_OFF_SETUP works as today: players may swap pieces before clicking Ready.
-
-**When shown:** Formation selection is a new discrete phase between team selection and KICK_OFF_SETUP. It is NOT shown mid-match or at half-time. It is shown once per match per player.
-
-**Server-side enforcement:** The server must receive the formation choice before running auto-assignment. A new socket event (`game:formation_pick` or similar) carries `{ teamId, formation: '4-4-2' | '5-3-2' | '4-3-3' | '3-4-3' }`. Server holds game start until both formations are received.
-
-**FSM impact:** A new game phase (e.g. `FORMATION_SELECT`) must be added between team-selection acknowledgment and KICK_OFF_SETUP. Both existing phases are unaffected.
-
-### Formation → Hex Position Mapping
-
-Each formation defines a set of named position slots. The server maps each slot to a starting hex using a lookup table keyed by `(formation, side: 'home'|'away', slotName)`. The KICK_OFF_SETUP hex grid already has named regions (PITCH_REGIONS); formation starting positions extend that.
-
-**4-4-2 (existing, hardcoded):**
-
-- GK: q=2, r=13
-- DEF (4): q=6, r={6, 10, 16, 20}
-- MID (4): q=10, r={4, 9, 17, 22}
-- FWD (2): q=15, r={9, 17}
-- ST (1): q=18, r=13
-
-The other three formations shift the midfield and forward line counts. The exact hex coordinates for new formations are a data decision (not a code architecture decision) — they should be authored during the implementation phase with reference to the physical board.
-
-### Dependencies
-
-- Formation selection must complete before auto-assignment can run (strict sequential dependency).
-- Auto-assignment depends on the formation because position slots are derived from the formation.
-- KICK_OFF_SETUP already handles post-assignment repositioning — no changes needed there beyond receiving pre-positioned pieces.
+**Secondary collision found during this research (not asked for, but relevant):** `active` (selected-piece ring, green `#22c55e`) and `isMovedThisStage` (green `#22c55e`, same value, per an explicit "reuse the same green for visual consistency" code comment) are visually identical except for an 8px radius difference. Two different facts ("this piece is currently selected" vs. "this piece already moved this stage") collapse to one color. Worth flagging to the requirements-writer as a P2, not a P1 — it wasn't part of the question's named collision, but it's the same category of problem and cheap to fix alongside it.
 
 ---
 
-## Auto-Assignment with Override
+## Feature Landscape
 
-### Table Stakes
+### Table Stakes (Users Expect These)
 
-| Feature                                                          | Why Expected                                                                                                                                                                          | Complexity         |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| System assigns players to positions automatically                | Without it, players must manually drag 11 pieces to positions before every kickoff — unusable friction. Every digital tabletop game that has formation+roster selection auto-assigns. | Medium (algorithm) |
-| Visual display of the assignment result before confirmation      | Players must see who is where before accepting. A list of "Position → Player Name" rows is sufficient; a mini-pitch with name labels is better.                                       | Low-Medium         |
-| Swap mechanism: player can exchange two pieces before confirming | One-level override is table stakes. Players will immediately see a mis-assignment (e.g. their best striker placed at wing) and expect to fix it.                                      | Medium             |
-| Confirm button to lock assignment                                | Required to gate the KICK_OFF_SETUP transition.                                                                                                                                       | Low                |
-| GK is always locked to the GK slot                               | GK is a distinct role. Auto-assignment must never place an outfielder in goal. This is a hard constraint, not a preference.                                                           | Low                |
+| Feature                                                                                                         | Why Expected                                                                                                                                                                                                                                                                                                                                                                                              | Complexity | Notes                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dark "broadcast" base palette (near-black navy background, light gray/white text, one accent color)             | This is the near-universal look of ESPN/NBA/NFL app score screens, FIFA Ultimate Team, chess.com/lichess dark mode, and esports overlays — "dark neutral + single bright accent for CTAs/wins/highlights" is the default expectation for a broadcast-styled sports product. Confirmed by multiple broadcast-graphics design sources.                                                                      | LOW        | Already built (`--bg-page`, `--bg-surface`, `--border`, `--accent`). No new work — just don't dilute it by adding a second accent color for board highlights. |
+| One unambiguous meaning per hue across the whole app                                                            | Chess.com and Lichess forum threads repeatedly show users complaining when a highlight color's meaning is inconsistent or too close to another meaning (esp. red/green confusion for colorblind users). Users build muscle memory ("yellow = I can act here"); breaking that per-screen is confusing.                                                                                                     | LOW–MEDIUM | This is the core ask: red must mean exactly one thing (rule violation/restriction) everywhere in the game, not two.                                           |
+| Valid-move / actionable highlight uses the same hue as the primary UI accent                                    | Standard "this thing is interactive" affordance pattern — matches chess.com/lichess default (bright, singular highlight color for legal-move squares) and matches this game's own precedent (`safe` already ≈ `--accent`).                                                                                                                                                                                | LOW        | Already correct — no change needed, just preserve it when the palette is reworked.                                                                            |
+| Ball location is always visually locatable independent of highlight state                                       | In a fast, real-time, click-to-move game, "where is the ball right now" is the single most load-bearing piece of board information — broadcast graphics for every ball sport (soccer, football, hockey) always keep the ball/puck visually distinct from all other markers, usually via icon, never via a semantic color that could be reused for something else. Currently **missing** in this codebase. | MEDIUM     | Recommend a dedicated icon/token layer (see Differentiators), not a new `HexHighlightType` color, precisely so it never has a collision to worry about.       |
+| Redundant color+shape encoding for the two states with the highest stakes (rule violation, scoring opportunity) | WCAG 1.4.1 (Use of Color, Level A): information must never be conveyed by color alone. This game already does this correctly for `activated` (orange ring + red X) — extend the same pattern to `offside` and `goal-line-target`, which currently rely on hue alone.                                                                                                                                      | LOW–MEDIUM | Codebase precedent already exists (`activated` ring); this is "do more of what you already do," not a new pattern.                                            |
 
-### Differentiators
+### Differentiators (Competitive Advantage)
 
-| Feature                                          | Value Proposition                                                                                                                                                           | Complexity |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Highlight "best fit" vs "compromise" assignments | Color-code slots where the assigned player's primary stat is well below the position's ideal (e.g. red tint if shooting < 3 for a CF slot). Helps players prioritize swaps. | Low        |
-| Show stat comparison when selecting a swap       | When player clicks two pieces to swap, show a side-by-side stat comparison so they can confirm the swap is beneficial.                                                      | Medium     |
-| "Re-auto-assign" button                          | Lets players redo the auto-assignment if they've made swaps they regret.                                                                                                    | Low        |
+| Feature                                                                                                     | Value Proposition                                                                                                                                                                                                                                                                                                                                                                                                         | Complexity  | Notes                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ball-location marker as a persistent icon/token (not a hex-tint)                                            | Sets this apart from a naive port that would try to jam a 7th color into the existing hex-tint enum and inevitably collide with something. Rendering the ball as its own small SVG token (same rendering family as `PieceOverlay`, not `HIGHLIGHT_STYLES`) sidesteps the whole color-collision problem by definition and matches how every broadcast sports graphic marks the ball/puck — a shape, not a background tint. | MEDIUM      | New component, e.g. `BallMarker.tsx`, rendered at the ball's current hex on top of the grid layer, independent of `highlightType`.                                                                                  |
+| Full redundant icon+color encoding across every board highlight type (not just offside/activated)           | Lichess/chess.com forum threads show colorblind users still struggling even after color changes, because the fix (recoloring) only helps some color-vision-deficiency types, not all. Small glyphs (dot, chevron, crosshair, warning triangle) layered on the existing hex tints would make the system usable with color perception fully disabled (grayscale test).                                                      | MEDIUM–HIGH | Needs a small icon set (4–6 SVG glyphs) and a per-`highlightType` glyph mapping. Bigger lift than the color fix alone — recommend as v1.5.x follow-up, not launch-blocking.                                         |
+| Colorblind-safe hue selection referencing an established palette (Okabe-Ito) rather than ad-hoc color picks | Distinguishes this refresh from "we picked colors that look nice to us" — Okabe-Ito is the standard cited reference for colorblind-safe qualitative palettes across deuteranopia, protanopia, and tritanopia. Anchoring new hue choices to it is a differentiator versus most indie board-game ports, which rarely do this.                                                                                               | LOW         | Doesn't require adopting the Okabe-Ito hexes verbatim (several are already "taken" by team/tier colors) — just requires checking new picks against it for contrast/distinguishability, which is free during design. |
+| User-toggleable colorblind mode (alternate highlight palette)                                               | Both chess.com and Lichess have live, repeated user feature requests for exactly this, and Lichess has partially responded. Offering it would put this game ahead of at least one major digital board-game competitor.                                                                                                                                                                                                    | HIGH        | Full settings-driven alternate palette + toggle UI. Correctly scoped to v2+, not v1.5 — see Anti-Features / Future Consideration.                                                                                   |
 
-### Algorithm Notes
+### Anti-Features (Commonly Requested, Often Problematic)
 
-The algorithm runs server-side (authoritative). Client shows the result; player overrides are sent as swap events. This prevents either player from having a computational advantage.
-
-**Position roles in Counter Attack (from codebase):**
-
-- GK (1): saving + handling + aerialAbility
-- DEF (varies by formation — 3, 4, or 5): tackling + resilience + aerialAbility
-- MID (varies — 3 or 4): highPass + dribbling + tackling (balance stat)
-- FWD/winger (varies): pace + dribbling + shooting
-- ST/CF (1–2): shooting + heading (aerialAbility) + pace
-
-**Recommended algorithm: weighted score → greedy assignment**
-
-This is the simplest correct approach. More sophisticated (Hungarian algorithm / optimal assignment) is not justified for 11 players and 4 formation types.
-
-```
-type PositionSlot = { slotId: string; role: 'GK'|'CB'|'FB'|'CM'|'CAM'|'W'|'CF'; weights: Record<StatKey, number> }
-
-function scorePlayerForSlot(player: PlayerPiece, slot: PositionSlot): number {
-  return sum over stat in weights: player[stat] * slot.weights[stat]
-}
-
-function autoAssign(squad: PlayerPiece[], slots: PositionSlot[]): Map<slotId, playerId> {
-  1. Lock GK first: assign the squad's single GK-role player to the GK slot. Remove both from candidate pool.
-  2. For each remaining slot (sorted by specificity — CF before CM before FB):
-     a. Score all unassigned outfield players against this slot.
-     b. Assign the highest-scoring unassigned player to this slot.
-     c. Remove that player from the pool.
-  3. Return the complete assignment map.
-}
-```
-
-**Stat weights per role (recommended starting values — tune during playtest):**
-
-| Role         | Primary Stats                             | Secondary Stats |
-| ------------ | ----------------------------------------- | --------------- |
-| GK           | saving×3, handling×3, aerialAbility×2     | pace×0.5        |
-| CB (anchor)  | tackling×3, resilience×2, aerialAbility×2 | highPass×1      |
-| FB (flex)    | tackling×2, pace×2, resilience×1          | dribbling×1     |
-| CM (anchor)  | highPass×2, tackling×2, dribbling×2       | resilience×1    |
-| CAM/flex-mid | dribbling×3, shooting×2, highPass×1       | pace×1          |
-| W/winger     | pace×3, dribbling×2, shooting×1           | —               |
-| CF (anchor)  | shooting×3, aerialAbility×2, pace×1       | dribbling×1     |
-
-**Anchor vs flex distinction:** The milestone context calls out "anchor roles (CB/CM/CF) vs flex roles (FB/winger/flex-mid)". Anchors are filled first in the greedy pass (step 2 above, sorted by specificity). This prevents the best all-rounder from being consumed by a flex role before the critical anchor slots are evaluated.
-
-**Tie-breaking:** When two players score identically for a slot, break ties by:
-
-1. Higher combined stat total (more versatile player goes to the more demanding slot)
-2. If still tied, lower jersey number (deterministic, avoids random outcomes)
-
-Ties are rare on 1–6 integer stats with weighted sums, but the tiebreaker must exist to prevent non-determinism.
-
-**Swap/override UX flow:**
-
-1. Auto-assignment result is displayed (list or mini-pitch).
-2. Player clicks piece A (highlights it). Player clicks piece B → the two pieces swap slots. Server receives `game:formation_swap { pieceIdA, pieceIdB }`.
-3. Server validates swap (both pieces in same team's squad, neither is GK being moved out of GK slot). Emits updated assignment state.
-4. Player can make multiple swaps.
-5. Player clicks "Confirm" → assignment is locked. Server moves pieces to their formation hex positions.
-6. KICK_OFF_SETUP phase begins for fine repositioning.
-
-**GK lock rule:** The GK slot may only receive a player whose `role === 'GK'` in the squad data. The swap validator on the server enforces this. A player may not "promote" an outfielder to GK via the swap UI.
-
-**Server-side execution:** Auto-assignment runs once, after both players have confirmed their formations. The server runs `autoAssign(squad, slotsForFormation)` and stores the result in game state. Both clients receive the assignment simultaneously via `game:state`.
-
-### Dependencies
-
-- Requires formation to be confirmed before it can run (formation defines the slot list).
-- Position hex coordinates for non-4-4-2 formations must be authored before auto-assignment can place pieces.
-- The `PlayerPiece.role` field (`GK|DEF|MID|FWD|ST`) in the current codebase is a coarse role, not a formation slot. Auto-assignment maps the fine-grained slot (CB, FB, CM, etc.) from the formation spec; the coarse role is used only as a GK gate.
-- Swap validation is server-side. Client sends swap intents; server applies them to the assignment map.
+| Feature                                                                             | Why Requested                                                                             | Why Problematic                                                                                                                                                                                                                                                                                                                                                    | Alternative                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full custom theme/color picker for board highlights                                 | Feels like "more customization = more polish"; every game settings menu seems to want one | This is a 2-player real-time POC, not a live product with a broad user base needing personalization; a full picker multiplies QA surface (every highlight × every user-chosen color must still avoid team/tier collisions, which a picker can't guarantee) and is scope creep against the milestone's actual ask (fix a specific collision + add a missing marker) | Ship a single, carefully chosen, colorblind-checked default palette now; defer a picker/toggle to v2+ if there's real demand                                                                                            |
+| Reusing red for "great shooting chance" (keep it as-is because it "feels dramatic") | Red reads as exciting/urgent in a lot of UI, and "shot at goal" _is_ exciting             | This is precisely the named collision — red already has a fixed, universal sports meaning (foul, card, stop, violation) that offside also needs; doubling it up on an _opposite-valence_ concept (a good opportunity) is the exact anti-pattern the question asks to avoid                                                                                         | Move goal-line-target off red entirely (see recommended mapping below); use redundant shape (e.g. a target/crosshair glyph) to keep the "exciting" feeling without needing red                                          |
+| A second accent color for board highlights, distinct from `--accent`                | Feels like it would make the highlight system feel more "designed"                        | Broadcast UI convention (and this game's own existing palette) is deliberately single-accent; adding a second one dilutes the "this is clickable/important" signal app-wide and risks colliding with team colors, which are arbitrary and can't be reserved against                                                                                                | Reuse the existing `--accent` for the "you can act here" highlight (already done for `safe`); introduce new _hues_ only for genuinely new semantic categories (ball location, and the recolored goal-opportunity state) |
+| Animated glow/pulse on every highlight type simultaneously                          | "More motion = more exciting broadcast feel"                                              | If every highlight pulses, none of them stand out — motion should be reserved for the single highest-priority state (e.g., ball location or an active goal-scoring window), or it becomes visual noise and actively hurts scannability, which contradicts the "instant readability" goal of broadcast UI                                                           | Reserve any pulse/glow effect for at most one state (ball marker, or a live shot-in-progress indicator); keep all other highlights static                                                                               |
 
 ---
 
-## Color Scheme / Visual Identity
+## Feature Dependencies
 
-### Table Stakes (for v1.3 and v1.4 prep)
-
-For v1.3 (the team library milestone), color scheme is still inline on `TeamConfig` — no architectural change needed. The decoupling is a v1.4 concern.
-
-| Feature                                                                 | Why Expected                                                                                             | Complexity                           |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| Each team has a distinct primary color used on pieces and cards         | Already in codebase. Must continue to work as teams are added.                                           | None — existing                      |
-| Badge image per team                                                    | Already in codebase. Must be authored for 8 new teams.                                                   | Art/asset cost, not code cost        |
-| Colors don't clash when two teams with similar palettes face each other | With 12 teams, color collision probability rises. Need a check at match start (or design-time curation). | Low — enforce at data-authoring time |
-
-### Notes for v1.4 Prep
-
-The architectural goal stated in the milestone context is: **visual identity (badge, colors, jersey) becomes a separate entity from team roster.**
-
-This means a future `ColorScheme` type that can be referenced by team config but also selected independently (e.g. custom team "use Manchester blue scheme with Sydney FC crest"). The separation enables:
-
-- Custom team creation (v1.5+): player defines roster, then picks a color scheme separately
-- Reuse of schemes across teams without duplicating color data
-- Scheme selection UI (color picker or preset palette selector)
-
-**Recommended v1.4 data model (do not build now, design now):**
-
-```typescript
-export type ColorSchemeId = string; // e.g. 'blue-gold', 'red-black', 'custom-abc123'
-
-export interface ColorScheme {
-  id: ColorSchemeId;
-  primaryColor: string; // hex
-  secondaryColor: string; // hex
-  tertiaryColor?: string; // optional trim color
-  badgeFile?: string; // optional crest override
-}
-
-export interface TeamConfig {
-  id: TeamId;
-  name: string;
-  colorSchemeId: ColorSchemeId; // reference, not inline
-  leagueId: 'mls' | 'international';
-}
 ```
+Fix goal/offside red collision (P1)
+    └──requires──> Recolor `goal` HexHighlightType away from red (HexCell.tsx HIGHLIGHT_STYLES)
+                       └──requires──> Update existing test assertions expecting rgba(220,50,50,1)
+                                          (HexGrid.test.tsx, HexCell.test.tsx reference this literal)
+    └──enhances──> Single-unambiguous-red-meaning table stakes item
 
-**v1.3 migration path (zero-breaking-change):** Keep `primaryColor`/`secondaryColor` inline on `TeamConfig` for all 12 v1.3 teams. In v1.4, extract them into a `COLOR_SCHEMES` registry and replace inline fields with `colorSchemeId`. Client components that read `TEAM_CONFIGS[id].primaryColor` will need a one-line lookup change: `COLOR_SCHEMES[TEAM_CONFIGS[id].colorSchemeId].primaryColor`.
+Ball-location marker (P1)
+    └──requires──> New rendering layer/component, independent of HexHighlightType enum
+                       (ball position already exists in GameState — no new server data needed)
+    └──enhances──> "Instantly locatable ball" table stakes item
+    └──conflicts with──> Cramming ball location into the existing hex-tint system (anti-pattern — would need an 8th tint color and reopen the collision problem)
 
-**Color scheme selection UX (v1.4 design guidance):**
+Redundant icon+color encoding, all highlight types (P2, v1.5.x)
+    └──requires──> Small icon/glyph asset set (4-6 SVG glyphs)
+    └──enhances──> Offside/goal-line-target/activated pattern (already partially present via activated's red-X)
+    └──requires──> Fix goal/offside red collision first (no point adding icons to colors that still collide)
 
-- Do NOT build a full color picker for v1.4. Offer 10–12 preset palettes as clickable swatches, same pattern as GitHub profile customization and Notion page icon selection.
-- Custom hex input is a v1.5+ feature.
-- Scheme selection happens in a "Customize team" modal accessible from the team library, not inline on the team card.
+Disambiguate `active` vs `isMovedThisStage` ring (P2, opportunistic — found during this research, not the primary ask)
+    └──requires──> Distinct stroke style (e.g. dashed vs solid) or distinct hue, not just radius
+                       └──low cost if bundled with the goal/offside recolor pass (same files touched)
+
+Colorblind mode toggle (P3, v2+)
+    └──requires──> Settings UI + persisted preference
+    └──requires──> A second, alternate palette definition
+    └──requires (prerequisite)──> A single, well-defined, collision-free default palette (this milestone) — a toggle over a broken/colliding default is worse than no toggle
+```
 
 ---
 
-## Feature Dependency Map (v1.3 milestone)
+## MVP Definition
 
-```
-Team Library (12 teams, 2 leagues)
-    └─> League tabs UI                   (new client component)
-    └─> Expanded TeamId union            (shared types change)
-    └─> 8 new team data entries          (teams.ts + seed script)
-    └─> league field on TeamConfig       (shared types change)
+### Launch With (v1.5)
 
-Formation Selection
-    └─> Requires team selection complete  (existing flow gated)
-    └─> New FORMATION_SELECT game phase   (FSM addition)
-    └─> Formation→slot mapping table      (new shared data)
-    └─> Both-players-confirm pattern      (same as KICK_OFF_SETUP ready flow)
-            └─> Auto-Assignment runs      (server-side, triggered on both confirms)
+- [ ] Recolor `goal-line-target` off red to a distinct hue not already reserved by team colors, draft tiers, or any other highlight/ring — restores red to a single meaning ("rule violation / restricted") app-wide — essential because this is the explicit collision named in the milestone's research question
+- [ ] Add a dedicated ball-location marker (icon/token, not a hex tint) — essential because the current system has no way to show ball location at all, which is a functional gap in a fast real-time game, not just a cosmetic one
+- [ ] Single source-of-truth mapping doc/constant (one table or one exported const) listing every highlight-type/ring/marker → color/glyph, checked against the reserved-color inventory above — essential so future features (v1.6+) don't reintroduce a collision by picking an "available-looking" color that's actually already claimed by a team or tier
 
-Auto-Assignment
-    └─> Requires formation confirmed      (slot list must be known)
-    └─> Requires squad data (12 teams)    (team library dependency)
-    └─> Swap UI                           (client component, server-validated)
-            └─> Confirm locks assignment  (gates KICK_OFF_SETUP transition)
+### Add After Validation (v1.5.x)
 
-KICK_OFF_SETUP (existing)
-    └─> Receives pre-positioned pieces    (from auto-assignment)
-    └─> No changes needed to constraint logic
-```
+- [ ] Redundant icon/glyph on every remaining highlight type (not just the two fixed at launch) — trigger: after the P1 recolor ships and reads correctly, extend the same shape+color pattern everywhere for full WCAG 1.4.1 compliance
+- [ ] Disambiguate `active` (selected) vs `isMovedThisStage` ring beyond radius — trigger: if playtesting shows players missing the "already moved" state (likely, since it's currently a subtle 8px radius difference in the same color)
 
-**Critical path for v1.3:**
+### Future Consideration (v2+)
 
-1. Expand `TeamId`, `TEAM_CONFIGS`, `TEAM_SQUADS` with 8 new teams + league field
-2. Formation data model (slot definitions per formation + hex positions)
-3. `FORMATION_SELECT` FSM phase + socket events
-4. Auto-assignment algorithm (server-side `autoAssign` function)
-5. Formation picker UI (client)
-6. Assignment review + swap UI (client)
-7. League tabs on team selection screen (client)
+- [ ] User-toggleable colorblind/alternate palette mode — defer: real demand signal needed first (Lichess/chess.com show it's a common ask, but this is a 2-player POC, not a broad live product yet); also structurally depends on the v1.5 default palette being finalized and collision-free first
 
-Steps 1–4 are backend/shared; steps 5–7 are client. Steps 1–2 are blocking for all others. Steps 3–4 can develop in parallel with steps 5–7 once the data model is settled.
+---
+
+## Feature Prioritization Matrix
+
+| Feature                                                 | User Value                            | Implementation Cost | Priority                    |
+| ------------------------------------------------------- | ------------------------------------- | ------------------- | --------------------------- |
+| Recolor goal-line-target off red (fix collision)        | HIGH                                  | LOW                 | P1                          |
+| Ball-location marker (icon/token)                       | HIGH                                  | MEDIUM              | P1                          |
+| Single source-of-truth highlight/color mapping constant | MEDIUM                                | LOW                 | P1                          |
+| Disambiguate active vs isMovedThisStage ring            | LOW–MEDIUM                            | LOW                 | P2                          |
+| Redundant icon+color encoding, all highlight types      | MEDIUM                                | MEDIUM–HIGH         | P2                          |
+| Colorblind mode toggle / alternate palette              | LOW (now) / HIGH (if user base grows) | HIGH                | P3                          |
+| Full custom theme/color picker                          | LOW                                   | HIGH                | Anti-feature — do not build |
+
+---
+
+## Recommended Highlight/Color Mapping (concrete, for requirements-writer)
+
+This is the direct answer to "what's a recommended distinct highlight-color scheme." Existing entries marked **KEEP** need no code change beyond documenting them in the single source-of-truth constant; entries marked **CHANGE** are the actual fix.
+
+| Semantic meaning (current name)                         | Current color                         | Recommendation                                                                                                                                     | Rationale                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| free-move / kickoff                                     | blue `#3b82f6`                        | **KEEP**                                                                                                                                           | Distinct hue, no current collision named or found.                                                                                                                                                                                                                                                                                                                                                   |
+| valid-step-move (safe)                                  | gold `#f5c518`                        | **KEEP**                                                                                                                                           | Matches app's single accent color — correct "you can act here" affordance; already colorblind-distinguishable from the others below.                                                                                                                                                                                                                                                                 |
+| pass-threat (risk)                                      | orange `#ff8c00`                      | **KEEP**                                                                                                                                           | Distinct from the recolored goal state (see below) and from blue/gold; the near-duplicate with `activated`'s ring orange (`#f97316`) is low-severity because they're different render layers (hex fill vs. piece-ring outline) that rarely need to be told apart at a glance.                                                                                                                        |
+| goal-line-target (shooting opportunity)                 | red `rgba(220,50,50)`                 | **CHANGE → vivid magenta/pink, e.g. `#ec4899`**                                                                                                    | Breaks the red/red collision decisively by moving to a hue not used anywhere else in the app (not blue, gold, orange, green, purple-tier, or red). Magenta/pink for "hot scoring opportunity" also mirrors how sports analytics broadcast graphics often render shot/xG heat maps in pink-to-red gradients specifically to avoid overloading pure red, which is reserved for cards/fouls/violations. |
+| offside (rule violation)                                | red `#dc2626`                         | **KEEP as the sole red**                                                                                                                           | Red now means exactly one thing in the entire app: "restricted / rule violation." This is the fix — not recoloring offside, but freeing red up by moving goal-line-target away from it.                                                                                                                                                                                                              |
+| automove-target / shot path (e.g. keeper save)          | white `rgba(255,255,255,*)`           | **KEEP**                                                                                                                                           | Distinct from `common`-tier card white because it never appears on the same screen as draft cards.                                                                                                                                                                                                                                                                                                   |
+| target-area / header contest range (`header-target`)    | green `rgba(34,197,94,0.4)`           | **KEEP color, but flag the brief's mismatch**                                                                                                      | Actually green, not white as the milestone brief assumed — correct the shared mental model rather than the code. Low collision risk with `active`/`uncommon`-tier green since it only appears mid-header-duel, a distinct game moment from selection or drafting.                                                                                                                                    |
+| eligible-to-be-targeted (blue-circle / selectable ring) | blue `#60a5fa`                        | **KEEP**                                                                                                                                           | Fine as-is; distinguishable from `kickoff`'s blue by context (ring vs. fill) and by the fact both "mean" roughly the same thing (a valid thing to click).                                                                                                                                                                                                                                            |
+| selected (green-circle / active ring)                   | green `#22c55e`                       | **KEEP color; add stroke-style distinction from isMovedThisStage**                                                                                 | See next row — the fix here isn't a new color, it's a shape/style differentiator.                                                                                                                                                                                                                                                                                                                    |
+| already-moved-this-stage ring                           | green `#22c55e` (identical to active) | **CHANGE → same green, dashed stroke instead of solid** (or move to a genuinely different but still-unclaimed hue if a dashed stroke tests poorly) | Cheapest fix that preserves "still basically green = still good/allowed" while making the two states tell apart without relying on noticing an 8px radius difference.                                                                                                                                                                                                                                |
+| ball location                                           | _(none — missing)_                    | **ADD → icon/token marker, no fill color assigned**                                                                                                | Deliberately not a `HexHighlightType` color at all — a small ball-icon SVG rendered at the ball's hex, on its own layer, so it can never collide with anything (it has no competing hue to begin with).                                                                                                                                                                                              |
+
+**Net effect:** every color in the system now maps to exactly one semantic family — blue = "movement/eligibility," gold/accent = "you can act," orange = "danger zone," magenta = "scoring opportunity," green = "positive state (selected/allowed)," white = "ball trajectory," red = "violation," and the ball itself is a shape, not a color. No hue is shared between a positive and a negative meaning.
+
+---
+
+## Competitor Feature Analysis
+
+| Feature                               | Chess.com / Lichess                                                                                                                                                                                                      | FIFA/EA companion & broadcast apps / ESPN                                                                                    | Our Approach                                                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Valid-move highlight                  | Both use a single bright highlight color (commonly yellow/green) for legal-move squares; both have open, unresolved user complaints about colorblind users not being able to distinguish highlight colors from the board | Broadcast graphics use one accent color consistently for "actionable/live" elements against a dark or neutral base           | Keep existing gold/accent for valid-step-move (already correct); this is the one place we already match best practice                                                                                                                         |
+| Danger/violation indicator            | Not really applicable (no penalty/foul concept)                                                                                                                                                                          | Red is reserved for cards, fouls, "OUT"/violation graphics — never reused for a positive stat or opportunity indicator       | Reserve red exclusively for offside (rule violation); this is the actual fix this research was commissioned to make                                                                                                                           |
+| Opportunity/highlight-worthy state    | N/A directly, but Lichess's "brilliant move"/eval-bar coloring uses green for advantage, not red                                                                                                                         | Shot/xG heat maps commonly use non-red gradients (blue→yellow→pink/red) specifically so "high chance" doesn't read as "foul" | Move goal-line-target to magenta/pink, avoiding red entirely, matching the analytics-broadcast convention of not overloading red                                                                                                              |
+| Colorblind accommodation              | Both have long-standing, unresolved user forum threads requesting better colorblind support; neither has shipped a fully satisfying fix                                                                                  | Not typically a focus of broadcast graphics (viewer, not player, audience)                                                   | Fix the base palette to avoid collision (this milestone) and lay the groundwork with a single source-of-truth mapping so a future colorblind toggle (v2+) has a clean baseline to branch from, rather than having to fix two problems at once |
+| Object-of-interest marker (ball/puck) | N/A (no moving "ball" concept)                                                                                                                                                                                           | Ball/puck is always a small, distinct icon, never a background color, in every broadcast sports graphic package              | Add a dedicated ball-location icon/token, matching this universal broadcast convention and closing the "missing" gap named in the milestone brief                                                                                             |
 
 ---
 
 ## Confidence Notes
 
-- **HIGH:** Tab vs filter pattern for 2-league team library — this is a universal, well-established UX pattern. No ambiguity.
-- **HIGH:** Both-players-confirm gate for formation — already proven in KICK_OFF_SETUP; the same pattern transfers directly.
-- **HIGH:** GK-lock constraint in auto-assignment — the codebase already distinguishes GK by role; enforcing the lock is trivial.
-- **HIGH:** Greedy weighted-score algorithm for auto-assignment — justified for small N (11 players). Hungarian algorithm is unnecessary complexity. Fantasy sports and Football Manager both use weighted scoring for initial auto-picks.
-- **MEDIUM:** Stat weight values — the weights in the algorithm section are starting points. They require playtest validation. Wrong weights will produce assignments that feel wrong to football-knowledgeable players (e.g. assigning a low-shooting player to CF).
-- **MEDIUM:** Formation hex coordinates for non-4-4-2 formations — positions must be visually correct on the actual hex grid. This depends on the board photo/measurements (already flagged as a blocking dependency in PROJECT.md). Coordinates in this document are illustrative, not final.
-- **LOW:** Whether formation reveal (opponent's choice shown after both confirm) improves the experience — this is a preference call. Recommend building it but treating it as a toggle.
+- **HIGH:** The named red/red collision is real — verified directly against source (`rgba(220,50,50,1)`/`#cc2222` for `goal` vs. `#dc2626` for `isOffside`), not inferred.
+- **HIGH:** Chess.com/Lichess colorblind-highlight complaints are drawn from live user forum threads on both platforms (primary sources, not secondhand summary).
+- **HIGH:** WCAG 1.4.1 (Use of Color) is an official W3C Level A success criterion — authoritative, not a design opinion.
+- **HIGH:** Okabe-Ito is the standard-cited colorblind-safe qualitative palette in the accessibility/data-viz literature — used here as a reference point for hue distinguishability, not as a hex-for-hex prescription (several of its hues are already claimed by this app's team/tier colors).
+- **MEDIUM:** The specific recolor choice (`goal-line-target` → magenta/pink `#ec4899`) is this researcher's synthesis of "keep red exclusive to violations" + "avoid every already-reserved hue in this specific codebase." It is a defensible, well-reasoned design decision, not a sourced fact — the requirements-writer or a designer should treat the _exact_ hex as a starting point, not gospel, and sanity-check it visually against the actual team-color set once assigned.
+- **MEDIUM:** The `header-target`-is-actually-green (not white, as the milestone brief assumed) correction is a direct source read, but I could not confirm from the git history _why_ it diverged from the brief's mental model (rename without a doc update vs. always been green) — flagged as a gap for the requirements-writer to resolve with the original author if it matters.
+- **LOW/none:** No FIFA/EA companion-app-specific color values were sourced (their exact in-app hex codes are not publicly documented) — the FIFA/broadcast claims here are about general, well-established broadcast-graphics conventions (dark base + single accent, ball-as-icon, heat-map-avoids-pure-red), not a specific EA product audit. Treat any FIFA-specific claim as illustrative of the broader convention, not a verified FIFA design-system fact.
+
+---
+
+_Feature research for: Counter Attack Web — v1.5 visual/UX refresh (broadcast-style board highlight & color system)_
+_Researched: 2026-07-22_
