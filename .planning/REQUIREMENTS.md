@@ -37,7 +37,7 @@
 ### Bug Fixes (BUG)
 
 - [ ] **BUG-30**: Replay reconstructs all player positions at kickoff so the board resets correctly after a goal is scored
-- [ ] **BUG-31**: The eligible-players-remaining message and End Turn button color update the moment a player starts a move (not only once fully activated), and correctly reflect state after an Undo
+- [x] **BUG-31**: The eligible-players-remaining message and End Turn button color update the moment a player starts a move (not only once fully activated), and correctly reflect state after an Undo
 - [ ] **BUG-32**: The goalkeeper cannot be selected as an eligible deflection responder
 
 ## Future Requirements
@@ -85,7 +85,7 @@
 | CLEANUP-03  | Phase 32 — Code Cleanup                              | Pending |
 | CLEANUP-04  | Phase 32 — Code Cleanup                              | Pending |
 | BUG-30      | Phase 31 — Bug Fixes                                 | Pending |
-| BUG-31      | Phase 31 — Bug Fixes                                 | Pending |
+| BUG-31      | Phase 31 — Bug Fixes                                 | Complete |
 | BUG-32      | Phase 31 — Bug Fixes                                 | Pending |
 
 **Coverage:**

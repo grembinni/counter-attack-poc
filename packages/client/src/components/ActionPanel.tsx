@@ -915,26 +915,15 @@ export function ActionPanel() {
     const slotTotal =
       movementSlot != null ? { ATTACKER_4: 4, DEFENDER_5: 5, ATTACKER_2: 2 }[movementSlot] : null;
     // 260621-ajd: countdown of players left to move in the active movement slot.
-    // Count pieces that exhausted their pace this phase but aren't yet locked in movedPieceIds
-    // (BUG-14 defers locking until the NEXT activation, so the last piece in the slot never
-    // gets locked unless someone else moves after them — this fills that gap for the UI).
-    const paceExhaustedNotLocked = Object.entries(paceUsedByPieceId).filter(([id, used]) => {
-      if (movedPieceIds.includes(id)) return false;
-      const p = pieces.find((pc) => pc.id === id);
-      if (p === undefined) return false;
-      const effectiveCap = movementSlot === 'ATTACKER_2' ? Math.min(p.pace, 2) : p.pace;
-      return used >= effectiveCap;
-    }).length;
-    // movedPieceIds accumulates across slot transitions (ATTACKER_4 → DEFENDER_5 → ATTACKER_2).
-    // paceUsedByPieceId resets at each slot boundary, so the intersection tells us which
-    // pieces were locked in the CURRENT slot only.
-    const currentSlotLockedCount = movedPieceIds.filter(
-      (id) => paceUsedByPieceId[id] !== undefined,
-    ).length;
+    // BUG-31/D-04: any piece with a paceUsedByPieceId entry counts as "started" the moment it
+    // steps its first hex — not only once pace is exhausted and locked into movedPieceIds.
+    // This mirrors the activatedCount signal at HexGrid.tsx:702 and subsumes both the prior
+    // "exhausted-not-locked" and "locked-this-slot" terms (every piece counted by either of
+    // those has a paceUsedByPieceId entry, so their union equals this count with no
+    // double-count and no under-count).
+    const startedCount = Object.keys(paceUsedByPieceId).length;
     const remaining =
-      slotTotal != null
-        ? Math.max(slotTotal - currentSlotLockedCount - paceExhaustedNotLocked, 0)
-        : null;
+      slotTotal != null ? Math.max(slotTotal - startedCount, 0) : null;
     const slotHelperLine2 =
       slotTotal != null && remaining != null
         ? movementSlot === 'ATTACKER_2'

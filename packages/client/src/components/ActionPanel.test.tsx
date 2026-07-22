@@ -805,3 +805,71 @@ describe('ActionPanel — BUG-25: MOVE End Turn button color driven by ctaButton
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 });
+
+// BUG-31 (D-03/D-04/D-05): remaining and the End Turn button color must update the moment a
+// piece takes its first hex step (paceUsedByPieceId[id] > 0), not only once the piece is fully
+// activated (pace exhausted + locked into movedPieceIds). Undo must revert this in the same
+// render, since applyUndo already deletes the piece's paceUsedByPieceId entry server-side.
+describe('ActionPanel — BUG-31: remaining/button update on first step, not full activation', () => {
+  it('started-but-not-exhausted piece decrements remaining immediately (3 of 4, not 4 of 4)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        // home-9 has pace >= 4 (PLAYER_POOL); paceUsed=1 is neither exhausted nor locked —
+        // this is the "started" case the bug fails to count.
+        paceUsedByPieceId: { 'home-9': 1 },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('3 of 4 players left to move.')).toBeDefined();
+  });
+
+  it('button flips to ready once enough pieces have started (not exhausted/locked) to fill the slot', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        // All 4 pieces "started" (single pace step each) but none exhausted or locked.
+        paceUsedByPieceId: {
+          'home-9': 1,
+          'home-8': 1,
+          'home-7': 1,
+          'home-6': 1,
+        },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('Undo reverts remaining and button color in the same render (paceUsedByPieceId cleared)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        // Post-applyUndo broadcast: the reverted piece's paceUsedByPieceId entry is deleted.
+        paceUsedByPieceId: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('4 of 4 players left to move.')).toBeDefined();
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+});
