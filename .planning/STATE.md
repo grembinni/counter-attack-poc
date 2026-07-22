@@ -2,33 +2,36 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: executing
-stopped_at: Phase 29-12 executed and re-verified — DRAFT-09 bench carousel scroll-reset gap closed (benchCards useMemo + BenchCarousel benchKey re-key), independently confirmed via negative-control test; all 12/12 plans complete; 29-VERIFICATION.md status human_needed solely on the pending live two-browser lineup-slot swap walkthrough (29-10 fix, unrelated to 29-12)
-last_updated: '2026-07-22T00:23:58.042Z'
-last_activity: 2026-07-22 -- Phase 29-12 executed; phase re-verified (human_needed); 29-UAT.md created
+status: verifying
+stopped_at: Phase 30 context gathered
+last_updated: '2026-07-22T01:53:46.833Z'
+last_activity: 2026-07-21 -- /gsd-verify-work 29 confirmed the UAT already passed; reconciled this
 progress:
-  total_phases: 4
-  completed_phases: 3
+  total_phases: 5
+  completed_phases: 4
   total_plans: 24
   completed_plans: 24
-  percent: 75
+  percent: 80
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — VERIFYING (human verification pending)
+Phase: 29 (draft-ui-pick-and-swap-flow) — HUMAN-VERIFIED, security review pending
 Plan: 12 of 12 (all plans executed)
-Status: Phase 29 code-complete. Plan 29-12 closed the last critical gap (DRAFT-09 bench carousel
-scroll-reset instability) with an independently-confirmed fix (negative-control test proved the
-regression guard genuine). 29-VERIFICATION.md re-run and returned status human_needed — all 6
-in-scope truths VERIFIED, only the pre-existing live two-browser lineup-slot swap walkthrough
-(29-10 fix, unrelated to 29-12) remains. Persisted as 29-UAT.md. Phase 29 will be marked complete
-once /gsd-verify-work 29 confirms that walkthrough.
-Last activity: 2026-07-22 -- Phase 29-12 executed; phase re-verified (human_needed); 29-UAT.md created
+Status: Phase 29 code-complete and human-verified. Plan 29-12 closed the last critical gap
+(DRAFT-09 bench carousel scroll-reset instability) with an independently-confirmed fix
+(negative-control test proved the regression guard genuine). 29-VERIFICATION.md's 6 in-scope
+truths are all VERIFIED, and the one outstanding human-verification item (live two-browser
+lineup-slot swap walkthrough) has since passed — recorded in 29-UAT.md (1/1 passed, 0 issues,
+commit 5a6be38). ROADMAP.md's Phase 29 checkbox was already marked [x] complete. Remaining gate:
+no 29-SECURITY.md exists yet — run /gsd-secure-phase 29 before treating the phase/milestone as
+fully closed.
+Last activity: 2026-07-21 -- /gsd-verify-work 29 confirmed the UAT already passed; reconciled this
+file (was stale since before the 29-UAT.md completion commit).
 
-Progress: [██████████] 100% plans executed (12/12); Phase 29 gated only on the pending 29-UAT.md human walkthrough (live two-browser lineup-slot swap) before it can be marked complete — run /gsd-verify-work 29
+Progress: [██████████] 100% plans executed (12/12); Phase 29 human-verified (29-UAT.md passed) — only /gsd-secure-phase 29 remains before phase/milestone close
 
 ## Project Reference
 
@@ -97,6 +100,7 @@ See: .planning/PROJECT.md (updated 2026-07-12 after v1.4 milestone start)
 - Phase 08.1 inserted after Phase 8: cleanup player stats, ball control, movement, tackling (URGENT)
 - v1.3 Phases 19–25 added 2026-07-03
 - v1.4 Phases 26–30 added 2026-07-12
+- Phase 30 added: recalibrate draft
 
 ### Decisions Locked
 
@@ -269,9 +273,9 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-22T00:23:58.042Z
-Stopped at: Phase 29-12 executed and re-verified — DRAFT-09 bench carousel scroll-reset gap closed; 29-VERIFICATION.md status human_needed (only the live two-browser lineup-slot swap walkthrough remains, unrelated to 29-12); 29-UAT.md created
-Resume: Run `/gsd-verify-work 29` to walk through the live two-browser lineup-slot<->lineup-slot swap test recorded in 29-UAT.md. Do NOT advance ROADMAP.md phase-complete marking for Phase 29 until that UAT test passes.
+Last session: 2026-07-22T01:53:46.825Z
+Stopped at: Phase 30 context gathered
+Resume: Run `/gsd-secure-phase 29` (no 29-SECURITY.md exists yet) to close the last open gate on Phase 29 / milestone v1.4.
 
 ## Performance Metrics
 
