@@ -113,8 +113,8 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
   it('renders the correct attribute value from gameState.pieces', () => {
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<PlayerStatsPanel />);
-    // home-9 (Sang-bin Jeong, FWD) from city squad CSV data has pace:4, dribbling:4
-    const statValues = screen.getAllByText('4');
+    // home-9 (Carlo Holse, FWD) from city squad CSV data has shooting:5, highPass(passing):5
+    const statValues = screen.getAllByText('5');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
 });
