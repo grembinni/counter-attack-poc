@@ -1,28 +1,46 @@
 /**
- * Pure draft-session state machine (Phase 29 Plan 02 — DRAFT-07/DRAFT-08/DRAFT-10).
+ * Pure draft-session state machine (Phase 29 Plan 02 — DRAFT-07/DRAFT-08/DRAFT-10;
+ * rewritten Phase 30 Plan 03 — DRAFT-05/DRAFT-08 for the 6-round variable-pick model).
  *
  * This module has zero `io`/`socket` imports and produces no side effects — it mirrors
  * `gameEngine.ts`'s separation from `roomHandlers.ts` (RESEARCH.md Open Question 2). Every
  * function here takes a `DraftSession` and returns a brand-new `DraftSession` (or a
  * `{ session, ok, error? }` envelope for validated mutations); the input is never mutated
- * in place. Plan 04 wires these helpers into `roomHandlers.ts`, binding `crypto.randomInt`
+ * in place. Plan 04/05 wires these helpers into `roomHandlers.ts`, binding `crypto.randomInt`
  * as the `RandomIntFn` — this module never sources randomness itself (same convention as
  * `draftEngine.ts`/`scoreUtils.ts`).
  *
- * Pack-swap protocol (D-01/D-03, phase-boundary-only mutual-wait gating, A1):
- *   PICK1 (1 card each) -> SWAP -> PICK2 (2 cards each) -> SWAP_BACK -> PICK3 (1 card each,
- *   3 leftovers discarded, D-02) -> NEW_PACK (cycle++) -> ... x4 cycles = 16 cards/player.
- *   `advanceSubStep` only advances once BOTH players have `picksRemaining === 0` in the
- *   current sub-step — never gated per individual card within PICK2.
+ * Round/pick protocol (D-12/D-13/D-14/D-15/D-20, phase-boundary-only mutual-wait gating):
+ *   Round 1 (GK-only, D-12): PICK1 (1 card each) -> SWAP -> PICK2 (1 card each) -> round
+ *     complete (no PICK3, no swap-back) -> openNextRound. 2 picks total.
+ *   Rounds 2-6 (tiered, D-13/D-14/D-15): PICK1 (1 card each) -> SWAP -> PICK2 (1 card each)
+ *     -> SWAP_BACK -> PICK3 (1 card each) -> round complete -> openNextRound. 3 picks total.
+ *   `DRAFT_ROUNDS[round - 1].picks` (2 or 3) is the single source of truth `advanceSubStep`
+ *   reads to decide whether a round stops after PICK2 or continues to PICK3 — never a
+ *   hardcoded literal. `advanceSubStep` only advances once BOTH players have
+ *   `picksRemaining === 0` in the current sub-step — never gated per individual card.
+ *   After round 6 completes, `draftComplete = true`. Total picks per side across all 6
+ *   rounds sums to 17 (D-16): 2 (round 1) + 3x5 (rounds 2-6).
+ *
+ * DRAFT-08 forced-GK-auto-pick safety-net removal (D-21): the old cycle-4 GK-auto-pick
+ * fallback mechanic is fully deleted — superseded by round 1's dedicated GK-only pack
+ * round, which guarantees every player exactly 2 GK cards structurally, with no auto-pick
+ * fallback needed. No function, field, or view projection in this module references that
+ * removed fallback mechanic; GK remains only a pack-dealing category (D-07), never a
+ * safety concern here.
+ *
+ * Round-leftover discard (D-18): cards dealt into a round's packs but never picked are
+ * discarded, never carried forward or auto-benched — `openNextRound` overwrites
+ * `currentPack` from the next round's pack, never merging in whatever remained.
  *
  * Card-placement boundary: `applyPick`/`applyRearrange` do NOT perform GK-slot role
  * validation (only a GK card may occupy the GK slot, D-09) — that allow-list check is the
- * Plan 04 socket handler's job before it ever calls into this module. This module trusts
+ * Plan 05 socket handler's job before it ever calls into this module. This module trusts
  * a pre-validated `destination`/`from`/`to` ref.
  *
  * Card-sort ordering: this module does not sort/reorder pack contents by tier (D-20's
  * "rarest cards populate/sort to the left" carousel ordering is a pure display concern,
- * decided to live in the client carousel component, Plan 03/05) — `openNextPack` copies
+ * decided to live in the client carousel component, Plan 03/05) — `openNextRound` copies
  * `DraftPack.cards` verbatim in whatever order `generateDraftPacks` dealt them.
  */
 
@@ -36,6 +54,7 @@ import type {
   TieredPoolPlayer,
   RandomIntFn,
 } from '@counter-attack/shared';
+import { DRAFT_ROUNDS, DRAFT_ROUND_COUNT } from '@counter-attack/shared';
 
 /** Local alias — matches the 'home' | 'away' literal used throughout the room/game layer. */
 export type DraftSide = 'home' | 'away';
@@ -62,33 +81,45 @@ function shuffle<T>(items: readonly T[], rng: RandomIntFn): T[] {
 }
 
 /**
- * D-04 / Pitfall 5: independent shuffle over pack INDICES (never a slice of
- * `generateDraftPacks`'s own dealt order) so pack->player assignment is not a predictable
- * fixed split. Splits the shuffled indices evenly: first half to home, second half to away.
+ * D-12..D-19/RESEARCH.md Pattern 3: a per-round coin-flip over that round's own two packs —
+ * NEVER a global cross-round shuffle. Pack composition is round-specific (GK-only in round
+ * 1, uncommon+common in round 4, etc.), so packs are no longer structurally interchangeable
+ * across rounds; only "which of THIS round's two packs goes to home vs. away" is randomized.
  */
-export function assignPackOrders(
-  packCount: number,
-  rng: RandomIntFn,
-): { homePackOrder: number[]; awayPackOrder: number[] } {
-  const indices = Array.from({ length: packCount }, (_, i) => i);
-  const shuffled = shuffle(indices, rng);
-  const half = packCount / 2;
-  return {
-    homePackOrder: shuffled.slice(0, half),
-    awayPackOrder: shuffled.slice(half),
-  };
+function assignRoundPackOrder(rng: RandomIntFn): ['home' | 'away', 'home' | 'away'] {
+  return rng(0, 2) === 0 ? ['home', 'away'] : ['away', 'home'];
 }
 
 /**
- * Bootstraps a brand-new `DraftSession` from the 8 pre-generated packs. `cycle` starts at
- * 0 and `picksRemaining` at 0 until the first `openNextPack` call opens cycle 1 (the Plan
- * 04 handler calls `openNextPack` immediately after bootstrap).
+ * Bootstraps a brand-new `DraftSession` from the 12 pre-generated packs (2 per round x 6
+ * rounds, D-12..D-16). `round` starts at 0 and `picksRemaining` at 0 until the first
+ * `openNextRound` call opens round 1 (the Plan 05 handler calls `openNextRound` immediately
+ * after bootstrap). Pack-to-side assignment is a per-round coin-flip (`assignRoundPackOrder`)
+ * — packs are grouped by their `round` field and each round's pair is independently
+ * coin-flipped, never a single match-wide shuffle.
  */
 export function createDraftSession(packs: DraftPack[], rng: RandomIntFn): DraftSession {
-  const { homePackOrder, awayPackOrder } = assignPackOrders(packs.length, rng);
+  const homePackOrder: number[] = [];
+  const awayPackOrder: number[] = [];
+
+  for (let round = 1; round <= DRAFT_ROUND_COUNT; round++) {
+    const roundPackIndices = packs
+      .map((pack, index) => ({ pack, index }))
+      .filter(({ pack }) => pack.round === round)
+      .map(({ index }) => index);
+    const [packAIdx, packBIdx] = roundPackIndices;
+    const [firstSide] = assignRoundPackOrder(rng);
+    if (firstSide === 'home') {
+      homePackOrder.push(packAIdx!);
+      awayPackOrder.push(packBIdx!);
+    } else {
+      homePackOrder.push(packBIdx!);
+      awayPackOrder.push(packAIdx!);
+    }
+  }
 
   return {
-    cycle: 0,
+    round: 0,
     subStep: 'PICK1',
     draftPacks: packs,
     homePackOrder,
@@ -97,8 +128,6 @@ export function createDraftSession(packs: DraftPack[], rng: RandomIntFn): DraftS
     awayCurrentPack: [],
     homeDraftedIds: [],
     awayDraftedIds: [],
-    homeHasKeeper: false,
-    awayHasKeeper: false,
     homePicksRemaining: 0,
     awayPicksRemaining: 0,
     homeLineupSlots: new Array<string | null>(LINEUP_SLOT_COUNT).fill(null),
@@ -107,7 +136,6 @@ export function createDraftSession(packs: DraftPack[], rng: RandomIntFn): DraftS
     awayBenchIds: [],
     homeBenchNumbers: {},
     awayBenchNumbers: {},
-    keeperAutoPickedThisCycle: { home: false, away: false },
     draftComplete: false,
   };
 }
@@ -116,7 +144,6 @@ export function createDraftSession(packs: DraftPack[], rng: RandomIntFn): DraftS
 type SideFields = {
   currentPack: TieredPoolPlayer[];
   draftedIds: string[];
-  hasKeeper: boolean;
   picksRemaining: number;
   lineupSlots: (string | null)[];
   benchIds: string[];
@@ -128,7 +155,6 @@ function getSide(session: DraftSession, side: DraftSide): SideFields {
     ? {
         currentPack: session.homeCurrentPack,
         draftedIds: session.homeDraftedIds,
-        hasKeeper: session.homeHasKeeper,
         picksRemaining: session.homePicksRemaining,
         lineupSlots: session.homeLineupSlots,
         benchIds: session.homeBenchIds,
@@ -137,7 +163,6 @@ function getSide(session: DraftSession, side: DraftSide): SideFields {
     : {
         currentPack: session.awayCurrentPack,
         draftedIds: session.awayDraftedIds,
-        hasKeeper: session.awayHasKeeper,
         picksRemaining: session.awayPicksRemaining,
         lineupSlots: session.awayLineupSlots,
         benchIds: session.awayBenchIds,
@@ -156,7 +181,6 @@ function withSide(
       ...session,
       homeCurrentPack: fields.currentPack ?? session.homeCurrentPack,
       homeDraftedIds: fields.draftedIds ?? session.homeDraftedIds,
-      homeHasKeeper: fields.hasKeeper ?? session.homeHasKeeper,
       homePicksRemaining: fields.picksRemaining ?? session.homePicksRemaining,
       homeLineupSlots: fields.lineupSlots ?? session.homeLineupSlots,
       homeBenchIds: fields.benchIds ?? session.homeBenchIds,
@@ -167,7 +191,6 @@ function withSide(
     ...session,
     awayCurrentPack: fields.currentPack ?? session.awayCurrentPack,
     awayDraftedIds: fields.draftedIds ?? session.awayDraftedIds,
-    awayHasKeeper: fields.hasKeeper ?? session.awayHasKeeper,
     awayPicksRemaining: fields.picksRemaining ?? session.awayPicksRemaining,
     awayLineupSlots: fields.lineupSlots ?? session.awayLineupSlots,
     awayBenchIds: fields.benchIds ?? session.awayBenchIds,
@@ -176,34 +199,34 @@ function withSide(
 }
 
 /**
- * Opens each player's next pre-assigned pack (D-01/D-04): increments `cycle`, sets each
- * side's `currentPack` from `draftPacks[<side>PackOrder[cycle-1]].cards` (copied, not
- * referenced), resets `subStep` to 'PICK1', `picksRemaining` to 1 each, and clears
- * `keeperAutoPickedThisCycle` for the new cycle.
+ * Opens each player's next pre-assigned round pack (D-12..D-19): increments `round`, sets
+ * each side's `currentPack` from `draftPacks[<side>PackOrder[round-1]].cards` (copied, not
+ * referenced), resets `subStep` to 'PICK1', and `picksRemaining` to 1 each. Round-leftover
+ * cards from the PREVIOUS round are discarded (D-18) simply by not carrying `currentPack`
+ * forward — this function always overwrites it from the new round's pack.
  */
-export function openNextPack(session: DraftSession): DraftSession {
-  const newCycle = session.cycle + 1;
-  const homePackIndex = session.homePackOrder[newCycle - 1];
-  const awayPackIndex = session.awayPackOrder[newCycle - 1];
+export function openNextRound(session: DraftSession): DraftSession {
+  const newRound = session.round + 1;
+  const homePackIndex = session.homePackOrder[newRound - 1];
+  const awayPackIndex = session.awayPackOrder[newRound - 1];
   const homePack = homePackIndex !== undefined ? session.draftPacks[homePackIndex] : undefined;
   const awayPack = awayPackIndex !== undefined ? session.draftPacks[awayPackIndex] : undefined;
 
   return {
     ...session,
-    cycle: newCycle,
+    round: newRound,
     subStep: 'PICK1',
     homeCurrentPack: homePack ? [...homePack.cards] : [],
     awayCurrentPack: awayPack ? [...awayPack.cards] : [],
     homePicksRemaining: 1,
     awayPicksRemaining: 1,
-    keeperAutoPickedThisCycle: { home: false, away: false },
   };
 }
 
 /**
  * Drafts `cardId` out of `side`'s current pack and places it at `destination` (D-06/D-07).
  * Does NOT validate GK-slot role rules (D-09) — see module doc comment; the caller
- * (Plan 04 handler) is responsible for that allow-list check before calling this.
+ * (Plan 05 handler) is responsible for that allow-list check before calling this.
  */
 export function applyPick(
   session: DraftSession,
@@ -219,7 +242,6 @@ export function applyPick(
 
   const newCurrentPack = current.currentPack.filter((c) => c.id !== cardId);
   const newDraftedIds = [...current.draftedIds, cardId];
-  const newHasKeeper = current.hasKeeper || card.tier === 'keeper';
   const newPicksRemaining = current.picksRemaining - 1;
 
   let newLineupSlots = current.lineupSlots;
@@ -240,7 +262,6 @@ export function applyPick(
   const newSession = withSide(session, side, {
     currentPack: newCurrentPack,
     draftedIds: newDraftedIds,
-    hasKeeper: newHasKeeper,
     picksRemaining: newPicksRemaining,
     lineupSlots: newLineupSlots,
     benchIds: newBenchIds,
@@ -251,9 +272,9 @@ export function applyPick(
 
 /**
  * Moves an ALREADY-drafted card between a lineup slot and/or the bench (D-08). Never
- * touches `cycle`/`subStep`/`picksRemaining` (D-10) — rearranging drafted cards has no
- * effect on cycle progression. Does NOT validate GK-slot role rules (D-09) — see module
- * doc comment; the caller (Plan 04 handler) does that allow-list check first.
+ * touches `round`/`subStep`/`picksRemaining` (D-10) — rearranging drafted cards has no
+ * effect on round progression. Does NOT validate GK-slot role rules (D-09) — see module
+ * doc comment; the caller (Plan 05 handler) does that allow-list check first.
  */
 export function applyRearrange(
   session: DraftSession,
@@ -306,17 +327,20 @@ export function applyRearrange(
 }
 
 /**
- * Advances the sub-step/cycle state machine (D-01/D-03, phase-boundary-only gating A1).
+ * Advances the sub-step/round state machine (D-12..D-20, phase-boundary-only gating A1).
  * No-op while either side still has `picksRemaining > 0` in the current sub-step.
  *
- * PICK1 -> PICK2: swaps `homeCurrentPack`/`awayCurrentPack`; sets `picksRemaining` to 2
- *   each, UNLESS `keeperAutoPickedThisCycle[side]` is true (Task 3/checkKeeperSafety already
- *   consumed one of that side's PICK2 picks), in which case that side gets 1.
- * PICK2 -> PICK3: swaps packs back to their original owners; `picksRemaining` 1 each.
- * PICK3 -> NEW_PACK/complete: the 3 leftover cards are discarded (D-02) simply by not
- *   carrying `currentPack` forward — `openNextPack` overwrites it from the next pack index.
- *   If `cycle < 4`, opens the next cycle's packs (cycle++, subStep 'PICK1'). If `cycle ===
- *   4`, sets `draftComplete = true` and leaves `subStep` as-is.
+ * PICK1 -> PICK2: swaps `homeCurrentPack`/`awayCurrentPack`; sets `picksRemaining` to 1
+ *   each (always 1 — pick count no longer varies per sub-step, only per round via
+ *   `DRAFT_ROUNDS[round - 1].picks`, D-20).
+ * At the PICK2 boundary, reads `DRAFT_ROUNDS[session.round - 1].picks`:
+ *   - 2 (round 1, D-12): the round completes after PICK2 — no PICK3, no swap-back.
+ *   - 3 (rounds 2-6, D-13/D-14/D-15): PICK2 -> PICK3 swaps packs back to their original
+ *     owners, `picksRemaining` 1 each; PICK3 completes the round.
+ * Round-leftover cards are discarded (D-18) simply by not carrying `currentPack` forward —
+ * `openNextRound` overwrites it from the next round's pack.
+ * On round completion: if `round < DRAFT_ROUND_COUNT`, opens the next round
+ * (`openNextRound`); otherwise sets `draftComplete = true` and leaves `subStep` as-is.
  */
 export function advanceSubStep(session: DraftSession): DraftSession {
   if (session.homePicksRemaining !== 0 || session.awayPicksRemaining !== 0) {
@@ -324,19 +348,26 @@ export function advanceSubStep(session: DraftSession): DraftSession {
   }
 
   if (session.subStep === 'PICK1') {
-    const homePicksRemaining = session.keeperAutoPickedThisCycle.home ? 1 : 2;
-    const awayPicksRemaining = session.keeperAutoPickedThisCycle.away ? 1 : 2;
     return {
       ...session,
       subStep: 'PICK2',
       homeCurrentPack: session.awayCurrentPack,
       awayCurrentPack: session.homeCurrentPack,
-      homePicksRemaining,
-      awayPicksRemaining,
+      homePicksRemaining: 1,
+      awayPicksRemaining: 1,
     };
   }
 
+  const roundConfig = DRAFT_ROUNDS[session.round - 1];
+  const picksThisRound = roundConfig?.picks ?? 3;
+
   if (session.subStep === 'PICK2') {
+    if (picksThisRound === 2) {
+      // D-12: round 1 completes after PICK2 — no PICK3, no swap-back.
+      return session.round < DRAFT_ROUND_COUNT
+        ? openNextRound(session)
+        : { ...session, draftComplete: true };
+    }
     return {
       ...session,
       subStep: 'PICK3',
@@ -347,91 +378,17 @@ export function advanceSubStep(session: DraftSession): DraftSession {
     };
   }
 
-  // subStep === 'PICK3': leftover 3 cards discarded (D-02) — never carried into openNextPack.
-  if (session.cycle < 4) {
-    return openNextPack(session);
-  }
-
-  return {
-    ...session,
-    draftComplete: true,
-  };
-}
-
-function autoSelectKeeperIfMissing(session: DraftSession, side: DraftSide): DraftSession {
-  const current = getSide(session, side);
-  if (current.hasKeeper) {
-    return session; // already safe — no-op for this side
-  }
-
-  // A3 / Phase 28 invariant: PACK_COMPOSITION.keeper === 1 for every generated pack, so the
-  // player's own cycle-4 pack is guaranteed to still contain its keeper if never drafted.
-  const keeperCard = current.currentPack.find((c) => c.tier === 'keeper');
-  if (!keeperCard) {
-    return session; // defensive no-op — should be unreachable given the Phase 28 invariant
-  }
-
-  const newCurrentPack = current.currentPack.filter((c) => c.id !== keeperCard.id);
-  const newDraftedIds = [...current.draftedIds, keeperCard.id];
-
-  let newLineupSlots = current.lineupSlots;
-  let newBenchIds = current.benchIds;
-  if (current.lineupSlots[0] === null) {
-    // UI-SPEC Component Note 5: auto-place into the empty GK slot (index 0) if unfilled.
-    newLineupSlots = [...current.lineupSlots];
-    newLineupSlots[0] = keeperCard.id;
-  } else {
-    newBenchIds = [...current.benchIds, keeperCard.id];
-  }
-
-  const updated = withSide(session, side, {
-    currentPack: newCurrentPack,
-    draftedIds: newDraftedIds,
-    hasKeeper: true,
-    lineupSlots: newLineupSlots,
-    benchIds: newBenchIds,
-  });
-
-  return {
-    ...updated,
-    keeperAutoPickedThisCycle: {
-      ...updated.keeperAutoPickedThisCycle,
-      [side]: true,
-    },
-  };
-}
-
-/**
- * DRAFT-08: cycle-4 keeper safety net. Only acts when `cycle === 4`, `subStep === 'PICK1'`,
- * and BOTH players have resolved their PICK1 pick (`picksRemaining === 0` each) — the exact
- * boundary right before the PICK1->PICK2 transition (Plan 04 calls this BEFORE
- * `advanceSubStep`, so the reduced `picksRemaining` lands on the correct player's PICK2,
- * per `advanceSubStep`'s `keeperAutoPickedThisCycle` check above).
- *
- * `rng` is accepted for signature parity with the other fairness-sensitive helpers in this
- * module, but is unused: every generated pack is guaranteed exactly one keeper-tier card
- * (`PACK_COMPOSITION.keeper === 1`), so there is never a choice to make randomly.
- */
-export function checkKeeperSafety(session: DraftSession, rng: RandomIntFn): DraftSession {
-  void rng;
-
-  if (session.cycle !== 4 || session.subStep !== 'PICK1') {
-    return session;
-  }
-  if (session.homePicksRemaining !== 0 || session.awayPicksRemaining !== 0) {
-    return session;
-  }
-
-  let next = autoSelectKeeperIfMissing(session, 'home');
-  next = autoSelectKeeperIfMissing(next, 'away');
-  return next;
+  // subStep === 'PICK3': leftover cards discarded (D-18) — never carried into openNextRound.
+  return session.round < DRAFT_ROUND_COUNT
+    ? openNextRound(session)
+    : { ...session, draftComplete: true };
 }
 
 /**
  * D-15/D-16: assigns each bench id a DISTINCT random jersey number in [15,99] (never
  * sequential, never the insecure built-in pseudo-random helper). Shuffles the full 85-value
  * range and takes the first N — the range is always far larger than any possible bench size
- * (max 16 drafted minus 11 lineup slots = 5), so distinctness is guaranteed without a
+ * (max 17 drafted minus 11 lineup slots = 6), so distinctness is guaranteed without a
  * rejection-sampling loop.
  */
 export function assignBenchNumbers(benchIds: string[], rng: RandomIntFn): Record<string, number> {
@@ -449,21 +406,18 @@ export function assignBenchNumbers(benchIds: string[], rng: RandomIntFn): Record
 }
 
 /**
- * D-14/T-29-PRIV: projects the privacy-scoped per-player view — the single place that
- * decides what a given side is allowed to see. Never includes the opponent's pack or any
- * opponent-prefixed field; `DraftClientView`'s shape enforces this structurally.
+ * D-14/T-29-PRIV/T-30-PRIV: projects the privacy-scoped per-player view — the single place
+ * that decides what a given side is allowed to see. Never includes the opponent's pack or
+ * any opponent-prefixed field; `DraftClientView`'s shape enforces this structurally. The
+ * old GK-auto-pick view projection (D-05/D-21) is fully removed, not just trimmed.
  */
 export function buildDraftView(session: DraftSession, side: DraftSide): DraftClientView {
   const current = getSide(session, side);
   const opponentPicksRemaining =
     side === 'home' ? session.awayPicksRemaining : session.homePicksRemaining;
-  const keeperAutoPickedThisCycle =
-    side === 'home'
-      ? session.keeperAutoPickedThisCycle.home
-      : session.keeperAutoPickedThisCycle.away;
 
   return {
-    cycle: session.cycle,
+    round: session.round,
     subStep: session.subStep satisfies DraftSubStep,
     currentPack: current.currentPack,
     picksRemaining: current.picksRemaining,
@@ -472,7 +426,6 @@ export function buildDraftView(session: DraftSession, side: DraftSide): DraftCli
     lineupSlots: current.lineupSlots,
     benchIds: current.benchIds,
     benchNumbers: current.benchNumbers,
-    keeperAutoPickedThisCycle,
     draftComplete: session.draftComplete,
   };
 }
