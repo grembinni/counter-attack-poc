@@ -1,73 +1,79 @@
 /**
- * Phase 28 Plan 04 — DRAFT-04/DRAFT-05 integration invariants over real crypto RNG.
+ * Phase 30 Plan 05 — DRAFT-05/DRAFT-08/DRAFT-11 integration invariants over real crypto RNG.
  *
  * These tests exercise `generateMatchPacks` (the server-authoritative entry point that
  * binds Node's `crypto.randomInt` into the shared engine), NOT `generateDraftPacks` with
  * a fake/seeded RNG. Because the randomness is real and non-deterministic, we assert
  * STRUCTURAL invariants that must hold on every run, looping several iterations to catch
  * seed-dependent regressions rather than asserting exact output.
+ *
+ * Recalibrated for the 6-round model (Phase 30): 12 round-tagged 4-card packs (2 per
+ * round), round 1 is GK-only, rounds 2-6 are non-GK tiered packs. Legends/Icons pools
+ * are now selectable (DRAFT-11) and must backfill without throwing (D-08/D-10).
  */
 import { describe, it, expect } from 'vitest';
 import { generateMatchPacks } from '../draftPacks.js';
-import { PACKS_PER_MATCH, PACK_COMPOSITION, SELECTABLE_DRAFT_POOLS } from '@counter-attack/shared';
-import type { DraftPoolId, DraftTier } from '@counter-attack/shared';
+import { DRAFT_ROUND_COUNT, PACKS_PER_ROUND, SELECTABLE_DRAFT_POOLS } from '@counter-attack/shared';
+import type { DraftPoolId } from '@counter-attack/shared';
 
 const ITERATIONS = 5;
-const VALID_TIERS: DraftTier[] = ['chase', 'rare', 'uncommon', 'common', 'keeper'];
+const TOTAL_PACKS = DRAFT_ROUND_COUNT * PACKS_PER_ROUND;
 
 function assertStructuralInvariants(selectedPools: DraftPoolId[]) {
   const { pool, packs } = generateMatchPacks(selectedPools);
 
   expect(pool.length).toBeGreaterThan(0);
-  expect(packs.length).toBe(PACKS_PER_MATCH);
+  expect(packs.length).toBe(TOTAL_PACKS);
 
   const poolIds = new Set(pool.map((p) => p.id));
-  const allCardIds: string[] = [];
+  const countsByRound = new Map<number, number>();
 
   for (const pack of packs) {
-    expect(pack.cards.length).toBe(7);
-
-    const tierCounts: Record<DraftTier, number> = {
-      chase: 0,
-      rare: 0,
-      uncommon: 0,
-      common: 0,
-      keeper: 0,
-    };
+    expect(pack.cards.length).toBe(4);
+    expect(pack.round).toBeGreaterThanOrEqual(1);
+    expect(pack.round).toBeLessThanOrEqual(DRAFT_ROUND_COUNT);
+    countsByRound.set(pack.round, (countsByRound.get(pack.round) ?? 0) + 1);
 
     for (const card of pack.cards) {
-      expect(VALID_TIERS).toContain(card.tier);
-      tierCounts[card.tier]++;
-      allCardIds.push(card.id);
-
       // Every card dealt into a pack must exist in the returned classified pool.
       expect(poolIds.has(card.id)).toBe(true);
 
-      // Keeper-slot cards are always GK; non-keeper-slot cards are never GK.
-      if (card.tier === 'keeper') {
+      // Round 1 is GK-only; rounds 2-6 exclude GK entirely (D-07/D-12).
+      if (pack.round === 1) {
         expect(card.role).toBe('GK');
       } else {
         expect(card.role).not.toBe('GK');
       }
     }
-
-    expect(tierCounts).toEqual(PACK_COMPOSITION);
   }
 
-  // No cross-pack duplication: all pools available for backfill in these selections,
-  // so the D-09 wrap-around exception stays dormant and every dealt card is unique.
-  const uniqueCardIds = new Set(allCardIds);
-  expect(uniqueCardIds.size).toBe(PACKS_PER_MATCH * 7);
+  for (let round = 1; round <= DRAFT_ROUND_COUNT; round++) {
+    expect(countsByRound.get(round)).toBe(PACKS_PER_ROUND);
+  }
+
+  // No cross-pack duplication WITHIN a round (D-09, re-scoped per round in Phase 30) — a
+  // card may legitimately reappear in a different round (D-18), so this check is scoped
+  // per-round rather than match-wide.
+  for (let round = 1; round <= DRAFT_ROUND_COUNT; round++) {
+    const roundPacks = packs.filter((p) => p.round === round);
+    const idSets = roundPacks.map((pack) => new Set(pack.cards.map((c) => c.id)));
+    for (let i = 0; i < idSets.length; i++) {
+      for (let j = i + 1; j < idSets.length; j++) {
+        const overlap = [...idSets[i]!].filter((id) => idSets[j]!.has(id));
+        expect(overlap).toHaveLength(0);
+      }
+    }
+  }
 }
 
-describe('generateMatchPacks — end-to-end structural invariants over real crypto RNG (Phase 28 Plan 04)', () => {
-  it(`Test 1: ['original'] yields 8 correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
+describe('generateMatchPacks — end-to-end structural invariants over real crypto RNG (Phase 30 Plan 05)', () => {
+  it(`Test 1: ['original'] yields ${TOTAL_PACKS} round-tagged, correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
     for (let i = 0; i < ITERATIONS; i++) {
       assertStructuralInvariants(['original']);
     }
   });
 
-  it(`Test 2: ['original','mls','international'] yields 8 correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
+  it(`Test 2: ['original','mls','international'] yields ${TOTAL_PACKS} round-tagged, correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
     for (let i = 0; i < ITERATIONS; i++) {
       assertStructuralInvariants(['original', 'mls', 'international']);
     }
@@ -79,22 +85,47 @@ describe('generateMatchPacks — end-to-end structural invariants over real cryp
     }
   });
 
-  // WR-02 (Phase 28 review): 'mls' and 'international' each have only 6 goalkeepers
-  // (vs. a keeper need of 8) and a comparatively small outfield population — they are
-  // the tightest-supply, backfill-dependent single-pool scenarios. Test 3 above only
-  // asserts `not.toThrow()`; exercise the FULL structural invariants (pack size,
-  // composition, no cross-pack duplication) for these two so a regression that
-  // reintroduces duplication or short packs specifically for 'mls'-only or
-  // 'international'-only selections cannot pass this suite silently.
-  it(`Test 4: ['mls'] yields 8 correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
+  // WR-02 (Phase 28 review, carried forward): 'mls' and 'international' each have a
+  // comparatively small outfield population — they are tight-supply, backfill-dependent
+  // single-pool scenarios. Test 3 above only asserts `not.toThrow()`; exercise the FULL
+  // structural invariants (pack size, round tagging, GK gating, no cross-pack duplication)
+  // for these two so a regression cannot pass this suite silently.
+  it(`Test 4: ['mls'] yields ${TOTAL_PACKS} round-tagged, correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
     for (let i = 0; i < ITERATIONS; i++) {
       assertStructuralInvariants(['mls']);
     }
   });
 
-  it(`Test 5: ['international'] yields 8 correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
+  it(`Test 5: ['international'] yields ${TOTAL_PACKS} round-tagged, correctly-composed, duplicate-free packs across ${ITERATIONS} iterations`, () => {
     for (let i = 0; i < ITERATIONS; i++) {
       assertStructuralInvariants(['international']);
     }
+  });
+
+  // D-08/D-10 (Phase 30, DRAFT-11): Legends/Icons pools are small and heavily
+  // backfill-dependent by design — they must NOT throw, and must still produce a fully
+  // round-tagged 12-pack structure via the MLS/Original fallback chain (D-11).
+  it("Test 6: ['legends'] does not throw and yields a full round-tagged pack structure via backfill", () => {
+    expect(() => {
+      const { packs } = generateMatchPacks(['legends']);
+      expect(packs.length).toBe(TOTAL_PACKS);
+      const round1 = packs.filter((p) => p.round === 1);
+      expect(round1).toHaveLength(PACKS_PER_ROUND);
+      for (const pack of round1) {
+        for (const card of pack.cards) expect(card.role).toBe('GK');
+      }
+    }).not.toThrow();
+  });
+
+  it("Test 7: ['icons'] does not throw and yields a full round-tagged pack structure via backfill", () => {
+    expect(() => {
+      const { packs } = generateMatchPacks(['icons']);
+      expect(packs.length).toBe(TOTAL_PACKS);
+      const round1 = packs.filter((p) => p.round === 1);
+      expect(round1).toHaveLength(PACKS_PER_ROUND);
+      for (const pack of round1) {
+        for (const card of pack.cards) expect(card.role).toBe('GK');
+      }
+    }).not.toThrow();
   });
 });

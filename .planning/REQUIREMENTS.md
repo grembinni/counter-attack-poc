@@ -38,6 +38,7 @@
 - [x] **DRAFT-08**: On the 4th draft cycle, if a player has not yet selected a keeper after their first pick, a keeper is automatically selected as their second pick; the pack passed has one fewer card; in the next pick phase that player selects 1 card instead of 2
 - [x] **DRAFT-09**: Bench is dynamically sized to hold all drafted cards not placed in the 11-player starting lineup; bench uses the same card-carousel display as the draft stage
 - [x] **DRAFT-10**: After draft is complete, the lineup screen auto-positions and auto-numbers all drafted players by total stat; team badge and colors are applied to all player cards; overflow players are placed on the bench with a random unused number in the 15-99 range (D-16: random 15-99, supersedes the earlier "sequential" wording)
+- [x] **DRAFT-11**: Legends and Icons player pools are selectable draft pools, admitted by both the client checkbox UI and the server-authoritative `SELECTABLE_DRAFT_POOLS` allow-list (Phase 30 D-08 — promoted from Future Requirements)
 
 ## Future Requirements
 
@@ -47,7 +48,6 @@
 
 ### Draft Mode
 
-- **DRAFT-11**: Legends and Icons player pools (additional rarity tiers above Chase)
 - **DRAFT-12**: Draft history / replay — review what each player picked each round
 - **DRAFT-13**: Async draft mode — players can pick on their own schedule rather than both active simultaneously
 
@@ -90,11 +90,12 @@
 | DRAFT-08    | Phase 30 | Complete |
 | DRAFT-09    | Phase 30 | Complete |
 | DRAFT-10    | Phase 30 | Complete |
+| DRAFT-11    | Phase 30 | Complete |
 
 **Coverage:**
 
-- v1.4 requirements: 25 total
-- Mapped to phases: 25 (all mapped)
+- v1.4 requirements: 26 total
+- Mapped to phases: 26 (all mapped)
 - Unmapped: 0
 
 ---

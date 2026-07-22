@@ -1,15 +1,23 @@
 /**
- * Integration tests for Phase 29 Plan 04 — draft session server wiring
- * (DRAFT-07/DRAFT-08/DRAFT-10).
+ * Integration tests for draft session server wiring (DRAFT-05/DRAFT-07/DRAFT-08/DRAFT-10/DRAFT-11).
  *
  * Spins up a real Socket.io server + clients (mirrors lineupAssignment.integration.test.ts's
  * harness — copied verbatim per the per-file self-contained convention noted in testHelpers.ts).
  * Drives the full handshake through draft-mode ROOM_SETTINGS_CONFIRM -> UNIFORM_CONFIRM (both
  * players, draft team type) and asserts:
  *   - Task 1: draft-mode away UNIFORM_CONFIRM bootstraps DRAFT_STATE_UPDATED (not
- *     LINEUP_ASSIGNMENT_READY) with a disjoint cycle-1 PICK1 pack per player, no GAME_STATE.
- *   - Task 2: DRAFT_PICK / DRAFT_REARRANGE full cycle sequencing, mutex, tampering guards,
- *     GK-slot role rules, and end-to-end 4-cycle completion with bench numbering.
+ *     LINEUP_ASSIGNMENT_READY) with a disjoint round-1 PICK1 4-card GK pack per player, no
+ *     GAME_STATE.
+ *   - Task 2: DRAFT_PICK / DRAFT_REARRANGE full round sequencing (2 picks round 1, 3 picks
+ *     rounds 2-6), mutex, tampering guards, GK-slot role rules, and end-to-end 6-round
+ *     completion (17 cards/side, D-16) with bench numbering.
+ *   - Phase 30 Plan 05: the ROOM_SETTINGS_CONFIRM pool allow-list admits Legends/Icons
+ *     (D-08) and rejects an unknown pool id (T-30-01).
+ *
+ * Rewritten Phase 30 Plan 05 for the round model (D-12..D-21): `cycle` -> `round` throughout;
+ * packs are now 4 cards (not 7); round 1 is GK-only (no reserved rarity-tier value for GK
+ * cards — GK is identified by `card.role === 'GK'`, D-05/D-07); the cycle-4 forced-GK-auto-pick
+ * safety-net mechanic (DRAFT-08) is deleted (D-21) — no safety-net assertions remain in this file.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -22,6 +30,7 @@ import type {
   ServerToClientEvents,
   DraftClientView,
   DraftPickPayload,
+  DraftPoolId,
   GameState,
 } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents, FORMATIONS } from '@counter-attack/shared';
@@ -116,13 +125,14 @@ function waitForConnect(
 }
 
 /**
- * Confirms room settings from clientA (host) with draft team type + the 'original' pool.
+ * Confirms room settings from clientA (host) with draft team type + the given pool(s).
  * Mirrors testHelpers.ts's confirmDefaultRoomSettings but for draft mode — kept local to
  * this file per the per-file self-contained convention (only the Standard-mode default
  * fixture was factored out to testHelpers.ts).
  */
 function confirmDraftRoomSettings(
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
+  draftPools: DraftPoolId[] = ['original'],
   timeoutMs = 1000,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -136,7 +146,7 @@ function confirmDraftRoomSettings(
     clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
       speed: 'standard',
       teamType: 'draft',
-      draftPools: ['original'],
+      draftPools,
     });
   });
 }
@@ -145,7 +155,7 @@ function confirmDraftRoomSettings(
  * Drive both clients through ROOM_CREATE -> ROOM_SETTINGS_CONFIRM(draft) -> ROOM_JOIN ->
  * TEAM_PICK x2 -> UNIFORM_CONFIRM x2 (both '4-4-2'). Returns the home (clientA) and away
  * (clientB) sockets positioned right after away confirms (draft session bootstrapped and
- * cycle-1 packs opened).
+ * round-1 GK packs opened).
  */
 async function setupThroughDraftUniformConfirm(): Promise<{
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -187,7 +197,7 @@ async function setupThroughDraftUniformConfirm(): Promise<{
   clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
   await homeConfirmedPromise;
 
-  // Away confirms uniform + formation -> bootstraps DraftSession's cycle-1 packs.
+  // Away confirms uniform + formation -> bootstraps DraftSession's round-1 GK packs.
   const draftAPromise = oncePromise(clientA, ServerEvents.DRAFT_STATE_UPDATED, 2000);
   const draftBPromise = oncePromise(clientB, ServerEvents.DRAFT_STATE_UPDATED, 2000);
   clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
@@ -200,8 +210,8 @@ async function setupThroughDraftUniformConfirm(): Promise<{
 // Task 1: draft-mode UNIFORM_CONFIRM away-branch bootstraps DRAFT_STATE_UPDATED
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 04 Task 1 — draft-mode UNIFORM_CONFIRM bootstrap', () => {
-  it('both sockets receive DRAFT_STATE_UPDATED (not LINEUP_ASSIGNMENT_READY) with cycle-1 PICK1 view and no GAME_STATE', async () => {
+describe('Draft-mode UNIFORM_CONFIRM bootstrap', () => {
+  it('both sockets receive DRAFT_STATE_UPDATED (not LINEUP_ASSIGNMENT_READY) with round-1 PICK1 GK view and no GAME_STATE', async () => {
     // Track whether LINEUP_ASSIGNMENT_READY or GAME_STATE ever fire — they must NOT, since
     // the draft branch never emits either (verified by inspection of roomHandlers.ts — no
     // timing race is possible here, unlike a race against a competing async emit).
@@ -225,14 +235,17 @@ describe('Phase 29 Plan 04 Task 1 — draft-mode UNIFORM_CONFIRM bootstrap', () 
       gameStateReceivedB = true;
     });
 
-    // (a) both receive a cycle-1 PICK1 view of a 7-card pack, no picks made yet.
+    // (a) both receive a round-1 PICK1 view of a 4-card GK-only pack, no picks made yet.
     for (const view of [viewA, viewB]) {
-      expect(view.cycle).toBe(1);
+      expect(view.round).toBe(1);
       expect(view.subStep).toBe('PICK1');
-      expect(view.currentPack).toHaveLength(7);
+      expect(view.currentPack).toHaveLength(4);
       expect(view.picksRemaining).toBe(1);
       expect(view.draftComplete).toBe(false);
       expect(view.lineupSlots).toEqual(Array(11).fill(null));
+      for (const card of view.currentPack) {
+        expect(card.role).toBe('GK');
+      }
     }
 
     // (b) the two players' initial packs are DIFFERENT — disjoint card-id sets (D-04).
@@ -305,6 +318,82 @@ describe('Phase 29 Plan 04 Task 1 — draft-mode UNIFORM_CONFIRM bootstrap', () 
 });
 
 // ---------------------------------------------------------------------------
+// Phase 30 Plan 05 — DRAFT-11 pool allow-list (T-30-01)
+// ---------------------------------------------------------------------------
+
+describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', () => {
+  it('a Legends draft-pool selection is accepted', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const confirmedPromise = new Promise<DraftPoolId[]>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.ROOM_SETTINGS_CONFIRMED, (_speed, _teamType, draftPools) => {
+        clearTimeout(timer);
+        resolve(draftPools);
+      });
+    });
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      draftPools: ['legends'],
+    });
+    const draftPools = await confirmedPromise;
+    expect(draftPools).toEqual(['legends']);
+  }, 5000);
+
+  it('an Icons draft-pool selection is accepted', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const confirmedPromise = new Promise<DraftPoolId[]>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.ROOM_SETTINGS_CONFIRMED, (_speed, _teamType, draftPools) => {
+        clearTimeout(timer);
+        resolve(draftPools);
+      });
+    });
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      draftPools: ['icons'],
+    });
+    const draftPools = await confirmedPromise;
+    expect(draftPools).toEqual(['icons']);
+  }, 5000);
+
+  it('an unknown pool id is rejected with INVALID_DRAFT_POOL', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const errorPromise = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id
+      draftPools: ['not-a-real-pool' as any],
+    });
+    const reason = await errorPromise;
+    expect(reason).toBe('INVALID_DRAFT_POOL');
+  }, 5000);
+});
+
+// ---------------------------------------------------------------------------
 // Task 2: DRAFT_PICK / DRAFT_REARRANGE full server-authoritative validation
 // ---------------------------------------------------------------------------
 
@@ -360,8 +449,8 @@ function makeDraftDriver(
   };
 }
 
-describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
-  it('(a) full cycle-1 PICK1 drive: both players pick, subStep advances to PICK2 with swapped packs', async () => {
+describe('DRAFT_PICK / DRAFT_REARRANGE — round model (Phase 30 D-12..D-21)', () => {
+  it('(a) full round-1 PICK1 drive: both players pick, subStep advances to PICK2 with swapped packs', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
@@ -383,8 +472,8 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
 
     expect(driver.getViewA().subStep).toBe('PICK2');
     expect(driver.getViewB().subStep).toBe('PICK2');
-    expect(driver.getViewA().picksRemaining).toBe(2);
-    expect(driver.getViewB().picksRemaining).toBe(2);
+    expect(driver.getViewA().picksRemaining).toBe(1);
+    expect(driver.getViewB().picksRemaining).toBe(1);
 
     // Packs swapped: home's new pack is away's post-pick remaining pack, and vice versa.
     const homeNewIds = driver.getViewA().currentPack.map((c) => c.id);
@@ -393,7 +482,7 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
     expect(new Set(awayNewIds)).toEqual(new Set(homeRemainingIds));
   }, 10000);
 
-  it('(b) mid-PICK2 wait: one pick of two does not advance the sub-step early', async () => {
+  it('(b) mutual-wait gate: one side reaching 0 picksRemaining in PICK2 does not advance the round while the other side still has a pick left', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
@@ -402,13 +491,18 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
     await driver.pick(clientB, viewB.currentPack[0]!.id);
     expect(driver.getViewA().subStep).toBe('PICK2');
 
-    // Home picks ONE of its two PICK2 cards — away has not picked at all yet.
+    // Home picks its single PICK2 card — away has not picked at all yet.
     const pick2CardId = driver.getViewA().currentPack[0]!.id;
     await driver.pick(clientA, pick2CardId);
 
-    expect(driver.getViewA().subStep).toBe('PICK2'); // sub-step must NOT advance yet
-    expect(driver.getViewA().picksRemaining).toBe(1);
-    expect(driver.getViewA().waitingForOpponent).toBe(false); // home still has 1 left itself
+    // Round 1 has 2 total picks (D-12) — PICK2 is the round's LAST sub-step, so the round
+    // would complete (or advance to round 2) once BOTH sides reach 0. Home alone reaching 0
+    // must NOT trigger that — away's picksRemaining is still 1.
+    expect(driver.getViewA().subStep).toBe('PICK2');
+    expect(driver.getViewA().picksRemaining).toBe(0);
+    expect(driver.getViewA().waitingForOpponent).toBe(true);
+    expect(driver.getViewA().round).toBe(1); // still round 1 — has not advanced to round 2
+    expect(driver.getViewB().picksRemaining).toBe(1); // away untouched
   }, 10000);
 
   it("(c) tampering: a cardId not in the sender's current pack is rejected with INVALID_CARD and does not mutate state", async () => {
@@ -441,15 +535,40 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
   }, 8000);
 
   it('(d) GK-slot role rule enforced in both directions', async () => {
-    const { clientA, viewA } = await setupThroughDraftUniformConfirm();
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
-    const keeperCard = viewA.currentPack.find((c) => c.tier === 'keeper')!;
-    const outfieldCard = viewA.currentPack.find((c) => c.tier !== 'keeper')!;
-    expect(keeperCard).toBeDefined();
-    expect(outfieldCard).toBeDefined();
+    // Round 1 is GK-only (D-12) — every card in the current pack is a GK card.
+    const gkCard = viewA.currentPack[0]!;
+    expect(gkCard.role).toBe('GK');
+
+    // GK card dropped on a non-GK slot (index 1, 'RB' / DEF-back) -> NON_GK_SLOT_REJECTS_GK.
+    const errorPromise = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
+        clearTimeout(timer);
+        resolve(reason);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_PICK, {
+      cardId: gkCard.id,
+      destination: { type: 'slot', slotIndex: 1 },
+    });
+    expect(await errorPromise).toBe('NON_GK_SLOT_REJECTS_GK');
+
+    // Drive round 1 to completion (2 picks each, D-12) to reach round 2 (non-GK tiered pack).
+    await driver.pick(clientA, driver.getViewA().currentPack[0]!.id);
+    await driver.pick(clientB, driver.getViewB().currentPack[0]!.id);
+    expect(driver.getViewA().subStep).toBe('PICK2');
+    await driver.pick(clientA, driver.getViewA().currentPack[0]!.id);
+    await driver.pick(clientB, driver.getViewB().currentPack[0]!.id);
+    expect(driver.getViewA().round).toBe(2);
+
+    const outfieldCard = driver.getViewA().currentPack[0]!;
+    expect(outfieldCard.role).not.toBe('GK');
 
     // Non-GK card dropped on the GK slot (index 0) -> GK_SLOT_REQUIRES_GK.
-    const errorPromise1 = new Promise<string>((resolve, reject) => {
+    const errorPromise2 = new Promise<string>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('timed out')), 1500);
       clientA.once(ServerEvents.GAME_ERROR, (reason) => {
         clearTimeout(timer);
@@ -460,29 +579,15 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
       cardId: outfieldCard.id,
       destination: { type: 'slot', slotIndex: 0 },
     });
-    expect(await errorPromise1).toBe('GK_SLOT_REQUIRES_GK');
+    expect(await errorPromise2).toBe('GK_SLOT_REQUIRES_GK');
+  }, 10000);
 
-    // GK card dropped on a non-GK slot (index 1, 'RB' / DEF-back) -> NON_GK_SLOT_REJECTS_GK.
-    const errorPromise2 = new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
-      clientA.once(ServerEvents.GAME_ERROR, (reason) => {
-        clearTimeout(timer);
-        resolve(reason);
-      });
-    });
-    clientA.emit(ClientEvents.DRAFT_PICK, {
-      cardId: keeperCard.id,
-      destination: { type: 'slot', slotIndex: 1 },
-    });
-    expect(await errorPromise2).toBe('NON_GK_SLOT_REJECTS_GK');
-  }, 8000);
-
-  it('(e) end-to-end: drives all 4 cycles to completion for both players with correct card counts and bench numbering', async () => {
+  it('(e) end-to-end: drives all 6 rounds to completion for both players with correct card counts and bench numbering', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
     let guard = 0;
-    while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 200) {
+    while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 400) {
       guard++;
       if (driver.getViewA().picksRemaining > 0) {
         await driver.pick(clientA, driver.getViewA().currentPack[0]!.id);
@@ -498,26 +603,37 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
 
     expect(finalA.draftComplete).toBe(true);
     expect(finalB.draftComplete).toBe(true);
+    expect(finalA.round).toBe(6);
+    expect(finalB.round).toBe(6);
 
     for (const view of [finalA, finalB]) {
       const filledSlots = view.lineupSlots.filter((s): s is string => s !== null);
       const totalCards = filledSlots.length + view.benchIds.length;
-      expect(totalCards).toBe(16);
+      // D-16: 17 cards drafted per side across all 6 rounds (2 GK round-1 + 3x5 rounds 2-6).
+      // Note (D-09/D-18, Plan 02): pack generation only guards against cross-pack duplication
+      // WITHIN a round — the same player's card can legitimately reappear in a different
+      // round's independently-generated pack, so `benchIds` may contain a repeated id under
+      // real crypto RNG. Assert against the DISTINCT id count for the bench-number map rather
+      // than assuming every raw pick produced a unique bench entry.
+      expect(totalCards).toBe(17);
 
-      // Bench numbers: every bench id has a distinct number in [15, 99].
-      expect(Object.keys(view.benchNumbers).length).toBe(view.benchIds.length);
-      const numbers = view.benchIds.map((id) => view.benchNumbers[id]!);
+      // Bench numbers: every DISTINCT bench id has a number in [15, 99], and distinct ids
+      // never collide on the same number.
+      const uniqueBenchIds = new Set(view.benchIds);
+      expect(Object.keys(view.benchNumbers).length).toBe(uniqueBenchIds.size);
+      const numbers = [...uniqueBenchIds].map((id) => view.benchNumbers[id]!);
       for (const n of numbers) {
         expect(n).toBeGreaterThanOrEqual(15);
         expect(n).toBeLessThanOrEqual(99);
       }
       expect(new Set(numbers).size).toBe(numbers.length);
     }
-  }, 20000);
+  }, 30000);
 
-  it('DRAFT_REARRANGE moves an already-drafted card without touching cycle/subStep (D-10)', async () => {
+  it('DRAFT_REARRANGE moves an already-drafted card without touching round/subStep (D-10)', async () => {
     const { clientA, viewA } = await setupThroughDraftUniformConfirm();
 
+    // Round 1 is GK-only — this card is a GK card (D-12).
     const cardId = viewA.currentPack[0]!.id;
 
     // Draft the card onto the bench first.
@@ -532,7 +648,8 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
     const afterPick = await firstUpdate;
     expect(afterPick.benchIds).toContain(cardId);
 
-    // Now rearrange it from bench (index 0) to an outfield slot (index 1, non-GK).
+    // Now rearrange it from bench (index 0) to the GK slot (index 0) — a GK card can only
+    // legally occupy the GK slot (D-09), so this is the one legal slot destination for it.
     const rearrangePromise = new Promise<DraftClientView>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('timed out')), 1500);
       clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
@@ -542,24 +659,24 @@ describe('Phase 29 Plan 04 Task 2 — DRAFT_PICK / DRAFT_REARRANGE', () => {
     });
     clientA.emit(ClientEvents.DRAFT_REARRANGE, {
       from: { type: 'bench', benchIndex: 0 },
-      to: { type: 'slot', slotIndex: 1 },
+      to: { type: 'slot', slotIndex: 0 },
     });
     const afterRearrange = await rearrangePromise;
 
-    expect(afterRearrange.lineupSlots[1]).toBe(cardId);
+    expect(afterRearrange.lineupSlots[0]).toBe(cardId);
     expect(afterRearrange.benchIds).not.toContain(cardId);
-    // D-10: cycle/subStep/picksRemaining are untouched by rearrangement.
-    expect(afterRearrange.cycle).toBe(afterPick.cycle);
+    // D-10: round/subStep/picksRemaining are untouched by rearrangement.
+    expect(afterRearrange.round).toBe(afterPick.round);
     expect(afterRearrange.subStep).toBe(afterPick.subStep);
     expect(afterRearrange.picksRemaining).toBe(afterPick.picksRemaining);
   }, 8000);
 });
 
 // ---------------------------------------------------------------------------
-// Gap-closure Plan 07 helpers — drive a full 4-cycle draft while explicitly placing picks
+// Gap-closure helpers — drive a full 6-round draft while explicitly placing picks
 // into lineup slots (not just the bench) so BOTH sides end draftComplete with all 11
-// starting slots filled. Needed for Task 1's post-draft-rearrange tests (which need a
-// side to be able to legally LINEUP_CONFIRM) and Task 2's full-roster resolution tests.
+// starting slots filled. Needed for post-draft-rearrange tests (which need a
+// side to be able to legally LINEUP_CONFIRM) and roster resolution tests.
 // ---------------------------------------------------------------------------
 
 const SLOT_ROLES = FORMATIONS['4-4-2'].slots.map((s) => s.slotRole);
@@ -589,7 +706,7 @@ async function pickIntoLineup(
   await driver.pick(who, card.id, destination);
 }
 
-/** Drives all 4 cycles to draftComplete for both sides, filling lineup slots along the way. */
+/** Drives all 6 rounds to draftComplete for both sides, filling lineup slots along the way. */
 async function driveDraftToCompletionFillingLineups(
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
   clientB: Socket<ServerToClientEvents, ClientToServerEvents>,
@@ -599,7 +716,7 @@ async function driveDraftToCompletionFillingLineups(
   const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
   let guard = 0;
-  while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 200) {
+  while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 400) {
     guard++;
     if (driver.getViewA().picksRemaining > 0) {
       await pickIntoLineup(clientA, driver, 'A');
@@ -614,11 +731,14 @@ async function driveDraftToCompletionFillingLineups(
 }
 
 /**
- * Phase 29 Plan 11 (CR-01 regression fix): drives all 4 cycles to draftComplete for both
- * sides while sending EVERY pick to the bench, never a lineup slot. Used to reach the
- * "mechanically complete draft, still-empty starting lineup" window — the scenario the
- * LINEUP_INCOMPLETE guard actually protects, now that the new draftComplete guard (CR-01)
- * runs first and would otherwise shadow LINEUP_INCOMPLETE for any still-incomplete draft.
+ * CR-01 regression fixture (carried forward from Phase 29 Plan 11): drives all 6 rounds to
+ * draftComplete for both sides while sending EVERY pick to the bench, never a lineup slot.
+ * Used to reach the "mechanically complete draft, still-empty starting lineup" window — the
+ * scenario the LINEUP_INCOMPLETE guard actually protects, now that the draftComplete guard
+ * (CR-01) runs first and would otherwise shadow LINEUP_INCOMPLETE for any still-incomplete
+ * draft. Note (D-21): with the forced-GK-auto-pick safety-net mechanic deleted, NO slot
+ * (including GK) is ever force-filled — every lineup slot, GK included, stays null under
+ * this fixture.
  */
 async function driveDraftToCompletionBenchOnly(
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
@@ -629,7 +749,7 @@ async function driveDraftToCompletionBenchOnly(
   const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
   let guard = 0;
-  while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 200) {
+  while (!(driver.getViewA().draftComplete && driver.getViewB().draftComplete) && guard < 400) {
     guard++;
     if (driver.getViewA().picksRemaining > 0) {
       await driver.pick(clientA, driver.getViewA().currentPack[0]!.id, { type: 'bench' });
@@ -644,19 +764,18 @@ async function driveDraftToCompletionBenchOnly(
 }
 
 // ---------------------------------------------------------------------------
-// Gap-closure Plan 07 Task 1 — post-draft rearrangement (DRAFT-09/DRAFT-10/D-08/D-15)
+// Post-draft rearrangement (DRAFT-09/DRAFT-10/D-08/D-15)
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 07 Task 1 — post-draft rearrangement', () => {
+describe('Post-draft rearrangement', () => {
   it('after draftComplete, two consecutive DRAFT_REARRANGE round-trips from the same side both apply', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
 
     expect(driver.getViewA().draftComplete).toBe(true);
 
-    // Round-trip 1: move the home GK-slot occupant... no — move a non-GK slot (index 1) card
-    // to the bench, then move it right back. Both must succeed and be reflected in the
-    // server-emitted DRAFT_STATE_UPDATED.
+    // Round-trip 1: move a non-GK slot (index 1) card to the bench, then move it right back.
+    // Both must succeed and be reflected in the server-emitted DRAFT_STATE_UPDATED.
     const beforeView = driver.getViewA();
     const movedCardId = beforeView.lineupSlots[1]!;
     expect(movedCardId).not.toBeNull();
@@ -694,10 +813,10 @@ describe('Phase 29 Plan 07 Task 1 — post-draft rearrangement', () => {
     expect(afterSecondMove.lineupSlots[1]).toBe(movedCardId);
     expect(afterSecondMove.benchIds).not.toContain(movedCardId);
 
-    // D-10: cycle/subStep never touched by either rearrange.
-    expect(afterSecondMove.cycle).toBe(beforeView.cycle);
+    // D-10: round/subStep never touched by either rearrange.
+    expect(afterSecondMove.round).toBe(beforeView.round);
     expect(afterSecondMove.subStep).toBe(beforeView.subStep);
-  }, 25000);
+  }, 40000);
 
   it('DRAFT_REARRANGE from a side is rejected with LINEUP_ALREADY_CONFIRMED once that side has confirmed', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
@@ -741,14 +860,14 @@ describe('Phase 29 Plan 07 Task 1 — post-draft rearrangement', () => {
     const reason = await errorPromise;
     expect(reason).toBe('LINEUP_ALREADY_CONFIRMED');
     expect(stateUpdated).toBe(false);
-  }, 25000);
+  }, 40000);
 });
 
 // ---------------------------------------------------------------------------
-// Gap-closure Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolution (DRAFT-10)
+// Draft-mode LINEUP_CONFIRM roster resolution (DRAFT-10)
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolution', () => {
+describe('Draft-mode LINEUP_CONFIRM roster resolution', () => {
   it('after both draft-mode confirms, all 22 built pieces have real stats and board positions', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
@@ -786,26 +905,20 @@ describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolutio
       expect(piece.pace).toBeGreaterThan(0);
       expect(piece.tackling).toBeGreaterThan(0);
     }
-  }, 25000);
+  }, 40000);
 
   it('a draft LINEUP_CONFIRM with a null starting slot emits LINEUP_INCOMPLETE and does not start the game', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
-    // Phase 29 Plan 11 (CR-01 regression fix): drive the FULL draft to draftComplete=true
-    // while sending every pick to the bench, so home's lineupSlots stay entirely null. This
-    // reaches the LINEUP_INCOMPLETE window without also tripping the new draftComplete guard
-    // (CR-01), which now runs first and would otherwise shadow this check for any draft that
-    // is still mechanically in progress.
+    // Drive the FULL draft to draftComplete=true while sending every pick to the bench, so
+    // home's lineupSlots stay entirely null. This reaches the LINEUP_INCOMPLETE window
+    // without also tripping the draftComplete guard (CR-01), which runs first and would
+    // otherwise shadow this check for any draft that is still mechanically in progress.
     const driver = await driveDraftToCompletionBenchOnly(clientA, clientB, viewA, viewB);
     expect(driver.getViewA().draftComplete).toBe(true);
-    // Slot 0 (GK) may be force-filled by the cycle-4 keeper safety net (DRAFT-08) even though
-    // every pick went to the bench — the outfield slots (1-10) stay null regardless, which is
-    // the LINEUP_INCOMPLETE window under test.
-    expect(
-      driver
-        .getViewA()
-        .lineupSlots.slice(1)
-        .every((s) => s === null),
-    ).toBe(true);
+    // D-21: the forced-GK-auto-pick safety-net mechanic is deleted entirely — no slot
+    // (including GK) is ever force-filled anymore, so ALL 11 slots stay null under the
+    // bench-only fixture.
+    expect(driver.getViewA().lineupSlots.every((s) => s === null)).toBe(true);
 
     let gameStateReceived = false;
     clientA.once(ServerEvents.GAME_STATE, () => {
@@ -823,14 +936,14 @@ describe('Phase 29 Plan 07 Task 2 — draft-mode LINEUP_CONFIRM roster resolutio
     const reason = await errorPromise;
     expect(reason).toBe('LINEUP_INCOMPLETE');
     expect(gameStateReceived).toBe(false);
-  }, 10000);
+  }, 20000);
 });
 
 // ---------------------------------------------------------------------------
-// Plan 10 (gap-closure) — D-09 GK-slot enforcement on both ends of a slot<->slot swap
+// Slot<->slot swap GK-slot enforcement (D-09)
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 10 — slot<->slot swap GK-slot enforcement', () => {
+describe('Slot<->slot swap GK-slot enforcement', () => {
   it('rejects a non-GK card swapping into the GK slot, rejects the GK swapping out into an outfield slot, and applies a legal outfield swap', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
@@ -908,26 +1021,27 @@ describe('Phase 29 Plan 10 — slot<->slot swap GK-slot enforcement', () => {
     expect(afterLegalSwap.lineupSlots[2]).toBe(cardAt1);
     expect(afterLegalSwap.benchIds).not.toContain(cardAt1);
     expect(afterLegalSwap.benchIds).not.toContain(cardAt2);
-  }, 25000);
+  }, 40000);
 });
 
 // ---------------------------------------------------------------------------
-// Phase 29 Plan 11 — CR-01 LINEUP_CONFIRM draftComplete guard
+// CR-01 LINEUP_CONFIRM draftComplete guard
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 11 — CR-01 LINEUP_CONFIRM draftComplete guard', () => {
+describe('CR-01 LINEUP_CONFIRM draftComplete guard', () => {
   it('rejects a home LINEUP_CONFIRM with DRAFT_NOT_COMPLETE when all 11 lineup slots are filled but draftComplete is still false', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = makeDraftDriver(clientA, clientB, viewA, viewB);
 
     // Drive picks (filling lineup slots) until home's 11 slots are all filled OR draftComplete
-    // flips — stop the instant we reach the cycle-3-full / cycle-4-incomplete window.
+    // flips — stop the instant we reach the "lineup full, draft still mechanically in
+    // progress" window.
     let guard = 0;
     while (
       !(
         driver.getViewA().lineupSlots.every((s) => s !== null) && !driver.getViewA().draftComplete
       ) &&
-      guard < 200
+      guard < 400
     ) {
       guard++;
       if (driver.getViewA().draftComplete) break; // safety: never overshoot into completion
@@ -963,14 +1077,14 @@ describe('Phase 29 Plan 11 — CR-01 LINEUP_CONFIRM draftComplete guard', () => 
     // No GAME_STATE within a further wait window — the match must not have started.
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
     expect(gameStateReceived).toBe(false);
-  }, 20000);
+  }, 30000);
 });
 
 // ---------------------------------------------------------------------------
-// Phase 29 Plan 11 — CR-02 DRAFT_PICK post-start guard
+// CR-02 DRAFT_PICK post-start guard
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 11 — CR-02 DRAFT_PICK post-start guard', () => {
+describe('CR-02 DRAFT_PICK post-start guard', () => {
   it('rejects DRAFT_PICK with LINEUP_ALREADY_CONFIRMED when room.gameState is forced non-null, without mutating draftSession or broadcasting DRAFT_STATE_UPDATED', async () => {
     const { clientA, viewA, roomCode } = await setupThroughDraftUniformConfirm();
     const room = getRoom(roomCode)!;

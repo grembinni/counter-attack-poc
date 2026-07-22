@@ -1,10 +1,12 @@
 /**
- * Integration tests for Phase 29 Plan 04 Task 3 — mid-draft reconnect resend
- * (D-13, closes RESEARCH.md Pitfall 3: the pre-existing reconnect handler only
- * re-emits GAME_STATE, which is null throughout the entire pre-game draft flow).
+ * Integration tests for mid-draft reconnect resend (D-13, closes RESEARCH.md Pitfall 3:
+ * the pre-existing reconnect handler only re-emits GAME_STATE, which is null throughout
+ * the entire pre-game draft flow).
  *
  * Spins up a real Socket.io server + clients (mirrors lineupAssignment.integration.test.ts's
  * harness — copied verbatim per the per-file self-contained convention).
+ *
+ * Rewritten Phase 30 Plan 05 for the round model: `cycle` -> `round` throughout (D-12..D-16).
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -108,8 +110,8 @@ function waitForConnect(
 // D-13 / Pitfall 3: mid-draft reconnect resends the private draft view
 // ---------------------------------------------------------------------------
 
-describe('Phase 29 Plan 04 Task 3 — mid-draft reconnect resends DRAFT_STATE_UPDATED', () => {
-  it('a mid-draft reconnect receives its own private DRAFT_STATE_UPDATED with cycle/subStep preserved and the CORRECT (own, not opponent) pack (D-13)', async () => {
+describe('Mid-draft reconnect resends DRAFT_STATE_UPDATED', () => {
+  it('a mid-draft reconnect receives its own private DRAFT_STATE_UPDATED with round/subStep preserved and the CORRECT (own, not opponent) pack (D-13)', async () => {
     const clientA = createClient();
     const clientB = createClient();
     await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
@@ -182,8 +184,8 @@ describe('Phase 29 Plan 04 Task 3 — mid-draft reconnect resends DRAFT_STATE_UP
 
     const [reconnectView] = await reconnectDraftPromise;
 
-    // D-13: cycle/subStep preserved, and the already-made pick is still reflected.
-    expect(reconnectView.cycle).toBe(afterPickViewA.cycle);
+    // D-13: round/subStep preserved, and the already-made pick is still reflected.
+    expect(reconnectView.round).toBe(afterPickViewA.round);
     expect(reconnectView.subStep).toBe(afterPickViewA.subStep);
     expect(reconnectView.benchIds).toContain(pickedCardId);
     expect(reconnectView.picksRemaining).toBe(afterPickViewA.picksRemaining);

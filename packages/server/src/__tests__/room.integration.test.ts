@@ -587,7 +587,28 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
   }, 5000);
 
-  it("draftPools allow-list rejects 'legends' even though it is a valid DraftPoolId (T-27-02)", async () => {
+  it("draftPools allow-list accepts 'legends' now that Legends/Icons are enabled (Phase 30 D-08/T-30-01, supersedes T-27-02)", async () => {
+    // Phase 30 D-08: SELECTABLE_DRAFT_POOLS was widened from 3 to 5 values — 'legends' and
+    // 'icons' are no longer disabled/coming-soon; the server allow-list (single source of
+    // truth shared with the client checkbox gating) now admits them.
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const confirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'draft',
+      draftPools: ['legends'],
+    });
+    const [, , draftPools] = await confirmedPromise;
+    expect(draftPools).toEqual(['legends']);
+  }, 5000);
+
+  it('draftPools allow-list still rejects an unknown pool id (T-27-02/T-30-01)', async () => {
     const clientA = createClient();
     await waitForConnect(clientA);
 
@@ -599,7 +620,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
       speed: 'standard',
       teamType: 'draft',
-      draftPools: ['legends'],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id
+      draftPools: ['not-a-real-pool' as any],
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');
