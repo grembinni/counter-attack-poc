@@ -3,9 +3,9 @@ import type { UniformStyleId } from './uniformStyles.js';
 import type { FormationId } from './formations.js';
 /**
  * DRAFT-06..10 (Phase 29): type-only import from draftEngine.ts (Phase 28). draftEngine.ts
- * imports DraftPoolId/DraftTier/PACKS_PER_MATCH/etc. (values) from this file — this import
- * stays `import type` only (verbatimModuleSyntax erases it at compile time) so no runtime
- * circular dependency is introduced between types.ts and draftEngine.ts.
+ * imports DraftPoolId/DraftTier/TIER_STAT_THRESHOLDS/etc. (values) from this file — this
+ * import stays `import type` only (verbatimModuleSyntax erases it at compile time) so no
+ * runtime circular dependency is introduced between types.ts and draftEngine.ts.
  */
 import type { TieredPoolPlayer, DraftPack } from './draftEngine.js';
 
@@ -461,51 +461,109 @@ export type TeamType = 'standard' | 'draft';
 export type DraftPoolId = 'original' | 'mls' | 'international' | 'legends' | 'icons';
 
 /**
- * DRAFT-01 (Phase 27): pools selectable in v1.4 — Legends/Icons excluded (D-04, DRAFT-11
- * deferred). This is deliberately NARROWER than `DraftPoolId` (3 of 5 values): the
- * server-side validation allow-list for `ROOM_SETTINGS_CONFIRM` must use this const, not
- * the full `DraftPoolId` type's keys, or a modified client could select 'legends'/'icons'
- * even though they are disabled/greyed client-side (Pitfall 3 / ASVS V5 Input Validation).
+ * DRAFT-01 (Phase 27), D-08 (Phase 30): pools selectable for a draft session. Widened to
+ * all 5 `DraftPoolId` values — Legends/Icons are now enabled (DRAFT-11). This is the
+ * single source of truth for both the client's checkbox disabled-state and the
+ * server-side `ROOM_SETTINGS_CONFIRM` allow-list validation (ASVS V5 Input Validation) —
+ * a modified client cannot select any pool outside this list.
  */
 export const SELECTABLE_DRAFT_POOLS: readonly DraftPoolId[] = [
   'original',
   'mls',
   'international',
+  'legends',
+  'icons',
 ] as const;
 
 /**
- * DRAFT-04 (Phase 28): rarity tier assigned to a pooled player for a draft session
- * (D-13 — tier value only this phase; display constants like card-back color are
- * deferred to Phase 29).
+ * DRAFT-04 (Phase 28), D-05 (Phase 30): rarity tier assigned to a pooled player. Narrowed
+ * to 4 values — the prior 5th reserved GK-only tier value is removed entirely (D-05): GK
+ * cards are classified by the identical fixed-threshold rule as outfield cards (D-04). GK
+ * remains a distinct pack-composition/dealing category (D-07) but is no longer a rarity tier.
  */
-export type DraftTier = 'chase' | 'rare' | 'uncommon' | 'common' | 'keeper';
+export type DraftTier = 'chase' | 'rare' | 'uncommon' | 'common';
 
 /**
- * DRAFT-04 (Phase 28): percentile floors (0-100 scale, 100 = highest total stat) used to
- * classify outfield players into tiers (D-05, D-06). An outfield player's rank-based
- * percentile is tested `>= chase -> 'chase'`, else `>= rare -> 'rare'`, else
- * `>= uncommon -> 'uncommon'`, else `'common'`. Configurable per DRAFT-04.
+ * DRAFT-04 (Phase 30), D-03: fixed absolute total-stat thresholds used by `classifyTier`
+ * (packages/shared/src/draftEngine.ts) — replaces the old session-relative percentile
+ * bounds model (removed). A player's tier is now a pure function of their own total stat,
+ * with no population/ranking context needed: `chase` when totalStat >= 32, `rare` when
+ * totalStat === 31, `uncommon` when totalStat is 29-30, else `common`.
  */
-export const TIER_PERCENTILE_BOUNDS: Readonly<Record<'chase' | 'rare' | 'uncommon', number>> = {
-  chase: 90,
-  rare: 80,
-  uncommon: 60,
-};
-
-/** DRAFT-05 (Phase 28): configurable packs generated per match (D-10). */
-export const PACKS_PER_MATCH = 8;
+export const TIER_STAT_THRESHOLDS: Readonly<Record<'chase' | 'rare' | 'uncommon', number>> = {
+  chase: 32,
+  rare: 31,
+  uncommon: 29,
+} as const;
 
 /**
- * DRAFT-05 (Phase 28): per-pack composition counts (D-11 — confirmed 1 chase, 1 rare,
- * 1 uncommon, 3 common, 1 keeper; sums to 7). Configurable.
+ * DRAFT-05 (Phase 30), D-19: a tier-slot need within one pack. 'chaseOrRare' is a virtual
+ * combined bucket — filled by merging chase+rare candidates into one shuffled draw pool
+ * for that slot (an unbiased mix, D-25), NOT by preferring one tier over the other.
  */
-export const PACK_COMPOSITION: Readonly<Record<DraftTier, number>> = {
-  chase: 1,
-  rare: 1,
-  uncommon: 1,
-  common: 3,
-  keeper: 1,
-};
+export type PackSlot =
+  | { tier: 'common' | 'uncommon' | 'chase' | 'rare'; count: number }
+  | { tier: 'chaseOrRare'; count: number };
+
+/**
+ * DRAFT-05 (Phase 30), D-12..D-19: per-round pack configuration. Round 1 is a dedicated
+ * GK-only round (D-12, D-07); rounds 2-6 deal tiered packs per `slots`. Replaces the old
+ * flat uniform-composition model (removed) — pack composition and pick count now vary by
+ * round instead of being uniform across the whole match.
+ */
+export type RoundConfig =
+  | { round: number; kind: 'gk'; cardsPerPack: 4; picks: 2 }
+  | { round: number; kind: 'tiered'; cardsPerPack: 4; picks: 3; slots: PackSlot[] };
+
+/**
+ * DRAFT-05 (Phase 30), D-12..D-16: the full 6-round draft structure. Round 1: 2 GK picks
+ * (D-12). Rounds 2-3: 3 all-common picks each (D-13). Round 4: 3 picks, 2 uncommon + 2
+ * common per pack (D-14). Rounds 5-6: 3 picks each, 1 chaseOrRare + 1 uncommon + 2 common
+ * per pack (D-15). Total picks per player across all 6 rounds sums to 17 (D-16).
+ */
+export const DRAFT_ROUNDS: readonly RoundConfig[] = [
+  { round: 1, kind: 'gk', cardsPerPack: 4, picks: 2 },
+  { round: 2, kind: 'tiered', cardsPerPack: 4, picks: 3, slots: [{ tier: 'common', count: 4 }] },
+  { round: 3, kind: 'tiered', cardsPerPack: 4, picks: 3, slots: [{ tier: 'common', count: 4 }] },
+  {
+    round: 4,
+    kind: 'tiered',
+    cardsPerPack: 4,
+    picks: 3,
+    slots: [
+      { tier: 'uncommon', count: 2 },
+      { tier: 'common', count: 2 },
+    ],
+  },
+  {
+    round: 5,
+    kind: 'tiered',
+    cardsPerPack: 4,
+    picks: 3,
+    slots: [
+      { tier: 'chaseOrRare', count: 1 },
+      { tier: 'uncommon', count: 1 },
+      { tier: 'common', count: 2 },
+    ],
+  },
+  {
+    round: 6,
+    kind: 'tiered',
+    cardsPerPack: 4,
+    picks: 3,
+    slots: [
+      { tier: 'chaseOrRare', count: 1 },
+      { tier: 'uncommon', count: 1 },
+      { tier: 'common', count: 2 },
+    ],
+  },
+] as const;
+
+/** DRAFT-05 (Phase 30), D-16: total rounds in the draft structure (6). */
+export const DRAFT_ROUND_COUNT = DRAFT_ROUNDS.length;
+
+/** DRAFT-05 (Phase 30): packs dealt per round — one per side. */
+export const PACKS_PER_ROUND = 2;
 
 /**
  * DRAFT-06/07 (Phase 29), D-01: the three player-facing picking sub-steps within one
@@ -541,38 +599,35 @@ export type DraftPickPayload = { cardId: string; destination: DraftDestination }
 export type DraftRearrangePayload = { from: DraftSlotRef; to: DraftSlotRef };
 
 /**
- * DRAFT-06..10 (Phase 29): the full server-authoritative draft session state for one room,
- * covering both players' packs, drafted ids, lineup/bench state, and cycle progress.
- * Stored as `Room.draftSession` (packages/server/src/roomStore.ts) — never sent to a client
- * directly; each player receives only their own privacy-scoped `DraftClientView` (D-14).
+ * DRAFT-06..10 (Phase 29), D-16 (Phase 30): the full server-authoritative draft session
+ * state for one room, covering both players' packs, drafted ids, lineup/bench state, and
+ * round progress. Stored as `Room.draftSession` (packages/server/src/roomStore.ts) — never
+ * sent to a client directly; each player receives only their own privacy-scoped
+ * `DraftClientView` (D-14).
  */
 export type DraftSession = {
-  /** 0 before the first pack is opened; 1..4 during the four pick-and-swap cycles (D-01). */
-  cycle: number;
-  /** Current player-facing picking sub-step within the active cycle (D-01). */
+  /** 0 before the first pack is opened; 1..6 during the six draft rounds (D-12..D-16, Phase 30). */
+  round: number;
+  /** Current player-facing picking sub-step within the active round (D-01). */
   subStep: DraftSubStep;
-  /** All 8 pre-generated packs for this match (D-04) — the single source of truth for card contents. */
+  /** All 12 pre-generated packs for this match (D-12..D-16, Phase 30) — the single source of truth for card contents. */
   draftPacks: DraftPack[];
-  /** Indices into draftPacks assigned to home, in sequential open order across the 4 cycles (D-04). Length 4. */
+  /** Indices into draftPacks assigned to home, one per round in sequential open order (D-12..D-16, Phase 30). Length 6. */
   homePackOrder: number[];
-  /** Indices into draftPacks assigned to away, in sequential open order across the 4 cycles (D-04). Length 4. */
+  /** Indices into draftPacks assigned to away, one per round in sequential open order (D-12..D-16, Phase 30). Length 6. */
   awayPackOrder: number[];
   /** Home player's currently-visible pack contents (D-14 — never sent to away). */
   homeCurrentPack: TieredPoolPlayer[];
   /** Away player's currently-visible pack contents (D-14 — never sent to home). */
   awayCurrentPack: TieredPoolPlayer[];
-  /** Accumulates to 16 entries by draft end (D-01). */
+  /** Accumulates to 17 entries by draft end (D-16, Phase 30). */
   homeDraftedIds: string[];
-  /** Accumulates to 16 entries by draft end (D-01). */
+  /** Accumulates to 17 entries by draft end (D-16, Phase 30). */
   awayDraftedIds: string[];
-  /** DRAFT-08: true once home has drafted a 'keeper'-tier card. Drives cycle-4 auto-pick check. */
-  homeHasKeeper: boolean;
-  /** DRAFT-08: true once away has drafted a 'keeper'-tier card. Drives cycle-4 auto-pick check. */
-  awayHasKeeper: boolean;
   /**
-   * Picks left in the current sub-step for home (PICK1=1, PICK2=2, PICK3=1 — reduced to 1
-   * on cycle 4 by the DRAFT-08 keeper-safety auto-pick when triggered). Decrements on each
-   * DRAFT_PICK; sub-step/cycle advances only once both players reach 0 (D-03 mutual-wait gate).
+   * Picks left in the current sub-step for home — varies by round (D-12..D-16, Phase 30:
+   * round 1 has 2 total picks, rounds 2-6 have 3 each). Decrements on each DRAFT_PICK;
+   * sub-step/round advances only once both players reach 0 (D-03 mutual-wait gate).
    */
   homePicksRemaining: number;
   /** Picks left in the current sub-step for away — mirrors homePicksRemaining. */
@@ -589,9 +644,7 @@ export type DraftSession = {
   homeBenchNumbers: Record<string, number>;
   /** Filled at draft-complete: playerId -> random unused jersey number 15-99 (D-15/D-16). */
   awayBenchNumbers: Record<string, number>;
-  /** DRAFT-08: true for a side the moment a keeper is auto-picked this cycle — drives the UI banner. */
-  keeperAutoPickedThisCycle: { home: boolean; away: boolean };
-  /** True once all 16 picks are resolved for both players (D-23 — draft-pack row disappears). */
+  /** True once all 17 picks are resolved for both players (D-16, Phase 30 — draft-pack row disappears). */
   draftComplete: boolean;
 };
 
@@ -602,7 +655,7 @@ export type DraftSession = {
  * the type shape itself, not just by emit discipline).
  */
 export type DraftClientView = {
-  cycle: number;
+  round: number;
   subStep: DraftSubStep;
   /** THIS player's pack only — never the opponent's (D-14). */
   currentPack: TieredPoolPlayer[];
@@ -612,8 +665,6 @@ export type DraftClientView = {
   lineupSlots: (string | null)[];
   benchIds: string[];
   benchNumbers: Record<string, number>;
-  /** True if a keeper was auto-picked for THIS player this cycle — drives the DRAFT-08 banner. */
-  keeperAutoPickedThisCycle: boolean;
   draftComplete: boolean;
 };
 
