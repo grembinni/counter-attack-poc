@@ -359,6 +359,47 @@ describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () =
     const headedPassEvents = result.state.eventLog.filter((e) => e.type === 'HEADED_PASS');
     expect(headedPassEvents).toHaveLength(0);
   });
+
+  // Folded header-winner todo (2026-07-12-bug-header-winner-piece-ineligible-next-phase.md):
+  // a header-duel winner has already acted this turn; the winning piece must be marked
+  // spent (movedPieceIds) on both non-goal PASS routes so it cannot move again next MOVE phase.
+  it('adds the winning contestant to movedPieceIds on the empty-hex/loose-ball branch (folded header-winner todo)', () => {
+    const state = makeHeaderStateWithWinner();
+    const result = applyResolveHeaderTarget(state, { q: 30, r: 12 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.movedPieceIds).toContain('home-fwd');
+  });
+
+  it('adds the winning contestant to movedPieceIds on the occupant-PASS branch (folded header-winner todo)', () => {
+    const occupiedState = makeHeaderStateWithWinner({
+      pieces: [
+        { ...homeFwd, position: { q: 27, r: 12 } },
+        { ...awayDef, position: { q: 30, r: 12 } }, // occupies target hex
+        awayGk,
+        homeMid,
+      ],
+    });
+    const result = applyResolveHeaderTarget(occupiedState, { q: 30, r: 12 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.movedPieceIds).toContain('home-fwd');
+  });
+
+  it('does not push null/undefined into movedPieceIds when resolvedWinner is null (uncontested/declined header)', () => {
+    const nullWinnerState = makeHeaderStateWithWinner({
+      headerContestants: { home: [], away: [] },
+      ball: { position: { q: 27, r: 12 }, carrierId: null },
+    });
+    const result = applyResolveHeaderTarget(nullWinnerState, { q: 30, r: 12 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.movedPieceIds).toEqual(nullWinnerState.movedPieceIds);
+    expect(result.state.movedPieceIds).not.toContain(null);
+    expect(result.state.movedPieceIds).not.toContain(undefined);
+  });
 });
 
 describe('RULE-02: applyResolveHeaderTarget — OUT_OF_RANGE (D-06)', () => {
@@ -411,6 +452,28 @@ describe('RULE-02: applyResolveHeaderTarget — GK_DIVING route for goal-line ta
     // All header fields cleared
     expect(result.state.headerDuelWinner).toBeNull();
     expect(result.state.headerContestants).toBeNull();
+  });
+
+  // Folded header-winner todo: the goal-line GK_DIVE route is intentionally untouched —
+  // the ineligibility rule applies only to the non-goal PASS routes.
+  it('does NOT add the winner to movedPieceIds on the goal-line GK_DIVE route (folded header-winner todo)', () => {
+    const nearGoalState = makeHeaderStateWithWinner({
+      pieces: [
+        { ...homeFwd, position: { q: 32, r: 12 } },
+        { ...awayDef, position: { q: 33, r: 12 } },
+        awayGk,
+        homeMid,
+      ],
+      ball: { position: { q: 32, r: 12 }, carrierId: null },
+      headerContestants: { home: ['home-fwd'], away: ['away-def'] },
+      headerDuelWinner: 'home',
+    });
+    const goalLineHex = { q: 36, r: 12 };
+    const result = applyResolveHeaderTarget(nearGoalState, goalLineHex);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_DIVE');
+    expect(result.state.movedPieceIds).toEqual(nearGoalState.movedPieceIds);
   });
 });
 
