@@ -94,3 +94,12 @@ None - no external service configuration required.
 ---
 _Phase: 31-bug-fixes_
 _Completed: 2026-07-22_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/ActionPanel.tsx
+- FOUND: packages/client/src/components/ActionPanel.test.tsx
+- FOUND: .planning/phases/31-bug-fixes/31-02-SUMMARY.md
+- FOUND: 700ccce (test commit)
+- FOUND: 3ca6193 (feat commit)
+- FOUND: e1f323f (docs commit)
