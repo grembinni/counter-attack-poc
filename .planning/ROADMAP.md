@@ -111,13 +111,13 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
 
-| Phase | Name                                      | Plans | Status      |
-| ----- | ----------------------------------------- | ----- | ----------- |
-| 31    | Bug Fixes                                 | 4     | Not started |
-| 32    | Code Cleanup                              | TBD   | Not started |
-| 33    | Design Tokens & Highlight Standardization | TBD   | Not started |
-| 34    | Visual Theme Restyle                      | TBD   | Not started |
-| 35    | ActionPanel & Log Standardization         | TBD   | Not started |
+| Phase | Name                                      | Plans       | Status      |
+| ----- | ----------------------------------------- | ----------- | ----------- |
+| 31    | 3/4                                       | In Progress |             |
+| 32    | Code Cleanup                              | TBD         | Not started |
+| 33    | Design Tokens & Highlight Standardization | TBD         | Not started |
+| 34    | Visual Theme Restyle                      | TBD         | Not started |
+| 35    | ActionPanel & Log Standardization         | TBD         | Not started |
 
 ### Phase 31: Bug Fixes
 
@@ -133,9 +133,9 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 **Plans**: 4 plans (Wave 1: 31-01, 31-02, 31-03 run in parallel; Wave 2: 31-04)
 **Wave 1**
 
-- [ ] 31-01-PLAN.md — BUG-30 goal-reset replay reconstruction (`piecesAfter` on GOAL) + folded GK_KICK/LOOSE_BALL_LAND replay verify [Wave 1]
-- [ ] 31-02-PLAN.md — BUG-31 move-started eligibility timing + Undo (ActionPanel `remaining`) [Wave 1]
-- [ ] 31-03-PLAN.md — BUG-32 GK deflection eligibility (client gate + server rejection, defense-in-depth) [Wave 1]
+- [x] 31-01-PLAN.md — BUG-30 goal-reset replay reconstruction (`piecesAfter` on GOAL) + folded GK_KICK/LOOSE_BALL_LAND replay verify [Wave 1]
+- [x] 31-02-PLAN.md — BUG-31 move-started eligibility timing + Undo (ActionPanel `remaining`) [Wave 1]
+- [x] 31-03-PLAN.md — BUG-32 GK deflection eligibility (client gate + server rejection, defense-in-depth) [Wave 1]
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
