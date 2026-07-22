@@ -1,29 +1,32 @@
 /**
- * Phase 28 DRAFT-04: pool derivation + tier classification contract for draftEngine.ts.
- * Follows the teams.test.ts vitest describe/it style, grouped by decision ID.
+ * Phase 28 DRAFT-04, Phase 30 D-03/D-04/D-05/D-09: pool derivation + fixed-threshold tier
+ * classification contract for draftEngine.ts. Follows the teams.test.ts vitest
+ * describe/it style, grouped by decision ID.
+ *
+ * Phase 30: generateDraftPacks is stubbed in this plan (round-structured implementation
+ * lands in 30-02) — its describe blocks are intentionally NOT present here; fresh
+ * round-scoped pack tests are written in Plan 02.
  */
 import { describe, it, expect } from 'vitest';
 import { PLAYER_POOL } from './teams.js';
 import type { PoolPlayer } from './teams.js';
 import { TEAM_CONFIGS } from './teamConfig.js';
-import { PACKS_PER_MATCH, PACK_COMPOSITION, TIER_PERCENTILE_BOUNDS } from './types.js';
 import {
   computeTotalStat,
+  classifyTier,
   isInPool,
   resolvePoolPlayers,
   assignTiers,
-  generateDraftPacks,
 } from './draftEngine.js';
-import type { RandomIntFn } from './draftEngine.js';
 
 // ---------------------------------------------------------------------------
 // Pool derivation — DRAFT-04: D-04
 // ---------------------------------------------------------------------------
 
 describe('resolvePoolPlayers / isInPool — DRAFT-04: D-04 pool derivation', () => {
-  it("resolvePoolPlayers(['original']) has length 46 and every member is an untagged free agent", () => {
+  it("resolvePoolPlayers(['original']) has length 37 and every member is an untagged free agent", () => {
     const original = resolvePoolPlayers(['original']);
-    expect(original).toHaveLength(46);
+    expect(original).toHaveLength(37);
     for (const p of original) {
       expect(p.sourceTeamId).toBe('free-agent');
       expect(p.poolTag).toBeFalsy();
@@ -48,9 +51,9 @@ describe('resolvePoolPlayers / isInPool — DRAFT-04: D-04 pool derivation', () 
     }
   });
 
-  it("resolvePoolPlayers(['original', 'mls']) has length 112 (46 + 66, no overlap) with strictly ascending ids", () => {
+  it("resolvePoolPlayers(['original', 'mls']) has length 103 (37 + 66, no overlap) with strictly ascending ids", () => {
     const union = resolvePoolPlayers(['original', 'mls']);
-    expect(union).toHaveLength(112);
+    expect(union).toHaveLength(103);
     const ids = union.map((p) => p.id);
     for (let i = 1; i < ids.length; i++) {
       expect(ids[i] > ids[i - 1]).toBe(true);
@@ -77,6 +80,49 @@ describe('resolvePoolPlayers / isInPool — DRAFT-04: D-04 pool derivation', () 
     expect(ronaldo).toBeDefined();
     expect(ronaldo.poolTag).toBe('icon');
     expect(isInPool(ronaldo, 'original')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Legends/Icons PoolTag -> DraftPoolId bridge — DRAFT-11: D-09 (Phase 30)
+// ---------------------------------------------------------------------------
+
+describe('isInPool — DRAFT-11: D-09 legends/icons PoolTag bridge', () => {
+  it("a 'legend'-tagged player is in the 'legends' pool and NOT in 'icons'", () => {
+    const legend = PLAYER_POOL.find((p) => p.poolTag === 'legend');
+    expect(legend).toBeDefined();
+    expect(isInPool(legend, 'legends')).toBe(true);
+    expect(isInPool(legend, 'icons')).toBe(false);
+  });
+
+  it("an 'icon'-tagged player is in the 'icons' pool and NOT in 'legends'", () => {
+    const icon = PLAYER_POOL.find((p) => p.poolTag === 'icon');
+    expect(icon).toBeDefined();
+    expect(isInPool(icon, 'icons')).toBe(true);
+    expect(isInPool(icon, 'legends')).toBe(false);
+  });
+
+  it("an untagged free agent is in NEITHER 'legends' nor 'icons'", () => {
+    const untagged = PLAYER_POOL.find((p) => p.sourceTeamId === 'free-agent' && !p.poolTag);
+    expect(untagged).toBeDefined();
+    expect(isInPool(untagged, 'legends')).toBe(false);
+    expect(isInPool(untagged, 'icons')).toBe(false);
+  });
+
+  it("resolvePoolPlayers(['legends']) returns only legend-tagged players", () => {
+    const legends = resolvePoolPlayers(['legends']);
+    expect(legends.length).toBeGreaterThan(0);
+    for (const p of legends) {
+      expect(p.poolTag).toBe('legend');
+    }
+  });
+
+  it("resolvePoolPlayers(['icons']) returns only icon-tagged players", () => {
+    const icons = resolvePoolPlayers(['icons']);
+    expect(icons.length).toBeGreaterThan(0);
+    for (const p of icons) {
+      expect(p.poolTag).toBe('icon');
+    }
   });
 });
 
@@ -117,10 +163,37 @@ describe('computeTotalStat — DRAFT-04: D-07 total stat = sum of 9 numeric fiel
 });
 
 // ---------------------------------------------------------------------------
-// Tier classification — DRAFT-04: D-05/D-06/D-08
+// classifyTier — DRAFT-04: D-03/D-04 fixed absolute total-stat thresholds
+// (replaces the old session-relative percentile ranking entirely)
 // ---------------------------------------------------------------------------
 
-describe('assignTiers — DRAFT-04: D-05/D-06/D-08 rank-based percentile classification', () => {
+describe('classifyTier — DRAFT-04: D-03/D-04 fixed absolute total-stat thresholds', () => {
+  it('totalStat >= 32 classifies as "chase"', () => {
+    expect(classifyTier(32)).toBe('chase');
+    expect(classifyTier(33)).toBe('chase');
+    expect(classifyTier(45)).toBe('chase');
+  });
+
+  it('totalStat === 31 classifies as "rare" (exact boundary)', () => {
+    expect(classifyTier(31)).toBe('rare');
+  });
+
+  it('totalStat 29-30 classifies as "uncommon"', () => {
+    expect(classifyTier(30)).toBe('uncommon');
+    expect(classifyTier(29)).toBe('uncommon');
+  });
+
+  it('totalStat < 29 classifies as "common"', () => {
+    expect(classifyTier(28)).toBe('common');
+    expect(classifyTier(0)).toBe('common');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assignTiers — DRAFT-04: D-04/D-05 per-player classification, no population ranking
+// ---------------------------------------------------------------------------
+
+describe('assignTiers — DRAFT-04: D-04/D-05 per-player classification, no population ranking', () => {
   const unionPool = resolvePoolPlayers(['original', 'mls', 'international']);
   const tiered = assignTiers(unionPool);
 
@@ -129,32 +202,10 @@ describe('assignTiers — DRAFT-04: D-05/D-06/D-08 rank-based percentile classif
     expect(tiered.map((p) => p.id)).toEqual(unionPool.map((p) => p.id));
   });
 
-  it('every GK has tier "keeper" and no GK receives an outfield tier', () => {
+  it("each element's tier equals classifyTier(computeTotalStat(player)) — GK and outfield alike (D-04)", () => {
     for (const p of tiered) {
-      if (p.role === 'GK') {
-        expect(p.tier).toBe('keeper');
-      } else {
-        expect(p.tier).not.toBe('keeper');
-      }
+      expect(p.tier).toBe(classifyTier(computeTotalStat(p)));
     }
-  });
-
-  it('every non-GK has a tier in [chase, rare, uncommon, common]', () => {
-    const outfieldTiers = ['chase', 'rare', 'uncommon', 'common'];
-    for (const p of tiered) {
-      if (p.role !== 'GK') {
-        expect(outfieldTiers).toContain(p.tier);
-      }
-    }
-  });
-
-  it('the single highest-totalStat outfielder is "chase" and the single lowest is "common"', () => {
-    const outfield = tiered.filter((p) => p.role !== 'GK');
-    const sortedAsc = [...outfield].sort((a, b) => a.totalStat - b.totalStat);
-    const lowest = sortedAsc[0];
-    const highest = sortedAsc[sortedAsc.length - 1];
-    expect(highest.tier).toBe('chase');
-    expect(lowest.tier).toBe('common');
   });
 
   it("each element's totalStat matches computeTotalStat(thatPlayer)", () => {
@@ -163,12 +214,25 @@ describe('assignTiers — DRAFT-04: D-05/D-06/D-08 rank-based percentile classif
     }
   });
 
-  it('D-06 tie-break: two identical-totalStat outfielders straddling a boundary can receive DIFFERENT tiers', () => {
-    // Build a small hand-crafted population: 8 outfield players. Player at index 0 and
-    // index 1 have IDENTICAL totalStat (40). With N=8, percentiles are:
-    // idx0 -> 100 (chase, >=90), idx1 -> 87.5 (rare, >=80 but <90).
-    // This proves classification is rank-based (input-order tie-break), not value-based
-    // (which would force identical-stat players into the same tier).
+  it('every tier value is one of the 4 DraftTier values — "keeper" is never produced (D-05)', () => {
+    const validTiers = ['chase', 'rare', 'uncommon', 'common'];
+    for (const p of tiered) {
+      expect(validTiers).toContain(p.tier);
+    }
+  });
+
+  it(
+    'D-24: at least one GK legitimately classifies as "common" under the identical thresholds ' +
+      '— an explicitly accepted, cosmetic-only distribution outcome (GK tier does not affect ' +
+      'pack dealing per D-07), NOT a bug to "fix" by forbidding it',
+    () => {
+      const gkTiers = tiered.filter((p) => p.role === 'GK').map((p) => p.tier);
+      expect(gkTiers.length).toBeGreaterThan(0);
+      expect(gkTiers).toContain('common');
+    },
+  );
+
+  it('identical-totalStat players receive the SAME tier — classification is value-based, not rank-based (D-03 supersedes the old D-06 rank tie-break)', () => {
     const makeOutfield = (id: string, totalStat: number): PoolPlayer => ({
       id,
       sourceTeamId: 'free-agent',
@@ -189,142 +253,13 @@ describe('assignTiers — DRAFT-04: D-05/D-06/D-08 rank-based percentile classif
       highPass: 0,
     });
 
-    const tieBreakPool: PoolPlayer[] = [
-      makeOutfield('tie-1', 40), // idx 0 after sort -> percentile 100 -> chase
-      makeOutfield('tie-2', 40), // idx 1 after sort -> percentile 87.5 -> rare
-      makeOutfield('rank-3', 30),
-      makeOutfield('rank-4', 25),
-      makeOutfield('rank-5', 20),
-      makeOutfield('rank-6', 15),
-      makeOutfield('rank-7', 10),
-      makeOutfield('rank-8', 5),
-    ];
-
-    const result = assignTiers(tieBreakPool);
+    const pool: PoolPlayer[] = [makeOutfield('tie-1', 31), makeOutfield('tie-2', 31)];
+    const result = assignTiers(pool);
     const tie1 = result.find((p) => p.id === 'tie-1');
     const tie2 = result.find((p) => p.id === 'tie-2');
 
-    expect(tie1.totalStat).toBe(tie2.totalStat);
-    expect(tie1.tier).not.toBe(tie2.tier);
-    expect(tie1.tier).toBe('chase');
-    expect(tie2.tier).toBe('rare');
-  });
-});
-
-// Sanity check: TIER_PERCENTILE_BOUNDS is imported and used implicitly by assignTiers;
-// referenced here to keep the import used and to document the boundary values relied on
-// by the tie-break math above (chase >= 90, rare >= 80, uncommon >= 60).
-describe('TIER_PERCENTILE_BOUNDS — DRAFT-04: boundary constants used by classification', () => {
-  it('matches the documented chase/rare/uncommon floors', () => {
-    expect(TIER_PERCENTILE_BOUNDS).toEqual({ chase: 90, rare: 80, uncommon: 60 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// generateDraftPacks — DRAFT-05: D-09/D-10/D-11/D-12 pack composition, no-duplication,
-// backfill order, and determinism.
-// ---------------------------------------------------------------------------
-
-/**
- * Tiny deterministic seeded PRNG (mulberry32) mapped to the `RandomIntFn` contract
- * (min-inclusive, max-exclusive) — mirrors Node `crypto.randomInt(min, max)`. This is
- * test-only code, so `Math` is permitted here; the SHARED engine itself stays
- * `Math.random`-free (no global RNG is imported into draftEngine.ts).
- */
-function createSeededRng(seed: number): RandomIntFn {
-  let state = seed >>> 0;
-  const next = (): number => {
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  return (minInclusive: number, maxExclusive: number) =>
-    minInclusive + Math.floor(next() * (maxExclusive - minInclusive));
-}
-
-const leagueOf = (sourceTeamId: string): string | undefined =>
-  TEAM_CONFIGS[sourceTeamId as keyof typeof TEAM_CONFIGS]?.league;
-
-describe('generateDraftPacks — DRAFT-05: D-10/D-11 pack count and composition', () => {
-  it('all-pools: exactly PACKS_PER_MATCH packs of 7 cards, composed per PACK_COMPOSITION, keeper slots are always GK', () => {
-    const rng = createSeededRng(1);
-    const { packs } = generateDraftPacks(['original', 'mls', 'international'], rng);
-
-    expect(packs).toHaveLength(PACKS_PER_MATCH);
-
-    for (const pack of packs) {
-      expect(pack.cards).toHaveLength(7);
-
-      const counts: Record<string, number> = {};
-      for (const card of pack.cards) {
-        counts[card.tier] = (counts[card.tier] ?? 0) + 1;
-        if (card.tier === 'keeper') {
-          expect(card.role).toBe('GK');
-        } else {
-          expect(card.role).not.toBe('GK');
-        }
-      }
-      expect(counts).toEqual(PACK_COMPOSITION);
-    }
-  });
-});
-
-describe('generateDraftPacks — DRAFT-05: D-09 no cross-pack duplication', () => {
-  it('all-pools: no player id appears in more than one pack across the batch', () => {
-    const rng = createSeededRng(2);
-    const { packs } = generateDraftPacks(['original', 'mls', 'international'], rng);
-
-    const allIds = packs.flatMap((pack) => pack.cards.map((c) => c.id));
-    expect(allIds).toHaveLength(PACKS_PER_MATCH * 7);
-    expect(new Set(allIds).size).toBe(allIds.length);
-  });
-});
-
-describe('generateDraftPacks — DRAFT-05: D-12 pool-shortage backfill order', () => {
-  it('original-only: backfills from MLS, includes non-free-agent keepers, and pulls ZERO international cards', () => {
-    const rng = createSeededRng(3);
-    const { packs } = generateDraftPacks(['original'], rng);
-
-    expect(packs).toHaveLength(PACKS_PER_MATCH);
-    const allCards = packs.flatMap((pack) => pack.cards);
-    expect(allCards).toHaveLength(PACKS_PER_MATCH * 7);
-
-    const internationalCards = allCards.filter((c) => leagueOf(c.sourceTeamId) === 'international');
-    expect(internationalCards).toHaveLength(0);
-
-    const mlsCards = allCards.filter((c) => leagueOf(c.sourceTeamId) === 'mls');
-    expect(mlsCards.length).toBeGreaterThan(0);
-
-    const keeperCards = allCards.filter((c) => c.tier === 'keeper');
-    expect(keeperCards).toHaveLength(PACKS_PER_MATCH * PACK_COMPOSITION.keeper);
-    const nonFreeAgentKeepers = keeperCards.filter((c) => c.sourceTeamId !== 'free-agent');
-    expect(nonFreeAgentKeepers.length).toBeGreaterThan(0);
-  });
-
-  it('mls-only: backfills from Original first (fallback order); International untouched', () => {
-    const rng = createSeededRng(4);
-    const { packs } = generateDraftPacks(['mls'], rng);
-
-    expect(packs).toHaveLength(PACKS_PER_MATCH);
-    const allCards = packs.flatMap((pack) => pack.cards);
-
-    const internationalCards = allCards.filter((c) => leagueOf(c.sourceTeamId) === 'international');
-    expect(internationalCards).toHaveLength(0);
-
-    const originalCards = allCards.filter((c) => c.sourceTeamId === 'free-agent' && !c.poolTag);
-    expect(originalCards.length).toBeGreaterThan(0);
-  });
-});
-
-describe('generateDraftPacks — DRAFT-05: determinism given the same injected RNG', () => {
-  it('two runs with identically-seeded rng produce deep-equal packs', () => {
-    const rngA = createSeededRng(42);
-    const rngB = createSeededRng(42);
-
-    const resultA = generateDraftPacks(['original', 'mls', 'international'], rngA);
-    const resultB = generateDraftPacks(['original', 'mls', 'international'], rngB);
-
-    expect(resultA.packs).toEqual(resultB.packs);
+    expect(tie1?.totalStat).toBe(tie2?.totalStat);
+    expect(tie1?.tier).toBe(tie2?.tier);
+    expect(tie1?.tier).toBe('rare');
   });
 });
