@@ -25,8 +25,13 @@ import type { PoolPlayer } from './teams.js';
 import { PLAYER_POOL } from './teams.js';
 import { TEAM_CONFIGS } from './teamConfig.js';
 import type { TeamId } from './teamConfig.js';
-import type { DraftPoolId, DraftTier } from './types.js';
-import { TIER_STAT_THRESHOLDS, SELECTABLE_DRAFT_POOLS } from './types.js';
+import type { DraftPoolId, DraftTier, PackSlot, RoundConfig } from './types.js';
+import {
+  TIER_STAT_THRESHOLDS,
+  SELECTABLE_DRAFT_POOLS,
+  DRAFT_ROUNDS,
+  PACKS_PER_ROUND,
+} from './types.js';
 
 /**
  * DRAFT-04 (Phase 28), D-13: A pooled player annotated with its classified rarity tier
@@ -155,12 +160,7 @@ export interface DraftPack {
  * Fisher-Yates shuffle using the injected `rng`. Copies `items` first — never mutates
  * the input array (matches the module's no-side-effects convention; `PLAYER_POOL`-
  * derived arrays must stay immutable from the caller's perspective).
- *
- * Temporarily unused by this file's `generateDraftPacks` stub (30-01) — the round-
- * structured dealing algorithm implemented in Plan 30-02 reuses this helper verbatim
- * (RESEARCH.md "Don't Hand-Roll": do not reimplement shuffling/dealing).
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reused verbatim by 30-02
 function shuffle<T>(items: readonly T[], rng: RandomIntFn): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
@@ -173,19 +173,196 @@ function shuffle<T>(items: readonly T[], rng: RandomIntFn): T[] {
 }
 
 /**
- * DRAFT-05 (Phase 30): Batch-generates the full round-structured pack set a match needs.
+ * D-11 (Phase 30): fallback chain used to backfill a short pack candidate pool.
+ * International is removed as a backfill SOURCE entirely (still directly selectable
+ * as its own pool, per D-11) — only MLS and Original ever backfill another pool's
+ * shortage, in that order.
+ */
+const FALLBACK_POOL_ORDER: readonly DraftPoolId[] = ['mls', 'original'];
+
+/** D-17 (Phase 30): the three position buckets a non-GK pack's cap is tracked against. */
+type PositionBucket = 'DEF' | 'MID' | 'FWD_ST';
+
+/** D-17: maps a player's role to its position bucket; GK has no bucket (GK packs never reach here). */
+function bucketForRole(role: PoolPlayer['role']): PositionBucket | null {
+  if (role === 'DEF') return 'DEF';
+  if (role === 'MID') return 'MID';
+  if (role === 'FWD' || role === 'ST') return 'FWD_ST';
+  return null;
+}
+
+/**
+ * Pattern 4 (RESEARCH.md): rarest-first slot processing order so scarcer tiers are dealt
+ * before the more plentiful 'common' tier exhausts the position-bucket headroom.
+ */
+const SLOT_RARITY_ORDER: Record<PackSlot['tier'], number> = {
+  chaseOrRare: 0,
+  chase: 0,
+  rare: 0,
+  uncommon: 1,
+  common: 2,
+};
+
+function sortSlotsRarestFirst(slots: readonly PackSlot[]): PackSlot[] {
+  return [...slots].sort((a, b) => SLOT_RARITY_ORDER[a.tier] - SLOT_RARITY_ORDER[b.tier]);
+}
+
+/**
+ * D-17 (Phase 30): draws `count` cards from `pool` (mutated in place — consumed cards are
+ * removed via splice so the SAME shared pool can be drawn from again for the round's other
+ * pack without re-dealing a card already used, D-09). Skips any candidate whose position
+ * bucket already sits at the D-17 cap of 2, scanning forward through the pre-shuffled pool;
+ * only relaxes the cap (takes the next candidate regardless of bucket) if every remaining
+ * candidate would exceed its bucket — a low-probability edge case per RESEARCH.md A4, but
+ * handled rather than left to throw a false "insufficient supply" error.
+ */
+function drawFromPool(
+  pool: TieredPoolPlayer[],
+  count: number,
+  bucketCounts: Record<PositionBucket, number>,
+): TieredPoolPlayer[] {
+  const drawn: TieredPoolPlayer[] = [];
+  while (drawn.length < count) {
+    if (pool.length === 0) {
+      throw new Error('generateDraftPacks: exhausted tier supply while dealing a pack');
+    }
+    let index = pool.findIndex((candidate) => {
+      const bucket = bucketForRole(candidate.role);
+      return bucket === null || bucketCounts[bucket] < 2;
+    });
+    if (index === -1) {
+      index = 0;
+    }
+    const [card] = pool.splice(index, 1);
+    drawn.push(card!);
+    const bucket = bucketForRole(card!.role);
+    if (bucket !== null) bucketCounts[bucket] += 1;
+  }
+  return drawn;
+}
+
+/**
+ * D-12 (Phase 30): resolves the GK candidate pool for round 1, backfilling from
+ * `fallbackChain` (Pitfall 2 — never special-cased to skip backfill) until `neededCount`
+ * is met or the chain is exhausted. Returns whatever was assembled; the caller checks the
+ * final length against `neededCount` and throws a per-round "insufficient supply" error.
+ */
+function resolveGkCandidates(
+  selectedUnion: PoolPlayer[],
+  fallbackChain: readonly DraftPoolId[],
+  neededCount: number,
+): PoolPlayer[] {
+  const candidates = selectedUnion.filter((p) => p.role === 'GK');
+  const usedIds = new Set(candidates.map((p) => p.id));
+  for (const fallbackPoolId of fallbackChain) {
+    if (candidates.length >= neededCount) break;
+    const fallbackGks = resolvePoolPlayers([fallbackPoolId]).filter(
+      (p) => p.role === 'GK' && !usedIds.has(p.id),
+    );
+    for (const p of fallbackGks) {
+      candidates.push(p);
+      usedIds.add(p.id);
+    }
+  }
+  return candidates;
+}
+
+/** D-17: total cards of `slot`'s tier needed across BOTH of the round's packs. */
+function tierSupplyCount(classified: TieredPoolPlayer[], tier: PackSlot['tier']): number {
+  return tier === 'chaseOrRare'
+    ? classified.filter((p) => p.tier === 'chase' || p.tier === 'rare').length
+    : classified.filter((p) => p.tier === tier).length;
+}
+
+/** D-19: whether `classified` has enough of every tier `round.slots` needs, across both packs. */
+function tierSupplyMeetsNeed(
+  classified: TieredPoolPlayer[],
+  round: Extract<RoundConfig, { kind: 'tiered' }>,
+): boolean {
+  return round.slots.every(
+    (slot) => tierSupplyCount(classified, slot.tier) >= slot.count * PACKS_PER_ROUND,
+  );
+}
+
+/**
+ * D-13..D-15 (Phase 30): resolves the non-GK, tier-classified candidate pool for a
+ * `'tiered'` round, backfilling from `fallbackChain` (re-classifying after each addition)
+ * until every slot's need is met or the chain is exhausted (Pattern 4/Anti-Patterns:
+ * needs are per-round-pack-pair, not match-wide totals).
+ */
+function resolveTieredCandidates(
+  selectedUnion: PoolPlayer[],
+  fallbackChain: readonly DraftPoolId[],
+  round: Extract<RoundConfig, { kind: 'tiered' }>,
+): TieredPoolPlayer[] {
+  const baseCandidates = selectedUnion.filter((p) => p.role !== 'GK');
+  const usedIds = new Set(baseCandidates.map((p) => p.id));
+  let classified = assignTiers(baseCandidates);
+
+  for (const fallbackPoolId of fallbackChain) {
+    if (tierSupplyMeetsNeed(classified, round)) break;
+    const fallbackPlayers = resolvePoolPlayers([fallbackPoolId]).filter(
+      (p) => p.role !== 'GK' && !usedIds.has(p.id),
+    );
+    for (const p of fallbackPlayers) {
+      baseCandidates.push(p);
+      usedIds.add(p.id);
+    }
+    classified = assignTiers(baseCandidates);
+  }
+
+  return classified;
+}
+
+/**
+ * D-17 (Phase 30): builds one shuffled draw pool per distinct tier referenced in
+ * `round.slots` — 'chaseOrRare' merges the chase+rare candidates into a single shuffled
+ * pool (D-25 unbiased mix), never "prefer chase". Shared across both of the round's packs
+ * so sequential `drawFromPool` calls never re-deal an already-dealt card (D-09).
+ */
+function buildTierPoolsForRound(
+  round: Extract<RoundConfig, { kind: 'tiered' }>,
+  classified: TieredPoolPlayer[],
+  rng: RandomIntFn,
+): Map<PackSlot['tier'], TieredPoolPlayer[]> {
+  const pools = new Map<PackSlot['tier'], TieredPoolPlayer[]>();
+  for (const slot of round.slots) {
+    if (pools.has(slot.tier)) continue;
+    const source =
+      slot.tier === 'chaseOrRare'
+        ? classified.filter((p) => p.tier === 'chase' || p.tier === 'rare')
+        : classified.filter((p) => p.tier === slot.tier);
+    pools.set(slot.tier, shuffle(source, rng));
+  }
+  return pools;
+}
+
+/**
+ * DRAFT-05 (Phase 30), D-07/D-10..D-18/D-25: Batch-generates the full round-structured
+ * pack set a match needs — 6 rounds (`DRAFT_ROUNDS`), `PACKS_PER_ROUND` (2) packs per
+ * round, `cardsPerPack` (4) cards per pack, every pack tagged with its `round`.
  *
- * TEMPORARY STUB (30-01): keeps the CR-01 fail-closed input guard (unchanged from Phase
- * 28/29 — pack contents are gameplay-affecting, T-28-04-FAIR) so the allow-list check
- * remains defense-in-depth alongside the server's ROOM_SETTINGS_CONFIRM validation, but
- * the round-structured dealing algorithm (DRAFT_ROUNDS-driven, position-bucket-capped,
- * per-round backfill) is NOT yet implemented — it lands in Plan 30-02. This stub exists
- * only to keep the shared package compiling against the new DraftPack.round field and
- * the narrowed DraftTier/TIER_STAT_THRESHOLDS contract while Plan 02 is pending.
+ * Round 1 (D-12) deals GK-only packs from the selected-pool union, backfilled via
+ * `FALLBACK_POOL_ORDER` (D-11 — MLS then Original; International backfills nothing,
+ * Pitfall 2 — never special-cased to skip backfill). Rounds 2-6 (D-13..D-15) deal
+ * per-round tiered packs (all-common; 2 uncommon+2 common; 1 chaseOrRare+1 uncommon+2
+ * common) from the non-GK union, enforcing the D-17 position-bucket cap (DEF<=2, MID<=2,
+ * {FWD,ST}<=2 combined) per pack and drawing the chaseOrRare slot from a single merged,
+ * shuffled chase+rare pool (D-25 — an even, unbiased mix, never "prefer chase").
+ *
+ * No card id appears twice within the same round's 2 packs (D-09); a card CAN reappear in
+ * a different round, since discarded/unpicked cards are never tracked match-wide (D-18).
+ * Throws a per-round "insufficient supply" error if a round's need cannot be met even
+ * after exhausting the fallback chain (loud-fail, matching the CR-01/WR-01 convention —
+ * never silently deals a short or duplicated pack).
+ *
+ * Pure and RNG-agnostic: `rng` is the only randomness source (T-28-04-FAIR fairness
+ * boundary) — this module never sources its own randomness (no built-in insecure
+ * pseudo-random helper, no Node built-in secure random module import).
  */
 export function generateDraftPacks(
   selectedPools: DraftPoolId[],
-  _rng: RandomIntFn,
+  rng: RandomIntFn,
 ): { pool: TieredPoolPlayer[]; packs: DraftPack[] } {
   // CR-01 (Phase 28 review): fail closed on empty/unselectable input instead of
   // silently broadening the fallback draw to the entire real-pool universe. This is
@@ -201,5 +378,61 @@ export function generateDraftPacks(
     );
   }
 
-  throw new Error('generateDraftPacks: round-structured implementation lands in 30-02');
+  const selectedUnion = resolvePoolPlayers(selectedPools);
+  const fallbackChain = FALLBACK_POOL_ORDER.filter((p) => !selectedPools.includes(p));
+
+  const packs: DraftPack[] = [];
+  const poolMap = new Map<string, TieredPoolPlayer>();
+  const addToPool = (players: readonly TieredPoolPlayer[]): void => {
+    for (const p of players) {
+      if (!poolMap.has(p.id)) poolMap.set(p.id, p);
+    }
+  };
+
+  let packNumber = 0;
+
+  for (const round of DRAFT_ROUNDS) {
+    if (round.kind === 'gk') {
+      const neededCount = PACKS_PER_ROUND * round.cardsPerPack;
+      const gkCandidates = resolveGkCandidates(selectedUnion, fallbackChain, neededCount);
+      if (gkCandidates.length < neededCount) {
+        throw new Error(
+          `generateDraftPacks: insufficient GK supply for round ${round.round} (need ${neededCount}, have ${gkCandidates.length})`,
+        );
+      }
+      const dealt = shuffle(assignTiers(gkCandidates), rng);
+      addToPool(dealt);
+      for (let i = 0; i < PACKS_PER_ROUND; i++) {
+        packNumber += 1;
+        const cards = dealt.slice(i * round.cardsPerPack, (i + 1) * round.cardsPerPack);
+        packs.push({ packNumber, round: round.round, cards });
+      }
+    } else {
+      const classified = resolveTieredCandidates(selectedUnion, fallbackChain, round);
+      if (!tierSupplyMeetsNeed(classified, round)) {
+        throw new Error(
+          `generateDraftPacks: insufficient tiered supply for round ${round.round} even after backfill`,
+        );
+      }
+      addToPool(classified);
+      const tierPools = buildTierPoolsForRound(round, classified, rng);
+      const orderedSlots = sortSlotsRarestFirst(round.slots);
+      for (let i = 0; i < PACKS_PER_ROUND; i++) {
+        const bucketCounts: Record<PositionBucket, number> = { DEF: 0, MID: 0, FWD_ST: 0 };
+        const cards: TieredPoolPlayer[] = [];
+        for (const slot of orderedSlots) {
+          const tierPool = tierPools.get(slot.tier)!;
+          cards.push(...drawFromPool(tierPool, slot.count, bucketCounts));
+        }
+        packNumber += 1;
+        packs.push({ packNumber, round: round.round, cards });
+      }
+    }
+  }
+
+  const pool = Array.from(poolMap.values()).sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
+
+  return { pool, packs };
 }
