@@ -35,6 +35,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
+import { buildReplayFrames } from '../gameEngine.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import { confirmDefaultRoomSettings } from './testHelpers.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
@@ -173,6 +174,12 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
       phase: 'PASS',
       attackingTeam: 'home',
       activeTeam: 'home',
+      // Pinned deterministically (not left to the room-creation coin flip) so the
+      // BUG-30 replay-reconstruction assertion below is deterministic: buildReplayFrames
+      // seeds its reconstruction from kickOffTeam, and the post-goal reset always uses
+      // the conceding team ('away', since home scores here) — pinning kickOffTeam to
+      // 'home' guarantees the pre-fix seed formation differs from the expected one.
+      kickOffTeam: 'home',
       lastActionType: null,
       ball: { position: carrierPos, carrierId: homeCarrier.id },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
@@ -192,6 +199,25 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
     expect(state.phase).not.toBe('GK_DIVE');
     expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.score.home).toBe(1);
+
+    // BUG-30 gap closure (D-01): replaying this GOAL must reconstruct every piece at the
+    // new kickoff formation, not leave the attacker/GK frozen at their pre-goal hexes.
+    // finalRoomState.pieces is already the true post-goal kickoff formation (set server-side
+    // via `pieces: buildKickOffPieces(newKickOffTeam, ...)` at the GOAL construction site) --
+    // used directly as the expected formation so this assertion never depends on independently
+    // recomputing buildKickOffPieces (and is immune to which team won the opening coin flip).
+    const finalRoomState = getRoom(roomCode)!.gameState!;
+    const expectedPieces = finalRoomState.pieces;
+    const frames = buildReplayFrames(finalRoomState);
+    const goalFrame = frames[frames.length - 1]!;
+    for (const expected of expectedPieces) {
+      const actual = goalFrame.pieces.find((p) => p.id === expected.id);
+      expect(actual).toBeDefined();
+      expect(actual!.position).toEqual(expected.position);
+    }
+    // Unambiguous RED signal: the attacker must NOT still be at its stale pre-goal hex.
+    const replayedAttacker = goalFrame.pieces.find((p) => p.id === homeCarrier.id)!;
+    expect(replayedAttacker.position).not.toEqual(carrierPos);
   });
 
   it('GK within range (on the goal hex) enters GK_DIVE and a forced SAVE transfers the ball to the GK', async () => {
@@ -268,6 +294,12 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
       phase: 'SNAPSHOT_TARGET',
       attackingTeam: 'home',
       activeTeam: 'home',
+      // Pinned deterministically (not left to the room-creation coin flip) so the
+      // BUG-30 replay-reconstruction assertion below is deterministic: buildReplayFrames
+      // seeds its reconstruction from kickOffTeam, and the post-goal reset always uses
+      // the conceding team ('away', since home scores here) — pinning kickOffTeam to
+      // 'home' guarantees the pre-fix seed formation differs from the expected one.
+      kickOffTeam: 'home',
       lastActionType: 'SNAPSHOT',
       ball: { position: carrierPos, carrierId: carrier.id },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
@@ -294,6 +326,25 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
     expect(state.phase).not.toBe('GK_DIVE');
     expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.score.home).toBe(1);
+
+    // BUG-30 gap closure (D-01): SNAPSHOT_DEFLECT GK-out-of-range auto-GOAL must reconstruct
+    // every piece at the new kickoff formation on replay, not leave them at pre-goal hexes.
+    // finalRoomState.pieces is already the true post-goal kickoff formation (set server-side
+    // via `pieces: buildKickOffPieces(newKickOffTeam, ...)` at the GOAL construction site) --
+    // used directly as the expected formation so this assertion never depends on independently
+    // recomputing buildKickOffPieces (and is immune to which team won the opening coin flip).
+    const finalRoomState = getRoom(roomCode)!.gameState!;
+    const expectedPieces = finalRoomState.pieces;
+    const frames = buildReplayFrames(finalRoomState);
+    const goalFrame = frames[frames.length - 1]!;
+    for (const expected of expectedPieces) {
+      const actual = goalFrame.pieces.find((p) => p.id === expected.id);
+      expect(actual).toBeDefined();
+      expect(actual!.position).toEqual(expected.position);
+    }
+    // Unambiguous RED signal: the carrier must NOT still be at its stale pre-goal hex.
+    const replayedCarrier = goalFrame.pieces.find((p) => p.id === carrier.id)!;
+    expect(replayedCarrier.position).not.toEqual(carrierPos);
   });
 
   it('GK in range -> GK_DIVE -> forced SAVE transfers the ball to the GK (end-to-end)', async () => {
@@ -367,6 +418,12 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       phase: 'HEADER',
       attackingTeam: 'home',
       activeTeam: 'home',
+      // Pinned deterministically (not left to the room-creation coin flip) so the
+      // BUG-30 replay-reconstruction assertion below is deterministic: buildReplayFrames
+      // seeds its reconstruction from kickOffTeam, and the post-goal reset always uses
+      // the conceding team ('away', since home scores here) — pinning kickOffTeam to
+      // 'home' guarantees the pre-fix seed formation differs from the expected one.
+      kickOffTeam: 'home',
       lastActionType: 'HIGH_PASS',
       ball: { position: { q: 33, r: 13 }, carrierId: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
@@ -390,6 +447,25 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
     expect(state.phase).not.toBe('GK_DIVE');
     expect(state.phase).toBe('KICK_OFF_SETUP');
     expect(state.score.home).toBe(1);
+
+    // BUG-30 gap closure (D-01): header-at-goal GK-out-of-range auto-GOAL must reconstruct
+    // every piece at the new kickoff formation on replay, not leave them at pre-goal hexes.
+    // finalRoomState.pieces is already the true post-goal kickoff formation (set server-side
+    // via `pieces: buildKickOffPieces(newKickOffTeam, ...)` at the GOAL construction site) --
+    // used directly as the expected formation so this assertion never depends on independently
+    // recomputing buildKickOffPieces (and is immune to which team won the opening coin flip).
+    const finalRoomState = getRoom(roomCode)!.gameState!;
+    const expectedPieces = finalRoomState.pieces;
+    const frames = buildReplayFrames(finalRoomState);
+    const goalFrame = frames[frames.length - 1]!;
+    for (const expected of expectedPieces) {
+      const actual = goalFrame.pieces.find((p) => p.id === expected.id);
+      expect(actual).toBeDefined();
+      expect(actual!.position).toEqual(expected.position);
+    }
+    // Unambiguous RED signal: the attacker must NOT still be at its stale pre-goal hex.
+    const replayedAttacker = goalFrame.pieces.find((p) => p.id === homeAttacker.id)!;
+    expect(replayedAttacker.position).not.toEqual({ q: 33, r: 13 });
   });
 
   it('GK in range -> GK_DIVE -> forced SAVE transfers the ball to the GK', async () => {
