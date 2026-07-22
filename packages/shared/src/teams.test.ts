@@ -182,11 +182,11 @@ describe('getSquadPlayers — DATA-02: squad resolution from PLAYER_POOL', () =>
 // ---------------------------------------------------------------------------
 
 describe('PoolPlayer poolTag — DRAFT-04 / D-01 / D-02 / D-03: reserved Legends/Icons tagging', () => {
-  it('exactly 10 players have a defined poolTag; 5 legend and 5 icon', () => {
+  it('exactly 18 players have a defined poolTag; 10 legend and 8 icon (Phase 30: expanded pools for DRAFT-11)', () => {
     const tagged = PLAYER_POOL.filter((p) => p.poolTag !== undefined);
-    expect(tagged).toHaveLength(10);
-    expect(tagged.filter((p) => p.poolTag === 'legend')).toHaveLength(5);
-    expect(tagged.filter((p) => p.poolTag === 'icon')).toHaveLength(5);
+    expect(tagged).toHaveLength(18);
+    expect(tagged.filter((p) => p.poolTag === 'legend')).toHaveLength(10);
+    expect(tagged.filter((p) => p.poolTag === 'icon')).toHaveLength(8);
   });
 
   it('the 5 legends match the expected players', () => {
@@ -241,9 +241,9 @@ describe('PoolPlayer poolTag — DRAFT-04 / D-01 / D-02 / D-03: reserved Legends
     expect(cristianoRibeiro.poolTag).toBeUndefined();
   });
 
-  it("'original' pool derivation (free-agent AND no poolTag) yields exactly 46 players", () => {
+  it("'original' pool derivation (free-agent AND no poolTag) yields exactly 38 players", () => {
     const original = PLAYER_POOL.filter((p) => p.sourceTeamId === 'free-agent' && !p.poolTag);
-    expect(original).toHaveLength(46);
+    expect(original).toHaveLength(38);
     expect(original.filter((p) => p.role === 'GK')).toHaveLength(4);
   });
 });
