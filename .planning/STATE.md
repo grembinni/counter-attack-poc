@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 30 UI-SPEC approved
-last_updated: '2026-07-22T13:20:57.485Z'
-last_activity: 2026-07-22
+last_updated: '2026-07-22T14:17:46.987Z'
+last_activity: 2026-07-22 — Milestone v1.4 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -18,20 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 30
-Plan: Not started
-Status: Executing Phase 30
-(DRAFT-09 bench carousel scroll-reset instability) with an independently-confirmed fix
-(negative-control test proved the regression guard genuine). 29-VERIFICATION.md's 6 in-scope
-truths are all VERIFIED, and the one outstanding human-verification item (live two-browser
-lineup-slot swap walkthrough) has since passed — recorded in 29-UAT.md (1/1 passed, 0 issues,
-commit 5a6be38). ROADMAP.md's Phase 29 checkbox was already marked [x] complete. Remaining gate:
-no 29-SECURITY.md exists yet — run /gsd-secure-phase 29 before treating the phase/milestone as
-fully closed.
-Last activity: 2026-07-22
-file (was stale since before the 29-UAT.md completion commit).
-
-Progress: [██████████] 100% plans executed (12/12); Phase 29 human-verified (29-UAT.md passed) — only /gsd-secure-phase 29 remains before phase/milestone close
+Phase: Milestone v1.4 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-22 — Milestone v1.4 completed and archived
 
 ## Project Reference
 
@@ -271,6 +261,26 @@ Items acknowledged and deferred at v1.2 milestone close on 2026-07-03:
 
 Known deferred items at close: 19
 
+## Deferred Items (acknowledged at milestone close 2026-07-22, v1.4)
+
+Items acknowledged and deferred at v1.4 milestone close on 2026-07-22 (see [.planning/milestones/v1.4-MILESTONE-AUDIT.md](milestones/v1.4-MILESTONE-AUDIT.md) for full detail):
+
+| Category         | Item                                                                                                                        | Status                                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| requirements     | RESP-01 through RESP-09 (Response Activation model — single-selection response-move UX)                                     | orphaned — never implemented in any Phase 26-30 plan/summary/verification; deferred to a future milestone |
+| integration_gap  | createServer.ts:99-167 reconnect handler-registration bug (misplaced `return`)                                              | pre-existing (Phase 07), unremediated; flagged again by this milestone's integration check                |
+| verification_gap | Phase 29: 29-VERIFICATION.md                                                                                                | human_needed — live two-browser lineup-slot swap walkthrough never performed; protocol-layer tests pass   |
+| nyquist          | Phase 28: no 28-VALIDATION.md                                                                                               | missing — Nyquist compliance never scored for this phase                                                  |
+| tech_debt        | Phase 29 WR-01/WR-02/WR-03 (bench-index bounds, post-complete bench numbering, tier-color cache reconnect)                  | non-blocking, cosmetic/low-severity                                                                       |
+| quick_task       | 260612-ike, 260612-kvw, 260612-l7d, 260612-lme (GameBoard polish)                                                           | unknown — carried forward from v1.2/v1.3 closes, still unresolved                                         |
+| quick_task       | 260620-9ql, 260621-ajd, 260621-awb, 260621-b8f, 260621-bsy, 260621-gcu, 260621-h32, 260621-hnd (ActionLog/Panel formatting) | unknown — carried forward from v1.2/v1.3 closes, still unresolved                                         |
+| todo             | GK kick-ball delivery invisible during replay                                                                               | pending — carried forward                                                                                 |
+| todo             | KICK_OFF_SETUP shot-path shading persists                                                                                   | pending — carried forward (BUG-23, out of scope per REQUIREMENTS.md)                                      |
+| todo             | Header-winner piece ineligible next phase                                                                                   | pending — medium priority, not yet assigned to a phase                                                    |
+| todo             | CSV consolidation (player-pool.csv)                                                                                         | pending — low priority idea, not yet assigned to a phase                                                  |
+
+Known deferred items at close: 17 per the pre-close artifact audit (1 verification gap + 12 quick tasks + 4 todos), plus 3 additional milestone-audit findings recorded above (RESP-01..09 requirements gap, the createServer.ts integration bug, and the Phase 28 Nyquist gap) — several items carried forward unchanged from prior milestone closes.
+
 ## Session Continuity
 
 Last session: 2026-07-22T02:00:51.852Z
@@ -417,3 +427,7 @@ Resume: Run `/gsd-secure-phase 29` (no 29-SECURITY.md exists yet) to close the l
 - [Phase 29]: CR-02 guard mirrors DRAFT_REARRANGE exactly, reusing the existing LINEUP_ALREADY_CONFIRMED literal instead of a new error code
 - [Phase 29]: CR-03 gates reconnect draft re-sync on room.gameState === null (superset of prior !draftComplete condition), closing the post-complete/pre-confirm reconnect dead-window
 - [Phase 29-12]: benchCards hoisted into useMemo([draftView?.benchIds, cardCache]) in LineupAssignmentScreen.tsx; BenchCarousel scroll-reset useEffect re-keyed from [cards] identity to content-derived [benchKey] (cards.map(id).join('|')) — closes DRAFT-09 mid-drag scroll snap-back
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
