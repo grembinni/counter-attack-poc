@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: verifying
+status: executing
 stopped_at: Phase 30 UI-SPEC approved
-last_updated: '2026-07-22T02:45:51.893Z'
-last_activity: 2026-07-21 -- /gsd-verify-work 29 confirmed the UAT already passed; reconciled this
+last_updated: '2026-07-22T02:52:39.841Z'
+last_activity: 2026-07-22 -- Phase 30 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 24
+  total_plans: 30
   completed_plans: 24
   percent: 80
 ---
@@ -18,9 +18,9 @@ progress:
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — HUMAN-VERIFIED, security review pending
-Plan: 12 of 12 (all plans executed)
-Status: Phase 29 code-complete and human-verified. Plan 29-12 closed the last critical gap
+Phase: 30 (recalibrate-draft) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 30
 (DRAFT-09 bench carousel scroll-reset instability) with an independently-confirmed fix
 (negative-control test proved the regression guard genuine). 29-VERIFICATION.md's 6 in-scope
 truths are all VERIFIED, and the one outstanding human-verification item (live two-browser
@@ -28,7 +28,7 @@ lineup-slot swap walkthrough) has since passed — recorded in 29-UAT.md (1/1 pa
 commit 5a6be38). ROADMAP.md's Phase 29 checkbox was already marked [x] complete. Remaining gate:
 no 29-SECURITY.md exists yet — run /gsd-secure-phase 29 before treating the phase/milestone as
 fully closed.
-Last activity: 2026-07-21 -- /gsd-verify-work 29 confirmed the UAT already passed; reconciled this
+Last activity: 2026-07-22 -- Phase 30 execution started
 file (was stale since before the 29-UAT.md completion commit).
 
 Progress: [██████████] 100% plans executed (12/12); Phase 29 human-verified (29-UAT.md passed) — only /gsd-secure-phase 29 remains before phase/milestone close
@@ -38,7 +38,7 @@ Progress: [██████████] 100% plans executed (12/12); Phase 29
 See: .planning/PROJECT.md (updated 2026-07-12 after v1.4 milestone start)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 29 — draft-ui-pick-and-swap-flow
+**Current focus:** Phase 30 — recalibrate-draft
 
 ## Phase Status
 
