@@ -1,27 +1,26 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Response Polish + Draft Mode
-status: Awaiting next milestone
-stopped_at: Phase 30 UI-SPEC approved
-last_updated: '2026-07-22T14:17:46.987Z'
-last_activity: 2026-07-22 — Milestone v1.4 completed and archived
+milestone: v1.5
+milestone_name: UX Refresh & Code Cleanup
+status: planning
+last_updated: '2026-07-22T14:52:04.042Z'
+last_activity: 2026-07-22
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 30
-  completed_plans: 30
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: Milestone v1.4 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-22 — Milestone v1.4 completed and archived
+Status: Defining requirements
+Last activity: 2026-07-22 — Milestone v1.5 started
 
 ## Project Reference
 

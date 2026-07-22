@@ -30,6 +30,20 @@ A code-review pass on Phase 30 found and fixed one critical bug: `DRAFT_PICK`/`D
 - FREE_KICK_SETUP Undo not implemented (undo within/across stages; `.planning/todos/pending/free-kick-setup-undo-not-implemented.md`)
 - Draft-mode cosmetic debt (Phase 29/30): `DRAFT_REARRANGE` bench-index bounds validation gap (not exploitable), bench jersey numbers not assigned on post-complete rearrange, client tier-color cache doesn't survive reconnect/reload, several stale code comments describing the pre-Phase-30 pack/tier model.
 
+## Current Milestone: v1.5 UX Refresh & Code Cleanup
+
+**Goal:** Overhaul the visual system to a professional broadcast-sports look, standardize hex-highlight colors and the ActionPanel, pay down accumulated code debt, and close 3 known bugs.
+
+**Target features:**
+
+- Visual system overhaul (everywhere) — replace the deep-blue theme with a broadcast-sports palette (dark charcoal/graphite base, crisp white text, single team-color accent) across lobby, settings, team/draft selection, and the game board
+- Hex-highlight audit & standardization — review all 10 current highlight types (free-move/blue, valid-step/yellow, pass-threat/orange, automove-target/white, header-contest-range/white, goal-line-target/red, ball-location flag/missing, eligible-target circle/blue, selected circle/green, offside/red) against UX best practices; flag conflicts (e.g. red used for both a positive shot opportunity and a negative offside warning), add the missing ball-location highlight, and standardize the resulting system
+- ActionPanel & action-log standardization — consistent help-text format, no borders, consistent button display/behavior, consistent language across all states
+- Code cleanup — remove dead code, refactor duplicated logic into shared functions, address inefficient code, review Zustand state-management structure
+- Bug fixes (3) — replay doesn't restore all player positions at kickoff after a goal reset; eligible-players-remaining message / End Turn button should flip on move START not full activation (must also respect undo); goalkeeper is currently selectable for deflection (shouldn't be)
+
+**Explicitly deferred (raised during scoping, not in v1.5):** RESP-01..09 response-move activation model (still the top backlog item for whatever comes after v1.5); out-of-bounds/restarts (throw-in, corner, goal kick); fouls/cards/bookings/subs; game-stats overlay (possession, tackles, shots, goals, xG, interceptions, saves).
+
 ## Completed Milestone: v1.4 Response Polish + Draft Mode
 
 **Goal:** Rework all response-move activations into a consistent single-selection model with proper eligibility gating, fix 6 known gameplay bugs, and add a configurable pack-draft system as an optional pre-game mode.
@@ -123,18 +137,19 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 - ✓ **DRAFT-06, DRAFT-07, DRAFT-09, DRAFT-10** — Draft carousel, pick-and-swap protocol, dynamic bench, post-draft lineup hand-off — Phase 29 (DRAFT-10's live two-browser human-verification step remains unperformed — see Current State)
 - ✓ **DRAFT-11** — Legends and Icons pools selectable, client + server allow-listed — Phase 30
 
-### Active (carried forward from v1.4)
+### Deferred (carried forward from v1.4 — not scheduled for v1.5)
 
-- [ ] **RESP-01..09** — Response-move (header/deflect/final-third/dive/keeper-ball-in-box) single-selection activation model with eligibility gating, range-hex highlighting, and auto-skip. Not delivered in v1.4 despite being half of that milestone's stated goal — see Current State and `.planning/v1.4-MILESTONE-AUDIT.md`. Top candidate for the next milestone.
+- [ ] **RESP-01..09** — Response-move (header/deflect/final-third/dive/keeper-ball-in-box) single-selection activation model with eligibility gating, range-hex highlighting, and auto-skip. Not delivered in v1.4 despite being half of that milestone's stated goal; explicitly deferred again during v1.5 scoping — see Current State and `.planning/v1.4-MILESTONE-AUDIT.md`. Top candidate for whatever comes after v1.5.
 
 ### Deferred (v2 candidates)
 
-- [ ] Fouls, yellow/red cards, booking checks
+- [ ] Fouls, yellow/red cards, booking checks — feature-flagged toggle at game creation (raised during v1.5 scoping as priority #4)
 - [ ] Injuries and resilience checks
-- [ ] Corner kicks, throw-ins, free kicks, penalty kicks
+- [ ] Corner kicks, throw-ins, free kicks, penalty kicks — feature-flagged toggle at game creation (raised during v1.5 scoping as priority #3)
 - [ ] Nutmeg, reckless tackle, last-man foul, professional foul
-- [ ] Substitutions
+- [ ] Substitutions — bundled with priority #4 (fouls/cards) above
 - [ ] Offside enforcement
+- [ ] Game-stats overlay — possession, tackles, shots, goals, xG, interceptions, saves (raised during v1.5 scoping as priority #5)
 - [ ] Reconnection grace period (server holds room state for disconnected player) — note: a related bug exists today (`createServer.ts` misplaced `return`) that leaves some reconnecting sockets with no handlers at all; see Current State
 - [ ] Rematch flow
 - [ ] Chat
@@ -218,4 +233,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-22 — after v1.4 milestone close_
+_Last updated: 2026-07-22 — v1.5 milestone started_
