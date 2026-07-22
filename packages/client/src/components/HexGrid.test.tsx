@@ -567,6 +567,59 @@ describe('HexGrid — FREE_MOVE_ATTACK/DEFENSE piece clickability (second checkp
 });
 
 // ---------------------------------------------------------------------------
+// BUG-32: the goalkeeper must never be selectable as a SNAPSHOT_DEFLECT deflection
+// responder, even though it is the defending team's own piece. Client selection gate
+// (canSelectSnapDeflect in HexGrid.tsx) is the UX-layer half of the two-layer fix; the
+// server-side rejection lives in gameHandlers.ts (see 31-03 SUMMARY).
+// ---------------------------------------------------------------------------
+
+function snapDeflectState(overrides: Partial<typeof mockMovementState> = {}) {
+  return {
+    ...mockMovementState,
+    phase: 'SNAPSHOT_DEFLECT' as const,
+    attackingTeam: 'home' as const, // defending team is 'away'
+    activeTeam: 'away' as const,
+    snapDeflectMovedPieceId: null,
+    snapDeflectPaceUsed: 0,
+    ...overrides,
+  };
+}
+
+describe('HexGrid — SNAPSHOT_DEFLECT GK selection gate (BUG-32)', () => {
+  it('does NOT render the defending GK as selectable during SNAPSHOT_DEFLECT', () => {
+    const state = snapDeflectState();
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2, // away — the defending team
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gkPiece = state.pieces.find((p) => p.id === 'away-0')!; // defending GK
+    expect(gkPiece.role).toBe('GK');
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, gkPiece.position.q, gkPiece.position.r)).toBe(false);
+  });
+
+  it('DOES render a defending outfield piece as selectable during SNAPSHOT_DEFLECT', () => {
+    const state = snapDeflectState();
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2, // away — the defending team
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const outfieldPiece = state.pieces.find((p) => p.id === 'away-1')!; // defending DEF, not GK
+    expect(outfieldPiece.role).not.toBe('GK');
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, outfieldPiece.position.q, outfieldPiece.position.r)).toBe(
+      true,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // D-48: FREE_KICK_SETUP placement-zone highlight is GEOMETRIC (zone-based) but
 // SELECTION-GATED — only shown for the active player's valid destinations after a piece
 // is selected. Clears when the move commits and selection is reset. Uses the light-blue

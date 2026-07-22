@@ -375,6 +375,94 @@ describe('SNAP_DEFLECT GAME_MOVE guard', () => {
     const [reason] = await errorPromise;
     expect(typeof reason).toBe('string');
   });
+
+  // BUG-32 (server layer): the GK is never an eligible SNAPSHOT_DEFLECT deflection
+  // responder, even when submitted by the correct (defending) team. This is the
+  // authoritative defense-in-depth rejection — HexGrid.tsx's canSelectSnapDeflect gate
+  // is the UX-layer half of this fix.
+  it('GAME_MOVE in SNAPSHOT_DEFLECT for a GK-role piece emits GAME_ERROR and leaves gameState unchanged', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+
+    const awayGk = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK');
+    if (!awayGk) throw new Error('No away GK found');
+
+    room.gameState = {
+      ...room.gameState,
+      phase: 'SNAPSHOT_DEFLECT',
+      attackingTeam: 'home',
+      activeTeam: 'away', // defending team (away) moves
+      snapDeflectMovedPieceId: null,
+      snapDeflectPaceUsed: 0,
+    };
+    const beforeGkPosition = { ...awayGk.position };
+    const beforeSnapDeflectMovedPieceId = room.gameState.snapDeflectMovedPieceId;
+    const beforeSnapDeflectPaceUsed = room.gameState.snapDeflectPaceUsed;
+
+    // Pick an unoccupied hex adjacent to the GK for the move target.
+    const candidates = [
+      { q: awayGk.position.q + 1, r: awayGk.position.r },
+      { q: awayGk.position.q - 1, r: awayGk.position.r },
+    ];
+    const target = candidates.find(
+      (c) => !room.gameState!.pieces.some((p) => p.position.q === c.q && p.position.r === c.r),
+    );
+    if (!target) throw new Error('No unoccupied adjacent hex found for GK move target');
+
+    // clientB is 'away' (defending team) — ownership/team guards pass, but the GK-role
+    // rejection must still fire before any state mutation.
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_MOVE, awayGk.id, target);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_PIECE');
+
+    const afterRoom = getRoom(roomCode);
+    if (!afterRoom || !afterRoom.gameState) throw new Error('Room not found after move');
+    const afterGk = afterRoom.gameState.pieces.find((p) => p.id === awayGk.id);
+    expect(afterGk?.position).toEqual(beforeGkPosition);
+    expect(afterRoom.gameState.snapDeflectMovedPieceId).toBe(beforeSnapDeflectMovedPieceId);
+    expect(afterRoom.gameState.snapDeflectPaceUsed).toBe(beforeSnapDeflectPaceUsed);
+    expect(afterRoom.gameState.snapshotGkPenalty).toBe(room.gameState.snapshotGkPenalty);
+  });
+
+  // A non-GK defending piece must still be able to move normally during SNAPSHOT_DEFLECT
+  // (regression guard — the GK-role rejection must not block outfield defenders).
+  it('GAME_MOVE in SNAPSHOT_DEFLECT for a non-GK defending piece still succeeds', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const room = getRoom(roomCode);
+    if (!room || !room.gameState) throw new Error('Room not found');
+
+    const awayOutfielder = room.gameState.pieces.find(
+      (p) => p.teamId === 'away' && p.role !== 'GK',
+    );
+    if (!awayOutfielder) throw new Error('No away outfielder found');
+
+    room.gameState = {
+      ...room.gameState,
+      phase: 'SNAPSHOT_DEFLECT',
+      attackingTeam: 'home',
+      activeTeam: 'away',
+      snapDeflectMovedPieceId: null,
+      snapDeflectPaceUsed: 0,
+    };
+
+    const candidates = [
+      { q: awayOutfielder.position.q + 1, r: awayOutfielder.position.r },
+      { q: awayOutfielder.position.q - 1, r: awayOutfielder.position.r },
+    ];
+    const target = candidates.find(
+      (c) => !room.gameState!.pieces.some((p) => p.position.q === c.q && p.position.r === c.r),
+    );
+    if (!target) throw new Error('No unoccupied adjacent hex found for outfielder move target');
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_MOVE, awayOutfielder.id, target);
+    const [state] = await statePromise;
+    const movedPiece = state.pieces.find((p) => p.id === awayOutfielder.id);
+    expect(movedPiece?.position).toEqual(target);
+    expect(state.snapDeflectMovedPieceId).toBe(awayOutfielder.id);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -644,11 +732,14 @@ describe('Regression: snapshot-shot-flow-mismatch — GAME_SHOT from SNAPSHOT_TA
 
     // First move the carrier into SNAPSHOT_DEFLECT via clientA's declare-shot equivalent —
     // directly seed SNAPSHOT_DEFLECT state since this test targets the move handler itself.
+    // BUG-32: uses a non-GK outfield defender (not the GK) — the GK is never an eligible
+    // deflection responder, so this multi-hex-click regression test must exercise a piece
+    // the fix still permits.
     const room = getRoom(roomCode);
     if (!room || !room.gameState) throw new Error('Room not found');
-    const awayGK = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK');
-    if (!awayGK) throw new Error('No away GK found');
-    const gkStart = { q: 36, r: 13 };
+    const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
+    if (!awayDefender) throw new Error('No away outfielder found');
+    const defenderStart = { q: 36, r: 13 };
     room.gameState = {
       ...room.gameState,
       phase: 'SNAPSHOT_DEFLECT',
@@ -658,19 +749,19 @@ describe('Regression: snapshot-shot-flow-mismatch — GAME_SHOT from SNAPSHOT_TA
       snapDeflectMovedPieceId: null,
       snapDeflectPaceUsed: 0,
       pieces: room.gameState.pieces.map((p) =>
-        p.id === awayGK.id ? { ...p, position: gkStart } : p,
+        p.id === awayDefender.id ? { ...p, position: defenderStart } : p,
       ),
     };
 
     // clientB is 'away' (defending team). Click a hex 2 hexes away in one shot.
     const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
-    clientB.emit(ClientEvents.GAME_MOVE, awayGK.id, { q: 36, r: 15 });
+    clientB.emit(ClientEvents.GAME_MOVE, awayDefender.id, { q: 36, r: 15 });
     const [state] = await statePromise;
 
-    const movedGk = state.pieces.find((p) => p.id === awayGK.id);
+    const movedDefender = state.pieces.find((p) => p.id === awayDefender.id);
     // BUGFIX: single click to a 2-hex-distant target must succeed in one move —
     // previously this would have been rejected with NOT_ADJACENT.
-    expect(movedGk?.position).toEqual({ q: 36, r: 15 });
+    expect(movedDefender?.position).toEqual({ q: 36, r: 15 });
     expect(state.snapDeflectPaceUsed).toBe(2);
   });
 
