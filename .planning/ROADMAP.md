@@ -226,7 +226,7 @@ Plans:
 
 **Gap Closure (from 29-11 re-verification — see 29-VERIFICATION.md Critical Gaps #1 / 29-REVIEW.md CR-02: bench carousel scroll instability)**
 
-- [ ] 29-12-PLAN.md — Bench carousel scroll stability (DRAFT-09): memoize `benchCards` in LineupAssignmentScreen (stable reference) + re-key BenchCarousel's scroll-reset effect on a content-derived `benchKey` (not `cards` identity) so drag-over/rejection-timeout re-renders no longer snap scroll to leftmost; + regression test [Wave 1]
+- [x] 29-12-PLAN.md — Bench carousel scroll stability (DRAFT-09): memoize `benchCards` in LineupAssignmentScreen (stable reference) + re-key BenchCarousel's scroll-reset effect on a content-derived `benchKey` (not `cards` identity) so drag-over/rejection-timeout re-renders no longer snap scroll to leftmost; + regression test [Wave 1]
 
 ---
 
@@ -270,4 +270,4 @@ Plans:
 | 26. Bug Fixes                  | v1.4      | 3/3            | Complete | 2026-07-12 |
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 4/4            | Complete | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap   | v1.4      | 11/11          | Complete | 2026-07-21 |
+| 29. Draft UI + Pick-and-Swap   | v1.4      | 12/12          | Complete | 2026-07-22 |

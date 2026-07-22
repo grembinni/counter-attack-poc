@@ -2,32 +2,33 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Response Polish + Draft Mode
-status: completed
-stopped_at: Phase 29-11 executed — CR-01/CR-02/CR-03 draft lifecycle guards closed with regression tests (611/611 server tests passing); pending live two-browser slot-to-swap walkthrough (29-10 fix) and 29-VERIFICATION.md re-verification before Phase 29 can be marked complete
-last_updated: '2026-07-21T23:57:50.133Z'
-last_activity: 2026-07-21 -- Phase 29-11 executed (CR-01/CR-02/CR-03 draft lifecycle guards)
+status: executing
+stopped_at: Phase 29-12 executed and re-verified — DRAFT-09 bench carousel scroll-reset gap closed (benchCards useMemo + BenchCarousel benchKey re-key), independently confirmed via negative-control test; all 12/12 plans complete; 29-VERIFICATION.md status human_needed solely on the pending live two-browser lineup-slot swap walkthrough (29-10 fix, unrelated to 29-12)
+last_updated: '2026-07-22T00:23:58.042Z'
+last_activity: 2026-07-22 -- Phase 29-12 executed; phase re-verified (human_needed); 29-UAT.md created
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 23
-  completed_plans: 23
-  percent: 100
+  completed_phases: 3
+  total_plans: 24
+  completed_plans: 24
+  percent: 75
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 29 (draft-ui-pick-and-swap-flow) — VERIFYING (gap-closure re-verification pending)
-Plan: 11 of 11 (all plans executed)
-Status: Phase 29 NOT complete. Plan 29-11 closed the CR-01/CR-02/CR-03 draft→game lifecycle
-guard gaps from 29-VERIFICATION.md's Critical Gaps #1 (source-controlled, full server suite
-611/611 passing). Remaining before Phase 29 can be marked complete: (1) re-run 29-VERIFICATION.md
-against this fix to confirm zero open gaps, and (2) the still-outstanding live two-browser
-slot-to-slot swap human walkthrough (for the already-code-complete 29-10 fix).
-Last activity: 2026-07-21 -- Phase 29-11 executed (CR-01/CR-02/CR-03 draft lifecycle guards)
+Phase: 29 (draft-ui-pick-and-swap-flow) — VERIFYING (human verification pending)
+Plan: 12 of 12 (all plans executed)
+Status: Phase 29 code-complete. Plan 29-12 closed the last critical gap (DRAFT-09 bench carousel
+scroll-reset instability) with an independently-confirmed fix (negative-control test proved the
+regression guard genuine). 29-VERIFICATION.md re-run and returned status human_needed — all 6
+in-scope truths VERIFIED, only the pre-existing live two-browser lineup-slot swap walkthrough
+(29-10 fix, unrelated to 29-12) remains. Persisted as 29-UAT.md. Phase 29 will be marked complete
+once /gsd-verify-work 29 confirms that walkthrough.
+Last activity: 2026-07-22 -- Phase 29-12 executed; phase re-verified (human_needed); 29-UAT.md created
 
-Progress: [██████████] 100% plans executed (11/11); Phase 29 gated on 29-VERIFICATION.md re-verification (zero open gaps) and the pending human two-browser walkthrough before it can be marked complete
+Progress: [██████████] 100% plans executed (12/12); Phase 29 gated only on the pending 29-UAT.md human walkthrough (live two-browser lineup-slot swap) before it can be marked complete — run /gsd-verify-work 29
 
 ## Project Reference
 
@@ -268,9 +269,9 @@ Known deferred items at close: 19
 
 ## Session Continuity
 
-Last session: 2026-07-21T22:55:42.344Z
-Stopped at: Phase 29-11 executed — CR-01/CR-02/CR-03 draft lifecycle guards closed with regression tests (611/611 server tests passing); pending live two-browser slot-to-swap walkthrough (29-10 fix) and 29-VERIFICATION.md re-verification before Phase 29 can be marked complete
-Resume: orchestrator to plan/execute 29-10-PLAN.md (fix `applyRearrange` slot-to-slot swap in `packages/server/src/draftSession.ts` per 29-VERIFICATION.md Gap 1), then re-run human re-verification before Phase 29 can be marked complete. Do NOT advance ROADMAP.md for Phase 29 until 29-VERIFICATION.md shows zero open gaps.
+Last session: 2026-07-22T00:23:58.042Z
+Stopped at: Phase 29-12 executed and re-verified — DRAFT-09 bench carousel scroll-reset gap closed; 29-VERIFICATION.md status human_needed (only the live two-browser lineup-slot swap walkthrough remains, unrelated to 29-12); 29-UAT.md created
+Resume: Run `/gsd-verify-work 29` to walk through the live two-browser lineup-slot<->lineup-slot swap test recorded in 29-UAT.md. Do NOT advance ROADMAP.md phase-complete marking for Phase 29 until that UAT test passes.
 
 ## Performance Metrics
 
@@ -411,3 +412,4 @@ Resume: orchestrator to plan/execute 29-10-PLAN.md (fix `applyRearrange` slot-to
 - [Phase 29]: CR-01 regression fix: pre-existing LINEUP_INCOMPLETE test updated to drive draft to full completion via bench-only picks (driveDraftToCompletionBenchOnly), since the new draftComplete guard now shadows its original in-progress scenario
 - [Phase 29]: CR-02 guard mirrors DRAFT_REARRANGE exactly, reusing the existing LINEUP_ALREADY_CONFIRMED literal instead of a new error code
 - [Phase 29]: CR-03 gates reconnect draft re-sync on room.gameState === null (superset of prior !draftComplete condition), closing the post-complete/pre-confirm reconnect dead-window
+- [Phase 29-12]: benchCards hoisted into useMemo([draftView?.benchIds, cardCache]) in LineupAssignmentScreen.tsx; BenchCarousel scroll-reset useEffect re-keyed from [cards] identity to content-derived [benchKey] (cards.map(id).join('|')) — closes DRAFT-09 mid-drag scroll snap-back
