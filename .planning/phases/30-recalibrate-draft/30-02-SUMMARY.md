@@ -106,3 +106,8 @@ None - no external service configuration required.
 
 _Phase: 30-recalibrate-draft_
 _Completed: 2026-07-22_
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk; all 3 referenced commit hashes
+(efebb6d, 2b81203, 610dc8b) verified present in `git log`.
