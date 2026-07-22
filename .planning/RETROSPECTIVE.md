@@ -1,5 +1,67 @@
 # Retrospective — Counter Attack Web
 
+## v1.4 Response Polish + Draft Mode (2026-07-12 → 2026-07-22)
+
+**Shipped:** 2026-07-22 (with 1 known gap)
+**Phases:** 5 | **Plans:** 30 | **Duration:** 10 days
+
+### What Was Built
+
+- **Phase 26**: 6 known gameplay bugs fixed (undo scoping, End Turn button color, opponent stats click, deflection log format, header duel target hex, shot range validation) — all closed with regression tests, no gaps
+- **Phase 27**: Game-creation settings pre-step screen (speed, Standard/Draft team-type toggle, draft-pool checkboxes); Standard-mode speed moved off team-selection; Draft-mode settings-summary line
+- **Phase 28**: Pure `draftEngine.ts` — total-stat tier classification and configurable pack generation, initially a 5-tier/7-card model, engine-only (no UI/socket wiring)
+- **Phase 29**: Full real-time draft UI — pick-and-swap carousel, dynamic bench, post-draft lineup hand-off — wired into the socket layer via a pure `draftSession.ts` state machine; required 6 gap-closure sub-plans (29-07..29-12) after the first two-browser human verification surfaced 5 defects
+- **Phase 30**: Mid-milestone draft redesign — 4-tier fixed-absolute-threshold classification, 6-round/position-GK-constrained pack structure, forced-keeper-safety-net deleted in favor of a dedicated GK round, Legends/Icons pools enabled, tier borders extended to bench/starting-11
+
+### What Worked
+
+**Pure, socket-independent engine modules paid off again.** `draftEngine.ts`/`draftSession.ts` mirrored `gameEngine.ts`'s established pattern of separating domain logic from the socket layer. This made the Phase 30 redesign — a substantial mid-milestone rewrite of the tier/pack model — a contained swap rather than a cross-cutting rewrite, because the socket-wiring layer (`roomHandlers.ts`) barely changed.
+
+**Live two-browser human verification kept finding real gaps.** Phase 29's first human walkthrough (29-06) surfaced 5 real defects (post-draft rearrangement, bench carousel scroll instability, game-start hand-off) that the full automated test suite had missed entirely. Each gap-closure cycle (29-07 through 29-12) closed one defect with an independently re-run regression test, including a genuine negative-control test (temporarily reverting a fix to prove the new test actually catches the regression) — this is a pattern worth repeating for any state-machine-heavy UI feature.
+
+**Mid-milestone redesign was documented, not silently overwritten.** When Phase 30 replaced Phase 28/29's draft model wholesale, the verification and requirements archives explicitly marked DRAFT-04/05/08 as "superseded design" rather than just re-checking the boxes — a future reader can tell the requirement was satisfied by a _different_ mechanism than originally specified.
+
+### What Was Inefficient
+
+**RESP-01..09 fell through a roadmap restructuring with no safety net.** The original plan had a Phase 27 titled "Response Activation Model" covering all 9 RESP requirements. Somewhere between initial roadmap creation and execution, Phase 27 was redefined as "Game Creation Settings" and the RESP work was never reassigned to a later phase, never flagged as descoped, and never removed from REQUIREMENTS.md. It sat as "Pending" in the traceability table for the entire milestone and was only caught by this milestone-close audit. **This is the single largest process gap of v1.4**: a roadmap phase can apparently be redefined without an explicit decision about where its original requirements go. Worth a process fix — e.g., `/gsd-phase` should refuse to silently drop requirement coverage when a phase's scope is redefined, or at minimum flag it loudly.
+
+**A pre-existing bug was flagged twice without being fixed.** The `createServer.ts` reconnect-handler-registration bug was found and documented by Phase 29's own verification (as out-of-scope for that phase) and then found _again_, independently, by this milestone's integration check. Flagging a known bug as "someone else's problem" twice in a row without anyone actually owning the fix is a process gap — a flagged-but-unowned bug should probably auto-generate a backlog/todo item rather than relying on the next verification pass to notice it again.
+
+**STATE.md drifted badly during the milestone.** By milestone close, STATE.md's "Phase Status" table still showed Phases 27-30 as "Not started" and Phase 27 as "Response Activation Model" — both stale by weeks. STATE.md is supposed to be the single source of live truth but clearly wasn't being kept current during Phase 29/30 execution. Given it directly contributed to the RESP-01..09 gap going unnoticed for so long, STATE.md accuracy deserves more attention during execution, not just at milestone close.
+
+### Patterns Established
+
+- **Pure state-machine modules for any complex server-authoritative subsystem.** `draftEngine.ts`/`draftSession.ts` follow `gameEngine.ts`'s template exactly (zero `io`/`socket` imports, fully unit-testable, wired into the socket layer at the boundary only). Apply this to any future subsystem with meaningful state transitions.
+- **Negative-control tests for regression-guard fixes.** When a fix closes a UI-state-timing gap (e.g., a `useEffect` dependency-array bug), temporarily revert the fix and confirm the new regression test actually fails before re-applying — proves the test guards the real defect rather than being a tautology.
+- **Mark superseded requirements explicitly, don't silently recheck.** When a mid-milestone design pivot replaces an already-implemented requirement's mechanism, the requirements archive should say "superseded design, see Phase N" rather than just flipping the checkbox.
+
+### Known Gaps Entering v1.5
+
+| Gap                         | Description                                                                                                  | Location                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| RESP-01..09                 | Response-move single-selection activation model — entirely undelivered, fell through a roadmap restructuring | `gameEngine.ts` (old per-move-type logic unchanged)     |
+| createServer.ts reconnect   | Misplaced `return` (~line 166) leaves some reconnecting sockets with no handlers registered                  | `packages/server/src/createServer.ts:99-167`            |
+| DRAFT-10 human verification | Live two-browser lineup-slot-swap walkthrough never actually performed                                       | Phase 29 (protocol-layer tests pass; no UAT artifact)   |
+| Phase 28 Nyquist gap        | No `28-VALIDATION.md` — compliance never scored for this phase                                               | `.planning/phases/28-draft-data-model/`                 |
+| BUG-23 (carried from v1.3)  | KICK_OFF_SETUP shot-path shading persists after SNAPSHOT_DEFLECT goal — root cause unk.                      | HexGrid.tsx + gameHandlers                              |
+| FK Undo (carried from v1.3) | FREE_KICK_SETUP undo not implemented (within/across stages)                                                  | `todos/pending/free-kick-setup-undo-not-implemented.md` |
+| Draft-mode cosmetic debt    | Bench-index bounds gap, post-complete bench numbering, tier-color cache reconnect, stale comments            | `roomHandlers.ts`, `GameSettingsScreen.tsx`, `types.ts` |
+
+### Metrics
+
+| Metric        | Value                                                         |
+| ------------- | ------------------------------------------------------------- |
+| Duration      | 10 days (2026-07-12 → 2026-07-22)                             |
+| Phases        | 5 (Phases 26–30)                                              |
+| Plans         | 30                                                            |
+| Files changed | 63 (packages/\*\*)                                            |
+| Insertions    | 8,981                                                         |
+| Deletions     | 601                                                           |
+| Requirements  | 17/26 (RESP-01..09 not delivered — acknowledged gap)          |
+| Test suite    | 1,568 tests across shared (583) / server (614) / client (371) |
+
+---
+
 ## v1.3 Team Customization & Formation System (2026-07-03 → 2026-07-11)
 
 **Shipped:** 2026-07-11
