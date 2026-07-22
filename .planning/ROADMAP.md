@@ -131,10 +131,14 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 3. The goalkeeper can never be selected as an eligible deflection responder.
 
 **Plans**: 4 plans (Wave 1: 31-01, 31-02, 31-03 run in parallel; Wave 2: 31-04)
+**Wave 1**
 
 - [ ] 31-01-PLAN.md — BUG-30 goal-reset replay reconstruction (`piecesAfter` on GOAL) + folded GK_KICK/LOOSE_BALL_LAND replay verify [Wave 1]
 - [ ] 31-02-PLAN.md — BUG-31 move-started eligibility timing + Undo (ActionPanel `remaining`) [Wave 1]
 - [ ] 31-03-PLAN.md — BUG-32 GK deflection eligibility (client gate + server rejection, defense-in-depth) [Wave 1]
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 31-04-PLAN.md — Folded header-winner eligibility todo (`movedPieceIds` on non-goal header routes) [Wave 2, depends 31-01]
 
 ### Phase 32: Code Cleanup
