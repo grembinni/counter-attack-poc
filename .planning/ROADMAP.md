@@ -113,7 +113,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 | Phase | Name                                      | Plans | Status      |
 | ----- | ----------------------------------------- | ----- | ----------- |
-| 31    | Bug Fixes                                 | TBD   | Not started |
+| 31    | Bug Fixes                                 | 4     | Not started |
 | 32    | Code Cleanup                              | TBD   | Not started |
 | 33    | Design Tokens & Highlight Standardization | TBD   | Not started |
 | 34    | Visual Theme Restyle                      | TBD   | Not started |
@@ -129,7 +129,13 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 1. After a goal is scored and the match resets to kickoff, replaying that goal shows every player reconstructed at their correct kickoff position (not just some).
 2. The eligible-players-remaining message and End Turn button color update the moment a player starts a move (not only once the move is fully completed), and both correctly reflect state again after an Undo.
 3. The goalkeeper can never be selected as an eligible deflection responder.
-   **Plans**: TBD
+
+**Plans**: 4 plans (Wave 1: 31-01, 31-02, 31-03 run in parallel; Wave 2: 31-04)
+
+- [ ] 31-01-PLAN.md — BUG-30 goal-reset replay reconstruction (`piecesAfter` on GOAL) + folded GK_KICK/LOOSE_BALL_LAND replay verify [Wave 1]
+- [ ] 31-02-PLAN.md — BUG-31 move-started eligibility timing + Undo (ActionPanel `remaining`) [Wave 1]
+- [ ] 31-03-PLAN.md — BUG-32 GK deflection eligibility (client gate + server rejection, defense-in-depth) [Wave 1]
+- [ ] 31-04-PLAN.md — Folded header-winner eligibility todo (`movedPieceIds` on non-goal header routes) [Wave 2, depends 31-01]
 
 ### Phase 32: Code Cleanup
 
@@ -231,7 +237,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | 28. Draft Data Model            | v1.4      | 4/4            | Complete    | 2026-07-21 |
 | 29. Draft UI + Pick-and-Swap    | v1.4      | 12/12          | Complete    | 2026-07-22 |
 | 30. Recalibrate Draft           | v1.4      | 6/6            | Complete    | 2026-07-22 |
-| 31. Bug Fixes                   | v1.5      | 0/TBD          | Not started | -          |
+| 31. Bug Fixes                   | v1.5      | 0/4            | Not started | -          |
 | 32. Code Cleanup                | v1.5      | 0/TBD          | Not started | -          |
 | 33. Design Tokens & Highlight   | v1.5      | 0/TBD          | Not started | -          |
 | 34. Visual Theme Restyle        | v1.5      | 0/TBD          | Not started | -          |
