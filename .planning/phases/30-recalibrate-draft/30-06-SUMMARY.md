@@ -42,18 +42,18 @@ key-decisions:
 requirements-completed: [DRAFT-05, DRAFT-08, DRAFT-11]
 
 # Metrics
-duration: ~35min (Task 1 only; Task 2 is a human-verify checkpoint, not yet reached)
+duration: ~35min (Task 1) + human-verify checkpoint (Task 2, approved same-day)
 completed: 2026-07-22
 ---
 
-# Phase 30 Plan 06: Final Gate — Full-Suite Green + Purge Audit Summary
+# Phase 30 Plan 06: Final Gate — Full-Suite Green + Purge Audit + Human-Verified Draft Summary
 
-**Closed the phase's last cross-plan collateral RED window (8 test failures traced to Plan 01's player-pool CSV rebalance, logged in deferred-items.md by Plan 05) by re-pinning 3 stale test fixtures — full 3-package suite (1,567 tests) and full-workspace typecheck are both green, and every superseded draft identifier is confirmed purged from `packages/`.**
+**Closed the phase's last cross-plan collateral RED window (8 test failures traced to Plan 01's player-pool CSV rebalance, logged in deferred-items.md by Plan 05) by re-pinning 3 stale test fixtures — full 3-package suite (1,567 tests) and full-workspace typecheck are both green, every superseded draft identifier is confirmed purged from `packages/`, and the live two-browser 6-round draft walkthrough is human-approved.**
 
 ## Performance
 
-- **Duration:** ~35 min active work (Task 1)
-- **Tasks:** 1/2 completed (Task 2 is a blocking human-verify checkpoint — not simulated, see below)
+- **Duration:** ~35 min active work (Task 1) + human-verify checkpoint (Task 2)
+- **Tasks:** 2/2 completed
 - **Files modified:** 3 (all test fixtures; zero game/draft logic changed)
 
 ## Accomplishments
@@ -73,6 +73,7 @@ completed: 2026-07-22
 ## Task Commits
 
 1. **Task 1: Full-suite + typecheck gate + superseded-identifier purge grep** — `2971d78` (fix) — includes the 3 authorized fixture fixes plus the verification pass
+2. **Task 2: Two-browser full 6-round draft human verification** — no code commit (verification-only task); user approval recorded below and in this SUMMARY's finalization commit
 
 ## Files Created/Modified
 
@@ -109,20 +110,40 @@ completed: 2026-07-22
 - Fresh worktree had no `node_modules` and no `packages/shared/dist/` output at session start — resolved with `pnpm install --frozen-lockfile` followed by `pnpm --filter @counter-attack/shared run build`, matching the pattern documented by every prior Phase 30 wave's executor.
 - One transient full-suite failure was observed on a single `pnpm test` invocation (differing from the reproducible-in-isolation `gameHandlers.rule11.test.ts` failure this plan fixed) — re-run twice more consecutively, both fully green, and the specific test file re-run in isolation 3x, also fully green every time. Treated as a non-reproducible flake (likely transient port contention across the 33 server integration-test files that spin up real `http.Server` instances on port 0), not a regression from this plan's changes.
 
+## Human Verification (Task 2)
+
+**Result: APPROVED.**
+
+The user ran the live two-browser 6-round draft walkthrough per the plan's `<action>` steps and
+confirmed all six checks passed:
+
+1. Settings pre-step: Legends and Icons checkboxes selectable (no "(coming soon)" label); draft started successfully.
+2. Round 1: each pack showed 4 GK-only cards, label read "GK Round" / "Pick 1 of 2"; round completed in 2 picks (draft-swap-draft).
+3. Rounds 2-6: packs were 4 cards with no GK, label read "Round N of 6" / "Pick X of 3", each round ran draft-swap-draft-swap-draft (3 picks).
+4. Tier-colored borders (purple chase, red rare, green uncommon, white common) confirmed visible on the draft carousel, bench carousel, AND starting-11 lineup slot cards after placement — no keeper-safety banner appeared at any point.
+5. Draft completed and lineup confirmed; match started with the drafted 17-card roster per player.
+6. No issues reported.
+
+User response: "approved" — all six steps passed (round structure, GK-only round 1, tiered
+rounds 2-6, tier-colored borders on carousel/bench/starting-11, no keeper banner, full 17-card
+completion).
+
 ## User Setup Required
 
-None - no external service configuration required for Task 1. Task 2 (the human-verify checkpoint below) requires the user to run a live two-browser session locally.
+None - no external service configuration required. Task 2's human-verify checkpoint has been
+completed and approved by the user (see above).
 
 ## Next Phase Readiness
 
 - All 3 packages (`shared`, `server`, `client`) are fully green on both `pnpm test` and `pnpm typecheck` — the phase's cross-plan collateral RED window (deferred-items.md items 1 and 2) is now closed.
 - Every superseded draft identifier from the old keeper/cycle/percentile model is confirmed absent from `packages/` source and tests.
-- Task 2 (live two-browser 6-round draft human verification) has NOT been executed — it is a blocking `checkpoint:human-verify` gate requiring an actual two-browser session, which cannot be simulated by this executor. See the CHECKPOINT REACHED section for what the user needs to do next.
+- Task 2 (live two-browser 6-round draft human verification) is complete and approved — the recalibrated draft's round structure, tier colors, pool availability, and full-completion flow are all human-confirmed correct.
+- **Plan 30-06 is fully complete.** This closes the phase's final gate: DRAFT-05, DRAFT-08, and DRAFT-11 are confirmed complete end-to-end (automated + human-verified), and no further plans are outstanding in phase 30-recalibrate-draft per this plan's scope.
 
 ---
 
 _Phase: 30-recalibrate-draft_
-_Completed: 2026-07-22 (Task 1 only — Task 2 checkpoint pending)_
+_Completed: 2026-07-22_
 
 ## Self-Check: PASSED
 
