@@ -737,6 +737,7 @@ export function HexGrid() {
               myTeam !== null &&
               myTeam === snapDefendingTeam &&
               piece.teamId === myTeam &&
+              piece.role !== 'GK' && // BUG-32: GK is never an eligible deflection responder
               (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id) &&
               (snapDeflectPaceUsed ?? 0) < 2; // RULE-04 D-09: suppress when pace exhausted
             // GK_KICK_MOVE: active team selects 1 own piece to reposition up to 3 hexes
