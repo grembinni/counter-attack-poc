@@ -92,7 +92,8 @@ Full archive: [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) · [Requi
 - [x] **Phase 26: Bug Fixes** - Fix 6 known gameplay defects (undo scope, button color, opponent stats, deflection log, header targeting, shot range) (completed 2026-07-12)
 - [x] **Phase 27: Game Creation Settings** - Pre-step settings screen (speed + team type + draft pool) before team selection (completed 2026-07-21)
 - [x] **Phase 28: Draft Data Model** - Player tier classification and configurable pack generation engine (completed 2026-07-21)
-- [x] **Phase 29: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup (gaps found in human verification 2026-07-21; gap-closure plans 29-07/29-08/29-09 queued — see 29-VERIFICATION.md) (completed 2026-07-21)
+- [x] **Phase 29: Draft UI + Pick-and-Swap Flow** - Draft carousel, 4-cycle pick-and-swap protocol, keeper safety, dynamic bench, post-draft lineup (all gap-closure plans 29-07..29-12 landed; 29-VERIFICATION.md all 6 in-scope truths VERIFIED; human walkthrough passed — 29-UAT.md, commit 5a6be38) (completed 2026-07-21)
+- [ ] **Phase 30: Recalibrate Draft** - Fixed-threshold 4-tier reclassification, 6-round pack structure, Legends/Icons pools, keeper-safety removal, tier borders on lineup slots
 
 ---
 
@@ -228,6 +229,34 @@ Plans:
 
 - [x] 29-12-PLAN.md — Bench carousel scroll stability (DRAFT-09): memoize `benchCards` in LineupAssignmentScreen (stable reference) + re-key BenchCarousel's scroll-reset effect on a content-derived `benchKey` (not `cards` identity) so drag-over/rejection-timeout re-renders no longer snap scroll to leftmost; + regression test [Wave 1]
 
+### Phase 30: Recalibrate Draft
+
+**Goal:** The draft system is recalibrated end-to-end: the player pool is rebalanced and reclassified by fixed absolute total-stat thresholds into a 4-tier scheme (chase/rare/uncommon/common; keeper tier removed), pack generation is replaced with a 6-round, position/GK-constrained, variable-composition structure (GK-only round 1, tiered rounds 2-6, 17 cards drafted per player), the forced-keeper-on-cycle-4 safety net is deleted, the Legends and Icons draft pools are enabled, and the 4-color tier borders are extended to the bench and starting-11 lineup slots.
+**Depends on:** Phase 29
+**Requirements**: DRAFT-04, DRAFT-05, DRAFT-08, DRAFT-11
+**Plans:** 6 plans
+**UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 30-01-PLAN.md — Data regen + shared type contract + fixed-threshold tier classification (DRAFT-04, DRAFT-11)
+
+**Wave 2** _(blocked on 30-01)_
+
+- [ ] 30-02-PLAN.md — Shared round-structured pack generation: 6 rounds, GK-only round 1, position-bucket caps, chase-or-rare merged draw, MLS->Original backfill (DRAFT-05)
+- [ ] 30-03-PLAN.md — Server round-aware draft session state machine + keeper-safety-net removal (DRAFT-05, DRAFT-08)
+- [ ] 30-04-PLAN.md — Client 4-color tier borders on carousel/bench/starting-11, keeper-banner removal, round-aware label, Legends/Icons unlock (DRAFT-08, DRAFT-11)
+
+**Wave 3** _(blocked on 30-02/30-03)_
+
+- [ ] 30-05-PLAN.md — Server wiring + integration test rewrites + Legends/Icons allow-list (DRAFT-05, DRAFT-08, DRAFT-11)
+
+**Wave 4** _(final)_
+
+- [ ] 30-06-PLAN.md — Full-suite + typecheck gate, superseded-identifier purge grep, two-browser human verification
+
 ---
 
 ## Progress
@@ -271,3 +300,4 @@ Plans:
 | 27. Game Creation Settings     | v1.4      | 5/5            | Complete | 2026-07-21 |
 | 28. Draft Data Model           | v1.4      | 4/4            | Complete | 2026-07-21 |
 | 29. Draft UI + Pick-and-Swap   | v1.4      | 12/12          | Complete | 2026-07-22 |
+| 30. Recalibrate Draft          | v1.4      | 0/6            | Planned  | -          |
