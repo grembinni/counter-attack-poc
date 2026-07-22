@@ -310,9 +310,13 @@
   margin: 0;
 }
 
-/* ─── Phase 29: Draft tier-border card variants (D-17/D-18/D-19) ───────────
+/* ─── Phase 29/30: Draft tier-border card variants (D-17/D-18/D-19, D-22/D-05) ─
    3px tier-colored border replacing the base card's 1px solid #0f3460;
-   card content itself is unchanged (D-18) — border/frame only (D-19). */
+   card content itself is unchanged (D-18) — border/frame only (D-19).
+   4-value scheme (D-22, Phase 30): chase=purple, rare=red, uncommon=green,
+   common=white. No 5th reserved-tier color — the prior 5th tier class is
+   removed entirely (D-05): GK cards resolve to whichever of these 4 colors
+   their total stat lands them in, same as any outfield card. */
 
 /* Widened min-width (260px -> 320px) so every role-filtered stat chip renders
    legibly without truncation/crowding (DRAFT-06 gap-closure, 29-08-PLAN.md
@@ -322,31 +326,25 @@
    Standard-mode layout regression). */
 .cardTierChase {
   composes: statCardBase;
-  border: 3px solid #f5c518;
+  border: 3px solid #a855f7;
   min-width: 320px;
 }
 
 .cardTierRare {
   composes: statCardBase;
-  border: 3px solid #c0c0c0;
+  border: 3px solid #ef4444;
   min-width: 320px;
 }
 
 .cardTierUncommon {
   composes: statCardBase;
-  border: 3px solid #cd7f32;
+  border: 3px solid #22c55e;
   min-width: 320px;
 }
 
 .cardTierCommon {
   composes: statCardBase;
-  border: 3px solid #3b82f6;
-  min-width: 320px;
-}
-
-.cardTierKeeper {
-  composes: statCardBase;
-  border: 3px solid #22c55e;
+  border: 3px solid #ffffff;
   min-width: 320px;
 }
 

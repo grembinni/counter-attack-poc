@@ -2,7 +2,8 @@
  * BenchCarousel — Phase 29 D-08/D-09/D-21, reworked into a real carousel in
  * Phase 29 gap-closure (29-08-PLAN.md Task 1, DRAFT-09/D-21).
  *
- * A dynamically sized (0..16 cards, D-09) left-right navigable carousel
+ * A dynamically sized (0..17 cards, D-09/D-16 Phase 30 — 6-round/17-card draft model)
+ * left-right navigable carousel
  * reusing the exact same card style AND carousel chrome as
  * DraftPackCarousel (D-21 — DraftCardBody + TIER_CARD_CLASS + carouselViewport/
  * carouselTrack/carouselNav). Unlike the draft-pack row, the bench is BOTH a

@@ -26,7 +26,7 @@ function makeCard(
   tier: DraftTier,
   overrides: Partial<TieredPoolPlayer> = {},
 ): TieredPoolPlayer {
-  const role = tier === 'keeper' ? 'GK' : 'FWD';
+  const role = 'FWD';
   return {
     id,
     sourceTeamId: 'free-agent',

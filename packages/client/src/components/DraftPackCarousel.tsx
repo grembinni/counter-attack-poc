@@ -2,9 +2,8 @@
  * DraftPackCarousel — Phase 29 D-20.
  *
  * A left-right navigable carousel of draft-pack cards. Renders any number of
- * cards (5, 6, or 7 — never hardcoded, since the cycle-4 keeper-safety pack
- * hands out only 6 cards, D-08/keeper-safety) sorted rarest-first (Chase,
- * Rare, Uncommon, Common, Keeper) and resets scroll to the leftmost card
+ * cards (4-card packs per round, D-12..D-16 Phase 30) sorted rarest-first
+ * (Chase, Rare, Uncommon, Common) and resets scroll to the leftmost card
  * whenever a new pack loads (D-20).
  *
  * Cards in this row are DRAG SOURCES ONLY (D-06) — they carry a `pack:`-
@@ -22,10 +21,12 @@ import { NationFlag } from './NationFlag.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import styles from './LineupAssignmentScreen.module.css';
 
-/** Rarest-first tier order (D-20). */
-export const TIER_ORDER: DraftTier[] = ['chase', 'rare', 'uncommon', 'common', 'keeper'];
+/** Rarest-first tier order (D-20). Narrowed to 4 values — 'keeper' removed (D-05, Phase 30). */
+export const TIER_ORDER: DraftTier[] = ['chase', 'rare', 'uncommon', 'common'];
 
-/** Tier -> tier-border CSS class map (D-17/D-19).
+/** Tier -> tier-border CSS class map (D-17/D-19). Narrowed to 4 entries (D-05, Phase 30) —
+ * no 5th 'keeper' color; GK cards resolve to whichever of chase/rare/uncommon/common their
+ * total stat lands them in, same as any outfield card (D-04/D-05).
  * Non-null assertions: noUncheckedIndexedAccess types CSS-module property
  * access as `string | undefined`, but every class below is declared verbatim
  * in LineupAssignmentScreen.module.css (see the tier-border block), so the
@@ -35,7 +36,6 @@ export const TIER_CARD_CLASS: Record<DraftTier, string> = {
   rare: styles.cardTierRare!,
   uncommon: styles.cardTierUncommon!,
   common: styles.cardTierCommon!,
-  keeper: styles.cardTierKeeper!,
 };
 
 /** Color tier for stat badge — mirrors LineupAssignmentScreen.statTier. */
