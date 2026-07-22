@@ -36,9 +36,9 @@
 
 ### Bug Fixes (BUG)
 
-- [ ] **BUG-30**: Replay reconstructs all player positions at kickoff so the board resets correctly after a goal is scored
+- [x] **BUG-30**: Replay reconstructs all player positions at kickoff so the board resets correctly after a goal is scored
 - [x] **BUG-31**: The eligible-players-remaining message and End Turn button color update the moment a player starts a move (not only once fully activated), and correctly reflect state after an Undo
-- [ ] **BUG-32**: The goalkeeper cannot be selected as an eligible deflection responder
+- [x] **BUG-32**: The goalkeeper cannot be selected as an eligible deflection responder
 
 ## Future Requirements
 
@@ -65,28 +65,28 @@
 
 ## Traceability
 
-| Requirement | Phase                                                | Status  |
-| ----------- | ---------------------------------------------------- | ------- |
-| THEME-01    | Phase 34 — Visual Theme Restyle                      | Pending |
-| THEME-02    | Phase 34 — Visual Theme Restyle                      | Pending |
-| THEME-03    | Phase 33 — Design Tokens & Highlight Standardization | Pending |
-| THEME-04    | Phase 34 — Visual Theme Restyle                      | Pending |
-| HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
-| HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
-| HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
-| HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
-| HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
-| PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Pending |
-| PANEL-02    | Phase 35 — ActionPanel & Log Standardization         | Pending |
-| PANEL-03    | Phase 35 — ActionPanel & Log Standardization         | Pending |
-| PANEL-04    | Phase 35 — ActionPanel & Log Standardization         | Pending |
-| CLEANUP-01  | Phase 32 — Code Cleanup                              | Pending |
-| CLEANUP-02  | Phase 32 — Code Cleanup                              | Pending |
-| CLEANUP-03  | Phase 32 — Code Cleanup                              | Pending |
-| CLEANUP-04  | Phase 32 — Code Cleanup                              | Pending |
-| BUG-30      | Phase 31 — Bug Fixes                                 | Pending |
+| Requirement | Phase                                                | Status   |
+| ----------- | ---------------------------------------------------- | -------- |
+| THEME-01    | Phase 34 — Visual Theme Restyle                      | Pending  |
+| THEME-02    | Phase 34 — Visual Theme Restyle                      | Pending  |
+| THEME-03    | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| THEME-04    | Phase 34 — Visual Theme Restyle                      | Pending  |
+| HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
+| PANEL-02    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
+| PANEL-03    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
+| PANEL-04    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
+| CLEANUP-01  | Phase 32 — Code Cleanup                              | Pending  |
+| CLEANUP-02  | Phase 32 — Code Cleanup                              | Pending  |
+| CLEANUP-03  | Phase 32 — Code Cleanup                              | Pending  |
+| CLEANUP-04  | Phase 32 — Code Cleanup                              | Pending  |
+| BUG-30      | Phase 31 — Bug Fixes                                 | Complete |
 | BUG-31      | Phase 31 — Bug Fixes                                 | Complete |
-| BUG-32      | Phase 31 — Bug Fixes                                 | Pending |
+| BUG-32      | Phase 31 — Bug Fixes                                 | Complete |
 
 **Coverage:**
 

@@ -2126,6 +2126,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const scoringTeam = state.attackingTeam;
         const newKickOffTeam: 'home' | 'away' = opposingTeam;
         const newScoreUnsaveable = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
+        // D-01 (BUG-30): hoisted so the exact same reset pieces feed both state.pieces and the
+        // GOAL event's piecesAfter — mirrors the resetPieces hoist at applyHalfTimeStart:4442.
+        const resetPieces = buildKickOffPieces(
+          newKickOffTeam,
+          state.selectedTeams,
+          state.selectedFormation,
+        );
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: shooter.id,
@@ -2147,11 +2154,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            pieces: buildKickOffPieces(
-              newKickOffTeam,
-              state.selectedTeams,
-              state.selectedFormation,
-            ),
+            pieces: resetPieces,
             phase: 'KICK_OFF_SETUP',
             score: newScoreUnsaveable,
             attackingTeam: newKickOffTeam,
@@ -2173,6 +2176,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 scorerId: shooter.id,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+                piecesAfter: resetPieces, // D-01 (BUG-30)
               },
             ],
           },
@@ -2217,6 +2221,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const scoringTeam = state.attackingTeam;
         const newKickOffTeam: 'home' | 'away' = opposingTeam;
         const newScore = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
+        // D-01 (BUG-30): hoisted so the exact same reset pieces feed both state.pieces and the
+        // GOAL event's piecesAfter — mirrors the resetPieces hoist at applyHalfTimeStart:4442.
+        const resetPieces = buildKickOffPieces(
+          newKickOffTeam,
+          state.selectedTeams,
+          state.selectedFormation,
+        );
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: shooter.id,
@@ -2238,11 +2249,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           ok: true,
           state: {
             ...state,
-            pieces: buildKickOffPieces(
-              newKickOffTeam,
-              state.selectedTeams,
-              state.selectedFormation,
-            ),
+            pieces: resetPieces,
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -2264,6 +2271,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 scorerId: shooter.id,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+                piecesAfter: resetPieces, // D-01 (BUG-30)
               },
             ],
           },
@@ -4445,6 +4453,16 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
     state.selectedFormation,
   );
 
+  // D-02 (same defect class as BUG-30): this atomic piece-formation reset previously had no
+  // ActionEvent to hang replay reconstruction on, so buildReplayFrames could never show it —
+  // the second-half replay would carry forward stale first-half final positions indefinitely.
+  const halfTimeResetEvent: ActionEvent = {
+    type: 'HALF_TIME_KICKOFF_RESET' as const,
+    piecesAfter: resetPieces,
+    ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+    timestamp: Date.now(),
+  };
+
   return {
     ok: true,
     state: {
@@ -4468,6 +4486,7 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       // MOVE-06 (Phase 17, corrected design D-33): kick-off hex is in middleThird —
       // ballZone resets to 'middle' for the fresh second-half kick-off.
       ballZone: 'middle',
+      eventLog: [...state.eventLog, halfTimeResetEvent], // D-02
     },
   };
 }
@@ -4483,6 +4502,8 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'STEAL_ATTEMPT',
   'TACKLE_ATTEMPT',
   'GOAL',
+  // D-02: second-half kickoff formation reset (same defect class as BUG-30/GOAL).
+  'HALF_TIME_KICKOFF_RESET',
   'KICK_OFF',
   'HIGH_PASS',
   'LONG_BALL',
@@ -4659,6 +4680,15 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
         [event.scoringTeam]: current.score[event.scoringTeam] + 1,
       };
       current = { ...current, score: newScore };
+      // D-01 (BUG-30): reconstruct every piece at the new kickoff formation, the same way
+      // ballAfter is applied universally below. Optional — construction sites that don't
+      // populate it (see types.ts comment) leave pieces unchanged, same as before this fix.
+      if (event.piecesAfter) {
+        current = { ...current, pieces: event.piecesAfter };
+      }
+    } else if (event.type === 'HALF_TIME_KICKOFF_RESET') {
+      // D-02: reconstruct every piece at the second-half kickoff formation.
+      current = { ...current, pieces: event.piecesAfter };
     } else if (event.type === 'KICK_OFF') {
       current = { ...current, movementSlot: 'ATTACKER_4' };
     }

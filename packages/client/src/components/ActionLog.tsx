@@ -402,6 +402,15 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       };
     case 'KICK_OFF':
       return { prefix: '[KICK OFF]', prefixColor: null, content: ' Match started', isGoal: false };
+    case 'HALF_TIME_KICKOFF_RESET':
+      // D-02 (BUG-30 defect class): formation reset before the second-half kick-off. Logged
+      // for replay reconstruction only — no meaningful per-piece display, mirrors KICK_OFF_SETUP.
+      return {
+        prefix: '[KICK OFF]',
+        prefixColor: null,
+        content: ' Second half — teams reset to formation',
+        isGoal: false,
+      };
     case 'STANDARD_PASS':
       return {
         prefix: event.accurate ? '[PASS ✓]' : '[PASS ✗]',
