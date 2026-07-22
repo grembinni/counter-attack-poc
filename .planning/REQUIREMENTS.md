@@ -65,38 +65,36 @@
 
 ## Traceability
 
-Populated during roadmap creation.
-
-| Requirement | Phase | Status  |
-| ----------- | ----- | ------- |
-| THEME-01    | TBD   | Pending |
-| THEME-02    | TBD   | Pending |
-| THEME-03    | TBD   | Pending |
-| THEME-04    | TBD   | Pending |
-| HILITE-01   | TBD   | Pending |
-| HILITE-02   | TBD   | Pending |
-| HILITE-03   | TBD   | Pending |
-| HILITE-04   | TBD   | Pending |
-| HILITE-05   | TBD   | Pending |
-| PANEL-01    | TBD   | Pending |
-| PANEL-02    | TBD   | Pending |
-| PANEL-03    | TBD   | Pending |
-| PANEL-04    | TBD   | Pending |
-| CLEANUP-01  | TBD   | Pending |
-| CLEANUP-02  | TBD   | Pending |
-| CLEANUP-03  | TBD   | Pending |
-| CLEANUP-04  | TBD   | Pending |
-| BUG-30      | TBD   | Pending |
-| BUG-31      | TBD   | Pending |
-| BUG-32      | TBD   | Pending |
+| Requirement | Phase                                                | Status  |
+| ----------- | ---------------------------------------------------- | ------- |
+| THEME-01    | Phase 34 — Visual Theme Restyle                      | Pending |
+| THEME-02    | Phase 34 — Visual Theme Restyle                      | Pending |
+| THEME-03    | Phase 33 — Design Tokens & Highlight Standardization | Pending |
+| THEME-04    | Phase 34 — Visual Theme Restyle                      | Pending |
+| HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
+| HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
+| HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
+| HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
+| HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Pending |
+| PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Pending |
+| PANEL-02    | Phase 35 — ActionPanel & Log Standardization         | Pending |
+| PANEL-03    | Phase 35 — ActionPanel & Log Standardization         | Pending |
+| PANEL-04    | Phase 35 — ActionPanel & Log Standardization         | Pending |
+| CLEANUP-01  | Phase 32 — Code Cleanup                              | Pending |
+| CLEANUP-02  | Phase 32 — Code Cleanup                              | Pending |
+| CLEANUP-03  | Phase 32 — Code Cleanup                              | Pending |
+| CLEANUP-04  | Phase 32 — Code Cleanup                              | Pending |
+| BUG-30      | Phase 31 — Bug Fixes                                 | Pending |
+| BUG-31      | Phase 31 — Bug Fixes                                 | Pending |
+| BUG-32      | Phase 31 — Bug Fixes                                 | Pending |
 
 **Coverage:**
 
 - v1.5 requirements: 20 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 20 ⚠️ (expected before roadmap step)
+- Mapped to phases: 20/20 (100%)
+- Unmapped: 0 ✓
 
 ---
 
 _Requirements defined: 2026-07-22_
-_Last updated: 2026-07-22 — initial v1.5 scope, pending roadmap_
+_Last updated: 2026-07-22 — ROADMAP.md created; 5 phases (31-35) map all 20 v1.5 requirements with no orphans_
