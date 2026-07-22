@@ -430,18 +430,6 @@
   letter-spacing: 0.05em;
 }
 
-/* Brief fade banner surface — reuses EventBanner's fade-in/hold/out convention. */
-.keeperBanner {
-  font-size: 14px;
-  font-weight: 700;
-  color: #22c55e;
-  background: #16213e;
-  border: 1px solid #22c55e;
-  border-radius: 4px;
-  padding: 6px 12px;
-  text-align: center;
-}
-
 /* ─── Phase 29: Bench carousel (D-08/D-09/D-21) ────────────────────────────
    Identical card style AND carousel chrome (viewport/track/nav) to the
    draft-pack row; dynamically sized 0..16, no fixed slot count. Reworked

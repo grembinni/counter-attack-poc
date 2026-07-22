@@ -5,9 +5,9 @@
  * - Draft-mode rendering (DraftPackCarousel above the grid, BenchCarousel below)
  * - Drag-to-pick: a pack-sourced card dropped on a lineup slot calls onDraftPick
  * - Waiting-for-opponent disables the draft-pack row and shows the waiting text
- * - Cycle/pick counter text
+ * - Round/pick counter text (D-20, Phase 30)
  * - draftComplete hides the carousel and shows the existing Confirm button (D-23)
- * - Keeper-safety auto-pick banner (DRAFT-08)
+ * - D-23 (Phase 30): tier-color border on filled starting-11 lineup slot cards
  * - Standard-mode non-regression (draftMode falsy renders exactly as before)
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -31,11 +31,12 @@ function tieredCard(id: string, tier: DraftTier): TieredPoolPlayer {
   return { ...player, tier, totalStat: computeTotalStat(player) };
 }
 
-/** A representative DraftClientView: cycle 2, subStep PICK1, a 7-card pack, picksRemaining 1,
- * a couple of filled lineup slots (GK + one DEF) with the rest null, a 2-card bench. */
+/** A representative DraftClientView: round 2 (tiered, 3 picks/round), subStep PICK1, a 7-card
+ * pack, picksRemaining 1, a couple of filled lineup slots (GK + one DEF) with the rest null,
+ * a 2-card bench. */
 function makeDraftView(overrides: Partial<DraftClientView> = {}): DraftClientView {
   return {
-    cycle: 2,
+    round: 2,
     subStep: 'PICK1',
     currentPack: [
       tieredCard('p013', 'chase'),
@@ -44,14 +45,13 @@ function makeDraftView(overrides: Partial<DraftClientView> = {}): DraftClientVie
       tieredCard('p016', 'common'),
       tieredCard('p017', 'common'),
       tieredCard('p018', 'common'),
-      tieredCard('p012', 'keeper'),
+      tieredCard('p012', 'common'),
     ],
     picksRemaining: 1,
     waitingForOpponent: false,
     lineupSlots: ['p001', 'p002', null, null, null, null, null, null, null, null, null],
     benchIds: ['p003', 'p004'],
     benchNumbers: {},
-    keeperAutoPickedThisCycle: false,
     draftComplete: false,
     ...overrides,
   };
@@ -159,8 +159,8 @@ describe('LineupAssignmentScreen — D-12: waiting-for-opponent state', () => {
   });
 });
 
-describe('LineupAssignmentScreen — D-01: cycle/pick counter', () => {
-  it('renders "Cycle 2 of 4 · Pick 1 of 1"', () => {
+describe('LineupAssignmentScreen — D-20 (Phase 30): round/pick counter', () => {
+  it('renders "Round 2 of 6 · Pick 1 of 3" for a tiered round (round 2, 3 picks/round)', () => {
     render(
       <LineupAssignmentScreen
         assignment={[]}
@@ -177,7 +177,28 @@ describe('LineupAssignmentScreen — D-01: cycle/pick counter', () => {
       />,
     );
 
-    expect(screen.getByText('Cycle 2 of 4 · Pick 1 of 1')).toBeDefined();
+    expect(screen.getByText('Round 2 of 6 · Pick 1 of 3')).toBeDefined();
+  });
+
+  it('renders "GK Round" (not "Round 1 of 6") for round 1, with 2 picks/round', () => {
+    render(
+      <LineupAssignmentScreen
+        assignment={[]}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={NOOP}
+        onConfirm={NOOP}
+        lineupConfirmed={false}
+        draftMode
+        draftView={makeDraftView({ round: 1, picksRemaining: 2 })}
+        onDraftPick={NOOP}
+        onDraftRearrange={NOOP}
+      />,
+    );
+
+    expect(screen.getByText('GK Round · Pick 2 of 2')).toBeDefined();
+    expect(screen.queryByText(/Round 1 of 6/)).toBeNull();
   });
 });
 
@@ -309,9 +330,9 @@ describe('LineupAssignmentScreen — DRAFT-09 gap-closure: drag-state never wedg
   });
 });
 
-describe('LineupAssignmentScreen — DRAFT-08: keeper-safety banner', () => {
-  it('renders the keeper auto-selected banner when keeperAutoPickedThisCycle is true', () => {
-    render(
+describe('LineupAssignmentScreen — D-23 (Phase 30): tier border on starting-11 lineup slot cards', () => {
+  it('applies a TIER_CARD_CLASS tier-color class to filled starting-11 lineup slot cards', () => {
+    const { container } = render(
       <LineupAssignmentScreen
         assignment={[]}
         formationId="4-4-2"
@@ -321,13 +342,27 @@ describe('LineupAssignmentScreen — DRAFT-08: keeper-safety banner', () => {
         onConfirm={NOOP}
         lineupConfirmed={false}
         draftMode
-        draftView={makeDraftView({ keeperAutoPickedThisCycle: true })}
+        draftView={makeDraftView()}
         onDraftPick={NOOP}
         onDraftRearrange={NOOP}
       />,
     );
 
-    expect(screen.getByText('Keeper auto-selected — cycle 4 safety net.')).toBeDefined();
+    // makeDraftView's lineupSlots fixture fills slot 0 (GK, p001) and slot 1 (DEF, p002) —
+    // both should render with one of the 4 TIER_CARD_CLASS tier-color classes (D-23), scoped
+    // to the formation grid so pack/bench cards elsewhere don't produce a false positive.
+    const grid = container.querySelector('[class*="formationColumns"]');
+    expect(grid).not.toBeNull();
+    const tierSelector = [
+      TIER_CARD_CLASS.chase,
+      TIER_CARD_CLASS.rare,
+      TIER_CARD_CLASS.uncommon,
+      TIER_CARD_CLASS.common,
+    ]
+      .map((c) => `.${c}`)
+      .join(', ');
+    const tierCardsInGrid = grid!.querySelectorAll(tierSelector);
+    expect(tierCardsInGrid.length).toBeGreaterThan(0);
   });
 });
 
