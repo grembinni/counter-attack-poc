@@ -775,6 +775,52 @@ describe('FULL_TIME → REPLAY stream', () => {
     expect(gkKickFrame!.ball).toEqual({ position: kickTarget, carrierId: receiver.id });
   });
 
+  it('Task 3 (folded GK_KICK todo): inaccurate GK_KICK produces a loose-ball frame (carrierId null)', async () => {
+    // Re-diagnosis finding (31-PATTERNS.md): the folded todo's stated root cause (missing
+    // ballAfter / missing REPLAY_ELIGIBLE_TYPES entry) does not match current code — both
+    // already exist (gameHandlers.ts ~line 832: `carrierId: accurate ? (receiver?.id ?? null)
+    // : null`). This covers the inaccurate/loose branch that REPLAY-07 above does not.
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const gk = pieces.find((p) => p.role === 'GK' && p.teamId === 'home')!;
+    const kickTarget = { q: gk.position.q + 5, r: gk.position.r };
+    const laterMoveTo = { q: gk.position.q + 6, r: gk.position.r };
+    const mover = pieces.find((p) => p.teamId === 'home' && p.id !== gk.id)!;
+
+    room.gameState = {
+      ...room.gameState!,
+      eventLog: [
+        {
+          type: 'GK_KICK',
+          gkId: gk.id,
+          targetHex: kickTarget,
+          accurate: false,
+          kickDie: 2,
+          kickScore: 4,
+          timestamp: 1,
+          ballAfter: { position: kickTarget, carrierId: null },
+        },
+        {
+          type: 'MOVE',
+          pieceId: mover.id,
+          from: kickTarget,
+          to: laterMoveTo,
+          slot: 'ATTACKER_4' as const,
+          timestamp: 2,
+          ballAfter: { position: laterMoveTo, carrierId: mover.id },
+        },
+      ],
+    };
+
+    const frames = buildReplayFrames(room.gameState);
+    const gkKickFrame = frames.find(
+      (f) => f.ball.carrierId === null && f.ball.position.q === kickTarget.q,
+    );
+    expect(gkKickFrame).toBeDefined();
+    expect(gkKickFrame!.ball).toEqual({ position: kickTarget, carrierId: null });
+  });
+
   it('REPLAY-08: LOOSE_BALL_LAND produces a visible replay frame with populated ballAfter', async () => {
     // LOOSE_BALL_LAND scatter resolution must appear as a visible frame in post-game replay.
     // Mirrors the GK_PUNT case in REPLAY-06: seed eventLog with a LOOSE_BALL_LAND carrying
