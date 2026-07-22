@@ -3523,6 +3523,11 @@ export function applyResolveHeaderTarget(
         }),
         eventLog: [...state.eventLog, headedPassEvent],
         ...headerCleared,
+        // Folded header-winner todo (2026-07-12-bug-header-winner-piece-ineligible-next-phase.md):
+        // the header winner has already acted this turn — mark it spent for the next MOVE phase.
+        movedPieceIds: resolvedWinner
+          ? [...state.movedPieceIds, resolvedWinner.id]
+          : state.movedPieceIds,
       },
     };
   }
@@ -3547,6 +3552,11 @@ export function applyResolveHeaderTarget(
       offsidePieceIds: evaluateOffside({ ...state, attackingTeam: winnerTeam, ball: looseBall }),
       eventLog: [...state.eventLog, headedPassEvent],
       ...headerCleared,
+      // Folded header-winner todo (2026-07-12-bug-header-winner-piece-ineligible-next-phase.md):
+      // the header winner has already acted this turn — mark it spent for the next MOVE phase.
+      movedPieceIds: resolvedWinner
+        ? [...state.movedPieceIds, resolvedWinner.id]
+        : state.movedPieceIds,
     },
   };
 }
