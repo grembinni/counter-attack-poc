@@ -3,21 +3,30 @@
  * classification contract for draftEngine.ts. Follows the teams.test.ts vitest
  * describe/it style, grouped by decision ID.
  *
- * Phase 30: generateDraftPacks is stubbed in this plan (round-structured implementation
- * lands in 30-02) — its describe blocks are intentionally NOT present here; fresh
- * round-scoped pack tests are written in Plan 02.
+ * Phase 30 Plan 02: round-scoped generateDraftPacks tests live in the final describe
+ * block below (DRAFT-05, D-09..D-18/D-25).
  */
+import { randomInt } from 'crypto';
 import { describe, it, expect } from 'vitest';
 import { PLAYER_POOL } from './teams.js';
 import type { PoolPlayer } from './teams.js';
 import { TEAM_CONFIGS } from './teamConfig.js';
+import {
+  SELECTABLE_DRAFT_POOLS,
+  DRAFT_ROUNDS,
+  DRAFT_ROUND_COUNT,
+  PACKS_PER_ROUND,
+} from './types.js';
+import type { DraftTier } from './types.js';
 import {
   computeTotalStat,
   classifyTier,
   isInPool,
   resolvePoolPlayers,
   assignTiers,
+  generateDraftPacks,
 } from './draftEngine.js';
+import type { RandomIntFn } from './draftEngine.js';
 
 // ---------------------------------------------------------------------------
 // Pool derivation — DRAFT-04: D-04
@@ -262,4 +271,230 @@ describe('assignTiers — DRAFT-04: D-04/D-05 per-player classification, no popu
     expect(tie1?.tier).toBe(tie2?.tier);
     expect(tie1?.tier).toBe('rare');
   });
+});
+
+// ---------------------------------------------------------------------------
+// generateDraftPacks — DRAFT-05 (Phase 30): 6-round structure (D-09..D-18/D-25)
+// ---------------------------------------------------------------------------
+
+/**
+ * Deterministic, seeded pseudo-random RandomIntFn for structural assertions — NOT
+ * cryptographically secure, used only so this suite's structural tests are repeatable.
+ * Distribution-sensitive assertions (chase-or-rare even mix) use real `crypto.randomInt`
+ * instead, per the plan's guidance to mirror the existing draftPacks.test real-RNG
+ * structural-check pattern.
+ */
+function makeSeededRng(seed: number): RandomIntFn {
+  let state = seed >>> 0;
+  return (minInclusive: number, maxExclusive: number) => {
+    // xorshift32 — cheap, deterministic, good-enough distribution for shuffling tests.
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    state >>>= 0;
+    const range = maxExclusive - minInclusive;
+    return minInclusive + (state % range);
+  };
+}
+
+describe('generateDraftPacks — 6-round structure', () => {
+  const ALL_POOLS = [...SELECTABLE_DRAFT_POOLS];
+
+  it(`returns ${DRAFT_ROUND_COUNT * PACKS_PER_ROUND} packs total, ${PACKS_PER_ROUND} per round, each with 4 cards and a round tag in 1..${DRAFT_ROUND_COUNT}`, () => {
+    const rng = makeSeededRng(1);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    expect(packs).toHaveLength(DRAFT_ROUND_COUNT * PACKS_PER_ROUND);
+
+    const countsByRound = new Map<number, number>();
+    for (const pack of packs) {
+      expect(pack.cards).toHaveLength(4);
+      expect(pack.round).toBeGreaterThanOrEqual(1);
+      expect(pack.round).toBeLessThanOrEqual(DRAFT_ROUND_COUNT);
+      countsByRound.set(pack.round, (countsByRound.get(pack.round) ?? 0) + 1);
+    }
+    for (const round of DRAFT_ROUNDS) {
+      expect(countsByRound.get(round.round)).toBe(PACKS_PER_ROUND);
+    }
+  });
+
+  it('round-1 packs are GK-only; rounds 2-6 packs contain zero GK cards', () => {
+    const rng = makeSeededRng(2);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    for (const pack of packs) {
+      if (pack.round === 1) {
+        for (const card of pack.cards) expect(card.role).toBe('GK');
+      } else {
+        for (const card of pack.cards) expect(card.role).not.toBe('GK');
+      }
+    }
+  });
+
+  it('round 4 packs are 2 uncommon + 2 common by classifyTier (D-14)', () => {
+    const rng = makeSeededRng(3);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    const round4Packs = packs.filter((p) => p.round === 4);
+    expect(round4Packs).toHaveLength(PACKS_PER_ROUND);
+
+    for (const pack of round4Packs) {
+      const tierCounts: Record<DraftTier, number> = { chase: 0, rare: 0, uncommon: 0, common: 0 };
+      for (const card of pack.cards) {
+        expect(classifyTier(card.totalStat)).toBe(card.tier);
+        tierCounts[card.tier] += 1;
+      }
+      expect(tierCounts.uncommon).toBe(2);
+      expect(tierCounts.common).toBe(2);
+      expect(tierCounts.chase).toBe(0);
+      expect(tierCounts.rare).toBe(0);
+    }
+  });
+
+  it('round 2-3 packs are all-common by classifyTier (D-13)', () => {
+    const rng = makeSeededRng(4);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    const rounds23 = packs.filter((p) => p.round === 2 || p.round === 3);
+    expect(rounds23).toHaveLength(PACKS_PER_ROUND * 2);
+
+    for (const pack of rounds23) {
+      for (const card of pack.cards) {
+        expect(classifyTier(card.totalStat)).toBe(card.tier);
+        expect(card.tier).toBe('common');
+      }
+    }
+  });
+
+  it('round 5-6 packs are 1 chaseOrRare + 1 uncommon + 2 common by classifyTier (D-15)', () => {
+    const rng = makeSeededRng(5);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    const rounds56 = packs.filter((p) => p.round === 5 || p.round === 6);
+    expect(rounds56).toHaveLength(PACKS_PER_ROUND * 2);
+
+    for (const pack of rounds56) {
+      const tierCounts: Record<DraftTier, number> = { chase: 0, rare: 0, uncommon: 0, common: 0 };
+      for (const card of pack.cards) {
+        expect(classifyTier(card.totalStat)).toBe(card.tier);
+        tierCounts[card.tier] += 1;
+      }
+      expect(tierCounts.chase + tierCounts.rare).toBe(1);
+      expect(tierCounts.uncommon).toBe(1);
+      expect(tierCounts.common).toBe(2);
+    }
+  });
+
+  it('position-bucket cap holds per non-GK pack: DEF<=2, MID<=2, {FWD,ST} combined <=2 (D-17)', () => {
+    const rng = makeSeededRng(6);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    for (const pack of packs) {
+      if (pack.round === 1) continue; // GK-only round, no position bucket concept applies
+      let def = 0;
+      let mid = 0;
+      let fwdSt = 0;
+      for (const card of pack.cards) {
+        if (card.role === 'DEF') def += 1;
+        else if (card.role === 'MID') mid += 1;
+        else if (card.role === 'FWD' || card.role === 'ST') fwdSt += 1;
+      }
+      expect(def).toBeLessThanOrEqual(2);
+      expect(mid).toBeLessThanOrEqual(2);
+      expect(fwdSt).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('no card id appears in more than one pack of the same round (D-09, re-scoped per round)', () => {
+    const rng = makeSeededRng(7);
+    const { packs } = generateDraftPacks(ALL_POOLS, rng);
+    for (const round of DRAFT_ROUNDS) {
+      const roundPacks = packs.filter((p) => p.round === round.round);
+      expect(roundPacks).toHaveLength(PACKS_PER_ROUND);
+      const idSets = roundPacks.map((pack) => new Set(pack.cards.map((c) => c.id)));
+      for (let i = 0; i < idSets.length; i++) {
+        for (let j = i + 1; j < idSets.length; j++) {
+          const overlap = [...idSets[i]].filter((id) => idSets[j].has(id));
+          expect(overlap).toHaveLength(0);
+        }
+      }
+    }
+  });
+
+  it('every card dealt into any pack exists in the returned classified pool', () => {
+    const rng = makeSeededRng(8);
+    const { pool, packs } = generateDraftPacks(ALL_POOLS, rng);
+    const poolIds = new Set(pool.map((p) => p.id));
+    for (const pack of packs) {
+      for (const card of pack.cards) {
+        expect(poolIds.has(card.id)).toBe(true);
+      }
+    }
+  });
+
+  it("generateDraftPacks(['legends'], rng) does not throw and still fills round-1 GK packs via MLS/Original backfill (D-10/D-11)", () => {
+    const rng = makeSeededRng(9);
+    let result: ReturnType<typeof generateDraftPacks> | undefined;
+    expect(() => {
+      result = generateDraftPacks(['legends'], rng);
+    }).not.toThrow();
+
+    const { packs } = result;
+    expect(packs).toHaveLength(DRAFT_ROUND_COUNT * PACKS_PER_ROUND);
+    const round1 = packs.filter((p) => p.round === 1);
+    expect(round1).toHaveLength(PACKS_PER_ROUND);
+    for (const pack of round1) {
+      expect(pack.cards).toHaveLength(4);
+      for (const card of pack.cards) expect(card.role).toBe('GK');
+    }
+  });
+
+  it("generateDraftPacks(['icons'], rng) does not throw and still fills round-1 GK packs via MLS/Original backfill (D-10/D-11)", () => {
+    const rng = makeSeededRng(10);
+    let result: ReturnType<typeof generateDraftPacks> | undefined;
+    expect(() => {
+      result = generateDraftPacks(['icons'], rng);
+    }).not.toThrow();
+
+    const { packs } = result;
+    expect(packs).toHaveLength(DRAFT_ROUND_COUNT * PACKS_PER_ROUND);
+    const round1 = packs.filter((p) => p.round === 1);
+    expect(round1).toHaveLength(PACKS_PER_ROUND);
+    for (const pack of round1) {
+      expect(pack.cards).toHaveLength(4);
+      for (const card of pack.cards) expect(card.role).toBe('GK');
+    }
+  });
+
+  it('every single-pool selection in SELECTABLE_DRAFT_POOLS backfills successfully without throwing', () => {
+    const rng = makeSeededRng(11);
+    for (const poolId of ALL_POOLS) {
+      expect(() => generateDraftPacks([poolId], rng)).not.toThrow();
+    }
+  });
+
+  it('generateDraftPacks: selectedPools must be a non-empty subset of SELECTABLE_DRAFT_POOLS (CR-01 fail-closed guard)', () => {
+    const rng = makeSeededRng(12);
+    expect(() => generateDraftPacks([], rng)).toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id to exercise the fail-closed guard
+    expect(() => generateDraftPacks(['not-a-real-pool' as any], rng)).toThrow();
+  });
+
+  it(
+    'chase-or-rare slot draws an unbiased mix of both chase and rare over many real-RNG runs (D-25) — ' +
+      'not "prefer chase, fall back to rare"',
+    () => {
+      let chaseCount = 0;
+      let rareCount = 0;
+      const ITERATIONS = 25;
+      for (let i = 0; i < ITERATIONS; i++) {
+        const { packs } = generateDraftPacks(ALL_POOLS, randomInt);
+        const rounds56 = packs.filter((p) => p.round === 5 || p.round === 6);
+        for (const pack of rounds56) {
+          for (const card of pack.cards) {
+            if (card.tier === 'chase') chaseCount += 1;
+            if (card.tier === 'rare') rareCount += 1;
+          }
+        }
+      }
+      // 4 chaseOrRare draws per run (2 packs x 2 rounds) x ITERATIONS runs.
+      expect(chaseCount + rareCount).toBe(4 * ITERATIONS);
+      expect(chaseCount).toBeGreaterThan(0);
+      expect(rareCount).toBeGreaterThan(0);
+    },
+  );
 });
