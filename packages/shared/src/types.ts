@@ -156,6 +156,24 @@ export type ActionEvent =
       scorerId: string;
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
+      /**
+       * D-01: full post-kickoff-reset piece array (BUG-30). Optional so pre-existing GOAL
+       * construction sites that were not touched by this fix (e.g. the GK-out-of-range
+       * auto-GOAL branches in gameHandlers.ts) remain valid — buildReplayFrames only applies
+       * this field when present.
+       */
+      piecesAfter?: PlayerPiece[];
+    }
+  | {
+      type: 'HALF_TIME_KICKOFF_RESET';
+      /**
+       * D-02: same defect class as BUG-30 — the HALF_TIME → KICK_OFF_SETUP piece-formation
+       * reset (gameEngine.ts applyHalfTimeStart) has no ActionEvent to hang replay
+       * reconstruction on. This event fills that gap.
+       */
+      piecesAfter: PlayerPiece[];
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     }
   | {
       type: 'KICK_OFF';
