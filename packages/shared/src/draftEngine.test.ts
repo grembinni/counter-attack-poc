@@ -24,9 +24,9 @@ import {
 // ---------------------------------------------------------------------------
 
 describe('resolvePoolPlayers / isInPool — DRAFT-04: D-04 pool derivation', () => {
-  it("resolvePoolPlayers(['original']) has length 37 and every member is an untagged free agent", () => {
+  it("resolvePoolPlayers(['original']) has length 38 and every member is an untagged free agent", () => {
     const original = resolvePoolPlayers(['original']);
-    expect(original).toHaveLength(37);
+    expect(original).toHaveLength(38);
     for (const p of original) {
       expect(p.sourceTeamId).toBe('free-agent');
       expect(p.poolTag).toBeFalsy();
@@ -51,9 +51,9 @@ describe('resolvePoolPlayers / isInPool — DRAFT-04: D-04 pool derivation', () 
     }
   });
 
-  it("resolvePoolPlayers(['original', 'mls']) has length 103 (37 + 66, no overlap) with strictly ascending ids", () => {
+  it("resolvePoolPlayers(['original', 'mls']) has length 104 (38 + 66, no overlap) with strictly ascending ids", () => {
     const union = resolvePoolPlayers(['original', 'mls']);
-    expect(union).toHaveLength(103);
+    expect(union).toHaveLength(104);
     const ids = union.map((p) => p.id);
     for (let i = 1; i < ids.length; i++) {
       expect(ids[i] > ids[i - 1]).toBe(true);
