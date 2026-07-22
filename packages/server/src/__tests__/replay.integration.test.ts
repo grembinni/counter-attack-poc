@@ -21,7 +21,13 @@ import { clearAllRooms, getRoom } from '../roomStore.js';
 import { confirmDefaultRoomSettings } from './testHelpers.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
-import { applyMove, buildReplayFrames } from '../gameEngine.js';
+import {
+  applyHalfTimeStart,
+  applyMove,
+  applyRoll,
+  buildKickOffPieces,
+  buildReplayFrames,
+} from '../gameEngine.js';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -917,5 +923,92 @@ describe('FULL_TIME → REPLAY stream', () => {
 
     // Ball position must remain unchanged (KICK_OFF_SETUP has no ball component).
     expect(lastFrame.ball).toEqual(seededState.ball);
+  });
+
+  it('BUG-30: goal-reset reconstructs ALL pieces at the new kickoff formation', async () => {
+    // Drives a REAL goal through the shot-duel-goal branch of applyRoll (gameEngine.ts SHOT
+    // case) so the GOAL ActionEvent is produced by real code, not a hand-crafted eventLog.
+    // Before the Task 2 fix, buildReplayFrames leaves `current.pieces` untouched on GOAL —
+    // only the ball resets via the universal ballAfter apply — so replayed pieces remain at
+    // their stale pre-goal positions instead of the new kickoff formation.
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const pieces = room.gameState!.pieces;
+    const shooter = pieces.find((p) => p.teamId === 'home' && p.role !== 'GK')!;
+    const gk = pieces.find((p) => p.teamId === 'away' && p.role === 'GK')!;
+    const goalHex = { q: 36, r: 13 };
+
+    const shotState: GameState = {
+      ...room.gameState!,
+      phase: 'SHOT',
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      lastActionType: 'MOVEMENT_PHASE',
+      shotTargetHex: goalHex,
+      ball: { position: shooter.position, carrierId: shooter.id },
+      // Force a decisive GOAL regardless of the real roster's stat spread (D-13/SHOT-01):
+      // shooter die 6 + shooting 9 vs GK die 1 + saving 1 — an unbeatable gap either way.
+      pieces: pieces.map((p) => {
+        if (p.id === shooter.id) return { ...p, shooting: 9 };
+        if (p.id === gk.id) return { ...p, saving: 1, position: goalHex };
+        return p;
+      }),
+      eventLog: [],
+    };
+
+    const result = applyRoll(shotState, 6, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const goalEvent = result.state.eventLog.find((e) => e.type === 'GOAL');
+    expect(goalEvent).toBeDefined();
+
+    const frames = buildReplayFrames(result.state);
+    expect(frames.length).toBeGreaterThan(0);
+    const lastFrame = frames[frames.length - 1]!;
+
+    // home scored → away kicks off next (opposingTeam of attackingTeam='home', D-01).
+    const expectedPieces = buildKickOffPieces(
+      'away',
+      result.state.selectedTeams,
+      result.state.selectedFormation,
+    );
+    const actualPositionById = new Map(lastFrame.pieces.map((p) => [p.id, p.position]));
+    for (const expected of expectedPieces) {
+      expect(actualPositionById.get(expected.id)).toEqual(expected.position);
+    }
+  });
+
+  it('D-02: second-half kickoff reconstructs ALL pieces at the new formation in replay', async () => {
+    // D-02: verifies the gameEngine.ts:4442 buildKickOffPieces path (HALF_TIME → KICK_OFF_SETUP
+    // reset) reconstructs correctly in replay — same defect class as BUG-30, checked while this
+    // code is already being touched.
+    const { roomCode } = await setupFullTimeRoom();
+    const room = getRoom(roomCode)!;
+    const halfTimeState: GameState = {
+      ...room.gameState!,
+      phase: 'HALF_TIME',
+      kickOffTeam: 'home',
+      eventLog: [],
+    };
+
+    const result = applyHalfTimeStart(halfTimeState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const frames = buildReplayFrames(result.state);
+    expect(frames.length).toBeGreaterThan(0);
+    const lastFrame = frames[frames.length - 1]!;
+
+    const newAttackingTeam = halfTimeState.kickOffTeam === 'home' ? 'away' : 'home';
+    const expectedPieces = buildKickOffPieces(
+      newAttackingTeam,
+      result.state.selectedTeams,
+      result.state.selectedFormation,
+    );
+    const actualPositionById = new Map(lastFrame.pieces.map((p) => [p.id, p.position]));
+    for (const expected of expectedPieces) {
+      expect(actualPositionById.get(expected.id)).toEqual(expected.position);
+    }
   });
 });
