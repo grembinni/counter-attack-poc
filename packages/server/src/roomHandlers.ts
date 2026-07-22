@@ -874,7 +874,15 @@ export function registerRoomHandlers(
         // D-09/Pitfall 4: GK-slot role rule enforced in BOTH directions.
         if (destination.type === 'slot') {
           const formationId = side === 'home' ? room.homePickedFormation : room.awayPickedFormation;
-          const slotRole = FORMATIONS[formationId!].slots[destination.slotIndex]!.slotRole;
+          // CR-01: room.draftSession exists as soon as ROOM_SETTINGS_CONFIRM locks in draft
+          // mode — well before either side's UNIFORM_CONFIRM sets a formation. Without this
+          // guard, FORMATIONS[undefined] throws synchronously and crashes the whole process
+          // (single-instance server — every in-progress match goes down, not just this room).
+          if (!formationId) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+            return;
+          }
+          const slotRole = FORMATIONS[formationId].slots[destination.slotIndex]!.slotRole;
           if (slotRole === 'GK' && card.role !== 'GK') {
             socket.emit(ServerEvents.GAME_ERROR, 'GK_SLOT_REQUIRES_GK');
             return;
@@ -978,7 +986,15 @@ export function registerRoomHandlers(
           if (movingCard) {
             const formationId =
               side === 'home' ? room.homePickedFormation : room.awayPickedFormation;
-            const slotRole = FORMATIONS[formationId!].slots[to.slotIndex]!.slotRole;
+            // WR-01: same guard as CR-01's DRAFT_PICK fix — today this branch is only reached
+            // once a card already sits in lineupSlots/benchIds, which coincidentally can't
+            // happen before a formation exists, but that invariant is incidental, not
+            // structural. Guard explicitly rather than relying on it holding forever.
+            if (!formationId) {
+              socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+              return;
+            }
+            const slotRole = FORMATIONS[formationId].slots[to.slotIndex]!.slotRole;
             if (slotRole === 'GK' && movingCard.role !== 'GK') {
               socket.emit(ServerEvents.GAME_ERROR, 'GK_SLOT_REQUIRES_GK');
               return;

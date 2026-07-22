@@ -33,7 +33,7 @@ import type {
   DraftPoolId,
   GameState,
 } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents, FORMATIONS } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, FORMATIONS, PLAYER_POOL } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -390,6 +390,36 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
     });
     const reason = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');
+  }, 5000);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 30 code review CR-01: DRAFT_PICK before a formation is picked must not crash
+// ---------------------------------------------------------------------------
+
+describe('DRAFT_PICK pre-formation guard (Phase 30 code review CR-01)', () => {
+  it('a slot-destination DRAFT_PICK sent before UNIFORM_CONFIRM sets a formation is rejected with WRONG_PHASE, not a server crash', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    // room.draftSession is bootstrapped the moment ROOM_SETTINGS_CONFIRM locks in draft mode
+    // (before any TEAM_PICK/UNIFORM_CONFIRM), so a slot-destination DRAFT_PICK is already
+    // reachable here — room.homePickedFormation is still undefined at this point.
+    await confirmDraftRoomSettings(clientA);
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.DRAFT_PICK, {
+      cardId: PLAYER_POOL[0]!.id,
+      destination: { type: 'slot', slotIndex: 0 },
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('WRONG_PHASE');
+
+    // The server must still be alive and responsive after that guard fires.
+    expect(clientA.connected).toBe(true);
   }, 5000);
 });
 

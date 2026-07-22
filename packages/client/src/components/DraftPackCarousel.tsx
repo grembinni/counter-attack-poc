@@ -119,7 +119,7 @@ export function DraftCardBody({
 }
 
 type DraftPackCarouselProps = {
-  /** The current pack's cards — variable length (5, 6, or 7), never hardcoded. */
+  /** The current pack's cards — always 4 (RoundConfig.cardsPerPack, D-12..D-16, Phase 30). */
   cards: TieredPoolPlayer[];
   teamId: TeamId;
   /** D-12: true while waiting for the opponent's pick — row dims and stops accepting drag. */
