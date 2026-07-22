@@ -1268,7 +1268,6 @@ export const PLAYER_POOL: readonly PoolPlayer[] = [
     resilience: 4,
     aerialAbility: 1,
     highPass: 5,
-    poolTag: 'icon',
   },
   {
     id: 'p065',
