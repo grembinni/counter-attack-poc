@@ -111,13 +111,13 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
 
-| Phase | Name                                      | Plans       | Status      |
-| ----- | ----------------------------------------- | ----------- | ----------- |
-| 31    | 3/4                                       | In Progress |             |
-| 32    | Code Cleanup                              | TBD         | Not started |
-| 33    | Design Tokens & Highlight Standardization | TBD         | Not started |
-| 34    | Visual Theme Restyle                      | TBD         | Not started |
-| 35    | ActionPanel & Log Standardization         | TBD         | Not started |
+| Phase | Name                                      | Plans    | Status      |
+| ----- | ----------------------------------------- | -------- | ----------- |
+| 31    | 4/4                                       | Complete | 2026-07-22  |
+| 32    | Code Cleanup                              | TBD      | Not started |
+| 33    | Design Tokens & Highlight Standardization | TBD      | Not started |
+| 34    | Visual Theme Restyle                      | TBD      | Not started |
+| 35    | ActionPanel & Log Standardization         | TBD      | Not started |
 
 ### Phase 31: Bug Fixes
 
@@ -139,7 +139,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 31-04-PLAN.md — Folded header-winner eligibility todo (`movedPieceIds` on non-goal header routes) [Wave 2, depends 31-01]
+- [x] 31-04-PLAN.md — Folded header-winner eligibility todo (`movedPieceIds` on non-goal header routes) [Wave 2, depends 31-01]
 
 ### Phase 32: Code Cleanup
 
