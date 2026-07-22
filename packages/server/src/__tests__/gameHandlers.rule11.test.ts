@@ -346,6 +346,21 @@ describe('RULE-02: GAME_HEADER_CONTESTANT — both-confirmed auto-fires duel', (
     const awayDefender = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK');
     if (!homeAttacker || !awayDefender) throw new Error('Pieces not found');
 
+    // Phase 30 fixture re-pin: stack equal aerialAbility on both contestants so, with
+    // rollDice mocked to a constant 3, computeHeaderDuelWinner deterministically ties
+    // (heading + 3 each side) and resolves directly via applyRoll — the assertion below
+    // exercises the tie/LOOSE_BALL path this test is titled for. Player-pool CSV data is no
+    // longer a reliable source of an equal-heading default pairing (Phase 30 rebalance), so
+    // the equality is asserted explicitly here rather than relying on incidental stat parity.
+    room.gameState = {
+      ...room.gameState,
+      pieces: room.gameState.pieces.map((p) => {
+        if (p.id === homeAttacker.id) return { ...p, aerialAbility: 5 };
+        if (p.id === awayDefender.id) return { ...p, aerialAbility: 5 };
+        return p;
+      }),
+    };
+
     // clientA (home) confirms first
     const stateAfterA = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_HEADER_CONTESTANT, [homeAttacker.id]);

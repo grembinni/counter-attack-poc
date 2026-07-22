@@ -186,12 +186,12 @@ describe('ActionLog — D-01: per-player move log shows name + path', () => {
       },
     ]);
     const { container } = render(<ActionLog />);
-    // home-9 (array index 9 in city squad) is Sang-bin Jeong, jersey #10.
-    expect(screen.getByText(/Sang-bin Jeong/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
+    expect(screen.getByText(/Carlo Holse/)).toBeDefined();
     expect(screen.getByText(/14,13 → 15,13 → 16,13/)).toBeDefined();
     // Requirement 2: the consolidated MOVE entry now carries the player's #-prefixed
     // jersey number ahead of the name.
-    expect(container.textContent).toMatch(/#\d+\s+Sang-bin Jeong/);
+    expect(container.textContent).toMatch(/#\d+\s+Carlo Holse/);
   });
 
   it('a MOVE event for an unknown pieceId renders without throwing (fallback path)', () => {
@@ -235,8 +235,8 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[TACKLE ✓\]/);
-    // home-9 (array index 9 in city squad) is Sang-bin Jeong, jersey #10.
-    expect(screen.getByText(/Sang-bin Jeong/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
+    expect(screen.getByText(/Carlo Holse/)).toBeDefined();
     // away-1's exact seeded name is not hardcoded here — assert the #number-then-name
     // shape, with NO leading role letter (requirement 1 dropped D/A from the vs-line).
     expect(container.textContent).toMatch(/#\d+\s+\S+/);
@@ -283,8 +283,8 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[SHOT ✓\]/);
-    // home-9 (array index 9 in city squad) is Sang-bin Jeong, jersey #10.
-    expect(screen.getByText(/Sang-bin Jeong/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
+    expect(screen.getByText(/Carlo Holse/)).toBeDefined();
     // GK now rendered as a named PNamed label (TACKLE-parity "vs" shape), not a bare stat string.
     // away-0 (array index 0 in crew squad) is Patrick Schulte, GK jersey #1.
     expect(screen.getByText(/Patrick Schulte/)).toBeDefined();
@@ -305,8 +305,8 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[SHOT\]/);
-    // home-9 (array index 9 in city squad) is Sang-bin Jeong, jersey #10.
-    expect(screen.getByText(/Sang-bin Jeong/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
+    expect(screen.getByText(/Carlo Holse/)).toBeDefined();
     expect(container.textContent).toMatch(/SCORED!/);
   });
 
@@ -555,8 +555,8 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
       },
     ]);
     const { container } = render(<ActionLog />);
-    // home-9 (array index 9 in city squad) is Sang-bin Jeong, jersey #10.
-    expect(container.textContent).toMatch(/#\d+\s+Sang-bin Jeong/);
+    // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
+    expect(container.textContent).toMatch(/#\d+\s+Carlo Holse/);
     // No leading role letter immediately precedes the contestant number.
     expect(container.textContent).not.toMatch(/\b[AD] #\d/);
   });
@@ -589,8 +589,8 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
       },
     ]);
     const { container } = render(<ActionLog />);
-    // home-9 (array index 9 in city squad) is Sang-bin Jeong, jersey #10.
-    expect(screen.getByText(/Sang-bin Jeong/)).toBeDefined();
+    // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
+    expect(screen.getByText(/Carlo Holse/)).toBeDefined();
     expect(container.textContent).not.toMatch(/home-9/);
   });
 
