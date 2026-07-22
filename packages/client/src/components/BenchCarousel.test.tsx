@@ -151,3 +151,84 @@ describe('BenchCarousel — D-22: empty bench placeholder', () => {
     expect(onDropToBench).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('BenchCarousel — DRAFT-09 scroll stability (gap-closure 29-12)', () => {
+  /** jsdom performs no layout: native scrollLeft does not persist meaningfully and
+   * scrollWidth/clientWidth read 0. Installing a controllable property backed by a
+   * local variable makes the scroll-reset effect's `el.scrollLeft = 0` write
+   * observable via a real setter, without needing real layout. */
+  function installControllableScrollLeft(track: Element): { get: () => number } {
+    let value = 0;
+    Object.defineProperty(track, 'scrollLeft', {
+      configurable: true,
+      get: () => value,
+      set: (v: number) => {
+        value = v;
+      },
+    });
+    return { get: () => value };
+  }
+
+  it('does NOT reset scroll on an unrelated re-render (new array reference, identical ids)', () => {
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container, rerender } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const track = container.querySelector('[class*="carouselTrack"]')!;
+    const scrollLeft = installControllableScrollLeft(track);
+    (track as HTMLDivElement).scrollLeft = 150;
+    expect(scrollLeft.get()).toBe(150);
+
+    // Brand-new array object, SAME ids — mirrors the pre-fix parent producing a
+    // fresh benchCards reference on every dragover tick.
+    const rerenderedCards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    rerender(
+      <BenchCarousel
+        cards={rerenderedCards}
+        teamId="city"
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+
+    expect(scrollLeft.get()).toBe(150);
+  });
+
+  it('DOES reset scroll when benched content actually changes', () => {
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container, rerender } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const track = container.querySelector('[class*="carouselTrack"]')!;
+    const scrollLeft = installControllableScrollLeft(track);
+    (track as HTMLDivElement).scrollLeft = 150;
+    expect(scrollLeft.get()).toBe(150);
+
+    // Ids differ (b3 appended) — bench content genuinely changed.
+    const rerenderedCards = [
+      makeCard('b1', 'common'),
+      makeCard('b2', 'rare'),
+      makeCard('b3', 'chase'),
+    ];
+    rerender(
+      <BenchCarousel
+        cards={rerenderedCards}
+        teamId="city"
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+
+    expect(scrollLeft.get()).toBe(0);
+  });
+});
