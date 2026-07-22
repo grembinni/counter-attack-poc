@@ -7,7 +7,7 @@
  *
  * D-16: only the player's own assignment is shown — server never sends opponent's lineup to this socket.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FORMATIONS, PLAYER_POOL, computeTotalStat } from '@counter-attack/shared';
 import type {
   FormationId,
@@ -280,6 +280,21 @@ export function LineupAssignmentScreen({
     return PLAYER_MAP.get(cardId)?.role === 'GK';
   }
 
+  // Gap-closure 29-12 (DRAFT-09): hoisted out of the `if (draftMode)` branch into a
+  // top-level memo so the array reference is stable across unrelated re-renders
+  // (setDraftDropTargetIndex fires on every native dragover tick; setRejectionMessage
+  // fires on the rejection-message timeout). draftView.benchIds gets a NEW reference
+  // only on a genuine DRAFT_STATE_UPDATED; cardCache changes only when a new pack
+  // card populates the tier-color cache. Neither changes on those unrelated
+  // re-renders, so benchCards keeps a stable reference across them — this is what
+  // lets BenchCarousel's scroll-reset effect key on content instead of identity.
+  const benchCards: TieredPoolPlayer[] = useMemo(() => {
+    if (!draftView) return [];
+    return draftView.benchIds
+      .map(resolveTieredCard)
+      .filter((c): c is TieredPoolPlayer => c !== null);
+  }, [draftView?.benchIds, cardCache]);
+
   // D-14: group slots by slotRole prefix into 4 columns
   const formation = FORMATIONS[formationId];
   if (!formation) return null;
@@ -525,9 +540,6 @@ export function LineupAssignmentScreen({
       return <div className={styles.screen} />;
     }
 
-    const benchCards = draftView.benchIds
-      .map(resolveTieredCard)
-      .filter((c): c is TieredPoolPlayer => c !== null);
     const draftConfirmedOrder = draftView.lineupSlots.map((id) => id ?? '');
     const isLineupComplete = draftView.lineupSlots.every((id) => id !== null);
 

@@ -58,14 +58,21 @@ export function BenchCarousel({
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
   }
 
+  // Gap-closure 29-12 (DRAFT-09): content-derived key instead of the `cards` array
+  // identity — card ids are unique and order-significant, so benchKey changes only
+  // when the benched card set or its order genuinely changes. This makes the reset
+  // resilient to ANY caller's reference churn (belt-and-suspenders alongside the
+  // parent-side benchCards memoization in LineupAssignmentScreen.tsx).
+  const benchKey = cards.map((c) => c.id).join('|');
+
   // Mirrors DraftPackCarousel's D-20 reset: scroll to the leftmost card
-  // whenever the bench (cards prop identity/length) changes.
+  // whenever the bench content (benchKey) genuinely changes.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
     el.scrollLeft = 0;
     updateScrollState();
-  }, [cards]);
+  }, [benchKey]);
 
   function scrollByCard(direction: 1 | -1) {
     const el = trackRef.current;
