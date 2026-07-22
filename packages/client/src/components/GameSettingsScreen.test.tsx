@@ -54,7 +54,7 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
     expect(icons.checked).toBe(false);
   });
 
-  it('Legends and Icons checkboxes are disabled and labelled "(coming soon)"', async () => {
+  it('Legends and Icons checkboxes are enabled and unlabelled (D-08, Phase 30)', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
@@ -62,12 +62,12 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
     const legends = screen.getByRole<HTMLInputElement>('checkbox', { name: /legends/i });
     const icons = screen.getByRole<HTMLInputElement>('checkbox', { name: /icons/i });
 
-    expect(legends.disabled).toBe(true);
-    expect(icons.disabled).toBe(true);
-    expect(screen.getAllByText('(coming soon)')).toHaveLength(2);
+    expect(legends.disabled).toBe(false);
+    expect(icons.disabled).toBe(false);
+    expect(screen.queryByText('(coming soon)')).toBeNull();
   });
 
-  it('clicking a disabled Legends/Icons checkbox does not check it', async () => {
+  it('clicking a Legends/Icons checkbox toggles it checked (D-08, Phase 30)', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
@@ -75,7 +75,7 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
 
     await userEvent.click(legends);
 
-    expect(legends.checked).toBe(false);
+    expect(legends.checked).toBe(true);
   });
 });
 
@@ -141,7 +141,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
     });
   });
 
-  it('Draft mode: a Draft-mode confirm can never include legends or icons (non-interactive checkboxes)', async () => {
+  it('Draft mode: a Draft-mode confirm can include legends and icons once checked (D-08, Phase 30)', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} />);
 
@@ -150,15 +150,15 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
     const legends = screen.getByRole('checkbox', { name: /legends/i });
     const icons = screen.getByRole('checkbox', { name: /icons/i });
     await userEvent.click(mls);
-    await userEvent.click(legends); // no-op, disabled
-    await userEvent.click(icons); // no-op, disabled
+    await userEvent.click(legends);
+    await userEvent.click(icons);
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
 
     expect(onConfirm).toHaveBeenCalledWith({
       speed: 'standard',
       teamType: 'draft',
-      draftPools: ['original', 'mls'],
+      draftPools: ['original', 'mls', 'legends', 'icons'],
     });
   });
 
