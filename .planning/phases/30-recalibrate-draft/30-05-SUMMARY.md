@@ -141,3 +141,9 @@ None - no external service configuration required.
 
 _Phase: 30-recalibrate-draft_
 _Completed: 2026-07-22_
+
+## Self-Check: PASSED
+
+All 5 modified source/test files plus `deferred-items.md` and this SUMMARY.md verified
+present on disk; all 5 referenced commit hashes (`142ab61`, `311a39c`, `25b6419`,
+`323597a`, `8ec0906`) verified present in `git log --oneline --all`.
