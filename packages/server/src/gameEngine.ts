@@ -460,8 +460,13 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       eventLog: state.eventLog,
       // Always reset movement tracking here — CHOOSE_ACTION state normally carries [] but defensive
       // paths (snapshot miss → LOOSE_BALL → CHOOSE_ACTION) can carry stale ids from the prior slot.
-      movedPieceIds: [],
+      // Plan 31-06 (BUG-31 family): merge in any carried header-winner spent ids so the winner
+      // stays unselectable for exactly this one Movement Phase, then clear the carry below.
+      movedPieceIds: [...(state.carriedMovedPieceIds ?? [])],
       paceUsedByPieceId: {},
+      // Plan 31-06: the carry is consumed above — clear it so it does not persist beyond this
+      // single Movement Phase transition.
+      carriedMovedPieceIds: [],
       // D-21 / HEAD-05: clear contestedPieceIds after one Movement Phase so the exclusion
       // applies to exactly one movement sequence. applyMove checks contestedPieceIds to
       // reject contested pieces at move-time (Pitfall 6 — cleared here, not in HEADER branch).
@@ -3528,6 +3533,13 @@ export function applyResolveHeaderTarget(
         movedPieceIds: resolvedWinner
           ? [...state.movedPieceIds, resolvedWinner.id]
           : state.movedPieceIds,
+        // Plan 31-06 (BUG-31 family): applyStartMovement is the only PASS -> MOVE transition and
+        // it unconditionally resets movedPieceIds, defeating the append above before the Movement
+        // Phase begins. Carry the winner id through this dedicated field so applyStartMovement can
+        // merge it back in.
+        carriedMovedPieceIds: resolvedWinner
+          ? [resolvedWinner.id]
+          : (state.carriedMovedPieceIds ?? []),
       },
     };
   }
@@ -3557,6 +3569,13 @@ export function applyResolveHeaderTarget(
       movedPieceIds: resolvedWinner
         ? [...state.movedPieceIds, resolvedWinner.id]
         : state.movedPieceIds,
+      // Plan 31-06 (BUG-31 family): applyStartMovement is the only PASS -> MOVE transition and
+      // it unconditionally resets movedPieceIds, defeating the append above before the Movement
+      // Phase begins. Carry the winner id through this dedicated field so applyStartMovement can
+      // merge it back in.
+      carriedMovedPieceIds: resolvedWinner
+        ? [resolvedWinner.id]
+        : (state.carriedMovedPieceIds ?? []),
     },
   };
 }

@@ -799,6 +799,15 @@ export type GameState = {
    */
   contestedPieceIds?: readonly string[];
   /**
+   * Plan 31-06 (BUG-31 family, folded header-winner-eligibility todo): piece ids carried
+   * from a header resolution into the next Movement Phase. Populated by
+   * applyResolveHeaderTarget's non-goal branches (the header-duel winner's id, since it
+   * has already acted this turn) and merged into `movedPieceIds` by applyStartMovement
+   * (not cleared there — merged) — then cleared itself so the header winner stays spent
+   * for exactly one Movement Phase, not indefinitely. Absent/empty on every other state.
+   */
+  carriedMovedPieceIds?: readonly string[];
+  /**
    * D-11 (Phase 8.2): Dice pre-rolled by the GAME_ROLL handler for each interceptor
    * in validatePass's interceptors list. Consumed and cleared by the applyRoll PASS branch
    * interception loop. Absent or empty when no interception roll is pending.
