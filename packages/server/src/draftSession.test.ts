@@ -1,11 +1,15 @@
 /**
- * Unit tests for the pure draft-session state machine (Phase 29 Plan 02).
+ * Unit tests for the pure draft-session state machine.
+ * Rewritten Phase 30 Plan 03 (DRAFT-05/DRAFT-08) for the 6-round variable-pick model:
+ * round 1 (GK-only) = 2 picks (D-12), rounds 2-6 (tiered) = 3 picks each (D-13/D-14/D-15),
+ * 17 total drafted cards per side at completion (D-16), and the old DRAFT-08 GK-auto-pick
+ * safety-net mechanic (and its associated session bookkeeping) fully deleted (D-21) rather
+ * than left dormant.
  *
- * Task 1: pack assignment (D-04), session bootstrap, pick/rearrange application (D-07/D-08).
  * Deterministic array/constant-backed fake RNGs are used for exact-value assertions
  * (matching the `(min, max)` contract); real `crypto.randomInt` is used in a looped,
  * structural-invariant style (mirroring `draftPacks.test.ts`) for the shuffle/statistical
- * properties of `assignPackOrders`/`assignBenchNumbers`.
+ * properties of `assignRoundPackOrder`/`assignBenchNumbers`.
  */
 import { randomInt } from 'crypto';
 import { describe, it, expect } from 'vitest';
@@ -16,14 +20,13 @@ import type {
   RandomIntFn,
   DraftSession,
 } from '@counter-attack/shared';
+import { DRAFT_ROUNDS, DRAFT_ROUND_COUNT } from '@counter-attack/shared';
 import {
-  assignPackOrders,
   createDraftSession,
   applyPick,
   applyRearrange,
-  openNextPack,
+  openNextRound,
   advanceSubStep,
-  checkKeeperSafety,
   assignBenchNumbers,
   buildDraftView,
 } from './draftSession.js';
@@ -33,7 +36,11 @@ function constantRng(value: number): RandomIntFn {
   return () => value;
 }
 
-function makeCard(id: string, tier: DraftTier): TieredPoolPlayer {
+function makeCard(
+  id: string,
+  tier: DraftTier,
+  role: 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST' = 'DEF',
+): TieredPoolPlayer {
   return {
     id,
     sourceTeamId: 'free-agent',
@@ -41,56 +48,70 @@ function makeCard(id: string, tier: DraftTier): TieredPoolPlayer {
     lastName: id,
     number: 0,
     nationality: 'Testland',
-    role: tier === 'keeper' ? 'GK' : 'DEF',
+    role,
     position: { q: 0, r: 0 },
     pace: 3,
     shooting: 3,
     tackling: 3,
     dribbling: 3,
-    saving: tier === 'keeper' ? 3 : 0,
-    handling: tier === 'keeper' ? 3 : 0,
+    saving: role === 'GK' ? 3 : 0,
+    handling: role === 'GK' ? 3 : 0,
     resilience: 3,
     aerialAbility: 3,
-    highPass: 3,
+    highPass: role === 'GK' ? 0 : 3,
     tier,
     totalStat: 27,
   };
 }
 
-function makePack(packNumber: number): DraftPack {
+/** Builds a 4-card, round-tagged pack (D-12..D-19: every round's packs are 4 cards). */
+function makePack(
+  packNumber: number,
+  round: number,
+  tier: DraftTier,
+  role: 'GK' | 'DEF' = 'DEF',
+): DraftPack {
   return {
     packNumber,
+    round,
     cards: [
-      makeCard(`p${packNumber}-chase`, 'chase'),
-      makeCard(`p${packNumber}-rare`, 'rare'),
-      makeCard(`p${packNumber}-uncommon`, 'uncommon'),
-      makeCard(`p${packNumber}-common1`, 'common'),
-      makeCard(`p${packNumber}-common2`, 'common'),
-      makeCard(`p${packNumber}-common3`, 'common'),
-      makeCard(`p${packNumber}-keeper`, 'keeper'),
+      makeCard(`p${packNumber}-${round}-a`, tier, role),
+      makeCard(`p${packNumber}-${round}-b`, tier, role),
+      makeCard(`p${packNumber}-${round}-c`, tier, role),
+      makeCard(`p${packNumber}-${round}-d`, tier, role),
     ],
   };
 }
 
-function makeEightPacks(): DraftPack[] {
-  return Array.from({ length: 8 }, (_, i) => makePack(i + 1));
+/** Builds the full 12-pack set (2 per round x 6 rounds, D-12..D-16). Round 1 packs are
+ * GK-role cards (mirroring D-12's GK-only round); rounds 2-6 are outfield 'common'-tier
+ * cards (composition details don't matter for the state-machine tests in this file). */
+function makeTwelvePacks(): DraftPack[] {
+  const packs: DraftPack[] = [];
+  let packNumber = 1;
+  for (let round = 1; round <= DRAFT_ROUND_COUNT; round++) {
+    const role = round === 1 ? 'GK' : 'DEF';
+    packs.push(makePack(packNumber++, round, 'common', role));
+    packs.push(makePack(packNumber++, round, 'common', role));
+  }
+  return packs;
 }
 
 /** A minimal, fully-valid DraftSession fixture — tests override only the fields they care about. */
 function baseSession(overrides: Partial<DraftSession> = {}): DraftSession {
-  const packs = makeEightPacks();
+  const packs = makeTwelvePacks();
+  const round1Packs = packs.filter((p) => p.round === 1);
+  const round2Packs = packs.filter((p) => p.round === 2);
   return {
-    cycle: 1,
+    round: 2,
     subStep: 'PICK1',
     draftPacks: packs,
-    homePackOrder: [0, 1, 2, 3],
-    awayPackOrder: [4, 5, 6, 7],
-    homeCurrentPack: [...packs[0]!.cards],
-    awayCurrentPack: [...packs[4]!.cards],
+    homePackOrder: [packs.indexOf(round1Packs[0]!), packs.indexOf(round2Packs[0]!), 0, 0, 0, 0],
+    awayPackOrder: [packs.indexOf(round1Packs[1]!), packs.indexOf(round2Packs[1]!), 0, 0, 0, 0],
+    homeCurrentPack: [...round2Packs[0]!.cards],
+    awayCurrentPack: [...round2Packs[1]!.cards],
     homeDraftedIds: [],
     awayDraftedIds: [],
-    homeHasKeeper: false,
-    awayHasKeeper: false,
     homePicksRemaining: 1,
     awayPicksRemaining: 1,
     homeLineupSlots: new Array<string | null>(11).fill(null),
@@ -99,81 +120,76 @@ function baseSession(overrides: Partial<DraftSession> = {}): DraftSession {
     awayBenchIds: [],
     homeBenchNumbers: {},
     awayBenchNumbers: {},
-    keeperAutoPickedThisCycle: { home: false, away: false },
     draftComplete: false,
     ...overrides,
   };
 }
 
-describe('assignPackOrders (D-04, Pitfall 5)', () => {
-  it('returns a no-overlap permutation of 0..7 across many real-RNG runs', () => {
-    for (let iter = 0; iter < 20; iter++) {
-      const { homePackOrder, awayPackOrder } = assignPackOrders(8, randomInt);
-      expect(homePackOrder.length).toBe(4);
-      expect(awayPackOrder.length).toBe(4);
+describe('assignRoundPackOrder (D-12..D-19, RESEARCH.md Pattern 3)', () => {
+  it('a controlling rng reaches both [home,away] and [away,home] pairings across the 6 per-round coin-flips', () => {
+    const packs = makeTwelvePacks();
 
-      const union = new Set([...homePackOrder, ...awayPackOrder]);
-      expect(union.size).toBe(8);
-      for (let i = 0; i < 8; i++) {
-        expect(union.has(i)).toBe(true);
-      }
+    const allHomeFirst = createDraftSession(packs, constantRng(0));
+    const allAwayFirst = createDraftSession(packs, constantRng(1));
 
-      const homeSet = new Set(homePackOrder);
-      for (const idx of awayPackOrder) {
-        expect(homeSet.has(idx)).toBe(false);
-      }
-    }
+    // constantRng(0) -> rng(0,2) === 0 every round -> packA always goes home.
+    // constantRng(1) -> rng(0,2) === 1 every round -> packA always goes away.
+    expect(allHomeFirst.homePackOrder).not.toEqual(allAwayFirst.homePackOrder);
+    expect(allHomeFirst.awayPackOrder).not.toEqual(allAwayFirst.awayPackOrder);
   });
 
-  it('is NOT the identity 0-3/4-7 split — a controlling rng produces a non-identity assignment', () => {
-    // Every non-final iteration of the Fisher-Yates loop swaps index (n-1) with index 0 first,
-    // so a constant-0 rng deterministically moves element 0 into the LAST position (away's
-    // slice) — proving the shuffle actually redistributes elements across the home/away halves
-    // rather than preserving the naive packs[0-3]->home / packs[4-7]->away convention.
-    const { homePackOrder, awayPackOrder } = assignPackOrders(8, constantRng(0));
-    expect(homePackOrder).not.toEqual([0, 1, 2, 3]);
-    expect(awayPackOrder).not.toEqual([4, 5, 6, 7]);
-    expect(awayPackOrder).toContain(0);
+  it('never assigns the same pack index to both sides in the same round', () => {
+    for (let iter = 0; iter < 20; iter++) {
+      const packs = makeTwelvePacks();
+      const session = createDraftSession(packs, randomInt);
+
+      for (let round = 1; round <= DRAFT_ROUND_COUNT; round++) {
+        const homeIdx = session.homePackOrder[round - 1];
+        const awayIdx = session.awayPackOrder[round - 1];
+        expect(homeIdx).not.toBe(awayIdx);
+        expect(packs[homeIdx!]!.round).toBe(round);
+        expect(packs[awayIdx!]!.round).toBe(round);
+      }
+    }
   });
 });
 
 describe('createDraftSession', () => {
-  it('bootstraps cycle 0, PICK1, empty arrays, 11-null lineup slots, no keeper, not complete', () => {
-    const packs = makeEightPacks();
+  it('bootstraps round 0, PICK1, empty arrays, 11-null lineup slots, not complete', () => {
+    const packs = makeTwelvePacks();
     const session = createDraftSession(packs, constantRng(0));
 
-    expect(session.cycle).toBe(0);
+    expect(session.round).toBe(0);
     expect(session.subStep).toBe('PICK1');
     expect(session.draftComplete).toBe(false);
     expect(session.homeDraftedIds).toEqual([]);
     expect(session.awayDraftedIds).toEqual([]);
     expect(session.homeLineupSlots).toEqual(new Array(11).fill(null));
     expect(session.awayLineupSlots).toEqual(new Array(11).fill(null));
-    expect(session.homeHasKeeper).toBe(false);
-    expect(session.awayHasKeeper).toBe(false);
     expect(session.homePicksRemaining).toBe(0);
     expect(session.awayPicksRemaining).toBe(0);
     expect(session.draftPacks).toBe(packs);
-    expect(session.keeperAutoPickedThisCycle).toEqual({ home: false, away: false });
 
-    const union = new Set([...session.homePackOrder, ...session.awayPackOrder]);
-    expect(union.size).toBe(8);
+    // D-21: the session shape has no GK-auto-pick safety-net bookkeeping at all — the
+    // DraftSession type itself no longer declares those fields (compile-time guarantee),
+    // so there is nothing further to assert about their absence at runtime.
+    expect(session.homePackOrder.length).toBe(6);
+    expect(session.awayPackOrder.length).toBe(6);
   });
 });
 
 describe('applyPick (D-06/D-07)', () => {
-  it('moves a card from currentPack to a slot, drafts it, decrements picksRemaining, sets hasKeeper', () => {
+  it('moves a card from currentPack to a slot, drafts it, decrements picksRemaining', () => {
     const session = baseSession();
-    const keeperCard = session.homeCurrentPack.find((c) => c.tier === 'keeper')!;
+    const card = session.homeCurrentPack[0]!;
 
-    const result = applyPick(session, 'home', keeperCard.id, { type: 'slot', slotIndex: 5 });
+    const result = applyPick(session, 'home', card.id, { type: 'slot', slotIndex: 5 });
 
     expect(result.ok).toBe(true);
-    expect(result.session.homeLineupSlots[5]).toBe(keeperCard.id);
-    expect(result.session.homeDraftedIds).toContain(keeperCard.id);
-    expect(result.session.homeCurrentPack.find((c) => c.id === keeperCard.id)).toBeUndefined();
+    expect(result.session.homeLineupSlots[5]).toBe(card.id);
+    expect(result.session.homeDraftedIds).toContain(card.id);
+    expect(result.session.homeCurrentPack.find((c) => c.id === card.id)).toBeUndefined();
     expect(result.session.homePicksRemaining).toBe(session.homePicksRemaining - 1);
-    expect(result.session.homeHasKeeper).toBe(true);
   });
 
   it('pushes the prior slot occupant to the bench when placed onto an occupied slot (D-07)', () => {
@@ -224,11 +240,11 @@ describe('applyPick (D-06/D-07)', () => {
 });
 
 describe('applyRearrange (D-08/D-10)', () => {
-  it('moves a card from a lineup slot to the bench without changing cycle/subStep/picksRemaining', () => {
+  it('moves a card from a lineup slot to the bench without changing round/subStep/picksRemaining', () => {
     const lineupSlots = new Array<string | null>(11).fill(null);
     lineupSlots[3] = 'card-x';
     const session = baseSession({
-      cycle: 2,
+      round: 3,
       subStep: 'PICK2',
       homePicksRemaining: 1,
       homeLineupSlots: lineupSlots,
@@ -244,7 +260,7 @@ describe('applyRearrange (D-08/D-10)', () => {
     expect(result.ok).toBe(true);
     expect(result.session.homeLineupSlots[3]).toBeNull();
     expect(result.session.homeBenchIds).toContain('card-x');
-    expect(result.session.cycle).toBe(2);
+    expect(result.session.round).toBe(3);
     expect(result.session.subStep).toBe('PICK2');
     expect(result.session.homePicksRemaining).toBe(1);
   });
@@ -322,27 +338,40 @@ describe('applyRearrange (D-08/D-10)', () => {
   });
 });
 
-describe('openNextPack (D-01/D-04)', () => {
-  it('opens cycle 1 from a freshly-bootstrapped (cycle 0) session', () => {
-    const packs = makeEightPacks();
+describe('openNextRound (D-12..D-19)', () => {
+  it('opens round 1 from a freshly-bootstrapped (round 0) session', () => {
+    const packs = makeTwelvePacks();
     let session = createDraftSession(packs, constantRng(0));
 
-    session = openNextPack(session);
+    session = openNextRound(session);
 
-    expect(session.cycle).toBe(1);
+    expect(session.round).toBe(1);
     expect(session.subStep).toBe('PICK1');
     expect(session.homePicksRemaining).toBe(1);
     expect(session.awayPicksRemaining).toBe(1);
-    expect(session.keeperAutoPickedThisCycle).toEqual({ home: false, away: false });
 
     const homePackIdx = session.homePackOrder[0]!;
     const awayPackIdx = session.awayPackOrder[0]!;
     expect(session.homeCurrentPack).toEqual(packs[homePackIdx]!.cards);
     expect(session.awayCurrentPack).toEqual(packs[awayPackIdx]!.cards);
   });
+
+  it('discards round-leftover cards — currentPack is fully overwritten, never merged (D-18)', () => {
+    const packs = makeTwelvePacks();
+    let session = createDraftSession(packs, constantRng(0));
+    session = openNextRound(session); // round 1
+
+    // Simulate a round-1 leftover: pretend the pack still has an uncollected card.
+    const leftoverCard = session.homeCurrentPack[0]!;
+    session = { ...session, round: 1, homePicksRemaining: 0, awayPicksRemaining: 0 };
+
+    const advanced = openNextRound(session); // -> round 2
+
+    expect(advanced.homeCurrentPack.find((c) => c.id === leftoverCard.id)).toBeUndefined();
+  });
 });
 
-describe('advanceSubStep (D-01/D-03, phase-boundary-only gating A1)', () => {
+describe('advanceSubStep (D-12..D-20, phase-boundary-only gating A1)', () => {
   it('is a no-op while either side still has picksRemaining > 0 (mid-PICK2 waiting state)', () => {
     const session = baseSession({ subStep: 'PICK2', homePicksRemaining: 1, awayPicksRemaining: 0 });
 
@@ -351,9 +380,9 @@ describe('advanceSubStep (D-01/D-03, phase-boundary-only gating A1)', () => {
     expect(result).toBe(session);
   });
 
-  it('advances PICK1 -> PICK2, swapping the two players current packs', () => {
-    const homePack = makeEightPacks()[0]!.cards;
-    const awayPack = makeEightPacks()[4]!.cards;
+  it('advances PICK1 -> PICK2, swapping the two players current packs, picksRemaining 1 each', () => {
+    const homePack = makeTwelvePacks().filter((p) => p.round === 2)[0]!.cards;
+    const awayPack = makeTwelvePacks().filter((p) => p.round === 2)[1]!.cards;
     const session = baseSession({
       subStep: 'PICK1',
       homePicksRemaining: 0,
@@ -367,89 +396,120 @@ describe('advanceSubStep (D-01/D-03, phase-boundary-only gating A1)', () => {
     expect(result.subStep).toBe('PICK2');
     expect(result.homeCurrentPack).toEqual(awayPack);
     expect(result.awayCurrentPack).toEqual(homePack);
-    expect(result.homePicksRemaining).toBe(2);
-    expect(result.awayPicksRemaining).toBe(2);
-  });
-
-  it('advances PICK2 -> PICK3, swapping packs back to their original owners', () => {
-    const originalHomePack = makeEightPacks()[0]!.cards;
-    const originalAwayPack = makeEightPacks()[4]!.cards;
-    // Post PICK1->PICK2 swap: home holds away's original pack (minus away's PICK1 pick) and
-    // vice-versa. Swapping back at PICK2->PICK3 should restore each side to what the OTHER
-    // side currently holds (i.e. a second swap of the same two references).
-    const session = baseSession({
-      subStep: 'PICK2',
-      homePicksRemaining: 0,
-      awayPicksRemaining: 0,
-      homeCurrentPack: originalAwayPack,
-      awayCurrentPack: originalHomePack,
-    });
-
-    const result = advanceSubStep(session);
-
-    expect(result.subStep).toBe('PICK3');
-    expect(result.homeCurrentPack).toEqual(originalHomePack);
-    expect(result.awayCurrentPack).toEqual(originalAwayPack);
     expect(result.homePicksRemaining).toBe(1);
     expect(result.awayPicksRemaining).toBe(1);
   });
 
-  it('advances PICK3 -> next cycle PICK1 for cycles 1-3 (leftover cards discarded, D-02)', () => {
-    const packs = makeEightPacks();
-    let session = createDraftSession(packs, constantRng(0));
-    session = openNextPack(session); // cycle 1, PICK1
+  describe('round 1 (GK-only, D-12): completes after PICK2, no PICK3', () => {
+    it('advances PICK2 -> next round PICK1 directly (no PICK3 sub-step)', () => {
+      const packs = makeTwelvePacks();
+      let session = createDraftSession(packs, constantRng(0));
+      session = openNextRound(session); // round 1, PICK1
 
-    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-    session = advanceSubStep(session); // -> PICK2
-    expect(session.subStep).toBe('PICK2');
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> PICK2
+      expect(session.subStep).toBe('PICK2');
+      expect(session.round).toBe(1);
 
-    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-    session = advanceSubStep(session); // -> PICK3
-    expect(session.subStep).toBe('PICK3');
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> round 2 PICK1 directly, no PICK3
 
-    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-    session = advanceSubStep(session); // -> cycle 2, PICK1 (3 leftovers silently discarded)
-
-    expect(session.cycle).toBe(2);
-    expect(session.subStep).toBe('PICK1');
-    expect(session.homePicksRemaining).toBe(1);
-    expect(session.awayPicksRemaining).toBe(1);
+      expect(session.round).toBe(2);
+      expect(session.subStep).toBe('PICK1');
+      expect(session.homePicksRemaining).toBe(1);
+      expect(session.awayPicksRemaining).toBe(1);
+    });
   });
 
-  it('sets draftComplete true after cycle 4 PICK3 resolves (subStep left as-is)', () => {
-    const packs = makeEightPacks();
-    let session = createDraftSession(packs, constantRng(0));
-    session = openNextPack(session); // cycle 1
+  describe('rounds 2-6 (tiered, D-13/D-14/D-15): run PICK1 -> PICK2 -> PICK3', () => {
+    it('advances PICK2 -> PICK3, swapping packs back to their original owners', () => {
+      const originalHomePack = makeTwelvePacks().filter((p) => p.round === 2)[0]!.cards;
+      const originalAwayPack = makeTwelvePacks().filter((p) => p.round === 2)[1]!.cards;
+      // Post PICK1->PICK2 swap: home holds away's original pack (minus away's PICK1 pick) and
+      // vice-versa. Swapping back at PICK2->PICK3 should restore each side to what the OTHER
+      // side currently holds (i.e. a second swap of the same two references).
+      const session = baseSession({
+        round: 2,
+        subStep: 'PICK2',
+        homePicksRemaining: 0,
+        awayPicksRemaining: 0,
+        homeCurrentPack: originalAwayPack,
+        awayCurrentPack: originalHomePack,
+      });
 
-    for (let cyc = 1; cyc < 4; cyc++) {
+      const result = advanceSubStep(session);
+
+      expect(result.subStep).toBe('PICK3');
+      expect(result.homeCurrentPack).toEqual(originalHomePack);
+      expect(result.awayCurrentPack).toEqual(originalAwayPack);
+      expect(result.homePicksRemaining).toBe(1);
+      expect(result.awayPicksRemaining).toBe(1);
+    });
+
+    it('advances PICK3 -> next round PICK1 for rounds 2-5 (leftover cards discarded, D-18)', () => {
+      const packs = makeTwelvePacks();
+      let session = createDraftSession(packs, constantRng(0));
+      session = openNextRound(session); // round 1, PICK1
+
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> PICK2 (still round 1)
+      expect(session.round).toBe(1);
+      expect(session.subStep).toBe('PICK2');
+
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> round 2, PICK1 (round 1 has no PICK3)
+      expect(session.round).toBe(2);
+      expect(session.subStep).toBe('PICK1');
+
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> PICK2
+      expect(session.subStep).toBe('PICK2');
+
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> PICK3
+      expect(session.subStep).toBe('PICK3');
+
+      session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+      session = advanceSubStep(session); // -> round 3, PICK1 (3 leftovers silently discarded)
+
+      expect(session.round).toBe(3);
+      expect(session.subStep).toBe('PICK1');
+      expect(session.homePicksRemaining).toBe(1);
+      expect(session.awayPicksRemaining).toBe(1);
+    });
+  });
+
+  it('sets draftComplete true after round 6 PICK3 resolves (subStep left as-is)', () => {
+    const packs = makeTwelvePacks();
+    let session = createDraftSession(packs, constantRng(0));
+    session = openNextRound(session); // round 1
+
+    // Round 1: PICK1 -> PICK2 -> (round complete, no PICK3) -> round 2
+    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+    session = advanceSubStep(session); // PICK2
+    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
+    session = advanceSubStep(session); // -> round 2, PICK1
+    expect(session.round).toBe(2);
+
+    // Rounds 2-6: PICK1 -> PICK2 -> PICK3 -> next round
+    for (let round = 2; round <= 6; round++) {
       session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
       session = advanceSubStep(session); // PICK2
       session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
       session = advanceSubStep(session); // PICK3
       session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-      session = advanceSubStep(session); // next cycle PICK1
+      session = advanceSubStep(session); // next round PICK1, or draftComplete if round === 6
     }
-    expect(session.cycle).toBe(4);
-    expect(session.draftComplete).toBe(false);
-
-    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-    session = advanceSubStep(session); // PICK2
-    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-    session = advanceSubStep(session); // PICK3
-    expect(session.draftComplete).toBe(false);
-
-    session = { ...session, homePicksRemaining: 0, awayPicksRemaining: 0 };
-    session = advanceSubStep(session); // draft complete
 
     expect(session.draftComplete).toBe(true);
   });
 });
 
-describe('full 4-cycle drive — 16 drafted cards per player cross-check (DRAFT-07)', () => {
+describe('full 6-round drive — 17 drafted cards per player cross-check (D-16)', () => {
   it('drives a complete session end-to-end via applyPick + advanceSubStep', () => {
-    const packs = makeEightPacks();
+    const packs = makeTwelvePacks();
     let session = createDraftSession(packs, constantRng(0));
-    session = openNextPack(session); // cycle 1, PICK1
+    session = openNextRound(session); // round 1, PICK1
 
     let iterations = 0;
     while (!session.draftComplete) {
@@ -472,123 +532,19 @@ describe('full 4-cycle drive — 16 drafted cards per player cross-check (DRAFT-
       session = advanceSubStep(session);
     }
 
-    expect(session.homeDraftedIds.length).toBe(16);
-    expect(session.awayDraftedIds.length).toBe(16);
-    expect(new Set(session.homeDraftedIds).size).toBe(16);
-    expect(new Set(session.awayDraftedIds).size).toBe(16);
-  });
-});
-
-describe('checkKeeperSafety (DRAFT-08)', () => {
-  it('auto-selects a keeper for a keeperless player at the cycle-4 PICK1 boundary, places it into the empty GK slot, and marks the auto-pick flag', () => {
-    const packs = makeEightPacks();
-    const cycle4Pack = packs[0]!;
-    const session = baseSession({
-      cycle: 4,
-      subStep: 'PICK1',
-      homePicksRemaining: 0,
-      awayPicksRemaining: 0,
-      homeCurrentPack: [...cycle4Pack.cards],
-      homeHasKeeper: false,
-      homeLineupSlots: new Array<string | null>(11).fill(null),
-    });
-    const keeperCard = cycle4Pack.cards.find((c) => c.tier === 'keeper')!;
-
-    const result = checkKeeperSafety(session, constantRng(0));
-
-    expect(result.homeDraftedIds).toContain(keeperCard.id);
-    expect(result.homeHasKeeper).toBe(true);
-    expect(result.keeperAutoPickedThisCycle.home).toBe(true);
-    expect(result.homeLineupSlots[0]).toBe(keeperCard.id);
-    expect(result.homeCurrentPack.find((c) => c.id === keeperCard.id)).toBeUndefined();
+    expect(session.homeDraftedIds.length).toBe(17);
+    expect(session.awayDraftedIds.length).toBe(17);
+    expect(new Set(session.homeDraftedIds).size).toBe(17);
+    expect(new Set(session.awayDraftedIds).size).toBe(17);
   });
 
-  it("reduces the auto-picked side's next PICK2 requirement to 1 (via advanceSubStep)", () => {
-    const packs = makeEightPacks();
-    const cycle4Pack = packs[0]!;
-    const session = baseSession({
-      cycle: 4,
-      subStep: 'PICK1',
-      homePicksRemaining: 0,
-      awayPicksRemaining: 0,
-      homeCurrentPack: [...cycle4Pack.cards],
-      homeHasKeeper: false,
-      awayHasKeeper: true,
-      homeLineupSlots: new Array<string | null>(11).fill(null),
-    });
-
-    const afterKeeperSafety = checkKeeperSafety(session, constantRng(0));
-    const advanced = advanceSubStep(afterKeeperSafety);
-
-    expect(advanced.subStep).toBe('PICK2');
-    expect(advanced.homePicksRemaining).toBe(1); // reduced — auto-pick counted as one of the two
-    expect(advanced.awayPicksRemaining).toBe(2); // untouched — away already had a keeper
-  });
-
-  it('places the auto-selected keeper onto the bench when the GK slot is already occupied', () => {
-    const packs = makeEightPacks();
-    const cycle4Pack = packs[0]!;
-    const lineupSlots = new Array<string | null>(11).fill(null);
-    lineupSlots[0] = 'already-here';
-    const session = baseSession({
-      cycle: 4,
-      subStep: 'PICK1',
-      homePicksRemaining: 0,
-      awayPicksRemaining: 0,
-      homeCurrentPack: [...cycle4Pack.cards],
-      homeHasKeeper: false,
-      homeLineupSlots: lineupSlots,
-    });
-    const keeperCard = cycle4Pack.cards.find((c) => c.tier === 'keeper')!;
-
-    const result = checkKeeperSafety(session, constantRng(0));
-
-    expect(result.homeLineupSlots[0]).toBe('already-here');
-    expect(result.homeBenchIds).toContain(keeperCard.id);
-  });
-
-  it('leaves a side untouched if it already has a keeper', () => {
-    const session = baseSession({
-      cycle: 4,
-      subStep: 'PICK1',
-      homePicksRemaining: 0,
-      awayPicksRemaining: 0,
-      awayHasKeeper: true,
-    });
-
-    const result = checkKeeperSafety(session, constantRng(0));
-
-    expect(result.awayHasKeeper).toBe(true);
-    expect(result.awayDraftedIds).toEqual([]);
-    expect(result.keeperAutoPickedThisCycle.away).toBe(false);
-  });
-
-  it('is a no-op outside the cycle-4 PICK1 boundary (wrong cycle)', () => {
-    const session = baseSession({
-      cycle: 2,
-      subStep: 'PICK1',
-      homePicksRemaining: 0,
-      awayPicksRemaining: 0,
-      homeHasKeeper: false,
-    });
-
-    const result = checkKeeperSafety(session, constantRng(0));
-
-    expect(result).toBe(session);
-  });
-
-  it('is a no-op while either player still has a PICK1 pick remaining (wrong sub-step boundary)', () => {
-    const session = baseSession({
-      cycle: 4,
-      subStep: 'PICK1',
-      homePicksRemaining: 1,
-      awayPicksRemaining: 0,
-      homeHasKeeper: false,
-    });
-
-    const result = checkKeeperSafety(session, constantRng(0));
-
-    expect(result).toBe(session);
+  it('round 1 contributes exactly 2 of the 17 total picks, rounds 2-6 contribute 3 each (D-16 sum check)', () => {
+    const totalFromConfig = DRAFT_ROUNDS.reduce((sum, r) => sum + r.picks, 0);
+    expect(totalFromConfig).toBe(17);
+    expect(DRAFT_ROUNDS[0]!.picks).toBe(2);
+    for (let i = 1; i < DRAFT_ROUNDS.length; i++) {
+      expect(DRAFT_ROUNDS[i]!.picks).toBe(3);
+    }
   });
 });
 
@@ -613,8 +569,8 @@ describe('assignBenchNumbers (D-15/D-16)', () => {
   });
 });
 
-describe('buildDraftView (D-14/T-29-PRIV)', () => {
-  it('exposes no opponent-prefixed keys and only this players own pack', () => {
+describe('buildDraftView (D-14/T-29-PRIV/T-30-PRIV)', () => {
+  it('exposes no opponent-prefixed keys, only this players own pack, round instead of cycle, no GK-auto-pick field', () => {
     const session = baseSession({ homePicksRemaining: 0, awayPicksRemaining: 1 });
 
     const view = buildDraftView(session, 'home');
@@ -624,7 +580,12 @@ describe('buildDraftView (D-14/T-29-PRIV)', () => {
     expect(keys).not.toContain('homeCurrentPack');
     expect(keys.some((k) => /^away/i.test(k))).toBe(false);
     expect(keys.some((k) => /^home/i.test(k))).toBe(false);
+    expect(keys).not.toContain('cycle');
+    expect(keys).toContain('round');
+    // D-05/D-21: DraftClientView's type shape has no GK-auto-pick field at all — a
+    // compile-time guarantee (view satisfies DraftClientView), nothing further to assert.
     expect(view.currentPack).toEqual(session.homeCurrentPack);
+    expect(view.round).toBe(session.round);
   });
 
   it('computes waitingForOpponent true once this player is done and the opponent is not', () => {
@@ -658,17 +619,5 @@ describe('buildDraftView (D-14/T-29-PRIV)', () => {
 
     expect(view.waitingForOpponent).toBe(false);
     expect(view.draftComplete).toBe(true);
-  });
-
-  it("reflects this side's own keeperAutoPickedThisCycle flag only", () => {
-    const session = baseSession({
-      keeperAutoPickedThisCycle: { home: true, away: false },
-    });
-
-    const homeView = buildDraftView(session, 'home');
-    const awayView = buildDraftView(session, 'away');
-
-    expect(homeView.keeperAutoPickedThisCycle).toBe(true);
-    expect(awayView.keeperAutoPickedThisCycle).toBe(false);
   });
 });
