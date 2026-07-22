@@ -447,13 +447,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         });
         if (!validation.ok) return;
         const { piece: sdPiece, distanceMoved: clickDistance } = validation;
-        const paceUsed = sdState.snapDeflectPaceUsed ?? 0;
-        // SNAP-02: if the GK is being moved, recompute the snapshot GK penalty from new position.
-        let snapshotGkPenalty = sdState.snapshotGkPenalty ?? 0;
-        if (sdPiece.role === 'GK' && sdState.shotTargetHex) {
-          const dist = hexDistance(to, sdState.shotTargetHex);
-          snapshotGkPenalty = dist <= 1 ? 0 : dist === 2 ? -1 : dist === 3 ? -2 : 0;
+        // BUG-32: the goalkeeper is never an eligible deflection responder. Reject before
+        // any state mutation — defense-in-depth against a modified/buggy client that
+        // bypasses the HexGrid.tsx canSelectSnapDeflect client-side gate.
+        if (sdPiece.role === 'GK') {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PIECE');
+          broadcastState(io, room);
+          return;
         }
+        const paceUsed = sdState.snapDeflectPaceUsed ?? 0;
+        // SNAP-02: pass-through — snapshotGkPenalty can no longer be recomputed here since
+        // sdPiece can never be the GK (rejected above); the field is preserved unchanged.
+        const snapshotGkPenalty = sdState.snapshotGkPenalty ?? 0;
         // BUG-18 (Phase 18.3): log SNAP_DEFLECT_MOVE so applyUndo can reverse
         // this move if the defender activates Undo before snapshot resolves.
         const snapDeflectMoveEvent: ActionEvent = {
