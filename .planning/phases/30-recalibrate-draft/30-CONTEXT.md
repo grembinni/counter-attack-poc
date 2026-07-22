@@ -81,6 +81,11 @@ Replaces the current flat model (`PACKS_PER_MATCH = 8`, one fixed 7-card `PACK_C
 
 None — the 4 todos matched by `todo.match-phase` (GK_KICK replay visibility, KICK_OFF_SETUP shot-path shading, header-winner eligibility, CSV consolidation) are all unrelated to draft recalibration and were not folded. See Deferred section.
 
+### Research Follow-ups (resolved post-research, 2026-07-21)
+
+- **D-24:** Researcher recomputed D-04's GK-tier claim directly against the actual CSV (using the real `computeTotalStat` formula plus the pre-existing GK `highPass`-zeroing override) and found 11 of 16 GKs actually land in `common` tier (as low as 26–28 total stat), not "all GKs ≥29" as D-04 originally stated. **Resolution: accept the distribution as-is.** No further GK stat rebalancing beyond D-01's in-progress edit. This is documented as a consciously-accepted, cosmetic-only outcome — GK tier does not affect pack dealing or gameplay (D-07). Do not write tests asserting "no GK is ever `common` tier."
+- **D-25:** D-15's "1 chase-or-rare" pack slot (rounds 5–6) uses an **unbiased merged draw**: chase-tier and rare-tier candidates are merged into one shuffled pool for that slot and one card is drawn, giving an even mix over time. Do NOT implement "prefer chase, fall back to rare" — that would systematically favor chase in that slot.
+
 </decisions>
 
 <canonical_refs>
