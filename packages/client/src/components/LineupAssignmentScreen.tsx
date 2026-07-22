@@ -8,7 +8,14 @@
  * D-16: only the player's own assignment is shown — server never sends opponent's lineup to this socket.
  */
 import { useState, useEffect, useMemo } from 'react';
-import { FORMATIONS, PLAYER_POOL, computeTotalStat } from '@counter-attack/shared';
+import {
+  FORMATIONS,
+  PLAYER_POOL,
+  computeTotalStat,
+  classifyTier,
+  DRAFT_ROUNDS,
+  DRAFT_ROUND_COUNT,
+} from '@counter-attack/shared';
 import type {
   FormationId,
   FormationSlot,
@@ -17,14 +24,13 @@ import type {
   DraftClientView,
   DraftDestination,
   DraftSlotRef,
-  DraftTier,
   TieredPoolPlayer,
 } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
-import { DraftPackCarousel } from './DraftPackCarousel.js';
+import { DraftPackCarousel, TIER_CARD_CLASS } from './DraftPackCarousel.js';
 import { BenchCarousel } from './BenchCarousel.js';
 import styles from './LineupAssignmentScreen.module.css';
 
@@ -94,6 +100,11 @@ type StatCardProps = {
    * rule, not a permanent lock) — undefined/false preserves the original Standard-mode
    * "GK always locked" behavior exactly. */
   allowGKDrag?: boolean;
+  /** Phase 30 D-23: applies the TIER_CARD_CLASS tier-colored border (D-22) alongside the
+   * existing drag/lock/confirm state class — only meaningful for draft-mode cards, which
+   * are drafted with a rarity tier (Standard-mode auto-assigned cards are untouched, D-23
+   * scopes tier color to "everywhere a drafted card appears", not Standard-mode lineups). */
+  showTierBorder?: boolean;
 };
 
 function LineupStatCard({
@@ -110,6 +121,7 @@ function LineupStatCard({
   onDrop,
   onDragEnd,
   allowGKDrag,
+  showTierBorder,
 }: StatCardProps) {
   const isGK = slotIndex === 0;
   const isDraggable = allowGKDrag ? !lineupConfirmed : !isGK && !lineupConfirmed;
@@ -125,6 +137,14 @@ function LineupStatCard({
     cardClass = `${styles.statCard} ${styles.statCardDropTarget}`;
   } else {
     cardClass = styles.statCard;
+  }
+
+  // D-23: compose the tier-colored border (D-22) onto the state-based class — the tier
+  // border and drag/lock/confirm state are independent concerns, matching how
+  // DraftPackCarousel/BenchCarousel apply TIER_CARD_CLASS alongside interaction state.
+  if (showTierBorder) {
+    const tier = classifyTier(computeTotalStat(player));
+    cardClass = `${cardClass} ${TIER_CARD_CLASS[tier]}`;
   }
 
   return (
@@ -232,7 +252,6 @@ export function LineupAssignmentScreen({
    * child dataTransfer at drop time (29-03-SUMMARY.md pattern). */
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [draftDropTargetIndex, setDraftDropTargetIndex] = useState<number | null>(null);
-  const [showKeeperBanner, setShowKeeperBanner] = useState(false);
 
   /** Accumulates TieredPoolPlayer objects seen in `draftView.currentPack` over the session so
    * already-drafted cards (which leave currentPack once picked) can still be rendered with their
@@ -254,26 +273,17 @@ export function LineupAssignmentScreen({
     });
   }, [draftView]);
 
-  useEffect(() => {
-    if (draftView?.keeperAutoPickedThisCycle) {
-      setShowKeeperBanner(true);
-      const timer = setTimeout(() => setShowKeeperBanner(false), 1000);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [draftView?.keeperAutoPickedThisCycle]);
-
-  /** Resolves a drafted card id to a TieredPoolPlayer for bench rendering — falls back to
-   * PLAYER_MAP + a role-based tier heuristic ('keeper' for GK, 'common' otherwise) if the card
-   * never appeared in this client's currentPack history (e.g. the cycle-4 keeper safety-net auto-
-   * pick, which may be placed without ever showing in the receiving player's pack). */
+  /** Resolves a drafted card id to a TieredPoolPlayer for bench rendering — falls back to an
+   * exact recomputation via classifyTier(computeTotalStat(player)) if the card never appeared
+   * in this client's currentPack history (D-05/Pitfall 5: no more role-based heuristic — since
+   * tier is a pure function of stats, this fallback is now exact, not approximate). */
   function resolveTieredCard(cardId: string): TieredPoolPlayer | null {
     const cached = cardCache[cardId];
     if (cached) return cached;
     const player = PLAYER_MAP.get(cardId);
     if (!player) return null;
-    const tier: DraftTier = player.role === 'GK' ? 'keeper' : 'common';
-    return { ...player, tier, totalStat: computeTotalStat(player) };
+    const totalStat = computeTotalStat(player);
+    return { ...player, tier: classifyTier(totalStat), totalStat };
   }
 
   function isCardGK(cardId: string): boolean {
@@ -511,6 +521,7 @@ export function LineupAssignmentScreen({
                 lineupConfirmed={lineupConfirmed}
                 teamId={myTeamId}
                 allowGKDrag
+                showTierBorder
                 onDragStart={(e) => handleDraftSlotDragStart(e, player.id, slotIndex)}
                 onDragOver={(e) => handleDraftSlotDragOver(e, slotIndex)}
                 onDragLeave={handleDraftSlotDragLeave}
@@ -543,6 +554,17 @@ export function LineupAssignmentScreen({
     const draftConfirmedOrder = draftView.lineupSlots.map((id) => id ?? '');
     const isLineupComplete = draftView.lineupSlots.every((id) => id !== null);
 
+    // D-20: round-aware progress label — round 1 (GK-only round, D-12) shows "GK Round" in
+    // place of "Round N of 6" per the UI-SPEC Copywriting Contract; the pick-count
+    // denominator is derived from DRAFT_ROUNDS[round-1].picks, not a hardcoded literal
+    // (round 1 -> 2 picks, rounds 2-6 -> 3 picks, D-12..D-16).
+    const currentRoundConfig = DRAFT_ROUNDS[draftView.round - 1];
+    const roundLabel =
+      currentRoundConfig?.kind === 'gk'
+        ? 'GK Round'
+        : `Round ${draftView.round} of ${DRAFT_ROUND_COUNT}`;
+    const roundPicks = currentRoundConfig?.picks ?? draftView.picksRemaining;
+
     return (
       // Phase 29 gap-closure (29-08-PLAN.md Task 2): a single container-level
       // `onDragEnd` guarantees `dragState` is cleared after ANY drag gesture
@@ -559,13 +581,8 @@ export function LineupAssignmentScreen({
 
         {!draftView.draftComplete && (
           <p className={styles.cyclePickCounter}>
-            Cycle {draftView.cycle} of 4 &middot; Pick {draftView.picksRemaining} of{' '}
-            {draftView.picksRemaining <= 1 ? 1 : 2}
+            {roundLabel} &middot; Pick {draftView.picksRemaining} of {roundPicks}
           </p>
-        )}
-
-        {showKeeperBanner && (
-          <p className={styles.keeperBanner}>Keeper auto-selected — cycle 4 safety net.</p>
         )}
 
         {!draftView.draftComplete && draftView.waitingForOpponent && (

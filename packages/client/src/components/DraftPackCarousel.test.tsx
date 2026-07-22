@@ -21,7 +21,7 @@ function makeCard(
   tier: DraftTier,
   overrides: Partial<TieredPoolPlayer> = {},
 ): TieredPoolPlayer {
-  const role = tier === 'keeper' ? 'GK' : 'FWD';
+  const role = 'FWD';
   return {
     id,
     sourceTeamId: 'free-agent',
@@ -76,7 +76,7 @@ describe('DraftPackCarousel — DRAFT-06: variable pack size (not hardcoded to 7
       makeCard('c3', 'uncommon'),
       makeCard('c4', 'common'),
       makeCard('c5', 'common'),
-      makeCard('c6', 'keeper'),
+      makeCard('c6', 'common'),
     ];
     const { container } = render(
       <DraftPackCarousel cards={cards} teamId="city" disabled={false} onCardDragStart={() => {}} />,
