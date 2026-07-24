@@ -1,9 +1,9 @@
 ---
 phase: 32
 slug: code-cleanup
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-24
 ---
 
@@ -36,17 +36,23 @@ created: 2026-07-24
 
 ## Per-Task Verification Map
 
-> Task IDs are TBD until the planner assigns plan/wave numbers. Rows below are requirement-level; the planner must map each to concrete task IDs during planning.
-
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior                                                                            | Test Type        | Automated Command                                                                                                                        | File Exists                                                                                                                      | Status     |
-| ------- | ---- | ---- | ----------- | ---------- | ------------------------------------------------------------------------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| TBD     | TBD  | TBD  | CLEANUP-01  | —          | `pnpm knip` reports zero flagged issues after fixes                                        | tooling/CI       | `pnpm knip`                                                                                                                              | ❌ W0 — knip.json does not exist                                                                                                 | ⬜ pending |
-| TBD     | TBD  | TBD  | CLEANUP-01  | —          | `shootTargetHex` removal does not break existing store tests                               | unit             | `pnpm --filter @counter-attack/client test -- useGameStore`                                                                              | ✅ existing (`useGameStore.test.ts`, `useGameStore.rule11.test.ts`)                                                              | ⬜ pending |
-| TBD     | TBD  | TBD  | CLEANUP-02  | —          | `useTeamAccentColor`/`useMyTeam` produce identical output to the inline logic they replace | unit             | `pnpm --filter @counter-attack/client test -- useMyTeam` (or co-located hook test)                                                       | ❌ W0 — no `hooks/` dir exists yet                                                                                               | ⬜ pending |
-| TBD     | TBD  | TBD  | CLEANUP-02  | —          | Existing component tests still pass after call-site migration                              | unit/integration | `pnpm --filter @counter-attack/client test -- ActionLog GameBoard PieceOverlay HexGrid ActionPanel FreeKickSetupPanel KickOffSetupPanel` | ✅ existing for most; confirm coverage for `PieceOverlay.tsx`, `FreeKickSetupPanel.tsx`, `KickOffSetupPanel.tsx` during planning | ⬜ pending |
-| TBD     | TBD  | TBD  | CLEANUP-03  | —          | Selector fixes don't regress existing store behavior tests                                 | unit             | `pnpm --filter @counter-attack/client test -- useGameStore`                                                                              | ✅ existing                                                                                                                      | ⬜ pending |
-| TBD     | TBD  | TBD  | CLEANUP-03  | —          | `SELECTOR-REVIEW.md` deliverable exists and documents every selector in `useGameStore.ts`  | doc              | manual file review                                                                                                                       | ❌ W0 — deliverable itself                                                                                                       | ⬜ pending |
-| TBD     | TBD  | TBD  | CLEANUP-04  | —          | `pnpm lint` (client scope) reports zero `react-hooks/*` violations                         | lint             | `pnpm lint` (root `eslint .` already covers all packages; verify client-scoped rules fire)                                               | ✅ existing script, new rule set                                                                                                 | ⬜ pending |
+| Task ID  | Plan | Wave | Requirement       | Threat Ref | Secure Behavior                                                                                                                       | Test Type               | Automated Command                                                                                                         | File Exists                                                            | Status     |
+| -------- | ---- | ---- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------- |
+| 32-01-T1 | 01   | 1    | CLEANUP-01        | T-32-SC    | knip package legitimacy verified before install ([SUS] verdict human-checkpointed)                                                    | checkpoint:human-verify | manual review of `gsd-tools query package-legitimacy check` output                                                        | n/a — gate task                                                        | ⬜ pending |
+| 32-01-T2 | 01   | 1    | CLEANUP-01        | —          | knip installed, `knip.json` + `pnpm knip` script + CI gate step added                                                                 | tooling/CI              | `pnpm knip --debug`                                                                                                       | ❌ W0 — knip.json does not exist                                       | ⬜ pending |
+| 32-01-T3 | 01   | 1    | CLEANUP-01        | —          | `shootTargetHex` + all knip-flagged dead code removed; `pnpm knip` reports zero                                                       | unit + tooling          | `pnpm knip` ; `pnpm --filter @counter-attack/client test -- useGameStore`                                                 | ✅ existing (`useGameStore.test.ts`, `useGameStore.rule11.test.ts`)    | ⬜ pending |
+| 32-02-T1 | 02   | 1    | CLEANUP-02        | —          | `teamAccentColor` pure fn + `useTeamAccentColor` hook match prior inline `palette.uiColor` output                                     | unit (tdd)              | `pnpm --filter @counter-attack/client test -- useTeamColors`                                                              | ❌ W0 — no `hooks/` dir exists yet                                     | ⬜ pending |
+| 32-02-T2 | 02   | 1    | CLEANUP-02        | —          | `deriveMyTeam` pure fn + `useMyTeam` hook match prior inline `myTeam` derivation                                                      | unit (tdd)              | `pnpm --filter @counter-attack/client test -- useMyTeam`                                                                  | ❌ W0 — no `hooks/` dir exists yet                                     | ⬜ pending |
+| 32-03-T1 | 03   | 2    | CLEANUP-02        | —          | GameBoard.tsx color + myTeam sites migrated to the new hooks                                                                          | unit/integration        | `pnpm --filter @counter-attack/client test -- GameBoard`                                                                  | ✅ existing (`GameBoard.test.tsx`)                                     | ⬜ pending |
+| 32-03-T2 | 03   | 2    | CLEANUP-02        | —          | ActionLog.tsx color helpers migrated to the pure `teamAccentColor` (loop-invoked, non-hook context)                                   | unit/integration        | `pnpm --filter @counter-attack/client test -- ActionLog`                                                                  | ✅ existing (`ActionLog.test.tsx`)                                     | ⬜ pending |
+| 32-03-T3 | 03   | 2    | CLEANUP-02        | —          | PieceOverlay.tsx confirmed a type-shape pass-through (Pitfall 5) and left correct, not force-migrated                                 | unit/integration        | `pnpm --filter @counter-attack/client test -- PieceOverlay`                                                               | ✅ existing                                                            | ⬜ pending |
+| 32-04-T1 | 04   | 2    | CLEANUP-02        | —          | Null-safe component sites (HexGrid, ActionPanel) migrated to `useMyTeam()`                                                            | unit/integration        | `pnpm --filter @counter-attack/client test -- HexGrid ActionPanel`                                                        | ✅ existing (`HexGrid.test.tsx`)                                       | ⬜ pending |
+| 32-04-T2 | 04   | 2    | CLEANUP-02        | —          | Non-null-safe sites (useGameStore ×7, FreeKickSetupPanel, KickOffSetupPanel) reconciled to `deriveMyTeam` with explicit null handling | unit/integration        | `pnpm --filter @counter-attack/client test -- useGameStore FreeKickSetupPanel KickOffSetupPanel`                          | ✅ existing for useGameStore; confirm coverage for the two panel files | ⬜ pending |
+| 32-05-T1 | 05   | 3    | CLEANUP-03        | —          | `SELECTOR-REVIEW.md` catalogs every selector/derived field in `useGameStore.ts` with a resolved verdict (D-05)                        | doc                     | `test -f .planning/phases/32-code-cleanup/SELECTOR-REVIEW.md && grep -c "Verdict\|validMoveHexes\|setGameState" ...`      | ❌ W0 — deliverable itself                                             | ⬜ pending |
+| 32-05-T2 | 05   | 3    | CLEANUP-03        | —          | Every `fix`-verdict row applied and behavior-preserving (D-06)                                                                        | unit                    | `pnpm --filter @counter-attack/client test useGameStore` ; `pnpm --filter @counter-attack/client typecheck` ; `pnpm knip` | ✅ existing                                                            | ⬜ pending |
+| 32-06-T1 | 06   | 3    | CLEANUP-04        | —          | `eslint-plugin-react-hooks` installed, enabled at `error`, scoped to client package                                                   | lint                    | `pnpm lint`                                                                                                               | ❌ W0 — plugin does not exist yet                                      | ⬜ pending |
+| 32-06-T2 | 06   | 3    | CLEANUP-04        | —          | Every violation fixed, preferring stable-dep additions over `eslint-disable`                                                          | lint                    | `pnpm lint` (zero `react-hooks/*` violations)                                                                             | ✅ existing script, new rule set                                       | ⬜ pending |
+| 32-06-T3 | 06   | 3    | CLEANUP-04 (D-08) | —          | Every kept `eslint-disable-next-line react-hooks/exhaustive-deps` suppression's justification reviewed and confirmed to hold up       | checkpoint:human-verify | manual review of each suppression comment                                                                                 | n/a — gate task                                                        | ⬜ pending |
 
 _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
@@ -72,11 +78,11 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies (the 2 `checkpoint:human-verify` tasks — 32-01-T1, 32-06-T3 — correctly omit `<automated>` per gsd-plan-checker's structure check)
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (knip.json, hooks/ dir, react-hooks plugin, SELECTOR-REVIEW.md — all created by Wave 1/3 tasks themselves)
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-07-24 — gsd-plan-checker VERIFICATION PASSED (2 non-blocking documentation-freshness warnings, since resolved)

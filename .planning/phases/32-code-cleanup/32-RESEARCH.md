@@ -479,17 +479,19 @@ useEffect(() => {
 | A2  | knip's Vite/Vitest plugins will auto-detect `index.html`→`src/main.tsx` and each package's `vitest.config.ts` `test.include` glob as entry points without additional config                 | Architecture Patterns Pattern 2  | Medium — if auto-detection doesn't fire as expected (e.g. due to the client's non-default Vite alias setup pointing `@counter-attack/shared` at source instead of dist), knip may report false positives on test-only or Vite-bootstrap exports; mitigate by running `knip --debug` early during implementation to inspect resolved entries before trusting the full report |
 | A3  | `FreeKickSetupPanel.tsx`/`KickOffSetupPanel.tsx`'s non-null-safe `myTeam` derivation never actually encounters `playerSlot === null` at runtime (both only render mid-game after room join) | Common Pitfalls 4                | Medium — if wrong, adopting the null-safe canonical form without a guard could introduce a new `null`-branch code path that behaves differently than the current `?? 'away'`-equivalent fallback; must be verified by tracing when these components render, not assumed                                                                                                     |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does knip need explicit awareness of Vite's `resolve.alias` for `@counter-attack/shared` to avoid false positives in the client package?**
    - What we know: knip has a Vite plugin that reads `vite.config.ts`; the client's `resolve.alias` points `@counter-attack/shared` at `../shared/src/index.ts` (source, not `dist/`), which differs from how `packages/server` resolves the same package (via `node_modules` symlink → `dist/`).
    - What's unclear: Whether knip's Vite plugin picks up this alias automatically or whether the client-side analysis of `@counter-attack/shared` imports needs to be handled purely through the workspace's normal `dependencies` entry (`"@counter-attack/shared": "workspace:*"`) regardless of the Vite alias.
    - Recommendation: Run `knip --debug` as the very first implementation step (before writing any fix code) and inspect the resolved workspace/entry/plugin list; treat any anomalies here as a config task, not a false-positive to `ignore`-list away (per knip's own documentation guidance: "Avoid `ignore` patterns... a surprising result is usually a real finding or a configuration gap").
+   - **Resolution:** Plan 32-01 Task 2 runs `pnpm knip --debug` as its first action and inspects the resolved entry/plugin list before trusting the report — resolved operationally via the plan's task sequencing rather than pre-answered in research.
 
 2. **Exact count and location of `react-hooks/exhaustive-deps` violations that will surface once the rule is enabled at `error`.**
    - What we know: 14 `useEffect` call sites exist across 11 files; `App.tsx`'s single mount-once socket-registration effect is confirmed to have an empty `[]` array closing over ~14+ external references (highest-risk single site).
    - What's unclear: The exact violation count in the other 13 `useEffect` sites (`ActionPanel.tsx` ×2, `BenchCarousel.tsx`, `ConnectionStatus.tsx`, `DraftPackCarousel.tsx`, `EventBanner.tsx` ×2, `HexGrid.tsx`, `LineupAssignmentScreen.tsx` ×2, `LobbyScreen.tsx`, `TeamSelectionScreen.tsx`, `UniformSelectionScreen.tsx`) was not individually audited in this research pass — only confirmed to exist.
    - Recommendation: Treat "enable the rule and read its own output" as the discovery mechanism for the plan's task breakdown, rather than trying to pre-enumerate every violation in research — this is exactly the kind of mechanical, tool-driven inventory that should happen in Wave 0/1 of implementation, not in planning.
+   - **Resolution:** Plan 32-06 Task 1 enables the rule and captures the full violation inventory as its first action, before fixing — resolved operationally via the plan's task sequencing rather than pre-answered in research.
 
 ## Environment Availability
 
