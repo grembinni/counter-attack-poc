@@ -10,9 +10,9 @@
  * prefixed cardId via dataTransfer and expose no onDragOver/onDrop handler,
  * so a card can never be dragged back into the draft-pack row once picked.
  *
- * `DraftCardBody` (the shared inner card renderer) and `TIER_CARD_CLASS`/
- * `TIER_ORDER` are exported for reuse by `BenchCarousel` (D-21 — identical
- * card style, drag source AND drop target).
+ * `DraftCardBody` (the shared inner card renderer) and `TIER_CARD_CLASS` are
+ * exported for reuse by `BenchCarousel` (D-21 — identical card style, drag
+ * source AND drop target).
  */
 import { useEffect, useRef, useState } from 'react';
 import type { DraftTier, TeamId, TieredPoolPlayer } from '@counter-attack/shared';
@@ -21,8 +21,9 @@ import { NationFlag } from './NationFlag.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import styles from './LineupAssignmentScreen.module.css';
 
-/** Rarest-first tier order (D-20). Narrowed to 4 values — 'keeper' removed (D-05, Phase 30). */
-export const TIER_ORDER: DraftTier[] = ['chase', 'rare', 'uncommon', 'common'];
+/** Rarest-first tier order (D-20). Narrowed to 4 values — 'keeper' removed (D-05, Phase 30).
+ * Module-internal only — no other file sorts by tier order. */
+const TIER_ORDER: DraftTier[] = ['chase', 'rare', 'uncommon', 'common'];
 
 /** Tier -> tier-border CSS class map (D-17/D-19). Narrowed to 4 entries (D-05, Phase 30) —
  * no 5th 'keeper' color; GK cards resolve to whichever of chase/rare/uncommon/common their

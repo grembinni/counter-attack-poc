@@ -38,9 +38,6 @@ importers:
       '@counter-attack/shared':
         specifier: workspace:*
         version: link:../shared
-      honeycomb-grid:
-        specifier: ^4.1.5
-        version: 4.1.5
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1697,10 +1694,6 @@ packages:
   hasown@2.0.4:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
-
-  honeycomb-grid@4.1.5:
-    resolution: {integrity: sha512-VrnQwu5dHuzqK3wFhLD9EURmLSyEWb0teiHhDJq6WdK0MrFsEtKNYT1HLzXOLe2X1acU8Y9hhK7wWfIiGK1G5w==}
-    engines: {node: '>=16'}
 
   html-encoding-sniffer@4.0.0:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
@@ -4118,8 +4111,6 @@ snapshots:
   hasown@2.0.4:
     dependencies:
       function-bind: 1.1.2
-
-  honeycomb-grid@4.1.5: {}
 
   html-encoding-sniffer@4.0.0:
     dependencies:

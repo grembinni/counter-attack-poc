@@ -32,7 +32,7 @@ import React from 'react';
 import type { UniformStyleId, TeamPalette } from '@counter-attack/shared';
 
 /** Parameters passed to every UniformStyleRenderer. Geometry + palette only — no teamId. */
-export interface UniformRenderParams {
+interface UniformRenderParams {
   /** Piece centre x in SVG user-space pixels. */
   cx: number;
   /** Piece centre y in SVG user-space pixels. */
@@ -54,7 +54,7 @@ export interface UniformRenderParams {
  *    <circle fill={fill} ... />  — base piece circle
  *    {overlay}                   — sibling elements after the circle
  */
-export interface UniformRenderResult {
+interface UniformRenderResult {
   /** React element (or Fragment) to place inside SVG <defs>. Null if the style needs no defs. */
   patternDef: React.ReactElement | null;
   /** Value for the base circle's fill= attribute (colour string or url(#id)). */
@@ -70,7 +70,7 @@ export type UniformStyleRenderer = (params: UniformRenderParams) => UniformRende
 // homeAlt base + homePrime thin stripes + prime dot for number legibility.
 // Period ≈ ⅔R, stripe ≈ ⅓R so the pattern repeats 3× across the piece diameter.
 
-export const pinstripeVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const pinstripeVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const period = Math.round((R * 2) / 3);
   const sw = Math.round(R / 3);
   const sx = Math.round((period - sw) / 2);
@@ -94,7 +94,7 @@ export const pinstripeVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pi
   };
 };
 
-export const pinstripeHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const pinstripeHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const period = Math.round((R * 2) / 3);
   const sw = Math.round(R / 3);
   const sy = Math.round((period - sw) / 2);
@@ -119,7 +119,7 @@ export const pinstripeHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, 
 };
 
 /** Diagonal pinstripes via patternTransform="rotate(45 cx cy)" on a square vertical-stripe tile. */
-export const pinstripeDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const pinstripeDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const period = Math.round((R * 2) / 3);
   const sw = Math.round(R / 3);
   const sx = Math.round((period - sw) / 2);
@@ -148,7 +148,7 @@ export const pinstripeDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pi
 // homeAlt solid base + homePrime bar(s) + prime dot.
 // Bar width ≈ ⅔R; line strokes scale proportionally.
 
-export const barHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const barHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const bw = Math.round((R * 2) / 3);
   const dotR = Math.round((R * 7) / 12);
   return {
@@ -177,7 +177,7 @@ export const barHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceI
   };
 };
 
-export const barVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const barVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const bw = Math.round((R * 2) / 3);
   const dotR = Math.round((R * 7) / 12);
   return {
@@ -207,7 +207,7 @@ export const barVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId 
 };
 
 /** Crew default. homeAlt solid base + homePrime diagonal line + prime dot. */
-export const barDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const barDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const sw = Math.round((R * 10) / 12);
   const dotR = Math.round((R * 7) / 12);
   return {
@@ -237,7 +237,7 @@ export const barDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId 
 };
 
 /** USA default. homeAlt solid base + two crossed homePrime diagonal bars + prime dot. */
-export const barX: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const barX: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const sw = Math.round((R * 9) / 12);
   const dotR = Math.round((R * 7) / 12);
   return {
@@ -279,7 +279,7 @@ export const barX: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
 
 /** England default. homeAlt solid base + homePrime horizontal and vertical bars + prime dot.
  *  Bars extend edge-to-edge (cx±R / cy±R), clipped to the piece circle. */
-export const barPlus: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const barPlus: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const bw = Math.round((R * 2) / 3);
   const dotR = Math.round((R * 7) / 12);
   return {
@@ -318,7 +318,7 @@ export const barPlus: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) =
 // ─── Split family ─────────────────────────────────────────────────────────────
 // Hard 50/50 colour divide clipped to the piece circle + prime dot.
 
-export const splitHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const splitHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const dotR = Math.round((R * 7) / 12);
   return {
     patternDef: (
@@ -345,7 +345,7 @@ export const splitHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, piec
 };
 
 /** Seattle default. Left half = homeAlt (base fill), right half = homePrime. */
-export const splitVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const splitVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const dotR = Math.round((R * 7) / 12);
   return {
     patternDef: (
@@ -372,7 +372,7 @@ export const splitVertical: UniformStyleRenderer = ({ cx, cy, R, palette, pieceI
 };
 
 /** Top-left = homeAlt, bottom-right = homePrime. */
-export const splitDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const splitDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const dotR = Math.round((R * 7) / 12);
   return {
     patternDef: (
@@ -400,7 +400,7 @@ export const splitDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceI
 
 /** Quarter (H): quarter-D rotated 45° — argyle/diamond checkerboard.
  *  2×2 checkerboard tile (sq=R, period=2R) with patternTransform="rotate(45 cx cy)". */
-export const quarterHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const quarterHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const sq = R;
   const period = sq * 2;
   const dotR = Math.round((R * 7) / 12);
@@ -427,7 +427,7 @@ export const quarterHorizontal: UniformStyleRenderer = ({ cx, cy, R, palette, pi
 
 /** Quarter (D): 2×2 checkerboard aligned to axes — TL/BR = homePrime, TR/BL = homeAlt.
  *  Tile sq=R so exactly four squares span the piece bounding box. */
-export const quarterDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const quarterDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const sq = R;
   const period = sq * 2;
   const dotR = Math.round((R * 7) / 12);
@@ -454,7 +454,7 @@ export const quarterDiagonal: UniformStyleRenderer = ({ cx, cy, R, palette, piec
 // ─── Shape family ─────────────────────────────────────────────────────────────
 
 /** Miami default. homePrime oval with rx=R (touches left/right edges), ry≈55% R, on homeAlt base + prime dot. */
-export const shapeOval: UniformStyleRenderer = ({ cx, cy, R, palette }) => {
+const shapeOval: UniformStyleRenderer = ({ cx, cy, R, palette }) => {
   const dotR = Math.round((R * 7) / 12);
   return {
     patternDef: null,
@@ -476,7 +476,7 @@ export const shapeOval: UniformStyleRenderer = ({ cx, cy, R, palette }) => {
 };
 
 /** France default. homePrime circle (r=70% R) on homeAlt base + prime dot. */
-export const shapeCircle: UniformStyleRenderer = ({ cx, cy, R, palette }) => {
+const shapeCircle: UniformStyleRenderer = ({ cx, cy, R, palette }) => {
   const dotR = Math.round((R * 7) / 12);
   return {
     patternDef: null,
@@ -491,7 +491,7 @@ export const shapeCircle: UniformStyleRenderer = ({ cx, cy, R, palette }) => {
 };
 
 /** Nashville default. homePrime diamond (inscribed at 90% R) on homeAlt base + prime dot, clipped to circle. */
-export const shapeDiamond: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const shapeDiamond: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const dotR = Math.round((R * 7) / 12);
   return {
     patternDef: (
@@ -518,7 +518,7 @@ export const shapeDiamond: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId
 
 /** Mexico default. 8 alternating wedge sectors (homePrime/homeAlt) radiating from a solid
  *  homePrime centre circle (r=45% R). Sectors start from piece perimeter inward. */
-export const sunburst: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const sunburst: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const N = 8;
   const sectors = Array.from({ length: N }, (_, i) => {
     const a1 = (i * 2 * Math.PI) / N - Math.PI / 2;
@@ -559,7 +559,7 @@ export const sunburst: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) 
 
 /** GK default kit. homeAlt base + homePrime alternating checker squares + prime dot.
  *  Square size = R/2 so 4 squares span the radius (same visual density at all R values). */
-export const checkers: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
+const checkers: UniformStyleRenderer = ({ cx, cy, R, palette, pieceId }) => {
   const sq = Math.round(R / 2);
   const period = sq * 2;
   const dotR = Math.round((R * 7) / 12);
