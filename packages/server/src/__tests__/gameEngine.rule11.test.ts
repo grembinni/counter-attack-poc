@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyRoll, applyResolveHeaderTarget } from '../gameEngine.js';
+import { applyRoll, applyResolveHeaderTarget, applyStartMovement } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
 
@@ -399,6 +399,87 @@ describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () =
     expect(result.state.movedPieceIds).toEqual(nullWinnerState.movedPieceIds);
     expect(result.state.movedPieceIds).not.toContain(null);
     expect(result.state.movedPieceIds).not.toContain(undefined);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RULE-02 gap (BUG-31 family, Plan 31-06): header winner stays spent through
+// applyStartMovement's PASS -> MOVE transition.
+//
+// Plan 31-04 appended the header-duel winner's id to movedPieceIds inside
+// applyResolveHeaderTarget's two non-goal branches. But applyStartMovement is
+// the ONLY function that transitions PASS/KICK_OFF/LOOSE_BALL into MOVE, and it
+// unconditionally resets movedPieceIds: [] — discarding the append before the
+// Movement Phase it targets ever begins. These chained tests prove the winner
+// id survives into the MOVE-phase movedPieceIds (RED against current source).
+// ---------------------------------------------------------------------------
+
+describe('RULE-02 gap: header winner stays spent through applyStartMovement (folded header-winner todo, BUG-31)', () => {
+  it('empty-hex/loose-ball branch: winner id survives applyResolveHeaderTarget -> applyStartMovement into MOVE', () => {
+    const state = makeHeaderStateWithWinner();
+    const passResult = applyResolveHeaderTarget(state, { q: 30, r: 12 });
+    expect(passResult.ok).toBe(true);
+    if (!passResult.ok) return;
+    // Sanity: winner is present in the intermediate PASS-phase state (Plan 31-04 behavior).
+    expect(passResult.state.phase).toBe('PASS');
+    expect(passResult.state.movedPieceIds).toContain('home-fwd');
+
+    const moveResult = applyStartMovement(passResult.state);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.state.phase).toBe('MOVE');
+    // RED: currently fails because applyStartMovement unconditionally resets movedPieceIds: [].
+    expect(moveResult.state.movedPieceIds).toContain('home-fwd');
+  });
+
+  it('occupant-PASS branch: winner id survives applyResolveHeaderTarget -> applyStartMovement into MOVE', () => {
+    const occupiedState = makeHeaderStateWithWinner({
+      pieces: [
+        { ...homeFwd, position: { q: 27, r: 12 } },
+        { ...awayDef, position: { q: 30, r: 12 } }, // occupies target hex
+        awayGk,
+        homeMid,
+      ],
+    });
+    const passResult = applyResolveHeaderTarget(occupiedState, { q: 30, r: 12 });
+    expect(passResult.ok).toBe(true);
+    if (!passResult.ok) return;
+    // Sanity: winner is present in the intermediate PASS-phase state (Plan 31-04 behavior).
+    expect(passResult.state.phase).toBe('PASS');
+    expect(passResult.state.movedPieceIds).toContain('home-fwd');
+
+    const moveResult = applyStartMovement(passResult.state);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.state.phase).toBe('MOVE');
+    // RED: currently fails because applyStartMovement unconditionally resets movedPieceIds: [].
+    expect(moveResult.state.movedPieceIds).toContain('home-fwd');
+  });
+
+  it('no-carry control: a plain PASS -> MOVE transition still yields movedPieceIds: [] (no regression)', () => {
+    const plainPassState: GameState = {
+      ...baseState,
+      phase: 'PASS',
+      movedPieceIds: ['someId'],
+      // No carriedMovedPieceIds set — the common (non-header) path.
+    };
+    const moveResult = applyStartMovement(plainPassState);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.state.phase).toBe('MOVE');
+    expect(moveResult.state.movedPieceIds).toEqual([]);
+  });
+
+  it('one-phase-only: the carry is consumed and cleared after the MOVE-phase transition', () => {
+    const state = makeHeaderStateWithWinner();
+    const passResult = applyResolveHeaderTarget(state, { q: 30, r: 12 });
+    expect(passResult.ok).toBe(true);
+    if (!passResult.ok) return;
+
+    const moveResult = applyStartMovement(passResult.state);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.state.carriedMovedPieceIds ?? []).toEqual([]);
   });
 });
 
