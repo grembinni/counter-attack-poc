@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
+    "knip": "pnpm --filter @counter-attack/shared build && knip",
     "prepare": "node -e \"if (!process.env.CI && !process.env.RENDER) require('child_process').execSync('husky', {stdio:'inherit'});\""
   },
   "lint-staged": {
@@ -26,6 +27,7 @@
     "eslint": "9.39.4",
     "eslint-config-prettier": "10.1.8",
     "husky": "9.1.7",
+    "knip": "6.29.0",
     "lint-staged": "17.0.5",
     "prettier": "3.8.3",
     "typescript": "5.9.3",

@@ -3202,13 +3202,12 @@ export function applySnapshot(state: GameState): ApplySnapshotResult {
 }
 
 // ---------------------------------------------------------------------------
-// computeHeaderDuelWinner (RULE-02, Phase 11 — called from GAME_HEADER_CONTESTANT handler)
+// computeHeaderDuelDetail (RULE-02, Phase 11 — called from GAME_HEADER_CONTESTANT handler)
 // ---------------------------------------------------------------------------
 
 /**
  * Full detail of a computed heading duel — winner plus the dice/aerial values needed to
- * build a HEADER ActionEvent. Returned by `computeHeaderDuelDetail`; `computeHeaderDuelWinner`
- * is a thin wrapper that returns just the `winner` field for backward compatibility.
+ * build a HEADER ActionEvent. Returned by `computeHeaderDuelDetail`.
  */
 export type HeaderDuelDetail = {
   winner: 'home' | 'away' | null;
@@ -3335,18 +3334,6 @@ export function computeHeaderDuelDetail(state: GameState, dice: number[]): Heade
   if (adjustedAtk > adjustedDef) return { ...detailBase, winner: state.attackingTeam };
   if (adjustedAtk < adjustedDef) return { ...detailBase, winner: defenderTeam };
   return { ...detailBase, winner: null }; // tie → LOOSE_BALL path (caller handles)
-}
-
-/**
- * Computes just the heading duel winner from pre-generated dice, without transitioning phase.
- * Thin wrapper over `computeHeaderDuelDetail` — preserved for existing callers that only need
- * the winner, not the full dice/aerial detail.
- *
- * @param state - Current game state (phase must be 'HEADER')
- * @param dice  - Pre-generated dice array: [atk_0, atk_1, ..., def_0, def_1, ..., atkTie, defTie]
- */
-export function computeHeaderDuelWinner(state: GameState, dice: number[]): 'home' | 'away' | null {
-  return computeHeaderDuelDetail(state, dice).winner;
 }
 
 /**

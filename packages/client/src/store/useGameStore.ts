@@ -19,8 +19,10 @@ import { socket } from '../socket.js';
 /** Pass type used for store and ActionPanel three-step flow (matches server event signature). */
 export type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL';
 
-/** Screen states for client-side routing (D-12). No React Router — screen field in store. */
-export type Screen =
+/** Screen states for client-side routing (D-12). No React Router — screen field in store.
+ * Module-internal only — no other file imports this type directly (components read
+ * `screen` values via the store selector, which carries the literal type through). */
+type Screen =
   | 'LANDING'
   | 'CREATE_ROOM'
   | 'JOIN_ROOM'
@@ -65,8 +67,6 @@ export type GameStore = {
   headerContestantIds: string[];
   /** Phase 10: true when shooter has clicked "Shoot" and is selecting a goal hex. */
   shootingMode: boolean;
-  /** Phase 10: goal hex selected by shooter before emit. */
-  shootTargetHex: HexCoord | null;
   /** Navigate to a different screen (D-12). */
   setScreen: (s: Screen) => void;
   /**
@@ -271,7 +271,6 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   selectedPassType: null,
   headerContestantIds: [],
   shootingMode: false,
-  shootTargetHex: null,
 
   setScreen: (s) => set({ screen: s }),
 
@@ -719,7 +718,6 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         headerContestantIds: phaseChanged ? [] : prev.headerContestantIds,
         // Phase 10: clear shooting mode on new server broadcast
         shootingMode: false,
-        shootTargetHex: null,
         // Bug 1: stale GAME_ERROR from a prior action must not bleed into the new phase/slot
         gameError: null,
       });
@@ -927,7 +925,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     socket.emit(ClientEvents.GAME_HEADER_TARGET, targetHex);
   },
 
-  setShootingMode: (on) => set({ shootingMode: on, shootTargetHex: null }),
+  setShootingMode: (on) => set({ shootingMode: on }),
 
   emitQuickThrow: (targetHex) => {
     socket.emit(ClientEvents.GAME_QUICK_THROW, targetHex);
