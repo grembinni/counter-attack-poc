@@ -113,7 +113,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 | Phase | Name                                      | Plans    | Status      |
 | ----- | ----------------------------------------- | -------- | ----------- |
-| 31    | 6/6                                       | Complete | 2026-07-22  |
+| 31    | 6/6                                       | Complete | 2026-07-24  |
 | 32    | Code Cleanup                              | TBD      | Not started |
 | 33    | Design Tokens & Highlight Standardization | TBD      | Not started |
 | 34    | Visual Theme Restyle                      | TBD      | Not started |
@@ -143,8 +143,8 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Gap Closure** _(from 31-VERIFICATION.md — no file overlap, run in parallel)_
 
-- [ ] 31-05-PLAN.md — BUG-30 gap: populate `piecesAfter` at the 3 remaining GK-out-of-range auto-GOAL sites in `gameHandlers.ts` (gap_closure)
-- [ ] 31-06-PLAN.md — Header-winner gap: carry the winner's `movedPieceIds` entry through `applyStartMovement` via `carriedMovedPieceIds` (BUG-31 family, gap_closure)
+- [x] 31-05-PLAN.md — BUG-30 gap: populate `piecesAfter` at the 3 remaining GK-out-of-range auto-GOAL sites in `gameHandlers.ts` (gap_closure)
+- [x] 31-06-PLAN.md — Header-winner gap: carry the winner's `movedPieceIds` entry through `applyStartMovement` via `carriedMovedPieceIds` (BUG-31 family, gap_closure)
 
 ### Phase 32: Code Cleanup
 
