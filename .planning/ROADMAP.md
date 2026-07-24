@@ -114,7 +114,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | Phase | Name                                      | Plans | Status      |
 | ----- | ----------------------------------------- | ----- | ----------- |
 | 31    | Bug Fixes                                 | 6/6   | Complete    |
-| 32    | Code Cleanup                              | TBD   | Not started |
+| 32    | Code Cleanup                              | 0/6   | Not started |
 | 33    | Design Tokens & Highlight Standardization | TBD   | Not started |
 | 34    | Visual Theme Restyle                      | TBD   | Not started |
 | 35    | ActionPanel & Log Standardization         | TBD   | Not started |
@@ -157,7 +157,23 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 2. Repeated `TEAM_CONFIGS[...].palette.uiColor` lookups and other duplicated derivation logic (e.g. team-slot/`myTeam` resolution) are each consolidated into one shared helper/hook used everywhere they were previously inlined.
 3. Zustand store selectors have no stale dependency arrays or redundant derived-state recomputation, confirmed by a documented selector review.
 4. React Hook dependency lint rules are enabled for the client package, and the package lints clean with zero exhaustive-deps violations.
-   **Plans**: TBD
+
+**Plans**: 6 plans (Wave 1: 32-01, 32-02 parallel; Wave 2: 32-03, 32-04 parallel; Wave 3: 32-05, 32-06 parallel)
+
+**Wave 1**
+
+- [ ] 32-01-PLAN.md — CLEANUP-01: knip dead-code gate + `shootTargetHex` removal (autonomous:false — knip [SUS] legitimacy checkpoint) [Wave 1]
+- [ ] 32-02-PLAN.md — CLEANUP-02: create shared hooks `useTeamColors`/`useMyTeam` (pure-core + hook-wrapper) + tests [Wave 1]
+
+**Wave 2** _(blocked on Wave 1)_
+
+- [ ] 32-03-PLAN.md — CLEANUP-02: color consolidation — GameBoard/ActionLog to `teamAccentColor`, PieceOverlay verify (Pitfall 5) [Wave 2, depends 32-02]
+- [ ] 32-04-PLAN.md — CLEANUP-02: `myTeam` consolidation — HexGrid/ActionPanel/FreeKick/KickOff panels + useGameStore ×7 (Pitfall 2/4) [Wave 2, depends 32-01, 32-02]
+
+**Wave 3** _(blocked on Wave 2)_
+
+- [ ] 32-05-PLAN.md — CLEANUP-03: Zustand selector review (SELECTOR-REVIEW.md) + apply fixes (D-06) [Wave 3, depends 32-04]
+- [ ] 32-06-PLAN.md — CLEANUP-04: react-hooks lint at error + fix all violations + suppression review (autonomous:false, D-08) [Wave 3, depends 32-01, 32-04]
 
 ### Phase 33: Design Tokens & Highlight Standardization
 
@@ -247,7 +263,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | 29. Draft UI + Pick-and-Swap    | v1.4      | 12/12          | Complete    | 2026-07-22 |
 | 30. Recalibrate Draft           | v1.4      | 6/6            | Complete    | 2026-07-22 |
 | 31. Bug Fixes                   | v1.5      | 6/6            | Complete    | 2026-07-24 |
-| 32. Code Cleanup                | v1.5      | 0/TBD          | Not started | -          |
+| 32. Code Cleanup                | v1.5      | 0/6            | Not started | -          |
 | 33. Design Tokens & Highlight   | v1.5      | 0/TBD          | Not started | -          |
 | 34. Visual Theme Restyle        | v1.5      | 0/TBD          | Not started | -          |
 | 35. ActionPanel & Log Standard. | v1.5      | 0/TBD          | Not started | -          |
