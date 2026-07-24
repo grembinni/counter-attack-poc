@@ -1010,13 +1010,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             ...baseSnapState.score,
             [scoringTeam]: baseSnapState.score[scoringTeam] + 1,
           };
+          // D-01 (BUG-30): hoist once and feed both state.pieces and the GOAL event's
+          // piecesAfter so buildReplayFrames reconstructs every piece at the new kickoff
+          // formation, not just the ball (mirrors gameEngine.ts's resetPieces pattern).
+          const resetPieces = buildKickOffPieces(
+            newKickOffTeam,
+            baseSnapState.selectedTeams,
+            baseSnapState.selectedFormation,
+          );
           room.gameState = {
             ...baseSnapState,
-            pieces: buildKickOffPieces(
-              newKickOffTeam,
-              baseSnapState.selectedTeams,
-              baseSnapState.selectedFormation,
-            ),
+            pieces: resetPieces,
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -1038,6 +1042,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
                 scorerId: outOfRangeEvent.shooterId,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+                piecesAfter: resetPieces, // D-01 (BUG-30): reconstruct all pieces at kickoff in replay
               },
             ],
           };
@@ -1654,13 +1659,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           ...declaredState.score,
           [scoringTeam]: declaredState.score[scoringTeam] + 1,
         };
+        // D-01 (BUG-30): hoist once and feed both state.pieces and the GOAL event's
+        // piecesAfter so buildReplayFrames reconstructs every piece at the new kickoff
+        // formation, not just the ball (mirrors gameEngine.ts's resetPieces pattern).
+        const resetPieces = buildKickOffPieces(
+          newKickOffTeam,
+          declaredState.selectedTeams,
+          declaredState.selectedFormation,
+        );
         room.gameState = {
           ...declaredState,
-          pieces: buildKickOffPieces(
-            newKickOffTeam,
-            declaredState.selectedTeams,
-            declaredState.selectedFormation,
-          ),
+          pieces: resetPieces,
           phase: 'KICK_OFF_SETUP',
           score: newScore,
           attackingTeam: newKickOffTeam,
@@ -1682,6 +1691,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
               scorerId: outOfRangeEvent.shooterId,
               timestamp: Date.now(),
               ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+              piecesAfter: resetPieces, // D-01 (BUG-30): reconstruct all pieces at kickoff in replay
             },
           ],
         };
@@ -2435,13 +2445,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             ...headerTargetState.score,
             [scoringTeam]: headerTargetState.score[scoringTeam] + 1,
           };
+          // D-01 (BUG-30): hoist once and feed both state.pieces and the GOAL event's
+          // piecesAfter so buildReplayFrames reconstructs every piece at the new kickoff
+          // formation, not just the ball (mirrors gameEngine.ts's resetPieces pattern).
+          const resetPieces = buildKickOffPieces(
+            newKickOffTeam,
+            headerTargetState.selectedTeams,
+            headerTargetState.selectedFormation,
+          );
           room.gameState = {
             ...headerTargetState,
-            pieces: buildKickOffPieces(
-              newKickOffTeam,
-              headerTargetState.selectedTeams,
-              headerTargetState.selectedFormation,
-            ),
+            pieces: resetPieces,
             phase: 'KICK_OFF_SETUP',
             score: newScore,
             attackingTeam: newKickOffTeam,
@@ -2462,6 +2476,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
                 scorerId: outOfRangeEvent.shooterId,
                 timestamp: Date.now(),
                 ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+                piecesAfter: resetPieces, // D-01 (BUG-30): reconstruct all pieces at kickoff in replay
               },
             ],
           };
