@@ -115,7 +115,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | ----- | ----------------------------------------- | ----- | ----------- |
 | 31    | Bug Fixes                                 | 6/6   | Complete    |
 | 32    | Code Cleanup                              | 6/6   | Complete    |
-| 33    | Design Tokens & Highlight Standardization | TBD   | Not started |
+| 33    | Design Tokens & Highlight Standardization | 7     | Not started |
 | 34    | Visual Theme Restyle                      | TBD   | Not started |
 | 35    | ActionPanel & Log Standardization         | TBD   | Not started |
 
@@ -187,8 +187,17 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 3. Red renders for exactly one meaning app-wide (rule violation/offside); the goal-line shot-target highlight is a distinct, non-red color.
 4. The "selected" piece ring and the "already-moved-this-stage" piece ring are visually distinct colors (no longer both identical green).
 5. A dedicated, always-on-top ball-location marker highlights the hex containing the ball during response phases (headers, kicks), and all pre-existing color-literal test assertions now assert token/semantic identity instead of literal color strings.
-   **Plans**: TBD
-   **UI hint**: yes
+   **Plans**: 7 plans (Wave 1: 33-01, 33-04, 33-05; Wave 2: 33-02, 33-03, 33-06; Wave 3: 33-07)
+
+   Plans:
+   - [ ] 33-01-PLAN.md — Chrome token file + GameBoard token/accent migration (THEME-03) [Wave 1]
+   - [ ] 33-02-PLAN.md — In-game panel/log/banner chrome-literal → token migration (THEME-03) [Wave 2]
+   - [ ] 33-03-PLAN.md — Lobby/settings/selection screen chrome-literal → token migration (THEME-03) [Wave 2]
+   - [ ] 33-04-PLAN.md — HexCell highlight table: green safe / purple goal / new tints + ring prop (HILITE-01, HILITE-02) [Wave 1]
+   - [ ] 33-05-PLAN.md — PieceOverlay grey moved-this-stage marker (HILITE-03) [Wave 1]
+   - [ ] 33-06-PLAN.md — HexGrid highlight consolidation + always-on-top ball marker (HILITE-01, HILITE-04) [Wave 2]
+   - [ ] 33-07-PLAN.md — HIGHLIGHT-REFERENCE.md + phase-gate verification (HILITE-05) [Wave 3]
+         **UI hint**: yes
 
 ### Phase 34: Visual Theme Restyle
 
@@ -264,6 +273,6 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | 30. Recalibrate Draft           | v1.4      | 6/6            | Complete    | 2026-07-22 |
 | 31. Bug Fixes                   | v1.5      | 6/6            | Complete    | 2026-07-24 |
 | 32. Code Cleanup                | v1.5      | 6/6            | Complete    | 2026-07-24 |
-| 33. Design Tokens & Highlight   | v1.5      | 0/TBD          | Not started | -          |
+| 33. Design Tokens & Highlight   | v1.5      | 0/7            | Not started | -          |
 | 34. Visual Theme Restyle        | v1.5      | 0/TBD          | Not started | -          |
 | 35. ActionPanel & Log Standard. | v1.5      | 0/TBD          | Not started | -          |
