@@ -107,3 +107,7 @@ None - no external service configuration required.
 
 _Phase: 32-code-cleanup_
 _Completed: 2026-07-25_
+
+## Self-Check: PASSED
+
+All 5 modified files + SUMMARY.md verified present on disk. All 3 commit hashes (0a98c7b, 50c9164, 86817c9) confirmed in `git log --oneline --all`.
