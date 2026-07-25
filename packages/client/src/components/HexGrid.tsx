@@ -14,6 +14,7 @@ import {
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { useMyTeam } from '../hooks/useMyTeam.js';
 import { socket } from '../socket.js';
 import { computeViewBox, HEX_SIZE, axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 import { HexCell } from './HexCell.js';
@@ -73,7 +74,6 @@ export function HexGrid() {
   const validMoveHexes = useGameStore((s) => s.validMoveHexes);
   const tackleRiskHexes = useGameStore((s) => s.tackleRiskHexes);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
-  const playerSlot = useGameStore((s) => s.playerSlot);
   const selectPiece = useGameStore((s) => s.selectPiece);
   const inspectPiece = useGameStore((s) => s.inspectPiece);
   const emitMove = useGameStore((s) => s.emitMove);
@@ -130,8 +130,7 @@ export function HexGrid() {
   const lastActionType = useGameStore((s) => s.gameState.lastActionType);
   const emitGKKickTarget = useGameStore((s) => s.emitGKKickTarget);
 
-  const myTeam: 'home' | 'away' | null =
-    playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
+  const myTeam = useMyTeam();
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
 
   // Optimistic highlight for SHOT target — cosmetic only; server emit is source of truth (D-06)
