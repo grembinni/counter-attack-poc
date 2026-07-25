@@ -15,6 +15,7 @@ import {
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
+import { deriveMyTeam } from '../hooks/useMyTeam.js';
 
 /** Pass type used for store and ActionPanel three-step flow (matches server event signature). */
 export type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL';
@@ -396,7 +397,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     // KICK_OFF_SETUP: valid destinations are the full kick-off zone (no pace limit, D-23)
     if (gameState.phase === 'KICK_OFF_SETUP') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: deriveMyTeam is the canonical null-safe helper (hooks are illegal
+      // in store action bodies — Pitfall 2). selectPiece is only ever invoked from
+      // HexGrid's canSelectKickOff, which already requires myTeam !== null, so this early
+      // guard is defense-in-depth rather than a real-flow behavior change — but it replaces
+      // the prior implicit "playerSlot==null -> away" coercion with an explicit no-op
+      // instead of silently treating an unassigned player as the away team.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       const isAttacking = myTeam === gameState.attackingTeam;
       const kickOffHex = PITCH_REGIONS.kickOffHex;
       const valid = PITCH_HEXES.filter((hex) => {
@@ -431,7 +442,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // minus-2-hex-zone for the conceding team's stages (D-30) — this logic is UNCHANGED
     // from the prior simultaneous model, just re-gated on "is it my team's stage right now."
     if (gameState.phase === 'FREE_KICK_SETUP') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectFreeKick)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       const stageIndex = gameState.freeKickStageIndex;
       const kickingTeam = gameState.freeKickAttackingTeam;
       if (
@@ -490,7 +508,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     // HIGH_PASS_MOVE: 1 piece per team, up to 3 hexes, any direction
     if (gameState.phase === 'HIGH_PASS_MOVE') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectHighPassMove)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       // Only own team pieces can be selected
       if (piece.teamId !== myTeam) {
         set({ selectedPieceId: null, validMoveHexes: [] });
@@ -524,7 +549,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // eligible pieces (both teams precomputed at trigger time) may each move up to 6 hexes
     // independently — no single-piece lock like HIGH_PASS_MOVE.
     if (gameState.phase === 'FREE_MOVE_ATTACK' || gameState.phase === 'FREE_MOVE_DEFENSE') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectFreeMove)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       const side = gameState.phase === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
       const eligibleIds = gameState.freeMoveEligibleIds?.[side] ?? [];
       if (piece.teamId !== myTeam || !eligibleIds.includes(id)) {
@@ -562,7 +594,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // fires for this phase (movementSlot stays null here; position is tracked via
     // firstTimePassMovementSlot instead), which was the CR-01-new root cause.
     if (gameState.phase === 'FIRST_TIME_PASS_MOVE') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectFirstTimePassMove)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       // Only own team pieces can be selected
       if (piece.teamId !== myTeam) {
         set({ selectedPieceId: null, validMoveHexes: [] });
@@ -594,7 +633,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     // GK_KICK_MOVE: both teams reposition 1 piece up to 3 hexes while kick is in air
     if (gameState.phase === 'GK_KICK_MOVE') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectGKKickMove)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       if (piece.teamId !== myTeam) {
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
@@ -616,7 +662,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     // SNAPSHOT_DEFLECT: defending team moves 1 piece up to 2 hexes
     if (gameState.phase === 'SNAPSHOT_DEFLECT') {
-      const myTeam = playerSlot === 1 ? 'home' : 'away';
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectSnapDeflect)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
       const defendingTeam: 'home' | 'away' = gameState.attackingTeam === 'home' ? 'away' : 'home';
       if (piece.teamId !== defendingTeam || myTeam !== defendingTeam) {
         set({ selectedPieceId: null, validMoveHexes: [] });
