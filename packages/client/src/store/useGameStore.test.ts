@@ -704,3 +704,113 @@ describe('useGameStore — selectPiece FREE_KICK_SETUP (D-49 staged/turn-gated)'
     expect(validMoveHexes.some((h) => h.q === 25 && h.r === 14)).toBe(true);
   });
 });
+
+// SELECTOR-REVIEW.md fix #1 (Phase 32-05, CLEANUP-03/D-06): setGameState's sticky-selection
+// logic previously had no dedicated branch for KICK_OFF_SETUP, so it fell through to the
+// generic MOVEMENT computeMovementValidHexes path, which always yields [] during KICK_OFF_SETUP
+// (validateMove's WRONG_SLOT guard fires because movementSlot is null) — silently wiping the
+// zone highlight the moment the opponent repositions any piece while a piece stays selected.
+describe('useGameStore — setGameState sticky-selection for KICK_OFF_SETUP (SELECTOR-REVIEW.md fix #1)', () => {
+  function kickOffSetupState() {
+    return {
+      ...mockMovementState,
+      phase: 'KICK_OFF_SETUP' as const,
+      attackingTeam: 'home' as const,
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({
+      playerSlot: 1, // home
+      gameState: kickOffSetupState(),
+      selectedPieceId: 'home-8',
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+  });
+
+  it('keeps the piece selected and recomputes a non-empty zone across a same-phase broadcast (regression: previously collapsed to [])', () => {
+    // Simulates the opponent repositioning a different piece during KICK_OFF_SETUP — phase
+    // unchanged, movementSlot unchanged (stays null throughout this phase), the previously
+    // selected piece is untouched and still exists.
+    const broadcast = {
+      ...kickOffSetupState(),
+      pieces: mockMovementState.pieces.map((p) =>
+        p.id === 'away-8' ? { ...p, position: { q: p.position.q + 1, r: p.position.r } } : p,
+      ),
+    };
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-8');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('clears selection when the selected piece is removed from the broadcast state (defense-in-depth, unrelated to the fix)', () => {
+    const broadcast = {
+      ...kickOffSetupState(),
+      pieces: mockMovementState.pieces.filter((p) => p.id !== 'home-8'),
+    };
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+});
+
+// SELECTOR-REVIEW.md fix #1 (Phase 32-05, CLEANUP-03/D-06): same root cause as the KICK_OFF_SETUP
+// fix above — a FREE_KICK_SETUP stage hand-off does not change GameState.phase, so this phase
+// also fell through to the generic MOVEMENT path and silently zeroed validMoveHexes on every
+// same-phase broadcast, instead of either recomputing the zone or clearing selection when the
+// active stage hands off to the other team.
+describe('useGameStore — setGameState sticky-selection for FREE_KICK_SETUP (SELECTOR-REVIEW.md fix #1)', () => {
+  function freeKickSetupState(stageIndex: 0 | 1 | 2 | 3 = 0) {
+    return {
+      ...mockMovementState,
+      phase: 'FREE_KICK_SETUP' as const,
+      freeKickHex: { q: 25, r: 13 },
+      freeKickAttackingTeam: 'away' as const,
+      freeKickStageIndex: stageIndex,
+      freeKickPlacedPieceIds: [],
+    };
+  }
+
+  it('stage 0 (kicking = away): keeps the piece selected and recomputes non-empty validMoveHexes across a same-stage broadcast', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away
+      gameState: freeKickSetupState(0),
+      selectedPieceId: 'away-9',
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    // Same stage, unrelated piece moved — simulates a broadcast arriving mid-selection.
+    const broadcast = {
+      ...freeKickSetupState(0),
+      pieces: mockMovementState.pieces.map((p) =>
+        p.id === 'home-1' ? { ...p, position: { q: p.position.q + 1, r: p.position.r } } : p,
+      ),
+    };
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('away-9');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('clears a kicking-team selection when the stage hands off to the defending team (regression: previously stayed selected with stale/empty hexes)', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away (kicking team)
+      gameState: freeKickSetupState(0),
+      selectedPieceId: 'away-9',
+      validMoveHexes: [{ q: 22, r: 12 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    // Stage advances 0 -> 1: active team hands off from away (kicking) to home (defending).
+    const broadcast = freeKickSetupState(1);
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+});
