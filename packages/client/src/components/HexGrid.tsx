@@ -862,9 +862,6 @@ export function HexGrid() {
                 carrierId={ball.carrierId}
                 attackingTeam={attackingTeam}
                 isOffside={(offsidePieceIds ?? []).includes(piece.id)}
-                // D-55: green "moved this stage" ring — only during FREE_KICK_SETUP,
-                // for a piece already counted in this stage's freeKickPlacedPieceIds.
-                isMovedThisStage={false}
               />
             );
           })}
