@@ -124,3 +124,14 @@ None - no external service configuration required.
 
 _Phase: 32-code-cleanup_
 _Completed: 2026-07-24_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/GameBoard.tsx
+- FOUND: packages/client/src/components/ActionLog.tsx
+- FOUND: packages/client/src/components/PieceOverlay.tsx
+- FOUND: .planning/phases/32-code-cleanup/32-03-SUMMARY.md
+- FOUND commit: 8cf0faa (Task 1)
+- FOUND commit: 2eedffe (Task 2)
+- FOUND commit: 6824353 (Task 3)
+- FOUND commit: 9b37662 (SUMMARY.md)
