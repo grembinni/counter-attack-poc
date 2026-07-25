@@ -1,11 +1,13 @@
 /* PlayerStatsPanel — flat card layout
- * Dark theme: --bg-surface: #16213e; --border: #0f3460; --text: #e0e0e0; --text-dim: #a0a0a0
+ * Chrome colors sourced from tokens.css (Phase 33 THEME-03 migration).
+ * Note: SVG jersey/team-identity rendering in PlayerStatsPanel.tsx is OUT OF SCOPE
+ * for this phase (see 33-02-PLAN.md Task 1 note) — only chrome (panel/text/border) migrated here.
  */
 
 /* Flat horizontal card: [badge] [body] */
 .panel {
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 10px 12px;
   display: flex;
@@ -41,7 +43,7 @@
 .playerName {
   font-size: 13px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,7 +63,7 @@
 .roleChip {
   font-size: 13px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -71,7 +73,7 @@
 .jerseyNum {
   font-size: 13px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
@@ -97,7 +99,7 @@
 .statAbbr {
   font-size: 10px;
   font-weight: 700;
-  color: #808090;
+  color: var(--color-text-tertiary);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -112,19 +114,19 @@
   border-radius: 50%;
   font-size: 11px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-inverse);
   flex-shrink: 0;
 }
 
 /* Color tiers via data-tier attribute selector */
 .statBadge[data-tier="high"] {
-  background: #22c55e;
+  background: var(--color-success);
 }
 
 .statBadge[data-tier="mid"] {
-  background: #f97316;
+  background: var(--color-stat-badge-medium);
 }
 
 .statBadge[data-tier="low"] {
-  background: #ef4444;
+  background: var(--color-danger);
 }

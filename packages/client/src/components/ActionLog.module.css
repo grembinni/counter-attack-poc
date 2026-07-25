@@ -1,6 +1,6 @@
 .panel {
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 8px;
   overflow-y: auto;
@@ -10,7 +10,7 @@
 .panelHeader {
   font-size: 13px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   letter-spacing: 0.08em;
   margin-bottom: 8px;
 }
@@ -23,17 +23,17 @@
 }
 
 .prefix {
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
 }
 
 .content {
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin-left: 4px;
 }
 
 .empty {
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   margin: 0;
 }

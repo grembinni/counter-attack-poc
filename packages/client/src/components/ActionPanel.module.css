@@ -1,5 +1,5 @@
 .panel {
-  background: #16213e;
+  background: var(--color-bg-surface);
   border-radius: 4px;
   padding: 4px 6px;
   display: flex;
@@ -21,8 +21,8 @@
   flex: 0 0 calc(50% - 2px);
   max-width: 120px;
   min-width: 0;
-  background: #0f3460;
-  color: #ffffff;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   padding: 3px 8px;
@@ -33,7 +33,7 @@
 }
 
 .ctaButton:hover {
-  background: #1a56b0;
+  background: var(--team-accent);
 }
 
 .ctaButton:disabled {
@@ -44,7 +44,7 @@
 .phaseLabel {
   font-size: 11px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-align: center;
@@ -54,8 +54,8 @@
   flex: 0 0 100%;
   min-width: 0;
   background: transparent;
-  color: #a0a0a0;
-  border: 1px solid #0f3460;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 11px;
@@ -65,18 +65,18 @@
 }
 
 .backButton:hover {
-  color: #ffffff;
-  border-color: #1a56b0;
+  color: var(--color-text-inverse);
+  border-color: var(--team-accent);
 }
 
 .gkLabel {
   font-size: 11px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
 }
 
 .errorText {
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 11px;
   font-weight: 400;
 }
@@ -93,7 +93,7 @@
 .helperLine1 {
   font-size: 11px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   text-align: center;
   letter-spacing: 0.03em;
 }
@@ -101,7 +101,7 @@
 .helperLine2 {
   font-size: 10px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
@@ -119,13 +119,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-overlay-backdrop);
   z-index: 20;
 }
 
 .confirmCard {
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 16px;
   display: flex;
@@ -138,7 +138,7 @@
 .confirmText {
   font-size: 13px;
   font-weight: 400;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
   line-height: 1.5;
   text-align: center;
@@ -158,20 +158,20 @@
 /* UX-08: End Turn / Confirm Selection color-state modifiers */
 /* Orange while eligible pieces remain — layered on top of .ctaButton base */
 .ctaButtonPending {
-  background: #f39c12;
+  background: var(--color-cta-pending-bg);
   transition: background-color 0.15s ease;
 }
 
 .ctaButtonPending:hover {
-  background: #e67e22;
+  background: var(--color-cta-pending-bg-hover);
 }
 
 /* Green once all eligible pieces have moved/placed */
 .ctaButtonReady {
-  background: #27ae60;
+  background: var(--color-cta-ready-bg);
   transition: background-color 0.15s ease;
 }
 
 .ctaButtonReady:hover {
-  background: #219a52;
+  background: var(--color-cta-ready-bg-hover);
 }

@@ -21,7 +21,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 20;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--color-banner-backdrop);
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 28px;
@@ -33,10 +33,10 @@
 
 /* Goal variant: white text — maximum contrast for the highest-stakes event */
 .goal {
-  color: #ffffff;
+  color: var(--color-text-inverse);
 }
 
 /* Notable variant (interception, tackle/turnover, loose ball): amber — "notable event" semantic */
 .notable {
-  color: #f39c12;
+  color: var(--color-cta-pending-bg);
 }
