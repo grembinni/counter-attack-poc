@@ -4,31 +4,31 @@ milestone: v1.5
 milestone_name: UX Refresh & Code Cleanup
 status: executing
 stopped_at: Phase 32 context gathered
-last_updated: '2026-07-24T23:28:55.134Z'
-last_activity: 2026-07-24 -- Phase 32 execution started
+last_updated: '2026-07-25T00:48:30.019Z'
+last_activity: 2026-07-25
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 12
-  completed_plans: 6
-  percent: 20
+  completed_plans: 12
+  percent: 40
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 32 (code-cleanup) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 32
-Last activity: 2026-07-24 -- Phase 32 execution started
+Phase: 33
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-25 -- Phase 32 (Code Cleanup) complete, 6/6 plans verified
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 32 — code-cleanup
+**Current focus:** Phase 33 — design-tokens-&-highlight-standardization
 
 ## Phase Status
 
@@ -73,7 +73,7 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 | 29    | Draft UI + Pick-and-Swap Flow              | Complete    | 2026-07-22 |
 | 30    | Recalibrate Draft                          | Complete    | 2026-07-22 |
 | 31    | Bug Fixes                                  | Complete    | 2026-07-24 |
-| 32    | Code Cleanup                               | Not started | -          |
+| 32    | Code Cleanup                               | Complete    | 2026-07-25 |
 | 33    | Design Tokens & Highlight Standardization  | Not started | -          |
 | 34    | Visual Theme Restyle                       | Not started | -          |
 | 35    | ActionPanel & Log Standardization          | Not started | -          |
