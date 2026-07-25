@@ -1,7 +1,7 @@
 .landingTitle {
   font-size: 28px;
   font-weight: 700;
-  color: #f5c518;
+  color: var(--color-accent-gold);
   margin: 0;
   text-align: center;
   letter-spacing: 0.03em;
@@ -9,7 +9,7 @@
 
 .landingSubtitle {
   font-size: 13px;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   margin: 0;
   text-align: center;
 }
@@ -28,14 +28,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a1a2e;
+  background: var(--color-bg-page);
 }
 
 .card {
   width: 100%;
   max-width: 440px;
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 24px;
   display: flex;
@@ -46,14 +46,14 @@
 .heading {
   font-size: 20px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .body {
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -61,14 +61,14 @@
   font-family: 'Courier New', Courier, monospace;
   font-size: 28px;
   font-weight: 700;
-  color: #f5c518;
+  color: var(--color-accent-gold);
   text-align: center;
   letter-spacing: 0.1em;
 }
 
 .ctaButton {
-  background: #0f3460;
-  color: #ffffff;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   padding: 10px 20px;
@@ -79,7 +79,7 @@
 }
 
 .ctaButton:hover {
-  background: #1a56b0;
+  background: var(--team-accent);
 }
 
 .ctaButton:disabled {
@@ -90,7 +90,7 @@
 .subLink {
   background: none;
   border: none;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   font-size: 13px;
   cursor: pointer;
   text-decoration: underline;
@@ -99,23 +99,23 @@
 }
 
 .subLink:hover {
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 .input {
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 8px 12px;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   width: 100%;
   box-sizing: border-box;
 }
 
 .input:focus {
   outline: none;
-  border-color: #1a56b0;
+  border-color: var(--team-accent);
 }
 
 .dots {
@@ -129,12 +129,12 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e0e0e0;
+  background: var(--color-text-primary);
   animation: pulse 1.2s infinite;
 }
 
 .errorText {
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 13px;
   font-weight: 400;
 }

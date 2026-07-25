@@ -55,4 +55,38 @@
      Values are frozen/unchanged from their prior literal use — no visual change. */
   --color-bg-pitch: #0a0a0a;
   --color-stat-badge-medium: #f97316;
+
+  /* Extended chrome tokens (Rule 3 deviation, added during Plan 33-03's
+     lobby/settings/selection-screen migration sweep): also not part of the
+     original 18-token UI-SPEC list, but required to eliminate the remaining
+     raw hex/rgba literals in LobbyScreen/GameSettingsScreen/TeamSelectionScreen/
+     UniformSelectionScreen/LineupAssignmentScreen. Values are frozen/unchanged
+     from their prior literal use — no visual change. */
+  --color-success-hover: #16a34a;
+  --color-accent-gold-glow: rgba(245, 197, 24, 0.3);
+  --color-confirm-pending-bg: #eab308;
+  --color-border-subtle: #555555;
+
+  /* Team/formation selection-card border+glow family (4 alpha steps of white) */
+  --color-card-border-idle: rgba(255, 255, 255, 0.2);
+  --color-card-border-hover-glow: rgba(255, 255, 255, 0.55);
+  --color-card-border-selected: rgba(255, 255, 255, 0.9);
+  --color-card-glow-selected: rgba(255, 255, 255, 0.45);
+  --color-card-border-struck-out: rgba(255, 255, 255, 0.1);
+
+  /* Game-speed picker accent family (Slow/Standard/Fast) — duplicated verbatim
+     across GameSettingsScreen/TeamSelectionScreen/UniformSelectionScreen prior
+     to this migration; --color-speed-standard/-fast intentionally reuse the
+     same swatches as --color-success/--color-stat-badge-medium under a
+     speed-specific semantic name (same pattern as --color-border reusing
+     --color-bg-surface-alt's value above). */
+  --color-speed-slow: #3b82f6;
+  --color-speed-slow-active: #93c5fd;
+  --color-speed-slow-bg: rgba(59, 130, 246, 0.15);
+  --color-speed-standard: #22c55e;
+  --color-speed-standard-active: #86efac;
+  --color-speed-standard-bg: rgba(34, 197, 94, 0.15);
+  --color-speed-fast: #f97316;
+  --color-speed-fast-active: #fdba74;
+  --color-speed-fast-bg: rgba(249, 115, 22, 0.15);
 }
