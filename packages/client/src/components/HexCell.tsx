@@ -10,17 +10,21 @@ export type HexHighlightType =
   | 'kickoff'
   | 'shot-path'
   | 'shot-path-action'
-  | 'header-target';
+  | 'header-target'
+  | 'gk-kick-target'
+  | 'pass-target'
+  | 'tackle-risk';
 
-const HIGHLIGHT_STYLES: Record<
+export const HIGHLIGHT_STYLES: Record<
   HexHighlightType,
   { fill: string; restOpacity: number; hoverOpacity: number; stroke: string; strokeWidth: number }
 > = {
+  // D-01: safe recolored gold -> green (HILITE-01/02 traffic-light remap).
   safe: {
-    fill: 'rgba(245,197,24,1)',
+    fill: 'rgba(34,197,94,0.4)',
     restOpacity: 0.5,
     hoverOpacity: 0.65,
-    stroke: '#d4a017',
+    stroke: '#16a34a',
     strokeWidth: 1.5,
   },
   risk: {
@@ -30,11 +34,12 @@ const HIGHLIGHT_STYLES: Record<
     stroke: '#b35a00',
     strokeWidth: 2,
   },
+  // D-02: goal recolored red -> purple, freeing red app-wide for the offside ring only.
   goal: {
-    fill: 'rgba(220,50,50,1)',
+    fill: 'rgba(168,85,247,0.5)',
     restOpacity: 0.5,
     hoverOpacity: 0.65,
-    stroke: '#cc2222',
+    stroke: '#9333ea',
     strokeWidth: 1.5,
   },
   kickoff: {
@@ -65,11 +70,47 @@ const HIGHLIGHT_STYLES: Record<
     stroke: 'none',
     strokeWidth: 0,
   },
+  // New (33-04): GK kick destination — migrated from HexGrid.tsx inline literal.
+  'gk-kick-target': {
+    fill: 'rgba(56,189,248,0.30)',
+    restOpacity: 1,
+    hoverOpacity: 1,
+    stroke: 'rgba(56,189,248,0.55)',
+    strokeWidth: 1,
+  },
+  // New (33-04): safe pass target — merges former GK_QUICK_THROW inline tint (see UI-SPEC B1).
+  'pass-target': {
+    fill: 'rgba(34,197,94,0.4)',
+    restOpacity: 1,
+    hoverOpacity: 1,
+    stroke: 'none',
+    strokeWidth: 0,
+  },
+  // New (33-04): interception-risk pass target — migrated from the .hexTackleRisk CSS class.
+  'tackle-risk': {
+    fill: 'rgba(255,140,0,0.55)',
+    restOpacity: 1,
+    hoverOpacity: 1,
+    stroke: 'none',
+    strokeWidth: 0,
+  },
+};
+
+// New (33-04): compound gold "ring" overlay — independent of highlightType (mirrors
+// PieceOverlay's isOffside/isMovedThisStage additive-layer pattern). Single source of
+// truth for the kick-off centre-hex marker and the confirmed-pass-target outline.
+export const RING_STYLES: Record<
+  'required' | 'confirmed',
+  { fill: string; fillOpacity?: number; stroke: string; strokeWidth: number }
+> = {
+  required: { fill: '#f5c518', fillOpacity: 0.5, stroke: '#f5c518', strokeWidth: 2 },
+  confirmed: { fill: 'none', stroke: '#f5c518', strokeWidth: 2 },
 };
 
 type Props = {
   hex: HexCoord;
   highlightType?: HexHighlightType;
+  ring?: 'required' | 'confirmed';
   onClick: () => void;
 };
 
@@ -78,7 +119,7 @@ type Props = {
  * SVG fragment — must be a child of the HexGrid <svg> root (not a div wrapper).
  * D-10: highlightType enum prop replaces the free-form isHighlighted/highlightColor props.
  */
-export function HexCell({ hex, highlightType, onClick }: Props) {
+export function HexCell({ hex, highlightType, ring, onClick }: Props) {
   const { cx, cy } = axialToPixel(hex.q, hex.r);
   const points = hexPolygonPoints(cx, cy);
   const [hovered, setHovered] = useState(false);
@@ -99,8 +140,10 @@ export function HexCell({ hex, highlightType, onClick }: Props) {
         fill={baseFill}
         stroke="#2d5227"
         strokeWidth={0.5}
-        onClick={highlightType !== undefined ? onClick : undefined}
-        style={{ cursor: highlightType !== undefined ? 'pointer' : 'default' }}
+        onClick={highlightType !== undefined || ring !== undefined ? onClick : undefined}
+        style={{
+          cursor: highlightType !== undefined || ring !== undefined ? 'pointer' : 'default',
+        }}
         aria-hidden="true"
       >
         <title>{`(${hex.q}, ${hex.r})`}</title>
@@ -123,6 +166,19 @@ export function HexCell({ hex, highlightType, onClick }: Props) {
             />
           );
         })()}
+      {/* Compound gold ring overlay — independent of highlightType (D-B2, mirrors PieceOverlay's
+          isOffside/isMovedThisStage additive-layer pattern). Values sourced from RING_STYLES so a
+          hex may render both a tint and a ring simultaneously. */}
+      {ring !== undefined && (
+        <polygon
+          points={points}
+          pointerEvents="none"
+          fill={RING_STYLES[ring].fill}
+          fillOpacity={RING_STYLES[ring].fillOpacity}
+          stroke={RING_STYLES[ring].stroke}
+          strokeWidth={RING_STYLES[ring].strokeWidth}
+        />
+      )}
       {/* Difficult-angle dot — subtle white circle at 30% opacity. UI-SPEC §Hex Overlay Elements. */}
       {isDifficultAngle(hex) && (
         <circle cx={cx} cy={cy} r={3} fill="#ffffff" fillOpacity={0.3} pointerEvents="none" />
