@@ -222,6 +222,39 @@ type ResponseMoveValidHexConfig = {
 };
 
 /**
+ * Named per-phase configs for {@link computeResponseMoveValidHexes} (SELECTOR-REVIEW.md
+ * fix #2, Phase 32-05 CLEANUP-03/D-06). Previously each selectPiece branch (and the
+ * SNAPSHOT_DEFLECT sticky block) constructed an equivalent object literal inline at its own
+ * call site — hoisting them to named constants lets setGameState's sticky-selection block
+ * reuse the exact same config selectPiece uses per phase, eliminating the need to hand-roll
+ * an equivalent computation a second time (see fix #2's inline duplication finding).
+ */
+const HIGH_PASS_MOVE_CONFIG: ResponseMoveValidHexConfig = {
+  lockedPieceIdField: 'highPassMovedPieceId',
+  paceUsedField: 'highPassPaceUsed',
+  paceCap: 3,
+  clickDistanceMode: 'strict-1',
+};
+const GK_KICK_MOVE_CONFIG: ResponseMoveValidHexConfig = {
+  lockedPieceIdField: 'gkKickMovedPieceId',
+  paceUsedField: 'gkKickPaceUsed',
+  paceCap: 3,
+  clickDistanceMode: 'strict-1',
+};
+const FIRST_TIME_PASS_MOVE_CONFIG: ResponseMoveValidHexConfig = {
+  lockedPieceIdField: 'firstTimePassMovedPieceId',
+  paceUsedField: 'firstTimePassPaceUsed',
+  paceCap: 1,
+  clickDistanceMode: 'strict-1',
+};
+const SNAPSHOT_DEFLECT_CONFIG: ResponseMoveValidHexConfig = {
+  lockedPieceIdField: 'snapDeflectMovedPieceId',
+  paceUsedField: 'snapDeflectPaceUsed',
+  paceCap: 2,
+  clickDistanceMode: 'range',
+};
+
+/**
  * Shared valid-hex computation for the 4 response-move selectPiece branches (Cluster 3,
  * Phase 18.2 DESIGN-03). The caller does its own ownership/carrier/lock early-return guards
  * (these differ per branch and stay inline) — this helper only computes the valid
@@ -246,6 +279,115 @@ function computeResponseMoveValidHexes(
     const dist = hexDistance(piece.position, hex);
     if (config.clickDistanceMode === 'strict-1') return dist === 1;
     return dist >= 1 && dist <= paceRemaining;
+  });
+}
+
+/**
+ * KICK_OFF_SETUP valid-hex zone computation (SELECTOR-REVIEW.md fix #1, Phase 32-05
+ * CLEANUP-03/D-06). Extracted verbatim from selectPiece's former inline KICK_OFF_SETUP block
+ * so setGameState's sticky-selection block can reuse it — previously only selectPiece computed
+ * this, so a same-phase broadcast during KICK_OFF_SETUP (e.g. the opponent repositioning a
+ * piece) fell through to the generic MOVEMENT computeMovementValidHexes path, which always
+ * returns [] here (validateMove's WRONG_SLOT guard fires because movementSlot is null during
+ * KICK_OFF_SETUP), silently wiping the zone highlight mid-selection.
+ */
+function computeKickOffSetupValidHexes(
+  id: string,
+  gameState: GameState,
+  myTeam: 'home' | 'away',
+): HexCoord[] {
+  const isAttacking = myTeam === gameState.attackingTeam;
+  const kickOffHex = PITCH_REGIONS.kickOffHex;
+  return PITCH_HEXES.filter((hex) => {
+    // Exclude the hex currently occupied by another own piece (can't stack)
+    if (
+      gameState.pieces.some(
+        (p) =>
+          p.id !== id && p.teamId === myTeam && p.position.q === hex.q && p.position.r === hex.r,
+      )
+    )
+      return false;
+    const inCentre = isInRegion(hex, 'centreCircle');
+    if (myTeam === 'home') {
+      // Attacking: q ≤ 18; defending: strictly q < 18 and not in centre circle
+      return isAttacking ? hex.q <= kickOffHex.q : hex.q < kickOffHex.q && !inCentre;
+    } else {
+      // Attacking: q ≥ 18; defending: strictly q > 18 and not in centre circle
+      return isAttacking ? hex.q >= kickOffHex.q : hex.q > kickOffHex.q && !inCentre;
+    }
+  });
+}
+
+/**
+ * FREE_KICK_SETUP valid-hex + selection-validity computation (SELECTOR-REVIEW.md fix #1,
+ * Phase 32-05 CLEANUP-03/D-06). Extracted verbatim from selectPiece's former inline
+ * FREE_KICK_SETUP guard cascade (D-49 staged/turn-gated model) so setGameState's sticky-
+ * selection block can re-validate AND recompute on every same-phase broadcast — a stage
+ * hand-off (kicking team -> defending team, or vice versa) does not change GameState.phase,
+ * so without this the previous selection could survive a turn change with a stale hex set.
+ * Returns null when the selection is no longer valid for the CURRENT broadcast state (mirrors
+ * every early-return-to-clear branch in the original selectPiece cascade); the caller clears
+ * selection in that case exactly as selectPiece's guards would.
+ */
+function computeFreeKickSetupValidHexes(
+  id: string,
+  piece: GameState['pieces'][number],
+  gameState: GameState,
+  myTeam: 'home' | 'away',
+): HexCoord[] | null {
+  if (piece.teamId !== myTeam) return null;
+  const stageIndex = gameState.freeKickStageIndex;
+  const kickingTeam = gameState.freeKickAttackingTeam;
+  if (stageIndex === null || stageIndex === undefined || !kickingTeam) return null;
+  const activeTeamForStage = freeKickStageTeam(stageIndex, kickingTeam);
+  if (myTeam !== activeTeamForStage) return null;
+  const isKickingTeam = myTeam === kickingTeam;
+  const freeKickHex = gameState.freeKickHex;
+
+  // D-54 kicker-select sub-step: the only valid destination is the ball hex (freeKickHex).
+  if (gameState.freeKickKickerChosen === false) {
+    if (!freeKickHex) return null;
+    const fkOccupied = gameState.pieces.some(
+      (p) => p.id !== id && p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
+    );
+    return fkOccupied ? [] : [freeKickHex];
+  }
+
+  return PITCH_HEXES.filter((hex) => {
+    // Exclude hexes occupied by another own piece (can't stack)
+    if (
+      gameState.pieces.some(
+        (p) =>
+          p.id !== id && p.teamId === myTeam && p.position.q === hex.q && p.position.r === hex.r,
+      )
+    )
+      return false;
+    // D-29: kicking team's stages have no further restriction.
+    if (isKickingTeam || !freeKickHex) return true;
+    // D-30: defending team's stages must stay >2 hexes from freeKickHex.
+    if (hexDistance(hex, freeKickHex) <= 2) return false;
+    return true;
+  });
+}
+
+/**
+ * FREE_MOVE_ATTACK/DEFENSE valid-hex computation (SELECTOR-REVIEW.md fix #3, Phase 32-05
+ * CLEANUP-03/D-06). Extracted from selectPiece's former inline FREE_MOVE_ATTACK/DEFENSE block —
+ * was byte-for-byte duplicated in setGameState's sticky-selection block (differing only in the
+ * pace-budget lookup expression); both call sites now share this single source.
+ */
+function computeFreeMoveValidHexes(
+  id: string,
+  piece: GameState['pieces'][number],
+  gameState: GameState,
+): HexCoord[] {
+  return hexesInRange(piece.position, 1).filter((hex) => {
+    if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+    if (
+      gameState.pieces.some((p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r)
+    )
+      return false;
+    return hexDistance(piece.position, hex) === 1;
   });
 }
 
@@ -408,29 +550,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const isAttacking = myTeam === gameState.attackingTeam;
-      const kickOffHex = PITCH_REGIONS.kickOffHex;
-      const valid = PITCH_HEXES.filter((hex) => {
-        // Exclude the hex currently occupied by another own piece (can't stack)
-        if (
-          gameState.pieces.some(
-            (p) =>
-              p.id !== id &&
-              p.teamId === myTeam &&
-              p.position.q === hex.q &&
-              p.position.r === hex.r,
-          )
-        )
-          return false;
-        const inCentre = isInRegion(hex, 'centreCircle');
-        if (myTeam === 'home') {
-          // Attacking: q ≤ 18; defending: strictly q < 18 and not in centre circle
-          return isAttacking ? hex.q <= kickOffHex.q : hex.q < kickOffHex.q && !inCentre;
-        } else {
-          // Attacking: q ≥ 18; defending: strictly q > 18 and not in centre circle
-          return isAttacking ? hex.q >= kickOffHex.q : hex.q > kickOffHex.q && !inCentre;
-        }
-      });
+      const valid = computeKickOffSetupValidHexes(id, gameState, myTeam);
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -450,58 +570,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const stageIndex = gameState.freeKickStageIndex;
-      const kickingTeam = gameState.freeKickAttackingTeam;
-      if (
-        piece.teamId !== myTeam ||
-        stageIndex === null ||
-        stageIndex === undefined ||
-        !kickingTeam
-      ) {
+      const valid = computeFreeKickSetupValidHexes(id, piece, gameState, myTeam);
+      if (valid === null) {
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const activeTeamForStage = freeKickStageTeam(stageIndex, kickingTeam);
-      if (myTeam !== activeTeamForStage) {
-        set({ selectedPieceId: null, validMoveHexes: [] });
-        return;
-      }
-      const isKickingTeam = myTeam === kickingTeam;
-      const freeKickHex = gameState.freeKickHex;
-
-      // D-54 kicker-select sub-step: the only valid destination is the ball hex (freeKickHex).
-      // Restricting to one hex ensures the valid-move highlight is visible over the D-48 zone
-      // tint and matches server enforcement (applyFreeKickMove rejects non-freeKickHex moves).
-      if (gameState.freeKickKickerChosen === false) {
-        if (!freeKickHex) {
-          set({ selectedPieceId: null, validMoveHexes: [] });
-          return;
-        }
-        const fkOccupied = gameState.pieces.some(
-          (p) => p.id !== id && p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
-        );
-        set({ selectedPieceId: id, validMoveHexes: fkOccupied ? [] : [freeKickHex] });
-        return;
-      }
-
-      const valid = PITCH_HEXES.filter((hex) => {
-        // Exclude hexes occupied by another own piece (can't stack)
-        if (
-          gameState.pieces.some(
-            (p) =>
-              p.id !== id &&
-              p.teamId === myTeam &&
-              p.position.q === hex.q &&
-              p.position.r === hex.r,
-          )
-        )
-          return false;
-        // D-29: kicking team's stages have no further restriction.
-        if (isKickingTeam || !freeKickHex) return true;
-        // D-30: defending team's stages must stay >2 hexes from freeKickHex.
-        if (hexDistance(hex, freeKickHex) <= 2) return false;
-        return true;
-      });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -535,12 +608,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
-        lockedPieceIdField: 'highPassMovedPieceId',
-        paceUsedField: 'highPassPaceUsed',
-        paceCap: 3,
-        clickDistanceMode: 'strict-1',
-      });
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, HIGH_PASS_MOVE_CONFIG);
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -574,16 +642,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: id, validMoveHexes: [] });
         return;
       }
-      const valid = hexesInRange(piece.position, 1).filter((hex) => {
-        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-        if (
-          gameState.pieces.some(
-            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          )
-        )
-          return false;
-        return hexDistance(piece.position, hex) === 1;
-      });
+      const valid = computeFreeMoveValidHexes(id, piece, gameState);
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -621,12 +680,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
-        lockedPieceIdField: 'firstTimePassMovedPieceId',
-        paceUsedField: 'firstTimePassPaceUsed',
-        paceCap: 1,
-        clickDistanceMode: 'strict-1',
-      });
+      const valid = computeResponseMoveValidHexes(
+        id,
+        piece,
+        gameState,
+        FIRST_TIME_PASS_MOVE_CONFIG,
+      );
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -650,12 +709,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
-        lockedPieceIdField: 'gkKickMovedPieceId',
-        paceUsedField: 'gkKickPaceUsed',
-        paceCap: 3,
-        clickDistanceMode: 'strict-1',
-      });
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, GK_KICK_MOVE_CONFIG);
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -685,12 +739,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       // targeting — any hex within the remaining 2-hex budget is a valid one-click destination,
       // matching GK_DIVE's "click a spot directly" UX for regular/headed shots. clickDistanceMode:
       // 'range' in computeResponseMoveValidHexes preserves this semantic.
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, {
-        lockedPieceIdField: 'snapDeflectMovedPieceId',
-        paceUsedField: 'snapDeflectPaceUsed',
-        paceCap: 2,
-        clickDistanceMode: 'range',
-      });
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, SNAPSHOT_DEFLECT_CONFIG);
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -780,39 +829,77 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // Sticky selection: recompute adjacent hexes for next step (D-17, D-19)
     const piece = newState.pieces.find((p) => p.id === prevSelectedId)!;
 
-    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE: re-run phase-specific valid move logic
+    // KICK_OFF_SETUP: re-run the zone rule (SELECTOR-REVIEW.md fix #1, Phase 32-05 D-06).
+    // Previously this phase had no dedicated sticky branch and fell through to the generic
+    // MOVEMENT computeMovementValidHexes path below, which always yields [] here (validateMove's
+    // WRONG_SLOT guard fires because movementSlot is null during KICK_OFF_SETUP) — silently
+    // wiping the zone highlight the moment the opponent repositions any piece mid-selection.
+    if (newState.phase === 'KICK_OFF_SETUP') {
+      const myTeam = deriveMyTeam(prev.playerSlot);
+      const stickyValid =
+        myTeam === null ? [] : computeKickOffSetupValidHexes(prevSelectedId, newState, myTeam);
+      set({
+        gameState: newState,
+        selectedPieceId: prevSelectedId,
+        validMoveHexes: stickyValid,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+      });
+      return;
+    }
+
+    // FREE_KICK_SETUP: re-validate the stage/team guard AND re-run the zone rule (SELECTOR-
+    // REVIEW.md fix #1, Phase 32-05 D-06). A stage hand-off (kicking team -> defending team)
+    // does not change GameState.phase, so — same root cause as KICK_OFF_SETUP above — this
+    // phase previously fell through to the generic MOVEMENT path and silently zeroed out.
+    // computeFreeKickSetupValidHexes returns null when the selection is no longer valid for the
+    // active stage, mirroring every clear-branch in selectPiece's original guard cascade.
+    if (newState.phase === 'FREE_KICK_SETUP') {
+      const myTeam = deriveMyTeam(prev.playerSlot);
+      const stickyValid =
+        myTeam === null
+          ? null
+          : computeFreeKickSetupValidHexes(prevSelectedId, piece, newState, myTeam);
+      if (stickyValid === null) {
+        set({
+          gameState: newState,
+          selectedPieceId: null,
+          validMoveHexes: [],
+          tackleRiskHexes: [],
+          lastMovedPieceId: null,
+        });
+        return;
+      }
+      set({
+        gameState: newState,
+        selectedPieceId: prevSelectedId,
+        validMoveHexes: stickyValid,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+      });
+      return;
+    }
+
+    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE: re-run phase-specific valid move
+    // logic via the same named config + computeResponseMoveValidHexes helper selectPiece's
+    // matching branches use (SELECTOR-REVIEW.md fix #2, Phase 32-05 D-06) — previously this
+    // block hand-rolled an equivalent computation inline instead of reusing the helper.
     if (
       newState.phase === 'HIGH_PASS_MOVE' ||
       newState.phase === 'GK_KICK_MOVE' ||
       newState.phase === 'FIRST_TIME_PASS_MOVE'
     ) {
-      const paceRemaining =
+      const config =
         newState.phase === 'GK_KICK_MOVE'
-          ? 3 - (newState.gkKickPaceUsed ?? 0)
+          ? GK_KICK_MOVE_CONFIG
           : newState.phase === 'FIRST_TIME_PASS_MOVE'
-            ? 1 - (newState.firstTimePassPaceUsed ?? 0)
-            : 3 - (newState.highPassPaceUsed ?? 0);
-      const lockedId =
-        newState.phase === 'GK_KICK_MOVE'
-          ? (newState.gkKickMovedPieceId ?? null)
-          : newState.phase === 'FIRST_TIME_PASS_MOVE'
-            ? (newState.firstTimePassMovedPieceId ?? null)
-            : (newState.highPassMovedPieceId ?? null);
+            ? FIRST_TIME_PASS_MOVE_CONFIG
+            : HIGH_PASS_MOVE_CONFIG;
+      const lockedId = newState[config.lockedPieceIdField] ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
-      const stickyValid =
-        locked || paceRemaining <= 0
-          ? []
-          : hexesInRange(piece.position, 1).filter((hex) => {
-              if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-              if (
-                newState.pieces.some(
-                  (p) =>
-                    p.id !== prevSelectedId && p.position.q === hex.q && p.position.r === hex.r,
-                )
-              )
-                return false;
-              return hexDistance(piece.position, hex) === 1;
-            });
+      const stickyValid = locked
+        ? []
+        : computeResponseMoveValidHexes(prevSelectedId, piece, newState, config);
       set({
         gameState: newState,
         selectedPieceId: prevSelectedId,
@@ -828,20 +915,15 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // fallthrough below, which validateMove's WRONG_SLOT guard always rejects for this phase
     // (SNAPSHOT_DEFLECT never sets movementSlot) — forcing validMoveHexes to [] even when the
     // defender has pace remaining. This branch routes through the same computeResponseMoveValidHexes
-    // helper selectPiece's SNAPSHOT_DEFLECT branch uses (lines 615-620), keyed by snapDeflectMovedPieceId
-    // / snapDeflectPaceUsed / paceCap 2 / clickDistanceMode 'range'. The lock check (WR-01 caveat) is
-    // done here by the caller — computeResponseMoveValidHexes does not enforce lockedPieceIdField itself.
+    // helper selectPiece's SNAPSHOT_DEFLECT branch uses, keyed by SNAPSHOT_DEFLECT_CONFIG. The lock
+    // check (WR-01 caveat) is done here by the caller — computeResponseMoveValidHexes does not
+    // enforce lockedPieceIdField itself.
     if (newState.phase === 'SNAPSHOT_DEFLECT') {
       const lockedId = newState.snapDeflectMovedPieceId ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid = locked
         ? []
-        : computeResponseMoveValidHexes(prevSelectedId, piece, newState, {
-            lockedPieceIdField: 'snapDeflectMovedPieceId',
-            paceUsedField: 'snapDeflectPaceUsed',
-            paceCap: 2,
-            clickDistanceMode: 'range',
-          });
+        : computeResponseMoveValidHexes(prevSelectedId, piece, newState, SNAPSHOT_DEFLECT_CONFIG);
       set({
         gameState: newState,
         selectedPieceId: prevSelectedId,
@@ -857,22 +939,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // folded into the HIGH_PASS_MOVE-style block above. phaseChanged (handled earlier) already
     // clears selection the moment FREE_MOVE_ATTACK transitions to FREE_MOVE_DEFENSE or to the
     // resume phase — each sub-phase starts fresh, no carry-over selection across sub-phases (D-35).
+    // Valid-hex filter shared with selectPiece's FREE_MOVE branch via computeFreeMoveValidHexes
+    // (SELECTOR-REVIEW.md fix #3, Phase 32-05 D-06) — previously duplicated inline in both places.
     if (newState.phase === 'FREE_MOVE_ATTACK' || newState.phase === 'FREE_MOVE_DEFENSE') {
       const paceRemaining = 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
       const stickyValid =
-        paceRemaining <= 0
-          ? []
-          : hexesInRange(piece.position, 1).filter((hex) => {
-              if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-              if (
-                newState.pieces.some(
-                  (p) =>
-                    p.id !== prevSelectedId && p.position.q === hex.q && p.position.r === hex.r,
-                )
-              )
-                return false;
-              return hexDistance(piece.position, hex) === 1;
-            });
+        paceRemaining <= 0 ? [] : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
       set({
         gameState: newState,
         selectedPieceId: prevSelectedId,
