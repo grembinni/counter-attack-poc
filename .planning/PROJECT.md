@@ -30,6 +30,10 @@ A code-review pass on Phase 30 found and fixed one critical bug: `DRAFT_PICK`/`D
 - FREE_KICK_SETUP Undo not implemented (undo within/across stages; `.planning/todos/pending/free-kick-setup-undo-not-implemented.md`)
 - Draft-mode cosmetic debt (Phase 29/30): `DRAFT_REARRANGE` bench-index bounds validation gap (not exploitable), bench jersey numbers not assigned on post-complete rearrange, client tier-color cache doesn't survive reconnect/reload, several stale code comments describing the pre-Phase-30 pack/tier model.
 
+**Phase 32 (Code Cleanup) complete 2026-07-25.** Validated in Phase 32: CLEANUP-01 through CLEANUP-04 (see below). Delivered: `knip` installed as a permanent CI-enforced dead-code gate (`shootTargetHex` and the unwired `ConnectionStatus` component + 3 unused mock files removed); team-accent-color and team-slot derivation consolidated into `useTeamColors`/`useMyTeam` (pure-function-core + hook-wrapper pattern, 8 call sites migrated); a full selector/derived-state review of the 952-line `useGameStore.ts` (`SELECTOR-REVIEW.md`) that found and fixed a genuine staleness bug (KICK_OFF_SETUP/FREE_KICK_SETUP highlights silently collapsing to `[]` on same-phase broadcasts) plus two duplicated-logic sites; `eslint-plugin-react-hooks` enabled at `error` for the client package with zero suppressions needed. Test suite grew to shared 583 / server 627 / client 391 (1,601 total), all green.
+
+**Known tech debt entering Phase 33:** the whole-workspace `pnpm lint` OOMs on a pre-existing `packages/shared` typescript-eslint file-count-cap config issue (unrelated to Phase 32's changes, doesn't gate CI, documented in `.planning/phases/32-code-cleanup/deferred-items.md`).
+
 ## Current Milestone: v1.5 UX Refresh & Code Cleanup
 
 **Goal:** Overhaul the visual system to a professional broadcast-sports look, standardize hex-highlight colors and the ActionPanel, pay down accumulated code debt, and close 3 known bugs.
@@ -233,4 +237,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-07-22 — v1.5 milestone started_
+_Last updated: 2026-07-25 — Phase 32 (Code Cleanup) complete_
