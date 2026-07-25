@@ -132,3 +132,12 @@ CLEANUP-03 is fully satisfied: SELECTOR-REVIEW.md exists with every verdict reso
 
 _Phase: 32-code-cleanup_
 _Completed: 2026-07-25_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/32-code-cleanup/SELECTOR-REVIEW.md`
+- FOUND: `.planning/phases/32-code-cleanup/32-05-SUMMARY.md`
+- FOUND: `packages/client/src/store/useGameStore.ts`
+- FOUND commit: `d55e74b` (Task 1)
+- FOUND commit: `72b72d3` (Task 2)
+- FOUND commit: `b387b3f` (SUMMARY.md)
