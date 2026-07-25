@@ -86,7 +86,7 @@ Task 3 (`checkpoint:human-verify`, gate=`blocking`) exists in the plan to review
 grep -rn "eslint-disable.*react-hooks" packages/client/src
 ```
 
-returned zero matches (grep exit code 1) both immediately after Task 2's fixes and again after the final commits (post `eslint --fix`/`prettier` pre-commit hooks). **The suppression list is empty.** Both violations found by the correctly-scoped rule were resolved via the default fix (adding stable dependency references) — the ideal outcome per Pitfall 3 and the must_have truth: _"The dominant fix is adding missing STABLE Zustand action/setter references... not eslint-disable."_
+returned zero matches (grep exit code 1) both immediately after Task 2's fixes and again after the final commits (post `eslint --fix`/`prettier` pre-commit hooks). **The suppression list is empty.** Both violations found by the correctly-scoped rule were resolved via the default fix (adding stable dependency references) — the ideal outcome per Pitfall 3 and the must*have truth: *"The dominant fix is adding missing STABLE Zustand action/setter references... not eslint-disable."\_
 
 **Reviewed suppression list:** empty — nothing to review, nothing to approve/convert. D-08's checklist is trivially satisfied because the escape hatch it governs was never exercised.
 
@@ -159,3 +159,12 @@ None - no external service configuration required.
 
 _Phase: 32-code-cleanup_
 _Completed: 2026-07-24_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/32-code-cleanup/32-06-SUMMARY.md`
+- FOUND: `eslint.config.js`
+- FOUND: `eslint-plugin-react-hooks` in `package.json`
+- FOUND commit: `89abc8a` (Task 1)
+- FOUND commit: `f0ff5e1` (Task 2)
+- FOUND commit: `68b3b7b` (docs: SUMMARY.md)
