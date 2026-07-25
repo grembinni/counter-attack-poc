@@ -115,7 +115,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | ----- | --------------------------------- | ----------- | ----------- |
 | 31    | Bug Fixes                         | 6/6         | Complete    |
 | 32    | Code Cleanup                      | 6/6         | Complete    |
-| 33    | 3/7                               | In Progress |             |
+| 33    | 6/7                               | In Progress |             |
 | 34    | Visual Theme Restyle              | TBD         | Not started |
 | 35    | ActionPanel & Log Standardization | TBD         | Not started |
 
@@ -191,11 +191,11 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
    Plans:
    - [x] 33-01-PLAN.md — Chrome token file + GameBoard token/accent migration (THEME-03) [Wave 1]
-   - [ ] 33-02-PLAN.md — In-game panel/log/banner chrome-literal → token migration (THEME-03) [Wave 2]
-   - [ ] 33-03-PLAN.md — Lobby/settings/selection screen chrome-literal → token migration (THEME-03) [Wave 2]
+   - [x] 33-02-PLAN.md — In-game panel/log/banner chrome-literal → token migration (THEME-03) [Wave 2]
+   - [x] 33-03-PLAN.md — Lobby/settings/selection screen chrome-literal → token migration (THEME-03) [Wave 2]
    - [x] 33-04-PLAN.md — HexCell highlight table: green safe / purple goal / new tints + ring prop (HILITE-01, HILITE-02) [Wave 1]
    - [x] 33-05-PLAN.md — PieceOverlay grey moved-this-stage marker (HILITE-03) [Wave 1]
-   - [ ] 33-06-PLAN.md — HexGrid highlight consolidation + always-on-top ball marker (HILITE-01, HILITE-04) [Wave 2]
+   - [x] 33-06-PLAN.md — HexGrid highlight consolidation + always-on-top ball marker (HILITE-01, HILITE-04) [Wave 2]
    - [ ] 33-07-PLAN.md — HIGHLIGHT-REFERENCE.md + phase-gate verification (HILITE-05) [Wave 3]
          **UI hint**: yes
 
