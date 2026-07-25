@@ -8,7 +8,7 @@ Counter Attack's board renders color-coded feedback through three structurally
 distinct, independently-composable mechanisms:
 
 1. **Hex tints** — `HexHighlightType` union rendered by `HexCell.tsx` (mutually exclusive per hex; at most one tint per hex).
-2. **Piece rings and hex rings** — `PieceOverlay.tsx` selection/status rings (mostly mutually exclusive, with two independent boolean layers that can stack) and `HexCell`'s compound `ring` prop (an additive layer independent of the tint).
+2. **Piece rings and hex rings** — `PieceOverlay.tsx` selection/status rings (mostly mutually exclusive, with one independent boolean layer, `isOffside`, that can stack on top) and `HexCell`'s compound `ring` prop (an additive layer independent of the tint).
 3. **Standalone always-on-top overlays** — `BallLocationRing.tsx`, a marker that lives outside the tint/ring priority system entirely and is never hidden by either.
 
 This document is the single source of truth (HILITE-05) for every highlight/ring
@@ -70,28 +70,43 @@ Cross-reference: `packages/client/src/components/HexCell.tsx` (`HIGHLIGHT_STYLES
 ### 2a. `PieceOverlay.tsx` — piece selection/status rings
 
 `selectionState` is mutually exclusive (a piece has exactly one of `none` /
-`selectable` / `active` / `activated`). `isOffside` and `isMovedThisStage` are
-independent boolean layers — either, both, or neither can stack on top of any
-`selectionState`, since they represent orthogonal concerns (rule-violation
-status and stage-usage status) rather than the current selection state.
+`selectable` / `active` / `activated`). `isOffside` is an independent boolean
+layer — it can stack on top of any `selectionState`, since it represents an
+orthogonal concern (rule-violation status) rather than the current selection
+state.
 
-| State                         | Semantic                                                      | Stroke                                                                                                                                                                                                  | Radius offset                                                                                 |
-| ----------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `selectionState="selectable"` | 🔵 Piece can be selected this turn                            | `#60a5fa`                                                                                                                                                                                               | +3                                                                                            |
-| `selectionState="active"`     | 🟢 Currently-selected / active piece (also header contestant) | `#22c55e` (`ACTIVE_RING_STROKE`)                                                                                                                                                                        | +4                                                                                            |
-| `selectionState="activated"`  | 🟡 Already used this turn (orange ring + red X)               | `#f97316` (ring + X)                                                                                                                                                                                    | +3                                                                                            |
-| `isOffside`                   | 🔴 Offside — the sole app-wide use of red                     | `#dc2626`                                                                                                                                                                                               | +6                                                                                            |
-| `isMovedThisStage`            | ⚫ Already-moved-this-free-kick-stage ("spent/used up" look)  | Dark grey ring `#6b7280` (`MOVED_THIS_STAGE_RING_STROKE`), `strokeWidth: 2.5`, **plus** a light-grey semi-transparent overlay circle `#9ca3af` (`MOVED_THIS_STAGE_OVERLAY_FILL`) at `fillOpacity: 0.35` | ring at +8; overlay circle at full `PIECE_RADIUS` (drawn over the piece body, below the ring) |
+| State                         | Semantic                                                      | Stroke                                                                                                                                                                            | Radius offset                                                                                 |
+| ----------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `selectionState="selectable"` | 🔵 Piece can be selected this turn                            | `#60a5fa`                                                                                                                                                                         | +3                                                                                            |
+| `selectionState="active"`     | 🟢 Currently-selected / active piece (also header contestant) | `#22c55e` (`ACTIVE_RING_STROKE`)                                                                                                                                                  | +4                                                                                            |
+| `selectionState="activated"`  | ⚫ Already used this turn / already acted ("spent" look)      | Dark grey ring `#6b7280` (`SPENT_RING_STROKE`), `strokeWidth: 2.5`, **plus** a light-grey semi-transparent overlay circle `#9ca3af` (`SPENT_OVERLAY_FILL`) at `fillOpacity: 0.35` | ring at +8; overlay circle at full `PIECE_RADIUS` (drawn over the piece body, below the ring) |
+| `isOffside`                   | 🔴 Offside — the sole app-wide use of red                     | `#dc2626`                                                                                                                                                                         | +6                                                                                            |
 
-`isMovedThisStage` was changed from green to grey (HILITE-03, D-05) — it was
-previously the same `#22c55e` green as `active`, making a "used up" piece
-visually indistinguishable from an actively-selected piece. The grey values
-above resolve that collision.
+**Revision history (Plan 33-07 Task 3 human-verify feedback):** `activated`
+originally rendered an orange ring + red X (`#f97316`), and a separate
+free-kick-stage-only mechanism (a boolean prop, formerly `isMovedThisStage`)
+independently rendered a grey ring + grey overlay for pieces already placed
+this free-kick stage. A visual test pass found this inconsistent — the same
+underlying concept ("this piece has already acted / been used up") showed two
+different looks depending on context. The reviewer's decision: retire the
+orange+X treatment entirely and use one consistent grey visual everywhere a
+piece is marked as already-acted (MOVE, HIGH_PASS_MOVE, GK_KICK_MOVE,
+FREE_MOVE_ATTACK/DEFENSE, SNAPSHOT_DEFLECT, FIRST_TIME_PASS_MOVE, and
+FREE_KICK_SETUP). Since `HexGrid.tsx`'s `isSpentNow` already folds
+`freeKickPlacedPieceIds` membership directly into `selectionState==='activated'`
+(see the `FREE_KICK_SETUP` branch), the separate boolean prop was redundant
+once `activated` adopted the grey look — it was removed entirely, and the
+constants were renamed from `MOVED_THIS_STAGE_RING_STROKE` /
+`MOVED_THIS_STAGE_OVERLAY_FILL` to `SPENT_RING_STROKE` / `SPENT_OVERLAY_FILL`
+to reflect that they now describe the general "already acted" state, not a
+free-kick-stage-specific case. The grey values were originally chosen (HILITE-03,
+D-05) to resolve a prior collision where this look was the same `#22c55e`
+green as `active` — that distinctness rationale still applies now that the
+look also covers `activated`.
 
 Cross-reference: `packages/client/src/components/PieceOverlay.tsx`
-(`ACTIVE_RING_STROKE`, `MOVED_THIS_STAGE_RING_STROKE`,
-`MOVED_THIS_STAGE_OVERLAY_FILL` constants; `selectionState`, `isOffside`,
-`isMovedThisStage` props).
+(`ACTIVE_RING_STROKE`, `SPENT_RING_STROKE`, `SPENT_OVERLAY_FILL` constants;
+`selectionState`, `isOffside` props).
 
 ### 2b. `HexCell.tsx` — compound `ring` prop
 
@@ -125,19 +140,31 @@ by any hex tint or ring.
 | -------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Ball-location marker | ⚪ Hex containing the ball, during response phases | White hex-edge outline: `stroke: '#ffffff'` (`BALL_MARKER_STROKE`), `strokeWidth: 2.5` (same thickness as the `PieceOverlay` ring family), `fill: none` |
 
-**Visibility gate — exact 10-phase list** (`BALL_MARKER_PHASES` in
+**Visibility gate — exact 11-phase list** (`BALL_MARKER_PHASES` in
 `BallLocationRing.tsx`): the marker renders only when `GameState.phase` is one
 of:
 
 `HEADER`, `SNAPSHOT`, `SNAPSHOT_TARGET`, `SNAPSHOT_DEFLECT`, `GK_DIVE`, `SHOT`,
-`GK_RESTART`, `GK_QUICK_THROW`, `GK_KICK_TARGET`, `GK_KICK_MOVE`.
+`GK_RESTART`, `GK_QUICK_THROW`, `GK_KICK_TARGET`, `GK_KICK_MOVE`,
+`KICK_OFF_SETUP`.
 
 It does not render during ordinary `MOVE` / `PASS` / `KICK_OFF` /
-`KICK_OFF_SETUP` / `FREE_KICK_SETUP` / `FREE_MOVE_*` / `LOOSE_BALL` /
-`HIGH_PASS_MOVE` / `FIRST_TIME_PASS_MOVE` / `HALF_TIME` / `FULL_TIME` /
-`REPLAY` — those are standard-turn phases where the ball position is already
-legible from the ball sprite (`BallMarker.tsx`) and piece positions without an
-extra marker.
+`FREE_KICK_SETUP` / `FREE_MOVE_*` / `LOOSE_BALL` / `HIGH_PASS_MOVE` /
+`FIRST_TIME_PASS_MOVE` / `HALF_TIME` / `FULL_TIME` / `REPLAY` — those are
+standard-turn phases where the ball position is already legible from the ball
+sprite (`BallMarker.tsx`) and piece positions without an extra marker.
+
+**`KICK_OFF_SETUP` addition (Plan 33-07 Task 3 human-verify feedback):**
+`KICK_OFF_SETUP` was originally excluded from the gate (a 10-phase list) — during
+kickoff setup, the ball/kicker hex instead only got the gold `ring="required"`
+overlay (`HexCell.tsx`, section 2b above), which marks "the kicker must be placed
+here." A visual test pass found this inconsistent with every other response
+phase, where the ball's own hex always gets the white marker. `KICK_OFF_SETUP`
+was added to `BALL_MARKER_PHASES` so the ball's hex gets the same consistent
+white marker during kickoff setup too. This is additive, not a replacement: the
+gold required-ring is a distinct concept ("place the kicker here") and continues
+to render unchanged, simultaneously with the white ball marker, on the same hex
+during `KICK_OFF_SETUP`.
 
 The prior HEADER-only gold ball-position overlay (formerly inline in
 `HexGrid.tsx`) was fully superseded by this component and removed — it is not
