@@ -1,18 +1,23 @@
 import type { ActionEvent, HexCoord, MovementSlot } from '@counter-attack/shared';
-import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { teamAccentColor } from '../hooks/useTeamColors.js';
 import styles from './ActionLog.module.css';
 
-// ─── Team colors (D-06/D-17: derive from selectedTeams via TEAM_CONFIGS) ─
+// ─── Team colors (D-06/D-17: derive from selectedTeams via the pure teamAccentColor) ─
 
-/** Reads selectedTeams from store state (not a subscription — safe in module-level helpers). */
+/**
+ * Reads selectedTeams from store state (not a subscription — safe in module-level
+ * helpers). Calls the PURE teamAccentColor (never the useTeamAccentColor hook) — this
+ * function runs inside consolidateEvents/formatEvent's per-event loops, not component
+ * render, so a hook call here would violate Rules of Hooks (Pitfall 1).
+ */
 function pieceColorOf(pieceId: string): string {
   const state = useGameStore.getState();
   const selectedTeams = state.gameState?.selectedTeams;
   if (!selectedTeams) return '#888888';
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
   const teamId = selectedTeams[positional];
-  return TEAM_CONFIGS[teamId]?.palette.uiColor ?? '#888888';
+  return teamAccentColor(teamId);
 }
 
 /**
@@ -41,7 +46,7 @@ function slotTeamColor(slot: MovementSlot): string {
   const positional: 'home' | 'away' =
     slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
   const teamId = selectedTeams[positional];
-  return TEAM_CONFIGS[teamId]?.palette.uiColor ?? '#888888';
+  return teamAccentColor(teamId);
 }
 
 /** Bold, team-colored player label rendered inline. */
