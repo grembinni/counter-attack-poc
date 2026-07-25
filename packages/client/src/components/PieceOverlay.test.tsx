@@ -2,12 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import type { PlayerPiece } from '@counter-attack/shared';
 import { COLOR_SCHEME_REGISTRY } from '@counter-attack/shared';
-import {
-  PieceOverlay,
-  ACTIVE_RING_STROKE,
-  MOVED_THIS_STAGE_RING_STROKE,
-  MOVED_THIS_STAGE_OVERLAY_FILL,
-} from './PieceOverlay.js';
+import { PieceOverlay, ACTIVE_RING_STROKE } from './PieceOverlay.js';
 import type { SelectionState } from './PieceOverlay.js';
 
 vi.mock('../socket.js', () => ({
@@ -100,12 +95,7 @@ const awayGK: PlayerPiece = {
 /** Helper — renders PieceOverlay inside an <svg> wrapper (required for SVG fragment components).
  * Phase 20 D-15: uniformStyle and palette are resolved per-piece by the caller (mirrors HexGrid).
  * Home pieces default to city/pinstripe; away pieces default to crew/diagonal. */
-function renderPiece(
-  piece: PlayerPiece,
-  selectionState: SelectionState,
-  isOffside = false,
-  isMovedThisStage = false,
-) {
+function renderPiece(piece: PlayerPiece, selectionState: SelectionState, isOffside = false) {
   // Resolve uniform style and palette based on team — mirrors what HexGrid does via TEAM_CONFIGS.
   // GK pieces use 'checkers' so D-13 palette-swap tests can assert swapped checker colors.
   const isHome = piece.teamId === 'home';
@@ -129,7 +119,6 @@ function renderPiece(
         carrierId={null}
         attackingTeam="home"
         isOffside={isOffside}
-        isMovedThisStage={isMovedThisStage}
       />
     </svg>,
   );
@@ -302,79 +291,5 @@ describe('PieceOverlay — OFFSIDE-01 (D-25, ring width corrected by D-42): red 
     const allCircles = Array.from(container.querySelectorAll('circle'));
     const redRing = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
     expect(redRing.length).toBe(0);
-  });
-});
-
-describe('PieceOverlay — D-55/HILITE-03 (D-05): grey "moved this stage" ring + overlay, distinct from the green active ring', () => {
-  it('isMovedThisStage=true renders a dark-grey ring (MOVED_THIS_STAGE_RING_STROKE) with strokeWidth 2.5 at radius PIECE_RADIUS+8, plus a light-grey overlay circle (MOVED_THIS_STAGE_OVERLAY_FILL) with fillOpacity 0.35 at radius PIECE_RADIUS', () => {
-    const { container } = renderPiece(homeOutfield, 'none', false, true);
-    const allCircles = Array.from(container.querySelectorAll('circle'));
-
-    const greyRings = allCircles.filter(
-      (c) => c.getAttribute('stroke') === MOVED_THIS_STAGE_RING_STROKE,
-    );
-    expect(greyRings.length).toBe(1);
-    expect(greyRings[0]!.getAttribute('fill')).toBe('none');
-    expect(greyRings[0]!.getAttribute('stroke-width')).toBe('2.5');
-    expect(greyRings[0]!.getAttribute('r')).toBe('20'); // PIECE_RADIUS(12) + 8
-
-    const greyOverlays = allCircles.filter(
-      (c) => c.getAttribute('fill') === MOVED_THIS_STAGE_OVERLAY_FILL,
-    );
-    expect(greyOverlays.length).toBe(1);
-    expect(greyOverlays[0]!.getAttribute('fill-opacity')).toBe('0.35');
-    expect(greyOverlays[0]!.getAttribute('r')).toBe('12'); // PIECE_RADIUS
-  });
-
-  it('isMovedThisStage=false (default) renders neither the grey ring nor the grey overlay when selectionState is none', () => {
-    const { container } = renderPiece(homeOutfield, 'none');
-    const allCircles = Array.from(container.querySelectorAll('circle'));
-    const greyRings = allCircles.filter(
-      (c) => c.getAttribute('stroke') === MOVED_THIS_STAGE_RING_STROKE,
-    );
-    const greyOverlays = allCircles.filter(
-      (c) => c.getAttribute('fill') === MOVED_THIS_STAGE_OVERLAY_FILL,
-    );
-    expect(greyRings.length).toBe(0);
-    expect(greyOverlays.length).toBe(0);
-  });
-
-  it('isMovedThisStage=true together with selectionState=active renders BOTH the green active ring (ACTIVE_RING_STROKE) AND the grey moved-this-stage ring (MOVED_THIS_STAGE_RING_STROKE) at distinct radii — proving the two are no longer the same color (HILITE-03)', () => {
-    expect(ACTIVE_RING_STROKE).not.toBe(MOVED_THIS_STAGE_RING_STROKE);
-
-    const { container } = renderPiece(homeOutfield, 'active', false, true);
-    const allCircles = Array.from(container.querySelectorAll('circle'));
-
-    const activeRings = allCircles.filter((c) => c.getAttribute('stroke') === ACTIVE_RING_STROKE);
-    expect(activeRings.length).toBe(1);
-    expect(activeRings[0]!.getAttribute('r')).toBe('16'); // PIECE_RADIUS(12) + 4
-
-    const movedRings = allCircles.filter(
-      (c) => c.getAttribute('stroke') === MOVED_THIS_STAGE_RING_STROKE,
-    );
-    expect(movedRings.length).toBe(1);
-    expect(movedRings[0]!.getAttribute('r')).toBe('20'); // PIECE_RADIUS(12) + 8
-  });
-
-  it('isMovedThisStage=true together with isOffside=true renders BOTH the grey moved-this-stage ring AND the red offside ring simultaneously', () => {
-    const { container } = renderPiece(homeOutfield, 'none', true, true);
-    const allCircles = Array.from(container.querySelectorAll('circle'));
-    const greyRing = allCircles.filter(
-      (c) => c.getAttribute('stroke') === MOVED_THIS_STAGE_RING_STROKE,
-    );
-    const redRing = allCircles.filter((c) => c.getAttribute('stroke') === '#dc2626');
-    expect(greyRing.length).toBe(1);
-    expect(redRing.length).toBe(1);
-  });
-
-  it('isMovedThisStage=true together with selectionState=activated renders BOTH the orange activated ring/X AND the grey moved-this-stage ring', () => {
-    const { container } = renderPiece(homeOutfield, 'activated', false, true);
-    const allCircles = Array.from(container.querySelectorAll('circle'));
-    const orangeRing = allCircles.filter((c) => c.getAttribute('stroke') === '#f97316');
-    const greyRing = allCircles.filter(
-      (c) => c.getAttribute('stroke') === MOVED_THIS_STAGE_RING_STROKE,
-    );
-    expect(orangeRing.length).toBe(1);
-    expect(greyRing.length).toBe(1);
   });
 });
