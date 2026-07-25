@@ -114,7 +114,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | Phase | Name                                      | Plans       | Status      |
 | ----- | ----------------------------------------- | ----------- | ----------- |
 | 31    | Bug Fixes                                 | 6/6         | Complete    |
-| 32    | 2/6                                       | In Progress |             |
+| 32    | 4/6                                       | In Progress |             |
 | 33    | Design Tokens & Highlight Standardization | TBD         | Not started |
 | 34    | Visual Theme Restyle                      | TBD         | Not started |
 | 35    | ActionPanel & Log Standardization         | TBD         | Not started |
@@ -167,8 +167,8 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Wave 2** _(blocked on Wave 1)_
 
-- [ ] 32-03-PLAN.md — CLEANUP-02: color consolidation — GameBoard/ActionLog to `teamAccentColor`, PieceOverlay verify (Pitfall 5) [Wave 2, depends 32-02]
-- [ ] 32-04-PLAN.md — CLEANUP-02: `myTeam` consolidation — HexGrid/ActionPanel/FreeKick/KickOff panels + useGameStore ×7 (Pitfall 2/4) [Wave 2, depends 32-01, 32-02]
+- [x] 32-03-PLAN.md — CLEANUP-02: color consolidation — GameBoard/ActionLog to `teamAccentColor`, PieceOverlay verify (Pitfall 5) [Wave 2, depends 32-02]
+- [x] 32-04-PLAN.md — CLEANUP-02: `myTeam` consolidation — HexGrid/ActionPanel/FreeKick/KickOff panels + useGameStore ×7 (Pitfall 2/4) [Wave 2, depends 32-01, 32-02]
 
 **Wave 3** _(blocked on Wave 2)_
 
