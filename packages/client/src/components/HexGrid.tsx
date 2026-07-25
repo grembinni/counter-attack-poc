@@ -16,12 +16,13 @@ import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { socket } from '../socket.js';
-import { computeViewBox, HEX_SIZE, axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
+import { computeViewBox, HEX_SIZE } from '../utils/hexToPixel.js';
 import { HexCell } from './HexCell.js';
 import type { HexHighlightType } from './HexCell.js';
 import { PieceOverlay } from './PieceOverlay.js';
 import type { SelectionState } from './PieceOverlay.js';
 import { BallMarker } from './BallMarker.js';
+import { BallLocationRing } from './BallLocationRing.js';
 import { PitchMarkings } from './PitchMarkings.js';
 import { GoalNets } from './GoalNets.js';
 import styles from './HexGrid.module.css';
@@ -476,23 +477,44 @@ export function HexGrid() {
               hex.r === freeKickHex.r;
             // isSafeTint: normal valid-move hexes not classified as goal-line
             const isSafeTint = isHighlighted && !isGoalTint;
+            // Plan 06 (HILITE-01): consolidated tint booleans for the GK-kick/pass-target/
+            // tackle-risk overlay groups previously rendered as separate inline <polygon>
+            // siblings — now routed through the single highlightType priority ternary.
+            const isGkKickTargetTint = gkKickTargetSet.has(hexId);
+            // Merges the former GK_QUICK_THROW inline tint into pass-target (UI-SPEC B1).
+            const isPassTargetTint =
+              (isPassTarget && !isInterceptionRisk && !isConfirmedPassTarget) ||
+              quickThrowTargetSet.has(hexId);
+            const isTackleRiskTint = isInterceptionRisk && !isConfirmedPassTarget;
+            // Compound gold "ring" overlay (Plan 04 HexCell prop) — independent of highlightType.
+            const ring: 'required' | 'confirmed' | undefined = isCentreHex
+              ? 'required'
+              : isConfirmedPassTarget
+                ? 'confirmed'
+                : undefined;
             const highlightType: HexHighlightType | undefined = isHeaderNonGoalTarget
               ? 'header-target'
               : isRisk
                 ? 'risk'
-                : isGoalTint
-                  ? 'goal'
-                  : isShotPathActionTint
-                    ? 'shot-path-action'
-                    : isShotPathTint
-                      ? 'shot-path'
-                      : isKickerTargetTint
+                : isTackleRiskTint
+                  ? 'tackle-risk'
+                  : isGoalTint
+                    ? 'goal'
+                    : isShotPathActionTint
+                      ? 'shot-path-action'
+                      : isShotPathTint
                         ? 'shot-path'
-                        : isKickoffTint
-                          ? 'kickoff'
-                          : isSafeTint
-                            ? 'safe'
-                            : undefined;
+                        : isKickerTargetTint
+                          ? 'shot-path'
+                          : isKickoffTint
+                            ? 'kickoff'
+                            : isGkKickTargetTint
+                              ? 'gk-kick-target'
+                              : isPassTargetTint
+                                ? 'pass-target'
+                                : isSafeTint
+                                  ? 'safe'
+                                  : undefined;
 
             let onClick: (() => void) | undefined;
             // DESIGN-02: REPLAY is never interactive — skip the entire phase-branch cascade so
@@ -555,101 +577,18 @@ export function HexGrid() {
               }
             }
 
-            const { cx, cy } = axialToPixel(hex.q, hex.r);
-            const points = hexPolygonPoints(cx, cy);
-
+            // Plan 06 (HILITE-01): every highlight tint/ring now flows through HexCell's
+            // highlightType/ring props — no ad-hoc inline <polygon> overlay siblings remain.
+            // onClick already covers GK-kick/quick-throw/pass-confirm/deselect interactions
+            // via the derivation above (lines ~500-577).
             return (
-              <g key={hexId}>
-                <HexCell
-                  hex={hex}
-                  {...(highlightType !== undefined ? { highlightType } : {})}
-                  onClick={onClick ?? (() => undefined)}
-                />
-                {/* KICK_OFF_SETUP: centre hex gold fill overlay (always visible during setup, MATCH-03) */}
-                {isCentreHex && (
-                  <polygon
-                    points={points}
-                    fill="#f5c518"
-                    fillOpacity={0.5}
-                    stroke="none"
-                    pointerEvents="none"
-                  />
-                )}
-                {/* KICK_OFF_SETUP: centre hex required ring (2px gold stroke, no fill) */}
-                {isCentreHex && (
-                  <polygon
-                    points={points}
-                    fill="none"
-                    stroke="#f5c518"
-                    strokeWidth={2}
-                    pointerEvents="none"
-                  />
-                )}
-                {/* HEADER phase: gold overlay on ball position hex so players can see where the ball landed */}
-                {phase === 'HEADER' && hex.q === ball.position.q && hex.r === ball.position.r && (
-                  <polygon
-                    points={points}
-                    fill="#f5c518"
-                    fillOpacity={0.5}
-                    stroke="#f5c518"
-                    strokeWidth={2}
-                    pointerEvents="none"
-                  />
-                )}
-                {/* GK_KICK_TARGET: sky-blue tint on valid kick destinations */}
-                {gkKickTargetSet.has(hexId) && (
-                  <polygon
-                    points={points}
-                    fill="rgba(56,189,248,0.30)"
-                    stroke="rgba(56,189,248,0.55)"
-                    strokeWidth={1}
-                    onClick={() => emitGKKickTarget(hex)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
-                {/* QUICK_THROW: green tint on valid target hexes (no blocking, no interception) */}
-                {quickThrowTargetSet.has(hexId) && (
-                  <polygon
-                    points={points}
-                    fill="rgba(34,197,94,0.35)"
-                    stroke="rgba(34,197,94,0.6)"
-                    strokeWidth={1}
-                    onClick={() => emitQuickThrow(hex)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
-                {/* Phase 8.2 D-06: safe pass target — green tint, handles click */}
-                {isPassTarget && !isInterceptionRisk && !isConfirmedPassTarget && (
-                  <polygon
-                    points={points}
-                    fill="rgba(34,197,94,0.4)"
-                    stroke="none"
-                    onClick={onClick}
-                    style={{ cursor: onClick ? 'pointer' : 'default' }}
-                  />
-                )}
-                {/* Phase 8.2 D-09: interception-risk pass target — amber, handles click */}
-                {isInterceptionRisk && !isConfirmedPassTarget && (
-                  <polygon
-                    points={points}
-                    className={styles.hexTackleRisk}
-                    stroke="none"
-                    onClick={onClick}
-                    style={{ cursor: onClick ? 'pointer' : 'default' }}
-                  />
-                )}
-                {/* Phase 8.2 D-06: confirmed pass target — gold outline ring, handles deselect click */}
-                {isConfirmedPassTarget && (
-                  <polygon
-                    points={points}
-                    fill="none"
-                    stroke="#f5c518"
-                    strokeWidth={2}
-                    onClick={onClick}
-                    style={{ cursor: onClick ? 'pointer' : 'default' }}
-                  />
-                )}
-              </g>
+              <HexCell
+                key={hexId}
+                hex={hex}
+                {...(highlightType !== undefined ? { highlightType } : {})}
+                {...(ring !== undefined ? { ring } : {})}
+                onClick={onClick ?? (() => undefined)}
+              />
             );
           })}
           {/* Layer 1.5: Pitch markings — cosmetic SVG overlay; under pieces, over hex fill (D-07, D-08, D-12) */}
@@ -929,6 +868,10 @@ export function HexGrid() {
               />
             );
           })}
+          {/* Layer 4 (HILITE-04, D-09): standalone always-on-top white hex-edge ball-location
+              marker — topmost sibling, after PieceOverlay, outside the highlightType/ring
+              priority resolution entirely so it is never hidden or out-prioritized. */}
+          <BallLocationRing ballPosition={ball.position} phase={phase} />
         </g>
       </g>
     </svg>
