@@ -203,7 +203,18 @@ export function App() {
       socket.off(ServerEvents.LINEUP_ASSIGNMENT_UPDATED, onLineupAssignmentUpdated);
       socket.off(ServerEvents.DRAFT_STATE_UPDATED, onDraftStateUpdated);
     };
-  }, []);
+    // CLEANUP-04 (D-07): deps below are Zustand setter references — referentially stable
+    // for the store's lifetime, so listing them is behavior-preserving; the effect still
+    // only registers socket listeners once on mount (Pitfall 3).
+  }, [
+    setDisconnectWarning,
+    setGameError,
+    setGameState,
+    setPlayerSlot,
+    setRoomCode,
+    setRoomError,
+    setScreen,
+  ]);
 
   // D-14: emits team:pick to server; called from TeamSelectionScreen onPick prop
   function handleTeamPick(teamId: TeamId) {

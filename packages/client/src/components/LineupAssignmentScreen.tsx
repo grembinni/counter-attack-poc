@@ -7,7 +7,7 @@
  *
  * D-16: only the player's own assignment is shown — server never sends opponent's lineup to this socket.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FORMATIONS,
   PLAYER_POOL,
@@ -276,15 +276,21 @@ export function LineupAssignmentScreen({
   /** Resolves a drafted card id to a TieredPoolPlayer for bench rendering — falls back to an
    * exact recomputation via classifyTier(computeTotalStat(player)) if the card never appeared
    * in this client's currentPack history (D-05/Pitfall 5: no more role-based heuristic — since
-   * tier is a pure function of stats, this fallback is now exact, not approximate). */
-  function resolveTieredCard(cardId: string): TieredPoolPlayer | null {
-    const cached = cardCache[cardId];
-    if (cached) return cached;
-    const player = PLAYER_MAP.get(cardId);
-    if (!player) return null;
-    const totalStat = computeTotalStat(player);
-    return { ...player, tier: classifyTier(totalStat), totalStat };
-  }
+   * tier is a pure function of stats, this fallback is now exact, not approximate).
+   * CLEANUP-04 (D-07): wrapped in useCallback keyed on cardCache so the reference stays
+   * stable across unrelated re-renders — required so the benchCards useMemo below can list
+   * it as a dependency without recomputing on every render (Pitfall 3). */
+  const resolveTieredCard = useCallback(
+    (cardId: string): TieredPoolPlayer | null => {
+      const cached = cardCache[cardId];
+      if (cached) return cached;
+      const player = PLAYER_MAP.get(cardId);
+      if (!player) return null;
+      const totalStat = computeTotalStat(player);
+      return { ...player, tier: classifyTier(totalStat), totalStat };
+    },
+    [cardCache],
+  );
 
   function isCardGK(cardId: string): boolean {
     return PLAYER_MAP.get(cardId)?.role === 'GK';
@@ -303,7 +309,16 @@ export function LineupAssignmentScreen({
     return draftView.benchIds
       .map(resolveTieredCard)
       .filter((c): c is TieredPoolPlayer => c !== null);
-  }, [draftView?.benchIds, cardCache]);
+    // CLEANUP-04 (D-07): draftView replaces the former draftView?.benchIds-only dep — the
+    // callback references the full draftView object (the `if (!draftView) return []` guard),
+    // so exhaustive-deps requires it explicitly. Behavior-equivalent in practice: this app's
+    // full-snapshot broadcast pattern (STATE.md "Decisions Locked") means draftView only gets a
+    // new reference on a genuine DRAFT_STATE_UPDATED, which is exactly when benchIds also
+    // changes — unrelated local-state re-renders (drag-over ticks, rejection-message timeout)
+    // leave the draftView prop reference untouched, so benchCards' stable identity from
+    // Gap-closure 29-12 (DRAFT-09) is preserved. resolveTieredCard is now a useCallback keyed
+    // on cardCache, so its own identity change already covers the prior cardCache dependency.
+  }, [draftView, resolveTieredCard]);
 
   // D-14: group slots by slotRole prefix into 4 columns
   const formation = FORMATIONS[formationId];
