@@ -4,6 +4,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { axialToPixel } from '../utils/hexToPixel.js';
 import { HexGrid } from './HexGrid.js';
+import { HIGHLIGHT_STYLES } from './HexCell.js';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -59,7 +60,7 @@ beforeEach(() => {
 /** Finds risk-tinted polygons (fill matches the 'risk' highlight color) at the candidate hex. */
 function countRiskPolygons(container: HTMLElement): number {
   return Array.from(container.querySelectorAll('polygon')).filter(
-    (p) => p.getAttribute('fill') === 'rgba(255,140,0,1)',
+    (p) => p.getAttribute('fill') === HIGHLIGHT_STYLES.risk.fill,
   ).length;
 }
 
@@ -90,7 +91,7 @@ function shootingModeStateWithShooterAt(pos: { q: number; r: number }) {
  * goalTintedCount (below) is used where exact per-hex counting matters.
  */
 function hasGoalTintAt(container: HTMLElement): boolean {
-  const goalFill = 'rgba(220,50,50,1)'; // HIGHLIGHT_STYLES.goal fill — see HexCell.tsx
+  const goalFill = HIGHLIGHT_STYLES.goal.fill;
   return Array.from(container.querySelectorAll('polygon')).some(
     (p) => p.getAttribute('fill') === goalFill,
   );
@@ -142,7 +143,7 @@ describe('HexGrid — gap closure plan 10: regular-shot highlight matches D-09 1
     const { container } = render(<HexGrid />);
     // Count total goal-tinted polygons — with the bug, all 7 goal-line hexes light up.
     // With the fix, only (0,10) and (0,11) (distance 11) should be tinted — 2 hexes.
-    const goalFill = 'rgba(220,50,50,1)';
+    const goalFill = HIGHLIGHT_STYLES.goal.fill;
     const goalTintedCount = Array.from(container.querySelectorAll('polygon')).filter(
       (p) => p.getAttribute('fill') === goalFill,
     ).length;
@@ -173,7 +174,7 @@ describe('HexGrid — gap closure plan 10: regular-shot highlight matches D-09 1
       tackleRiskHexes: [],
     });
     const { container } = render(<HexGrid />);
-    const goalFill = 'rgba(220,50,50,1)';
+    const goalFill = HIGHLIGHT_STYLES.goal.fill;
     const goalTintedCount = Array.from(container.querySelectorAll('polygon')).filter(
       (p) => p.getAttribute('fill') === goalFill,
     ).length;
@@ -623,11 +624,11 @@ describe('HexGrid — SNAPSHOT_DEFLECT GK selection gate (BUG-32)', () => {
 // D-48: FREE_KICK_SETUP placement-zone highlight is GEOMETRIC (zone-based) but
 // SELECTION-GATED — only shown for the active player's valid destinations after a piece
 // is selected. Clears when the move commits and selection is reset. Uses the light-blue
-// 'kickoff' tint (rgba(59,130,246,1)), not the generic yellow 'safe' tint.
+// 'kickoff' tint, not the generic green 'safe' tint (D-01: safe recolored gold -> green).
 // ---------------------------------------------------------------------------
 
-const KICKOFF_FILL = 'rgba(59,130,246,1)'; // HIGHLIGHT_STYLES.kickoff fill — see HexCell.tsx
-const SAFE_FILL = 'rgba(245,197,24,1)'; // HIGHLIGHT_STYLES.safe fill — see HexCell.tsx
+const KICKOFF_FILL = HIGHLIGHT_STYLES.kickoff.fill;
+const SAFE_FILL = HIGHLIGHT_STYLES.safe.fill;
 
 /** Returns true if a polygon with the given fill is centered at (q, r). */
 function hasFillAtHex(container: HTMLElement, fill: string, q: number, r: number): boolean {
@@ -702,7 +703,7 @@ describe('HexGrid — D-48: FREE_KICK_SETUP persistent geometric placement-zone 
     expect(hasFillAtHex(container, KICKOFF_FILL, 25, 13)).toBe(false);
   });
 
-  it('stage 1 (defending = home): does NOT render the generic safe (yellow) fill anywhere', () => {
+  it('stage 1 (defending = home): does NOT render the generic safe (green) fill anywhere', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(1),
       ...baseStoreState({ playerSlot: 1 }),
