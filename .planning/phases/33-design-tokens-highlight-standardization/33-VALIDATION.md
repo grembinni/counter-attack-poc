@@ -1,9 +1,9 @@
 ---
 phase: 33
 slug: design-tokens-highlight-standardization
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: ready
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-25
 ---
 
@@ -36,27 +36,27 @@ created: 2026-07-25
 
 ## Requirement → Test Map
 
-_(Task-level rows will be added once `/gsd-plan-phase` produces PLAN.md task IDs; requirement-level mapping below is derived from `33-RESEARCH.md`'s Validation Architecture section and is the contract the planner's per-task `<automated>` commands must satisfy.)_
+_(PLAN.md files now exist — every requirement below is mapped to concrete plan/task IDs with `<automated>` commands. The task-level `<automated>` commands in those plans satisfy each row.)_
 
-| Req ID    | Behavior                                                                                                                         | Test Type                                                                                                     | Automated Command                                                                                                                             | File Exists?                                                                                                |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| THEME-03  | `--team-accent` CSS var derived from `TEAM_CONFIGS.palette.uiColor`, single runtime source; chrome colors migrated to token file | unit (render + computed-style/inline-style assertion)                                                         | `pnpm --filter @counter-attack/client test -- GameBoard.test.tsx`                                                                             | ✅ existing file, needs new assertions — Wave 0 gap: no current test asserts a `--team-accent` CSS variable |
-| HILITE-01 | `HIGHLIGHT_STYLES` (or successor) covers all ~13-14 real highlight cases, no `HexGrid.tsx` ad-hoc literals remain                | unit (render each `highlightType`, assert token/prop identity) + static grep check                            | `pnpm --filter @counter-attack/client test -- HexCell.test.tsx`                                                                               | ✅ existing file, needs new type coverage — 7 of ~11-13 union members already tested                        |
-| HILITE-02 | Red = exactly one meaning (offside); goal-target uses a distinct non-red color                                                   | unit (assert goal-target fill ≠ offside-ring stroke; assert exactly one red-equivalent semantic use app-wide) | `pnpm --filter @counter-attack/client test -- HexCell.test.tsx PieceOverlay.test.tsx`                                                         | ✅ existing files                                                                                           |
-| HILITE-03 | Selected ring vs. moved-this-stage ring are visually distinct                                                                    | unit (assert ring stroke colors differ; assert grey-treatment fill/overlay present)                           | `pnpm --filter @counter-attack/client test -- PieceOverlay.test.tsx`                                                                          | ✅ existing file — current assertion (`moved-this-stage === #22c55e`) is the exact one that must change     |
-| HILITE-04 | Ball-location marker: standalone, always-on-top, white hex-edge, correct phase gating                                            | unit (new component test)                                                                                     | `pnpm --filter @counter-attack/client test -- BallLocationRing.test.tsx` (new file)                                                           | ❌ Wave 0 gap — new component, new test file needed                                                         |
-| HILITE-05 | Single reference document exists and covers all types; test literals migrated to token/semantic identity                         | manual/documentation check (not automatable via Vitest) + unit (test-literal migration)                       | N/A — file-existence + content review; `pnpm --filter @counter-attack/client test -- HexCell.test.tsx HexGrid.test.tsx PieceOverlay.test.tsx` | ❌ Wave 0 gap — `docs/HIGHLIGHT-REFERENCE.md` does not exist yet                                            |
+| Req ID    | Behavior                                                                                                                         | Test Type                                                                                                     | Automated Command                                                                                                                             | File Exists?                                                                                             |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| THEME-03  | `--team-accent` CSS var derived from `TEAM_CONFIGS.palette.uiColor`, single runtime source; chrome colors migrated to token file | unit (render + computed-style/inline-style assertion)                                                         | `pnpm --filter @counter-attack/client test -- GameBoard.test.tsx`                                                                             | ✅ existing file — new `--team-accent` assertion planned in 33-01 Task 3; token file in 33-01 Task 1     |
+| HILITE-01 | `HIGHLIGHT_STYLES` (or successor) covers all ~13-14 real highlight cases, no `HexGrid.tsx` ad-hoc literals remain                | unit (render each `highlightType`, assert token/prop identity) + static grep check                            | `pnpm --filter @counter-attack/client test -- HexCell.test.tsx`                                                                               | ✅ existing file — new type coverage in 33-04; HexGrid consolidation + grep gate in 33-06                |
+| HILITE-02 | Red = exactly one meaning (offside); goal-target uses a distinct non-red color                                                   | unit (assert goal-target fill ≠ offside-ring stroke; assert exactly one red-equivalent semantic use app-wide) | `pnpm --filter @counter-attack/client test -- HexCell.test.tsx PieceOverlay.test.tsx`                                                         | ✅ existing files — goal→purple recolor in 33-04, offside red unchanged in 33-05                         |
+| HILITE-03 | Selected ring vs. moved-this-stage ring are visually distinct                                                                    | unit (assert ring stroke colors differ; assert grey-treatment fill/overlay present)                           | `pnpm --filter @counter-attack/client test -- PieceOverlay.test.tsx`                                                                          | ✅ existing file — grey moved-this-stage treatment + distinctness assertion in 33-05                     |
+| HILITE-04 | Ball-location marker: standalone, always-on-top, white hex-edge, correct phase gating                                            | unit (new component test)                                                                                     | `pnpm --filter @counter-attack/client test -- BallLocationRing.test.tsx` (new file)                                                           | ✅ closed — new component + test planned in 33-06 Task 1 (BallLocationRing.tsx + .test.tsx)              |
+| HILITE-05 | Single reference document exists and covers all types; test literals migrated to token/semantic identity                         | manual/documentation check (not automatable via Vitest) + unit (test-literal migration)                       | N/A — file-existence + content review; `pnpm --filter @counter-attack/client test -- HexCell.test.tsx HexGrid.test.tsx PieceOverlay.test.tsx` | ✅ closed — `docs/HIGHLIGHT-REFERENCE.md` planned in 33-07 Task 1; test-literal migration in 33-04/05/06 |
 
-_Status: ⬜ pending — task-level rows and statuses to be populated by the planner/executor once PLAN.md task IDs exist._
+_Status: ✅ satisfied — every Requirement → Test Map row is covered by a PLAN.md task with an `<automated>` command (plans 33-01 … 33-07)._
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `docs/HIGHLIGHT-REFERENCE.md` — new single-source reference doc (HILITE-05), does not exist
-- [ ] `packages/client/src/components/BallLocationRing.test.tsx` (or equivalent name) — new component + test, does not exist
-- [ ] `packages/client/src/styles/tokens.css` (or equivalent) — new CSS custom-property token file; `packages/client/src/styles/` currently only contains `uniformStyles.tsx`
-- [ ] New test assertions for `--team-accent` / `--color-*` CSS custom properties — zero such assertions exist today (confirmed via search — zero matches for `--team-accent`, `:root`, or `--color-` in `packages/client/src`)
+- [x] `docs/HIGHLIGHT-REFERENCE.md` — new single-source reference doc (HILITE-05); planned in 33-07 Task 1
+- [x] `packages/client/src/components/BallLocationRing.test.tsx` (or equivalent name) — new component + test; planned in 33-06 Task 1 (RED-first)
+- [x] `packages/client/src/styles/tokens.css` (or equivalent) — new CSS custom-property token file; planned in 33-01 Task 1
+- [x] New test assertions for `--team-accent` / `--color-*` CSS custom properties; planned in 33-01 Task 3
 
 _Test framework itself is already fully installed and configured — no `pnpm add` or config changes needed, only new test files/assertions._
 
@@ -74,11 +74,11 @@ _Test framework itself is already fully installed and configured — no `pnpm ad
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (token file, BallLocationRing test, HIGHLIGHT-REFERENCE.md)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (token file, BallLocationRing test, HIGHLIGHT-REFERENCE.md)
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved — Phase 33 plans (33-01 … 33-07) satisfy every Requirement → Test Map row; `<automated>` commands are non-watch and within the 30s latency budget.
