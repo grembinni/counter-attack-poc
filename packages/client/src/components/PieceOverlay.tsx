@@ -104,6 +104,9 @@ export function PieceOverlay({
         awayPrime: palette.homePrime,
         awayAlt: palette.homeAlt,
         awayFont: palette.homeFont,
+        // CLEANUP-02 (Plan 32-03, Pitfall 5): field pass-through only — `palette` is already
+        // the fully-resolved TeamPalette prop from HexGrid's TEAM_CONFIGS lookup, and this
+        // component has no roster TeamId to feed useTeamAccentColor. Not a duplicated derivation.
         uiColor: palette.uiColor,
       }
     : palette;
