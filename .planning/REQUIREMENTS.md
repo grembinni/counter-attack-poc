@@ -16,7 +16,7 @@
 
 - [ ] **HILITE-01**: Every hex-tint and piece-selection-ring color is defined in one single source-of-truth table, extending `HIGHLIGHT_STYLES` to cover all real highlight cases (including the currently ad-hoc GK-kick-target, pass-target, tackle-risk, and ball-position overlays that live as inline literals in `HexGrid.tsx` today)
 - [ ] **HILITE-02**: Red is used for exactly one meaning app-wide (rule violation / offside); the goal-line shot-target highlight is moved to a different color so a positive scoring opportunity is never signaled by the same color as a rule violation
-- [ ] **HILITE-03**: The "selected" piece ring and the "already-moved-this-stage" piece ring are visually distinct from each other (currently both identical green, differing only by ring radius)
+- [x] **HILITE-03**: The "selected" piece ring and the "already-moved-this-stage" piece ring are visually distinct from each other (currently both identical green, differing only by ring radius)
 - [ ] **HILITE-04**: A dedicated ball-location marker highlights the hex containing the ball during response phases (headers, kicks), rendered as a standalone always-on-top overlay rather than competing inside the mutually-exclusive hex-highlight priority order
 - [ ] **HILITE-05**: The full highlight/ring color mapping is documented as a single reference so future additions follow the same system
 
@@ -73,7 +73,7 @@
 | THEME-04    | Phase 34 — Visual Theme Restyle                      | Pending  |
 | HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
 | HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
-| HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
 | HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
 | PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Pending  |

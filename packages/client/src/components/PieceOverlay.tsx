@@ -2,6 +2,16 @@ import type { PlayerPiece, UniformStyleId, TeamPalette } from '@counter-attack/s
 import { axialToPixel } from '../utils/hexToPixel.js';
 import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
 
+/**
+ * HILITE-03 (D-04/D-05): single source of truth for the two ring colors that used to
+ * collide (both were `#22c55e`) — the currently-selected/active ring stays green, the
+ * already-moved-this-stage marker becomes grey (ring + overlay). Exported so
+ * PieceOverlay.test.tsx asserts against these constants instead of retyping hex literals.
+ */
+export const ACTIVE_RING_STROKE = '#22c55e';
+export const MOVED_THIS_STAGE_RING_STROKE = '#6b7280';
+export const MOVED_THIS_STAGE_OVERLAY_FILL = '#9ca3af';
+
 function SoccerPatches({ cx, cy, R }: { cx: number; cy: number; R: number }) {
   const outerDist = R * 0.62;
   const angles = Array.from({ length: 5 }, (_, i) => (i * 72 - 90) * (Math.PI / 180));
@@ -45,16 +55,17 @@ type Props = {
    */
   isOffside?: boolean;
   /**
-   * D-55 (Free Kick Setup — Round 2 Corrections): true when this piece's id is in
-   * `GameState.freeKickPlacedPieceIds` — i.e. it has used one of the CURRENT free-kick
-   * stage's placement slots but can still be freely re-positioned for free this stage.
-   * Renders an additional green ring at a distinct radius, independent of
-   * `selectionState`/`isOffside` — mirrors the `isOffside` red-ring pattern (a separate
-   * boolean-driven layer, not folded into the `selectionState` switch) so it can coexist
-   * with `selectable`/`active`/`activated`/`isOffside` simultaneously. Reuses the same
-   * green (#22c55e) as the 'active' selection ring for visual consistency, at a radius
-   * (PIECE_RADIUS + 8) outside every other ring layer so none of them get hidden when
-   * stacked together.
+   * D-55 (Free Kick Setup — Round 2 Corrections); HILITE-03 (D-05): true when this piece's
+   * id is in `GameState.freeKickPlacedPieceIds` — i.e. it has used one of the CURRENT
+   * free-kick stage's placement slots but can still be freely re-positioned for free this
+   * stage. Renders a dark-grey ring plus a light-grey semi-transparent overlay circle (a
+   * "dimmed/spent/used-up" look), independent of `selectionState`/`isOffside` — mirrors the
+   * `isOffside` red-ring pattern (a separate boolean-driven layer, not folded into the
+   * `selectionState` switch) so it can coexist with `selectable`/`active`/`activated`/
+   * `isOffside` simultaneously. Intentionally distinct grey (`MOVED_THIS_STAGE_RING_STROKE`/
+   * `MOVED_THIS_STAGE_OVERLAY_FILL`) from the green 'active' selection ring
+   * (`ACTIVE_RING_STROKE`) so a used-up piece is never confusable with the bright-green
+   * active selection (HILITE-03) — was previously the same green at the same radius.
    */
   isMovedThisStage?: boolean;
 };
@@ -70,8 +81,8 @@ type Props = {
  * scheme (awayPrime/awayAlt), away GK uses home scheme (homePrime/homeAlt).
  * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Offside marker: independent red ring layer at a distinct radius, driven by `isOffside` (OFFSIDE-01, D-25; stroke width corrected by D-42).
- * Free-kick "moved this stage" marker: independent green ring layer at a distinct radius,
- * driven by `isMovedThisStage` (D-55).
+ * Free-kick "moved this stage" marker: independent dark-grey ring + light-grey overlay layer,
+ * driven by `isMovedThisStage` — intentionally distinct from the green active ring (D-55, HILITE-03/D-05).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
 export function PieceOverlay({
@@ -178,7 +189,7 @@ export function PieceOverlay({
           cy={cy}
           r={PIECE_RADIUS + 4}
           fill="none"
-          stroke="#22c55e"
+          stroke={ACTIVE_RING_STROKE}
           strokeWidth={2.5}
           pointerEvents="none"
         />
@@ -221,22 +232,34 @@ export function PieceOverlay({
           pointerEvents="none"
         />
       )}
-      {/* D-55 (Free Kick Setup — Round 2 Corrections): green "moved this stage" ring at a
-          distinct radius (PIECE_RADIUS + 8, outside every other ring layer) — independent
-          layer, not part of the selectionState switch above and not the same thing as
-          selectionState='active'. A piece can be simultaneously moved-this-stage and
-          selectable/active/activated/offside (all applicable rings render together).
-          Reuses the 'active' selection ring's green (#22c55e) for visual consistency. */}
+      {/* D-55 (Free Kick Setup — Round 2 Corrections); HILITE-03/D-05: dark-grey "moved this
+          stage" ring + light-grey overlay circle — independent layer, not part of the
+          selectionState switch above and intentionally distinct from selectionState='active'
+          (grey "spent/used-up" look vs. bright green). A piece can be simultaneously
+          moved-this-stage and selectable/active/activated/offside (all applicable rings
+          render together). The overlay circle is drawn first (over the piece body, below
+          the ring and the player-number text); the ring is drawn second at PIECE_RADIUS + 8,
+          outside every other ring layer so none of them get hidden when stacked. */}
       {isMovedThisStage && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={PIECE_RADIUS + 8}
-          fill="none"
-          stroke="#22c55e"
-          strokeWidth={2.5}
-          pointerEvents="none"
-        />
+        <>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={PIECE_RADIUS}
+            fill={MOVED_THIS_STAGE_OVERLAY_FILL}
+            fillOpacity={0.35}
+            pointerEvents="none"
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={PIECE_RADIUS + 8}
+            fill="none"
+            stroke={MOVED_THIS_STAGE_RING_STROKE}
+            strokeWidth={2.5}
+            pointerEvents="none"
+          />
+        </>
       )}
       {/* Ball carrier indicator — directional soccer ball at 45° toward scoring goal (D-15) */}
       {isBallCarrier && (
