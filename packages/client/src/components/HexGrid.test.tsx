@@ -4,7 +4,8 @@ import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { axialToPixel } from '../utils/hexToPixel.js';
 import { HexGrid } from './HexGrid.js';
-import { HIGHLIGHT_STYLES } from './HexCell.js';
+import { HIGHLIGHT_STYLES, RING_STYLES } from './HexCell.js';
+import { BALL_MARKER_STROKE } from './BallLocationRing.js';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -1130,5 +1131,192 @@ describe('HexGrid — Phase 22 D-18: uniform style from selectedUniformStyles', 
     // The pinstripes-vertical pattern for the home piece must NOT be present (uses id="ps-v-{pieceId}")
     const pinstripesPattern = container.querySelector(`pattern[id="ps-v-${HOME_PIECE_ID}"]`);
     expect(pinstripesPattern).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 33-06 (HILITE-01/04): consolidated HexGrid highlight tints/rings/marker.
+// All assertions reference the imported HIGHLIGHT_STYLES/RING_STYLES tables (from
+// HexCell.js) and BALL_MARKER_STROKE (from BallLocationRing.js) — never a retyped
+// rgba/hex literal (CONTEXT.md test-migration decision).
+// ---------------------------------------------------------------------------
+
+/** Returns true if a polygon with the given stroke is centered at (q, r). */
+function hasStrokeAtHex(container: HTMLElement, stroke: string, q: number, r: number): boolean {
+  const { cx, cy } = axialToPixel(q, r);
+  return Array.from(container.querySelectorAll('polygon')).some((p) => {
+    if (p.getAttribute('stroke') !== stroke) return false;
+    const points = p.getAttribute('points') ?? '';
+    const coords = points
+      .split(' ')
+      .filter(Boolean)
+      .map((pair) => pair.split(',').map(Number));
+    const xs = coords.map((c) => c[0]!);
+    const ys = coords.map((c) => c[1]!);
+    const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    return Math.abs(centerX - cx) < 0.5 && Math.abs(centerY - cy) < 0.5;
+  });
+}
+
+describe('HexGrid — Plan 33-06: GK_KICK_TARGET tint routed through HexCell (HILITE-01)', () => {
+  it("renders a valid kick hex with fill HIGHLIGHT_STYLES['gk-kick-target'].fill", () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'GK_KICK_TARGET' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'away' as const,
+      ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' }, // home GK
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1, // home — isActivePlayer requires myTeam === activeTeam
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    // {q:5, r:10} is in homeThird (q<=10), not awayThird, not the GK's own hex — a valid kick target.
+    expect(hasFillAtHex(container, HIGHLIGHT_STYLES['gk-kick-target'].fill, 5, 10)).toBe(true);
+  });
+});
+
+describe('HexGrid — Plan 33-06: pass-target / tackle-risk tints routed through HexCell (HILITE-01)', () => {
+  function passState() {
+    return {
+      ...mockMovementState,
+      phase: 'PASS' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      lastActionType: null,
+      ball: { position: CARRIER_POS, carrierId: CARRIER_ID },
+    };
+  }
+
+  it("renders a safe pass target with fill HIGHLIGHT_STYLES['pass-target'].fill and an interception-risk target with fill HIGHLIGHT_STYLES['tackle-risk'].fill", () => {
+    const SAFE_TARGET_HEX = { q: 20, r: 13 };
+    const RISK_TARGET_HEX = { q: 21, r: 13 };
+    useGameStore.setState({
+      gameState: passState(),
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      selectedPassType: 'STANDARD_PASS',
+      validPassTargetHexes: [SAFE_TARGET_HEX, RISK_TARGET_HEX],
+      interceptionRiskHexes: [RISK_TARGET_HEX],
+      passTargetHex: null,
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      hasFillAtHex(
+        container,
+        HIGHLIGHT_STYLES['pass-target'].fill,
+        SAFE_TARGET_HEX.q,
+        SAFE_TARGET_HEX.r,
+      ),
+    ).toBe(true);
+    expect(
+      hasFillAtHex(
+        container,
+        HIGHLIGHT_STYLES['tackle-risk'].fill,
+        RISK_TARGET_HEX.q,
+        RISK_TARGET_HEX.r,
+      ),
+    ).toBe(true);
+  });
+
+  it('renders a confirmed pass target as a gold ring (stroke RING_STYLES.confirmed.stroke, fill none) with NO green pass-target fill on that hex', () => {
+    const CONFIRMED_HEX = { q: 22, r: 13 };
+    useGameStore.setState({
+      gameState: passState(),
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      selectedPassType: 'STANDARD_PASS',
+      validPassTargetHexes: [],
+      interceptionRiskHexes: [],
+      passTargetHex: CONFIRMED_HEX,
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      hasStrokeAtHex(container, RING_STYLES.confirmed.stroke, CONFIRMED_HEX.q, CONFIRMED_HEX.r),
+    ).toBe(true);
+    expect(
+      hasFillAtHex(
+        container,
+        HIGHLIGHT_STYLES['pass-target'].fill,
+        CONFIRMED_HEX.q,
+        CONFIRMED_HEX.r,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('HexGrid — Plan 33-06: KICK_OFF_SETUP centre-hex required ring routed through HexCell (HILITE-01)', () => {
+  it('renders the centre hex as a gold required-ring polygon (fill/stroke = RING_STYLES.required.fill/.stroke)', () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'KICK_OFF_SETUP' as const,
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    // {q:18, r:13} is the board-centre kick-off hex (PITCH_REGIONS.kickOffHex).
+    expect(hasFillAtHex(container, RING_STYLES.required.fill, 18, 13)).toBe(true);
+    expect(hasStrokeAtHex(container, RING_STYLES.required.stroke, 18, 13)).toBe(true);
+  });
+});
+
+describe('HexGrid — Plan 33-06: BallLocationRing marker replaces the deleted HEADER gold overlay (HILITE-04)', () => {
+  it('during HEADER, renders a ball-location marker polygon (stroke BALL_MARKER_STROKE) at the ball hex, with NO gold ring/overlay (RING_STYLES.required.fill) there', () => {
+    const BALL_HEX = { q: 18, r: 13 };
+    const state = {
+      ...mockMovementState,
+      phase: 'HEADER' as const,
+      ball: { position: BALL_HEX, carrierId: null },
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasStrokeAtHex(container, BALL_MARKER_STROKE, BALL_HEX.q, BALL_HEX.r)).toBe(true);
+    // The old HEADER-only gold overlay (fill/stroke = RING_STYLES.required, D-08) is deleted —
+    // HEADER is not KICK_OFF_SETUP so isCentreHex/ring='required' cannot apply here either.
+    expect(hasFillAtHex(container, RING_STYLES.required.fill, BALL_HEX.q, BALL_HEX.r)).toBe(false);
+  });
+
+  it('during a standard phase (MOVE), the ball-location marker is absent', () => {
+    const BALL_HEX = { q: 14, r: 13 };
+    const state = {
+      ...mockMovementState,
+      phase: 'MOVE' as const,
+      ball: { position: BALL_HEX, carrierId: 'home-9' },
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasStrokeAtHex(container, BALL_MARKER_STROKE, BALL_HEX.q, BALL_HEX.r)).toBe(false);
   });
 });
