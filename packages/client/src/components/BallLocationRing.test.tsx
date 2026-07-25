@@ -49,9 +49,11 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
     expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
   });
 
-  it("renders no polygon during phase='KICK_OFF_SETUP' (not in the 10-phase gate)", () => {
+  it("renders the marker during phase='KICK_OFF_SETUP' (added to the gate per Plan 33-07 Task 3 human-verify feedback — the ball's hex now gets the same white marker consistently everywhere, alongside the separate gold ring=\"required\" kicker-placement overlay)", () => {
     const { container } = renderMarker('KICK_OFF_SETUP');
-    expect(container.querySelectorAll('polygon')).toHaveLength(0);
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
   });
 
   it('positions the polygon points at axialToPixel/hexPolygonPoints of the given ballPosition', () => {
