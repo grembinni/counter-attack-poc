@@ -97,4 +97,12 @@
   --color-speed-fast: #f97316;
   --color-speed-fast-active: #fdba74;
   --color-speed-fast-bg: rgba(249, 115, 22, 0.15);
+
+  /* Extended chrome token (Rule 1 deviation, Plan 33-07 Task 2 grep-sweep gate):
+     scoreboard-centre-cell divider borders in GameBoard.module.css were left as raw
+     rgba() literals by the earlier migration passes. Same swatch as
+     --color-card-border-struck-out, given a distinct semantic name since this usage
+     (a subtle vertical divider) is conceptually different from a disabled-card border
+     — no visual change. */
+  --color-divider-subtle: rgba(255, 255, 255, 0.1);
 }
