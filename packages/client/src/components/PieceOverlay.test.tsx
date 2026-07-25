@@ -255,12 +255,12 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const greyRings = allCircles.filter((c) => c.getAttribute('stroke') === SPENT_RING_STROKE);
     expect(greyRings.length).toBe(1);
     expect(greyRings[0]!.getAttribute('fill')).toBe('none');
-    expect(greyRings[0]!.getAttribute('stroke-width')).toBe('2.5');
+    expect(greyRings[0]!.getAttribute('stroke-width')).toBe('3');
     expect(greyRings[0]!.getAttribute('r')).toBe('20'); // PIECE_RADIUS(12) + 8
 
     const greyOverlays = allCircles.filter((c) => c.getAttribute('fill') === SPENT_OVERLAY_FILL);
     expect(greyOverlays.length).toBe(1);
-    expect(greyOverlays[0]!.getAttribute('fill-opacity')).toBe('0.35');
+    expect(greyOverlays[0]!.getAttribute('fill-opacity')).toBe('0.5');
     expect(greyOverlays[0]!.getAttribute('r')).toBe('12'); // PIECE_RADIUS
 
     // No path element at all — the X mark is gone.

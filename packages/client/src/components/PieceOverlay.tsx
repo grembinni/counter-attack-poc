@@ -17,7 +17,12 @@ import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
  * the general 'activated' state.)
  */
 export const ACTIVE_RING_STROKE = '#22c55e';
-export const SPENT_RING_STROKE = '#6b7280';
+// Lightened from the original #6b7280 (grey-500) per human-verify feedback on Plan 33-07
+// Task 3 — against the near-black pitch background (--color-bg-pitch: #0a0a0a) the darker
+// mid-grey didn't stand out enough next to the vivid selectable/active/offside rings.
+// grey-300 gives a much stronger contrast while still reading as desaturated/"dimmed" (not
+// a vivid hue like the other ring states).
+export const SPENT_RING_STROKE = '#d1d5db';
 export const SPENT_OVERLAY_FILL = '#9ca3af';
 
 function SoccerPatches({ cx, cy, R }: { cx: number; cy: number; R: number }) {
@@ -199,7 +204,7 @@ export function PieceOverlay({
             cy={cy}
             r={PIECE_RADIUS}
             fill={SPENT_OVERLAY_FILL}
-            fillOpacity={0.35}
+            fillOpacity={0.5}
             pointerEvents="none"
           />
           <circle
@@ -208,7 +213,7 @@ export function PieceOverlay({
             r={PIECE_RADIUS + 8}
             fill="none"
             stroke={SPENT_RING_STROKE}
-            strokeWidth={2.5}
+            strokeWidth={3}
             pointerEvents="none"
           />
         </>

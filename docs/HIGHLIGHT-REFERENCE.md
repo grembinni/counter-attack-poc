@@ -75,12 +75,12 @@ layer — it can stack on top of any `selectionState`, since it represents an
 orthogonal concern (rule-violation status) rather than the current selection
 state.
 
-| State                         | Semantic                                                      | Stroke                                                                                                                                                                            | Radius offset                                                                                 |
-| ----------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `selectionState="selectable"` | 🔵 Piece can be selected this turn                            | `#60a5fa`                                                                                                                                                                         | +3                                                                                            |
-| `selectionState="active"`     | 🟢 Currently-selected / active piece (also header contestant) | `#22c55e` (`ACTIVE_RING_STROKE`)                                                                                                                                                  | +4                                                                                            |
-| `selectionState="activated"`  | ⚫ Already used this turn / already acted ("spent" look)      | Dark grey ring `#6b7280` (`SPENT_RING_STROKE`), `strokeWidth: 2.5`, **plus** a light-grey semi-transparent overlay circle `#9ca3af` (`SPENT_OVERLAY_FILL`) at `fillOpacity: 0.35` | ring at +8; overlay circle at full `PIECE_RADIUS` (drawn over the piece body, below the ring) |
-| `isOffside`                   | 🔴 Offside — the sole app-wide use of red                     | `#dc2626`                                                                                                                                                                         | +6                                                                                            |
+| State                         | Semantic                                                      | Stroke                                                                                                                                                                        | Radius offset                                                                                 |
+| ----------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `selectionState="selectable"` | 🔵 Piece can be selected this turn                            | `#60a5fa`                                                                                                                                                                     | +3                                                                                            |
+| `selectionState="active"`     | 🟢 Currently-selected / active piece (also header contestant) | `#22c55e` (`ACTIVE_RING_STROKE`)                                                                                                                                              | +4                                                                                            |
+| `selectionState="activated"`  | ⚫ Already used this turn / already acted ("spent" look)      | Light grey ring `#d1d5db` (`SPENT_RING_STROKE`), `strokeWidth: 3`, **plus** a mid-grey semi-transparent overlay circle `#9ca3af` (`SPENT_OVERLAY_FILL`) at `fillOpacity: 0.5` | ring at +8; overlay circle at full `PIECE_RADIUS` (drawn over the piece body, below the ring) |
+| `isOffside`                   | 🔴 Offside — the sole app-wide use of red                     | `#dc2626`                                                                                                                                                                     | +6                                                                                            |
 
 **Revision history (Plan 33-07 Task 3 human-verify feedback):** `activated`
 originally rendered an orange ring + red X (`#f97316`), and a separate
@@ -103,6 +103,14 @@ free-kick-stage-specific case. The grey values were originally chosen (HILITE-03
 D-05) to resolve a prior collision where this look was the same `#22c55e`
 green as `active` — that distinctness rationale still applies now that the
 look also covers `activated`.
+
+**Follow-up (contrast pass):** the original `#6b7280` (grey-500) ring at
+`strokeWidth: 2.5` / `fillOpacity: 0.35` didn't stand out enough against the
+near-black pitch background (`--color-bg-pitch: #0a0a0a`) next to the vivid
+selectable/active/offside rings. Lightened `SPENT_RING_STROKE` to `#d1d5db`
+(grey-300), bumped `strokeWidth` to `3`, and raised the overlay's
+`fillOpacity` to `0.5` — still reads as desaturated/"dimmed" rather than a
+vivid hue, but with meaningfully more contrast against the dark board.
 
 Cross-reference: `packages/client/src/components/PieceOverlay.tsx`
 (`ACTIVE_RING_STROKE`, `SPENT_RING_STROKE`, `SPENT_OVERLAY_FILL` constants;
