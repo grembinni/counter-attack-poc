@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { hexDistance, FREE_KICK_STAGES, freeKickStageTeam } from '@counter-attack/shared';
+import { useMyTeam } from '../hooks/useMyTeam.js';
 import styles from './FreeKickSetupPanel.module.css';
 
 /**
@@ -21,7 +22,7 @@ export function FreeKickSetupPanel() {
     count: number;
   }>(null);
   const phase = useGameStore((s) => s.gameState.phase);
-  const playerSlot = useGameStore((s) => s.playerSlot);
+  const myTeamOrNull = useMyTeam();
   const pieces = useGameStore((s) => s.gameState.pieces);
   const freeKickHex = useGameStore((s) => s.gameState.freeKickHex);
   const freeKickAttackingTeam = useGameStore((s) => s.gameState.freeKickAttackingTeam);
@@ -37,6 +38,12 @@ export function FreeKickSetupPanel() {
   const emitUndo = useGameStore((s) => s.emitUndo);
 
   // Return null unless in FREE_KICK_SETUP phase with a fully-initialized stage.
+  // D-04/Pitfall 4: myTeamOrNull === null is included here as an explicit guard, not a
+  // silent `?? 'away'` coercion. A3 verified (not assumed): App.tsx's onRoomJoined sets
+  // playerSlot before onGameState ever transitions screen to 'GAME_BOARD' (a GAME_STATE
+  // broadcast requires the room to already have both player slots joined) — this panel
+  // only renders inside GameBoard, so playerSlot (and therefore myTeamOrNull) is always
+  // non-null in real gameplay. This guard is defense-in-depth for that invariant.
   if (
     phase !== 'FREE_KICK_SETUP' ||
     freeKickHex === null ||
@@ -44,13 +51,14 @@ export function FreeKickSetupPanel() {
     freeKickAttackingTeam === null ||
     freeKickAttackingTeam === undefined ||
     freeKickStageIndex === null ||
-    freeKickStageIndex === undefined
+    freeKickStageIndex === undefined ||
+    myTeamOrNull === null
   ) {
     return null;
   }
 
-  // Derive this player's team and the CURRENTLY-active stage's team.
-  const myTeam: 'home' | 'away' = playerSlot === 1 ? 'home' : 'away';
+  // Narrowed to 'home' | 'away' by the guard above.
+  const myTeam = myTeamOrNull;
   const activeStageTeam = freeKickStageTeam(freeKickStageIndex, freeKickAttackingTeam);
   const isMyStage = myTeam === activeStageTeam;
   const stage = FREE_KICK_STAGES[freeKickStageIndex];

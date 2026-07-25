@@ -9,6 +9,7 @@ import {
 } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
+import { useMyTeam } from '../hooks/useMyTeam.js';
 import styles from './ActionPanel.module.css';
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
@@ -66,7 +67,6 @@ export function ActionPanel() {
     action: () => void;
     count: number;
   }>(null);
-  const playerSlot = useGameStore((s) => s.playerSlot);
   const phase = useGameStore((s) => s.gameState.phase);
   const activeTeam = useGameStore((s) => s.gameState.activeTeam);
   const attackingTeam = useGameStore((s) => s.gameState.attackingTeam);
@@ -114,8 +114,7 @@ export function ActionPanel() {
   const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
   const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
 
-  const myTeam: 'home' | 'away' | null =
-    playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
+  const myTeam = useMyTeam();
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
 
   const waitingPanel = (
@@ -922,8 +921,7 @@ export function ActionPanel() {
     // those has a paceUsedByPieceId entry, so their union equals this count with no
     // double-count and no under-count).
     const startedCount = Object.keys(paceUsedByPieceId).length;
-    const remaining =
-      slotTotal != null ? Math.max(slotTotal - startedCount, 0) : null;
+    const remaining = slotTotal != null ? Math.max(slotTotal - startedCount, 0) : null;
     const slotHelperLine2 =
       slotTotal != null && remaining != null
         ? movementSlot === 'ATTACKER_2'

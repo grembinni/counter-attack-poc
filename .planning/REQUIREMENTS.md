@@ -30,7 +30,7 @@
 ### Code Cleanup (CLEANUP)
 
 - [x] **CLEANUP-01**: Dead code (unused fields, functions, exports) is identified and removed across shared/server/client, verified via an automated dead-code-detection tool
-- [ ] **CLEANUP-02**: Duplicated logic (e.g. repeated `TEAM_CONFIGS` color lookups, repeated team-slot derivation) is consolidated into shared helper functions/hooks
+- [x] **CLEANUP-02**: Duplicated logic (e.g. repeated `TEAM_CONFIGS` color lookups, repeated team-slot derivation) is consolidated into shared helper functions/hooks
 - [ ] **CLEANUP-03**: Zustand store selectors are reviewed for staleness and inefficiency (e.g. stale dependency arrays, redundant derived-state computation)
 - [ ] **CLEANUP-04**: React Hook dependency correctness is enforced via lint tooling across the client package
 
@@ -81,7 +81,7 @@
 | PANEL-03    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
 | PANEL-04    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
 | CLEANUP-01  | Phase 32 — Code Cleanup                              | Complete |
-| CLEANUP-02  | Phase 32 — Code Cleanup                              | Pending  |
+| CLEANUP-02  | Phase 32 — Code Cleanup                              | Complete |
 | CLEANUP-03  | Phase 32 — Code Cleanup                              | Pending  |
 | CLEANUP-04  | Phase 32 — Code Cleanup                              | Pending  |
 | BUG-30      | Phase 31 — Bug Fixes                                 | Complete |
