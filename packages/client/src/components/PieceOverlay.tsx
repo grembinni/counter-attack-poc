@@ -4,26 +4,13 @@ import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
 
 /**
  * HILITE-03 (D-04/D-05): single source of truth for the two ring colors that used to
- * collide (both were `#22c55e`) — the currently-selected/active ring stays green
- * (`ACTIVE_RING_STROKE`). The already-acted/spent look (`SPENT_RING_STROKE` +
- * `SPENT_OVERLAY_FILL`) started life as a free-kick-only additive grey layer (a separate
- * boolean prop, now retired) but, per human-verify feedback on Plan 33-07 Task 3, now also
- * fully replaces the old orange-ring + red-X `selectionState==='activated'` treatment —
- * one consistent grey "already acted" visual renders everywhere a piece is marked as
- * already-acted (MOVE, HIGH_PASS_MOVE, GK_KICK_MOVE, FREE_MOVE_ATTACK/DEFENSE,
- * SNAPSHOT_DEFLECT, FIRST_TIME_PASS_MOVE, and FREE_KICK_SETUP). Exported so
+ * collide (both were `#22c55e`) — the currently-selected/active ring stays green, the
+ * already-moved-this-stage marker becomes grey (ring + overlay). Exported so
  * PieceOverlay.test.tsx asserts against these constants instead of retyping hex literals.
- * (Renamed from the prior free-kick-stage-specific constant names now that they apply to
- * the general 'activated' state.)
  */
 export const ACTIVE_RING_STROKE = '#22c55e';
-// Lightened from the original #6b7280 (grey-500) per human-verify feedback on Plan 33-07
-// Task 3 — against the near-black pitch background (--color-bg-pitch: #0a0a0a) the darker
-// mid-grey didn't stand out enough next to the vivid selectable/active/offside rings.
-// grey-300 gives a much stronger contrast while still reading as desaturated/"dimmed" (not
-// a vivid hue like the other ring states).
-export const SPENT_RING_STROKE = '#d1d5db';
-export const SPENT_OVERLAY_FILL = '#9ca3af';
+export const MOVED_THIS_STAGE_RING_STROKE = '#6b7280';
+export const MOVED_THIS_STAGE_OVERLAY_FILL = '#9ca3af';
 
 function SoccerPatches({ cx, cy, R }: { cx: number; cy: number; R: number }) {
   const outerDist = R * 0.62;
@@ -67,6 +54,20 @@ type Props = {
    * selectable/active/activated.
    */
   isOffside?: boolean;
+  /**
+   * D-55 (Free Kick Setup — Round 2 Corrections); HILITE-03 (D-05): true when this piece's
+   * id is in `GameState.freeKickPlacedPieceIds` — i.e. it has used one of the CURRENT
+   * free-kick stage's placement slots but can still be freely re-positioned for free this
+   * stage. Renders a dark-grey ring plus a light-grey semi-transparent overlay circle (a
+   * "dimmed/spent/used-up" look), independent of `selectionState`/`isOffside` — mirrors the
+   * `isOffside` red-ring pattern (a separate boolean-driven layer, not folded into the
+   * `selectionState` switch) so it can coexist with `selectable`/`active`/`activated`/
+   * `isOffside` simultaneously. Intentionally distinct grey (`MOVED_THIS_STAGE_RING_STROKE`/
+   * `MOVED_THIS_STAGE_OVERLAY_FILL`) from the green 'active' selection ring
+   * (`ACTIVE_RING_STROKE`) so a used-up piece is never confusable with the bright-green
+   * active selection (HILITE-03) — was previously the same green at the same radius.
+   */
+  isMovedThisStage?: boolean;
 };
 
 /**
@@ -78,11 +79,10 @@ type Props = {
  * Jersey patterns: delegated to UNIFORM_STYLES[uniformStyle] registry (Phase 20 D-01..D-12).
  * GK variant: opposite color scheme (D-13) applied before the renderer call — home GK uses away
  * scheme (awayPrime/awayAlt), away GK uses home scheme (homePrime/homeAlt).
- * Selection states: selectable (blue ring), active (green ring), activated (grey ring + grey
- * overlay — UX-05, D-04/D-05; unified with the retired free-kick-only additive grey layer
- * per Plan 33-07 Task 3 human-verify feedback so the "already acted" visual is one consistent
- * grey treatment everywhere, not just the orange+X it used to be).
+ * Selection states: selectable (blue ring), active (green ring), activated (orange ring + red X) (UX-05, D-04/D-05).
  * Offside marker: independent red ring layer at a distinct radius, driven by `isOffside` (OFFSIDE-01, D-25; stroke width corrected by D-42).
+ * Free-kick "moved this stage" marker: independent dark-grey ring + light-grey overlay layer,
+ * driven by `isMovedThisStage` — intentionally distinct from the green active ring (D-55, HILITE-03/D-05).
  * Must be a child of the HexGrid <svg> root — not a div wrapper.
  */
 export function PieceOverlay({
@@ -95,6 +95,7 @@ export function PieceOverlay({
   carrierId,
   attackingTeam,
   isOffside = false,
+  isMovedThisStage = false,
 }: Props) {
   const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
 
@@ -193,27 +194,23 @@ export function PieceOverlay({
           pointerEvents="none"
         />
       )}
-      {/* D-04/D-05/UX-05 (unified per Plan 33-07 Task 3 human-verify feedback): activated =
-          the same grey "already acted" visual used everywhere else in the game — a
-          light-grey semi-transparent overlay circle at PIECE_RADIUS plus a dark-grey ring
-          at PIECE_RADIUS + 8. Replaces the retired orange-ring + red-X treatment. */}
+      {/* D-04/D-05/UX-05: activated = orange ring + red X (piece already used this turn) */}
       {selectionState === 'activated' && (
         <>
           <circle
             cx={cx}
             cy={cy}
-            r={PIECE_RADIUS}
-            fill={SPENT_OVERLAY_FILL}
-            fillOpacity={0.5}
+            r={PIECE_RADIUS + 3}
+            fill="none"
+            stroke="#f97316"
+            strokeWidth={2}
             pointerEvents="none"
           />
-          <circle
-            cx={cx}
-            cy={cy}
-            r={PIECE_RADIUS + 8}
-            fill="none"
-            stroke={SPENT_RING_STROKE}
-            strokeWidth={3}
+          <path
+            d={`M${cx - PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx + PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7} M${cx + PIECE_RADIUS * 0.7} ${cy - PIECE_RADIUS * 0.7} L${cx - PIECE_RADIUS * 0.7} ${cy + PIECE_RADIUS * 0.7}`}
+            stroke="#f97316"
+            strokeWidth={2.5}
+            strokeLinecap="round"
             pointerEvents="none"
           />
         </>
@@ -234,6 +231,35 @@ export function PieceOverlay({
           strokeWidth={2.5}
           pointerEvents="none"
         />
+      )}
+      {/* D-55 (Free Kick Setup — Round 2 Corrections); HILITE-03/D-05: dark-grey "moved this
+          stage" ring + light-grey overlay circle — independent layer, not part of the
+          selectionState switch above and intentionally distinct from selectionState='active'
+          (grey "spent/used-up" look vs. bright green). A piece can be simultaneously
+          moved-this-stage and selectable/active/activated/offside (all applicable rings
+          render together). The overlay circle is drawn first (over the piece body, below
+          the ring and the player-number text); the ring is drawn second at PIECE_RADIUS + 8,
+          outside every other ring layer so none of them get hidden when stacked. */}
+      {isMovedThisStage && (
+        <>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={PIECE_RADIUS}
+            fill={MOVED_THIS_STAGE_OVERLAY_FILL}
+            fillOpacity={0.35}
+            pointerEvents="none"
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={PIECE_RADIUS + 8}
+            fill="none"
+            stroke={MOVED_THIS_STAGE_RING_STROKE}
+            strokeWidth={2.5}
+            pointerEvents="none"
+          />
+        </>
       )}
       {/* Ball carrier indicator — directional soccer ball at 45° toward scoring goal (D-15) */}
       {isBallCarrier && (

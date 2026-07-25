@@ -6,7 +6,6 @@ import { axialToPixel } from '../utils/hexToPixel.js';
 import { HexGrid } from './HexGrid.js';
 import { HIGHLIGHT_STYLES, RING_STYLES } from './HexCell.js';
 import { BALL_MARKER_STROKE } from './BallLocationRing.js';
-import { SPENT_RING_STROKE, SPENT_OVERLAY_FILL } from './PieceOverlay.js';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -426,35 +425,15 @@ function hasSelectableRingAt(container: HTMLElement, q: number, r: number): bool
 }
 
 /**
- * True if an 'activated' grey ring (r=PIECE_RADIUS+8=20, stroke SPENT_RING_STROKE,
- * UX-05/D-04/D-05, unified with the retired free-kick-only additive grey layer per
- * Plan 33-07 Task 3 human-verify feedback) is rendered at the piece's pixel center —
- * mirrors hasSelectableRingAt's radius+color matching. Renamed from the old orange-ring
- * check (was a distinct orange stroke, r=15) now that 'activated' renders the grey ring +
- * overlay instead.
+ * True if an 'activated' orange ring (r=PIECE_RADIUS+3=15, stroke #f97316, UX-05/D-04/D-05) is
+ * rendered at the piece's pixel center — mirrors hasSelectableRingAt's radius+color matching.
  */
 function hasActivatedRingAt(container: HTMLElement, q: number, r: number): boolean {
   const { cx, cy } = axialToPixel(q, r);
   return Array.from(container.querySelectorAll('circle')).some(
     (c) =>
-      c.getAttribute('stroke') === SPENT_RING_STROKE &&
-      c.getAttribute('r') === '20' &&
-      Number(c.getAttribute('cx')) === cx &&
-      Number(c.getAttribute('cy')) === cy,
-  );
-}
-
-/**
- * True if an 'activated' grey overlay circle (r=PIECE_RADIUS=12, fill SPENT_OVERLAY_FILL,
- * fillOpacity 0.35) is rendered at the piece's pixel center — the second half of the
- * unified grey "already acted" visual (paired with hasActivatedRingAt above).
- */
-function hasActivatedOverlayAt(container: HTMLElement, q: number, r: number): boolean {
-  const { cx, cy } = axialToPixel(q, r);
-  return Array.from(container.querySelectorAll('circle')).some(
-    (c) =>
-      c.getAttribute('fill') === SPENT_OVERLAY_FILL &&
-      c.getAttribute('r') === '12' &&
+      c.getAttribute('stroke') === '#f97316' &&
+      c.getAttribute('r') === '15' &&
       Number(c.getAttribute('cx')) === cx &&
       Number(c.getAttribute('cy')) === cy,
   );
@@ -831,7 +810,7 @@ describe('HexGrid — DESIGN-02: phase === REPLAY suppresses interactivity', () 
   });
 });
 
-describe('HexGrid — FREE_KICK_SETUP: placed pieces show activated (grey) ring', () => {
+describe('HexGrid — FREE_KICK_SETUP: placed pieces show activated ring', () => {
   function freeKickSetupStateWithPlaced(placedIds: string[]) {
     return {
       ...mockMovementState,
@@ -845,7 +824,7 @@ describe('HexGrid — FREE_KICK_SETUP: placed pieces show activated (grey) ring'
     };
   }
 
-  it('renders the activated (grey) ring + overlay for a piece in freeKickPlacedPieceIds', () => {
+  it('renders the activated (orange) ring for a piece in freeKickPlacedPieceIds', () => {
     useGameStore.setState({
       gameState: freeKickSetupStateWithPlaced(['away-1']),
       screen: 'GAME_BOARD',
@@ -861,7 +840,6 @@ describe('HexGrid — FREE_KICK_SETUP: placed pieces show activated (grey) ring'
     const { container } = render(<HexGrid />);
     // away-1 is at {q:32, r:7} per mockMovementState's AWAY_POSITIONS.
     expect(hasActivatedRingAt(container, 32, 7)).toBe(true);
-    expect(hasActivatedOverlayAt(container, 32, 7)).toBe(true);
   });
 
   it('does NOT render the activated ring for a piece NOT in freeKickPlacedPieceIds', () => {

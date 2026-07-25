@@ -70,51 +70,36 @@ Cross-reference: `packages/client/src/components/HexCell.tsx` (`HIGHLIGHT_STYLES
 ### 2a. `PieceOverlay.tsx` — piece selection/status rings
 
 `selectionState` is mutually exclusive (a piece has exactly one of `none` /
-`selectable` / `active` / `activated`). `isOffside` is an independent boolean
-layer — it can stack on top of any `selectionState`, since it represents an
-orthogonal concern (rule-violation status) rather than the current selection
-state.
+`selectable` / `active` / `activated`). `isOffside` and `isMovedThisStage` are
+independent boolean layers — either, both, or neither can stack on top of any
+`selectionState`, since they represent orthogonal concerns (rule-violation
+status and stage-usage status) rather than the current selection state.
 
-| State                         | Semantic                                                      | Stroke                                                                                                                                                                        | Radius offset                                                                                 |
-| ----------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `selectionState="selectable"` | 🔵 Piece can be selected this turn                            | `#60a5fa`                                                                                                                                                                     | +3                                                                                            |
-| `selectionState="active"`     | 🟢 Currently-selected / active piece (also header contestant) | `#22c55e` (`ACTIVE_RING_STROKE`)                                                                                                                                              | +4                                                                                            |
-| `selectionState="activated"`  | ⚫ Already used this turn / already acted ("spent" look)      | Light grey ring `#d1d5db` (`SPENT_RING_STROKE`), `strokeWidth: 3`, **plus** a mid-grey semi-transparent overlay circle `#9ca3af` (`SPENT_OVERLAY_FILL`) at `fillOpacity: 0.5` | ring at +8; overlay circle at full `PIECE_RADIUS` (drawn over the piece body, below the ring) |
-| `isOffside`                   | 🔴 Offside — the sole app-wide use of red                     | `#dc2626`                                                                                                                                                                     | +6                                                                                            |
+| State                         | Semantic                                                      | Stroke                                                                                                                                                                                                  | Radius offset                                                                                 |
+| ----------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `selectionState="selectable"` | 🔵 Piece can be selected this turn                            | `#60a5fa`                                                                                                                                                                                               | +3                                                                                            |
+| `selectionState="active"`     | 🟢 Currently-selected / active piece (also header contestant) | `#22c55e` (`ACTIVE_RING_STROKE`)                                                                                                                                                                        | +4                                                                                            |
+| `selectionState="activated"`  | 🟡 Already used this turn (orange ring + red X)               | `#f97316` (ring + X)                                                                                                                                                                                    | +3                                                                                            |
+| `isOffside`                   | 🔴 Offside — the sole app-wide use of red                     | `#dc2626`                                                                                                                                                                                               | +6                                                                                            |
+| `isMovedThisStage`            | ⚫ Already-moved-this-free-kick-stage ("spent/used up" look)  | Dark grey ring `#6b7280` (`MOVED_THIS_STAGE_RING_STROKE`), `strokeWidth: 2.5`, **plus** a light-grey semi-transparent overlay circle `#9ca3af` (`MOVED_THIS_STAGE_OVERLAY_FILL`) at `fillOpacity: 0.35` | ring at +8; overlay circle at full `PIECE_RADIUS` (drawn over the piece body, below the ring) |
 
-**Revision history (Plan 33-07 Task 3 human-verify feedback):** `activated`
-originally rendered an orange ring + red X (`#f97316`), and a separate
-free-kick-stage-only mechanism (a boolean prop, formerly `isMovedThisStage`)
-independently rendered a grey ring + grey overlay for pieces already placed
-this free-kick stage. A visual test pass found this inconsistent — the same
-underlying concept ("this piece has already acted / been used up") showed two
-different looks depending on context. The reviewer's decision: retire the
-orange+X treatment entirely and use one consistent grey visual everywhere a
-piece is marked as already-acted (MOVE, HIGH_PASS_MOVE, GK_KICK_MOVE,
-FREE_MOVE_ATTACK/DEFENSE, SNAPSHOT_DEFLECT, FIRST_TIME_PASS_MOVE, and
-FREE_KICK_SETUP). Since `HexGrid.tsx`'s `isSpentNow` already folds
-`freeKickPlacedPieceIds` membership directly into `selectionState==='activated'`
-(see the `FREE_KICK_SETUP` branch), the separate boolean prop was redundant
-once `activated` adopted the grey look — it was removed entirely, and the
-constants were renamed from `MOVED_THIS_STAGE_RING_STROKE` /
-`MOVED_THIS_STAGE_OVERLAY_FILL` to `SPENT_RING_STROKE` / `SPENT_OVERLAY_FILL`
-to reflect that they now describe the general "already acted" state, not a
-free-kick-stage-specific case. The grey values were originally chosen (HILITE-03,
-D-05) to resolve a prior collision where this look was the same `#22c55e`
-green as `active` — that distinctness rationale still applies now that the
-look also covers `activated`.
+`isMovedThisStage` was changed from green to grey (HILITE-03, D-05) — it was
+previously the same `#22c55e` green as `active`, making a "used up" piece
+visually indistinguishable from an actively-selected piece. The grey values
+above resolve that collision.
 
-**Follow-up (contrast pass):** the original `#6b7280` (grey-500) ring at
-`strokeWidth: 2.5` / `fillOpacity: 0.35` didn't stand out enough against the
-near-black pitch background (`--color-bg-pitch: #0a0a0a`) next to the vivid
-selectable/active/offside rings. Lightened `SPENT_RING_STROKE` to `#d1d5db`
-(grey-300), bumped `strokeWidth` to `3`, and raised the overlay's
-`fillOpacity` to `0.5` — still reads as desaturated/"dimmed" rather than a
-vivid hue, but with meaningfully more contrast against the dark board.
+**Revision history (Plan 33-07 Task 3 human-verify feedback):** an
+intermediate fix briefly unified `activated` with the grey `isMovedThisStage`
+look app-wide, retiring the orange+X treatment. Further human-verify feedback
+found the grey/opaque treatment didn't read well in practice, so this was
+reverted — `activated` renders orange ring + red X again, and
+`isMovedThisStage` is back as its own independent grey layer scoped to
+free-kick-stage usage, exactly as originally shipped.
 
 Cross-reference: `packages/client/src/components/PieceOverlay.tsx`
-(`ACTIVE_RING_STROKE`, `SPENT_RING_STROKE`, `SPENT_OVERLAY_FILL` constants;
-`selectionState`, `isOffside` props).
+(`ACTIVE_RING_STROKE`, `MOVED_THIS_STAGE_RING_STROKE`,
+`MOVED_THIS_STAGE_OVERLAY_FILL` constants; `selectionState`, `isOffside`,
+`isMovedThisStage` props).
 
 ### 2b. `HexCell.tsx` — compound `ring` prop
 

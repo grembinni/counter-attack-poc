@@ -97,7 +97,7 @@ export const HIGHLIGHT_STYLES: Record<
 };
 
 // New (33-04): compound gold "ring" overlay — independent of highlightType (mirrors
-// PieceOverlay's isOffside additive-layer pattern). Single source of
+// PieceOverlay's isOffside/isMovedThisStage additive-layer pattern). Single source of
 // truth for the kick-off centre-hex marker and the confirmed-pass-target outline.
 export const RING_STYLES: Record<
   'required' | 'confirmed',
@@ -167,7 +167,7 @@ export function HexCell({ hex, highlightType, ring, onClick }: Props) {
           );
         })()}
       {/* Compound gold ring overlay — independent of highlightType (D-B2, mirrors PieceOverlay's
-          isOffside additive-layer pattern). Values sourced from RING_STYLES so a
+          isOffside/isMovedThisStage additive-layer pattern). Values sourced from RING_STYLES so a
           hex may render both a tint and a ring simultaneously. */}
       {ring !== undefined && (
         <polygon
