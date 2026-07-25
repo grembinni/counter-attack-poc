@@ -1,6 +1,6 @@
 /* TeamSelectionScreen — Phase 16 SELECT-01 / D-10 through D-13
- * Color palette matches existing dark theme:
- * --bg-page: #1a1a2e; --bg-surface: #16213e; --text: #e0e0e0; --text-dim: #a0a0a0;
+ * Color palette sourced via var(--token) from tokens.css (Phase 33 THEME-03):
+ * --color-bg-page / --color-bg-surface / --color-text-primary / --color-text-secondary.
  */
 
 /* Full-viewport centered flex column — mirrors .page in LobbyScreen.module.css */
@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #1a1a2e;
+  background: var(--color-bg-page);
   gap: 16px;
   padding: 24px;
 }
@@ -19,7 +19,7 @@
 .heading {
   font-size: 20px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
   line-height: 1.2;
 }
@@ -28,7 +28,7 @@
 .statusLine {
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -37,7 +37,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
-  border-bottom: 1px solid #0f3460;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 8px;
   width: 100%;
   max-width: 600px;
@@ -47,7 +47,7 @@
 .tab {
   font-size: 14px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -57,17 +57,17 @@
 }
 
 .tab:hover {
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 /* Active/selected tab */
 .tabActive {
   font-size: 14px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   background: transparent;
   border: none;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--color-text-primary);
   padding: 8px 16px;
   cursor: pointer;
 }
@@ -85,7 +85,7 @@
 .card {
   border: 2px solid; /* color set via inline style from TEAM_CONFIGS */
   border-radius: 4px;
-  background: #16213e;
+  background: var(--color-bg-surface);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -114,7 +114,7 @@
 .cardStruckOut {
   border: 2px solid;
   border-radius: 4px;
-  background: #16213e;
+  background: var(--color-bg-surface);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -131,14 +131,14 @@
 .teamName {
   font-size: 13px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 /* Team name struck-out (home's chosen team) */
 .teamNameStruckOut {
   font-size: 13px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   text-decoration: line-through;
 }
 
@@ -164,9 +164,9 @@
 .speedOption {
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
-  background: #16213e;
-  border: 1px solid #a0a0a0;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 4px;
   padding: 4px 10px;
   cursor: pointer;
@@ -174,8 +174,8 @@
 }
 
 .speedOption:hover:not(:disabled) {
-  border-color: #e0e0e0;
-  color: #e0e0e0;
+  border-color: var(--color-text-primary);
+  color: var(--color-text-primary);
 }
 
 .speedOption:disabled {
@@ -189,8 +189,8 @@
 .speedOptionActive {
   font-size: 13px;
   font-weight: 700;
-  color: #e0e0e0;
-  background: #16213e;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
   border: none;
   border-radius: 4px;
   padding: 4px 10px;
@@ -199,33 +199,33 @@
 
 /* UX-07: per-speed accent colors applied alongside .speedOption / .speedOptionActive */
 .speedColorSlow {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--color-speed-slow);
+  color: var(--color-speed-slow);
 }
 .speedColorSlow.speedOptionActive {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  border-color: #93c5fd;
+  background: var(--color-speed-slow-bg);
+  color: var(--color-speed-slow-active);
+  border-color: var(--color-speed-slow-active);
 }
 
 .speedColorStandard {
-  border-color: #22c55e;
-  color: #22c55e;
+  border-color: var(--color-speed-standard);
+  color: var(--color-speed-standard);
 }
 .speedColorStandard.speedOptionActive {
-  background: rgba(34, 197, 94, 0.15);
-  color: #86efac;
-  border-color: #86efac;
+  background: var(--color-speed-standard-bg);
+  color: var(--color-speed-standard-active);
+  border-color: var(--color-speed-standard-active);
 }
 
 .speedColorFast {
-  border-color: #f97316;
-  color: #f97316;
+  border-color: var(--color-speed-fast);
+  color: var(--color-speed-fast);
 }
 .speedColorFast.speedOptionActive {
-  background: rgba(249, 115, 22, 0.15);
-  color: #fdba74;
-  border-color: #fdba74;
+  background: var(--color-speed-fast-bg);
+  color: var(--color-speed-fast-active);
+  border-color: var(--color-speed-fast-active);
 }
 
 /* UX-07: emoji icon spacing inside speed buttons */
