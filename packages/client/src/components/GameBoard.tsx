@@ -2,8 +2,9 @@ import { useRef, useState } from 'react';
 import type { GamePhase } from '@counter-attack/shared';
 import type { MovementSlot } from '@counter-attack/shared';
 import type { PlayerPiece } from '@counter-attack/shared';
-import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
+import { useTeamAccentColor } from '../hooks/useTeamColors.js';
+import { useMyTeam } from '../hooks/useMyTeam.js';
 import { HexGrid } from './HexGrid.js';
 import { ActionLog } from './ActionLog.js';
 import { DisconnectBanner } from './DisconnectBanner.js';
@@ -166,7 +167,6 @@ export function GameBoard() {
   const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
 
   // HALF_TIME overlay
-  const playerSlot = useGameStore((s) => s.playerSlot);
   const kickOffTeam = useGameStore((s) => s.gameState.kickOffTeam);
   const addedTime = useGameStore((s) => s.gameState.addedTime);
   const emitHalfTimeStart = useGameStore((s) => s.emitHalfTimeStart);
@@ -174,9 +174,14 @@ export function GameBoard() {
   // D-08/D-09: event-driven clock. Format: "MM:00". Always rendered (CLOCK-02).
   const clockDisplay = String(actionCount).padStart(2, '0') + ':00';
 
+  // Canonical accent-color resolution (CLEANUP-02, D-04) — hook called in component body only,
+  // never inside .map()/conditionals. homeColor/awayColor cover every home/away score/badge site.
+  const homeColor = useTeamAccentColor(selectedTeams['home']);
+  const awayColor = useTeamAccentColor(selectedTeams['away']);
+
   // Centre section derived values (from TurnIndicator)
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
-  const teamColor = TEAM_CONFIGS[selectedTeams[activeTeam]].palette.uiColor;
+  const teamColor = useTeamAccentColor(selectedTeams[activeTeam]);
   const phaseLabel =
     phase === 'MOVE' ? PHASE_LABEL[phase] + moveSlotSuffix(movementSlot) : PHASE_LABEL[phase];
 
@@ -193,22 +198,17 @@ export function GameBoard() {
   const displayPiece = lastPieceRef.current;
 
   // HALF_TIME overlay: canStart logic (D-28 preserved verbatim from HalfTimeScreen.tsx)
-  const myTeam: 'home' | 'away' | null =
-    playerSlot === 1 ? 'home' : playerSlot === 2 ? 'away' : null;
+  const myTeam = useMyTeam();
   const canStart = myTeam !== null && myTeam !== kickOffTeam;
   const secondHalfKickOffTeam = kickOffTeam === 'home' ? 'away' : 'home';
   const secondHalfTeamName = secondHalfKickOffTeam === 'home' ? 'Home' : 'Away';
-  const secondHalfTeamColor = TEAM_CONFIGS[selectedTeams[secondHalfKickOffTeam]].palette.uiColor;
+  const secondHalfTeamColor = useTeamAccentColor(selectedTeams[secondHalfKickOffTeam]);
 
   // FULL_TIME overlay: result derivation (from FullTimeScreen.tsx)
   const resultText =
     score.home > score.away ? 'Home wins' : score.away > score.home ? 'Away wins' : 'Draw';
   const resultColor =
-    score.home > score.away
-      ? TEAM_CONFIGS[selectedTeams['home']].palette.uiColor
-      : score.away > score.home
-        ? TEAM_CONFIGS[selectedTeams['away']].palette.uiColor
-        : '#e0e0e0';
+    score.home > score.away ? homeColor : score.away > score.home ? awayColor : '#e0e0e0';
 
   return (
     <div className={styles.gameBoard}>
@@ -266,10 +266,7 @@ export function GameBoard() {
           <div className={styles.scoreboardGrid}>
             {/* Home cell: score numeral only */}
             <div className={styles.scoreboardHomeCell}>
-              <span
-                className={styles.scoreNumeral}
-                style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.uiColor }}
-              >
+              <span className={styles.scoreNumeral} style={{ color: homeColor }}>
                 {score.home}
               </span>
             </div>
@@ -306,10 +303,7 @@ export function GameBoard() {
 
             {/* Away cell: score numeral only */}
             <div className={styles.scoreboardAwayCell}>
-              <span
-                className={styles.scoreNumeral}
-                style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.uiColor }}
-              >
+              <span className={styles.scoreNumeral} style={{ color: awayColor }}>
                 {score.away}
               </span>
             </div>
@@ -349,10 +343,7 @@ export function GameBoard() {
               <div className={styles.overlayCard}>
                 {/* Score row: score | badge | [HALF TIME / 45:00 / KICK OFF] | badge | score */}
                 <div className={styles.halfTimeScoreRow}>
-                  <span
-                    className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.uiColor }}
-                  >
+                  <span className={styles.halfTimeScore} style={{ color: homeColor }}>
                     {score.home}
                   </span>
                   <TeamBadge teamId={selectedTeams['home']} size={150} full />
@@ -378,10 +369,7 @@ export function GameBoard() {
                   </div>
 
                   <TeamBadge teamId={selectedTeams['away']} size={150} full />
-                  <span
-                    className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.uiColor }}
-                  >
+                  <span className={styles.halfTimeScore} style={{ color: awayColor }}>
                     {score.away}
                   </span>
                 </div>
@@ -404,10 +392,7 @@ export function GameBoard() {
               <div className={styles.overlayCard}>
                 {/* Score row: home score | home badge | [90:00 / result] | away badge | away score */}
                 <div className={styles.halfTimeScoreRow}>
-                  <span
-                    className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['home']].palette.uiColor }}
-                  >
+                  <span className={styles.halfTimeScore} style={{ color: homeColor }}>
                     {score.home}
                   </span>
                   <TeamBadge teamId={selectedTeams['home']} size={150} full />
@@ -420,10 +405,7 @@ export function GameBoard() {
                     </div>
                   </div>
                   <TeamBadge teamId={selectedTeams['away']} size={150} full />
-                  <span
-                    className={styles.halfTimeScore}
-                    style={{ color: TEAM_CONFIGS[selectedTeams['away']].palette.uiColor }}
-                  >
+                  <span className={styles.halfTimeScore} style={{ color: awayColor }}>
                     {score.away}
                   </span>
                 </div>
