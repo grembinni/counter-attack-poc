@@ -111,13 +111,13 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
 
-| Phase | Name                                      | Plans       | Status      |
-| ----- | ----------------------------------------- | ----------- | ----------- |
-| 31    | Bug Fixes                                 | 6/6         | Complete    |
-| 32    | 4/6                                       | In Progress |             |
-| 33    | Design Tokens & Highlight Standardization | TBD         | Not started |
-| 34    | Visual Theme Restyle                      | TBD         | Not started |
-| 35    | ActionPanel & Log Standardization         | TBD         | Not started |
+| Phase | Name                                      | Plans    | Status      |
+| ----- | ----------------------------------------- | -------- | ----------- |
+| 31    | Bug Fixes                                 | 6/6      | Complete    |
+| 32    | 6/6                                       | Complete | 2026-07-25  |
+| 33    | Design Tokens & Highlight Standardization | TBD      | Not started |
+| 34    | Visual Theme Restyle                      | TBD      | Not started |
+| 35    | ActionPanel & Log Standardization         | TBD      | Not started |
 
 ### Phase 31: Bug Fixes
 
@@ -172,8 +172,8 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Wave 3** _(blocked on Wave 2)_
 
-- [ ] 32-05-PLAN.md — CLEANUP-03: Zustand selector review (SELECTOR-REVIEW.md) + apply fixes (D-06) [Wave 3, depends 32-04]
-- [ ] 32-06-PLAN.md — CLEANUP-04: react-hooks lint at error + fix all violations + suppression review (autonomous:false, D-08) [Wave 3, depends 32-01, 32-04]
+- [x] 32-05-PLAN.md — CLEANUP-03: Zustand selector review (SELECTOR-REVIEW.md) + apply fixes (D-06) [Wave 3, depends 32-04]
+- [x] 32-06-PLAN.md — CLEANUP-04: react-hooks lint at error + fix all violations + suppression review (autonomous:false, D-08) [Wave 3, depends 32-01, 32-04]
 
 ### Phase 33: Design Tokens & Highlight Standardization
 
