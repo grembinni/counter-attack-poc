@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { GameBoard } from './GameBoard.js';
@@ -267,5 +268,39 @@ describe('GameBoard — D-08: scoreboard active-speed reminder', () => {
     useGameStore.setState({ gameState: { ...mockMovementState, gameSpeed: 'fast' } });
     render(<GameBoard />);
     expect(screen.getByText(/Fast/)).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THEME-03 (D-06): runtime --team-accent/--home-accent/--away-accent CSS variables
+// ---------------------------------------------------------------------------
+describe('GameBoard — THEME-03: runtime accent CSS variables', () => {
+  it('sets --team-accent to the active team uiColor and --home-accent/--away-accent to the home/away team uiColors', () => {
+    // mockMovementState: selectedTeams { home: 'city', away: 'crew' }, activeTeam: 'home'
+    const { container } = render(<GameBoard />);
+    const root = container.firstChild as HTMLElement;
+
+    const homeUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor;
+    const awayUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.away].palette.uiColor;
+
+    // The scoreboard stays two-color — proves home/away are not collapsed into one value.
+    expect(homeUiColor).not.toBe(awayUiColor);
+
+    expect(root.style.getPropertyValue('--team-accent')).toBe(homeUiColor);
+    expect(root.style.getPropertyValue('--home-accent')).toBe(homeUiColor);
+    expect(root.style.getPropertyValue('--away-accent')).toBe(awayUiColor);
+  });
+
+  it('updates --team-accent to the away team uiColor when activeTeam is away (not a hardcoded literal)', () => {
+    useGameStore.setState({ gameState: { ...mockMovementState, activeTeam: 'away' } });
+    const { container } = render(<GameBoard />);
+    const root = container.firstChild as HTMLElement;
+
+    const awayUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.away].palette.uiColor;
+    expect(root.style.getPropertyValue('--team-accent')).toBe(awayUiColor);
+    // home/away accents are stable regardless of which team is active
+    expect(root.style.getPropertyValue('--home-accent')).toBe(
+      TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor,
+    );
   });
 });
