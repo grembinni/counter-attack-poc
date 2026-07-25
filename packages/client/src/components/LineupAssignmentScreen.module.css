@@ -1,7 +1,7 @@
 /* LineupAssignmentScreen — Phase 24
- * Color palette: same dark-theme token set as all prior setup screens.
- * --bg-page: #1a1a2e; --bg-surface: #16213e; --border: #0f3460;
- * --text: #e0e0e0; --text-dim: #a0a0a0; --accent: #f5c518;
+ * Color palette sourced via var(--token) from tokens.css (Phase 33 THEME-03):
+ * --color-bg-page / --color-bg-surface / --color-border / --color-text-primary /
+ * --color-text-secondary / --color-accent-gold.
  */
 
 /* .app has height:100vh; overflow:hidden — make THIS element the scroll container
@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #1a1a2e;
+  background: var(--color-bg-page);
   gap: 16px;
   padding: 24px;
   box-sizing: border-box;
@@ -22,7 +22,7 @@
 .matchSetupHeading {
   font-size: 22px;
   font-weight: 800;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
   line-height: 1.2;
   letter-spacing: 0.02em;
@@ -32,7 +32,7 @@
 .statusActive {
   font-size: 14px;
   font-weight: 700;
-  color: #22c55e;
+  color: var(--color-success);
   margin: 0;
   text-align: center;
 }
@@ -40,7 +40,7 @@
 .statusWaiting {
   font-size: 14px;
   font-weight: 700;
-  color: #ef4444;
+  color: var(--color-danger);
   margin: 0;
   text-align: center;
 }
@@ -54,14 +54,14 @@
   padding: 8px 0 4px;
   width: 100%;
   max-width: 1260px;
-  border-top: 1px solid #0f3460;
+  border-top: 1px solid var(--color-border);
 }
 
 .confirmButtonGreen {
   font-size: 20px;
   font-weight: 800;
-  color: #1a1a2e;
-  background: #22c55e;
+  color: var(--color-bg-page);
+  background: var(--color-success);
   border: none;
   border-radius: 6px;
   padding: 14px 48px;
@@ -73,7 +73,7 @@
 }
 
 .confirmButtonGreen:hover:not(:disabled) {
-  background: #16a34a;
+  background: var(--color-success-hover);
 }
 
 /* ─── Formation columns ────────────────────────────────────────────────────── */
@@ -100,11 +100,11 @@
 .columnHeader {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-align: center;
   padding: 4px 8px;
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   letter-spacing: 0.08em;
 }
@@ -124,8 +124,8 @@
 
 /* Base shared card shape — min-width keeps all cards the same size regardless of player name */
 .statCardBase {
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 6px 8px;
   display: flex;
@@ -163,8 +163,8 @@
 }
 
 .statCardDropTarget {
-  border: 2px solid #f5c518;
-  box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.3);
+  border: 2px solid var(--color-accent-gold);
+  box-shadow: 0 0 0 2px var(--color-accent-gold-glow);
 }
 
 /* Right side of flat card: header row + stat chip grid */
@@ -187,7 +187,7 @@
 .cardName {
   font-size: 12px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -206,7 +206,7 @@
 .cardRole {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   flex-shrink: 0;
@@ -215,14 +215,14 @@
 .cardNum {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
 .lockedBadge {
   font-size: 9px;
   font-weight: 700;
-  color: #f5c518;
+  color: var(--color-accent-gold);
   letter-spacing: 0.05em;
   flex-shrink: 0;
 }
@@ -246,7 +246,7 @@
 .statAbbr {
   font-size: 9px;
   font-weight: 700;
-  color: #808090;
+  color: var(--color-text-tertiary);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -260,20 +260,20 @@
   border-radius: 50%;
   font-size: 9px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-inverse);
   flex-shrink: 0;
 }
 
-.statBadge[data-tier="high"] { background: #22c55e; }
-.statBadge[data-tier="mid"]  { background: #f97316; }
-.statBadge[data-tier="low"]  { background: #ef4444; }
+.statBadge[data-tier="high"] { background: var(--color-success); }
+.statBadge[data-tier="mid"]  { background: var(--color-stat-badge-medium); }
+.statBadge[data-tier="low"]  { background: var(--color-danger); }
 
 /* ─── Bench section ─────────────────────────────────────────────────────── */
 
 .benchSection {
   max-width: 1260px;
   width: 100%;
-  border-top: 1px solid #0f3460;
+  border-top: 1px solid var(--color-border);
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -283,7 +283,7 @@
 .benchLabel {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   letter-spacing: 0.08em;
 }
 
@@ -293,7 +293,7 @@
 }
 
 .benchSlot {
-  border: 1px dashed #0f3460;
+  border: 1px dashed var(--color-border);
   border-radius: 4px;
   background: transparent;
   min-height: 50px;
@@ -305,13 +305,13 @@
 .swapRejection {
   font-size: 12px;
   font-weight: 700;
-  color: #ef4444;
+  color: var(--color-danger);
   text-align: center;
   margin: 0;
 }
 
 /* ─── Phase 29/30: Draft tier-border card variants (D-17/D-18/D-19, D-22/D-05) ─
-   3px tier-colored border replacing the base card's 1px solid #0f3460;
+   3px tier-colored border replacing the base card's 1px solid var(--color-border);
    card content itself is unchanged (D-18) — border/frame only (D-19).
    4-value scheme (D-22, Phase 30): chase=purple, rare=red, uncommon=green,
    common=white. No 5th reserved-tier color — the prior 5th tier class is
@@ -326,37 +326,37 @@
    Standard-mode layout regression). */
 .cardTierChase {
   composes: statCardBase;
-  border: 3px solid #a855f7;
+  border: 3px solid var(--color-accent-purple);
   min-width: 320px;
 }
 
 .cardTierRare {
   composes: statCardBase;
-  border: 3px solid #ef4444;
+  border: 3px solid var(--color-danger);
   min-width: 320px;
 }
 
 .cardTierUncommon {
   composes: statCardBase;
-  border: 3px solid #22c55e;
+  border: 3px solid var(--color-success);
   min-width: 320px;
 }
 
 .cardTierCommon {
   composes: statCardBase;
-  border: 3px solid #ffffff;
+  border: 3px solid var(--color-text-inverse);
   min-width: 320px;
 }
 
 /* ─── Phase 29: Draft-pack carousel chrome (D-20) ──────────────────────────
    Section wrapper + scrollable viewport/track + nav arrows, reusing the
-   existing dark-theme tokens (#1a1a2e / #16213e / #0f3460) — no new base
-   palette introduced this phase. */
+   existing dark-theme tokens (var(--color-bg-page) / var(--color-bg-surface) /
+   var(--color-border)) — no new base palette introduced this phase. */
 
 .draftPackRow {
   max-width: 1260px;
   width: 100%;
-  border-top: 1px solid #0f3460;
+  border-top: 1px solid var(--color-border);
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -395,17 +395,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .carouselNav:hover:not(:disabled) {
-  background: #0f3460;
+  background: var(--color-bg-surface-alt);
 }
 
 .carouselNavDisabled {
@@ -417,7 +417,7 @@
 .waitingIndicator {
   font-size: 14px;
   font-weight: 700;
-  color: #ef4444;
+  color: var(--color-danger);
   margin: 0;
   text-align: center;
 }
@@ -425,7 +425,7 @@
 .cyclePickCounter {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-align: center;
   letter-spacing: 0.05em;
 }

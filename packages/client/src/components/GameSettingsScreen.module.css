@@ -2,7 +2,8 @@
  * LobbyScreen.module.css (.page/.card/.ctaButton) and TeamSelectionScreen.module.css
  * (.tab/.tabActive/.speedOption*) per project convention (no shared CSS partial).
  * Spacing: new elements use only 4/8/16/24/32 (27-UI-SPEC.md Spacing Scale).
- * Color: dark theme verbatim — gold (#f5c518) reserved for brand/room-code, NOT used here.
+ * Color: dark theme verbatim, sourced via var(--token) from tokens.css (Phase 33
+ * THEME-03) — gold (--color-accent-gold) reserved for brand/room-code, NOT used here.
  */
 
 .page {
@@ -10,14 +11,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a1a2e;
+  background: var(--color-bg-page);
 }
 
 .card {
   width: 100%;
   max-width: 480px;
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 24px;
   display: flex;
@@ -28,7 +29,7 @@
 .heading {
   font-size: 20px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -41,7 +42,7 @@
 .sectionLabel {
   font-size: 13px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 /* Match Speed picker — duplicated from TeamSelectionScreen's interactive branch. */
@@ -54,9 +55,9 @@
 .speedOption {
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
-  background: #16213e;
-  border: 1px solid #a0a0a0;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
@@ -64,16 +65,16 @@
 }
 
 .speedOption:hover {
-  border-color: #e0e0e0;
-  color: #e0e0e0;
+  border-color: var(--color-text-primary);
+  color: var(--color-text-primary);
 }
 
 .speedOptionActive {
   font-size: 13px;
   font-weight: 700;
-  color: #e0e0e0;
-  background: #16213e;
-  border: 1px solid #e0e0e0;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-text-primary);
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
@@ -86,47 +87,47 @@
 }
 
 .speedColorSlow {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--color-speed-slow);
+  color: var(--color-speed-slow);
 }
 .speedColorSlow.speedOptionActive {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  border-color: #93c5fd;
+  background: var(--color-speed-slow-bg);
+  color: var(--color-speed-slow-active);
+  border-color: var(--color-speed-slow-active);
 }
 
 .speedColorStandard {
-  border-color: #22c55e;
-  color: #22c55e;
+  border-color: var(--color-speed-standard);
+  color: var(--color-speed-standard);
 }
 .speedColorStandard.speedOptionActive {
-  background: rgba(34, 197, 94, 0.15);
-  color: #86efac;
-  border-color: #86efac;
+  background: var(--color-speed-standard-bg);
+  color: var(--color-speed-standard-active);
+  border-color: var(--color-speed-standard-active);
 }
 
 .speedColorFast {
-  border-color: #f97316;
-  color: #f97316;
+  border-color: var(--color-speed-fast);
+  color: var(--color-speed-fast);
 }
 .speedColorFast.speedOptionActive {
-  background: rgba(249, 115, 22, 0.15);
-  color: #fdba74;
-  border-color: #fdba74;
+  background: var(--color-speed-fast-bg);
+  color: var(--color-speed-fast-active);
+  border-color: var(--color-speed-fast-active);
 }
 
 /* Team Type toggle — duplicated .tab/.tabActive pattern from TeamSelectionScreen. */
 .tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #0f3460;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 8px;
 }
 
 .tab {
   font-size: 14px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -138,16 +139,16 @@
 }
 
 .tab:hover {
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 .tabActive {
   font-size: 14px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   background: transparent;
   border: none;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--color-text-primary);
   padding: 8px 16px;
   cursor: pointer;
 }
@@ -165,7 +166,7 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 400;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
@@ -176,20 +177,20 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   cursor: not-allowed;
   opacity: 0.4;
 }
 
 .comingSoon {
   font-size: 13px;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
 }
 
 /* Primary CTA — reuses LobbyScreen's .ctaButton color/hover/disabled treatment. */
 .ctaButton {
-  background: #0f3460;
-  color: #ffffff;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   padding: 8px 16px;
@@ -200,7 +201,7 @@
 }
 
 .ctaButton:hover:not(:disabled) {
-  background: #1a56b0;
+  background: var(--team-accent);
 }
 
 .ctaButton:disabled {
