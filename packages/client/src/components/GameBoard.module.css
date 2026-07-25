@@ -18,8 +18,8 @@
   grid-template-columns: 1fr auto 1fr;
   min-height: 80px;
   flex-shrink: 0;
-  background: #1a1a2e;
-  border-bottom: 1px solid #0f3460;
+  background: var(--color-bg-page);
+  border-bottom: 1px solid var(--color-border);
 }
 
 /* ─── Left zone (track 1 — player card centred) ───────────────────────────── */
@@ -29,8 +29,8 @@
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  background: #16213e;
-  border-right: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border);
   overflow: hidden;
 }
 
@@ -41,8 +41,8 @@
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  background: #16213e;
-  border-left: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border);
   overflow: hidden;
 }
 
@@ -51,9 +51,9 @@
 .scoreboard {
   display: flex;
   align-items: stretch;
-  background: #0f3460;
-  border-left: 1px solid #1a56b0;
-  border-right: 1px solid #1a56b0;
+  background: var(--color-bg-surface-alt);
+  border-left: 1px solid var(--team-accent);
+  border-right: 1px solid var(--team-accent);
 }
 
 .scoreboardGrid {
@@ -100,6 +100,22 @@
   line-height: 1;
 }
 
+/* THEME-03 (D-06): utility color modifiers — read the runtime per-view accent
+   variables injected once at the GameBoard root, replacing per-render-site
+   inline color lookups. Applied alongside a base class (scoreNumeral/teamName/
+   halfTimeScore/halfTimeKickOff), not standalone. */
+.accentHome {
+  color: var(--home-accent);
+}
+
+.accentAway {
+  color: var(--away-accent);
+}
+
+.accentTeam {
+  color: var(--team-accent);
+}
+
 /* ─── Player card — flat layout matching PlayerStatsPanel design ────────────
    Fits inside the 80px topBand. Badge (48px) left, body right.             */
 
@@ -130,7 +146,7 @@
 .playerCardName {
   font-size: 12px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -149,7 +165,7 @@
 .playerCardRole {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   flex-shrink: 0;
@@ -158,7 +174,7 @@
 .playerCardNum {
   font-size: 12px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
@@ -181,7 +197,7 @@
 .statAbbr {
   font-size: 9px;
   font-weight: 700;
-  color: #808090;
+  color: var(--color-text-tertiary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -196,26 +212,29 @@
   justify-content: center;
   font-size: 9px;
   font-weight: 800;
-  color: #fff;
+  color: var(--color-text-inverse);
   flex-shrink: 0;
 }
 
 .statBubbleGreen {
-  background: #22c55e;
+  background: var(--color-success);
 }
 
 .statBubbleYellow {
-  background: #f97316;
+  /* Rule 3 deviation: #f97316 has no entry in the frozen 18-token UI-SPEC list —
+     added as --color-stat-badge-medium in tokens.css to eliminate this literal
+     while keeping the exact same frozen value (no visual change). */
+  background: var(--color-stat-badge-medium);
 }
 
 .statBubbleRed {
-  background: #ef4444;
+  background: var(--color-danger);
 }
 
 .playerCardPlaceholder {
   font-size: 11px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
 }
 
 /* ─── Centre section — child elements ────────────────────────────────────── */
@@ -224,7 +243,7 @@
 .clockDisplay {
   font-size: 36px;
   font-weight: 700;
-  color: #f5c518;
+  color: var(--color-accent-gold);
 }
 
 /* Flex row: green dot + clock, centred */
@@ -260,7 +279,7 @@
 .phaseLabel {
   font-size: 11px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -268,7 +287,7 @@
 /* ─── Action section ──────────────────────────────────────────────────────── */
 
 .actionSection {
-  background: #16213e;
+  background: var(--color-bg-surface);
   border-radius: 4px;
   padding: 4px;
   width: 100%;
@@ -295,8 +314,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #16213e;
-  border-right: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border);
   transition: width 0.2s ease;
 }
 
@@ -306,8 +325,8 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #16213e;
-  border-right: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border);
   overflow: hidden;
   transition: width 0.2s ease;
 }
@@ -319,16 +338,16 @@
   padding: 6px 8px;
   font-size: 11px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
-  border-bottom: 1px solid #0f3460;
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
 .sideLogChevron {
   font-size: 14px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
@@ -337,7 +356,7 @@
 }
 
 .sideLogChevron:hover {
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 /* ─── Pitch container ─────────────────────────────────────────────────────── */
@@ -345,7 +364,10 @@
 /* MANDATORY position:relative — anchors phase overlay to pitch, not viewport (Pitfall 2) */
 .pitchContainer {
   flex: 1;
-  background: #0a0a0a;
+  /* Rule 3 deviation: #0a0a0a has no entry in the frozen 18-token UI-SPEC list —
+     added as --color-bg-pitch in tokens.css to eliminate this literal while
+     keeping the exact same frozen value (no visual change). */
+  background: var(--color-bg-pitch);
   padding: 4px 8px;
   overflow: hidden;
   display: flex;
@@ -371,8 +393,8 @@
 .overlayCard {
   width: 100%;
   max-width: 760px;
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 24px;
   display: flex;
@@ -383,14 +405,14 @@
 .overlayHeading {
   font-size: 10px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .overlayBody {
   font-size: 13px;
   font-weight: 400;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   margin: 0;
   line-height: 1.5;
 }
@@ -424,7 +446,7 @@
   font-family: 'Courier New', Courier, monospace;
   font-size: 28px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   text-align: center;
 }
 
@@ -443,8 +465,8 @@
 
 /* "Start 2nd Half" CTA button — inherits HalfTimeScreen.module.css .ctaButton pattern */
 .overlayCtaButton {
-  background: #0f3460;
-  color: #ffffff;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   padding: 10px 10px;
@@ -454,7 +476,7 @@
 }
 
 .overlayCtaButton:hover:not(:disabled) {
-  background: #1a56b0;
+  background: var(--team-accent);
 }
 
 .overlayCtaButton:disabled {
@@ -512,7 +534,7 @@
 .halfTimeClock {
   font-size: 36px;
   font-weight: 700;
-  color: #f5c518;
+  color: var(--color-accent-gold);
   line-height: 1;
   margin: 0;
 }
@@ -521,7 +543,7 @@
 .halfTimeAddedTime {
   font-size: 18px;
   font-weight: 700;
-  color: #f5c518;
+  color: var(--color-accent-gold);
   line-height: 1;
 }
 
@@ -530,7 +552,7 @@
   text-align: center;
   font-size: 11px;
   font-weight: 700;
-  color: #a0a0a0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;

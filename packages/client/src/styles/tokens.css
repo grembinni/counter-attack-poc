@@ -1,0 +1,58 @@
+/* Phase 33 (THEME-03, D-06/D-07): Chrome design-token layer.
+ * Single source of truth for chrome (non-pitch, non-highlight) colors used across
+ * lobby, settings, team/draft selection, and the game board.
+ *
+ * Values are FROZEN to today's deep-blue theme — do NOT change any value in this
+ * phase. Phase 34 does the palette value swap; this file only centralizes literals
+ * that were previously duplicated across .module.css files and inline styles.
+ *
+ * Highlight/ring colors (hex tints, piece rings, ball-location marker) are OUT of
+ * scope for this file (D-07) — those live in HexCell.tsx/PieceOverlay.tsx and are
+ * documented in docs/HIGHLIGHT-REFERENCE.md.
+ */
+
+:root {
+  /* Backgrounds */
+  --color-bg-page: #1a1a2e;
+  --color-bg-surface: #16213e;
+  --color-bg-surface-alt: #0f3460;
+
+  /* Borders */
+  --color-border: #0f3460;
+  --color-border-muted: #a0a0a0;
+
+  /* Text */
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0a0;
+  --color-text-tertiary: #808090;
+  --color-text-inverse: #ffffff;
+
+  /* Team accent — runtime-derived from TEAM_CONFIGS[activeTeam].palette.uiColor.
+     This is the static fallback used before any team is active (lobby/pre-team-select). */
+  --team-accent: #1a56b0;
+
+  /* Accents */
+  --color-accent-gold: #f5c518;
+  --color-success: #22c55e;
+
+  /* CTA states — ready (End Turn / Confirm available) */
+  --color-cta-ready-bg: #27ae60;
+  --color-cta-ready-bg-hover: #219a52;
+
+  /* CTA states — pending (End Turn / Confirm not yet available) */
+  --color-cta-pending-bg: #f39c12;
+  --color-cta-pending-bg-hover: #e67e22;
+
+  /* Destructive / danger */
+  --color-danger: #ef4444;
+
+  /* Rare accent */
+  --color-accent-purple: #a855f7;
+
+  /* Extended chrome tokens (Rule 3 deviation, added during Plan 33-01 Task 2's
+     migration sweep): not part of the original 18-token UI-SPEC list, but
+     required to eliminate the remaining raw hex literals in GameBoard.module.css.
+     Values are frozen/unchanged from their prior literal use — no visual change. */
+  --color-bg-pitch: #0a0a0a;
+  --color-stat-badge-medium: #f97316;
+}
