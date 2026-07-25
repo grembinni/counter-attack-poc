@@ -1,8 +1,8 @@
 /* FreeKickSetupPanel — sidebar panel style, matching KickOffSetupPanel/ActionPanel.
-   Frozen token inventory from Phase 6/7 (UI-SPEC §Design System). No new colour values. */
+   Chrome colors sourced from tokens.css (Phase 33 THEME-03 migration). */
 
 .panel {
-  background: #16213e;
+  background: var(--color-bg-surface);
   border-radius: 4px;
   padding: 4px 6px;
   display: flex;
@@ -23,7 +23,7 @@
 .panelHeading {
   font-size: 12px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   text-align: center;
 }
 
@@ -33,12 +33,12 @@
   line-height: 1.5;
   /* D-44: was missing a color, inheriting an unreadable dark default against the
      panel's dark background — match .panelHeading's light-text-on-dark token. */
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   text-align: center;
 }
 
 .errorText {
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 11px;
   font-weight: 400;
 }
@@ -47,8 +47,8 @@
   flex: 0 0 calc(50% - 2px);
   max-width: 120px;
   min-width: 0;
-  background: #0f3460;
-  color: #ffffff;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   padding: 3px 8px;
@@ -59,7 +59,7 @@
 }
 
 .ctaButton:hover:not(:disabled) {
-  background: #1a56b0;
+  background: var(--team-accent);
 }
 
 .ctaButton:disabled {
@@ -73,13 +73,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-overlay-backdrop);
   z-index: 20;
 }
 
 .confirmCard {
-  background: #16213e;
-  border: 1px solid #0f3460;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 16px;
   display: flex;
@@ -92,7 +92,7 @@
 .confirmText {
   font-size: 13px;
   font-weight: 400;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   margin: 0;
   line-height: 1.5;
   text-align: center;
@@ -110,19 +110,19 @@
 }
 
 .ctaButtonPending {
-  background: #f39c12;
+  background: var(--color-cta-pending-bg);
   transition: background-color 0.15s ease;
 }
 
 .ctaButtonPending:hover:not(:disabled) {
-  background: #e67e22;
+  background: var(--color-cta-pending-bg-hover);
 }
 
 .ctaButtonReady {
-  background: #27ae60;
+  background: var(--color-cta-ready-bg);
   transition: background-color 0.15s ease;
 }
 
 .ctaButtonReady:hover:not(:disabled) {
-  background: #219a52;
+  background: var(--color-cta-ready-bg-hover);
 }

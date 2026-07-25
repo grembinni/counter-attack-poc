@@ -94,7 +94,9 @@ export function KickOffSetupPanel() {
       {isAttacking && (
         <span
           className={styles.constraintRow}
-          style={{ color: centreHexOccupied ? '#a0a0a0' : '#ef4444' }}
+          style={{
+            color: centreHexOccupied ? 'var(--color-text-secondary)' : 'var(--color-danger)',
+          }}
         >
           {centreHexOccupied ? 'Centre hex: occupied' : 'Centre hex: EMPTY — required'}
         </span>
@@ -102,7 +104,7 @@ export function KickOffSetupPanel() {
 
       <span
         className={styles.constraintRow}
-        style={{ color: placementValid ? '#a0a0a0' : '#ef4444' }}
+        style={{ color: placementValid ? 'var(--color-text-secondary)' : 'var(--color-danger)' }}
       >
         {placementValid ? 'Placement: valid' : `Placement: ${piecesOutOfZone} pieces out of zone`}
       </span>

@@ -184,13 +184,13 @@ export function FreeKickSetupPanel() {
       )}
 
       {checksKickerPlacement && !kickerLocked && (
-        <span className={styles.constraintRow} style={{ color: '#ef4444' }}>
+        <span className={styles.constraintRow} style={{ color: 'var(--color-danger)' }}>
           Kicker: move a player onto the free-kick hex first — required before any other move
         </span>
       )}
 
       {!isKicking && !defenderZoneValid && (
-        <span className={styles.constraintRow} style={{ color: '#ef4444' }}>
+        <span className={styles.constraintRow} style={{ color: 'var(--color-danger)' }}>
           {`Defending zone: ${tooCloseCount} player(s) too close`}
         </span>
       )}

@@ -14,7 +14,7 @@ import styles from './ActionLog.module.css';
 function pieceColorOf(pieceId: string): string {
   const state = useGameStore.getState();
   const selectedTeams = state.gameState?.selectedTeams;
-  if (!selectedTeams) return '#888888';
+  if (!selectedTeams) return teamAccentColor(undefined);
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
   const teamId = selectedTeams[positional];
   return teamAccentColor(teamId);
@@ -41,7 +41,7 @@ function pieceName(pieceId: string, fallback: string): string {
 function slotTeamColor(slot: MovementSlot): string {
   const gameState = useGameStore.getState().gameState;
   const selectedTeams = gameState?.selectedTeams;
-  if (!selectedTeams) return '#888888';
+  if (!selectedTeams) return teamAccentColor(undefined);
   const attackingTeam = gameState.attackingTeam;
   const positional: 'home' | 'away' =
     slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
@@ -755,7 +755,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // visibility; not shown in the action log (no meaningful display needed).
       return {
         prefix: '[SETUP]',
-        prefixColor: '#888888',
+        prefixColor: teamAccentColor(undefined),
         content: ` Formation  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
@@ -763,7 +763,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // BUG-18 (Phase 18.3): defender repositioning during SNAPSHOT_DEFLECT.
       return {
         prefix: '[DEFLECT]',
-        prefixColor: '#888888',
+        prefixColor: teamAccentColor(undefined),
         content: ` Deflect move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
@@ -771,7 +771,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // BUG-18 (Phase 18.3): piece repositioning during FREE_KICK_SETUP.
       return {
         prefix: '[FK]',
-        prefixColor: '#888888',
+        prefixColor: teamAccentColor(undefined),
         content: ` Setup move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
@@ -779,7 +779,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // Plan 25-06: undo boundary — kicker placed on free-kick hex.
       return {
         prefix: '[FK]',
-        prefixColor: '#888888',
+        prefixColor: teamAccentColor(undefined),
         content: ` Kicker selected`,
         isGoal: false,
       };
@@ -787,7 +787,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // Plan 25-06: undo boundary — stage transition during FREE_KICK_SETUP.
       return {
         prefix: '[FK]',
-        prefixColor: '#888888',
+        prefixColor: teamAccentColor(undefined),
         content: ` Stage ${event.fromStageIndex + 1} → ${event.fromStageIndex + 2}`,
         isGoal: false,
       };

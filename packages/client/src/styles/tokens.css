@@ -55,4 +55,12 @@
      Values are frozen/unchanged from their prior literal use — no visual change. */
   --color-bg-pitch: #0a0a0a;
   --color-stat-badge-medium: #f97316;
+
+  /* Extended chrome tokens (Rule 3 deviation, added during Plan 33-02 Task 1/2's
+     migration sweep): translucent black scrim values, not part of the original
+     18-token UI-SPEC list, but required to eliminate the remaining raw rgba()
+     literals in ActionPanel/FreeKickSetupPanel confirm-dialog overlays and
+     EventBanner's box background. Values are frozen/unchanged — no visual change. */
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.6);
+  --color-banner-backdrop: rgba(0, 0, 0, 0.75);
 }
