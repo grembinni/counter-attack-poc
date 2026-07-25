@@ -97,3 +97,12 @@ None - no external service configuration required.
 
 _Phase: 33-design-tokens-highlight-standardization_
 _Completed: 2026-07-25_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/PieceOverlay.tsx
+- FOUND: packages/client/src/components/PieceOverlay.test.tsx
+- FOUND: .planning/phases/33-design-tokens-highlight-standardization/33-05-SUMMARY.md
+- FOUND commit: a7fe8f4
+- FOUND commit: 22d3ba6
+- FOUND commit: 125fa7a
