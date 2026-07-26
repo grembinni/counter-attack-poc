@@ -21,7 +21,12 @@
   --color-bg-surface-alt: #262626;
 
   /* Borders */
-  --color-border: #262626;
+  /* WR-02: was #262626 (same swatch as --color-bg-surface-alt), which measured
+     ~1.13-1.24:1 against the surfaces it borders — far below WCAG SC 1.4.11's
+     3:1 UI-component minimum, making nearly every card/panel/input border
+     shipped this phase effectively invisible. Reuses --color-border-muted's
+     value (confirmed 5.79-7.16:1 against bg-page/bg-surface/bg-surface-alt). */
+  --color-border: #a0a0a0;
   --color-border-muted: #a0a0a0;
 
   /* Text */
