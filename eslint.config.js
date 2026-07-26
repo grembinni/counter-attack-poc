@@ -13,7 +13,11 @@ export default tseslint.config(
             // Only packages/shared excludes *.test.ts from its tsconfig project;
             // client/server test files are already covered by the project service.
             'packages/shared/src/*.test.ts',
-            'packages/*/scripts/*.ts',
+            // packages/shared/scripts is not part of packages/shared/tsconfig.json's
+            // include ("src/**/*" only). packages/client/scripts IS covered by
+            // packages/client/tsconfig.json's include (34-03: needed full
+            // type-aware resolution for cross-package imports in check-contrast.ts).
+            'packages/shared/scripts/*.ts',
           ],
         },
       },

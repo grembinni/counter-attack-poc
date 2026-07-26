@@ -23,3 +23,5 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm -r test
       - run: pnpm -r build
+      - run: pnpm stylelint
+      - run: pnpm check-contrast

@@ -11,8 +11,8 @@
       "project": ["src/**/*.ts"]
     },
     "packages/client": {
-      "entry": ["src/main.tsx", "index.html"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "entry": ["src/main.tsx", "index.html", "scripts/check-contrast.ts"],
+      "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"]
     }
   }
 }
