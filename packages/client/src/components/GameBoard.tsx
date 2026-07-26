@@ -4,7 +4,7 @@ import type { GamePhase } from '@counter-attack/shared';
 import type { MovementSlot } from '@counter-attack/shared';
 import type { PlayerPiece } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
-import { useTeamAccentColor } from '../hooks/useTeamColors.js';
+import { useTeamAccentColorAA } from '../hooks/useTeamColors.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { HexGrid } from './HexGrid.js';
 import { ActionLog } from './ActionLog.js';
@@ -175,14 +175,16 @@ export function GameBoard() {
   // D-08/D-09: event-driven clock. Format: "MM:00". Always rendered (CLOCK-02).
   const clockDisplay = String(actionCount).padStart(2, '0') + ':00';
 
-  // Canonical accent-color resolution (CLEANUP-02, D-04) — hook called in component body only,
-  // never inside .map()/conditionals. homeColor/awayColor cover every home/away score/badge site.
-  const homeColor = useTeamAccentColor(selectedTeams['home']);
-  const awayColor = useTeamAccentColor(selectedTeams['away']);
+  // Canonical accent-color resolution (CLEANUP-02, D-04; AA-derived per THEME-04) — hook
+  // called in component body only, never inside .map()/conditionals. homeColor/awayColor
+  // cover every home/away score/badge site; useTeamAccentColorAA guarantees the derived
+  // value clears WCAG AA against both --color-bg-page and --color-text-inverse.
+  const homeColor = useTeamAccentColorAA(selectedTeams['home']);
+  const awayColor = useTeamAccentColorAA(selectedTeams['away']);
 
   // Centre section derived values (from TurnIndicator)
   const teamName = activeTeam === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
-  const teamColor = useTeamAccentColor(selectedTeams[activeTeam]);
+  const teamColor = useTeamAccentColorAA(selectedTeams[activeTeam]);
   const phaseLabel =
     phase === 'MOVE' ? PHASE_LABEL[phase] + moveSlotSuffix(movementSlot) : PHASE_LABEL[phase];
 
