@@ -126,5 +126,44 @@ None - no external service configuration required.
 
 ---
 
+## Checkpoint Round 2: Action-button legibility fix
+
+**Trigger:** Human feedback on the Task 3 human-verify checkpoint — "action buttons are hard to see - can they be updated to have a thin outline?"
+
+**Root cause confirmed:** `--color-border: #262626` in `tokens.css` is byte-identical to `--color-bg-surface-alt: #262626`. Every `.ctaButton`-pattern action button renders `background: var(--color-bg-surface-alt)` with `border: none`, sitting on a panel whose own background is `--color-bg-surface: #1c1c1c` — three near-adjacent dark grays with no outline to separate the clickable control from its container.
+
+**Fix applied:** Added `border: 1px solid var(--color-border-subtle)` (`#555555` — an existing token, already used for the same purpose in `UniformSelectionScreen.module.css`) to the shared `.ctaButton`/`.overlayCtaButton` base rules, replacing `border: none`. No new CSS custom property was introduced (stylelint's `var(--token)`-only rule stays satisfied). Pending/orange and ready/green color-state variants (`.ctaButtonPending`, `.ctaButtonReady`) inherit the new border automatically — they're applied as an _additional_ class alongside `.ctaButton` in every call site (verified via `.tsx` grep), not a replacement, so only `background` needed overriding by those variants (unchanged).
+
+**Files fixed (7):**
+
+- `packages/client/src/components/ActionPanel.module.css`
+- `packages/client/src/components/FreeKickSetupPanel.module.css`
+- `packages/client/src/components/GameSettingsScreen.module.css`
+- `packages/client/src/components/KickOffSetupPanel.module.css`
+- `packages/client/src/components/LobbyScreen.module.css`
+- `packages/client/src/components/ReplayPanel.module.css`
+- `packages/client/src/components/GameBoard.module.css` (`.overlayCtaButton` — the "Start 2nd Half" CTA)
+
+**Files investigated and deliberately excluded:**
+
+- `packages/client/src/components/DisconnectBanner.module.css` — a fixed, full-width status banner (not a clickable action button); its text color is already `--color-accent-gold` against `--color-bg-surface-alt`, which is a distinct, legible contrast pair. Out of scope for this feedback.
+- `packages/client/src/components/LineupAssignmentScreen.module.css` — its only `background: var(--color-bg-surface-alt)` usage is `.carouselNav:hover`, and `.carouselNav`'s base state already carries `border: 1px solid var(--color-border)`. Its `.confirmButtonGreen` CTA uses `background: var(--color-success)` (bright green), not the surface-alt/border-collision pattern — no legibility problem present.
+
+**Verification (all green, re-run after the fix):**
+
+- `pnpm stylelint` — pass (no `.module.css` violations)
+- `pnpm --filter @counter-attack/client typecheck` — pass
+- `pnpm --filter @counter-attack/client test` — 415/415 pass
+- `pnpm -r build` — pass (shared, server, client)
+- `pnpm check-contrast` (run from `packages/client`) — all 12 teams clear AA thresholds
+
+**Commit:** `f5effcb` (fix)
+
+**Dev server for re-verification:** `pnpm --filter @counter-attack/client dev` started fresh in this worktree; ports 5173-5175 were occupied by sibling parallel-wave worktrees, so Vite auto-selected **`http://localhost:5176/`** (confirmed via `curl` → `200`).
+
+**Outstanding:** Task 3's human-verify checkpoint is being re-presented with this fix included — it is NOT auto-approved. The user should re-check the same screens (lobby, settings, team/draft selection, in-game board) specifically for the new button outlines, at `http://localhost:5176/`.
+
+---
+
 _Phase: 34-visual-theme-restyle_
-_Completed: 2026-07-26 (Tasks 1-2; Task 3 checkpoint pending human approval)_
+_Completed: 2026-07-26 (Tasks 1-2; checkpoint-driven button-outline fix landed; Task 3 checkpoint re-pending human approval)_
