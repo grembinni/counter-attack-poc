@@ -13,8 +13,7 @@ requires:
 provides:
   - Charcoal/graphite chrome palette live in packages/client/src/styles/tokens.css (--color-bg-page #121212, --color-bg-surface #1c1c1c, --color-bg-surface-alt #262626, --color-border #262626, --color-text-primary #f5f5f5, --color-text-tertiary #808080, --team-accent fallback #f5c518)
   - GameBoard.tsx's three accent call sites (homeColor/awayColor/teamColor) routed through useTeamAccentColorAA, feeding --team-accent/--home-accent/--away-accent with WCAG AA-safe derived values
-affects:
-  [Phase 34 human-verify checkpoint (this plan's Task 3) — must be approved before phase close]
+affects: [Phase 34 human-verify checkpoint (this plan's Task 3) — approved 2026-07-26]
 
 # Tech tracking
 tech-stack:
@@ -43,14 +42,14 @@ completed: 2026-07-26
 
 # Phase 34 Plan 04: Charcoal Palette Swap + GameBoard AA Wiring Summary
 
-**tokens.css recolored from the deep-blue chrome theme to a neutral charcoal/graphite base (#121212/#1c1c1c/#262626) with crisp near-white text and a gold accent fallback, plus GameBoard.tsx's three team-accent call sites rewired from the raw `useTeamAccentColor` to the WCAG-AA-safe `useTeamAccentColorAA` derivation — pending final human visual-verification checkpoint.**
+**tokens.css recolored from the deep-blue chrome theme to a neutral charcoal/graphite base (#121212/#1c1c1c/#262626) with crisp near-white text and a gold accent fallback, plus GameBoard.tsx's three team-accent call sites rewired from the raw `useTeamAccentColor` to the WCAG-AA-safe `useTeamAccentColorAA` derivation. Task 3's human-verify checkpoint went through three rounds (button-outline color was invisible, then insufficiently contrasted, before landing on a token that clears WCAG 1.4.11) and was approved 2026-07-26.**
 
 ## Performance
 
-- **Duration:** ~35 min (Tasks 1-2 automated work; Task 3 is an outstanding human-verify checkpoint)
-- **Completed:** 2026-07-26 (Tasks 1-2); Task 3 checkpoint pending
-- **Tasks:** 2/3 completed (Task 3 is a `checkpoint:human-verify` gate, awaiting approval)
-- **Files modified:** 3 (tokens.css, GameBoard.tsx, GameBoard.test.tsx)
+- **Duration:** ~35 min (Tasks 1-2 automated work) + 3 checkpoint rounds (~1.5h wall-clock including human review cycles)
+- **Completed:** 2026-07-26
+- **Tasks:** 3/3 completed
+- **Files modified:** 3 for Tasks 1-2 (tokens.css, GameBoard.tsx, GameBoard.test.tsx); 7 for the checkpoint round-2/3 button-outline fix
 
 ## Accomplishments
 
@@ -161,9 +160,39 @@ None - no external service configuration required.
 
 **Dev server for re-verification:** `pnpm --filter @counter-attack/client dev` started fresh in this worktree; ports 5173-5175 were occupied by sibling parallel-wave worktrees, so Vite auto-selected **`http://localhost:5176/`** (confirmed via `curl` → `200`).
 
-**Outstanding:** Task 3's human-verify checkpoint is being re-presented with this fix included — it is NOT auto-approved. The user should re-check the same screens (lobby, settings, team/draft selection, in-game board) specifically for the new button outlines, at `http://localhost:5176/`.
+**Outcome:** Round 2's fix (`--color-border-subtle`) still read as invisible to the human reviewer — see Round 3 below for why, and the corrected fix.
+
+---
+
+## Checkpoint Round 3: Contrast fix — `--color-border-subtle` → `--color-border-muted`
+
+**Trigger:** Human feedback on Round 2's outline: "grey outline is not visible on buttons."
+
+**Root cause (computed, not guessed):** `--color-border-subtle` (`#555555`) against `.ctaButton`'s own `--color-bg-surface-alt` background (`#262626`) computes to a WCAG relative-luminance contrast ratio of **~2.03:1** — below the 3:1 minimum WCAG 1.4.11 requires for UI-component boundaries. The border was real (present in the DOM/CSSOM) but genuinely below the threshold most people can reliably perceive as an edge, especially at 1px width. This was verified by computing sRGB relative luminance for both hex values and applying the WCAG contrast formula directly — not by re-guessing a different color and hoping.
+
+**Fix applied:** Swapped `--color-border-subtle` → `--color-border-muted` (`#a0a0a0`) across the same 7 files. `#a0a0a0` against `#262626` computes to **~5.79:1**, comfortably clear of the 3:1 bar. `--color-border-muted` is not a new token — it was already established in this codebase for exactly this purpose (`GameSettingsScreen.module.css`'s other border, `TeamSelectionScreen.module.css`, `UniformSelectionScreen.module.css`).
+
+**Files fixed (same 7 as Round 2):** `ActionPanel.module.css`, `FreeKickSetupPanel.module.css`, `GameSettingsScreen.module.css`, `KickOffSetupPanel.module.css`, `LobbyScreen.module.css`, `ReplayPanel.module.css`, `GameBoard.module.css`.
+
+**Verification (all green):** `pnpm stylelint`, `pnpm --filter @counter-attack/client typecheck`, `pnpm --filter @counter-attack/client test` (415/415), `pnpm -r build`.
+
+**Commit:** `961571f` (fix)
+
+**Operational note:** Mid-fix, the orchestrator's shell cwd drifted into a since-removed executor worktree directory (from an earlier `cd` that persisted across tool calls), causing an attempted merge/cleanup to silently no-op against the wrong tree and delete the only branch ref pointing at the Round 2 fix commits. Both commits (`f5effcb`, `a680d95`) were recovered from the git object store (git never garbage-collects reachable-by-SHA objects this quickly) by re-creating a branch pointer directly at the known commit SHA, re-verified as a clean merge, and merged into the real `main`. No work was actually lost, but it's recorded here as a process near-miss.
+
+**Result:** Task 3 checkpoint approved by the user 2026-07-26.
+
+---
+
+## Out-of-scope fixes made during Task 3 checkpoint review
+
+Flagged by the user as "not directly part of phase" but fixed in the same session for visual-QA continuity. Not counted toward THEME-01/02/04 and not part of this plan's `requirements-completed`. Each is its own atomic commit outside the 34-04 task sequence:
+
+- `0168749` — player-card stat chips: value now precedes label (was "PACE&nbsp;&nbsp;&nbsp;&nbsp;5", now "5 PACE") across `PlayerStatsPanel`, `LineupAssignmentScreen`, `DraftPackCarousel`, `GameBoard`.
+- `7d0f247` — same stat chips: switched `justify-content: space-between` → `flex-start` + `8px` gap (matching the grid's existing `column-gap`) so value+label pack together at a fixed left position instead of stretching across the column.
+- `1a9d2b9` — `UniformSelectionScreen`'s Confirm button (yellow/green states) gained the same `--color-border-muted` outline as every other CTA button, for cross-app consistency (this button's bright fill was never a legibility problem — this was pure visual-consistency polish, not a contrast fix).
 
 ---
 
 _Phase: 34-visual-theme-restyle_
-_Completed: 2026-07-26 (Tasks 1-2; checkpoint-driven button-outline fix landed; Task 3 checkpoint re-pending human approval)_
+_Completed: 2026-07-26 (all 3 tasks done; Task 3 checkpoint approved after 3 rounds)_
