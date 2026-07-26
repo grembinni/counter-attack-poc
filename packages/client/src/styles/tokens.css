@@ -2,9 +2,12 @@
  * Single source of truth for chrome (non-pitch, non-highlight) colors used across
  * lobby, settings, team/draft selection, and the game board.
  *
- * Values are FROZEN to today's deep-blue theme — do NOT change any value in this
- * phase. Phase 34 does the palette value swap; this file only centralizes literals
- * that were previously duplicated across .module.css files and inline styles.
+ * Phase 33 FROZE these values at the original deep-blue theme so the migration to
+ * var(--token) usage across 17 CSS Modules could land with zero visual change.
+ * Phase 34 (THEME-01) performs the actual palette value swap: the deep-blue chrome
+ * theme is replaced here with a neutral broadcast-sports charcoal/graphite base,
+ * crisp white text, and a theme-neutral gold accent fallback — no blue-channel
+ * bias carried forward (see 34-UI-SPEC.md "Chrome token value swap" table).
  *
  * Highlight/ring colors (hex tints, piece rings, ball-location marker) are OUT of
  * scope for this file (D-07) — those live in HexCell.tsx/PieceOverlay.tsx and are
@@ -13,23 +16,23 @@
 
 :root {
   /* Backgrounds */
-  --color-bg-page: #1a1a2e;
-  --color-bg-surface: #16213e;
-  --color-bg-surface-alt: #0f3460;
+  --color-bg-page: #121212;
+  --color-bg-surface: #1c1c1c;
+  --color-bg-surface-alt: #262626;
 
   /* Borders */
-  --color-border: #0f3460;
+  --color-border: #262626;
   --color-border-muted: #a0a0a0;
 
   /* Text */
-  --color-text-primary: #e0e0e0;
+  --color-text-primary: #f5f5f5;
   --color-text-secondary: #a0a0a0;
-  --color-text-tertiary: #808090;
+  --color-text-tertiary: #808080;
   --color-text-inverse: #ffffff;
 
   /* Team accent — runtime-derived from TEAM_CONFIGS[activeTeam].palette.uiColor.
      This is the static fallback used before any team is active (lobby/pre-team-select). */
-  --team-accent: #1a56b0;
+  --team-accent: #f5c518;
 
   /* Accents */
   --color-accent-gold: #f5c518;
