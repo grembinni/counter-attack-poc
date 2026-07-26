@@ -62,7 +62,7 @@
   font-weight: 800;
   color: var(--color-bg-page);
   background: var(--color-success);
-  border: none;
+  border: 1px solid var(--color-border-muted);
   border-radius: 6px;
   padding: 14px 48px;
   cursor: pointer;
