@@ -184,10 +184,17 @@ export function deriveAaAccentColor(uiColor: string, bgHex: string, fgHex: strin
 /**
  * D-04/THEME-04: Hook wrapper — returns the AA-safe derived accent for the
  * given team, fed into GameBoard.tsx's --team-accent/--home-accent/--away-accent
- * CSS custom properties. `#121212` is `--color-bg-page` and `#ffffff` is
- * `--color-text-inverse` (both set/confirmed by plan 34-04).
+ * CSS custom properties.
+ *
+ * CR-01: validated against `--color-bg-surface-alt` (#262626) — the lightest
+ * real background this accent is actually painted on as text (GameBoard's
+ * `.scoreboard`/`.overlayCard` and ReplayPanel's `.panel`), not
+ * `--color-bg-page` (#121212). Validating only against the darker page
+ * background let colors land right at that boundary's threshold (~4.5-4.8:1)
+ * while still failing the two lighter surfaces they're actually rendered on.
+ * `#ffffff` is `--color-text-inverse` (both set/confirmed by plan 34-04).
  */
 export function useTeamAccentColorAA(teamId: TeamId | undefined): string {
   const raw = teamAccentColor(teamId);
-  return deriveAaAccentColor(raw, '#121212', '#ffffff');
+  return deriveAaAccentColor(raw, '#262626', '#ffffff');
 }

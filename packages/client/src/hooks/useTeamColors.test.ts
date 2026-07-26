@@ -14,8 +14,11 @@ import {
 // Pick a concrete valid team id by reading an actual key of TEAM_CONFIGS.
 const VALID_TEAM_ID = Object.keys(TEAM_CONFIGS)[0] as TeamId;
 
-// Charcoal base (--color-bg-page) and inverse text white (--color-text-inverse), set/confirmed by plan 34-04.
-const CHARCOAL_BG = '#121212';
+// CR-01: reference background is --color-bg-surface-alt (#262626) — the lightest real
+// background the accent renders as text on (GameBoard scoreboard/overlay, ReplayPanel) —
+// not --color-bg-page, which would let borderline colors pass here while still failing
+// against those lighter surfaces. Inverse text white (--color-text-inverse) unchanged.
+const CHARCOAL_BG = '#262626';
 const WHITE_FG = '#ffffff';
 
 describe('teamAccentColor', () => {
@@ -69,8 +72,8 @@ function hexToHue(colorHex: string): number {
 
 describe('deriveAaAccentColor', () => {
   it('D-03: returns a color unchanged when it already clears both thresholds', () => {
-    // xolos ColorSchemeId orange — verified during planning to already pass
-    // 4.5:1 vs #121212 (5.87) and 3:1 vs #ffffff (3.19).
+    // xolos ColorSchemeId orange — already passes 4.5:1 vs #262626 (4.74) and
+    // 3:1 vs #ffffff (3.19) (CR-01: reference bg corrected from #121212).
     const passthroughColor = '#F75E25';
     expect(hex(passthroughColor, CHARCOAL_BG)).toBeGreaterThanOrEqual(AA_TEXT_MIN_RATIO);
     expect(hex(passthroughColor, WHITE_FG)).toBeGreaterThanOrEqual(AA_UI_MIN_RATIO);

@@ -287,8 +287,9 @@ describe('GameBoard — THEME-03/THEME-04: runtime accent CSS variables', () => 
     // value (deriveAaAccentColor), not the raw TEAM_CONFIGS uiColor — only colors that
     // fail AA are actually adjusted (D-03), but the assertion always goes through the
     // derivation function so it stays correct regardless of which teams the mock uses.
-    const homeAaColor = deriveAaAccentColor(homeUiColor, '#121212', '#ffffff');
-    const awayAaColor = deriveAaAccentColor(awayUiColor, '#121212', '#ffffff');
+    // CR-01: reference bg is --color-bg-surface-alt (#262626), matching useTeamAccentColorAA.
+    const homeAaColor = deriveAaAccentColor(homeUiColor, '#262626', '#ffffff');
+    const awayAaColor = deriveAaAccentColor(awayUiColor, '#262626', '#ffffff');
 
     // The scoreboard stays two-color — proves home/away are not collapsed into one value.
     expect(homeAaColor).not.toBe(awayAaColor);
@@ -304,12 +305,12 @@ describe('GameBoard — THEME-03/THEME-04: runtime accent CSS variables', () => 
     const root = container.firstChild as HTMLElement;
 
     const awayUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.away].palette.uiColor;
-    const awayAaColor = deriveAaAccentColor(awayUiColor, '#121212', '#ffffff');
+    const awayAaColor = deriveAaAccentColor(awayUiColor, '#262626', '#ffffff');
     expect(root.style.getPropertyValue('--team-accent')).toBe(awayAaColor);
     // home/away accents are stable regardless of which team is active
     const homeUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor;
     expect(root.style.getPropertyValue('--home-accent')).toBe(
-      deriveAaAccentColor(homeUiColor, '#121212', '#ffffff'),
+      deriveAaAccentColor(homeUiColor, '#262626', '#ffffff'),
     );
   });
 });

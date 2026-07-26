@@ -42,16 +42,20 @@ function extractToken(cssText: string, name: string): string {
 
 function main(): void {
   const tokensCss = readFileSync(TOKENS_CSS_PATH, 'utf-8');
-  const bgPage = extractToken(tokensCss, '--color-bg-page');
+  // CR-01: validate against --color-bg-surface-alt, the lightest real background
+  // the accent is painted on as text (GameBoard scoreboard/overlay, ReplayPanel) —
+  // matches the reference background useTeamAccentColorAA() uses at runtime. Kept
+  // in parity intentionally; see useTeamColors.ts's useTeamAccentColorAA docstring.
+  const bgSurfaceAlt = extractToken(tokensCss, '--color-bg-surface-alt');
   const textInverse = extractToken(tokensCss, '--color-text-inverse');
 
   let failed = false;
 
   for (const teamId of Object.keys(TEAM_CONFIGS) as (keyof typeof TEAM_CONFIGS)[]) {
     const raw = TEAM_CONFIGS[teamId].palette.uiColor;
-    const adjusted = deriveAaAccentColor(raw, bgPage, textInverse);
+    const adjusted = deriveAaAccentColor(raw, bgSurfaceAlt, textInverse);
 
-    const textRatio = hex(adjusted, bgPage);
+    const textRatio = hex(adjusted, bgSurfaceAlt);
     const uiRatio = hex(adjusted, textInverse);
 
     if (textRatio < AA_TEXT_MIN_RATIO || uiRatio < AA_UI_MIN_RATIO) {
