@@ -18,19 +18,21 @@ here.
 
 ## Traffic-Light Semantic Legend (D-01)
 
-| Color             | Meaning                                                                                                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 🟢 Green          | Safe / valid action target                                                                                                                                                                       |
-| 🟡 Amber / orange | Caution / risk                                                                                                                                                                                   |
-| 🔴 Red            | Danger / rule-violation — **reserved exclusively for the offside ring**. No other element in the app uses red for any other meaning.                                                             |
-| 🔵 Blue           | Neutral info (zone/placement guidance, ball-related neutral state)                                                                                                                               |
-| 🟣 Purple         | Shot-opportunity / goal-target (the distinct non-red color for scoring chances)                                                                                                                  |
-| ⚪ White          | Informational trajectory/path preview or the ball-location marker — established use, deliberately outside the 5-color traffic-light system                                                       |
-| 🟨 Gold           | Confirmation / required-action ring accent — established use, also outside the 5-color system (shares the `--color-accent-gold` chrome token swatch by intentional reuse, not a competing color) |
+| Color             | Meaning                                                                                                                                                                                                                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🟢 Green          | Safe / valid action target                                                                                                                                                                                                                                                                                                                  |
+| 🟡 Amber / orange | Caution / risk                                                                                                                                                                                                                                                                                                                              |
+| 🔴 Red            | Danger / rule-violation — **within this highlight/ring system, reserved exclusively for the offside ring**. Red also appears elsewhere in the app for unrelated chrome purposes (e.g. `PitchMarkings.tsx`'s final-third lines, the `--color-danger` chrome token for error text/disabled states) — those are outside this document's scope. |
+| 🔵 Blue           | Neutral info (zone/placement guidance, ball-related neutral state)                                                                                                                                                                                                                                                                          |
+| 🟣 Purple         | Shot-opportunity / goal-target (the distinct non-red color for scoring chances)                                                                                                                                                                                                                                                             |
+| ⚪ White          | Informational trajectory/path preview or the ball-location marker — established use, deliberately outside the 5-color traffic-light system                                                                                                                                                                                                  |
+| 🟨 Gold           | Confirmation / required-action ring accent — established use, also outside the 5-color system (shares the `--color-accent-gold` chrome token swatch by intentional reuse, not a competing color)                                                                                                                                            |
 
-**Rule:** Red renders for exactly one meaning app-wide — the offside ring
-(`PieceOverlay.tsx` `isOffside`, `#dc2626`). The goal/shot-target hex tint is
-**purple** (`#a855f7` family), not red.
+**Rule:** Within the highlight/ring system documented here, red renders for
+exactly one meaning — the offside ring (`PieceOverlay.tsx` `isOffside`,
+`#dc2626`). The goal/shot-target hex tint is **purple** (`#a855f7` family),
+not red. This rule does not extend to chrome (non-highlight) uses of red
+elsewhere in the app, which are governed by `tokens.css`, not this document.
 
 ---
 
@@ -58,7 +60,7 @@ Notes:
 - `safe` was recolored gold → green (D-01) so green consistently means "safe target" across `safe`, `header-target`, and `pass-target`.
 - `goal` was recolored red → purple (D-02), freeing red app-wide for the offside ring only. Reuses the existing `#a855f7` purple swatch already present in the codebase (`LineupAssignmentScreen.module.css`) rather than introducing a new color.
 - `gk-kick-target` and `kickoff` are deliberately different shades of blue (sky-blue vs. saturated blue) so the two remain visually distinguishable even though both carry the "blue = neutral info" semantic.
-- `pass-target` merges the former GK_QUICK_THROW inline tint (previously `rgba(34,197,94,0.35)`) — both represented "guaranteed-safe target, no interception risk," and the ~1% opacity difference was not an intentional design distinction.
+- `pass-target` merges the former GK_QUICK_THROW inline tint (previously `rgba(34,197,94,0.35)` fill with a `rgba(34,197,94,0.6)` stroke at `strokeWidth: 1`) — both represented "guaranteed-safe target, no interception risk," and neither the ~1% fill-opacity difference nor the dropped stroke (now `none`) was an intentional design distinction.
 - `tackle-risk` is intentionally the same amber family as `risk` (both are "caution" semantics) but is kept as its own table entry because it occurs in a different phase context (passing, not movement).
 
 Cross-reference: `packages/client/src/components/HexCell.tsx` (`HIGHLIGHT_STYLES` constant, `HexHighlightType` union).
