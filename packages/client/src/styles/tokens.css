@@ -31,8 +31,16 @@
   --color-text-inverse: #ffffff;
 
   /* Team accent — runtime-derived from TEAM_CONFIGS[activeTeam].palette.uiColor.
-     This is the static fallback used before any team is active (lobby/pre-team-select). */
-  --team-accent: #f5c518;
+     This is the static fallback used before any team is active (lobby/pre-team-select).
+     CR-02: LobbyScreen/GameSettingsScreen mount outside GameBoard's root, so they never
+     receive the AA-derived per-team override and render this raw fallback as a hover
+     background under white text (--color-text-inverse). The original #f5c518 (raw gold)
+     measured 1.63:1 against white — failing both the 4.5:1 text and 3:1 UI-component AA
+     thresholds. This value is #f5c518 pre-validated via
+     deriveAaAccentColor('#f5c518', '#262626', '#ffffff') at authoring time (4.71:1 vs
+     --color-bg-surface-alt, 3.21:1 vs white) — same hue, darker/muted for AA compliance.
+     check-contrast.ts asserts this token doesn't regress below AA. */
+  --team-accent: #b08b08;
 
   /* Accents */
   --color-accent-gold: #f5c518;

@@ -64,6 +64,23 @@ function main(): void {
     }
   }
 
+  // CR-02: the static --team-accent fallback (rendered by LobbyScreen/
+  // GameSettingsScreen, which mount outside GameBoard's root and so never
+  // receive the AA-derived per-team override) is never run through
+  // deriveAaAccentColor at runtime — it ships as a raw, unvalidated literal.
+  // Assert it directly so a future edit to this token can't silently
+  // regress below AA while the per-team loop above stays green.
+  const fallbackTeamAccent = extractToken(tokensCss, '--team-accent');
+  const fallbackTextRatio = hex(fallbackTeamAccent, bgSurfaceAlt);
+  const fallbackUiRatio = hex(fallbackTeamAccent, textInverse);
+  if (fallbackTextRatio < AA_TEXT_MIN_RATIO || fallbackUiRatio < AA_UI_MIN_RATIO) {
+    console.error(
+      `FAIL: static --team-accent fallback (${fallbackTeamAccent}) does not clear AA ` +
+        `(text ${fallbackTextRatio.toFixed(2)}, ui ${fallbackUiRatio.toFixed(2)})`,
+    );
+    failed = true;
+  }
+
   if (failed) {
     process.exit(1);
   }
