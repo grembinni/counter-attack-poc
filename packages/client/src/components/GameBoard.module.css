@@ -558,3 +558,17 @@
   letter-spacing: 0.05em;
   margin: 0;
 }
+
+/* WR-03: .halfTimeKickOff's own `color` above always won the cascade over
+   .accentHome/.accentAway (both single-class selectors declared earlier in
+   this file), silently defeating the accent modifier on the "TEAM" label in
+   GameBoard.tsx. Compound selectors here raise specificity so the modifier
+   wins only when paired with .halfTimeKickOff, leaving the plain "HALF TIME"/
+   "2ND HALF KICK OFF" labels (no modifier class) unaffected. */
+.halfTimeKickOff.accentHome {
+  color: var(--home-accent);
+}
+
+.halfTimeKickOff.accentAway {
+  color: var(--away-accent);
+}
