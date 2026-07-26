@@ -111,13 +111,13 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
 
-| Phase | Name                              | Plans    | Status      |
-| ----- | --------------------------------- | -------- | ----------- |
-| 31    | Bug Fixes                         | 6/6      | Complete    |
-| 32    | Code Cleanup                      | 6/6      | Complete    |
-| 33    | 7/7                               | Complete | 2026-07-25  |
-| 34    | Visual Theme Restyle              | TBD      | Not started |
-| 35    | ActionPanel & Log Standardization | TBD      | Not started |
+| Phase | Name                                      | Plans | Status      |
+| ----- | ----------------------------------------- | ----- | ----------- |
+| 31    | Bug Fixes                                 | 6/6   | Complete    |
+| 32    | Code Cleanup                              | 6/6   | Complete    |
+| 33    | Design Tokens & Highlight Standardization | 7/7   | Complete    |
+| 34    | Visual Theme Restyle                      | TBD   | Not started |
+| 35    | ActionPanel & Log Standardization         | TBD   | Not started |
 
 ### Phase 31: Bug Fixes
 

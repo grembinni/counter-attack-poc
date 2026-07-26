@@ -9,16 +9,16 @@
 
 - [ ] **THEME-01**: The deep-blue color scheme is replaced with a broadcast-sports palette (dark charcoal/graphite base, crisp white text, single team-color accent) applied across every screen — lobby, settings, team/draft selection, and the in-game board
 - [ ] **THEME-02**: All chrome colors (panels, buttons, borders, text) are driven by a single CSS custom-property token file; no hardcoded hex/rgba literals remain in chrome-related CSS Modules
-- [ ] **THEME-03**: The single accent color per view is derived from the active team's `TEAM_CONFIGS.palette.uiColor` via one runtime CSS variable, not per-component lookups
+- [x] **THEME-03**: The single accent color per view is derived from the active team's `TEAM_CONFIGS.palette.uiColor` via one runtime CSS variable, not per-component lookups
 - [ ] **THEME-04**: All team-accent colors pass WCAG AA contrast against the new charcoal/white base, verified via an automated contrast check
 
 ### Hex Highlight & Ring Standardization (HILITE)
 
-- [ ] **HILITE-01**: Every hex-tint and piece-selection-ring color is defined in one single source-of-truth table, extending `HIGHLIGHT_STYLES` to cover all real highlight cases (including the currently ad-hoc GK-kick-target, pass-target, tackle-risk, and ball-position overlays that live as inline literals in `HexGrid.tsx` today)
-- [ ] **HILITE-02**: Red is used for exactly one meaning app-wide (rule violation / offside); the goal-line shot-target highlight is moved to a different color so a positive scoring opportunity is never signaled by the same color as a rule violation
+- [x] **HILITE-01**: Every hex-tint and piece-selection-ring color is defined in one single source-of-truth table, extending `HIGHLIGHT_STYLES` to cover all real highlight cases (including the currently ad-hoc GK-kick-target, pass-target, tackle-risk, and ball-position overlays that live as inline literals in `HexGrid.tsx` today)
+- [x] **HILITE-02**: Red is used for exactly one meaning app-wide (rule violation / offside); the goal-line shot-target highlight is moved to a different color so a positive scoring opportunity is never signaled by the same color as a rule violation
 - [x] **HILITE-03**: The "selected" piece ring and "already acted" piece ring are visually distinct from each other. Resolution changed during Task 3 human-verify: rather than keep a separate "already-moved-this-stage" grey mechanism alongside the existing orange-ring-+-red-X `activated` state (a one-off styling variant scoped to a single phase), the grey mechanism was removed entirely — the single `activated` (orange) state, already distinct from `active` (green), now covers every already-acted case app-wide, consistent with this phase's goal.
-- [ ] **HILITE-04**: A dedicated ball-location marker highlights the hex containing the ball during response phases (headers, kicks), rendered as a standalone always-on-top overlay rather than competing inside the mutually-exclusive hex-highlight priority order
-- [ ] **HILITE-05**: The full highlight/ring color mapping is documented as a single reference so future additions follow the same system
+- [x] **HILITE-04**: A dedicated ball-location marker highlights the hex containing the ball during response phases (headers, kicks), rendered as a standalone always-on-top overlay rather than competing inside the mutually-exclusive hex-highlight priority order
+- [x] **HILITE-05**: The full highlight/ring color mapping is documented as a single reference so future additions follow the same system
 
 ### ActionPanel & Log Standardization (PANEL)
 
@@ -69,13 +69,13 @@
 | ----------- | ---------------------------------------------------- | -------- |
 | THEME-01    | Phase 34 — Visual Theme Restyle                      | Pending  |
 | THEME-02    | Phase 34 — Visual Theme Restyle                      | Pending  |
-| THEME-03    | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| THEME-03    | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | THEME-04    | Phase 34 — Visual Theme Restyle                      | Pending  |
-| HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
-| HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
+| HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
-| HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
-| HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Pending  |
+| HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
+| HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
 | PANEL-02    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
 | PANEL-03    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
