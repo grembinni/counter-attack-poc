@@ -25,6 +25,8 @@ import {
   deriveAaAccentColor,
   AA_TEXT_MIN_RATIO,
   AA_UI_MIN_RATIO,
+  AA_REFERENCE_BG_HEX,
+  AA_REFERENCE_FG_HEX,
 } from '../src/hooks/useTeamColors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +52,31 @@ function main(): void {
   const textInverse = extractToken(tokensCss, '--color-text-inverse');
 
   let failed = false;
+
+  // WR-04: assert tokens.css hasn't drifted from the hardcoded reference
+  // colors the runtime hook (useTeamAccentColorAA) actually validates
+  // against. Without this, a retune of either token here would keep this
+  // dynamic per-team loop green (it re-derives against whatever tokens.css
+  // says now) while the browser's hook silently derives against a stale
+  // reference — a false-green regression this check exists to catch.
+  if (bgSurfaceAlt.toLowerCase() !== AA_REFERENCE_BG_HEX.toLowerCase()) {
+    console.error(
+      `FAIL: tokens.css --color-bg-surface-alt (${bgSurfaceAlt}) has drifted from ` +
+        `useTeamColors.ts's AA_REFERENCE_BG_HEX (${AA_REFERENCE_BG_HEX}) — update ` +
+        `AA_REFERENCE_BG_HEX to match, or this check-contrast pass no longer reflects ` +
+        `what the runtime hook actually validates against.`,
+    );
+    failed = true;
+  }
+  if (textInverse.toLowerCase() !== AA_REFERENCE_FG_HEX.toLowerCase()) {
+    console.error(
+      `FAIL: tokens.css --color-text-inverse (${textInverse}) has drifted from ` +
+        `useTeamColors.ts's AA_REFERENCE_FG_HEX (${AA_REFERENCE_FG_HEX}) — update ` +
+        `AA_REFERENCE_FG_HEX to match, or this check-contrast pass no longer reflects ` +
+        `what the runtime hook actually validates against.`,
+    );
+    failed = true;
+  }
 
   for (const teamId of Object.keys(TEAM_CONFIGS) as (keyof typeof TEAM_CONFIGS)[]) {
     const raw = TEAM_CONFIGS[teamId].palette.uiColor;

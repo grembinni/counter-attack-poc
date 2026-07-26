@@ -3,7 +3,11 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
-import { deriveAaAccentColor } from '../hooks/useTeamColors.js';
+import {
+  deriveAaAccentColor,
+  AA_REFERENCE_BG_HEX,
+  AA_REFERENCE_FG_HEX,
+} from '../hooks/useTeamColors.js';
 import { GameBoard } from './GameBoard.js';
 
 vi.mock('../socket.js', () => ({
@@ -287,9 +291,10 @@ describe('GameBoard — THEME-03/THEME-04: runtime accent CSS variables', () => 
     // value (deriveAaAccentColor), not the raw TEAM_CONFIGS uiColor — only colors that
     // fail AA are actually adjusted (D-03), but the assertion always goes through the
     // derivation function so it stays correct regardless of which teams the mock uses.
-    // CR-01: reference bg is --color-bg-surface-alt (#262626), matching useTeamAccentColorAA.
-    const homeAaColor = deriveAaAccentColor(homeUiColor, '#262626', '#ffffff');
-    const awayAaColor = deriveAaAccentColor(awayUiColor, '#262626', '#ffffff');
+    // WR-04: reference colors sourced from useTeamColors.ts's exported constants
+    // (not re-hardcoded) so this assertion always matches useTeamAccentColorAA.
+    const homeAaColor = deriveAaAccentColor(homeUiColor, AA_REFERENCE_BG_HEX, AA_REFERENCE_FG_HEX);
+    const awayAaColor = deriveAaAccentColor(awayUiColor, AA_REFERENCE_BG_HEX, AA_REFERENCE_FG_HEX);
 
     // The scoreboard stays two-color — proves home/away are not collapsed into one value.
     expect(homeAaColor).not.toBe(awayAaColor);
@@ -305,12 +310,12 @@ describe('GameBoard — THEME-03/THEME-04: runtime accent CSS variables', () => 
     const root = container.firstChild as HTMLElement;
 
     const awayUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.away].palette.uiColor;
-    const awayAaColor = deriveAaAccentColor(awayUiColor, '#262626', '#ffffff');
+    const awayAaColor = deriveAaAccentColor(awayUiColor, AA_REFERENCE_BG_HEX, AA_REFERENCE_FG_HEX);
     expect(root.style.getPropertyValue('--team-accent')).toBe(awayAaColor);
     // home/away accents are stable regardless of which team is active
     const homeUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor;
     expect(root.style.getPropertyValue('--home-accent')).toBe(
-      deriveAaAccentColor(homeUiColor, '#262626', '#ffffff'),
+      deriveAaAccentColor(homeUiColor, AA_REFERENCE_BG_HEX, AA_REFERENCE_FG_HEX),
     );
   });
 });

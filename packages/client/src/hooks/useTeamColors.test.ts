@@ -9,17 +9,22 @@ import {
   useTeamAccentColorAA,
   AA_TEXT_MIN_RATIO,
   AA_UI_MIN_RATIO,
+  AA_REFERENCE_BG_HEX,
+  AA_REFERENCE_FG_HEX,
 } from './useTeamColors.js';
 
 // Pick a concrete valid team id by reading an actual key of TEAM_CONFIGS.
 const VALID_TEAM_ID = Object.keys(TEAM_CONFIGS)[0] as TeamId;
 
-// CR-01: reference background is --color-bg-surface-alt (#262626) — the lightest real
-// background the accent renders as text on (GameBoard scoreboard/overlay, ReplayPanel) —
-// not --color-bg-page, which would let borderline colors pass here while still failing
-// against those lighter surfaces. Inverse text white (--color-text-inverse) unchanged.
-const CHARCOAL_BG = '#262626';
-const WHITE_FG = '#ffffff';
+// WR-04: sourced from useTeamColors.ts's exported constants (not re-hardcoded)
+// so this suite always tests against the same reference colors the runtime
+// hook (useTeamAccentColorAA) actually uses. CR-01: background is
+// --color-bg-surface-alt (#262626) — the lightest real background the accent
+// renders as text on (GameBoard scoreboard/overlay, ReplayPanel) — not
+// --color-bg-page, which would let borderline colors pass here while still
+// failing against those lighter surfaces.
+const CHARCOAL_BG = AA_REFERENCE_BG_HEX;
+const WHITE_FG = AA_REFERENCE_FG_HEX;
 
 describe('teamAccentColor', () => {
   it('returns TEAM_CONFIGS[teamId].palette.uiColor for a valid teamId', () => {

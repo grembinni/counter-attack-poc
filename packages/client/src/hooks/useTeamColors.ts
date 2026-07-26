@@ -182,19 +182,33 @@ export function deriveAaAccentColor(uiColor: string, bgHex: string, fgHex: strin
 }
 
 /**
- * D-04/THEME-04: Hook wrapper — returns the AA-safe derived accent for the
- * given team, fed into GameBoard.tsx's --team-accent/--home-accent/--away-accent
- * CSS custom properties.
+ * WR-04: Single source of truth for the two reference colors
+ * `useTeamAccentColorAA()` validates against. Exported so `check-contrast.ts`,
+ * `useTeamColors.test.ts`, and `GameBoard.test.tsx` assert against the same
+ * values the runtime hook actually uses instead of each independently
+ * hardcoding their own copy — a future retune of either reference color only
+ * needs to change it here, and drift elsewhere fails a type/test check
+ * instead of shipping a silent regression.
  *
- * CR-01: validated against `--color-bg-surface-alt` (#262626) — the lightest
- * real background this accent is actually painted on as text (GameBoard's
- * `.scoreboard`/`.overlayCard` and ReplayPanel's `.panel`), not
+ * CR-01: `AA_REFERENCE_BG_HEX` is `--color-bg-surface-alt` (#262626) — the
+ * lightest real background this accent is actually painted on as text
+ * (GameBoard's `.scoreboard`/`.overlayCard` and ReplayPanel's `.panel`), not
  * `--color-bg-page` (#121212). Validating only against the darker page
  * background let colors land right at that boundary's threshold (~4.5-4.8:1)
  * while still failing the two lighter surfaces they're actually rendered on.
- * `#ffffff` is `--color-text-inverse` (both set/confirmed by plan 34-04).
+ * `AA_REFERENCE_FG_HEX` is `--color-text-inverse` (both set/confirmed by plan
+ * 34-04).
+ */
+export const AA_REFERENCE_BG_HEX = '#262626';
+export const AA_REFERENCE_FG_HEX = '#ffffff';
+
+/**
+ * D-04/THEME-04: Hook wrapper — returns the AA-safe derived accent for the
+ * given team, fed into GameBoard.tsx's --team-accent/--home-accent/--away-accent
+ * CSS custom properties. See `AA_REFERENCE_BG_HEX`/`AA_REFERENCE_FG_HEX` above
+ * for the reference-color rationale.
  */
 export function useTeamAccentColorAA(teamId: TeamId | undefined): string {
   const raw = teamAccentColor(teamId);
-  return deriveAaAccentColor(raw, '#262626', '#ffffff');
+  return deriveAaAccentColor(raw, AA_REFERENCE_BG_HEX, AA_REFERENCE_FG_HEX);
 }
