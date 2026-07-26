@@ -45,8 +45,27 @@ const SATURATION_STEP = 0.1;
 /** Safety cap on fallback saturation-reduction passes. */
 const MAX_SEARCH_PASSES = 20;
 
-function hexToRgb(colorHex: string): [number, number, number] {
+/**
+ * WR-05: Normalizes 3-digit hex shorthand (e.g. `fff`/`#fff`) to its 6-digit
+ * equivalent (`ffffff`) before parsing. Without this, `hexToRgb('#fff')`
+ * would read `.substring(2, 4)` as `"f"` (a single char) -> `parseInt('f',
+ * 16)` = 15, and `.substring(4, 6)` as `""` -> `parseInt('', 16)` = `NaN`,
+ * silently propagating a broken channel through the rest of the AA-safety
+ * derivation pipeline with no thrown error.
+ */
+function normalizeHex(colorHex: string): string {
   const clean = colorHex.replace('#', '');
+  if (clean.length === 3) {
+    return clean
+      .split('')
+      .map((ch) => ch + ch)
+      .join('');
+  }
+  return clean;
+}
+
+function hexToRgb(colorHex: string): [number, number, number] {
+  const clean = normalizeHex(colorHex);
   const r = parseInt(clean.substring(0, 2), 16);
   const g = parseInt(clean.substring(2, 4), 16);
   const b = parseInt(clean.substring(4, 6), 16);

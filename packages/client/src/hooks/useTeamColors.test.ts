@@ -107,6 +107,21 @@ describe('deriveAaAccentColor', () => {
     expect(hex(result, WHITE_FG)).toBeGreaterThanOrEqual(AA_UI_MIN_RATIO);
   });
 
+  it('WR-05: normalizes 3-digit hex shorthand instead of producing a NaN channel', () => {
+    // '#125' fails AA against CHARCOAL_BG, forcing it through hexToRgb -> rgbToHsl ->
+    // searchAaSafeLightness -> hslToRgb -> rgbToHex. Before the WR-05 fix, hexToRgb's
+    // substring-based parsing on a 3-digit shorthand produced a NaN channel there,
+    // which silently surfaces as the literal string "nan" in the returned hex.
+    const shorthandNavy = '#125';
+    expect(hex(shorthandNavy, CHARCOAL_BG)).toBeLessThan(AA_TEXT_MIN_RATIO);
+
+    const result = deriveAaAccentColor(shorthandNavy, CHARCOAL_BG, WHITE_FG);
+
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(hex(result, CHARCOAL_BG)).toBeGreaterThanOrEqual(AA_TEXT_MIN_RATIO);
+    expect(hex(result, WHITE_FG)).toBeGreaterThanOrEqual(AA_UI_MIN_RATIO);
+  });
+
   it('clears both AA thresholds for every team in TEAM_CONFIGS (whole-palette invariant)', () => {
     for (const teamId of Object.keys(TEAM_CONFIGS) as TeamId[]) {
       const uiColor = TEAM_CONFIGS[teamId].palette.uiColor;
