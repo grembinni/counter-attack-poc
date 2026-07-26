@@ -1,9 +1,31 @@
 import type { ActionEvent, HexCoord, MovementSlot } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
-import { teamAccentColor } from '../hooks/useTeamColors.js';
+import {
+  teamAccentColor,
+  deriveAaAccentColor,
+  AA_REFERENCE_BG_HEX,
+  AA_REFERENCE_FG_HEX,
+} from '../hooks/useTeamColors.js';
 import styles from './ActionLog.module.css';
 
 // ─── Team colors (D-06/D-17: derive from selectedTeams via the pure teamAccentColor) ─
+
+/**
+ * WR-06: AA-safe wrapper around the pure teamAccentColor(). This module runs
+ * inside consolidateEvents/formatEvent's per-event loops (not component
+ * render), so it can't use the useTeamAccentColorAA hook (Rules of Hooks) —
+ * but deriveAaAccentColor is a plain function, so it can be called directly
+ * here instead of rendering the raw, never-validated teamAccentColor() value.
+ * Validates against the same reference colors useTeamAccentColorAA() uses at
+ * runtime (see useTeamColors.ts) — ActionLog's own panel background
+ * (--color-bg-surface, #1c1c1c) is darker than the shared reference
+ * (--color-bg-surface-alt, #262626), so a color clearing AA against the
+ * lighter shared reference also clears it here; reusing the shared constants
+ * keeps a single source of truth instead of re-deriving a third reference.
+ */
+function aaTeamAccentColor(teamId: Parameters<typeof teamAccentColor>[0]): string {
+  return deriveAaAccentColor(teamAccentColor(teamId), AA_REFERENCE_BG_HEX, AA_REFERENCE_FG_HEX);
+}
 
 /**
  * Reads selectedTeams from store state (not a subscription — safe in module-level
@@ -14,10 +36,10 @@ import styles from './ActionLog.module.css';
 function pieceColorOf(pieceId: string): string {
   const state = useGameStore.getState();
   const selectedTeams = state.gameState?.selectedTeams;
-  if (!selectedTeams) return teamAccentColor(undefined);
+  if (!selectedTeams) return aaTeamAccentColor(undefined);
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
   const teamId = selectedTeams[positional];
-  return teamAccentColor(teamId);
+  return aaTeamAccentColor(teamId);
 }
 
 /**
@@ -41,12 +63,12 @@ function pieceName(pieceId: string, fallback: string): string {
 function slotTeamColor(slot: MovementSlot): string {
   const gameState = useGameStore.getState().gameState;
   const selectedTeams = gameState?.selectedTeams;
-  if (!selectedTeams) return teamAccentColor(undefined);
+  if (!selectedTeams) return aaTeamAccentColor(undefined);
   const attackingTeam = gameState.attackingTeam;
   const positional: 'home' | 'away' =
     slot === 'DEFENDER_5' ? (attackingTeam === 'home' ? 'away' : 'home') : attackingTeam;
   const teamId = selectedTeams[positional];
-  return teamAccentColor(teamId);
+  return aaTeamAccentColor(teamId);
 }
 
 /** Bold, team-colored player label rendered inline. */
@@ -755,7 +777,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // visibility; not shown in the action log (no meaningful display needed).
       return {
         prefix: '[SETUP]',
-        prefixColor: teamAccentColor(undefined),
+        prefixColor: aaTeamAccentColor(undefined),
         content: ` Formation  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
@@ -763,7 +785,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // BUG-18 (Phase 18.3): defender repositioning during SNAPSHOT_DEFLECT.
       return {
         prefix: '[DEFLECT]',
-        prefixColor: teamAccentColor(undefined),
+        prefixColor: aaTeamAccentColor(undefined),
         content: ` Deflect move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
@@ -771,7 +793,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // BUG-18 (Phase 18.3): piece repositioning during FREE_KICK_SETUP.
       return {
         prefix: '[FK]',
-        prefixColor: teamAccentColor(undefined),
+        prefixColor: aaTeamAccentColor(undefined),
         content: ` Setup move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
@@ -779,7 +801,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // Plan 25-06: undo boundary — kicker placed on free-kick hex.
       return {
         prefix: '[FK]',
-        prefixColor: teamAccentColor(undefined),
+        prefixColor: aaTeamAccentColor(undefined),
         content: ` Kicker selected`,
         isGoal: false,
       };
@@ -787,7 +809,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       // Plan 25-06: undo boundary — stage transition during FREE_KICK_SETUP.
       return {
         prefix: '[FK]',
-        prefixColor: teamAccentColor(undefined),
+        prefixColor: aaTeamAccentColor(undefined),
         content: ` Stage ${event.fromStageIndex + 1} → ${event.fromStageIndex + 2}`,
         isGoal: false,
       };
