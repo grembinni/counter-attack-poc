@@ -265,10 +265,10 @@ export function GameBoard() {
                         className={styles.statChip}
                         title={STAT_FULL_NAME[fullLabel] ?? fullLabel}
                       >
-                        <span className={styles.statAbbr}>{abbr}</span>
                         <span className={`${styles.statBubble} ${statBubbleClass(value)}`}>
                           {value}
                         </span>
+                        <span className={styles.statAbbr}>{abbr}</span>
                       </div>
                     );
                   })}

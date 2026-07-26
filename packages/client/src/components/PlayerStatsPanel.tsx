@@ -157,10 +157,10 @@ export function PlayerStatsPanel() {
             const value = piece[attr] as number;
             return (
               <div key={attr} className={styles.statChip} title={fullLabel}>
-                <span className={styles.statAbbr}>{abbr}</span>
                 <span className={styles.statBadge} data-tier={statTier(value)}>
                   {value}
                 </span>
+                <span className={styles.statAbbr}>{abbr}</span>
               </div>
             );
           })}
