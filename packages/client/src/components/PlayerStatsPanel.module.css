@@ -87,11 +87,12 @@
   row-gap: 4px;
 }
 
-/* Label left-aligned, bubble right-aligned within each equal-width column */
+/* Value + label packed left within each equal-width column; gap matches column-gap above */
 .statChip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 8px;
   cursor: default;
 }
 
