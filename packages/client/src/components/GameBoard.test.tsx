@@ -3,6 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
+import { deriveAaAccentColor } from '../hooks/useTeamColors.js';
 import { GameBoard } from './GameBoard.js';
 
 vi.mock('../socket.js', () => ({
@@ -274,33 +275,41 @@ describe('GameBoard — D-08: scoreboard active-speed reminder', () => {
 // ---------------------------------------------------------------------------
 // THEME-03 (D-06): runtime --team-accent/--home-accent/--away-accent CSS variables
 // ---------------------------------------------------------------------------
-describe('GameBoard — THEME-03: runtime accent CSS variables', () => {
-  it('sets --team-accent to the active team uiColor and --home-accent/--away-accent to the home/away team uiColors', () => {
+describe('GameBoard — THEME-03/THEME-04: runtime accent CSS variables', () => {
+  it('sets --team-accent to the active team AA-derived accent and --home-accent/--away-accent to the home/away AA-derived accents', () => {
     // mockMovementState: selectedTeams { home: 'city', away: 'crew' }, activeTeam: 'home'
     const { container } = render(<GameBoard />);
     const root = container.firstChild as HTMLElement;
 
     const homeUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor;
     const awayUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.away].palette.uiColor;
+    // THEME-04: --team-accent/--home-accent/--away-accent carry the AA-safe derived
+    // value (deriveAaAccentColor), not the raw TEAM_CONFIGS uiColor — only colors that
+    // fail AA are actually adjusted (D-03), but the assertion always goes through the
+    // derivation function so it stays correct regardless of which teams the mock uses.
+    const homeAaColor = deriveAaAccentColor(homeUiColor, '#121212', '#ffffff');
+    const awayAaColor = deriveAaAccentColor(awayUiColor, '#121212', '#ffffff');
 
     // The scoreboard stays two-color — proves home/away are not collapsed into one value.
-    expect(homeUiColor).not.toBe(awayUiColor);
+    expect(homeAaColor).not.toBe(awayAaColor);
 
-    expect(root.style.getPropertyValue('--team-accent')).toBe(homeUiColor);
-    expect(root.style.getPropertyValue('--home-accent')).toBe(homeUiColor);
-    expect(root.style.getPropertyValue('--away-accent')).toBe(awayUiColor);
+    expect(root.style.getPropertyValue('--team-accent')).toBe(homeAaColor);
+    expect(root.style.getPropertyValue('--home-accent')).toBe(homeAaColor);
+    expect(root.style.getPropertyValue('--away-accent')).toBe(awayAaColor);
   });
 
-  it('updates --team-accent to the away team uiColor when activeTeam is away (not a hardcoded literal)', () => {
+  it('updates --team-accent to the away team AA-derived accent when activeTeam is away (not a hardcoded literal)', () => {
     useGameStore.setState({ gameState: { ...mockMovementState, activeTeam: 'away' } });
     const { container } = render(<GameBoard />);
     const root = container.firstChild as HTMLElement;
 
     const awayUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.away].palette.uiColor;
-    expect(root.style.getPropertyValue('--team-accent')).toBe(awayUiColor);
+    const awayAaColor = deriveAaAccentColor(awayUiColor, '#121212', '#ffffff');
+    expect(root.style.getPropertyValue('--team-accent')).toBe(awayAaColor);
     // home/away accents are stable regardless of which team is active
+    const homeUiColor = TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor;
     expect(root.style.getPropertyValue('--home-accent')).toBe(
-      TEAM_CONFIGS[mockMovementState.selectedTeams.home].palette.uiColor,
+      deriveAaAccentColor(homeUiColor, '#121212', '#ffffff'),
     );
   });
 });
