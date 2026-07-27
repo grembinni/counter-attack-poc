@@ -20,10 +20,11 @@ export const HIGHLIGHT_STYLES: Record<
   { fill: string; restOpacity: number; hoverOpacity: number; stroke: string; strokeWidth: number }
 > = {
   // D-01: safe recolored gold -> green (HILITE-01/02 traffic-light remap).
+  // Opacity raised 0.5->0.65 / 0.65->0.8 (matches 'risk') after UAT feedback that it read too faded.
   safe: {
     fill: 'rgba(34,197,94,0.4)',
-    restOpacity: 0.5,
-    hoverOpacity: 0.65,
+    restOpacity: 0.65,
+    hoverOpacity: 0.8,
     stroke: '#16a34a',
     strokeWidth: 1.5,
   },
@@ -35,10 +36,11 @@ export const HIGHLIGHT_STYLES: Record<
     strokeWidth: 2,
   },
   // D-02: goal recolored red -> purple, freeing red app-wide for the offside ring only.
+  // Opacity raised 0.5->0.65 / 0.65->0.8 (matches 'risk') after UAT feedback that it read too faded.
   goal: {
     fill: 'rgba(168,85,247,0.5)',
-    restOpacity: 0.5,
-    hoverOpacity: 0.65,
+    restOpacity: 0.65,
+    hoverOpacity: 0.8,
     stroke: '#9333ea',
     strokeWidth: 1.5,
   },

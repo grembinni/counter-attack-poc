@@ -29,9 +29,10 @@ result: pass
 ### 2. Goal-target hex tint is purple, not red
 
 expected: Get into a shooting/heading phase where a goal-line target hex is highlighted. It renders purple, not red — red is reserved solely for the offside marker now.
-result: issue
+result: pass
 reported: "purple need to be 30% less opaque - too faded"
 severity: cosmetic
+fix: Raised 'goal' and 'safe' HIGHLIGHT_STYLES restOpacity/hoverOpacity from 0.5/0.65 to 0.65/0.8 (matches 'risk') in HexCell.tsx. Re-verified by user after fix — pass.
 
 ### 3. Selected piece ring vs already-acted piece ring are visually distinct
 
@@ -56,17 +57,18 @@ result: pass
 ## Summary
 
 total: 6
-passed: 5
-issues: 1
+passed: 6
+issues: 0
 pending: 0
 skipped: 0
 
 ## Gaps
 
 - truth: "Goal-target hex tint renders purple (not red), at the current opacity shipped by Phase 33"
-  status: failed
+  status: fixed
   reason: "User reported: purple need to be 30% less opaque - too faded"
   severity: cosmetic
   test: 2
-  artifacts: []
+  artifacts: [packages/client/src/components/HexCell.tsx]
   missing: []
+  fix: "Raised 'goal' and 'safe' restOpacity/hoverOpacity 0.5/0.65 -> 0.65/0.8 (matches 'risk'); user re-verified pass"
