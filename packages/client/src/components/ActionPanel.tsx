@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ELIGIBLE_NEXT_ACTIONS,
   GOAL_R_VALUES,
@@ -51,6 +51,37 @@ const ctaClass = (eligibleRemaining: number): string =>
     ready: styles.ctaButtonReady,
     pending: styles.ctaButtonPending,
   });
+
+/**
+ * D-07: static heading shown atop every ActionPanel render site via `PanelShell`. A static
+ * 'Actions' label (rather than a phase-derived one) is used because each phase block already
+ * carries its own contextual title in `helperLine1` (`Move!`, `Attempt Save!`, `Kick-Off!`, …)
+ * — a phase-derived heading would duplicate that line, whereas 'Actions' reads naturally above
+ * all of the roughly fifteen phase states and gives the panel the same heading-then-content
+ * structure its three GameBoard slot siblings (`KickOffSetupPanel`, `FreeKickSetupPanel`,
+ * `ReplayPanel`) already have.
+ */
+const ACTION_PANEL_HEADING = 'Actions';
+
+/**
+ * D-07: wraps every ActionPanel render site so the `Actions` heading can never be omitted
+ * from any of the panel's 18 phase-gated returns. Renders the same panel flex container
+ * class as before (plus the wide modifier class when `wide` is true) with the heading as
+ * its first child, followed by the phase's own content. Preserves the pre-existing
+ * className composition exactly: a non-wide shell yields exactly the bare panel class
+ * (no stray trailing space), matching every prior render site's original class output.
+ *
+ * Does NOT wrap `confirmOverlay`/`confirmCard` — the confirm dialog is a modal, not a slot
+ * panel, and must not gain an "Actions" heading (see `confirmDialog` below, left untouched).
+ */
+function PanelShell({ wide = false, children }: { wide?: boolean; children: ReactNode }) {
+  return (
+    <div className={`${styles.panel}${wide ? ` ${styles.wide}` : ''}`}>
+      <span className={styles.panelHeading}>{ACTION_PANEL_HEADING}</span>
+      {children}
+    </div>
+  );
+}
 
 /**
  * Phase-gated, active-player-gated action controls.
@@ -117,12 +148,12 @@ export function ActionPanel() {
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
 
   const waitingPanel = (
-    <div className={styles.panel}>
+    <PanelShell>
       <div className={styles.helperBlock}>
         <span className={styles.helperLine1}>Opponent&apos;s Turn</span>
         <span className={styles.helperLine2}>Waiting for opponent...</span>
       </div>
-    </div>
+    </PanelShell>
   );
 
   /**
@@ -260,7 +291,7 @@ export function ActionPanel() {
     // UX-08: 1 repositioning slot per team — pending until highPassMovedPieceId is set
     const hpmEligibleRemaining = highPassMovedPieceId == null ? 1 : 0;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>High Pass Aerial Challenge!</span>
           <span className={styles.helperLine2}>Move 1 player to challenge (max 3 hexes).</span>
@@ -283,7 +314,7 @@ export function ActionPanel() {
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -300,7 +331,7 @@ export function ActionPanel() {
     // UX-08: 1 repositioning slot per team — pending until firstTimePassMovedPieceId is set
     const ftpmEligibleRemaining = firstTimePassMovedPieceId == null ? 1 : 0;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>First-Time Pass!</span>
           <span className={styles.helperLine2}>Move 1 player to receive the ball (max 1 hex).</span>
@@ -323,7 +354,7 @@ export function ActionPanel() {
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -338,13 +369,13 @@ export function ActionPanel() {
     const isGKTeamPlayer = myTeam === gkTeam;
     if (!isGKTeamPlayer) return waitingPanel;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Attempt Save!</span>
           <span className={styles.helperLine2}>Dive to a highlighted hex (max 3 hexes).</span>
         </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -362,7 +393,7 @@ export function ActionPanel() {
     // UX-08: 1 repositioning slot — pending until snapDeflectMovedPieceId is set
     const sdEligibleRemaining = snapDeflectMovedPieceId == null ? 1 : 0;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Snapshot - Deflection Attempt!</span>
           <span className={styles.helperLine2}>
@@ -378,7 +409,7 @@ export function ActionPanel() {
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -406,20 +437,20 @@ export function ActionPanel() {
       // Duel resolved — winner selects target hex; loser/tie waits.
       if (headerDuelWinner != null && headerDuelWinner === myTeam) {
         return (
-          <div className={styles.panel}>
+          <PanelShell>
             <div className={styles.helperBlock}>
               <span className={styles.helperLine1}>Header Won!</span>
               <span className={styles.helperLine2}>Select a target hex.</span>
             </div>
             {gameError && <span className={styles.errorText}>{gameError}</span>}
-          </div>
+          </PanelShell>
         );
       }
       return waitingPanel;
     }
 
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         {!myConfirmed && (
           <>
             <div className={styles.helperBlock}>
@@ -454,7 +485,7 @@ export function ActionPanel() {
         )}
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -466,13 +497,13 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     if (!isActivePlayer) return waitingPanel;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Snapshot!</span>
           <span className={styles.helperLine2}>Select a goal hex to target.</span>
         </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -488,7 +519,7 @@ export function ActionPanel() {
     const isGKTeamPlayer = myTeam !== null && myTeam === gkTeamForRestart;
     if (!isGKTeamPlayer) return waitingPanel;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Goalie Restart!</span>
           <span className={styles.helperLine2}>Choose an action.</span>
@@ -515,7 +546,7 @@ export function ActionPanel() {
           Move
         </button>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -528,13 +559,13 @@ export function ActionPanel() {
     const isGKTeamPlayer = myTeam === gkTeam;
     if (!isGKTeamPlayer) return waitingPanel;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Quick Throw!</span>
           <span className={styles.helperLine2}>Select a target hex (up to 11 hexes).</span>
         </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -547,7 +578,7 @@ export function ActionPanel() {
     const isGKTeamPlayer = myTeam === gkTeam;
     if (!isGKTeamPlayer) return waitingPanel;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Punt!</span>
           <span className={styles.helperLine2}>
@@ -555,7 +586,7 @@ export function ActionPanel() {
           </span>
         </div>
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -567,7 +598,7 @@ export function ActionPanel() {
     // UX-08: 1 repositioning slot per team — pending until gkKickMovedPieceId is set
     const gkmEligibleRemaining = gkKickMovedPieceId == null ? 1 : 0;
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>Ball in Air!</span>
           <span className={styles.helperLine2}>
@@ -583,7 +614,7 @@ export function ActionPanel() {
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -604,7 +635,7 @@ export function ActionPanel() {
     const movedCount = eligibleIds.filter((id) => (freeMoveUsedPace?.[id] ?? 0) > 0).length;
     const remaining = Math.max(eligibleTotal - movedCount, 0);
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <div className={styles.helperBlock}>
           <span className={styles.helperLine1}>
             Ball entered the opposite final third — your backline can reposition up to 6 hexes
@@ -621,7 +652,7 @@ export function ActionPanel() {
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -637,7 +668,7 @@ export function ActionPanel() {
     // Ball loose in PASS phase (standard pass to empty hex or deflection landing): only Move available.
     if (phase === 'PASS' && carrierId === null) {
       return (
-        <div className={styles.panel}>
+        <PanelShell>
           <div className={styles.helperBlock}>
             <span className={styles.helperLine1}>Loose Ball!</span>
             <span className={styles.helperLine2}>Move to collect.</span>
@@ -650,7 +681,7 @@ export function ActionPanel() {
             Move
           </button>
           {gameError && <span className={styles.errorText}>{gameError}</span>}
-        </div>
+        </PanelShell>
       );
     }
 
@@ -692,7 +723,7 @@ export function ActionPanel() {
       ].filter(Boolean).length;
 
       return (
-        <div className={`${styles.panel} ${actionCount >= 5 ? styles.wide : ''}`}>
+        <PanelShell wide={actionCount >= 5}>
           {isKickOff && (
             <div className={styles.helperBlock}>
               <span className={styles.helperLine1}>Kick-Off!</span>
@@ -773,14 +804,14 @@ export function ActionPanel() {
             </button>
           )}
           {gameError && <span className={styles.errorText}>{gameError}</span>}
-        </div>
+        </PanelShell>
       );
     }
 
     // Step 2: pass type selected, no target hex yet — prompt to click a target
     if (passTargetHex === null) {
       return (
-        <div className={styles.panel}>
+        <PanelShell>
           <span className={styles.phaseLabel}>
             {PASS_TYPE_LABELS[selectedPassType]} — click a target hex
           </span>
@@ -788,7 +819,7 @@ export function ActionPanel() {
             ← Back
           </button>
           {gameError && <span className={styles.errorText}>{gameError}</span>}
-        </div>
+        </PanelShell>
       );
     }
 
@@ -838,7 +869,7 @@ export function ActionPanel() {
         : null;
 
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         {slotHelperLine2 && (
           <div className={styles.helperBlock}>
             <span className={styles.helperLine1}>Move!</span>
@@ -877,7 +908,7 @@ export function ActionPanel() {
         )}
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
+      </PanelShell>
     );
   }
 
@@ -885,9 +916,9 @@ export function ActionPanel() {
   // (e.g. GK_RESTART for the non-GK team).
   if (gameError) {
     return (
-      <div className={styles.panel}>
+      <PanelShell>
         <span className={styles.errorText}>{gameError}</span>
-      </div>
+      </PanelShell>
     );
   }
 

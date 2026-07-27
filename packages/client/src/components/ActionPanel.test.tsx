@@ -838,3 +838,95 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 });
+
+// D-07: every ActionPanel render site is wrapped in PanelShell, which always emits an
+// "Actions" heading as the first child — regardless of which phase-gated block is showing.
+describe('ActionPanel — D-07: every phase state renders the panel heading', () => {
+  it('waiting panel (non-active player) shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      playerSlot: 2, // away — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('MOVE phase shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('GK_RESTART phase shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('HEADER contest phase shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HEADER',
+        activeTeam: 'home',
+        headerAccuracyRollPending: false,
+        headerConfirmed: { home: false, away: false },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('PASS chooser (step 1) shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('PASS step-2 target prompt shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('confirm dialog does not add a second Actions heading inside its card', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    // remaining > 0 in this state, so clicking End Turn opens the confirm dialog
+    fireEvent.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(screen.getByText(/are you sure you want to end your turn\?/i)).toBeDefined();
+    // Only the one PanelShell heading exists — the confirm dialog does not get its own.
+    expect(screen.getAllByText('Actions')).toHaveLength(1);
+  });
+});
