@@ -29,7 +29,7 @@ export function ReplayPanel() {
   return (
     <div className={styles.panel}>
       {/* Panel heading */}
-      <span className={styles.heading}>Replay</span>
+      <span className={styles.panelHeading}>Replay</span>
 
       {/* Final score — persistent throughout replay (D-33) */}
       <div className={styles.scoreLine}>
