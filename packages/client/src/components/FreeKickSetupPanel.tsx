@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { hexDistance, FREE_KICK_STAGES, freeKickStageTeam } from '@counter-attack/shared';
 import { useMyTeam } from '../hooks/useMyTeam.js';
+import { ctaColorClass } from '../utils/ctaColorClass.js';
 import styles from './FreeKickSetupPanel.module.css';
 
 /**
@@ -148,7 +149,7 @@ export function FreeKickSetupPanel() {
                 setPendingEndTurn(null);
               }}
             >
-              Confirm
+              Yes, end turn
             </button>
           </div>
         </div>
@@ -166,12 +167,15 @@ export function FreeKickSetupPanel() {
     return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'FK_SETUP_MOVE');
   })();
 
-  // End Turn button color: yellow while placements remain, green when all used.
-  const endTurnColorClass = constraintsMet
-    ? placedCount >= stage.max
-      ? (styles.ctaButtonReady ?? '')
-      : (styles.ctaButtonPending ?? '')
-    : '';
+  // Confirm button color: pending while placements remain, ready when all used.
+  // D-06: single shared color-state implementation (see ctaColorClass.ts) — constraintsMet
+  // is passed as `enabled` so a constraint-blocked button shows neither color, exactly
+  // reproducing the prior local ternary's `: ''` branch.
+  const endTurnColorClass = ctaColorClass(
+    remaining,
+    { ready: styles.ctaButtonReady, pending: styles.ctaButtonPending },
+    constraintsMet,
+  );
 
   return (
     <div className={styles.panel}>
@@ -212,7 +216,7 @@ export function FreeKickSetupPanel() {
           title={!constraintsMet ? disabledTitle : undefined}
           onClick={withEndTurnConfirm(remaining, emitFreeKickReady)}
         >
-          End Turn
+          Confirm
         </button>
       )}
 
