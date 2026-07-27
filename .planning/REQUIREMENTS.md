@@ -7,10 +7,10 @@
 
 ### Visual Theme (THEME)
 
-- [ ] **THEME-01**: The deep-blue color scheme is replaced with a broadcast-sports palette (dark charcoal/graphite base, crisp white text, single team-color accent) applied across every screen — lobby, settings, team/draft selection, and the in-game board
+- [x] **THEME-01**: The deep-blue color scheme is replaced with a broadcast-sports palette (dark charcoal/graphite base, crisp white text, single team-color accent) applied across every screen — lobby, settings, team/draft selection, and the in-game board
 - [x] **THEME-02**: All chrome colors (panels, buttons, borders, text) are driven by a single CSS custom-property token file; no hardcoded hex/rgba literals remain in chrome-related CSS Modules
 - [x] **THEME-03**: The single accent color per view is derived from the active team's `TEAM_CONFIGS.palette.uiColor` via one runtime CSS variable, not per-component lookups
-- [ ] **THEME-04**: All team-accent colors pass WCAG AA contrast against the new charcoal/white base, verified via an automated contrast check
+- [x] **THEME-04**: All team-accent colors pass WCAG AA contrast against the new charcoal/white base, verified via an automated contrast check
 
 ### Hex Highlight & Ring Standardization (HILITE)
 
@@ -67,10 +67,10 @@
 
 | Requirement | Phase                                                | Status   |
 | ----------- | ---------------------------------------------------- | -------- |
-| THEME-01    | Phase 34 — Visual Theme Restyle                      | Pending  |
+| THEME-01    | Phase 34 — Visual Theme Restyle                      | Complete |
 | THEME-02    | Phase 34 — Visual Theme Restyle                      | Complete |
 | THEME-03    | Phase 33 — Design Tokens & Highlight Standardization | Complete |
-| THEME-04    | Phase 34 — Visual Theme Restyle                      | Pending  |
+| THEME-04    | Phase 34 — Visual Theme Restyle                      | Complete |
 | HILITE-01   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | HILITE-02   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
