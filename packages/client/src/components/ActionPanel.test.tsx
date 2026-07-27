@@ -32,7 +32,7 @@ describe('ActionPanel — UNDO-03: active player gating', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is taking their turn…')).toBeDefined();
   });
 
   it('renders controls for the active player', () => {
@@ -193,7 +193,7 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is repositioning…')).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 });
@@ -269,7 +269,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is repositioning…')).toBeDefined();
     expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
   });
 
@@ -280,7 +280,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Defending team is repositioning…')).toBeDefined();
     expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
   });
 });
@@ -397,7 +397,7 @@ describe('ActionPanel — D-13 text corrections', () => {
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is taking their turn…')).toBeDefined();
   });
 
   it('HIGH_PASS_MOVE active player renders the Aerial Challenge fix, not the old Header! heading', () => {
@@ -1053,5 +1053,103 @@ describe('ActionPanel — D-03: Keeper terminology', () => {
     const throwBtn = screen.getByRole('button', { name: /quick throw/i });
     expect(throwBtn.title).toMatch(/^Keeper throws/);
     expect(throwBtn.title).not.toMatch(/Goalkeeper/);
+  });
+});
+
+// D-09: every ActionPanel waiting state names who is acting and what they are doing — no
+// state may fall back to the generic "Waiting for opponent" phrase.
+describe('ActionPanel — D-09: phase-specific waiting text', () => {
+  it('GK_DIVE: non-keeper player sees the keeper-diving detail, not the generic phrase', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_DIVE',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+      },
+      playerSlot: 1, // home — keeper's team is 'away' here, so home is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is diving to attempt a save…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('SNAPSHOT_DEFLECT: non-defending player sees the defender-repositioning detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'away',
+        attackingTeam: 'home',
+      },
+      playerSlot: 1, // home — defending team is 'away' here, so home is not the defending team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Defending team is moving to deflect the shot…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('GK_RESTART: non-keeper player sees the keeper-restart-choice detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is choosing how to restart play…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('GK_QUICK_THROW: non-keeper player sees the keeper-throw-target detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_QUICK_THROW',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is choosing a throw target…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('GK_KICK_TARGET: non-keeper player sees the keeper-punt-target detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_KICK_TARGET',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is choosing a punt target…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('HEADER (accuracy roll pending): both players see the aerial-challenge-resolving detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HEADER',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        headerAccuracyRollPending: true,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Resolving the aerial challenge…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
   });
 });
