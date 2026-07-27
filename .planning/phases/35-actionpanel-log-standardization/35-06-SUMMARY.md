@@ -104,3 +104,7 @@ None - no external service configuration required.
 
 _Phase: 35-actionpanel-log-standardization_
 _Completed: 2026-07-27_
+
+## Self-Check: PASSED
+
+All 4 modified source files and the SUMMARY.md file exist on disk; all 3 commit hashes (f63bf99, eb28ae5, 79e1b45) found in git log.
