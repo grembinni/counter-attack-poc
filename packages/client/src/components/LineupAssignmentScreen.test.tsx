@@ -242,7 +242,7 @@ describe('LineupAssignmentScreen — D-23: draft-complete hand-off', () => {
 });
 
 describe('LineupAssignmentScreen — DRAFT-09 gap-closure: Confirm gated on a complete lineup', () => {
-  it('renders no Confirm button and shows helper copy when draftComplete is true but a lineup slot is still null', () => {
+  it('renders a disabled not-ready Confirm button and shows helper copy when draftComplete is true but a lineup slot is still null', () => {
     render(
       <LineupAssignmentScreen
         assignment={[]}
@@ -259,7 +259,9 @@ describe('LineupAssignmentScreen — DRAFT-09 gap-closure: Confirm gated on a co
       />,
     );
 
-    expect(screen.queryByLabelText('Confirm lineup')).toBeNull();
+    const confirmBtn = screen.getByLabelText('Confirm lineup');
+    expect(confirmBtn).toBeDefined();
+    expect(confirmBtn.hasAttribute('disabled')).toBe(true);
     expect(screen.getByText('Fill all 11 lineup positions to confirm.')).toBeDefined();
   });
 
