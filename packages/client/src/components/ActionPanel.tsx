@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   ELIGIBLE_NEXT_ACTIONS,
-  FREE_KICK_STAGES,
   GOAL_R_VALUES,
-  freeKickStageTeam,
   hexDistance,
   isInRegion,
 } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
+import { ctaColorClass } from '../utils/ctaColorClass.js';
 import styles from './ActionPanel.module.css';
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
@@ -40,13 +39,18 @@ const ACTION_SUMMARY: Record<string, string> = {
 // GOAL_R_VALUES imported from @counter-attack/shared — single source of truth for goal row positions
 
 /**
- * UX-08: CTA button color-state selector (mirrors GameBoard's statBubbleClass pattern).
+ * D-02/D-06: CTA button color-state selector (mirrors GameBoard's statBubbleClass pattern).
  * Returns .ctaButtonReady (green) when all eligible pieces have moved/placed,
- * .ctaButtonPending (orange) while any eligible piece remains unmoved.
+ * .ctaButtonPending (orange) while any eligible piece remains unmoved. The
+ * color-state logic itself now lives in `packages/client/src/utils/ctaColorClass.ts`
+ * — this is a thin module-local adapter that names ActionPanel's own CSS-module
+ * class names exactly once so call sites stay terse.
  */
-function ctaButtonClass(eligibleRemaining: number): string {
-  return eligibleRemaining <= 0 ? (styles.ctaButtonReady ?? '') : (styles.ctaButtonPending ?? '');
-}
+const ctaClass = (eligibleRemaining: number): string =>
+  ctaColorClass(eligibleRemaining, {
+    ready: styles.ctaButtonReady,
+    pending: styles.ctaButtonPending,
+  });
 
 /**
  * Phase-gated, active-player-gated action controls.
@@ -108,11 +112,6 @@ export function ActionPanel() {
   const firstTimePassMovedPieceId = useGameStore((s) => s.gameState.firstTimePassMovedPieceId);
   const gkKickMovedPieceId = useGameStore((s) => s.gameState.gkKickMovedPieceId);
   const snapDeflectMovedPieceId = useGameStore((s) => s.gameState.snapDeflectMovedPieceId);
-  // Plan 25-06: FREE_KICK_SETUP stage tracking for dedicated ActionPanel block.
-  const freeKickStageIndex = useGameStore((s) => s.gameState.freeKickStageIndex);
-  const freeKickAttackingTeam = useGameStore((s) => s.gameState.freeKickAttackingTeam);
-  const freeKickPlacedPieceIds = useGameStore((s) => s.gameState.freeKickPlacedPieceIds);
-  const freeKickKickerChosen = useGameStore((s) => s.gameState.freeKickKickerChosen);
 
   const myTeam = useMyTeam();
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
@@ -211,7 +210,6 @@ export function ActionPanel() {
   // Shared canUndo computation — used in both MOVE and HIGH_PASS_MOVE phases.
   // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVE also uses HP_REPOSITION as a slot boundary.
   // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVE).
-  // Plan 25-06: FK_KICKER_CHOSEN and FK_STAGE_ADVANCE are slot boundaries in FREE_KICK_SETUP.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
     // Bug-C (Phase 25 gap 25-07): canUndo must be false at the start of a MOVE slot when
@@ -226,27 +224,12 @@ export function ActionPanel() {
       Object.keys(paceUsedByPieceId).length === 0
     )
       return false;
-    // BUG-24 D-03 (Phase 26): FREE_KICK_SETUP empty-stage guard — mirrors the MOVE
-    // paceUsedByPieceId guard above. freeKickPlacedPieceIds resets to [] at each
-    // stage transition (server-side); an empty list means no pieces have been
-    // repositioned in the current stage, so there is nothing to undo. This guard
-    // must short-circuit BEFORE the eventLog boundary scan to prevent a stale
-    // FK_SETUP_MOVE (from a prior stage or prior free kick) from incorrectly
-    // enabling the button when the current stage is empty.
-    if (
-      phase === 'FREE_KICK_SETUP' &&
-      (freeKickPlacedPieceIds ?? []).length === 0 &&
-      !freeKickKickerChosen
-    )
-      return false;
     const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
         evt.type === 'KICK_OFF' ||
         (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
-        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION') ||
-        (phase === 'FREE_KICK_SETUP' &&
-          (evt.type === 'FK_KICKER_CHOSEN' || evt.type === 'FK_STAGE_ADVANCE'));
+        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
       return isBoundary ? idx : acc;
     }, -1);
     // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
@@ -261,9 +244,7 @@ export function ActionPanel() {
             ? 'GK_KICK_MOVE'
             : phase === 'SNAPSHOT_DEFLECT'
               ? 'SNAP_DEFLECT_MOVE'
-              : phase === 'FREE_KICK_SETUP'
-                ? 'FK_SETUP_MOVE'
-                : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE
+              : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE
     return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === moveTypeForPhase);
   })();
 
@@ -294,7 +275,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(hpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(hpmEligibleRemaining, emitEndTurn)}
         >
@@ -334,7 +315,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(ftpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(ftpmEligibleRemaining, emitEndTurn)}
         >
@@ -389,7 +370,7 @@ export function ActionPanel() {
           </span>
         </div>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(sdEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(sdEligibleRemaining, emitEndTurn)}
         >
@@ -454,7 +435,7 @@ export function ActionPanel() {
               const headerEligibleRemaining = headerContestantIds.length > 0 ? 0 : 1;
               return (
                 <button
-                  className={`${styles.ctaButton} ${ctaButtonClass(headerEligibleRemaining)}`}
+                  className={`${styles.ctaButton} ${ctaClass(headerEligibleRemaining)}`}
                   onClick={withEndTurnConfirm(headerEligibleRemaining, () =>
                     emitHeaderContestant(headerContestantIds),
                   )}
@@ -594,7 +575,7 @@ export function ActionPanel() {
           </span>
         </div>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(gkmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(gkmEligibleRemaining, emitEndTurn)}
         >
@@ -632,80 +613,7 @@ export function ActionPanel() {
           <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
-          title={ACTION_SUMMARY['End Turn']}
-          onClick={withEndTurnConfirm(remaining, emitEndTurn)}
-        >
-          End Turn
-        </button>
-        {confirmDialog}
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // FREE_KICK_SETUP phase (Plan 25-06): dedicated panel with kicker-select sub-step,
-  // move counter, Undo, and End Turn. Must be before the !isActivePlayer guard so
-  // both teams see the correct waiting / active panel regardless of activeTeam.
-  // -------------------------------------------------------------------------
-  if (phase === 'FREE_KICK_SETUP') {
-    if (myTeam === null) return null;
-
-    const kickingTeam = freeKickAttackingTeam;
-    const activeTeamForStage =
-      freeKickStageIndex !== null &&
-      freeKickStageIndex !== undefined &&
-      kickingTeam !== null &&
-      kickingTeam !== undefined
-        ? freeKickStageTeam(freeKickStageIndex, kickingTeam)
-        : null;
-    const isMyStage = myTeam === activeTeamForStage;
-
-    // Non-active team waits
-    if (!isMyStage) return waitingPanel;
-
-    // Kicker-select sub-step: kicking team must place kicker on freeKickHex first
-    if (!freeKickKickerChosen && myTeam === kickingTeam) {
-      return (
-        <div className={styles.panel}>
-          <div className={styles.helperBlock}>
-            <span className={styles.helperLine1}>Free Kick</span>
-            <span className={styles.helperLine2}>Select your kicker.</span>
-          </div>
-          {gameError && <span className={styles.errorText}>{gameError}</span>}
-        </div>
-      );
-    }
-
-    // Move-count sub-step: both teams reposition up to stage.max players
-    const stageMax =
-      freeKickStageIndex !== null && freeKickStageIndex !== undefined
-        ? FREE_KICK_STAGES[freeKickStageIndex].max
-        : 0;
-    const placedCount = (freeKickPlacedPieceIds ?? []).length;
-    const remaining = Math.max(stageMax - placedCount, 0);
-    const isKickingTeam = myTeam === kickingTeam;
-    const stageLabel = isKickingTeam ? 'Attacking' : 'Defending';
-
-    return (
-      <div className={styles.panel}>
-        <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Free Kick Setup — {stageLabel} Team</span>
-          <span className={styles.helperLine2}>
-            {remaining} of {stageMax} players left to reposition.
-          </span>
-        </div>
-        <button
-          className={styles.ctaButton}
-          title={ACTION_SUMMARY['Undo']}
-          disabled={!canUndo}
-          onClick={emitUndo}
-        >
-          Undo
-        </button>
-        <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(remaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(remaining, emitEndTurn)}
         >
@@ -956,7 +864,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${ctaButtonClass(remaining ?? 0)}`}
+          className={`${styles.ctaButton} ${ctaClass(remaining ?? 0)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(remaining ?? 0, emitEndTurn)}
         >

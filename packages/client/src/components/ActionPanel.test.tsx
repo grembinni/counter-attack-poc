@@ -544,220 +544,6 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
   });
 });
 
-// Plan 25-06: FREE_KICK_SETUP dedicated ActionPanel block
-// Requirement: OFFSIDE-02 — kicker-select sub-step, stage counter, Undo/End Turn gating
-const freeKickBase = {
-  ...mockMovementState,
-  phase: 'FREE_KICK_SETUP' as const,
-  activeTeam: 'home' as const,
-  freeKickHex: { q: 25, r: 13 },
-  freeKickAttackingTeam: 'home' as const,
-  freeKickStageIndex: 0 as const,
-  freeKickPlacedPieceIds: [] as string[],
-  freeKickKickerChosen: false,
-  lastDiceRoll: null,
-};
-
-describe('ActionPanel — OFFSIDE-02: FREE_KICK_SETUP dedicated panel', () => {
-  it('kicking team sees kicker-select prompt when freeKickKickerChosen is false', () => {
-    useGameStore.setState({ gameState: freeKickBase, playerSlot: 1 });
-    render(<ActionPanel />);
-    expect(screen.getByText('Free Kick')).toBeDefined();
-    expect(screen.getByText(/Select your kicker/i)).toBeDefined();
-  });
-
-  it('defending team sees waiting panel during kicker-select sub-step (stage 0)', () => {
-    // Stage 0 = kicking team's stage; away player (slot 2) must wait
-    useGameStore.setState({ gameState: freeKickBase, playerSlot: 2 });
-    render(<ActionPanel />);
-    expect(screen.getByText("Opponent's Turn")).toBeDefined();
-  });
-
-  it('kicking team sees stage counter and Undo/End Turn when freeKickKickerChosen is true', () => {
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        freeKickPlacedPieceIds: ['home-9'],
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    // Stage 0 max=4; 1 placed → 3 remaining
-    expect(screen.getByText(/3 of 4 players left to reposition/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /undo/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
-  });
-
-  it('home team sees waiting panel during defending stage (stage 1)', () => {
-    // Stage 1 = defending team's stage; home (kicking) player (slot 1) must wait
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        freeKickStageIndex: 1 as const,
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    expect(screen.getByText("Opponent's Turn")).toBeDefined();
-  });
-
-  it('Undo is disabled when no FK_SETUP_MOVE follows the last FK_KICKER_CHOSEN boundary', () => {
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        eventLog: [
-          {
-            type: 'FK_KICKER_CHOSEN',
-            kickerPieceId: 'home-9',
-            hex: { q: 25, r: 13 },
-            timestamp: 0,
-          },
-        ],
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    const undo = screen.getByRole('button', { name: /undo/i });
-    expect((undo as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('Undo is enabled when a FK_SETUP_MOVE follows the last FK_KICKER_CHOSEN boundary', () => {
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        freeKickPlacedPieceIds: ['home-8'],
-        eventLog: [
-          {
-            type: 'FK_KICKER_CHOSEN',
-            kickerPieceId: 'home-9',
-            hex: { q: 25, r: 13 },
-            timestamp: 0,
-          },
-          {
-            type: 'FK_SETUP_MOVE',
-            stageIndex: 0,
-            pieceId: 'home-8',
-            from: { q: 22, r: 9 },
-            to: { q: 23, r: 9 },
-            timestamp: 1,
-          },
-        ],
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    const undo = screen.getByRole('button', { name: /undo/i });
-    expect((undo as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  // ── BUG-24 D-03: freeKickPlacedPieceIds empty-stage guard ────────────────
-  // The canUndo IIFE must short-circuit on empty freeKickPlacedPieceIds before
-  // reaching the eventLog boundary scan. Without this guard, a stale FK_SETUP_MOVE
-  // in the eventLog (with no boundary before it) would incorrectly enable the button.
-
-  it('BUG-24 D-03: Undo button is disabled when freeKickPlacedPieceIds is empty and no FK_SETUP_MOVE exists after the last FK_STAGE_ADVANCE boundary', () => {
-    // Simulate the correct stale-move scenario: an FK_SETUP_MOVE from a prior stage sits
-    // in the eventLog BEFORE a FK_STAGE_ADVANCE boundary. The current stage is empty
-    // (freeKickPlacedPieceIds: []). The boundary scan correctly finds no FK_SETUP_MOVE
-    // after the FK_STAGE_ADVANCE, so the button must be disabled.
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        freeKickPlacedPieceIds: [], // current stage is empty — nothing to undo
-        lastDiceRoll: null,
-        eventLog: [
-          // FK_SETUP_MOVE from the PREVIOUS stage (before the FK_STAGE_ADVANCE boundary)
-          {
-            type: 'FK_SETUP_MOVE',
-            stageIndex: 0,
-            pieceId: 'home-9',
-            from: { q: 22, r: 9 },
-            to: { q: 23, r: 9 },
-            timestamp: 0,
-          },
-          // FK_STAGE_ADVANCE acts as the undo boundary — nothing after it in current stage
-          { type: 'FK_STAGE_ADVANCE', fromStageIndex: 0 as const, timestamp: 1 },
-        ],
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    const undo = screen.getByRole('button', { name: /undo/i });
-    expect((undo as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('BUG-24 kicker undo: Undo button is enabled when freeKickKickerChosen is true and FK_SETUP_MOVE follows the FK_KICKER_CHOSEN boundary', () => {
-    // Kicker was placed: FK_KICKER_CHOSEN is the boundary, FK_SETUP_MOVE is after it.
-    // freeKickPlacedPieceIds is empty (no regular pieces placed yet), but freeKickKickerChosen
-    // is true — the kicker's FK_SETUP_MOVE is undoable.
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        freeKickPlacedPieceIds: [],
-        lastDiceRoll: null,
-        eventLog: [
-          {
-            type: 'FK_KICKER_CHOSEN',
-            kickerPieceId: 'home-9',
-            hex: { q: 25, r: 13 },
-            timestamp: 0,
-          },
-          {
-            type: 'FK_SETUP_MOVE',
-            stageIndex: 0,
-            pieceId: 'home-9',
-            from: { q: 22, r: 9 },
-            to: { q: 25, r: 13 },
-            timestamp: 1,
-          },
-        ],
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    const undo = screen.getByRole('button', { name: /undo/i });
-    expect((undo as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  it('BUG-24 D-03: Undo button is enabled when freeKickPlacedPieceIds has one entry and an FK_SETUP_MOVE follows the last boundary', () => {
-    // Positive case: one piece placed in current stage → Undo enabled.
-    useGameStore.setState({
-      gameState: {
-        ...freeKickBase,
-        freeKickKickerChosen: true,
-        freeKickPlacedPieceIds: ['home-9'], // one piece placed in current stage
-        lastDiceRoll: null,
-        eventLog: [
-          {
-            type: 'FK_KICKER_CHOSEN',
-            kickerPieceId: 'home-9',
-            hex: { q: 25, r: 13 },
-            timestamp: 0,
-          },
-          {
-            type: 'FK_SETUP_MOVE',
-            stageIndex: 0,
-            pieceId: 'home-9',
-            from: { q: 22, r: 9 },
-            to: { q: 23, r: 9 },
-            timestamp: 1,
-          },
-        ],
-      },
-      playerSlot: 1,
-    });
-    render(<ActionPanel />);
-    const undo = screen.getByRole('button', { name: /undo/i });
-    expect((undo as HTMLButtonElement).disabled).toBe(false);
-  });
-});
-
 // BUG-25: MOVE End Turn button color must use ctaButtonClass(remaining) —
 // pending (orange) while move options remain, ready (green) when slot is exhausted.
 describe('ActionPanel — BUG-25: MOVE End Turn button color driven by ctaButtonClass', () => {
@@ -871,5 +657,184 @@ describe('ActionPanel — BUG-31: remaining/button update on first step, not ful
     const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+});
+
+// D-02/D-06: every phase CTA that tracks its own eligible-remaining count must derive its
+// End Turn button color from the shared ctaColorClass helper (via the ctaClass adapter),
+// mirroring the BUG-25 MOVE-phase two-way assertion shape for the five remaining phases.
+describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorClass', () => {
+  it('HIGH_PASS_MOVE: End Turn is pending when highPassMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HIGH_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        highPassMovedPieceId: null,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('HIGH_PASS_MOVE: End Turn is ready when highPassMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HIGH_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        highPassMovedPieceId: 'home-9',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('FIRST_TIME_PASS_MOVE: End Turn is pending when firstTimePassMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FIRST_TIME_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        firstTimePassMovedPieceId: null,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('FIRST_TIME_PASS_MOVE: End Turn is ready when firstTimePassMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FIRST_TIME_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        firstTimePassMovedPieceId: 'home-9',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('SNAPSHOT_DEFLECT: End Turn is pending when snapDeflectMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastDiceRoll: null,
+        snapDeflectMovedPieceId: null,
+      },
+      playerSlot: 2,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('SNAPSHOT_DEFLECT: End Turn is ready when snapDeflectMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastDiceRoll: null,
+        snapDeflectMovedPieceId: 'away-0',
+      },
+      playerSlot: 2,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('GK_KICK_MOVE: End Turn is pending when gkKickMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_KICK_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        gkKickMovedPieceId: null,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('GK_KICK_MOVE: End Turn is ready when gkKickMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_KICK_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        gkKickMovedPieceId: 'home-9',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('FREE_MOVE_ATTACK: End Turn is pending when eligible players remain (remaining > 0)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FREE_MOVE_ATTACK',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        freeMoveEligibleIds: { attack: ['home-9'], defense: [] },
+        freeMoveUsedPace: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('FREE_MOVE_ATTACK: End Turn is ready when all eligible players have moved (remaining <= 0)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FREE_MOVE_ATTACK',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        freeMoveEligibleIds: { attack: ['home-9'], defense: [] },
+        freeMoveUsedPace: { 'home-9': 1 },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 });
