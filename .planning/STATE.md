@@ -21,7 +21,7 @@ progress:
 Phase: 34 (visual-theme-restyle) — EXECUTING
 Plan: 1 of 5
 Status: Executing Phase 34
-Last activity: 2026-07-27 -- Phase 34 execution started
+Last activity: 2026-07-27 - Completed quick task 260727-9f1: Clean up documentation drift found in v1.5 milestone audit
 
 ## Project Reference
 
@@ -208,23 +208,24 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 
 ## Quick Tasks Completed
 
-| Slug                   | Date       | Description                                                                                                                                                                     |
-| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| phase-selection-flow   | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS                                                                                                                       |
-| possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2                                                                                                                             |
-| undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser                                                                                                                  |
-| 260612-ike             | 2026-06-12 | Refactor GameBoard top-band layout and player card                                                                                                                              |
-| 260612-kvw             | 2026-06-12 | GameBoard UI polish: scores flanking clock, side-panel log                                                                                                                      |
-| 260612-l7d             | 2026-06-12 | GameBoard 3-zone top band: centred scoreboard, left/right zones                                                                                                                 |
-| 260612-lme             | 2026-06-12 | Scoreboard dot+clock (26px), slot helper text, centred ActionPanel label                                                                                                        |
-| 260620-9ql             | 2026-06-20 | Cancel Phase 17 plan 17-05 (superseded by Phase 17.1 FTP redesign); delete 2 stale abandoned-design test stubs; correct PASS-02 attribution to Phase 17.1                       |
-| 260621-ajd             | 2026-06-21 | Remove ActionPanel/kick-off outline borders; add MOVE/FREE_MOVE remaining-player countdown + kick-off helper copy                                                               |
-| 260621-awb             | 2026-06-21 | Unify ActionLog duel-log player names (PNamed), result glyphs, and STEAL_ATTEMPT challenge detail to TACKLE's level                                                             |
-| 260621-b8f             | 2026-06-21 | Add HEADED_PASS/GK_PUNT ActionEvent types + emission; log HEADER contest, post-header pass, GK punt; split SHOT_ATTEMPT challenge/handling                                      |
-| 260621-bsy             | 2026-06-21 | Align MOVE log prefixes + slot-advance header to scoreboard naming (team-colored [MOVE N]); rewrite DEFLECT_ATTEMPT entry for clarity                                           |
-| 260621-gcu             | 2026-06-21 | ActionLog formatting: drop D/A from vs-comparison lines, add # to all player numbers (incl. MOVE logs), rename MOVE*HP*_/MOVE*FTP*_ to human-readable prefixes                  |
-| 260621-h32             | 2026-06-21 | SHOT/SAVE vs-format parity with TACKLE (added gkId); renamed [GK_KICK_K]/[GK KICK] prefixes; tripled retained log entries 10→30; removed kickoffDebug.test.ts console.log noise |
-| 260621-hnd             | 2026-06-21 | Removed last D/A role-letter prefixes (DEFLECT_ATTEMPT, STEAL_ATTEMPT x2, uncontested HEADER); fixed SNAPSHOT raw home/away id leak — resolves to PNamed player name            |
+| Slug                   | Date       | Description                                                                                                                                                                                                    |
+| ---------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| phase-selection-flow   | 2026-06-06 | Fix choose-phase flow, passType to server, Move from PASS                                                                                                                                                      |
+| possession-phase-bugs  | 2026-06-06 | End phase on steal/tackle; cap ATTACKER_2 pace at 2                                                                                                                                                            |
+| undo-kickoff-ball-bugs | 2026-06-06 | Ball kept after steal; undo scoped; X clears; KICK_OFF chooser                                                                                                                                                 |
+| 260612-ike             | 2026-06-12 | Refactor GameBoard top-band layout and player card                                                                                                                                                             |
+| 260612-kvw             | 2026-06-12 | GameBoard UI polish: scores flanking clock, side-panel log                                                                                                                                                     |
+| 260612-l7d             | 2026-06-12 | GameBoard 3-zone top band: centred scoreboard, left/right zones                                                                                                                                                |
+| 260612-lme             | 2026-06-12 | Scoreboard dot+clock (26px), slot helper text, centred ActionPanel label                                                                                                                                       |
+| 260620-9ql             | 2026-06-20 | Cancel Phase 17 plan 17-05 (superseded by Phase 17.1 FTP redesign); delete 2 stale abandoned-design test stubs; correct PASS-02 attribution to Phase 17.1                                                      |
+| 260621-ajd             | 2026-06-21 | Remove ActionPanel/kick-off outline borders; add MOVE/FREE_MOVE remaining-player countdown + kick-off helper copy                                                                                              |
+| 260621-awb             | 2026-06-21 | Unify ActionLog duel-log player names (PNamed), result glyphs, and STEAL_ATTEMPT challenge detail to TACKLE's level                                                                                            |
+| 260621-b8f             | 2026-06-21 | Add HEADED_PASS/GK_PUNT ActionEvent types + emission; log HEADER contest, post-header pass, GK punt; split SHOT_ATTEMPT challenge/handling                                                                     |
+| 260621-bsy             | 2026-06-21 | Align MOVE log prefixes + slot-advance header to scoreboard naming (team-colored [MOVE N]); rewrite DEFLECT_ATTEMPT entry for clarity                                                                          |
+| 260621-gcu             | 2026-06-21 | ActionLog formatting: drop D/A from vs-comparison lines, add # to all player numbers (incl. MOVE logs), rename MOVE*HP*_/MOVE*FTP*_ to human-readable prefixes                                                 |
+| 260621-h32             | 2026-06-21 | SHOT/SAVE vs-format parity with TACKLE (added gkId); renamed [GK_KICK_K]/[GK KICK] prefixes; tripled retained log entries 10→30; removed kickoffDebug.test.ts console.log noise                                |
+| 260621-hnd             | 2026-06-21 | Removed last D/A role-letter prefixes (DEFLECT_ATTEMPT, STEAL_ATTEMPT x2, uncontested HEADER); fixed SNAPSHOT raw home/away id leak — resolves to PNamed player name                                           |
+| 260727-9f1             | 2026-07-27 | Fixed v1.5 milestone-audit doc drift: ROADMAP.md malformed Phase 34 row + stale Progress table, REQUIREMENTS.md THEME-01/04 checkboxes, 34-VERIFICATION.md stale status, HIGHLIGHT-REFERENCE.md opacity values |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
