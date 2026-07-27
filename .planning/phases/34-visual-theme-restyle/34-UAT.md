@@ -29,11 +29,6 @@ result: issue
 reported: "not ready 'confirm' on team select and roster should follow the white outline pattern for other buttons. Green ready 'confirm' should match the other green ready button patterns."
 severity: cosmetic
 
-### 3. Charcoal Theme - Team/Uniform/Draft Selection Screens
-
-expected: Team selection, uniform selection, and draft pack carousel screens render in the charcoal palette with legible text and visible accent colors — no blue chrome remnants.
-result: [pending]
-
 ### 4. Charcoal Theme - In-Game Board
 
 expected: The hex board / in-game screen renders in the charcoal palette throughout (board chrome, panels, overlays) with no residual blue chrome.
