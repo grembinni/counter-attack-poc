@@ -1001,3 +1001,57 @@ describe('ActionPanel — D-08: single Confirm verb', () => {
     expect(emitEndTurn).toHaveBeenCalledOnce();
   });
 });
+
+// D-03: ActionPanel's user-facing goalkeeper wording is standardized on "Keeper" —
+// never "Goalie" or "Goalkeeper".
+describe('ActionPanel — D-03: Keeper terminology', () => {
+  it('GK_RESTART for the keeper\'s team shows "Keeper Restart!" and no "Goalie" text', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper Restart!')).toBeDefined();
+    expect(screen.queryByText(/Goalie/i)).toBeNull();
+  });
+
+  it('the Punt (High Pass) button title uses "Keeper", not "Goalkeeper"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const puntBtn = screen.getByRole('button', { name: /punt \(high pass\)/i });
+    expect(puntBtn.title).toMatch(/^Keeper clears/);
+    expect(puntBtn.title).not.toMatch(/Goalkeeper/);
+  });
+
+  it('the Quick Throw button title uses "Keeper", not "Goalkeeper"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const throwBtn = screen.getByRole('button', { name: /quick throw/i });
+    expect(throwBtn.title).toMatch(/^Keeper throws/);
+    expect(throwBtn.title).not.toMatch(/Goalkeeper/);
+  });
+});

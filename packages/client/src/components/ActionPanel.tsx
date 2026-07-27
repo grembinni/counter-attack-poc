@@ -30,8 +30,8 @@ const ACTION_SUMMARY: Record<string, string> = {
   'Long Ball': 'A long downfield pass; less accurate.',
   Snapshot: 'A quick shot from inside the box.',
   Shoot: 'Take a shot at goal (in range only).',
-  'Punt (High Pass)': 'Goalkeeper clears with a long kick.',
-  'Quick Throw': 'Goalkeeper throws the ball back into play.',
+  'Punt (High Pass)': 'Keeper clears with a long kick.',
+  'Quick Throw': 'Keeper throws the ball back into play.',
   Undo: 'Undo your last move this phase.',
   Confirm: 'Confirm your actions and end your turn, passing control to the opponent.',
 };
@@ -524,7 +524,7 @@ export function ActionPanel() {
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Goalie Restart!</span>
+          <span className={styles.helperLine1}>Keeper Restart!</span>
           <span className={styles.helperLine2}>Choose an action.</span>
         </div>
         <button
