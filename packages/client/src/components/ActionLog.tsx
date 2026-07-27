@@ -528,9 +528,13 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         );
 
         if (subKind === 'handling') {
+          // D-04: the keeper is the acting player here — caught (SAVE) is the success
+          // glyph, spilled is the fail glyph. Derived from the same handlingResult
+          // condition rather than re-testing event.outcome twice.
           const handlingResult = event.outcome === 'SAVE' ? 'caught' : 'spilled';
+          const handlingPrefix = handlingResult === 'caught' ? '[HANDLING ✓]' : '[HANDLING ✗]';
           return {
-            prefix: '[HANDLING]',
+            prefix: handlingPrefix,
             prefixColor: shotPrefixColor,
             content: (
               <>
@@ -798,9 +802,12 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         isGoal: false,
       };
     case 'SNAP_DEFLECT_MOVE':
-      // BUG-18 (Phase 18.3): defender repositioning during SNAPSHOT_DEFLECT.
+      // BUG-18 (Phase 18.3): defender repositioning during SNAPSHOT_DEFLECT. D-04: renamed
+      // from [DEFLECT] to [DEFLECT MOVE] — this is a glyph-free repositioning event with no
+      // outcome, and the bare [DEFLECT] prefix collided visually with DEFLECT_ATTEMPT's
+      // outcome-bearing [DEFLECT ✓]/[DEFLECT ✗] prefixes.
       return {
-        prefix: '[DEFLECT]',
+        prefix: '[DEFLECT MOVE]',
         prefixColor: aaTeamAccentColor(undefined),
         content: ` Deflect move  ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,

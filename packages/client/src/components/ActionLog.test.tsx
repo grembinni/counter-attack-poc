@@ -435,8 +435,8 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
     // underlying consolidated array) appears FIRST, and the duel entry appears second.
     const entries = container.querySelectorAll('[class*="entry"]');
     expect(entries.length).toBe(2);
-    // First rendered entry: the handling check under its own [HANDLING] prefix
-    expect(entries[0]?.textContent).toMatch(/\[HANDLING\]/);
+    // First rendered entry: the handling check under its own [HANDLING ✓] prefix (D-04: SAVE = caught = keeper success)
+    expect(entries[0]?.textContent).toMatch(/\[HANDLING ✓\]/);
     expect(entries[0]?.textContent).toMatch(/handling: 2 vs 8/);
     expect(entries[0]?.textContent).toMatch(/caught/);
     // Second rendered entry: the duel — [SHOT ✗] prefix (SAVE outcome) plus Shooting/Saving stat lines
@@ -496,7 +496,8 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
     const entries = container.querySelectorAll('[class*="entry"]');
     expect(entries.length).toBe(2);
     // Reverse-chronological order: handling entry renders first (see comment above).
-    expect(entries[0]?.textContent).toMatch(/\[HANDLING\]/);
+    // D-04: spilled = keeper failed to handle it = fail glyph.
+    expect(entries[0]?.textContent).toMatch(/\[HANDLING ✗\]/);
     expect(entries[0]?.textContent).toMatch(/spilled/);
   });
 
@@ -861,5 +862,62 @@ describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent fa
     // Band B has no tackling bonus regardless of die value
     expect(container.textContent).toContain('long range');
     expect(container.textContent).toContain('die 4');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-04: glyph rule audit — a SNAP_DEFLECT_MOVE reposition event carries no
+// glyph (renamed [DEFLECT] -> [DEFLECT MOVE] to remove the collision with
+// DEFLECT_ATTEMPT's outcome-bearing prefix); DEFLECT_ATTEMPT's own glyph is
+// unchanged by the rename; GK_KICK_MOVE (a repositioning event with no
+// outcome) carries no glyph either.
+// ---------------------------------------------------------------------------
+describe('ActionLog — D-04: glyph rule', () => {
+  it('a SNAP_DEFLECT_MOVE event renders [DEFLECT MOVE] and no glyph', () => {
+    setEventLog([
+      {
+        type: 'SNAP_DEFLECT_MOVE',
+        pieceId: 'away-1',
+        from: { q: 20, r: 10 },
+        to: { q: 21, r: 10 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[DEFLECT MOVE\]/);
+    expect(container.textContent).not.toMatch(/\[DEFLECT ✓\]|\[DEFLECT ✗\]/);
+  });
+
+  it('a DEFLECT_ATTEMPT with result DEFLECTED still renders [DEFLECT ✓] (regression guard for the rename)', () => {
+    setEventLog([
+      {
+        type: 'DEFLECT_ATTEMPT',
+        defenderId: 'away-1',
+        band: 'A',
+        die: 6,
+        tackling: 2,
+        result: 'DEFLECTED',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[DEFLECT ✓\]/);
+  });
+
+  it('a GK_KICK_MOVE event renders a prefix containing no glyph', () => {
+    setEventLog([
+      {
+        type: 'GK_KICK_MOVE',
+        slot: 'KICKER',
+        pieceId: 'away-0',
+        from: { q: 23, r: 7 },
+        to: { q: 24, r: 7 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    const entry = container.querySelector('[class*="prefix"]');
+    expect(entry?.textContent).not.toMatch(/✓/);
+    expect(entry?.textContent).not.toMatch(/✗/);
   });
 });
