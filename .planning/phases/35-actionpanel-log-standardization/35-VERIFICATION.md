@@ -1,8 +1,8 @@
 ---
 phase: 35-actionpanel-log-standardization
-verified: 2026-07-27T21:54:51Z
-status: human_needed
-score: 27/27 must-haves verified (programmatic evidence)
+verified: 2026-07-27T22:45:23Z
+status: passed
+score: 27/27 must-haves verified (programmatic evidence) + 3/3 human verification checks passed
 overrides_applied: 0
 re_verification:
   previous_status: human_needed
@@ -18,21 +18,21 @@ re_verification:
 human_verification:
   - test: "Step through at least 8-10 of ActionPanel's ~18 phase states (MOVE, HIGH_PASS_MOVE, GK_RESTART, HEADER contest, PASS chooser, PASS target prompt, FREE_MOVE, SNAPSHOT_DEFLECT, a waiting/non-active-player state, KickOffSetupPanel, FreeKickSetupPanel) and confirm the heading/helper/Confirm/Keeper system reads naturally, now with the 5 reworded strings (centered KickOffSetupPanel text, human-friendly centre-hex/placement guidance, the move/pass/shoot action-chooser line, and the 'Position for Kick!' FREE_MOVE title) in place."
     expected: 'Every state shows one heading, one short title line, one detail line, and a single Confirm-labeled CTA; the specific wording just changed by plan 35-06 reads naturally in the context of a real phase sequence, not just in isolated unit-test assertions.'
-    why_human: '35-UAT.md test 2 originally flagged 5 concrete wording/alignment complaints from a real walkthrough; those 5 are now fixed at the source level (verified below), but only a human re-walking the same sequence can confirm the fixes read naturally together and that no new complaint surfaces from the reworded copy.'
+    result: 'PASS — confirmed 2026-07-27T22:45:23Z via 35-UAT.md test 1 (commit b3592df).'
   - test: 'Confirm each ActionPanel/ActionLog-area container (ActionLog, ActionPanel confirmCard, FreeKickSetupPanel confirmCard, ReplayPanel, SideLog collapsed/expanded strip) still reads as visually distinct from the pitch now that all frame borders are removed.'
     expected: "Each panel is still legible and visually separated from the pitch by its background color alone (var(--color-bg-surface)) — no panel looks like it 'floats' or bleeds into the board with no border."
-    why_human: '35-UAT.md test 1 (border removal legibility) was never executed — testing paused after test 2 surfaced issues. This is a purely visual affordance check that grep/stylelint cannot answer.'
+    result: 'PASS — confirmed 2026-07-27T22:45:23Z via 35-UAT.md test 2 (commit b3592df).'
   - test: "Confirm the CTA color transition (orange->green) is visually distinguishable against the charcoal/graphite background for all five newly-converted phases (HIGH_PASS_MOVE, FIRST_TIME_PASS_MOVE, SNAPSHOT_DEFLECT, GK_KICK_MOVE, FREE_MOVE) plus FreeKickSetupPanel's Confirm button, matching the pre-existing MOVE/HEADER look."
     expected: 'The pending (orange) and ready (green) states are as visually obvious in these five phases as they already are in MOVE/HEADER.'
-    why_human: '35-UAT.md test 3 was never executed — testing paused after test 2. Color rendering and perceptual distinctness cannot be verified by source/class-name assertions alone.'
+    result: 'PASS — confirmed 2026-07-27T22:45:23Z via 35-UAT.md test 3 (commit b3592df).'
 ---
 
 # Phase 35: ActionPanel & Log Standardization Verification Report (Gap-Closure Pass)
 
 **Phase Goal:** Standardize ActionPanel/ActionLog and the same-slot sibling panels (KickOffSetupPanel, FreeKickSetupPanel, ReplayPanel) onto one consistent heading/CTA-color/waiting-copy/log-language system, and close the 5 diagnosed UAT gaps from 35-UAT.md test 2.
-**Verified:** 2026-07-27T21:54:51Z
-**Status:** human_needed
-**Re-verification:** Yes — gap-closure pass after plan 35-06 (5 gaps from 35-UAT.md test 2)
+**Verified:** 2026-07-27T22:45:23Z (human verification completed via 35-UAT.md, commit b3592df)
+**Status:** passed
+**Re-verification:** Yes — gap-closure pass after plan 35-06 (5 gaps from 35-UAT.md test 2), followed by full human UAT pass (3/3 tests)
 
 ## Goal Achievement
 
@@ -95,15 +95,15 @@ No `TBD`/`FIXME`/`XXX` debt markers in any file touched by plan 35-06. The curre
 
 ### Human Verification Required
 
-See frontmatter `human_verification` for the structured form. `35-UAT.md` shows testing paused after test 2 surfaced the 5 now-closed issues — tests 1 (border-removal legibility) and 3 (CTA color-transition visibility) were never executed and remain outstanding regardless of this gap-closure pass. Additionally, since test 2's specific complaints are now fixed at the source, a human should re-walk the same phase sequence to confirm the reworded copy (centered KickOffSetupPanel status rows, human-friendly guidance text, the move/pass/shoot chooser line, "Position for Kick!") reads naturally together and that no new complaint surfaces.
+Resolved. See frontmatter `human_verification` for the structured form — all 3 checks (real-sequence copy walkthrough, border-removal legibility, CTA color-transition visibility) were run to completion in `35-UAT.md` (2026-07-27T22:45:23Z) and all passed. Commit `b3592df`.
 
 ### Gaps Summary
 
 All 5 gaps diagnosed in `35-UAT.md` from test 2 are closed and verified against current source: KickOffSetupPanel's heading/constraint-row text is centered; its centre-hex and placement status rows use human-friendly guidance instead of raw validation labels; ActionPanel's action-chooser detail line names move/pass/shoot; and the FREE_MOVE title reads "Position for Kick!". Full client test suite (472/472), typecheck, and stylelint are green, and the 3 relevant test files (`KickOffSetupPanel.test.tsx`, `ActionPanel.test.tsx`) pass with updated assertions matching the new copy. No regressions were found in the 23 previously-verified phase truths.
 
-The phase is not yet fully `passed` because `35-UAT.md`'s tests 1 and 3 were never executed (testing paused before reaching them) and test 2's fix should be re-walked in context — these are the same category of visual/perceptual checks the initial phase verification already flagged as requiring a human, now narrowed to exactly what `35-UAT.md` left outstanding.
+The phase is now fully `passed`: `35-UAT.md`'s tests 1 and 3 (previously unexecuted) and the re-walk of test 2's fix have all been run and passed (3/3), closing out the last human-judgment items this phase needed.
 
 ---
 
-_Verified: 2026-07-27T21:54:51Z_
+_Verified: 2026-07-27T22:45:23Z_
 _Verifier: Claude (gsd-verifier)_
