@@ -478,11 +478,11 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const shotPrefixColor = event.shooterId ? pieceColorOf(event.shooterId) : null;
 
       if (event.shooterScore === null) {
-        // No duel ran: GK out of range — automatic goal
+        // No duel ran: keeper out of range — automatic goal
         shotContent = (
           <>
             {' '}
-            {shooterLabel} GOAL — GK out of range (die:{event.shooterDie})
+            {shooterLabel} Goal — keeper out of range (die:{event.shooterDie})
           </>
         );
       } else if (event.handlingDie !== null) {
@@ -731,7 +731,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            <P pieceId={event.gkId} prefix="GK" /> → {event.targetHex.q},{event.targetHex.r} — die:
+            <P pieceId={event.gkId} prefix="K" /> → {event.targetHex.q},{event.targetHex.r} — die:
             {event.kickDie}+{event.kickScore - event.kickDie}={event.kickScore}
             {accurate ? ' ACCURATE' : ' inaccurate — loose ball'}
           </>
@@ -834,7 +834,6 @@ export function ActionLog() {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.panelHeader}>ACTION LOG</div>
       {recent.length === 0 ? (
         <p className={styles.empty}>No actions yet.</p>
       ) : (

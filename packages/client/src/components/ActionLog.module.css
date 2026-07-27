@@ -1,18 +1,9 @@
 .panel {
   background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 8px;
   overflow-y: auto;
   flex-grow: 1;
-}
-
-.panelHeader {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
 }
 
 .entry {

@@ -617,6 +617,57 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
 // fields; both server emission paths always populate them; the client render
 // already appends '— {rangeLabel}, {rollStr}' unconditionally. This test locks
 // the format for both bands to prevent regression.
+describe('ActionLog — D-01/D-03/D-10: panel chrome and keeper terminology', () => {
+  it('renders no ACTION LOG heading text (D-10: duplicate header removed)', () => {
+    setEventLog([]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).not.toMatch(/ACTION LOG/i);
+  });
+
+  it('a GK_KICK entry renders "K #" not "GK #" (D-03)', () => {
+    setEventLog([
+      {
+        type: 'GK_KICK',
+        gkId: 'away-0',
+        targetHex: { q: 23, r: 7 },
+        accurate: true,
+        kickDie: 4,
+        kickScore: 6,
+        timestamp: 0,
+        ballAfter: { position: { q: 23, r: 7 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\bK #/);
+    expect(container.textContent).not.toMatch(/\bGK #/);
+  });
+
+  it('a SHOT_ATTEMPT with shooterScore null renders "Goal — keeper out of range" not "GK out of range" (D-03/D-11)', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        gkId: 'away-0',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'GOAL',
+        shooterDie: 6,
+        shooterScore: null,
+        gkDie: 0,
+        gkScore: null,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: 0,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Goal — keeper out of range/);
+    expect(container.textContent).not.toMatch(/GK out of range/);
+  });
+});
+
 describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent failed-to-deflect format', () => {
   it('band A NO_DEFLECT renders "failed to deflect — close range, die X"', () => {
     setEventLog([
