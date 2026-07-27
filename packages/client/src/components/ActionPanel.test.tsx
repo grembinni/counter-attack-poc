@@ -221,10 +221,9 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    // UX-10: line-1 explains the mechanic; line-2 shows eligible-player count
-    expect(
-      screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
-    ).toBeDefined();
+    // PANEL-01: line-1 is a short title; line-2 explains the mechanic + eligible-player count
+    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
@@ -236,10 +235,9 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 2, // away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
-    // UX-10: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
-    expect(
-      screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
-    ).toBeDefined();
+    // PANEL-01: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
+    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
@@ -539,8 +537,49 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
     render(<ActionPanel />);
     expect(screen.getByText('Kick-Off!')).toBeDefined();
     expect(screen.getByText(/centre/i)).toBeDefined();
-    expect(screen.getByText('Choose Action')).toBeDefined();
+    expect(screen.queryByText(/Choose an Action/i)).toBeNull();
     expect(screen.getByRole('button', { name: /standard pass/i })).toBeDefined();
+  });
+});
+
+// PANEL-01: every ActionPanel phase state renders exactly one helperBlock with a short
+// title line and a detail line — these four outliers previously broke that convention.
+describe('ActionPanel — PANEL-01: uniform two-line helper blocks', () => {
+  it('non-kick-off PASS chooser renders "Choose an Action!" and the select-how-to-move detail', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Choose an Action!')).toBeDefined();
+    expect(screen.getByText('Select how to move or use the ball.')).toBeDefined();
+  });
+
+  it('PASS step-2 prompt renders "Standard Pass!" and "Click a target hex."', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Standard Pass!')).toBeDefined();
+    expect(screen.getByText('Click a target hex.')).toBeDefined();
+  });
+
+  it('SNAPSHOT_DEFLECT renders the em-dash title, not the ASCII-hyphen variant', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'away',
+        attackingTeam: 'home',
+      },
+      playerSlot: 2, // away — defending team here
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Snapshot — Deflection Attempt!')).toBeDefined();
+    expect(screen.queryByText(/Snapshot - Deflection/)).toBeNull();
   });
 });
 

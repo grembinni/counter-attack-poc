@@ -647,11 +647,10 @@ export function ActionPanel() {
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>
-            Ball entered the opposite final third — your backline can reposition up to 6 hexes
-            regardless of remaining pace.
+          <span className={styles.helperLine1}>Free Move!</span>
+          <span className={styles.helperLine2}>
+            {`${remaining} players still eligible to move — up to 6 hexes each, regardless of remaining pace.`}
           </span>
-          <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
         <button
           className={`${styles.ctaButton} ${ctaClass(remaining)}`}
@@ -734,16 +733,16 @@ export function ActionPanel() {
 
       return (
         <PanelShell wide={actionCount >= 5}>
-          {isKickOff && (
-            <div className={styles.helperBlock}>
-              <span className={styles.helperLine1}>Kick-Off!</span>
-              <span className={styles.helperLine2}>
-                Play starts with a Standard Pass from the centre circle — the only legal opening
-                action.
-              </span>
-            </div>
-          )}
-          <span className={styles.phaseLabel}>Choose Action</span>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>
+              {isKickOff ? 'Kick-Off!' : 'Choose an Action!'}
+            </span>
+            <span className={styles.helperLine2}>
+              {isKickOff
+                ? 'Play starts with a Standard Pass from the centre circle — the only legal opening action.'
+                : 'Select how to move or use the ball.'}
+            </span>
+          </div>
           {!isKickOff && eligible.has('MOVEMENT') && (
             <button
               className={styles.ctaButton}
@@ -822,9 +821,10 @@ export function ActionPanel() {
     if (passTargetHex === null) {
       return (
         <PanelShell>
-          <span className={styles.phaseLabel}>
-            {PASS_TYPE_LABELS[selectedPassType]} — click a target hex
-          </span>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>{`${PASS_TYPE_LABELS[selectedPassType]}!`}</span>
+            <span className={styles.helperLine2}>Click a target hex.</span>
+          </div>
           <button className={styles.backButton} onClick={() => setSelectedPassType(null)}>
             ← Back
           </button>
