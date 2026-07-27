@@ -131,7 +131,7 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
     lastDiceRoll: null,
   };
 
-  it('active player sees helper text and both Undo and End Turn buttons', () => {
+  it('active player sees helper text and both Undo and Confirm buttons', () => {
     useGameStore.setState({
       gameState: ftpBaseState,
       playerSlot: 1,
@@ -140,7 +140,7 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
     expect(screen.getByText('First-Time Pass!')).toBeDefined();
     expect(screen.getByText('Move 1 player to receive the ball (max 1 hex).')).toBeDefined();
     expect(screen.getByRole('button', { name: /undo/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
   it('Undo is disabled when no FTP_REPOSITION event in log', () => {
@@ -215,7 +215,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     freeMoveEligibleIds: { attack: [], defense: ['away-0'] },
   };
 
-  it('active player sees the Free Move helper text (attacking team) and an End Turn button', () => {
+  it('active player sees the Free Move helper text (attacking team) and a Confirm button', () => {
     useGameStore.setState({
       gameState: freeMoveAttackBaseState,
       playerSlot: 1,
@@ -226,7 +226,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
     ).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 
@@ -241,10 +241,10 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
     ).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
-  it('clicking End Turn with remaining players opens confirm dialog, Confirm calls emitEndTurn during FREE_MOVE_ATTACK', () => {
+  it('clicking Confirm with remaining players opens confirm dialog, Yes end turn calls emitEndTurn during FREE_MOVE_ATTACK', () => {
     const emitEndTurn = vi.fn();
     useGameStore.setState({
       emitEndTurn,
@@ -252,13 +252,13 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    // UX-08: eligibleRemaining > 0 → click End Turn opens the confirm dialog, not emit directly
-    fireEvent.click(screen.getByRole('button', { name: /end turn/i }));
+    // UX-08: eligibleRemaining > 0 → click Confirm opens the confirm dialog, not emit directly
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
     // Dialog appears with confirm prompt
     expect(screen.getByText(/are you sure you want to end your turn\?/i)).toBeDefined();
     expect(emitEndTurn).not.toHaveBeenCalled();
-    // Confirm button invokes the deferred action
-    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
+    // Dialog affirm button invokes the deferred action
+    fireEvent.click(screen.getByRole('button', { name: /yes, end turn/i }));
     expect(emitEndTurn).toHaveBeenCalledOnce();
   });
 
@@ -270,7 +270,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
     expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
-    expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
   });
 
   it('non-active player sees the waiting panel during FREE_MOVE_DEFENSE', () => {
@@ -281,7 +281,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
     expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
-    expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
   });
 });
 
@@ -544,10 +544,10 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
   });
 });
 
-// BUG-25: MOVE End Turn button color must use ctaButtonClass(remaining) —
+// BUG-25: MOVE Confirm button color must use ctaButtonClass(remaining) —
 // pending (orange) while move options remain, ready (green) when slot is exhausted.
-describe('ActionPanel — BUG-25: MOVE End Turn button color driven by ctaButtonClass', () => {
-  it('End Turn button has pending class when remaining > 0 (not all players moved)', () => {
+describe('ActionPanel — BUG-25: MOVE Confirm button color driven by ctaButtonClass', () => {
+  it('Confirm button has pending class when remaining > 0 (not all players moved)', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -560,13 +560,13 @@ describe('ActionPanel — BUG-25: MOVE End Turn button color driven by ctaButton
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     // ctaButtonClass(remaining=4) returns styles.ctaButtonPending
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 
-  it('End Turn button has ready class when remaining <= 0 (all slot players moved)', () => {
+  it('Confirm button has ready class when remaining <= 0 (all slot players moved)', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -585,14 +585,14 @@ describe('ActionPanel — BUG-25: MOVE End Turn button color driven by ctaButton
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     // ctaButtonClass(remaining=0) returns styles.ctaButtonReady
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 });
 
-// BUG-31 (D-03/D-04/D-05): remaining and the End Turn button color must update the moment a
+// BUG-31 (D-03/D-04/D-05): remaining and the Confirm button color must update the moment a
 // piece takes its first hex step (paceUsedByPieceId[id] > 0), not only once the piece is fully
 // activated (pace exhausted + locked into movedPieceIds). Undo must revert this in the same
 // render, since applyUndo already deletes the piece's paceUsedByPieceId entry server-side.
@@ -634,7 +634,7 @@ describe('ActionPanel — BUG-31: remaining/button update on first step, not ful
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
@@ -654,17 +654,17 @@ describe('ActionPanel — BUG-31: remaining/button update on first step, not ful
     });
     render(<ActionPanel />);
     expect(screen.getByText('4 of 4 players left to move.')).toBeDefined();
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 });
 
 // D-02/D-06: every phase CTA that tracks its own eligible-remaining count must derive its
-// End Turn button color from the shared ctaColorClass helper (via the ctaClass adapter),
+// Confirm button color from the shared ctaColorClass helper (via the ctaClass adapter),
 // mirroring the BUG-25 MOVE-phase two-way assertion shape for the five remaining phases.
 describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorClass', () => {
-  it('HIGH_PASS_MOVE: End Turn is pending when highPassMovedPieceId is null', () => {
+  it('HIGH_PASS_MOVE: Confirm is pending when highPassMovedPieceId is null', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -676,12 +676,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 
-  it('HIGH_PASS_MOVE: End Turn is ready when highPassMovedPieceId is set', () => {
+  it('HIGH_PASS_MOVE: Confirm is ready when highPassMovedPieceId is set', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -693,12 +693,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 
-  it('FIRST_TIME_PASS_MOVE: End Turn is pending when firstTimePassMovedPieceId is null', () => {
+  it('FIRST_TIME_PASS_MOVE: Confirm is pending when firstTimePassMovedPieceId is null', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -710,12 +710,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 
-  it('FIRST_TIME_PASS_MOVE: End Turn is ready when firstTimePassMovedPieceId is set', () => {
+  it('FIRST_TIME_PASS_MOVE: Confirm is ready when firstTimePassMovedPieceId is set', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -727,12 +727,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 
-  it('SNAPSHOT_DEFLECT: End Turn is pending when snapDeflectMovedPieceId is null', () => {
+  it('SNAPSHOT_DEFLECT: Confirm is pending when snapDeflectMovedPieceId is null', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -745,12 +745,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 2,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 
-  it('SNAPSHOT_DEFLECT: End Turn is ready when snapDeflectMovedPieceId is set', () => {
+  it('SNAPSHOT_DEFLECT: Confirm is ready when snapDeflectMovedPieceId is set', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -763,12 +763,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 2,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 
-  it('GK_KICK_MOVE: End Turn is pending when gkKickMovedPieceId is null', () => {
+  it('GK_KICK_MOVE: Confirm is pending when gkKickMovedPieceId is null', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -780,12 +780,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 
-  it('GK_KICK_MOVE: End Turn is ready when gkKickMovedPieceId is set', () => {
+  it('GK_KICK_MOVE: Confirm is ready when gkKickMovedPieceId is set', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -797,12 +797,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
   });
 
-  it('FREE_MOVE_ATTACK: End Turn is pending when eligible players remain (remaining > 0)', () => {
+  it('FREE_MOVE_ATTACK: Confirm is pending when eligible players remain (remaining > 0)', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -815,12 +815,12 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonPending');
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 
-  it('FREE_MOVE_ATTACK: End Turn is ready when all eligible players have moved (remaining <= 0)', () => {
+  it('FREE_MOVE_ATTACK: Confirm is ready when all eligible players have moved (remaining <= 0)', () => {
     useGameStore.setState({
       gameState: {
         ...mockMovementState,
@@ -833,8 +833,225 @@ describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorCl
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    const endTurnBtn = screen.getByRole('button', { name: /^confirm$/i });
     expect(endTurnBtn.className).toContain('ctaButtonReady');
     expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+});
+
+// D-07: every ActionPanel render site is wrapped in PanelShell, which always emits an
+// "Actions" heading as the first child — regardless of which phase-gated block is showing.
+describe('ActionPanel — D-07: every phase state renders the panel heading', () => {
+  it('waiting panel (non-active player) shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      playerSlot: 2, // away — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('MOVE phase shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('GK_RESTART phase shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('HEADER contest phase shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HEADER',
+        activeTeam: 'home',
+        headerAccuracyRollPending: false,
+        headerConfirmed: { home: false, away: false },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('PASS chooser (step 1) shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('PASS step-2 target prompt shows the Actions heading', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('confirm dialog does not add a second Actions heading inside its card', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    // remaining > 0 in this state, so clicking Confirm opens the confirm dialog
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
+    expect(screen.getByText(/are you sure you want to end your turn\?/i)).toBeDefined();
+    // Only the one PanelShell heading exists — the confirm dialog does not get its own.
+    expect(screen.getAllByText('Actions')).toHaveLength(1);
+  });
+});
+
+// D-08: every confirm-and-advance CTA in ActionPanel reads the single canonical "Confirm"
+// verb; the old "End Turn" wording is gone and the modal affirm reads "Yes, end turn" so the
+// two buttons are never simultaneously ambiguous when the dialog is open.
+describe('ActionPanel — D-08: single Confirm verb', () => {
+  it('MOVE phase: no button is named "End Turn"; exactly one is named "Confirm"', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /end turn/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
+  });
+
+  it('HEADER contest with a contestant selected: button reads exactly "Confirm", not "Confirm Selection"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HEADER',
+        activeTeam: 'home',
+        headerAccuracyRollPending: false,
+        headerConfirmed: { home: false, away: false },
+      },
+      playerSlot: 1,
+      headerContestantIds: ['home-9'],
+    });
+    render(<ActionPanel />);
+    const btn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(btn.textContent).toBe('Confirm');
+  });
+
+  it('HEADER contest with no contestant selected: button still reads "Decline (no contestant)"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HEADER',
+        activeTeam: 'home',
+        headerAccuracyRollPending: false,
+        headerConfirmed: { home: false, away: false },
+      },
+      playerSlot: 1,
+      headerContestantIds: [],
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /decline \(no contestant\)/i })).toBeDefined();
+  });
+
+  it('confirm dialog open in MOVE phase: Cancel, Yes end turn, and Confirm all present; Yes end turn calls emitEndTurn', () => {
+    const emitEndTurn = vi.fn();
+    useGameStore.setState({
+      emitEndTurn,
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        movementSlot: 'ATTACKER_4',
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /yes, end turn/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /yes, end turn/i }));
+    expect(emitEndTurn).toHaveBeenCalledOnce();
+  });
+});
+
+// D-03: ActionPanel's user-facing goalkeeper wording is standardized on "Keeper" —
+// never "Goalie" or "Goalkeeper".
+describe('ActionPanel — D-03: Keeper terminology', () => {
+  it('GK_RESTART for the keeper\'s team shows "Keeper Restart!" and no "Goalie" text', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper Restart!')).toBeDefined();
+    expect(screen.queryByText(/Goalie/i)).toBeNull();
+  });
+
+  it('the Punt (High Pass) button title uses "Keeper", not "Goalkeeper"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const puntBtn = screen.getByRole('button', { name: /punt \(high pass\)/i });
+    expect(puntBtn.title).toMatch(/^Keeper clears/);
+    expect(puntBtn.title).not.toMatch(/Goalkeeper/);
+  });
+
+  it('the Quick Throw button title uses "Keeper", not "Goalkeeper"', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const throwBtn = screen.getByRole('button', { name: /quick throw/i });
+    expect(throwBtn.title).toMatch(/^Keeper throws/);
+    expect(throwBtn.title).not.toMatch(/Goalkeeper/);
   });
 });

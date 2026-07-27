@@ -173,11 +173,11 @@ describe('GameBoard — LAYOUT-02: phase-aware action section and log toggle', (
     expect(screen.getByText(/^Replay$/i)).toBeDefined();
   });
 
-  it('renders ActionPanel (End Turn button) during MOVEMENT phase', () => {
+  it('renders ActionPanel (Confirm button) during MOVEMENT phase', () => {
     // mockMovementState is already MOVEMENT phase with playerSlot=1 (home team = active)
     render(<GameBoard />);
-    // ActionPanel renders "End Turn" button in MOVEMENT phase for the active player
-    expect(screen.getByText(/End Turn/i)).toBeDefined();
+    // ActionPanel renders "Confirm" button in MOVEMENT phase for the active player
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
   it('renders the log toggle chevron › button in the collapsed default state', () => {

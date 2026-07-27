@@ -11,10 +11,20 @@
 }
 
 /* Full-width items */
+.panelHeading,
 .phaseLabel,
 .gkLabel,
 .errorText {
   flex: 0 0 100%;
+}
+
+/* D-07: heading shown atop every ActionPanel render site via PanelShell — matches
+   FreeKickSetupPanel.module.css's .panelHeading declarations exactly. */
+.panelHeading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: center;
 }
 
 .ctaButton {
@@ -125,7 +135,6 @@
 
 .confirmCard {
   background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 16px;
   display: flex;
