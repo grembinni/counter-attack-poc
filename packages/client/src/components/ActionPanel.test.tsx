@@ -659,3 +659,182 @@ describe('ActionPanel — BUG-31: remaining/button update on first step, not ful
     expect(endTurnBtn.className).not.toContain('ctaButtonReady');
   });
 });
+
+// D-02/D-06: every phase CTA that tracks its own eligible-remaining count must derive its
+// End Turn button color from the shared ctaColorClass helper (via the ctaClass adapter),
+// mirroring the BUG-25 MOVE-phase two-way assertion shape for the five remaining phases.
+describe('ActionPanel — D-02: every phase CTA color-state driven by ctaColorClass', () => {
+  it('HIGH_PASS_MOVE: End Turn is pending when highPassMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HIGH_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        highPassMovedPieceId: null,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('HIGH_PASS_MOVE: End Turn is ready when highPassMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HIGH_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        highPassMovedPieceId: 'home-9',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('FIRST_TIME_PASS_MOVE: End Turn is pending when firstTimePassMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FIRST_TIME_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        firstTimePassMovedPieceId: null,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('FIRST_TIME_PASS_MOVE: End Turn is ready when firstTimePassMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FIRST_TIME_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        firstTimePassMovedPieceId: 'home-9',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('SNAPSHOT_DEFLECT: End Turn is pending when snapDeflectMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastDiceRoll: null,
+        snapDeflectMovedPieceId: null,
+      },
+      playerSlot: 2,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('SNAPSHOT_DEFLECT: End Turn is ready when snapDeflectMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        lastDiceRoll: null,
+        snapDeflectMovedPieceId: 'away-0',
+      },
+      playerSlot: 2,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('GK_KICK_MOVE: End Turn is pending when gkKickMovedPieceId is null', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_KICK_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        gkKickMovedPieceId: null,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('GK_KICK_MOVE: End Turn is ready when gkKickMovedPieceId is set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_KICK_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        gkKickMovedPieceId: 'home-9',
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('FREE_MOVE_ATTACK: End Turn is pending when eligible players remain (remaining > 0)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FREE_MOVE_ATTACK',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        freeMoveEligibleIds: { attack: ['home-9'], defense: [] },
+        freeMoveUsedPace: {},
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonPending');
+    expect(endTurnBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('FREE_MOVE_ATTACK: End Turn is ready when all eligible players have moved (remaining <= 0)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FREE_MOVE_ATTACK',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        freeMoveEligibleIds: { attack: ['home-9'], defense: [] },
+        freeMoveUsedPace: { 'home-9': 1 },
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const endTurnBtn = screen.getByRole('button', { name: /end turn/i });
+    expect(endTurnBtn.className).toContain('ctaButtonReady');
+    expect(endTurnBtn.className).not.toContain('ctaButtonPending');
+  });
+});

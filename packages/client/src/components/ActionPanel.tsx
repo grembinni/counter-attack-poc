@@ -8,6 +8,7 @@ import {
 import { useGameStore } from '../store/useGameStore.js';
 import type { PassType } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
+import { ctaColorClass } from '../utils/ctaColorClass.js';
 import styles from './ActionPanel.module.css';
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
@@ -38,13 +39,18 @@ const ACTION_SUMMARY: Record<string, string> = {
 // GOAL_R_VALUES imported from @counter-attack/shared — single source of truth for goal row positions
 
 /**
- * UX-08: CTA button color-state selector (mirrors GameBoard's statBubbleClass pattern).
+ * D-02/D-06: CTA button color-state selector (mirrors GameBoard's statBubbleClass pattern).
  * Returns .ctaButtonReady (green) when all eligible pieces have moved/placed,
- * .ctaButtonPending (orange) while any eligible piece remains unmoved.
+ * .ctaButtonPending (orange) while any eligible piece remains unmoved. The
+ * color-state logic itself now lives in `packages/client/src/utils/ctaColorClass.ts`
+ * — this is a thin module-local adapter that names ActionPanel's own CSS-module
+ * class names exactly once so call sites stay terse.
  */
-function ctaButtonClass(eligibleRemaining: number): string {
-  return eligibleRemaining <= 0 ? (styles.ctaButtonReady ?? '') : (styles.ctaButtonPending ?? '');
-}
+const ctaClass = (eligibleRemaining: number): string =>
+  ctaColorClass(eligibleRemaining, {
+    ready: styles.ctaButtonReady,
+    pending: styles.ctaButtonPending,
+  });
 
 /**
  * Phase-gated, active-player-gated action controls.
@@ -269,7 +275,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(hpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(hpmEligibleRemaining, emitEndTurn)}
         >
@@ -309,7 +315,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(ftpmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(ftpmEligibleRemaining, emitEndTurn)}
         >
@@ -364,7 +370,7 @@ export function ActionPanel() {
           </span>
         </div>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(sdEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(sdEligibleRemaining, emitEndTurn)}
         >
@@ -429,7 +435,7 @@ export function ActionPanel() {
               const headerEligibleRemaining = headerContestantIds.length > 0 ? 0 : 1;
               return (
                 <button
-                  className={`${styles.ctaButton} ${ctaButtonClass(headerEligibleRemaining)}`}
+                  className={`${styles.ctaButton} ${ctaClass(headerEligibleRemaining)}`}
                   onClick={withEndTurnConfirm(headerEligibleRemaining, () =>
                     emitHeaderContestant(headerContestantIds),
                   )}
@@ -569,7 +575,7 @@ export function ActionPanel() {
           </span>
         </div>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(gkmEligibleRemaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(gkmEligibleRemaining, emitEndTurn)}
         >
@@ -607,7 +613,7 @@ export function ActionPanel() {
           <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
         <button
-          className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+          className={`${styles.ctaButton} ${ctaClass(remaining)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(remaining, emitEndTurn)}
         >
@@ -858,7 +864,7 @@ export function ActionPanel() {
           Undo
         </button>
         <button
-          className={`${styles.ctaButton} ${ctaButtonClass(remaining ?? 0)}`}
+          className={`${styles.ctaButton} ${ctaClass(remaining ?? 0)}`}
           title={ACTION_SUMMARY['End Turn']}
           onClick={withEndTurnConfirm(remaining ?? 0, emitEndTurn)}
         >
