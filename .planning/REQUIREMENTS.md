@@ -22,10 +22,10 @@
 
 ### ActionPanel & Log Standardization (PANEL)
 
-- [ ] **PANEL-01**: ActionPanel and ActionLog help text follows one consistent format and tone across every game phase
+- [x] **PANEL-01**: ActionPanel and ActionLog help text follows one consistent format and tone across every game phase
 - [ ] **PANEL-02**: No component in the ActionPanel/ActionLog area uses a border for framing
 - [ ] **PANEL-03**: All ActionPanel buttons share consistent sizing, color-state logic, and interaction behavior across phases
-- [ ] **PANEL-04**: Terminology and phrasing are consistent across all ActionPanel/ActionLog states
+- [x] **PANEL-04**: Terminology and phrasing are consistent across all ActionPanel/ActionLog states
 
 ### Code Cleanup (CLEANUP)
 
@@ -76,10 +76,10 @@
 | HILITE-03   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | HILITE-04   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
 | HILITE-05   | Phase 33 — Design Tokens & Highlight Standardization | Complete |
-| PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
+| PANEL-01    | Phase 35 — ActionPanel & Log Standardization         | Complete |
 | PANEL-02    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
 | PANEL-03    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
-| PANEL-04    | Phase 35 — ActionPanel & Log Standardization         | Pending  |
+| PANEL-04    | Phase 35 — ActionPanel & Log Standardization         | Complete |
 | CLEANUP-01  | Phase 32 — Code Cleanup                              | Complete |
 | CLEANUP-02  | Phase 32 — Code Cleanup                              | Complete |
 | CLEANUP-03  | Phase 32 — Code Cleanup                              | Complete |
