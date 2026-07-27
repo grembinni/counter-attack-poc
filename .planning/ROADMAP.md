@@ -116,7 +116,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | 31    | Bug Fixes                                 | 6/6      | Complete    |
 | 32    | Code Cleanup                              | 6/6      | Complete    |
 | 33    | Design Tokens & Highlight Standardization | 7/7      | Complete    |
-| 34    | 4/4                                       | Complete | 2026-07-26  |
+| 34    | 5/5                                       | Complete | 2026-07-27  |
 | 35    | ActionPanel & Log Standardization         | TBD      | Not started |
 
 ### Phase 31: Bug Fixes
@@ -217,7 +217,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
    - [x] 34-02-PLAN.md — AA-safe team-accent derivation function (TDD, THEME-04) [Wave 2]
    - [x] 34-03-PLAN.md — Contrast-check CI script + stylelint/check-contrast CI wiring (THEME-04, THEME-02) [Wave 3]
    - [x] 34-04-PLAN.md — Charcoal/graphite palette value swap + GameBoard accent wiring + visual verify (THEME-01, THEME-04) [Wave 4]
-   - [ ] 34-05-PLAN.md — Gap closure (UAT tests 3, 8): migrate Team-Select/Roster Confirm buttons to the shared CTA color pattern + add Roster not-ready state (THEME-01) [Wave 1]
+   - [x] 34-05-PLAN.md — Gap closure (UAT tests 3, 8): migrate Team-Select/Roster Confirm buttons to the shared CTA color pattern + add Roster not-ready state (THEME-01) [Wave 1]
          **UI hint**: yes
 
 ### Phase 35: ActionPanel & Log Standardization
