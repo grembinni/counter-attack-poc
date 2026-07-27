@@ -215,28 +215,28 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     freeMoveEligibleIds: { attack: [], defense: ['away-0'] },
   };
 
-  it('active player sees the Free Move helper text (attacking team) and a Confirm button', () => {
+  it('active player sees the Position for Kick helper text (attacking team) and a Confirm button', () => {
     useGameStore.setState({
       gameState: freeMoveAttackBaseState,
       playerSlot: 1,
     });
     render(<ActionPanel />);
     // PANEL-01: line-1 is a short title; line-2 explains the mechanic + eligible-player count
-    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText('Position for Kick!')).toBeDefined();
     expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 
-  it('active player sees the Free Move helper text (defending team) during FREE_MOVE_DEFENSE', () => {
+  it('active player sees the Position for Kick helper text (defending team) during FREE_MOVE_DEFENSE', () => {
     useGameStore.setState({
       gameState: freeMoveDefenseBaseState,
       playerSlot: 2, // away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
     // PANEL-01: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
-    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText('Position for Kick!')).toBeDefined();
     expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
@@ -545,7 +545,7 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
 // PANEL-01: every ActionPanel phase state renders exactly one helperBlock with a short
 // title line and a detail line — these four outliers previously broke that convention.
 describe('ActionPanel — PANEL-01: uniform two-line helper blocks', () => {
-  it('non-kick-off PASS chooser renders "Choose an Action!" and the select-how-to-move detail', () => {
+  it('non-kick-off PASS chooser renders "Choose an Action!" and the move/pass/shoot detail', () => {
     useGameStore.setState({
       gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
       selectedPassType: null,
@@ -553,7 +553,7 @@ describe('ActionPanel — PANEL-01: uniform two-line helper blocks', () => {
     });
     render(<ActionPanel />);
     expect(screen.getByText('Choose an Action!')).toBeDefined();
-    expect(screen.getByText('Select how to move or use the ball.')).toBeDefined();
+    expect(screen.getByText('Move a player, pass to a teammate, or take a shot.')).toBeDefined();
   });
 
   it('PASS step-2 prompt renders "Standard Pass!" and "Click a target hex."', () => {

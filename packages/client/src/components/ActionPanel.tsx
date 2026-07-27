@@ -647,7 +647,7 @@ export function ActionPanel() {
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Free Move!</span>
+          <span className={styles.helperLine1}>Position for Kick!</span>
           <span className={styles.helperLine2}>
             {`${remaining} players still eligible to move — up to 6 hexes each, regardless of remaining pace.`}
           </span>
@@ -740,7 +740,7 @@ export function ActionPanel() {
             <span className={styles.helperLine2}>
               {isKickOff
                 ? 'Play starts with a Standard Pass from the centre circle — the only legal opening action.'
-                : 'Select how to move or use the ball.'}
+                : 'Move a player, pass to a teammate, or take a shot.'}
             </span>
           </div>
           {!isKickOff && eligible.has('MOVEMENT') && (
