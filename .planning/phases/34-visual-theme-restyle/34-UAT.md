@@ -73,20 +73,9 @@ blocked: 0
   severity: cosmetic
   test: 3
   root_cause: "UniformSelectionScreen (the screen users actually experience as 'Team Select' — TeamSelectionScreen.tsx is dead/unreachable code since Phase 22) and LineupAssignmentScreen ('Roster') define bespoke, duplicated Confirm-button classes (.confirmButtonYellow/.confirmButtonGreen) instead of reusing the shared .ctaButton/.ctaButtonPending/.ctaButtonReady class family used everywhere else in the app. Prior fix commits (1a9d2b9, f827e95, already merged) added the --color-border-muted outline to these bespoke classes, but never reconciled their background-color tokens: not-ready state uses --color-confirm-pending-bg (#eab308 bright yellow/gold) instead of the canonical --color-cta-pending-bg (#f39c12) / grey-surface pattern, and ready state uses --color-success (#22c55e) instead of --color-cta-ready-bg (#27ae60). LineupAssignmentScreen also has no true not-ready visual state in code."
-  artifacts:
-  - path: "packages/client/src/components/UniformSelectionScreen.module.css"
-    issue: ".confirmButtonYellow (lines ~223-238) and .confirmButtonGreen (lines ~244-260) use --color-confirm-pending-bg/--color-success instead of the canonical --color-cta-pending-bg/--color-cta-ready-bg tokens"
-  - path: "packages/client/src/components/LineupAssignmentScreen.module.css"
-    issue: ".confirmButtonGreen (lines ~60-77) uses --color-success instead of --color-cta-ready-bg; no not-ready/pending variant class exists"
-  - path: "packages/client/src/components/ActionPanel.module.css"
-    issue: "reference pattern — canonical .ctaButton/.ctaButtonPending/.ctaButtonReady (lines ~20-42, ~158-177)"
-  - path: "packages/client/src/styles/tokens.css"
-    issue: "two unreconciled token pairs coexist (lines ~50-91): --color-success vs --color-cta-ready-bg; --color-confirm-pending-bg vs --color-cta-pending-bg"
-    missing:
-  - "Migrate UniformSelectionScreen's .confirmButtonYellow/.confirmButtonGreen background-color to --color-cta-pending-bg / --color-cta-ready-bg (keep existing --color-border-muted border)"
-  - "Migrate LineupAssignmentScreen's .confirmButtonGreen background-color to --color-cta-ready-bg (keep existing border)"
-  - "Add a genuine not-ready visual state to LineupAssignmentScreen's Confirm button matching the canonical pending pattern, rather than hiding/always-rendering green"
-    debug_session: ".planning/debug/team-roster-confirm-button-outline-mismatch.md"
+  artifacts: ["packages/client/src/components/UniformSelectionScreen.module.css — .confirmButtonYellow (~223-238) / .confirmButtonGreen (~244-260) use --color-confirm-pending-bg/--color-success instead of --color-cta-pending-bg/--color-cta-ready-bg", "packages/client/src/components/LineupAssignmentScreen.module.css — .confirmButtonGreen (~60-77) uses --color-success instead of --color-cta-ready-bg; no not-ready/pending variant class exists", "packages/client/src/components/ActionPanel.module.css — reference pattern: canonical .ctaButton/.ctaButtonPending/.ctaButtonReady (~20-42, ~158-177)", "packages/client/src/styles/tokens.css — two unreconciled token pairs coexist (~50-91): --color-success vs --color-cta-ready-bg; --color-confirm-pending-bg vs --color-cta-pending-bg"]
+  missing: ["Migrate UniformSelectionScreen's .confirmButtonYellow/.confirmButtonGreen background-color to --color-cta-pending-bg / --color-cta-ready-bg (keep existing --color-border-muted border)", "Migrate LineupAssignmentScreen's .confirmButtonGreen background-color to --color-cta-ready-bg (keep existing border)", "Add a genuine not-ready visual state to LineupAssignmentScreen's Confirm button matching the canonical pending pattern, rather than hiding/always-rendering green"]
+  debug_session: ".planning/debug/team-roster-confirm-button-outline-mismatch.md"
 
 - truth: "The Confirm button on the Uniform Selection screen shows the same visible outline as other action buttons across the app (consistent styling)."
   status: failed
@@ -94,11 +83,6 @@ blocked: 0
   severity: cosmetic
   test: 8
   root_cause: "Duplicate of the test-3 gap — same root cause: UniformSelectionScreen's/LineupAssignmentScreen's bespoke .confirmButtonYellow/.confirmButtonGreen classes have the correct border (already patched) but the wrong background-color tokens (--color-confirm-pending-bg/--color-success instead of --color-cta-pending-bg/--color-cta-ready-bg)."
-  artifacts:
-  - path: "packages/client/src/components/UniformSelectionScreen.module.css"
-    issue: "same as test-3 gap"
-  - path: "packages/client/src/components/LineupAssignmentScreen.module.css"
-    issue: "same as test-3 gap"
-    missing:
-  - "Same fix as test-3 gap — single fix closes both gaps"
-    debug_session: ".planning/debug/team-roster-confirm-button-outline-mismatch.md"
+  artifacts: ["packages/client/src/components/UniformSelectionScreen.module.css — same as test-3 gap", "packages/client/src/components/LineupAssignmentScreen.module.css — same as test-3 gap"]
+  missing: ["Same fix as test-3 gap — single fix closes both gaps"]
+  debug_session: ".planning/debug/team-roster-confirm-button-outline-mismatch.md"
