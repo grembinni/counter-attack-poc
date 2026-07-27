@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: UX Refresh & Code Cleanup
 status: executing
-stopped_at: Phase 35 context gathered
-last_updated: '2026-07-27T21:24:17.204Z'
-last_activity: 2026-07-27 -- Phase 35 execution started
+stopped_at: Phase 35 gap-closure executed; awaiting human UAT (35-UAT.md)
+last_updated: '2026-07-27T22:26:34.096Z'
+last_activity: 2026-07-27 -- Completed quick task 260727-o85: Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)
 progress:
   total_phases: 5
   completed_phases: 4
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 35 (actionpanel-log-standardization) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 35
-Last activity: 2026-07-27 -- Phase 35 execution started
+Phase: 35 (actionpanel-log-standardization) — AWAITING HUMAN UAT
+Plan: 6 of 6 (all plans executed and code-reviewed)
+Status: All automated checks passed (27/27 must-haves); 3 human-verification items pending in 35-UAT.md — run /gsd-verify-work 35
+Last activity: 2026-07-27 -- Completed quick task 260727-o85: Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)
 
 ## Project Reference
 
@@ -226,6 +226,7 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 | 260621-h32             | 2026-06-21 | SHOT/SAVE vs-format parity with TACKLE (added gkId); renamed [GK_KICK_K]/[GK KICK] prefixes; tripled retained log entries 10→30; removed kickoffDebug.test.ts console.log noise                                |
 | 260621-hnd             | 2026-06-21 | Removed last D/A role-letter prefixes (DEFLECT_ATTEMPT, STEAL_ATTEMPT x2, uncontested HEADER); fixed SNAPSHOT raw home/away id leak — resolves to PNamed player name                                           |
 | 260727-9f1             | 2026-07-27 | Fixed v1.5 milestone-audit doc drift: ROADMAP.md malformed Phase 34 row + stale Progress table, REQUIREMENTS.md THEME-01/04 checkboxes, 34-VERIFICATION.md stale status, HIGHLIGHT-REFERENCE.md opacity values |
+| 260727-o85             | 2026-07-27 | Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)                                                                                          |
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
