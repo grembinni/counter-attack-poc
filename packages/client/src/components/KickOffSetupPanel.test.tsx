@@ -117,9 +117,9 @@ describe('KickOffSetupPanel — placement status copy', () => {
     expect(screen.getByText('Setup your players for kickoff.')).toBeDefined();
   });
 
-  it('does not render the old "All your players are in a legal position." copy', () => {
+  it('does not render the retired "legal position" placement copy', () => {
     render(<KickOffSetupPanel />);
-    expect(screen.queryByText('All your players are in a legal position.')).toBeNull();
+    expect(screen.queryByText(/legal position/i)).toBeNull();
   });
 
   it('renders the out-of-position message, unchanged, when a piece is outside the legal zone', () => {

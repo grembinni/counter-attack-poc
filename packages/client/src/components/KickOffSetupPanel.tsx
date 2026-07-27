@@ -116,7 +116,7 @@ export function KickOffSetupPanel() {
         style={{ color: placementValid ? 'var(--color-text-secondary)' : 'var(--color-danger)' }}
       >
         {placementValid
-          ? 'All your players are in a legal position.'
+          ? 'Setup your players for kickoff.'
           : `${piecesLabel} out of position — move into ${zoneGuidance}.`}
       </span>
 
