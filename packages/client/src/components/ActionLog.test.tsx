@@ -293,7 +293,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     expect(container.textContent).toMatch(/Saving/);
   });
 
-  it('GOAL renders [SHOT] and "{number} {Name} SCORED!" for the scorer', () => {
+  it('GOAL renders [SHOT] and "{number} {Name} Scored!" for the scorer', () => {
     setEventLog([
       {
         type: 'GOAL',
@@ -307,7 +307,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     expect(container.textContent).toMatch(/\[SHOT\]/);
     // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
     expect(screen.getByText(/Carlo Holse/)).toBeDefined();
-    expect(container.textContent).toMatch(/SCORED!/);
+    expect(container.textContent).toMatch(/Scored!/);
   });
 
   it('SHOT_ATTEMPT SAVE renders [SHOT ✗]', () => {
@@ -435,8 +435,8 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
     // underlying consolidated array) appears FIRST, and the duel entry appears second.
     const entries = container.querySelectorAll('[class*="entry"]');
     expect(entries.length).toBe(2);
-    // First rendered entry: the handling check under its own [HANDLING] prefix
-    expect(entries[0]?.textContent).toMatch(/\[HANDLING\]/);
+    // First rendered entry: the handling check under its own [HANDLING ✓] prefix (D-04: SAVE = caught = keeper success)
+    expect(entries[0]?.textContent).toMatch(/\[HANDLING ✓\]/);
     expect(entries[0]?.textContent).toMatch(/handling: 2 vs 8/);
     expect(entries[0]?.textContent).toMatch(/caught/);
     // Second rendered entry: the duel — [SHOT ✗] prefix (SAVE outcome) plus Shooting/Saving stat lines
@@ -496,7 +496,8 @@ describe('ActionLog — quick-task 260621-b8f: split shot handling + new pass-fo
     const entries = container.querySelectorAll('[class*="entry"]');
     expect(entries.length).toBe(2);
     // Reverse-chronological order: handling entry renders first (see comment above).
-    expect(entries[0]?.textContent).toMatch(/\[HANDLING\]/);
+    // D-04: spilled = keeper failed to handle it = fail glyph.
+    expect(entries[0]?.textContent).toMatch(/\[HANDLING ✗\]/);
     expect(entries[0]?.textContent).toMatch(/spilled/);
   });
 
@@ -617,6 +618,211 @@ describe('ActionLog — quick-task 260621-hnd: remaining D/A removal + SNAPSHOT 
 // fields; both server emission paths always populate them; the client render
 // already appends '— {rangeLabel}, {rollStr}' unconditionally. This test locks
 // the format for both bands to prevent regression.
+describe('ActionLog — D-01/D-03/D-10: panel chrome and keeper terminology', () => {
+  it('renders no ACTION LOG heading text (D-10: duplicate header removed)', () => {
+    setEventLog([]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).not.toMatch(/ACTION LOG/i);
+  });
+
+  it('a GK_KICK entry renders "K #" not "GK #" (D-03)', () => {
+    setEventLog([
+      {
+        type: 'GK_KICK',
+        gkId: 'away-0',
+        targetHex: { q: 23, r: 7 },
+        accurate: true,
+        kickDie: 4,
+        kickScore: 6,
+        timestamp: 0,
+        ballAfter: { position: { q: 23, r: 7 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\bK #/);
+    expect(container.textContent).not.toMatch(/\bGK #/);
+  });
+
+  it('a SHOT_ATTEMPT with shooterScore null renders "Goal — keeper out of range" not "GK out of range" (D-03/D-11)', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        gkId: 'away-0',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'GOAL',
+        shooterDie: 6,
+        shooterScore: null,
+        gkDie: 0,
+        gkScore: null,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: 0,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Goal — keeper out of range/);
+    expect(container.textContent).not.toMatch(/GK out of range/);
+  });
+});
+
+describe('ActionLog — D-11/D-12: sentence-case narration and unicode arrows', () => {
+  it('a TACKLE_ATTEMPT SUCCESS renders "Success →" and not raw SUCCESS or ASCII arrow', () => {
+    setEventLog([
+      {
+        type: 'TACKLE_ATTEMPT',
+        defenderId: 'away-1',
+        carrierId: 'home-9',
+        defenderDie: 6,
+        carrierDie: 2,
+        defenderCombined: 10,
+        carrierCombined: 5,
+        result: 'SUCCESS',
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 22 }, carrierId: 'away-1' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Success →/);
+    expect(container.textContent).not.toMatch(/SUCCESS/);
+    expect(container.textContent).not.toMatch(/-> /);
+  });
+
+  it('a STEAL_ATTEMPT FAIL renders "Failed →" and not raw FAIL/FAILURE', () => {
+    setEventLog([
+      {
+        type: 'STEAL_ATTEMPT',
+        defenderId: 'away-1',
+        result: 'FAIL',
+        defenderDie: 2,
+        defenderCombined: 3,
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 22 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Failed →/);
+    expect(container.textContent).not.toMatch(/FAILURE|FAIL /);
+  });
+
+  it('a SHOT_ATTEMPT SAVE with a duel renders "Save →" not raw SAVE', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        gkId: 'away-0',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'SAVE',
+        shooterDie: 4,
+        shooterScore: 8,
+        gkDie: 5,
+        gkScore: 9,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: -2,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: 'away-0' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Save →/);
+    expect(container.textContent).not.toMatch(/SAVE/);
+  });
+
+  it('a SHOT_ATTEMPT LOOSE_BALL renders "Loose ball (tie) →"', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        gkId: 'away-0',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'LOOSE_BALL',
+        shooterDie: 3,
+        shooterScore: 7,
+        gkDie: 3,
+        gkScore: 7,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: 0,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Loose ball \(tie\) →/);
+  });
+
+  it('a contested HEADER ATTACKER_WIN renders "Attacker wins" not "ATTACKER WINS"', () => {
+    setEventLog([
+      {
+        type: 'HEADER',
+        attackerId: 'home-9',
+        defenderId: 'away-1',
+        result: 'ATTACKER_WIN',
+        attackerDie: 5,
+        attackerAerialAbility: 3,
+        attackerCombined: 8,
+        defenderDie: 2,
+        defenderAerialAbility: 4,
+        defenderCombined: 6,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Attacker wins/);
+    expect(container.textContent).not.toMatch(/ATTACKER WINS/);
+  });
+
+  it('an HP_ACCURACY accurate event renders "Accurate → contesting header" not "ACCURATE"', () => {
+    setEventLog([
+      {
+        type: 'HP_ACCURACY',
+        passerId: 'home-9',
+        accurate: true,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Accurate → contesting header/);
+    expect(container.textContent).not.toMatch(/ACCURATE/);
+  });
+
+  it('a SLOT_ADVANCE entry renders the unicode arrow, not the ASCII arrow', () => {
+    setEventLog([
+      {
+        type: 'SLOT_ADVANCE',
+        from: 'ATTACKER_4',
+        to: 'DEFENDER_5',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/→/);
+    expect(container.textContent).not.toMatch(/-> /);
+  });
+
+  it('a MOVE entry still renders its raw coordinate pair with the unicode arrow (D-13 no-change guard)', () => {
+    setEventLog([
+      {
+        type: 'MOVE',
+        pieceId: 'home-9',
+        from: { q: 14, r: 13 },
+        to: { q: 15, r: 13 },
+        slot: 'ATTACKER_4',
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/14,13 → 15,13/);
+  });
+});
+
 describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent failed-to-deflect format', () => {
   it('band A NO_DEFLECT renders "failed to deflect — close range, die X"', () => {
     setEventLog([
@@ -656,5 +862,62 @@ describe('ActionLog — BUG-27: DEFLECT_ATTEMPT NO_DEFLECT renders consistent fa
     // Band B has no tackling bonus regardless of die value
     expect(container.textContent).toContain('long range');
     expect(container.textContent).toContain('die 4');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-04: glyph rule audit — a SNAP_DEFLECT_MOVE reposition event carries no
+// glyph (renamed [DEFLECT] -> [DEFLECT MOVE] to remove the collision with
+// DEFLECT_ATTEMPT's outcome-bearing prefix); DEFLECT_ATTEMPT's own glyph is
+// unchanged by the rename; GK_KICK_MOVE (a repositioning event with no
+// outcome) carries no glyph either.
+// ---------------------------------------------------------------------------
+describe('ActionLog — D-04: glyph rule', () => {
+  it('a SNAP_DEFLECT_MOVE event renders [DEFLECT MOVE] and no glyph', () => {
+    setEventLog([
+      {
+        type: 'SNAP_DEFLECT_MOVE',
+        pieceId: 'away-1',
+        from: { q: 20, r: 10 },
+        to: { q: 21, r: 10 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[DEFLECT MOVE\]/);
+    expect(container.textContent).not.toMatch(/\[DEFLECT ✓\]|\[DEFLECT ✗\]/);
+  });
+
+  it('a DEFLECT_ATTEMPT with result DEFLECTED still renders [DEFLECT ✓] (regression guard for the rename)', () => {
+    setEventLog([
+      {
+        type: 'DEFLECT_ATTEMPT',
+        defenderId: 'away-1',
+        band: 'A',
+        die: 6,
+        tackling: 2,
+        result: 'DEFLECTED',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[DEFLECT ✓\]/);
+  });
+
+  it('a GK_KICK_MOVE event renders a prefix containing no glyph', () => {
+    setEventLog([
+      {
+        type: 'GK_KICK_MOVE',
+        slot: 'KICKER',
+        pieceId: 'away-0',
+        from: { q: 23, r: 7 },
+        to: { q: 24, r: 7 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    const entry = container.querySelector('[class*="prefix"]');
+    expect(entry?.textContent).not.toMatch(/✓/);
+    expect(entry?.textContent).not.toMatch(/✗/);
   });
 });
