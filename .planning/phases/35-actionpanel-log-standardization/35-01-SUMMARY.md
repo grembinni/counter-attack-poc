@@ -131,6 +131,16 @@ None - no external service configuration required.
 - `ActionPanel.tsx` no longer contains any `FREE_KICK_SETUP`/`freeKick*` references, clearing the way for plan 35-04's heading/Confirm-verb work on the same file without dead-code interference.
 - Full client test suite (425 tests across 24 files), typecheck, targeted lint, and `pnpm -r build` all pass with this plan's changes in place.
 
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/utils/ctaColorClass.ts
+- FOUND: packages/client/src/utils/ctaColorClass.test.ts
+- FOUND: .planning/phases/35-actionpanel-log-standardization/35-01-SUMMARY.md
+- FOUND: 1e42885 (Task 1 commit)
+- FOUND: 84b0041 (Task 2 commit)
+- FOUND: 9c5518c (Task 3 commit)
+- FOUND: 0141a35 (SUMMARY commit)
+
 ---
 
 _Phase: 35-actionpanel-log-standardization_
