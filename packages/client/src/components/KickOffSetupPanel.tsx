@@ -83,6 +83,11 @@ export function KickOffSetupPanel() {
     ? 'Place a player on the centre hex first'
     : 'Move all players to your own half outside the centre circle';
 
+  const zoneGuidance = isAttacking
+    ? 'your half or the centre circle'
+    : 'your own half, clear of the centre circle';
+  const piecesLabel = `${piecesOutOfZone} player${piecesOutOfZone === 1 ? '' : 's'}`;
+
   function handleReadyClick() {
     setLocalReady(true);
     emitReady();
@@ -100,7 +105,9 @@ export function KickOffSetupPanel() {
             color: centreHexOccupied ? 'var(--color-text-secondary)' : 'var(--color-danger)',
           }}
         >
-          {centreHexOccupied ? 'Centre hex: occupied' : 'Centre hex: EMPTY — required'}
+          {centreHexOccupied
+            ? 'A player is on the centre hex — ready to go.'
+            : 'Place a player on the centre hex to start the kick-off.'}
         </span>
       )}
 
@@ -108,7 +115,9 @@ export function KickOffSetupPanel() {
         className={styles.constraintRow}
         style={{ color: placementValid ? 'var(--color-text-secondary)' : 'var(--color-danger)' }}
       >
-        {placementValid ? 'Placement: valid' : `Placement: ${piecesOutOfZone} pieces out of zone`}
+        {placementValid
+          ? 'All your players are in a legal position.'
+          : `${piecesLabel} out of position — move into ${zoneGuidance}.`}
       </span>
 
       {/* Server game error — auto-clears on next game:state via App.tsx */}

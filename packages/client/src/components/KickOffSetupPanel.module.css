@@ -15,6 +15,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text-primary);
+  text-align: center;
 }
 
 .constraintRow {
@@ -24,6 +25,7 @@
   /* D-44: identical missing-color bug as FreeKickSetupPanel (cloned from this file) —
      match .panelHeading's light-text-on-dark token. */
   color: var(--color-text-primary);
+  text-align: center;
 }
 
 .errorText {
