@@ -1,12 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
+import { ClientEvents } from '@counter-attack/shared';
 import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
 }));
+
+import { socket } from '../socket.js';
+
+// Capture mock reference once — avoids @typescript-eslint/unbound-method on socket.emit
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const emitMock: Mock = socket.emit as Mock;
 
 afterEach(() => cleanup());
 
@@ -73,11 +81,11 @@ describe('FreeKickSetupPanel — turn gating (active vs inactive team)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('stage 0 (kicking = away): the ACTIVE team (away, playerSlot 2) sees the per-stage UI and End Turn button', () => {
+  it('stage 0 (kicking = away): the ACTIVE team (away, playerSlot 2) sees the per-stage UI and Confirm button', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 2 });
     render(<FreeKickSetupPanel />);
     expect(screen.getByText(/attacking team: 0 of 4 placed/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
   it('stage 1 (defending = home): the ACTIVE team (home, playerSlot 1) sees the defending-stage UI', () => {
@@ -124,7 +132,7 @@ describe('FreeKickSetupPanel — placements counter display', () => {
 });
 
 describe('FreeKickSetupPanel — kicker selection sub-step (freeKickKickerChosen === false)', () => {
-  it('shows only heading and kicker instruction — no count row, no End Turn button', () => {
+  it('shows only heading and kicker instruction — no count row, no Confirm button', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(0, { freeKickKickerChosen: false, movedPieceIds: [] }),
       playerSlot: 2,
@@ -142,40 +150,40 @@ describe('FreeKickSetupPanel — D-54 mandatory kicker-first placement (supersed
     useGameStore.setState({ playerSlot: 2 }); // away — kicking team
   });
 
-  it('stage 0: End Turn is DISABLED when no kicking-team piece is locked into movedPieceIds yet', () => {
+  it('stage 0: Confirm is DISABLED when no kicking-team piece is locked into movedPieceIds yet', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0, { movedPieceIds: [] }) });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/kicker: move a player onto the free-kick hex first/i)).toBeDefined();
   });
 
-  it('stage 0: End Turn is ENABLED once a kicking-team piece is locked into movedPieceIds (kicker placed)', () => {
+  it('stage 0: Confirm is ENABLED once a kicking-team piece is locked into movedPieceIds (kicker placed)', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(0, { movedPieceIds: ['away-9'] }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByText(/kicker/i)).toBeNull();
   });
 
-  it('stage 2 (kicking, second kicking turn): End Turn is ENABLED when the kicker was already locked at stage 0 (carries forward in movedPieceIds)', () => {
+  it('stage 2 (kicking, second kicking turn): Confirm is ENABLED when the kicker was already locked at stage 0 (carries forward in movedPieceIds)', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(2, { movedPieceIds: ['away-9'] }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByText(/kicker/i)).toBeNull();
   });
 
-  it('stage 2: End Turn is DISABLED in the (abnormal) case where movedPieceIds has no kicking-team piece locked', () => {
+  it('stage 2: Confirm is DISABLED in the (abnormal) case where movedPieceIds has no kicking-team piece locked', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(2, { movedPieceIds: [] }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -198,7 +206,7 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
     useGameStore.setState({ playerSlot: 1 }); // home — defending team
   });
 
-  it('stage 1: End Turn is disabled when a defending-team piece is within 2 hexes of freeKickHex', () => {
+  it('stage 1: Confirm is disabled when a defending-team piece is within 2 hexes of freeKickHex', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(1, {
         pieces: mockMovementState.pieces.map((p) =>
@@ -209,12 +217,12 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
       }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/defending zone: 1 player/i)).toBeDefined();
   });
 
-  it('stage 1: End Turn is enabled when all defending-team pieces are more than 2 hexes from freeKickHex', () => {
+  it('stage 1: Confirm is enabled when all defending-team pieces are more than 2 hexes from freeKickHex', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(1, {
         pieces: mockMovementState.pieces.map((p) =>
@@ -223,12 +231,12 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
       }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByText(/defending zone/i)).toBeNull();
   });
 
-  it('stage 3 (last defending turn): the same 2-hex constraint applies and the button reads "End Turn"', () => {
+  it('stage 3 (last defending turn): the same 2-hex constraint applies and the button reads "Confirm"', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(3, {
         pieces: mockMovementState.pieces.map((p) =>
@@ -239,7 +247,7 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
       }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/defending zone: 1 player/i)).toBeDefined();
   });
@@ -279,8 +287,8 @@ describe('FreeKickSetupPanel — next-action preview text', () => {
   });
 });
 
-describe('FreeKickSetupPanel — End Turn click emits and surfaces server errors', () => {
-  it('clicking End Turn (when enabled) calls emitFreeKickReady', () => {
+describe('FreeKickSetupPanel — Confirm click emits and surfaces server errors', () => {
+  it('clicking Confirm (when enabled) calls emitFreeKickReady', () => {
     useGameStore.setState({
       playerSlot: 1,
       gameState: freeKickSetupState(1, {
@@ -290,12 +298,12 @@ describe('FreeKickSetupPanel — End Turn click emits and surfaces server errors
       }),
     });
     render(<FreeKickSetupPanel />);
-    const endTurn = screen.getByRole('button', { name: /end turn/i });
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     fireEvent.click(endTurn);
     // socket.emit is mocked at the module level — assert no throw and the button is still
     // present (no local "waiting" state in this component anymore; the NEXT server broadcast
     // either advances the stage or rejects with a snap-back, both surfaced via gameState/gameError).
-    expect(screen.getByRole('button', { name: /end turn/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
   it('surfaces a server-rejection reason via the existing gameError display pattern', () => {
@@ -306,5 +314,69 @@ describe('FreeKickSetupPanel — End Turn click emits and surfaces server errors
     });
     render(<FreeKickSetupPanel />);
     expect(screen.getByText('NOT_YOUR_STAGE')).toBeDefined();
+  });
+});
+
+describe('FreeKickSetupPanel — D-06/D-08: shared CTA color helper and Confirm verb', () => {
+  it('kicking stage, kicker locked, placements remaining: Confirm className contains ctaButtonPending, not ctaButtonReady', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away — kicking team
+      gameState: freeKickSetupState(0, {
+        freeKickPlacedPieceIds: [],
+        movedPieceIds: ['away-9'], // kicker locked in
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(confirmBtn.className).toContain('ctaButtonPending');
+    expect(confirmBtn.className).not.toContain('ctaButtonReady');
+  });
+
+  it('kicking stage, placements filled to stage.max: Confirm className contains ctaButtonReady, not ctaButtonPending', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away — kicking team
+      gameState: freeKickSetupState(0, {
+        freeKickPlacedPieceIds: ['away-8', 'away-9', 'away-10', 'away-7'], // stage 0 max = 4
+        movedPieceIds: ['away-9'], // kicker locked in
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(confirmBtn.className).toContain('ctaButtonReady');
+    expect(confirmBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('kicking stage, no kicking-team piece locked (constraintsMet false): Confirm has neither color class and is disabled', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away — kicking team
+      gameState: freeKickSetupState(0, {
+        freeKickPlacedPieceIds: [],
+        movedPieceIds: [], // kicker not locked -> constraintsMet false
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(confirmBtn.className).not.toContain('ctaButtonReady');
+    expect(confirmBtn.className).not.toContain('ctaButtonPending');
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('clicking Confirm while remaining > 0 opens the dialog with Cancel and "Yes, end turn"; clicking "Yes, end turn" calls emitFreeKickReady', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away — kicking team
+      gameState: freeKickSetupState(0, {
+        freeKickPlacedPieceIds: [],
+        movedPieceIds: ['away-9'], // kicker locked -> constraintsMet true, remaining > 0
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
+
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDefined();
+    const affirm = screen.getByRole('button', { name: /^yes, end turn$/i });
+    expect(affirm).toBeDefined();
+
+    fireEvent.click(affirm);
+    expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_FREE_KICK_READY);
   });
 });
