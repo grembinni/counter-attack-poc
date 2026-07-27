@@ -32,7 +32,7 @@ describe('ActionPanel — UNDO-03: active player gating', () => {
     useGameStore.setState({ playerSlot: 2 });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is taking their turn…')).toBeDefined();
   });
 
   it('renders controls for the active player', () => {
@@ -193,7 +193,7 @@ describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is repositioning…')).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 });
@@ -221,10 +221,9 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    // UX-10: line-1 explains the mechanic; line-2 shows eligible-player count
-    expect(
-      screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
-    ).toBeDefined();
+    // PANEL-01: line-1 is a short title; line-2 explains the mechanic + eligible-player count
+    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
@@ -236,10 +235,9 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
       playerSlot: 2, // away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
-    // UX-10: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
-    expect(
-      screen.getByText(/reposition up to 6 hexes regardless of remaining pace/i),
-    ).toBeDefined();
+    // PANEL-01: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
+    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
@@ -269,7 +267,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is repositioning…')).toBeDefined();
     expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
   });
 
@@ -280,7 +278,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Defending team is repositioning…')).toBeDefined();
     expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
   });
 });
@@ -397,7 +395,7 @@ describe('ActionPanel — D-13 text corrections', () => {
     });
     render(<ActionPanel />);
     expect(screen.getByText(/Opponent's Turn/)).toBeDefined();
-    expect(screen.getByText(/Waiting for opponent/)).toBeDefined();
+    expect(screen.getByText('Attacking team is taking their turn…')).toBeDefined();
   });
 
   it('HIGH_PASS_MOVE active player renders the Aerial Challenge fix, not the old Header! heading', () => {
@@ -539,8 +537,49 @@ describe('ActionPanel — 260621-ajd: remaining-player countdown + kick-off help
     render(<ActionPanel />);
     expect(screen.getByText('Kick-Off!')).toBeDefined();
     expect(screen.getByText(/centre/i)).toBeDefined();
-    expect(screen.getByText('Choose Action')).toBeDefined();
+    expect(screen.queryByText(/Choose an Action/i)).toBeNull();
     expect(screen.getByRole('button', { name: /standard pass/i })).toBeDefined();
+  });
+});
+
+// PANEL-01: every ActionPanel phase state renders exactly one helperBlock with a short
+// title line and a detail line — these four outliers previously broke that convention.
+describe('ActionPanel — PANEL-01: uniform two-line helper blocks', () => {
+  it('non-kick-off PASS chooser renders "Choose an Action!" and the select-how-to-move detail', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Choose an Action!')).toBeDefined();
+    expect(screen.getByText('Select how to move or use the ball.')).toBeDefined();
+  });
+
+  it('PASS step-2 prompt renders "Standard Pass!" and "Click a target hex."', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Standard Pass!')).toBeDefined();
+    expect(screen.getByText('Click a target hex.')).toBeDefined();
+  });
+
+  it('SNAPSHOT_DEFLECT renders the em-dash title, not the ASCII-hyphen variant', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'away',
+        attackingTeam: 'home',
+      },
+      playerSlot: 2, // away — defending team here
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Snapshot — Deflection Attempt!')).toBeDefined();
+    expect(screen.queryByText(/Snapshot - Deflection/)).toBeNull();
   });
 });
 
@@ -1053,5 +1092,103 @@ describe('ActionPanel — D-03: Keeper terminology', () => {
     const throwBtn = screen.getByRole('button', { name: /quick throw/i });
     expect(throwBtn.title).toMatch(/^Keeper throws/);
     expect(throwBtn.title).not.toMatch(/Goalkeeper/);
+  });
+});
+
+// D-09: every ActionPanel waiting state names who is acting and what they are doing — no
+// state may fall back to the generic "Waiting for opponent" phrase.
+describe('ActionPanel — D-09: phase-specific waiting text', () => {
+  it('GK_DIVE: non-keeper player sees the keeper-diving detail, not the generic phrase', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_DIVE',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+      },
+      playerSlot: 1, // home — keeper's team is 'away' here, so home is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is diving to attempt a save…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('SNAPSHOT_DEFLECT: non-defending player sees the defender-repositioning detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'SNAPSHOT_DEFLECT',
+        activeTeam: 'away',
+        attackingTeam: 'home',
+      },
+      playerSlot: 1, // home — defending team is 'away' here, so home is not the defending team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Defending team is moving to deflect the shot…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('GK_RESTART: non-keeper player sees the keeper-restart-choice detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_RESTART',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is choosing how to restart play…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('GK_QUICK_THROW: non-keeper player sees the keeper-throw-target detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_QUICK_THROW',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is choosing a throw target…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('GK_KICK_TARGET: non-keeper player sees the keeper-punt-target detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_KICK_TARGET',
+        activeTeam: 'home',
+        attackingTeam: 'away',
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+      },
+      playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Keeper is choosing a punt target…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
+  });
+
+  it('HEADER (accuracy roll pending): both players see the aerial-challenge-resolving detail', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HEADER',
+        activeTeam: 'home',
+        attackingTeam: 'home',
+        headerAccuracyRollPending: true,
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Resolving the aerial challenge…')).toBeDefined();
+    expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
   });
 });

@@ -146,15 +146,22 @@ export function ActionPanel() {
 
   const myTeam = useMyTeam();
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
+  // D-09: derives correctly only where the guard is !isActivePlayer — see waitingPanel call
+  // sites below for the keeper/defender-gated blocks that use an explicitly-named actor instead.
+  const actingSideLabel: 'Attacking' | 'Defending' =
+    activeTeam === attackingTeam ? 'Attacking' : 'Defending';
 
-  const waitingPanel = (
-    <PanelShell>
-      <div className={styles.helperBlock}>
-        <span className={styles.helperLine1}>Opponent&apos;s Turn</span>
-        <span className={styles.helperLine2}>Waiting for opponent...</span>
-      </div>
-    </PanelShell>
+  /** D-09: shared two-line waiting markup — used by waitingPanel and HEADER's myConfirmed branch. */
+  const waitingHelperBlock = (detail: string) => (
+    <div className={styles.helperBlock}>
+      <span className={styles.helperLine1}>Opponent&apos;s Turn</span>
+      <span className={styles.helperLine2}>{detail}</span>
+    </div>
   );
+
+  function waitingPanel(detail: string) {
+    return <PanelShell>{waitingHelperBlock(detail)}</PanelShell>;
+  }
 
   /**
    * UX-08: wraps an end-turn/confirm-selection action with a confirmation gate.
@@ -287,7 +294,7 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
     // so isActivePlayer correctly reflects whose turn it is in this phase
-    if (!isActivePlayer) return waitingPanel;
+    if (!isActivePlayer) return waitingPanel(`${actingSideLabel} team is repositioning…`);
     // UX-08: 1 repositioning slot per team — pending until highPassMovedPieceId is set
     const hpmEligibleRemaining = highPassMovedPieceId == null ? 1 : 0;
     return (
@@ -327,7 +334,7 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     // activeTeam switches between attackingTeam (ATTACKER slot) and defenderTeam (DEFENDER slot)
     // so isActivePlayer correctly reflects whose turn it is in this phase
-    if (!isActivePlayer) return waitingPanel;
+    if (!isActivePlayer) return waitingPanel(`${actingSideLabel} team is repositioning…`);
     // UX-08: 1 repositioning slot per team — pending until firstTimePassMovedPieceId is set
     const ftpmEligibleRemaining = firstTimePassMovedPieceId == null ? 1 : 0;
     return (
@@ -367,7 +374,7 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     const gkTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isGKTeamPlayer = myTeam === gkTeam;
-    if (!isGKTeamPlayer) return waitingPanel;
+    if (!isGKTeamPlayer) return waitingPanel('Keeper is diving to attempt a save…');
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
@@ -389,13 +396,14 @@ export function ActionPanel() {
     if (myTeam === null) return null;
     const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
     const isDefendingTeamPlayer = myTeam === defendingTeam;
-    if (!isDefendingTeamPlayer) return waitingPanel;
+    if (!isDefendingTeamPlayer)
+      return waitingPanel('Defending team is moving to deflect the shot…');
     // UX-08: 1 repositioning slot — pending until snapDeflectMovedPieceId is set
     const sdEligibleRemaining = snapDeflectMovedPieceId == null ? 1 : 0;
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Snapshot - Deflection Attempt!</span>
+          <span className={styles.helperLine1}>Snapshot — Deflection Attempt!</span>
           <span className={styles.helperLine2}>
             Move 1 player to deflect the shot (up to 2 hexes).
           </span>
@@ -427,7 +435,7 @@ export function ActionPanel() {
     // after 1500ms on the attacking client — no button needed. Both players see the
     // waiting panel; the EventBanner popup (HP_ACCURACY) provides visual feedback.
     if (headerAccuracyRollPending ?? false) {
-      return waitingPanel;
+      return waitingPanel('Resolving the aerial challenge…');
     }
 
     const myConfirmed = headerConfirmed?.[myTeam] ?? false;
@@ -446,7 +454,11 @@ export function ActionPanel() {
           </PanelShell>
         );
       }
-      return waitingPanel;
+      return waitingPanel(
+        headerDuelWinner != null
+          ? `${headerDuelWinner === attackingTeam ? 'Attacking' : 'Defending'} team is selecting a target…`
+          : 'Header tied — resolving the loose ball…',
+      );
     }
 
     return (
@@ -480,12 +492,7 @@ export function ActionPanel() {
             })()}
           </>
         )}
-        {myConfirmed && (
-          <div className={styles.helperBlock}>
-            <span className={styles.helperLine1}>Opponent&apos;s Turn</span>
-            <span className={styles.helperLine2}>Waiting for opponent...</span>
-          </div>
-        )}
+        {myConfirmed && waitingHelperBlock('Waiting for the opponent to confirm their contestant…')}
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
       </PanelShell>
@@ -498,7 +505,7 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   if (phase === 'SNAPSHOT_TARGET') {
     if (myTeam === null) return null;
-    if (!isActivePlayer) return waitingPanel;
+    if (!isActivePlayer) return waitingPanel('Attacking team is selecting a goal hex…');
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
@@ -520,7 +527,7 @@ export function ActionPanel() {
     const gkPieceForRestart = pieces.find((p) => p.id === carrierId);
     const gkTeamForRestart = gkPieceForRestart?.teamId ?? null;
     const isGKTeamPlayer = myTeam !== null && myTeam === gkTeamForRestart;
-    if (!isGKTeamPlayer) return waitingPanel;
+    if (!isGKTeamPlayer) return waitingPanel('Keeper is choosing how to restart play…');
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
@@ -560,7 +567,7 @@ export function ActionPanel() {
     const gkPiece = pieces.find((p) => p.id === carrierId);
     const gkTeam = gkPiece?.teamId ?? null;
     const isGKTeamPlayer = myTeam === gkTeam;
-    if (!isGKTeamPlayer) return waitingPanel;
+    if (!isGKTeamPlayer) return waitingPanel('Keeper is choosing a throw target…');
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
@@ -579,7 +586,7 @@ export function ActionPanel() {
     const gkPiece = pieces.find((p) => p.id === carrierId);
     const gkTeam = gkPiece?.teamId ?? null;
     const isGKTeamPlayer = myTeam === gkTeam;
-    if (!isGKTeamPlayer) return waitingPanel;
+    if (!isGKTeamPlayer) return waitingPanel('Keeper is choosing a punt target…');
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
@@ -597,7 +604,7 @@ export function ActionPanel() {
   // Must be before isActivePlayer guard — both teams act in this phase.
   if (phase === 'GK_KICK_MOVE') {
     if (myTeam === null) return null;
-    if (!isActivePlayer) return waitingPanel;
+    if (!isActivePlayer) return waitingPanel(`${actingSideLabel} team is repositioning…`);
     // UX-08: 1 repositioning slot per team — pending until gkKickMovedPieceId is set
     const gkmEligibleRemaining = gkKickMovedPieceId == null ? 1 : 0;
     return (
@@ -630,7 +637,7 @@ export function ActionPanel() {
   // -------------------------------------------------------------------------
   if (phase === 'FREE_MOVE_ATTACK' || phase === 'FREE_MOVE_DEFENSE') {
     if (myTeam === null) return null;
-    if (!isActivePlayer) return waitingPanel;
+    if (!isActivePlayer) return waitingPanel(`${actingSideLabel} team is repositioning…`);
     // 260621-ajd: countdown of players left to move in the active free-move sub-phase.
     const freeMoveSide = phase === 'FREE_MOVE_ATTACK' ? 'attack' : 'defense';
     const eligibleIds = freeMoveEligibleIds?.[freeMoveSide] ?? [];
@@ -640,11 +647,10 @@ export function ActionPanel() {
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>
-            Ball entered the opposite final third — your backline can reposition up to 6 hexes
-            regardless of remaining pace.
+          <span className={styles.helperLine1}>Free Move!</span>
+          <span className={styles.helperLine2}>
+            {`${remaining} players still eligible to move — up to 6 hexes each, regardless of remaining pace.`}
           </span>
-          <span className={styles.helperLine2}>{remaining} players still eligible to move.</span>
         </div>
         <button
           className={`${styles.ctaButton} ${ctaClass(remaining)}`}
@@ -659,7 +665,7 @@ export function ActionPanel() {
     );
   }
 
-  if (!isActivePlayer) return waitingPanel;
+  if (!isActivePlayer) return waitingPanel(`${actingSideLabel} team is taking their turn…`);
 
   // -------------------------------------------------------------------------
   // KICK_OFF + PASS phase — three-step flow (Phase 8.2 D-06)
@@ -727,16 +733,16 @@ export function ActionPanel() {
 
       return (
         <PanelShell wide={actionCount >= 5}>
-          {isKickOff && (
-            <div className={styles.helperBlock}>
-              <span className={styles.helperLine1}>Kick-Off!</span>
-              <span className={styles.helperLine2}>
-                Play starts with a Standard Pass from the centre circle — the only legal opening
-                action.
-              </span>
-            </div>
-          )}
-          <span className={styles.phaseLabel}>Choose Action</span>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>
+              {isKickOff ? 'Kick-Off!' : 'Choose an Action!'}
+            </span>
+            <span className={styles.helperLine2}>
+              {isKickOff
+                ? 'Play starts with a Standard Pass from the centre circle — the only legal opening action.'
+                : 'Select how to move or use the ball.'}
+            </span>
+          </div>
           {!isKickOff && eligible.has('MOVEMENT') && (
             <button
               className={styles.ctaButton}
@@ -815,9 +821,10 @@ export function ActionPanel() {
     if (passTargetHex === null) {
       return (
         <PanelShell>
-          <span className={styles.phaseLabel}>
-            {PASS_TYPE_LABELS[selectedPassType]} — click a target hex
-          </span>
+          <div className={styles.helperBlock}>
+            <span className={styles.helperLine1}>{`${PASS_TYPE_LABELS[selectedPassType]}!`}</span>
+            <span className={styles.helperLine2}>Click a target hex.</span>
+          </div>
           <button className={styles.backButton} onClick={() => setSelectedPassType(null)}>
             ← Back
           </button>
