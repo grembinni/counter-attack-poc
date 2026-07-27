@@ -97,6 +97,7 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 - v1.4 Phases 26–30 added 2026-07-12
 - Phase 30 added: recalibrate draft
 - v1.5 Phases 31–35 added 2026-07-22 (Bug Fixes → Code Cleanup → Design Tokens & Highlight Standardization → Visual Theme Restyle → ActionPanel & Log Standardization); 20/20 v1.5 requirements mapped, no orphans
+- Phase 36 added 2026-07-27: Bug Fixes (Game Settings button restore, duplicate draft players, draft pool restriction verify, blocked-shot loose-ball path origin, undo-past-dice-roll)
 
 ### Decisions Locked
 

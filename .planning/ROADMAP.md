@@ -7,7 +7,7 @@
 - ✅ **v1.2 Team Identity & Core Fixes** — Phases 15–18 (shipped 2026-07-03)
 - ✅ **v1.3 Team Customization & Formation System** — Phases 19–25 (shipped 2026-07-11)
 - ✅ **v1.4 Response Polish + Draft Mode** — Phases 26–30 (shipped 2026-07-22, with 1 known gap — RESP-01..09 deferred; see [audit](milestones/v1.4-MILESTONE-AUDIT.md))
-- 🚧 **v1.5 UX Refresh & Code Cleanup** — Phases 31–35 (in progress)
+- 🚧 **v1.5 UX Refresh & Code Cleanup** — Phases 31–36 (in progress)
 
 ## Phases
 
@@ -105,19 +105,20 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 ---
 
-### 🚧 v1.5 UX Refresh & Code Cleanup (Phases 31–35) — IN PROGRESS
+### 🚧 v1.5 UX Refresh & Code Cleanup (Phases 31–36) — IN PROGRESS
 
 **Milestone Goal:** Overhaul the visual system to a professional broadcast-sports look, standardize hex-highlight colors and the ActionPanel, pay down accumulated code debt, and close 3 known bugs.
 
 **Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
 
-| Phase | Name                                      | Plans    | Status     |
-| ----- | ----------------------------------------- | -------- | ---------- |
-| 31    | Bug Fixes                                 | 6/6      | Complete   |
-| 32    | Code Cleanup                              | 6/6      | Complete   |
-| 33    | Design Tokens & Highlight Standardization | 7/7      | Complete   |
-| 34    | Visual Theme Restyle                      | 5/5      | Complete   |
-| 35    | 6/6                                       | Complete | 2026-07-27 |
+| Phase | Name                                      | Plans | Status      |
+| ----- | ----------------------------------------- | ----- | ----------- |
+| 31    | Bug Fixes                                 | 6/6   | Complete    |
+| 32    | Code Cleanup                              | 6/6   | Complete    |
+| 33    | Design Tokens & Highlight Standardization | 7/7   | Complete    |
+| 34    | Visual Theme Restyle                      | 5/5   | Complete    |
+| 35    | ActionPanel & Log Standardization         | 6/6   | Complete    |
+| 36    | Bug Fixes                                 | 0/TBD | Not started |
 
 ### Phase 31: Bug Fixes
 
@@ -233,6 +234,25 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 4. Terminology and phrasing (action names, log verbs, etc.) are consistent across every ActionPanel/ActionLog state.
    **Plans**: TBD
    **UI hint**: yes
+
+### Phase 36: Bug Fixes
+
+**Goal:** Five known defects — a missing Game Settings button, duplicate players across draft packs, an unenforced draft-pool restriction, an incorrect loose-ball path origin on blocked shots, and undo overreach past dice-roll actions — are fixed and verified.
+**Depends on:** Phase 35
+**Requirements**: TBD
+**Success Criteria** (what must be TRUE):
+
+1. The Game Settings button that was removed/lost is restored and accessible from the game screen.
+2. Draft packs never contain duplicate players — each player can be drafted by at most one team, enforced across pack generation.
+3. Drafting is verified to pull only from the selected player pool — no player outside the chosen pool is ever offered as draftable.
+4. When a shot is blocked, the resulting loose ball is pathed from the blocking piece's square, not the shooter's square.
+5. During a move, once an action has triggered a dice roll (tackle/steal), Undo cannot revert state to before that dice-roll action.
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 36 to break down)
 
 ---
 
