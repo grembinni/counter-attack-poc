@@ -210,13 +210,14 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 2. Every chrome-related CSS Module sources its colors exclusively via `var(--token)`; an automated lint (stylelint) confirms zero hardcoded hex/rgba literals remain, and any CSS classes made unreferenced by the sweep are removed.
 3. All team accent colors pass WCAG AA contrast against the new charcoal/white base, confirmed by an automated contrast-check script.
 4. The full client test suite, typecheck, and build remain green after the palette swap.
-   **Plans**: 4 plans — sequential dependency chain (Wave 1: 34-01; Wave 2: 34-02; Wave 3: 34-03; Wave 4: 34-04)
+   **Plans**: 5 plans — sequential dependency chain (Wave 1: 34-01; Wave 2: 34-02; Wave 3: 34-03; Wave 4: 34-04) + 1 gap-closure plan (34-05)
 
    Plans:
    - [x] 34-01-PLAN.md — Tooling install + stylelint "no hardcoded color literal" gate (THEME-02) [Wave 1]
    - [x] 34-02-PLAN.md — AA-safe team-accent derivation function (TDD, THEME-04) [Wave 2]
    - [x] 34-03-PLAN.md — Contrast-check CI script + stylelint/check-contrast CI wiring (THEME-04, THEME-02) [Wave 3]
    - [x] 34-04-PLAN.md — Charcoal/graphite palette value swap + GameBoard accent wiring + visual verify (THEME-01, THEME-04) [Wave 4]
+   - [ ] 34-05-PLAN.md — Gap closure (UAT tests 3, 8): migrate Team-Select/Roster Confirm buttons to the shared CTA color pattern + add Roster not-ready state (THEME-01) [Wave 1]
          **UI hint**: yes
 
 ### Phase 35: ActionPanel & Log Standardization
