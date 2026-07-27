@@ -110,3 +110,27 @@ describe('KickOffSetupPanel — D-09: context-specific waiting state after Confi
     expect(screen.getByText(/waiting for the opponent to confirm their placement/i)).toBeDefined();
   });
 });
+
+describe('KickOffSetupPanel — placement status copy', () => {
+  it('renders "Setup your players for kickoff." when all pieces are in a legal position', () => {
+    render(<KickOffSetupPanel />);
+    expect(screen.getByText('Setup your players for kickoff.')).toBeDefined();
+  });
+
+  it('does not render the old "All your players are in a legal position." copy', () => {
+    render(<KickOffSetupPanel />);
+    expect(screen.queryByText('All your players are in a legal position.')).toBeNull();
+  });
+
+  it('renders the out-of-position message, unchanged, when a piece is outside the legal zone', () => {
+    useGameStore.setState({
+      gameState: kickOffSetupState({
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-9' ? { ...p, position: { q: 30, r: 5 } } : p,
+        ),
+      }),
+    });
+    render(<KickOffSetupPanel />);
+    expect(screen.getByText(/out of position — move into/i)).toBeDefined();
+  });
+});
