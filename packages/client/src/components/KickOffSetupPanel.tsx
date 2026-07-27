@@ -6,10 +6,10 @@ import styles from './KickOffSetupPanel.module.css';
 
 /**
  * Kick-off setup sidebar panel — shown to BOTH players during KICK_OFF_SETUP phase.
- * Both players reposition pieces and must click Ready to confirm placement (D-23/D-24).
+ * Both players reposition pieces and must click Confirm to confirm placement (D-23/D-24/D-08).
  * Returns null when phase !== 'KICK_OFF_SETUP' (no isActivePlayer gate — both slots act).
  *
- * UI-SPEC Screen 1: constraint status rows + gated "Ready" button.
+ * UI-SPEC Screen 1: constraint status rows + gated "Confirm" button.
  */
 export function KickOffSetupPanel() {
   const phase = useGameStore((s) => s.gameState.phase);
@@ -19,7 +19,9 @@ export function KickOffSetupPanel() {
   const gameError = useGameStore((s) => s.gameError);
   const emitReady = useGameStore((s) => s.emitReady);
 
-  // Local state: has this player already clicked Ready? (shows "Waiting for opponent…")
+  // Local state: has this player already clicked Confirm? (D-09: shows a context-specific
+  // waiting message naming what it is waiting for, instead of the generic "Waiting for
+  // opponent…" phrase — see the constraintRow rendered below the CTA.)
   const [localReady, setLocalReady] = useState(false);
 
   // Return null unless in KICK_OFF_SETUP phase.
@@ -112,10 +114,18 @@ export function KickOffSetupPanel() {
       {/* Server game error — auto-clears on next game:state via App.tsx */}
       {gameError && <span className={styles.errorText}>{gameError}</span>}
 
-      {/* Ready / Waiting button */}
+      {/* D-09: waiting state names what it is waiting for, shown only after this
+          player has confirmed their own placement. */}
+      {localReady && (
+        <span className={styles.constraintRow}>
+          Waiting for the opponent to confirm their placement&hellip;
+        </span>
+      )}
+
+      {/* D-08: confirm-and-advance CTA; disabled/read-only label once clicked */}
       {localReady ? (
         <button className={styles.ctaButton} disabled>
-          Waiting for opponent&hellip;
+          Confirmed
         </button>
       ) : (
         <button
@@ -124,7 +134,7 @@ export function KickOffSetupPanel() {
           title={!constraintsMet ? disabledTitle : undefined}
           onClick={handleReadyClick}
         >
-          Ready
+          Confirm
         </button>
       )}
     </div>
