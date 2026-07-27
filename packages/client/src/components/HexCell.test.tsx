@@ -97,6 +97,14 @@ describe('HexCell — UX-06/HILITE-01/02: highlight tint colors', () => {
     expect(fills).toContain(HIGHLIGHT_STYLES['tackle-risk'].fill);
   });
 
+  it("highlightType='header-target' renders an overlay polygon with fill HIGHLIGHT_STYLES['header-target'].fill", () => {
+    const { container } = renderHighlighted('header-target');
+    const fills = Array.from(container.querySelectorAll('polygon')).map((p) =>
+      p.getAttribute('fill'),
+    );
+    expect(fills).toContain(HIGHLIGHT_STYLES['header-target'].fill);
+  });
+
   it('highlightType=undefined renders only the base polygon (no tint overlay) and base polygon has default cursor', () => {
     const { container } = render(
       <svg>
