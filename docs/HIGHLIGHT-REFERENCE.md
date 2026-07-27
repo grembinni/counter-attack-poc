@@ -44,9 +44,9 @@ Source of truth: `HIGHLIGHT_STYLES` in `packages/client/src/components/HexCell.t
 
 | Type               | Semantic                                                          | Fill                                    | Stroke                  | Rest / Hover Opacity    |
 | ------------------ | ----------------------------------------------------------------- | --------------------------------------- | ----------------------- | ----------------------- |
-| `safe`             | 🟢 Valid move destination                                         | `rgba(34,197,94,0.4)`                   | `#16a34a`               | 0.5 / 0.65              |
+| `safe`             | 🟢 Valid move destination                                         | `rgba(34,197,94,0.4)`                   | `#16a34a`               | 0.65 / 0.8              |
 | `risk`             | 🟡 ZoI steal-risk / tackle-risk during movement                   | `rgba(255,140,0,1)`                     | `#b35a00`               | 0.65 / 0.8              |
-| `goal`             | 🟣 Shot-target / goal-line opportunity                            | `rgba(168,85,247,0.5)` (`#a855f7` base) | `#9333ea`               | 0.5 / 0.65              |
+| `goal`             | 🟣 Shot-target / goal-line opportunity                            | `rgba(168,85,247,0.5)` (`#a855f7` base) | `#9333ea`               | 0.65 / 0.8              |
 | `kickoff`          | 🔵 Neutral zone info (kick-off / free-kick placement zone)        | `rgba(59,130,246,1)`                    | none                    | 0.4 / 0.55              |
 | `shot-path`        | ⚪ Informational trajectory preview                               | `rgba(255,255,255,1)`                   | `#dddddd`               | 0.2 / 0.32              |
 | `shot-path-action` | ⚪ Actionable trajectory (GK dive / header-contest step-in hexes) | `rgba(255,255,255,1)`                   | `#aaaaaa`               | 0.55 / 0.7              |
