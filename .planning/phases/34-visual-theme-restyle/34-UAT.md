@@ -1,5 +1,5 @@
 ---
-status: testing
+status: complete
 phase: 34-visual-theme-restyle
 source:
   [
@@ -11,21 +11,12 @@ source:
     34-VERIFICATION.md,
   ]
 started: 2026-07-26T00:00:00Z
-updated: 2026-07-27T04:13:05Z
+updated: 2026-07-27T00:00:00Z
 ---
 
 ## Current Test
 
-number: 3
-name: Charcoal Theme - Team/Uniform/Draft Selection Screens (re-verify Confirm button)
-expected: |
-On Uniform Selection: before a team+style is chosen, the Confirm button is neutral-grey
-with white text and a visible light-gray outline (matches the base .ctaButton pattern);
-once ready, it turns canonical green (#27ae60) matching every other "ready" CTA in the app.
-On Roster (Lineup Assignment, draft mode): a visibly disabled grey Confirm button (not
-hidden, not yellow) is shown while the lineup is incomplete; it turns the same canonical
-green once all 11 slots are filled. Test 8 shares this same fix and re-verification.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -42,10 +33,9 @@ result: pass
 ### 3. Charcoal Theme - Team/Uniform/Draft Selection Screens
 
 expected: Team selection, uniform selection, and draft pack carousel screens render in the charcoal palette with legible text and visible accent colors — no blue chrome remnants.
-result: pending re-verification
+result: pass
 prior_issue: "not ready 'confirm' on team select and roster should follow the white outline pattern for other buttons. Green ready 'confirm' should match the other green ready button patterns."
-fix_applied: "Plan 34-05 migrated UniformSelectionScreen/LineupAssignmentScreen Confirm buttons off bespoke --color-confirm-pending-bg/--color-success tokens onto the canonical --color-bg-surface-alt/--color-text-inverse (not-ready) and --color-cta-ready-bg (ready) tokens; added a genuine disabled not-ready Confirm button to the Roster draft-incomplete branch. Code-level fix verified in 34-VERIFICATION.md; awaiting visual re-confirmation."
-severity: cosmetic
+fix_applied: "Plan 34-05 migrated UniformSelectionScreen/LineupAssignmentScreen Confirm buttons off bespoke --color-confirm-pending-bg/--color-success tokens onto the canonical --color-bg-surface-alt/--color-text-inverse (not-ready) and --color-cta-ready-bg (ready) tokens; added a genuine disabled not-ready Confirm button to the Roster draft-incomplete branch. Human re-verified visually — confirmed pass."
 
 ### 4. Charcoal Theme - In-Game Board
 
@@ -70,24 +60,23 @@ result: pass
 ### 8. Uniform Selection Confirm Button
 
 expected: The Confirm button on the Uniform Selection screen shows the same visible outline as other action buttons across the app (consistent styling).
-result: pending re-verification
+result: pass
 prior_issue: "not ready 'confirm' on team select and roster should follow the white outline/text w/grey background pattern for other buttons. Green ready 'confirm' should match the other green ready button patterns."
-fix_applied: "Same fix as test 3 — single 34-05 change closes both gaps. See test 3 for details."
-severity: cosmetic
+fix_applied: "Same fix as test 3 — single 34-05 change closes both gaps. Human re-verified visually — confirmed pass."
 
 ## Summary
 
 total: 8
-passed: 6
+passed: 8
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "Team selection, uniform selection, and draft pack carousel screens render in the charcoal palette with legible text and visible accent colors — no blue chrome remnants."
-  status: failed
+  status: resolved
   reason: "User reported: not ready 'confirm' on team select and roster should follow the white outline pattern for other buttons. Green ready 'confirm' should match the other green ready button patterns."
   severity: cosmetic
   test: 3
@@ -97,7 +86,7 @@ blocked: 0
   debug_session: ".planning/debug/team-roster-confirm-button-outline-mismatch.md"
 
 - truth: "The Confirm button on the Uniform Selection screen shows the same visible outline as other action buttons across the app (consistent styling)."
-  status: failed
+  status: resolved
   reason: "User reported: not ready 'confirm' on team select and roster should follow the white outline/text w/grey background pattern for other buttons. Green ready 'confirm' should match the other green ready button patterns."
   severity: cosmetic
   test: 8
