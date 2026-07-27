@@ -5,7 +5,7 @@
 
 **Date:** 2026-07-27
 **Phase:** 35-ActionPanel & Log Standardization
-**Areas discussed:** Todo cross-reference, Border removal scope, End Turn button color-state consistency, Goalkeeper terminology, Log entry glyph consistency
+**Areas discussed:** Todo cross-reference, Border removal scope, End Turn button color-state consistency, Goalkeeper terminology, Log entry glyph consistency, Same-space component audit (panel headings, log label collision, hex-coordinate readability, log casing/arrow-glyphs, button verb, waiting-state phrasing, dead-code cleanup)
 
 ---
 
@@ -74,11 +74,90 @@
 
 ---
 
+---
+
+## Same-space component audit
+
+User asked directly whether the first pass had reviewed (1) all elements rendered in the same space as ActionPanel, (2) messaging format/structure consistency across all action-selection sections, and (3) all log formatting/structure for consistency and player-friendly language. Answer was no on all three — the first pass only covered `ActionPanel.tsx`/`ActionLog.tsx` literally, not their same-slot siblings (`KickOffSetupPanel`, `FreeKickSetupPanel`, `ReplayPanel` in `GameBoard.tsx`'s `topBandRight`) or `ActionLog`'s `SideLog` wrapper. A follow-up audit of those files surfaced several new violations, resolved across two rounds of questions:
+
+### Panel headings
+
+| Option                             | Description                                                                | Selected |
+| ---------------------------------- | -------------------------------------------------------------------------- | -------- |
+| Add a heading to ActionPanel       | Match KickOffSetupPanel/FreeKickSetupPanel/ReplayPanel, which all show one | ✓        |
+| Drop headings from the other three | Match ActionPanel's headerless style instead                               |          |
+| Leave as-is                        | Each panel's need is different enough                                      |          |
+
+**User's choice:** Add a heading to ActionPanel.
+
+### Match log label collision
+
+| Option            | Description                                                          | Selected |
+| ----------------- | -------------------------------------------------------------------- | -------- |
+| "MATCH LOG" only  | Keep SideLog wrapper's label, remove ActionLog's own internal header | ✓        |
+| "ACTION LOG" only | Keep ActionLog's header, remove the wrapper's label                  |          |
+| Something else    | —                                                                    |          |
+
+**User's choice:** "MATCH LOG" only.
+
+### Log hex-coordinate readability
+
+| Option                      | Description                                       | Selected |
+| --------------------------- | ------------------------------------------------- | -------- |
+| Keep raw coordinates        | Intentional board-game transparency, not a UX bug | ✓        |
+| Replace with readable zones | Bigger scope, needs its own design pass           |          |
+| Something else              | —                                                 |          |
+
+**User's choice:** Keep raw coordinates.
+
+### Log casing and arrow-glyph consistency
+
+| Option                                   | Description                                    | Selected |
+| ---------------------------------------- | ---------------------------------------------- | -------- |
+| Sentence case + unicode arrow everywhere | Drop ALL-CAPS emphasis, unify -> to →          | ✓        |
+| ALL CAPS for outcomes + unicode arrow    | Keep punchy caps style, only unify arrow glyph |          |
+| Something else                           | —                                              |          |
+
+**User's choice:** Sentence case + unicode arrow everywhere.
+
+### Confirm/Ready/End Turn button verb
+
+| Option            | Description                                                 | Selected |
+| ----------------- | ----------------------------------------------------------- | -------- |
+| Keep separate     | "Ready" and "End Turn" describe genuinely different actions |          |
+| Unify to one term | Single verb across all three panels                         | ✓        |
+
+**User's choice:** Unify to one term — then, in a targeted follow-up, chose **"Confirm"** specifically over "Ready" and "End Turn" (the only one of the three that reads naturally in both a pre-turn placement context and an active-turn-ending context).
+
+### Waiting-state phrasing
+
+| Option                                          | Description                                                  | Selected |
+| ----------------------------------------------- | ------------------------------------------------------------ | -------- |
+| Keep FreeKickSetupPanel's more specific version | "{Team} is repositioning…" applied wherever context is known | ✓        |
+| Unify to "Waiting for opponent…" everywhere     | Simpler, less specific                                       |          |
+| Leave as-is                                     | Not worth standardizing                                      |          |
+
+**User's choice:** Keep FreeKickSetupPanel's more specific version, extend it elsewhere.
+
+### Dead-code cleanup (ActionPanel's FREE_KICK_SETUP block)
+
+| Option                              | Description                                                                                                                                 | Selected |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Confirm dead, remove + consolidate  | Delete ActionPanel's unreachable FREE_KICK_SETUP block; extract a shared color-state helper used by both ActionPanel and FreeKickSetupPanel | ✓        |
+| Leave ActionPanel's branch in place | Don't touch it even if unreachable                                                                                                          |          |
+
+**User's choice:** Confirm dead, remove + consolidate.
+
+---
+
 ## Claude's Discretion
 
 - Exact abbreviation for the inline Keeper player-label prefix (currently `"GK"`) — as long as it isn't "GK" or "Goalie".
-- Any `formatEvent` case not explicitly enumerated during discussion that turns out to need a glyph correction under the "binary outcome" rule.
+- Any `formatEvent` case not explicitly enumerated during discussion that turns out to need a glyph, casing, or arrow-glyph correction under the rules established.
 - Whether button-background contrast alone is sufficient visual affordance once container borders are removed, or a subtle box-shadow/background differentiation is needed.
+- Exact heading text/derivation for ActionPanel.
+- Exact shape of the shared color-state helper (hook vs. plain function vs. relocated module).
+- Exact wording of KickOffSetupPanel's waiting-state text once made more specific (it has no natural attacking/defending framing the way FreeKickSetupPanel does).
 
 ## Deferred Ideas
 
