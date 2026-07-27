@@ -57,11 +57,29 @@
   border-top: 1px solid var(--color-border);
 }
 
-.confirmButtonGreen {
+/* Confirm button — not-ready base state (lineup incomplete) */
+.confirmButton {
   font-size: 20px;
   font-weight: 800;
-  color: var(--color-bg-page);
-  background: var(--color-success);
+  color: var(--color-text-inverse);
+  background: var(--color-bg-surface-alt);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 6px;
+  padding: 14px 48px;
+  cursor: not-allowed;
+  min-width: 200px;
+  opacity: 0.5;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+/* Confirm button — ready state (lineup complete) */
+.confirmButtonReady {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-inverse);
+  background: var(--color-cta-ready-bg);
   border: 1px solid var(--color-border-muted);
   border-radius: 6px;
   padding: 14px 48px;
@@ -72,8 +90,8 @@
     opacity 0.15s ease;
 }
 
-.confirmButtonGreen:hover:not(:disabled) {
-  background: var(--color-success-hover);
+.confirmButtonReady:hover:not(:disabled) {
+  background: var(--color-cta-ready-bg-hover);
 }
 
 /* ─── Formation columns ────────────────────────────────────────────────────── */

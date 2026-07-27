@@ -219,12 +219,12 @@
   color: var(--color-text-primary);
 }
 
-/* Confirm button — yellow state (no team selected yet) */
-.confirmButtonYellow {
+/* Confirm button — not-ready base state (no team selected yet) */
+.confirmButton {
   font-size: 20px;
   font-weight: 800;
-  color: var(--color-bg-page);
-  background: var(--color-confirm-pending-bg);
+  color: var(--color-text-inverse);
+  background: var(--color-bg-surface-alt);
   border: 1px solid var(--color-border-muted);
   border-radius: 6px;
   padding: 14px 48px;
@@ -235,17 +235,17 @@
     opacity 0.15s ease;
 }
 
-.confirmButtonYellow:disabled {
+.confirmButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Confirm button — green state (team selected, ready to confirm) */
-.confirmButtonGreen {
+/* Confirm button — ready state (team selected, ready to confirm) */
+.confirmButtonReady {
   font-size: 20px;
   font-weight: 800;
-  color: var(--color-bg-page);
-  background: var(--color-success);
+  color: var(--color-text-inverse);
+  background: var(--color-cta-ready-bg);
   border: 1px solid var(--color-border-muted);
   border-radius: 6px;
   padding: 14px 48px;
@@ -256,11 +256,11 @@
     opacity 0.15s ease;
 }
 
-.confirmButtonGreen:hover:not(:disabled) {
-  background: var(--color-success-hover);
+.confirmButtonReady:hover:not(:disabled) {
+  background: var(--color-cta-ready-bg-hover);
 }
 
-.confirmButtonGreen:disabled {
+.confirmButtonReady:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

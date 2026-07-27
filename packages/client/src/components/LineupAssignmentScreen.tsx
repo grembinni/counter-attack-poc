@@ -644,7 +644,7 @@ export function LineupAssignmentScreen({
               so the player can never confirm a partial roster. */}
           {draftView.draftComplete && !lineupConfirmed && isLineupComplete && (
             <button
-              className={styles.confirmButtonGreen}
+              className={styles.confirmButtonReady}
               aria-label="Confirm lineup"
               onClick={() => onConfirm(draftConfirmedOrder)}
             >
@@ -652,7 +652,17 @@ export function LineupAssignmentScreen({
             </button>
           )}
           {draftView.draftComplete && !lineupConfirmed && !isLineupComplete && (
-            <p className={styles.cyclePickCounter}>Fill all 11 lineup positions to confirm.</p>
+            <>
+              <button
+                className={styles.confirmButton}
+                aria-label="Confirm lineup"
+                disabled
+                aria-disabled="true"
+              >
+                Confirm
+              </button>
+              <p className={styles.cyclePickCounter}>Fill all 11 lineup positions to confirm.</p>
+            </>
           )}
           {draftView.draftComplete && lineupConfirmed && (
             <p className={styles.statusActive}>
@@ -699,7 +709,7 @@ export function LineupAssignmentScreen({
       <div className={styles.confirmSection}>
         {!lineupConfirmed && (
           <button
-            className={styles.confirmButtonGreen}
+            className={styles.confirmButtonReady}
             aria-label="Confirm lineup"
             onClick={() => onConfirm(assignment)}
           >
