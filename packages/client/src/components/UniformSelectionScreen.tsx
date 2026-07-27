@@ -349,10 +349,10 @@ export function UniformSelectionScreen({
         })}
       </div>
 
-      {/* Confirm button — yellow until team selected, green after */}
+      {/* Confirm button — neutral grey until team selected, canonical green after */}
       {!hasConfirmed && (
         <button
-          className={selectedTeam !== null ? styles.confirmButtonGreen : styles.confirmButtonYellow}
+          className={selectedTeam !== null ? styles.confirmButtonReady : styles.confirmButton}
           disabled={selectedTeam === null || selectedStyle === null || awayLocked}
           aria-disabled={selectedTeam === null || selectedStyle === null || awayLocked}
           aria-label="Confirm selection"
