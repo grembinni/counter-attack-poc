@@ -293,7 +293,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     expect(container.textContent).toMatch(/Saving/);
   });
 
-  it('GOAL renders [SHOT] and "{number} {Name} SCORED!" for the scorer', () => {
+  it('GOAL renders [SHOT] and "{number} {Name} Scored!" for the scorer', () => {
     setEventLog([
       {
         type: 'GOAL',
@@ -307,7 +307,7 @@ describe('ActionLog — duel branches: name + result glyph parity', () => {
     expect(container.textContent).toMatch(/\[SHOT\]/);
     // home-9 (array index 9 in city squad) is Carlo Holse, jersey #10.
     expect(screen.getByText(/Carlo Holse/)).toBeDefined();
-    expect(container.textContent).toMatch(/SCORED!/);
+    expect(container.textContent).toMatch(/Scored!/);
   });
 
   it('SHOT_ATTEMPT SAVE renders [SHOT ✗]', () => {
@@ -665,6 +665,160 @@ describe('ActionLog — D-01/D-03/D-10: panel chrome and keeper terminology', ()
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/Goal — keeper out of range/);
     expect(container.textContent).not.toMatch(/GK out of range/);
+  });
+});
+
+describe('ActionLog — D-11/D-12: sentence-case narration and unicode arrows', () => {
+  it('a TACKLE_ATTEMPT SUCCESS renders "Success →" and not raw SUCCESS or ASCII arrow', () => {
+    setEventLog([
+      {
+        type: 'TACKLE_ATTEMPT',
+        defenderId: 'away-1',
+        carrierId: 'home-9',
+        defenderDie: 6,
+        carrierDie: 2,
+        defenderCombined: 10,
+        carrierCombined: 5,
+        result: 'SUCCESS',
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 22 }, carrierId: 'away-1' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Success →/);
+    expect(container.textContent).not.toMatch(/SUCCESS/);
+    expect(container.textContent).not.toMatch(/-> /);
+  });
+
+  it('a STEAL_ATTEMPT FAIL renders "Failed →" and not raw FAIL/FAILURE', () => {
+    setEventLog([
+      {
+        type: 'STEAL_ATTEMPT',
+        defenderId: 'away-1',
+        result: 'FAIL',
+        defenderDie: 2,
+        defenderCombined: 3,
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 22 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Failed →/);
+    expect(container.textContent).not.toMatch(/FAILURE|FAIL /);
+  });
+
+  it('a SHOT_ATTEMPT SAVE with a duel renders "Save →" not raw SAVE', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        gkId: 'away-0',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'SAVE',
+        shooterDie: 4,
+        shooterScore: 8,
+        gkDie: 5,
+        gkScore: 9,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: -2,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: 'away-0' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Save →/);
+    expect(container.textContent).not.toMatch(/SAVE/);
+  });
+
+  it('a SHOT_ATTEMPT LOOSE_BALL renders "Loose ball (tie) →"', () => {
+    setEventLog([
+      {
+        type: 'SHOT_ATTEMPT',
+        shooterId: 'home-9',
+        gkId: 'away-0',
+        targetHex: { q: 35, r: 13 },
+        outcome: 'LOOSE_BALL',
+        shooterDie: 3,
+        shooterScore: 7,
+        gkDie: 3,
+        gkScore: 7,
+        handlingDie: null,
+        gkHandling: null,
+        shooterPenaltyTotal: 0,
+        gkPenaltyTotal: 0,
+        timestamp: 0,
+        ballAfter: { position: { q: 35, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Loose ball \(tie\) →/);
+  });
+
+  it('a contested HEADER ATTACKER_WIN renders "Attacker wins" not "ATTACKER WINS"', () => {
+    setEventLog([
+      {
+        type: 'HEADER',
+        attackerId: 'home-9',
+        defenderId: 'away-1',
+        result: 'ATTACKER_WIN',
+        attackerDie: 5,
+        attackerAerialAbility: 3,
+        attackerCombined: 8,
+        defenderDie: 2,
+        defenderAerialAbility: 4,
+        defenderCombined: 6,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Attacker wins/);
+    expect(container.textContent).not.toMatch(/ATTACKER WINS/);
+  });
+
+  it('an HP_ACCURACY accurate event renders "Accurate → contesting header" not "ACCURATE"', () => {
+    setEventLog([
+      {
+        type: 'HP_ACCURACY',
+        passerId: 'home-9',
+        accurate: true,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Accurate → contesting header/);
+    expect(container.textContent).not.toMatch(/ACCURATE/);
+  });
+
+  it('a SLOT_ADVANCE entry renders the unicode arrow, not the ASCII arrow', () => {
+    setEventLog([
+      {
+        type: 'SLOT_ADVANCE',
+        from: 'ATTACKER_4',
+        to: 'DEFENDER_5',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/→/);
+    expect(container.textContent).not.toMatch(/-> /);
+  });
+
+  it('a MOVE entry still renders its raw coordinate pair with the unicode arrow (D-13 no-change guard)', () => {
+    setEventLog([
+      {
+        type: 'MOVE',
+        pieceId: 'home-9',
+        from: { q: 14, r: 13 },
+        to: { q: 15, r: 13 },
+        slot: 'ATTACKER_4',
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/14,13 → 15,13/);
   });
 });
 

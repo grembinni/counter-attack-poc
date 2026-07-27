@@ -153,6 +153,26 @@ const SLOT_PREFIX: Record<string, string> = {
   ATTACKER_2: `[MOVE ${moveSlotLabel('ATTACKER_2')}]`,
 };
 
+/** D-11: sentence-case label map for the shared SUCCESS/FAIL binary-outcome enum. */
+const RESULT_LABEL: Record<'SUCCESS' | 'FAIL', string> = {
+  SUCCESS: 'Success',
+  FAIL: 'Failed',
+};
+
+/** D-11: sentence-case label map for the SHOT_ATTEMPT outcome enum. */
+const SHOT_OUTCOME_LABEL: Record<'GOAL' | 'SAVE' | 'LOOSE_BALL', string> = {
+  GOAL: 'Goal',
+  SAVE: 'Save',
+  LOOSE_BALL: 'Loose ball (tie)',
+};
+
+/** D-11: sentence-case label map for the HEADER duel result enum. */
+const HEADER_RESULT_LABEL: Record<'ATTACKER_WIN' | 'DEFENDER_WIN' | 'TIE', string> = {
+  ATTACKER_WIN: 'Attacker wins',
+  DEFENDER_WIN: 'Defender wins',
+  TIE: 'Tie → loose ball',
+};
+
 /**
  * BUG-19: Resolves a piece's jersey number from gameState.pieces via store lookup,
  * mirroring pieceName()'s lookup pattern exactly. Falls back to the raw pieceId string
@@ -314,7 +334,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           <>
             {' '}
             <span style={{ color: fromColor, fontWeight: 'bold' }}>{fromLabel}</span>
-            {' -> '}
+            {' → '}
             <span style={{ color: toColor ?? undefined, fontWeight: 'bold' }}>{toLabel}</span>
           </>
         ),
@@ -366,7 +386,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           content: (
             <>
               {' '}
-              {event.result} {'-> '}
+              {RESULT_LABEL[event.result]} {'→ '}
               <PNamed pieceId={event.defenderId} /> — auto-intercept (no roll)
             </>
           ),
@@ -382,7 +402,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            {event.result} {'-> '}
+            {RESULT_LABEL[event.result]} {'→ '}
             <PNamed pieceId={event.defenderId} /> ({dStr}) — intercept if die 6 or total ≥ 10
           </>
         ),
@@ -407,7 +427,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            {event.result} {'-> '}
+            {RESULT_LABEL[event.result]} {'→ '}
             <PNamed pieceId={event.defenderId} /> ({defStr}) vs <PNamed pieceId={event.carrierId} />{' '}
             ({carrStr})
           </>
@@ -422,7 +442,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: (
           <>
             {' '}
-            <PNamed pieceId={event.scorerId} /> SCORED!
+            <PNamed pieceId={event.scorerId} /> Scored!
           </>
         ),
         isGoal: true, // was false — GOAL events must return true
@@ -491,7 +511,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         // 'handling') — render only the requested slice as its own log entry.
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
-        const outcomeLabel = event.outcome === 'LOOSE_BALL' ? 'LOOSE BALL (tie)' : event.outcome;
+        const outcomeLabel = SHOT_OUTCOME_LABEL[event.outcome];
         const shooterStr = fmtStatRoll(
           'Shooting',
           shooterRawStat,
@@ -529,7 +549,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           content: (
             <>
               {' '}
-              {outcomeLabel} {'-> '}
+              {outcomeLabel} {'→ '}
               {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
             </>
           ),
@@ -539,7 +559,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         // Regular duel outcome (GOAL or LOOSE_BALL)
         const shooterRawStat = event.shooterScore - event.shooterDie - event.shooterPenaltyTotal;
         const gkRawStat = event.gkScore! - event.gkDie - event.gkPenaltyTotal;
-        const outcomeLabel = event.outcome === 'LOOSE_BALL' ? 'LOOSE BALL (tie)' : event.outcome;
+        const outcomeLabel = SHOT_OUTCOME_LABEL[event.outcome];
         const shooterStr = fmtStatRoll(
           'Shooting',
           shooterRawStat,
@@ -557,7 +577,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         shotContent = (
           <>
             {' '}
-            {outcomeLabel} {'-> '}
+            {outcomeLabel} {'→ '}
             {shooterLabel} ({shooterStr}) vs <PNamed pieceId={event.gkId} /> ({gkStr})
           </>
         );
@@ -599,11 +619,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       const isTie = event.result === 'TIE';
       const isAttackerWin = event.result === 'ATTACKER_WIN';
       const prefix = isTie ? '[HEADER ~]' : isAttackerWin ? '[HEADER ✓]' : '[HEADER ✗]';
-      const winLabel = isTie
-        ? 'TIE → LOOSE BALL'
-        : isAttackerWin
-          ? 'ATTACKER WINS'
-          : 'DEFENDER WINS';
+      const winLabel = HEADER_RESULT_LABEL[event.result];
 
       // Uncontested: one team (or both) didn't field a contestant — no dice
       const isContested = event.attackerDie !== null && event.defenderDie !== null;
@@ -684,7 +700,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       return {
         prefix: event.accurate ? '[HIGH ✓]' : '[HIGH ✗]',
         prefixColor: event.passerId ? pieceColorOf(event.passerId) : null,
-        content: event.accurate ? ' ACCURATE -> CONTESTING HEADER' : ' Inaccurate — loose ball',
+        content: event.accurate ? ' Accurate → contesting header' : ' Inaccurate — loose ball',
         isGoal: false,
       };
     case 'LOOSE_BALL_LAND':
@@ -733,7 +749,7 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
             {' '}
             <P pieceId={event.gkId} prefix="K" /> → {event.targetHex.q},{event.targetHex.r} — die:
             {event.kickDie}+{event.kickScore - event.kickDie}={event.kickScore}
-            {accurate ? ' ACCURATE' : ' inaccurate — loose ball'}
+            {accurate ? ' Accurate' : ' Inaccurate — loose ball'}
           </>
         ),
         isGoal: false,
