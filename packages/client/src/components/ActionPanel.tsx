@@ -33,7 +33,7 @@ const ACTION_SUMMARY: Record<string, string> = {
   'Punt (High Pass)': 'Goalkeeper clears with a long kick.',
   'Quick Throw': 'Goalkeeper throws the ball back into play.',
   Undo: 'Undo your last move this phase.',
-  'End Turn': 'End your turn and pass control to the opponent.',
+  Confirm: 'Confirm your actions and end your turn, passing control to the opponent.',
 };
 
 // GOAL_R_VALUES imported from @counter-attack/shared — single source of truth for goal row positions
@@ -190,7 +190,7 @@ export function ActionPanel() {
                 setPendingEndTurn(null);
               }}
             >
-              Confirm
+              Yes, end turn
             </button>
           </div>
         </div>
@@ -307,10 +307,10 @@ export function ActionPanel() {
         </button>
         <button
           className={`${styles.ctaButton} ${ctaClass(hpmEligibleRemaining)}`}
-          title={ACTION_SUMMARY['End Turn']}
+          title={ACTION_SUMMARY['Confirm']}
           onClick={withEndTurnConfirm(hpmEligibleRemaining, emitEndTurn)}
         >
-          End Turn
+          Confirm
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -347,10 +347,10 @@ export function ActionPanel() {
         </button>
         <button
           className={`${styles.ctaButton} ${ctaClass(ftpmEligibleRemaining)}`}
-          title={ACTION_SUMMARY['End Turn']}
+          title={ACTION_SUMMARY['Confirm']}
           onClick={withEndTurnConfirm(ftpmEligibleRemaining, emitEndTurn)}
         >
-          End Turn
+          Confirm
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -360,7 +360,7 @@ export function ActionPanel() {
 
   // -------------------------------------------------------------------------
   // GK_DIVE phase: GK clicks a highlighted hex on the shot path (0–3 hexes away).
-  // Clicking triggers the dive and the shot auto-resolves immediately — no End Turn needed.
+  // Clicking triggers the dive and the shot auto-resolves immediately — no Confirm needed.
   // Must be before the isActivePlayer guard — both teams see this phase.
   // -------------------------------------------------------------------------
   if (phase === 'GK_DIVE') {
@@ -402,10 +402,10 @@ export function ActionPanel() {
         </div>
         <button
           className={`${styles.ctaButton} ${ctaClass(sdEligibleRemaining)}`}
-          title={ACTION_SUMMARY['End Turn']}
+          title={ACTION_SUMMARY['Confirm']}
           onClick={withEndTurnConfirm(sdEligibleRemaining, emitEndTurn)}
         >
-          End Turn
+          Confirm
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -459,9 +459,12 @@ export function ActionPanel() {
                 {headerContestantIds.length} players selected within range.
               </span>
             </div>
-            {/* UX-08: eligibleRemaining = 1 while no contestant selected (player has not acted yet);
-                 0 once a contestant is chosen. Confirm Selection has no dialog (already green/ready);
-                 Decline (no contestant) triggers the dialog as it could be accidental. */}
+            {/* UX-08/D-08: eligibleRemaining = 1 while no contestant selected (player has not
+                 acted yet); 0 once a contestant is chosen. Confirm has no dialog (already
+                 green/ready); Decline (no contestant) triggers the dialog as it could be
+                 accidental. D-08 collapses the old longer positive-branch label into the
+                 single canonical 'Confirm' verb used by every other confirm-and-advance CTA
+                 in this panel. */}
             {(() => {
               const headerEligibleRemaining = headerContestantIds.length > 0 ? 0 : 1;
               return (
@@ -471,7 +474,7 @@ export function ActionPanel() {
                     emitHeaderContestant(headerContestantIds),
                   )}
                 >
-                  {headerContestantIds.length > 0 ? 'Confirm Selection' : 'Decline (no contestant)'}
+                  {headerContestantIds.length > 0 ? 'Confirm' : 'Decline (no contestant)'}
                 </button>
               );
             })()}
@@ -607,10 +610,10 @@ export function ActionPanel() {
         </div>
         <button
           className={`${styles.ctaButton} ${ctaClass(gkmEligibleRemaining)}`}
-          title={ACTION_SUMMARY['End Turn']}
+          title={ACTION_SUMMARY['Confirm']}
           onClick={withEndTurnConfirm(gkmEligibleRemaining, emitEndTurn)}
         >
-          End Turn
+          Confirm
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -645,10 +648,10 @@ export function ActionPanel() {
         </div>
         <button
           className={`${styles.ctaButton} ${ctaClass(remaining)}`}
-          title={ACTION_SUMMARY['End Turn']}
+          title={ACTION_SUMMARY['Confirm']}
           onClick={withEndTurnConfirm(remaining, emitEndTurn)}
         >
-          End Turn
+          Confirm
         </button>
         {confirmDialog}
         {gameError && <span className={styles.errorText}>{gameError}</span>}
@@ -896,10 +899,10 @@ export function ActionPanel() {
         </button>
         <button
           className={`${styles.ctaButton} ${ctaClass(remaining ?? 0)}`}
-          title={ACTION_SUMMARY['End Turn']}
+          title={ACTION_SUMMARY['Confirm']}
           onClick={withEndTurnConfirm(remaining ?? 0, emitEndTurn)}
         >
-          End Turn
+          Confirm
         </button>
         {movementSlot === 'ATTACKER_4' && Object.keys(paceUsedByPieceId).length === 0 && (
           <button className={styles.backButton} onClick={emitCancelMovement}>
