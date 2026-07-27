@@ -117,7 +117,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 | 32    | Code Cleanup                              | 6/6         | Complete |
 | 33    | Design Tokens & Highlight Standardization | 7/7         | Complete |
 | 34    | Visual Theme Restyle                      | 5/5         | Complete |
-| 35    | 2/5                                       | In Progress |          |
+| 35    | 4/5                                       | In Progress |          |
 
 ### Phase 31: Bug Fixes
 
