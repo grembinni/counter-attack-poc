@@ -1842,3 +1842,70 @@ describe('applyMove — steal success triggers half-end (GAP-2/CR-01)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 1/2 (Plan 36-04): BUG-36 — shooter/GK duel tie loose-ball origin (D-14)
+//
+// applyRoll(makeShotState(), 3, 4, 5) gives shooter 9+3=12 vs GK 8+4=12 → TIE →
+// LOOSE_BALL. The tie branch must place the ball on gkEffectivePos (the
+// keeper's dive-adjusted hex), not state.ball.position (the shooter's hex).
+// ---------------------------------------------------------------------------
+
+describe('applyRoll SHOT duel tie — loose-ball origin (BUG-36, D-14)', () => {
+  it('no dive: ball lands on the GK hex, not the shooter hex (a)', () => {
+    const state = makeShotState();
+    const result = applyRoll(state, 3 /* shooter */, 4 /* GK */, 5 /* handling */);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.position).toEqual(awayGk.position);
+    expect(result.state.ball.position).not.toEqual(homeFwd.position);
+    expect(result.state.ball.carrierId).toBeNull();
+  });
+
+  it('2-hex dive (tie preserved): ball lands on gkEffectivePos, not gk.position or shooter hex (b)', () => {
+    // 2-hex dive keeps savingPenalty at 0 (only distance===3 applies -1), so the tie survives
+    // while gkEffectivePos ({q:34,r:13}) differs from both awayGk.position ({q:36,r:13}) and
+    // homeFwd.position ({q:32,r:12}) — proving the code reads gkEffectivePos specifically.
+    const state: GameState = {
+      ...makeShotState(),
+      gkDivePosition: { q: 34, r: 13 },
+    };
+    const result = applyRoll(state, 3 /* shooter */, 4 /* GK */, 5 /* handling */);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.position).toEqual({ q: 34, r: 13 });
+    expect(result.state.ball.position).not.toEqual(awayGk.position);
+    expect(result.state.ball.position).not.toEqual(homeFwd.position);
+    expect(result.state.ball.carrierId).toBeNull();
+  });
+
+  it('event consistency: SHOT_ATTEMPT ballAfter matches the returned ball in both scenarios (c)', () => {
+    const noDiveResult = applyRoll(makeShotState(), 3, 4, 5);
+    expect(noDiveResult.ok).toBe(true);
+    if (!noDiveResult.ok) return;
+    const noDiveEvent = noDiveResult.state.eventLog.at(-1);
+    expect(noDiveEvent?.type).toBe('SHOT_ATTEMPT');
+    expect(noDiveEvent && 'outcome' in noDiveEvent ? noDiveEvent.outcome : undefined).toBe(
+      'LOOSE_BALL',
+    );
+    expect(
+      noDiveEvent && 'ballAfter' in noDiveEvent ? noDiveEvent.ballAfter.position : undefined,
+    ).toEqual(noDiveResult.state.ball.position);
+
+    const diveState: GameState = {
+      ...makeShotState(),
+      gkDivePosition: { q: 34, r: 13 },
+    };
+    const diveResult = applyRoll(diveState, 3, 4, 5);
+    expect(diveResult.ok).toBe(true);
+    if (!diveResult.ok) return;
+    const diveEvent = diveResult.state.eventLog.at(-1);
+    expect(diveEvent?.type).toBe('SHOT_ATTEMPT');
+    expect(diveEvent && 'outcome' in diveEvent ? diveEvent.outcome : undefined).toBe('LOOSE_BALL');
+    expect(
+      diveEvent && 'ballAfter' in diveEvent ? diveEvent.ballAfter.position : undefined,
+    ).toEqual(diveResult.state.ball.position);
+  });
+});
