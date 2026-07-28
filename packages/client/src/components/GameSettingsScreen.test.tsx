@@ -10,7 +10,7 @@ afterEach(() => cleanup());
 
 describe('GameSettingsScreen — renders controls', () => {
   it('renders the heading, Match Speed picker, Team Type toggle, and Confirm CTA', () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByText('Game Settings')).toBeTruthy();
     expect(screen.getByText('Match Speed')).toBeTruthy();
@@ -23,7 +23,7 @@ describe('GameSettingsScreen — renders controls', () => {
   });
 
   it('defaults to Team Type Standard and hides the draft-pool section', () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByRole('tab', { name: 'Standard' }).getAttribute('aria-selected')).toBe(
       'true',
@@ -34,7 +34,7 @@ describe('GameSettingsScreen — renders controls', () => {
 
 describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => {
   it('selecting Draft reveals five pool checkboxes with Original pre-checked', async () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
@@ -55,7 +55,7 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
   });
 
   it('Legends and Icons checkboxes are enabled and unlabelled (D-08, Phase 30)', async () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
@@ -68,7 +68,7 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
   });
 
   it('clicking a Legends/Icons checkbox toggles it checked (D-08, Phase 30)', async () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     const legends = screen.getByRole<HTMLInputElement>('checkbox', { name: /legends/i });
@@ -81,7 +81,7 @@ describe('GameSettingsScreen — Draft mode pool checkboxes (D-04/D-05)', () => 
 
 describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
   it('Confirm is enabled by default in Draft mode (Original pre-checked)', async () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
 
@@ -92,7 +92,7 @@ describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
   });
 
   it('Confirm becomes disabled when all enabled pools are unchecked, then re-enables after checking one', async () => {
-    render(<GameSettingsScreen onConfirm={vi.fn()} />);
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     const original = screen.getByRole('checkbox', { name: /original/i });
@@ -114,7 +114,7 @@ describe('GameSettingsScreen — Confirm disabled state (D-06)', () => {
 describe('GameSettingsScreen — onConfirm payload shape', () => {
   it('Standard mode: onConfirm receives draftPools: [] regardless of teamType default state', async () => {
     const onConfirm = vi.fn();
-    render(<GameSettingsScreen onConfirm={onConfirm} />);
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
 
@@ -128,7 +128,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
 
   it('Draft mode: onConfirm receives the checked selectable pools (Original pre-checked)', async () => {
     const onConfirm = vi.fn();
-    render(<GameSettingsScreen onConfirm={onConfirm} />);
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
@@ -143,7 +143,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
 
   it('Draft mode: a Draft-mode confirm can include legends and icons once checked (D-08, Phase 30)', async () => {
     const onConfirm = vi.fn();
-    render(<GameSettingsScreen onConfirm={onConfirm} />);
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     const mls = screen.getByRole('checkbox', { name: /^mls/i });
@@ -164,7 +164,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
 
   it('speed selection is reflected in the confirmed payload', async () => {
     const onConfirm = vi.fn();
-    render(<GameSettingsScreen onConfirm={onConfirm} />);
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: /fast/i }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
@@ -174,5 +174,34 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       teamType: 'standard',
       draftPools: [],
     });
+  });
+});
+
+describe('GameSettingsScreen — Back control (BUG-33, Phase 36)', () => {
+  it('renders a Back control in the default Standard state', () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /back/i })).toBeTruthy();
+  });
+
+  it('still renders after switching Team Type to Draft and after clicking Confirm Settings (D-05)', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
+    expect(screen.getByRole('button', { name: /back/i })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+    expect(screen.getByRole('button', { name: /back/i })).toBeTruthy();
+  });
+
+  it('clicking Back calls onBack exactly once and does not call onConfirm', async () => {
+    const onConfirm = vi.fn();
+    const onBack = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={onBack} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /back/i }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

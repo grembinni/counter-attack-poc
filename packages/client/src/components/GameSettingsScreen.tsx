@@ -23,9 +23,14 @@ type Props = {
     teamType: TeamType;
     draftPools: DraftPoolId[];
   }) => void;
+  /**
+   * BUG-33 (Phase 36) / D-01..D-05: called when the host clicks Back. Returns the host
+   * to the Landing screen and tears the already-created room down server-side.
+   */
+  onBack: () => void;
 };
 
-export function GameSettingsScreen({ onConfirm }: Props) {
+export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   const [speed, setSpeed] = useState<GameSpeed>('standard');
   const [teamType, setTeamType] = useState<TeamType>('standard');
   // D-05: Original pre-checked by default when Draft mode is first selected.
@@ -145,6 +150,10 @@ export function GameSettingsScreen({ onConfirm }: Props) {
             Confirm Settings
           </button>
         )}
+
+        <button type="button" className={styles.subLink} onClick={onBack}>
+          &larr; Back
+        </button>
       </div>
     </div>
   );

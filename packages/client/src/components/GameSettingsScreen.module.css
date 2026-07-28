@@ -208,3 +208,19 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* Back link — BUG-33 (Phase 36) / D-04. Copied verbatim from LobbyScreen.module.css. */
+.subLink {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  align-self: flex-start;
+}
+
+.subLink:hover {
+  color: var(--color-text-primary);
+}

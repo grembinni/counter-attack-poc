@@ -261,9 +261,11 @@ export function registerRoomHandlers(
       deleteRoom(roomCode);
       void socket.leave(roomCode);
 
-      socket.data.roomCode = undefined;
-      socket.data.playerSlot = undefined;
-      socket.data.sessionToken = undefined;
+      // exactOptionalPropertyTypes: assigning `undefined` to an optional field is a type
+      // error distinct from the field being absent — use `delete` to fully clear it.
+      delete socket.data.roomCode;
+      delete socket.data.playerSlot;
+      delete socket.data.sessionToken;
     });
 
     // -----------------------------------------------------------------------
