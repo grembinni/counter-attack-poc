@@ -51,9 +51,19 @@ function assertStructuralInvariants(selectedPools: DraftPoolId[]) {
     expect(countsByRound.get(round)).toBe(PACKS_PER_ROUND);
   }
 
-  // No cross-pack duplication WITHIN a round (D-09, re-scoped per round in Phase 30) — a
-  // card may legitimately reappear in a different round (D-18), so this check is scoped
-  // per-round rather than match-wide.
+  // BUG-34 (Phase 36), D-06: no player id appears in more than one pack across the WHOLE
+  // match's 12 packs — supersedes Phase 30's D-18, which previously scoped this check
+  // per-round only (a card was allowed to reappear in a different round). Flatten every
+  // dealt card id across all packs and assert both the total count and the distinct count
+  // equal TOTAL_PACKS * 4 — any duplicate anywhere in the match fails this.
+  const allIds = packs.flatMap((pack) => pack.cards.map((c) => c.id));
+  expect(allIds.length).toBe(TOTAL_PACKS * 4);
+  expect(new Set(allIds).size).toBe(TOTAL_PACKS * 4);
+
+  // D-07: the within-round no-duplicate-card guarantee still holds as a distinct,
+  // explicitly-labelled assertion — a regression that broke only the within-round rule
+  // (while somehow leaving the broader match-wide count intact) would still be caught
+  // here with a precise per-round failure message.
   for (let round = 1; round <= DRAFT_ROUND_COUNT; round++) {
     const roundPacks = packs.filter((p) => p.round === round);
     const idSets = roundPacks.map((pack) => new Set(pack.cards.map((c) => c.id)));
