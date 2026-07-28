@@ -100,6 +100,16 @@ None - no external service configuration required.
 - No selectable pool combination throws "insufficient supply" under match-wide dedup, including the numerically-tight `['original']`-only scenario flagged in RESEARCH.md Pitfall 4 (the existing unrestricted cross-pool backfill still absorbs the shortfall this plan's match-wide dedup creates — the same-pool tier cascade (D-08) and common-only cross-pool restriction (D-09) that would tighten this further are explicitly deferred to Plan 36-03, per this plan's stated scope boundary).
 - Ready for Plan 36-03 (cross-pool/tier cascade, D-08/D-09) to build on this match-wide `matchUsedIds` foundation.
 
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/36-bug-fixes/36-02-SUMMARY.md`
+- FOUND: `packages/shared/src/draftEngine.ts`
+- FOUND: `packages/shared/src/draftEngine.test.ts`
+- FOUND: `packages/server/src/__tests__/draftPacks.test.ts`
+- FOUND: commit `17ad05c` (Task 1)
+- FOUND: commit `7c2a758` (Task 2)
+- FOUND: commit `33cc35a` (SUMMARY.md)
+
 ---
 
 _Phase: 36-bug-fixes_
