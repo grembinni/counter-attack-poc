@@ -122,3 +122,13 @@ _Note: Task 2's commit also includes a small Rule-1 typecheck fix to Task 1's `r
 
 _Phase: 36-bug-fixes_
 _Completed: 2026-07-28_
+
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/36-bug-fixes/36-01-SUMMARY.md
+- FOUND: packages/shared/src/events.ts
+- FOUND: packages/server/src/roomHandlers.ts
+- FOUND: packages/client/src/components/GameSettingsScreen.tsx
+- FOUND: commit bd7a14b (Task 1)
+- FOUND: commit dd9306e (Task 2)
+- FOUND: commit 4fb37d9 (SUMMARY.md)
