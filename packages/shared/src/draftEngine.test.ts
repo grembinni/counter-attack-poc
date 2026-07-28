@@ -17,7 +17,7 @@ import {
   DRAFT_ROUND_COUNT,
   PACKS_PER_ROUND,
 } from './types.js';
-import type { DraftTier } from './types.js';
+import type { DraftTier, DraftPoolId } from './types.js';
 import {
   computeTotalStat,
   classifyTier,
@@ -497,4 +497,64 @@ describe('generateDraftPacks — 6-round structure', () => {
       expect(rareCount).toBeGreaterThan(0);
     },
   );
+});
+
+// ---------------------------------------------------------------------------
+// generateDraftPacks — BUG-34 (Phase 36): match-wide uniqueness (D-06/D-07)
+// Supersedes Phase 30's D-18 ("a card CAN reappear in a different round") — a player
+// may now appear in at most ONE pack across all 6 rounds / 12 packs of a match.
+// ---------------------------------------------------------------------------
+
+describe('generateDraftPacks — BUG-34 (Phase 36): match-wide uniqueness (D-06/D-07)', () => {
+  const SINGLE_POOL_SELECTIONS: DraftPoolId[][] = [['original'], ['mls'], ['international']];
+  const ALL_POOLS_SELECTION = [...SELECTABLE_DRAFT_POOLS];
+
+  const flattenIds = (packs: ReturnType<typeof generateDraftPacks>['packs']): string[] =>
+    packs.flatMap((pack) => pack.cards.map((c) => c.id));
+
+  it.each([1, 2, 3, 4, 5])(
+    'seed %i: 48 distinct player ids across all 12 packs for every selectable pool combination',
+    (seed) => {
+      const rng = makeSeededRng(seed);
+      for (const selection of [...SINGLE_POOL_SELECTIONS, ALL_POOLS_SELECTION]) {
+        const { packs } = generateDraftPacks(selection, rng);
+        const ids = flattenIds(packs);
+        expect(ids).toHaveLength(48);
+        expect(new Set(ids).size).toBe(48);
+      }
+    },
+  );
+
+  it('round-1 GK card ids are disjoint from every rounds-2-to-6 card id (D-10 sanity)', () => {
+    const rng = makeSeededRng(6);
+    const { packs } = generateDraftPacks(ALL_POOLS_SELECTION, rng);
+    const round1Ids = new Set(flattenIds(packs.filter((p) => p.round === 1)));
+    const laterIds = flattenIds(packs.filter((p) => p.round !== 1));
+    for (const id of laterIds) {
+      expect(round1Ids.has(id)).toBe(false);
+    }
+  });
+
+  it('the pre-existing per-round guarantee still holds — zero overlap between a round pair (D-07 superset check)', () => {
+    const rng = makeSeededRng(7);
+    const { packs } = generateDraftPacks(ALL_POOLS_SELECTION, rng);
+    for (const round of DRAFT_ROUNDS) {
+      const roundPacks = packs.filter((p) => p.round === round.round);
+      expect(roundPacks).toHaveLength(PACKS_PER_ROUND);
+      const idSets = roundPacks.map((pack) => new Set(pack.cards.map((c) => c.id)));
+      for (let i = 0; i < idSets.length; i++) {
+        for (let j = i + 1; j < idSets.length; j++) {
+          const overlap = [...idSets[i]].filter((id) => idSets[j].has(id));
+          expect(overlap).toHaveLength(0);
+        }
+      }
+    }
+  });
+
+  it('none of the pool selections throws under match-wide dedup', () => {
+    const rng = makeSeededRng(8);
+    for (const selection of [...SINGLE_POOL_SELECTIONS, ALL_POOLS_SELECTION]) {
+      expect(() => generateDraftPacks(selection, rng)).not.toThrow();
+    }
+  });
 });

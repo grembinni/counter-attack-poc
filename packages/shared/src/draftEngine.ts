@@ -246,18 +246,25 @@ function drawFromPool(
  * `fallbackChain` (Pitfall 2 — never special-cased to skip backfill) until `neededCount`
  * is met or the chain is exhausted. Returns whatever was assembled; the caller checks the
  * final length against `neededCount` and throws a per-round "insufficient supply" error.
+ *
+ * BUG-34 (Phase 36), D-06: also excludes any candidate already dealt into an earlier
+ * pack this match (`matchUsedIds`). In practice round 1 is always dealt first, so this
+ * set is empty when this function runs — the parameter exists for uniformity/future-
+ * proofing (Pitfall 3), not because a real GK-round collision is possible today. This
+ * function only READS `matchUsedIds`; it never mutates it (see `generateDraftPacks`).
  */
 function resolveGkCandidates(
   selectedUnion: PoolPlayer[],
   fallbackChain: readonly DraftPoolId[],
   neededCount: number,
+  matchUsedIds: ReadonlySet<string>,
 ): PoolPlayer[] {
-  const candidates = selectedUnion.filter((p) => p.role === 'GK');
+  const candidates = selectedUnion.filter((p) => p.role === 'GK' && !matchUsedIds.has(p.id));
   const usedIds = new Set(candidates.map((p) => p.id));
   for (const fallbackPoolId of fallbackChain) {
     if (candidates.length >= neededCount) break;
     const fallbackGks = resolvePoolPlayers([fallbackPoolId]).filter(
-      (p) => p.role === 'GK' && !usedIds.has(p.id),
+      (p) => p.role === 'GK' && !usedIds.has(p.id) && !matchUsedIds.has(p.id),
     );
     for (const p of fallbackGks) {
       candidates.push(p);
@@ -289,20 +296,26 @@ function tierSupplyMeetsNeed(
  * `'tiered'` round, backfilling from `fallbackChain` (re-classifying after each addition)
  * until every slot's need is met or the chain is exhausted (Pattern 4/Anti-Patterns:
  * needs are per-round-pack-pair, not match-wide totals).
+ *
+ * BUG-34 (Phase 36), D-06: also excludes any candidate already dealt into an earlier
+ * pack this match (`matchUsedIds`), both from the base union and from cross-pool
+ * fallback candidates. This function only READS `matchUsedIds`; it never mutates it
+ * (see `generateDraftPacks`, which adds ids only after cards are actually dealt).
  */
 function resolveTieredCandidates(
   selectedUnion: PoolPlayer[],
   fallbackChain: readonly DraftPoolId[],
   round: Extract<RoundConfig, { kind: 'tiered' }>,
+  matchUsedIds: ReadonlySet<string>,
 ): TieredPoolPlayer[] {
-  const baseCandidates = selectedUnion.filter((p) => p.role !== 'GK');
+  const baseCandidates = selectedUnion.filter((p) => p.role !== 'GK' && !matchUsedIds.has(p.id));
   const usedIds = new Set(baseCandidates.map((p) => p.id));
   let classified = assignTiers(baseCandidates);
 
   for (const fallbackPoolId of fallbackChain) {
     if (tierSupplyMeetsNeed(classified, round)) break;
     const fallbackPlayers = resolvePoolPlayers([fallbackPoolId]).filter(
-      (p) => p.role !== 'GK' && !usedIds.has(p.id),
+      (p) => p.role !== 'GK' && !usedIds.has(p.id) && !matchUsedIds.has(p.id),
     );
     for (const p of fallbackPlayers) {
       baseCandidates.push(p);
@@ -350,8 +363,13 @@ function buildTierPoolsForRound(
  * {FWD,ST}<=2 combined) per pack and drawing the chaseOrRare slot from a single merged,
  * shuffled chase+rare pool (D-25 — an even, unbiased mix, never "prefer chase").
  *
- * No card id appears twice within the same round's 2 packs (D-09); a card CAN reappear in
- * a different round, since discarded/unpicked cards are never tracked match-wide (D-18).
+ * BUG-34 (Phase 36), D-06/D-07: no card id appears twice across the whole match's 12
+ * packs, tracked by a match-wide `matchUsedIds` id set populated only from cards actually
+ * dealt into a pack (never from undealt candidates — see Pitfall 5). The within-round
+ * no-duplicate guarantee (D-09) still holds as a consequence of this match-wide rule
+ * being a strict superset. This supersedes Phase 30's D-18, which previously allowed a
+ * card to reappear in a different round since discarded/unpicked cards were never
+ * tracked match-wide.
  * Throws a per-round "insufficient supply" error if a round's need cannot be met even
  * after exhausting the fallback chain (loud-fail, matching the CR-01/WR-01 convention —
  * never silently deals a short or duplicated pack).
@@ -391,10 +409,20 @@ export function generateDraftPacks(
 
   let packNumber = 0;
 
+  // BUG-34 (Phase 36), D-06: match-wide "already dealt this match" id set, threaded
+  // through both resolvers (read-only there) and populated ONLY from cards actually
+  // dealt into a pack, below — supersedes Phase 30's D-18 per-round-only scoping.
+  const matchUsedIds = new Set<string>();
+
   for (const round of DRAFT_ROUNDS) {
     if (round.kind === 'gk') {
       const neededCount = PACKS_PER_ROUND * round.cardsPerPack;
-      const gkCandidates = resolveGkCandidates(selectedUnion, fallbackChain, neededCount);
+      const gkCandidates = resolveGkCandidates(
+        selectedUnion,
+        fallbackChain,
+        neededCount,
+        matchUsedIds,
+      );
       if (gkCandidates.length < neededCount) {
         throw new Error(
           `generateDraftPacks: insufficient GK supply for round ${round.round} (need ${neededCount}, have ${gkCandidates.length})`,
@@ -406,9 +434,10 @@ export function generateDraftPacks(
         packNumber += 1;
         const cards = dealt.slice(i * round.cardsPerPack, (i + 1) * round.cardsPerPack);
         packs.push({ packNumber, round: round.round, cards });
+        for (const card of cards) matchUsedIds.add(card.id);
       }
     } else {
-      const classified = resolveTieredCandidates(selectedUnion, fallbackChain, round);
+      const classified = resolveTieredCandidates(selectedUnion, fallbackChain, round, matchUsedIds);
       if (!tierSupplyMeetsNeed(classified, round)) {
         throw new Error(
           `generateDraftPacks: insufficient tiered supply for round ${round.round} even after backfill`,
@@ -426,6 +455,7 @@ export function generateDraftPacks(
         }
         packNumber += 1;
         packs.push({ packNumber, round: round.round, cards });
+        for (const card of cards) matchUsedIds.add(card.id);
       }
     }
   }
