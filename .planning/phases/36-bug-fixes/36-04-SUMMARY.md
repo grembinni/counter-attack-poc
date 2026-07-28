@@ -114,3 +114,11 @@ None - no external service configuration required.
 
 _Phase: 36-bug-fixes_
 _Completed: 2026-07-28_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/36-bug-fixes/36-04-SUMMARY.md`
+- FOUND: commit `01662d2` (Task 1)
+- FOUND: commit `4669d47` (Task 2)
+- FOUND: commit `d5b9194` (Rule 1 auto-fix)
+- FOUND: commit `77792ea` (this SUMMARY.md)
