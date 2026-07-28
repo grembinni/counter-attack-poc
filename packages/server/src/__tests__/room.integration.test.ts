@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
-import { clearAllRooms } from '../roomStore.js';
+import { clearAllRooms, getRoom } from '../roomStore.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import http from 'http';
@@ -695,4 +695,64 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     await selectionStartCPromise;
     await selectionStartDPromise;
   }, 8000);
+});
+
+// ---------------------------------------------------------------------------
+// LEAVE_ROOM (Phase 36, BUG-33 / D-01..D-05)
+//
+// Covers: LEAVE_ROOM tears the room down immediately (no dependence on the 90s
+// disconnect grace timer), and a room-less socket emitting LEAVE_ROOM is a
+// harmless no-op that cannot delete an unrelated room (T-36-01 spoofing case).
+// ---------------------------------------------------------------------------
+
+describe('LEAVE_ROOM (BUG-33)', () => {
+  it('room:leave deletes the room immediately — a subsequent join returns NOT_FOUND (D-03)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    // Host leaves the settings screen — no server acknowledgement is emitted for
+    // LEAVE_ROOM, so sequence via the follow-up ROOM_JOIN round-trip instead of a
+    // bare timeout.
+    clientA.emit(ClientEvents.LEAVE_ROOM);
+
+    const clientB = createClient();
+    await waitForConnect(clientB);
+
+    const errorPromise = oncePromise(clientB, ServerEvents.ROOM_ERROR, 2000);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('NOT_FOUND');
+    expect(getRoom(roomCode)).toBeUndefined();
+  }, 5000);
+
+  it('room:leave from a socket that never created/joined a room is a harmless no-op (T-36-01)', async () => {
+    // An unrelated room exists, created by a different client.
+    const ownerClient = createClient();
+    await waitForConnect(ownerClient);
+    const createJoinedPromise = oncePromise(ownerClient, ServerEvents.ROOM_JOINED);
+    ownerClient.emit(ClientEvents.ROOM_CREATE);
+    const [unrelatedRoomCode] = await createJoinedPromise;
+
+    // A fresh socket with no room association emits LEAVE_ROOM.
+    const strayClient = createClient();
+    await waitForConnect(strayClient);
+    strayClient.emit(ClientEvents.LEAVE_ROOM);
+
+    // The server must still be up, and the unrelated room must still be joinable —
+    // sequenced via a real ROOM_JOIN round-trip rather than a bare timeout.
+    const joinerClient = createClient();
+    await waitForConnect(joinerClient);
+    const joinedPromise = oncePromise(joinerClient, ServerEvents.ROOM_JOINED, 2000);
+    joinerClient.emit(ClientEvents.ROOM_JOIN, unrelatedRoomCode);
+    const [joinedRoomCode, playerSlot] = await joinedPromise;
+
+    expect(joinedRoomCode).toBe(unrelatedRoomCode);
+    expect(playerSlot).toBe(2);
+    expect(getRoom(unrelatedRoomCode)).toBeDefined();
+  }, 5000);
 });

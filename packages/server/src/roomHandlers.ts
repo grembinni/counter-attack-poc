@@ -245,6 +245,30 @@ export function registerRoomHandlers(
     });
 
     // -----------------------------------------------------------------------
+    // LEAVE_ROOM
+    // BUG-33 (Phase 36) / D-01..D-05: host abandons the pre-game settings screen.
+    // Terminal action — deletes the room immediately server-side instead of relying on
+    // the 90s disconnect grace timer (D-03/Pitfall 6). No payload: the room code to
+    // delete is read only from socket.data.roomCode, so a client can never supply
+    // (and therefore never spoof) an arbitrary room code to delete (T-36-01, ASVS V3/V4).
+    // No isProcessing mutex: this is terminal, nothing is left to race against, and a
+    // repeated deleteRoom on an already-removed key is a safe no-op (T-36-04).
+    // -----------------------------------------------------------------------
+    socket.on(ClientEvents.LEAVE_ROOM, () => {
+      const roomCode = socket.data.roomCode;
+      if (roomCode === undefined) return;
+
+      deleteRoom(roomCode);
+      void socket.leave(roomCode);
+
+      // exactOptionalPropertyTypes: assigning `undefined` to an optional field is a type
+      // error distinct from the field being absent — use `delete` to fully clear it.
+      delete socket.data.roomCode;
+      delete socket.data.playerSlot;
+      delete socket.data.sessionToken;
+    });
+
+    // -----------------------------------------------------------------------
     // TEAM_PICK
     // Phase 16 TEAM-01/TEAM-02: enforces home-first turn order, allow-list
     // validation, isProcessing mutex, and builds game state after both picks.

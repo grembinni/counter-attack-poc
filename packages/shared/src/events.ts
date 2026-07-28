@@ -19,6 +19,11 @@ import type { FormationId } from './formations.js';
 export const ClientEvents = {
   ROOM_CREATE: 'room:create',
   ROOM_JOIN: 'room:join',
+  /**
+   * BUG-33 (Phase 36) / D-03: host abandons the pre-game settings screen; server deletes
+   * the room immediately instead of waiting on the disconnect grace timer.
+   */
+  LEAVE_ROOM: 'room:leave',
   /** DRAFT-01/D-03 (Phase 27): host confirms speed + team type + draft pools atomically on the pre-game settings screen. */
   ROOM_SETTINGS_CONFIRM: 'room:settings-confirm',
   GAME_MOVE: 'game:move',
@@ -153,6 +158,12 @@ export const ServerEvents = {
 export interface ClientToServerEvents {
   [ClientEvents.ROOM_CREATE]: () => void;
   [ClientEvents.ROOM_JOIN]: (roomCode: string) => void;
+  /**
+   * BUG-33 (Phase 36) / D-03: host leaves the pre-game settings screen. No payload —
+   * the server reads the room to delete from socket.data.roomCode only, so a client can
+   * never supply (and therefore never spoof) a room code to delete.
+   */
+  [ClientEvents.LEAVE_ROOM]: () => void;
   /**
    * DRAFT-01/D-03 (Phase 27): host confirms speed + team type + draft pools together on the
    * pre-game settings screen. Object payload (three always-sent-together fields, consistent

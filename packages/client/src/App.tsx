@@ -34,6 +34,8 @@ export function App() {
   const setGameError = useGameStore((s) => s.setGameError);
   // Phase 24: playerSlot read from store to determine own formation in onBothFormationsConfirmed
   const playerSlot = useGameStore((s) => s.playerSlot);
+  // BUG-33 (Phase 36) / D-01..D-03: resets screen to LANDING plus roomCode/playerSlot/error fields.
+  const resetLobby = useGameStore((s) => s.resetLobby);
 
   // D-14: homePickedTeam is local state in App.tsx (not in Zustand store)
   const [homePickedTeam, setHomePickedTeam] = useState<TeamId | null>(null);
@@ -235,6 +237,20 @@ export function App() {
     socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, settings);
   }
 
+  // BUG-33 (Phase 36) / D-01/D-02/D-03: called from GameSettingsScreen's onBack. Tears down the
+  // already-created room server-side immediately (no dependence on the 90s disconnect grace
+  // timer), then resets local pre-game state so a subsequent Create Room does not inherit
+  // stale settings (RESEARCH.md Open Question 2), then returns to the Landing screen.
+  function handleSettingsBack() {
+    socket.emit(ClientEvents.LEAVE_ROOM);
+    sessionStorage.removeItem('ca_session_token');
+    setSelectedSpeed('standard');
+    setTeamType('standard');
+    setDraftPools([]);
+    setHomePickedTeam(null);
+    resetLobby();
+  }
+
   // Phase 22 D-14 / Phase 23: emits uniform:confirm with formationId + jerseyType to server
   function handleUniformConfirm(
     teamId: TeamId,
@@ -286,7 +302,7 @@ export function App() {
           onDraftRearrange={handleDraftRearrange}
         />
       ) : screen === 'GAME_SETTINGS' ? (
-        <GameSettingsScreen onConfirm={handleSettingsConfirm} />
+        <GameSettingsScreen onConfirm={handleSettingsConfirm} onBack={handleSettingsBack} />
       ) : screen === 'UNIFORM_SELECTION' ? (
         <UniformSelectionScreen
           homePickedTeam={homePickedTeam}
