@@ -29,6 +29,7 @@ import {
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
+import { PITCH_REGIONS } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -1907,5 +1908,63 @@ describe('applyRoll SHOT duel tie — loose-ball origin (BUG-36, D-14)', () => {
     expect(
       diveEvent && 'ballAfter' in diveEvent ? diveEvent.ballAfter.position : undefined,
     ).toEqual(diveResult.state.ball.position);
+  });
+
+  it('scatter from the tie state originates from the GK hex, not the shooter hex', () => {
+    // Feed the LOOSE_BALL-phase state from the dive-tie scenario straight back into applyRoll
+    // with a direction/distance pair. Direction 4 (W), distance 2 from {q:34,r:13} lands on
+    // {q:32,r:14} with no trajectory occupant — stays on-pitch, so the clamp path does not
+    // mask this assertion.
+    const diveState: GameState = {
+      ...makeShotState(),
+      gkDivePosition: { q: 34, r: 13 },
+    };
+    const tieResult = applyRoll(diveState, 3, 4, 5);
+    expect(tieResult.ok).toBe(true);
+    if (!tieResult.ok) return;
+    expect(tieResult.state.phase).toBe('LOOSE_BALL');
+    expect(tieResult.state.ball.position).toEqual({ q: 34, r: 13 });
+
+    const scatterResult = applyRoll(tieResult.state, 4 /* direction: W */, 2 /* distance */, 1);
+    expect(scatterResult.ok).toBe(true);
+    if (!scatterResult.ok) return;
+    const landEvent = scatterResult.state.eventLog.at(-1);
+    expect(landEvent?.type).toBe('LOOSE_BALL_LAND');
+    expect(landEvent && 'from' in landEvent ? landEvent.from : undefined).toEqual({
+      q: 34,
+      r: 13,
+    });
+    expect(landEvent && 'from' in landEvent ? landEvent.from : undefined).not.toEqual(
+      homeFwd.position,
+    );
+  });
+
+  it('replay consistency: the SHOT_ATTEMPT-derived frame shows the ball at the GK hex', () => {
+    const diveState: GameState = {
+      ...makeShotState(),
+      gkDivePosition: { q: 34, r: 13 },
+    };
+    const tieResult = applyRoll(diveState, 3, 4, 5);
+    expect(tieResult.ok).toBe(true);
+    if (!tieResult.ok) return;
+
+    const frames = buildReplayFrames(tieResult.state);
+    expect(frames.length).toBeGreaterThan(0);
+    const shotFrame = frames.at(-1);
+    expect(shotFrame?.ball.position).toEqual({ q: 34, r: 13 });
+  });
+
+  it('GOAL guard: a 3-hex dive still breaks the tie in the shooters favour, unaffected by the fix', () => {
+    // A 3-hex dive applies the -1 saving penalty: shooter 9+3=12 vs GK 8+4-1=11 → shooter wins → GOAL.
+    const state: GameState = {
+      ...makeShotState(),
+      gkDivePosition: { q: 33, r: 13 }, // 3 hexes from awayGk at {q:36,r:13}
+    };
+    const result = applyRoll(state, 3, 4, 5);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('KICK_OFF_SETUP');
+    expect(result.state.ball.position).toEqual(PITCH_REGIONS.kickOffHex);
+    expect(result.state.ball.carrierId).toBeNull();
   });
 });
