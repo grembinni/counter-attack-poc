@@ -39,6 +39,11 @@
 - [x] **BUG-30**: Replay reconstructs all player positions at kickoff so the board resets correctly after a goal is scored
 - [x] **BUG-31**: The eligible-players-remaining message and End Turn button color update the moment a player starts a move (not only once fully activated), and correctly reflect state after an Undo
 - [x] **BUG-32**: The goalkeeper cannot be selected as an eligible deflection responder
+- [ ] **BUG-33**: The Game Settings screen has a Back control that returns the host to the Landing screen and tears the just-created room down server-side immediately, rather than leaving the room code joinable until the ~90s disconnect grace timer expires
+- [ ] **BUG-34**: Draft packs never contain duplicate players — a player appears in at most one pack across all 6 rounds / 12 packs of a single match (match-wide uniqueness, superseding Phase 30's per-round-only rule)
+- [ ] **BUG-35**: A short pack slot is filled by cascading DOWN through tiers within the already-selected pool(s) before any cross-pool reach, and cross-pool fallback contributes common-tier cards only — no rare/chase/uncommon card from a non-selected pool is ever offered
+- [ ] **BUG-36**: When a shot is blocked by a shooter/goalkeeper duel tie, the resulting loose ball is pathed from the goalkeeper's dive-adjusted hex, not the shooter's hex
+- [ ] **BUG-37**: Undo cannot revert state to before a resolved dice-roll action (tackle/steal attempt) within the current move, while remaining available for steps taken after it
 
 ## Future Requirements
 
@@ -87,14 +92,19 @@
 | BUG-30      | Phase 31 — Bug Fixes                                 | Complete |
 | BUG-31      | Phase 31 — Bug Fixes                                 | Complete |
 | BUG-32      | Phase 31 — Bug Fixes                                 | Complete |
+| BUG-33      | Phase 36 — Bug Fixes                                 | Pending  |
+| BUG-34      | Phase 36 — Bug Fixes                                 | Pending  |
+| BUG-35      | Phase 36 — Bug Fixes                                 | Pending  |
+| BUG-36      | Phase 36 — Bug Fixes                                 | Pending  |
+| BUG-37      | Phase 36 — Bug Fixes                                 | Pending  |
 
 **Coverage:**
 
-- v1.5 requirements: 20 total
-- Mapped to phases: 20/20 (100%)
+- v1.5 requirements: 25 total
+- Mapped to phases: 25/25 (100%)
 - Unmapped: 0 ✓
 
 ---
 
 _Requirements defined: 2026-07-22_
-_Last updated: 2026-07-22 — ROADMAP.md created; 5 phases (31-35) map all 20 v1.5 requirements with no orphans_
+_Last updated: 2026-07-28 — BUG-33..BUG-37 minted during Phase 36 planning; 6 phases (31-36) map all 25 v1.5 requirements with no orphans_

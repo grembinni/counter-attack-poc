@@ -239,7 +239,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Goal:** Five known defects — a missing Game Settings button, duplicate players across draft packs, an unenforced draft-pool restriction, an incorrect loose-ball path origin on blocked shots, and undo overreach past dice-roll actions — are fixed and verified.
 **Depends on:** Phase 35
-**Requirements**: TBD
+**Requirements**: BUG-33, BUG-34, BUG-35, BUG-36, BUG-37
 **Success Criteria** (what must be TRUE):
 
 1. The Game Settings button that was removed/lost is restored and accessible from the game screen.
@@ -248,11 +248,15 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 4. When a shot is blocked, the resulting loose ball is pathed from the blocking piece's square, not the shooter's square.
 5. During a move, once an action has triggered a dice roll (tackle/steal), Undo cannot revert state to before that dice-roll action.
 
-**Plans:** 0 plans
+**Plans:** 5 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 36 to break down)
+- [ ] 36-01-PLAN.md — Game Settings Back button + LEAVE_ROOM server teardown (BUG-33)
+- [ ] 36-02-PLAN.md — Match-wide draft-pack player uniqueness (BUG-34)
+- [ ] 36-03-PLAN.md — Same-pool tier cascade + common-only cross-pool fallback (BUG-35)
+- [ ] 36-04-PLAN.md — Loose-ball path origin on a blocked shot (BUG-36)
+- [ ] 36-05-PLAN.md — Undo boundary at a resolved dice-roll action (BUG-37)
 
 ---
 
