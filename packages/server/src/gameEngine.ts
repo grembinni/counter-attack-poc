@@ -2299,7 +2299,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           shooterPenaltyTotal,
           gkPenaltyTotal,
           timestamp: Date.now(),
-          ballAfter: { position: state.ball.position, carrierId: null },
+          // BUG-36 (Phase 36/D-14): the ball is blocked at the keeper's dive-adjusted hex on a
+          // duel tie, not left at the shooter's hex — matches the SAVE branches' gkEffectivePos usage below.
+          ballAfter: { position: gkEffectivePos, carrierId: null },
         };
         return {
           ok: true,
@@ -2307,7 +2309,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ...state,
             pieces: piecesWithGKPos,
             phase: 'LOOSE_BALL',
-            ball: { position: state.ball.position, carrierId: null },
+            // BUG-36 (Phase 36/D-14): loose-ball scatter must originate from the keeper's
+            // dive-adjusted hex, not the shooter's hex — matches the SAVE branches' gkEffectivePos usage below.
+            ball: { position: gkEffectivePos, carrierId: null },
             lastDiceRoll: shotDiceRoll,
             lastActionType: 'DEFLECTION',
             lastShotPath: null, // RULE-03: clear stale shot path on LOOSE_BALL (tie)
