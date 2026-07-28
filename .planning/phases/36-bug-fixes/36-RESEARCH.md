@@ -421,17 +421,17 @@ Not applicable — no external library/framework version changes in this phase. 
 
 **If this table is empty:** N/A — see entries above. All three assumptions are low-risk implementation-detail judgment calls already flagged as "Claude's Discretion" in CONTEXT.md, not disputed facts.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does the away player need to be notified if `LEAVE_ROOM` fires after they've already joined?**
+1. **(RESOLVED)** **Does the away player need to be notified if `LEAVE_ROOM` fires after they've already joined?**
    - What we know: D-05 concluded no guard is needed because "in practice the room code isn't given to the away player until the next screen." `joinRoom` (`roomStore.ts:237-263`) has no gate tied to which screen the host is viewing, so a fast away-player join before Back is clicked is technically possible.
    - What's unclear: If this race does occur, the away player's socket would be left in a room that no longer exists in the `rooms` Map after `deleteRoom` — their subsequent actions would silently no-op (`getRoom(roomCode)` returns `undefined`) rather than erroring cleanly.
-   - Recommendation: Treat as out of scope per D-05's explicit resolution ("no away-player-joined guard needed"). If the planner wants defense-in-depth, a cheap addition is emitting `ServerEvents.ROOM_ERROR` (e.g. a new `'ROOM_CLOSED'` reason) to any other sockets still in `roomCode` before calling `deleteRoom` — but this is not required by any locked decision.
+   - Resolution: Treated as out-of-scope per D-05's explicit resolution ("no away-player-joined guard needed") and accepted as a documented risk in plan 36-01's threat model (T-36-03).
 
-2. **Should `resetLobby()` be reused as-is by the new Back handler, or does `GameSettingsScreen` need a dedicated reset?**
+2. **(RESOLVED)** **Should `resetLobby()` be reused as-is by the new Back handler, or does `GameSettingsScreen` need a dedicated reset?**
    - What we know: `resetLobby()` resets exactly the fields needed (`screen`, `roomCode`, `playerSlot`, `roomError`, `gameError`, `disconnectWarning`) and is already used by `LobbyScreen.tsx`.
    - What's unclear: `GameSettingsScreen`'s Back click happens with `teamType`/`draftPools`/`selectedSpeed` local `useState` in `App.tsx` (not the Zustand store — see `App.tsx:40-47`) already set from a possible prior interaction; `resetLobby()` doesn't touch these since they're outside Zustand.
-   - Recommendation: The planner should verify whether `App.tsx`'s local `teamType`/`draftPools`/`selectedSpeed`/`homePickedTeam` state also needs resetting on Back (likely yes, so a fresh Create Room afterward doesn't inherit stale local state) — this wasn't explicitly covered by D-01..D-05 and may need a small addition beyond calling `resetLobby()`.
+   - Resolution: Plan 36-01 Task 2 implements resetting `App.tsx`'s local `teamType`/`draftPools`/`selectedSpeed`/`homePickedTeam` state alongside `resetLobby()`, so a fresh Create Room afterward doesn't inherit stale local state.
 
 ## Environment Availability
 

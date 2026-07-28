@@ -249,13 +249,16 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 5. During a move, once an action has triggered a dice roll (tackle/steal), Undo cannot revert state to before that dice-roll action.
 
 **Plans:** 5 plans
-
 Plans:
+**Wave 1**
 
 - [ ] 36-01-PLAN.md — Game Settings Back button + LEAVE_ROOM server teardown (BUG-33)
 - [ ] 36-02-PLAN.md — Match-wide draft-pack player uniqueness (BUG-34)
-- [ ] 36-03-PLAN.md — Same-pool tier cascade + common-only cross-pool fallback (BUG-35)
 - [ ] 36-04-PLAN.md — Loose-ball path origin on a blocked shot (BUG-36)
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 36-03-PLAN.md — Same-pool tier cascade + common-only cross-pool fallback (BUG-35)
 - [ ] 36-05-PLAN.md — Undo boundary at a resolved dice-roll action (BUG-37)
 
 ---
