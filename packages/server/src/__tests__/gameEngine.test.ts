@@ -1064,7 +1064,7 @@ describe('applyRoll', () => {
     }
   });
 
-  it('SHOT tie (shooterScore === gkScore) → LOOSE_BALL (D-13), ball.carrierId null, ball.position unchanged', () => {
+  it('SHOT tie (shooterScore === gkScore) → LOOSE_BALL (D-13), ball.carrierId null, ball.position on GK hex (BUG-36)', () => {
     // shooter at q:10 (outside awayPenaltyArea) → -1 outside-area penalty
     // shooterScore = 9+4-1=12; gkScore (dist=0, no penalty) = 9+3=12 → tie → LOOSE_BALL
     const result = applyRoll(shotState, 4, 3, 3);
@@ -1072,8 +1072,11 @@ describe('applyRoll', () => {
     if (result.ok) {
       expect(result.state.phase).toBe('LOOSE_BALL');
       expect(result.state.ball.carrierId).toBeNull();
-      // Ball stays at incident hex — landing resolved on next game:roll with fresh dice
-      expect(result.state.ball.position).toEqual(shotState.ball.position);
+      // BUG-36 (Phase 36/D-14): the ball is blocked at the keeper's hex (no dive here, so
+      // gkEffectivePos === gk.position), not left at the shooter's incident hex — landing
+      // resolved on next game:roll with fresh dice, scattering from the keeper's hex.
+      expect(result.state.ball.position).toEqual(awayGK.position);
+      expect(result.state.ball.position).not.toEqual(shotState.ball.position);
       expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
     }
   });
