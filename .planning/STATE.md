@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: UX Refresh & Code Cleanup
-status: verifying
+status: executing
 stopped_at: Phase 36 UI-SPEC approved
-last_updated: "2026-07-28T11:38:09.814Z"
-last_activity: "2026-07-27 -- Completed quick task 260727-o85: Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)"
+last_updated: '2026-07-28T12:33:16.786Z'
+last_activity: 2026-07-28 -- Phase 36 execution started
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 30
+  total_plans: 35
   completed_plans: 30
   percent: 83
 ---
@@ -18,17 +18,17 @@ progress:
 
 ## Current Position
 
-Phase: 35 (actionpanel-log-standardization) — AWAITING HUMAN UAT
-Plan: 6 of 6 (all plans executed and code-reviewed)
-Status: All automated checks passed (27/27 must-haves); 3 human-verification items pending in 35-UAT.md — run /gsd-verify-work 35
-Last activity: 2026-07-27 -- Completed quick task 260727-o85: Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)
+Phase: 36 (bug-fixes) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 36
+Last activity: 2026-07-28 -- Phase 36 execution started
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 35 — actionpanel-log-standardization
+**Current focus:** Phase 36 — bug-fixes
 
 ## Phase Status
 
