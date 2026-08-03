@@ -247,7 +247,10 @@ export function ActionPanel() {
 
   // Shared canUndo computation — used in both MOVE and HIGH_PASS_MOVE phases.
   // BUG-03 (Phase 17 D-07): HIGH_PASS_MOVE also uses HP_REPOSITION as a slot boundary.
-  // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVE).
+  // Mirrors applyUndo's boundary logic (SLOT_ADVANCE | KICK_OFF | HP_REPOSITION in HIGH_PASS_MOVE
+  // | TACKLE_ATTEMPT | STEAL_ATTEMPT). BUG-37 (Phase 36) / D-13: a resolved TACKLE_ATTEMPT or
+  // STEAL_ATTEMPT is also a boundary — UX mirror only, the server's applyUndo is the sole
+  // enforcement layer for this clamp.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
     // Bug-C (Phase 25 gap 25-07): canUndo must be false at the start of a MOVE slot when
@@ -266,6 +269,8 @@ export function ActionPanel() {
       const isBoundary =
         evt.type === 'SLOT_ADVANCE' ||
         evt.type === 'KICK_OFF' ||
+        evt.type === 'TACKLE_ATTEMPT' ||
+        evt.type === 'STEAL_ATTEMPT' ||
         (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
         (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
       return isBoundary ? idx : acc;
