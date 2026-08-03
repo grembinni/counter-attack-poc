@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
-status: ready_to_plan
-last_updated: '2026-08-03T13:30:00.000Z'
-last_activity: 2026-08-03
+status: planning
+stopped_at: Phase 37 context gathered
+last_updated: '2026-08-03T17:00:25.288Z'
+last_activity: 2026-08-03 — v1.6 ROADMAP.md created (Phases 37–40, 55/55 requirements mapped, 0 unmapped)
 progress:
   total_phases: 4
   completed_phases: 0
@@ -135,7 +136,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - v1.6: new `ball.lastTouchedBy: {pieceId, teamId} | null` field on `BallState` is the single source of truth for out-of-bounds classification — not derived retroactively from `eventLog` scans (research ARCHITECTURE.md Q2)
 - v1.6: injury/booking rolls are wired inline into the `TACKLE_ATTEMPT`/`STEAL_ATTEMPT`/`GK_DIVE_AT_FEET` duel-resolution branches (mirrors existing non-phase-transitioning dice sub-resolution pattern) — never inside the restart-setup phases, so "continue play" fouls still always roll injury/booking (research ARCHITECTURE.md Q3)
 - v1.6: substitutions use an independent `GamePhase[]` allow-list (`STOPPAGE_PHASES`/`isStoppagePhase`), mirroring the existing `validUndoPhases` idiom — NOT threaded through `ELIGIBLE_NEXT_ACTIONS` (research ARCHITECTURE.md Q4)
-- v1.6: user explicitly rejected reusing the GK_RESTART chain for Goal Kick during requirements definition despite this being the research recommendation for the _engine_ reuse — GOALKICK-01 requires Goal Kick to read as its own dedicated flow; reconcile this at Phase 37 planning time (do not silently revert to pure reuse without re-confirming the requirement's intent)
+- v1.6: user explicitly rejected reusing the GK*RESTART chain for Goal Kick during requirements definition despite this being the research recommendation for the \_engine* reuse — GOALKICK-01 requires Goal Kick to read as its own dedicated flow; reconcile this at Phase 37 planning time (do not silently revert to pure reuse without re-confirming the requirement's intent)
 - v1.6: 4 independent game-creation toggles (Fouls, Booking, Injury, Out-of-Bounds/Restarts) — Injury was split out as its own toggle independent of Booking during requirements definition, differing from research's initial 3-toggle assumption
 
 ### Key Pitfalls to Avoid
@@ -326,8 +327,8 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-03T13:30:00.000Z
-Stopped at: v1.6 ROADMAP.md, STATE.md, and REQUIREMENTS.md traceability created (Phases 37–40, 55/55 requirements mapped)
+Last session: 2026-08-03T17:00:25.281Z
+Stopped at: Phase 37 context gathered
 Resume: Run `/gsd-plan-phase 37` to begin planning Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick).
 
 ## Performance Metrics
