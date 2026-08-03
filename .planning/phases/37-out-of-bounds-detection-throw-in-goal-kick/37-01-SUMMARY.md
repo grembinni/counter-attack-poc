@@ -154,6 +154,18 @@ None. Every artifact the plan's `must_haves` section requires is fully wired (no
 
 ---
 
+## Self-Check: PASSED
+
+- FOUND: packages/shared/src/outOfBounds.ts
+- FOUND: packages/shared/src/outOfBounds.test.ts
+- FOUND: .planning/phases/37-out-of-bounds-detection-throw-in-goal-kick/37-01-SUMMARY.md
+- FOUND: c00f91a (test: RED)
+- FOUND: 9162ad1 (feat: GREEN)
+- FOUND: 4416db2 (feat: Task 2)
+- FOUND: bfb9679 (test: Task 3)
+
+---
+
 _Phase: 37-out-of-bounds-detection-throw-in-goal-kick_
 _Plan: 01_
 _Completed: 2026-08-03_
