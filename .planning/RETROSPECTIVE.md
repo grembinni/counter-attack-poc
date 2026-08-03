@@ -1,5 +1,66 @@
 # Retrospective — Counter Attack Web
 
+## v1.5 UX Refresh & Code Cleanup (2026-07-22 → 2026-08-03)
+
+**Shipped:** 2026-08-03
+**Phases:** 6 | **Plans:** 35 | **Duration:** 12 days
+
+### What Was Built
+
+- **Phase 31**: 3 replay/eligibility/GK-deflection bugs fixed (BUG-30..32), plus 2 gap-closure plans that closed VERIFICATION.md truths the first pass left open
+- **Phase 32**: `knip` installed as a permanent CI-enforced dead-code gate; color/team-slot lookups consolidated into `useTeamColors`/`useMyTeam`; a full Zustand selector/derived-state review (`SELECTOR-REVIEW.md`) that caught a real staleness bug; `eslint-plugin-react-hooks` enabled at error
+- **Phase 33**: Single `tokens.css` chrome-color layer with one runtime `--team-accent` variable; `HIGHLIGHT_STYLES`/`RING_STYLES` extended to a single source of truth for all hex-tint/ring cases; goal-target moved off red (resolving the offside/shot-target color collision); `docs/HIGHLIGHT-REFERENCE.md` written as the permanent reference
+- **Phase 34**: App-wide charcoal/graphite restyle built entirely on the Phase 33 token layer, with an automated WCAG AA contrast-check script wired into CI
+- **Phase 35**: ActionPanel/ActionLog unified — borders removed, 18 render sites given a consistent `PanelShell` heading, a shared `ctaColorClass` helper driving every confirm-and-advance button, and 13 phase-specific waiting-state strings replacing one generic message
+- **Phase 36** (added mid-milestone): 5 more bugs fixed (BUG-33..37) — Game Settings Back-button room teardown, match-wide draft-pack uniqueness, tier-cascade pool restriction, blocked-shot loose-ball origin (`gkEffectivePos`), and an undo-boundary clamp at a resolved dice roll
+
+### What Worked
+
+**The phase-order rationale held up exactly as planned.** Bug fixes and code cleanup landed first (Phases 31-32, independent of the color system), then the design-token layer and highlight standardization (Phase 33) _before_ any component restyling (Phase 34) — so the restyle never reintroduced the hardcoded-literal cruft it was meant to remove. ActionPanel/ActionLog standardization (Phase 35) came last, built on already-restyled chrome. No phase had to be redone because an earlier one hadn't finished laying groundwork.
+
+**Growing the milestone mid-cycle to close UAT-surfaced gaps, instead of leaving them as unscoped bugs.** Phase 35's UAT pass surfaced 5 new defects; rather than quietly fixing them off-plan or deferring them indefinitely, they were minted as BUG-33..37, given a full Phase 36, and tracked through the same requirements/verification pipeline as everything else. The milestone's own requirement count updated from 20 to 25 to reflect this, with the change explicitly logged.
+
+**Reusing an established pattern instead of inventing a new one for each bug fix.** BUG-36's fix (loose ball drops on `gkEffectivePos`) is explicitly the same dive-adjusted-position pattern already used by the sibling SAVE branches — one rule for "where does the ball go after a GK-involved shot," not a bespoke branch. BUG-37's fix extended the existing `isBoundary` disjunction rather than adding a parallel lockout mechanism. Both closed real defects without adding a second way to do the same thing.
+
+### What Was Inefficient
+
+**The exact same documentation-staleness failure mode recurred from v1.4, despite being called out.** The v1.4 retrospective (below) flagged "STATE.md accuracy deserves more attention during execution, not just at milestone close" as the single largest process gap of that milestone. It recurred in v1.5 anyway: STATE.md still read "Phase 36 EXECUTING, Plan 1 of 5" after all 5 plans were complete and verified, and a ROADMAP.md progress-table column-shift bug — the _same bug class_ fixed on the Phase 34 row after the prior audit — recurred on the Phase 36 row. Flagging a pattern once in a retrospective clearly isn't enough to prevent its recurrence; it may need an actual mechanical check (e.g., a lint rule on the ROADMAP.md table shape) rather than relying on the next audit to catch it by hand.
+
+**A tooling false-positive was carried, unexamined, across five consecutive milestone closes.** The same ~12-14 quick-task slugs have shown up as "status: unknown" in every deferred-items list since v1.1 — always re-acknowledged, never actually investigated. This close finally traced the root cause: the audit tool prefers a `{slug}-SUMMARY.md` file over the bare `SUMMARY.md` marker file when both exist, but only the bare marker ever carried the `status: complete` frontmatter field the audit scans for. All 14 tasks had complete, verified work the entire time. Backfilling the missing frontmatter field resolved every instance at once. Worth remembering: a recurring "known deferred item" that never changes across multiple closes is a signal to investigate the tool, not just keep re-acknowledging the finding.
+
+### Patterns Established
+
+- **Single source-of-truth token/table layers before any visual restyle.** `tokens.css` (chrome) and `HIGHLIGHT_STYLES`/`RING_STYLES` (hex tints/rings) both went in _before_ the palette swap that consumed them — apply this ordering to any future visual-system change.
+- **Dive-adjusted GK position (`gkEffectivePos`) as the canonical "where does the ball go" answer** for any GK-involved shot outcome branch, not just the SAVE branches it originated in.
+- **Undo-boundary floor extension via the `isBoundary` disjunction, never the separate slot-wide lockout check** — clamps Undo at a specific resolved action without disabling it for the rest of the slot.
+- **Mint new requirement IDs (not silent scope creep) when UAT surfaces new bugs mid-milestone**, and update the milestone's own requirement count to match.
+
+### Known Gaps Entering v1.6
+
+| Gap                              | Description                                                                                                                                                        | Location                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| RESP-01..09                      | Response-move single-selection activation model — still undelivered, deferred across 3 milestones running now                                                      | `gameEngine.ts` (old per-move-type logic unchanged)          |
+| Phase 34 code-review findings    | Lineup-grid overflow (draft-mode filled cards), invalid-hex jersey-toggle fallback, unanchored `check-contrast.ts` regex — carried forward without re-verification | `34-REVIEW.md`                                               |
+| BUG-36 family (WR-02)            | `buildTierPoolsForRound` over-claims unclaimed primary-tier population beyond `need` — deliberately deferred, non-correctness-impacting                            | `draftEngine.ts`                                             |
+| createServer.ts reconnect        | Misplaced `return` leaves some reconnecting sockets with no handlers registered — flagged repeatedly since Phase 07                                                | `packages/server/src/createServer.ts:99-167`                 |
+| KICK_OFF_SETUP shot-path shading | Persists on some SNAPSHOT_DEFLECT-goal paths — root cause still unknown after extensive static analysis                                                            | `.planning/todos/pending/2026-07-02-bug-kickoff-setup-...md` |
+| CSV consolidation                | Merge 7 team CSVs into one player-pool.csv — low priority, unscheduled                                                                                             | `.planning/todos/pending/csv-consolidation-player-pool.md`   |
+
+### Metrics
+
+| Metric        | Value                                                                        |
+| ------------- | ---------------------------------------------------------------------------- |
+| Duration      | 12 days (2026-07-22 → 2026-08-03)                                            |
+| Phases        | 6 (Phases 31–36)                                                             |
+| Plans         | 35                                                                           |
+| Files changed | 221                                                                          |
+| Insertions    | 30,214                                                                       |
+| Deletions     | 1,952                                                                        |
+| Requirements  | 25/25                                                                        |
+| Test suite    | 1,738 tests across shared (613) / server (642, 1 skip/1 todo) / client (483) |
+
+---
+
 ## v1.4 Response Polish + Draft Mode (2026-07-12 → 2026-07-22)
 
 **Shipped:** 2026-07-22 (with 1 known gap)
