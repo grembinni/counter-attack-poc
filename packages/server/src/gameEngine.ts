@@ -328,6 +328,13 @@ export function buildInitialGameState(
   confirmedHomeOrder?: PoolPlayer[],
   /** Phase 24 D-11: explicit player ordering for away team, produced by LINEUP_CONFIRM handler. */
   confirmedAwayOrder?: PoolPlayer[],
+  /**
+   * GOALKICK-06 / OOB-05 (Phase 37): Out-of-Bounds/Restarts toggle baked into GameState
+   * at match start from Room.outOfBoundsEnabled. Defaults to `false` — the disabled path
+   * is the safe default so existing boundary-clamp behaviour is unchanged when the
+   * toggle is off.
+   */
+  outOfBoundsEnabled: boolean = false,
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -367,6 +374,7 @@ export function buildInitialGameState(
     selectedJerseyTypes, // jersey variant (home/away kit) each team is wearing
     selectedFormation, // Phase 23 D-11: formation choices embedded in every snapshot
     gameSpeed, // UX-07 (Phase 18.4): drives per-MOVE clock increment
+    outOfBoundsEnabled, // GOALKICK-06 / OOB-05 (Phase 37): Out-of-Bounds/Restarts toggle
   };
 }
 
@@ -4823,6 +4831,7 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     selectedTeams: finalState.selectedTeams, // D-15: carry team selection into replay frames
     selectedUniformStyles: finalState.selectedUniformStyles, // Phase 22 D-17: carry uniform styles into replay frames
     gameSpeed: finalState.gameSpeed, // UX-07 (Phase 18.4): carry speed into replay frames
+    outOfBoundsEnabled: finalState.outOfBoundsEnabled ?? false, // GOALKICK-06 / OOB-05 (Phase 37): carry the toggle into replay frames
   };
 
   // REPLAY-05: accumulate consecutive MOVE events per pieceId so an entire movement phase
