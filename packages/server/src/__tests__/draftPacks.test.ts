@@ -13,7 +13,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import { generateMatchPacks } from '../draftPacks.js';
-import { DRAFT_ROUND_COUNT, PACKS_PER_ROUND, SELECTABLE_DRAFT_POOLS } from '@counter-attack/shared';
+import {
+  DRAFT_ROUND_COUNT,
+  PACKS_PER_ROUND,
+  SELECTABLE_DRAFT_POOLS,
+  isInPool,
+} from '@counter-attack/shared';
 import type { DraftPoolId } from '@counter-attack/shared';
 
 const ITERATIONS = 5;
@@ -138,4 +143,50 @@ describe('generateMatchPacks — end-to-end structural invariants over real cryp
       }
     }).not.toThrow();
   });
+});
+
+/**
+ * BUG-35 (Phase 36) — D-08/D-09 cross-pool tier restriction, proven over REAL crypto RNG
+ * (not the seeded fake used by draftEngine.test.ts). Explicitly does NOT weaken these to
+ * `expect(...).not.toThrow()`; RESEARCH.md Pitfall 4 calls that out as the assertion that
+ * would silently accept exactly the regression this plan prevents.
+ */
+describe('generateMatchPacks — BUG-35 (Phase 36): real-RNG cross-pool tier restriction (D-08/D-09)', () => {
+  it(
+    "['original'] over real crypto RNG: every dealt card that is not isInPool(card, 'original') " +
+      'is common-tier, and at least one such cross-pool card is dealt across the iterations ' +
+      '(non-vacuous — RESEARCH.md Pitfall 4 computed a deterministic ~7-card common shortfall)',
+    () => {
+      let crossPoolCount = 0;
+      for (let i = 0; i < ITERATIONS; i++) {
+        const { packs } = generateMatchPacks(['original']);
+        const tieredPacks = packs.filter((p) => p.round !== 1);
+        for (const pack of tieredPacks) {
+          for (const card of pack.cards) {
+            if (!isInPool(card, 'original')) {
+              crossPoolCount += 1;
+              expect(card.tier).toBe('common');
+            }
+          }
+        }
+      }
+      expect(crossPoolCount).toBeGreaterThan(0);
+    },
+  );
+
+  it(
+    "['mls'] over real crypto RNG: every rounds-2-6 card satisfies isInPool(card, 'mls') — " +
+      'no cross-pool reach when the selected pool can supply itself (round-1 GK excluded, D-10-exempt)',
+    () => {
+      for (let i = 0; i < ITERATIONS; i++) {
+        const { packs } = generateMatchPacks(['mls']);
+        const tieredPacks = packs.filter((p) => p.round !== 1);
+        for (const pack of tieredPacks) {
+          for (const card of pack.cards) {
+            expect(isInPool(card, 'mls')).toBe(true);
+          }
+        }
+      }
+    },
+  );
 });
