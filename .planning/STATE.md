@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: planning
-stopped_at: Phase 37 context gathered
-last_updated: '2026-08-03T17:00:25.288Z'
+stopped_at: Phase 37 UI-SPEC approved
+last_updated: '2026-08-03T17:27:58.230Z'
 last_activity: 2026-08-03 — v1.6 ROADMAP.md created (Phases 37–40, 55/55 requirements mapped, 0 unmapped)
 progress:
   total_phases: 4
@@ -327,8 +327,8 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-03T17:00:25.281Z
-Stopped at: Phase 37 context gathered
+Last session: 2026-08-03T17:27:58.222Z
+Stopped at: Phase 37 UI-SPEC approved
 Resume: Run `/gsd-plan-phase 37` to begin planning Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick).
 
 ## Performance Metrics
