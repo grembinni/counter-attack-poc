@@ -25,58 +25,59 @@ Last activity: 2026-08-03 — Milestone v1.5 completed and archived
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
+See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 36 — bug-fixes
+**Current focus:** Planning next milestone
 
 ## Phase Status
 
-| Phase | Name                                       | Status      | Completed  |
-| ----- | ------------------------------------------ | ----------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types           | Complete    | 2026-05-28 |
-| 2     | Move Validator + Unit Tests                | Complete    | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold   | Complete    | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                    | Complete    | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches    | Complete    | 2026-05-30 |
-| 6     | React Hex Grid Renderer                    | Complete    | 2026-05-31 |
-| 7     | Client-Server Integration                  | Complete    | 2026-06-03 |
-| 7.1   | UI Cleanup                                 | Complete    | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay         | Complete    | 2026-06-05 |
-| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete    | 2026-06-05 |
-| 8.2   | Passing Cleanup                            | Complete    | 2026-06-07 |
-| 9     | Render Deployment                          | Complete    | 2026-06-08 |
-| 10    | Remaining Action Flows + Tech Debt         | Complete    | 2026-06-11 |
-| 11    | Rule Correctness                           | Complete    | 2026-06-12 |
-| 12    | Visual Token & Hex Layer                   | Complete    | 2026-06-12 |
-| 13    | Layout & Clock                             | Complete    | 2026-06-12 |
-| 14    | Kick Off Rules & Replay                    | Complete    | 2026-06-12 |
-| 15    | Team Identity                              | Complete    | 2026-06-13 |
-| 16    | Player Roster & Team Selection             | Complete    | 2026-06-14 |
-| 17    | Rule Bugs                                  | Complete    | 2026-06-21 |
-| 17.1  | Action Flow Cleanup                        | Complete    | 2026-06-20 |
-| 18    | Messaging & Logging Consistency            | Complete    | 2026-07-02 |
-| 18.1  | Replay Review                              | Complete    | 2026-06-21 |
-| 18.2  | Code Cleanup & Dup-Bugs                    | Complete    | 2026-06-22 |
-| 18.3  | Bug-Bash: Rule Correctness                 | Complete    | 2026-07-02 |
-| 18.4  | UX Enhancements                            | Complete    | 2026-07-02 |
-| 19    | Data Model & Team Palette                  | Complete    | 2026-07-03 |
-| 20    | Uniform Style System                       | Complete    | 2026-07-04 |
-| 21    | New Teams (MLS + International)            | Complete    | 2026-07-04 |
-| 22    | Uniform Selection Screen                   | Complete    | 2026-07-05 |
-| 23    | Formation System                           | Complete    | 2026-07-05 |
-| 24    | Auto-Assignment & Lineup                   | Complete    | 2026-07-10 |
-| 25    | Bug & UAT Closure                          | Complete    | 2026-07-11 |
-| 26    | Bug Fixes                                  | Complete    | 2026-07-12 |
-| 27    | Game Creation Settings                     | Complete    | 2026-07-21 |
-| 28    | Draft Data Model                           | Complete    | 2026-07-21 |
-| 29    | Draft UI + Pick-and-Swap Flow              | Complete    | 2026-07-22 |
-| 30    | Recalibrate Draft                          | Complete    | 2026-07-22 |
-| 31    | Bug Fixes                                  | Complete    | 2026-07-24 |
-| 32    | Code Cleanup                               | Complete    | 2026-07-25 |
-| 33    | Design Tokens & Highlight Standardization  | Complete    | 2026-07-26 |
-| 34    | Visual Theme Restyle                       | Not started | -          |
-| 35    | ActionPanel & Log Standardization          | Not started | -          |
+| Phase | Name                                       | Status   | Completed  |
+| ----- | ------------------------------------------ | -------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types           | Complete | 2026-05-28 |
+| 2     | Move Validator + Unit Tests                | Complete | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold   | Complete | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                    | Complete | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches    | Complete | 2026-05-30 |
+| 6     | React Hex Grid Renderer                    | Complete | 2026-05-31 |
+| 7     | Client-Server Integration                  | Complete | 2026-06-03 |
+| 7.1   | UI Cleanup                                 | Complete | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay         | Complete | 2026-06-05 |
+| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
+| 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
+| 9     | Render Deployment                          | Complete | 2026-06-08 |
+| 10    | Remaining Action Flows + Tech Debt         | Complete | 2026-06-11 |
+| 11    | Rule Correctness                           | Complete | 2026-06-12 |
+| 12    | Visual Token & Hex Layer                   | Complete | 2026-06-12 |
+| 13    | Layout & Clock                             | Complete | 2026-06-12 |
+| 14    | Kick Off Rules & Replay                    | Complete | 2026-06-12 |
+| 15    | Team Identity                              | Complete | 2026-06-13 |
+| 16    | Player Roster & Team Selection             | Complete | 2026-06-14 |
+| 17    | Rule Bugs                                  | Complete | 2026-06-21 |
+| 17.1  | Action Flow Cleanup                        | Complete | 2026-06-20 |
+| 18    | Messaging & Logging Consistency            | Complete | 2026-07-02 |
+| 18.1  | Replay Review                              | Complete | 2026-06-21 |
+| 18.2  | Code Cleanup & Dup-Bugs                    | Complete | 2026-06-22 |
+| 18.3  | Bug-Bash: Rule Correctness                 | Complete | 2026-07-02 |
+| 18.4  | UX Enhancements                            | Complete | 2026-07-02 |
+| 19    | Data Model & Team Palette                  | Complete | 2026-07-03 |
+| 20    | Uniform Style System                       | Complete | 2026-07-04 |
+| 21    | New Teams (MLS + International)            | Complete | 2026-07-04 |
+| 22    | Uniform Selection Screen                   | Complete | 2026-07-05 |
+| 23    | Formation System                           | Complete | 2026-07-05 |
+| 24    | Auto-Assignment & Lineup                   | Complete | 2026-07-10 |
+| 25    | Bug & UAT Closure                          | Complete | 2026-07-11 |
+| 26    | Bug Fixes                                  | Complete | 2026-07-12 |
+| 27    | Game Creation Settings                     | Complete | 2026-07-21 |
+| 28    | Draft Data Model                           | Complete | 2026-07-21 |
+| 29    | Draft UI + Pick-and-Swap Flow              | Complete | 2026-07-22 |
+| 30    | Recalibrate Draft                          | Complete | 2026-07-22 |
+| 31    | Bug Fixes                                  | Complete | 2026-07-24 |
+| 32    | Code Cleanup                               | Complete | 2026-07-25 |
+| 33    | Design Tokens & Highlight Standardization  | Complete | 2026-07-26 |
+| 34    | Visual Theme Restyle                       | Complete | 2026-07-27 |
+| 35    | ActionPanel & Log Standardization          | Complete | 2026-07-27 |
+| 36    | Bug Fixes                                  | Complete | 2026-08-02 |
 
 ## Blocking Dependencies
 
@@ -97,7 +98,8 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 - v1.4 Phases 26–30 added 2026-07-12
 - Phase 30 added: recalibrate draft
 - v1.5 Phases 31–35 added 2026-07-22 (Bug Fixes → Code Cleanup → Design Tokens & Highlight Standardization → Visual Theme Restyle → ActionPanel & Log Standardization); 20/20 v1.5 requirements mapped, no orphans
-- Phase 36 added 2026-07-27: Bug Fixes (Game Settings button restore, duplicate draft players, draft pool restriction verify, blocked-shot loose-ball path origin, undo-past-dice-roll)
+- Phase 36 added 2026-07-27: Bug Fixes (Game Settings button restore, duplicate draft players, draft pool restriction verify, blocked-shot loose-ball path origin, undo-past-dice-roll); expanded v1.5 to 25/25 requirements mapped
+- v1.5 shipped 2026-08-03 (Phases 31–36, 35 plans, 25/25 requirements) — see `.planning/milestones/v1.5-ROADMAP.md`
 
 ### Decisions Locked
 
@@ -205,7 +207,7 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 
 ### Pending Todos
 
-15 pending todos in `.planning/todos/pending/` (as of 2026-06-21, after Phase 18 close-out feedback batch). 2 tagged `resolves_phase: "18.3"` (double-tackle-attempt bug, first-time-pass move-phase toggle) — will auto-close when Phase 18.3 completes. Remaining 13 are general ActionPanel/ActionLog UX and logging-format fixes with no phase assignment yet.
+2 pending todos in `.planning/todos/pending/` (as of v1.5 close, 2026-08-03): a KICK_OFF_SETUP shot-path shading rendering bug (root cause unresolved) and a low-priority CSV-consolidation idea. Both unassigned to a phase — see Deferred Items below.
 
 ## Quick Tasks Completed
 
@@ -305,9 +307,9 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-07-27T23:43:40.102Z
-Stopped at: Phase 36 UI-SPEC approved
-Resume: Run `/gsd-discuss-phase 34` or `/gsd-plan-phase 34` to plan Phase 34 (Visual Theme Restyle).
+Last session: 2026-08-03T12:23:41.255Z
+Stopped at: v1.5 milestone archived and complete
+Resume: Run `/gsd-new-milestone` to start the next milestone.
 
 ## Performance Metrics
 
