@@ -457,19 +457,40 @@ export function registerRoomHandlers(
           }
         }
 
+        // DRAFT-07/D-04 (Phase 29): bootstrap a DraftSession the moment draft mode is
+        // locked in. generateMatchPacks produces the 8 packs; createDraftSession performs
+        // its OWN independent crypto.randomInt pack-to-player index shuffle internally
+        // (D-04/Pitfall 5) — never slice packs[0-3]/[4-7] here.
+        //
+        // T-36-07 (Phase 36): generateMatchPacks can throw D-11's loud "insufficient
+        // tiered supply" error — a shortfall surviving both the D-08 same-pool cascade
+        // and D-09's common-only cross-pool fallback is genuinely reachable from a
+        // client-selected pool combination (BUG-35 sharpens this risk by removing the
+        // old unrestricted cross-pool safety valve). Socket.io does not catch synchronous
+        // throws inside an event handler (CR-02 precedent, ROOM_CREATE above) — an
+        // uncaught throw here would crash the whole Node process, killing every other
+        // room on the server, not just this one. Computing the draft session BEFORE any
+        // room-state mutation means a throw here leaves room.settingsConfirmed/
+        // draftSession/teamType/draftPools entirely untouched, so the room stays in its
+        // pre-confirm state and the host can retry with a different pool selection.
+        let draftSession: ReturnType<typeof createDraftSession> | undefined;
+        if (teamType === 'draft') {
+          try {
+            const { packs } = generateMatchPacks(draftPools);
+            draftSession = createDraftSession(packs, randomInt);
+          } catch {
+            socket.emit(ServerEvents.GAME_ERROR, 'DRAFT_SUPPLY_EXHAUSTED');
+            return;
+          }
+        }
+
         // Store settings and lock.
         room.gameSpeed = speed;
         room.teamType = teamType;
         room.draftPools = teamType === 'draft' ? draftPools : [];
         room.settingsConfirmed = true;
-
-        // DRAFT-07/D-04 (Phase 29): bootstrap a DraftSession the moment draft mode is
-        // locked in. generateMatchPacks produces the 8 packs; createDraftSession performs
-        // its OWN independent crypto.randomInt pack-to-player index shuffle internally
-        // (D-04/Pitfall 5) — never slice packs[0-3]/[4-7] here.
-        if (teamType === 'draft') {
-          const { packs } = generateMatchPacks(room.draftPools);
-          room.draftSession = createDraftSession(packs, randomInt);
+        if (draftSession !== undefined) {
+          room.draftSession = draftSession;
         }
 
         io.to(roomCode).emit(
