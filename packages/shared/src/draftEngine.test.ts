@@ -500,6 +500,75 @@ describe('generateDraftPacks — 6-round structure', () => {
 });
 
 // ---------------------------------------------------------------------------
+// generateDraftPacks — BUG-35 (Phase 36): same-pool tier cascade + common-only
+// cross-pool restriction (D-08/D-09/D-11/D-12)
+// ---------------------------------------------------------------------------
+
+describe('generateDraftPacks — BUG-35 (Phase 36): tier cascade + cross-pool restriction (D-08/D-09/D-11/D-12)', () => {
+  it.each([1, 2, 3, 4, 5])(
+    "seed %i: ['original'] generates all 12 packs without throwing, and every round-5/6 " +
+      'pack still holds exactly 4 cards even though the pool has only 1 chase/rare card ' +
+      'total (D-08 same-pool cascade prevents a short pack)',
+    (seed) => {
+      const rng = makeSeededRng(seed);
+      let result: ReturnType<typeof generateDraftPacks> | undefined;
+      expect(() => {
+        result = generateDraftPacks(['original'], rng);
+      }).not.toThrow();
+
+      const { packs } = result;
+      expect(packs).toHaveLength(DRAFT_ROUND_COUNT * PACKS_PER_ROUND);
+      const rounds56 = packs.filter((p) => p.round === 5 || p.round === 6);
+      expect(rounds56).toHaveLength(PACKS_PER_ROUND * 2);
+      for (const pack of rounds56) {
+        expect(pack.cards).toHaveLength(4);
+      }
+    },
+  );
+
+  it(
+    "round 4 for ['original'] is satisfied entirely from same-pool cascade (no cross-pool " +
+      'reach needed — 12 uncommon / 21 common comfortably covers the 4+4 round-4 need), ' +
+      'demonstrating D-08 cascade operates before any D-09 cross-pool fallback',
+    () => {
+      const rng = makeSeededRng(42);
+      const { packs } = generateDraftPacks(['original'], rng);
+      const round4 = packs.filter((p) => p.round === 4);
+      expect(round4).toHaveLength(PACKS_PER_ROUND);
+      for (const pack of round4) {
+        expect(pack.cards).toHaveLength(4);
+        for (const card of pack.cards) {
+          expect(isInPool(card, 'original')).toBe(true);
+        }
+      }
+    },
+  );
+
+  it.each([...SELECTABLE_DRAFT_POOLS])(
+    "never-upgrade rule for pool selection ['%s']: no card's tier is rarer than the " +
+      "rarest tier its round's slots call for",
+    (poolId) => {
+      const rng = makeSeededRng(20);
+      const { packs } = generateDraftPacks([poolId], rng);
+
+      // Rounds 2-3 (all-common slots) must contain zero uncommon/rare/chase cards;
+      // round 4 (uncommon+common slots) must contain zero rare/chase cards — a cascade
+      // may only ever fill a slot from a LOWER tier, never a higher one.
+      for (const pack of packs) {
+        if (pack.round === 2 || pack.round === 3) {
+          for (const card of pack.cards) expect(card.tier).toBe('common');
+        }
+        if (pack.round === 4) {
+          for (const card of pack.cards) {
+            expect(card.tier === 'chase' || card.tier === 'rare').toBe(false);
+          }
+        }
+      }
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
 // generateDraftPacks — BUG-34 (Phase 36): match-wide uniqueness (D-06/D-07)
 // Supersedes Phase 30's D-18 ("a card CAN reappear in a different round") — a player
 // may now appear in at most ONE pack across all 6 rounds / 12 packs of a match.

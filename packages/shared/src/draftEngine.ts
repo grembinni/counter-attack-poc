@@ -208,6 +208,29 @@ function sortSlotsRarestFirst(slots: readonly PackSlot[]): PackSlot[] {
 }
 
 /**
+ * BUG-35 (Phase 36), D-08: the strictly-LOWER tiers a short slot may cascade into, in
+ * order. A slot is never upgraded — no entry here is rarer than its key. Cascading
+ * `chaseOrRare` steps through the FULL remaining ladder (uncommon, then common) since
+ * both 'chase' and 'rare' sit at the same rarity rank for slot purposes.
+ */
+const TIER_CASCADE_BELOW: Readonly<Record<PackSlot['tier'], readonly DraftTier[]>> = {
+  chase: ['rare', 'uncommon', 'common'],
+  chaseOrRare: ['uncommon', 'common'],
+  rare: ['uncommon', 'common'],
+  uncommon: ['common'],
+  common: [],
+};
+
+/**
+ * BUG-35 (Phase 36), D-08: the slot's own tier(s) first, then its cascade — the full draw
+ * priority order used by both the cascade-aware supply check and the pool builder.
+ */
+function tierDrawOrder(tier: PackSlot['tier']): readonly DraftTier[] {
+  const primary: readonly DraftTier[] = tier === 'chaseOrRare' ? ['chase', 'rare'] : [tier];
+  return [...primary, ...TIER_CASCADE_BELOW[tier]];
+}
+
+/**
  * D-17 (Phase 30): draws `count` cards from `pool` (mutated in place — consumed cards are
  * removed via splice so the SAME shared pool can be drawn from again for the round's other
  * pack without re-dealing a card already used, D-09). Skips any candidate whose position
@@ -274,21 +297,42 @@ function resolveGkCandidates(
   return candidates;
 }
 
-/** D-17: total cards of `slot`'s tier needed across BOTH of the round's packs. */
-function tierSupplyCount(classified: TieredPoolPlayer[], tier: PackSlot['tier']): number {
-  return tier === 'chaseOrRare'
-    ? classified.filter((p) => p.tier === 'chase' || p.tier === 'rare').length
-    : classified.filter((p) => p.tier === tier).length;
-}
-
-/** D-19: whether `classified` has enough of every tier `round.slots` needs, across both packs. */
+/**
+ * D-19, rewritten BUG-35 (Phase 36) / D-08: cascade-aware greedy counting simulation —
+ * whether `classified` has enough supply to fill every tier `round.slots` needs, across
+ * both packs, once a short slot is allowed to cascade DOWN through `tierDrawOrder`
+ * (chase -> rare -> uncommon -> common) before being declared short. A pure counting
+ * pass — no RNG — mirroring the pool builder's rarest-first priority so this check and
+ * `buildTierPoolsForRound` never disagree about whether the round is fillable.
+ */
 function tierSupplyMeetsNeed(
   classified: TieredPoolPlayer[],
   round: Extract<RoundConfig, { kind: 'tiered' }>,
 ): boolean {
-  return round.slots.every(
-    (slot) => tierSupplyCount(classified, slot.tier) >= slot.count * PACKS_PER_ROUND,
+  const remaining: Record<DraftTier, number> = { chase: 0, rare: 0, uncommon: 0, common: 0 };
+  for (const p of classified) remaining[p.tier] += 1;
+
+  const needByTier = new Map<PackSlot['tier'], number>();
+  for (const slot of round.slots) {
+    needByTier.set(slot.tier, (needByTier.get(slot.tier) ?? 0) + slot.count * PACKS_PER_ROUND);
+  }
+
+  const distinctTiers = [...needByTier.keys()].sort(
+    (a, b) => SLOT_RARITY_ORDER[a] - SLOT_RARITY_ORDER[b],
   );
+
+  for (const tier of distinctTiers) {
+    let need = needByTier.get(tier)!;
+    for (const source of tierDrawOrder(tier)) {
+      if (need <= 0) break;
+      const take = Math.min(need, remaining[source]);
+      remaining[source] -= take;
+      need -= take;
+    }
+    if (need > 0) return false;
+  }
+
+  return true;
 }
 
 /**
@@ -328,25 +372,58 @@ function resolveTieredCandidates(
 }
 
 /**
- * D-17 (Phase 30): builds one shuffled draw pool per distinct tier referenced in
- * `round.slots` — 'chaseOrRare' merges the chase+rare candidates into a single shuffled
- * pool (D-25 unbiased mix), never "prefer chase". Shared across both of the round's packs
- * so sequential `drawFromPool` calls never re-deal an already-dealt card (D-09).
+ * D-17 (Phase 30), rewritten BUG-35 (Phase 36) / D-08: builds one shuffled draw pool per
+ * distinct tier referenced in `round.slots`, rarest-first, with a round-scoped `claimed`
+ * Set<string> so a card can only ever land in one tier's pool. 'chaseOrRare' merges the
+ * chase+rare candidates into a single shuffled pool (D-25 unbiased mix, never "prefer
+ * chase") for its PRIMARY population. A tier's pool starts with its FULL unclaimed primary
+ * population (preserving pre-cascade behaviour and `drawFromPool`'s bucket-cap slack), then
+ * tops up from `TIER_CASCADE_BELOW[tier]` in order — shuffling each lower tier's unclaimed
+ * candidates and appending only the exact shortfall (`need - pool.length`), never more.
+ * Shared across both of the round's packs so sequential `drawFromPool` calls never re-deal
+ * an already-dealt card (D-09).
  */
 function buildTierPoolsForRound(
   round: Extract<RoundConfig, { kind: 'tiered' }>,
   classified: TieredPoolPlayer[],
   rng: RandomIntFn,
 ): Map<PackSlot['tier'], TieredPoolPlayer[]> {
-  const pools = new Map<PackSlot['tier'], TieredPoolPlayer[]>();
+  const needByTier = new Map<PackSlot['tier'], number>();
   for (const slot of round.slots) {
-    if (pools.has(slot.tier)) continue;
-    const source =
-      slot.tier === 'chaseOrRare'
-        ? classified.filter((p) => p.tier === 'chase' || p.tier === 'rare')
-        : classified.filter((p) => p.tier === slot.tier);
-    pools.set(slot.tier, shuffle(source, rng));
+    needByTier.set(slot.tier, (needByTier.get(slot.tier) ?? 0) + slot.count * PACKS_PER_ROUND);
   }
+
+  const distinctTiers = [...needByTier.keys()].sort(
+    (a, b) => SLOT_RARITY_ORDER[a] - SLOT_RARITY_ORDER[b],
+  );
+
+  const claimed = new Set<string>();
+  const primaryTiersOf = (tier: PackSlot['tier']): readonly DraftTier[] =>
+    tier === 'chaseOrRare' ? ['chase', 'rare'] : [tier];
+
+  const pools = new Map<PackSlot['tier'], TieredPoolPlayer[]>();
+  for (const tier of distinctTiers) {
+    const need = needByTier.get(tier)!;
+    const primaryTiers = primaryTiersOf(tier);
+    const primaryCandidates = classified.filter(
+      (p) => primaryTiers.includes(p.tier) && !claimed.has(p.id),
+    );
+    let pool = shuffle(primaryCandidates, rng);
+
+    for (const cascadeTier of TIER_CASCADE_BELOW[tier]) {
+      if (pool.length >= need) break;
+      const shortfall = need - pool.length;
+      const cascadeCandidates = classified.filter(
+        (p) => p.tier === cascadeTier && !claimed.has(p.id),
+      );
+      const shuffledCascade = shuffle(cascadeCandidates, rng);
+      pool = [...pool, ...shuffledCascade.slice(0, shortfall)];
+    }
+
+    for (const p of pool) claimed.add(p.id);
+    pools.set(tier, pool);
+  }
+
   return pools;
 }
 
