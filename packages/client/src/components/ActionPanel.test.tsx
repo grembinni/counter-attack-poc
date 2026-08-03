@@ -123,6 +123,199 @@ describe('ActionPanel — UNDO-01: clicking Undo emits game:undo', () => {
   });
 });
 
+describe('ActionPanel — BUG-37: Undo clamps at a resolved TACKLE_ATTEMPT/STEAL_ATTEMPT', () => {
+  it('Undo button is disabled when the eventLog ends in a resolved TACKLE_ATTEMPT', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 1 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'TACKLE_ATTEMPT',
+            defenderId: 'away-1',
+            carrierId: 'home-9',
+            defenderDie: 3,
+            carrierDie: 5,
+            defenderCombined: 7,
+            carrierCombined: 13,
+            result: 'FAIL',
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Undo button is enabled again once a further MOVE exists after the resolved TACKLE_ATTEMPT', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 2 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'TACKLE_ATTEMPT',
+            defenderId: 'away-1',
+            carrierId: 'home-9',
+            defenderDie: 3,
+            carrierDie: 5,
+            defenderCombined: 7,
+            carrierCombined: 13,
+            result: 'FAIL',
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 15, r: 13 },
+            to: { q: 16, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 2000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('Undo button is disabled when the eventLog ends in a resolved STEAL_ATTEMPT', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 1 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'STEAL_ATTEMPT',
+            defenderId: 'away-1',
+            result: 'FAIL',
+            defenderDie: 3,
+            defenderCombined: 7,
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Undo button is enabled again once a further MOVE exists after the resolved STEAL_ATTEMPT', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 2 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'STEAL_ATTEMPT',
+            defenderId: 'away-1',
+            result: 'FAIL',
+            defenderDie: 3,
+            defenderCombined: 7,
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 15, r: 13 },
+            to: { q: 16, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 2000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  // Non-regression: a lone MOVE with no contest event is still enabled (pre-existing behavior).
+  it('Undo button is enabled for a lone MOVE with no contest event (non-regression)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 1 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
 describe('ActionPanel — FIRST_TIME_PASS_MOVE panel', () => {
   const ftpBaseState = {
     ...mockMovementState,

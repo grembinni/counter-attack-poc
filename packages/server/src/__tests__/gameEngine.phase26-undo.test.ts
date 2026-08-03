@@ -392,3 +392,225 @@ describe('Phase 26 BUG-24: applyUndo scoping — MOVE phase', () => {
     expect(result.reason).toBe('NOTHING_TO_UNDO');
   });
 });
+
+// ---------------------------------------------------------------------------
+// BUG-37 (Phase 36) / D-13: applyUndo clamp-not-lockout for resolved
+// TACKLE_ATTEMPT / STEAL_ATTEMPT
+// ---------------------------------------------------------------------------
+
+describe('Phase 36 BUG-37: applyUndo clamp-not-lockout — TACKLE_ATTEMPT / STEAL_ATTEMPT', () => {
+  // ── Case 1 ──────────────────────────────────────────────────────────────
+  // A resolved TACKLE_ATTEMPT is an undo floor: Undo cannot cross back over it.
+  it('returns ok:false when the eventLog ends in a resolved TACKLE_ATTEMPT (clamp)', () => {
+    const stateWithResolvedTackle: GameState = {
+      ...baseMoveStateNoMoves,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 1000,
+          ballAfter: { position: { q: 10, r: 7 }, carrierId: null },
+        },
+        {
+          type: 'TACKLE_ATTEMPT',
+          defenderId: 'away-0',
+          carrierId: 'home-9',
+          defenderDie: 3,
+          carrierDie: 5,
+          defenderCombined: 7,
+          carrierCombined: 13,
+          result: 'FAIL',
+          timestamp: 2000,
+          ballAfter: { position: { q: 11, r: 7 }, carrierId: 'home-9' },
+        },
+      ],
+      paceUsedByPieceId: { 'home-9': 1 },
+    };
+
+    const result = applyUndo(stateWithResolvedTackle);
+    expect(result.ok).toBe(false);
+  });
+
+  // ── Case 2 ──────────────────────────────────────────────────────────────
+  // D-13: Undo still works normally for a MOVE made AFTER the resolved
+  // TACKLE_ATTEMPT — it reverts only that later move and leaves the
+  // pre-tackle MOVE and the TACKLE_ATTEMPT itself untouched in the log.
+  it('undoes a MOVE made after a resolved TACKLE_ATTEMPT, leaving the tackle and pre-tackle move intact', () => {
+    const stateWithMoveAfterTackle: GameState = {
+      ...baseMoveStateNoMoves,
+      pieces: [{ ...homeMover, position: { q: 12, r: 7 } }, awayGK],
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 1000,
+          ballAfter: { position: { q: 10, r: 7 }, carrierId: null },
+        },
+        {
+          type: 'TACKLE_ATTEMPT',
+          defenderId: 'away-0',
+          carrierId: 'home-9',
+          defenderDie: 3,
+          carrierDie: 5,
+          defenderCombined: 7,
+          carrierCombined: 13,
+          result: 'FAIL',
+          timestamp: 2000,
+          ballAfter: { position: { q: 11, r: 7 }, carrierId: 'home-9' },
+        },
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 11, r: 7 },
+          to: { q: 12, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 3000,
+          ballAfter: { position: { q: 11, r: 7 }, carrierId: 'home-9' },
+        },
+      ],
+      paceUsedByPieceId: { 'home-9': 2 },
+    };
+
+    const result = applyUndo(stateWithMoveAfterTackle);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // The later move is reverted — piece back at its `from`
+    const piece = result.state.pieces.find((p) => p.id === 'home-9');
+    expect(piece?.position).toEqual({ q: 11, r: 7 });
+
+    // Only the pre-tackle MOVE remains; the later MOVE was removed
+    const moveEvents = result.state.eventLog.filter((e) => e.type === 'MOVE');
+    expect(moveEvents).toHaveLength(1);
+    expect(moveEvents[0]).toMatchObject({ from: { q: 10, r: 7 }, to: { q: 11, r: 7 } });
+
+    // The TACKLE_ATTEMPT is still present — undo never crosses a resolved contest
+    const tackleEvents = result.state.eventLog.filter((e) => e.type === 'TACKLE_ATTEMPT');
+    expect(tackleEvents).toHaveLength(1);
+  });
+
+  // ── Case 3 ──────────────────────────────────────────────────────────────
+  // Same clamp behavior for a resolved STEAL_ATTEMPT.
+  it('returns ok:false when the eventLog ends in a resolved STEAL_ATTEMPT (clamp)', () => {
+    const stateWithResolvedSteal: GameState = {
+      ...baseMoveStateNoMoves,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 1000,
+          ballAfter: { position: { q: 10, r: 7 }, carrierId: null },
+        },
+        {
+          type: 'STEAL_ATTEMPT',
+          defenderId: 'away-0',
+          result: 'FAIL',
+          defenderDie: 3,
+          defenderCombined: 7,
+          timestamp: 2000,
+          ballAfter: { position: { q: 11, r: 7 }, carrierId: 'home-9' },
+        },
+      ],
+      paceUsedByPieceId: { 'home-9': 1 },
+    };
+
+    const result = applyUndo(stateWithResolvedSteal);
+    expect(result.ok).toBe(false);
+  });
+
+  // ── Case 3b ─────────────────────────────────────────────────────────────
+  // D-13: Undo still works normally for a MOVE made AFTER the resolved
+  // STEAL_ATTEMPT.
+  it('undoes a MOVE made after a resolved STEAL_ATTEMPT, leaving the steal and pre-steal move intact', () => {
+    const stateWithMoveAfterSteal: GameState = {
+      ...baseMoveStateNoMoves,
+      pieces: [{ ...homeMover, position: { q: 12, r: 7 } }, awayGK],
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 1000,
+          ballAfter: { position: { q: 10, r: 7 }, carrierId: null },
+        },
+        {
+          type: 'STEAL_ATTEMPT',
+          defenderId: 'away-0',
+          result: 'FAIL',
+          defenderDie: 3,
+          defenderCombined: 7,
+          timestamp: 2000,
+          ballAfter: { position: { q: 11, r: 7 }, carrierId: 'home-9' },
+        },
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 11, r: 7 },
+          to: { q: 12, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 3000,
+          ballAfter: { position: { q: 11, r: 7 }, carrierId: 'home-9' },
+        },
+      ],
+      paceUsedByPieceId: { 'home-9': 2 },
+    };
+
+    const result = applyUndo(stateWithMoveAfterSteal);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const piece = result.state.pieces.find((p) => p.id === 'home-9');
+    expect(piece?.position).toEqual({ q: 11, r: 7 });
+
+    const moveEvents = result.state.eventLog.filter((e) => e.type === 'MOVE');
+    expect(moveEvents).toHaveLength(1);
+
+    const stealEvents = result.state.eventLog.filter((e) => e.type === 'STEAL_ATTEMPT');
+    expect(stealEvents).toHaveLength(1);
+  });
+
+  // ── Case 4 ──────────────────────────────────────────────────────────────
+  // Non-regression: an eventLog whose only boundary is a SLOT_ADVANCE behaves
+  // exactly as the pre-existing Phase 26 tests already assert — guards
+  // against the new TACKLE_ATTEMPT/STEAL_ATTEMPT terms accidentally
+  // shadowing the existing SLOT_ADVANCE boundary.
+  it('still returns UNDO_LOCKED for cross-slot moves when no tackle/steal event is present (non-regression)', () => {
+    const stateWithCrossSlotMoves: GameState = {
+      ...baseMoveStateNoMoves,
+      eventLog: [
+        {
+          type: 'MOVE',
+          pieceId: 'home-9',
+          from: { q: 10, r: 7 },
+          to: { q: 11, r: 7 },
+          slot: 'ATTACKER_4',
+          timestamp: 1000,
+          ballAfter: { position: { q: 10, r: 7 }, carrierId: null },
+        },
+        {
+          type: 'SLOT_ADVANCE',
+          from: 'ATTACKER_4',
+          to: 'DEFENDER_5',
+          timestamp: 2000,
+        },
+      ],
+      paceUsedByPieceId: {},
+    };
+
+    const result = applyUndo(stateWithCrossSlotMoves);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('UNDO_LOCKED');
+  });
+});
