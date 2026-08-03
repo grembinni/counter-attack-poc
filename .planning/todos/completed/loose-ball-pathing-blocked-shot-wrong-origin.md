@@ -2,7 +2,9 @@
 created: 2026-07-27T00:00:00.000Z
 title: 'Bug — loose-ball pathing on a blocked shot paths from the shooting square instead of the blocking square'
 area: rules
-resolves_phase: null
+resolves_phase: 36
+resolved: 2026-07-28
+resolution: 'Fixed as BUG-36 in Phase 36 plan 04 (36-04-SUMMARY.md) — LOOSE_BALL tie branch now uses gkEffectivePos instead of the shooter hex.'
 files:
   - packages/server/src/gameEngine.ts
 ---

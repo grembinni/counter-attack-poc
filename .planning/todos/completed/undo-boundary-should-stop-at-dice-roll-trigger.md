@@ -2,7 +2,9 @@
 created: 2026-07-27T00:00:00.000Z
 title: 'Bug — Undo can progress earlier than a dice-roll-triggering action (tackle/steal) within a move'
 area: rules
-resolves_phase: null
+resolves_phase: 36
+resolved: 2026-07-28
+resolution: 'Fixed as BUG-37 in Phase 36 plan 05 (36-05-SUMMARY.md) — TACKLE_ATTEMPT/STEAL_ATTEMPT added to the isBoundary set on both client canUndo and server applyUndo.'
 files:
   - packages/client/src/components/ActionPanel.tsx
   - packages/server/src/gameHandlers.ts

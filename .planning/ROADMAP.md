@@ -7,7 +7,7 @@
 - ✅ **v1.2 Team Identity & Core Fixes** — Phases 15–18 (shipped 2026-07-03)
 - ✅ **v1.3 Team Customization & Formation System** — Phases 19–25 (shipped 2026-07-11)
 - ✅ **v1.4 Response Polish + Draft Mode** — Phases 26–30 (shipped 2026-07-22, with 1 known gap — RESP-01..09 deferred; see [audit](milestones/v1.4-MILESTONE-AUDIT.md))
-- 🚧 **v1.5 UX Refresh & Code Cleanup** — Phases 31–36 (in progress)
+- ✅ **v1.5 UX Refresh & Code Cleanup** — Phases 31–36 (shipped 2026-08-03; see [audit](milestones/v1.5-MILESTONE-AUDIT.md))
 
 ## Phases
 
@@ -103,210 +103,69 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 </details>
 
----
+<details>
+<summary>✅ v1.5 UX Refresh & Code Cleanup (Phases 31–36) — SHIPPED 2026-08-03</summary>
 
-### 🚧 v1.5 UX Refresh & Code Cleanup (Phases 31–36) — IN PROGRESS
+| Phase | Name                                      | Plans | Completed  |
+| ----- | ----------------------------------------- | ----- | ---------- |
+| 31    | Bug Fixes                                 | 6/6   | 2026-07-24 |
+| 32    | Code Cleanup                              | 6/6   | 2026-07-25 |
+| 33    | Design Tokens & Highlight Standardization | 7/7   | 2026-07-26 |
+| 34    | Visual Theme Restyle                      | 5/5   | 2026-07-27 |
+| 35    | ActionPanel & Log Standardization         | 6/6   | 2026-07-27 |
+| 36    | Bug Fixes                                 | 5/5   | 2026-08-02 |
 
-**Milestone Goal:** Overhaul the visual system to a professional broadcast-sports look, standardize hex-highlight colors and the ActionPanel, pay down accumulated code debt, and close 3 known bugs.
+Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requirements](milestones/v1.5-REQUIREMENTS.md) · [Audit](milestones/v1.5-MILESTONE-AUDIT.md)
 
-**Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
-
-| Phase | Name                                      | Plans    | Status     |
-| ----- | ----------------------------------------- | -------- | ---------- |
-| 31    | Bug Fixes                                 | 6/6      | Complete   |
-| 32    | Code Cleanup                              | 6/6      | Complete   |
-| 33    | Design Tokens & Highlight Standardization | 7/7      | Complete   |
-| 34    | Visual Theme Restyle                      | 5/5      | Complete   |
-| 35    | ActionPanel & Log Standardization         | 6/6      | Complete   |
-| 36    | 5/5                                       | Complete | 2026-08-03 |
-
-### Phase 31: Bug Fixes
-
-**Goal**: Three known gameplay/replay defects — goal-reset replay reconstruction, End Turn/eligibility-message timing, and goalkeeper deflection eligibility — are fixed and verified.
-**Depends on**: Nothing (first phase of v1.5)
-**Requirements**: BUG-30, BUG-31, BUG-32
-**Success Criteria** (what must be TRUE):
-
-1. After a goal is scored and the match resets to kickoff, replaying that goal shows every player reconstructed at their correct kickoff position (not just some).
-2. The eligible-players-remaining message and End Turn button color update the moment a player starts a move (not only once the move is fully completed), and both correctly reflect state again after an Undo.
-3. The goalkeeper can never be selected as an eligible deflection responder.
-
-**Plans**: 6 plans (Wave 1: 31-01, 31-02, 31-03 parallel; Wave 2: 31-04; gap closure: 31-05, 31-06 parallel)
-**Wave 1**
-
-- [x] 31-01-PLAN.md — BUG-30 goal-reset replay reconstruction (`piecesAfter` on GOAL) + folded GK_KICK/LOOSE_BALL_LAND replay verify [Wave 1]
-- [x] 31-02-PLAN.md — BUG-31 move-started eligibility timing + Undo (ActionPanel `remaining`) [Wave 1]
-- [x] 31-03-PLAN.md — BUG-32 GK deflection eligibility (client gate + server rejection, defense-in-depth) [Wave 1]
-
-**Wave 2** _(blocked on Wave 1 completion)_
-
-- [x] 31-04-PLAN.md — Folded header-winner eligibility todo (`movedPieceIds` on non-goal header routes) [Wave 2, depends 31-01]
-
-**Gap Closure** _(from 31-VERIFICATION.md — no file overlap, run in parallel)_
-
-- [x] 31-05-PLAN.md — BUG-30 gap: populate `piecesAfter` at the 3 remaining GK-out-of-range auto-GOAL sites in `gameHandlers.ts` (gap_closure)
-- [x] 31-06-PLAN.md — Header-winner gap: carry the winner's `movedPieceIds` entry through `applyStartMovement` via `carriedMovedPieceIds` (BUG-31 family, gap_closure)
-
-### Phase 32: Code Cleanup
-
-**Goal**: Dead code, duplicated color/team-slot lookups, and Zustand/hook inefficiencies are eliminated across the shared/server/client packages, verified by automated tooling.
-**Depends on**: Phase 31
-**Requirements**: CLEANUP-01, CLEANUP-02, CLEANUP-03, CLEANUP-04
-**Success Criteria** (what must be TRUE):
-
-1. An automated dead-code-detection tool run across shared/server/client reports zero flagged unused fields/functions/exports (e.g. the confirmed-dead `shootTargetHex` field is gone).
-2. Repeated `TEAM_CONFIGS[...].palette.uiColor` lookups and other duplicated derivation logic (e.g. team-slot/`myTeam` resolution) are each consolidated into one shared helper/hook used everywhere they were previously inlined.
-3. Zustand store selectors have no stale dependency arrays or redundant derived-state recomputation, confirmed by a documented selector review.
-4. React Hook dependency lint rules are enabled for the client package, and the package lints clean with zero exhaustive-deps violations.
-
-**Plans**: 6 plans (Wave 1: 32-01, 32-02 parallel; Wave 2: 32-03, 32-04 parallel; Wave 3: 32-05, 32-06 parallel)
-
-**Wave 1**
-
-- [x] 32-01-PLAN.md — CLEANUP-01: knip dead-code gate + `shootTargetHex` removal (autonomous:false — knip [SUS] legitimacy checkpoint) [Wave 1]
-- [x] 32-02-PLAN.md — CLEANUP-02: create shared hooks `useTeamColors`/`useMyTeam` (pure-core + hook-wrapper) + tests [Wave 1]
-
-**Wave 2** _(blocked on Wave 1)_
-
-- [x] 32-03-PLAN.md — CLEANUP-02: color consolidation — GameBoard/ActionLog to `teamAccentColor`, PieceOverlay verify (Pitfall 5) [Wave 2, depends 32-02]
-- [x] 32-04-PLAN.md — CLEANUP-02: `myTeam` consolidation — HexGrid/ActionPanel/FreeKick/KickOff panels + useGameStore ×7 (Pitfall 2/4) [Wave 2, depends 32-01, 32-02]
-
-**Wave 3** _(blocked on Wave 2)_
-
-- [x] 32-05-PLAN.md — CLEANUP-03: Zustand selector review (SELECTOR-REVIEW.md) + apply fixes (D-06) [Wave 3, depends 32-04]
-- [x] 32-06-PLAN.md — CLEANUP-04: react-hooks lint at error + fix all violations + suppression review (autonomous:false, D-08) [Wave 3, depends 32-01, 32-04]
-
-### Phase 33: Design Tokens & Highlight Standardization
-
-**Goal**: A single design-token layer and a complete, single-source-of-truth highlight/ring color table replace all ad-hoc chrome and highlight color literals, with existing color-literal tests migrated to token/semantic identity ahead of any palette value changes.
-**Depends on**: Phase 32
-**Requirements**: THEME-03, HILITE-01, HILITE-02, HILITE-03, HILITE-04, HILITE-05
-**Success Criteria** (what must be TRUE):
-
-1. A single CSS custom-property token file defines all chrome colors, and one runtime `--team-accent` variable — derived from the active team's `TEAM_CONFIGS.palette.uiColor` — is the sole source for the per-view accent color (no per-component lookups).
-2. `HIGHLIGHT_STYLES` (or its successor) formally covers every real highlight case (~13-14, including GK-kick-target, pass-target, tackle-risk, and ball-position), with no ad-hoc inline highlight-color literals remaining in `HexGrid.tsx`, and the full mapping is written up as a single reference document.
-3. Red renders for exactly one meaning app-wide (rule violation/offside); the goal-line shot-target highlight is a distinct, non-red color.
-4. The "selected" piece ring and the "already-moved-this-stage" piece ring are visually distinct colors (no longer both identical green).
-5. A dedicated, always-on-top ball-location marker highlights the hex containing the ball during response phases (headers, kicks), and all pre-existing color-literal test assertions now assert token/semantic identity instead of literal color strings.
-   **Plans**: 7 plans (Wave 1: 33-01, 33-04, 33-05; Wave 2: 33-02, 33-03, 33-06; Wave 3: 33-07)
-
-   Plans:
-   - [x] 33-01-PLAN.md — Chrome token file + GameBoard token/accent migration (THEME-03) [Wave 1]
-   - [x] 33-02-PLAN.md — In-game panel/log/banner chrome-literal → token migration (THEME-03) [Wave 2]
-   - [x] 33-03-PLAN.md — Lobby/settings/selection screen chrome-literal → token migration (THEME-03) [Wave 2]
-   - [x] 33-04-PLAN.md — HexCell highlight table: green safe / purple goal / new tints + ring prop (HILITE-01, HILITE-02) [Wave 1]
-   - [x] 33-05-PLAN.md — PieceOverlay grey moved-this-stage marker (HILITE-03) [Wave 1]
-   - [x] 33-06-PLAN.md — HexGrid highlight consolidation + always-on-top ball marker (HILITE-01, HILITE-04) [Wave 2]
-   - [x] 33-07-PLAN.md — HIGHLIGHT-REFERENCE.md + phase-gate verification (HILITE-05) [Wave 3]
-         **UI hint**: yes
-
-### Phase 34: Visual Theme Restyle
-
-**Goal**: The deep-blue theme is replaced app-wide with the broadcast-sports charcoal/graphite palette, built entirely on the Phase 33 token layer and contrast-verified.
-**Depends on**: Phase 33
-**Requirements**: THEME-01, THEME-02, THEME-04
-**Success Criteria** (what must be TRUE):
-
-1. The lobby, settings, team/draft-selection, and in-game board all render the dark charcoal/graphite base with crisp white text and a single team-color accent — no remaining deep-blue theme surfaces anywhere.
-2. Every chrome-related CSS Module sources its colors exclusively via `var(--token)`; an automated lint (stylelint) confirms zero hardcoded hex/rgba literals remain, and any CSS classes made unreferenced by the sweep are removed.
-3. All team accent colors pass WCAG AA contrast against the new charcoal/white base, confirmed by an automated contrast-check script.
-4. The full client test suite, typecheck, and build remain green after the palette swap.
-   **Plans**: 5 plans — sequential dependency chain (Wave 1: 34-01; Wave 2: 34-02; Wave 3: 34-03; Wave 4: 34-04) + 1 gap-closure plan (34-05)
-
-   Plans:
-   - [x] 34-01-PLAN.md — Tooling install + stylelint "no hardcoded color literal" gate (THEME-02) [Wave 1]
-   - [x] 34-02-PLAN.md — AA-safe team-accent derivation function (TDD, THEME-04) [Wave 2]
-   - [x] 34-03-PLAN.md — Contrast-check CI script + stylelint/check-contrast CI wiring (THEME-04, THEME-02) [Wave 3]
-   - [x] 34-04-PLAN.md — Charcoal/graphite palette value swap + GameBoard accent wiring + visual verify (THEME-01, THEME-04) [Wave 4]
-   - [x] 34-05-PLAN.md — Gap closure (UAT tests 3, 8): migrate Team-Select/Roster Confirm buttons to the shared CTA color pattern + add Roster not-ready state (THEME-01) [Wave 1]
-         **UI hint**: yes
-
-### Phase 35: ActionPanel & Log Standardization
-
-**Goal**: ActionPanel and ActionLog present one consistent visual and language system — format, borders, buttons, and terminology — across every game phase.
-**Depends on**: Phase 34
-**Requirements**: PANEL-01, PANEL-02, PANEL-03, PANEL-04
-**Success Criteria** (what must be TRUE):
-
-1. ActionPanel help text follows one consistent format and tone across every game phase, with no per-phase style drift.
-2. No component in the ActionPanel/ActionLog area is framed with a border.
-3. Every ActionPanel button shares consistent sizing, color-state logic (ready/pending/disabled), and interaction behavior across every phase.
-4. Terminology and phrasing (action names, log verbs, etc.) are consistent across every ActionPanel/ActionLog state.
-   **Plans**: TBD
-   **UI hint**: yes
-
-### Phase 36: Bug Fixes
-
-**Goal:** Five known defects — a missing Game Settings button, duplicate players across draft packs, an unenforced draft-pool restriction, an incorrect loose-ball path origin on blocked shots, and undo overreach past dice-roll actions — are fixed and verified.
-**Depends on:** Phase 35
-**Requirements**: BUG-33, BUG-34, BUG-35, BUG-36, BUG-37
-**Success Criteria** (what must be TRUE):
-
-1. The Game Settings button that was removed/lost is restored and accessible from the game screen.
-2. Draft packs never contain duplicate players — each player can be drafted by at most one team, enforced across pack generation.
-3. Drafting is verified to pull only from the selected player pool — no player outside the chosen pool is ever offered as draftable.
-4. When a shot is blocked, the resulting loose ball is pathed from the blocking piece's square, not the shooter's square.
-5. During a move, once an action has triggered a dice roll (tackle/steal), Undo cannot revert state to before that dice-roll action.
-
-**Plans:** 5/5 plans complete
-Plans:
-**Wave 1**
-
-- [x] 36-01-PLAN.md — Game Settings Back button + LEAVE_ROOM server teardown (BUG-33)
-- [x] 36-02-PLAN.md — Match-wide draft-pack player uniqueness (BUG-34)
-- [x] 36-04-PLAN.md — Loose-ball path origin on a blocked shot (BUG-36)
-
-**Wave 2** _(blocked on Wave 1 completion)_
-
-- [x] 36-03-PLAN.md — Same-pool tier cascade + common-only cross-pool fallback (BUG-35)
-- [x] 36-05-PLAN.md — Undo boundary at a resolved dice-roll action (BUG-37)
+</details>
 
 ---
 
 ## Progress
 
-| Phase                           | Milestone | Plans Complete | Status      | Completed  |
-| ------------------------------- | --------- | -------------- | ----------- | ---------- |
-| 1. Monorepo Scaffold            | v1.0      | 3/3            | Complete    | 2026-05-28 |
-| 2. Move Validator               | v1.0      | 4/4            | Complete    | 2026-05-29 |
-| 3. Server Room Manager          | v1.0      | 3/3            | Complete    | 2026-05-29 |
-| 4. Game Engine + FSM            | v1.0      | 3/3            | Complete    | 2026-05-30 |
-| 5. Dice Resolver                | v1.0      | 4/4            | Complete    | 2026-05-30 |
-| 6. React Hex Grid               | v1.0      | 3/3            | Complete    | 2026-05-31 |
-| 7. Client-Server Integration    | v1.0      | 4/4            | Complete    | 2026-06-03 |
-| 7.1. UI Cleanup                 | v1.0      | 3/3            | Complete    | 2026-06-04 |
-| 8. Match Lifecycle              | v1.0      | 8/8            | Complete    | 2026-06-05 |
-| 8.1. Cleanup                    | v1.0      | 3/3            | Complete    | 2026-06-05 |
-| 8.2. Passing Cleanup            | v1.0      | 6/6            | Complete    | 2026-06-07 |
-| 9. Render Deployment            | v1.0      | 2/2            | Complete    | 2026-06-08 |
-| 10. Remaining Flows             | v1.0      | 5/5            | Complete    | 2026-06-11 |
-| 11. Rule Correctness            | v1.1      | 4/4            | Complete    | 2026-06-12 |
-| 12. Visual Token & Hex Layer    | v1.1      | 4/4            | Complete    | 2026-06-12 |
-| 13. Layout & Clock              | v1.1      | 3/3            | Complete    | 2026-06-12 |
-| 14. Kick Off Rules & Replay     | v1.1      | 3/3            | Complete    | 2026-06-12 |
-| 15. Team Identity               | v1.2      | 3/3            | Complete    | 2026-06-13 |
-| 16. Player Roster & Selection   | v1.2      | 4/4            | Complete    | 2026-06-14 |
-| 17. Rule Bugs                   | v1.2      | 6/6            | Complete    | 2026-06-21 |
-| 17.1. Action Flow Cleanup       | v1.2      | 16/16          | Complete    | 2026-06-20 |
-| 18. Messaging & Logging Cons.   | v1.2      | 3/3            | Complete    | 2026-07-02 |
-| 18.1. Replay Review             | v1.2      | 2/2            | Complete    | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs   | v1.2      | 6/6            | Complete    | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.)  | v1.2      | 5/5            | Complete    | 2026-07-02 |
-| 18.4. UX Enhancements           | v1.2      | 7/7            | Complete    | 2026-07-02 |
-| 19. Data Model & Team Palette   | v1.3      | 3/3            | Complete    | 2026-07-03 |
-| 20. Uniform Style System        | v1.3      | 3/3            | Complete    | 2026-07-04 |
-| 21. New Teams (MLS + Intl)      | v1.3      | 2/2            | Complete    | 2026-07-04 |
-| 22. Uniform Selection Screen    | v1.3      | 3/3            | Complete    | 2026-07-05 |
-| 23. Formation System            | v1.3      | 3/3            | Complete    | 2026-07-05 |
-| 24. Auto-Assignment & Lineup    | v1.3      | 4/4            | Complete    | 2026-07-10 |
-| 25. Bug & UAT Closure           | v1.3      | 9/9            | Complete    | 2026-07-11 |
-| 26. Bug Fixes                   | v1.4      | 3/3            | Complete    | 2026-07-12 |
-| 27. Game Creation Settings      | v1.4      | 5/5            | Complete    | 2026-07-21 |
-| 28. Draft Data Model            | v1.4      | 4/4            | Complete    | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap    | v1.4      | 12/12          | Complete    | 2026-07-22 |
-| 30. Recalibrate Draft           | v1.4      | 6/6            | Complete    | 2026-07-22 |
-| 31. Bug Fixes                   | v1.5      | 6/6            | Complete    | 2026-07-24 |
-| 32. Code Cleanup                | v1.5      | 6/6            | Complete    | 2026-07-24 |
-| 33. Design Tokens & Highlight   | v1.5      | 7/7            | Complete    | 2026-07-25 |
-| 34. Visual Theme Restyle        | v1.5      | 5/5            | Complete    | 2026-07-27 |
-| 35. ActionPanel & Log Standard. | v1.5      | 0/TBD          | Not started | -          |
+| Phase                           | Milestone | Plans Complete | Status   | Completed  |
+| ------------------------------- | --------- | -------------- | -------- | ---------- |
+| 1. Monorepo Scaffold            | v1.0      | 3/3            | Complete | 2026-05-28 |
+| 2. Move Validator               | v1.0      | 4/4            | Complete | 2026-05-29 |
+| 3. Server Room Manager          | v1.0      | 3/3            | Complete | 2026-05-29 |
+| 4. Game Engine + FSM            | v1.0      | 3/3            | Complete | 2026-05-30 |
+| 5. Dice Resolver                | v1.0      | 4/4            | Complete | 2026-05-30 |
+| 6. React Hex Grid               | v1.0      | 3/3            | Complete | 2026-05-31 |
+| 7. Client-Server Integration    | v1.0      | 4/4            | Complete | 2026-06-03 |
+| 7.1. UI Cleanup                 | v1.0      | 3/3            | Complete | 2026-06-04 |
+| 8. Match Lifecycle              | v1.0      | 8/8            | Complete | 2026-06-05 |
+| 8.1. Cleanup                    | v1.0      | 3/3            | Complete | 2026-06-05 |
+| 8.2. Passing Cleanup            | v1.0      | 6/6            | Complete | 2026-06-07 |
+| 9. Render Deployment            | v1.0      | 2/2            | Complete | 2026-06-08 |
+| 10. Remaining Flows             | v1.0      | 5/5            | Complete | 2026-06-11 |
+| 11. Rule Correctness            | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 12. Visual Token & Hex Layer    | v1.1      | 4/4            | Complete | 2026-06-12 |
+| 13. Layout & Clock              | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 14. Kick Off Rules & Replay     | v1.1      | 3/3            | Complete | 2026-06-12 |
+| 15. Team Identity               | v1.2      | 3/3            | Complete | 2026-06-13 |
+| 16. Player Roster & Selection   | v1.2      | 4/4            | Complete | 2026-06-14 |
+| 17. Rule Bugs                   | v1.2      | 6/6            | Complete | 2026-06-21 |
+| 17.1. Action Flow Cleanup       | v1.2      | 16/16          | Complete | 2026-06-20 |
+| 18. Messaging & Logging Cons.   | v1.2      | 3/3            | Complete | 2026-07-02 |
+| 18.1. Replay Review             | v1.2      | 2/2            | Complete | 2026-06-21 |
+| 18.2. Code Cleanup & Dup-Bugs   | v1.2      | 6/6            | Complete | 2026-06-22 |
+| 18.3. Bug-Bash (Rule Correct.)  | v1.2      | 5/5            | Complete | 2026-07-02 |
+| 18.4. UX Enhancements           | v1.2      | 7/7            | Complete | 2026-07-02 |
+| 19. Data Model & Team Palette   | v1.3      | 3/3            | Complete | 2026-07-03 |
+| 20. Uniform Style System        | v1.3      | 3/3            | Complete | 2026-07-04 |
+| 21. New Teams (MLS + Intl)      | v1.3      | 2/2            | Complete | 2026-07-04 |
+| 22. Uniform Selection Screen    | v1.3      | 3/3            | Complete | 2026-07-05 |
+| 23. Formation System            | v1.3      | 3/3            | Complete | 2026-07-05 |
+| 24. Auto-Assignment & Lineup    | v1.3      | 4/4            | Complete | 2026-07-10 |
+| 25. Bug & UAT Closure           | v1.3      | 9/9            | Complete | 2026-07-11 |
+| 26. Bug Fixes                   | v1.4      | 3/3            | Complete | 2026-07-12 |
+| 27. Game Creation Settings      | v1.4      | 5/5            | Complete | 2026-07-21 |
+| 28. Draft Data Model            | v1.4      | 4/4            | Complete | 2026-07-21 |
+| 29. Draft UI + Pick-and-Swap    | v1.4      | 12/12          | Complete | 2026-07-22 |
+| 30. Recalibrate Draft           | v1.4      | 6/6            | Complete | 2026-07-22 |
+| 31. Bug Fixes                   | v1.5      | 6/6            | Complete | 2026-07-24 |
+| 32. Code Cleanup                | v1.5      | 6/6            | Complete | 2026-07-25 |
+| 33. Design Tokens & Highlight   | v1.5      | 7/7            | Complete | 2026-07-26 |
+| 34. Visual Theme Restyle        | v1.5      | 5/5            | Complete | 2026-07-27 |
+| 35. ActionPanel & Log Standard. | v1.5      | 6/6            | Complete | 2026-07-27 |
+| 36. Bug Fixes                   | v1.5      | 5/5            | Complete | 2026-08-02 |

@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: UX Refresh & Code Cleanup
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 36 UI-SPEC approved
-last_updated: '2026-07-28T12:33:16.786Z'
-last_activity: 2026-07-28 -- Phase 36 execution started
+last_updated: '2026-08-03T12:23:41.255Z'
+last_activity: 2026-08-03 — Milestone v1.5 completed and archived
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 35
-  completed_plans: 30
-  percent: 83
+  completed_plans: 35
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 36 (bug-fixes) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 36
-Last activity: 2026-07-28 -- Phase 36 execution started
+Phase: Milestone v1.5 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-03 — Milestone v1.5 completed and archived
 
 ## Project Reference
 
@@ -228,6 +228,19 @@ See: .planning/PROJECT.md (updated 2026-07-22 after v1.4 milestone close)
 | 260621-hnd             | 2026-06-21 | Removed last D/A role-letter prefixes (DEFLECT_ATTEMPT, STEAL_ATTEMPT x2, uncontested HEADER); fixed SNAPSHOT raw home/away id leak — resolves to PNamed player name                                           |
 | 260727-9f1             | 2026-07-27 | Fixed v1.5 milestone-audit doc drift: ROADMAP.md malformed Phase 34 row + stale Progress table, REQUIREMENTS.md THEME-01/04 checkboxes, 34-VERIFICATION.md stale status, HIGHLIGHT-REFERENCE.md opacity values |
 | 260727-o85             | 2026-07-27 | Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)                                                                                          |
+
+## Deferred Items (acknowledged at milestone close 2026-08-03, v1.5)
+
+Items acknowledged and deferred at v1.5 milestone close on 2026-08-03:
+
+| Category | Item                                                           | Status                                                                                               |
+| -------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| todo     | KICK_OFF_SETUP shot-path shading persists (root cause unknown) | pending — carried forward again (rendering, resolves_phase originally 25/BUG-23, never fully closed) |
+| todo     | CSV consolidation (player-pool.csv)                            | pending — low priority idea, still not assigned to a phase                                           |
+
+Resolved as part of this close (not deferred): the 14 "unknown"-status quick tasks flagged by the pre-close audit were a tooling false positive — `{slug}-SUMMARY.md` files were missing the `status:` frontmatter field the audit scans for, even though all 14 had complete, verified work. Backfilled `status: complete` into each. The 2 pending todos for BUG-36 (loose-ball path origin) and BUG-37 (undo-past-dice-roll) were already fixed and verified in Phase 36 — moved to `.planning/todos/completed/` with a resolution note. REQUIREMENTS.md's 7 stale checkboxes (PANEL-02, PANEL-03, BUG-33..37) were also corrected to `[x]` — each was already code-verified SATISFIED per the v1.5 milestone audit.
+
+Known deferred items at close: 2 (see above)
 
 ## Deferred Items (acknowledged at milestone close 2026-06-13, v1.1)
 
@@ -439,4 +452,4 @@ Resume: Run `/gsd-discuss-phase 34` or `/gsd-plan-phase 34` to plan Phase 34 (Vi
 
 ## Operator Next Steps
 
-- Run `/gsd-discuss-phase 34` or `/gsd-plan-phase 34` to plan Phase 34 (Visual Theme Restyle).
+- Start the next milestone with /gsd-new-milestone

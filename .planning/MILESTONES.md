@@ -1,5 +1,30 @@
 # Milestones
 
+## v1.5 UX Refresh & Code Cleanup (Shipped: 2026-08-03)
+
+**Phases:** 31–36 (6 phases) | **Plans:** 35 | **Timeline:** 2026-07-22 → 2026-08-03 (12 days)
+**Commits:** 328 | **Files changed:** 221 | **Insertions:** 30,214 | **Deletions:** 1,952
+**Requirements:** 25/25 complete
+**Test suite:** shared 613 / server 642 (1 skipped, 1 todo) / client 483 = 1,738 tests, all green
+
+**Delivered:**
+Replaced the deep-blue chrome with a broadcast-sports charcoal/graphite theme built on a single design-token layer; standardized the hex-highlight/ring color system into one source of truth (resolving the red-means-both-offside-and-shot-target conflict); unified ActionPanel/ActionLog formatting, borders, buttons, and terminology across every game phase; paid down code debt (dead-code gate, consolidated color/team-slot lookups, Zustand selector review, hook-dependency lint); and closed 8 known bugs. Grew mid-milestone — Phase 36 was added to close 5 additional defects surfaced by Phase 35's UAT pass.
+
+**Key Accomplishments:**
+
+1. Fixed 3 replay/eligibility/GK-deflection defects (BUG-30..32), including two gap-closure rounds that closed VERIFICATION.md truths the first fix pass left open (Phase 31)
+2. Installed `knip` as a permanent CI-enforced dead-code gate and consolidated color/team-slot derivation into `useTeamColors`/`useMyTeam`, with a full Zustand selector/derived-state review that caught a real staleness bug (Phase 32)
+3. Built a single chrome design-token layer (`tokens.css` + one runtime `--team-accent` variable) and a single source-of-truth highlight/ring color table, documented in `docs/HIGHLIGHT-REFERENCE.md` (Phase 33)
+4. Replaced the app-wide deep-blue theme with a WCAG AA-verified charcoal/graphite palette, built entirely on the Phase 33 token layer (Phase 34)
+5. Unified ActionPanel/ActionLog into one borderless, terminology-consistent system with a shared CTA color pattern across all 18 render sites (Phase 35)
+6. Fixed 5 more bugs (BUG-33..37) — Game Settings room-teardown, draft-pack uniqueness/cascade correctness, blocked-shot loose-ball origin, and an undo boundary clamp at a resolved dice roll (Phase 36)
+
+**Known deferred items at close:** 2 (see STATE.md Deferred Items) — a KICK_OFF_SETUP shot-path shading bug (rendering, root cause unresolved) and a low-priority CSV-consolidation idea, both carried forward. RESP-01..09 (response-move activation model) remains deferred again, unscheduled.
+
+Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requirements](milestones/v1.5-REQUIREMENTS.md) · [Audit](milestones/v1.5-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.4 Response Polish + Draft Mode (Shipped: 2026-07-22)
 
 **Phases completed:** 5 phases, 30 plans, 66 tasks
