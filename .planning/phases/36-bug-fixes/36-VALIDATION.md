@@ -5,7 +5,7 @@ status: approved
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-03
 ---
 
 # Phase 36 — Validation Strategy
@@ -89,3 +89,17 @@ layout to inspect by eye.
 - [x] `nyquist_compliant: true` — plans map every row above to a task
 
 **Approval:** approved 2026-07-28 (planner)
+
+---
+
+## Validation Audit 2026-08-03
+
+Retroactive audit against the 5 completed SUMMARY files and current repo state (all 5 plans executed, phase fully complete). All 8 test files referenced in the Requirement → Test Map were confirmed present on disk, cross-referenced for `BUG-33`..`BUG-37` markers against both their implementation and test files (16/16 requirement IDs traced in both), and re-run fresh: `server` (room.integration, draftPacks, gameEngine.phase8, gameEngine.phase26-undo, gameEngine.test — 179/179 passed), `client` (GameSettingsScreen, ActionPanel — 87/87 passed), `shared` (draftEngine — 67/67 passed). No plan-time claim was contradicted by actual code.
+
+| Metric     | Count |
+| ---------- | ----- |
+| Gaps found | 0     |
+| Resolved   | 0     |
+| Escalated  | 0     |
+
+`nyquist_compliant: true` reconfirmed — every requirement row remains COVERED post-execution.
