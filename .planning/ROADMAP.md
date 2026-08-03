@@ -130,7 +130,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
-| 37    | 1/10                                   | In Progress |             |
+| 37    | 2/10                                   | In Progress |             |
 | 38    | Corner Kick                            | TBD         | Not started |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
@@ -155,7 +155,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 37-02-PLAN.md — New phases, state fields, last-action rows, action events and socket events
+- [x] 37-02-PLAN.md — New phases, state fields, last-action rows, action events and socket events
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
