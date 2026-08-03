@@ -93,6 +93,14 @@ export function App() {
         setScreen('CREATE_ROOM');
         return;
       }
+      // CR-01 (Phase 36 review): the other room member emitted LEAVE_ROOM (or the room was
+      // otherwise torn down out from under us) — reset to the landing screen instead of
+      // leaving this client stranded with a roomCode that no longer resolves server-side.
+      if (reason === 'ROOM_CLOSED') {
+        sessionStorage.removeItem('ca_session_token');
+        resetLobby();
+        return;
+      }
       setRoomError(reason);
     }
 
@@ -209,6 +217,7 @@ export function App() {
     // for the store's lifetime, so listing them is behavior-preserving; the effect still
     // only registers socket listeners once on mount (Pitfall 3).
   }, [
+    resetLobby,
     setDisconnectWarning,
     setGameError,
     setGameState,

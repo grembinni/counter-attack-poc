@@ -258,6 +258,12 @@ export function registerRoomHandlers(
       const roomCode = socket.data.roomCode;
       if (roomCode === undefined) return;
 
+      // CR-01 (Phase 36 review): notify any other room member before the room disappears
+      // out from under them — deleteRoom below never emits anything on its own, and without
+      // this the other socket is left stranded on its current screen with a roomCode that
+      // now points at nothing (every handler's `getRoom` guard silently drops their events).
+      socket.to(roomCode).emit(ServerEvents.ROOM_ERROR, 'ROOM_CLOSED');
+
       deleteRoom(roomCode);
       void socket.leave(roomCode);
 
