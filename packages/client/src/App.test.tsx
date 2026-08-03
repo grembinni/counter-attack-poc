@@ -97,6 +97,7 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
   });
 

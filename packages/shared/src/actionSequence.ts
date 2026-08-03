@@ -99,4 +99,17 @@ export const ELIGIBLE_NEXT_ACTIONS: Record<LastActionType, ReadonlySet<NextActio
   // OFFSIDE-02 (Phase 17 D-32): free kick from an offside foul — only Standard/High/Long
   // Pass and Shot (in range) are legal. No Movement, no First-time Pass, no Snapshot.
   FREE_KICK_RESTART: new Set<NextActionType>(['STANDARD_PASS', 'HIGH_PASS', 'LONG_BALL', 'SHOT']),
+
+  // THROWIN-03/D-09 (Phase 37): after Movement Phase 1, the thrower may take the throw Low,
+  // take it High, or take a second Movement Phase.
+  THROW_IN_MOVEMENT_1: new Set<NextActionType>(['STANDARD_PASS', 'HIGH_PASS', 'MOVEMENT']),
+
+  // THROWIN-03/D-09 (Phase 37): hard cap — MOVEMENT is deliberately absent so a client
+  // attempting a third Movement Phase is rejected server-side with INVALID_SEQUENCE, not
+  // merely hidden in the UI.
+  THROW_IN_MOVEMENT_2: new Set<NextActionType>(['STANDARD_PASS', 'HIGH_PASS']),
+
+  // GOALKICK-03 (Phase 37): the goal kick's "Standard Pass" branch. Mirrors FREE_KICK_RESTART's
+  // purpose but is narrower — no MOVEMENT, no HIGH_PASS, no SNAPSHOT, no SHOT.
+  GOAL_KICK_RESTART: new Set<NextActionType>(['STANDARD_PASS']),
 };

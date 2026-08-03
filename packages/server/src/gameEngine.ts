@@ -1451,7 +1451,11 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       (state.phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
       (state.phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION') ||
       (state.phase === 'FREE_KICK_SETUP' &&
-        (evt.type === 'FK_KICKER_CHOSEN' || evt.type === 'FK_STAGE_ADVANCE'));
+        (evt.type === 'FK_KICKER_CHOSEN' || evt.type === 'FK_STAGE_ADVANCE')) ||
+      // GOALKICK-02 (Phase 37, 37-02): Undo can never cross from the opponent's reposition
+      // window back into the kicking team's window.
+      ((state.phase === 'GOAL_KICK_SETUP_GK' || state.phase === 'GOAL_KICK_SETUP_OPPONENT') &&
+        evt.type === 'GOAL_KICK_WINDOW_ADVANCE');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -1476,7 +1480,9 @@ export function applyUndo(state: GameState): ApplyUndoResult {
             ? 'SNAP_DEFLECT_MOVE'
             : state.phase === 'FREE_KICK_SETUP'
               ? 'FK_SETUP_MOVE'
-              : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE (applyMove emits MOVE)
+              : state.phase === 'GOAL_KICK_MOVE'
+                ? 'GOAL_KICK_MOVE' // GOALKICK-05 (Phase 37, 37-02)
+                : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE, GOAL_KICK_SETUP_GK/OPPONENT (applyMove emits MOVE)
 
   // Find the last MOVE (or phase-appropriate HP_MOVE/FTP_MOVE) in the current slot
   const lastMoveRelIdx = currentSlotEvents.reduce<number>((acc, evt, idx) => {
@@ -1507,7 +1513,8 @@ export function applyUndo(state: GameState): ApplyUndoResult {
         | 'FTP_MOVE'
         | 'GK_KICK_MOVE'
         | 'SNAP_DEFLECT_MOVE'
-        | 'FK_SETUP_MOVE';
+        | 'FK_SETUP_MOVE'
+        | 'GOAL_KICK_MOVE'; // GOALKICK-05 (Phase 37, 37-02)
     }
   >;
 
@@ -1607,7 +1614,29 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                     ...(isKickerUndo ? { freeKickKickerChosen: false } : {}),
                   };
                 })()
-              : {};
+              : state.phase === 'GOAL_KICK_MOVE'
+                ? (() => {
+                    // GOALKICK-05 (Phase 37, 37-02): mirrors the GK_KICK_MOVE branch exactly.
+                    const rem = Math.max(0, (state.goalKickPaceUsed ?? 0) - stepDistance);
+                    return rem > 0
+                      ? { goalKickPaceUsed: rem }
+                      : { goalKickMovedPieceId: null, goalKickPaceUsed: 0 };
+                  })()
+                : state.phase === 'GOAL_KICK_SETUP_GK' || state.phase === 'GOAL_KICK_SETUP_OPPONENT'
+                  ? (() => {
+                      // GOALKICK-02 (Phase 37, 37-02): decrement the per-piece 6-hex reposition
+                      // budget; delete the key entirely once it reaches 0 (mirrors freeMoveUsedPace).
+                      const currentUsed = state.goalKickUsedPace?.[moveToUndo.pieceId] ?? 0;
+                      const rem = Math.max(0, currentUsed - stepDistance);
+                      const nextUsedPace = { ...(state.goalKickUsedPace ?? {}) };
+                      if (rem > 0) {
+                        nextUsedPace[moveToUndo.pieceId] = rem;
+                      } else {
+                        delete nextUsedPace[moveToUndo.pieceId];
+                      }
+                      return { goalKickUsedPace: nextUsedPace };
+                    })()
+                  : {};
 
   return {
     ok: true,
@@ -4727,6 +4756,12 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // BUG-17 (Phase 18.3): kick-off formation repositioning. Handled like MOVE (piece
   // repositioning, no ball change). buildReplayFrames treats it as a MOVE-like event.
   'KICK_OFF_SETUP',
+  // Phase 37 (37-02): out-of-bounds/throw-in/goal-kick events that carry ballAfter.
+  // GOAL_KICK_MOVE, GOAL_KICK_CHOICE, and GOAL_KICK_WINDOW_ADVANCE are deliberately
+  // excluded — they carry no ballAfter, matching the existing GK_KICK_MOVE exclusion.
+  'OUT_OF_BOUNDS',
+  'THROW_IN_PLACE',
+  'GOAL_KICK',
 ]);
 
 /**
@@ -4850,7 +4885,16 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     // SLOT_ADVANCE: internal FSM transition, no visual change (D-32).
     // DEFLECT_ATTEMPT: recorded during shot handling; not in REPLAY_ELIGIBLE_TYPES and must
     //   not trigger a premature flushMoveGroup when it appears mid-movement-group (WR-03).
-    if (event.type === 'SLOT_ADVANCE' || event.type === 'DEFLECT_ATTEMPT') {
+    // Phase 37 (37-02): GOAL_KICK_WINDOW_ADVANCE/GOAL_KICK_CHOICE/GOAL_KICK_MOVE carry no
+    //   ballAfter and must not prematurely flush an in-progress move group (same WR-03
+    //   rationale as DEFLECT_ATTEMPT above).
+    if (
+      event.type === 'SLOT_ADVANCE' ||
+      event.type === 'DEFLECT_ATTEMPT' ||
+      event.type === 'GOAL_KICK_WINDOW_ADVANCE' ||
+      event.type === 'GOAL_KICK_CHOICE' ||
+      event.type === 'GOAL_KICK_MOVE'
+    ) {
       continue;
     }
 
@@ -4868,6 +4912,15 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     if (event.type === 'KICK_OFF_SETUP') {
       const existing = moveGroup.get(event.pieceId) ?? [];
       existing.push({ to: event.to, ballAfter: current.ball }); // ball unchanged
+      moveGroup.set(event.pieceId, existing);
+      continue;
+    }
+
+    // THROWIN-02 (Phase 37, 37-02): thrower placement — mirrors the KICK_OFF_SETUP branch
+    // immediately above so the thrower's placement animates like a move.
+    if (event.type === 'THROW_IN_PLACE') {
+      const existing = moveGroup.get(event.pieceId) ?? [];
+      existing.push({ to: event.to, ballAfter: event.ballAfter });
       moveGroup.set(event.pieceId, existing);
       continue;
     }

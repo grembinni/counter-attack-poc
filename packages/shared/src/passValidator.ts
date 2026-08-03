@@ -62,6 +62,12 @@ export type AccuracyResult = { accurate: true } | { accurate: false; triggerLoos
  * @param from - Origin hex coordinate
  * @param to - Destination hex coordinate
  * @param passType - Pass type determining rules
+ * @param options - THROWIN-04 (Phase 37): optional `maxDistance` override. When present,
+ *   it REPLACES the per-type distance cap below (e.g. the 6-hex throw-in cap) instead of
+ *   the normal STANDARD/FIRST_TIME/HIGH type-specific caps. When absent, existing per-type
+ *   behaviour is byte-for-byte unchanged. Keeps range logic single-sourced in this shared
+ *   validator rather than duplicated in the handler layer (RESEARCH.md §4.1 recommendation
+ *   1). Deliberately does NOT add an `isPitchHex` check here (RESEARCH.md Assumption A4).
  */
 export function validatePass(
   state: GameState,
@@ -69,16 +75,23 @@ export function validatePass(
   from: HexCoord,
   to: HexCoord,
   passType: 'STANDARD' | 'FIRST_TIME' | 'HIGH' | 'LONG',
+  options?: { maxDistance?: number },
 ): PassResult {
   const dist = hexDistance(from, to);
 
   // 1. Cannot pass to own hex
   if (dist === 0) return { ok: false, reason: 'RANGE_EXCEEDED' };
 
-  // 2. Per-type distance cap (LONG has no cap, only the === 0 guard above)
-  if (passType === 'STANDARD' && dist > 11) return { ok: false, reason: 'RANGE_EXCEEDED' };
-  if (passType === 'FIRST_TIME' && dist > 6) return { ok: false, reason: 'RANGE_EXCEEDED' };
-  if (passType === 'HIGH' && dist > 15) return { ok: false, reason: 'RANGE_EXCEEDED' };
+  // 2. Distance cap: an explicit maxDistance override REPLACES the per-type cap entirely
+  // (THROWIN-04); otherwise the existing per-type caps apply unchanged (LONG has no cap,
+  // only the === 0 guard above).
+  if (options?.maxDistance !== undefined) {
+    if (dist > options.maxDistance) return { ok: false, reason: 'RANGE_EXCEEDED' };
+  } else {
+    if (passType === 'STANDARD' && dist > 11) return { ok: false, reason: 'RANGE_EXCEEDED' };
+    if (passType === 'FIRST_TIME' && dist > 6) return { ok: false, reason: 'RANGE_EXCEEDED' };
+    if (passType === 'HIGH' && dist > 15) return { ok: false, reason: 'RANGE_EXCEEDED' };
+  }
 
   // 3. Path blocking:
   // STANDARD: any opponent on an intermediate hex blocks the pass.

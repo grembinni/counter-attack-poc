@@ -23,6 +23,12 @@ type Props = {
     speed: GameSpeed;
     teamType: TeamType;
     draftPools: DraftPoolId[];
+    /**
+     * OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set toggle.
+     * Hardcoded false here — this plan (37-02) only extends the type contract; the
+     * settings-screen checkbox that actually sets this is a later plan's scope.
+     */
+    outOfBounds: boolean;
   }) => void;
   /**
    * BUG-33 (Phase 36) / D-01..D-05: called when the host clicks Back. Returns the host
@@ -71,7 +77,14 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
 
   function handleConfirm() {
     setHasConfirmed(true);
-    onConfirm({ speed, teamType, draftPools: teamType === 'draft' ? draftPools : [] });
+    // Phase 37 (37-02): outOfBounds is hardcoded false — this plan only extends the type
+    // contract; the settings-screen checkbox that actually sets this is a later plan's scope.
+    onConfirm({
+      speed,
+      teamType,
+      draftPools: teamType === 'draft' ? draftPools : [],
+      outOfBounds: false,
+    });
   }
 
   return (

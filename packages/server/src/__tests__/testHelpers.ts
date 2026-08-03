@@ -39,6 +39,7 @@ export function confirmDefaultRoomSettings(
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
   });
 }

@@ -1,4 +1,5 @@
 import type { ActionEvent, HexCoord, MovementSlot } from '@counter-attack/shared';
+import { TEAM_CONFIGS } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import {
   teamAccentColor,
@@ -40,6 +41,18 @@ function pieceColorOf(pieceId: string): string {
   const positional = pieceId.startsWith('home') ? 'home' : 'away';
   const teamId = selectedTeams[positional];
   return aaTeamAccentColor(teamId);
+}
+
+/**
+ * Phase 37 (37-02): resolves the display name for a positional team ('home'/'away') —
+ * used by OUT_OF_BOUNDS to name the awarded team. Falls back to "Home"/"Away" when
+ * selectedTeams is not yet populated.
+ */
+function teamDisplayName(positional: 'home' | 'away'): string {
+  const selectedTeams = useGameStore.getState().gameState?.selectedTeams;
+  const fallback = positional === 'home' ? 'Home' : 'Away';
+  if (!selectedTeams) return fallback;
+  return TEAM_CONFIGS[selectedTeams[positional]]?.name ?? fallback;
 }
 
 /**
@@ -836,6 +849,89 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: ` Stage ${event.fromStageIndex + 1} → ${event.fromStageIndex + 2}`,
         isGoal: false,
       };
+    case 'OUT_OF_BOUNDS': {
+      // Phase 37 (37-02) / OOB-05: ball left the pitch; log exit kind + awarded restart.
+      const restartLabel = event.restart === 'THROW_IN' ? 'Throw-In' : 'Goal Kick';
+      const kindLabel = event.kind === 'SIDELINE' ? 'sideline' : 'byline';
+      return {
+        prefix: '[OUT]',
+        prefixColor: aaTeamAccentColor(undefined),
+        content: ` Ball out (${kindLabel}) at ${event.exitHex.q},${event.exitHex.r} — ${restartLabel} to ${teamDisplayName(event.awardedTo)}`,
+        isGoal: false,
+      };
+    }
+    case 'THROW_IN_PLACE':
+      // THROWIN-02 (Phase 37): thrower placed at the throw-in hex.
+      return {
+        prefix: '[THROW-IN]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.pieceId} /> placed at {event.to.q},{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    case 'GOAL_KICK_WINDOW_ADVANCE': {
+      // GOALKICK-02 (Phase 37): undo boundary between the GK-team and opponent windows.
+      const windowLabel = event.fromWindow === 'GK_TEAM' ? "Kicking team's" : "Defending team's";
+      return {
+        prefix: '[GOAL KICK]',
+        prefixColor: aaTeamAccentColor(undefined),
+        content: ` ${windowLabel} reposition window ended`,
+        isGoal: false,
+      };
+    }
+    case 'GOAL_KICK_CHOICE': {
+      // GOALKICK-03 (Phase 37): GK's kick-vs-standard-pass restart choice.
+      const choiceLabel = event.choice === 'kick' ? 'Kick' : 'Standard Pass';
+      return {
+        prefix: '[GOAL KICK]',
+        prefixColor: pieceColorOf(event.gkId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.gkId} /> chose {choiceLabel}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'GOAL_KICK_MOVE': {
+      // GOALKICK-05 (Phase 37): byte-for-byte the GK_KICK_MOVE format.
+      const team = event.slot === 'KICKER' ? 'K' : 'O';
+      return {
+        prefix: event.slot === 'KICKER' ? '[GOAL KICK RESULT]' : '[GOAL KICK RESPONSE MOVE]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.pieceId} prefix={team} /> {event.from.q},{event.from.r} → {event.to.q}
+            ,{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'GOAL_KICK': {
+      // GOALKICK-05 (Phase 37): byte-for-byte the GK_KICK format.
+      const gkColor = pieceColorOf(event.gkId);
+      const accurate = event.accurate;
+      return {
+        prefix: accurate ? '[GOAL KICK TARGET ✓]' : '[GOAL KICK TARGET ✗]',
+        prefixColor: gkColor,
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.gkId} prefix="K" /> → {event.targetHex.q},{event.targetHex.r} — die:
+            {event.kickDie}+{event.kickScore - event.kickDie}={event.kickScore}
+            {accurate ? ' Accurate' : ' Inaccurate — loose ball'}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
   }
 }
 

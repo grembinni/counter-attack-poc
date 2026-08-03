@@ -126,6 +126,7 @@ describe('Mid-draft reconnect resends DRAFT_STATE_UPDATED', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original'],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 
@@ -215,6 +216,7 @@ describe('Mid-draft reconnect resends DRAFT_STATE_UPDATED', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original'],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 
@@ -284,6 +286,7 @@ describe('Phase 29 Plan 11 — CR-03 reconnect re-sync in post-complete window',
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original'],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 

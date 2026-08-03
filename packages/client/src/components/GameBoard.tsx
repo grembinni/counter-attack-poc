@@ -53,6 +53,13 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   // OFFSIDE-02 (Phase 17 D-29): both-teams repositioning before an offside free kick is taken.
   // D-11 correction
   FREE_KICK_SETUP: 'OFFSIDES - FREE KICK SETUP',
+  // Phase 37 (37-02): Throw-In and Goal Kick phases.
+  THROW_IN_SETUP: 'THROW-IN — SETUP',
+  GOAL_KICK_SETUP_GK: 'GOAL KICK — REPOSITION (KICKING)',
+  GOAL_KICK_SETUP_OPPONENT: 'GOAL KICK — REPOSITION (DEFENDING)',
+  GOAL_KICK_CHOICE: 'GOAL KICK — CHOOSE',
+  GOAL_KICK_TARGET: 'GOAL KICK — SELECT TARGET',
+  GOAL_KICK_MOVE: 'GOAL KICK — REPOSITION',
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
@@ -325,6 +332,7 @@ export function GameBoard() {
 
         {/* Track 3 — Right zone: action panel centred within 1fr */}
         <div className={styles.topBandRight}>
+          {/* Phase 37: ThrowInSetupPanel / GoalKickSetupPanel branches added in plans 37-07 / 37-10 */}
           {phase === 'KICK_OFF_SETUP' ? (
             <KickOffSetupPanel />
           ) : phase === 'FREE_KICK_SETUP' ? (

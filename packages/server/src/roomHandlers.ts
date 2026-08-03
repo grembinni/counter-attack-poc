@@ -236,6 +236,9 @@ export function registerRoomHandlers(
           joinedRoom.gameSpeed!,
           joinedRoom.teamType!,
           joinedRoom.draftPools ?? [],
+          // Phase 37 (37-02): outOfBounds threading is Plan 37-03's scope (Room.outOfBoundsEnabled
+          // does not exist yet) — false is the correct behaviour-preserving placeholder.
+          false,
         );
         // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
         // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
@@ -513,6 +516,9 @@ export function registerRoomHandlers(
           room.gameSpeed,
           room.teamType,
           room.draftPools,
+          // Phase 37 (37-02): outOfBounds threading is Plan 37-03's scope (Room.outOfBoundsEnabled
+          // does not exist yet) — false is the correct behaviour-preserving placeholder.
+          false,
         );
 
         // T-27-05/Pitfall 1: both-conditions gate — only fire TEAM_SELECTION_START once
