@@ -7,8 +7,8 @@ tags: [react, zustand, action-panel, movement, ux]
 # Dependency graph
 requires: []
 provides:
-  - "remaining derived purely from paceUsedByPieceId (any entry = started) in ActionPanel.tsx"
-  - "regression coverage in ActionPanel.test.tsx proving BUG-31 fixed (first-step decrement, button flip, Undo revert)"
+  - 'remaining derived purely from paceUsedByPieceId (any entry = started) in ActionPanel.tsx'
+  - 'regression coverage in ActionPanel.test.tsx proving BUG-31 fixed (first-step decrement, button flip, Undo revert)'
 affects: [32-code-cleanup, 35-actionpanel-log-standardization]
 
 # Tech tracking
@@ -24,12 +24,12 @@ key-files:
     - packages/client/src/components/ActionPanel.test.tsx
 
 key-decisions:
-  - "startedCount subsumes both prior terms (paceExhaustedNotLocked + currentSlotLockedCount) since every piece counted by either has a paceUsedByPieceId entry — single-term derivation with no double-count and no under-count"
-  - "ctaButtonClass and its call sites left unchanged; only the remaining value feeding them changes"
+  - 'startedCount subsumes both prior terms (paceExhaustedNotLocked + currentSlotLockedCount) since every piece counted by either has a paceUsedByPieceId entry — single-term derivation with no double-count and no under-count'
+  - 'ctaButtonClass and its call sites left unchanged; only the remaining value feeding them changes'
   - "D-05 (Undo revert) required no source change beyond the remaining derivation — applyUndo already deletes the reverted piece's paceUsedByPieceId entry server-side and the full-snapshot broadcast recomputes remaining from scratch on the next render"
 
 patterns-established:
-  - "Single-term derived-count pattern for slot-quota UI countdowns: Object.keys(stateField).length instead of summing overlapping filtered subsets"
+  - 'Single-term derived-count pattern for slot-quota UI countdowns: Object.keys(stateField).length instead of summing overlapping filtered subsets'
 
 requirements-completed: [BUG-31]
 
@@ -92,6 +92,7 @@ None - no external service configuration required.
 - No blockers for other Phase 31 plans (31-01 BUG-30 replay reconstruction, 31-03/31-04 BUG-32 GK deflection eligibility) — this plan touched only `ActionPanel.tsx`/`ActionPanel.test.tsx`, no shared code paths with those bugs.
 
 ---
+
 _Phase: 31-bug-fixes_
 _Completed: 2026-07-22_
 

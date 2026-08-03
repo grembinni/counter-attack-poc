@@ -1,27 +1,26 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: UX Refresh & Code Cleanup
-status: Awaiting next milestone
-stopped_at: Phase 36 UI-SPEC approved
-last_updated: '2026-08-03T12:23:41.255Z'
-last_activity: 2026-08-03 — Milestone v1.5 completed and archived
+milestone: v1.6
+milestone_name: Fouls, Cards & Restarts
+status: planning
+last_updated: '2026-08-03T12:59:20.980Z'
+last_activity: 2026-08-03
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 35
-  completed_plans: 35
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: Milestone v1.5 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-03 — Milestone v1.5 completed and archived
+Status: Defining requirements
+Last activity: 2026-08-03 — Milestone v1.6 started
 
 ## Project Reference
 

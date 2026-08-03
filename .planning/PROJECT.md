@@ -38,6 +38,24 @@ A code-review pass on Phase 30 found and fixed one critical bug: `DRAFT_PICK`/`D
 
 **Phase 33 (Design Tokens & Highlight Standardization) complete 2026-07-26.** Validated in Phase 33: THEME-03, HILITE-01 through HILITE-05 (see below). Delivered: a chrome design-token layer (`packages/client/src/styles/tokens.css`) with a single runtime `--team-accent` CSS variable replacing per-component `TEAM_CONFIGS` lookups; every chrome-color CSS Module across in-game panels, lobby, settings, and team/draft selection migrated to `var(--token)`; `HexCell.tsx`'s `HIGHLIGHT_STYLES`/`RING_STYLES` extended to a single source of truth covering all 10 hex-tint types plus the compound gold ring; the goal-target tint recolored red→purple and `safe` recolored gold→green so red means offside only, app-wide within the highlight system; a standalone always-on-top white `BallLocationRing` ball-location marker added, gated to 11 response phases (including `KICK_OFF_SETUP`, added mid-phase for consistency); and `docs/HIGHLIGHT-REFERENCE.md` written as the permanent single-source-of-truth reference (HILITE-05). The plan 33-07 phase-gate checkpoint went through several rounds of human-verify iteration on the "already-moved" piece marker (HILITE-03) — a grey-ring mechanism from Plan 33-05 was tried as an app-wide unification, then contrast-tweaked, then ultimately removed entirely in favor of the pre-existing orange-ring-+-red-X `activated` state, now used consistently everywhere a piece has already acted. BUG-23 (KICK_OFF_SETUP stale shot-path shading) was included in the final approved visual checklist with no issue reported. Test suite: shared 583 / server 627 / client 407 (1,617 total), all green; code review found 0 blockers (1 warning + 2 info, both addressed).
 
+## Current Milestone: v1.6 Fouls, Cards & Restarts
+
+**Goal:** Bring the match engine to full rulebook fidelity for stoppages — fouls, bookings, injuries, substitutions, and the complete out-of-bounds restart set (throw-in, corner kick, goal kick, penalty kick) — each independently toggleable at game creation.
+
+**Target features:**
+
+- Fouls — a tackle/nutmeg/steal dice roll of 1 calls a foul; attacker chooses continue-play or take the restart; injury and booking are always rolled regardless of that choice; a new GK-dive-at-feet duel (defensive adjacent-hex and attacking 3-hex-parallel variants) that fouls into a penalty on a roll of 1; Professional (Last Man) Foul straight-red check
+- Booking — yellow card on a die roll ≥ the referee's Leniency attribute; second yellow becomes a red card and immediate dismissal
+- Injury — die roll ≥ the player's Resilience attribute injures them (-1 all attributes for the rest of the match); a second injury forces an immediate substitution
+- Substitutions — up to 3 per team, at any stoppage, substitute inherits the departing player's number, each sub adds 1 minute to added time
+- Penalty kick — attacker-vs-GK duel with a -2 GK dice penalty; both teams reposition; tie goes to Loose Ball
+- Foul-triggered free kick — reuses the existing FREE_KICK_SETUP flow (built in v1.3 for offside) with a new foul trigger
+- Goal kick, corner kick, throw-in — three new restart types with their own repositioning/accuracy/header rules, per the physical rulebook
+- Out-of-bounds detection — the ball leaving the pitch is classified as sideline (throw-in), attacking byline (corner kick), or defending byline (goal kick)
+- Three independent game-creation toggles: Fouls, Booking, Out-of-Bounds/Restarts — any combination can be enabled
+
+**Explicitly deferred (raised during v1.5/v1.6 scoping, not in v1.6):** RESP-01..09 response-move activation model (still the top backlog item after this); game-stats overlay; reconnection grace-period bug; rematch flow; chat; draft history/replay.
+
 ## Completed Milestone: v1.5 UX Refresh & Code Cleanup
 
 **Goal:** Overhaul the visual system to a professional broadcast-sports look, standardize hex-highlight colors and the ActionPanel, pay down accumulated code debt, and close known bugs.
@@ -164,12 +182,6 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 
 ### Deferred (v2 candidates)
 
-- [ ] Fouls, yellow/red cards, booking checks — feature-flagged toggle at game creation (raised during v1.5 scoping as priority #4)
-- [ ] Injuries and resilience checks
-- [ ] Corner kicks, throw-ins, free kicks, penalty kicks — feature-flagged toggle at game creation (raised during v1.5 scoping as priority #3)
-- [ ] Nutmeg, reckless tackle, last-man foul, professional foul
-- [ ] Substitutions — bundled with priority #4 (fouls/cards) above
-- [ ] Offside enforcement
 - [ ] Game-stats overlay — possession, tackles, shots, goals, xG, interceptions, saves (raised during v1.5 scoping as priority #5)
 - [ ] Reconnection grace period (server holds room state for disconnected player) — note: a related bug exists today (`createServer.ts` misplaced `return`) that leaves some reconnecting sockets with no handlers at all; see Current State
 - [ ] Rematch flow
@@ -260,4 +272,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-08-03 after v1.5 milestone_
+_Last updated: 2026-08-03 after starting v1.6 milestone_
