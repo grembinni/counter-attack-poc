@@ -763,8 +763,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             ...ftpEndState,
             phase: 'PASS',
             ball: occupant
-              ? { position: occupant.position, carrierId: occupant.id }
-              : { position: targetHex, carrierId: null },
+              ? {
+                  position: occupant.position,
+                  carrierId: occupant.id,
+                  lastTouchedBy: { pieceId: occupant.id, teamId: occupant.teamId },
+                }
+              : {
+                  position: targetHex,
+                  carrierId: null,
+                  // No occupant: carry forward — the passer's lastTouchedBy was already set
+                  // when the ball went in flight at the FIRST_TIME_PASS transition.
+                  lastTouchedBy: ftpEndState.ball.lastTouchedBy,
+                },
             lastActionType: 'FIRST_TIME_PASS',
             attackingTeam: deliveryTeam,
             activeTeam: deliveryTeam,
@@ -841,7 +851,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             room.gameState = {
               ...gkEndState,
               phase: 'PASS',
-              ball: { position: targetHex, carrierId: receiver?.id ?? null },
+              ball: {
+                position: targetHex,
+                carrierId: receiver?.id ?? null,
+                lastTouchedBy: receiver
+                  ? { pieceId: receiver.id, teamId: receiver.teamId }
+                  : { pieceId: gk?.id ?? '', teamId: gkTeam },
+              },
               attackingTeam: gkTeam,
               activeTeam: gkTeam,
               lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
@@ -860,7 +876,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             room.gameState = {
               ...gkEndState,
               phase: 'LOOSE_BALL',
-              ball: { position: targetHex, carrierId: null },
+              // Inaccurate kick: ball went wide, no receiver — kicker (GK) is the last toucher.
+              ball: {
+                position: targetHex,
+                carrierId: null,
+                lastTouchedBy: { pieceId: gk?.id ?? '', teamId: gkTeam },
+              },
               attackingTeam: gkTeam,
               activeTeam: gkTeam,
               lastDiceRoll: { rolls: [kickDie], context: 'GK_KICK' },
@@ -950,10 +971,20 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
         const snapDeflectResult = computeShotPathDeflection(snapDefInputs);
         if (snapDeflectResult.deflected && snapDeflectResult.deflectorPosition) {
+          // D-06: DEFLECT_ATTEMPT resolving to DEFLECTED — the deflecting piece is the last toucher.
+          const deflectorPiece = baseSnapState.pieces.find(
+            (p) => p.id === snapDeflectResult.deflectorId,
+          );
           room.gameState = {
             ...baseSnapState,
             phase: 'LOOSE_BALL',
-            ball: { position: snapDeflectResult.deflectorPosition, carrierId: null },
+            ball: {
+              position: snapDeflectResult.deflectorPosition,
+              carrierId: null,
+              lastTouchedBy: deflectorPiece
+                ? { pieceId: deflectorPiece.id, teamId: deflectorPiece.teamId }
+                : baseSnapState.ball.lastTouchedBy,
+            },
             lastActionType: 'DEFLECTION',
             shotTargetHex: null,
             gkDivePosition: null,
@@ -1025,7 +1056,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             score: newScore,
             attackingTeam: newKickOffTeam,
             activeTeam: newKickOffTeam,
-            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // kick-off reset — fresh state
             lastDiceRoll: { rolls: [outDie1, outDie2], context: 'SHOT_DUEL' },
             lastActionType: null,
             lastShotPath: null,
@@ -1395,7 +1426,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             room.gameState = {
               ...room.gameState,
               phase: 'HIGH_PASS_MOVE',
-              ball: { position: targetHex, carrierId: null },
+              // Ball in flight, no immediate receiver — kicker is the last toucher.
+              ball: {
+                position: targetHex,
+                carrierId: null,
+                lastTouchedBy: kickerPiece
+                  ? { pieceId: kickerPiece.id, teamId: kickerPiece.teamId }
+                  : room.gameState.ball.lastTouchedBy,
+              },
               highPassCarrierId: kickerId,
               highPassMovementSlot: 'ATTACKER',
               highPassMovedPieceId: null,
@@ -1600,10 +1638,20 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
       const shotDeflectionResult = computeShotPathDeflection(defInputs);
       if (shotDeflectionResult.deflected && shotDeflectionResult.deflectorPosition) {
+        // D-06: DEFLECT_ATTEMPT resolving to DEFLECTED — the deflecting piece is the last toucher.
+        const shotDeflectorPiece = declaredState.pieces.find(
+          (p) => p.id === shotDeflectionResult.deflectorId,
+        );
         room.gameState = {
           ...declaredState,
           phase: 'LOOSE_BALL',
-          ball: { position: shotDeflectionResult.deflectorPosition, carrierId: null },
+          ball: {
+            position: shotDeflectionResult.deflectorPosition,
+            carrierId: null,
+            lastTouchedBy: shotDeflectorPiece
+              ? { pieceId: shotDeflectorPiece.id, teamId: shotDeflectorPiece.teamId }
+              : declaredState.ball.lastTouchedBy,
+          },
           lastActionType: 'DEFLECTION',
           shotTargetHex: null,
           gkDivePosition: null,
@@ -1674,7 +1722,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           score: newScore,
           attackingTeam: newKickOffTeam,
           activeTeam: newKickOffTeam,
-          ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+          ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // kick-off reset — fresh state
           lastDiceRoll: { rolls: [outDie1, outDie2], context: 'SHOT_DUEL' },
           lastActionType: null,
           lastShotPath: null,
@@ -1849,7 +1897,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         room.gameState = {
           ...room.gameState,
           phase: 'KICK_OFF',
-          ball: kicker ? { position: kickOffHex, carrierId: kicker.id } : room.gameState.ball,
+          ball: kicker
+            ? {
+                position: kickOffHex,
+                carrierId: kicker.id,
+                lastTouchedBy: { pieceId: kicker.id, teamId: kicker.teamId },
+              }
+            : room.gameState.ball,
           attackingTeam: kicker ? kicker.teamId : room.gameState.attackingTeam,
           activeTeam: kicker ? kicker.teamId : room.gameState.activeTeam,
           lastActionType: null, // D-10: fresh sequence at kick-off
@@ -2460,7 +2514,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             score: newScore,
             attackingTeam: newKickOffTeam,
             activeTeam: newKickOffTeam,
-            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // kick-off reset — fresh state
             lastDiceRoll: { rolls: [outDie1, outDie2], context: 'SHOT_DUEL' },
             lastActionType: null,
             lastShotPath: null,

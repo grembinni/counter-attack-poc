@@ -45,6 +45,23 @@ export type PlayerPiece = {
 export type BallState = {
   position: HexCoord;
   carrierId: string | null;
+  /**
+   * OOB-01/D-06: the piece that last made contact with the ball, and its team.
+   * The single source of truth for out-of-bounds restart classification
+   * (`classifyOutOfBounds` in `outOfBounds.ts`) — determines whether a byline
+   * exit is a corner kick or a goal kick.
+   *
+   * Updated on EVERY contact: carrier changes, deflections, header contact,
+   * GK saves/parries/punts, and loose-ball landings on an occupied hex — even
+   * when that contact never grants `carrierId` (e.g. a kicker mid-flight, or
+   * a deflecting piece that doesn't gain possession).
+   *
+   * Required (not `?:`) so the compiler forces every `BallState` construction
+   * site to supply a value — a silently-missed site is a wrong-team restart
+   * award, not a crash. Must never be derived retroactively from an
+   * `eventLog` scan; it is written forward, at the moment of contact, only.
+   */
+  lastTouchedBy: { pieceId: string; teamId: 'home' | 'away' } | null;
 };
 
 /**
