@@ -216,7 +216,8 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     freeKickAttackingTeam: otherTeam,
     attackingTeam: otherTeam,
     activeTeam: otherTeam,
-    ball: { position: offender.position, carrierId: null },
+    // OOB-01/D-06: pure repositioning, nobody touched the ball here — carry lastTouchedBy forward.
+    ball: { position: offender.position, carrierId: null, lastTouchedBy: state.ball.lastTouchedBy },
     offsidePieceIds: flagged.filter((id) => id !== offenderId),
     // D-49: staged repositioning sequence starts at stage 0 (kicking team, up to 4).
     freeKickStageIndex: 0,

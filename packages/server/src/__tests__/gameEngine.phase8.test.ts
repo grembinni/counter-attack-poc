@@ -122,7 +122,7 @@ const makeAttacker2State = (overrides: Partial<GameState> = {}): GameState => ({
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
-  ball: { position: { q: 15, r: 12 }, carrierId: 'home-mid' },
+  ball: { position: { q: 15, r: 12 }, carrierId: 'home-mid', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 41,
   half: 1,
@@ -149,7 +149,7 @@ const makePassState = (overrides: Partial<GameState> = {}): GameState => ({
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
-  ball: { position: homeFwd.position, carrierId: 'home-fwd' },
+  ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -176,7 +176,7 @@ const makeShotState = (overrides: Partial<GameState> = {}): GameState => ({
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
-  ball: { position: homeFwd.position, carrierId: 'home-fwd' },
+  ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -203,7 +203,7 @@ const makeGkRestartState = (overrides: Partial<GameState> = {}): GameState => ({
   activeTeam: 'away',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
-  ball: { position: awayGk.position, carrierId: 'away-gk' },
+  ball: { position: awayGk.position, carrierId: 'away-gk', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -235,7 +235,7 @@ const makeMovementState = (overrides: Partial<GameState> = {}): GameState => ({
     { ...homeMid, position: { q: 15, r: 12 } },
     { ...awayDef, position: { q: 21, r: 12 } }, // adjacent to homeFwd for steal
   ],
-  ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd' },
+  ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -471,7 +471,7 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
     const looseBallState: GameState = {
       ...makePassState(),
       phase: 'LOOSE_BALL',
-      ball: { position: { q: 15, r: 12 }, carrierId: null },
+      ball: { position: { q: 15, r: 12 }, carrierId: null, lastTouchedBy: null },
       actionCount: 10,
     };
     const result = applyRoll(looseBallState, 3, 4);
@@ -512,7 +512,7 @@ describe('applyRoll — Phase 8 lastActionType + time', () => {
     const headerState: GameState = {
       ...makePassState(),
       phase: 'HEADER',
-      ball: { position: { q: 20, r: 12 }, carrierId: 'home-mid' },
+      ball: { position: { q: 20, r: 12 }, carrierId: 'home-mid', lastTouchedBy: null },
       actionCount: 10,
     };
     const result = applyRoll(headerState, 6, 1, 3);
@@ -588,7 +588,7 @@ describe('applyMove — STEAL_ATTEMPT lastActionType + time (D-14)', () => {
         { ...homeMid, position: { q: 15, r: 12 } },
         { ...awayDef, position: { q: 21, r: 12 } }, // awayDef adjacent to ball carrier
       ],
-      ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd' },
+      ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
     };
     // Move awayDef to {q:20,r:12} (ball carrier's hex) — should trigger steal attempt
     // But moveValidator may reject same-hex moves. Try moving to {q:19,r:12} (other side of carrier)
@@ -635,7 +635,7 @@ describe('applySnapshot — SNAP-01..03', () => {
       ...makeMovementState(),
       phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
-      ball: { position: { q: 15, r: 12 }, carrierId: 'home-mid' }, // mid-pitch, not in awayPenaltyArea
+      ball: { position: { q: 15, r: 12 }, carrierId: 'home-mid', lastTouchedBy: null }, // mid-pitch, not in awayPenaltyArea
       lastActionType: 'MOVEMENT_PHASE',
     };
     const result = applySnapshot(midFieldState);
@@ -649,7 +649,7 @@ describe('applySnapshot — SNAP-01..03', () => {
       ...makeMovementState(),
       phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
-      ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' }, // in awayPenaltyArea
+      ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null }, // in awayPenaltyArea
       lastActionType: 'HIGH_PASS', // HIGH_PASS only allows HEADER next — not SNAPSHOT
     };
     const result = applySnapshot(state);
@@ -669,7 +669,7 @@ describe('applySnapshot — SNAP-01..03', () => {
         { ...homeMid, position: { q: 15, r: 12 } },
         awayDef,
       ],
-      ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+      ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
       lastActionType: 'MOVEMENT_PHASE', // eligible for SNAPSHOT
     };
     const result = applySnapshot(state);
@@ -706,7 +706,7 @@ describe('applySnapshot — SNAP-01..03', () => {
         { ...homeMid, position: { q: 15, r: 12 } },
         awayDef,
       ],
-      ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+      ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
       lastActionType: 'MOVEMENT_PHASE',
     };
     const result = applySnapshot(state);
@@ -764,7 +764,7 @@ const makeKickOffSetupState = (overrides: Partial<GameState> = {}): GameState =>
     { ...awayDef, id: 'away-def', position: { q: 25, r: 12 } }, // away half (q>=18), outside circle
     { ...awayGk, id: 'away-gk', position: { q: 30, r: 13 } }, // away half (q>=18), outside circle
   ],
-  ball: { position: { q: 18, r: 13 }, carrierId: null },
+  ball: { position: { q: 18, r: 13 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -869,7 +869,7 @@ const makeHalfTimeState = (overrides: Partial<GameState> = {}): GameState => ({
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [...makeAttacker2State().pieces],
-  ball: { position: { q: 18, r: 13 }, carrierId: null },
+  ball: { position: { q: 18, r: 13 }, carrierId: null, lastTouchedBy: null },
   score: { home: 1, away: 0 },
   actionCount: 48,
   half: 1,
@@ -1170,7 +1170,7 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
     ...makePassState(),
     phase: 'LOOSE_BALL',
     // Ball at {q:15, r:12}; trajectoryBlocker at {q:17, r:13}
-    ball: { position: { q: 15, r: 12 }, carrierId: null },
+    ball: { position: { q: 15, r: 12 }, carrierId: null, lastTouchedBy: null },
     pieces: [
       { ...homeFwd, position: { q: 32, r: 12 } }, // away from trajectory
       awayGk,
@@ -1184,7 +1184,7 @@ describe('applyRoll LOOSE_BALL — trajectory walk (PASS-05, D-23, D-24)', () =>
   const makeLooseBallStateClear = (): GameState => ({
     ...makePassState(),
     phase: 'LOOSE_BALL',
-    ball: { position: { q: 15, r: 12 }, carrierId: null },
+    ball: { position: { q: 15, r: 12 }, carrierId: null, lastTouchedBy: null },
     pieces: [
       { ...homeFwd, position: { q: 32, r: 12 } }, // far from trajectory
       awayGk, // at {q:36, r:13} — far from trajectory
@@ -1245,7 +1245,7 @@ const makeHeaderState = (overrides: Partial<GameState> = {}): GameState => ({
     awayGk, // GK at {q:36,r:13}
     homeMid,
   ],
-  ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd' },
+  ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -1374,7 +1374,7 @@ describe('HEAD-05: a piece that contested a header is excluded from the subseque
       { ...homeMid, position: { q: 15, r: 12 } },
       awayDef,
     ],
-    ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd' },
+    ball: { position: { q: 20, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
     score: { home: 0, away: 0 },
     actionCount: 10,
     half: 1,
@@ -1507,7 +1507,7 @@ describe('BUG-14: Snapshot availability after pace exhaustion', () => {
     activeTeam: 'home',
     attackingTeam: 'home',
     pieces: [homeFwdSnap, awayGkSnap, homeMidSnap],
-    ball: { position: homeFwdSnap.position, carrierId: homeFwdSnap.id },
+    ball: { position: homeFwdSnap.position, carrierId: homeFwdSnap.id, lastTouchedBy: null },
     score: { home: 0, away: 0 },
     actionCount: 5,
     half: 1,
@@ -1667,7 +1667,7 @@ const makeTackleScenarioState = (overrides: Partial<GameState> = {}): GameState 
   activeTeam: 'away',
   attackingTeam: 'home',
   pieces: [homeTackleCarrier, awayTackler],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-carrier' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-carrier', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 44,
   half: 1,
@@ -1790,7 +1790,7 @@ const makeStealScenarioState = (overrides: Partial<GameState> = {}): GameState =
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeStealCarrier, awayStealDefender],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-steal-carrier' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-steal-carrier', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 44,
   half: 1,

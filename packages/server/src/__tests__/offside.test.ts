@@ -66,7 +66,7 @@ function makeState(overrides: Partial<GameState> & { pieces: PlayerPiece[] }): G
     phase: 'MOVE',
     activeTeam: 'home',
     attackingTeam: 'home',
-    ball: { position: { q: 18, r: 13 }, carrierId: null },
+    ball: { position: { q: 18, r: 13 }, carrierId: null, lastTouchedBy: null },
     score: { home: 0, away: 0 },
     actionCount: 0,
     half: 1,
@@ -215,7 +215,7 @@ describe('opposingPiecesEqualOrAhead', () => {
 describe('isOffsideNow', () => {
   it('true: past halfway, ahead of ball, exactly 1 opposing piece equal-or-ahead', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({ pieces: [attacker, oneDefender], ball });
     expect(isOffsideNow(state, attacker)).toBe(true);
@@ -227,21 +227,21 @@ describe('isOffsideNow', () => {
       teamId: 'home',
       position: { q: OFFSIDE_HALFWAY_Q, r: 13 },
     });
-    const ball = { position: { q: 12, r: 13 }, carrierId: null };
+    const ball = { position: { q: 12, r: 13 }, carrierId: null, lastTouchedBy: null };
     const state = makeState({ pieces: [attacker], ball });
     expect(isOffsideNow(state, attacker)).toBe(false);
   });
 
   it('false: exactly level with ball (not strictly ahead)', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 25, r: 13 }, carrierId: null };
+    const ball = { position: { q: 25, r: 13 }, carrierId: null, lastTouchedBy: null };
     const state = makeState({ pieces: [attacker], ball });
     expect(isOffsideNow(state, attacker)).toBe(false);
   });
 
   it('false: exactly 2 opposing pieces equal-or-ahead (not <=1)', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const defenderOne = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const defenderTwo = makePiece({ id: 'away-2', teamId: 'away', position: { q: 26, r: 13 } });
     const state = makeState({ pieces: [attacker, defenderOne, defenderTwo], ball });
@@ -250,7 +250,7 @@ describe('isOffsideNow', () => {
 
   it('false: zero opposing pieces equal-or-ahead still counts as <=1 (true)', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const state = makeState({ pieces: [attacker], ball });
     expect(isOffsideNow(state, attacker)).toBe(true);
   });
@@ -262,7 +262,7 @@ describe('isOffsideNow', () => {
       teamId: 'away',
       position: { q: 10, r: 13 },
     });
-    const ball = { position: { q: 15, r: 13 }, carrierId: null };
+    const ball = { position: { q: 15, r: 13 }, carrierId: null, lastTouchedBy: null };
     const oneHomeOpponent = makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 13 } });
     const state = makeState({ pieces: [awayDefenderPushingUp, oneHomeOpponent], ball });
     expect(isOffsideNow(state, awayDefenderPushingUp)).toBe(true);
@@ -279,21 +279,21 @@ describe('isClearedNow', () => {
   // "isClearedNow — D-40" describe block below for loose-ball-specific coverage.
   it('true: equal-or-behind a possessed ball', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' }; // equal, possessed
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null }; // equal, possessed
     const state = makeState({ pieces: [piece], ball });
     expect(isClearedNow(state, piece)).toBe(true);
   });
 
   it('true: strictly behind a possessed ball', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 15, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null };
     const state = makeState({ pieces: [piece], ball });
     expect(isClearedNow(state, piece)).toBe(true);
   });
 
   it('true: ahead of ball but >=2 opposing pieces equal-or-ahead (ball possession irrelevant)', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const defenderOne = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const defenderTwo = makePiece({ id: 'away-2', teamId: 'away', position: { q: 26, r: 13 } });
     const state = makeState({ pieces: [piece, defenderOne, defenderTwo], ball });
@@ -302,7 +302,7 @@ describe('isClearedNow', () => {
 
   it('false: ahead of ball AND <=1 opposing pieces equal-or-ahead', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null };
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({ pieces: [piece, oneDefender], ball });
     expect(isClearedNow(state, piece)).toBe(false);
@@ -316,7 +316,7 @@ describe('isClearedNow', () => {
 describe('evaluateOffside', () => {
   it('flags a newly-offside piece not previously in offsidePieceIds', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({ pieces: [attacker, oneDefender], ball, offsidePieceIds: [] });
     expect(evaluateOffside(state)).toEqual(['home-1']);
@@ -327,7 +327,7 @@ describe('evaluateOffside', () => {
     // ahead of ball, still <=1 opposing equal-or-ahead) — isOffsideNow is also true here,
     // but the key assertion is the id persists via the sticky set regardless.
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
       pieces: [attacker, oneDefender],
@@ -339,7 +339,7 @@ describe('evaluateOffside', () => {
 
   it('clear (a): a flagged id that becomes equal-or-behind a POSSESSED ball is dropped (D-40: requires possession)', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 18, r: 13 } }); // dropped back
-    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1' }; // now behind ball, possessed
+    const ball = { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null }; // now behind ball, possessed
     const state = makeState({
       pieces: [attacker],
       ball,
@@ -350,7 +350,7 @@ describe('evaluateOffside', () => {
 
   it('clear (b): a flagged id with >=2 opponents equal-or-ahead is dropped', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null }; // still ahead of ball
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null }; // still ahead of ball
     const defenderOne = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const defenderTwo = makePiece({ id: 'away-2', teamId: 'away', position: { q: 26, r: 13 } });
     const state = makeState({
@@ -367,7 +367,7 @@ describe('evaluateOffside', () => {
       teamId: 'away',
       position: { q: 10, r: 13 },
     });
-    const ball = { position: { q: 15, r: 13 }, carrierId: null };
+    const ball = { position: { q: 15, r: 13 }, carrierId: null, lastTouchedBy: null };
     const oneHomeOpponent = makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 13 } });
     const state = makeState({
       pieces: [awayDefenderPushingUp, oneHomeOpponent],
@@ -379,7 +379,7 @@ describe('evaluateOffside', () => {
 
   it('defaults to [] when offsidePieceIds is absent on state', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 12, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null };
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null };
     const state = makeState({ pieces: [piece], ball });
     delete (state as { offsidePieceIds?: readonly string[] }).offsidePieceIds;
     expect(evaluateOffside(state)).toEqual([]);
@@ -396,7 +396,7 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
       pieces: [attacker, oneDefender],
-      ball: { position: { q: 20, r: 13 }, carrierId: null }, // attacker ahead of ball
+      ball: { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null }, // attacker ahead of ball
       movementSlot: 'ATTACKER_2',
       offsidePieceIds: [],
     });
@@ -417,7 +417,7 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D
     const secondState: GameState = {
       ...firstResult.state,
       pieces: droppedBack,
-      ball: { position: { q: 20, r: 13 }, carrierId: 'away-1' }, // possessed, attacker now behind ball (q18 < q20)
+      ball: { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null }, // possessed, attacker now behind ball (q18 < q20)
       phase: 'MOVE',
       movementSlot: 'ATTACKER_2',
     };
@@ -432,7 +432,7 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
       pieces: [attacker, oneDefender],
-      ball: { position: { q: 20, r: 13 }, carrierId: null },
+      ball: { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null },
       movementSlot: 'ATTACKER_4',
       // home-1 WOULD be newly offside if evaluated here, but it starts un-flagged.
       offsidePieceIds: [],
@@ -452,7 +452,7 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
       pieces: [attacker, oneDefender],
-      ball: { position: { q: 20, r: 13 }, carrierId: 'away-1' }, // possessed; attacker behind ball — would clear if D-40 evaluated
+      ball: { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null }, // possessed; attacker behind ball — would clear if D-40 evaluated
       movementSlot: 'DEFENDER_5',
       offsidePieceIds: ['home-1'], // previously flagged from an earlier full-MOVEMENT-end
     });
@@ -470,7 +470,7 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({
       pieces: [attacker, oneDefender],
-      ball: { position: { q: 20, r: 13 }, carrierId: null },
+      ball: { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null },
       movementSlot: 'ATTACKER_2',
       offsidePieceIds: [],
     });
@@ -489,7 +489,7 @@ describe('applyEndTurn — offsidePieceIds wiring (OFFSIDE-01 D-23, refined by D
 describe('isClearedNow — D-40 (ball-position clear requires possession)', () => {
   it('false: equal-or-behind a LOOSE ball with <=1 opposing equal-or-ahead — does NOT clear', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
-    const ball = { position: { q: 20, r: 13 }, carrierId: null }; // level, but loose
+    const ball = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null }; // level, but loose
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const state = makeState({ pieces: [piece, oneDefender], ball });
     expect(isClearedNow(state, piece)).toBe(false);
@@ -498,11 +498,19 @@ describe('isClearedNow — D-40 (ball-position clear requires possession)', () =
   it('true: SAME positions but ball is POSSESSED — clears', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
-    const ballHomeCarrier = { position: { q: 20, r: 13 }, carrierId: 'home-1' };
+    const ballHomeCarrier = {
+      position: { q: 20, r: 13 },
+      carrierId: 'home-1',
+      lastTouchedBy: null,
+    };
     const stateHomeCarrier = makeState({ pieces: [piece, oneDefender], ball: ballHomeCarrier });
     expect(isClearedNow(stateHomeCarrier, piece)).toBe(true);
 
-    const ballAwayCarrier = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const ballAwayCarrier = {
+      position: { q: 20, r: 13 },
+      carrierId: 'away-1',
+      lastTouchedBy: null,
+    };
     const stateAwayCarrier = makeState({ pieces: [piece, oneDefender], ball: ballAwayCarrier });
     expect(isClearedNow(stateAwayCarrier, piece)).toBe(true);
   });
@@ -512,11 +520,11 @@ describe('isClearedNow — D-40 (ball-position clear requires possession)', () =
     const defenderOne = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
     const defenderTwo = makePiece({ id: 'away-2', teamId: 'away', position: { q: 26, r: 13 } });
 
-    const looseBall = { position: { q: 20, r: 13 }, carrierId: null }; // ahead of ball, loose
+    const looseBall = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null }; // ahead of ball, loose
     const stateLoose = makeState({ pieces: [piece, defenderOne, defenderTwo], ball: looseBall });
     expect(isClearedNow(stateLoose, piece)).toBe(true);
 
-    const possessedBall = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const possessedBall = { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null };
     const statePossessed = makeState({
       pieces: [piece, defenderOne, defenderTwo],
       ball: possessedBall,
@@ -533,7 +541,7 @@ describe('evaluateOffside — D-40 sticky-flag + loose ball', () => {
   it('a previously-flagged piece that drops level-with-the-ball while the ball is LOOSE stays flagged', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
-    const looseBall = { position: { q: 20, r: 13 }, carrierId: null }; // level, loose
+    const looseBall = { position: { q: 20, r: 13 }, carrierId: null, lastTouchedBy: null }; // level, loose
     const state = makeState({
       pieces: [attacker, oneDefender],
       ball: looseBall,
@@ -545,7 +553,7 @@ describe('evaluateOffside — D-40 sticky-flag + loose ball', () => {
   it('the SAME scenario but the ball is possessed — clears', () => {
     const attacker = makePiece({ id: 'home-1', teamId: 'home', position: { q: 20, r: 13 } });
     const oneDefender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 13 } });
-    const possessedBall = { position: { q: 20, r: 13 }, carrierId: 'away-1' };
+    const possessedBall = { position: { q: 20, r: 13 }, carrierId: 'away-1', lastTouchedBy: null };
     const state = makeState({
       pieces: [attacker, oneDefender],
       ball: possessedBall,
@@ -566,7 +574,7 @@ describe('triggerOffsideFoul', () => {
     const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 10 } });
     const state = makeState({
       pieces: [offender, teammate, defender],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -579,7 +587,12 @@ describe('triggerOffsideFoul', () => {
     expect(result.freeKickAttackingTeam).toBe('away');
     expect(result.attackingTeam).toBe('away');
     expect(result.activeTeam).toBe('away');
-    expect(result.ball).toEqual({ position: { q: 25, r: 10 }, carrierId: null });
+    // Pure repositioning — nobody touched the ball here; carried forward (null in this fixture).
+    expect(result.ball).toEqual({
+      position: { q: 25, r: 10 },
+      carrierId: null,
+      lastTouchedBy: null,
+    });
     expect(result.offsidePieceIds).not.toContain('home-1');
   });
 
@@ -589,7 +602,7 @@ describe('triggerOffsideFoul', () => {
     const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [offender],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -606,7 +619,7 @@ describe('triggerOffsideFoul', () => {
     const carrier = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [carrier],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       offsidePieceIds: [],
     });
 
@@ -620,7 +633,7 @@ describe('triggerOffsideFoul', () => {
     const piece = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [piece],
-      ball: { position: { q: 25, r: 10 }, carrierId: null },
+      ball: { position: { q: 25, r: 10 }, carrierId: null, lastTouchedBy: null },
       offsidePieceIds: ['home-1'],
     });
 
@@ -635,7 +648,7 @@ describe('triggerOffsideFoul', () => {
     const defender = makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 10 } });
     const state = makeState({
       pieces: [offender, otherFlagged, defender],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1', 'home-2'],
@@ -650,7 +663,7 @@ describe('triggerOffsideFoul', () => {
     const deflector = makePiece({ id: 'away-1', teamId: 'away', position: { q: 8, r: 9 } });
     const state = makeState({
       pieces: [deflector],
-      ball: { position: { q: 25, r: 10 }, carrierId: null }, // ball ends up loose elsewhere
+      ball: { position: { q: 25, r: 10 }, carrierId: null, lastTouchedBy: null }, // ball ends up loose elsewhere
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['away-1'],
@@ -662,7 +675,7 @@ describe('triggerOffsideFoul', () => {
     // D-27: free kick spot is the offender's CURRENT position, not the ball's loose position.
     expect(result.freeKickHex).toEqual({ q: 8, r: 9 });
     expect(result.freeKickAttackingTeam).toBe('home');
-    expect(result.ball).toEqual({ position: { q: 8, r: 9 }, carrierId: null });
+    expect(result.ball).toEqual({ position: { q: 8, r: 9 }, carrierId: null, lastTouchedBy: null });
     expect(result.offsidePieceIds).not.toContain('away-1');
   });
 
@@ -670,7 +683,7 @@ describe('triggerOffsideFoul', () => {
     const deflector = makePiece({ id: 'away-1', teamId: 'away', position: { q: 8, r: 9 } });
     const state = makeState({
       pieces: [deflector],
-      ball: { position: { q: 25, r: 10 }, carrierId: null },
+      ball: { position: { q: 25, r: 10 }, carrierId: null, lastTouchedBy: null },
       offsidePieceIds: [],
     });
 
@@ -685,7 +698,7 @@ describe('triggerOffsideFoul', () => {
     const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [offender],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -708,7 +721,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const carrier = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [carrier],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       offsidePieceIds: [], // not flagged — no foul
     });
 
@@ -721,7 +734,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const offender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 25, r: 10 } });
     const state = makeState({
       pieces: [offender],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -751,7 +764,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const trappedTeammate = makePiece({ id: 'home-2', teamId: 'home', position: { q: 26, r: 10 } }); // dist 1 from foul spot
     const state = makeState({
       pieces: [offender, trappedTeammate],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -772,7 +785,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const farTeammate = makePiece({ id: 'home-2', teamId: 'home', position: { q: 0, r: 0 } }); // far away
     const state = makeState({
       pieces: [offender, farTeammate],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -793,7 +806,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     }); // dist 1, but kicking team
     const state = makeState({
       pieces: [offender, kickingTeamPiece],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -812,7 +825,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const trapped3 = makePiece({ id: 'home-4', teamId: 'home', position: { q: 25, r: 11 } });
     const state = makeState({
       pieces: [offender, trapped1, trapped2, trapped3],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -844,7 +857,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 10, r: 5 } });
     const state = makeState({
       pieces: [offender, kicker],
-      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1' },
+      ball: { position: { q: 25, r: 10 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -876,7 +889,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const trapped = makePiece({ id: 'home-2', teamId: 'home', position: { q: 6, r: 13 } }); // dist 1
     const state = makeState({
       pieces: [offender, trapped],
-      ball: { position: { q: 5, r: 13 }, carrierId: 'home-1' },
+      ball: { position: { q: 5, r: 13 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -915,7 +928,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const trapped = makePiece({ id: 'away-2', teamId: 'away', position: { q: 30, r: 13 } }); // dist 1
     const state = makeState({
       pieces: [offender, trapped],
-      ball: { position: { q: 31, r: 13 }, carrierId: 'away-1' },
+      ball: { position: { q: 31, r: 13 }, carrierId: 'away-1', lastTouchedBy: null },
       attackingTeam: 'away',
       activeTeam: 'away',
       offsidePieceIds: ['away-1'],
@@ -971,7 +984,7 @@ describe('applyOffsideFoulWithRelocation (D-53, D-59)', () => {
     const trapped = makePiece({ id: 'home-2', teamId: 'home', position: { q: 6, r: 13 } });
     const state = makeState({
       pieces: [offender, trapped, ...occupiers],
-      ball: { position: { q: 5, r: 13 }, carrierId: 'home-1' },
+      ball: { position: { q: 5, r: 13 }, carrierId: 'home-1', lastTouchedBy: null },
       attackingTeam: 'home',
       activeTeam: 'home',
       offsidePieceIds: ['home-1'],
@@ -1337,7 +1350,11 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49/D-54/D-56 staged rework)'
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.state.phase).toBe('PASS');
-        expect(result.state.ball).toEqual({ position: { q: 25, r: 10 }, carrierId: 'away-1' });
+        expect(result.state.ball).toEqual({
+          position: { q: 25, r: 10 },
+          carrierId: 'away-1',
+          lastTouchedBy: { pieceId: 'away-1', teamId: 'away' },
+        });
         expect(result.state.attackingTeam).toBe('away');
         expect(result.state.activeTeam).toBe('away');
         expect(result.state.lastActionType).toBe('FREE_KICK_RESTART');
@@ -1415,7 +1432,7 @@ describe('applyMove — offside evaluated at break-in-play (D-39b)', () => {
     };
     const state: GameState = makeState({
       pieces: [homePiece, homeFar, defenderPiece],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
       movementSlot: 'DEFENDER_5',
       activeTeam: 'away',
       attackingTeam: 'home',
@@ -1486,7 +1503,7 @@ describe('applyMove — offside evaluated at break-in-play (D-39b)', () => {
     };
     const state: GameState = makeState({
       pieces: [homePiece, homeFar, defender],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
       movementSlot: 'ATTACKER_4',
       activeTeam: 'home',
       attackingTeam: 'home',
@@ -1566,7 +1583,7 @@ describe('BUG-06: offsidePieceIds reset on GOAL restart path (applyRoll SHOT bra
     activeTeam: 'home',
     attackingTeam: 'home',
     pieces: [shooter, awayGk],
-    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
     movementSlot: null,
     lastActionType: 'MOVEMENT_PHASE',
     selectedTeams: { home: 'city', away: 'crew' },

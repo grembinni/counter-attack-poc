@@ -181,7 +181,7 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
       // 'home' guarantees the pre-fix seed formation differs from the expected one.
       kickOffTeam: 'home',
       lastActionType: null,
-      ball: { position: carrierPos, carrierId: homeCarrier.id },
+      ball: { position: carrierPos, carrierId: homeCarrier.id, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
       // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
       ballZone: computeBallZone(carrierPos),
@@ -238,7 +238,7 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
       attackingTeam: 'home',
       activeTeam: 'home',
       lastActionType: null,
-      ball: { position: carrierPos, carrierId: homeCarrier.id },
+      ball: { position: carrierPos, carrierId: homeCarrier.id, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
       // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
       ballZone: computeBallZone(carrierPos),
@@ -301,7 +301,7 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
       // 'home' guarantees the pre-fix seed formation differs from the expected one.
       kickOffTeam: 'home',
       lastActionType: 'SNAPSHOT',
-      ball: { position: carrierPos, carrierId: carrier.id },
+      ball: { position: carrierPos, carrierId: carrier.id, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
       // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
       ballZone: computeBallZone(carrierPos),
@@ -366,7 +366,7 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
       attackingTeam: 'home',
       activeTeam: 'home',
       lastActionType: 'SNAPSHOT',
-      ball: { position: carrierPos, carrierId: carrier.id },
+      ball: { position: carrierPos, carrierId: carrier.id, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
       // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
       ballZone: computeBallZone(carrierPos),
@@ -425,7 +425,7 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       // 'home' guarantees the pre-fix seed formation differs from the expected one.
       kickOffTeam: 'home',
       lastActionType: 'HIGH_PASS',
-      ball: { position: { q: 33, r: 13 }, carrierId: null },
+      ball: { position: { q: 33, r: 13 }, carrierId: null, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
       // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
       ballZone: computeBallZone({ q: 33, r: 13 }),
@@ -483,7 +483,7 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       attackingTeam: 'home',
       activeTeam: 'home',
       lastActionType: 'HIGH_PASS',
-      ball: { position: { q: 33, r: 13 }, carrierId: null },
+      ball: { position: { q: 33, r: 13 }, carrierId: null, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current so
       // broadcastState's applyFreeMoveZoneCheck does not fire mid-test.
       ballZone: computeBallZone({ q: 33, r: 13 }),

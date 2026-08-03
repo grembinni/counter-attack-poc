@@ -516,7 +516,7 @@ describe('ActionPanel — FREE_KICK_RESTART action set (OFFSIDE-02 D-32)', () =>
         activeTeam: 'home',
         attackingTeam: 'home',
         lastActionType: 'FREE_KICK_RESTART',
-        ball: { position: { q: 1, r: 1 }, carrierId: 'home-9' },
+        ball: { position: { q: 1, r: 1 }, carrierId: 'home-9', lastTouchedBy: null },
         pieces: mockMovementState.pieces.map((p) =>
           p.id === 'home-9' ? { ...p, position: { q: 1, r: 1 } } : p,
         ),
@@ -543,7 +543,7 @@ describe('ActionPanel — FREE_KICK_RESTART action set (OFFSIDE-02 D-32)', () =>
         activeTeam: 'home',
         attackingTeam: 'home',
         lastActionType: 'FREE_KICK_RESTART',
-        ball: { position: nearGoalPos, carrierId: 'home-9' },
+        ball: { position: nearGoalPos, carrierId: 'home-9', lastTouchedBy: null },
         pieces: mockMovementState.pieces.map((p) =>
           p.id === 'home-9' ? { ...p, position: nearGoalPos } : p,
         ),
@@ -565,7 +565,7 @@ describe('ActionPanel — FREE_KICK_RESTART action set (OFFSIDE-02 D-32)', () =>
         activeTeam: 'home',
         attackingTeam: 'home',
         lastActionType: 'FREE_KICK_RESTART',
-        ball: { position: farPos, carrierId: 'home-9' },
+        ball: { position: farPos, carrierId: 'home-9', lastTouchedBy: null },
         pieces: mockMovementState.pieces.map((p) =>
           p.id === 'home-9' ? { ...p, position: farPos } : p,
         ),
@@ -608,7 +608,7 @@ describe('ActionPanel — D-13 text corrections', () => {
         phase: 'GK_RESTART',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 1,
     });
@@ -1099,7 +1099,7 @@ describe('ActionPanel — D-07: every phase state renders the panel heading', ()
         phase: 'GK_RESTART',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 1,
     });
@@ -1244,7 +1244,7 @@ describe('ActionPanel — D-03: Keeper terminology', () => {
         phase: 'GK_RESTART',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 1,
     });
@@ -1260,7 +1260,7 @@ describe('ActionPanel — D-03: Keeper terminology', () => {
         phase: 'GK_RESTART',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 1,
     });
@@ -1277,7 +1277,7 @@ describe('ActionPanel — D-03: Keeper terminology', () => {
         phase: 'GK_RESTART',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 1,
     });
@@ -1328,7 +1328,7 @@ describe('ActionPanel — D-09: phase-specific waiting text', () => {
         phase: 'GK_RESTART',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
     });
@@ -1344,7 +1344,7 @@ describe('ActionPanel — D-09: phase-specific waiting text', () => {
         phase: 'GK_QUICK_THROW',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
     });
@@ -1360,7 +1360,7 @@ describe('ActionPanel — D-09: phase-specific waiting text', () => {
         phase: 'GK_KICK_TARGET',
         activeTeam: 'home',
         attackingTeam: 'away',
-        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' },
+        ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null },
       },
       playerSlot: 2, // away — carrier (keeper) is home-0, so away is not the GK team
     });

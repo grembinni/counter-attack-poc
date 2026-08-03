@@ -25,7 +25,7 @@ const baseState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [basePiece],
-  ball: { position: { q: 0, r: 0 }, carrierId: null },
+  ball: { position: { q: 0, r: 0 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -123,7 +123,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, opponent],
-      ball: { position: { q: 5, r: 5 }, carrierId: 'p1' },
+      ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(true);
@@ -147,7 +147,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, opponent],
-      ball: { position: { q: 0, r: 0 }, carrierId: null }, // p1 is NOT the ball carrier
+      ball: { position: { q: 0, r: 0 }, carrierId: null, lastTouchedBy: null }, // p1 is NOT the ball carrier
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(true);
@@ -158,7 +158,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece],
-      ball: { position: { q: 5, r: 5 }, carrierId: 'p1' },
+      ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(true);
@@ -185,7 +185,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, carrier],
-      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier1' },
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier1', lastTouchedBy: null },
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(true);
@@ -211,7 +211,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, carrier],
-      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier2' },
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier2', lastTouchedBy: null },
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(true);
@@ -234,7 +234,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, opponent],
-      ball: { position: { q: 0, r: 0 }, carrierId: null }, // no carrier
+      ball: { position: { q: 0, r: 0 }, carrierId: null, lastTouchedBy: null }, // no carrier
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
     expect(result.ok).toBe(true);
@@ -257,7 +257,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, carrier],
-      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier3' },
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier3', lastTouchedBy: null },
       tackleAttemptedByIds: ['p1'],
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
@@ -277,7 +277,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, carrier],
-      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier4' },
+      ball: { position: { q: 7, r: 5 }, carrierId: 'carrier4', lastTouchedBy: null },
       tackleAttemptedByIds: ['someOtherPieceId'],
     };
     const result = validateMove(state, basePiece, { q: 6, r: 5 });
@@ -304,7 +304,7 @@ describe('validateMove', () => {
     const state: GameState = {
       ...baseState,
       pieces: [basePiece, defender],
-      ball: { position: { q: 5, r: 5 }, carrierId: 'p1' },
+      ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
       tackleAttemptedByIds: ['defender1'],
       stealAttemptedByIds: ['defender1'],
     };

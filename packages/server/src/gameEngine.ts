@@ -345,7 +345,7 @@ export function buildInitialGameState(
     activeTeam: attackingTeam,
     attackingTeam,
     pieces, // TEAM-01: all 22 loaded at match start; ST positioned by coin flip
-    ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+    ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // fresh match state — nobody has touched the ball yet
     score: { home: 0, away: 0 },
     actionCount: 0,
     half: 1,
@@ -565,7 +565,9 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
     // the closest semantic match (independent per-piece activation, no steal/tackle effects).
     slot: 'ATTACKER_2',
     timestamp: Date.now(),
-    ballAfter: state.ball,
+    // Ball unchanged during FREE_MOVE — narrow to {position, carrierId} (ballAfter never
+    // carries lastTouchedBy, per Task 2 design note).
+    ballAfter: { position: state.ball.position, carrierId: state.ball.carrierId },
   };
 
   return {
@@ -763,7 +765,11 @@ export function applyMove(
         state: {
           ...state,
           pieces: newPieces,
-          ball: { position: to, carrierId: pieceId },
+          ball: {
+            position: to,
+            carrierId: pieceId,
+            lastTouchedBy: { pieceId, teamId: piece.teamId },
+          },
           attackingTeam: newPickupAttackingTeam,
           activeTeam: newPickupAttackingTeam,
           phase: 'PASS',
@@ -783,7 +789,11 @@ export function applyMove(
       state: {
         ...state,
         pieces: newPieces,
-        ball: { position: to, carrierId: pieceId },
+        ball: {
+          position: to,
+          carrierId: pieceId,
+          lastTouchedBy: { pieceId, teamId: piece.teamId },
+        },
         attackingTeam: newPickupAttackingTeam,
         activeTeam: newPickupAttackingTeam,
         // D-30: stay in MOVE — do NOT transition to CHOOSE_ACTION or reset pace/slots
@@ -885,12 +895,26 @@ export function applyMove(
         // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender.
         // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
         // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
-        const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
+        // D-06/Task 2: successful tackle turnover — the tackling defender is the new last toucher.
+        const tackleSuccessBall = {
+          ...state.ball,
+          position: to,
+          carrierId: pieceId,
+          lastTouchedBy: { pieceId, teamId: piece.teamId },
+        };
         // REPLAY-06 (18.1-01, Pitfall 3): the MOVE event appended above carries a stale
         // pre-contest ballAfter snapshot. Rewrite it to the post-tackle ball state (immutably —
         // never mutate state.eventLog/newEventLog in place) so the MOVE event's own replay frame
         // already shows the tackler as carrier instead of the stale carrier.
-        const correctedMoveEvent: ActionEvent = { ...moveEvent, ballAfter: tackleSuccessBall };
+        // Task 2 note: ballAfter intentionally stays the narrow {position, carrierId} shape —
+        // do not leak lastTouchedBy onto ActionEvent.ballAfter (replay doesn't need it).
+        const correctedMoveEvent: ActionEvent = {
+          ...moveEvent,
+          ballAfter: {
+            position: tackleSuccessBall.position,
+            carrierId: tackleSuccessBall.carrierId,
+          },
+        };
         const tackleCorrectedEventLog = newEventLog.map((e) =>
           e === moveEvent ? correctedMoveEvent : e,
         );
@@ -949,14 +973,25 @@ export function applyMove(
   if (stealSuccess) {
     // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
     // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
-    const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     const newOwnerTeam =
       state.pieces.find((p) => p.id === stealDefenderId)?.teamId ?? state.activeTeam;
+    // D-06/Task 2: successful steal turnover — the stealing defender is the new last toucher.
+    const stealSuccessBall = {
+      ...state.ball,
+      position: to,
+      carrierId: stealDefenderId!,
+      lastTouchedBy: { pieceId: stealDefenderId!, teamId: newOwnerTeam },
+    };
     // REPLAY-06 (18.1-01, Pitfall 3): the MOVE event appended above carries a stale
     // pre-contest ballAfter snapshot. Rewrite it to the post-steal ball state (immutably —
     // never mutate state.eventLog/newEventLog in place) so the MOVE event's own replay frame
     // already shows the defender as carrier instead of the stale carrier.
-    const correctedMoveEvent: ActionEvent = { ...moveEvent, ballAfter: stealSuccessBall };
+    // Task 2 note: ballAfter intentionally stays the narrow {position, carrierId} shape —
+    // do not leak lastTouchedBy onto ActionEvent.ballAfter (replay doesn't need it).
+    const correctedMoveEvent: ActionEvent = {
+      ...moveEvent,
+      ballAfter: { position: stealSuccessBall.position, carrierId: stealSuccessBall.carrierId },
+    };
     const stealCorrectedEventLog = newEventLog.map((e) =>
       e === moveEvent ? correctedMoveEvent : e,
     );
@@ -1738,6 +1773,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             ball: {
               position: inaccuratePassType === 'LONG_BALL' ? targetHex : state.ball.position,
               carrierId: null,
+              // Kicker is the last toucher — the pass left them with no immediate receiver.
+              lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
             },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
             lastActionType: 'DEFLECTION',
@@ -1846,7 +1883,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'PASS',
-              ball: { position: interceptor.position, carrierId: interceptor.id },
+              ball: {
+                position: interceptor.position,
+                carrierId: interceptor.id,
+                lastTouchedBy: { pieceId: interceptor.id, teamId: interceptor.teamId },
+              },
               attackingTeam: interceptor.teamId,
               activeTeam: interceptor.teamId,
               lastActionType: 'SUCCESSFUL_TACKLE',
@@ -1886,7 +1927,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               state: {
                 ...state,
                 phase: 'PASS',
-                ball: { position: interceptor.position, carrierId: interceptor.id },
+                ball: {
+                  position: interceptor.position,
+                  carrierId: interceptor.id,
+                  lastTouchedBy: { pieceId: interceptor.id, teamId: interceptor.teamId },
+                },
                 attackingTeam: interceptor.teamId,
                 activeTeam: interceptor.teamId,
                 lastActionType: 'SUCCESSFUL_TACKLE',
@@ -1924,7 +1969,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'FIRST_TIME_PASS_MOVE',
-              ball: { position: targetHex, carrierId: null },
+              // Ball in flight, no immediate receiver yet — kicker is the last toucher.
+              ball: {
+                position: targetHex,
+                carrierId: null,
+                lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
+              },
               lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
               lastActionType: 'FIRST_TIME_PASS',
               actionCount: state.actionCount + passTimeCost,
@@ -1958,7 +2008,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'PASS',
-              ball: { position: ftpOccupant.position, carrierId: ftpOccupant.id },
+              ball: {
+                position: ftpOccupant.position,
+                carrierId: ftpOccupant.id,
+                lastTouchedBy: { pieceId: ftpOccupant.id, teamId: ftpOccupant.teamId },
+              },
               attackingTeam: possessionChanges ? ftpOccupant.teamId : state.attackingTeam,
               activeTeam: possessionChanges ? ftpOccupant.teamId : state.activeTeam,
               lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
@@ -1978,7 +2032,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: targetHex, carrierId: null },
+            // No occupant: ball left the kicker with no immediate receiver.
+            ball: {
+              position: targetHex,
+              carrierId: null,
+              lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
+            },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
             lastActionType: 'FIRST_TIME_PASS',
             actionCount: state.actionCount + passTimeCost,
@@ -2009,7 +2068,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'PASS',
-              ball: { position: occupant.position, carrierId: occupant.id },
+              ball: {
+                position: occupant.position,
+                carrierId: occupant.id,
+                lastTouchedBy: { pieceId: occupant.id, teamId: occupant.teamId },
+              },
               attackingTeam: possessionChanges ? occupant.teamId : state.attackingTeam,
               activeTeam: possessionChanges ? occupant.teamId : state.activeTeam,
               lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
@@ -2051,7 +2114,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'LOOSE_BALL',
-              ball: { position: targetHex, carrierId: null },
+              // Ball left the kicker with no immediate receiver — kicker is the last toucher.
+              ball: {
+                position: targetHex,
+                carrierId: null,
+                lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
+              },
               lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
               lastActionType: 'DEFLECTION',
               actionCount: state.actionCount + passTimeCost,
@@ -2068,7 +2136,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'HEADER',
-            ball: { position: targetHex, carrierId: null },
+            // Ball left the kicker with no immediate receiver — kicker is the last toucher.
+            ball: {
+              position: targetHex,
+              carrierId: null,
+              lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
+            },
             lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
             lastActionType: newLastActionType,
             actionCount: state.actionCount + passTimeCost,
@@ -2088,7 +2161,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         state: {
           ...state,
           phase: 'PASS',
-          ball: { position: targetHex, carrierId: teammate?.id ?? null },
+          ball: {
+            position: targetHex,
+            carrierId: teammate?.id ?? null,
+            lastTouchedBy: teammate
+              ? { pieceId: teammate.id, teamId: teammate.teamId }
+              : { pieceId: carrier.id, teamId: carrier.teamId },
+          },
           lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
           lastActionType: newLastActionType,
           actionCount: state.actionCount + passTimeCost,
@@ -2177,7 +2256,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             score: newScoreUnsaveable,
             attackingTeam: newKickOffTeam,
             activeTeam: newKickOffTeam,
-            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // kick-off reset — fresh state
             lastDiceRoll: shotDiceRoll,
             lastActionType: null,
             lastShotPath: null,
@@ -2272,7 +2351,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             score: newScore,
             attackingTeam: newKickOffTeam,
             activeTeam: newKickOffTeam,
-            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // kick-off reset — fresh state
             lastDiceRoll: shotDiceRoll,
             lastActionType: null,
             lastShotPath: null,
@@ -2324,7 +2403,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'LOOSE_BALL',
             // BUG-36 (Phase 36/D-14): loose-ball scatter must originate from the keeper's
             // dive-adjusted hex, not the shooter's hex — matches the SAVE branches' gkEffectivePos usage below.
-            ball: { position: gkEffectivePos, carrierId: null },
+            // D-06: a duel tie means the GK blocked the shot without catching it — GK is the last toucher.
+            ball: {
+              position: gkEffectivePos,
+              carrierId: null,
+              lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+            },
             lastDiceRoll: shotDiceRoll,
             lastActionType: 'DEFLECTION',
             lastShotPath: null, // RULE-03: clear stale shot path on LOOSE_BALL (tie)
@@ -2364,7 +2448,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               ...state,
               pieces: piecesWithGKPos,
               phase: 'GK_RESTART',
-              ball: { position: gkEffectivePos, carrierId: gk.id },
+              ball: {
+                position: gkEffectivePos,
+                carrierId: gk.id,
+                lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+              },
               activeTeam: gk.teamId,
               attackingTeam: gk.teamId,
               lastDiceRoll: shotDiceRoll,
@@ -2382,7 +2470,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               ...state,
               pieces: piecesWithGKPos,
               phase: 'GK_RESTART',
-              ball: { position: gkEffectivePos, carrierId: gk.id },
+              ball: {
+                position: gkEffectivePos,
+                carrierId: gk.id,
+                lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+              },
               activeTeam: gk.teamId,
               attackingTeam: gk.teamId,
               lastDiceRoll: shotDiceRoll,
@@ -2478,7 +2570,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'LOOSE_BALL',
-            ball: { position: state.ball.position, carrierId: null },
+            // Neither team contested the header — nobody touched the ball; carry forward.
+            ball: {
+              position: state.ball.position,
+              carrierId: null,
+              lastTouchedBy: state.ball.lastTouchedBy,
+            },
             lastDiceRoll: { rolls: fallbackRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             ...headerCleared,
@@ -2495,7 +2592,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'PASS',
             attackingTeam: defenderTeam,
             activeTeam: defenderTeam,
-            ball: { position: defenderPiece.position, carrierId: defenderPiece.id },
+            ball: {
+              position: defenderPiece.position,
+              carrierId: defenderPiece.id,
+              lastTouchedBy: { pieceId: defenderPiece.id, teamId: defenderPiece.teamId },
+            },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: defenderContestantIds,
@@ -2557,7 +2658,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               ...state,
               phase: 'GK_DIVE',
               lastActionType: 'SHOT',
-              ball: { position: winnerPos, carrierId: winnerId },
+              ball: {
+                position: winnerPos,
+                carrierId: winnerId,
+                lastTouchedBy: winnerPiece
+                  ? { pieceId: winnerPiece.id, teamId: winnerPiece.teamId }
+                  : state.ball.lastTouchedBy,
+              },
               shotTargetHex: tgtHexB,
               gkDivePosition: gkB?.position ?? state.ball.position,
               lastShotPath: headerShotPathB,
@@ -2576,7 +2683,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: ballPositionB, carrierId: winnerId },
+            ball: {
+              position: ballPositionB,
+              carrierId: winnerId,
+              lastTouchedBy: winnerPiece
+                ? { pieceId: winnerPiece.id, teamId: winnerPiece.teamId }
+                : state.ball.lastTouchedBy,
+            },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: attackerContestantIds,
@@ -2645,7 +2758,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               ...state,
               phase: 'GK_DIVE',
               lastActionType: 'SHOT',
-              ball: { position: attackerPiece.position, carrierId: attackerPiece.id },
+              ball: {
+                position: attackerPiece.position,
+                carrierId: attackerPiece.id,
+                lastTouchedBy: { pieceId: attackerPiece.id, teamId: attackerPiece.teamId },
+              },
               shotTargetHex: tgtHex,
               gkDivePosition: gk?.position ?? state.ball.position,
               lastShotPath: headerShotPath,
@@ -2679,7 +2796,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'PASS',
-            ball: { position: ballPosition, carrierId: attackerPiece.id },
+            ball: {
+              position: ballPosition,
+              carrierId: attackerPiece.id,
+              lastTouchedBy: { pieceId: attackerPiece.id, teamId: attackerPiece.teamId },
+            },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
@@ -2696,7 +2817,12 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           state: {
             ...state,
             phase: 'LOOSE_BALL',
-            ball: { position: state.ball.position, carrierId: null },
+            // Header tie: attacking-team contestant is the last toucher (attackerPiece is defined here).
+            ball: {
+              position: state.ball.position,
+              carrierId: null,
+              lastTouchedBy: { pieceId: attackerPiece.id, teamId: attackerPiece.teamId },
+            },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'DEFLECTION', // D-23 (WR-03): HEADER tie → LOOSE_BALL = DEFLECTION
             contestedPieceIds: contestedIds,
@@ -2727,7 +2853,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             phase: 'PASS',
             attackingTeam: defenderTeam,
             activeTeam: defenderTeam,
-            ball: { position: defenderPiece.position, carrierId: defenderPiece.id },
+            ball: {
+              position: defenderPiece.position,
+              carrierId: defenderPiece.id,
+              lastTouchedBy: { pieceId: defenderPiece.id, teamId: defenderPiece.teamId },
+            },
             lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
             lastActionType: 'HEADER',
             contestedPieceIds: contestedIds,
@@ -2817,7 +2947,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         state: {
           ...state,
           phase: 'PASS', // D-23/D-24: LOOSE_BALL resolves to CHOOSE_ACTION (not MOVE)
-          ball: { position: finalPosition, carrierId: finalCarrierId },
+          // Scatter landed on an occupant → that piece is the last toucher; otherwise carry forward.
+          ball: {
+            position: finalPosition,
+            carrierId: finalCarrierId,
+            lastTouchedBy: looseBallCarrier
+              ? { pieceId: looseBallCarrier.id, teamId: looseBallCarrier.teamId }
+              : state.ball.lastTouchedBy,
+          },
           attackingTeam: newAttackingTeam,
           activeTeam: newAttackingTeam,
           lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
@@ -3014,7 +3151,12 @@ export function applyGKKickTarget(state: GameState, targetHex: HexCoord): ApplyG
     state: {
       ...state,
       phase: 'GK_KICK_MOVE',
-      ball: { position: targetHex, carrierId: null }, // ball moves to target — visible to both teams
+      // ball moves to target — visible to both teams. GK is the last toucher (punt in flight).
+      ball: {
+        position: targetHex,
+        carrierId: null,
+        lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+      },
       gkKickTargetHex: targetHex,
       gkKickGkId: gk.id,
       gkKickMovementSlot: 'KICKER',
@@ -3084,7 +3226,13 @@ export function applyQuickThrow(state: GameState, targetHex: HexCoord): ApplyQui
     state: {
       ...state,
       phase: 'PASS',
-      ball: { position: targetHex, carrierId: receiver?.id ?? null },
+      ball: {
+        position: targetHex,
+        carrierId: receiver?.id ?? null,
+        lastTouchedBy: receiver
+          ? { pieceId: receiver.id, teamId: receiver.teamId }
+          : { pieceId: gk.id, teamId: gk.teamId },
+      },
       attackingTeam: gk.teamId,
       activeTeam: gk.teamId,
       lastActionType: 'STANDARD_PASS',
@@ -3478,6 +3626,9 @@ export function applyResolveHeaderTarget(
         ball: {
           position: winnerPos,
           carrierId: resolvedWinner?.id ?? null,
+          lastTouchedBy: resolvedWinner
+            ? { pieceId: resolvedWinner.id, teamId: resolvedWinner.teamId }
+            : state.ball.lastTouchedBy,
         },
         shotTargetHex: targetHex,
         gkDivePosition: gk?.position ?? state.ball.position,
@@ -3510,7 +3661,11 @@ export function applyResolveHeaderTarget(
     // If it's a teammate: winnerTeam keeps attacking.
     // If it's an opponent: possession changes, that team now attacks.
     const receiverTeam = occupant.teamId;
-    const occupantBall = { position: targetHex, carrierId: occupant.id };
+    const occupantBall = {
+      position: targetHex,
+      carrierId: occupant.id,
+      lastTouchedBy: { pieceId: occupant.id, teamId: occupant.teamId },
+    };
     return {
       ok: true,
       state: {
@@ -3551,7 +3706,14 @@ export function applyResolveHeaderTarget(
   // Empty hex: loose ball — go to PASS (carrierId=null) so the ActionPanel shows the
   // "Loose Ball — Move" gate. The player must explicitly start movement, matching the
   // regular loose-ball UX (standard pass landing on empty hex).
-  const looseBall = { position: targetHex, carrierId: null };
+  // Empty hex: the header winner touched the ball last, even though nobody carries it now.
+  const looseBall = {
+    position: targetHex,
+    carrierId: null,
+    lastTouchedBy: resolvedWinner
+      ? { pieceId: resolvedWinner.id, teamId: resolvedWinner.teamId }
+      : state.ball.lastTouchedBy,
+  };
   return {
     ok: true,
     state: {
@@ -4419,7 +4581,13 @@ export function applyFreeKickReady(
     state: {
       ...state,
       phase: 'PASS',
-      ball: kicker ? { position: kicker.position, carrierId: kicker.id } : state.ball,
+      ball: kicker
+        ? {
+            position: kicker.position,
+            carrierId: kicker.id,
+            lastTouchedBy: { pieceId: kicker.id, teamId: kicker.teamId },
+          }
+        : state.ball,
       attackingTeam: kickingTeam,
       activeTeam: kickingTeam,
       lastActionType: 'FREE_KICK_RESTART',
@@ -4512,7 +4680,7 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
       paceUsedByPieceId: {},
       movementSlot: null,
       pieces: resetPieces, // Pitfall 6: reset to formation starting positions
-      ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null }, // reset ball to centre hex
+      ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // reset ball to centre hex — half-time reset, fresh state
       lastDiceRoll: null,
       lastShotPath: null, // clear any residual shot path from first half
       offsidePieceIds: [], // clear stale first-half offside flags
@@ -4602,7 +4770,7 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
       finalState.selectedTeams,
       finalState.selectedFormation,
     ),
-    ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+    ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null }, // fresh replay seed state — nobody has touched the ball yet
     score: { home: 0, away: 0 },
     actionCount: 0,
     half: 1,
@@ -4652,7 +4820,9 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
           const candidate = path[n - 1]!.ballAfter;
           // prefer carrier's ballAfter; otherwise accept any piece that stepped at this tick
           if (!ballUpdated || candidate.carrierId !== null) {
-            stepBall = candidate;
+            // Replay reconstruction does not need per-step toucher fidelity (D-06 exemption,
+            // Task 2 plan note) — carry the existing lastTouchedBy forward unchanged.
+            stepBall = { ...candidate, lastTouchedBy: current.ball.lastTouchedBy };
             ballUpdated = true;
           }
         }
@@ -4727,8 +4897,13 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     }
 
     // Universal ball position update — driven by ballAfter on replay-eligible events (REPLAY-06)
+    // ballAfter is deliberately NOT widened to carry lastTouchedBy (Task 2 plan note: replay
+    // reconstruction does not need toucher fidelity) — carry the existing value forward.
     if ('ballAfter' in event) {
-      current = { ...current, ball: event.ballAfter };
+      current = {
+        ...current,
+        ball: { ...event.ballAfter, lastTouchedBy: current.ball.lastTouchedBy },
+      };
     }
 
     if (REPLAY_ELIGIBLE_TYPES.has(event.type)) {

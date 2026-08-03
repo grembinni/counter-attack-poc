@@ -839,7 +839,7 @@ describe('game integration — game:roll (D-10, T-05-03, T-05-04)', () => {
         passTargetHex = { q: carrier.position.q + 1, r: carrier.position.r };
         room.gameState = {
           ...room.gameState,
-          ball: { position: carrier.position, carrierId },
+          ball: { position: carrier.position, carrierId, lastTouchedBy: null },
           kickOffActive: false, // clear kick-off enforcement for this general pass test
           // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current
           // so broadcastState's applyFreeMoveZoneCheck does not fire mid-test — this
@@ -924,7 +924,7 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
     room.gameState = {
       ...room.gameState,
       phase: 'GK_RESTART',
-      ball: { position: awayGK.position, carrierId: awayGK.id },
+      ball: { position: awayGK.position, carrierId: awayGK.id, lastTouchedBy: null },
       attackingTeam: 'home', // home was attacking before the save
       activeTeam: 'away', // GK team is now relevant
       // MOVE-06 (Phase 17, corrected design): mark the ball's zone as already current
@@ -1023,6 +1023,7 @@ describe('game:shot (D-06)', () => {
       ball: {
         position: shooterPos,
         carrierId,
+        lastTouchedBy: null,
       },
     };
     // clientA = slot 1 = 'home'; clientB = slot 2 = 'away'

@@ -182,7 +182,7 @@ function seedPassPhase(roomCode: string, carrierId = 'home-1'): void {
     phase: 'PASS',
     attackingTeam: 'home',
     activeTeam: 'home',
-    ball: { position: carrier.position, carrierId },
+    ball: { position: carrier.position, carrierId, lastTouchedBy: null },
     lastActionType: 'MOVEMENT_PHASE',
     kickOffActive: false,
     movedPieceIds: [],

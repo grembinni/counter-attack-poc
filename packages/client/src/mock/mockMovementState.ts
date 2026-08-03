@@ -65,7 +65,7 @@ export const mockMovementState: GameState = {
       position: AWAY_POSITIONS[`away-${i}`] ?? { q: 36 - p.position.q, r: p.position.r },
     })),
   ],
-  ball: { position: { q: 18, r: 13 }, carrierId: 'home-9' },
+  ball: { position: { q: 18, r: 13 }, carrierId: 'home-9', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 3,
   half: 1,

@@ -183,7 +183,7 @@ describe('OFFSIDE-02 Task 2: GAME_MOVE loose-ball pickup triggers the foul', () 
       movementSlot: 'ATTACKER_4',
       movedPieceIds: [],
       paceUsedByPieceId: {},
-      ball: { position: ballPos, carrierId: null },
+      ball: { position: ballPos, carrierId: null, lastTouchedBy: null },
       offsidePieceIds: [homeOutfielder.id],
       pieces: room.gameState.pieces.map((p) =>
         p.id === homeOutfielder.id ? { ...p, position: startPos } : p,
@@ -221,7 +221,7 @@ describe('OFFSIDE-02 Task 2: GAME_MOVE loose-ball pickup triggers the foul', () 
       movementSlot: 'ATTACKER_4',
       movedPieceIds: [],
       paceUsedByPieceId: {},
-      ball: { position: ballPos, carrierId: null },
+      ball: { position: ballPos, carrierId: null, lastTouchedBy: null },
       offsidePieceIds: [],
       pieces: room.gameState.pieces.map((p) =>
         p.id === homeOutfielder.id ? { ...p, position: startPos } : p,
@@ -275,7 +275,7 @@ function seedFreeKickSetup(
     movedPieceIds: kickerId ? [kickerId] : [],
     attackingTeam: 'away',
     activeTeam: 'away',
-    ball: { position: freeKickHex, carrierId: null },
+    ball: { position: freeKickHex, carrierId: null, lastTouchedBy: null },
     offsidePieceIds: [],
     pieces: kickerId
       ? room.gameState.pieces.map((p) => (p.id === kickerId ? { ...p, position: freeKickHex } : p))
@@ -602,7 +602,7 @@ describe('OFFSIDE-02 D-41: SNAPSHOT_DEFLECT deflection triggers the foul for a f
       phase: 'SNAPSHOT_DEFLECT',
       attackingTeam: 'home',
       activeTeam: 'away',
-      ball: { position: carrierPos, carrierId: carrier.id },
+      ball: { position: carrierPos, carrierId: carrier.id, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): the carrier is already in the away third
       // (q=33 >= 26) before this end-turn — set ballZone to match so broadcastState's
       // applyFreeMoveZoneCheck does not treat the post-deflection ball position as a
@@ -685,7 +685,7 @@ describe('OFFSIDE-02 D-41: regular GAME_SHOT deflection triggers the foul for a 
       attackingTeam: 'home',
       activeTeam: 'home',
       lastActionType: null,
-      ball: { position: carrierPos, carrierId: carrier.id },
+      ball: { position: carrierPos, carrierId: carrier.id, lastTouchedBy: null },
       // MOVE-06 (Phase 17, corrected design): the deflection moves the ball to onPathPos
       // (q=30, away third) — pre-set ballZone to 'away' so this isn't treated as a fresh
       // entry into a final third by broadcastState's applyFreeMoveZoneCheck, which would

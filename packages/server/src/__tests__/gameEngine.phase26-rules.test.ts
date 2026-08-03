@@ -103,7 +103,7 @@ const baseState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayDef, awayGk],
-  ball: { position: { q: 25, r: 12 }, carrierId: 'home-fwd' },
+  ball: { position: { q: 25, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 5,
   half: 1,
@@ -146,7 +146,7 @@ const makeHeaderStateWinnerNotAtBall = (overrides: Partial<GameState> = {}): Gam
   lastActionType: 'HIGH_PASS',
   movementSlot: null,
   // Ball is far from the winner's position — the key distinguishing factor for BUG-28.
-  ball: { position: { q: 10, r: 12 }, carrierId: null },
+  ball: { position: { q: 10, r: 12 }, carrierId: null, lastTouchedBy: null },
   pieces: [
     { ...homeFwd, position: { q: 25, r: 12 } }, // winner at a position ≠ ball
     { ...awayDef, position: { q: 26, r: 12 } },
@@ -197,7 +197,7 @@ describe('BUG-28: applyResolveHeaderTarget — referencePosition uses winning co
         { ...awayDef, position: { q: 33, r: 12 } },
         awayGk,
       ],
-      ball: { position: { q: 10, r: 12 }, carrierId: null }, // ball still far
+      ball: { position: { q: 10, r: 12 }, carrierId: null, lastTouchedBy: null }, // ball still far
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerDuelWinner: 'home',
     });
@@ -218,7 +218,7 @@ describe('BUG-28: applyResolveHeaderTarget — referencePosition uses winning co
       phase: 'HEADER',
       lastActionType: 'HIGH_PASS',
       movementSlot: null,
-      ball: { position: { q: 25, r: 12 }, carrierId: ballCarrierId },
+      ball: { position: { q: 25, r: 12 }, carrierId: ballCarrierId, lastTouchedBy: null },
       pieces: [
         { ...homeFwd, position: { q: 25, r: 12 } }, // ball carrier at {q:25,r:12}
         awayGk,
@@ -286,7 +286,11 @@ const makeShotState = (shooterQ: number, shooterR: number): GameState => {
     attackingTeam: 'home',
     activeTeam: 'home',
     lastActionType: 'MOVEMENT_PHASE', // MOVEMENT_PHASE → SHOT is eligible
-    ball: { position: { q: shooterQ, r: shooterR }, carrierId: 'home-shooter' },
+    ball: {
+      position: { q: shooterQ, r: shooterR },
+      carrierId: 'home-shooter',
+      lastTouchedBy: null,
+    },
     pieces: [shooter, awayGk], // awayGk is GK for defending team (away)
   };
 };

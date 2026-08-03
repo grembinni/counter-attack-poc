@@ -118,7 +118,7 @@ const baseState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayGk, homeMid, awayDef],
-  ball: { position: homeFwd.position, carrierId: 'home-fwd' },
+  ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -182,7 +182,7 @@ describe('D-22: GOAL event appended to eventLog on shot goal', () => {
     // Shooter (home-fwd, shooting=9) vs GK (away-gk, saving=8, handling=8)
     // Force a GOAL: shooter die=6 (6+9=15), GK die=1 (1+8=9) → shooter wins by 6 → GOAL
     const state = makeShotState({
-      ball: { position: homeFwd.position, carrierId: 'home-fwd' },
+      ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null },
       shotTargetHex: { q: 36, r: 13 },
     });
     const result = applyRoll(state, 6, 1);
@@ -246,7 +246,7 @@ describe('D-21: pickWinner determinism', () => {
         homeMid,
         awayGk,
       ],
-      ball: { position: { q: 33, r: 12 }, carrierId: null },
+      ball: { position: { q: 33, r: 12 }, carrierId: null, lastTouchedBy: null },
     });
     // d1=4 (attacker), d2=4 (defender), d3=1 (tie-break → attacker wins by convention)
     const result1 = applyRoll(state, 4, 4, 1);
@@ -281,7 +281,7 @@ describe('D-23: HEADER tie → LOOSE_BALL lastActionType=DEFLECTION', () => {
         homeMid,
         awayGk,
       ],
-      ball: { position: { q: 33, r: 12 }, carrierId: null },
+      ball: { position: { q: 33, r: 12 }, carrierId: null, lastTouchedBy: null },
     });
     // Roll tie: attacker=4 (4+5=9), defender=4 (4+5=9) → tie
     const result = applyRoll(state, 4, 4);
@@ -328,7 +328,7 @@ describe('D-26: Loose Ball boundary clamp', () => {
       phase: 'LOOSE_BALL',
       movementSlot: null,
       lastActionType: 'DEFLECTION',
-      ball: { position: { q: 35, r: 13 }, carrierId: null },
+      ball: { position: { q: 35, r: 13 }, carrierId: null, lastTouchedBy: null },
     };
     // Try multiple direction+distance combos to check none land off-board
     for (const d1 of [1, 2, 3, 4, 5, 6] as const) {
@@ -367,7 +367,7 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
       { ...homeMid, position: { q: 15, r: 12 } },
       { ...awayGk, position: { q: 36, r: 13 } },
     ],
-    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
     paceUsedByPieceId: {},
     movedPieceIds: [],
   };
@@ -423,7 +423,7 @@ describe('D-29: one-steal / one-tackle enforcement in applyMove', () => {
       { ...homeMid, position: { q: 15, r: 12 } },
       { ...awayGk, position: { q: 36, r: 13 } },
     ],
-    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd' },
+    ball: { position: { q: 32, r: 12 }, carrierId: 'home-fwd', lastTouchedBy: null },
     paceUsedByPieceId: {},
     movedPieceIds: [],
   };
@@ -482,7 +482,7 @@ describe('D-30: loose-ball pickup continues movement action', () => {
       activeTeam: 'home',
       attackingTeam: 'home',
       pieces: [{ ...homeFwd, position: { q: 20, r: 12 } }, awayGk, homeMid, awayDef],
-      ball: { position: { q: 21, r: 12 }, carrierId: null }, // loose ball 1 hex ahead
+      ball: { position: { q: 21, r: 12 }, carrierId: null, lastTouchedBy: null }, // loose ball 1 hex ahead
       paceUsedByPieceId: { 'home-fwd': 1 }, // already used 1 of 9 pace
       movedPieceIds: [],
     };
@@ -515,7 +515,7 @@ describe('D-30: loose-ball pickup continues movement action', () => {
         { ...homeMid, position: { q: 15, r: 12 } },
         { ...awayGk, position: { q: 36, r: 13 } },
       ],
-      ball: { position: { q: 21, r: 12 }, carrierId: null }, // loose ball adjacent to awayDef
+      ball: { position: { q: 21, r: 12 }, carrierId: null, lastTouchedBy: null }, // loose ball adjacent to awayDef
       paceUsedByPieceId: {},
       movedPieceIds: [],
     };
@@ -587,7 +587,7 @@ describe('HEAD-03: goal-line header redirect in applyRoll HEADER', () => {
       homeMid,
       { ...awayGk, position: { q: 36, r: 13 } }, // GK
     ],
-    ball: { position: { q: 34, r: 12 }, carrierId: null },
+    ball: { position: { q: 34, r: 12 }, carrierId: null, lastTouchedBy: null },
     headerContestants: { home: ['home-fwd'], away: ['away-def'] },
     headerConfirmed: { home: true, away: true },
     headerTargetHex: targetHex,
@@ -654,7 +654,7 @@ describe('applyGKDive guards (Phase 10)', () => {
     movementSlot: null,
     activeTeam: 'away',
     lastActionType: 'SHOT',
-    ball: { position: homeFwd.position, carrierId: 'home-fwd' }, // shooter holds ball
+    ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null }, // shooter holds ball
     shotTargetHex: { q: 36, r: 13 }, // goal hex = default dive target
     gkDivePosition: { q: 36, r: 13 }, // GK starts at goal hex
     ...overrides,

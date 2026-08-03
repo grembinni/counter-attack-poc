@@ -37,7 +37,7 @@ function baseStateWithDefender(defenderId: string, stealAttemptedByIds: string[]
   return {
     ...mockMovementState,
     pieces,
-    ball: { position: CARRIER_POS, carrierId: CARRIER_ID },
+    ball: { position: CARRIER_POS, carrierId: CARRIER_ID, lastTouchedBy: null },
     stealAttemptedByIds,
   };
 }
@@ -82,7 +82,7 @@ function shootingModeStateWithShooterAt(pos: { q: number; r: number }) {
     attackingTeam: 'away' as const,
     activeTeam: 'away' as const,
     pieces,
-    ball: { position: pos, carrierId: SHOOTER_ID },
+    ball: { position: pos, carrierId: SHOOTER_ID, lastTouchedBy: null },
   };
 }
 
@@ -164,7 +164,7 @@ describe('HexGrid — gap closure plan 10: regular-shot highlight matches D-09 1
       attackingTeam: 'away' as const,
       activeTeam: 'away' as const,
       pieces,
-      ball: { position: SNAP_SHOOTER_POS, carrierId: SHOOTER_ID },
+      ball: { position: SNAP_SHOOTER_POS, carrierId: SHOOTER_ID, lastTouchedBy: null },
     };
     useGameStore.setState({
       gameState: state,
@@ -224,7 +224,7 @@ describe('HexGrid — D-02 gap closure: zoiRiskSet excludes stealAttemptedByIds 
     const state = {
       ...mockMovementState,
       pieces,
-      ball: { position: CARRIER_POS, carrierId: CARRIER_ID },
+      ball: { position: CARRIER_POS, carrierId: CARRIER_ID, lastTouchedBy: null },
       stealAttemptedByIds: [excludedDefenderId],
     };
     useGameStore.setState({
@@ -304,7 +304,7 @@ function ftpMoveState(overrides: {
     attackingTeam: 'home' as const,
     activeTeam: 'home' as const,
     pieces,
-    ball: { position: CARRIER_POS, carrierId: FTP_OWN_PIECE_ID },
+    ball: { position: CARRIER_POS, carrierId: FTP_OWN_PIECE_ID, lastTouchedBy: null },
     firstTimePassMovementSlot: 'ATTACKER' as const,
     firstTimePassMovedPieceId: overrides.firstTimePassMovedPieceId ?? null,
     firstTimePassPaceUsed: overrides.firstTimePassPaceUsed ?? 0,
@@ -1166,7 +1166,7 @@ describe('HexGrid — Plan 33-06: GK_KICK_TARGET tint routed through HexCell (HI
       phase: 'GK_KICK_TARGET' as const,
       activeTeam: 'home' as const,
       attackingTeam: 'away' as const,
-      ball: { position: { q: 1, r: 13 }, carrierId: 'home-0' }, // home GK
+      ball: { position: { q: 1, r: 13 }, carrierId: 'home-0', lastTouchedBy: null }, // home GK
     };
     useGameStore.setState({
       gameState: state,
@@ -1190,7 +1190,7 @@ describe('HexGrid — Plan 33-06: pass-target / tackle-risk tints routed through
       activeTeam: 'home' as const,
       attackingTeam: 'home' as const,
       lastActionType: null,
-      ball: { position: CARRIER_POS, carrierId: CARRIER_ID },
+      ball: { position: CARRIER_POS, carrierId: CARRIER_ID, lastTouchedBy: null },
     };
   }
 
@@ -1284,7 +1284,7 @@ describe('HexGrid — Plan 33-06: BallLocationRing marker replaces the deleted H
     const state = {
       ...mockMovementState,
       phase: 'HEADER' as const,
-      ball: { position: BALL_HEX, carrierId: null },
+      ball: { position: BALL_HEX, carrierId: null, lastTouchedBy: null },
     };
     useGameStore.setState({
       gameState: state,
@@ -1306,7 +1306,7 @@ describe('HexGrid — Plan 33-06: BallLocationRing marker replaces the deleted H
     const state = {
       ...mockMovementState,
       phase: 'MOVE' as const,
-      ball: { position: BALL_HEX, carrierId: 'home-9' },
+      ball: { position: BALL_HEX, carrierId: 'home-9', lastTouchedBy: null },
     };
     useGameStore.setState({
       gameState: state,

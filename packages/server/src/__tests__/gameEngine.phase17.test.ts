@@ -125,7 +125,7 @@ const baseMovementState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFWD, awayGK, awayDEF],
-  ball: { position: { q: 10, r: 7 }, carrierId: null },
+  ball: { position: { q: 10, r: 7 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -151,7 +151,7 @@ const passState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFWD, homeMID, awayGK, awayDEF],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -207,7 +207,7 @@ const highPassMovementStateWithMove: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFWD, awayGK, awayDEF],
-  ball: { position: { q: 10, r: 7 }, carrierId: null },
+  ball: { position: { q: 10, r: 7 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -270,7 +270,7 @@ const shotStateNearGK: GameState = {
     { ...homeFWD, position: { q: 10, r: 7 } },
     { ...awayGK, position: { q: 11, r: 7 } }, // GK 1 hex from shooter → saveable
   ],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -542,7 +542,7 @@ const middleZonePassState: GameState = {
   ...baseMovementState,
   phase: 'PASS',
   movementSlot: null,
-  ball: { position: { q: 15, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 15, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
   ballZone: 'middle',
   pieces: [homeFWD, homeMID, awayGK, awayDEF],
 };
@@ -551,7 +551,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
   it('does not trigger when the ball stays in the same zone (no retrigger)', () => {
     const state: GameState = {
       ...middleZonePassState,
-      ball: { position: { q: 29, r: 7 }, carrierId: 'home-2' }, // awayThird
+      ball: { position: { q: 29, r: 7 }, carrierId: 'home-2', lastTouchedBy: null }, // awayThird
       ballZone: 'away', // already away — same zone as the new position
     };
     const result = applyFreeMoveZoneCheck(state);
@@ -563,7 +563,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
   it('does not trigger when the new zone is middle', () => {
     const state: GameState = {
       ...middleZonePassState,
-      ball: { position: { q: 18, r: 7 }, carrierId: 'home-9' }, // middleThird
+      ball: { position: { q: 18, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // middleThird
       ballZone: 'home', // was home, now middle — not a final-third entry
     };
     const result = applyFreeMoveZoneCheck(state);
@@ -577,7 +577,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     // (the OPPOSITE third from the ball's new 'away' zone) — both eligible.
     const state: GameState = {
       ...middleZonePassState,
-      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
       ballZone: 'home', // direct home→away jump
       pieces: [
         { ...homeFWD, position: { q: 30, r: 7 } },
@@ -600,7 +600,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     const state: GameState = {
       ...middleZonePassState,
       attackingTeam: 'away', // away is attacking this time
-      ball: { position: { q: 5, r: 7 }, carrierId: null }, // homeThird
+      ball: { position: { q: 5, r: 7 }, carrierId: null, lastTouchedBy: null }, // homeThird
       ballZone: 'middle', // fresh entry into 'home'
       pieces: [
         { ...homeFWD, position: { q: 30, r: 7 } }, // home team, in awayThird (opposite of homeThird)
@@ -624,7 +624,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
   it('skips straight to FREE_MOVE_DEFENSE when the attack list is empty', () => {
     const state: GameState = {
       ...middleZonePassState,
-      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
       ballZone: 'home',
       pieces: [
         { ...homeFWD, position: { q: 30, r: 7 } },
@@ -642,7 +642,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
   it('stays on the triggering phase with ballZone updated when both lists are empty', () => {
     const state: GameState = {
       ...middleZonePassState,
-      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
       ballZone: 'home',
       pieces: [
         { ...homeFWD, position: { q: 30, r: 7 } },
@@ -661,7 +661,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     const state: GameState = {
       ...middleZonePassState,
       phase: 'HALF_TIME',
-      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ball: { position: { q: 30, r: 7 }, carrierId: null, lastTouchedBy: null },
       ballZone: 'home',
       pieces: [homeFWD, { ...homeMID, position: { q: 5, r: 7 } }, awayGK, awayDEF],
     };
@@ -673,7 +673,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     const state: GameState = {
       ...middleZonePassState,
       phase: 'FULL_TIME',
-      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ball: { position: { q: 30, r: 7 }, carrierId: null, lastTouchedBy: null },
       ballZone: 'home',
       pieces: [homeFWD, { ...homeMID, position: { q: 5, r: 7 } }, awayGK, awayDEF],
     };
@@ -686,7 +686,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     // it must not leak into the fresh FREE_MOVE_ATTACK/DEFENSE sub-phase.
     const state: GameState = {
       ...middleZonePassState,
-      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
       ballZone: 'home', // direct home→away jump
       movedPieceIds: ['home-9', 'away-1'], // stale from a prior phase
       pieces: [
@@ -705,7 +705,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     const attackState: GameState = {
       ...middleZonePassState,
       phase: 'FREE_MOVE_ATTACK',
-      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ball: { position: { q: 30, r: 7 }, carrierId: null, lastTouchedBy: null },
       ballZone: 'away',
       freeMoveEligibleIds: { attack: ['home-2'], defense: [] },
       freeMoveUsedPace: {},
@@ -729,7 +729,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
       ...middleZonePassState,
       phase: 'MOVE',
       movementSlot: 'ATTACKER_4',
-      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
       ballZone: 'middle', // was middle — fresh entry into final third
       pieces: [
         { ...homeFWD, position: { q: 5, r: 7 } }, // homeThird — eligible
@@ -755,7 +755,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
       ...middleZonePassState,
       phase: 'PASS',
       movementSlot: null,
-      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9' }, // awayThird
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
       ballZone: 'middle', // still stale from before the MOVE slot (deferral kept it unchanged)
       pieces: [
         { ...homeFWD, position: { q: 30, r: 7 } }, // awayThird (ball here)
@@ -777,7 +777,7 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
       ...middleZonePassState,
       phase: 'HEADER',
       movementSlot: null,
-      ball: { position: { q: 5, r: 7 }, carrierId: null }, // homeThird
+      ball: { position: { q: 5, r: 7 }, carrierId: null, lastTouchedBy: null }, // homeThird
       ballZone: 'middle', // was middle — fresh entry
       pieces: [
         { ...homeFWD, position: { q: 30, r: 7 } }, // awayThird — eligible (opposite of homeThird)
@@ -1093,7 +1093,7 @@ const ftpMoveAttackerState: GameState = {
   activeTeam: 'home', // attackingTeam goes first
   attackingTeam: 'home',
   pieces: [homeFWD, homeMIDAtTarget, awayGK, awayDEF],
-  ball: { position: { q: 14, r: 7 }, carrierId: null }, // in flight
+  ball: { position: { q: 14, r: 7 }, carrierId: null, lastTouchedBy: null }, // in flight
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -1158,7 +1158,7 @@ describe('Phase 17.1 D-03: FIRST_TIME_PASS_MOVE two-slot alternating handler', (
     const finalState: GameState = {
       ...stateAfterAttacker,
       phase: 'PASS',
-      ball: { position: targetHex, carrierId: receiver?.id ?? null },
+      ball: { position: targetHex, carrierId: receiver?.id ?? null, lastTouchedBy: null },
       lastActionType: 'FIRST_TIME_PASS',
       activeTeam: 'home',
       firstTimePassMovementSlot: null,
@@ -1445,7 +1445,7 @@ const attacker2GKInAreaState: GameState = {
   ...baseMovementState,
   movementSlot: 'ATTACKER_2',
   pieces: [homeGK, homeFWD, awayGK, awayDEF],
-  ball: { position: { q: 3, r: 10 }, carrierId: 'home-0' }, // GK has ball in own area
+  ball: { position: { q: 3, r: 10 }, carrierId: 'home-0', lastTouchedBy: null }, // GK has ball in own area
   attackingTeam: 'home', // home team carries the ball
 };
 
@@ -1458,7 +1458,7 @@ const attacker2GKOutsideAreaState: GameState = {
     awayGK,
     awayDEF,
   ],
-  ball: { position: { q: 10, r: 10 }, carrierId: 'home-0' },
+  ball: { position: { q: 10, r: 10 }, carrierId: 'home-0', lastTouchedBy: null },
 };
 
 describe('Phase 17.1 D-06: GK_RESTART trigger at ATTACKER_2 End Turn', () => {
@@ -1517,7 +1517,7 @@ const looseBallNearEdgeState: GameState = {
     { ...homeFWD, position: { q: 5, r: 7 } }, // far from scatter path
     { ...awayGK, position: { q: 29, r: 7 } }, // far from scatter path
   ],
-  ball: { position: { q: 34, r: 7 }, carrierId: null },
+  ball: { position: { q: 34, r: 7 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -1582,7 +1582,7 @@ const passStateShooterFar: GameState = {
     { ...awayGK, position: { q: 33, r: 13 } }, // GK near goal
     { ...awayDEF, position: { q: 20, r: 7 } },
   ],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
   lastActionType: 'MOVEMENT_PHASE',
 };
 
@@ -1595,7 +1595,7 @@ const passStateShooterAt11: GameState = {
     { ...awayGK, position: { q: 33, r: 13 } }, // GK near goal
     { ...awayDEF, position: { q: 20, r: 7 } },
   ],
-  ball: { position: { q: 25, r: 13 }, carrierId: 'home-9' },
+  ball: { position: { q: 25, r: 13 }, carrierId: 'home-9', lastTouchedBy: null },
   lastActionType: 'MOVEMENT_PHASE',
 };
 
