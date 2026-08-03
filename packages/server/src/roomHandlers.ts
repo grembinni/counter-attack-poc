@@ -258,11 +258,20 @@ export function registerRoomHandlers(
       const roomCode = socket.data.roomCode;
       if (roomCode === undefined) return;
 
+      // CR-02 (Phase 36 review): mirror the room.gameState !== null guard every other
+      // room-mutating handler in this file applies (see TEAM_SPEED_SET, ROOM_SETTINGS_CONFIRM
+      // above) — LEAVE_ROOM is documented as "host abandons the pre-game settings screen" but
+      // previously had no guard verifying that, letting any connected socket (home or away, at
+      // any point including mid-match) delete an active match's room out from under the
+      // opponent. If the room is already gone, or has an in-progress match, do nothing further.
+      const room = getRoom(roomCode);
+      if (room && room.gameState !== null) return;
+
       // CR-01 (Phase 36 review): notify any other room member before the room disappears
       // out from under them — deleteRoom below never emits anything on its own, and without
       // this the other socket is left stranded on its current screen with a roomCode that
       // now points at nothing (every handler's `getRoom` guard silently drops their events).
-      socket.to(roomCode).emit(ServerEvents.ROOM_ERROR, 'ROOM_CLOSED');
+      if (room) socket.to(roomCode).emit(ServerEvents.ROOM_ERROR, 'ROOM_CLOSED');
 
       deleteRoom(roomCode);
       void socket.leave(roomCode);
