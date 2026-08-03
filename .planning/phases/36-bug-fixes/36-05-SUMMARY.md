@@ -114,3 +114,12 @@ None - no external service configuration required.
 
 _Phase: 36-bug-fixes_
 _Completed: 2026-08-02_
+
+## Self-Check: PASSED
+
+- FOUND: commit ec0c8ba (Task 1: applyUndo boundary extension + server tests)
+- FOUND: commit 47c1c32 (Task 2: canUndo mirror + client tests)
+- FOUND: commit 8a4f95e (docs: plan summary)
+- FOUND: .planning/phases/36-bug-fixes/36-05-SUMMARY.md
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/client/src/components/ActionPanel.tsx
