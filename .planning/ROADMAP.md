@@ -147,7 +147,45 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 3. When the ball exits over the defending byline without last being touched by the attacking team (including an untouched off-target shot), the defending goalkeeper is awarded a goal kick as its own dedicated setup screen: both final-thirds reposition up to 6 hexes each (goalkeeper's team first), then the goalkeeper chooses a Kick (High Pass, combined score 8+ required, inaccurate results in a Loose Ball) or an unmodified Standard Pass, with both teams able to move one player up to 3 hexes while a Kicked ball travels and the receiver required to head it.
 4. When Out-of-Bounds/Restarts is disabled at game creation, the ball continues to clamp to the pitch boundary exactly as it does today, and none of the new restart flows are reachable.
 
-**Plans**: TBD
+**Plans**: 10 plans
+Plans:
+**Wave 1**
+
+- [ ] 37-01-PLAN.md — Pure out-of-bounds classification module + required `ball.lastTouchedBy`
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 37-02-PLAN.md — New phases, state fields, last-action rows, action events and socket events
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 37-03-PLAN.md — Out-of-Bounds/Restarts game-creation toggle plumbed end to end
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
+- [ ] 37-04-PLAN.md — Classification hooked into the LOOSE_BALL clamp; throw-in / goal-kick restart trigger
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
+- [ ] 37-05-PLAN.md — Throw-in setup placement and the two-Movement-Phase choice model
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
+- [ ] 37-06-PLAN.md — The throw itself: 6-hex cap, Low/High reuse, context teardown, reclassification
+- [ ] 37-07-PLAN.md — Throw-in client surface: ThrowInSetupPanel, pitch wiring, action copy
+
+**Wave 7** _(blocked on Wave 6 completion)_
+
+- [ ] 37-08-PLAN.md — Goal kick: two 6-hex reposition windows and the Kick/Standard-Pass choice
+
+**Wave 8** _(blocked on Wave 7 completion)_
+
+- [ ] 37-09-PLAN.md — Goal kick: teammate-head target, 3-hex travel window, accuracy resolution
+
+**Wave 9** _(blocked on Wave 8 completion)_
+
+- [ ] 37-10-PLAN.md — Goal-kick client surface: GoalKickSetupPanel, store wiring, pitch wiring
+
 **UI hint**: yes
 
 ### Phase 38: Corner Kick
