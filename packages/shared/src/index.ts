@@ -18,3 +18,4 @@ export * from './offside.js'; // Phase 17 OFFSIDE-01: team-relative offside geom
 export * from './uniformStyles.js'; // Phase 20: UniformStyleId type + UNIFORM_STYLE_META
 export * from './formations.js'; // Phase 23: FormationId, FormationSlot, SlotRole, FORMATIONS
 export * from './draftEngine.js'; // Phase 28: pool derivation + tier classification (DRAFT-04)
+export * from './outOfBounds.js'; // Phase 37 OOB-01/OOB-02/OOB-04: sideline/byline classification + restart-type geometry
