@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
-status: planning
-last_updated: '2026-08-03T12:59:20.980Z'
+status: ready_to_plan
+last_updated: '2026-08-03T13:30:00.000Z'
 last_activity: 2026-08-03
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,66 +17,70 @@ progress:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-08-03 — Milestone v1.6 started
+Phase: 37 of 40 (v1.6) — Out-of-Bounds Detection, Throw-In & Goal Kick
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-08-03 — v1.6 ROADMAP.md created (Phases 37–40, 55/55 requirements mapped, 0 unmapped)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Planning next milestone
+**Current focus:** v1.6 Fouls, Cards & Restarts — Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick), ready to plan
 
 ## Phase Status
 
-| Phase | Name                                       | Status   | Completed  |
-| ----- | ------------------------------------------ | -------- | ---------- |
-| 1     | Monorepo Scaffold + Shared Types           | Complete | 2026-05-28 |
-| 2     | Move Validator + Unit Tests                | Complete | 2026-05-29 |
-| 3     | Server Room Manager + Socket.io Scaffold   | Complete | 2026-05-29 |
-| 4     | Game Engine + Phase FSM                    | Complete | 2026-05-30 |
-| 5     | Dice Resolver + All Resolution Branches    | Complete | 2026-05-30 |
-| 6     | React Hex Grid Renderer                    | Complete | 2026-05-31 |
-| 7     | Client-Server Integration                  | Complete | 2026-06-03 |
-| 7.1   | UI Cleanup                                 | Complete | 2026-06-04 |
-| 8     | Match Lifecycle + Post-Game Replay         | Complete | 2026-06-05 |
-| 8.1   | Cleanup — Player Stats, Movement, Tackling | Complete | 2026-06-05 |
-| 8.2   | Passing Cleanup                            | Complete | 2026-06-07 |
-| 9     | Render Deployment                          | Complete | 2026-06-08 |
-| 10    | Remaining Action Flows + Tech Debt         | Complete | 2026-06-11 |
-| 11    | Rule Correctness                           | Complete | 2026-06-12 |
-| 12    | Visual Token & Hex Layer                   | Complete | 2026-06-12 |
-| 13    | Layout & Clock                             | Complete | 2026-06-12 |
-| 14    | Kick Off Rules & Replay                    | Complete | 2026-06-12 |
-| 15    | Team Identity                              | Complete | 2026-06-13 |
-| 16    | Player Roster & Team Selection             | Complete | 2026-06-14 |
-| 17    | Rule Bugs                                  | Complete | 2026-06-21 |
-| 17.1  | Action Flow Cleanup                        | Complete | 2026-06-20 |
-| 18    | Messaging & Logging Consistency            | Complete | 2026-07-02 |
-| 18.1  | Replay Review                              | Complete | 2026-06-21 |
-| 18.2  | Code Cleanup & Dup-Bugs                    | Complete | 2026-06-22 |
-| 18.3  | Bug-Bash: Rule Correctness                 | Complete | 2026-07-02 |
-| 18.4  | UX Enhancements                            | Complete | 2026-07-02 |
-| 19    | Data Model & Team Palette                  | Complete | 2026-07-03 |
-| 20    | Uniform Style System                       | Complete | 2026-07-04 |
-| 21    | New Teams (MLS + International)            | Complete | 2026-07-04 |
-| 22    | Uniform Selection Screen                   | Complete | 2026-07-05 |
-| 23    | Formation System                           | Complete | 2026-07-05 |
-| 24    | Auto-Assignment & Lineup                   | Complete | 2026-07-10 |
-| 25    | Bug & UAT Closure                          | Complete | 2026-07-11 |
-| 26    | Bug Fixes                                  | Complete | 2026-07-12 |
-| 27    | Game Creation Settings                     | Complete | 2026-07-21 |
-| 28    | Draft Data Model                           | Complete | 2026-07-21 |
-| 29    | Draft UI + Pick-and-Swap Flow              | Complete | 2026-07-22 |
-| 30    | Recalibrate Draft                          | Complete | 2026-07-22 |
-| 31    | Bug Fixes                                  | Complete | 2026-07-24 |
-| 32    | Code Cleanup                               | Complete | 2026-07-25 |
-| 33    | Design Tokens & Highlight Standardization  | Complete | 2026-07-26 |
-| 34    | Visual Theme Restyle                       | Complete | 2026-07-27 |
-| 35    | ActionPanel & Log Standardization          | Complete | 2026-07-27 |
-| 36    | Bug Fixes                                  | Complete | 2026-08-02 |
+| Phase | Name                                          | Status      | Completed  |
+| ----- | --------------------------------------------- | ----------- | ---------- |
+| 1     | Monorepo Scaffold + Shared Types              | Complete    | 2026-05-28 |
+| 2     | Move Validator + Unit Tests                   | Complete    | 2026-05-29 |
+| 3     | Server Room Manager + Socket.io Scaffold      | Complete    | 2026-05-29 |
+| 4     | Game Engine + Phase FSM                       | Complete    | 2026-05-30 |
+| 5     | Dice Resolver + All Resolution Branches       | Complete    | 2026-05-30 |
+| 6     | React Hex Grid Renderer                       | Complete    | 2026-05-31 |
+| 7     | Client-Server Integration                     | Complete    | 2026-06-03 |
+| 7.1   | UI Cleanup                                    | Complete    | 2026-06-04 |
+| 8     | Match Lifecycle + Post-Game Replay            | Complete    | 2026-06-05 |
+| 8.1   | Cleanup — Player Stats, Movement, Tackling    | Complete    | 2026-06-05 |
+| 8.2   | Passing Cleanup                               | Complete    | 2026-06-07 |
+| 9     | Render Deployment                             | Complete    | 2026-06-08 |
+| 10    | Remaining Action Flows + Tech Debt            | Complete    | 2026-06-11 |
+| 11    | Rule Correctness                              | Complete    | 2026-06-12 |
+| 12    | Visual Token & Hex Layer                      | Complete    | 2026-06-12 |
+| 13    | Layout & Clock                                | Complete    | 2026-06-12 |
+| 14    | Kick Off Rules & Replay                       | Complete    | 2026-06-12 |
+| 15    | Team Identity                                 | Complete    | 2026-06-13 |
+| 16    | Player Roster & Team Selection                | Complete    | 2026-06-14 |
+| 17    | Rule Bugs                                     | Complete    | 2026-06-21 |
+| 17.1  | Action Flow Cleanup                           | Complete    | 2026-06-20 |
+| 18    | Messaging & Logging Consistency               | Complete    | 2026-07-02 |
+| 18.1  | Replay Review                                 | Complete    | 2026-06-21 |
+| 18.2  | Code Cleanup & Dup-Bugs                       | Complete    | 2026-06-22 |
+| 18.3  | Bug-Bash: Rule Correctness                    | Complete    | 2026-07-02 |
+| 18.4  | UX Enhancements                               | Complete    | 2026-07-02 |
+| 19    | Data Model & Team Palette                     | Complete    | 2026-07-03 |
+| 20    | Uniform Style System                          | Complete    | 2026-07-04 |
+| 21    | New Teams (MLS + International)               | Complete    | 2026-07-04 |
+| 22    | Uniform Selection Screen                      | Complete    | 2026-07-05 |
+| 23    | Formation System                              | Complete    | 2026-07-05 |
+| 24    | Auto-Assignment & Lineup                      | Complete    | 2026-07-10 |
+| 25    | Bug & UAT Closure                             | Complete    | 2026-07-11 |
+| 26    | Bug Fixes                                     | Complete    | 2026-07-12 |
+| 27    | Game Creation Settings                        | Complete    | 2026-07-21 |
+| 28    | Draft Data Model                              | Complete    | 2026-07-21 |
+| 29    | Draft UI + Pick-and-Swap Flow                 | Complete    | 2026-07-22 |
+| 30    | Recalibrate Draft                             | Complete    | 2026-07-22 |
+| 31    | Bug Fixes                                     | Complete    | 2026-07-24 |
+| 32    | Code Cleanup                                  | Complete    | 2026-07-25 |
+| 33    | Design Tokens & Highlight Standardization     | Complete    | 2026-07-26 |
+| 34    | Visual Theme Restyle                          | Complete    | 2026-07-27 |
+| 35    | ActionPanel & Log Standardization             | Complete    | 2026-07-27 |
+| 36    | Bug Fixes                                     | Complete    | 2026-08-02 |
+| 37    | Out-of-Bounds Detection, Throw-In & Goal Kick | Not started | -          |
+| 38    | Corner Kick                                   | Not started | -          |
+| 39    | Fouls, Cards, Injuries & Penalty Kicks        | Not started | -          |
+| 40    | Substitutions                                 | Not started | -          |
 
 ## Blocking Dependencies
 
@@ -87,6 +91,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - **Pass range distance type:** Resolved in Phase 2 — implemented as axial hex distance (hexDistance). Physical rulebook verification pending before Phase 5 live use.
 - **ZoI scope:** Resolved in Phase 2 — ZoI triggers a STEAL_ATTEMPT for movement (moveValidator) and produces an interceptors list for passes (passValidator). Physical rulebook verification pending before Phase 5 live use.
 - **Formation hex coordinates (v1.3):** Exact hex positions for 5-3-2, 4-3-3, 3-4-3 formations to be authored during Phase 23 with reference to the physical board. 4-4-2 positions are already established from the existing hardcoded layout.
+- **v1.6 rulebook ambiguities (flagged by research, must confirm before/during Phase 39 implementation):** which die triggers a foul (defender's die assumed); Professional Foul red-vs-yellow phrasing (whether it's always-straight-red or a modified red-vs-yellow roll); "nutmeg" mapping to the existing STEAL_ATTEMPT mechanic (assumed, not a third duel type) — see `.planning/research/FEATURES.md` for full detail and recommended defaults.
 
 ## Accumulated Context
 
@@ -99,6 +104,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - v1.5 Phases 31–35 added 2026-07-22 (Bug Fixes → Code Cleanup → Design Tokens & Highlight Standardization → Visual Theme Restyle → ActionPanel & Log Standardization); 20/20 v1.5 requirements mapped, no orphans
 - Phase 36 added 2026-07-27: Bug Fixes (Game Settings button restore, duplicate draft players, draft pool restriction verify, blocked-shot loose-ball path origin, undo-past-dice-roll); expanded v1.5 to 25/25 requirements mapped
 - v1.5 shipped 2026-08-03 (Phases 31–36, 35 plans, 25/25 requirements) — see `.planning/milestones/v1.5-ROADMAP.md`
+- v1.6 Phases 37–40 added 2026-08-03 (Out-of-Bounds Detection/Throw-In/Goal Kick → Corner Kick → Fouls/Cards/Injuries/Penalty Kicks → Substitutions); 55/55 v1.6 requirements mapped, no orphans — see `.planning/ROADMAP.md`
 
 ### Decisions Locked
 
@@ -124,6 +130,13 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - clipPath on `<g>` operates in the group's LOCAL post-translate coordinate space (not SVG viewport space) — CLIP_X=-10, CLIP_RIGHT=1090 reference local hex geometry directly
 - ODD-Q offset arithmetic used for both hex neighbour calculation (highlight reachability) and 3-colour formula — axial arithmetic is wrong for visual adjacency in ODD-Q layout
 - LobbyScreen uses MOCK42 placeholder room code — real server-generated code wired in Phase 7
+- v1.6: generalize FREE_KICK_SETUP's staged-repositioning mechanism (stage-index pattern) into a reusable `RestartSetupState`/`RESTART_STAGES` module rather than copy-pasting free-kick-specific fields three more times for Goal Kick/Corner Kick/Throw-In (research ARCHITECTURE.md Q1)
+- v1.6: Goal Kick reuses the existing `GK_RESTART`→`GK_KICK_TARGET`→`GK_KICK_MOVE` chain via a new out-of-bounds trigger — NOT a new staged phase (research ARCHITECTURE.md, biggest scope-reduction finding)
+- v1.6: new `ball.lastTouchedBy: {pieceId, teamId} | null` field on `BallState` is the single source of truth for out-of-bounds classification — not derived retroactively from `eventLog` scans (research ARCHITECTURE.md Q2)
+- v1.6: injury/booking rolls are wired inline into the `TACKLE_ATTEMPT`/`STEAL_ATTEMPT`/`GK_DIVE_AT_FEET` duel-resolution branches (mirrors existing non-phase-transitioning dice sub-resolution pattern) — never inside the restart-setup phases, so "continue play" fouls still always roll injury/booking (research ARCHITECTURE.md Q3)
+- v1.6: substitutions use an independent `GamePhase[]` allow-list (`STOPPAGE_PHASES`/`isStoppagePhase`), mirroring the existing `validUndoPhases` idiom — NOT threaded through `ELIGIBLE_NEXT_ACTIONS` (research ARCHITECTURE.md Q4)
+- v1.6: user explicitly rejected reusing the GK_RESTART chain for Goal Kick during requirements definition despite this being the research recommendation for the _engine_ reuse — GOALKICK-01 requires Goal Kick to read as its own dedicated flow; reconcile this at Phase 37 planning time (do not silently revert to pure reuse without re-confirming the requirement's intent)
+- v1.6: 4 independent game-creation toggles (Fouls, Booking, Injury, Out-of-Bounds/Restarts) — Injury was split out as its own toggle independent of Booking during requirements definition, differing from research's initial 3-toggle assumption
 
 ### Key Pitfalls to Avoid
 
@@ -133,6 +146,10 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - Define FSM structure before implementing the second game phase
 - Wire disconnect handler in the same commit as room creation (no orphaned rooms)
 - Add `isProcessing` mutex before writing any game logic (prevents double-click race)
+- v1.6: new dice-roll event types are invisible to Undo/Replay unless registered in every relevant list (isBoundary server + client mirror, REPLAY_ELIGIBLE_TYPES, possibly ELIGIBLE_NEXT_ACTIONS) — this bug class has already shipped twice (BUG-30/31, BUG-37); treat every new ActionEventType as a per-event checklist item
+- v1.6: do not reuse the generic `DICE_ROLL` event type for new rolls — it reactivates a dormant full-slot Undo lockout that contradicts the always-fires-without-stopping-play requirement; every new roll needs its own specific ActionEventType
+- v1.6: EventBanner only inspects the last new event per broadcast — a single foul resolution can append 3 chained events (foul, injury, booking) in one broadcast; must process all newly-appended events, not just the tail
+- v1.6: out-of-bounds detection touches 5+ independent existing clamp-to-pitch call sites — audit each individually rather than fixing one and assuming the rest follow
 
 ### Open Questions (resolve before indicated phase)
 
@@ -140,6 +157,9 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - Phase 5: Full attribute values for both hardcoded squads?
 - Phase 8: Tiebreaker rule at full time, or is a draw valid?
 - Phase 8: Does referee card affect anything beyond Leniency/added time?
+- Phase 39: Which die triggers a foul — defender's die (recommended default) or the combined-score outcome? Confirm against rulebook text before implementation.
+- Phase 39: Professional (Last Man) Foul — is CARD-03 always-straight-red, or a modified roll that can still produce yellow? Confirm verbatim rulebook wording before implementation (flagged as the single most safety-critical booking ambiguity this milestone).
+- Phase 39: Confirm "nutmeg" (FOUL-01) maps to the existing STEAL_ATTEMPT mechanic, not a third new duel type.
 
 ### Decisions Locked (Phase 11 Plan 02)
 
@@ -306,9 +326,9 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-03T12:23:41.255Z
-Stopped at: v1.5 milestone archived and complete
-Resume: Run `/gsd-new-milestone` to start the next milestone.
+Last session: 2026-08-03T13:30:00.000Z
+Stopped at: v1.6 ROADMAP.md, STATE.md, and REQUIREMENTS.md traceability created (Phases 37–40, 55/55 requirements mapped)
+Resume: Run `/gsd-plan-phase 37` to begin planning Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick).
 
 ## Performance Metrics
 
@@ -453,4 +473,4 @@ Resume: Run `/gsd-new-milestone` to start the next milestone.
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 37` to plan Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick) — the first phase of v1.6.

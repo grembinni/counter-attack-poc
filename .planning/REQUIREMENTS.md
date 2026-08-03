@@ -127,16 +127,71 @@
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-| ----------- | ----- | ------ |
+| Requirement | Phase    | Status  |
+| ----------- | -------- | ------- |
+| OOB-01      | Phase 37 | Pending |
+| OOB-02      | Phase 37 | Pending |
+| OOB-04      | Phase 37 | Pending |
+| OOB-05      | Phase 37 | Pending |
+| THROWIN-01  | Phase 37 | Pending |
+| THROWIN-02  | Phase 37 | Pending |
+| THROWIN-03  | Phase 37 | Pending |
+| THROWIN-04  | Phase 37 | Pending |
+| THROWIN-05  | Phase 37 | Pending |
+| GOALKICK-01 | Phase 37 | Pending |
+| GOALKICK-02 | Phase 37 | Pending |
+| GOALKICK-03 | Phase 37 | Pending |
+| GOALKICK-04 | Phase 37 | Pending |
+| GOALKICK-05 | Phase 37 | Pending |
+| GOALKICK-06 | Phase 37 | Pending |
+| OOB-03      | Phase 38 | Pending |
+| CORNER-01   | Phase 38 | Pending |
+| CORNER-02   | Phase 38 | Pending |
+| CORNER-03   | Phase 38 | Pending |
+| CORNER-04   | Phase 38 | Pending |
+| CORNER-05   | Phase 38 | Pending |
+| CORNER-06   | Phase 38 | Pending |
+| FOUL-01     | Phase 39 | Pending |
+| FOUL-02     | Phase 39 | Pending |
+| FOUL-03     | Phase 39 | Pending |
+| FOUL-04     | Phase 39 | Pending |
+| FOUL-05     | Phase 39 | Pending |
+| CARD-01     | Phase 39 | Pending |
+| CARD-02     | Phase 39 | Pending |
+| CARD-03     | Phase 39 | Pending |
+| CARD-04     | Phase 39 | Pending |
+| INJURY-01   | Phase 39 | Pending |
+| INJURY-02   | Phase 39 | Pending |
+| INJURY-03   | Phase 39 | Pending |
+| INJURY-04   | Phase 39 | Pending |
+| GKDIVE-01   | Phase 39 | Pending |
+| GKDIVE-02   | Phase 39 | Pending |
+| GKDIVE-03   | Phase 39 | Pending |
+| GKDIVE-04   | Phase 39 | Pending |
+| GKDIVE-05   | Phase 39 | Pending |
+| PEN-01      | Phase 39 | Pending |
+| PEN-02      | Phase 39 | Pending |
+| PEN-03      | Phase 39 | Pending |
+| FK-01       | Phase 39 | Pending |
+| SETTINGS-01 | Phase 39 | Pending |
+| SETTINGS-02 | Phase 39 | Pending |
+| SETTINGS-03 | Phase 39 | Pending |
+| SUB-01      | Phase 40 | Pending |
+| SUB-02      | Phase 40 | Pending |
+| SUB-03      | Phase 40 | Pending |
+| SUB-04      | Phase 40 | Pending |
+| SUB-05      | Phase 40 | Pending |
+| SUB-06      | Phase 40 | Pending |
+| SUB-07      | Phase 40 | Pending |
+| SETTINGS-04 | Phase 40 | Pending |
 
 **Coverage:**
 
 - v1.6 requirements: 55 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 55 ⚠️ (pending roadmap)
+- Mapped to phases: 55 (Phase 37: 15, Phase 38: 7, Phase 39: 25, Phase 40: 8)
+- Unmapped: 0 ✓
 
 ---
 
 _Requirements defined: 2026-08-03_
-_Last updated: 2026-08-03 after initial v1.6 definition_
+_Last updated: 2026-08-03 after v1.6 roadmap creation (Phases 37–40)_
