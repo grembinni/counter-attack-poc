@@ -91,6 +91,13 @@ export type Room = {
   /** DRAFT-01 (Phase 27): draft pools confirmed on the settings pre-step (only meaningful if teamType === 'draft'). */
   draftPools?: DraftPoolId[];
   /**
+   * GOALKICK-06 / OOB-05 (Phase 37): Out-of-Bounds/Restarts toggle confirmed on the
+   * settings pre-step. `undefined` = not yet confirmed and is treated as `false`
+   * (disabled) when building game state. Independent of Fouls/Booking/Injury, which
+   * are Phase 39 toggles.
+   */
+  outOfBoundsEnabled?: boolean;
+  /**
    * DRAFT-01/D-03 (Phase 27): true once host has confirmed settings — gates TEAM_SELECTION_START
    * alongside "slot 2 has joined" (see roomHandlers.ts ROOM_SETTINGS_CONFIRM / ROOM_JOIN).
    */

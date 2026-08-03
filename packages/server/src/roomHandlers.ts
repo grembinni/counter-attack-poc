@@ -236,9 +236,7 @@ export function registerRoomHandlers(
           joinedRoom.gameSpeed!,
           joinedRoom.teamType!,
           joinedRoom.draftPools ?? [],
-          // Phase 37 (37-02): outOfBounds threading is Plan 37-03's scope (Room.outOfBoundsEnabled
-          // does not exist yet) — false is the correct behaviour-preserving placeholder.
-          false,
+          joinedRoom.outOfBoundsEnabled ?? false,
         );
         // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
         // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
@@ -409,10 +407,12 @@ export function registerRoomHandlers(
         speed,
         teamType,
         draftPools,
+        outOfBounds,
       }: {
         speed: GameSpeed;
         teamType: TeamType;
         draftPools: DraftPoolId[];
+        outOfBounds: boolean;
       }) => {
         const roomCode = socket.data.roomCode;
         if (roomCode === undefined) return;
@@ -445,6 +445,13 @@ export function registerRoomHandlers(
         }
         if (!(VALID_TEAM_TYPES as readonly string[]).includes(teamType)) {
           socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TEAM_TYPE');
+          return;
+        }
+
+        // T-37-08 (Phase 37): ASVS V5 allow-list guard — reject a forged non-boolean
+        // outOfBounds payload before any room mutation.
+        if (typeof outOfBounds !== 'boolean') {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_OUT_OF_BOUNDS');
           return;
         }
 
@@ -506,6 +513,7 @@ export function registerRoomHandlers(
         room.gameSpeed = speed;
         room.teamType = teamType;
         room.draftPools = teamType === 'draft' ? draftPools : [];
+        room.outOfBoundsEnabled = outOfBounds;
         room.settingsConfirmed = true;
         if (draftSession !== undefined) {
           room.draftSession = draftSession;
@@ -516,9 +524,7 @@ export function registerRoomHandlers(
           room.gameSpeed,
           room.teamType,
           room.draftPools,
-          // Phase 37 (37-02): outOfBounds threading is Plan 37-03's scope (Room.outOfBoundsEnabled
-          // does not exist yet) — false is the correct behaviour-preserving placeholder.
-          false,
+          room.outOfBoundsEnabled,
         );
 
         // T-27-05/Pitfall 1: both-conditions gate — only fire TEAM_SELECTION_START once
