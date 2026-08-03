@@ -122,6 +122,19 @@ None — no external service configuration required.
 - `resolveGkCandidates` confirmed unchanged (D-10 unaffected by this plan); `packages/server/src/draftPacks.ts` confirmed unmodified (sole RNG-binding site preserved).
 - No known stubs, no known threat-surface additions beyond what the plan's `<threat_model>` already registered and mitigated (T-36-05/T-36-07/T-36-08/T-36-09 all addressed per the plan's acceptance criteria).
 
-## Self-Check: PENDING
+## Self-Check: PASSED
 
-(populated below after file/commit verification)
+- FOUND: `packages/shared/src/draftEngine.ts`
+- FOUND: `packages/shared/src/draftEngine.test.ts`
+- FOUND: `packages/server/src/roomHandlers.ts`
+- FOUND: `packages/server/src/__tests__/draftPacks.test.ts`
+- FOUND: `.planning/phases/36-bug-fixes/36-03-SUMMARY.md`
+- FOUND: commit `6abe9ca` (Task 1)
+- FOUND: commit `10cca15` (Task 2)
+- FOUND: commit `2dbfbbf` (Task 3)
+- FOUND: commit `9bf8b00` (SUMMARY.md)
+
+---
+
+_Phase: 36-bug-fixes_
+_Completed: 2026-08-02_
