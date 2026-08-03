@@ -1389,17 +1389,30 @@ export type ApplyUndoResult =
  *
  * Slot boundaries: SLOT_ADVANCE (normal end-of-slot) OR KICK_OFF (applyStartMovement marker,
  * used after steal/tackle so undo cannot cross into the pre-possession-change move history).
+ *
+ * BUG-37 (Phase 36) / D-13: a resolved TACKLE_ATTEMPT or STEAL_ATTEMPT is also an undo floor —
+ * once either has resolved (SUCCESS or FAIL) within the current move, Undo cannot cross back
+ * over it into the pre-contest move history (re-rolling a committed dice outcome). This is a
+ * CLAMP, not a lockout: steps taken AFTER the resolved attempt remain undoable normally. The
+ * terms below are added unconditionally (no phase guard) to the boundary-floor disjunction —
+ * NOT to the separate `currentSlotEvents.some(... 'DICE_ROLL')` lockout check a few lines below,
+ * which is a different mechanism that would make Undo unavailable for the rest of the slot.
  */
 export function applyUndo(state: GameState): ApplyUndoResult {
-  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, HP_REPOSITION, or FTP_REPOSITION)
+  // Find the index of the last slot boundary (SLOT_ADVANCE, KICK_OFF, HP_REPOSITION, FTP_REPOSITION,
+  // or a resolved TACKLE_ATTEMPT/STEAL_ATTEMPT)
   // BUG-03 (Phase 17 D-06): also treat HP_REPOSITION as a slot boundary in HIGH_PASS_MOVE
   // D-03 (Phase 17.1): treat FTP_REPOSITION as a slot boundary in FIRST_TIME_PASS_MOVE
   // Plan 25-06: treat FK_KICKER_CHOSEN and FK_STAGE_ADVANCE as slot boundaries in FREE_KICK_SETUP
   //   so that Undo cannot reach across kicker-selection or stage transitions.
+  // BUG-37 (Phase 36) / D-13: treat a resolved TACKLE_ATTEMPT or STEAL_ATTEMPT as a boundary,
+  //   unconditionally (no phase guard) — Undo cannot cross back over a committed dice outcome.
   const lastSlotAdvanceIdx = state.eventLog.reduce<number>((acc, evt, idx) => {
     const isBoundary =
       evt.type === 'SLOT_ADVANCE' ||
       evt.type === 'KICK_OFF' ||
+      evt.type === 'TACKLE_ATTEMPT' ||
+      evt.type === 'STEAL_ATTEMPT' ||
       (state.phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
       (state.phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION') ||
       (state.phase === 'FREE_KICK_SETUP' &&
