@@ -311,8 +311,10 @@ describe('FULL_TIME → REPLAY stream', () => {
 
     const frames = buildReplayFrames(room.gameState);
     expect(frames).toHaveLength(2);
-    expect(frames[0]!.ball).toEqual({ position: targetA, carrierId });
-    expect(frames[1]!.ball).toEqual({ position: targetB, carrierId: null });
+    // Replay reconstruction does not track per-step toucher fidelity (Task 2 plan note) —
+    // the seeded replay state starts with lastTouchedBy: null and it carries forward.
+    expect(frames[0]!.ball).toEqual({ position: targetA, carrierId, lastTouchedBy: null });
+    expect(frames[1]!.ball).toEqual({ position: targetB, carrierId: null, lastTouchedBy: null });
   });
 
   it('T-08-15: replayTimer is cleared when frames are exhausted (no further emits)', async () => {
@@ -556,7 +558,7 @@ describe('FULL_TIME → REPLAY stream', () => {
         // move every other piece far away so it cannot interfere with ZoI/adjacency
         return { ...p, position: { q: 0, r: 0 } };
       }),
-      ball: { position: attacker.position, carrierId: attacker.id },
+      ball: { position: attacker.position, carrierId: attacker.id, lastTouchedBy: null },
       eventLog: [],
     };
     // stealDefender currently occupies moveTo — move it 1 hex away so `to` is unoccupied
@@ -589,7 +591,12 @@ describe('FULL_TIME → REPLAY stream', () => {
     // The replay frame built from this corrected eventLog must also reflect the corrected carrier.
     const stealFrames = buildReplayFrames(stealResult.state);
     expect(stealFrames.length).toBeGreaterThanOrEqual(1);
-    expect(stealFrames[0]!.ball).toEqual({ position: moveTo, carrierId: stealDefender.id });
+    // Replay reconstruction does not track per-step toucher fidelity (Task 2 plan note).
+    expect(stealFrames[0]!.ball).toEqual({
+      position: moveTo,
+      carrierId: stealDefender.id,
+      lastTouchedBy: null,
+    });
 
     // Tackle case: tackleDefender (NOT the carrier) moves adjacent to the attacker (the carrier).
     // defCombined (tackling+die) >= carCombined (dribbling+die) → SUCCESS (D-09 defender wins tie).
@@ -611,7 +618,7 @@ describe('FULL_TIME → REPLAY stream', () => {
         }
         return { ...p, position: { q: 0, r: 0 } };
       }),
-      ball: { position: attacker.position, carrierId: attacker.id },
+      ball: { position: attacker.position, carrierId: attacker.id, lastTouchedBy: null },
       eventLog: [],
     };
 
@@ -634,7 +641,12 @@ describe('FULL_TIME → REPLAY stream', () => {
     ).toEqual({ position: tackleTo, carrierId: tackleDefender.id });
     const tackleFrames = buildReplayFrames(tackleResult.state);
     expect(tackleFrames.length).toBeGreaterThanOrEqual(1);
-    expect(tackleFrames[0]!.ball).toEqual({ position: tackleTo, carrierId: tackleDefender.id });
+    // Replay reconstruction does not track per-step toucher fidelity (Task 2 plan note).
+    expect(tackleFrames[0]!.ball).toEqual({
+      position: tackleTo,
+      carrierId: tackleDefender.id,
+      lastTouchedBy: null,
+    });
   });
 
   it('REPLAY-06: HEADED_PASS and GK_PUNT each produce a visible replay frame', async () => {
@@ -691,7 +703,11 @@ describe('FULL_TIME → REPLAY stream', () => {
       (f) => f.ball.carrierId === receiver.id && f.ball.position.q === headedTo.q,
     );
     expect(headedPassFrame).toBeDefined();
-    expect(headedPassFrame!.ball).toEqual({ position: headedTo, carrierId: receiver.id });
+    expect(headedPassFrame!.ball).toEqual({
+      position: headedTo,
+      carrierId: receiver.id,
+      lastTouchedBy: null,
+    });
 
     // GK_PUNT case: mirrors the HEADED_PASS case structurally.
     const gk = pieces.find((p) => p.teamId === 'home' && p.role === 'GK')!;
@@ -727,7 +743,11 @@ describe('FULL_TIME → REPLAY stream', () => {
       (f) => f.ball.carrierId === puntReceiver.id && f.ball.position.q === puntTo.q,
     );
     expect(gkPuntFrame).toBeDefined();
-    expect(gkPuntFrame!.ball).toEqual({ position: puntTo, carrierId: puntReceiver.id });
+    expect(gkPuntFrame!.ball).toEqual({
+      position: puntTo,
+      carrierId: puntReceiver.id,
+      lastTouchedBy: null,
+    });
   });
 
   it('REPLAY-07: GK_KICK produces a visible replay frame with populated ballAfter', async () => {
@@ -772,7 +792,11 @@ describe('FULL_TIME → REPLAY stream', () => {
       (f) => f.ball.carrierId === receiver.id && f.ball.position.q === kickTarget.q,
     );
     expect(gkKickFrame).toBeDefined();
-    expect(gkKickFrame!.ball).toEqual({ position: kickTarget, carrierId: receiver.id });
+    expect(gkKickFrame!.ball).toEqual({
+      position: kickTarget,
+      carrierId: receiver.id,
+      lastTouchedBy: null,
+    });
   });
 
   it('Task 3 (folded GK_KICK todo): inaccurate GK_KICK produces a loose-ball frame (carrierId null)', async () => {
@@ -818,7 +842,11 @@ describe('FULL_TIME → REPLAY stream', () => {
       (f) => f.ball.carrierId === null && f.ball.position.q === kickTarget.q,
     );
     expect(gkKickFrame).toBeDefined();
-    expect(gkKickFrame!.ball).toEqual({ position: kickTarget, carrierId: null });
+    expect(gkKickFrame!.ball).toEqual({
+      position: kickTarget,
+      carrierId: null,
+      lastTouchedBy: null,
+    });
   });
 
   it('REPLAY-08: LOOSE_BALL_LAND produces a visible replay frame with populated ballAfter', async () => {
@@ -860,7 +888,11 @@ describe('FULL_TIME → REPLAY stream', () => {
       (f) => f.ball.carrierId === null && f.ball.position.q === landHex.q,
     );
     expect(looseBallFrame).toBeDefined();
-    expect(looseBallFrame!.ball).toEqual({ position: landHex, carrierId: null });
+    expect(looseBallFrame!.ball).toEqual({
+      position: landHex,
+      carrierId: null,
+      lastTouchedBy: null,
+    });
   });
 
   it('D-31: startReplayStream is triggered when FULL_TIME is reached via GAME_END_TURN', async () => {
@@ -991,7 +1023,7 @@ describe('FULL_TIME → REPLAY stream', () => {
       activeTeam: 'home',
       lastActionType: 'MOVEMENT_PHASE',
       shotTargetHex: goalHex,
-      ball: { position: shooter.position, carrierId: shooter.id },
+      ball: { position: shooter.position, carrierId: shooter.id, lastTouchedBy: null },
       // Force a decisive GOAL regardless of the real roster's stat spread (D-13/SHOT-01):
       // shooter die 6 + shooting 9 vs GK die 1 + saving 1 — an unbeatable gap either way.
       pieces: pieces.map((p) => {

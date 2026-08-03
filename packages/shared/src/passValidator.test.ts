@@ -40,7 +40,7 @@ const baseState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [basePiece],
-  ball: { position: { q: 0, r: 0 }, carrierId: 'p1' },
+  ball: { position: { q: 0, r: 0 }, carrierId: 'p1', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,

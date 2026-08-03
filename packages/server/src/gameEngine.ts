@@ -565,7 +565,9 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
     // the closest semantic match (independent per-piece activation, no steal/tackle effects).
     slot: 'ATTACKER_2',
     timestamp: Date.now(),
-    ballAfter: state.ball,
+    // Ball unchanged during FREE_MOVE — narrow to {position, carrierId} (ballAfter never
+    // carries lastTouchedBy, per Task 2 design note).
+    ballAfter: { position: state.ball.position, carrierId: state.ball.carrierId },
   };
 
   return {
@@ -893,12 +895,26 @@ export function applyMove(
         // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender.
         // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
         // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
-        const tackleSuccessBall = { ...state.ball, position: to, carrierId: pieceId };
+        // D-06/Task 2: successful tackle turnover — the tackling defender is the new last toucher.
+        const tackleSuccessBall = {
+          ...state.ball,
+          position: to,
+          carrierId: pieceId,
+          lastTouchedBy: { pieceId, teamId: piece.teamId },
+        };
         // REPLAY-06 (18.1-01, Pitfall 3): the MOVE event appended above carries a stale
         // pre-contest ballAfter snapshot. Rewrite it to the post-tackle ball state (immutably —
         // never mutate state.eventLog/newEventLog in place) so the MOVE event's own replay frame
         // already shows the tackler as carrier instead of the stale carrier.
-        const correctedMoveEvent: ActionEvent = { ...moveEvent, ballAfter: tackleSuccessBall };
+        // Task 2 note: ballAfter intentionally stays the narrow {position, carrierId} shape —
+        // do not leak lastTouchedBy onto ActionEvent.ballAfter (replay doesn't need it).
+        const correctedMoveEvent: ActionEvent = {
+          ...moveEvent,
+          ballAfter: {
+            position: tackleSuccessBall.position,
+            carrierId: tackleSuccessBall.carrierId,
+          },
+        };
         const tackleCorrectedEventLog = newEventLog.map((e) =>
           e === moveEvent ? correctedMoveEvent : e,
         );
@@ -957,14 +973,25 @@ export function applyMove(
   if (stealSuccess) {
     // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
     // (ELIGIBLE_NEXT_ACTIONS['SUCCESSFUL_TACKLE']: MOVEMENT, STANDARD_PASS, HIGH_PASS, LONG_BALL, SNAPSHOT).
-    const stealSuccessBall = { ...state.ball, position: to, carrierId: stealDefenderId! };
     const newOwnerTeam =
       state.pieces.find((p) => p.id === stealDefenderId)?.teamId ?? state.activeTeam;
+    // D-06/Task 2: successful steal turnover — the stealing defender is the new last toucher.
+    const stealSuccessBall = {
+      ...state.ball,
+      position: to,
+      carrierId: stealDefenderId!,
+      lastTouchedBy: { pieceId: stealDefenderId!, teamId: newOwnerTeam },
+    };
     // REPLAY-06 (18.1-01, Pitfall 3): the MOVE event appended above carries a stale
     // pre-contest ballAfter snapshot. Rewrite it to the post-steal ball state (immutably —
     // never mutate state.eventLog/newEventLog in place) so the MOVE event's own replay frame
     // already shows the defender as carrier instead of the stale carrier.
-    const correctedMoveEvent: ActionEvent = { ...moveEvent, ballAfter: stealSuccessBall };
+    // Task 2 note: ballAfter intentionally stays the narrow {position, carrierId} shape —
+    // do not leak lastTouchedBy onto ActionEvent.ballAfter (replay doesn't need it).
+    const correctedMoveEvent: ActionEvent = {
+      ...moveEvent,
+      ballAfter: { position: stealSuccessBall.position, carrierId: stealSuccessBall.carrierId },
+    };
     const stealCorrectedEventLog = newEventLog.map((e) =>
       e === moveEvent ? correctedMoveEvent : e,
     );

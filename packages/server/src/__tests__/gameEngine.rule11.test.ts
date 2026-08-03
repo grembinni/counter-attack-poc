@@ -111,7 +111,7 @@ const baseState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeFwd, awayDef, awayGk, homeMid],
-  ball: { position: homeFwd.position, carrierId: 'home-fwd' },
+  ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 10,
   half: 1,
@@ -144,7 +144,7 @@ const makeHighPassState = (): GameState => ({
   phase: 'PASS',
   lastActionType: 'HIGH_PASS',
   passTargetHex: highPassTargetHex,
-  ball: { position: homeFwd.position, carrierId: 'home-fwd' },
+  ball: { position: homeFwd.position, carrierId: 'home-fwd', lastTouchedBy: null },
   highPassCarrierId: 'home-fwd',
   preGeneratedInterceptionDice: [],
 });
@@ -163,7 +163,7 @@ const makeHeaderStateWithWinner = (overrides: Partial<GameState> = {}): GameStat
   phase: 'HEADER',
   lastActionType: 'HIGH_PASS',
   movementSlot: null,
-  ball: { position: { q: 27, r: 12 }, carrierId: null },
+  ball: { position: { q: 27, r: 12 }, carrierId: null, lastTouchedBy: null },
   pieces: [
     { ...homeFwd, position: { q: 27, r: 12 } }, // winner at ball position
     { ...awayDef, position: { q: 28, r: 12 } }, // defender contestant
@@ -347,7 +347,7 @@ describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () =
         awayGk,
         homeMid,
       ],
-      ball: { position: { q: 32, r: 12 }, carrierId: null },
+      ball: { position: { q: 32, r: 12 }, carrierId: null, lastTouchedBy: null },
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerDuelWinner: 'home',
     });
@@ -391,7 +391,7 @@ describe('RULE-02: applyResolveHeaderTarget — valid resolve (D-05/D-06)', () =
   it('does not push null/undefined into movedPieceIds when resolvedWinner is null (uncontested/declined header)', () => {
     const nullWinnerState = makeHeaderStateWithWinner({
       headerContestants: { home: [], away: [] },
-      ball: { position: { q: 27, r: 12 }, carrierId: null },
+      ball: { position: { q: 27, r: 12 }, carrierId: null, lastTouchedBy: null },
     });
     const result = applyResolveHeaderTarget(nullWinnerState, { q: 30, r: 12 });
     expect(result.ok).toBe(true);
@@ -520,7 +520,7 @@ describe('RULE-02: applyResolveHeaderTarget — GK_DIVING route for goal-line ta
         awayGk, // GK at {q:36,r:13}
         homeMid,
       ],
-      ball: { position: { q: 32, r: 12 }, carrierId: null },
+      ball: { position: { q: 32, r: 12 }, carrierId: null, lastTouchedBy: null },
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerDuelWinner: 'home',
     });
@@ -545,7 +545,7 @@ describe('RULE-02: applyResolveHeaderTarget — GK_DIVING route for goal-line ta
         awayGk,
         homeMid,
       ],
-      ball: { position: { q: 32, r: 12 }, carrierId: null },
+      ball: { position: { q: 32, r: 12 }, carrierId: null, lastTouchedBy: null },
       headerContestants: { home: ['home-fwd'], away: ['away-def'] },
       headerDuelWinner: 'home',
     });
@@ -625,7 +625,7 @@ const makeShotStateRule03 = (overrides: Partial<GameState> = {}): GameState => (
   attackingTeam: 'home',
   activeTeam: 'home',
   pieces: [shotShooter, awayDef, shotGk, homeMid],
-  ball: { position: shotShooter.position, carrierId: 'shot-shooter' },
+  ball: { position: shotShooter.position, carrierId: 'shot-shooter', lastTouchedBy: null },
   shotTargetHex: shotGk.position, // {q:36,r:13} — GK position = shot target
   lastShotPath: [
     { q: 33, r: 12 },
@@ -653,7 +653,7 @@ const dropGk: PlayerPiece = {
 const makeSaveDroppedState = (overrides: Partial<GameState> = {}): GameState => ({
   ...makeShotStateRule03(),
   pieces: [{ ...shotShooter, shooting: 3 }, awayDef, dropGk, homeMid],
-  ball: { position: shotShooter.position, carrierId: 'shot-shooter' },
+  ball: { position: shotShooter.position, carrierId: 'shot-shooter', lastTouchedBy: null },
   lastShotPath: [
     { q: 33, r: 12 },
     { q: 34, r: 12 },
@@ -675,7 +675,7 @@ const makeLooseBallScatterState = (overrides: Partial<GameState> = {}): GameStat
   attackingTeam: 'home',
   activeTeam: 'home',
   // Ball in the centre of the pitch — well within bounds
-  ball: { position: { q: 18, r: 13 }, carrierId: null },
+  ball: { position: { q: 18, r: 13 }, carrierId: null, lastTouchedBy: null },
   lastShotPath: [
     { q: 25, r: 12 },
     { q: 30, r: 12 },

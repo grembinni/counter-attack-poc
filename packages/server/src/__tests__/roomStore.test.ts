@@ -181,7 +181,7 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
       makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 7 } }),
       makePiece({ id: 'away-1', teamId: 'away', position: { q: 30, r: 7 } }),
     ],
-    ball: { position: { q: 18, r: 13 }, carrierId: null },
+    ball: { position: { q: 18, r: 13 }, carrierId: null, lastTouchedBy: null },
     score: { home: 0, away: 0 },
     actionCount: 0,
     half: 1,
@@ -243,7 +243,7 @@ describe('broadcastState (MOVE-06 corrected design)', () => {
     // 'away' zone — making it eligible. attackingTeam is 'home', so home-1 lands in
     // the attack list and FREE_MOVE_ATTACK fires first (D-35).
     const seeded = makeGameState({
-      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ball: { position: { q: 30, r: 7 }, carrierId: null, lastTouchedBy: null },
       ballZone: 'middle',
       pieces: [
         makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 7 } }),
@@ -264,7 +264,7 @@ describe('broadcastState (MOVE-06 corrected design)', () => {
     const to = vi.fn(() => ({ emit }));
     const io = { to } as unknown as Server;
     const seeded = makeGameState({
-      ball: { position: { q: 30, r: 7 }, carrierId: null },
+      ball: { position: { q: 30, r: 7 }, carrierId: null, lastTouchedBy: null },
       ballZone: 'middle',
       pieces: [
         makePiece({ id: 'home-1', teamId: 'home', position: { q: 5, r: 7 } }),

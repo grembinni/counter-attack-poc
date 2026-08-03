@@ -64,7 +64,7 @@ const baseMovementState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homePiece, awayPiece],
-  ball: { position: { q: 12, r: 7 }, carrierId: null },
+  ball: { position: { q: 12, r: 7 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -266,7 +266,7 @@ describe('applyMove', () => {
     // or write it directly.
     const stateWithBall: GameState = {
       ...baseMovementState,
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
       ballZone: 'middle',
     };
     const result = applyMove(stateWithBall, 'home-9', { q: 11, r: 7 });
@@ -280,7 +280,7 @@ describe('applyMove', () => {
     // home-9 is the carrier at {q:10, r:7}; moves to {q:11, r:7}; ball should track
     const stateWithBall: GameState = {
       ...baseMovementState,
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
     };
     const result = applyMove(stateWithBall, 'home-9', { q: 11, r: 7 });
     expect(result.ok).toBe(true);
@@ -301,7 +301,7 @@ describe('applyMove', () => {
     const stateWithCarrier: GameState = {
       ...baseMovementState,
       pieces: [homePiece, defender],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
     };
     // home-9 moves to {q:11,r:7} which is adjacent to defender at {q:12,r:7} → STEAL_ATTEMPT
     const result = applyMove(
@@ -329,7 +329,7 @@ describe('applyMove', () => {
     const stateWithCarrier: GameState = {
       ...baseMovementState,
       pieces: [homePiece, defender],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
     };
     const result = applyMove(
       stateWithCarrier,
@@ -361,7 +361,7 @@ describe('applyMove', () => {
       movementSlot: 'DEFENDER_5',
       activeTeam: 'away',
       pieces: [homePiece, defenderPiece],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
     };
     // away-9 moves from {q:14,r:7} to {q:11,r:7}: too far (3 hexes). Use {q:13,r:7} → {q:11,r:7} not 1 step.
     // Instead place defender at {q:12,r:7} and move to {q:11,r:7} which is adjacent to carrier at {q:10,r:7}
@@ -397,7 +397,7 @@ describe('applyMove', () => {
       movementSlot: 'DEFENDER_5',
       activeTeam: 'away',
       pieces: [homePiece, defenderPiece],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
     };
     const result = applyMove(
       stateWithCarrier,
@@ -441,7 +441,7 @@ describe('applyMove', () => {
       activeTeam: 'away',
       attackingTeam: 'home',
       pieces: [carrier, def1, def2],
-      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+      ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
     };
     // tackleDie=1, carrierDie=6 → def1 FAILS (1+1=2 vs 8+6=14).
     const result = applyMove(
@@ -619,7 +619,7 @@ const passState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homePiece, awayGK, awayDEF, awayPiece],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -648,7 +648,7 @@ const shotState: GameState = {
   // awayGK is at q:23 (near goal); homePiece is shooter at q:10; distance ~13 (> 3, unsavable)
   // Use awayGK near shooter for saveable scenarios in separate fixtures
   pieces: [homePiece, awayGK],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -676,7 +676,7 @@ const shotStateNearGK: GameState = {
     { ...homePiece, position: { q: 10, r: 7 } },
     { ...awayGK, position: { q: 11, r: 7 } },
   ],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
 };
 
 /** HEADER state: home attacker has ball; away DEF is 1 hex away; away GK is near goal. */
@@ -686,7 +686,7 @@ const headerState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homePiece, awayGK, awayDEF],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' }, // awayDEF at q:15 — 5 hexes away
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayDEF at q:15 — 5 hexes away
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -714,7 +714,7 @@ const headerStateContested: GameState = {
     { ...awayGK, position: { q: 23, r: 7 } },
     { ...awayDEF, position: { q: 11, r: 7 } }, // 1 hex from ball — contested
   ],
-  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9' },
+  ball: { position: { q: 10, r: 7 }, carrierId: 'home-9', lastTouchedBy: null },
 };
 
 /** LOOSE_BALL state. */
@@ -724,7 +724,7 @@ const looseBallState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homePiece, awayGK],
-  ball: { position: { q: 12, r: 7 }, carrierId: null },
+  ball: { position: { q: 12, r: 7 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -1211,7 +1211,7 @@ const gkRestartState: GameState = {
   activeTeam: 'away', // GK team is now active
   attackingTeam: 'home', // home was attacking before the save
   pieces: [homePiece, gkPiece],
-  ball: { position: { q: 23, r: 7 }, carrierId: 'away-0' }, // GK is ball carrier
+  ball: { position: { q: 23, r: 7 }, carrierId: 'away-0', lastTouchedBy: null }, // GK is ball carrier
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -1350,7 +1350,7 @@ describe('applyGKRestart', () => {
 const gkKickTargetState: GameState = {
   ...gkRestartState,
   phase: 'GK_KICK_TARGET',
-  ball: { position: gkPiece.position, carrierId: 'away-0' },
+  ball: { position: gkPiece.position, carrierId: 'away-0', lastTouchedBy: null },
 };
 
 describe('applyGKKickTarget', () => {
@@ -1377,6 +1377,11 @@ describe('applyGKKickTarget', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).toBe('GK_KICK_MOVE');
-    expect(result.state.ball).toEqual({ position: targetHex, carrierId: null });
+    // Punt in flight, no immediate receiver — the punting GK is the last toucher (D-06).
+    expect(result.state.ball).toEqual({
+      position: targetHex,
+      carrierId: null,
+      lastTouchedBy: { pieceId: 'away-0', teamId: 'away' },
+    });
   });
 });

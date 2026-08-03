@@ -189,7 +189,7 @@ function seedHeaderPendingAccuracy(roomCode: string): void {
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
-    ball: { position: { q: 25, r: 12 }, carrierId: null },
+    ball: { position: { q: 25, r: 12 }, carrierId: null, lastTouchedBy: null },
     pieces: room.gameState.pieces.map((p) => {
       if (p.id === homeAttacker.id) return { ...p, position: { q: 25, r: 12 } };
       if (p.id === awayDefender.id) return { ...p, position: { q: 26, r: 12 } };
@@ -223,7 +223,7 @@ function seedHeaderReadyForContestants(roomCode: string): void {
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
-    ball: { position: { q: 25, r: 12 }, carrierId: null },
+    ball: { position: { q: 25, r: 12 }, carrierId: null, lastTouchedBy: null },
     pieces: room.gameState.pieces.map((p) => {
       if (p.id === homeAttacker.id) return { ...p, position: { q: 25, r: 12 } };
       if (p.id === awayDefender.id) return { ...p, position: { q: 26, r: 12 } };
@@ -259,7 +259,7 @@ function seedHeaderWithDuelWinner(roomCode: string, winner: 'home' | 'away' = 'h
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
-    ball: { position: { q: 25, r: 12 }, carrierId: null },
+    ball: { position: { q: 25, r: 12 }, carrierId: null, lastTouchedBy: null },
     pieces: room.gameState.pieces.map((p) => {
       if (p.id === homeAttacker.id) return { ...p, position: { q: 25, r: 12 } };
       if (p.id === awayDefender.id) return { ...p, position: { q: 26, r: 12 } };

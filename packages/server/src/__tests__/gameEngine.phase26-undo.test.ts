@@ -126,7 +126,7 @@ const baseFKSetupState: GameState = {
   activeTeam: 'away', // defending team's repositioning stage
   attackingTeam: 'home',
   pieces: [homeFWD, homeMID, awayDEF, awayGK],
-  ball: { position: { q: 25, r: 13 }, carrierId: null },
+  ball: { position: { q: 25, r: 13 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
@@ -201,7 +201,7 @@ const baseMoveStateNoMoves: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [homeMover, awayGK],
-  ball: { position: { q: 10, r: 7 }, carrierId: null },
+  ball: { position: { q: 10, r: 7 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,

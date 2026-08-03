@@ -25,7 +25,7 @@ const baseState: GameState = {
   activeTeam: 'home',
   attackingTeam: 'home',
   pieces: [basePiece],
-  ball: { position: { q: 5, r: 5 }, carrierId: null },
+  ball: { position: { q: 5, r: 5 }, carrierId: null, lastTouchedBy: null },
   score: { home: 0, away: 0 },
   actionCount: 0,
   half: 1,
