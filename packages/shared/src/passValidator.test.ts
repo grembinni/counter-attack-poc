@@ -227,6 +227,36 @@ describe('validatePass', () => {
       if (!result.ok) expect(result.reason).toBe('RANGE_EXCEEDED');
     }
   });
+
+  // THROWIN-04 (Phase 37): optional maxDistance override replaces the per-type cap.
+  it('STANDARD pass at distance 8 succeeds without options and fails with { maxDistance: 6 }', () => {
+    const noOptions = validatePass(
+      baseState,
+      basePiece,
+      { q: 0, r: 0 },
+      { q: 8, r: 0 },
+      'STANDARD',
+    );
+    expect(noOptions.ok).toBe(true);
+
+    const withOverride = validatePass(
+      baseState,
+      basePiece,
+      { q: 0, r: 0 },
+      { q: 8, r: 0 },
+      'STANDARD',
+      { maxDistance: 6 },
+    );
+    expect(withOverride.ok).toBe(false);
+    if (!withOverride.ok) expect(withOverride.reason).toBe('RANGE_EXCEEDED');
+  });
+
+  it('HIGH pass at distance 6 succeeds with { maxDistance: 6 }', () => {
+    const result = validatePass(baseState, basePiece, { q: 0, r: 0 }, { q: 6, r: 0 }, 'HIGH', {
+      maxDistance: 6,
+    });
+    expect(result.ok).toBe(true);
+  });
 });
 
 describe('validatePassAccuracy', () => {

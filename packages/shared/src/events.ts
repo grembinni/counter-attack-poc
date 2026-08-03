@@ -106,6 +106,20 @@ export const ClientEvents = {
    * and bench (either direction). Never advances cycle/sub-step state (D-10).
    */
   DRAFT_REARRANGE: 'draft:rearrange',
+  /**
+   * THROWIN-02 (Phase 37): the attacking manager selects which of their pieces takes the
+   * throw. The destination hex is server-owned (`state.throwInHex`) and is deliberately NOT
+   * part of the payload so a client can never choose where the throw-in is taken from.
+   * Note: goal-kick repositioning (GOAL_KICK_SETUP_GK/OPPONENT) and GOAL_KICK_MOVE
+   * deliberately reuse the existing GAME_MOVE + GAME_END_TURN events (the FREE_MOVE_*
+   * and GK_KICK_MOVE precedent); throw-in Movement Phases reuse the real MOVE phase's
+   * existing events; the throw itself reuses GAME_ROLL. Do not add redundant events here.
+   */
+  GAME_THROW_IN_PLACE: 'game:throw-in-place',
+  /** GOALKICK-03 (Phase 37): mirrors GAME_GK_RESTART's choice-payload shape. */
+  GAME_GOAL_KICK_CHOICE: 'game:goal-kick-choice',
+  /** GOALKICK-05 (Phase 37): mirrors GAME_GK_KICK_TARGET. */
+  GAME_GOAL_KICK_TARGET: 'game:goal-kick-target',
 } as const;
 
 export const ServerEvents = {
@@ -173,6 +187,8 @@ export interface ClientToServerEvents {
     speed: GameSpeed;
     teamType: TeamType;
     draftPools: DraftPoolId[];
+    /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set game-creation toggle. */
+    outOfBounds: boolean;
   }) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
@@ -261,6 +277,15 @@ export interface ClientToServerEvents {
    * and `to` (lineup/bench). Never advances cycle/sub-step state.
    */
   [ClientEvents.DRAFT_REARRANGE]: (payload: DraftRearrangePayload) => void;
+  /**
+   * THROWIN-02 (Phase 37): the attacking manager selects which of their pieces takes the
+   * throw. Destination hex is server-owned (`state.throwInHex`), never client-supplied.
+   */
+  [ClientEvents.GAME_THROW_IN_PLACE]: (pieceId: string) => void;
+  /** GOALKICK-03 (Phase 37): GK's kick-vs-standard-pass restart choice. */
+  [ClientEvents.GAME_GOAL_KICK_CHOICE]: (choice: 'kick' | 'standard') => void;
+  /** GOALKICK-05 (Phase 37): GK's team selects the goal-kick target hex. */
+  [ClientEvents.GAME_GOAL_KICK_TARGET]: (targetHex: HexCoord) => void;
 }
 
 /**
@@ -288,6 +313,8 @@ export interface ServerToClientEvents {
     speed: GameSpeed,
     teamType: TeamType,
     draftPools: DraftPoolId[],
+    /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set game-creation toggle. */
+    outOfBounds: boolean,
   ) => void;
   /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
   [ServerEvents.UNIFORM_SELECTION_START]: () => void;

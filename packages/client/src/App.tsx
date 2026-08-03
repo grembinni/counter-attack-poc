@@ -239,6 +239,8 @@ export function App() {
     speed: GameSpeed;
     teamType: TeamType;
     draftPools: DraftPoolId[];
+    /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set toggle. */
+    outOfBounds: boolean;
   }) {
     setSelectedSpeed(settings.speed);
     setTeamType(settings.teamType);

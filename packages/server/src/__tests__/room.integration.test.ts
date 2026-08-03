@@ -212,6 +212,7 @@ describe('Room integration tests', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 
@@ -330,6 +331,7 @@ describe('Room integration tests', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 
@@ -412,6 +414,7 @@ describe('UNIFORM_CONFIRM — guard: away before home', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 
@@ -454,6 +457,7 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     await settingsConfirmedPromise;
 
@@ -531,6 +535,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'fast',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_TURN');
@@ -550,6 +555,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: [],
+      outOfBounds: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('DRAFT_POOL_REQUIRED');
@@ -568,6 +574,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     const [speed, teamType, draftPools] = await confirmedPromise;
     expect(speed).toBe('standard');
@@ -582,6 +589,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'fast',
       teamType: 'draft',
       draftPools: ['original'],
+      outOfBounds: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
@@ -603,6 +611,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['legends'],
+      outOfBounds: false,
     });
     const [, , draftPools] = await confirmedPromise;
     expect(draftPools).toEqual(['legends']);
@@ -622,6 +631,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'draft',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id
       draftPools: ['not-a-real-pool' as any],
+      outOfBounds: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');
@@ -642,6 +652,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     await confirmedPromiseA;
     // Host must NOT prematurely receive TEAM_SELECTION_START before a joiner exists (D-01).
@@ -690,6 +701,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
     // Host confirm is the "second" condition here — must fire TEAM_SELECTION_START for both.
     await selectionStartCPromise;

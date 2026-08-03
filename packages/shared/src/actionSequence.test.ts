@@ -275,4 +275,43 @@ describe('ELIGIBLE_NEXT_ACTIONS — D-08 eligibility table', () => {
       expect(set.size).toBe(0);
     });
   });
+
+  // Phase 37 (37-02): THROWIN-03/D-09 throw-in two-movement-phase cap.
+  describe('THROW_IN_MOVEMENT_1', () => {
+    const set = ELIGIBLE_NEXT_ACTIONS.THROW_IN_MOVEMENT_1;
+
+    it('allows STANDARD_PASS, HIGH_PASS, and MOVEMENT and nothing else', () => {
+      expect(set.has('STANDARD_PASS')).toBe(true);
+      expect(set.has('HIGH_PASS')).toBe(true);
+      expect(set.has('MOVEMENT')).toBe(true);
+      expect(set.size).toBe(3);
+    });
+  });
+
+  describe('THROW_IN_MOVEMENT_2', () => {
+    const set = ELIGIBLE_NEXT_ACTIONS.THROW_IN_MOVEMENT_2;
+
+    it('allows STANDARD_PASS and HIGH_PASS only — D-09 hard cap omits MOVEMENT', () => {
+      expect(set.has('STANDARD_PASS')).toBe(true);
+      expect(set.has('HIGH_PASS')).toBe(true);
+      expect(set.has('MOVEMENT')).toBe(false);
+      expect(set.size).toBe(2);
+    });
+  });
+
+  // GOALKICK-03 (Phase 37): goal kick's "Standard Pass" branch.
+  describe('GOAL_KICK_RESTART', () => {
+    const set = ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART;
+
+    it('allows STANDARD_PASS and only STANDARD_PASS (size === 1)', () => {
+      expect(set.size).toBe(1);
+      expect(set.has('STANDARD_PASS')).toBe(true);
+    });
+    it('does not allow MOVEMENT, HIGH_PASS, SNAPSHOT, or SHOT', () => {
+      expect(set.has('MOVEMENT')).toBe(false);
+      expect(set.has('HIGH_PASS')).toBe(false);
+      expect(set.has('SNAPSHOT')).toBe(false);
+      expect(set.has('SHOT')).toBe(false);
+    });
+  });
 });
