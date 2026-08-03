@@ -231,6 +231,30 @@ function tierDrawOrder(tier: PackSlot['tier']): readonly DraftTier[] {
 }
 
 /**
+ * WR-01 (Phase 36 review): `chase`, `rare`, and `chaseOrRare` all share
+ * `SLOT_RARITY_ORDER` rank 0, so `tierSupplyMeetsNeed`/`buildTierPoolsForRound` sort
+ * same-rank tiers using `Array.prototype.sort`'s (ES2019+ guaranteed-stable) tie-break —
+ * i.e. `Map` insertion order, which tracks `round.slots` declaration order. `DRAFT_ROUNDS`
+ * never declares both a standalone `'chase'` slot and a standalone `'rare'` slot in the
+ * same round today (only the merged `'chaseOrRare'` is used — see `TIER_CASCADE_BELOW`'s
+ * `chase`/`rare` entries, which exist purely for future-proofing), so this never bites in
+ * practice. Assert the invariant explicitly so a future round definition that violates it
+ * fails loudly instead of silently depending on declaration order for two call sites to
+ * agree on processing order.
+ */
+function assertNoAmbiguousChaseRareSlots(round: Extract<RoundConfig, { kind: 'tiered' }>): void {
+  const hasStandaloneChase = round.slots.some((slot) => slot.tier === 'chase');
+  const hasStandaloneRare = round.slots.some((slot) => slot.tier === 'rare');
+  if (hasStandaloneChase && hasStandaloneRare) {
+    throw new Error(
+      'draftEngine: a tiered round may not declare both a standalone "chase" slot and a ' +
+        'standalone "rare" slot in the same round — their relative processing order is ' +
+        'otherwise undefined (WR-01, Phase 36 review). Use the merged "chaseOrRare" tier instead.',
+    );
+  }
+}
+
+/**
  * D-17 (Phase 30): draws `count` cards from `pool` (mutated in place — consumed cards are
  * removed via splice so the SAME shared pool can be drawn from again for the round's other
  * pack without re-dealing a card already used, D-09). Skips any candidate whose position
@@ -309,6 +333,8 @@ function tierSupplyMeetsNeed(
   classified: TieredPoolPlayer[],
   round: Extract<RoundConfig, { kind: 'tiered' }>,
 ): boolean {
+  assertNoAmbiguousChaseRareSlots(round);
+
   const remaining: Record<DraftTier, number> = { chase: 0, rare: 0, uncommon: 0, common: 0 };
   for (const p of classified) remaining[p.tier] += 1;
 
@@ -400,6 +426,8 @@ function buildTierPoolsForRound(
   classified: TieredPoolPlayer[],
   rng: RandomIntFn,
 ): Map<PackSlot['tier'], TieredPoolPlayer[]> {
+  assertNoAmbiguousChaseRareSlots(round);
+
   const needByTier = new Map<PackSlot['tier'], number>();
   for (const slot of round.slots) {
     needByTier.set(slot.tier, (needByTier.get(slot.tier) ?? 0) + slot.count * PACKS_PER_ROUND);
