@@ -1,8 +1,8 @@
 ---
 phase: 36-bug-fixes
 verified: 2026-08-02T20:45:00Z
-status: human_needed
-score: 31/31 must-haves verified (programmatic + ad-hoc behavioral evidence)
+status: passed
+score: 31/31 must-haves verified (programmatic + ad-hoc behavioral evidence); 3/3 human verification items confirmed via UAT (see 36-UAT.md)
 overrides_applied: 0
 human_verification:
   - test: "With two browser tabs, create a room in tab A, join it from tab B (both land pre-game), then click Back on tab A's Game Settings screen."
@@ -20,7 +20,7 @@ human_verification:
 
 **Phase Goal:** Fix 5 confirmed gameplay/UX bugs (BUG-33 through BUG-37) surfaced from Phase 35 UAT and prior play-testing — missing Back button on the game settings screen with no server-side room teardown (BUG-33), draft packs that can repeat player IDs across a match (BUG-34), a tier-cascade gap in draft pack generation that can shortchange or crash pack generation (BUG-35), the loose ball landing at the wrong hex on a shot-duel tie (BUG-36), and Undo not clamping at a resolved tackle/steal contest (BUG-37).
 **Verified:** 2026-08-02T20:45:00Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification (post-review-fix)
 
 ## Important Context for This Verification
@@ -174,7 +174,7 @@ No blocking gaps. All 31 observable truths (roadmap Success Criteria + plan-leve
 
 The one remaining Warning (WR-02) was a deliberate, well-reasoned, non-correctness-impacting deferral — not a phase gap.
 
-Human verification is requested for the live/visual experience of the three newly-introduced or newly-fixed user-facing behaviors (two-tab Back/ROOM_CLOSED flow, loose-ball scatter origin during real play, Undo button greying out/re-enabling during real play) — all three are state-correct and unit/integration-tested, but the moment-to-moment UX has not been eyeballed in a running browser, consistent with this project's established verification convention (see Phase 35's precedent).
+Human verification was requested for the live/visual experience of the three newly-introduced or newly-fixed user-facing behaviors (two-tab Back/ROOM_CLOSED flow, loose-ball scatter origin during real play, Undo button greying out/re-enabling during real play) — all three are state-correct and unit/integration-tested, and the moment-to-moment UX has now been confirmed by the user via `/gsd-verify-work` (see `36-UAT.md`: 3/3 passed, 0 issues, 2026-08-03).
 
 ---
 
