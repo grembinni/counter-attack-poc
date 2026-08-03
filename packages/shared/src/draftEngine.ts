@@ -345,6 +345,14 @@ function tierSupplyMeetsNeed(
  * pack this match (`matchUsedIds`), both from the base union and from cross-pool
  * fallback candidates. This function only READS `matchUsedIds`; it never mutates it
  * (see `generateDraftPacks`, which adds ids only after cards are actually dealt).
+ *
+ * BUG-35 (Phase 36), D-09: cross-pool `fallbackPlayers` may only ever contribute
+ * `common`-tier candidates. By the time this loop body runs, `tierSupplyMeetsNeed` (the
+ * loop guard) is already cascade-aware (D-08), so the same-pool cascade has already been
+ * exhausted for every tier it can possibly cover — this restriction only bites when a
+ * genuine common-tier shortfall survives that cascade. `resolvePoolPlayers` returns
+ * `PoolPlayer[]`, which has no `tier` field, so the tier must be computed with this
+ * module's own classification helpers rather than read off a nonexistent property.
  */
 function resolveTieredCandidates(
   selectedUnion: PoolPlayer[],
@@ -359,7 +367,11 @@ function resolveTieredCandidates(
   for (const fallbackPoolId of fallbackChain) {
     if (tierSupplyMeetsNeed(classified, round)) break;
     const fallbackPlayers = resolvePoolPlayers([fallbackPoolId]).filter(
-      (p) => p.role !== 'GK' && !usedIds.has(p.id) && !matchUsedIds.has(p.id),
+      (p) =>
+        p.role !== 'GK' &&
+        !usedIds.has(p.id) &&
+        !matchUsedIds.has(p.id) &&
+        classifyTier(computeTotalStat(p)) === 'common',
     );
     for (const p of fallbackPlayers) {
       baseCandidates.push(p);

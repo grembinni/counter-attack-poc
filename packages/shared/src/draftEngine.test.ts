@@ -566,6 +566,63 @@ describe('generateDraftPacks — BUG-35 (Phase 36): tier cascade + cross-pool re
       }
     },
   );
+
+  // D-12(a): 'mls' supply (37 common / 11 uncommon / 12 chaseOrRare, RESEARCH.md Pitfall 4)
+  // comfortably covers every tiered round's need on its own — the cross-pool chain must
+  // never be reached for it. Round-1 GK packs are excluded: GK backfill is D-10-exempt.
+  it.each([1, 2, 3, 4, 5])(
+    "seed %i: D-12(a) ['mls'] never reaches cross-pool for rounds 2-6 — every dealt card " +
+      "is isInPool(card, 'mls')",
+    (seed) => {
+      const rng = makeSeededRng(seed);
+      const { packs } = generateDraftPacks(['mls'], rng);
+      const tieredPacks = packs.filter((p) => p.round !== 1);
+      expect(tieredPacks.length).toBeGreaterThan(0);
+      for (const pack of tieredPacks) {
+        for (const card of pack.cards) {
+          expect(isInPool(card, 'mls')).toBe(true);
+        }
+      }
+    },
+  );
+
+  // D-12(b): 'original' runs common short match-wide (RESEARCH.md Pitfall 4), so the
+  // common-only cross-pool fallback MUST fire — and every card it contributes must be
+  // common-tier. Asserted non-vacuously: at least one cross-pool card must actually appear.
+  it.each([1, 2, 3, 4, 5])(
+    "seed %i: D-12(b) ['original'] cross-pool fallback contributes common-tier cards only, " +
+      'and fires at least once (non-vacuous)',
+    (seed) => {
+      const rng = makeSeededRng(seed);
+      const { packs } = generateDraftPacks(['original'], rng);
+      const tieredPacks = packs.filter((p) => p.round !== 1);
+
+      let crossPoolCount = 0;
+      for (const pack of tieredPacks) {
+        for (const card of pack.cards) {
+          if (!isInPool(card, 'original')) {
+            crossPoolCount += 1;
+            expect(card.tier).toBe('common');
+          }
+        }
+      }
+      expect(crossPoolCount).toBeGreaterThan(0);
+    },
+  );
+
+  // D-11 fail-closed: an unmeetable draft-pool selection still throws rather than
+  // returning a short/duplicated pack. No reachable real-supply shortfall exists once
+  // D-09's common-only restriction still permits cascade+fallback to cover every
+  // selectable pool (Test 3/D-10), so this exercises the established fail-closed
+  // convention via the invalid-selection guard (CR-01), asserting on the thrown message.
+  it('D-11: an unmeetable/invalid pool selection throws a descriptive Error rather than returning a short pack', () => {
+    const rng = makeSeededRng(99);
+    expect(() => generateDraftPacks([], rng)).toThrow(/selectedPools must be a non-empty subset/);
+    expect(() =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id
+      generateDraftPacks(['not-a-real-pool' as any], rng),
+    ).toThrow(/selectedPools must be a non-empty subset/);
+  });
 });
 
 // ---------------------------------------------------------------------------
