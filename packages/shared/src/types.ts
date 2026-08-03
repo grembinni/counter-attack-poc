@@ -121,7 +121,16 @@ export type ActionEventType =
   // FK_STAGE_ADVANCE fires at each inter-stage transition (applyFreeKickReady stageIndex < 3).
   // Both act as slot boundaries for applyUndo — see applyUndo boundary scan.
   | 'FK_KICKER_CHOSEN' // kicker placement confirmed; undo boundary for FREE_KICK_SETUP
-  | 'FK_STAGE_ADVANCE'; // inter-stage transition; undo boundary for FREE_KICK_SETUP
+  | 'FK_STAGE_ADVANCE' // inter-stage transition; undo boundary for FREE_KICK_SETUP
+  // Phase 37 (37-02): out-of-bounds detection + throw-in + goal-kick action event types.
+  // OOB-05/THROWIN-03/GOALKICK-01/GOALKICK-03/GOALKICK-06.
+  | 'OUT_OF_BOUNDS' // ball exited the pitch; records exit kind + awarded restart
+  | 'THROW_IN_PLACE' // thrower placed at the throw-in hex
+  | 'GOAL_KICK_WINDOW_ADVANCE' // goal-kick reposition window (GK team -> opponent) boundary
+  | 'GOAL_KICK_CHOICE' // GK chose kick vs. standard pass restart
+  | 'GOAL_KICK_MOVE' // 1-player-per-team repositioning while the goal kick travels
+  | 'GOAL_KICK'; // goal-kick accuracy roll resolution. Deliberately its own type, not DICE_ROLL
+// (see STATE.md pitfall: reusing DICE_ROLL reactivates a dormant full-slot Undo lockout).
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -415,6 +424,67 @@ export type ActionEvent =
       type: 'FK_STAGE_ADVANCE';
       fromStageIndex: 0 | 1 | 2;
       timestamp: number;
+    }
+  // Phase 37 (37-02): out-of-bounds detection + throw-in + goal-kick action events.
+  | {
+      /** OOB-05: the ball left the pitch; records exit geometry + which restart was awarded. */
+      type: 'OUT_OF_BOUNDS';
+      exitHex: HexCoord;
+      kind: 'SIDELINE' | 'BYLINE';
+      restart: 'THROW_IN' | 'GOAL_KICK';
+      awardedTo: 'home' | 'away';
+      lastTouchedByPieceId: string | null;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /**
+       * THROWIN-02: thrower placement at the exit hex. `from`/`to` mirror KICK_OFF_SETUP's
+       * shape so replay reconstruction can treat it as a MOVE-like event.
+       */
+      type: 'THROW_IN_PLACE';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /** GOALKICK-02: undo boundary between the GK-team and opponent reposition windows. Mirrors FK_STAGE_ADVANCE. */
+      type: 'GOAL_KICK_WINDOW_ADVANCE';
+      fromWindow: 'GK_TEAM' | 'OPPONENT';
+      timestamp: number;
+    }
+  | {
+      /** GOALKICK-03: GK's kick-vs-standard-pass restart choice. */
+      type: 'GOAL_KICK_CHOICE';
+      gkId: string;
+      choice: 'kick' | 'standard';
+      timestamp: number;
+    }
+  | {
+      /** GOALKICK-05: 1-player-per-team repositioning while the goal kick travels. Byte-for-byte the GK_KICK_MOVE shape. */
+      type: 'GOAL_KICK_MOVE';
+      slot: 'KICKER' | 'OPP';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | {
+      /**
+       * GOALKICK-05: goal-kick accuracy roll resolution. Byte-for-byte the GK_KICK shape.
+       * Deliberately its own type, not DICE_ROLL (STATE.md pitfall: DICE_ROLL reactivates a
+       * dormant full-slot Undo lockout).
+       */
+      type: 'GOAL_KICK';
+      gkId: string;
+      targetHex: HexCoord;
+      accurate: boolean;
+      kickDie: number;
+      kickScore: number;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     };
 
 export type GamePhase =
@@ -442,6 +512,17 @@ export type GamePhase =
   | 'FIRST_TIME_PASS_MOVE' // D-03: repositioning phase after first-time pass target selected
   // OFFSIDE-02 (Phase 17 D-29): both-teams repositioning before an offside free kick is taken.
   | 'FREE_KICK_SETUP'
+  // Phase 37 (37-02) / D-01: Throw-In and Goal Kick phases. Genuinely new phase values,
+  // NOT aliases of the GK_RESTART chain — GOALKICK-01 requires Goal Kick to be structurally
+  // independent of the existing GK-catch/save restart chain.
+  | 'THROW_IN_SETUP' // THROWIN-01/02: thrower placement at the exit hex
+  // GOALKICK-02: two sequential reposition windows (GK's team first, then the opponent),
+  // modelled on the existing FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE two-phase-value precedent.
+  | 'GOAL_KICK_SETUP_GK'
+  | 'GOAL_KICK_SETUP_OPPONENT'
+  | 'GOAL_KICK_CHOICE' // GOALKICK-03: GK chooses kick vs. standard pass
+  | 'GOAL_KICK_TARGET' // GOALKICK-04/05: GK's team selects kick destination
+  | 'GOAL_KICK_MOVE' // GOALKICK-05: both teams reposition 1 player <=3 hexes while the kick travels
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -466,7 +547,15 @@ export type LastActionType =
   | 'SHOT'
   // OFFSIDE-02 (Phase 17 D-32): set when an offside free kick is taken — restricts the
   // next action to STANDARD_PASS/HIGH_PASS/LONG_BALL/SHOT via its ELIGIBLE_NEXT_ACTIONS row.
-  | 'FREE_KICK_RESTART';
+  | 'FREE_KICK_RESTART'
+  // Phase 37 (37-02) / THROWIN-03 / D-09: throw-in's two-movement-phase model. Set after
+  // Movement Phase 1 (THROW_IN_MOVEMENT_1) and after Movement Phase 2 (THROW_IN_MOVEMENT_2,
+  // the D-09 hard cap — its ELIGIBLE_NEXT_ACTIONS row deliberately omits MOVEMENT).
+  | 'THROW_IN_MOVEMENT_1'
+  | 'THROW_IN_MOVEMENT_2'
+  // GOALKICK-03: set when the GK chooses the Standard Pass restart branch. Mirrors the
+  // existing FREE_KICK_RESTART row's purpose (restricted eligibility set).
+  | 'GOAL_KICK_RESTART';
 
 /**
  * UX-07 (Phase 18.4): Game speed selection — controls how many match-clock minutes
@@ -1026,4 +1115,58 @@ export type GameState = {
    * attempts to move the passer. null outside this sub-state.
    */
   passerId?: string | null;
+  /**
+   * OOB-05/GOALKICK-06 (Phase 37): game-creation toggle for out-of-bounds detection and its
+   * restart set (throw-in/goal-kick). Absent or `false` means the toggle is OFF and the
+   * pre-existing clamp-to-boundary behaviour must run byte-for-byte unchanged. Every read
+   * site must test `state.outOfBoundsEnabled === true`, never truthiness of a possibly-
+   * undefined value.
+   */
+  outOfBoundsEnabled?: boolean;
+  /** THROWIN-01/02 (Phase 37): the exit hex where the throw-in is taken. null outside THROW_IN_SETUP/movement. */
+  throwInHex?: HexCoord | null;
+  /** THROWIN-01 (Phase 37): the team awarded the throw-in. null outside the throw-in sequence. */
+  throwInTeam?: 'home' | 'away' | null;
+  /**
+   * THROWIN-03/D-09 (Phase 37): counts COMPLETED Movement Phases during the throw-in
+   * sequence — `0` right after placement, `1` after Movement Phase 1, `2` after Movement
+   * Phase 2 (D-09 hard cap: no third Movement Phase). null outside the throw-in sequence.
+   */
+  throwInPhasesTaken?: 0 | 1 | 2 | null;
+  /** GOALKICK-01..06 (Phase 37): the team taking the goal kick. null outside the goal-kick sequence. */
+  goalKickTeam?: 'home' | 'away' | null;
+  /** GOALKICK-01..06 (Phase 37): the GK piece ID taking the goal kick. null outside the goal-kick sequence. */
+  goalKickGkId?: string | null;
+  /**
+   * GOALKICK-02 (Phase 37): piece IDs eligible for the two sequential 6-hex reposition
+   * windows (GK's team first, then the opponent) — copied from `freeMoveEligibleIds`'s
+   * shape (NOT `FREE_KICK_STAGES`' distinct-piece-count budget). null outside
+   * GOAL_KICK_SETUP_GK/GOAL_KICK_SETUP_OPPONENT.
+   */
+  goalKickEligibleIds?: { gkTeam: readonly string[]; opponent: readonly string[] } | null;
+  /**
+   * GOALKICK-02 (Phase 37): cumulative hexes used per piece during the goal-kick reposition
+   * windows. Key = pieceId; value = hexes moved so far (max 6). Copied from
+   * `freeMoveUsedPace`'s shape. null outside GOAL_KICK_SETUP_GK/GOAL_KICK_SETUP_OPPONENT.
+   */
+  goalKickUsedPace?: Readonly<Record<string, number>> | null;
+  /** GOALKICK-04/05 (Phase 37): destination hex selected during GOAL_KICK_TARGET. null outside the goal-kick sequence. */
+  goalKickTargetHex?: HexCoord | null;
+  /**
+   * GOALKICK-05 (Phase 37): whose repositioning slot is active during GOAL_KICK_MOVE.
+   * 'KICKER' -> GK's team moves first; 'OPP' -> opponent moves. Copied from
+   * `gkKickMovementSlot`'s shape. null outside GOAL_KICK_MOVE.
+   */
+  goalKickMoveSlot?: 'KICKER' | 'OPP' | null;
+  /**
+   * GOALKICK-05 (Phase 37): piece ID locked in for the current GOAL_KICK_MOVE slot. Copied
+   * from `gkKickMovedPieceId`'s shape. null if no piece has moved yet in the current slot.
+   */
+  goalKickMovedPieceId?: string | null;
+  /**
+   * GOALKICK-05 (Phase 37): cumulative hexes moved by `goalKickMovedPieceId` in the current
+   * GOAL_KICK_MOVE slot. Capped at 3. Copied from `gkKickPaceUsed`'s shape. Reset to 0 at
+   * each slot transition.
+   */
+  goalKickPaceUsed?: number;
 };
