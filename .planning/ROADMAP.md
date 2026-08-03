@@ -111,14 +111,14 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Bug fixes and non-visual code cleanup land first (lowest risk, independent of the color system). The design-token layer and full highlight/ring standardization must exist before any component restyling — otherwise restyling reintroduces the exact hardcoded-literal cruft it's meant to remove, and the 60 existing color-literal test assertions must migrate to token-identity before any palette value changes. Component restyling is mechanical once tokens exist. ActionPanel/ActionLog standardization comes last so its button/text work is built on the already-restyled chrome.
 
-| Phase | Name                                      | Plans       | Status   |
-| ----- | ----------------------------------------- | ----------- | -------- |
-| 31    | Bug Fixes                                 | 6/6         | Complete |
-| 32    | Code Cleanup                              | 6/6         | Complete |
-| 33    | Design Tokens & Highlight Standardization | 7/7         | Complete |
-| 34    | Visual Theme Restyle                      | 5/5         | Complete |
-| 35    | ActionPanel & Log Standardization         | 6/6         | Complete |
-| 36    | 3/5                                       | In Progress |          |
+| Phase | Name                                      | Plans    | Status     |
+| ----- | ----------------------------------------- | -------- | ---------- |
+| 31    | Bug Fixes                                 | 6/6      | Complete   |
+| 32    | Code Cleanup                              | 6/6      | Complete   |
+| 33    | Design Tokens & Highlight Standardization | 7/7      | Complete   |
+| 34    | Visual Theme Restyle                      | 5/5      | Complete   |
+| 35    | ActionPanel & Log Standardization         | 6/6      | Complete   |
+| 36    | 5/5                                       | Complete | 2026-08-03 |
 
 ### Phase 31: Bug Fixes
 
@@ -248,7 +248,7 @@ Full archive: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · [Requi
 4. When a shot is blocked, the resulting loose ball is pathed from the blocking piece's square, not the shooter's square.
 5. During a move, once an action has triggered a dice roll (tackle/steal), Undo cannot revert state to before that dice-roll action.
 
-**Plans:** 3/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 **Wave 1**
 
@@ -258,8 +258,8 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 36-03-PLAN.md — Same-pool tier cascade + common-only cross-pool fallback (BUG-35)
-- [ ] 36-05-PLAN.md — Undo boundary at a resolved dice-roll action (BUG-37)
+- [x] 36-03-PLAN.md — Same-pool tier cascade + common-only cross-pool fallback (BUG-35)
+- [x] 36-05-PLAN.md — Undo boundary at a resolved dice-roll action (BUG-37)
 
 ---
 
