@@ -6,11 +6,12 @@
  * All field state is local useState — mirrors UniformSelectionScreen's local-state +
  * single-bundled-confirm shape.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SELECTABLE_DRAFT_POOLS } from '@counter-attack/shared';
 import type { GameSpeed, TeamType, DraftPoolId } from '@counter-attack/shared';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
 import { DRAFT_POOL_LABELS } from '../constants/settingsSummary.js';
+import { useGameStore } from '../store/useGameStore.js';
 import styles from './GameSettingsScreen.module.css';
 
 /** All 5 draft pools shown in the checkbox list; disabled-state derived from SELECTABLE_DRAFT_POOLS (D-04). */
@@ -39,6 +40,17 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
   const [hasConfirmed, setHasConfirmed] = useState(false);
+
+  // CR-03 (Phase 36 review): a server-side confirm rejection (e.g. DRAFT_SUPPLY_EXHAUSTED)
+  // never emits ROOM_SETTINGS_CONFIRMED, so hasConfirmed being set unconditionally in
+  // handleConfirm left the host stuck with no Confirm button and no error shown. Read
+  // gameError like every sibling pre-game panel (ActionPanel, FreeKickSetupPanel,
+  // LineupAssignmentScreen) and reset hasConfirmed so the host can retry.
+  const gameError = useGameStore((s) => s.gameError);
+
+  useEffect(() => {
+    if (gameError) setHasConfirmed(false);
+  }, [gameError]);
 
   function toggleDraftPool(poolId: DraftPoolId) {
     // D-04: Legends/Icons are non-interactive — SELECTABLE_DRAFT_POOLS is the single
@@ -150,6 +162,8 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
             Confirm Settings
           </button>
         )}
+
+        {gameError && <span className={styles.errorText}>{gameError}</span>}
 
         <button type="button" className={styles.subLink} onClick={onBack}>
           &larr; Back

@@ -209,6 +209,14 @@
   cursor: default;
 }
 
+/* CR-03 (Phase 36 review): server-side confirm rejection text — copied verbatim from
+   ActionPanel.module.css's .errorText declaration for cross-panel consistency. */
+.errorText {
+  color: var(--color-danger);
+  font-size: 11px;
+  font-weight: 400;
+}
+
 /* Back link — BUG-33 (Phase 36) / D-04. Copied verbatim from LobbyScreen.module.css. */
 .subLink {
   background: none;
