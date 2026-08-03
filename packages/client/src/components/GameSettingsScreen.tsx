@@ -23,11 +23,7 @@ type Props = {
     speed: GameSpeed;
     teamType: TeamType;
     draftPools: DraftPoolId[];
-    /**
-     * OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set toggle.
-     * Hardcoded false here — this plan (37-02) only extends the type contract; the
-     * settings-screen checkbox that actually sets this is a later plan's scope.
-     */
+    /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set toggle. */
     outOfBounds: boolean;
   }) => void;
   /**
@@ -42,6 +38,8 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   const [teamType, setTeamType] = useState<TeamType>('standard');
   // D-05: Original pre-checked by default when Draft mode is first selected.
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>(['original']);
+  // GOALKICK-06 / OOB-05 (Phase 37): default off, matching the server-side safe default.
+  const [outOfBounds, setOutOfBounds] = useState<boolean>(false);
   // WR-03 (Phase 27 review): guard against a rapid double-click firing
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
@@ -77,13 +75,11 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
 
   function handleConfirm() {
     setHasConfirmed(true);
-    // Phase 37 (37-02): outOfBounds is hardcoded false — this plan only extends the type
-    // contract; the settings-screen checkbox that actually sets this is a later plan's scope.
     onConfirm({
       speed,
       teamType,
       draftPools: teamType === 'draft' ? draftPools : [],
-      outOfBounds: false,
+      outOfBounds,
     });
   }
 
@@ -136,6 +132,18 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
               Draft
             </button>
           </div>
+        </div>
+
+        <div className={styles.section}>
+          <span className={styles.sectionLabel}>Restarts</span>
+          <label className={styles.poolRow}>
+            <input
+              type="checkbox"
+              checked={outOfBounds}
+              onChange={() => setOutOfBounds((v) => !v)}
+            />
+            Out-of-Bounds / Restarts
+          </label>
         </div>
 
         {teamType === 'draft' && (

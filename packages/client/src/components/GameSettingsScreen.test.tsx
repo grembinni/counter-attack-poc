@@ -181,6 +181,46 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
   });
 });
 
+describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OOB-05, Phase 37)', () => {
+  it('renders the "Out-of-Bounds / Restarts" row with an unchecked checkbox by default', () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    const checkbox = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: 'Out-of-Bounds / Restarts',
+    });
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('clicking the toggle then Confirm Settings calls onConfirm with outOfBounds: true', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Out-of-Bounds / Restarts' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+    });
+  });
+
+  it('confirming without clicking the toggle calls onConfirm with outOfBounds: false', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+    });
+  });
+});
+
 describe('GameSettingsScreen — Back control (BUG-33, Phase 36)', () => {
   it('renders a Back control in the default Standard state', () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);

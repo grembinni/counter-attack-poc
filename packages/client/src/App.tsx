@@ -47,6 +47,10 @@ export function App() {
   // TeamSelectionScreen/UniformSelectionScreen (27-04, D-07/D-09).
   const [teamType, setTeamType] = useState<TeamType>('standard');
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>([]);
+  // GOALKICK-06 / OOB-05 (Phase 37): out-of-bounds detection + restart set toggle,
+  // co-located with teamType/draftPools (set via GameSettingsScreen confirm or the
+  // ROOM_SETTINGS_CONFIRMED broadcast echo).
+  const [outOfBounds, setOutOfBounds] = useState<boolean>(false);
   // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
   // Phase 24: lineup local state — mirrors homePickedTeam pattern (not in Zustand — Pitfall 7)
@@ -130,10 +134,12 @@ export function App() {
       speed: GameSpeed,
       confirmedTeamType: TeamType,
       pools: DraftPoolId[],
+      confirmedOutOfBounds: boolean,
     ) {
       setSelectedSpeed(speed);
       setTeamType(confirmedTeamType);
       setDraftPools(pools);
+      setOutOfBounds(confirmedOutOfBounds);
       if (useGameStore.getState().screen === 'GAME_SETTINGS') setScreen('WAITING');
     }
 
@@ -245,6 +251,7 @@ export function App() {
     setSelectedSpeed(settings.speed);
     setTeamType(settings.teamType);
     setDraftPools(settings.draftPools);
+    setOutOfBounds(settings.outOfBounds);
     socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, settings);
   }
 
@@ -258,6 +265,7 @@ export function App() {
     setSelectedSpeed('standard');
     setTeamType('standard');
     setDraftPools([]);
+    setOutOfBounds(false);
     setHomePickedTeam(null);
     resetLobby();
   }
@@ -320,14 +328,14 @@ export function App() {
           homeConfirmedStyle={homeConfirmedStyle}
           onConfirm={handleUniformConfirm}
           selectedSpeed={selectedSpeed}
-          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}
+          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools, outOfBounds)}
         />
       ) : screen === 'TEAM_SELECTION' ? (
         <TeamSelectionScreen
           homePickedTeam={homePickedTeam}
           onPick={handleTeamPick}
           selectedSpeed={selectedSpeed}
-          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools)}
+          settingsSummary={formatSettingsSummary(selectedSpeed, teamType, draftPools, outOfBounds)}
         />
       ) : (
         <LobbyScreen />
