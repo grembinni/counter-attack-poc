@@ -27,23 +27,25 @@ created: 2026-08-03
 
 **Component reuse for this phase** (per CONTEXT.md canonical_refs): the new Throw-In Setup and Goal Kick Setup panels should structurally mirror `packages/client/src/components/FreeKickSetupPanel.tsx` (`.module.css`) and `KickOffSetupPanel.tsx` (`.module.css`) — both are the closest existing analogs for a staged/gated sidebar panel with constraint rows, a gated CTA, and a waiting-state message for the non-active player. The new "Out-of-Bounds/Restarts" game-creation toggle should mirror the checkbox-row pattern in `GameSettingsScreen.tsx` (`toggleDraftPool`/`.poolRow`).
 
+**Visual hierarchy for this phase:** the primary visual anchor for both new sidebar panels (Throw-In Setup, Goal Kick Setup) is the state-colored CTA button (`--color-cta-ready-bg` green when all repositioning constraints are met, `--color-cta-pending-bg` orange when not) — this directly matches `FreeKickSetupPanel`'s established focal-point pattern, where the button's color communicates the panel's overall action-readiness at a glance before a manager reads any row text. The new `GameSettingsScreen` "Out-of-Bounds / Restarts" checkbox row has no dedicated focal point of its own; it intentionally recedes into the existing `.poolRow` checkbox list at the same low visual emphasis as `toggleDraftPool` and its sibling settings rows, consistent with that screen's established hierarchy.
+
 ---
 
 ## Spacing Scale
 
 Declared values (must be multiples of 4):
 
-| Token | Value | Usage                                                                                                                                      |
-| ----- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| xs    | 4px   | Icon/glyph gaps, tight inline padding (panel internal padding: `4px 6px`, matching `FreeKickSetupPanel`/`KickOffSetupPanel`)               |
-| sm    | 8px   | Compact row/section gaps (`.section { gap: 8px }`, checkbox-row gaps, button gaps)                                                         |
-| md    | 16px  | Default element spacing, card padding (`GameSettingsScreen .card { padding: 24px }` uses lg — 16px is the inter-section default elsewhere) |
-| lg    | 24px  | Card/section-level padding (`GameSettingsScreen.module.css .card`)                                                                         |
-| xl    | 32px  | Not used by this phase's new components                                                                                                    |
-| 2xl   | 48px  | Not used by this phase's new components                                                                                                    |
-| 3xl   | 64px  | Not used by this phase's new components                                                                                                    |
+| Token | Value | Usage                                                                                                                                                |
+| ----- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| xs    | 4px   | Icon/glyph gaps, tight inline padding — including the new Throw-In Setup / Goal Kick Setup panels' internal spacing (`gap: 4px`, `padding: 4px 8px`) |
+| sm    | 8px   | Compact row/section gaps (`.section { gap: 8px }`, checkbox-row gaps, button gaps)                                                                   |
+| md    | 16px  | Default element spacing, card padding (`GameSettingsScreen .card { padding: 24px }` uses lg — 16px is the inter-section default elsewhere)           |
+| lg    | 24px  | Card/section-level padding (`GameSettingsScreen.module.css .card`)                                                                                   |
+| xl    | 32px  | Not used by this phase's new components                                                                                                              |
+| 2xl   | 48px  | Not used by this phase's new components                                                                                                              |
+| 3xl   | 64px  | Not used by this phase's new components                                                                                                              |
 
-Exceptions: sidebar panels (`FreeKickSetupPanel`, `KickOffSetupPanel`) use a tighter established micro-scale (3px gap, 4px 6px padding) for the compact sidebar-panel family — this is a pre-existing, intentional exception documented in those components, not a new deviation. New Throw-In/Goal Kick panels should match this established sidebar-panel micro-scale exactly rather than introducing the standard 8px scale into that specific component family, for visual consistency with `FreeKickSetupPanel`/`KickOffSetupPanel`.
+Exceptions: `FreeKickSetupPanel`/`KickOffSetupPanel` (pre-existing, legacy) use a tighter, non-4-compliant micro-scale (3px gap, `4px 6px` padding). This is an **inherited legacy value only** — documented here for context, not re-approved as a pattern, and it must **not** be propagated to new components. The new Throw-In Setup and Goal Kick Setup panels introduced by this phase use the standard `xs` token instead: `gap: 4px`, `padding: 4px 8px` — fully 4-multiple-compliant, and visually near-identical to the legacy panels' spacing. Do not copy the legacy 3px/6px values into any new component built in this phase or later.
 
 ---
 
