@@ -123,6 +123,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
   });
 
@@ -138,6 +139,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original'],
+      outOfBounds: false,
     });
   });
 
@@ -159,6 +161,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original', 'mls', 'legends', 'icons'],
+      outOfBounds: false,
     });
   });
 
@@ -173,6 +176,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'fast',
       teamType: 'standard',
       draftPools: [],
+      outOfBounds: false,
     });
   });
 });

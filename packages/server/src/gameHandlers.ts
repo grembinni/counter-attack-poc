@@ -1158,6 +1158,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // D-03 (Phase 17.1): also valid in FIRST_TIME_PASS_MOVE
       // BUG-18 (Phase 18.3): extended to cover all move-bearing phases. KICK_OFF_SETUP
       // is intentionally excluded — its Undo is out of scope this phase.
+      // Phase 37 (37-02): GOAL_KICK_SETUP_GK/GOAL_KICK_SETUP_OPPONENT/GOAL_KICK_MOVE added —
+      // each contains a reversible piece move. THROW_IN_SETUP/GOAL_KICK_CHOICE/GOAL_KICK_TARGET
+      // are deliberately NOT added — those phases contain no reversible piece move, and adding
+      // them would make Undo a silent no-op there.
       const validUndoPhases: GamePhase[] = [
         'MOVE',
         'HIGH_PASS_MOVE',
@@ -1167,6 +1171,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         'FREE_MOVE_ATTACK',
         'FREE_MOVE_DEFENSE',
         'FREE_KICK_SETUP',
+        'GOAL_KICK_SETUP_GK',
+        'GOAL_KICK_SETUP_OPPONENT',
+        'GOAL_KICK_MOVE',
       ];
       if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');

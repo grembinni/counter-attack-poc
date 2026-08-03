@@ -35,6 +35,15 @@ const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   'GK_KICK_TARGET',
   'GK_KICK_MOVE',
   'KICK_OFF_SETUP',
+  // Phase 37 (37-02) / D-08: throw-in and goal-kick phases — the ball is either fixed at
+  // a restart hex or mid-air during every one of these, matching this list's existing
+  // precedent. Reuses the existing marker; no new tint type added (D-08).
+  'THROW_IN_SETUP',
+  'GOAL_KICK_SETUP_GK',
+  'GOAL_KICK_SETUP_OPPONENT',
+  'GOAL_KICK_CHOICE',
+  'GOAL_KICK_TARGET',
+  'GOAL_KICK_MOVE',
 ]);
 
 /**
