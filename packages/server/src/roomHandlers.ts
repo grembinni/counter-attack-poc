@@ -868,6 +868,7 @@ export function registerRoomHandlers(
             },
             confirmedHomeOrder,
             confirmedAwayOrder,
+            room.outOfBoundsEnabled ?? false,
           );
         } catch (err) {
           console.error('buildInitialGameState failed in LINEUP_CONFIRM:', err);

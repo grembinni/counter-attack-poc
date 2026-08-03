@@ -595,6 +595,28 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
   }, 5000);
 
+  it('a forged non-boolean outOfBounds payload is rejected with INVALID_OUT_OF_BOUNDS before any room mutation (T-37-08)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid outOfBounds
+      outOfBounds: 'yes' as any,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_OUT_OF_BOUNDS');
+    // Proves the guard ran before any room mutation.
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
   it("draftPools allow-list accepts 'legends' now that Legends/Icons are enabled (Phase 30 D-08/T-30-01, supersedes T-27-02)", async () => {
     // Phase 30 D-08: SELECTABLE_DRAFT_POOLS was widened from 3 to 5 values — 'legends' and
     // 'icons' are no longer disabled/coming-soon; the server allow-list (single source of

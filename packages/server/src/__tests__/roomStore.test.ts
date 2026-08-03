@@ -9,6 +9,7 @@ import {
   broadcastState,
   type Room,
 } from '../roomStore.js';
+import { buildInitialGameState } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
@@ -139,6 +140,60 @@ describe('deleteRoom', () => {
     expect(getRoom(roomCode)).toBeDefined();
     deleteRoom(roomCode);
     expect(getRoom(roomCode)).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOALKICK-06 / OOB-05 (Phase 37 Plan 03): Out-of-Bounds/Restarts settings toggle.
+// Wave-0 toggle coverage per 37-VALIDATION.md. The over-the-wire
+// ROOM_SETTINGS_CONFIRM validation/mutation (allow-list guard, broadcast) is
+// integration-tested in room.integration.test.ts; here we cover the store field
+// itself (default state + the mutation the handler performs) and the
+// buildInitialGameState parameter that consumes it.
+// ---------------------------------------------------------------------------
+
+describe('Room.outOfBoundsEnabled (Phase 37 OOB-05/GOALKICK-06)', () => {
+  it('defaults to undefined on a freshly created room', () => {
+    const { roomCode } = createRoom('socket-host');
+    const room = getRoom(roomCode);
+    expect(room?.outOfBoundsEnabled).toBeUndefined();
+  });
+
+  it('reflects true after the settings-confirm mutation (mirrors the ROOM_SETTINGS_CONFIRM handler write)', () => {
+    const { roomCode } = createRoom('socket-host');
+    const room = getRoom(roomCode);
+    if (!room) throw new Error('room not found');
+    // Mirrors `room.outOfBoundsEnabled = outOfBounds;` in roomHandlers.ts's
+    // ROOM_SETTINGS_CONFIRM handler after a client confirms with outOfBounds: true.
+    room.outOfBoundsEnabled = true;
+    expect(getRoom(roomCode)!.outOfBoundsEnabled).toBe(true);
+  });
+});
+
+describe('buildInitialGameState outOfBoundsEnabled parameter (Phase 37 OOB-05/GOALKICK-06)', () => {
+  it('returns a state with outOfBoundsEnabled === true when passed true as the 9th argument', () => {
+    const state = buildInitialGameState(
+      'ROOM-OOB-1',
+      { home: 'city', away: 'crew' },
+      'standard',
+      DEFAULT_STYLES_RS,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+    expect(state.outOfBoundsEnabled).toBe(true);
+  });
+
+  it('returns a state with outOfBoundsEnabled === false when the 9th argument is omitted', () => {
+    const state = buildInitialGameState(
+      'ROOM-OOB-2',
+      { home: 'city', away: 'crew' },
+      'standard',
+      DEFAULT_STYLES_RS,
+    );
+    expect(state.outOfBoundsEnabled).toBe(false);
   });
 });
 
