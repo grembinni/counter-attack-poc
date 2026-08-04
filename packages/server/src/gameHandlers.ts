@@ -52,6 +52,7 @@ import {
   applyGKKickTarget,
   applyGKRestart,
   applyGoalKickChoice,
+  applyGoalKickMoveEnd,
   applyGoalKickReposition,
   applyGoalKickTarget,
   applyGoalKickWindowEnd,
@@ -183,13 +184,15 @@ type ResponseMoveConfig = {
     | 'highPassMovedPieceId'
     | 'gkKickMovedPieceId'
     | 'firstTimePassMovedPieceId'
-    | 'snapDeflectMovedPieceId';
+    | 'snapDeflectMovedPieceId'
+    | 'goalKickMovedPieceId';
   /** GameState field tracking cumulative hexes moved this slot. */
   paceUsedKey:
     | 'highPassPaceUsed'
     | 'gkKickPaceUsed'
     | 'firstTimePassPaceUsed'
-    | 'snapDeflectPaceUsed';
+    | 'snapDeflectPaceUsed'
+    | 'goalKickPaceUsed';
   /** Maximum hexes (pace) allowed this slot. */
   paceCap: number;
   /** GameState field identifying the original carrier/kicker who may not reposition their own piece (BUG-11 class). Omit for phases with no carrier-exclusion concept (GK_KICK_MOVE, SNAPSHOT_DEFLECT). */
@@ -536,6 +539,43 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           gkKickMovedPieceId: pieceId,
           gkKickPaceUsed: (gkMoveState.gkKickPaceUsed ?? 0) + distanceMoved,
           eventLog: [...gkMoveState.eventLog, gkKickMoveEvent],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      // GOAL_KICK_MOVE: both teams reposition 1 piece <=3 hexes while the goal kick
+      // travels (GOALKICK-05). Distinct from the GOAL_KICK_SETUP_GK/OPPONENT branch
+      // below (Plan 37-08) — that one delegates to applyGoalKickReposition for a
+      // per-piece 6-hex budget; this is a single-piece-per-slot 3-hex budget, exactly
+      // what validateResponseMoveStep exists for (mirrors the GK_KICK_MOVE block above).
+      if (room.gameState.phase === 'GOAL_KICK_MOVE') {
+        const goalKickMoveState = room.gameState;
+        const validation = validateResponseMoveStep(io, socket, room, pieceId, to, {
+          actingTeam: goalKickMoveState.activeTeam,
+          lockedPieceIdKey: 'goalKickMovedPieceId',
+          paceUsedKey: 'goalKickPaceUsed',
+          paceCap: 3,
+          clickDistanceMode: 'strict-1',
+        });
+        if (!validation.ok) return;
+        const { piece, distanceMoved } = validation;
+        const goalKickMoveEvent: ActionEvent = {
+          type: 'GOAL_KICK_MOVE',
+          slot: goalKickMoveState.goalKickMoveSlot === 'KICKER' ? 'KICKER' : 'OPP',
+          pieceId,
+          from: piece.position,
+          to,
+          timestamp: Date.now(),
+        };
+        room.gameState = {
+          ...goalKickMoveState,
+          pieces: goalKickMoveState.pieces.map((p) =>
+            p.id === pieceId ? { ...p, position: to } : p,
+          ),
+          goalKickMovedPieceId: pieceId,
+          goalKickPaceUsed: (goalKickMoveState.goalKickPaceUsed ?? 0) + distanceMoved,
+          eventLog: [...goalKickMoveState.eventLog, goalKickMoveEvent],
         };
         broadcastState(io, room);
         return;
@@ -964,6 +1004,28 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           }
           broadcastState(io, room);
         }
+        return;
+      }
+
+      // GOAL_KICK_MOVE: slot transitions (KICKER -> OPP) + the accuracy roll after the
+      // OPP slot (GOALKICK-05). Delegates the whole travel-window resolution to the
+      // pure applyGoalKickMoveEnd — this handler only generates the die (ARCH-01) and
+      // broadcasts the result. Never produces FULL_TIME, so no startReplayStream call.
+      if (room.gameState.phase === 'GOAL_KICK_MOVE') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const kickDie = rollDice();
+        const goalKickEndResult = applyGoalKickMoveEnd(room.gameState, kickDie);
+        if (!goalKickEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, goalKickEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = goalKickEndResult.state;
+        broadcastState(io, room);
         return;
       }
 
