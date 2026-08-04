@@ -75,11 +75,11 @@
 
 ### Throw-In (THROWIN)
 
-- [ ] **THROWIN-01**: A throw-in is awarded when the ball exits the pitch over a sideline — whether from an inaccurate High Pass, an inaccurate Standard/Long Pass, or a Loose Ball
+- [x] **THROWIN-01**: A throw-in is awarded when the ball exits the pitch over a sideline — whether from an inaccurate High Pass, an inaccurate Standard/Long Pass, or a Loose Ball
 - [ ] **THROWIN-02**: The attacking manager selects a player and places them, with the ball, at the last in-bounds hex the ball crossed before exiting
 - [ ] **THROWIN-03**: The throwing manager chooses 1 or 2 Movement Phases to complete before taking the throw
-- [ ] **THROWIN-04**: The throw travels up to 6 hexes, either Low (a Standard Pass, interceptable) or High (to a teammate's head, not interceptable, and the receiver must attempt a header)
-- [ ] **THROWIN-05**: A throw that itself exits the pitch is reclassified by the Out-of-Bounds Detection system exactly like any other exit (sideline → throw-in to the other team, byline → corner/goal kick per the normal rules)
+- [x] **THROWIN-04**: The throw travels up to 6 hexes, either Low (a Standard Pass, interceptable) or High (to a teammate's head, not interceptable, and the receiver must attempt a header)
+- [x] **THROWIN-05**: A throw that itself exits the pitch is reclassified by the Out-of-Bounds Detection system exactly like any other exit (sideline → throw-in to the other team, byline → corner/goal kick per the normal rules)
 
 ### Out-of-Bounds Detection (OOB)
 
@@ -127,63 +127,63 @@
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase    | Status  |
-| ----------- | -------- | ------- |
-| OOB-01      | Phase 37 | Pending |
-| OOB-02      | Phase 37 | Pending |
-| OOB-04      | Phase 37 | Pending |
-| OOB-05      | Phase 37 | Pending |
-| THROWIN-01  | Phase 37 | Pending |
-| THROWIN-02  | Phase 37 | Pending |
-| THROWIN-03  | Phase 37 | Pending |
-| THROWIN-04  | Phase 37 | Pending |
-| THROWIN-05  | Phase 37 | Pending |
-| GOALKICK-01 | Phase 37 | Pending |
-| GOALKICK-02 | Phase 37 | Pending |
-| GOALKICK-03 | Phase 37 | Pending |
-| GOALKICK-04 | Phase 37 | Pending |
-| GOALKICK-05 | Phase 37 | Pending |
-| GOALKICK-06 | Phase 37 | Pending |
-| OOB-03      | Phase 38 | Pending |
-| CORNER-01   | Phase 38 | Pending |
-| CORNER-02   | Phase 38 | Pending |
-| CORNER-03   | Phase 38 | Pending |
-| CORNER-04   | Phase 38 | Pending |
-| CORNER-05   | Phase 38 | Pending |
-| CORNER-06   | Phase 38 | Pending |
-| FOUL-01     | Phase 39 | Pending |
-| FOUL-02     | Phase 39 | Pending |
-| FOUL-03     | Phase 39 | Pending |
-| FOUL-04     | Phase 39 | Pending |
-| FOUL-05     | Phase 39 | Pending |
-| CARD-01     | Phase 39 | Pending |
-| CARD-02     | Phase 39 | Pending |
-| CARD-03     | Phase 39 | Pending |
-| CARD-04     | Phase 39 | Pending |
-| INJURY-01   | Phase 39 | Pending |
-| INJURY-02   | Phase 39 | Pending |
-| INJURY-03   | Phase 39 | Pending |
-| INJURY-04   | Phase 39 | Pending |
-| GKDIVE-01   | Phase 39 | Pending |
-| GKDIVE-02   | Phase 39 | Pending |
-| GKDIVE-03   | Phase 39 | Pending |
-| GKDIVE-04   | Phase 39 | Pending |
-| GKDIVE-05   | Phase 39 | Pending |
-| PEN-01      | Phase 39 | Pending |
-| PEN-02      | Phase 39 | Pending |
-| PEN-03      | Phase 39 | Pending |
-| FK-01       | Phase 39 | Pending |
-| SETTINGS-01 | Phase 39 | Pending |
-| SETTINGS-02 | Phase 39 | Pending |
-| SETTINGS-03 | Phase 39 | Pending |
-| SUB-01      | Phase 40 | Pending |
-| SUB-02      | Phase 40 | Pending |
-| SUB-03      | Phase 40 | Pending |
-| SUB-04      | Phase 40 | Pending |
-| SUB-05      | Phase 40 | Pending |
-| SUB-06      | Phase 40 | Pending |
-| SUB-07      | Phase 40 | Pending |
-| SETTINGS-04 | Phase 40 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| OOB-01      | Phase 37 | Pending  |
+| OOB-02      | Phase 37 | Pending  |
+| OOB-04      | Phase 37 | Pending  |
+| OOB-05      | Phase 37 | Pending  |
+| THROWIN-01  | Phase 37 | Complete |
+| THROWIN-02  | Phase 37 | Pending  |
+| THROWIN-03  | Phase 37 | Pending  |
+| THROWIN-04  | Phase 37 | Complete |
+| THROWIN-05  | Phase 37 | Complete |
+| GOALKICK-01 | Phase 37 | Pending  |
+| GOALKICK-02 | Phase 37 | Pending  |
+| GOALKICK-03 | Phase 37 | Pending  |
+| GOALKICK-04 | Phase 37 | Pending  |
+| GOALKICK-05 | Phase 37 | Pending  |
+| GOALKICK-06 | Phase 37 | Pending  |
+| OOB-03      | Phase 38 | Pending  |
+| CORNER-01   | Phase 38 | Pending  |
+| CORNER-02   | Phase 38 | Pending  |
+| CORNER-03   | Phase 38 | Pending  |
+| CORNER-04   | Phase 38 | Pending  |
+| CORNER-05   | Phase 38 | Pending  |
+| CORNER-06   | Phase 38 | Pending  |
+| FOUL-01     | Phase 39 | Pending  |
+| FOUL-02     | Phase 39 | Pending  |
+| FOUL-03     | Phase 39 | Pending  |
+| FOUL-04     | Phase 39 | Pending  |
+| FOUL-05     | Phase 39 | Pending  |
+| CARD-01     | Phase 39 | Pending  |
+| CARD-02     | Phase 39 | Pending  |
+| CARD-03     | Phase 39 | Pending  |
+| CARD-04     | Phase 39 | Pending  |
+| INJURY-01   | Phase 39 | Pending  |
+| INJURY-02   | Phase 39 | Pending  |
+| INJURY-03   | Phase 39 | Pending  |
+| INJURY-04   | Phase 39 | Pending  |
+| GKDIVE-01   | Phase 39 | Pending  |
+| GKDIVE-02   | Phase 39 | Pending  |
+| GKDIVE-03   | Phase 39 | Pending  |
+| GKDIVE-04   | Phase 39 | Pending  |
+| GKDIVE-05   | Phase 39 | Pending  |
+| PEN-01      | Phase 39 | Pending  |
+| PEN-02      | Phase 39 | Pending  |
+| PEN-03      | Phase 39 | Pending  |
+| FK-01       | Phase 39 | Pending  |
+| SETTINGS-01 | Phase 39 | Pending  |
+| SETTINGS-02 | Phase 39 | Pending  |
+| SETTINGS-03 | Phase 39 | Pending  |
+| SUB-01      | Phase 40 | Pending  |
+| SUB-02      | Phase 40 | Pending  |
+| SUB-03      | Phase 40 | Pending  |
+| SUB-04      | Phase 40 | Pending  |
+| SUB-05      | Phase 40 | Pending  |
+| SUB-06      | Phase 40 | Pending  |
+| SUB-07      | Phase 40 | Pending  |
+| SETTINGS-04 | Phase 40 | Pending  |
 
 **Coverage:**
 
