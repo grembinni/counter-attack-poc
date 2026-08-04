@@ -36,6 +36,7 @@ import {
   freeKickStageTeam,
   hexDistance,
   hexLine,
+  isPitchHex,
   validatePass,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
@@ -71,7 +72,13 @@ import {
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
 import type { Room } from './roomStore.js';
-import type { ActionEvent, GamePhase, GameState, PlayerPiece } from '@counter-attack/shared';
+import type {
+  ActionEvent,
+  GamePhase,
+  GameState,
+  LastActionType,
+  PlayerPiece,
+} from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -81,6 +88,18 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerE
  * GK_RESTART is handled by the separate game:gk-restart handler (Plan 03, D-12/D-22).
  */
 const DICE_PHASES = new Set<string>(['KICK_OFF', 'PASS', 'HEADER', 'LOOSE_BALL']);
+
+/** THROWIN-04: a throw-in travels at most 6 hexes, regardless of Low/High type. */
+const THROW_IN_MAX_DISTANCE = 6;
+
+/**
+ * Returns true when `lastActionType` marks an in-progress throw-in Movement Phase
+ * (THROW_IN_MOVEMENT_1 after Movement Phase 1, THROW_IN_MOVEMENT_2 after Movement
+ * Phase 2). Used at every throw-in-specific guard site in the GAME_ROLL PASS branch
+ * below so the same condition stays greppable and single-sourced.
+ */
+const isThrowInContext = (lastActionType: LastActionType | null): boolean =>
+  lastActionType === 'THROW_IN_MOVEMENT_1' || lastActionType === 'THROW_IN_MOVEMENT_2';
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -1330,6 +1349,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         }
 
         if (room.gameState.phase === 'PASS' || room.gameState.phase === 'KICK_OFF') {
+          // T-37-26: capture the pre-commit throw-in context before this branch
+          // overwrites lastActionType with the chosen passType below — the context
+          // teardown (step 4) needs the value as it was BEFORE the throw was taken.
+          const wasThrowIn = isThrowInContext(room.gameState.lastActionType);
           // Pass phase requires a passType from the client (choose-phase flow).
           const PASS_TYPES = [
             'STANDARD_PASS',
@@ -1346,6 +1369,19 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // null lastActionType (kick-off start) is treated as MOVEMENT_PHASE eligibility.
           const effectiveLastAction = room.gameState.lastActionType ?? 'MOVEMENT_PHASE';
           if (!ELIGIBLE_NEXT_ACTIONS[effectiveLastAction].has(passType)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
+            broadcastState(io, room);
+            return;
+          }
+          // T-37-25: defence-in-depth — ELIGIBLE_NEXT_ACTIONS[THROW_IN_MOVEMENT_*]
+          // (Plan 37-02) already restricts a throw to STANDARD_PASS/HIGH_PASS; this
+          // explicit check protects against a future edit to that table silently
+          // widening throw-in options.
+          if (
+            isThrowInContext(room.gameState.lastActionType) &&
+            passType !== 'STANDARD_PASS' &&
+            passType !== 'HIGH_PASS'
+          ) {
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SEQUENCE');
             broadcastState(io, room);
             return;
@@ -1371,6 +1407,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             typeof targetHex.r !== 'number'
           ) {
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+            broadcastState(io, room);
+            return;
+          }
+          // T-37-24: THROWIN-04 off-pitch guard — lives here only, never inside
+          // validatePass (RESEARCH.md Assumption A4 / Open Question 1).
+          if (isThrowInContext(room.gameState.lastActionType) && !isPitchHex(targetHex)) {
+            socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
             broadcastState(io, room);
             return;
           }
@@ -1401,6 +1444,9 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             carrier.position,
             targetHex,
             vpType,
+            isThrowInContext(room.gameState.lastActionType)
+              ? { maxDistance: THROW_IN_MAX_DISTANCE }
+              : undefined,
           );
           if (!passResult.ok) {
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
@@ -1419,7 +1465,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           }
 
           // Commit the chosen pass type — applyRoll reads lastActionType to determine time cost.
-          room.gameState = { ...room.gameState, lastActionType: passType };
+          // T-37-26/THROWIN-04: tear down the throw-in context the moment the throw
+          // passes validation and is committed here — the throw has been taken, so
+          // the throw-in is over regardless of Low/High type or what happens next.
+          // Placed before the HIGH_PASS repositioning detour below so it applies to
+          // both Low and High throws.
+          room.gameState = {
+            ...room.gameState,
+            lastActionType: passType,
+            ...(wasThrowIn
+              ? { throwInHex: null, throwInTeam: null, throwInPhasesTaken: null }
+              : {}),
+          };
 
           // HIGH_PASS: log the pass attempt immediately then enter repositioning phase.
           // Ball moves to target (visible to both clients); carrierId cleared so kicker loses possession.
