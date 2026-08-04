@@ -5,6 +5,7 @@ import {
   applyFreeMoveZoneCheck,
   applyThrowInPlace,
   applyEndTurn,
+  applyMove,
   computeGoalKickEligibleIds,
   applyGoalKickReposition,
   applyGoalKickWindowEnd,
@@ -694,6 +695,257 @@ describe('applyEndTurn throw-in movement counting', () => {
 
     expect(result.state.movementSlot).toBe('ATTACKER_2');
     expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CR-01 throw-in teardown on break-in-play early returns (Plan 37-11 Task 1)
+// THROWIN-03/CR-01: a tackle, steal or defending-team loose-ball pickup that
+// ends a throw-in Movement Phase early must not leave throwInHex/throwInTeam/
+// throwInPhasesTaken behind on state, and applyEndTurn's re-entry guard must
+// not fire on a Movement Phase whose lastActionType is a turnover marker even
+// if the three fields were somehow left stale.
+// ---------------------------------------------------------------------------
+
+/** Verified duel dice from gameEngine.test.ts: defCombined 11 >= carCombined 9 -> SUCCESS. */
+const CR01_DUEL_DICE = { stealDie: 3, tackleDie: 6, carrierDie: 1 };
+
+describe('CR-01 throw-in teardown on break-in-play early returns', () => {
+  it('tackle success clears throwInHex/throwInTeam/throwInPhasesTaken', () => {
+    const carrier: PlayerPiece = {
+      ...homePiece,
+      id: 'home-carrier',
+      position: { q: 10, r: 7 },
+      dribbling: 8,
+    };
+    const defender: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-defender',
+      position: { q: 12, r: 7 },
+      tackling: 5,
+    };
+    const state: GameState = {
+      ...baseLooseBallState,
+      phase: 'MOVE',
+      movementSlot: 'DEFENDER_5',
+      pieces: [carrier, defender],
+      attackingTeam: 'home',
+      activeTeam: 'away',
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: { position: { q: 10, r: 7 }, carrierId: carrier.id, lastTouchedBy: null },
+    };
+    const result = applyMove(state, defender.id, { q: 11, r: 7 }, CR01_DUEL_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
+    expect(result.state.phase).toBe('PASS');
+  });
+
+  it('steal success clears throwInHex/throwInTeam/throwInPhasesTaken', () => {
+    const carrier: PlayerPiece = {
+      ...homePiece,
+      id: 'home-carrier2',
+      position: { q: 10, r: 7 },
+      dribbling: 8,
+    };
+    // tackling:8 + stealDie:3 = 11 >= 10 -> SUCCESS (D-06 threshold)
+    const defender: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-steal-defender',
+      position: { q: 12, r: 7 },
+      tackling: 8,
+    };
+    const state: GameState = {
+      ...baseLooseBallState,
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      pieces: [carrier, defender],
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: { position: { q: 10, r: 7 }, carrierId: carrier.id, lastTouchedBy: null },
+    };
+    // carrier moves adjacent to defender -> STEAL_ATTEMPT (carrier is the mover, D-03/MOVE-04)
+    const result = applyMove(state, carrier.id, { q: 11, r: 7 }, CR01_DUEL_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe(defender.id);
+  });
+
+  it('defending-team loose-ball pickup clears throwInHex/throwInTeam/throwInPhasesTaken', () => {
+    const awayPicker: PlayerPiece = { ...awayPiece, id: 'away-picker', position: { q: 9, r: 8 } };
+    const state: GameState = {
+      ...baseLooseBallState,
+      phase: 'MOVE',
+      movementSlot: 'DEFENDER_5',
+      pieces: [homePiece, awayPicker],
+      attackingTeam: 'home',
+      activeTeam: 'away',
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: { position: { q: 9, r: 7 }, carrierId: null, lastTouchedBy: null },
+    };
+    const result = applyMove(state, awayPicker.id, { q: 9, r: 7 }, CR01_DUEL_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+    expect(result.state.phase).toBe('PASS');
+  });
+
+  it('tackle FAIL does not clear the fields — the throw-in Movement Phase survives', () => {
+    const carrier: PlayerPiece = {
+      ...homePiece,
+      id: 'home-carrier3',
+      position: { q: 10, r: 7 },
+      dribbling: 8,
+    };
+    const defender: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-defender-fail',
+      position: { q: 12, r: 7 },
+      tackling: 5,
+    };
+    const state: GameState = {
+      ...baseLooseBallState,
+      phase: 'MOVE',
+      movementSlot: 'DEFENDER_5',
+      pieces: [carrier, defender],
+      attackingTeam: 'home',
+      activeTeam: 'away',
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: { position: { q: 10, r: 7 }, carrierId: carrier.id, lastTouchedBy: null },
+    };
+    // defCombined = 5+1=6; carCombined = 8+6=14; 6<14 -> FAIL
+    const result = applyMove(
+      state,
+      defender.id,
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 6 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.throwInHex).toEqual({ q: 10, r: 7 });
+    expect(result.state.throwInTeam).toBe('home');
+    expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+
+  it('a normal (non-contest) move does not clear the fields', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      pieces: [homePiece, awayPiece],
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: { position: homePiece.position, carrierId: homePiece.id, lastTouchedBy: null },
+    };
+    // homePiece at {q:20,r:10} -> {q:21,r:10}, far from awayPiece {q:16,r:16} -> no contest
+    const result = applyMove(state, homePiece.id, { q: 21, r: 10 }, CR01_DUEL_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.throwInHex).toEqual({ q: 10, r: 7 });
+    expect(result.state.throwInTeam).toBe('home');
+    expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+
+  it('same-team loose-ball pickup mid-Movement-Phase does not clear the fields (stays in MOVE)', () => {
+    const homePicker: PlayerPiece = { ...homePiece, id: 'home-picker', position: { q: 9, r: 8 } };
+    const state: GameState = {
+      ...baseLooseBallState,
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      pieces: [homePicker, awayPiece],
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: { position: { q: 9, r: 7 }, carrierId: null, lastTouchedBy: null },
+    };
+    const result = applyMove(state, homePicker.id, { q: 9, r: 7 }, CR01_DUEL_DICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('MOVE');
+    expect(result.state.throwInHex).toEqual({ q: 10, r: 7 });
+    expect(result.state.throwInTeam).toBe('home');
+    expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+
+  it("applyEndTurn's throw-in branch does not fire when lastActionType is a stale SUCCESSFUL_TACKLE marker", () => {
+    const state: GameState = { ...throwInMoveEndState, lastActionType: 'SUCCESSFUL_TACKLE' };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('MOVEMENT_PHASE');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+    expect(ELIGIBLE_NEXT_ACTIONS[result.state.lastActionType].has('SHOT')).toBe(true);
+  });
+
+  it("applyEndTurn's throw-in branch does not fire when lastActionType is a stale DEFLECTION marker", () => {
+    const state: GameState = { ...throwInMoveEndState, lastActionType: 'DEFLECTION' };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('MOVEMENT_PHASE');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+    expect(ELIGIBLE_NEXT_ACTIONS[result.state.lastActionType].has('SHOT')).toBe(true);
+  });
+
+  it('a genuine throw-in Movement Phase 1 (lastActionType null) still yields THROW_IN_MOVEMENT_1', () => {
+    const result = applyEndTurn(throwInMoveEndState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('THROW_IN_MOVEMENT_1');
+    expect(result.state.throwInPhasesTaken).toBe(1);
+  });
+
+  it('a genuine throw-in Movement Phase 2 (lastActionType THROW_IN_MOVEMENT_1) still yields THROW_IN_MOVEMENT_2', () => {
+    const state: GameState = {
+      ...throwInMoveEndState,
+      throwInPhasesTaken: 1,
+      lastActionType: 'THROW_IN_MOVEMENT_1',
+    };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('THROW_IN_MOVEMENT_2');
+    expect(result.state.throwInPhasesTaken).toBe(2);
   });
 });
 

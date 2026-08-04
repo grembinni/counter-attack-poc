@@ -623,6 +623,19 @@ export function checkHalfEndOnTackle(
   return state.half === 1 ? 'HALF_TIME' : 'FULL_TIME';
 }
 
+// THROWIN-03/CR-01: single shared teardown literal for a throw-in context.
+// Every early return that ends a Movement Phase without routing through
+// applyEndTurn (tackle success, steal success, defending-team loose-ball
+// pickup — all "break in play" outcomes) MUST spread this so a stale
+// throwInHex/throwInTeam/throwInPhasesTaken cannot survive to re-arm
+// applyEndTurn's throw-in branch on a later, unrelated Movement Phase.
+// Not exported: nothing outside this module needs it.
+const THROW_IN_TEARDOWN = {
+  throwInHex: null,
+  throwInTeam: null,
+  throwInPhasesTaken: null,
+} as const;
+
 // ---------------------------------------------------------------------------
 // applyMove
 // ---------------------------------------------------------------------------
@@ -801,6 +814,8 @@ export function applyMove(
           stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
           tackleAttemptedByIds: [], // D-02
           eventLog: newEventLog,
+          // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
+          ...THROW_IN_TEARDOWN,
         },
       };
     }
@@ -967,6 +982,8 @@ export function applyMove(
               pieces: newPieces,
               ball: tackleSuccessBall,
             }),
+            // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
+            ...THROW_IN_TEARDOWN,
           },
         };
       }
@@ -1040,6 +1057,8 @@ export function applyMove(
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
         offsidePieceIds: evaluateOffside({ ...state, pieces: newPieces, ball: stealSuccessBall }),
+        // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
+        ...THROW_IN_TEARDOWN,
       },
     };
   }
@@ -1156,9 +1175,7 @@ export function applyEndTurn(
           offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
           lastShotPath: null, // prevent stale shot-path tint from bleeding into HALF_TIME screen
           // THROWIN-03/D-09: a throw-in context cannot survive across a half boundary.
-          throwInHex: null,
-          throwInTeam: null,
-          throwInPhasesTaken: null,
+          ...THROW_IN_TEARDOWN,
         },
       };
     }
@@ -1188,9 +1205,7 @@ export function applyEndTurn(
             tackleAttemptedByIds: [], // D-02
             offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
             // THROWIN-03/D-09: a throw-in context cannot survive into a GK restart.
-            throwInHex: null,
-            throwInTeam: null,
-            throwInPhasesTaken: null,
+            ...THROW_IN_TEARDOWN,
           },
         };
       }
@@ -1203,12 +1218,27 @@ export function applyEndTurn(
     // Possession loss (steal/tackle) or no carrier at all means the branch must NOT
     // fire — the throw-in context is cleared instead and the generic MOVEMENT_PHASE
     // return below applies, so the team now in possession gets normal pass options.
+    //
+    // THROWIN-03/CR-01 (D-11-02/D-11-03): `carrier.teamId === state.throwInTeam` alone is
+    // a coincidence check — the ball can return to the throwing team through two unrelated
+    // turnovers, re-arming this branch on a Movement Phase that has nothing to do with the
+    // throw-in. `state.lastActionType` is not a coincidence: applyThrowInPlace sets it to
+    // null for Movement Phase 1, this branch sets it to THROW_IN_MOVEMENT_1 for Movement
+    // Phase 2, applyStartMovement preserves it across the Movement-Phase boundary, and every
+    // turnover overwrites it (SUCCESSFUL_TACKLE / DEFLECTION). This clause is deliberately
+    // NOT paired to throwInPhasesTaken (D-11-03) — null pairs with phasesTaken 0 in the
+    // common case, but a stale phasesTaken:1 with lastActionType:null must still be allowed
+    // to pass (pre-existing test at line ~583). THROW_IN_MOVEMENT_2 is intentionally absent
+    // here because throwInPhasesTaken would then be 2, already excluded by the `< 2` clause.
+    // This is a pure narrowing (an added &&) — it can only shrink the set of states in which
+    // the branch fires, so it cannot introduce a new false positive on its own.
     const throwInStillValid =
       state.throwInPhasesTaken !== null &&
       state.throwInPhasesTaken !== undefined &&
       state.throwInPhasesTaken < 2 &&
       carrier != null &&
-      carrier.teamId === state.throwInTeam;
+      carrier.teamId === state.throwInTeam &&
+      (state.lastActionType === null || state.lastActionType === 'THROW_IN_MOVEMENT_1');
 
     if (throwInStillValid) {
       // Narrowed by throwInStillValid above; TypeScript can't see through the const
@@ -1236,10 +1266,10 @@ export function applyEndTurn(
       };
     }
 
-    // Exactly one place clears the throw-in fields for every non-throw-in-branch
-    // terminal return in this block (this generic return is the only remaining one —
-    // the half-end and GK_RESTART returns above clear unconditionally on their own).
-    const throwInClear = { throwInHex: null, throwInTeam: null, throwInPhasesTaken: null } as const;
+    // THROWIN-03/CR-01: THROW_IN_TEARDOWN is now the single shared literal that clears
+    // the throw-in fields, used module-wide by both this generic return and applyMove's
+    // break-in-play early returns (tackle/steal success, defending-team pickup) — not a
+    // local const scoped to applyEndTurn alone.
 
     // MOVE-06 (corrected design): applyEndTurn no longer special-cases a pending free
     // move here — the ball-zone-triggered FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE overlay is
@@ -1264,7 +1294,7 @@ export function applyEndTurn(
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
         offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
-        ...throwInClear,
+        ...THROW_IN_TEARDOWN,
       },
     };
   }
