@@ -3707,6 +3707,88 @@ export function applyGoalKickChoice(
 }
 
 // ---------------------------------------------------------------------------
+// applyGoalKickTarget
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGoalKickTarget. */
+export type ApplyGoalKickTargetResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' | 'OFF_PITCH' | 'INVALID_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * GOALKICK-05: records the goal-kick target and transitions to GOAL_KICK_MOVE.
+ *
+ * D-01: structurally mirrors applyGKKickTarget's shape (phase-guard, GK lookup,
+ * isPitchHex/own-hex checks, GK_KICK_MOVE-style state literal) but does NOT call
+ * applyGKKickTarget/applyGKRestart and does NOT read any gkKick* field — the GK is
+ * resolved via the goal-kick-specific `goalKickGkId`, which keeps working after the
+ * ball leaves the goalkeeper's hands (unlike ball.carrierId).
+ *
+ * GOALKICK-05: "the Kick targets a teammate's head" — the target hex must be
+ * occupied by an outfield teammate of the goalkeeper. This is what guarantees the
+ * mandatory-header outcome (applyGoalKickMoveEnd's accurate branch) is reachable by
+ * construction: a client cannot aim at empty space to dodge the header contest.
+ *
+ * `validatePass` is deliberately not called — a goal kick has no path-blocking or
+ * interception concept (D-01 / RESEARCH.md Assumption A4).
+ */
+export function applyGoalKickTarget(
+  state: GameState,
+  targetHex: HexCoord,
+): ApplyGoalKickTargetResult {
+  if (state.phase !== 'GOAL_KICK_TARGET') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gk = state.pieces.find((p) => p.id === state.goalKickGkId);
+  if (!gk) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (!isPitchHex(targetHex)) return { ok: false, reason: 'OFF_PITCH' };
+
+  if (targetHex.q === gk.position.q && targetHex.r === gk.position.r) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // GOALKICK-05: "the Kick targets a teammate's head" — reject anything that is not
+  // an outfield teammate of the goalkeeper standing exactly on the target hex.
+  const receiver = state.pieces.find(
+    (p) =>
+      p.teamId === state.goalKickTeam &&
+      p.id !== gk.id &&
+      p.position.q === targetHex.q &&
+      p.position.r === targetHex.r,
+  );
+  if (!receiver) return { ok: false, reason: 'INVALID_TARGET' };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GOAL_KICK_MOVE',
+      // D-06/OOB-01: the goalkeeper is a real contact — clearing carrierId puts the
+      // ball visibly in the air for both managers while the travel window plays out.
+      ball: {
+        position: targetHex,
+        carrierId: null,
+        lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+      },
+      goalKickTargetHex: targetHex,
+      goalKickMoveSlot: 'KICKER',
+      goalKickMovedPieceId: null,
+      goalKickPaceUsed: 0,
+      attackingTeam: gk.teamId,
+      activeTeam: gk.teamId,
+      // BUG-18 parity: clear lastDiceRoll on travel-window entry so a stale dice
+      // result from an earlier phase cannot block Undo.
+      lastDiceRoll: null,
+      lastActionType: null,
+      // Target selection emits no event — the GOAL_KICK delivery event's targetHex
+      // field (applyGoalKickMoveEnd) is the audit record for this action.
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyGKRestart
 // ---------------------------------------------------------------------------
 

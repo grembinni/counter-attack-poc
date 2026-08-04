@@ -9,6 +9,7 @@ import {
   applyGoalKickReposition,
   applyGoalKickWindowEnd,
   applyGoalKickChoice,
+  applyGoalKickTarget,
 } from '../gameEngine.js';
 import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
@@ -1030,5 +1031,81 @@ describe('applyGoalKickChoice', () => {
   it('ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART contains only STANDARD_PASS', () => {
     expect(ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART.size).toBe(1);
     expect(ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART.has('STANDARD_PASS')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGoalKickTarget (Plan 37-09 Task 1)
+// GOALKICK-05: the Kick must target an outfield teammate's hex ("the head").
+// ---------------------------------------------------------------------------
+
+/**
+ * GOAL_KICK_TARGET fixture: home has chosen 'kick'. homeGK still holds the ball
+ * (mirrors applyGoalKickChoice's 'kick' branch). homeMidThird ({q:8,r:10}) is
+ * homeGK's outfield teammate and the valid target for the success case.
+ */
+const goalKickTargetState: GameState = {
+  ...goalKickSetupGkState,
+  phase: 'GOAL_KICK_TARGET',
+  goalKickEligibleIds: null,
+  goalKickUsedPace: null,
+  ball: {
+    position: homeGK.position,
+    carrierId: homeGK.id,
+    lastTouchedBy: { pieceId: homeGK.id, teamId: 'home' },
+  },
+};
+
+describe('applyGoalKickTarget', () => {
+  it('rejects when phase is not GOAL_KICK_TARGET', () => {
+    const state: GameState = { ...goalKickTargetState, phase: 'PASS' };
+    const result = applyGoalKickTarget(state, homeMidThird.position);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects when goalKickGkId matches no piece', () => {
+    const state: GameState = { ...goalKickTargetState, goalKickGkId: 'nonexistent-gk' };
+    const result = applyGoalKickTarget(state, homeMidThird.position);
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects an off-pitch target', () => {
+    const result = applyGoalKickTarget(goalKickTargetState, { q: -5, r: 10 });
+    expect(result).toEqual({ ok: false, reason: 'OFF_PITCH' });
+  });
+
+  it("rejects the goalkeeper's own hex", () => {
+    const result = applyGoalKickTarget(goalKickTargetState, homeGK.position);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects an empty on-pitch hex (GOALKICK-05: must target a teammate)', () => {
+    const result = applyGoalKickTarget(goalKickTargetState, { q: 19, r: 10 });
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects a hex occupied by an opposing piece', () => {
+    const result = applyGoalKickTarget(goalKickTargetState, awayMidHomeThird.position);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it("accepts a teammate's hex and transitions to GOAL_KICK_MOVE with the ball in the air", () => {
+    const result = applyGoalKickTarget(goalKickTargetState, homeMidThird.position);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GOAL_KICK_MOVE');
+    expect(result.state.goalKickTargetHex).toEqual(homeMidThird.position);
+    expect(result.state.goalKickMoveSlot).toBe('KICKER');
+    expect(result.state.goalKickMovedPieceId).toBeNull();
+    expect(result.state.goalKickPaceUsed).toBe(0);
+    expect(result.state.ball.position).toEqual(homeMidThird.position);
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: homeGK.id, teamId: 'home' });
+    expect(result.state.lastDiceRoll).toBeNull();
+    expect(result.state.lastActionType).toBeNull();
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.attackingTeam).toBe('home');
+    expect(result.state.eventLog).toHaveLength(goalKickTargetState.eventLog.length);
   });
 });

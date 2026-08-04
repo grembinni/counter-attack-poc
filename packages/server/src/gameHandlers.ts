@@ -53,6 +53,7 @@ import {
   applyGKRestart,
   applyGoalKickChoice,
   applyGoalKickReposition,
+  applyGoalKickTarget,
   applyGoalKickWindowEnd,
   applyHalfTimeStart,
   applyKickOffReady,
@@ -2365,6 +2366,56 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       const result = applyGoalKickChoice(room.gameState, choice);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04: single broadcast entry point
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GOAL_KICK_TARGET — GK's team selects the Kick target during GOAL_KICK_TARGET.
+  // GOALKICK-05: target must be an outfield teammate's hex (enforced in
+  // applyGoalKickTarget). D-01: team guard compares socketTeam(socket) directly against
+  // the server-owned goalKickTeam field — NOT controlsGKTeam, which derives the GK's
+  // team from ball.carrierId and would break the moment the ball leaves the GK's hands.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GOAL_KICK_TARGET, (targetHex: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be in GOAL_KICK_TARGET
+      if (room.gameState === null || room.gameState.phase !== 'GOAL_KICK_TARGET') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 — never trust client input; validate payload shape before use.
+      if (
+        typeof targetHex !== 'object' ||
+        targetHex === null ||
+        typeof targetHex.q !== 'number' ||
+        typeof targetHex.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Team guard: only the goal-kicking team (the GK's own team) may select the target.
+      if (socketTeam(socket) !== room.gameState.goalKickTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      const result = applyGoalKickTarget(room.gameState, targetHex);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
