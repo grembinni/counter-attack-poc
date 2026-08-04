@@ -57,12 +57,12 @@
 
 ### Goal Kick (GOALKICK)
 
-- [ ] **GOALKICK-01**: Goal kick is its own dedicated restart flow, independent of the existing GK-catch/save restart chain
-- [ ] **GOALKICK-02**: When a goal kick is awarded, both final-thirds' players may reposition up to 6 hexes each — the goalkeeper's team repositions first, then the opposing team
-- [ ] **GOALKICK-03**: The goalkeeper then chooses to Kick the ball (High Pass accuracy check, combined score 8+ required) or take a Standard Pass
-- [ ] **GOALKICK-04**: An inaccurate Kick follows the existing Loose Ball rules; the Standard Pass option uses the existing Standard Pass mechanic unmodified (no header requirement)
-- [ ] **GOALKICK-05**: While a Kicked ball travels, both teams may each move one player up to 3 hexes; the Kick must target a teammate's head, and the receiver must attempt a header
-- [ ] **GOALKICK-06**: Out-of-Bounds/Restarts (goal kick, corner kick, throw-in, and out-of-bounds detection) is enabled/disabled via a game-creation toggle independent of Fouls, Booking, and Injury
+- [x] **GOALKICK-01**: Goal kick is its own dedicated restart flow, independent of the existing GK-catch/save restart chain
+- [x] **GOALKICK-02**: When a goal kick is awarded, both final-thirds' players may reposition up to 6 hexes each — the goalkeeper's team repositions first, then the opposing team
+- [x] **GOALKICK-03**: The goalkeeper then chooses to Kick the ball (High Pass accuracy check, combined score 8+ required) or take a Standard Pass
+- [x] **GOALKICK-04**: An inaccurate Kick follows the existing Loose Ball rules; the Standard Pass option uses the existing Standard Pass mechanic unmodified (no header requirement)
+- [x] **GOALKICK-05**: While a Kicked ball travels, both teams may each move one player up to 3 hexes; the Kick must target a teammate's head, and the receiver must attempt a header
+- [x] **GOALKICK-06**: Out-of-Bounds/Restarts (goal kick, corner kick, throw-in, and out-of-bounds detection) is enabled/disabled via a game-creation toggle independent of Fouls, Booking, and Injury
 
 ### Corner Kick (CORNER)
 
@@ -76,18 +76,18 @@
 ### Throw-In (THROWIN)
 
 - [x] **THROWIN-01**: A throw-in is awarded when the ball exits the pitch over a sideline — whether from an inaccurate High Pass, an inaccurate Standard/Long Pass, or a Loose Ball
-- [ ] **THROWIN-02**: The attacking manager selects a player and places them, with the ball, at the last in-bounds hex the ball crossed before exiting
-- [ ] **THROWIN-03**: The throwing manager chooses 1 or 2 Movement Phases to complete before taking the throw
+- [x] **THROWIN-02**: The attacking manager selects a player and places them, with the ball, at the last in-bounds hex the ball crossed before exiting
+- [x] **THROWIN-03**: The throwing manager chooses 1 or 2 Movement Phases to complete before taking the throw
 - [x] **THROWIN-04**: The throw travels up to 6 hexes, either Low (a Standard Pass, interceptable) or High (to a teammate's head, not interceptable, and the receiver must attempt a header)
 - [x] **THROWIN-05**: A throw that itself exits the pitch is reclassified by the Out-of-Bounds Detection system exactly like any other exit (sideline → throw-in to the other team, byline → corner/goal kick per the normal rules)
 
 ### Out-of-Bounds Detection (OOB)
 
-- [ ] **OOB-01**: The game tracks which piece (and team) last touched the ball, independent of current possession
-- [ ] **OOB-02**: The ball exiting over a sideline awards a throw-in to the team that did not last touch it
+- [x] **OOB-01**: The game tracks which piece (and team) last touched the ball, independent of current possession
+- [x] **OOB-02**: The ball exiting over a sideline awards a throw-in to the team that did not last touch it
 - [ ] **OOB-03**: The ball exiting over a byline after last being touched by a defending player awards a corner kick to the attacking team
-- [ ] **OOB-04**: The ball exiting over a byline after last being touched by an attacking player (or without being touched, e.g. an off-target shot) awards a goal kick to the defending team
-- [ ] **OOB-05**: When Out-of-Bounds/Restarts is disabled, the ball continues to clamp to the pitch boundary exactly as it does today — none of OOB-01..04 or the Goal Kick/Corner Kick/Throw-In flows are reachable
+- [x] **OOB-04**: The ball exiting over a byline after last being touched by an attacking player (or without being touched, e.g. an off-target shot) awards a goal kick to the defending team
+- [x] **OOB-05**: When Out-of-Bounds/Restarts is disabled, the ball continues to clamp to the pitch boundary exactly as it does today — none of OOB-01..04 or the Goal Kick/Corner Kick/Throw-In flows are reachable
 
 ### Settings (SETTINGS)
 
@@ -129,21 +129,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase    | Status   |
 | ----------- | -------- | -------- |
-| OOB-01      | Phase 37 | Pending  |
-| OOB-02      | Phase 37 | Pending  |
-| OOB-04      | Phase 37 | Pending  |
-| OOB-05      | Phase 37 | Pending  |
+| OOB-01      | Phase 37 | Complete |
+| OOB-02      | Phase 37 | Complete |
+| OOB-04      | Phase 37 | Complete |
+| OOB-05      | Phase 37 | Complete |
 | THROWIN-01  | Phase 37 | Complete |
-| THROWIN-02  | Phase 37 | Pending  |
-| THROWIN-03  | Phase 37 | Pending  |
+| THROWIN-02  | Phase 37 | Complete |
+| THROWIN-03  | Phase 37 | Complete |
 | THROWIN-04  | Phase 37 | Complete |
 | THROWIN-05  | Phase 37 | Complete |
-| GOALKICK-01 | Phase 37 | Pending  |
-| GOALKICK-02 | Phase 37 | Pending  |
-| GOALKICK-03 | Phase 37 | Pending  |
-| GOALKICK-04 | Phase 37 | Pending  |
-| GOALKICK-05 | Phase 37 | Pending  |
-| GOALKICK-06 | Phase 37 | Pending  |
+| GOALKICK-01 | Phase 37 | Complete |
+| GOALKICK-02 | Phase 37 | Complete |
+| GOALKICK-03 | Phase 37 | Complete |
+| GOALKICK-04 | Phase 37 | Complete |
+| GOALKICK-05 | Phase 37 | Complete |
+| GOALKICK-06 | Phase 37 | Complete |
 | OOB-03      | Phase 38 | Pending  |
 | CORNER-01   | Phase 38 | Pending  |
 | CORNER-02   | Phase 38 | Pending  |
