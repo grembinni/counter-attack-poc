@@ -4,24 +4,24 @@ milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: executing
 stopped_at: Phase 37 UI-SPEC approved
-last_updated: '2026-08-04T18:23:05.183Z'
-last_activity: 2026-08-04 -- Phase 37 execution started
+last_updated: '2026-08-04T22:08:23.493Z'
+last_activity: 2026-08-04
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 13
-  completed_plans: 12
-  percent: 0
+  completed_plans: 13
+  percent: 25
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 37 (out-of-bounds-detection-throw-in-goal-kick) — EXECUTING
-Plan: 1 of 13
+Phase: 38
+Plan: Not started
 Status: Executing Phase 37
-Last activity: 2026-08-04 -- Phase 37 execution started
+Last activity: 2026-08-04
 
 ## Project Reference
 
