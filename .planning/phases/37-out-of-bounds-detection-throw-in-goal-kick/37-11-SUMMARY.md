@@ -201,5 +201,19 @@ None — no external service configuration required.
 
 ---
 
+## Self-Check: PASSED
+
+- FOUND: `packages/server/src/gameEngine.ts`
+- FOUND: `packages/server/src/__tests__/gameEngine.outOfBounds.test.ts`
+- FOUND: `.planning/REQUIREMENTS.md`
+- FOUND: `.planning/phases/37-out-of-bounds-detection-throw-in-goal-kick/37-11-SUMMARY.md`
+- FOUND commit: `542566c` (Task 1)
+- FOUND commit: `c0ae215` (Task 1 — Rule 1 deviation fix)
+- FOUND commit: `28437a7` (Task 2)
+- FOUND commit: `10f4c9e` (Task 3)
+- FOUND commit: `865a88d` (this summary)
+
+---
+
 _Phase: 37-out-of-bounds-detection-throw-in-goal-kick_
 _Completed: 2026-08-04_
