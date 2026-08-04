@@ -130,7 +130,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 | Phase | Name                                   | Plans    | Status      |
 | ----- | -------------------------------------- | -------- | ----------- |
-| 37    | 12/12                                  | Complete | 2026-08-04  |
+| 37    | 13/13                                  | Complete | 2026-08-04  |
 | 38    | Corner Kick                            | TBD      | Not started |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD      | Not started |
 | 40    | Substitutions                          | TBD      | Not started |
@@ -193,7 +193,7 @@ Plans:
 
 **Wave 11** _(gap closure from 37-VERIFICATION.md re-verification — GOALKICK-02 blocker)_
 
-- [ ] 37-13-PLAN.md — GOALKICK-02 blocker: on-pitch bounds guard for goal-kick reposition in applyGoalKickReposition and its GAME_MOVE handler branch + regression tests
+- [x] 37-13-PLAN.md — GOALKICK-02 blocker: on-pitch bounds guard for goal-kick reposition in applyGoalKickReposition and its GAME_MOVE handler branch + regression tests
 
 **UI hint**: yes
 
