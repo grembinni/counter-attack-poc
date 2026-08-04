@@ -3484,6 +3484,24 @@ export function applyGoalKickReposition(
   if (hexDistance(piece.position, to) !== 1) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' };
   }
+  // GOALKICK-02 (37-13, closes the 37-VERIFICATION.md 2026-08-04 BLOCKER): eligibility
+  // for both reposition windows is homeThird (q<=10) or awayThird (q>=26) — so a piece
+  // sitting on the q=0/q=36 column or the r=0/r=25 row (an ordinary goalkeeper/defender
+  // position, not a contrived edge case) is one adjacent-hex click from an off-grid
+  // coordinate. An off-grid piece has no recovery path (every subsequent click is still
+  // "adjacent to current position", so it can be walked arbitrarily far within its own
+  // 6-hex budget) and silently poisons offside/ZoI/every hexDistance-based rule for the
+  // rest of the match while disappearing from the rendered SVG grid. This mirrors the
+  // sibling applyGoalKickTarget's on-pitch guard in this same file. The client's own
+  // PITCH_HEXES filter (useGameStore.computeFreeMoveValidHexes) is a convenience, never
+  // the server's defense.
+  //
+  // Placement (D-13-03): adjacency is checked first so a distant off-pitch hex still
+  // returns OUT_OF_RANGE; OFF_PITCH precedes OCCUPIED because no piece can ever occupy
+  // an off-pitch hex, so the two checks are mutually exclusive.
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
+  }
   if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }

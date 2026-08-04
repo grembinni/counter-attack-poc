@@ -1091,6 +1091,25 @@ const awayMidHomeThird: PlayerPiece = { ...awayPiece, id: 'away-mid', position: 
 /** Away piece standing in the awayThird — eligible for the opponent list when goalKickTeam='home'. */
 const awayFwdAwayThird: PlayerPiece = { ...awayPiece, id: 'away-fwd', position: { q: 28, r: 16 } };
 
+// GOALKICK-02 (37-13) boundary fixtures — each one hex-click away from an off-grid
+// coordinate under ODD-Q parity (see hexNeighbors in packages/shared/src/hex.ts).
+/** Left byline column (q=0), inside homeThird; even-q neighbours include {q:-1,r:5}. */
+const homeGoalLineEdge: PlayerPiece = {
+  ...homePiece,
+  id: 'home-edge-left',
+  position: { q: 0, r: 5 },
+};
+/** Right byline column (q=36), inside awayThird (broad-reading eligibility); even-q neighbours include {q:37,r:20}. */
+const homeFarEdge: PlayerPiece = {
+  ...homePiece,
+  id: 'home-edge-right',
+  position: { q: 36, r: 20 },
+};
+/** Top sideline row (r=0), inside homeThird; odd-q neighbours include {q:5,r:-1}. */
+const homeTopEdge: PlayerPiece = { ...homePiece, id: 'home-edge-top', position: { q: 5, r: 0 } };
+/** Right byline column (q=36), inside awayThird; even-q neighbours include {q:37,r:3}. */
+const awayFarEdge: PlayerPiece = { ...awayPiece, id: 'away-edge-right', position: { q: 36, r: 3 } };
+
 const eligibilityPieces: readonly PlayerPiece[] = [
   homeGK, // homeThird (q:3) -> gkTeam
   awayGK, // awayThird (q:33) -> opponent
@@ -1264,6 +1283,100 @@ describe('applyGoalKickReposition', () => {
     expect(result.state.goalKickUsedPace?.[homeMidThird.id]).toBe(1);
     const movedPiece = result.state.pieces.find((p) => p.id === homeMidThird.id);
     expect(movedPiece?.position).toEqual({ q: 9, r: 10 });
+  });
+
+  // -------------------------------------------------------------------------
+  // GOALKICK-02 (37-13) — on-pitch bounds guard, all four boundaries, both
+  // reposition windows. Closes the 37-VERIFICATION.md 2026-08-04 BLOCKER.
+  // -------------------------------------------------------------------------
+
+  const gkWindowPieces: readonly PlayerPiece[] = [
+    ...eligibilityPieces,
+    homeGoalLineEdge,
+    homeFarEdge,
+    homeTopEdge,
+  ];
+  const gkWindowState: GameState = {
+    ...goalKickSetupGkState,
+    pieces: gkWindowPieces,
+    goalKickEligibleIds: computeGoalKickEligibleIds(gkWindowPieces, 'home'),
+  };
+
+  const opponentWindowPieces: readonly PlayerPiece[] = [...eligibilityPieces, awayFarEdge];
+  const opponentWindowState: GameState = {
+    ...goalKickSetupGkState,
+    phase: 'GOAL_KICK_SETUP_OPPONENT',
+    activeTeam: 'away',
+    pieces: opponentWindowPieces,
+    goalKickEligibleIds: computeGoalKickEligibleIds(opponentWindowPieces, 'home'),
+  };
+
+  it('rejects a left-column (q=0) reposition destination outside the pitch (OFF_PITCH) in the GK window', () => {
+    const result = applyGoalKickReposition(gkWindowState, homeGoalLineEdge.id, { q: -1, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('rejects a right-column (q=36) reposition destination outside the pitch (OFF_PITCH) in the GK window', () => {
+    const result = applyGoalKickReposition(gkWindowState, homeFarEdge.id, { q: 37, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('rejects a top-row (r=0) reposition destination outside the pitch (OFF_PITCH) in the GK window', () => {
+    const result = applyGoalKickReposition(gkWindowState, homeTopEdge.id, { q: 5, r: -1 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('rejects a right-column (q=36) reposition destination outside the pitch (OFF_PITCH) in the OPPONENT window', () => {
+    const result = applyGoalKickReposition(opponentWindowState, awayFarEdge.id, { q: 37, r: 3 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('an OFF_PITCH rejection does not mutate the input state (position or goalKickUsedPace)', () => {
+    const result = applyGoalKickReposition(gkWindowState, homeGoalLineEdge.id, { q: -1, r: 5 });
+    expect(result.ok).toBe(false);
+    const untouchedPiece = gkWindowState.pieces.find((p) => p.id === homeGoalLineEdge.id);
+    expect(untouchedPiece?.position).toEqual({ q: 0, r: 5 });
+    expect(gkWindowState.goalKickUsedPace).toEqual({});
+  });
+
+  it('adjacency still wins over bounds for a distant off-pitch hex (OUT_OF_RANGE, not OFF_PITCH)', () => {
+    // {q:-3,r:5} is off-pitch AND hexDistance 3 from {q:0,r:5} — adjacency (checked
+    // first, D-13-03) must reject it as OUT_OF_RANGE, not OFF_PITCH.
+    const result = applyGoalKickReposition(gkWindowState, homeGoalLineEdge.id, { q: -3, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' });
+  });
+
+  it('does not over-block: a boundary piece can still step to a legal on-pitch neighbour', () => {
+    const result = applyGoalKickReposition(gkWindowState, homeGoalLineEdge.id, { q: 0, r: 6 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const movedPiece = result.state.pieces.find((p) => p.id === homeGoalLineEdge.id);
+    expect(movedPiece?.position).toEqual({ q: 0, r: 6 });
+    expect(result.state.goalKickUsedPace?.[homeGoalLineEdge.id]).toBe(1);
+  });
+
+  it('a boundary piece keeps its full 6-hex budget despite standing on the edge of the pitch', () => {
+    // Path stays on the q=0 column, walking down the sideline: every step uses the
+    // even-q {0,1} neighbour offset (r+1, q unchanged) — on-pitch and collision-free
+    // for the full 6-hex budget: (0,5)->(0,6)->(0,7)->(0,8)->(0,9)->(0,10)->(0,11).
+    const path: Array<{ q: number; r: number }> = [
+      { q: 0, r: 6 },
+      { q: 0, r: 7 },
+      { q: 0, r: 8 },
+      { q: 0, r: 9 },
+      { q: 0, r: 10 },
+      { q: 0, r: 11 },
+    ];
+    let state = gkWindowState;
+    for (const to of path) {
+      const result = applyGoalKickReposition(state, homeGoalLineEdge.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+    }
+    expect(state.goalKickUsedPace?.[homeGoalLineEdge.id]).toBe(6);
+    const movedPiece = state.pieces.find((p) => p.id === homeGoalLineEdge.id);
+    expect(movedPiece?.position).toEqual({ q: 0, r: 11 });
   });
 });
 
