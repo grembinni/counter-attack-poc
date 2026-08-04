@@ -101,7 +101,7 @@ describe('ThrowInSetupPanel — active-panel behaviour', () => {
   it('Confirm is disabled with a title when no thrower is selected', () => {
     render(<ThrowInSetupPanel />);
     const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
-    expect(confirmBtn.disabled).toBe(true);
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(true);
     expect(confirmBtn.title).toBe('Select one of your players to take the throw');
   });
 
@@ -114,7 +114,7 @@ describe('ThrowInSetupPanel — active-panel behaviour', () => {
       screen.getByText(`Thrower: #${piece.number} ${piece.firstName} ${piece.lastName}`),
     ).toBeDefined();
     const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
-    expect(confirmBtn.disabled).toBe(false);
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('does not treat an opponent piece id as a valid selection', () => {
@@ -122,7 +122,7 @@ describe('ThrowInSetupPanel — active-panel behaviour', () => {
     render(<ThrowInSetupPanel />);
     expect(screen.getByText('No player selected.')).toBeDefined();
     const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
-    expect(confirmBtn.disabled).toBe(true);
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('clicking Confirm with a selected piece calls emitThrowInPlace(selectedPieceId)', () => {
