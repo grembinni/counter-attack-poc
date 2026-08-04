@@ -168,6 +168,8 @@ export type GameStore = {
   emitFreeKickMove: (pieceId: string, to: HexCoord) => void;
   /** OFFSIDE-02 (Phase 17 D-29): emit game:free-kick-ready — FREE_KICK_SETUP confirmation. */
   emitFreeKickReady: () => void;
+  /** THROWIN-02 (Phase 37): emit game:throw-in-place — pieceId-only, destination is server-owned throwInHex. */
+  emitThrowInPlace: (pieceId: string) => void;
 };
 
 /**
@@ -1071,5 +1073,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitFreeKickReady: () => {
     socket.emit(ClientEvents.GAME_FREE_KICK_READY);
+  },
+
+  emitThrowInPlace: (pieceId) => {
+    socket.emit(ClientEvents.GAME_THROW_IN_PLACE, pieceId);
   },
 }));
