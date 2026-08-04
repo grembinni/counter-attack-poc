@@ -123,3 +123,13 @@ Both WARNING-severity anti-patterns from `37-VERIFICATION.md`/`37-REVIEW.md` (WR
 
 _Phase: 37-out-of-bounds-detection-throw-in-goal-kick_
 _Completed: 2026-08-04_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/ThrowInSetupPanel.tsx
+- FOUND: packages/client/src/components/ThrowInSetupPanel.test.tsx
+- FOUND: packages/server/src/gameHandlers.ts
+- FOUND: .planning/phases/37-out-of-bounds-detection-throw-in-goal-kick/37-12-SUMMARY.md
+- FOUND: commit 66552ea (Task 1)
+- FOUND: commit bb6641d (Task 2)
+- FOUND: commit a92ea9d (SUMMARY.md)
