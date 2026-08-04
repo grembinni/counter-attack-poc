@@ -130,7 +130,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 | Phase | Name                                   | Plans    | Status      |
 | ----- | -------------------------------------- | -------- | ----------- |
-| 37    | 10/10                                  | Complete | 2026-08-04  |
+| 37    | 12/12                                  | Complete | 2026-08-04  |
 | 38    | Corner Kick                            | TBD      | Not started |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD      | Not started |
 | 40    | Substitutions                          | TBD      | Not started |
@@ -188,8 +188,8 @@ Plans:
 
 **Wave 10** _(gap closure from 37-VERIFICATION.md — plans run in parallel, no file overlap)_
 
-- [ ] 37-11-PLAN.md — CR-01 blocker: shared throw-in teardown on break-in-play early returns + sound applyEndTurn re-entry guard + regression test
-- [ ] 37-12-PLAN.md — WR-01/WR-02 warnings: throw-in waiting-state side label; goal-kick travel die generated only for the OPP slot
+- [x] 37-11-PLAN.md — CR-01 blocker: shared throw-in teardown on break-in-play early returns + sound applyEndTurn re-entry guard + regression test
+- [x] 37-12-PLAN.md — WR-01/WR-02 warnings: throw-in waiting-state side label; goal-kick travel die generated only for the OPP slot
 
 **UI hint**: yes
 
