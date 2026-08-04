@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { applyRoll, triggerOutOfBoundsRestart, applyFreeMoveZoneCheck } from '../gameEngine.js';
+import {
+  applyRoll,
+  triggerOutOfBoundsRestart,
+  applyFreeMoveZoneCheck,
+  applyThrowInPlace,
+} from '../gameEngine.js';
 import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex } from '@counter-attack/shared';
 
@@ -427,5 +432,110 @@ describe('applyFreeMoveZoneCheck does not hijack restart phases', () => {
 
   it('leaves GOAL_KICK_MOVE unchanged even when the ball sits in a mismatched final third', () => {
     assertPhaseUnchanged('GOAL_KICK_MOVE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyThrowInPlace (Plan 37-05 Task 1) — THROWIN-02: place the thrower + ball
+// at the throw-in hex and start a real Movement Phase 1.
+// ---------------------------------------------------------------------------
+
+/** THROW_IN_SETUP fixture: home is throwing in at {q:18,r:0}. */
+const throwInSetupState: GameState = {
+  ...baseLooseBallState,
+  phase: 'THROW_IN_SETUP',
+  attackingTeam: 'away', // deliberately stale pre-placement value; placement must overwrite it
+  activeTeam: 'away',
+  throwInHex: { q: 18, r: 0 },
+  throwInTeam: 'home',
+  throwInPhasesTaken: 0,
+  ball: {
+    position: { q: 18, r: 0 },
+    carrierId: null,
+    lastTouchedBy: { pieceId: 'away-9', teamId: 'away' },
+  },
+};
+
+describe('applyThrowInPlace', () => {
+  it('rejects when phase is not THROW_IN_SETUP', () => {
+    const state: GameState = { ...throwInSetupState, phase: 'PASS' };
+    const result = applyThrowInPlace(state, homePiece.id);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects an unknown pieceId', () => {
+    const result = applyThrowInPlace(throwInSetupState, 'nonexistent-piece');
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects a piece belonging to the other team', () => {
+    const result = applyThrowInPlace(throwInSetupState, awayPiece.id);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('rejects when throwInHex is null', () => {
+    const state: GameState = { ...throwInSetupState, throwInHex: null };
+    const result = applyThrowInPlace(state, homePiece.id);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects when throwInTeam is null', () => {
+    const state: GameState = { ...throwInSetupState, throwInTeam: null };
+    const result = applyThrowInPlace(state, homePiece.id);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('places the thrower with the ball at the throw-in hex and starts Movement Phase 1', () => {
+    const result = applyThrowInPlace(throwInSetupState, homePiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('MOVE');
+    expect(result.state.movementSlot).toBe('ATTACKER_4');
+
+    const placedPiece = result.state.pieces.find((p) => p.id === homePiece.id);
+    expect(placedPiece?.position).toEqual({ q: 18, r: 0 });
+
+    expect(result.state.ball.position).toEqual({ q: 18, r: 0 });
+    expect(result.state.ball.carrierId).toBe(homePiece.id);
+    expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: homePiece.id, teamId: 'home' });
+  });
+
+  it('preserves throwInHex/throwInTeam and resets throwInPhasesTaken to 0', () => {
+    const result = applyThrowInPlace(throwInSetupState, homePiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.throwInHex).toEqual({ q: 18, r: 0 });
+    expect(result.state.throwInTeam).toBe('home');
+    expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+
+  it('sets activeTeam/attackingTeam to throwInTeam and resets Movement Phase bookkeeping', () => {
+    const result = applyThrowInPlace(throwInSetupState, homePiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.attackingTeam).toBe('home');
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.movedPieceIds).toEqual([]);
+    expect(result.state.paceUsedByPieceId).toEqual({});
+    expect(result.state.lastDiceRoll).toBeNull();
+    expect(result.state.lastActionType).toBeNull();
+  });
+
+  it('appends exactly one THROW_IN_PLACE event with the correct from/to/ballAfter', () => {
+    const result = applyThrowInPlace(throwInSetupState, homePiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const events = result.state.eventLog.filter((e) => e.type === 'THROW_IN_PLACE');
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    if (event?.type !== 'THROW_IN_PLACE') throw new Error('expected THROW_IN_PLACE event');
+    expect(event.pieceId).toBe(homePiece.id);
+    expect(event.from).toEqual(homePiece.position);
+    expect(event.to).toEqual({ q: 18, r: 0 });
+    expect(event.ballAfter).toEqual({ position: { q: 18, r: 0 }, carrierId: homePiece.id });
   });
 });
