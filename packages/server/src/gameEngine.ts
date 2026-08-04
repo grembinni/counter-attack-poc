@@ -627,11 +627,20 @@ export function checkHalfEndOnTackle(
 // applyMove
 // ---------------------------------------------------------------------------
 
-/** Discriminated union result for applyMove. */
+/**
+ * Discriminated union result for applyMove.
+ *
+ * 'WRONG_PHASE' (Plan 37-08 / GOALKICK-02) widens this union so
+ * `applyGoalKickReposition` can reuse it verbatim — its phase guard rejects
+ * outside GOAL_KICK_SETUP_GK/GOAL_KICK_SETUP_OPPONENT, which is a phase-family
+ * mismatch, not a movement-slot mismatch (WRONG_SLOT is reserved for the
+ * regular MOVEMENT phase's movementSlot invariant). Recorded as a deviation
+ * in 37-08-SUMMARY.md per the plan's explicit instruction.
+ */
 export type ApplyMoveResult =
   | {
       ok: false;
-      reason: 'WRONG_SLOT' | 'WRONG_TEAM' | 'PIECE_NOT_FOUND' | 'MOVE_INVALID';
+      reason: 'WRONG_SLOT' | 'WRONG_TEAM' | 'PIECE_NOT_FOUND' | 'MOVE_INVALID' | 'WRONG_PHASE';
       detail?: string;
     }
   | { ok: true; state: GameState };
@@ -3229,10 +3238,15 @@ export function triggerOutOfBoundsRestart(
     phase: 'GOAL_KICK_SETUP_GK',
     goalKickTeam,
     goalKickGkId: gk.id,
-    // Plan 37-08 owns computing the GOALKICK-02 eligible lists when it implements
-    // the reposition windows — computing it in two places would drift.
-    goalKickEligibleIds: null,
+    // Plan 37-08: GOALKICK-02 eligible lists are precomputed once, here, at trigger
+    // time — never recomputed mid-window (mirrors freeMoveEligibleIds' contract).
+    goalKickEligibleIds: computeGoalKickEligibleIds(state.pieces, goalKickTeam),
     goalKickUsedPace: {},
+    // Plan 37-08: no stale value from a prior goal kick may survive into this one.
+    goalKickTargetHex: null,
+    goalKickMoveSlot: null,
+    goalKickMovedPieceId: null,
+    goalKickPaceUsed: 0,
     attackingTeam: goalKickTeam,
     activeTeam: goalKickTeam,
     ball: {
@@ -3330,6 +3344,153 @@ export function applyThrowInPlace(state: GameState, pieceId: string): ApplyThrow
       throwInTeam,
       throwInPhasesTaken: 0,
       eventLog: [...state.eventLog, throwInPlaceEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// computeGoalKickEligibleIds
+// ---------------------------------------------------------------------------
+
+/**
+ * GOALKICK-02: computes both goal-kick reposition-window eligible lists at
+ * trigger time (called from `triggerOutOfBoundsRestart`'s GOAL_KICK branch).
+ *
+ * A piece is eligible if its position AT TRIGGER TIME is in either final
+ * third — `isInRegion(p.position, 'homeThird') || isInRegion(p.position,
+ * 'awayThird')`, equivalently `computeBallZone(p.position) !== 'middle'` —
+ * regardless of which team's third it is standing in. This is the literal
+ * reading of GOALKICK-02's text ("both final-thirds' players may
+ * reposition"), per 37-CONTEXT.md / 37-08-PLAN.md's decision log: it is
+ * deliberately broader than RESEARCH.md's narrower "each team's own final
+ * third" suggestion, which is NOT adopted here.
+ *
+ * Eligible pieces are partitioned by team into `gkTeam`/`opponent` — never
+ * recomputed after this call, mirroring `freeMoveEligibleIds`' precompute-
+ * both-teams-at-trigger-time contract (see `applyFreeMoveZoneCheck`), so a
+ * piece that walks OUT of a final third mid-window keeps its remaining
+ * 6-hex budget, and a piece that walks IN during the window does not gain
+ * a fresh one.
+ */
+export function computeGoalKickEligibleIds(
+  pieces: readonly PlayerPiece[],
+  goalKickTeam: 'home' | 'away',
+): { gkTeam: readonly string[]; opponent: readonly string[] } {
+  const eligible = pieces.filter(
+    (p) => isInRegion(p.position, 'homeThird') || isInRegion(p.position, 'awayThird'),
+  );
+  return {
+    gkTeam: eligible.filter((p) => p.teamId === goalKickTeam).map((p) => p.id),
+    opponent: eligible.filter((p) => p.teamId !== goalKickTeam).map((p) => p.id),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyGoalKickReposition
+// ---------------------------------------------------------------------------
+
+/**
+ * GOALKICK-02: single-hex-per-click repositioning during the GOAL_KICK_SETUP_GK
+ * / GOAL_KICK_SETUP_OPPONENT reposition windows.
+ *
+ * D-01: this function structurally copies `applyFreeMove`'s body (adjacency,
+ * occupancy, per-piece budget accumulation, the `movedPieceIds` exhaustion
+ * lock, and the `abandonedIds` sweep) — it does NOT call `applyFreeMove`,
+ * `applyMove`, `applyGKRestart`, `applyGKKickTarget`, or read any `gkKick*`
+ * field. Copying the shape is required; calling those functions/fields is
+ * forbidden.
+ *
+ * Budget model: per-piece, 6 hexes each, tracked in `goalKickUsedPace` keyed
+ * by piece id (the `freeMoveUsedPace` shape) — NOT the FREE_KICK_STAGES
+ * distinct-piece-count model.
+ */
+export function applyGoalKickReposition(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyMoveResult {
+  if (state.phase !== 'GOAL_KICK_SETUP_GK' && state.phase !== 'GOAL_KICK_SETUP_OPPONENT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.teamId !== state.activeTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const eligibleIds =
+    state.phase === 'GOAL_KICK_SETUP_GK'
+      ? (state.goalKickEligibleIds?.gkTeam ?? [])
+      : (state.goalKickEligibleIds?.opponent ?? []);
+  if (!eligibleIds.includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' };
+  }
+  // Already activated this window (exhausted its 6 hexes, or abandoned when the
+  // player switched to a different piece) — mirrors applyFreeMove's movedPieceIds
+  // lock (UX-parity: an already-activated piece shows the "activated" state and
+  // becomes unselectable, same as regular MOVEMENT/FREE_MOVE).
+  if (state.movedPieceIds.includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'GOAL_KICK_PACE_EXHAUSTED' };
+  }
+
+  // Standard adjacency/occupancy validation (mirrors applyFreeMove's checks 2+3).
+  if (hexDistance(piece.position, to) !== 1) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
+  }
+
+  const stepDistance = 1; // single-step adjacency already enforced above
+  const usedSoFar = (state.goalKickUsedPace ?? {})[pieceId] ?? 0;
+  if (usedSoFar + stepDistance > 6) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'GOAL_KICK_PACE_EXHAUSTED' };
+  }
+
+  const newUsed = usedSoFar + stepDistance;
+  // Mirrors applyFreeMove's abandonment sweep: starting a brand-new activation on
+  // this piece (usedSoFar === 0) locks in any OTHER piece with an in-progress,
+  // unfinished activation (has a goalKickUsedPace entry but isn't yet in
+  // movedPieceIds) — the player chose to move on, so the previous unit is
+  // activated even though it didn't use its full 6 hexes.
+  const isNewActivation = usedSoFar === 0;
+  const abandonedIds = isNewActivation
+    ? Object.keys(state.goalKickUsedPace ?? {}).filter(
+        (id) => id !== pieceId && !state.movedPieceIds.includes(id),
+      )
+    : [];
+  const newMovedPieceIds = new Set(state.movedPieceIds);
+  for (const id of abandonedIds) newMovedPieceIds.add(id);
+
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+  const moveEvent: ActionEvent = {
+    type: 'MOVE',
+    pieceId,
+    from: piece.position,
+    to,
+    // GOAL_KICK_SETUP has no movementSlot (not part of the 4-5-2 sequence); ATTACKER_2
+    // is the closest semantic match (independent per-piece activation, no steal/tackle
+    // effects) — reusing the MOVE event type is what lets applyUndo's default
+    // moveTypeForPhase branch (registered in Plan 37-02) work without a new event type.
+    slot: 'ATTACKER_2',
+    timestamp: Date.now(),
+    // Ball unchanged during the reposition windows.
+    ballAfter: { position: state.ball.position, carrierId: state.ball.carrierId },
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      eventLog: [...state.eventLog, moveEvent],
+      goalKickUsedPace: {
+        ...(state.goalKickUsedPace ?? {}),
+        [pieceId]: newUsed,
+      },
+      movedPieceIds: [...newMovedPieceIds],
     },
   };
 }
