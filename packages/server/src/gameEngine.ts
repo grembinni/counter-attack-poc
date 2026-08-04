@@ -1313,6 +1313,29 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
 // ---------------------------------------------------------------------------
 
 /**
+ * T-37-15 (Phase 37, 37-04): phases the ball-zone free-move interrupt must never overlay.
+ * `HALF_TIME`/`FULL_TIME`/`FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` are the pre-Phase-37
+ * exclusions (D-37, see below); the six Phase-37 restart phases are added so a throw-in
+ * or goal-kick awarded near a final third can never be hijacked mid-sequence — the
+ * centrally-invoked zone check would otherwise overlay FREE_MOVE_ATTACK/DEFENSE on top
+ * of a restart phase, and `freeMoveResume` would then try to restore a restart phase it
+ * has no way to correctly resume. Module-level so it stays greppable — Phase 38 has one
+ * place to add `CORNER_KICK_*` when that restart family exists.
+ */
+const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
+  'HALF_TIME',
+  'FULL_TIME',
+  'FREE_MOVE_ATTACK',
+  'FREE_MOVE_DEFENSE',
+  'THROW_IN_SETUP',
+  'GOAL_KICK_SETUP_GK',
+  'GOAL_KICK_SETUP_OPPONENT',
+  'GOAL_KICK_CHOICE',
+  'GOAL_KICK_TARGET',
+  'GOAL_KICK_MOVE',
+]);
+
+/**
  * MOVE-06 (Phase 17, corrected design D-33..D-37): the centralized ball-zone-triggered
  * free-move check. Called from `broadcastState` (roomStore.ts) after every resolved
  * action — the single ARCH-04 entry point — so the trigger fires after literally any
@@ -1324,6 +1347,8 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
  *
  * - D-37: does not fire while phase is HALF_TIME, FULL_TIME, or already one of
  *   FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE (no sensible resume phase to interrupt).
+ * - T-37-15: does not fire during any of the six Phase-37 restart phases either — see
+ *   ZONE_CHECK_EXEMPT_PHASES above.
  * - D-33: trigger fires only when the post-action ball zone differs from the stored
  *   `state.ballZone` AND the new zone is 'home' or 'away' (a fresh entry into a final
  *   third — including a direct home↔away jump with no intervening middle action).
@@ -1336,12 +1361,7 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
  *   If both lists are empty, stays on the triggering phase with ballZone updated.
  */
 export function applyFreeMoveZoneCheck(state: GameState): GameState {
-  if (
-    state.phase === 'HALF_TIME' ||
-    state.phase === 'FULL_TIME' ||
-    state.phase === 'FREE_MOVE_ATTACK' ||
-    state.phase === 'FREE_MOVE_DEFENSE'
-  ) {
+  if (ZONE_CHECK_EXEMPT_PHASES.has(state.phase)) {
     return state;
   }
 
@@ -2944,15 +2964,41 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // D-08: clamp scatter to last valid pitch hex using the corrected parity-aware
       // trajectory walk (computeLooseBall is the single source of truth for the
       // scatter path — no duplicated fixed-delta math here, see scoreUtils.ts).
-      // pending out-of-bounds rules — ball stopped at board edge for now
       const from = state.ball.position;
       let clampedPos = from; // fallback: ball stays at current position if first step is off-pitch
+      // OOB-05: exitInfo stays null unless outOfBoundsEnabled is exactly `true` — when the
+      // toggle is off/absent, this loop's statement sequence is byte-for-byte identical to
+      // the pre-Phase-37 clamp behaviour (the `break` still fires, nothing else changes).
+      let exitInfo: { exitHex: HexCoord; lastInBoundsHex: HexCoord } | null = null;
       for (let step = 1; step <= distance; step++) {
         const next: HexCoord = computeLooseBall(from, direction, step as 1 | 2 | 3 | 4 | 5 | 6);
-        if (isPitchHex(next)) clampedPos = next;
-        else break;
+        if (isPitchHex(next)) {
+          clampedPos = next;
+        } else {
+          if (state.outOfBoundsEnabled === true) {
+            exitInfo = { exitHex: next, lastInBoundsHex: clampedPos };
+          }
+          break;
+        }
       }
 
+      // OOB-02/04/05: classify the exit and route to a restart when the toggle is on. A
+      // `null` result (corner-kick, or a missing GK — see triggerOutOfBoundsRestart) falls
+      // through to the untouched clamp/trajectory/landing code below, which is exactly
+      // today's behaviour.
+      if (exitInfo !== null) {
+        const restartState = triggerOutOfBoundsRestart(
+          { ...state, lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' } },
+          exitInfo.exitHex,
+          exitInfo.lastInBoundsHex,
+        );
+        if (restartState !== null) return { ok: true, state: restartState };
+      }
+
+      // OOB-05 preserved path: everything from here to the end of this case is the
+      // pre-Phase-37 clamp/trajectory/landing logic, byte-for-byte unchanged. Do not edit
+      // this block in a later plan — it is the OOB-05 "disabled path stays identical"
+      // guarantee.
       // D-23/D-24: walk from ball position toward clamped landing, stopping at first occupied hex.
       // hexLine returns [start, ..., end]; slice(1) drops the start (ball is there, no carrier).
       const trajectory = hexLine(state.ball.position, clampedPos).slice(1);
