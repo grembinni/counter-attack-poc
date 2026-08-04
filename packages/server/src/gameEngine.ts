@@ -1146,6 +1146,10 @@ export function applyEndTurn(
           lastActionType: 'MOVEMENT_PHASE',
           offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
           lastShotPath: null, // prevent stale shot-path tint from bleeding into HALF_TIME screen
+          // THROWIN-03/D-09: a throw-in context cannot survive across a half boundary.
+          throwInHex: null,
+          throwInTeam: null,
+          throwInPhasesTaken: null,
         },
       };
     }
@@ -1174,10 +1178,59 @@ export function applyEndTurn(
             stealAttemptedByIds: [], // D-02: reset on phase transition
             tackleAttemptedByIds: [], // D-02
             offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+            // THROWIN-03/D-09: a throw-in context cannot survive into a GK restart.
+            throwInHex: null,
+            throwInTeam: null,
+            throwInPhasesTaken: null,
           },
         };
       }
     }
+
+    // THROWIN-03/D-09 (Plan 37-05 Task 2): count completed Movement Phases during a
+    // throw-in sequence and drive the per-step choice model. Fires only while a
+    // throw-in is in progress (throwInPhasesTaken < 2) AND the ball is still held by
+    // the throwing team (carrier resolved above, shared with the GK-restart branch).
+    // Possession loss (steal/tackle) or no carrier at all means the branch must NOT
+    // fire — the throw-in context is cleared instead and the generic MOVEMENT_PHASE
+    // return below applies, so the team now in possession gets normal pass options.
+    const throwInStillValid =
+      state.throwInPhasesTaken !== null &&
+      state.throwInPhasesTaken !== undefined &&
+      state.throwInPhasesTaken < 2 &&
+      carrier != null &&
+      carrier.teamId === state.throwInTeam;
+
+    if (throwInStillValid) {
+      // Narrowed by throwInStillValid above; TypeScript can't see through the const
+      // boolean, so re-assert non-null here for the arithmetic below.
+      const phasesTaken = state.throwInPhasesTaken as 0 | 1;
+      const nextLastActionType = phasesTaken === 0 ? 'THROW_IN_MOVEMENT_1' : 'THROW_IN_MOVEMENT_2';
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: 'PASS',
+          movementSlot: nextSlot,
+          activeTeam: nextActiveTeam,
+          lastActionType: nextLastActionType,
+          throwInPhasesTaken: (phasesTaken + 1) as 1 | 2,
+          eventLog: [...state.eventLog, slotAdvanceEvent],
+          movedPieceIds: [],
+          paceUsedByPieceId: {},
+          actionCount: newActionCount,
+          addedTime: newAddedTime,
+          stealAttemptedByIds: [],
+          tackleAttemptedByIds: [],
+          offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+        },
+      };
+    }
+
+    // Exactly one place clears the throw-in fields for every non-throw-in-branch
+    // terminal return in this block (this generic return is the only remaining one —
+    // the half-end and GK_RESTART returns above clear unconditionally on their own).
+    const throwInClear = { throwInHex: null, throwInTeam: null, throwInPhasesTaken: null } as const;
 
     // MOVE-06 (corrected design): applyEndTurn no longer special-cases a pending free
     // move here — the ball-zone-triggered FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE overlay is
@@ -1202,6 +1255,7 @@ export function applyEndTurn(
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
         offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+        ...throwInClear,
       },
     };
   }
@@ -3188,6 +3242,95 @@ export function triggerOutOfBoundsRestart(
     },
     eventLog: [...state.eventLog, outOfBoundsEvent],
     ...commonReset,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyThrowInPlace
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyThrowInPlace. */
+export type ApplyThrowInPlaceResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' | 'WRONG_TEAM' }
+  | { ok: true; state: GameState };
+
+/**
+ * THROWIN-02: places the throwing team's chosen piece (and the ball) at the
+ * server-owned `state.throwInHex`, then starts a real Movement Phase 1
+ * (`phase: 'MOVE'`, `movementSlot: 'ATTACKER_4'`) — not a bespoke reposition
+ * step. Movement Phase 1 is mandatory (D-09): no throw option exists before it
+ * completes, because this function never transitions to 'PASS'.
+ *
+ * Guard order mirrors applyGKKickTarget: phase/context guard first, then piece
+ * lookup, then team ownership — so a caller always gets the most specific
+ * failure reason.
+ *
+ * This is a teleport, not a move: the chosen piece is repositioned to
+ * `throwInHex` regardless of distance (THROWIN-02 places the thrower at the
+ * exit hex). `resolveThrowInHex` (Plan 37-01/37-04) already guarantees
+ * `throwInHex` is unoccupied, so no validateMove call or pace consumption is
+ * needed here.
+ *
+ * @param state   - Current game state (phase must be THROW_IN_SETUP with throwInHex/throwInTeam set)
+ * @param pieceId - The throwing team's piece chosen to take the throw
+ */
+export function applyThrowInPlace(state: GameState, pieceId: string): ApplyThrowInPlaceResult {
+  if (state.phase !== 'THROW_IN_SETUP') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.throwInHex == null || state.throwInTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.teamId !== state.throwInTeam) return { ok: false, reason: 'WRONG_TEAM' };
+
+  const throwInHex = state.throwInHex;
+  const throwInTeam = state.throwInTeam;
+
+  const throwInPlaceEvent: ActionEvent = {
+    type: 'THROW_IN_PLACE',
+    pieceId,
+    from: piece.position,
+    to: throwInHex,
+    timestamp: Date.now(),
+    ballAfter: { position: throwInHex, carrierId: pieceId },
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      attackingTeam: throwInTeam,
+      activeTeam: throwInTeam,
+      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: throwInHex } : p)),
+      ball: {
+        position: throwInHex,
+        carrierId: pieceId,
+        lastTouchedBy: { pieceId, teamId: throwInTeam },
+      },
+      // Fresh-Movement-Phase reset set — mirrors applyStartMovement's reset literal
+      // (gameEngine.ts:447 area) as the source of truth. applyStartMovement itself is
+      // NOT called: it guards on phase KICK_OFF/PASS/LOOSE_BALL and would reject
+      // THROW_IN_SETUP; widening that guard would let a client start a movement phase
+      // from a restart setup screen, which is not desired.
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      contestedPieceIds: [],
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+      carriedMovedPieceIds: [],
+      lastDiceRoll: null,
+      lastActionType: null,
+      // throwInHex/throwInTeam are preserved; throwInPhasesTaken stays 0 — the
+      // counter is incremented by applyEndTurn's throw-in branch (Task 2), not here.
+      throwInHex,
+      throwInTeam,
+      throwInPhasesTaken: 0,
+      eventLog: [...state.eventLog, throwInPlaceEvent],
+    },
   };
 }
 

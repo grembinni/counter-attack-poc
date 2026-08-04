@@ -59,6 +59,7 @@ import {
   applyRoll,
   applySnapshot,
   applyStartMovement,
+  applyThrowInPlace,
   applyUndo,
   buildKickOffPieces,
   buildReplayFrames,
@@ -324,6 +325,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // T-4-05: only the attacking team's socket may start the Movement Phase
   // From KICK_OFF: sets kickOffActive=true (first pass must come from centre hex).
   // From PASS: starts a new 4-5-2 movement sequence without kickoff constraints.
+  // THROW_IN_SETUP is deliberately NOT in this allow-list (Plan 37-05 Task 3):
+  // applyStartMovement rejects any phase other than KICK_OFF/PASS/LOOSE_BALL, so a
+  // client emitting game:start-movement during THROW_IN_SETUP already receives
+  // WRONG_PHASE from the engine. Placement into a real Movement Phase 1 happens
+  // exclusively via GAME_THROW_IN_PLACE -> applyThrowInPlace.
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_START_MOVEMENT, () => {
     const { roomCode } = socket.data;
@@ -2042,6 +2048,65 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // offsidePieceIds reset and FREE_KICK_RESTART lastActionType on finalize.
       const team = socketTeam(socket);
       const result = applyFreeKickReady(room.gameState, team);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_THROW_IN_PLACE — THROWIN-02: thrower placement during THROW_IN_SETUP
+  // The destination hex is server-owned (room.gameState.throwInHex) — the event
+  // payload is pieceId only; a client cannot supply or relocate the throw-in hex.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_THROW_IN_PLACE, (pieceId: string) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be THROW_IN_SETUP
+      if (room.gameState === null || room.gameState.phase !== 'THROW_IN_SETUP') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 input validation: payload shape check before use
+      if (typeof pieceId !== 'string' || pieceId.length === 0) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // Piece lookup
+      const piece = room.gameState.pieces.find((p) => p.id === pieceId);
+      if (!piece) {
+        socket.emit(ServerEvents.GAME_ERROR, 'PIECE_NOT_FOUND');
+        broadcastState(io, room);
+        return;
+      }
+      // ASVS V4 ownership guard: distinguishes tampering (placing an opponent's
+      // piece) from a wrong-turn attempt (NOT_YOUR_PIECE vs WRONG_TEAM below),
+      // matching GAME_FREE_KICK_MOVE's two-guard structure.
+      if (piece.teamId !== socketTeam(socket)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'NOT_YOUR_PIECE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Turn guard: only the throwing team may place the thrower
+      if (socketTeam(socket) !== room.gameState.throwInTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyThrowInPlace(room.gameState, pieceId);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
