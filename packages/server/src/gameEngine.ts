@@ -3496,6 +3496,217 @@ export function applyGoalKickReposition(
 }
 
 // ---------------------------------------------------------------------------
+// applyGoalKickWindowEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGoalKickWindowEnd. */
+export type ApplyGoalKickWindowEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * GOALKICK-02: ends the active reposition window on the active team's End Turn.
+ *
+ * - From GOAL_KICK_SETUP_GK: if the opponent's eligible list is non-empty, hands
+ *   off to GOAL_KICK_SETUP_OPPONENT (flips activeTeam, resets movedPieceIds for
+ *   the second window, preserves goalKickUsedPace unchanged — it is keyed by
+ *   piece id so the two windows cannot collide). Otherwise the opponent window
+ *   is skipped (D-01/GOALKICK-02: "a window with an empty eligible list is
+ *   skipped rather than presenting a dead panel") and this falls straight
+ *   through to the GOAL_KICK_CHOICE return below.
+ * - From GOAL_KICK_SETUP_OPPONENT: always returns GOAL_KICK_CHOICE.
+ *
+ * D-01: structurally mirrors applyGKRestart's choice-branch return shape
+ * (phase + attackingTeam + activeTeam + lastDiceRoll: null + lastActionType)
+ * and applyFreeMoveEnd's "hand off or skip, then restore" shape — it does NOT
+ * call either function.
+ */
+export function applyGoalKickWindowEnd(state: GameState): ApplyGoalKickWindowEndResult {
+  if (state.phase !== 'GOAL_KICK_SETUP_GK' && state.phase !== 'GOAL_KICK_SETUP_OPPONENT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  // Defensive: both reposition phases require goalKickTeam to be set (invariant
+  // established by triggerOutOfBoundsRestart) — malformed state falls back to
+  // WRONG_PHASE rather than a runtime crash, mirroring applyThrowInPlace's
+  // null-context guard.
+  if (state.goalKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  const goalKickTeam = state.goalKickTeam;
+
+  // GOALKICK-02: pieces may have moved during the window that is ending —
+  // re-evaluate the sticky offside flag on every return, mirroring
+  // applyFreeMoveEnd's contract (computed once, spread into every return).
+  const nextOffside = evaluateOffside(state);
+
+  if (state.phase === 'GOAL_KICK_SETUP_GK') {
+    const opponentIds = state.goalKickEligibleIds?.opponent ?? [];
+    if (opponentIds.length > 0) {
+      const opponentTeam: 'home' | 'away' = goalKickTeam === 'home' ? 'away' : 'home';
+      const advanceEvent: ActionEvent = {
+        type: 'GOAL_KICK_WINDOW_ADVANCE',
+        fromWindow: 'GK_TEAM',
+        timestamp: Date.now(),
+      };
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: 'GOAL_KICK_SETUP_OPPONENT',
+          activeTeam: opponentTeam,
+          // The second team's pieces have not moved yet — fresh movedPieceIds.
+          // goalKickUsedPace is preserved unchanged (keyed by piece id).
+          movedPieceIds: [],
+          offsidePieceIds: nextOffside,
+          eventLog: [...state.eventLog, advanceEvent],
+        },
+      };
+    }
+    // Opponent list empty — skip straight to GOAL_KICK_CHOICE (still emitting the
+    // GOAL_KICK_WINDOW_ADVANCE event so Undo's boundary scan sees the transition).
+    const advanceEvent: ActionEvent = {
+      type: 'GOAL_KICK_WINDOW_ADVANCE',
+      fromWindow: 'GK_TEAM',
+      timestamp: Date.now(),
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'GOAL_KICK_CHOICE',
+        activeTeam: goalKickTeam,
+        attackingTeam: goalKickTeam,
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+        goalKickEligibleIds: null,
+        goalKickUsedPace: null,
+        lastDiceRoll: null,
+        offsidePieceIds: nextOffside,
+        eventLog: [...state.eventLog, advanceEvent],
+      },
+    };
+  }
+
+  // GOAL_KICK_SETUP_OPPONENT -> GOAL_KICK_CHOICE (always).
+  const advanceEvent: ActionEvent = {
+    type: 'GOAL_KICK_WINDOW_ADVANCE',
+    fromWindow: 'OPPONENT',
+    timestamp: Date.now(),
+  };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GOAL_KICK_CHOICE',
+      activeTeam: goalKickTeam,
+      attackingTeam: goalKickTeam,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      goalKickEligibleIds: null,
+      goalKickUsedPace: null,
+      lastDiceRoll: null,
+      offsidePieceIds: nextOffside,
+      eventLog: [...state.eventLog, advanceEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyGoalKickChoice
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGoalKickChoice. */
+export type ApplyGoalKickChoiceResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'INVALID_CHOICE' | 'PIECE_NOT_FOUND' }
+  | { ok: true; state: GameState };
+
+/**
+ * GOALKICK-03: the goalkeeper's team chooses 'kick' or 'standard' once both
+ * reposition windows have closed (phase GOAL_KICK_CHOICE).
+ *
+ * - 'standard' (GOALKICK-03/04: "uses the existing Standard Pass mechanic
+ *   unmodified") — hands the ball to the GK and transitions to PASS with
+ *   `lastActionType: 'GOAL_KICK_RESTART'`, restricting the next action to a
+ *   Standard Pass (see the GOAL_KICK_RESTART row in actionSequence.ts) — from
+ *   there the existing, unmodified pass pipeline takes over with its normal
+ *   11-hex range. All goal-kick fields are cleared (fresh sequence).
+ * - 'kick' — transitions to GOAL_KICK_TARGET; ball stays with the GK
+ *   (Plan 37-09 owns target selection + the accuracy roll + travel movement).
+ *   goalKickTeam/goalKickGkId are preserved for that plan.
+ *
+ * D-01: structurally mirrors the GK-restart choice handler's validation
+ * pattern — it does NOT call applyGKRestart or read any gkKick* field.
+ */
+export function applyGoalKickChoice(
+  state: GameState,
+  choice: 'kick' | 'standard',
+): ApplyGoalKickChoiceResult {
+  if (state.phase !== 'GOAL_KICK_CHOICE') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // ASVS V5 — validated here as well as in the handler, mirroring the GK-restart
+  // choice handler's double-validation precedent (never trust client input).
+  if (choice !== 'kick' && choice !== 'standard') {
+    return { ok: false, reason: 'INVALID_CHOICE' };
+  }
+
+  const gk = state.pieces.find((p) => p.id === state.goalKickGkId);
+  if (!gk) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const choiceEvent: ActionEvent = {
+    type: 'GOAL_KICK_CHOICE',
+    gkId: gk.id,
+    choice,
+    timestamp: Date.now(),
+  };
+
+  if (choice === 'standard') {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'PASS',
+        ball: {
+          position: gk.position,
+          carrierId: gk.id,
+          lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+        },
+        attackingTeam: gk.teamId,
+        activeTeam: gk.teamId,
+        lastActionType: 'GOAL_KICK_RESTART',
+        lastDiceRoll: null,
+        stealAttemptedByIds: [],
+        tackleAttemptedByIds: [],
+        goalKickTeam: null,
+        goalKickGkId: null,
+        goalKickEligibleIds: null,
+        goalKickUsedPace: null,
+        goalKickTargetHex: null,
+        goalKickMoveSlot: null,
+        goalKickMovedPieceId: null,
+        goalKickPaceUsed: 0,
+        eventLog: [...state.eventLog, choiceEvent],
+      },
+    };
+  }
+
+  // 'kick' branch: ball stays with the GK; Plan 37-09 owns target selection.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GOAL_KICK_TARGET',
+      attackingTeam: gk.teamId,
+      activeTeam: gk.teamId,
+      lastDiceRoll: null,
+      lastActionType: null,
+      eventLog: [...state.eventLog, choiceEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyGKRestart
 // ---------------------------------------------------------------------------
 
