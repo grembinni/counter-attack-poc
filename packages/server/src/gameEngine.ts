@@ -1222,23 +1222,38 @@ export function applyEndTurn(
     // THROWIN-03/CR-01 (D-11-02/D-11-03): `carrier.teamId === state.throwInTeam` alone is
     // a coincidence check — the ball can return to the throwing team through two unrelated
     // turnovers, re-arming this branch on a Movement Phase that has nothing to do with the
-    // throw-in. `state.lastActionType` is not a coincidence: applyThrowInPlace sets it to
-    // null for Movement Phase 1, this branch sets it to THROW_IN_MOVEMENT_1 for Movement
-    // Phase 2, applyStartMovement preserves it across the Movement-Phase boundary, and every
-    // turnover overwrites it (SUCCESSFUL_TACKLE / DEFLECTION). This clause is deliberately
-    // NOT paired to throwInPhasesTaken (D-11-03) — null pairs with phasesTaken 0 in the
-    // common case, but a stale phasesTaken:1 with lastActionType:null must still be allowed
-    // to pass (pre-existing test at line ~583). THROW_IN_MOVEMENT_2 is intentionally absent
+    // throw-in. `state.lastActionType` adds a second, independent signal: applyThrowInPlace
+    // sets it to null for Movement Phase 1, this branch sets it to THROW_IN_MOVEMENT_1 for
+    // Movement Phase 2, and applyStartMovement preserves it across the Movement-Phase
+    // boundary — BUT the pre-existing D-17 (WR-02) intermediate-slot-transition reset
+    // (this function's non-ATTACKER_2-slot return, above) unconditionally overwrites
+    // lastActionType to 'MOVEMENT_PHASE' at every ATTACKER_4->DEFENDER_5 and
+    // DEFENDER_5->ATTACKER_2 step — including mid-throw-in. Since movementSlot can only
+    // reach ATTACKER_2 (the slot this nextSlot===null block fires from) via that
+    // DEFENDER_5->ATTACKER_2 transition, `state.lastActionType` is 'MOVEMENT_PHASE' at
+    // this point on EVERY real FSM traversal, whether the phase is a genuine throw-in
+    // continuation or not — so 'MOVEMENT_PHASE' must be accepted alongside null and
+    // THROW_IN_MOVEMENT_1, or the legitimate clean throw-in path breaks entirely
+    // (caught by throwIn.integration.test.ts T-37-19/T-37-20 during 37-11 execution).
+    // What this clause still excludes — and the only thing it CAN exclude, given D-17
+    // always scrubs a turnover marker at the first subsequent intermediate transition
+    // before this check ever runs — is a hypothetical caller that invokes applyEndTurn
+    // directly on a state already sitting in ATTACKER_2 with a stale SUCCESSFUL_TACKLE/
+    // DEFLECTION lastActionType, bypassing the normal intermediate-transition codepath
+    // (e.g. a future refactor, or test/replay tooling). This clause is deliberately NOT
+    // paired to throwInPhasesTaken (D-11-03) — null pairs with phasesTaken 0 in the common
+    // case, but a stale phasesTaken:1 with lastActionType:null must still be allowed to
+    // pass (pre-existing test at line ~583). THROW_IN_MOVEMENT_2 is intentionally absent
     // here because throwInPhasesTaken would then be 2, already excluded by the `< 2` clause.
-    // This is a pure narrowing (an added &&) — it can only shrink the set of states in which
-    // the branch fires, so it cannot introduce a new false positive on its own.
     const throwInStillValid =
       state.throwInPhasesTaken !== null &&
       state.throwInPhasesTaken !== undefined &&
       state.throwInPhasesTaken < 2 &&
       carrier != null &&
       carrier.teamId === state.throwInTeam &&
-      (state.lastActionType === null || state.lastActionType === 'THROW_IN_MOVEMENT_1');
+      (state.lastActionType === null ||
+        state.lastActionType === 'THROW_IN_MOVEMENT_1' ||
+        state.lastActionType === 'MOVEMENT_PHASE');
 
     if (throwInStillValid) {
       // Narrowed by throwInStillValid above; TypeScript can't see through the const
