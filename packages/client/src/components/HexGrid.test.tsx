@@ -1320,3 +1320,240 @@ describe('HexGrid — Plan 33-06: BallLocationRing marker replaces the deleted H
     expect(hasStrokeAtHex(container, BALL_MARKER_STROKE, BALL_HEX.q, BALL_HEX.r)).toBe(false);
   });
 });
+
+// GOALKICK-04/05 (Phase 37, Plan 37-10): target selection + both movement modes (the two
+// 6-hex reposition windows and the 3-hex travel window).
+describe('HexGrid — GOAL_KICK_TARGET: target set mirrors applyGoalKickTarget (GOALKICK-05)', () => {
+  function goalKickTargetState() {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_TARGET' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      goalKickTeam: 'home' as const,
+      goalKickGkId: 'home-0',
+    };
+  }
+
+  it('renders an outfield teammate of the goal-kicking team as clickable with the gk-kick-target tint', () => {
+    const state = goalKickTargetState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1, // home — isActivePlayer requires myTeam === activeTeam
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const outfieldPiece = state.pieces.find((p) => p.id === 'home-1')!;
+    const { container } = render(<HexGrid />);
+    expect(
+      hasFillAtHex(
+        container,
+        HIGHLIGHT_STYLES['gk-kick-target'].fill,
+        outfieldPiece.position.q,
+        outfieldPiece.position.r,
+      ),
+    ).toBe(true);
+  });
+
+  it('does NOT include the goalkeeper’s own hex in the target set', () => {
+    const state = goalKickTargetState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gkPiece = state.pieces.find((p) => p.id === 'home-0')!;
+    const { container } = render(<HexGrid />);
+    expect(
+      hasFillAtHex(
+        container,
+        HIGHLIGHT_STYLES['gk-kick-target'].fill,
+        gkPiece.position.q,
+        gkPiece.position.r,
+      ),
+    ).toBe(false);
+  });
+
+  it('does NOT include an opposing piece’s hex in the target set', () => {
+    const state = goalKickTargetState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const awayPiece = state.pieces.find((p) => p.id === 'away-1')!;
+    const { container } = render(<HexGrid />);
+    expect(
+      hasFillAtHex(
+        container,
+        HIGHLIGHT_STYLES['gk-kick-target'].fill,
+        awayPiece.position.q,
+        awayPiece.position.r,
+      ),
+    ).toBe(false);
+  });
+
+  it('clicking a valid target piece calls emitGoalKickTarget with that piece’s position', () => {
+    const state = goalKickTargetState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const outfieldPiece = state.pieces.find((p) => p.id === 'home-1')!;
+    const emitGoalKickTargetSpy = vi.fn();
+    useGameStore.setState({ emitGoalKickTarget: emitGoalKickTargetSpy });
+    const { container } = render(<HexGrid />);
+    const { cx, cy } = axialToPixel(outfieldPiece.position.q, outfieldPiece.position.r);
+    const targetCircle = Array.from(container.querySelectorAll('circle')).find(
+      (c) => Number(c.getAttribute('cx')) === cx && Number(c.getAttribute('cy')) === cy,
+    )!;
+    fireEvent.click(targetCircle);
+    expect(emitGoalKickTargetSpy).toHaveBeenCalledWith(outfieldPiece.position);
+  });
+});
+
+describe('HexGrid — GOAL_KICK_SETUP_GK piece clickability (GOALKICK-02, Plan 37-10)', () => {
+  const GOAL_KICK_ELIGIBLE_ID = 'home-8'; // home FWD 1, distinct from GK (home-0)
+
+  function goalKickSetupGkState(overrides: { goalKickUsedPace?: Record<string, number> } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_SETUP_GK' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      goalKickTeam: 'home' as const,
+      goalKickGkId: 'home-0',
+      goalKickEligibleIds: { gkTeam: [GOAL_KICK_ELIGIBLE_ID], opponent: [] as readonly string[] },
+      goalKickUsedPace: overrides.goalKickUsedPace ?? {},
+    };
+  }
+
+  it('renders an eligible own piece as selectable', () => {
+    const state = goalKickSetupGkState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === GOAL_KICK_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      true,
+    );
+  });
+
+  it('does NOT render a piece whose goalKickUsedPace is already 6 as selectable', () => {
+    const state = goalKickSetupGkState({ goalKickUsedPace: { [GOAL_KICK_ELIGIBLE_ID]: 6 } });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const eligiblePiece = state.pieces.find((p) => p.id === GOAL_KICK_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, eligiblePiece.position.q, eligiblePiece.position.r)).toBe(
+      false,
+    );
+  });
+
+  it('renders the safe (green) tint on an adjacent hex once an eligible piece is selected', () => {
+    const state = goalKickSetupGkState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(GOAL_KICK_ELIGIBLE_ID);
+    const { container } = render(<HexGrid />);
+    const hasSafeFill = Array.from(container.querySelectorAll('polygon')).some(
+      (p) => p.getAttribute('fill') === SAFE_FILL,
+    );
+    expect(hasSafeFill).toBe(true);
+  });
+});
+
+describe('HexGrid — GOAL_KICK_MOVE piece clickability (GOALKICK-05, Plan 37-10)', () => {
+  const GOAL_KICK_MOVE_ID = 'home-8';
+  const GOAL_KICK_MOVE_OTHER_ID = 'home-10';
+
+  function goalKickMoveState(overrides: { goalKickMovedPieceId?: string | null } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      goalKickTeam: 'home' as const,
+      goalKickMoveSlot: 'KICKER' as const,
+      goalKickMovedPieceId: overrides.goalKickMovedPieceId ?? null,
+      goalKickPaceUsed: 0,
+    };
+  }
+
+  it('renders an own piece as selectable while goalKickMovedPieceId is null', () => {
+    const state = goalKickMoveState({ goalKickMovedPieceId: null });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === GOAL_KICK_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('renders the locked piece itself as selectable once goalKickMovedPieceId is set to it', () => {
+    const state = goalKickMoveState({ goalKickMovedPieceId: GOAL_KICK_MOVE_ID });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === GOAL_KICK_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('does NOT render a different own piece as selectable once goalKickMovedPieceId locks in another piece', () => {
+    const state = goalKickMoveState({ goalKickMovedPieceId: GOAL_KICK_MOVE_ID });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const otherPiece = state.pieces.find((p) => p.id === GOAL_KICK_MOVE_OTHER_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, otherPiece.position.q, otherPiece.position.r)).toBe(
+      false,
+    );
+  });
+});
