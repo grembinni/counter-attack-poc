@@ -177,6 +177,10 @@ export type GameStore = {
   emitFreeKickReady: () => void;
   /** THROWIN-02 (Phase 37): emit game:throw-in-place — pieceId-only, destination is server-owned throwInHex. */
   emitThrowInPlace: (pieceId: string) => void;
+  /** GOALKICK-03 (Phase 37): mirrors emitGKRestart's choice-payload shape. */
+  emitGoalKickChoice: (choice: 'kick' | 'standard') => void;
+  /** GOALKICK-05 (Phase 37): mirrors emitGKKickTarget. */
+  emitGoalKickTarget: (targetHex: HexCoord) => void;
 };
 
 /**
@@ -214,13 +218,15 @@ type ResponseMoveValidHexConfig = {
     | 'highPassMovedPieceId'
     | 'gkKickMovedPieceId'
     | 'firstTimePassMovedPieceId'
-    | 'snapDeflectMovedPieceId';
+    | 'snapDeflectMovedPieceId'
+    | 'goalKickMovedPieceId';
   /** GameState field tracking cumulative hexes moved this slot. */
   paceUsedField:
     | 'highPassPaceUsed'
     | 'gkKickPaceUsed'
     | 'firstTimePassPaceUsed'
-    | 'snapDeflectPaceUsed';
+    | 'snapDeflectPaceUsed'
+    | 'goalKickPaceUsed';
   /** Maximum hexes (pace) allowed this slot. */
   paceCap: number;
   /**
@@ -261,6 +267,18 @@ const SNAPSHOT_DEFLECT_CONFIG: ResponseMoveValidHexConfig = {
   paceUsedField: 'snapDeflectPaceUsed',
   paceCap: 2,
   clickDistanceMode: 'range',
+};
+/**
+ * GOALKICK-05 (Phase 37): the 3-hex travel window while the goal kick is in the air —
+ * byte-for-byte the GK_KICK_MOVE_CONFIG shape with the goal-kick field names, matching
+ * the server's validateResponseMoveStep config from Plan 37-09 so client highlights and
+ * server legality cannot drift.
+ */
+const GOAL_KICK_MOVE_CONFIG: ResponseMoveValidHexConfig = {
+  lockedPieceIdField: 'goalKickMovedPieceId',
+  paceUsedField: 'goalKickPaceUsed',
+  paceCap: 3,
+  clickDistanceMode: 'strict-1',
 };
 
 /**
@@ -670,6 +688,45 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // GOAL_KICK_SETUP_GK / GOAL_KICK_SETUP_OPPONENT (GOALKICK-02): the two sequential 6-hex
+    // reposition windows — GK's team first, then the opponent. Structurally identical to the
+    // FREE_MOVE_ATTACK/DEFENSE branch above (precomputed eligible-piece list, no single-piece
+    // lock, 6-hex-per-piece budget, movedPieceIds exhaustion guard), substituting the
+    // goalKick*-prefixed fields for the freeMove*-prefixed ones.
+    if (
+      gameState.phase === 'GOAL_KICK_SETUP_GK' ||
+      gameState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+    ) {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectGoalKickSetup)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const side = gameState.phase === 'GOAL_KICK_SETUP_GK' ? 'gkTeam' : 'opponent';
+      const eligibleIds = gameState.goalKickEligibleIds?.[side] ?? [];
+      if (piece.teamId !== myTeam || !eligibleIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // Already activated this window (exhausted or abandoned) — mirrors the FREE_MOVE_*
+      // exhaustion guard and Plan 37-08's server-side applyGoalKickReposition lock.
+      if (gameState.movedPieceIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const paceRemaining = 6 - (gameState.goalKickUsedPace?.[id] ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      const valid = computeFreeMoveValidHexes(id, piece, gameState);
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // FIRST_TIME_PASS_MOVE: 1 piece per team, up to 1 hex, any direction (D-03, CR-01-new)
     // Mirrors HIGH_PASS_MOVE structurally but pace cap is 1 (not 3) and uses the
     // firstTimePass* slot fields. Does NOT call validateMove — that fn's WRONG_SLOT guard
@@ -737,6 +794,31 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // GOAL_KICK_MOVE (GOALKICK-05): both teams reposition 1 piece up to 3 hexes while the
+    // goal kick is in the air — structurally identical to the GK_KICK_MOVE branch above.
+    if (gameState.phase === 'GOAL_KICK_MOVE') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectGoalKickMove)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      if (piece.teamId !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const lockedId = gameState.goalKickMovedPieceId ?? null;
+      if (lockedId !== null && lockedId !== id) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const valid = computeResponseMoveValidHexes(id, piece, gameState, GOAL_KICK_MOVE_CONFIG);
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // SNAPSHOT_DEFLECT: defending team moves 1 piece up to 2 hexes
     if (gameState.phase === 'SNAPSHOT_DEFLECT') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
@@ -791,11 +873,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // response-move sub-phase slot fields — those phases track ATTACKER->DEFENDER hand-off
     // via firstTimePassMovementSlot/highPassMovementSlot/gkKickMovementSlot instead of the
     // plain movementSlot field, which never changes (stays null) during those phases.
+    // GOAL_KICK_MOVE (GOALKICK-05, Plan 37-10) mirrors gkKickMovementSlot's KICKER->OPP
+    // handoff via goalKickMoveSlot — without detecting this hand-off the same way, a
+    // selection belonging to the team whose slot just ended could survive into the other
+    // team's slot (computeResponseMoveValidHexes has no team-ownership check of its own),
+    // reproducing the exact BUG-09 failure mode this guard already closes for GK_KICK_MOVE.
     const responseMoveStateChanged =
       newState.movementSlot !== prevState.movementSlot ||
       newState.firstTimePassMovementSlot !== prevState.firstTimePassMovementSlot ||
       newState.highPassMovementSlot !== prevState.highPassMovementSlot ||
-      newState.gkKickMovementSlot !== prevState.gkKickMovementSlot;
+      newState.gkKickMovementSlot !== prevState.gkKickMovementSlot ||
+      newState.goalKickMoveSlot !== prevState.goalKickMoveSlot;
     // BUG-09: a response-move phase's per-piece pace allowance is exhausted — the stale
     // selection/highlight must clear even when the slot itself hasn't changed yet (e.g. the
     // piece that just moved is still locked into the current slot but has no pace left).
@@ -808,7 +896,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
             ? (newState.gkKickPaceUsed ?? 0) >= 3
             : newState.phase === 'SNAPSHOT_DEFLECT'
               ? (newState.snapDeflectPaceUsed ?? 0) >= 2
-              : false;
+              : newState.phase === 'GOAL_KICK_MOVE'
+                ? (newState.goalKickPaceUsed ?? 0) >= 3
+                : false;
     const phaseChanged = newState.phase !== prevState.phase;
     const pieceStillExists =
       prevSelectedId !== null && newState.pieces.some((p) => p.id === prevSelectedId);
@@ -903,21 +993,25 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE: re-run phase-specific valid move
-    // logic via the same named config + computeResponseMoveValidHexes helper selectPiece's
-    // matching branches use (SELECTOR-REVIEW.md fix #2, Phase 32-05 D-06) — previously this
-    // block hand-rolled an equivalent computation inline instead of reusing the helper.
+    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE / GOAL_KICK_MOVE: re-run phase-specific
+    // valid move logic via the same named config + computeResponseMoveValidHexes helper
+    // selectPiece's matching branches use (SELECTOR-REVIEW.md fix #2, Phase 32-05 D-06) —
+    // previously this block hand-rolled an equivalent computation inline instead of reusing the
+    // helper. GOAL_KICK_MOVE (GOALKICK-05, Plan 37-10) added alongside its GK_KICK_MOVE analog.
     if (
       newState.phase === 'HIGH_PASS_MOVE' ||
       newState.phase === 'GK_KICK_MOVE' ||
-      newState.phase === 'FIRST_TIME_PASS_MOVE'
+      newState.phase === 'FIRST_TIME_PASS_MOVE' ||
+      newState.phase === 'GOAL_KICK_MOVE'
     ) {
       const config =
         newState.phase === 'GK_KICK_MOVE'
           ? GK_KICK_MOVE_CONFIG
           : newState.phase === 'FIRST_TIME_PASS_MOVE'
             ? FIRST_TIME_PASS_MOVE_CONFIG
-            : HIGH_PASS_MOVE_CONFIG;
+            : newState.phase === 'GOAL_KICK_MOVE'
+              ? GOAL_KICK_MOVE_CONFIG
+              : HIGH_PASS_MOVE_CONFIG;
       const lockedId = newState[config.lockedPieceIdField] ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid = locked
@@ -957,15 +1051,27 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // FREE_MOVE_ATTACK / FREE_MOVE_DEFENSE: separate, parallel sticky-selection block — FREE_MOVE
-    // has no single-piece lock concept (multiple independently-eligible pieces), so it is not
-    // folded into the HIGH_PASS_MOVE-style block above. phaseChanged (handled earlier) already
-    // clears selection the moment FREE_MOVE_ATTACK transitions to FREE_MOVE_DEFENSE or to the
-    // resume phase — each sub-phase starts fresh, no carry-over selection across sub-phases (D-35).
-    // Valid-hex filter shared with selectPiece's FREE_MOVE branch via computeFreeMoveValidHexes
-    // (SELECTOR-REVIEW.md fix #3, Phase 32-05 D-06) — previously duplicated inline in both places.
-    if (newState.phase === 'FREE_MOVE_ATTACK' || newState.phase === 'FREE_MOVE_DEFENSE') {
-      const paceRemaining = 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
+    // FREE_MOVE_ATTACK / FREE_MOVE_DEFENSE / GOAL_KICK_SETUP_GK / GOAL_KICK_SETUP_OPPONENT:
+    // separate, parallel sticky-selection block — these phases have no single-piece lock
+    // concept (multiple independently-eligible pieces), so they are not folded into the
+    // HIGH_PASS_MOVE-style block above. phaseChanged (handled earlier) already clears selection
+    // the moment FREE_MOVE_ATTACK transitions to FREE_MOVE_DEFENSE (or GOAL_KICK_SETUP_GK to
+    // GOAL_KICK_SETUP_OPPONENT) or to the resume phase — each sub-phase starts fresh, no
+    // carry-over selection across sub-phases (D-35). Valid-hex filter shared with selectPiece's
+    // FREE_MOVE/goal-kick-reposition branches via computeFreeMoveValidHexes (SELECTOR-REVIEW.md
+    // fix #3, Phase 32-05 D-06) — previously duplicated inline in both places. GOAL_KICK_SETUP_GK/
+    // OPPONENT (GOALKICK-02, Plan 37-10) added alongside its FREE_MOVE_* analog, using the
+    // goalKick*-prefixed pace-budget lookup.
+    if (
+      newState.phase === 'FREE_MOVE_ATTACK' ||
+      newState.phase === 'FREE_MOVE_DEFENSE' ||
+      newState.phase === 'GOAL_KICK_SETUP_GK' ||
+      newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+    ) {
+      const paceRemaining =
+        newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+          ? 6 - (newState.goalKickUsedPace?.[prevSelectedId] ?? 0)
+          : 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
       const stickyValid =
         paceRemaining <= 0 ? [] : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
       set({
@@ -1098,5 +1204,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   emitThrowInPlace: (pieceId) => {
     socket.emit(ClientEvents.GAME_THROW_IN_PLACE, pieceId);
+  },
+
+  // GOALKICK-03: does not clear selectedPieceId (unlike emitFreeKickMove) — the server
+  // broadcast drives the phase change and setGameState already handles selection lifecycle.
+  emitGoalKickChoice: (choice) => {
+    socket.emit(ClientEvents.GAME_GOAL_KICK_CHOICE, choice);
+  },
+
+  // GOALKICK-05: does not clear selectedPieceId — same rationale as emitGoalKickChoice above.
+  emitGoalKickTarget: (targetHex) => {
+    socket.emit(ClientEvents.GAME_GOAL_KICK_TARGET, targetHex);
   },
 }));
