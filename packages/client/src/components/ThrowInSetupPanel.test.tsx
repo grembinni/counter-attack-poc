@@ -31,6 +31,11 @@ function throwInSetupState(
     throwInHex: THROW_IN_HEX,
     throwInTeam,
     throwInPhasesTaken: 0 as const,
+    // WR-01/D-12-03: triggerOutOfBoundsRestart's THROW_IN branch always sets
+    // attackingTeam/activeTeam to throwInTeam — the fixture must match that
+    // invariant so it describes a state the server can actually produce.
+    attackingTeam: throwInTeam,
+    activeTeam: throwInTeam,
     ...overrides,
   };
 }
@@ -151,5 +156,20 @@ describe('ThrowInSetupPanel — button text and waiting copy', () => {
     useGameStore.setState({ playerSlot: 1, gameState: throwInSetupState('away') });
     render(<ThrowInSetupPanel />);
     expect(screen.getByText(/team is repositioning/)).toBeDefined();
+  });
+
+  it('WR-01: real-shaped state (attackingTeam === throwInTeam) renders "Attacking team is repositioning…"', () => {
+    useGameStore.setState({ playerSlot: 1, gameState: throwInSetupState('away') });
+    render(<ThrowInSetupPanel />);
+    expect(screen.getByText('Attacking team is repositioning…')).toBeDefined();
+  });
+
+  it('WR-01: overridden attackingTeam (throwInTeam !== attackingTeam) renders "Defending team is repositioning…" — proves the label is derived, not hardcoded', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: throwInSetupState('away', { attackingTeam: 'home' }),
+    });
+    render(<ThrowInSetupPanel />);
+    expect(screen.getByText('Defending team is repositioning…')).toBeDefined();
   });
 });
