@@ -9,6 +9,8 @@ import {
   applyGoalKickReposition,
   applyGoalKickWindowEnd,
   applyGoalKickChoice,
+  applyGoalKickTarget,
+  applyGoalKickMoveEnd,
 } from '../gameEngine.js';
 import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
@@ -1030,5 +1032,257 @@ describe('applyGoalKickChoice', () => {
   it('ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART contains only STANDARD_PASS', () => {
     expect(ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART.size).toBe(1);
     expect(ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART.has('STANDARD_PASS')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGoalKickTarget (Plan 37-09 Task 1)
+// GOALKICK-05: the Kick must target an outfield teammate's hex ("the head").
+// ---------------------------------------------------------------------------
+
+/**
+ * GOAL_KICK_TARGET fixture: home has chosen 'kick'. homeGK still holds the ball
+ * (mirrors applyGoalKickChoice's 'kick' branch). homeMidThird ({q:8,r:10}) is
+ * homeGK's outfield teammate and the valid target for the success case.
+ */
+const goalKickTargetState: GameState = {
+  ...goalKickSetupGkState,
+  phase: 'GOAL_KICK_TARGET',
+  goalKickEligibleIds: null,
+  goalKickUsedPace: null,
+  ball: {
+    position: homeGK.position,
+    carrierId: homeGK.id,
+    lastTouchedBy: { pieceId: homeGK.id, teamId: 'home' },
+  },
+};
+
+describe('applyGoalKickTarget', () => {
+  it('rejects when phase is not GOAL_KICK_TARGET', () => {
+    const state: GameState = { ...goalKickTargetState, phase: 'PASS' };
+    const result = applyGoalKickTarget(state, homeMidThird.position);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects when goalKickGkId matches no piece', () => {
+    const state: GameState = { ...goalKickTargetState, goalKickGkId: 'nonexistent-gk' };
+    const result = applyGoalKickTarget(state, homeMidThird.position);
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects an off-pitch target', () => {
+    const result = applyGoalKickTarget(goalKickTargetState, { q: -5, r: 10 });
+    expect(result).toEqual({ ok: false, reason: 'OFF_PITCH' });
+  });
+
+  it("rejects the goalkeeper's own hex", () => {
+    const result = applyGoalKickTarget(goalKickTargetState, homeGK.position);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects an empty on-pitch hex (GOALKICK-05: must target a teammate)', () => {
+    const result = applyGoalKickTarget(goalKickTargetState, { q: 19, r: 10 });
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects a hex occupied by an opposing piece', () => {
+    const result = applyGoalKickTarget(goalKickTargetState, awayMidHomeThird.position);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it("accepts a teammate's hex and transitions to GOAL_KICK_MOVE with the ball in the air", () => {
+    const result = applyGoalKickTarget(goalKickTargetState, homeMidThird.position);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GOAL_KICK_MOVE');
+    expect(result.state.goalKickTargetHex).toEqual(homeMidThird.position);
+    expect(result.state.goalKickMoveSlot).toBe('KICKER');
+    expect(result.state.goalKickMovedPieceId).toBeNull();
+    expect(result.state.goalKickPaceUsed).toBe(0);
+    expect(result.state.ball.position).toEqual(homeMidThird.position);
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: homeGK.id, teamId: 'home' });
+    expect(result.state.lastDiceRoll).toBeNull();
+    expect(result.state.lastActionType).toBeNull();
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.attackingTeam).toBe('home');
+    expect(result.state.eventLog).toHaveLength(goalKickTargetState.eventLog.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGoalKickMoveEnd (Plan 37-09 Task 2)
+// GOALKICK-04/05: KICKER->OPP slot handoff, then the accuracy roll resolving
+// into HEADER (accurate + eligible contestant), LOOSE_BALL (accurate + no
+// eligible contestant, or inaccurate).
+// ---------------------------------------------------------------------------
+
+/**
+ * GOAL_KICK_MOVE fixture, KICKER slot: home is kicking, target = homeMidThird's
+ * hex, ball in the air — mirrors applyGoalKickTarget's success return.
+ */
+const goalKickMoveKickerState: GameState = {
+  ...goalKickSetupGkState,
+  phase: 'GOAL_KICK_MOVE',
+  goalKickEligibleIds: null,
+  goalKickUsedPace: null,
+  goalKickTargetHex: homeMidThird.position,
+  goalKickMoveSlot: 'KICKER',
+  goalKickMovedPieceId: null,
+  goalKickPaceUsed: 0,
+  activeTeam: 'home',
+  ball: {
+    position: homeMidThird.position,
+    carrierId: null,
+    lastTouchedBy: { pieceId: homeGK.id, teamId: 'home' },
+  },
+};
+
+/** Isolated target hex for OPP-slot tests — far from every fixture piece below. */
+const oppTargetHex = { q: 15, r: 8 };
+/** Home outfield piece standing exactly on oppTargetHex — the header-eligible receiver. */
+const teammateAtTarget: PlayerPiece = {
+  ...homePiece,
+  id: 'home-receiver',
+  position: oppTargetHex,
+};
+
+/**
+ * Builds an OPP-slot GOAL_KICK_MOVE state with a fully-controlled `pieces` list
+ * (just the GK, the away GK, and whatever `extraPieces` the test supplies) so
+ * header-eligibility ("within 2 hexes of the target") is deterministic without
+ * needing to reason about every fixture piece's exact distance to the target.
+ */
+function makeGoalKickMoveOppState(highPass: number, extraPieces: PlayerPiece[]): GameState {
+  const gk: PlayerPiece = { ...homeGK, highPass };
+  return {
+    ...goalKickMoveKickerState,
+    pieces: [gk, awayGK, ...extraPieces],
+    goalKickGkId: gk.id,
+    goalKickTargetHex: oppTargetHex,
+    goalKickMoveSlot: 'OPP',
+    activeTeam: 'away',
+    ball: {
+      position: oppTargetHex,
+      carrierId: null,
+      lastTouchedBy: { pieceId: gk.id, teamId: 'home' },
+    },
+  };
+}
+
+describe('applyGoalKickMoveEnd', () => {
+  it('rejects when phase is not GOAL_KICK_MOVE', () => {
+    const state: GameState = { ...goalKickMoveKickerState, phase: 'PASS' };
+    const result = applyGoalKickMoveEnd(state, 4);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('KICKER slot: hands off to OPP with the opposing team active; kickDie is ignored', () => {
+    const result = applyGoalKickMoveEnd(goalKickMoveKickerState, 4);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.goalKickMoveSlot).toBe('OPP');
+    expect(result.state.activeTeam).toBe('away');
+    expect(result.state.goalKickMovedPieceId).toBeNull();
+    expect(result.state.goalKickPaceUsed).toBe(0);
+    expect(result.state.goalKickTargetHex).toEqual(homeMidThird.position);
+    expect(result.state.eventLog).toHaveLength(goalKickMoveKickerState.eventLog.length);
+  });
+
+  it('OPP slot rejects when goalKickGkId matches no piece', () => {
+    const state = makeGoalKickMoveOppState(7, []);
+    const badState: GameState = { ...state, goalKickGkId: 'nonexistent-gk' };
+    const result = applyGoalKickMoveEnd(badState, 4);
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('OPP slot rejects when goalKickTargetHex is null (MISSING_TARGET)', () => {
+    const state = makeGoalKickMoveOppState(7, []);
+    const badState: GameState = { ...state, goalKickTargetHex: null };
+    const result = applyGoalKickMoveEnd(badState, 4);
+    expect(result).toEqual({ ok: false, reason: 'MISSING_TARGET' });
+  });
+
+  it('highPass 7 is accurate for any die 1-6, and kickScore equals highPass + kickDie', () => {
+    const state = makeGoalKickMoveOppState(7, [teammateAtTarget]);
+    for (const die of [1, 2, 3, 4, 5, 6]) {
+      const result = applyGoalKickMoveEnd(state, die);
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+      const event = result.state.eventLog.find((e) => e.type === 'GOAL_KICK');
+      if (event?.type !== 'GOAL_KICK') throw new Error('expected GOAL_KICK event');
+      expect(event.accurate).toBe(true);
+      expect(event.kickScore).toBe(7 + die);
+    }
+  });
+
+  it('accurate with an eligible header contestant transitions to HEADER', () => {
+    const state = makeGoalKickMoveOppState(7, [teammateAtTarget]);
+    const result = applyGoalKickMoveEnd(state, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HEADER');
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.position).toEqual(oppTargetHex);
+    expect(result.state.headerAccuracyRollPending).toBe(true);
+    expect(result.state.headerContestants).toEqual({ home: [], away: [] });
+    expect(result.state.headerConfirmed).toEqual({ home: false, away: true });
+    expect(result.state.lastActionType).toBe('HIGH_PASS');
+  });
+
+  it('accurate with no eligible header contestant on either team falls to LOOSE_BALL', () => {
+    // Only the two GKs are on the pitch, both far from oppTargetHex — no eligible receiver.
+    const state = makeGoalKickMoveOppState(7, []);
+    const result = applyGoalKickMoveEnd(state, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+    expect(result.state.ball.position).toEqual(oppTargetHex);
+    expect(result.state.ball.carrierId).toBeNull();
+  });
+
+  it('inaccurate (highPass 1) resolves to LOOSE_BALL with an inaccurate GOAL_KICK event', () => {
+    const state = makeGoalKickMoveOppState(1, [teammateAtTarget]);
+    const result = applyGoalKickMoveEnd(state, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.position).toEqual(oppTargetHex);
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+    const event = result.state.eventLog.find((e) => e.type === 'GOAL_KICK');
+    if (event?.type !== 'GOAL_KICK') throw new Error('expected GOAL_KICK event');
+    expect(event.accurate).toBe(false);
+  });
+
+  it('every OPP-slot return clears all goal-kick fields and increments actionCount by 1', () => {
+    const state = makeGoalKickMoveOppState(7, [teammateAtTarget]);
+    const result = applyGoalKickMoveEnd(state, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.goalKickTeam).toBeNull();
+    expect(result.state.goalKickGkId).toBeNull();
+    expect(result.state.goalKickTargetHex).toBeNull();
+    expect(result.state.goalKickMoveSlot).toBeNull();
+    expect(result.state.goalKickMovedPieceId).toBeNull();
+    expect(result.state.goalKickEligibleIds).toBeNull();
+    expect(result.state.goalKickUsedPace).toBeNull();
+    expect(result.state.goalKickPaceUsed).toBe(0);
+    expect(result.state.lastDiceRoll).toEqual({ rolls: [3], context: 'GOAL_KICK' });
+    expect(result.state.lastShotPath).toBeNull();
+    expect(result.state.actionCount).toBe(state.actionCount + 1);
+  });
+
+  it('re-evaluates offsidePieceIds on both KICKER and OPP returns', () => {
+    const kickerResult = applyGoalKickMoveEnd(goalKickMoveKickerState, 3);
+    expect(kickerResult.ok).toBe(true);
+    if (kickerResult.ok) expect(kickerResult.state.offsidePieceIds).toBeDefined();
+
+    const oppState = makeGoalKickMoveOppState(7, [teammateAtTarget]);
+    const oppResult = applyGoalKickMoveEnd(oppState, 3);
+    expect(oppResult.ok).toBe(true);
+    if (oppResult.ok) expect(oppResult.state.offsidePieceIds).toBeDefined();
   });
 });

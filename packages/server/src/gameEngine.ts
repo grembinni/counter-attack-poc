@@ -3707,6 +3707,267 @@ export function applyGoalKickChoice(
 }
 
 // ---------------------------------------------------------------------------
+// applyGoalKickTarget
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGoalKickTarget. */
+export type ApplyGoalKickTargetResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' | 'OFF_PITCH' | 'INVALID_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * GOALKICK-05: records the goal-kick target and transitions to GOAL_KICK_MOVE.
+ *
+ * D-01: structurally mirrors applyGKKickTarget's shape (phase-guard, GK lookup,
+ * isPitchHex/own-hex checks, GK_KICK_MOVE-style state literal) but does NOT call
+ * applyGKKickTarget/applyGKRestart and does NOT read any gkKick* field — the GK is
+ * resolved via the goal-kick-specific `goalKickGkId`, which keeps working after the
+ * ball leaves the goalkeeper's hands (unlike ball.carrierId).
+ *
+ * GOALKICK-05: "the Kick targets a teammate's head" — the target hex must be
+ * occupied by an outfield teammate of the goalkeeper. This is what guarantees the
+ * mandatory-header outcome (applyGoalKickMoveEnd's accurate branch) is reachable by
+ * construction: a client cannot aim at empty space to dodge the header contest.
+ *
+ * `validatePass` is deliberately not called — a goal kick has no path-blocking or
+ * interception concept (D-01 / RESEARCH.md Assumption A4).
+ */
+export function applyGoalKickTarget(
+  state: GameState,
+  targetHex: HexCoord,
+): ApplyGoalKickTargetResult {
+  if (state.phase !== 'GOAL_KICK_TARGET') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gk = state.pieces.find((p) => p.id === state.goalKickGkId);
+  if (!gk) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (!isPitchHex(targetHex)) return { ok: false, reason: 'OFF_PITCH' };
+
+  if (targetHex.q === gk.position.q && targetHex.r === gk.position.r) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // GOALKICK-05: "the Kick targets a teammate's head" — reject anything that is not
+  // an outfield teammate of the goalkeeper standing exactly on the target hex.
+  const receiver = state.pieces.find(
+    (p) =>
+      p.teamId === state.goalKickTeam &&
+      p.id !== gk.id &&
+      p.position.q === targetHex.q &&
+      p.position.r === targetHex.r,
+  );
+  if (!receiver) return { ok: false, reason: 'INVALID_TARGET' };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GOAL_KICK_MOVE',
+      // D-06/OOB-01: the goalkeeper is a real contact — clearing carrierId puts the
+      // ball visibly in the air for both managers while the travel window plays out.
+      ball: {
+        position: targetHex,
+        carrierId: null,
+        lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+      },
+      goalKickTargetHex: targetHex,
+      goalKickMoveSlot: 'KICKER',
+      goalKickMovedPieceId: null,
+      goalKickPaceUsed: 0,
+      attackingTeam: gk.teamId,
+      activeTeam: gk.teamId,
+      // BUG-18 parity: clear lastDiceRoll on travel-window entry so a stale dice
+      // result from an earlier phase cannot block Undo.
+      lastDiceRoll: null,
+      lastActionType: null,
+      // Target selection emits no event — the GOAL_KICK delivery event's targetHex
+      // field (applyGoalKickMoveEnd) is the audit record for this action.
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyGoalKickMoveEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGoalKickMoveEnd. */
+export type ApplyGoalKickMoveEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' | 'MISSING_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * GOALKICK-05: owns BOTH halves of the GOAL_KICK_MOVE travel window so the whole
+ * thing is unit-testable without mocking randomness.
+ *
+ * - KICKER slot: hands the travel-movement slot to the opponent. `kickDie` is
+ *   deliberately ignored here — the handler generates a die unconditionally so
+ *   this function's signature stays total and deterministic under test, and
+ *   discarding one crypto.randomInt draw has no gameplay effect (nothing
+ *   surfaces it).
+ * - OPP slot: resolves the kick's accuracy via computeCombinedScore(gk.highPass,
+ *   kickDie, []) — NOT the inline `kickDie + gk.highPass` the GK_KICK_MOVE
+ *   handler uses (D-02: the shared function is the single source of the
+ *   DICE-04 penalty clamp). An accurate kick (combined score >= 8, GOALKICK-03)
+ *   with an eligible header contest enters HEADER (copying the HIGH_PASS ->
+ *   HEADER eligibility check verbatim); with no eligible header it falls to
+ *   LOOSE_BALL. An inaccurate kick always falls to LOOSE_BALL (GOALKICK-04) —
+ *   which then scatters through applyRoll's out-of-bounds-aware LOOSE_BALL
+ *   clamp (Plan 37-04), giving "follows the existing Loose Ball rules,
+ *   including out-of-bounds reclassification" for free.
+ *
+ * D-01: does not call applyGKKickTarget/applyGKRestart or read any gkKick* field.
+ * ARCH-01: never calls rollDice()/Math.random() — kickDie is injected by the caller.
+ *
+ * ballAfter.carrierId is null on BOTH branches — unlike the GK_KICK analog, an
+ * accurate goal kick lands in a header contest rather than being caught by a
+ * receiver, so nobody carries the ball at resolution time.
+ */
+export function applyGoalKickMoveEnd(
+  state: GameState,
+  kickDie: number,
+): ApplyGoalKickMoveEndResult {
+  if (state.phase !== 'GOAL_KICK_MOVE') return { ok: false, reason: 'WRONG_PHASE' };
+
+  // Pieces may have repositioned during either travel-movement slot — re-evaluate
+  // offside on every return, mirroring applyEndTurn/applyGoalKickWindowEnd's contract.
+  const nextOffside = evaluateOffside(state);
+
+  // ---- KICKER slot: hand the travel-movement slot to the opponent ----
+  if (state.goalKickMoveSlot === 'KICKER') {
+    const oppTeam: 'home' | 'away' = state.goalKickTeam === 'home' ? 'away' : 'home';
+    return {
+      ok: true,
+      state: {
+        ...state,
+        goalKickMoveSlot: 'OPP',
+        activeTeam: oppTeam,
+        goalKickMovedPieceId: null,
+        goalKickPaceUsed: 0,
+        offsidePieceIds: nextOffside,
+      },
+    };
+  }
+
+  // ---- OPP slot: resolve the kick's accuracy ----
+  const gk = state.pieces.find((p) => p.id === state.goalKickGkId);
+  if (!gk) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const targetHex = state.goalKickTargetHex;
+  if (targetHex === null || targetHex === undefined) {
+    return { ok: false, reason: 'MISSING_TARGET' };
+  }
+
+  const kickScore = computeCombinedScore(gk.highPass, kickDie, []);
+  const accurate = kickScore >= 8; // GOALKICK-03 threshold
+
+  const kickEvent: ActionEvent = {
+    type: 'GOAL_KICK',
+    gkId: gk.id,
+    targetHex,
+    accurate,
+    kickDie,
+    kickScore,
+    timestamp: Date.now(),
+    // ballAfter.carrierId is null on BOTH branches (see doc comment above) — an
+    // accurate goal kick lands in a header contest, not a receiver's hands.
+    ballAfter: { position: targetHex, carrierId: null },
+  };
+
+  // Shared teardown applied to both OPP-slot returns — clears every goal-kick
+  // field so the sequence is fresh for the next goal kick.
+  const teardown = {
+    goalKickTeam: null,
+    goalKickGkId: null,
+    goalKickTargetHex: null,
+    goalKickMoveSlot: null,
+    goalKickMovedPieceId: null,
+    goalKickPaceUsed: 0,
+    goalKickEligibleIds: null,
+    goalKickUsedPace: null,
+    lastDiceRoll: { rolls: [kickDie], context: 'GOAL_KICK' },
+    lastShotPath: null,
+    actionCount: state.actionCount + 1,
+    eventLog: [...state.eventLog, kickEvent],
+    attackingTeam: gk.teamId,
+    activeTeam: gk.teamId,
+    offsidePieceIds: nextOffside,
+  };
+
+  if (accurate) {
+    // Copied verbatim from the HIGH_PASS -> HEADER eligibility check (D-02).
+    const homeEligible = state.pieces.some(
+      (p) => p.teamId === 'home' && hexDistance(p.position, targetHex) <= 2,
+    );
+    const awayEligible = state.pieces.some(
+      (p) => p.teamId === 'away' && hexDistance(p.position, targetHex) <= 2,
+    );
+
+    if (!homeEligible && !awayEligible) {
+      // No eligible header contestants — ball falls loose at the target (GOALKICK-04
+      // reuses the same "no eligible players" LOOSE_BALL fallback as a High Pass).
+      return {
+        ok: true,
+        state: {
+          ...state,
+          ...teardown,
+          phase: 'LOOSE_BALL',
+          ball: {
+            position: targetHex,
+            carrierId: null,
+            lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+          },
+          lastActionType: 'DEFLECTION',
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      state: {
+        ...state,
+        ...teardown,
+        phase: 'HEADER',
+        ball: {
+          position: targetHex,
+          carrierId: null,
+          lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+        },
+        // Deliberate: the delivery genuinely is a High Pass per GOALKICK-03, and
+        // entering the existing HEADER machinery in exactly the state it already
+        // expects (contestant selection, RULE-01 accuracy acknowledgement) means
+        // zero new header-resolution code is needed.
+        lastActionType: 'HIGH_PASS',
+        headerContestants: { home: [] as string[], away: [] as string[] },
+        headerConfirmed: { home: !homeEligible, away: !awayEligible },
+        headerTargetHex: null,
+        headerAccuracyRollPending: true,
+      },
+    };
+  }
+
+  // Inaccurate (GOALKICK-04): loose ball at the target hex. The follow-up scatter
+  // runs through applyRoll's LOOSE_BALL case, which Plan 37-04 made out-of-bounds-
+  // aware — an inaccurate goal kick that scatters off the pitch is reclassified
+  // with zero extra code here.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      ...teardown,
+      phase: 'LOOSE_BALL',
+      ball: {
+        position: targetHex,
+        carrierId: null,
+        lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+      },
+      lastActionType: 'DEFLECTION',
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyGKRestart
 // ---------------------------------------------------------------------------
 
