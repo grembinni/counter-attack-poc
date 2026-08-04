@@ -147,7 +147,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 3. When the ball exits over the defending byline without last being touched by the attacking team (including an untouched off-target shot), the defending goalkeeper is awarded a goal kick as its own dedicated setup screen: both final-thirds reposition up to 6 hexes each (goalkeeper's team first), then the goalkeeper chooses a Kick (High Pass, combined score 8+ required, inaccurate results in a Loose Ball) or an unmodified Standard Pass, with both teams able to move one player up to 3 hexes while a Kicked ball travels and the receiver required to head it.
 4. When Out-of-Bounds/Restarts is disabled at game creation, the ball continues to clamp to the pitch boundary exactly as it does today, and none of the new restart flows are reachable.
 
-**Plans**: 12 plans
+**Plans**: 13 plans
 Plans:
 **Wave 1**
 
@@ -190,6 +190,10 @@ Plans:
 
 - [x] 37-11-PLAN.md — CR-01 blocker: shared throw-in teardown on break-in-play early returns + sound applyEndTurn re-entry guard + regression test
 - [x] 37-12-PLAN.md — WR-01/WR-02 warnings: throw-in waiting-state side label; goal-kick travel die generated only for the OPP slot
+
+**Wave 11** _(gap closure from 37-VERIFICATION.md re-verification — GOALKICK-02 blocker)_
+
+- [ ] 37-13-PLAN.md — GOALKICK-02 blocker: on-pitch bounds guard for goal-kick reposition in applyGoalKickReposition and its GAME_MOVE handler branch + regression tests
 
 **UI hint**: yes
 
