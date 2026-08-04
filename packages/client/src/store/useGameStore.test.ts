@@ -511,6 +511,116 @@ describe('useGameStore — setGameState response-move slot hand-off / pace-exhau
   });
 });
 
+// GOALKICK-02/05 (Plan 37-10): selectPiece coverage for the goal-kick reposition window
+// (mirrors the FREE_MOVE_ATTACK/DEFENSE coverage above) and the GOAL_KICK_MOVE travel
+// window's single-piece lock (mirrors the GK_KICK_MOVE coverage above).
+describe('useGameStore — selectPiece GOAL_KICK_SETUP_GK / GOAL_KICK_MOVE (Plan 37-10)', () => {
+  const GK_ELIGIBLE_ID = 'away-8';
+  const GK_INELIGIBLE_ID = 'away-10';
+
+  function goalKickSetupGkState(overrides: {
+    eligibleIds?: string[];
+    goalKickUsedPace?: Record<string, number>;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_SETUP_GK' as const,
+      activeTeam: 'away' as const,
+      attackingTeam: 'away' as const,
+      goalKickTeam: 'away' as const,
+      goalKickGkId: 'away-0',
+      goalKickEligibleIds: {
+        gkTeam: overrides.eligibleIds ?? [GK_ELIGIBLE_ID],
+        opponent: [] as readonly string[],
+      },
+      goalKickUsedPace: overrides.goalKickUsedPace ?? {},
+    };
+  }
+
+  function goalKickMoveState(overrides: {
+    goalKickMovedPieceId?: string | null;
+    goalKickPaceUsed?: number;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_MOVE' as const,
+      activeTeam: 'away' as const,
+      attackingTeam: 'away' as const,
+      goalKickTeam: 'away' as const,
+      goalKickMoveSlot: 'KICKER' as const,
+      goalKickMovedPieceId: overrides.goalKickMovedPieceId ?? null,
+      goalKickPaceUsed: overrides.goalKickPaceUsed ?? 0,
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({
+      playerSlot: 2, // away
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+  });
+
+  it('GOAL_KICK_SETUP_GK: selecting an eligible own-team piece populates adjacent valid-move hexes', () => {
+    useGameStore.setState({ gameState: goalKickSetupGkState({}) });
+    useGameStore.getState().selectPiece(GK_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(GK_ELIGIBLE_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('GOAL_KICK_SETUP_GK: rejects a piece NOT in goalKickEligibleIds.gkTeam (clears selection)', () => {
+    useGameStore.setState({ gameState: goalKickSetupGkState({}) });
+    useGameStore.getState().selectPiece(GK_INELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GOAL_KICK_SETUP_GK: selects a pace-exhausted piece (goalKickUsedPace === 6) but yields empty validMoveHexes', () => {
+    useGameStore.setState({
+      gameState: goalKickSetupGkState({ goalKickUsedPace: { [GK_ELIGIBLE_ID]: 6 } }),
+    });
+    useGameStore.getState().selectPiece(GK_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(GK_ELIGIBLE_ID);
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GOAL_KICK_SETUP_GK: rejects a piece already in movedPieceIds even with pace remaining under 6 (abandoned)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...goalKickSetupGkState({ goalKickUsedPace: { [GK_ELIGIBLE_ID]: 2 } }),
+        movedPieceIds: [GK_ELIGIBLE_ID],
+      },
+    });
+    useGameStore.getState().selectPiece(GK_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GOAL_KICK_MOVE: respects the single-piece lock via goalKickMovedPieceId — rejects a different piece once one is locked in', () => {
+    useGameStore.setState({
+      gameState: goalKickMoveState({ goalKickMovedPieceId: GK_ELIGIBLE_ID }),
+    });
+    useGameStore.getState().selectPiece(GK_INELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GOAL_KICK_MOVE: the locked piece itself remains selectable and yields adjacent valid-move hexes', () => {
+    useGameStore.setState({
+      gameState: goalKickMoveState({ goalKickMovedPieceId: GK_ELIGIBLE_ID, goalKickPaceUsed: 1 }),
+    });
+    useGameStore.getState().selectPiece(GK_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(GK_ELIGIBLE_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
 describe('useGameStore — Phase 7 setters', () => {
   it('setGameState replaces gameState wholesale', () => {
     const newState = { ...mockMovementState, phase: 'SHOT' as const };
