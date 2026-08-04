@@ -288,6 +288,14 @@ export function HexGrid() {
     return hexDistance(hex, freeKickHex) > 2;
   };
 
+  // THROWIN-02/D-08 (Phase 37): the throw-in hex tints 'safe' (green) for the throwing team,
+  // and their pieces become selectable, exactly mirroring the isKickOffSetup precedent above.
+  // No new HexHighlightType member — D-08 forbids it.
+  const isThrowInSetup = phase === 'THROW_IN_SETUP';
+  const throwInHex = useGameStore((s) => s.gameState.throwInHex);
+  const throwInTeam = useGameStore((s) => s.gameState.throwInTeam);
+  const isMyThrowIn = isThrowInSetup && myTeam !== null && myTeam === throwInTeam;
+
   // Shot path highlight: O(1) lookup set for the last resolved shot trajectory
   const lastShotPathSet = new Set<string>((lastShotPath ?? []).map((h) => `${h.q},${h.r}`));
 
@@ -430,6 +438,14 @@ export function HexGrid() {
               hex.q === PITCH_REGIONS.kickOffHex.q &&
               hex.r === PITCH_REGIONS.kickOffHex.r;
 
+            // THROWIN-02/D-08: throw-in exit hex tints 'safe' for the throwing team only.
+            const isThrowInHexTint =
+              isMyThrowIn &&
+              throwInHex !== null &&
+              throwInHex !== undefined &&
+              hex.q === throwInHex.q &&
+              hex.r === throwInHex.r;
+
             // Plan 04 D-12: priority-resolve highlightType (risk > goal > shot-path > kickoff > safe)
             // isRisk: ZoI steal-risk OR tackle-risk movement (orange).
             // BUGFIX (snapshot-shot-flow-mismatch): snapshot's shot path (isShotPath) was
@@ -508,13 +524,15 @@ export function HexGrid() {
                           ? 'shot-path'
                           : isKickoffTint
                             ? 'kickoff'
-                            : isGkKickTargetTint
-                              ? 'gk-kick-target'
-                              : isPassTargetTint
-                                ? 'pass-target'
-                                : isSafeTint
-                                  ? 'safe'
-                                  : undefined;
+                            : isThrowInHexTint
+                              ? 'safe'
+                              : isGkKickTargetTint
+                                ? 'gk-kick-target'
+                                : isPassTargetTint
+                                  ? 'pass-target'
+                                  : isSafeTint
+                                    ? 'safe'
+                                    : undefined;
 
             let onClick: (() => void) | undefined;
             // DESIGN-02: REPLAY is never interactive — skip the entire phase-branch cascade so
@@ -649,6 +667,10 @@ export function HexGrid() {
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
             const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
+            // THROWIN-02: mirrors canSelectKickOff's "own pieces only, opponent is a no-op" shape,
+            // except only the throwing team (isMyThrowIn) may select at all — placement itself is
+            // confirmed via ThrowInSetupPanel's Confirm button, not a hex click.
+            const canSelectThrowIn = isMyThrowIn && myTeam !== null && piece.teamId === myTeam;
             // OFFSIDE-02 (D-49 staged rework): only the CURRENTLY-active stage's team may
             // select a piece — mirrors canSelectKickOff but additionally gated on
             // myFreeKickStageActive (the inactive team sees no selectable pieces at all,
@@ -755,6 +777,7 @@ export function HexGrid() {
                 canSelect ||
                 canSelectKickOff ||
                 canSelectFreeKick ||
+                canSelectThrowIn ||
                 isHeaderEligible ||
                 canSelectHighPassMove ||
                 canSelectSnapDeflect ||
@@ -829,26 +852,28 @@ export function HexGrid() {
                                 ? () => selectPiece(piece.id)
                                 : canSelectFreeKick
                                   ? () => selectPiece(piece.id)
-                                  : canSelect
+                                  : canSelectThrowIn
                                     ? () => selectPiece(piece.id)
-                                    : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
-                                      // player card via inspectPiece — same as unmoved pieces — but does NOT
-                                      // re-trigger move-target highlighting (canSelect already excludes moved
-                                      // pieces so selectPiece is never called here).
-                                      phase === 'MOVE' &&
-                                        myTeam !== null &&
-                                        piece.teamId === myTeam &&
-                                        movedPieceIds.includes(piece.id)
-                                      ? () => inspectPiece(piece.id)
-                                      : // BUG-26: clicking an opponent's activated (already-moved)
-                                        // piece opens its stats panel via inspectPiece. The
-                                        // canSelect guard above already excludes opponent pieces
-                                        // from selectPiece, so no erroneous selection occurs.
-                                        // No piece.teamId === myTeam constraint is needed here —
-                                        // this branch fires only after canSelect is false.
-                                        movedPieceIds.includes(piece.id)
+                                    : canSelect
+                                      ? () => selectPiece(piece.id)
+                                      : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
+                                        // player card via inspectPiece — same as unmoved pieces — but does NOT
+                                        // re-trigger move-target highlighting (canSelect already excludes moved
+                                        // pieces so selectPiece is never called here).
+                                        phase === 'MOVE' &&
+                                          myTeam !== null &&
+                                          piece.teamId === myTeam &&
+                                          movedPieceIds.includes(piece.id)
                                         ? () => inspectPiece(piece.id)
-                                        : () => undefined;
+                                        : // BUG-26: clicking an opponent's activated (already-moved)
+                                          // piece opens its stats panel via inspectPiece. The
+                                          // canSelect guard above already excludes opponent pieces
+                                          // from selectPiece, so no erroneous selection occurs.
+                                          // No piece.teamId === myTeam constraint is needed here —
+                                          // this branch fires only after canSelect is false.
+                                          movedPieceIds.includes(piece.id)
+                                          ? () => inspectPiece(piece.id)
+                                          : () => undefined;
 
             return (
               <PieceOverlay

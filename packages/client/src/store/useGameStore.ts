@@ -20,6 +20,13 @@ import { deriveMyTeam } from '../hooks/useMyTeam.js';
 /** Pass type used for store and ActionPanel three-step flow (matches server event signature). */
 export type PassType = 'STANDARD_PASS' | 'FIRST_TIME_PASS' | 'HIGH_PASS' | 'LONG_BALL';
 
+/**
+ * THROWIN-04 (Phase 37): a throw-in travels at most 6 hexes, regardless of Low/High type.
+ * Mirrors the identical constant in packages/server/src/gameHandlers.ts — the server remains
+ * authoritative; this only shrinks the client's highlight set to match.
+ */
+const THROW_IN_MAX_DISTANCE = 6;
+
 /** Screen states for client-side routing (D-12). No React Router — screen field in store.
  * Module-internal only — no other file imports this type directly (components read
  * `screen` values via the store selector, which carries the literal type through). */
@@ -444,11 +451,25 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const vpType = vpTypeMap[passType];
     const opponents = gameState.pieces.filter((p) => p.teamId !== carrier.teamId);
 
+    // THROWIN-04: mirror the server's 6-hex throw cap so highlights match server-side
+    // legality. The server (gameHandlers.ts) remains authoritative regardless of what this
+    // client-side highlight set shows.
+    const isThrowIn =
+      gameState.lastActionType === 'THROW_IN_MOVEMENT_1' ||
+      gameState.lastActionType === 'THROW_IN_MOVEMENT_2';
+
     const validTargets: HexCoord[] = [];
     const interceptionRisk: HexCoord[] = [];
 
     for (const hex of PITCH_HEXES) {
-      const result = validatePass(gameState, carrier, carrier.position, hex, vpType);
+      const result = validatePass(
+        gameState,
+        carrier,
+        carrier.position,
+        hex,
+        vpType,
+        isThrowIn ? { maxDistance: THROW_IN_MAX_DISTANCE } : undefined,
+      );
       if (!result.ok) continue;
 
       validTargets.push(hex);
