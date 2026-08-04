@@ -240,12 +240,23 @@ function parkBackgroundPieces(
  * goalKickEligibleIds is computed via the real computeGoalKickEligibleIds so
  * the fixture matches exactly what triggerOutOfBoundsRestart would produce.
  */
-function seedGoalKickSetupGk(roomCode: string): {
+function seedGoalKickSetupGk(
+  roomCode: string,
+  opts?: { homeStart?: HexCoord; awayStart?: HexCoord },
+): {
   gk: PlayerPiece;
   eligibleHomeId: string;
   eligibleHomeStart: HexCoord;
   eligibleHomeNeighbor: HexCoord;
   eligibleAwayId: string;
+  eligibleAwayStart: HexCoord;
+  // GOALKICK-02 (37-13): derived via hexNeighbors/isPitchHex (never hardcoded) so the
+  // coordinate is guaranteed genuinely hexDistance 1 under ODD-Q parity — the same
+  // guarantee ELIGIBLE_HOME_NEIGHBOR already relies on. null when the start hex has no
+  // off-pitch neighbour (shouldn't happen for the boundary starts these tests pass in,
+  // but callers must check before using it — see the new tests below).
+  eligibleHomeOffPitchNeighbor: HexCoord | null;
+  eligibleAwayOffPitchNeighbor: HexCoord | null;
 } {
   const room = getRoom(roomCode);
   if (!room || !room.gameState) throw new Error('Room or gameState not found');
@@ -257,9 +268,13 @@ function seedGoalKickSetupGk(roomCode: string): {
   const eligibleAway = awayOutfield[0]!;
 
   const GK_HEX = { q: 15, r: 13 };
-  const ELIGIBLE_HOME_START = { q: 5, r: 5 };
+  const ELIGIBLE_HOME_START = opts?.homeStart ?? { q: 5, r: 5 };
   const ELIGIBLE_HOME_NEIGHBOR = hexNeighbors(ELIGIBLE_HOME_START).find((h) => isPitchHex(h))!;
-  const ELIGIBLE_AWAY_START = { q: 30, r: 5 };
+  const ELIGIBLE_HOME_OFF_PITCH_NEIGHBOR =
+    hexNeighbors(ELIGIBLE_HOME_START).find((h) => !isPitchHex(h)) ?? null;
+  const ELIGIBLE_AWAY_START = opts?.awayStart ?? { q: 30, r: 5 };
+  const ELIGIBLE_AWAY_OFF_PITCH_NEIGHBOR =
+    hexNeighbors(ELIGIBLE_AWAY_START).find((h) => !isPitchHex(h)) ?? null;
 
   let pieces = room.gameState.pieces.map((p) => {
     if (p.id === gk.id) return { ...p, position: GK_HEX };
@@ -303,6 +318,9 @@ function seedGoalKickSetupGk(roomCode: string): {
     eligibleHomeStart: ELIGIBLE_HOME_START,
     eligibleHomeNeighbor: ELIGIBLE_HOME_NEIGHBOR,
     eligibleAwayId: eligibleAway.id,
+    eligibleAwayStart: ELIGIBLE_AWAY_START,
+    eligibleHomeOffPitchNeighbor: ELIGIBLE_HOME_OFF_PITCH_NEIGHBOR,
+    eligibleAwayOffPitchNeighbor: ELIGIBLE_AWAY_OFF_PITCH_NEIGHBOR,
   };
 }
 
@@ -640,6 +658,116 @@ describe('GOALKICK-02: reposition windows (regression proof for Plan 37-08)', ()
     const [afterSecond] = await p2;
     expect(afterSecond.phase).toBe('GOAL_KICK_CHOICE');
     expect(afterSecond.activeTeam).toBe('home');
+  });
+
+  // -------------------------------------------------------------------------
+  // GOALKICK-02 (37-13): socket-level regression coverage for the reposition
+  // GAME_MOVE branch's on-pitch bounds guard. The pre-existing 'an off-pitch hex
+  // is rejected with OFF_PITCH' test (below, ~line 785) exercises
+  // GAME_GOAL_KICK_TARGET only — a different function entirely — which is
+  // precisely the coverage hole 37-VERIFICATION.md identified.
+  //
+  // Seeded at the q=0/q=36 boundary columns via seedGoalKickSetupGk's opts
+  // param: {0,5} is q<=10 -> homeThird, {36,5} is q>=26 -> awayThird, so both
+  // are inside their eligibility regions. Both are clear of the parked
+  // background pieces (q=12/13) and GK_HEX ({q:15,r:13}); the ball stays at
+  // {q:15,r:13} in the middle third throughout, so applyFreeMoveZoneCheck
+  // cannot fire and hijack the phase under test (see the seed-helpers comment
+  // above this describe block).
+  // -------------------------------------------------------------------------
+
+  const BOUNDARY_SEED_OPTS = { homeStart: { q: 0, r: 5 }, awayStart: { q: 36, r: 5 } };
+
+  it('an off-pitch hex is rejected with OFF_PITCH (GOAL_KICK_SETUP_GK reposition GAME_MOVE branch)', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeOffPitchNeighbor } = seedGoalKickSetupGk(
+      roomCode,
+      BOUNDARY_SEED_OPTS,
+    );
+    expect(eligibleHomeOffPitchNeighbor).not.toBeNull();
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeOffPitchNeighbor!);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('OFF_PITCH');
+  });
+
+  it('the OFF_PITCH rejection is fully non-mutating (phase, position, pace, movedPieceIds, eventLog)', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeOffPitchNeighbor } = seedGoalKickSetupGk(
+      roomCode,
+      BOUNDARY_SEED_OPTS,
+    );
+    expect(eligibleHomeOffPitchNeighbor).not.toBeNull();
+    const beforeEventLogLength = getRoom(roomCode)!.gameState!.eventLog.length;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeOffPitchNeighbor!);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('OFF_PITCH');
+
+    // Read the authoritative state back directly (not the broadcast payload).
+    const state = getRoom(roomCode)!.gameState!;
+    expect(state.phase).toBe('GOAL_KICK_SETUP_GK');
+    const piece = state.pieces.find((p) => p.id === eligibleHomeId)!;
+    expect(piece.position).toEqual({ q: 0, r: 5 });
+    expect(state.goalKickUsedPace?.[eligibleHomeId] ?? 0).toBe(0);
+    expect(state.movedPieceIds).toEqual([]);
+    expect(state.eventLog).toHaveLength(beforeEventLogLength);
+    expect(state.eventLog.some((e) => e.type === 'MOVE')).toBe(false);
+  });
+
+  it('an off-pitch hex is rejected with OFF_PITCH (GOAL_KICK_SETUP_OPPONENT reposition GAME_MOVE branch)', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const { eligibleAwayId, eligibleAwayOffPitchNeighbor } = seedGoalKickSetupGk(
+      roomCode,
+      BOUNDARY_SEED_OPTS,
+    );
+    expect(eligibleAwayOffPitchNeighbor).not.toBeNull();
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [afterFirst] = await statePromise;
+    expect(afterFirst.phase).toBe('GOAL_KICK_SETUP_OPPONENT');
+    expect(afterFirst.activeTeam).toBe('away');
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_MOVE, eligibleAwayId, eligibleAwayOffPitchNeighbor!);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('OFF_PITCH');
+    expect(getRoom(roomCode)!.gameState!.phase).toBe('GOAL_KICK_SETUP_OPPONENT');
+  });
+
+  it('a boundary-seeded home piece moving to its first on-pitch neighbour still succeeds', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeNeighbor } = seedGoalKickSetupGk(
+      roomCode,
+      BOUNDARY_SEED_OPTS,
+    );
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
+    const [state] = await statePromise;
+
+    const moved = state.pieces.find((p) => p.id === eligibleHomeId)!;
+    expect(moved.position).toEqual(eligibleHomeNeighbor);
+    expect(state.goalKickUsedPace?.[eligibleHomeId]).toBe(1);
+  });
+
+  it('a non-object GAME_MOVE payload is rejected with INVALID_TARGET, not OFF_PITCH, and does not throw (D-13-04)', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId } = seedGoalKickSetupGk(roomCode, BOUNDARY_SEED_OPTS);
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    // Intentionally malformed payload (attacker-controlled) — proves isPitchHex
+    // never sees a non-object, since the shape check strictly precedes it (D-13-04).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clientA as any).emit(ClientEvents.GAME_MOVE, eligibleHomeId, 12345);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
   });
 });
 

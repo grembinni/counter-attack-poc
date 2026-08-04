@@ -672,6 +672,21 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
+        // GOALKICK-02 (37-13, closes the 37-VERIFICATION.md handler-layer half of the
+        // BLOCKER): defence-in-depth over the engine guard added in gameEngine.ts's
+        // applyGoalKickReposition — NOT redundant with it, because this handler emits
+        // goalKickResult.reason and never goalKickResult.detail (see the comment near
+        // goalKick.integration.test.ts's "Wire value is the generic ApplyMoveResult
+        // reason" note above the GOAL_KICK_PACE_EXHAUSTED regression test), so without
+        // this guard the wire code would be the vague MOVE_INVALID instead of the
+        // precise OFF_PITCH. Must stay strictly after the payload-shape check above:
+        // isPitchHex dereferences .q/.r and would throw on the null/non-object
+        // payloads that check exists to reject (D-13-04).
+        if (!isPitchHex(to)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+          broadcastState(io, room);
+          return;
+        }
         const goalKickResult = applyGoalKickReposition(room.gameState, pieceId, to);
         if (!goalKickResult.ok) {
           socket.emit(ServerEvents.GAME_ERROR, goalKickResult.reason);
