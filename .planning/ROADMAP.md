@@ -130,7 +130,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
-| 37    | 7/10                                   | In Progress |             |
+| 37    | 8/10                                   | In Progress |             |
 | 38    | Corner Kick                            | TBD         | Not started |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
@@ -176,7 +176,7 @@ Plans:
 
 **Wave 7** _(blocked on Wave 6 completion)_
 
-- [ ] 37-08-PLAN.md — Goal kick: two 6-hex reposition windows and the Kick/Standard-Pass choice
+- [x] 37-08-PLAN.md — Goal kick: two 6-hex reposition windows and the Kick/Standard-Pass choice
 
 **Wave 8** _(blocked on Wave 7 completion)_
 
