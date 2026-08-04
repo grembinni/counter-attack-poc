@@ -1017,7 +1017,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
-        const kickDie = rollDice();
+        // WR-02: the delegate below reads kickDie only on the OPP slot (documented
+        // at gameEngine.ts ~3804-3808), so the KICKER slot previously burned a
+        // crypto.randomInt draw whose value nothing could observe. 0 is passed as
+        // an inert placeholder to keep the engine signature total, per ARCH-01
+        // (the engine must never roll for itself) and D-12-04 (do not split or
+        // loosen the engine signature).
+        const kickDie = room.gameState.goalKickMoveSlot === 'OPP' ? rollDice() : 0;
         const goalKickEndResult = applyGoalKickMoveEnd(room.gameState, kickDie);
         if (!goalKickEndResult.ok) {
           socket.emit(ServerEvents.GAME_ERROR, goalKickEndResult.reason);

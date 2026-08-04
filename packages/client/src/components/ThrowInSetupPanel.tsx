@@ -18,6 +18,7 @@ export function ThrowInSetupPanel() {
   const phase = useGameStore((s) => s.gameState.phase);
   const throwInHex = useGameStore((s) => s.gameState.throwInHex);
   const throwInTeam = useGameStore((s) => s.gameState.throwInTeam);
+  const attackingTeam = useGameStore((s) => s.gameState.attackingTeam);
   const pieces = useGameStore((s) => s.gameState.pieces);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const gameError = useGameStore((s) => s.gameError);
@@ -41,13 +42,23 @@ export function ThrowInSetupPanel() {
   const myTeam = myTeamOrNull;
   const isMyThrow = myTeam === throwInTeam;
 
+  // WR-01: the previous `{isMyThrow ? 'Attacking' : 'Defending'}` ternary was dead —
+  // this branch is only reachable when `isMyThrow` is `false`, so it always rendered
+  // 'Defending'. The acting side is a property of the _state_ (who is taking the
+  // throw), never of the _viewer_. This mirrors ActionPanel.tsx's equivalent
+  // acting-side label derivation (which compares `activeTeam` to `attackingTeam`);
+  // comparing `throwInTeam` here is the throw-in-specific equivalent, since
+  // `triggerOutOfBoundsRestart` sets `activeTeam === attackingTeam === throwInTeam`.
+  const actingSideLabel: 'Attacking' | 'Defending' =
+    throwInTeam === attackingTeam ? 'Attacking' : 'Defending';
+
   // Inactive team: waiting message only — mirrors FreeKickSetupPanel's !isMyStage branch.
   if (!isMyThrow) {
     return (
       <div className={styles.panel}>
         <span className={styles.panelHeading}>Throw-In</span>
         <span className={styles.constraintRow}>
-          {isMyThrow ? 'Attacking' : 'Defending'} team is repositioning&hellip;
+          {actingSideLabel} team is repositioning&hellip;
         </span>
       </div>
     );
