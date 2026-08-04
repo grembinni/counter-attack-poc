@@ -578,6 +578,70 @@ describe('ActionPanel — FREE_KICK_RESTART action set (OFFSIDE-02 D-32)', () =>
   });
 });
 
+// THROWIN-04 (Phase 37/D-09): post-Movement-Phase throw-in step choice — label-level only,
+// eligibility itself is entirely data-driven via ELIGIBLE_NEXT_ACTIONS['THROW_IN_MOVEMENT_*'].
+describe('ActionPanel — THROW_IN_MOVEMENT_1/2 throw-in step choice labels (THROWIN-04)', () => {
+  it('THROW_IN_MOVEMENT_1 shows exactly Move, Standard Throw-In, High Throw-In', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        lastActionType: 'THROW_IN_MOVEMENT_1',
+      },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /^move$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^standard throw-in$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^high throw-in$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^standard pass$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^high pass$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /one-touch/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /long ball/i })).toBeNull();
+    expect(screen.getByText('Throw-In!')).toBeDefined();
+    expect(
+      screen.getByText('Take the throw now, or take another Movement Phase first.'),
+    ).toBeDefined();
+  });
+
+  it('THROW_IN_MOVEMENT_2 shows exactly Standard Throw-In and High Throw-In, no Move', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        lastActionType: 'THROW_IN_MOVEMENT_2',
+      },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /^standard throw-in$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^high throw-in$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^move$/i })).toBeNull();
+    expect(screen.getByText('Take the throw — no more Movement Phases available.')).toBeDefined();
+  });
+
+  it('MOVEMENT_PHASE (no throw-in context) keeps the unmodified Standard Pass / High Pass labels', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        lastActionType: 'MOVEMENT_PHASE',
+      },
+      selectedPassType: null,
+      passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /^standard pass$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^high pass$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /throw-in/i })).toBeNull();
+  });
+});
+
 // D-13 (Phase 18-03): ActionPanel.tsx text corrections — unified wait state,
 // HIGH_PASS_MOVE fix, Kick->Punt rename, and MOVE phase hex-cap scoping.
 describe('ActionPanel — D-13 text corrections', () => {

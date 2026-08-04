@@ -13,6 +13,7 @@ import { EventBanner } from './EventBanner.js';
 import { ActionPanel } from './ActionPanel.js';
 import { KickOffSetupPanel } from './KickOffSetupPanel.js';
 import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
+import { ThrowInSetupPanel } from './ThrowInSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
@@ -332,11 +333,13 @@ export function GameBoard() {
 
         {/* Track 3 — Right zone: action panel centred within 1fr */}
         <div className={styles.topBandRight}>
-          {/* Phase 37: ThrowInSetupPanel / GoalKickSetupPanel branches added in plans 37-07 / 37-10 */}
+          {/* Phase 37: GoalKickSetupPanel branch added in plan 37-10 */}
           {phase === 'KICK_OFF_SETUP' ? (
             <KickOffSetupPanel />
           ) : phase === 'FREE_KICK_SETUP' ? (
             <FreeKickSetupPanel />
+          ) : phase === 'THROW_IN_SETUP' ? (
+            <ThrowInSetupPanel />
           ) : phase === 'REPLAY' ? (
             <ReplayPanel />
           ) : (

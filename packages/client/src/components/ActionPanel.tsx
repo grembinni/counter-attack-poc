@@ -34,6 +34,10 @@ const ACTION_SUMMARY: Record<string, string> = {
   'Quick Throw': 'Keeper throws the ball back into play.',
   Undo: 'Undo your last move this phase.',
   Confirm: 'Confirm your actions and end your turn, passing control to the opponent.',
+  // THROWIN-04 (Phase 37): throw-in step-choice labels — same underlying mechanic as
+  // Standard/High Pass, distinct copy only.
+  'Standard Throw-In': 'Throw the ball in low, up to 6 hexes; may be intercepted.',
+  'High Throw-In': 'Throw the ball in high, up to 6 hexes; the receiver must attempt a header.',
 };
 
 // GOAL_R_VALUES imported from @counter-attack/shared — single source of truth for goal row positions
@@ -725,6 +729,11 @@ export function ActionPanel() {
 
       // MATCH-07: during kick-off only Standard Pass is a legal opening action.
       const isKickOff = phase === 'KICK_OFF';
+      // THROWIN-04 (Phase 37/D-09): post-Movement-Phase throw-in step choice. Label-level
+      // only — ELIGIBLE_NEXT_ACTIONS' THROW_IN_MOVEMENT_1/2 rows already control which
+      // buttons are eligible (THROW_IN_MOVEMENT_2 omits MOVEMENT, dropping "Move" for free).
+      const isThrowIn =
+        lastActionType === 'THROW_IN_MOVEMENT_1' || lastActionType === 'THROW_IN_MOVEMENT_2';
 
       const actionCount = [
         eligible.has('MOVEMENT'),
@@ -740,12 +749,16 @@ export function ActionPanel() {
         <PanelShell wide={actionCount >= 5}>
           <div className={styles.helperBlock}>
             <span className={styles.helperLine1}>
-              {isKickOff ? 'Kick-Off!' : 'Choose an Action!'}
+              {isKickOff ? 'Kick-Off!' : isThrowIn ? 'Throw-In!' : 'Choose an Action!'}
             </span>
             <span className={styles.helperLine2}>
               {isKickOff
                 ? 'Play starts with a Standard Pass from the centre circle — the only legal opening action.'
-                : 'Move a player, pass to a teammate, or take a shot.'}
+                : lastActionType === 'THROW_IN_MOVEMENT_1'
+                  ? 'Take the throw now, or take another Movement Phase first.'
+                  : lastActionType === 'THROW_IN_MOVEMENT_2'
+                    ? 'Take the throw — no more Movement Phases available.'
+                    : 'Move a player, pass to a teammate, or take a shot.'}
             </span>
           </div>
           {!isKickOff && eligible.has('MOVEMENT') && (
@@ -760,10 +773,12 @@ export function ActionPanel() {
           {eligible.has('STANDARD_PASS') && (
             <button
               className={styles.ctaButton}
-              title={ACTION_SUMMARY['Standard Pass']}
+              title={
+                isThrowIn ? ACTION_SUMMARY['Standard Throw-In'] : ACTION_SUMMARY['Standard Pass']
+              }
               onClick={() => setSelectedPassType('STANDARD_PASS')}
             >
-              Standard Pass
+              {isThrowIn ? 'Standard Throw-In' : 'Standard Pass'}
             </button>
           )}
           {!isKickOff && eligible.has('FIRST_TIME_PASS') && (
@@ -778,10 +793,10 @@ export function ActionPanel() {
           {!isKickOff && eligible.has('HIGH_PASS') && (
             <button
               className={styles.ctaButton}
-              title={ACTION_SUMMARY['High Pass']}
+              title={isThrowIn ? ACTION_SUMMARY['High Throw-In'] : ACTION_SUMMARY['High Pass']}
               onClick={() => setSelectedPassType('HIGH_PASS')}
             >
-              High Pass
+              {isThrowIn ? 'High Throw-In' : 'High Pass'}
             </button>
           )}
           {!isKickOff && eligible.has('LONG_BALL') && (
