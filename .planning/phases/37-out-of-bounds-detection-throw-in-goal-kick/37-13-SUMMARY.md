@@ -187,3 +187,7 @@ None - no external service configuration required.
 
 _Phase: 37-out-of-bounds-detection-throw-in-goal-kick_
 _Completed: 2026-08-04_
+
+## Self-Check: PASSED
+
+All 4 modified source/test files confirmed present on disk; all 3 task/plan commit hashes (`c5a66f9`, `c6d6e6f`, `991b582`) confirmed present in `git log --oneline --all`.
