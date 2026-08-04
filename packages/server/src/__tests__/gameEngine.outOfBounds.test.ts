@@ -6,6 +6,7 @@ import {
   applyThrowInPlace,
   applyEndTurn,
   applyMove,
+  applyStartMovement,
   computeGoalKickEligibleIds,
   applyGoalKickReposition,
   applyGoalKickWindowEnd,
@@ -909,7 +910,7 @@ describe('CR-01 throw-in teardown on break-in-play early returns', () => {
     expect(result.state.throwInHex).toBeNull();
     expect(result.state.throwInTeam).toBeNull();
     expect(result.state.throwInPhasesTaken).toBeNull();
-    expect(ELIGIBLE_NEXT_ACTIONS[result.state.lastActionType].has('SHOT')).toBe(true);
+    expect(ELIGIBLE_NEXT_ACTIONS[result.state.lastActionType!].has('SHOT')).toBe(true);
   });
 
   it("applyEndTurn's throw-in branch does not fire when lastActionType is a stale DEFLECTION marker", () => {
@@ -922,7 +923,7 @@ describe('CR-01 throw-in teardown on break-in-play early returns', () => {
     expect(result.state.throwInHex).toBeNull();
     expect(result.state.throwInTeam).toBeNull();
     expect(result.state.throwInPhasesTaken).toBeNull();
-    expect(ELIGIBLE_NEXT_ACTIONS[result.state.lastActionType].has('SHOT')).toBe(true);
+    expect(ELIGIBLE_NEXT_ACTIONS[result.state.lastActionType!].has('SHOT')).toBe(true);
   });
 
   it('a genuine throw-in Movement Phase 1 (lastActionType null) still yields THROW_IN_MOVEMENT_1', () => {
@@ -946,6 +947,132 @@ describe('CR-01 throw-in teardown on break-in-play early returns', () => {
 
     expect(result.state.lastActionType).toBe('THROW_IN_MOVEMENT_2');
     expect(result.state.throwInPhasesTaken).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CR-01 regression: interrupted throw-in cannot corrupt a later Movement Phase
+// (Plan 37-11 Task 2) — the executable form of the five-step reachable
+// sequence documented in 37-REVIEW.md. {q:10,r:7} below is an ordinary
+// mid-pitch hex chosen for the tackle geometry, not a real sideline exit hex
+// — this test seeds the awarded throw-in directly (via THROW_IN_SETUP) since
+// the exit-classification path already has dedicated coverage earlier in
+// this file; what is under test here is the field teardown.
+// ---------------------------------------------------------------------------
+
+describe('CR-01 regression: interrupted throw-in cannot corrupt a later Movement Phase', () => {
+  it('a throw-in interrupted twice by tackles still ends a later clean Movement Phase as MOVEMENT_PHASE, not THROW_IN_MOVEMENT_1', () => {
+    const thrower: PlayerPiece = { ...homePiece, id: 'home-thrower', position: { q: 8, r: 7 } };
+    const homeTackler: PlayerPiece = {
+      ...homePiece,
+      id: 'home-tackler',
+      position: { q: 13, r: 7 },
+      tackling: 5,
+      pace: 9,
+    };
+    const awayTackler: PlayerPiece = {
+      ...awayPiece,
+      id: 'away-tackler',
+      position: { q: 12, r: 7 },
+      tackling: 5,
+      dribbling: 8,
+      pace: 9,
+    };
+    // Verified duel dice from gameEngine.test.ts: defCombined 11 >= carCombined 9 -> SUCCESS,
+    // for both tacklers (tackling:5, dribbling:8) below.
+    const dice = { stealDie: 3, tackleDie: 6, carrierDie: 1 };
+
+    const seed: GameState = {
+      ...baseLooseBallState,
+      phase: 'THROW_IN_SETUP',
+      pieces: [thrower, homeTackler, awayTackler, homeGK, awayGK],
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      outOfBoundsEnabled: true,
+      throwInHex: { q: 10, r: 7 },
+      throwInTeam: 'home',
+      throwInPhasesTaken: 0,
+      ball: {
+        position: { q: 10, r: 7 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayTackler.id, teamId: 'away' },
+      },
+    };
+
+    // Step 1: place the thrower — starts a real Movement Phase 1.
+    const s1 = applyThrowInPlace(seed, thrower.id);
+    expect(s1.ok).toBe(true);
+    if (!s1.ok) return;
+    expect(s1.state.movementSlot).toBe('ATTACKER_4');
+    expect(s1.state.lastActionType).toBeNull();
+    expect(s1.state.pieces.find((p) => p.id === thrower.id)?.position).toEqual({ q: 10, r: 7 });
+
+    // Step 2: ATTACKER_4 -> DEFENDER_5 (intermediate) — must not count a phase.
+    const s2 = applyEndTurn(s1.state);
+    expect(s2.ok).toBe(true);
+    if (!s2.ok) return;
+    expect(s2.state.movementSlot).toBe('DEFENDER_5');
+    expect(s2.state.activeTeam).toBe('away');
+    expect(s2.state.throwInPhasesTaken).toBe(0);
+
+    // Step 3: away tackles successfully during DEFENDER_5 — the primary assertion
+    // (fails before Task 1's teardown fix).
+    const s3 = applyMove(s2.state, awayTackler.id, { q: 11, r: 7 }, dice);
+    expect(s3.ok).toBe(true);
+    if (!s3.ok) return;
+    expect(s3.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(s3.state.attackingTeam).toBe('away');
+    expect(s3.state.throwInHex).toBeNull();
+    expect(s3.state.throwInTeam).toBeNull();
+    expect(s3.state.throwInPhasesTaken).toBeNull();
+
+    // Step 4: away takes a Movement Phase, then home tackles the ball back.
+    const s4 = applyStartMovement(s3.state);
+    expect(s4.ok).toBe(true);
+    if (!s4.ok) return;
+    const s4b = applyEndTurn(s4.state);
+    expect(s4b.ok).toBe(true);
+    if (!s4b.ok) return;
+    expect(s4b.state.movementSlot).toBe('DEFENDER_5');
+    expect(s4b.state.activeTeam).toBe('home');
+
+    const s5 = applyMove(s4b.state, homeTackler.id, { q: 12, r: 7 }, dice);
+    expect(s5.ok).toBe(true);
+    if (!s5.ok) return;
+    expect(s5.state.attackingTeam).toBe('home');
+    expect(s5.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(s5.state.throwInHex).toBeNull();
+    expect(s5.state.throwInTeam).toBeNull();
+    expect(s5.state.throwInPhasesTaken).toBeNull();
+
+    // Step 5: home takes a Movement Phase and completes it cleanly.
+    const s6 = applyStartMovement(s5.state);
+    expect(s6.ok).toBe(true);
+    if (!s6.ok) return;
+    const s6b = applyEndTurn(s6.state); // ATTACKER_4 -> DEFENDER_5
+    expect(s6b.ok).toBe(true);
+    if (!s6b.ok) return;
+    const s6c = applyEndTurn(s6b.state); // DEFENDER_5 -> ATTACKER_2
+    expect(s6c.ok).toBe(true);
+    if (!s6c.ok) return;
+    const final = applyEndTurn(s6c.state); // ATTACKER_2 -> PASS
+    expect(final.ok).toBe(true);
+    if (!final.ok) return;
+
+    expect(final.state.phase).toBe('PASS');
+    expect(final.state.lastActionType).toBe('MOVEMENT_PHASE');
+    expect(final.state.lastActionType).not.toBe('THROW_IN_MOVEMENT_1');
+    expect(final.state.throwInHex).toBeNull();
+    expect(final.state.throwInTeam).toBeNull();
+    expect(final.state.throwInPhasesTaken).toBeNull();
+    expect(ELIGIBLE_NEXT_ACTIONS[final.state.lastActionType!].has('SHOT')).toBe(true);
+    expect(ELIGIBLE_NEXT_ACTIONS[final.state.lastActionType!].has('SNAPSHOT')).toBe(true);
+    expect(ELIGIBLE_NEXT_ACTIONS[final.state.lastActionType!].has('LONG_BALL')).toBe(true);
+
+    // Clock sanity: two tackle-turnovers + one full Movement Phase end = 3 clock
+    // increments at GAME_SPEED_MINUTES['standard']=2 each -> 10 + 6 = 16.
+    expect(final.state.actionCount).toBe(16);
+    expect(final.state.phase).not.toBe('HALF_TIME');
   });
 });
 
