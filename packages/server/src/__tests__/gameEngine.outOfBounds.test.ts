@@ -4,9 +4,10 @@ import {
   triggerOutOfBoundsRestart,
   applyFreeMoveZoneCheck,
   applyThrowInPlace,
+  applyEndTurn,
 } from '../gameEngine.js';
 import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
-import { isPitchHex } from '@counter-attack/shared';
+import { isPitchHex, ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -537,5 +538,155 @@ describe('applyThrowInPlace', () => {
     expect(event.from).toEqual(homePiece.position);
     expect(event.to).toEqual({ q: 18, r: 0 });
     expect(event.ballAfter).toEqual({ position: { q: 18, r: 0 }, carrierId: homePiece.id });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyEndTurn throw-in movement counting (Plan 37-05 Task 2) — THROWIN-03/D-09
+// ---------------------------------------------------------------------------
+
+/** MOVE-phase fixture at the end of a Movement Phase during a throw-in sequence. */
+const throwInMoveEndState: GameState = {
+  ...baseLooseBallState,
+  phase: 'MOVE',
+  movementSlot: 'ATTACKER_2',
+  attackingTeam: 'home',
+  activeTeam: 'home',
+  throwInHex: { q: 18, r: 0 },
+  throwInTeam: 'home',
+  throwInPhasesTaken: 0,
+  ball: {
+    position: { q: 18, r: 0 },
+    carrierId: homePiece.id,
+    lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+  },
+};
+
+describe('applyEndTurn throw-in movement counting', () => {
+  it('sets THROW_IN_MOVEMENT_1 and increments throwInPhasesTaken from 0 to 1', () => {
+    const result = applyEndTurn(throwInMoveEndState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('THROW_IN_MOVEMENT_1');
+    expect(result.state.throwInPhasesTaken).toBe(1);
+  });
+
+  it('sets THROW_IN_MOVEMENT_2 and increments throwInPhasesTaken from 1 to 2', () => {
+    const state: GameState = { ...throwInMoveEndState, throwInPhasesTaken: 1 };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('THROW_IN_MOVEMENT_2');
+    expect(result.state.throwInPhasesTaken).toBe(2);
+  });
+
+  it('THROW_IN_MOVEMENT_1 permits a further MOVEMENT action; THROW_IN_MOVEMENT_2 does not', () => {
+    expect(ELIGIBLE_NEXT_ACTIONS.THROW_IN_MOVEMENT_1.has('MOVEMENT')).toBe(true);
+    expect(ELIGIBLE_NEXT_ACTIONS.THROW_IN_MOVEMENT_2.has('MOVEMENT')).toBe(false);
+  });
+
+  it('does not fire a third time when throwInPhasesTaken is already 2 — generic branch runs and clears fields', () => {
+    const state: GameState = { ...throwInMoveEndState, throwInPhasesTaken: 2 };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('MOVEMENT_PHASE');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+  });
+
+  it('does not fire when the carrier belongs to the opposing team (ball was stolen) — fields cleared', () => {
+    const state: GameState = {
+      ...throwInMoveEndState,
+      ball: {
+        position: awayPiece.position,
+        carrierId: awayPiece.id,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('MOVEMENT_PHASE');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+  });
+
+  it('does not fire when ball.carrierId is null at end of movement — fields cleared', () => {
+    const state: GameState = {
+      ...throwInMoveEndState,
+      ball: { position: throwInMoveEndState.ball.position, carrierId: null, lastTouchedBy: null },
+    };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.lastActionType).toBe('MOVEMENT_PHASE');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+  });
+
+  it('the half-end branch still takes precedence over the throw-in branch', () => {
+    const state: GameState = {
+      ...throwInMoveEndState,
+      actionCount: 44, // + GAME_SPEED_MINUTES('standard')=2 -> 46 >= 45 half length
+      addedTime: 0, // already set for this half (guard `=== null` skips re-roll); halfEnd = 45 + 0 = 45 <= 46 -> HALF_TIME
+    };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('HALF_TIME');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+  });
+
+  it('the GK-carrier-in-own-penalty-area branch still takes precedence over the throw-in branch', () => {
+    const state: GameState = {
+      ...throwInMoveEndState,
+      ball: {
+        position: { q: 3, r: 5 }, // homeGK's position, inside home's own penalty area
+        carrierId: homeGK.id,
+        lastTouchedBy: { pieceId: homeGK.id, teamId: 'home' },
+      },
+    };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GK_RESTART');
+    expect(result.state.throwInHex).toBeNull();
+    expect(result.state.throwInTeam).toBeNull();
+    expect(result.state.throwInPhasesTaken).toBeNull();
+  });
+
+  it('intermediate slot transitions (ATTACKER_4->DEFENDER_5) leave throwInPhasesTaken unchanged', () => {
+    const state: GameState = { ...throwInMoveEndState, movementSlot: 'ATTACKER_4' };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.movementSlot).toBe('DEFENDER_5');
+    expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+
+  it('intermediate slot transitions (DEFENDER_5->ATTACKER_2) leave throwInPhasesTaken unchanged', () => {
+    const state: GameState = { ...throwInMoveEndState, movementSlot: 'DEFENDER_5' };
+    const result = applyEndTurn(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.movementSlot).toBe('ATTACKER_2');
+    expect(result.state.throwInPhasesTaken).toBe(0);
   });
 });

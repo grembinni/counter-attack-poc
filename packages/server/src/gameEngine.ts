@@ -1146,6 +1146,10 @@ export function applyEndTurn(
           lastActionType: 'MOVEMENT_PHASE',
           offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
           lastShotPath: null, // prevent stale shot-path tint from bleeding into HALF_TIME screen
+          // THROWIN-03/D-09: a throw-in context cannot survive across a half boundary.
+          throwInHex: null,
+          throwInTeam: null,
+          throwInPhasesTaken: null,
         },
       };
     }
@@ -1174,10 +1178,59 @@ export function applyEndTurn(
             stealAttemptedByIds: [], // D-02: reset on phase transition
             tackleAttemptedByIds: [], // D-02
             offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+            // THROWIN-03/D-09: a throw-in context cannot survive into a GK restart.
+            throwInHex: null,
+            throwInTeam: null,
+            throwInPhasesTaken: null,
           },
         };
       }
     }
+
+    // THROWIN-03/D-09 (Plan 37-05 Task 2): count completed Movement Phases during a
+    // throw-in sequence and drive the per-step choice model. Fires only while a
+    // throw-in is in progress (throwInPhasesTaken < 2) AND the ball is still held by
+    // the throwing team (carrier resolved above, shared with the GK-restart branch).
+    // Possession loss (steal/tackle) or no carrier at all means the branch must NOT
+    // fire — the throw-in context is cleared instead and the generic MOVEMENT_PHASE
+    // return below applies, so the team now in possession gets normal pass options.
+    const throwInStillValid =
+      state.throwInPhasesTaken !== null &&
+      state.throwInPhasesTaken !== undefined &&
+      state.throwInPhasesTaken < 2 &&
+      carrier != null &&
+      carrier.teamId === state.throwInTeam;
+
+    if (throwInStillValid) {
+      // Narrowed by throwInStillValid above; TypeScript can't see through the const
+      // boolean, so re-assert non-null here for the arithmetic below.
+      const phasesTaken = state.throwInPhasesTaken as 0 | 1;
+      const nextLastActionType = phasesTaken === 0 ? 'THROW_IN_MOVEMENT_1' : 'THROW_IN_MOVEMENT_2';
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: 'PASS',
+          movementSlot: nextSlot,
+          activeTeam: nextActiveTeam,
+          lastActionType: nextLastActionType,
+          throwInPhasesTaken: (phasesTaken + 1) as 1 | 2,
+          eventLog: [...state.eventLog, slotAdvanceEvent],
+          movedPieceIds: [],
+          paceUsedByPieceId: {},
+          actionCount: newActionCount,
+          addedTime: newAddedTime,
+          stealAttemptedByIds: [],
+          tackleAttemptedByIds: [],
+          offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+        },
+      };
+    }
+
+    // Exactly one place clears the throw-in fields for every non-throw-in-branch
+    // terminal return in this block (this generic return is the only remaining one —
+    // the half-end and GK_RESTART returns above clear unconditionally on their own).
+    const throwInClear = { throwInHex: null, throwInTeam: null, throwInPhasesTaken: null } as const;
 
     // MOVE-06 (corrected design): applyEndTurn no longer special-cases a pending free
     // move here — the ball-zone-triggered FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE overlay is
@@ -1202,6 +1255,7 @@ export function applyEndTurn(
         stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
         tackleAttemptedByIds: [], // D-02
         offsidePieceIds: nextOffside, // OFFSIDE-01 (D-23): sticky re-evaluation at phase end
+        ...throwInClear,
       },
     };
   }
