@@ -54,6 +54,10 @@ import {
   FREE_KICK_STAGES,
   freeKickStageTeam,
   triggerOffsideFoul,
+  classifyExit,
+  bylineOwner,
+  classifyOutOfBounds,
+  resolveThrowInHex,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -1309,6 +1313,29 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
 // ---------------------------------------------------------------------------
 
 /**
+ * T-37-15 (Phase 37, 37-04): phases the ball-zone free-move interrupt must never overlay.
+ * `HALF_TIME`/`FULL_TIME`/`FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` are the pre-Phase-37
+ * exclusions (D-37, see below); the six Phase-37 restart phases are added so a throw-in
+ * or goal-kick awarded near a final third can never be hijacked mid-sequence — the
+ * centrally-invoked zone check would otherwise overlay FREE_MOVE_ATTACK/DEFENSE on top
+ * of a restart phase, and `freeMoveResume` would then try to restore a restart phase it
+ * has no way to correctly resume. Module-level so it stays greppable — Phase 38 has one
+ * place to add `CORNER_KICK_*` when that restart family exists.
+ */
+const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
+  'HALF_TIME',
+  'FULL_TIME',
+  'FREE_MOVE_ATTACK',
+  'FREE_MOVE_DEFENSE',
+  'THROW_IN_SETUP',
+  'GOAL_KICK_SETUP_GK',
+  'GOAL_KICK_SETUP_OPPONENT',
+  'GOAL_KICK_CHOICE',
+  'GOAL_KICK_TARGET',
+  'GOAL_KICK_MOVE',
+]);
+
+/**
  * MOVE-06 (Phase 17, corrected design D-33..D-37): the centralized ball-zone-triggered
  * free-move check. Called from `broadcastState` (roomStore.ts) after every resolved
  * action — the single ARCH-04 entry point — so the trigger fires after literally any
@@ -1320,6 +1347,8 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
  *
  * - D-37: does not fire while phase is HALF_TIME, FULL_TIME, or already one of
  *   FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE (no sensible resume phase to interrupt).
+ * - T-37-15: does not fire during any of the six Phase-37 restart phases either — see
+ *   ZONE_CHECK_EXEMPT_PHASES above.
  * - D-33: trigger fires only when the post-action ball zone differs from the stored
  *   `state.ballZone` AND the new zone is 'home' or 'away' (a fresh entry into a final
  *   third — including a direct home↔away jump with no intervening middle action).
@@ -1332,12 +1361,7 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
  *   If both lists are empty, stays on the triggering phase with ballZone updated.
  */
 export function applyFreeMoveZoneCheck(state: GameState): GameState {
-  if (
-    state.phase === 'HALF_TIME' ||
-    state.phase === 'FULL_TIME' ||
-    state.phase === 'FREE_MOVE_ATTACK' ||
-    state.phase === 'FREE_MOVE_DEFENSE'
-  ) {
+  if (ZONE_CHECK_EXEMPT_PHASES.has(state.phase)) {
     return state;
   }
 
@@ -2940,15 +2964,41 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // D-08: clamp scatter to last valid pitch hex using the corrected parity-aware
       // trajectory walk (computeLooseBall is the single source of truth for the
       // scatter path — no duplicated fixed-delta math here, see scoreUtils.ts).
-      // pending out-of-bounds rules — ball stopped at board edge for now
       const from = state.ball.position;
       let clampedPos = from; // fallback: ball stays at current position if first step is off-pitch
+      // OOB-05: exitInfo stays null unless outOfBoundsEnabled is exactly `true` — when the
+      // toggle is off/absent, this loop's statement sequence is byte-for-byte identical to
+      // the pre-Phase-37 clamp behaviour (the `break` still fires, nothing else changes).
+      let exitInfo: { exitHex: HexCoord; lastInBoundsHex: HexCoord } | null = null;
       for (let step = 1; step <= distance; step++) {
         const next: HexCoord = computeLooseBall(from, direction, step as 1 | 2 | 3 | 4 | 5 | 6);
-        if (isPitchHex(next)) clampedPos = next;
-        else break;
+        if (isPitchHex(next)) {
+          clampedPos = next;
+        } else {
+          if (state.outOfBoundsEnabled === true) {
+            exitInfo = { exitHex: next, lastInBoundsHex: clampedPos };
+          }
+          break;
+        }
       }
 
+      // OOB-02/04/05: classify the exit and route to a restart when the toggle is on. A
+      // `null` result (corner-kick, or a missing GK — see triggerOutOfBoundsRestart) falls
+      // through to the untouched clamp/trajectory/landing code below, which is exactly
+      // today's behaviour.
+      if (exitInfo !== null) {
+        const restartState = triggerOutOfBoundsRestart(
+          { ...state, lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' } },
+          exitInfo.exitHex,
+          exitInfo.lastInBoundsHex,
+        );
+        if (restartState !== null) return { ok: true, state: restartState };
+      }
+
+      // OOB-05 preserved path: everything from here to the end of this case is the
+      // pre-Phase-37 clamp/trajectory/landing logic, byte-for-byte unchanged. Do not edit
+      // this block in a later plan — it is the OOB-05 "disabled path stays identical"
+      // guarantee.
       // D-23/D-24: walk from ball position toward clamped landing, stopping at first occupied hex.
       // hexLine returns [start, ..., end]; slice(1) drops the start (ball is there, no carrier).
       const trajectory = hexLine(state.ball.position, clampedPos).slice(1);
@@ -3011,6 +3061,134 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
     default:
       return { ok: false, reason: 'WRONG_PHASE' };
   }
+}
+
+// ---------------------------------------------------------------------------
+// triggerOutOfBoundsRestart
+// ---------------------------------------------------------------------------
+
+/**
+ * OOB-02/OOB-04/THROWIN-01/THROWIN-05: classifies a ball exit (`exitHex`, the first
+ * off-pitch hex on the scatter trajectory) and returns the fully-formed restart
+ * state — `THROW_IN_SETUP` for a sideline exit, `GOAL_KICK_SETUP_GK` for a byline
+ * exit after an attacking touch (or no touch at all).
+ *
+ * Returns `null` when no Phase-37 restart applies: a `CORNER_KICK` classification
+ * (OOB-03 — Phase 38 scope, see the comment below) or a defensive fallback (missing
+ * GK piece). The caller must fall back to today's clamp-to-boundary behaviour on a
+ * `null` result — this function never mutates or clamps anything itself.
+ *
+ * ARCH-01: pure and deterministic — never calls rollDice()/Math.random(). The
+ * caller is solely responsible for gating this call behind
+ * `state.outOfBoundsEnabled === true` (OOB-05); this function performs no toggle
+ * check of its own.
+ */
+export function triggerOutOfBoundsRestart(
+  state: GameState,
+  exitHex: HexCoord,
+  lastInBoundsHex: HexCoord,
+): GameState | null {
+  const exit = classifyExit(exitHex);
+  if (exit === null) return null; // defensive: caller only invokes this on an off-pitch hex
+
+  const owner = bylineOwner(exitHex);
+  const restart = classifyOutOfBounds(exit, state.ball.lastTouchedBy?.teamId ?? null, owner);
+
+  // OOB-03 / Phase 38: the only change Phase 38 needs at this call site is to
+  // replace this early return with a corner-kick trigger. classifyOutOfBounds's
+  // CORNER_KICK branch (packages/shared/src/outOfBounds.ts) must not be edited to
+  // support it — see that function's own doc comment.
+  if (restart === 'CORNER_KICK') return null;
+
+  // Common reset block shared by both branches below — every restart is a fresh
+  // phase boundary, so all Movement-sequence/dice/shot-path bookkeeping clears.
+  const commonReset = {
+    movementSlot: null,
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    stealAttemptedByIds: [],
+    tackleAttemptedByIds: [],
+    lastShotPath: null,
+    lastActionType: null,
+  } as const;
+
+  if (restart === 'THROW_IN') {
+    // OOB-02: awarded to the team that did NOT last touch the ball; an untouched
+    // ball is awarded against the current attackingTeam.
+    const throwInTeam: 'home' | 'away' =
+      state.ball.lastTouchedBy !== null
+        ? state.ball.lastTouchedBy.teamId === 'home'
+          ? 'away'
+          : 'home'
+        : state.attackingTeam === 'home'
+          ? 'away'
+          : 'home';
+
+    const throwInHex = resolveThrowInHex(lastInBoundsHex, state.pieces);
+
+    const outOfBoundsEvent: ActionEvent = {
+      type: 'OUT_OF_BOUNDS',
+      exitHex,
+      kind: exit,
+      restart,
+      awardedTo: throwInTeam,
+      lastTouchedByPieceId: state.ball.lastTouchedBy?.pieceId ?? null,
+      timestamp: Date.now(),
+      ballAfter: { position: throwInHex, carrierId: null },
+    };
+
+    return {
+      ...state,
+      phase: 'THROW_IN_SETUP',
+      throwInHex,
+      throwInTeam,
+      throwInPhasesTaken: 0,
+      attackingTeam: throwInTeam,
+      activeTeam: throwInTeam,
+      ball: { position: throwInHex, carrierId: null, lastTouchedBy: state.ball.lastTouchedBy },
+      eventLog: [...state.eventLog, outOfBoundsEvent],
+      ...commonReset,
+    };
+  }
+
+  // restart === 'GOAL_KICK' (OOB-04): owner is the team whose goal line was
+  // crossed — that team IS the defending team at that byline, so it is also the
+  // team awarded the goal kick.
+  const goalKickTeam = owner;
+  if (goalKickTeam === null) return null; // defensive: a BYLINE exit always has an owner
+  const gk = state.pieces.find((p) => p.teamId === goalKickTeam && p.role === 'GK');
+  if (!gk) return null; // defensive fallback to clamp — no GK piece found for that team
+
+  const outOfBoundsEvent: ActionEvent = {
+    type: 'OUT_OF_BOUNDS',
+    exitHex,
+    kind: exit,
+    restart,
+    awardedTo: goalKickTeam,
+    lastTouchedByPieceId: state.ball.lastTouchedBy?.pieceId ?? null,
+    timestamp: Date.now(),
+    ballAfter: { position: gk.position, carrierId: gk.id },
+  };
+
+  return {
+    ...state,
+    phase: 'GOAL_KICK_SETUP_GK',
+    goalKickTeam,
+    goalKickGkId: gk.id,
+    // Plan 37-08 owns computing the GOALKICK-02 eligible lists when it implements
+    // the reposition windows — computing it in two places would drift.
+    goalKickEligibleIds: null,
+    goalKickUsedPace: {},
+    attackingTeam: goalKickTeam,
+    activeTeam: goalKickTeam,
+    ball: {
+      position: gk.position,
+      carrierId: gk.id,
+      lastTouchedBy: { pieceId: gk.id, teamId: goalKickTeam },
+    },
+    eventLog: [...state.eventLog, outOfBoundsEvent],
+    ...commonReset,
+  };
 }
 
 // ---------------------------------------------------------------------------
