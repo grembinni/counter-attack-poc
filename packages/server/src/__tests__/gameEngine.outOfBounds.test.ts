@@ -5,6 +5,10 @@ import {
   applyFreeMoveZoneCheck,
   applyThrowInPlace,
   applyEndTurn,
+  computeGoalKickEligibleIds,
+  applyGoalKickReposition,
+  applyGoalKickWindowEnd,
+  applyGoalKickChoice,
 } from '../gameEngine.js';
 import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
@@ -688,5 +692,343 @@ describe('applyEndTurn throw-in movement counting', () => {
 
     expect(result.state.movementSlot).toBe('ATTACKER_2');
     expect(result.state.throwInPhasesTaken).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeGoalKickEligibleIds / applyGoalKickReposition (Plan 37-08 Task 1)
+// GOALKICK-02: both final-thirds' players may reposition, GK's team first.
+// ---------------------------------------------------------------------------
+
+/** Home piece standing in the homeThird (q<=10) — eligible for the gkTeam list when goalKickTeam='home'. */
+const homeMidThird: PlayerPiece = { ...homePiece, id: 'home-mid', position: { q: 8, r: 10 } };
+/** Home piece standing in the awayThird (q>=26) — still eligible for home's gkTeam list per the
+ * literal "either final third" reading (D-01 of 37-08-PLAN.md), not RESEARCH.md's narrower reading. */
+const homeFwdAwayThird: PlayerPiece = { ...homePiece, id: 'home-fwd', position: { q: 30, r: 10 } };
+/** Away piece standing in the homeThird — eligible for the opponent list when goalKickTeam='home'. */
+const awayMidHomeThird: PlayerPiece = { ...awayPiece, id: 'away-mid', position: { q: 5, r: 16 } };
+/** Away piece standing in the awayThird — eligible for the opponent list when goalKickTeam='home'. */
+const awayFwdAwayThird: PlayerPiece = { ...awayPiece, id: 'away-fwd', position: { q: 28, r: 16 } };
+
+const eligibilityPieces: readonly PlayerPiece[] = [
+  homeGK, // homeThird (q:3) -> gkTeam
+  awayGK, // awayThird (q:33) -> opponent
+  homePiece, // middle (q:20) -> neither
+  awayPiece, // middle (q:16) -> neither
+  homeMidThird, // homeThird -> gkTeam
+  homeFwdAwayThird, // awayThird -> gkTeam (broad reading)
+  awayMidHomeThird, // homeThird -> opponent
+  awayFwdAwayThird, // awayThird -> opponent
+];
+
+describe('computeGoalKickEligibleIds', () => {
+  it('partitions both final-thirds pieces by team when goalKickTeam is home', () => {
+    const result = computeGoalKickEligibleIds(eligibilityPieces, 'home');
+    expect(new Set(result.gkTeam)).toEqual(
+      new Set([homeGK.id, homeMidThird.id, homeFwdAwayThird.id]),
+    );
+    expect(new Set(result.opponent)).toEqual(
+      new Set([awayGK.id, awayMidHomeThird.id, awayFwdAwayThird.id]),
+    );
+  });
+
+  it('partitions both final-thirds pieces by team when goalKickTeam is away', () => {
+    const result = computeGoalKickEligibleIds(eligibilityPieces, 'away');
+    expect(new Set(result.gkTeam)).toEqual(
+      new Set([awayGK.id, awayMidHomeThird.id, awayFwdAwayThird.id]),
+    );
+    expect(new Set(result.opponent)).toEqual(
+      new Set([homeGK.id, homeMidThird.id, homeFwdAwayThird.id]),
+    );
+  });
+
+  it('excludes pieces standing in the middle third from both lists', () => {
+    const result = computeGoalKickEligibleIds(eligibilityPieces, 'home');
+    expect(result.gkTeam).not.toContain(homePiece.id);
+    expect(result.opponent).not.toContain(awayPiece.id);
+  });
+});
+
+/** GOAL_KICK_SETUP_GK fixture: home is taking the goal kick; homeGK holds the ball. */
+const goalKickSetupGkState: GameState = {
+  ...baseLooseBallState,
+  phase: 'GOAL_KICK_SETUP_GK',
+  pieces: eligibilityPieces,
+  goalKickTeam: 'home',
+  goalKickGkId: homeGK.id,
+  goalKickEligibleIds: computeGoalKickEligibleIds(eligibilityPieces, 'home'),
+  goalKickUsedPace: {},
+  goalKickTargetHex: null,
+  goalKickMoveSlot: null,
+  goalKickMovedPieceId: null,
+  goalKickPaceUsed: 0,
+  attackingTeam: 'home',
+  activeTeam: 'home',
+  ball: {
+    position: homeGK.position,
+    carrierId: homeGK.id,
+    lastTouchedBy: { pieceId: homeGK.id, teamId: 'home' },
+  },
+};
+
+describe('applyGoalKickReposition', () => {
+  it('rejects when phase is not a goal-kick setup phase', () => {
+    const state: GameState = { ...goalKickSetupGkState, phase: 'PASS' };
+    const result = applyGoalKickReposition(state, homeMidThird.id, { q: 9, r: 10 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects an unknown pieceId', () => {
+    const result = applyGoalKickReposition(goalKickSetupGkState, 'nonexistent-piece', {
+      q: 9,
+      r: 10,
+    });
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects a piece belonging to the non-active window team (WRONG_TEAM)', () => {
+    // activeTeam is 'home' (GK-team window) — an away piece is the wrong team.
+    const result = applyGoalKickReposition(goalKickSetupGkState, awayMidHomeThird.id, {
+      q: 4,
+      r: 16,
+    });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('rejects a home piece that is not in the eligible list (NOT_ELIGIBLE)', () => {
+    // homePiece is home-team but stands in the middle third — not eligible.
+    const result = applyGoalKickReposition(goalKickSetupGkState, homePiece.id, { q: 19, r: 10 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' });
+  });
+
+  it('rejects a move of more than 1 hex (OUT_OF_RANGE)', () => {
+    const result = applyGoalKickReposition(goalKickSetupGkState, homeMidThird.id, {
+      q: 10,
+      r: 10,
+    });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' });
+  });
+
+  it('rejects a move onto an occupied hex (OCCUPIED)', () => {
+    // homeGK sits at {q:3,r:5}; place homeMidThird adjacent to it for this one test.
+    const state: GameState = {
+      ...goalKickSetupGkState,
+      pieces: goalKickSetupGkState.pieces.map((p) =>
+        p.id === homeMidThird.id ? { ...p, position: { q: 4, r: 5 } } : p,
+      ),
+    };
+    const result = applyGoalKickReposition(state, homeMidThird.id, homeGK.position);
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' });
+  });
+
+  it('rejects a move that would push goalKickUsedPace past 6 (GOAL_KICK_PACE_EXHAUSTED)', () => {
+    const state: GameState = {
+      ...goalKickSetupGkState,
+      goalKickUsedPace: { [homeMidThird.id]: 6 },
+    };
+    const result = applyGoalKickReposition(state, homeMidThird.id, { q: 9, r: 10 });
+    expect(result).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'GOAL_KICK_PACE_EXHAUSTED',
+    });
+  });
+
+  it('allows six successive single-hex moves on one piece; the seventh is rejected', () => {
+    // Path verified against hexNeighbors' ODD-Q parity-dependent offsets:
+    // (8,10)->(9,10)->(10,10)->(11,10)->(12,10)->(13,10)->(14,10), each step distance 1.
+    const path: Array<{ q: number; r: number }> = [
+      { q: 9, r: 10 },
+      { q: 10, r: 10 },
+      { q: 11, r: 10 },
+      { q: 12, r: 10 },
+      { q: 13, r: 10 },
+      { q: 14, r: 10 },
+    ];
+    let state = goalKickSetupGkState;
+    for (const to of path) {
+      const result = applyGoalKickReposition(state, homeMidThird.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+    }
+    expect(state.goalKickUsedPace?.[homeMidThird.id]).toBe(6);
+    const movedPiece = state.pieces.find((p) => p.id === homeMidThird.id);
+    expect(movedPiece?.position).toEqual({ q: 14, r: 10 });
+
+    // Seventh move (one more hex) is rejected — budget exhausted.
+    const seventh = applyGoalKickReposition(state, homeMidThird.id, { q: 15, r: 10 });
+    expect(seventh).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'GOAL_KICK_PACE_EXHAUSTED',
+    });
+  });
+
+  it('success appends one MOVE event and increments goalKickUsedPace by 1', () => {
+    const result = applyGoalKickReposition(goalKickSetupGkState, homeMidThird.id, {
+      q: 9,
+      r: 10,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const moveEvents = result.state.eventLog.filter((e) => e.type === 'MOVE');
+    expect(moveEvents).toHaveLength(1);
+    const event = moveEvents[0];
+    if (event?.type !== 'MOVE') throw new Error('expected MOVE event');
+    expect(event.pieceId).toBe(homeMidThird.id);
+    expect(event.from).toEqual({ q: 8, r: 10 });
+    expect(event.to).toEqual({ q: 9, r: 10 });
+    expect(result.state.goalKickUsedPace?.[homeMidThird.id]).toBe(1);
+    const movedPiece = result.state.pieces.find((p) => p.id === homeMidThird.id);
+    expect(movedPiece?.position).toEqual({ q: 9, r: 10 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGoalKickWindowEnd / applyGoalKickChoice (Plan 37-08 Task 2)
+// GOALKICK-02/03: window advance, empty-window skip, and the Kick/Standard-Pass
+// choice.
+// ---------------------------------------------------------------------------
+
+describe('applyGoalKickWindowEnd', () => {
+  it('rejects when phase is not a goal-kick setup phase', () => {
+    const state: GameState = { ...goalKickSetupGkState, phase: 'PASS' };
+    const result = applyGoalKickWindowEnd(state);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('from GOAL_KICK_SETUP_GK with a non-empty opponent list, advances to GOAL_KICK_SETUP_OPPONENT', () => {
+    const result = applyGoalKickWindowEnd(goalKickSetupGkState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GOAL_KICK_SETUP_OPPONENT');
+    expect(result.state.activeTeam).toBe('away');
+    expect(result.state.movedPieceIds).toEqual([]);
+    // goalKickUsedPace is preserved unchanged (keyed by piece id, no collision risk).
+    expect(result.state.goalKickUsedPace).toEqual({});
+    const advanceEvents = result.state.eventLog.filter(
+      (e) => e.type === 'GOAL_KICK_WINDOW_ADVANCE',
+    );
+    expect(advanceEvents).toHaveLength(1);
+    const event = advanceEvents[0];
+    if (event?.type !== 'GOAL_KICK_WINDOW_ADVANCE') throw new Error('expected event');
+    expect(event.fromWindow).toBe('GK_TEAM');
+  });
+
+  it('from GOAL_KICK_SETUP_GK with an empty opponent list, skips straight to GOAL_KICK_CHOICE', () => {
+    const state: GameState = {
+      ...goalKickSetupGkState,
+      goalKickEligibleIds: { gkTeam: [homeMidThird.id], opponent: [] },
+    };
+    const result = applyGoalKickWindowEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GOAL_KICK_CHOICE');
+    expect(result.state.activeTeam).toBe('home');
+  });
+
+  it('from GOAL_KICK_SETUP_OPPONENT, always advances to GOAL_KICK_CHOICE', () => {
+    const state: GameState = {
+      ...goalKickSetupGkState,
+      phase: 'GOAL_KICK_SETUP_OPPONENT',
+      activeTeam: 'away',
+    };
+    const result = applyGoalKickWindowEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GOAL_KICK_CHOICE');
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.attackingTeam).toBe('home');
+    const advanceEvents = result.state.eventLog.filter(
+      (e) => e.type === 'GOAL_KICK_WINDOW_ADVANCE',
+    );
+    expect(advanceEvents).toHaveLength(1);
+    const event = advanceEvents[0];
+    if (event?.type !== 'GOAL_KICK_WINDOW_ADVANCE') throw new Error('expected event');
+    expect(event.fromWindow).toBe('OPPONENT');
+  });
+
+  it('re-evaluates offsidePieceIds on every return', () => {
+    const gkEndResult = applyGoalKickWindowEnd(goalKickSetupGkState);
+    expect(gkEndResult.ok).toBe(true);
+    if (!gkEndResult.ok) return;
+    expect(gkEndResult.state.offsidePieceIds).toBeDefined();
+
+    const opponentState: GameState = {
+      ...goalKickSetupGkState,
+      phase: 'GOAL_KICK_SETUP_OPPONENT',
+      activeTeam: 'away',
+    };
+    const opponentEndResult = applyGoalKickWindowEnd(opponentState);
+    expect(opponentEndResult.ok).toBe(true);
+    if (!opponentEndResult.ok) return;
+    expect(opponentEndResult.state.offsidePieceIds).toBeDefined();
+  });
+});
+
+/** GOAL_KICK_CHOICE fixture: home has finished both reposition windows. */
+const goalKickChoiceState: GameState = {
+  ...goalKickSetupGkState,
+  phase: 'GOAL_KICK_CHOICE',
+  goalKickEligibleIds: null,
+  goalKickUsedPace: null,
+};
+
+describe('applyGoalKickChoice', () => {
+  it('rejects when phase is not GOAL_KICK_CHOICE', () => {
+    const state: GameState = { ...goalKickChoiceState, phase: 'PASS' };
+    const result = applyGoalKickChoice(state, 'standard');
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects an invalid choice value', () => {
+    const result = applyGoalKickChoice(
+      goalKickChoiceState,
+      'invalid' as unknown as 'kick' | 'standard',
+    );
+    expect(result).toEqual({ ok: false, reason: 'INVALID_CHOICE' });
+  });
+
+  it("'standard': hands the GK the ball and transitions to PASS with GOAL_KICK_RESTART", () => {
+    const result = applyGoalKickChoice(goalKickChoiceState, 'standard');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('GOAL_KICK_RESTART');
+    expect(result.state.ball.carrierId).toBe(homeGK.id);
+    expect(result.state.attackingTeam).toBe('home');
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.goalKickTeam).toBeNull();
+    expect(result.state.goalKickGkId).toBeNull();
+    expect(result.state.goalKickEligibleIds).toBeNull();
+    expect(result.state.goalKickUsedPace).toBeNull();
+    const choiceEvents = result.state.eventLog.filter((e) => e.type === 'GOAL_KICK_CHOICE');
+    expect(choiceEvents).toHaveLength(1);
+    const event = choiceEvents[0];
+    if (event?.type !== 'GOAL_KICK_CHOICE') throw new Error('expected event');
+    expect(event.choice).toBe('standard');
+  });
+
+  it("'kick': advances to GOAL_KICK_TARGET with the ball still held by the GK", () => {
+    const result = applyGoalKickChoice(goalKickChoiceState, 'kick');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.phase).toBe('GOAL_KICK_TARGET');
+    expect(result.state.ball.carrierId).toBe(homeGK.id);
+    expect(result.state.lastDiceRoll).toBeNull();
+    const choiceEvents = result.state.eventLog.filter((e) => e.type === 'GOAL_KICK_CHOICE');
+    expect(choiceEvents).toHaveLength(1);
+  });
+
+  it('ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART contains only STANDARD_PASS', () => {
+    expect(ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART.size).toBe(1);
+    expect(ELIGIBLE_NEXT_ACTIONS.GOAL_KICK_RESTART.has('STANDARD_PASS')).toBe(true);
   });
 });

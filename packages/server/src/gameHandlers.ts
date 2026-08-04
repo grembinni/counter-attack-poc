@@ -51,6 +51,9 @@ import {
   applyGKDive,
   applyGKKickTarget,
   applyGKRestart,
+  applyGoalKickChoice,
+  applyGoalKickReposition,
+  applyGoalKickWindowEnd,
   applyHalfTimeStart,
   applyKickOffReady,
   applyMove,
@@ -602,6 +605,43 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // GOALKICK-02 (Plan 37-08): GOAL_KICK_SETUP_GK/GOAL_KICK_SETUP_OPPONENT reposition
+      // windows — each eligible piece moves up to 6 hexes independently, single-hex-per-
+      // click. D-01: delegates to applyGoalKickReposition, NOT validateResponseMoveStep —
+      // that helper is for single-piece-per-slot phases sharing one pace field; the
+      // goal-kick windows are per-piece budgets, a different model (see applyFreeMove's
+      // FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE branch above for the same distinction).
+      if (
+        room.gameState.phase === 'GOAL_KICK_SETUP_GK' ||
+        room.gameState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+      ) {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // ASVS V5 — validate payload shape before dispatch (never trust client input).
+        if (
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        const goalKickResult = applyGoalKickReposition(room.gameState, pieceId, to);
+        if (!goalKickResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, goalKickResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = goalKickResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -1133,6 +1173,30 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         }
         const result = applyFreeMoveEnd(room.gameState);
         room.gameState = result.state;
+        broadcastState(io, room);
+        return;
+      }
+
+      // GOALKICK-02 (Plan 37-08): ends the active goal-kick reposition window —
+      // applyGoalKickWindowEnd already knows which window it's exiting and does the
+      // right thing (hand off to the opponent window, skip to GOAL_KICK_CHOICE, or
+      // always-advance from the opponent window). Mirrors the FREE_MOVE_END branch above.
+      if (
+        room.gameState.phase === 'GOAL_KICK_SETUP_GK' ||
+        room.gameState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+      ) {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const goalKickEndResult = applyGoalKickWindowEnd(room.gameState);
+        if (!goalKickEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, goalKickEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = goalKickEndResult.state;
         broadcastState(io, room);
         return;
       }
@@ -2255,6 +2319,52 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       // Dispatch: pass rollDice as the injected die function (pure engine, deterministic tests)
       const result = applyGKRestart(room.gameState, choice, rollDice);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04: single broadcast entry point
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GOAL_KICK_CHOICE — GK's team chooses kick vs. standard-pass restart
+  // GOALKICK-03: mirrors GAME_GK_RESTART's canonical shape (mutex, phase guard,
+  // value validation, team guard, delegate, single broadcast) but is its own event
+  // and its own handler — D-01 forbids reusing or modifying the GAME_GK_RESTART
+  // handler for goal kicks even though the payload shape is similar.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GOAL_KICK_CHOICE, (choice: 'kick' | 'standard') => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be in GOAL_KICK_CHOICE
+      if (room.gameState === null || room.gameState.phase !== 'GOAL_KICK_CHOICE') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 — never trust client input; validated here before the team guard so a
+      // malformed payload from either team is rejected with the same specific reason.
+      if (choice !== 'kick' && choice !== 'standard') {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_CHOICE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // Team guard: only the goal-kick team (the GK's own team) may choose.
+      if (socketTeam(socket) !== room.gameState.goalKickTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      const result = applyGoalKickChoice(room.gameState, choice);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
