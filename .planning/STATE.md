@@ -20,7 +20,7 @@ progress:
 
 Phase: 38
 Plan: Not started
-Status: Executing Phase 37
+Status: Phase 37 complete
 Last activity: 2026-08-04
 
 ## Project Reference
@@ -28,7 +28,7 @@ Last activity: 2026-08-04
 See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 37 — out-of-bounds-detection-throw-in-goal-kick
+**Current focus:** Phase 38 — corner-kick
 
 ## Phase Status
 
@@ -78,7 +78,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 | 34    | Visual Theme Restyle                          | Complete    | 2026-07-27 |
 | 35    | ActionPanel & Log Standardization             | Complete    | 2026-07-27 |
 | 36    | Bug Fixes                                     | Complete    | 2026-08-02 |
-| 37    | Out-of-Bounds Detection, Throw-In & Goal Kick | Not started | -          |
+| 37    | Out-of-Bounds Detection, Throw-In & Goal Kick | Complete    | 2026-08-04 |
 | 38    | Corner Kick                                   | Not started | -          |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks        | Not started | -          |
 | 40    | Substitutions                                 | Not started | -          |
