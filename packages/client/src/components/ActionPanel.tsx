@@ -845,9 +845,16 @@ export function ActionPanel() {
             <span className={styles.helperLine1}>{`${PASS_TYPE_LABELS[selectedPassType]}!`}</span>
             <span className={styles.helperLine2}>Click a target hex.</span>
           </div>
-          <button className={styles.backButton} onClick={() => setSelectedPassType(null)}>
-            ← Back
-          </button>
+          {/* D-17-05 (gap-closure plan 37-17): Back is only meaningful when the player genuinely
+              had a choice. With a singleton eligible set (e.g. GOAL_KICK_RESTART), the store
+              auto-selected this pass type (useGameStore.ts setGameState) and Back would return
+              to a Step-1 chooser containing a single button — the exact dead click Task 1
+              removes. `eligible` is the same ELIGIBLE_NEXT_ACTIONS-derived set Step 1 uses. */}
+          {eligible.size > 1 && (
+            <button className={styles.backButton} onClick={() => setSelectedPassType(null)}>
+              ← Back
+            </button>
+          )}
           {gameError && <span className={styles.errorText}>{gameError}</span>}
         </PanelShell>
       );

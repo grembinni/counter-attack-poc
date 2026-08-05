@@ -12,6 +12,7 @@ import {
   hexDistance,
   getZoIDefenders,
   freeKickStageTeam,
+  ELIGIBLE_NEXT_ACTIONS,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
@@ -416,6 +417,43 @@ function computeFreeMoveValidHexes(
       return false;
     return hexDistance(piece.position, hex) === 1;
   });
+}
+
+/**
+ * GOALKICK-03/D-17-01 (Phase 37, gap-closure plan 37-17): when the eligible next-action set
+ * for a broadcast's `lastActionType` reduces to a single pass type, the player has already
+ * made that exact choice one screen earlier (e.g. clicking "Standard Pass" over "Kick" in
+ * GoalKickSetupPanel for GOAL_KICK_RESTART) — re-presenting a one-button Step-1 chooser is a
+ * dead click (37-UAT.md Test 10). This rule is expressed purely in terms of
+ * ELIGIBLE_NEXT_ACTIONS cardinality (never special-cased to a specific lastActionType), so any
+ * future restart row that also collapses to a singleton pass-type set (e.g. Phase 38's corner
+ * kick) inherits the behaviour automatically with no code change.
+ *
+ * `effectiveLastAction` mirrors ActionPanel.tsx's `lastActionType ?? 'MOVEMENT_PHASE'` fallback
+ * exactly (line ~708) so this helper and the Step-1 chooser always agree on which row is being
+ * evaluated.
+ *
+ * Deliberately excludes MOVEMENT, SNAPSHOT and SHOT even when either is the sole eligible
+ * member: those actions have side effects beyond local selection state (MOVEMENT commits to a
+ * movement sub-phase via emitStartMovement, SNAPSHOT/SHOT fire dice rolls), so auto-firing them
+ * would take an irreversible action the player never clicked. Only pass-*type* selection is
+ * purely local, reversible UI state — nothing is emitted to the server until an explicit
+ * target-hex click confirms the pass (T-37-81).
+ */
+function computeAutoSelectablePassType(state: GameState): PassType | null {
+  const effectiveLastAction = state.lastActionType ?? 'MOVEMENT_PHASE';
+  const eligible = ELIGIBLE_NEXT_ACTIONS[effectiveLastAction];
+  if (!eligible || eligible.size !== 1) return null;
+  const [only] = Array.from(eligible);
+  if (
+    only === 'STANDARD_PASS' ||
+    only === 'FIRST_TIME_PASS' ||
+    only === 'HIGH_PASS' ||
+    only === 'LONG_BALL'
+  ) {
+    return only;
+  }
+  return null;
 }
 
 /**
@@ -966,6 +1004,24 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         // Bug 1: stale GAME_ERROR from a prior action must not bleed into the new phase/slot
         gameError: null,
       });
+      // GOALKICK-03/D-17-02 (gap-closure plan 37-17): after the clear-on-transition set above,
+      // auto-select the pass type when this broadcast's eligible next-action set has collapsed
+      // to a single pass-type option the player already chose one screen earlier (37-UAT.md
+      // Test 10). Runs here — reading the already-committed newState — rather than as an
+      // ActionPanel effect, because the Step-1 chooser sits behind several early `return`s in
+      // that component's render and the store already owns every field this needs.
+      // D-17-04/T-37-80: gated to the acting client only. HexGrid's pass-target tint is not
+      // gated on isActivePlayer, so an ungated auto-selection would paint the goalkeeper's
+      // valid-target and interception-risk highlights onto the defending player's board.
+      // deriveMyTeam(prev.playerSlot) is the canonical null-safe helper (D-04/Pitfall 4) — a
+      // null playerSlot yields null, never a silently-coerced team.
+      const autoPassType = computeAutoSelectablePassType(newState);
+      const actingTeam = deriveMyTeam(prev.playerSlot);
+      if (autoPassType !== null && actingTeam !== null && actingTeam === newState.activeTeam) {
+        // D-17-03: must call the store action below, never assign the field directly — it is
+        // the only code path that computes validPassTargetHexes/interceptionRiskHexes.
+        get().setSelectedPassType(autoPassType);
+      }
       return;
     }
 

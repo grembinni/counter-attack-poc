@@ -924,3 +924,128 @@ describe('useGameStore — setGameState sticky-selection for FREE_KICK_SETUP (SE
     expect(state.validMoveHexes).toEqual([]);
   });
 });
+
+// GOALKICK-03/D-17 (gap-closure plan 37-17): 37-UAT.md Test 10 — a broadcast whose eligible
+// next-action set (ELIGIBLE_NEXT_ACTIONS[lastActionType]) collapses to a single pass type must
+// auto-select that pass type on the acting client only, going through the real setSelectedPassType
+// action so validPassTargetHexes/interceptionRiskHexes are populated exactly as an explicit click
+// would produce (D-17-03). GOAL_KICK_RESTART is the first singleton row; the rule itself is
+// generic over set cardinality (D-17-01), not special-cased to that lastActionType.
+describe('useGameStore — setGameState singleton pass-type auto-selection (GOALKICK-03/D-17, gap-closure plan 37-17)', () => {
+  function goalKickRestartState() {
+    return {
+      ...mockMovementState,
+      phase: 'PASS' as const,
+      activeTeam: 'home' as const,
+      lastActionType: 'GOAL_KICK_RESTART' as const,
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home' },
+      selectedPieceId: null,
+      lastMovedPieceId: null,
+      selectedPassType: null,
+      validPassTargetHexes: [],
+      interceptionRiskHexes: [],
+      passTargetHex: null,
+    });
+  });
+
+  it('auto-selects STANDARD_PASS with populated valid targets on the acting (home) client', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    useGameStore.getState().setGameState(goalKickRestartState());
+    const state = useGameStore.getState();
+    expect(state.selectedPassType).toBe('STANDARD_PASS');
+    expect(state.validPassTargetHexes.length).toBeGreaterThan(0);
+  });
+
+  it('leaves selectedPassType null and validPassTargetHexes empty on the opposing (away) client', () => {
+    useGameStore.setState({ playerSlot: 2 });
+    useGameStore.getState().setGameState(goalKickRestartState());
+    const state = useGameStore.getState();
+    expect(state.selectedPassType).toBeNull();
+    expect(state.validPassTargetHexes).toEqual([]);
+  });
+
+  it('leaves selectedPassType null when playerSlot is null (no silent team coercion)', () => {
+    useGameStore.setState({ playerSlot: null });
+    useGameStore.getState().setGameState(goalKickRestartState());
+    expect(useGameStore.getState().selectedPassType).toBeNull();
+  });
+
+  it('does not auto-select for a multi-member eligible set (THROW_IN_MOVEMENT_1)', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    useGameStore.getState().setGameState({
+      ...mockMovementState,
+      phase: 'PASS',
+      activeTeam: 'home',
+      lastActionType: 'THROW_IN_MOVEMENT_1',
+    });
+    expect(useGameStore.getState().selectedPassType).toBeNull();
+  });
+
+  it('does not auto-select and does not throw for an empty eligible set (SNAPSHOT)', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    expect(() =>
+      useGameStore.getState().setGameState({
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        lastActionType: 'SNAPSHOT',
+      }),
+    ).not.toThrow();
+    expect(useGameStore.getState().selectedPassType).toBeNull();
+  });
+
+  it('does not auto-select and does not throw for an empty eligible set (SHOT)', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    expect(() =>
+      useGameStore.getState().setGameState({
+        ...mockMovementState,
+        phase: 'PASS',
+        activeTeam: 'home',
+        lastActionType: 'SHOT',
+      }),
+    ).not.toThrow();
+    expect(useGameStore.getState().selectedPassType).toBeNull();
+  });
+
+  it('treats a null lastActionType as MOVEMENT_PHASE (multi-member) and does not auto-select', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    useGameStore.getState().setGameState({
+      ...mockMovementState,
+      phase: 'PASS',
+      activeTeam: 'home',
+      lastActionType: null,
+    });
+    expect(useGameStore.getState().selectedPassType).toBeNull();
+  });
+
+  it('produces identical validPassTargetHexes/interceptionRiskHexes/passTargetHex to an explicit setSelectedPassType call', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    useGameStore.getState().setGameState(goalKickRestartState());
+    const autoState = useGameStore.getState();
+    const autoTargets = autoState.validPassTargetHexes;
+    const autoRisk = autoState.interceptionRiskHexes;
+    const autoPassTargetHex = autoState.passTargetHex;
+
+    // Reset selection state (gameState/playerSlot unchanged) and explicitly select the same
+    // pass type via the real action — this is the code path D-17-03 requires the auto-selection
+    // to reuse, so the two outcomes must be identical.
+    useGameStore.setState({
+      selectedPassType: null,
+      validPassTargetHexes: [],
+      interceptionRiskHexes: [],
+      passTargetHex: null,
+    });
+    useGameStore.getState().setSelectedPassType('STANDARD_PASS');
+    const explicitState = useGameStore.getState();
+
+    expect(autoTargets).toEqual(explicitState.validPassTargetHexes);
+    expect(autoRisk).toEqual(explicitState.interceptionRiskHexes);
+    expect(autoPassTargetHex).toBe(explicitState.passTargetHex);
+  });
+});

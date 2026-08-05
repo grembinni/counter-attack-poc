@@ -642,6 +642,46 @@ describe('ActionPanel — THROW_IN_MOVEMENT_1/2 throw-in step choice labels (THR
   });
 });
 
+// GOALKICK-03/D-17-05 (gap-closure plan 37-17): 37-UAT.md Test 10 — a singleton eligible set
+// (e.g. GOAL_KICK_RESTART) is auto-selected by the store (useGameStore.ts setGameState), so
+// ActionPanel must skip straight to Step 2's "Click a target hex." prompt with no Back button
+// (there is nothing to go back to). A multi-option set (e.g. THROW_IN_MOVEMENT_1) is unchanged:
+// Step 1 still renders its chooser, and Step 2's Back button still works once a type is picked.
+describe('ActionPanel — singleton auto-selection Back-button suppression (GOALKICK-03/D-17-05)', () => {
+  it('GOAL_KICK_RESTART: auto-selection skips Step 1 straight to "Click a target hex." with no Back button', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    useGameStore.getState().setGameState({
+      ...mockMovementState,
+      phase: 'PASS',
+      activeTeam: 'home',
+      lastActionType: 'GOAL_KICK_RESTART',
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /^standard pass$/i })).toBeNull();
+    expect(screen.getByText('Click a target hex.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /back/i })).toBeNull();
+  });
+
+  it('THROW_IN_MOVEMENT_1 (control): Step 1 renders its chooser, and Step 2 keeps a working Back button after a pick', () => {
+    useGameStore.setState({ playerSlot: 1 });
+    useGameStore.getState().setGameState({
+      ...mockMovementState,
+      phase: 'PASS',
+      activeTeam: 'home',
+      lastActionType: 'THROW_IN_MOVEMENT_1',
+    });
+    render(<ActionPanel />);
+    expect(screen.getByRole('button', { name: /^move$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^standard throw-in$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^high throw-in$/i })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /^standard throw-in$/i }));
+    expect(screen.getByRole('button', { name: /back/i })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByRole('button', { name: /^standard throw-in$/i })).toBeDefined();
+  });
+});
+
 // D-13 (Phase 18-03): ActionPanel.tsx text corrections — unified wait state,
 // HIGH_PASS_MOVE fix, Kick->Punt rename, and MOVE phase hex-cap scoping.
 describe('ActionPanel — D-13 text corrections', () => {
