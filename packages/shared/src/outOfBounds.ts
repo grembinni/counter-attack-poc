@@ -24,6 +24,31 @@ const MAX_Q = 36;
 const MAX_R = 25;
 
 /**
+ * GOAL_KICK_RESTART_HEX — the fixed per-team byline-centre hex a goal kick
+ * restarts from (OOB-04 / GOALKICK-01). `triggerOutOfBoundsRestart`
+ * (`packages/server/src/gameEngine.ts`) resolves this through
+ * `resolveThrowInHex` before placing the ball and the goalkeeper, so an
+ * occupied restart hex is handled (nearest free on-pitch hex) rather than
+ * double-stacked.
+ *
+ * The value IS the goalkeeper's formation-default slot (`FORMATIONS['4-4-2'
+ * | '5-3-2' | '4-3-3' | '3-4-3'].slots[0].position`, `formations.ts`) —
+ * every formation places `GK` at `{ q: 2, r: 13 }` — and `away` is its
+ * `36 - q` mirror. The two entries MUST stay mirror-symmetric
+ * (`home.q + away.q === 36`, `home.r === away.r`); `outOfBounds.test.ts`
+ * asserts this against `FORMATIONS` directly, not a restated literal.
+ *
+ * This replaces the prior (37-04-PLAN.md:109) instruction to place the
+ * restart at the goalkeeper's LIVE `gk.position`, which drifted arbitrarily
+ * far from goal as the keeper moved during `GK_DIVING`/`GK_KICK_MOVE`/
+ * reposition windows (Plan 37-15, closing the Test 7 UAT MAJOR gap).
+ */
+export const GOAL_KICK_RESTART_HEX: Readonly<Record<'home' | 'away', HexCoord>> = {
+  home: { q: 2, r: 13 },
+  away: { q: 34, r: 13 },
+};
+
+/**
  * Which boundary the ball crossed when it left the pitch, or `null` if it is
  * still on the pitch. `null` is a defensive branch — callers should only
  * invoke this on a hex already known/suspected to be out of bounds.
