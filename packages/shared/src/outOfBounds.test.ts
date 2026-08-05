@@ -4,7 +4,10 @@ import {
   classifyOutOfBounds,
   bylineOwner,
   resolveThrowInHex,
+  GOAL_KICK_RESTART_HEX,
 } from './outOfBounds.js';
+import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
+import { FORMATIONS } from './formations.js';
 import type { HexCoord } from './types.js';
 
 describe('classifyExit', () => {
@@ -109,5 +112,51 @@ describe('resolveThrowInHex', () => {
     const first = resolveThrowInHex(preferred, pieces);
     const second = resolveThrowInHex(preferred, pieces);
     expect(first).toEqual(second);
+  });
+});
+
+describe('GOAL_KICK_RESTART_HEX', () => {
+  it('home equals { q: 2, r: 13 } and away equals { q: 34, r: 13 }', () => {
+    expect(GOAL_KICK_RESTART_HEX.home).toEqual({ q: 2, r: 13 });
+    expect(GOAL_KICK_RESTART_HEX.away).toEqual({ q: 34, r: 13 });
+  });
+
+  it('is mirror-symmetric: home.q + away.q === 36 and home.r === away.r', () => {
+    expect(GOAL_KICK_RESTART_HEX.home.q + GOAL_KICK_RESTART_HEX.away.q).toBe(36);
+    expect(GOAL_KICK_RESTART_HEX.home.r).toBe(GOAL_KICK_RESTART_HEX.away.r);
+  });
+
+  it('both entries satisfy isPitchHex', () => {
+    expect(isPitchHex(GOAL_KICK_RESTART_HEX.home)).toBe(true);
+    expect(isPitchHex(GOAL_KICK_RESTART_HEX.away)).toBe(true);
+  });
+
+  it("home matches every formation's GK slot-0 position, and away matches its 36-q mirror (derived from FORMATIONS, not a restated literal)", () => {
+    for (const formationId of Object.keys(FORMATIONS) as (keyof typeof FORMATIONS)[]) {
+      const gkSlot = FORMATIONS[formationId].slots[0];
+      expect(gkSlot.slotRole).toBe('GK');
+      expect(gkSlot.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+      expect({ q: 36 - gkSlot.position.q, r: gkSlot.position.r }).toEqual(
+        GOAL_KICK_RESTART_HEX.away,
+      );
+    }
+  });
+
+  it('both entries sit on the byline-centre row: r equals the midpoint of GOAL_R_VALUES', () => {
+    const midpoint = GOAL_R_VALUES[Math.floor(GOAL_R_VALUES.length / 2)];
+    expect(GOAL_KICK_RESTART_HEX.home.r).toBe(midpoint);
+    expect(GOAL_KICK_RESTART_HEX.away.r).toBe(midpoint);
+  });
+
+  it('resolveThrowInHex(GOAL_KICK_RESTART_HEX.home, []) returns the restart hex unchanged', () => {
+    expect(resolveThrowInHex(GOAL_KICK_RESTART_HEX.home, [])).toEqual(GOAL_KICK_RESTART_HEX.home);
+  });
+
+  it('resolveThrowInHex returns a different, on-pitch, unoccupied hex when the restart hex is occupied', () => {
+    const pieces = [{ position: GOAL_KICK_RESTART_HEX.home }];
+    const result = resolveThrowInHex(GOAL_KICK_RESTART_HEX.home, pieces);
+    expect(result).not.toEqual(GOAL_KICK_RESTART_HEX.home);
+    expect(isPitchHex(result)).toBe(true);
+    expect(pieces.some((p) => p.position.q === result.q && p.position.r === result.r)).toBe(false);
   });
 });

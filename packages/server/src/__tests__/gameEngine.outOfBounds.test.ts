@@ -14,8 +14,8 @@ import {
   applyGoalKickTarget,
   applyGoalKickMoveEnd,
 } from '../gameEngine.js';
-import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
-import { isPitchHex, ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
+import type { GameState, GamePhase, PlayerPiece, HexCoord } from '@counter-attack/shared';
+import { isPitchHex, ELIGIBLE_NEXT_ACTIONS, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -314,7 +314,17 @@ describe('applyRoll LOOSE_BALL with outOfBoundsEnabled true — byline (OOB-04)'
     expect(result.state.goalKickTeam).toBe('home');
     expect(result.state.goalKickGkId).toBe(homeGK.id);
     expect(result.state.ball.carrierId).toBe(homeGK.id);
-    expect(result.state.ball.position).toEqual(homeGK.position);
+    // Plan 37-15: the restart is the fixed GOAL_KICK_RESTART_HEX.home, NOT
+    // homeGK's live position ({q:3,r:5}) — this assertion previously read
+    // `expect(result.state.ball.position).toEqual(homeGK.position)`, which
+    // encoded the defect this plan closes (the ball landed wherever the
+    // keeper last happened to stand). Before: passed trivially because the
+    // engine wrote gk.position verbatim. After: the keeper is now also
+    // moved to the fixed restart hex, so this still holds AND additionally
+    // proves the restart hex is the fixed constant, not the drifted fixture
+    // position (see the dedicated 'GOAL_KICK_RESTART_HEX placement' block
+    // below for the drift-distinguishing assertion).
+    expect(result.state.ball.position).toEqual(GOAL_KICK_RESTART_HEX.home);
     const oobEvent = result.state.eventLog.find((e) => e.type === 'OUT_OF_BOUNDS');
     expect(oobEvent).toBeDefined();
     if (oobEvent?.type === 'OUT_OF_BOUNDS') {
@@ -338,6 +348,147 @@ describe('applyRoll LOOSE_BALL with outOfBoundsEnabled true — byline (OOB-04)'
     expect(result.state.goalKickTeam).toBe('away');
     expect(result.state.goalKickGkId).toBe(awayGK.id);
     expect(result.state.ball.carrierId).toBe(awayGK.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOAL_KICK_RESTART_HEX placement (Plan 37-15, closes 37-UAT.md Test 7 MAJOR)
+//
+// triggerOutOfBoundsRestart's GOAL_KICK branch places both the ball and the
+// goalkeeper at the fixed GOAL_KICK_RESTART_HEX for the awarded team, never
+// at the keeper's live (possibly drifted) position. lastInBoundsHex is
+// unused by the GOAL_KICK branch (only THROW_IN reads it), so an arbitrary
+// on-pitch placeholder is used below.
+// ---------------------------------------------------------------------------
+
+describe('triggerOutOfBoundsRestart GOAL_KICK placement (Plan 37-15)', () => {
+  it('places ball.position at GOAL_KICK_RESTART_HEX.away and moves the away GK there for an away-byline exit awarding away', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 35, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: 37, r: 13 }, { q: 36, r: 13 });
+    expect(result).not.toBeNull();
+    expect(result!.goalKickTeam).toBe('away');
+    expect(result!.ball.position).toEqual(GOAL_KICK_RESTART_HEX.away);
+    const movedGk = result!.pieces.find((p) => p.id === awayGK.id)!;
+    expect(movedGk.position).toEqual(GOAL_KICK_RESTART_HEX.away);
+  });
+
+  it('places ball.position at GOAL_KICK_RESTART_HEX.home and moves the home GK there for a home-byline exit awarding home (mirror case)', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    expect(result!.goalKickTeam).toBe('home');
+    expect(result!.ball.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+    const movedGk = result!.pieces.find((p) => p.id === homeGK.id)!;
+    expect(movedGk.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+  });
+
+  it('returns a keeper that had drifted far from goal (homeGK fixture at {q:3,r:5}) to GOAL_KICK_RESTART_HEX.home — asserted against the constant, never the fixture position', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    expect(homeGK.position).not.toEqual(GOAL_KICK_RESTART_HEX.home); // sanity: fixture IS drifted
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const movedGk = result!.pieces.find((p) => p.id === homeGK.id)!;
+    expect(movedGk.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+    expect(movedGk.position).not.toEqual(homeGK.position);
+  });
+
+  it('ball.carrierId is the goalkeeper id and the goalkeeper position equals ball.position — carrier and ball never separated', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    expect(result!.ball.carrierId).toBe(homeGK.id);
+    const carrierPiece = result!.pieces.find((p) => p.id === result!.ball.carrierId)!;
+    expect(carrierPiece.position).toEqual(result!.ball.position);
+  });
+
+  it("the appended OUT_OF_BOUNDS event's ballAfter.position equals the resolved restart hex, not the keeper's prior position", () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const oobEvent = result!.eventLog.find((e) => e.type === 'OUT_OF_BOUNDS');
+    expect(oobEvent?.type).toBe('OUT_OF_BOUNDS');
+    if (oobEvent?.type === 'OUT_OF_BOUNDS') {
+      expect(oobEvent.ballAfter).toEqual({
+        position: GOAL_KICK_RESTART_HEX.home,
+        carrierId: homeGK.id,
+      });
+    }
+  });
+
+  it('places the keeper on a different on-pitch hex when an outfield piece is parked exactly on the restart hex — no two pieces share a coordinate, ball.position matches the keeper', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      pieces: baseLooseBallState.pieces.map((p) =>
+        p.id === homePiece.id ? { ...p, position: GOAL_KICK_RESTART_HEX.home } : p,
+      ),
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const movedGk = result!.pieces.find((p) => p.id === homeGK.id)!;
+    expect(movedGk.position).not.toEqual(GOAL_KICK_RESTART_HEX.home);
+    expect(isPitchHex(movedGk.position)).toBe(true);
+    // No two pieces share a coordinate.
+    const occupied = result!.pieces.map((p) => `${p.position.q},${p.position.r}`);
+    expect(new Set(occupied).size).toBe(occupied.length);
+    expect(result!.ball.position).toEqual(movedGk.position);
+  });
+
+  it('computes goalKickEligibleIds from the POST-placement piece list: a keeper outside its own final third pre-move whose restart hex is inside it appears in gkTeam', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      pieces: baseLooseBallState.pieces.map(
+        (p) => (p.id === homeGK.id ? { ...p, position: { q: 15, r: 13 } } : p), // middleThird: NOT eligible pre-move
+      ),
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    // GOAL_KICK_RESTART_HEX.home (q:2) is in homeThird (q<=10) — eligible post-placement.
+    expect(result!.goalKickEligibleIds?.gkTeam).toContain(homeGK.id);
   });
 });
 
@@ -1780,5 +1931,141 @@ describe('applyGoalKickMoveEnd', () => {
     const oppResult = applyGoalKickMoveEnd(oppState, 3);
     expect(oppResult.ok).toBe(true);
     if (oppResult.ok) expect(oppResult.state.offsidePieceIds).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyFreeMove OFF_PITCH guard (Plan 37-15, closes T-37-66 — the sibling
+// threat that 37-13 accepted and required be carried). Mirrors
+// applyGoalKickReposition's isPitchHex guard (37-13) applied to its
+// documented sibling: no game:move payload can walk a piece off the grid
+// during a FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE sub-phase.
+// ---------------------------------------------------------------------------
+
+const edgePieceEvenQ: PlayerPiece = {
+  ...homePiece,
+  id: 'edge-even-q',
+  position: { q: 0, r: 5 },
+};
+
+const edgePieceOddQ: PlayerPiece = {
+  ...homePiece,
+  id: 'edge-odd-q',
+  position: { q: 5, r: 0 },
+};
+
+const edgePieceAwayQ: PlayerPiece = {
+  ...awayPiece,
+  id: 'edge-away-q',
+  position: { q: 36, r: 20 },
+};
+
+const edgePieceAwayR: PlayerPiece = {
+  ...awayPiece,
+  id: 'edge-away-r',
+  position: { q: 20, r: 25 },
+};
+
+/** FREE_MOVE_ATTACK fixture with both even-q and odd-q edge pieces eligible. */
+const freeMoveAttackEdgeState: GameState = {
+  ...baseLooseBallState,
+  phase: 'FREE_MOVE_ATTACK',
+  activeTeam: 'home',
+  pieces: [edgePieceEvenQ, edgePieceOddQ, homeGK, awayGK],
+  freeMoveEligibleIds: { attack: [edgePieceEvenQ.id, edgePieceOddQ.id], defense: [] },
+  freeMoveUsedPace: {},
+};
+
+/** FREE_MOVE_DEFENSE fixture with both away-column and away-row edge pieces eligible. */
+const freeMoveDefenseEdgeState: GameState = {
+  ...baseLooseBallState,
+  phase: 'FREE_MOVE_DEFENSE',
+  activeTeam: 'away',
+  pieces: [edgePieceAwayQ, edgePieceAwayR, homeGK, awayGK],
+  freeMoveEligibleIds: { attack: [], defense: [edgePieceAwayQ.id, edgePieceAwayR.id] },
+  freeMoveUsedPace: {},
+};
+
+describe('applyFreeMove OFF_PITCH guard (Plan 37-15, closes T-37-66)', () => {
+  it('FREE_MOVE_ATTACK: eligible piece at {q:0,r:5} attempting {q:-1,r:5} returns MOVE_INVALID/OFF_PITCH', () => {
+    const result = applyMove(freeMoveAttackEdgeState, edgePieceEvenQ.id, { q: -1, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('FREE_MOVE_ATTACK: eligible piece at {q:5,r:0} attempting {q:5,r:-1} returns MOVE_INVALID/OFF_PITCH (gap is not q-only)', () => {
+    const result = applyMove(freeMoveAttackEdgeState, edgePieceOddQ.id, { q: 5, r: -1 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('FREE_MOVE_DEFENSE: eligible piece at {q:36,r:20} attempting {q:37,r:20} returns MOVE_INVALID/OFF_PITCH', () => {
+    const result = applyMove(freeMoveDefenseEdgeState, edgePieceAwayQ.id, { q: 37, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('FREE_MOVE_DEFENSE: eligible piece at {q:20,r:25} attempting {q:20,r:26} returns MOVE_INVALID/OFF_PITCH', () => {
+    const result = applyMove(freeMoveDefenseEdgeState, edgePieceAwayR.id, { q: 20, r: 26 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('precedence: a far-away off-pitch destination still returns OUT_OF_RANGE (adjacency checked first)', () => {
+    const result = applyMove(freeMoveAttackEdgeState, edgePieceEvenQ.id, { q: -10, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' });
+  });
+
+  it('pre-existing rejections keep their exact reason+detail shape: WRONG_TEAM, NOT_ELIGIBLE, OCCUPIED, FREE_MOVE_EXHAUSTED', () => {
+    // WRONG_TEAM: activeTeam is 'home' during FREE_MOVE_ATTACK; awayGK is on the pitch
+    // in this fixture (pieces list) but belongs to 'away'.
+    const wrongTeam = applyMove(freeMoveAttackEdgeState, awayGK.id, { q: 34, r: 6 });
+    expect(wrongTeam).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+
+    // NOT_ELIGIBLE: homeGK is home-team but not in the attack eligible list.
+    const notEligible = applyMove(freeMoveAttackEdgeState, homeGK.id, { q: 3, r: 6 });
+    expect(notEligible).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' });
+
+    // OCCUPIED: edgePieceOddQ sits adjacent to edgePieceEvenQ's on-pitch neighbour {q:1,r:5}.
+    const occupiedState: GameState = {
+      ...freeMoveAttackEdgeState,
+      pieces: [edgePieceEvenQ, { ...edgePieceOddQ, position: { q: 1, r: 5 } }, homeGK, awayGK],
+    };
+    const occupied = applyMove(occupiedState, edgePieceEvenQ.id, { q: 1, r: 5 });
+    expect(occupied).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' });
+
+    // FREE_MOVE_EXHAUSTED: already at movedPieceIds lock.
+    const exhaustedState: GameState = {
+      ...freeMoveAttackEdgeState,
+      movedPieceIds: [edgePieceEvenQ.id],
+    };
+    const exhausted = applyMove(exhaustedState, edgePieceEvenQ.id, { q: 1, r: 4 });
+    expect(exhausted).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'FREE_MOVE_EXHAUSTED',
+    });
+  });
+
+  it('positive control: a boundary-positioned eligible piece can still reach every legal on-pitch neighbour and spend its full 6-hex budget', () => {
+    // edgePieceEvenQ at {q:0,r:5}; {q:1,r:5} is on-pitch and adjacent.
+    let current = freeMoveAttackEdgeState;
+    let position = edgePieceEvenQ.position;
+    const path: HexCoord[] = [
+      { q: 1, r: 5 },
+      { q: 1, r: 4 },
+      { q: 0, r: 4 },
+      { q: 0, r: 3 },
+      { q: 1, r: 3 },
+      { q: 1, r: 2 },
+    ];
+    for (const to of path) {
+      const result = applyMove(current, edgePieceEvenQ.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      current = result.state;
+      position = to;
+    }
+    expect(position).toEqual({ q: 1, r: 2 });
+    expect((current.freeMoveUsedPace ?? {})[edgePieceEvenQ.id]).toBe(6);
+    // Budget is fully spent: a 7th step (even a legal on-pitch adjacent hex) is rejected.
+    const seventh = applyMove(current, edgePieceEvenQ.id, { q: 1, r: 1 });
+    expect(seventh).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'FREE_MOVE_EXHAUSTED' });
   });
 });
