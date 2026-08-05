@@ -22,8 +22,13 @@ export const BALL_MARKER_STROKE = '#ffffff';
  * renders additively alongside that gold ring during KICK_OFF_SETUP: they mean different
  * things (ball location vs. required-placement hex) and both apply to the same hex here,
  * so both render simultaneously.
+ *
+ * Exported (Plan 37-18 / T-37-87) so `BallLocationRing.test.tsx` can pin `.size` against a
+ * literal count and `docs/HIGHLIGHT-REFERENCE.md`'s stated phase list can be checked against
+ * the real set rather than drifting silently, as it did after Plan 37-02 added the six
+ * Phase-37 restart phases without updating the doc.
  */
-const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
+export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   'HEADER',
   'SNAPSHOT',
   'SNAPSHOT_TARGET',

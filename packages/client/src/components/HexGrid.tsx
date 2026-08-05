@@ -23,6 +23,7 @@ import { PieceOverlay } from './PieceOverlay.js';
 import type { SelectionState } from './PieceOverlay.js';
 import { BallMarker } from './BallMarker.js';
 import { BallLocationRing } from './BallLocationRing.js';
+import { HeaderTargetRing } from './HeaderTargetRing.js';
 import { PitchMarkings } from './PitchMarkings.js';
 import { GoalNets } from './GoalNets.js';
 import styles from './HexGrid.module.css';
@@ -138,6 +139,7 @@ export function HexGrid() {
   const goalKickEligibleIds = useGameStore((s) => s.gameState.goalKickEligibleIds);
   const goalKickUsedPace = useGameStore((s) => s.gameState.goalKickUsedPace);
   const goalKickMovedPieceId = useGameStore((s) => s.gameState.goalKickMovedPieceId);
+  const goalKickTargetHex = useGameStore((s) => s.gameState.goalKickTargetHex);
   const emitGoalKickTarget = useGameStore((s) => s.emitGoalKickTarget);
 
   const myTeam = useMyTeam();
@@ -969,6 +971,11 @@ export function HexGrid() {
               marker — topmost sibling, after PieceOverlay, outside the highlightType/ring
               priority resolution entirely so it is never hidden or out-prioritized. */}
           <BallLocationRing ballPosition={ball.position} phase={phase} />
+          {/* Layer 5 (GOALKICK-05, D-18-01/03): standalone always-on-top gold bullseye marking
+              the goal-kick header contest hex. Deliberately sits alongside BallLocationRing on
+              the same hex (goalKickTargetHex === ball.position during GOAL_KICK_MOVE) — its own
+              GOAL_KICK_MOVE-only phase gate lives inside HeaderTargetRing itself (D-18-05). */}
+          <HeaderTargetRing targetHex={goalKickTargetHex} phase={phase} />
         </g>
       </g>
     </svg>

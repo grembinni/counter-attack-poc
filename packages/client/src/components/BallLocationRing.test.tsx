@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import type { GamePhase } from '@counter-attack/shared';
 import { BallLocationRing, BALL_MARKER_STROKE } from './BallLocationRing.js';
+import { BALL_MARKER_PHASES } from './BallLocationRing.js';
 import { axialToPixel, hexPolygonPoints } from '../utils/hexToPixel.js';
 
 afterEach(() => cleanup());
@@ -62,5 +63,14 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
     const { cx, cy } = axialToPixel(BALL_HEX.q, BALL_HEX.r);
     const expectedPoints = hexPolygonPoints(cx, cy);
     expect(polygon?.getAttribute('points')).toBe(expectedPoints);
+  });
+
+  // Plan 37-18 (T-37-87): pins the real BALL_MARKER_PHASES set size so
+  // docs/HIGHLIGHT-REFERENCE.md's stated phase count/enumeration cannot silently drift from
+  // the code again, as it did after Plan 37-02 added the six Phase-37 restart phases
+  // (THROW_IN_SETUP, GOAL_KICK_SETUP_GK, GOAL_KICK_SETUP_OPPONENT, GOAL_KICK_CHOICE,
+  // GOAL_KICK_TARGET, GOAL_KICK_MOVE) without updating the doc's "exact 11-phase list" claim.
+  it('BALL_MARKER_PHASES has grown to 17 members (11 original + 6 Phase-37 restart phases)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(17);
   });
 });
