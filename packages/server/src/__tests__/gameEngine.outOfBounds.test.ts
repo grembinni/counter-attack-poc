@@ -15,7 +15,7 @@ import {
   applyGoalKickMoveEnd,
 } from '../gameEngine.js';
 import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
-import { isPitchHex, ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
+import { isPitchHex, ELIGIBLE_NEXT_ACTIONS, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -314,7 +314,17 @@ describe('applyRoll LOOSE_BALL with outOfBoundsEnabled true — byline (OOB-04)'
     expect(result.state.goalKickTeam).toBe('home');
     expect(result.state.goalKickGkId).toBe(homeGK.id);
     expect(result.state.ball.carrierId).toBe(homeGK.id);
-    expect(result.state.ball.position).toEqual(homeGK.position);
+    // Plan 37-15: the restart is the fixed GOAL_KICK_RESTART_HEX.home, NOT
+    // homeGK's live position ({q:3,r:5}) — this assertion previously read
+    // `expect(result.state.ball.position).toEqual(homeGK.position)`, which
+    // encoded the defect this plan closes (the ball landed wherever the
+    // keeper last happened to stand). Before: passed trivially because the
+    // engine wrote gk.position verbatim. After: the keeper is now also
+    // moved to the fixed restart hex, so this still holds AND additionally
+    // proves the restart hex is the fixed constant, not the drifted fixture
+    // position (see the dedicated 'GOAL_KICK_RESTART_HEX placement' block
+    // below for the drift-distinguishing assertion).
+    expect(result.state.ball.position).toEqual(GOAL_KICK_RESTART_HEX.home);
     const oobEvent = result.state.eventLog.find((e) => e.type === 'OUT_OF_BOUNDS');
     expect(oobEvent).toBeDefined();
     if (oobEvent?.type === 'OUT_OF_BOUNDS') {
@@ -338,6 +348,147 @@ describe('applyRoll LOOSE_BALL with outOfBoundsEnabled true — byline (OOB-04)'
     expect(result.state.goalKickTeam).toBe('away');
     expect(result.state.goalKickGkId).toBe(awayGK.id);
     expect(result.state.ball.carrierId).toBe(awayGK.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOAL_KICK_RESTART_HEX placement (Plan 37-15, closes 37-UAT.md Test 7 MAJOR)
+//
+// triggerOutOfBoundsRestart's GOAL_KICK branch places both the ball and the
+// goalkeeper at the fixed GOAL_KICK_RESTART_HEX for the awarded team, never
+// at the keeper's live (possibly drifted) position. lastInBoundsHex is
+// unused by the GOAL_KICK branch (only THROW_IN reads it), so an arbitrary
+// on-pitch placeholder is used below.
+// ---------------------------------------------------------------------------
+
+describe('triggerOutOfBoundsRestart GOAL_KICK placement (Plan 37-15)', () => {
+  it('places ball.position at GOAL_KICK_RESTART_HEX.away and moves the away GK there for an away-byline exit awarding away', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 35, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: 37, r: 13 }, { q: 36, r: 13 });
+    expect(result).not.toBeNull();
+    expect(result!.goalKickTeam).toBe('away');
+    expect(result!.ball.position).toEqual(GOAL_KICK_RESTART_HEX.away);
+    const movedGk = result!.pieces.find((p) => p.id === awayGK.id)!;
+    expect(movedGk.position).toEqual(GOAL_KICK_RESTART_HEX.away);
+  });
+
+  it('places ball.position at GOAL_KICK_RESTART_HEX.home and moves the home GK there for a home-byline exit awarding home (mirror case)', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    expect(result!.goalKickTeam).toBe('home');
+    expect(result!.ball.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+    const movedGk = result!.pieces.find((p) => p.id === homeGK.id)!;
+    expect(movedGk.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+  });
+
+  it('returns a keeper that had drifted far from goal (homeGK fixture at {q:3,r:5}) to GOAL_KICK_RESTART_HEX.home — asserted against the constant, never the fixture position', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    expect(homeGK.position).not.toEqual(GOAL_KICK_RESTART_HEX.home); // sanity: fixture IS drifted
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const movedGk = result!.pieces.find((p) => p.id === homeGK.id)!;
+    expect(movedGk.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+    expect(movedGk.position).not.toEqual(homeGK.position);
+  });
+
+  it('ball.carrierId is the goalkeeper id and the goalkeeper position equals ball.position — carrier and ball never separated', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    expect(result!.ball.carrierId).toBe(homeGK.id);
+    const carrierPiece = result!.pieces.find((p) => p.id === result!.ball.carrierId)!;
+    expect(carrierPiece.position).toEqual(result!.ball.position);
+  });
+
+  it("the appended OUT_OF_BOUNDS event's ballAfter.position equals the resolved restart hex, not the keeper's prior position", () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const oobEvent = result!.eventLog.find((e) => e.type === 'OUT_OF_BOUNDS');
+    expect(oobEvent?.type).toBe('OUT_OF_BOUNDS');
+    if (oobEvent?.type === 'OUT_OF_BOUNDS') {
+      expect(oobEvent.ballAfter).toEqual({
+        position: GOAL_KICK_RESTART_HEX.home,
+        carrierId: homeGK.id,
+      });
+    }
+  });
+
+  it('places the keeper on a different on-pitch hex when an outfield piece is parked exactly on the restart hex — no two pieces share a coordinate, ball.position matches the keeper', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      pieces: baseLooseBallState.pieces.map((p) =>
+        p.id === homePiece.id ? { ...p, position: GOAL_KICK_RESTART_HEX.home } : p,
+      ),
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const movedGk = result!.pieces.find((p) => p.id === homeGK.id)!;
+    expect(movedGk.position).not.toEqual(GOAL_KICK_RESTART_HEX.home);
+    expect(isPitchHex(movedGk.position)).toBe(true);
+    // No two pieces share a coordinate.
+    const occupied = result!.pieces.map((p) => `${p.position.q},${p.position.r}`);
+    expect(new Set(occupied).size).toBe(occupied.length);
+    expect(result!.ball.position).toEqual(movedGk.position);
+  });
+
+  it('computes goalKickEligibleIds from the POST-placement piece list: a keeper outside its own final third pre-move whose restart hex is inside it appears in gkTeam', () => {
+    const state: GameState = {
+      ...baseLooseBallState,
+      pieces: baseLooseBallState.pieces.map(
+        (p) => (p.id === homeGK.id ? { ...p, position: { q: 15, r: 13 } } : p), // middleThird: NOT eligible pre-move
+      ),
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: awayPiece.id, teamId: 'away' },
+      },
+    };
+    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    // GOAL_KICK_RESTART_HEX.home (q:2) is in homeThird (q<=10) — eligible post-placement.
+    expect(result!.goalKickEligibleIds?.gkTeam).toContain(homeGK.id);
   });
 });
 

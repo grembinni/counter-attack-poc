@@ -58,6 +58,7 @@ import {
   bylineOwner,
   classifyOutOfBounds,
   resolveThrowInHex,
+  GOAL_KICK_RESTART_HEX,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -3267,6 +3268,27 @@ export function triggerOutOfBoundsRestart(
   const gk = state.pieces.find((p) => p.teamId === goalKickTeam && p.role === 'GK');
   if (!gk) return null; // defensive fallback to clamp — no GK piece found for that team
 
+  // Plan 37-15 (closes 37-UAT.md Test 7 MAJOR): the restart is a fixed
+  // byline-centre hex per team (GOAL_KICK_RESTART_HEX), NOT the goalkeeper's
+  // live position. 37-04-PLAN.md:109 originally instructed `gk.position`,
+  // but the keeper moves freely during GK_DIVING/GK_KICK_MOVE/reposition
+  // windows, so that live position routinely drifted far from goal — the
+  // kick was effectively taken from wherever the keeper last happened to
+  // stand. resolveThrowInHex (D-15-03) resolves the preferred restart hex
+  // against the piece list with the keeper EXCLUDED, so the keeper's own
+  // current position can never block its own destination; an occupied
+  // restart hex resolves to the nearest free on-pitch hex instead of
+  // double-stacking two pieces on one coordinate. D-15-04: both the ball
+  // AND the goalkeeper piece move, so ball.carrierId and the carrier's
+  // position can never disagree.
+  const preferredRestartHex = GOAL_KICK_RESTART_HEX[goalKickTeam];
+  const otherPieces = state.pieces.filter((p) => p.id !== gk.id);
+  const resolvedRestartHex = resolveThrowInHex(preferredRestartHex, otherPieces);
+
+  const repositionedPieces = state.pieces.map((p) =>
+    p.id === gk.id ? { ...p, position: resolvedRestartHex } : p,
+  );
+
   const outOfBoundsEvent: ActionEvent = {
     type: 'OUT_OF_BOUNDS',
     exitHex,
@@ -3275,17 +3297,21 @@ export function triggerOutOfBoundsRestart(
     awardedTo: goalKickTeam,
     lastTouchedByPieceId: state.ball.lastTouchedBy?.pieceId ?? null,
     timestamp: Date.now(),
-    ballAfter: { position: gk.position, carrierId: gk.id },
+    ballAfter: { position: resolvedRestartHex, carrierId: gk.id },
   };
 
   return {
     ...state,
     phase: 'GOAL_KICK_SETUP_GK',
+    pieces: repositionedPieces,
     goalKickTeam,
     goalKickGkId: gk.id,
     // Plan 37-08: GOALKICK-02 eligible lists are precomputed once, here, at trigger
     // time — never recomputed mid-window (mirrors freeMoveEligibleIds' contract).
-    goalKickEligibleIds: computeGoalKickEligibleIds(state.pieces, goalKickTeam),
+    // D-15-05: computed from the POST-placement piece list so the keeper's
+    // repositioned hex — not its pre-move hex — decides eligibility from the
+    // very first frame of the reposition window.
+    goalKickEligibleIds: computeGoalKickEligibleIds(repositionedPieces, goalKickTeam),
     goalKickUsedPace: {},
     // Plan 37-08: no stale value from a prior goal kick may survive into this one.
     goalKickTargetHex: null,
@@ -3295,7 +3321,7 @@ export function triggerOutOfBoundsRestart(
     attackingTeam: goalKickTeam,
     activeTeam: goalKickTeam,
     ball: {
-      position: gk.position,
+      position: resolvedRestartHex,
       carrierId: gk.id,
       lastTouchedBy: { pieceId: gk.id, teamId: goalKickTeam },
     },
