@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 37-out-of-bounds-detection-throw-in-goal-kick
 source: [37-14-SUMMARY.md, 37-15-SUMMARY.md, 37-16-SUMMARY.md, 37-17-SUMMARY.md, 37-18-SUMMARY.md]
 started: 2026-08-05T17:40:38Z
@@ -72,8 +72,13 @@ skipped: 0
   reason: 'User reported: partial pass. It does highlight the target hex but it should display the same white radius hexes as a header for the response move'
   severity: minor
   test: 6
-  artifacts: []
-  missing: []
+  root_cause: "HexGrid.tsx's highPassContestZoneSet (the white, radius-based, selection-independent 'header contest zone preview' that highlights the ball's landing hex plus all hexes within 2 hexes of it) is phase-gated exclusively to phase === 'HIGH_PASS_MOVE'. GOAL_KICK_MOVE is the structural analog of HIGH_PASS_MOVE (both are single-piece-per-team response-move windows that resolve directly into a HEADER contest, per gameEngine.ts's applyGoalKickMoveEnd doc comment), but it was never given the equivalent branch. This is distinct from the per-piece 'valid move destination' highlight (a single green hex shown after clicking a piece), which is already fully and correctly wired for GOAL_KICK_MOVE — the missing piece is only the always-on, selection-independent white radius preview."
+  artifacts:
+    - path: 'packages/client/src/components/HexGrid.tsx'
+      issue: "highPassContestZoneSet (lines ~234-245) only computes for phase === 'HIGH_PASS_MOVE'; its two consumption sites (isShotPathActionTint at ~489, isShotPathTint at ~502) have no GOAL_KICK_MOVE counterpart"
+  missing:
+    - "Extend (or add a parallel set alongside) highPassContestZoneSet so it also populates when phase === 'GOAL_KICK_MOVE', centered on ball.position (== goalKickTargetHex during this phase), and fold it into the same isShotPathActionTint/isShotPathTint expressions HIGH_PASS_MOVE already uses"
+  debug_session: .planning/debug/goal-kick-header-response-move-radius-missing.md
 ```
 
 ## Known Deferred Items (not being re-tested — carried forward as-is, no fix attempted)
