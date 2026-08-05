@@ -128,12 +128,12 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Out-of-bounds classification is a hard prerequisite for three of the four new restart types — throw-in, corner kick, and goal kick are all unreachable without it — so it lands first, paired with throw-in and goal kick (goal kick is built as its own dedicated setup flow per explicit product decision, not a reuse of the existing GK_RESTART chain, despite that reuse being the lower-effort path). Corner kick follows once that foundation exists, since it is the most state-machine-complex of the three restarts (two sequential repositioning windows, finer 2-at-a-time alternation than any existing staged flow). The fouls/cards/injury/GK-dive/penalty-kick cluster is the one true must-ship-together group in this milestone — injury and booking are unskippable side effects of every foul, and GK-dive-at-feet exists specifically to create a new foul source that feeds penalty kick, which has no other trigger — so it is deliberately sequenced third to give maximum lead time for resolving its rulebook ambiguities (which die triggers a foul, Professional Foul red-vs-yellow semantics) before implementation begins. Substitutions ships last: it is fully independent of every other cluster and only soft-depends on injury for one trigger source (forced substitution on a second injury), so placing it last avoids a small retroactive follow-up once that wiring already exists.
 
-| Phase | Name                                   | Plans    | Status      |
-| ----- | -------------------------------------- | -------- | ----------- |
-| 37    | 18/18                                  | Complete | 2026-08-05  |
-| 38    | Corner Kick                            | TBD      | Not started |
-| 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD      | Not started |
-| 40    | Substitutions                          | TBD      | Not started |
+| Phase | Name                                   | Plans       | Status      |
+| ----- | -------------------------------------- | ----------- | ----------- |
+| 37    | 18/19                                  | Gap closure | 2026-08-05  |
+| 38    | Corner Kick                            | TBD         | Not started |
+| 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
+| 40    | Substitutions                          | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
 
@@ -147,7 +147,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 3. When the ball exits over the defending byline without last being touched by the attacking team (including an untouched off-target shot), the defending goalkeeper is awarded a goal kick as its own dedicated setup screen: both final-thirds reposition up to 6 hexes each (goalkeeper's team first), then the goalkeeper chooses a Kick (High Pass, combined score 8+ required, inaccurate results in a Loose Ball) or an unmodified Standard Pass, with both teams able to move one player up to 3 hexes while a Kicked ball travels and the receiver required to head it.
 4. When Out-of-Bounds/Restarts is disabled at game creation, the ball continues to clamp to the pitch boundary exactly as it does today, and none of the new restart flows are reachable.
 
-**Plans**: 13 plans
+**Plans**: 19 plans
 Plans:
 **Wave 1**
 
@@ -194,6 +194,21 @@ Plans:
 **Wave 11** _(gap closure from 37-VERIFICATION.md re-verification — GOALKICK-02 blocker)_
 
 - [x] 37-13-PLAN.md — GOALKICK-02 blocker: on-pitch bounds guard for goal-kick reposition in applyGoalKickReposition and its GAME_MOVE handler branch + regression tests
+
+**Wave 12** _(gap closure from 37-UAT.md — plans run in parallel, no file overlap)_
+
+- [x] 37-14-PLAN.md — Even-q r=0 boundary hexes excluded from PITCH_HEXES/classifyExit in the shared rules package
+- [x] 37-16-PLAN.md — Restart-panel error humaniser, throw-in duplicate line removal, THROW_IN_SETUP selection branch
+
+**Wave 13** _(gap closure from 37-UAT.md, blocked on Wave 12)_
+
+- [x] 37-15-PLAN.md — Goal kick restarts from a fixed byline-centre hex with the keeper moved there; applyFreeMove off-pitch guard
+- [x] 37-17-PLAN.md — ELIGIBLE_NEXT_ACTIONS-cardinality auto-selection collapses the goal-kick Standard-Pass double-choice
+- [x] 37-18-PLAN.md — HeaderTargetRing gold bullseye at goalKickTargetHex during GOAL_KICK_MOVE + HIGHLIGHT-REFERENCE.md correction
+
+**Wave 14** _(gap closure from 37-UAT.md re-verification — test 6 header-contest radius)_
+
+- [ ] 37-19-PLAN.md — Generalise the white header-contest radius preview from HIGH_PASS_MOVE to GOAL_KICK_MOVE (headerContestZoneSet)
 
 **UI hint**: yes
 
