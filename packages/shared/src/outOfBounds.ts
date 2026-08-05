@@ -40,10 +40,21 @@ export type OutOfBoundsRestart = 'THROW_IN' | 'GOAL_KICK' | 'CORNER_KICK';
  * (a corner of the bounding rectangle) resolves to `'BYLINE'`, never
  * `'SIDELINE'`. Do not hardcode a second copy of the pitch bounds anywhere
  * else in this file — always reference `MAX_Q`/`MAX_R`.
+ *
+ * 37-14 (gap-closure wave 12, user-redefined scope): the row test (`rOut`)
+ * is now parity-aware for the `r=0` edge. In addition to the plain
+ * `hex.r < 0 || hex.r > MAX_R` rectangle test, a hex with `hex.q` still
+ * within `[0, MAX_Q]` (i.e. `qOut` is false) is ALSO `rOut` when it fails
+ * `isPitchHex` — this is currently only the 19 even-q `r=0` hexes excluded
+ * from `PITCH_HEXES` per Plan 37-14 (see pitch.ts doc comment). This check
+ * is additive to, not a replacement for, the existing rectangle test, and
+ * `qOut` is still evaluated/short-circuited first so the D-05 corner-
+ * defaults-to-BYLINE rule is unchanged. No `r=25` hex is affected — every
+ * `r=25` hex remains a pitch hex and is therefore never `rOut` via this path.
  */
 export function classifyExit(hex: HexCoord): OutOfBoundsExit {
   const qOut = hex.q < 0 || hex.q > MAX_Q;
-  const rOut = hex.r < 0 || hex.r > MAX_R;
+  const rOut = hex.r < 0 || hex.r > MAX_R || (!qOut && !isPitchHex(hex));
   if (!qOut && !rOut) return null; // still on pitch — defensive branch
   if (qOut) return 'BYLINE'; // D-05: ambiguous double-boundary defaults to byline
   return 'SIDELINE';

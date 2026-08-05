@@ -2,14 +2,32 @@ import type { HexCoord } from './types.js';
 import { hexesInRange } from './hex.js';
 
 /**
- * Full 37×26 rectangular pitch grid: q∈[0,36], r∈[0,25].
- * Exactly 962 hexes (37 × 26 = 962). D-04.
+ * Full 37×26 rectangular pitch grid: q∈[0,36], r∈[0,25], minus 19 even-q
+ * `r=0` hexes excluded per Plan 37-14 (gap-closure wave 12, user-redefined
+ * scope). Total: 943 hexes (962 − 19). D-04, amended by 37-14.
+ *
+ * 37-14 decision (recorded verbatim): under the CURRENT, unmodified client
+ * clip geometry, every even-q `r=0` hex — e.g. (20,0), 19 hexes total,
+ * q = 0,2,4,...,36 — renders at 0% visibility (entirely clipped, invisible,
+ * unclickable). Rather than fixing client rendering (the original plan's
+ * Task 2/3 scope), the user's final approved instruction was: "Do not change
+ * anything about how the field currently renders — just remove 0% visibility
+ * hexes from the field of play." So those 19 hexes are removed from the
+ * rules layer only; zero client/rendering files were touched. No `r=25` hex
+ * is excluded — every `r=25` hex (even-q and odd-q) remains in PITCH_HEXES
+ * exactly as before (odd-q `r=25` and odd-q `r=0` still render at ~50%
+ * visibility, which the user explicitly said is fine and not to touch).
+ *
  * Replaces the placeholder 25×16 grid from Phase 1.
  */
 export const PITCH_HEXES: readonly HexCoord[] = (() => {
   const hexes: HexCoord[] = [];
   for (let q = 0; q <= 36; q++) {
     for (let r = 0; r <= 25; r++) {
+      // 37-14: even-q r=0 hexes are 0%-visibility under the current client
+      // clip (entirely invisible and unclickable) — excluded from the rules
+      // layer rather than fixing the renderer. See module doc comment above.
+      if (r === 0 && q % 2 === 0) continue;
       hexes.push({ q, r });
     }
   }
