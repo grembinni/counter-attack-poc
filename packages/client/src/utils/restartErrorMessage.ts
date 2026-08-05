@@ -8,9 +8,10 @@
  * 37-UAT.md's Test 8 diagnosis found no unguarded crash behind the reported "grid gives
  * errors" report — every legitimate rejection during a restart reposition window (off-pitch,
  * non-adjacent, occupied, budget exhausted, ineligible, wrong team) was being displayed to the
- * player as the raw server wire code (`OFF_PITCH`, `MOVE_INVALID`, `WRONG_TEAM`, …). This
- * module is the fix: `restartErrorMessage()` is wired into every restart-setup panel's
- * `gameError` banner so a raw code can never reach the DOM there again.
+ * player as the raw server wire code the UAT reporter actually saw on screen, 'OFF_PITCH', or
+ * one of its siblings ('MOVE_INVALID', 'WRONG_TEAM', …). This module is the fix:
+ * `restartErrorMessage()` is wired into every restart-setup panel's `gameError` banner so a
+ * raw code can never reach the DOM there again.
  *
  * The wire codes mapped below were enumerated by running
  * `grep -o "GAME_ERROR, '[A-Z_]*'" packages/server/src/gameHandlers.ts | sort -u` against
