@@ -6,6 +6,7 @@ import { axialToPixel } from '../utils/hexToPixel.js';
 import { HexGrid } from './HexGrid.js';
 import { HIGHLIGHT_STYLES, RING_STYLES } from './HexCell.js';
 import { BALL_MARKER_STROKE } from './BallLocationRing.js';
+import { HEADER_TARGET_STROKE } from './HeaderTargetRing.js';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -1555,5 +1556,93 @@ describe('HexGrid — GOAL_KICK_MOVE piece clickability (GOALKICK-05, Plan 37-10
     expect(hasSelectableRingAt(container, otherPiece.position.q, otherPiece.position.r)).toBe(
       false,
     );
+  });
+});
+
+// GOALKICK-05 (Phase 37, Plan 37-18): HeaderTargetRing renders as a second standalone
+// always-on-top overlay, alongside BallLocationRing, marking the goal-kick header contest
+// hex during the GOAL_KICK_MOVE travel window. Asserted via the imported HEADER_TARGET_STROKE
+// constant, never a retyped '#f5c518' literal (CONTEXT.md test-migration decision — mirrors
+// the BALL_MARKER_STROKE convention above).
+describe('HexGrid — GOAL_KICK_MOVE: HeaderTargetRing contest marker (GOALKICK-05, Plan 37-18)', () => {
+  const TARGET_HEX = { q: 15, r: 13 };
+
+  function goalKickMoveTargetState(
+    overrides: { goalKickTargetHex?: { q: number; r: number } | null } = {},
+  ) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      goalKickTeam: 'home' as const,
+      goalKickMoveSlot: 'KICKER' as const,
+      goalKickMovedPieceId: null,
+      goalKickPaceUsed: 0,
+      goalKickTargetHex:
+        overrides.goalKickTargetHex === undefined ? TARGET_HEX : overrides.goalKickTargetHex,
+      ball: { position: TARGET_HEX, carrierId: null, lastTouchedBy: null },
+    };
+  }
+
+  it('renders the gold HeaderTargetRing outer polygon centred on goalKickTargetHex', () => {
+    const state = goalKickMoveTargetState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasStrokeAtHex(container, HEADER_TARGET_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(true);
+  });
+
+  it('does NOT render when goalKickTargetHex is null', () => {
+    const state = goalKickMoveTargetState({ goalKickTargetHex: null });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasStrokeAtHex(container, HEADER_TARGET_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(false);
+  });
+
+  it('does NOT render during GOAL_KICK_TARGET (the selection phase, not the travel window)', () => {
+    const state = {
+      ...goalKickMoveTargetState(),
+      phase: 'GOAL_KICK_TARGET' as const,
+      goalKickGkId: 'home-0',
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasStrokeAtHex(container, HEADER_TARGET_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(false);
+  });
+
+  it('coexists with the white BallLocationRing marker on the same hex during GOAL_KICK_MOVE', () => {
+    const state = goalKickMoveTargetState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasStrokeAtHex(container, HEADER_TARGET_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(true);
+    expect(hasStrokeAtHex(container, BALL_MARKER_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(true);
   });
 });

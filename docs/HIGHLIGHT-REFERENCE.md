@@ -121,24 +121,28 @@ constant, `ring` prop).
 
 ---
 
-## 3. Standalone Always-On-Top Overlay — `BallLocationRing.tsx`
+## 3. Standalone Always-On-Top Overlays — `BallLocationRing.tsx` + `HeaderTargetRing.tsx`
 
-Not a `HexHighlightType` member and not part of the tint/ring priority
-resolution in section 1/2 — this component renders as the topmost sibling in
-the SVG tree (after `PieceOverlay`), so it is never hidden or out-prioritized
-by any hex tint or ring.
+Neither is a `HexHighlightType` member nor part of the tint/ring priority
+resolution in section 1/2 — both components render as topmost siblings in the
+SVG tree (after `PieceOverlay`), so neither is ever hidden or out-prioritized
+by any hex tint or ring. The two can render simultaneously on the same hex
+(see the `HeaderTargetRing.tsx` entry below).
 
-| Element              | Semantic                                           | Style                                                                                                                                                   |
-| -------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ball-location marker | ⚪ Hex containing the ball, during response phases | White hex-edge outline: `stroke: '#ffffff'` (`BALL_MARKER_STROKE`), `strokeWidth: 2.5` (same thickness as the `PieceOverlay` ring family), `fill: none` |
+| Element                      | Semantic                                                                     | Style                                                                                                                                                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ball-location marker         | ⚪ Hex containing the ball, during response phases                           | White hex-edge outline: `stroke: '#ffffff'` (`BALL_MARKER_STROKE`), `strokeWidth: 2.5` (same thickness as the `PieceOverlay` ring family), `fill: none`                                                                         |
+| Header-target contest marker | 🟨 Goal-kick header contest point, during the `GOAL_KICK_MOVE` travel window | Two concentric gold hex outlines: `stroke: '#f5c518'` (`HEADER_TARGET_STROKE`, shared with `RING_STYLES.confirmed`), outer at `hexSize + 3` / `strokeWidth: 3`, inner at `hexSize * 0.55` / `strokeWidth: 2`, both `fill: none` |
 
-**Visibility gate — exact 11-phase list** (`BALL_MARKER_PHASES` in
-`BallLocationRing.tsx`): the marker renders only when `GameState.phase` is one
-of:
+**`BallLocationRing.tsx` visibility gate — 17-phase list** (`BALL_MARKER_PHASES`
+in `BallLocationRing.tsx`): the marker renders only when `GameState.phase` is
+one of:
 
 `HEADER`, `SNAPSHOT`, `SNAPSHOT_TARGET`, `SNAPSHOT_DEFLECT`, `GK_DIVE`, `SHOT`,
 `GK_RESTART`, `GK_QUICK_THROW`, `GK_KICK_TARGET`, `GK_KICK_MOVE`,
-`KICK_OFF_SETUP`.
+`KICK_OFF_SETUP`, `THROW_IN_SETUP`, `GOAL_KICK_SETUP_GK`,
+`GOAL_KICK_SETUP_OPPONENT`, `GOAL_KICK_CHOICE`, `GOAL_KICK_TARGET`,
+`GOAL_KICK_MOVE`.
 
 It does not render during ordinary `MOVE` / `PASS` / `KICK_OFF` /
 `FREE_KICK_SETUP` / `FREE_MOVE_*` / `LOOSE_BALL` / `HIGH_PASS_MOVE` /
@@ -158,12 +162,38 @@ gold required-ring is a distinct concept ("place the kicker here") and continues
 to render unchanged, simultaneously with the white ball marker, on the same hex
 during `KICK_OFF_SETUP`.
 
+**Phase 37 additions (Plan 37-02):** `THROW_IN_SETUP`, `GOAL_KICK_SETUP_GK`,
+`GOAL_KICK_SETUP_OPPONENT`, `GOAL_KICK_CHOICE`, `GOAL_KICK_TARGET` and
+`GOAL_KICK_MOVE` extended the gate from its original eleven members to
+today's 17. The ball is either fixed at a restart hex or mid-air during every
+one of these, matching this gate's existing precedent — the generic white
+marker is reused rather than adding a new tint type.
+
 The prior HEADER-only gold ball-position overlay (formerly inline in
 `HexGrid.tsx`) was fully superseded by this component and removed — it is not
 kept alongside the new marker.
 
 Cross-reference: `packages/client/src/components/BallLocationRing.tsx`
 (`BALL_MARKER_STROKE`, `BALL_MARKER_PHASES` constants).
+
+**`HeaderTargetRing.tsx` visibility gate (Plan 37-18, GOALKICK-05):** the
+marker renders only when `GameState.phase === 'GOAL_KICK_MOVE'` AND
+`GameState.goalKickTargetHex` is non-null; it renders nothing in every other
+phase, including the neighbouring `GOAL_KICK_TARGET` / `GOAL_KICK_CHOICE` /
+`GOAL_KICK_SETUP_GK` / `GOAL_KICK_SETUP_OPPONENT` and the similarly-named
+`GK_KICK_MOVE` (a different, GK-restart travel flow). The gate lives inside
+the component itself, not at the `HexGrid` call site.
+
+During `GOAL_KICK_MOVE`, `goalKickTargetHex` equals `ball.position`, so this
+marker renders additively alongside `BallLocationRing`'s white outline on the
+same hex — the two are not exclusive. They are told apart at a glance: a
+single white hex-edge line (ball location) vs. two concentric gold hex
+outlines (the header contest point — GOALKICK-05's "both teams get one 3-hex
+response move" affordance). Both teams see the marker, ungated by
+`isActivePlayer`, so each manager can aim their move at it.
+
+Cross-reference: `packages/client/src/components/HeaderTargetRing.tsx`
+(`HEADER_TARGET_STROKE` constant).
 
 ---
 
