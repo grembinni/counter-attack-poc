@@ -62,6 +62,7 @@ Notes:
 - `gk-kick-target` and `kickoff` are deliberately different shades of blue (sky-blue vs. saturated blue) so the two remain visually distinguishable even though both carry the "blue = neutral info" semantic.
 - `pass-target` merges the former GK_QUICK_THROW inline tint (previously `rgba(34,197,94,0.35)` fill with a `rgba(34,197,94,0.6)` stroke at `strokeWidth: 1`) — both represented "guaranteed-safe target, no interception risk," and neither the ~1% fill-opacity difference nor the dropped stroke (now `none`) was an intentional design distinction.
 - `tackle-risk` is intentionally the same amber family as `risk` (both are "caution" semantics) but is kept as its own table entry because it occurs in a different phase context (passing, not movement).
+- **Header-contest zone preview (Plan 37-19, GOALKICK-05):** the white, selection-independent radius of hexes surrounding an upcoming header contest renders during exactly two phases — `HIGH_PASS_MOVE` and `GOAL_KICK_MOVE` — because those are the two response-move windows that resolve directly into a `HEADER` contest. `GK_KICK_MOVE` and `FIRST_TIME_PASS_MOVE` are deliberately excluded: both resolve into a delivery (a caught pass) instead of a header, so they never render this preview. The radius is 2 hexes and mirrors the server's header-eligibility predicate in `applyGoalKickMoveEnd` (`gameEngine.ts`), not any phase's pace budget — a wider preview would advertise a contest the server refuses to award. Hexes inside the radius render `shot-path`, upgrading to `shot-path-action` where the hex is also a valid destination for the selected response piece. `headerContestZoneSet` in `packages/client/src/components/HexGrid.tsx` is the source of truth for this gate.
 
 Cross-reference: `packages/client/src/components/HexCell.tsx` (`HIGHLIGHT_STYLES` constant, `HexHighlightType` union).
 
@@ -191,6 +192,12 @@ single white hex-edge line (ball location) vs. two concentric gold hex
 outlines (the header contest point — GOALKICK-05's "both teams get one 3-hex
 response move" affordance). Both teams see the marker, ungated by
 `isActivePlayer`, so each manager can aim their move at it.
+
+During `GOAL_KICK_MOVE` the gold bullseye also sits inside the white
+`headerContestZoneSet` radius described in section 1's Notes list (Plan
+37-19) — the two are complementary, not redundant: the bullseye marks the
+single hex where the header will be attempted, while the white radius marks
+every hex from which a piece is eligible to contest it.
 
 Cross-reference: `packages/client/src/components/HeaderTargetRing.tsx`
 (`HEADER_TARGET_STROKE` constant).
