@@ -7,6 +7,7 @@ import { HexGrid } from './HexGrid.js';
 import { HIGHLIGHT_STYLES, RING_STYLES } from './HexCell.js';
 import { BALL_MARKER_STROKE } from './BallLocationRing.js';
 import { HEADER_TARGET_STROKE } from './HeaderTargetRing.js';
+import { PITCH_HEXES, hexDistance } from '@counter-attack/shared';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -1644,5 +1645,261 @@ describe('HexGrid — GOAL_KICK_MOVE: HeaderTargetRing contest marker (GOALKICK-
     const { container } = render(<HexGrid />);
     expect(hasStrokeAtHex(container, HEADER_TARGET_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(true);
     expect(hasStrokeAtHex(container, BALL_MARKER_STROKE, TARGET_HEX.q, TARGET_HEX.r)).toBe(true);
+  });
+});
+
+// GOALKICK-05 (Phase 37, Plan 37-19): headerContestZoneSet generalises the header-contest
+// eligibility preview (formerly highPassContestZoneSet, gated on HIGH_PASS_MOVE only) to also
+// cover GOAL_KICK_MOVE — the two response-move windows that resolve directly into a HEADER
+// contest (D-19-06). The radius mirrors applyGoalKickMoveEnd's homeEligible/awayEligible
+// hexDistance <= 2 check verbatim (D-19-02) and centres on goalKickTargetHex, not ball.position
+// (D-19-03). Asserted exclusively via HIGHLIGHT_STYLES['shot-path'].stroke and
+// ['shot-path-action'].stroke — never a retyped '#dddddd'/'#aaaaaa' literal — because both tiers
+// share an identical opaque white fill (rgba(255,255,255,1)) and can only be told apart by
+// stroke (HexCell.tsx HIGHLIGHT_STYLES).
+describe('HexGrid — header-contest zone preview generalisation (GOALKICK-05, Plan 37-19)', () => {
+  const HP_BALL_HEX = { q: 18, r: 13 };
+  const HP_2AWAY = PITCH_HEXES.find((h) => hexDistance(h, HP_BALL_HEX) === 2)!;
+  const HP_3AWAY = PITCH_HEXES.find((h) => hexDistance(h, HP_BALL_HEX) === 3)!;
+
+  it('HIGH_PASS_MOVE regression pin: ball hex and a hex 2 away carry shot-path; a hex 3 away carries neither (order-of-work proof: written and verified passing against the unmodified file — see SUMMARY)', () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'HIGH_PASS_MOVE' as const,
+      ball: { position: HP_BALL_HEX, carrierId: null, lastTouchedBy: null },
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, HP_BALL_HEX.q, HP_BALL_HEX.r),
+    ).toBe(true);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, HP_2AWAY.q, HP_2AWAY.r),
+    ).toBe(true);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, HP_3AWAY.q, HP_3AWAY.r),
+    ).toBe(false);
+    expect(
+      hasStrokeAtHex(
+        container,
+        HIGHLIGHT_STYLES['shot-path-action'].stroke,
+        HP_3AWAY.q,
+        HP_3AWAY.r,
+      ),
+    ).toBe(false);
+  });
+
+  const GK_TARGET_HEX = { q: 15, r: 13 };
+  const GK_2AWAY = PITCH_HEXES.find((h) => hexDistance(h, GK_TARGET_HEX) === 2)!;
+  const GK_3AWAY = PITCH_HEXES.find((h) => hexDistance(h, GK_TARGET_HEX) === 3)!;
+
+  function goalKickMoveContestState(
+    overrides: { goalKickTargetHex?: { q: number; r: number } | null } = {},
+  ) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      goalKickTeam: 'home' as const,
+      goalKickMoveSlot: 'KICKER' as const,
+      goalKickMovedPieceId: null,
+      goalKickPaceUsed: 0,
+      goalKickTargetHex:
+        overrides.goalKickTargetHex === undefined ? GK_TARGET_HEX : overrides.goalKickTargetHex,
+      ball: { position: GK_TARGET_HEX, carrierId: null, lastTouchedBy: null },
+    };
+  }
+
+  it('GOAL_KICK_MOVE: target hex and a hex 2 away carry shot-path; a hex 3 away carries neither', () => {
+    const state = goalKickMoveContestState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      hasStrokeAtHex(
+        container,
+        HIGHLIGHT_STYLES['shot-path'].stroke,
+        GK_TARGET_HEX.q,
+        GK_TARGET_HEX.r,
+      ),
+    ).toBe(true);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, GK_2AWAY.q, GK_2AWAY.r),
+    ).toBe(true);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, GK_3AWAY.q, GK_3AWAY.r),
+    ).toBe(false);
+    expect(
+      hasStrokeAtHex(
+        container,
+        HIGHLIGHT_STYLES['shot-path-action'].stroke,
+        GK_3AWAY.q,
+        GK_3AWAY.r,
+      ),
+    ).toBe(false);
+  });
+
+  it('GOAL_KICK_MOVE: the same preview renders for the non-active team, unselected (D-19-05)', () => {
+    const state = goalKickMoveContestState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2, // away — myTeam ('away') !== activeTeam ('home'), so isActivePlayer is false
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      hasStrokeAtHex(
+        container,
+        HIGHLIGHT_STYLES['shot-path'].stroke,
+        GK_TARGET_HEX.q,
+        GK_TARGET_HEX.r,
+      ),
+    ).toBe(true);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, GK_2AWAY.q, GK_2AWAY.r),
+    ).toBe(true);
+  });
+
+  it('GOAL_KICK_MOVE: goalKickTargetHex null renders no shot-path stroke anywhere on the board', () => {
+    const state = goalKickMoveContestState({ goalKickTargetHex: null });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      Array.from(container.querySelectorAll('polygon')).some(
+        (p) => p.getAttribute('stroke') === HIGHLIGHT_STYLES['shot-path'].stroke,
+      ),
+    ).toBe(false);
+  });
+
+  it('GOAL_KICK_MOVE: an in-zone hex also present in validMoveHexes renders shot-path-action (not plain shot-path); a different in-zone hex absent from validMoveHexes still renders plain shot-path (D-19-04)', () => {
+    const state = goalKickMoveContestState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [GK_2AWAY],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      hasStrokeAtHex(
+        container,
+        HIGHLIGHT_STYLES['shot-path-action'].stroke,
+        GK_2AWAY.q,
+        GK_2AWAY.r,
+      ),
+    ).toBe(true);
+    expect(
+      hasStrokeAtHex(container, HIGHLIGHT_STYLES['shot-path'].stroke, GK_2AWAY.q, GK_2AWAY.r),
+    ).toBe(false);
+    expect(
+      hasStrokeAtHex(
+        container,
+        HIGHLIGHT_STYLES['shot-path'].stroke,
+        GK_TARGET_HEX.q,
+        GK_TARGET_HEX.r,
+      ),
+    ).toBe(true);
+  });
+
+  it('GK_KICK_MOVE resolves into a delivery (caught pass), not a header — no shot-path/shot-path-action stroke anywhere (D-19-06)', () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'GK_KICK_MOVE' as const,
+      ball: { position: GK_TARGET_HEX, carrierId: null, lastTouchedBy: null },
+      gkKickTargetHex: GK_TARGET_HEX,
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      Array.from(container.querySelectorAll('polygon')).some((p) =>
+        [
+          HIGHLIGHT_STYLES['shot-path'].stroke,
+          HIGHLIGHT_STYLES['shot-path-action'].stroke,
+        ].includes(p.getAttribute('stroke') ?? ''),
+      ),
+    ).toBe(false);
+  });
+
+  it('FIRST_TIME_PASS_MOVE resolves into a delivery, not a header — no shot-path/shot-path-action stroke anywhere (D-19-06)', () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'FIRST_TIME_PASS_MOVE' as const,
+      ball: { position: GK_TARGET_HEX, carrierId: null, lastTouchedBy: null },
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      Array.from(container.querySelectorAll('polygon')).some((p) =>
+        [
+          HIGHLIGHT_STYLES['shot-path'].stroke,
+          HIGHLIGHT_STYLES['shot-path-action'].stroke,
+        ].includes(p.getAttribute('stroke') ?? ''),
+      ),
+    ).toBe(false);
+  });
+
+  it('GOAL_KICK_TARGET (the selection phase preceding the travel window) renders no contest-zone stroke', () => {
+    const state = {
+      ...goalKickMoveContestState(),
+      phase: 'GOAL_KICK_TARGET' as const,
+      goalKickGkId: 'home-0',
+    };
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(
+      Array.from(container.querySelectorAll('polygon')).some((p) =>
+        [
+          HIGHLIGHT_STYLES['shot-path'].stroke,
+          HIGHLIGHT_STYLES['shot-path-action'].stroke,
+        ].includes(p.getAttribute('stroke') ?? ''),
+      ),
+    ).toBe(false);
   });
 });

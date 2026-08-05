@@ -232,14 +232,32 @@ export function HexGrid() {
   }
 
   // Bug 1 fix: HIGH_PASS_MOVE — contest zone preview.
-  // During repositioning, highlight the ball's landing hex (= pass target) plus all hexes
-  // within 2 hexes of it with shot-path (white) tint. This shows players where the header
-  // contest will take place before the accuracy roll resolves.
-  const highPassContestZoneSet = new Set<string>();
-  if (phase === 'HIGH_PASS_MOVE') {
+  // Plan 37-19 (GOALKICK-05 gap closure): generalised to cover every response-move window that
+  // resolves directly into a HEADER contest — today that is HIGH_PASS_MOVE and GOAL_KICK_MOVE.
+  // GK_KICK_MOVE and FIRST_TIME_PASS_MOVE are deliberately excluded: both resolve into a
+  // delivery (a caught pass), not a header, so they never had — and must never gain — this
+  // preview (D-19-06).
+  // During repositioning, highlight the contest centre plus all hexes within 2 hexes of it with
+  // shot-path (white) tint. This shows players where the header contest will take place before
+  // the accuracy roll resolves. The radius of 2 mirrors applyGoalKickMoveEnd's homeEligible/
+  // awayEligible header-eligibility check in gameEngine.ts verbatim — it is an eligibility
+  // radius, not a pace budget, and must never be changed to match a phase's paceCap (D-19-02).
+  // GOAL_KICK_MOVE centres on goalKickTargetHex rather than ball.position: the two are equal
+  // today, but the server's eligibility check reads state.goalKickTargetHex, so that is the
+  // field this preview must mirror, and it degrades safely to an empty set when null (D-19-03).
+  // Ungated by isActivePlayer: both teams get their own response move in these two phases, so
+  // both managers must see the same preview (D-19-05).
+  const headerContestCentre: HexCoord | null =
+    phase === 'HIGH_PASS_MOVE'
+      ? ball.position
+      : phase === 'GOAL_KICK_MOVE'
+        ? (goalKickTargetHex ?? null)
+        : null;
+  const headerContestZoneSet = new Set<string>();
+  if (headerContestCentre !== null) {
     for (const h of PITCH_HEXES) {
-      if (hexDistance(h, ball.position) <= 2) {
-        highPassContestZoneSet.add(`${h.q},${h.r}`);
+      if (hexDistance(h, headerContestCentre) <= 2) {
+        headerContestZoneSet.add(`${h.q},${h.r}`);
       }
     }
   }
@@ -486,7 +504,7 @@ export function HexGrid() {
             // isShotPathActionTint: actionable white hexes — GK dive options and header contest zone
             // hexes the moving player can actually step into (darker/less transparent white).
             const isShotPathActionTint =
-              isGKDiveTarget || (highPassContestZoneSet.has(hexId) && isValidMove);
+              isGKDiveTarget || (headerContestZoneSet.has(hexId) && isValidMove);
             // isShotPathTint: informational white — resolved shot path, contest zone preview,
             // SNAP_DEFLECT reposition targets, and the snapshot's declared shot path (lighter/
             // more transparent white) — same classification as a regular/headed shot path.
@@ -499,7 +517,7 @@ export function HexGrid() {
                 isHpMoveTarget ||
                 isGKDiveTarget ||
                 isShotPath ||
-                highPassContestZoneSet.has(hexId));
+                headerContestZoneSet.has(hexId));
             // isKickoffTint: own-team valid zone during KICK_OFF_SETUP (excluding centre hex),
             // OR the D-48 persistent geometric placement zone during FREE_KICK_SETUP — visible
             // for every pitch hex on every render during MY team's active stage, regardless of
