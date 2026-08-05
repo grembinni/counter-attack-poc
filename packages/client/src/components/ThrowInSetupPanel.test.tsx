@@ -5,6 +5,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { ClientEvents } from '@counter-attack/shared';
 import { ThrowInSetupPanel } from './ThrowInSetupPanel.js';
+import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -137,10 +138,22 @@ describe('ThrowInSetupPanel — active-panel behaviour', () => {
     expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_THROW_IN_PLACE, 'away-9');
   });
 
-  it('surfaces a server-rejection reason via the gameError display pattern', () => {
+  it('surfaces a server-rejection reason via the gameError display pattern, humanised (Plan 37-16)', () => {
     useGameStore.setState({ gameError: 'NOT_YOUR_PIECE' });
     render(<ThrowInSetupPanel />);
-    expect(screen.getByText('NOT_YOUR_PIECE')).toBeDefined();
+    expect(screen.getByText(restartErrorMessage('NOT_YOUR_PIECE') ?? '')).toBeDefined();
+  });
+
+  it('renders exactly one "Throw-In" heading — the duplicated constraint row is gone (Plan 37-16)', () => {
+    render(<ThrowInSetupPanel />);
+    expect(screen.getAllByText('Throw-In')).toHaveLength(1);
+  });
+
+  it('a gameError of OFF_PITCH never renders the raw wire code and equals restartErrorMessage output (Plan 37-16)', () => {
+    useGameStore.setState({ gameError: 'OFF_PITCH' });
+    render(<ThrowInSetupPanel />);
+    expect(screen.queryByText('OFF_PITCH')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('OFF_PITCH') ?? '')).toBeDefined();
   });
 });
 

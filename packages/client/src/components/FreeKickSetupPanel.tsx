@@ -3,6 +3,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { hexDistance, FREE_KICK_STAGES, freeKickStageTeam } from '@counter-attack/shared';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { ctaColorClass } from '../utils/ctaColorClass.js';
+import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 import styles from './FreeKickSetupPanel.module.css';
 
 /**
@@ -60,6 +61,10 @@ export function FreeKickSetupPanel() {
 
   // Narrowed to 'home' | 'away' by the guard above.
   const myTeam = myTeamOrNull;
+
+  // D-16-01/T-37-71/T-37-72: derived once so gameError is never rendered as a raw server
+  // wire code (mirrors ThrowInSetupPanel/GoalKickSetupPanel).
+  const humanisedError = restartErrorMessage(gameError);
   const activeStageTeam = freeKickStageTeam(freeKickStageIndex, freeKickAttackingTeam);
   const isMyStage = myTeam === activeStageTeam;
   const stage = FREE_KICK_STAGES[freeKickStageIndex];
@@ -201,7 +206,7 @@ export function FreeKickSetupPanel() {
 
       {!isKickerSelectionPhase && <span className={styles.constraintRow}>{nextActionText}</span>}
 
-      {gameError && <span className={styles.errorText}>{gameError}</span>}
+      {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
 
       {!isKickerSelectionPhase && (
         <button className={styles.ctaButton} disabled={!canUndo} onClick={emitUndo}>

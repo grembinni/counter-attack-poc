@@ -1,6 +1,7 @@
 import { useGameStore } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { ctaColorClass } from '../utils/ctaColorClass.js';
+import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 import styles from './ThrowInSetupPanel.module.css';
 
 /**
@@ -42,6 +43,10 @@ export function ThrowInSetupPanel() {
   const myTeam = myTeamOrNull;
   const isMyThrow = myTeam === throwInTeam;
 
+  // D-16-01/T-37-71/T-37-72: derived once so both the active-panel banner below stays
+  // consistent and gameError is never rendered as a raw server wire code.
+  const humanisedError = restartErrorMessage(gameError);
+
   // WR-01: the previous `{isMyThrow ? 'Attacking' : 'Defending'}` ternary was dead —
   // this branch is only reachable when `isMyThrow` is `false`, so it always rendered
   // 'Defending'. The acting side is a property of the _state_ (who is taking the
@@ -75,8 +80,6 @@ export function ThrowInSetupPanel() {
   return (
     <div className={styles.panel}>
       <span className={styles.panelHeading}>Throw-In</span>
-
-      <span className={styles.constraintRow}>Throw-In!</span>
       <span className={styles.constraintRow}>Select a player to take the throw.</span>
 
       <span className={styles.constraintRow}>
@@ -85,7 +88,7 @@ export function ThrowInSetupPanel() {
           : 'No player selected.'}
       </span>
 
-      {gameError && <span className={styles.errorText}>{gameError}</span>}
+      {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
 
       <button
         className={`${styles.ctaButton} ${confirmColorClass}`}

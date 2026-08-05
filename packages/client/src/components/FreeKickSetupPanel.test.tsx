@@ -5,6 +5,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { ClientEvents } from '@counter-attack/shared';
 import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
+import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -306,14 +307,15 @@ describe('FreeKickSetupPanel — Confirm click emits and surfaces server errors'
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
-  it('surfaces a server-rejection reason via the existing gameError display pattern', () => {
+  it('surfaces a server-rejection reason via the existing gameError display pattern, humanised (Plan 37-16)', () => {
     useGameStore.setState({
       playerSlot: 2,
       gameState: freeKickSetupState(0),
       gameError: 'NOT_YOUR_STAGE',
     });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText('NOT_YOUR_STAGE')).toBeDefined();
+    expect(screen.queryByText('NOT_YOUR_STAGE')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('NOT_YOUR_STAGE') ?? '')).toBeDefined();
   });
 });
 
