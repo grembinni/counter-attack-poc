@@ -10,8 +10,8 @@ import {
 } from './pitch.js';
 
 describe('PITCH_HEXES', () => {
-  it('contains exactly 962 hexes (37×26 grid, PITCH-01 / D-04)', () => {
-    expect(PITCH_HEXES).toHaveLength(962);
+  it('contains exactly 943 hexes (37×26 grid minus 19 even-q r=0 hexes, PITCH-01 / D-04, amended by Plan 37-14)', () => {
+    expect(PITCH_HEXES).toHaveLength(943);
   });
 });
 
@@ -23,7 +23,9 @@ describe('PITCH_REGIONS', () => {
   describe('isInRegion (PITCH-02)', () => {
     it('returns true for a hex in the homeThird (q <= 10)', () => {
       expect(isInRegion({ q: 5, r: 12 }, 'homeThird')).toBe(true);
-      expect(isInRegion({ q: 0, r: 0 }, 'homeThird')).toBe(true);
+      // 37-14: (0,0) is even-q r=0 (excluded from PITCH_HEXES); (0,1) is
+      // unaffected and still exercises the q=0 boundary this test targets.
+      expect(isInRegion({ q: 0, r: 1 }, 'homeThird')).toBe(true);
       expect(isInRegion({ q: 10, r: 12 }, 'homeThird')).toBe(true);
     });
 
@@ -34,7 +36,9 @@ describe('PITCH_REGIONS', () => {
 
     it('returns true for a hex in the awayThird (q >= 26)', () => {
       expect(isInRegion({ q: 30, r: 12 }, 'awayThird')).toBe(true);
-      expect(isInRegion({ q: 36, r: 0 }, 'awayThird')).toBe(true);
+      // 37-14: (36,0) is even-q r=0 (excluded from PITCH_HEXES); (36,1) is
+      // unaffected and still exercises the q=36 boundary this test targets.
+      expect(isInRegion({ q: 36, r: 1 }, 'awayThird')).toBe(true);
     });
 
     it('returns false for q=25 in awayThird (boundary — middleThird ends at q=25)', () => {
@@ -136,7 +140,9 @@ describe('DIFFICULT_ANGLE_HEXES', () => {
 
 describe('computeBallZone (Phase 17 MOVE-06, corrected design D-33)', () => {
   it('returns "home" for q<=10 (homeThird boundary)', () => {
-    expect(computeBallZone({ q: 0, r: 0 })).toBe('home');
+    // 37-14: (0,0) is even-q r=0 (excluded from PITCH_HEXES); (0,1) is
+    // unaffected and still exercises the q=0 boundary this test targets.
+    expect(computeBallZone({ q: 0, r: 1 })).toBe('home');
     expect(computeBallZone({ q: 10, r: 12 })).toBe('home');
   });
 
@@ -148,13 +154,17 @@ describe('computeBallZone (Phase 17 MOVE-06, corrected design D-33)', () => {
 
   it('returns "away" for q>=26 (awayThird boundary)', () => {
     expect(computeBallZone({ q: 26, r: 12 })).toBe('away');
-    expect(computeBallZone({ q: 36, r: 0 })).toBe('away');
+    // 37-14: (36,0) is even-q r=0 (excluded from PITCH_HEXES); (36,1) is
+    // unaffected and still exercises the q=36 boundary this test targets.
+    expect(computeBallZone({ q: 36, r: 1 })).toBe('away');
   });
 });
 
 describe('isPitchHex', () => {
   it('returns true for valid in-grid hexes on the 37×26 grid', () => {
-    expect(isPitchHex({ q: 0, r: 0 })).toBe(true);
+    // 37-14: (0,0) is even-q r=0 (excluded from PITCH_HEXES); (0,1) is
+    // unaffected and still exercises an edge in-grid hex.
+    expect(isPitchHex({ q: 0, r: 1 })).toBe(true);
     expect(isPitchHex({ q: 18, r: 13 })).toBe(true);
     expect(isPitchHex({ q: 36, r: 25 })).toBe(true);
   });
@@ -163,5 +173,23 @@ describe('isPitchHex', () => {
     expect(isPitchHex({ q: 37, r: 0 })).toBe(false);
     expect(isPitchHex({ q: 0, r: 26 })).toBe(false);
     expect(isPitchHex({ q: 99, r: 99 })).toBe(false);
+  });
+
+  describe('37-14 gap-closure: even-q r=0 exclusion', () => {
+    it('returns false for even-q r=0 hexes (0% visibility under current client clip — removed)', () => {
+      expect(isPitchHex({ q: 20, r: 0 })).toBe(false);
+    });
+
+    it('returns true for odd-q r=0 hexes (kept, unchanged — renders ~50% visible but reachable)', () => {
+      expect(isPitchHex({ q: 21, r: 0 })).toBe(true);
+    });
+
+    it('returns true for even-q r=25 hexes (kept, unchanged — no r=25 exclusion under the redefined scope)', () => {
+      expect(isPitchHex({ q: 20, r: 25 })).toBe(true);
+    });
+
+    it('returns true for odd-q r=25 hexes (kept, unchanged)', () => {
+      expect(isPitchHex({ q: 21, r: 25 })).toBe(true);
+    });
   });
 });

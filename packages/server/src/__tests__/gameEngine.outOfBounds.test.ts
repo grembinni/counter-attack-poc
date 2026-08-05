@@ -146,15 +146,18 @@ describe('applyRoll LOOSE_BALL with outOfBoundsEnabled falsy (OOB-05)', () => {
       ball: { position: { q: 18, r: 1 }, carrierId: null, lastTouchedBy: null },
       outOfBoundsEnabled: false,
     };
-    // direction=3 (NW, r decreases, q constant), distance=2: step1 {q:18,r:0} on-pitch,
-    // step2 {q:18,r:-1} off-pitch — clamp stops at {q:18,r:0}.
+    // direction=3 (NW, r decreases, q constant), distance=2: step1 {q:18,r:0},
+    // step2 {q:18,r:-1}. Both are off-pitch: r=-1 is below the rectangle bound, and
+    // (18,0) is an even-q r=0 hex excluded from PITCH_HEXES per Plan 37-14 (gap-closure
+    // wave 12 — 0%-visibility hex under the current client clip). The clamp walk never
+    // advances past the starting hex, so the ball stays at {q:18,r:1}.
     const result = applyRoll(state, 3, 2);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).toBe('PASS');
     expect(result.state.lastActionType).toBe('DEFLECTION');
     expect(isPitchHex(result.state.ball.position)).toBe(true);
-    expect(result.state.ball.position).toEqual({ q: 18, r: 0 });
+    expect(result.state.ball.position).toEqual({ q: 18, r: 1 });
     const landEvents = result.state.eventLog.filter((e) => e.type === 'LOOSE_BALL_LAND');
     expect(landEvents).toHaveLength(1);
     const oobEvents = result.state.eventLog.filter((e) => e.type === 'OUT_OF_BOUNDS');
@@ -173,7 +176,8 @@ describe('applyRoll LOOSE_BALL with outOfBoundsEnabled falsy (OOB-05)', () => {
     if (!result.ok) return;
     expect(result.state.phase).toBe('PASS');
     expect(result.state.lastActionType).toBe('DEFLECTION');
-    expect(result.state.ball.position).toEqual({ q: 18, r: 0 });
+    // 37-14: (18,0) is excluded from PITCH_HEXES (even-q r=0) — see sibling test above.
+    expect(result.state.ball.position).toEqual({ q: 18, r: 1 });
     const landEvents = result.state.eventLog.filter((e) => e.type === 'LOOSE_BALL_LAND');
     expect(landEvents).toHaveLength(1);
     const oobEvents = result.state.eventLog.filter((e) => e.type === 'OUT_OF_BOUNDS');

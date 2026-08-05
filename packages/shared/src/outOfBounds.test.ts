@@ -31,6 +31,24 @@ describe('classifyExit', () => {
   it('returns null for a hex still on the pitch (defensive branch)', () => {
     expect(classifyExit({ q: 18, r: 13 })).toBeNull();
   });
+
+  describe('37-14 gap-closure: even-q r=0 exclusion is parity-aware', () => {
+    it("returns 'SIDELINE' for an even-q r=0 hex (excluded from PITCH_HEXES — 0% visibility under the current client clip)", () => {
+      expect(classifyExit({ q: 20, r: 0 })).toBe('SIDELINE');
+    });
+
+    it('returns null for an odd-q r=0 hex (kept on-pitch, unchanged)', () => {
+      expect(classifyExit({ q: 21, r: 0 })).toBeNull();
+    });
+
+    it('returns null for an even-q r=25 hex (kept on-pitch — no r=25 exclusion under the redefined scope)', () => {
+      expect(classifyExit({ q: 20, r: 25 })).toBeNull();
+    });
+
+    it('returns null for an odd-q r=25 hex (kept on-pitch, unchanged)', () => {
+      expect(classifyExit({ q: 21, r: 25 })).toBeNull();
+    });
+  });
 });
 
 describe('bylineOwner', () => {
