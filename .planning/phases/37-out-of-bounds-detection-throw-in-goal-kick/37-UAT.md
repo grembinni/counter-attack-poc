@@ -57,9 +57,9 @@ result: pass
 ## Summary
 
 total: 8
-passed: 6
+passed: 7
 issues: 1
-pending: 1
+pending: 0
 skipped: 0
 
 ## Gaps
