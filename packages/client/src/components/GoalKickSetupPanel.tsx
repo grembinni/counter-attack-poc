@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { ctaColorClass } from '../utils/ctaColorClass.js';
+import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 import styles from './GoalKickSetupPanel.module.css';
 
 /**
@@ -55,6 +56,10 @@ export function GoalKickSetupPanel() {
   // Narrowed to 'home' | 'away' by the guard above.
   const myTeam = myTeamOrNull;
   const oppTeam: 'home' | 'away' = goalKickTeam === 'home' ? 'away' : 'home';
+
+  // D-16-01/T-37-71/T-37-72: derived once so all four gameError render sites below stay
+  // consistent with one another, instead of calling the helper four times per render.
+  const humanisedError = restartErrorMessage(gameError);
 
   const withEndTurnGuard = (eligibleRemaining: number, action: () => void): (() => void) => {
     return () => {
@@ -130,7 +135,7 @@ export function GoalKickSetupPanel() {
         <span className={styles.constraintRow}>
           {`${remaining} players still eligible to move — up to 6 hexes each.`}
         </span>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
+        {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
         <button
           className={`${styles.ctaButton} ${repositionColorClass}`}
           onClick={withEndTurnGuard(remaining, emitEndTurn)}
@@ -174,7 +179,7 @@ export function GoalKickSetupPanel() {
         >
           Standard Pass
         </button>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
+        {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
       </div>
     );
   }
@@ -195,7 +200,7 @@ export function GoalKickSetupPanel() {
         <span className={styles.panelHeading}>Goal Kick</span>
         <span className={styles.constraintRow}>Goal Kick!</span>
         <span className={styles.constraintRow}>Select a teammate to head the ball.</span>
-        {gameError && <span className={styles.errorText}>{gameError}</span>}
+        {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
       </div>
     );
   }
@@ -225,7 +230,7 @@ export function GoalKickSetupPanel() {
       <span className={styles.panelHeading}>Goal Kick</span>
       <span className={styles.constraintRow}>Ball in Air!</span>
       <span className={styles.constraintRow}>Move 1 player to receive the ball (max 3 hexes).</span>
-      {gameError && <span className={styles.errorText}>{gameError}</span>}
+      {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
       <button
         className={`${styles.ctaButton} ${travelColorClass}`}
         onClick={withEndTurnGuard(travelEligibleRemaining, emitEndTurn)}

@@ -5,6 +5,7 @@ import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { ClientEvents } from '@counter-attack/shared';
 import { GoalKickSetupPanel } from './GoalKickSetupPanel.js';
+import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -302,7 +303,7 @@ describe('GoalKickSetupPanel — GOAL_KICK_MOVE (3-hex travel window)', () => {
 });
 
 describe('GoalKickSetupPanel — error display', () => {
-  it('surfaces a non-null gameError in every branch (GOAL_KICK_SETUP_GK example)', () => {
+  it('surfaces a non-null gameError in every branch (GOAL_KICK_SETUP_GK example), humanised (Plan 37-16)', () => {
     useGameStore.setState({
       gameState: goalKickState('GOAL_KICK_SETUP_GK', {
         goalKickEligibleIds: { gkTeam: ['away-1'], opponent: [] },
@@ -311,36 +312,101 @@ describe('GoalKickSetupPanel — error display', () => {
       gameError: 'WRONG_PIECE',
     });
     render(<GoalKickSetupPanel />);
-    expect(screen.getByText('WRONG_PIECE')).toBeDefined();
+    expect(screen.queryByText('WRONG_PIECE')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('WRONG_PIECE') ?? '')).toBeDefined();
   });
 
-  it('surfaces a non-null gameError during GOAL_KICK_CHOICE', () => {
+  it('surfaces a non-null gameError during GOAL_KICK_CHOICE, humanised (Plan 37-16)', () => {
     useGameStore.setState({
       gameState: goalKickState('GOAL_KICK_CHOICE'),
       playerSlot: 2,
       gameError: 'WRONG_TEAM',
     });
     render(<GoalKickSetupPanel />);
-    expect(screen.getByText('WRONG_TEAM')).toBeDefined();
+    expect(screen.queryByText('WRONG_TEAM')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('WRONG_TEAM') ?? '')).toBeDefined();
   });
 
-  it('surfaces a non-null gameError during GOAL_KICK_TARGET', () => {
+  it('surfaces a non-null gameError during GOAL_KICK_TARGET, humanised (Plan 37-16)', () => {
     useGameStore.setState({
       gameState: goalKickState('GOAL_KICK_TARGET'),
       playerSlot: 2,
       gameError: 'INVALID_TARGET',
     });
     render(<GoalKickSetupPanel />);
-    expect(screen.getByText('INVALID_TARGET')).toBeDefined();
+    expect(screen.queryByText('INVALID_TARGET')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('INVALID_TARGET') ?? '')).toBeDefined();
   });
 
-  it('surfaces a non-null gameError during GOAL_KICK_MOVE', () => {
+  it('surfaces a non-null gameError during GOAL_KICK_MOVE, humanised (Plan 37-16)', () => {
     useGameStore.setState({
       gameState: goalKickState('GOAL_KICK_MOVE', { activeTeam: 'away' }),
       playerSlot: 2,
       gameError: 'PACE_EXCEEDED',
     });
     render(<GoalKickSetupPanel />);
-    expect(screen.getByText('PACE_EXCEEDED')).toBeDefined();
+    expect(screen.queryByText('PACE_EXCEEDED')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('PACE_EXCEEDED') ?? '')).toBeDefined();
+  });
+
+  // Plan 37-16 Task 2: same gameError:'OFF_PITCH' humanisation assertion driven across all
+  // four phase branches, reusing the file's goalKickState(phase, overrides) helper.
+  it('humanises gameError:OFF_PITCH in GOAL_KICK_SETUP_GK', () => {
+    useGameStore.setState({
+      gameState: goalKickState('GOAL_KICK_SETUP_GK', {
+        goalKickEligibleIds: { gkTeam: ['away-1'], opponent: [] },
+      }),
+      playerSlot: 2,
+      gameError: 'OFF_PITCH',
+    });
+    render(<GoalKickSetupPanel />);
+    expect(screen.queryByText('OFF_PITCH')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('OFF_PITCH') ?? '')).toBeDefined();
+  });
+
+  it('humanises gameError:MOVE_INVALID in GOAL_KICK_SETUP_GK — the code the reposition-window rejections actually emit', () => {
+    useGameStore.setState({
+      gameState: goalKickState('GOAL_KICK_SETUP_GK', {
+        goalKickEligibleIds: { gkTeam: ['away-1'], opponent: [] },
+      }),
+      playerSlot: 2,
+      gameError: 'MOVE_INVALID',
+    });
+    render(<GoalKickSetupPanel />);
+    expect(screen.queryByText('MOVE_INVALID')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('MOVE_INVALID') ?? '')).toBeDefined();
+  });
+
+  it('humanises gameError:OFF_PITCH in GOAL_KICK_CHOICE', () => {
+    useGameStore.setState({
+      gameState: goalKickState('GOAL_KICK_CHOICE'),
+      playerSlot: 2,
+      gameError: 'OFF_PITCH',
+    });
+    render(<GoalKickSetupPanel />);
+    expect(screen.queryByText('OFF_PITCH')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('OFF_PITCH') ?? '')).toBeDefined();
+  });
+
+  it('humanises gameError:OFF_PITCH in GOAL_KICK_TARGET', () => {
+    useGameStore.setState({
+      gameState: goalKickState('GOAL_KICK_TARGET'),
+      playerSlot: 2,
+      gameError: 'OFF_PITCH',
+    });
+    render(<GoalKickSetupPanel />);
+    expect(screen.queryByText('OFF_PITCH')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('OFF_PITCH') ?? '')).toBeDefined();
+  });
+
+  it('humanises gameError:OFF_PITCH in GOAL_KICK_MOVE', () => {
+    useGameStore.setState({
+      gameState: goalKickState('GOAL_KICK_MOVE', { activeTeam: 'away' }),
+      playerSlot: 2,
+      gameError: 'OFF_PITCH',
+    });
+    render(<GoalKickSetupPanel />);
+    expect(screen.queryByText('OFF_PITCH')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('OFF_PITCH') ?? '')).toBeDefined();
   });
 });

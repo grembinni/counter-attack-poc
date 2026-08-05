@@ -620,6 +620,36 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // THROW_IN_SETUP (THROWIN-02, D-16-05): thrower placement is a server-fixed teleport to
+    // throwInHex (emitThrowInPlace(pieceId) — the destination is not chosen by the client), so
+    // there is no per-piece destination set to compute here. HexGrid's isThrowInHexTint plus
+    // BallLocationRing already mark the destination on the pitch independently of selection.
+    // This branch exists so a thrower click is handled by phase-specific logic instead of
+    // falling through to the generic MOVEMENT computeMovementValidHexes fallback below, which
+    // runs validateMove against a movementSlot that triggerOutOfBoundsRestart's commonReset
+    // deliberately sets to null (gameEngine.ts) — that fallback also writes tackleRiskHexes,
+    // which is deliberately cleared to [] here since no throw-in rule produces ZoI/tackle-risk
+    // data for a phase where the only action is "select the thrower, then Confirm".
+    if (gameState.phase === 'THROW_IN_SETUP') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectThrowIn)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // Mirrors applyThrowInPlace's WRONG_TEAM guard (gameEngine.ts) — only the throwing
+      // team's pieces are selectable. Does not invent an extra restriction the server
+      // doesn't enforce.
+      if (piece.teamId !== gameState.throwInTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      set({ selectedPieceId: id, validMoveHexes: [], tackleRiskHexes: [] });
+      return;
+    }
+
     // HIGH_PASS_MOVE: 1 piece per team, up to 3 hexes, any direction
     if (gameState.phase === 'HIGH_PASS_MOVE') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
