@@ -635,6 +635,28 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           broadcastState(io, room);
           return;
         }
+        // T-37-66 (Plan 37-15, closes the sibling threat 37-13 accepted and required be
+        // carried) / T-37-75: this branch previously went straight to applyMove with
+        // neither a payload-shape check nor a bounds check — strictly more exposed than
+        // the goal-kick reposition branch below, since isPitchHex dereferences .q/.r and
+        // is not null-safe. Mirrors the goal-kick branch's guard ordering exactly: the
+        // payload-shape check MUST run first (isPitchHex would throw on a null/non-object
+        // payload), then isPitchHex, then delegation.
+        if (
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        if (!isPitchHex(to)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'OFF_PITCH');
+          broadcastState(io, room);
+          return;
+        }
         const freeMoveResult = applyMove(room.gameState, pieceId, to);
         if (!freeMoveResult.ok) {
           socket.emit(ServerEvents.GAME_ERROR, freeMoveResult.reason);

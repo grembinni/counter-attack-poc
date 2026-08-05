@@ -537,6 +537,14 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
   if (hexDistance(piece.position, to) !== 1) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' };
   }
+  // T-37-66 (Plan 37-15, closing the sibling threat 37-13 accepted and required be
+  // carried): mirrors applyGoalKickReposition's isPitchHex guard verbatim in shape
+  // and comment style. Adjacency is checked first so a distant off-pitch hex still
+  // returns OUT_OF_RANGE; OFF_PITCH precedes OCCUPIED because no piece can ever
+  // occupy an off-pitch hex, so the two checks are mutually exclusive.
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
+  }
   if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }

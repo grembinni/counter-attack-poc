@@ -14,7 +14,7 @@ import {
   applyGoalKickTarget,
   applyGoalKickMoveEnd,
 } from '../gameEngine.js';
-import type { GameState, GamePhase, PlayerPiece } from '@counter-attack/shared';
+import type { GameState, GamePhase, PlayerPiece, HexCoord } from '@counter-attack/shared';
 import { isPitchHex, ELIGIBLE_NEXT_ACTIONS, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -1931,5 +1931,141 @@ describe('applyGoalKickMoveEnd', () => {
     const oppResult = applyGoalKickMoveEnd(oppState, 3);
     expect(oppResult.ok).toBe(true);
     if (oppResult.ok) expect(oppResult.state.offsidePieceIds).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyFreeMove OFF_PITCH guard (Plan 37-15, closes T-37-66 — the sibling
+// threat that 37-13 accepted and required be carried). Mirrors
+// applyGoalKickReposition's isPitchHex guard (37-13) applied to its
+// documented sibling: no game:move payload can walk a piece off the grid
+// during a FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE sub-phase.
+// ---------------------------------------------------------------------------
+
+const edgePieceEvenQ: PlayerPiece = {
+  ...homePiece,
+  id: 'edge-even-q',
+  position: { q: 0, r: 5 },
+};
+
+const edgePieceOddQ: PlayerPiece = {
+  ...homePiece,
+  id: 'edge-odd-q',
+  position: { q: 5, r: 0 },
+};
+
+const edgePieceAwayQ: PlayerPiece = {
+  ...awayPiece,
+  id: 'edge-away-q',
+  position: { q: 36, r: 20 },
+};
+
+const edgePieceAwayR: PlayerPiece = {
+  ...awayPiece,
+  id: 'edge-away-r',
+  position: { q: 20, r: 25 },
+};
+
+/** FREE_MOVE_ATTACK fixture with both even-q and odd-q edge pieces eligible. */
+const freeMoveAttackEdgeState: GameState = {
+  ...baseLooseBallState,
+  phase: 'FREE_MOVE_ATTACK',
+  activeTeam: 'home',
+  pieces: [edgePieceEvenQ, edgePieceOddQ, homeGK, awayGK],
+  freeMoveEligibleIds: { attack: [edgePieceEvenQ.id, edgePieceOddQ.id], defense: [] },
+  freeMoveUsedPace: {},
+};
+
+/** FREE_MOVE_DEFENSE fixture with both away-column and away-row edge pieces eligible. */
+const freeMoveDefenseEdgeState: GameState = {
+  ...baseLooseBallState,
+  phase: 'FREE_MOVE_DEFENSE',
+  activeTeam: 'away',
+  pieces: [edgePieceAwayQ, edgePieceAwayR, homeGK, awayGK],
+  freeMoveEligibleIds: { attack: [], defense: [edgePieceAwayQ.id, edgePieceAwayR.id] },
+  freeMoveUsedPace: {},
+};
+
+describe('applyFreeMove OFF_PITCH guard (Plan 37-15, closes T-37-66)', () => {
+  it('FREE_MOVE_ATTACK: eligible piece at {q:0,r:5} attempting {q:-1,r:5} returns MOVE_INVALID/OFF_PITCH', () => {
+    const result = applyMove(freeMoveAttackEdgeState, edgePieceEvenQ.id, { q: -1, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('FREE_MOVE_ATTACK: eligible piece at {q:5,r:0} attempting {q:5,r:-1} returns MOVE_INVALID/OFF_PITCH (gap is not q-only)', () => {
+    const result = applyMove(freeMoveAttackEdgeState, edgePieceOddQ.id, { q: 5, r: -1 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('FREE_MOVE_DEFENSE: eligible piece at {q:36,r:20} attempting {q:37,r:20} returns MOVE_INVALID/OFF_PITCH', () => {
+    const result = applyMove(freeMoveDefenseEdgeState, edgePieceAwayQ.id, { q: 37, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('FREE_MOVE_DEFENSE: eligible piece at {q:20,r:25} attempting {q:20,r:26} returns MOVE_INVALID/OFF_PITCH', () => {
+    const result = applyMove(freeMoveDefenseEdgeState, edgePieceAwayR.id, { q: 20, r: 26 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' });
+  });
+
+  it('precedence: a far-away off-pitch destination still returns OUT_OF_RANGE (adjacency checked first)', () => {
+    const result = applyMove(freeMoveAttackEdgeState, edgePieceEvenQ.id, { q: -10, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' });
+  });
+
+  it('pre-existing rejections keep their exact reason+detail shape: WRONG_TEAM, NOT_ELIGIBLE, OCCUPIED, FREE_MOVE_EXHAUSTED', () => {
+    // WRONG_TEAM: activeTeam is 'home' during FREE_MOVE_ATTACK; awayGK is on the pitch
+    // in this fixture (pieces list) but belongs to 'away'.
+    const wrongTeam = applyMove(freeMoveAttackEdgeState, awayGK.id, { q: 34, r: 6 });
+    expect(wrongTeam).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+
+    // NOT_ELIGIBLE: homeGK is home-team but not in the attack eligible list.
+    const notEligible = applyMove(freeMoveAttackEdgeState, homeGK.id, { q: 3, r: 6 });
+    expect(notEligible).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' });
+
+    // OCCUPIED: edgePieceOddQ sits adjacent to edgePieceEvenQ's on-pitch neighbour {q:1,r:5}.
+    const occupiedState: GameState = {
+      ...freeMoveAttackEdgeState,
+      pieces: [edgePieceEvenQ, { ...edgePieceOddQ, position: { q: 1, r: 5 } }, homeGK, awayGK],
+    };
+    const occupied = applyMove(occupiedState, edgePieceEvenQ.id, { q: 1, r: 5 });
+    expect(occupied).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' });
+
+    // FREE_MOVE_EXHAUSTED: already at movedPieceIds lock.
+    const exhaustedState: GameState = {
+      ...freeMoveAttackEdgeState,
+      movedPieceIds: [edgePieceEvenQ.id],
+    };
+    const exhausted = applyMove(exhaustedState, edgePieceEvenQ.id, { q: 1, r: 4 });
+    expect(exhausted).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'FREE_MOVE_EXHAUSTED',
+    });
+  });
+
+  it('positive control: a boundary-positioned eligible piece can still reach every legal on-pitch neighbour and spend its full 6-hex budget', () => {
+    // edgePieceEvenQ at {q:0,r:5}; {q:1,r:5} is on-pitch and adjacent.
+    let current = freeMoveAttackEdgeState;
+    let position = edgePieceEvenQ.position;
+    const path: HexCoord[] = [
+      { q: 1, r: 5 },
+      { q: 1, r: 4 },
+      { q: 0, r: 4 },
+      { q: 0, r: 3 },
+      { q: 1, r: 3 },
+      { q: 1, r: 2 },
+    ];
+    for (const to of path) {
+      const result = applyMove(current, edgePieceEvenQ.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      current = result.state;
+      position = to;
+    }
+    expect(position).toEqual({ q: 1, r: 2 });
+    expect((current.freeMoveUsedPace ?? {})[edgePieceEvenQ.id]).toBe(6);
+    // Budget is fully spent: a 7th step (even a legal on-pitch adjacent hex) is rejected.
+    const seventh = applyMove(current, edgePieceEvenQ.id, { q: 1, r: 1 });
+    expect(seventh).toEqual({ ok: false, reason: 'MOVE_INVALID', detail: 'FREE_MOVE_EXHAUSTED' });
   });
 });
