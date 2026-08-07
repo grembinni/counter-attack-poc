@@ -15,6 +15,7 @@ import { KickOffSetupPanel } from './KickOffSetupPanel.js';
 import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
 import { ThrowInSetupPanel } from './ThrowInSetupPanel.js';
 import { GoalKickSetupPanel } from './GoalKickSetupPanel.js';
+import { CornerKickSetupPanel } from './CornerKickSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
@@ -62,6 +63,12 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   GOAL_KICK_CHOICE: 'GOAL KICK — CHOOSE',
   GOAL_KICK_TARGET: 'GOAL KICK — SELECT TARGET',
   GOAL_KICK_MOVE: 'GOAL KICK — REPOSITION',
+  // Phase 38 (38-07): Corner Kick phases.
+  CORNER_KICK_GK_SETUP_ATTACKING: 'CORNER KICK — ATTACKING GK',
+  CORNER_KICK_GK_SETUP_DEFENDING: 'CORNER KICK — DEFENDING GK',
+  CORNER_KICK_TAKER_SELECT: 'CORNER KICK — CHOOSE TAKER',
+  CORNER_KICK_REPOSITION: 'CORNER KICK — REPOSITION',
+  CORNER_KICK_FINAL_SETUP: 'CORNER KICK — FINAL SETUP',
   HALF_TIME: 'HALF TIME',
   FULL_TIME: 'FULL TIME',
   REPLAY: 'REPLAY',
@@ -160,6 +167,10 @@ export function GameBoard() {
   // Core state
   const score = useGameStore((s) => s.gameState.score);
   const phase = useGameStore((s) => s.gameState.phase);
+  // Phase 38 (38-07): persists through PASS once a corner has been awarded — the signal that
+  // the ordinary PASS-phase dispatch below must show the corner High/Low choice instead of the
+  // generic ActionPanel chooser (mirrors CornerKickSetupPanel's own guard).
+  const cornerKickTeam = useGameStore((s) => s.gameState.cornerKickTeam);
   const actionCount = useGameStore((s) => s.gameState.actionCount);
   const movementSlot = useGameStore((s) => s.gameState.movementSlot);
 
@@ -346,6 +357,17 @@ export function GameBoard() {
             phase === 'GOAL_KICK_TARGET' ||
             phase === 'GOAL_KICK_MOVE' ? (
             <GoalKickSetupPanel />
+          ) : phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
+            phase === 'CORNER_KICK_GK_SETUP_DEFENDING' ||
+            phase === 'CORNER_KICK_TAKER_SELECT' ||
+            phase === 'CORNER_KICK_REPOSITION' ||
+            phase === 'CORNER_KICK_FINAL_SETUP' ||
+            // CORNER-04/05: the High/Low Pass choice happens in the ordinary PASS phase once a
+            // corner has been awarded — cornerKickTeam is the persistent signal (mirrors
+            // CornerKickSetupPanel's own guard; see the must_have truth "the kicking manager
+            // chooses between a High Pass and a Low Pass before the corner is taken").
+            (phase === 'PASS' && cornerKickTeam != null) ? (
+            <CornerKickSetupPanel />
           ) : phase === 'REPLAY' ? (
             <ReplayPanel />
           ) : (

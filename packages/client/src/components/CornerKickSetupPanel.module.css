@@ -1,0 +1,127 @@
+/* CornerKickSetupPanel — sidebar panel style, matching GoalKickSetupPanel/ThrowInSetupPanel/ActionPanel.
+   Chrome colors sourced from tokens.css (Phase 33 THEME-03 migration).
+   UI-SPEC: uses the standard `xs` spacing token (gap: 4px, padding: 4px 8px) — NOT the legacy
+   micro-scale values inherited by FreeKickSetupPanel.module.css. Do not propagate those. */
+
+.panel {
+  background: var(--color-bg-surface);
+  border-radius: 4px;
+  padding: 4px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Full-width items */
+.panelHeading,
+.constraintRow,
+.errorText {
+  flex: 0 0 100%;
+}
+
+.panelHeading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.constraintRow {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.errorText {
+  color: var(--color-danger);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.ctaButton {
+  flex: 0 0 calc(50% - 2px);
+  max-width: 120px;
+  min-width: 0;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ctaButton:hover:not(:disabled) {
+  background: var(--team-accent);
+}
+
+.ctaButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ctaButtonPending {
+  background: var(--color-cta-pending-bg);
+  transition: background-color 0.15s ease;
+}
+
+.ctaButtonPending:hover:not(:disabled) {
+  background: var(--color-cta-pending-bg-hover);
+}
+
+.ctaButtonReady {
+  background: var(--color-cta-ready-bg);
+  transition: background-color 0.15s ease;
+}
+
+.ctaButtonReady:hover:not(:disabled) {
+  background: var(--color-cta-ready-bg-hover);
+}
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-backdrop);
+  z-index: 20;
+}
+
+.confirmCard {
+  background: var(--color-bg-surface);
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 280px;
+  width: 100%;
+}
+
+.confirmText {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.confirmActions .ctaButton {
+  flex: 1;
+  max-width: none;
+}

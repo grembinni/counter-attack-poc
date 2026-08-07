@@ -49,6 +49,14 @@ export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   'GOAL_KICK_CHOICE',
   'GOAL_KICK_TARGET',
   'GOAL_KICK_MOVE',
+  // Phase 38 (38-07): the ball is fixed at the corner hex or mid-repositioning throughout
+  // every one of the five corner-kick phases, matching the Phase 37 restart-phase precedent
+  // directly above. Reuses the existing marker; no new tint type added (D-09).
+  'CORNER_KICK_GK_SETUP_ATTACKING',
+  'CORNER_KICK_GK_SETUP_DEFENDING',
+  'CORNER_KICK_TAKER_SELECT',
+  'CORNER_KICK_REPOSITION',
+  'CORNER_KICK_FINAL_SETUP',
 ]);
 
 /**
