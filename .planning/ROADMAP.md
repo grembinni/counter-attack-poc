@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 3/9                                    | In Progress |             |
+| 38    | 5/9                                    | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -237,8 +237,8 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 38-03-PLAN.md — Engine: alternating 6-hex window (CORNER-03) and pre-kick 3-hex window (CORNER-06)
-- [ ] 38-07-PLAN.md — Client: CornerKickSetupPanel, GameBoard dispatch, ball marker, action log
+- [x] 38-03-PLAN.md — Engine: alternating 6-hex window (CORNER-03) and pre-kick 3-hex window (CORNER-06)
+- [x] 38-07-PLAN.md — Client: CornerKickSetupPanel, GameBoard dispatch, ball marker, action log
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
