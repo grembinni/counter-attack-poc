@@ -4,12 +4,12 @@ milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: executing
 stopped_at: Phase 38 UI-SPEC approved
-last_updated: '2026-08-07T14:07:47.198Z'
-last_activity: 2026-08-07 -- Phase 38 planning complete
+last_updated: '2026-08-07T14:12:35.629Z'
+last_activity: 2026-08-07 -- Phase 38 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 19
+  total_plans: 28
   completed_plans: 19
   percent: 25
 ---
@@ -18,17 +18,17 @@ progress:
 
 ## Current Position
 
-Phase: 38
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-08-07 -- Phase 38 planning complete
+Phase: 38 (corner-kick) — EXECUTING
+Plan: 1 of 9
+Status: Executing Phase 38
+Last activity: 2026-08-07 -- Phase 38 execution started
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 37 — out-of-bounds-detection-throw-in-goal-kick
+**Current focus:** Phase 38 — corner-kick
 
 ## Phase Status
 
