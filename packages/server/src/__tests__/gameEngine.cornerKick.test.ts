@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { triggerOutOfBoundsRestart } from '../gameEngine.js';
+import {
+  triggerOutOfBoundsRestart,
+  applyCornerKickGkPlace,
+  applyCornerKickGkWindowEnd,
+} from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
 
@@ -357,5 +361,187 @@ describe('triggerOutOfBoundsRestart CORNER_KICK branch (OOB-03)', () => {
     expect(result!.phase).toBe('GOAL_KICK_SETUP_GK');
     expect(result!.goalKickTeam).toBe('home');
     expect(result!.ball.position).toEqual(GOAL_KICK_RESTART_HEX.home);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2: turn-based goalkeeper reposition pair (CORNER-01, D-03/D-04)
+// ---------------------------------------------------------------------------
+
+/** Corner-kick GK reposition fixture: away is the awarded (attacking) team. */
+const baseCornerGkState: GameState = {
+  ...baseLooseBallState,
+  phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+  cornerKickTeam: 'away',
+  cornerKickHex: CORNER_KICK_HEX.home.top,
+  cornerKickTakerId: null,
+  cornerKickEligibleIds: null,
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickUsedPace: null,
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+  attackingTeam: 'away',
+  activeTeam: 'away',
+  ball: {
+    position: CORNER_KICK_HEX.home.top,
+    carrierId: null,
+    lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+  },
+};
+
+describe('applyCornerKickGkPlace', () => {
+  it('rejects WRONG_PHASE outside CORNER_KICK_GK_SETUP_ATTACKING/DEFENDING', () => {
+    const state: GameState = { ...baseCornerGkState, phase: 'CORNER_KICK_TAKER_SELECT' };
+    const result = applyCornerKickGkPlace(state, awayGK.id, { q: 20, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects PIECE_NOT_FOUND for an unknown piece id', () => {
+    const result = applyCornerKickGkPlace(baseCornerGkState, 'ghost-piece', { q: 20, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects NOT_GOALKEEPER for a piece whose role is not GK', () => {
+    const result = applyCornerKickGkPlace(baseCornerGkState, awayPiece.id, { q: 20, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'NOT_GOALKEEPER' });
+  });
+
+  it('rejects WRONG_TEAM when the piece is not the acting window team (attacking window, defending GK selected)', () => {
+    const result = applyCornerKickGkPlace(baseCornerGkState, homeGK.id, { q: 20, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('rejects WRONG_TEAM when the piece is not the acting window team (defending window, attacking GK selected)', () => {
+    const state: GameState = { ...baseCornerGkState, phase: 'CORNER_KICK_GK_SETUP_DEFENDING' };
+    const result = applyCornerKickGkPlace(state, awayGK.id, { q: 20, r: 20 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('accepts the defending GK during the defending window', () => {
+    const state: GameState = { ...baseCornerGkState, phase: 'CORNER_KICK_GK_SETUP_DEFENDING' };
+    const result = applyCornerKickGkPlace(state, homeGK.id, { q: 20, r: 20 });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects INVALID_TARGET for an off-pitch hex', () => {
+    const result = applyCornerKickGkPlace(baseCornerGkState, awayGK.id, { q: -5, r: 5 });
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects INVALID_TARGET for a hex occupied by another piece', () => {
+    const result = applyCornerKickGkPlace(baseCornerGkState, awayGK.id, homePiece.position);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('succeeds with an uncapped-distance placement regardless of how far the target is', () => {
+    // awayGK starts at {q:33,r:5}; target is far across the pitch — no distance cap applies.
+    const target = { q: 5, r: 20 };
+    const result = applyCornerKickGkPlace(baseCornerGkState, awayGK.id, target);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const moved = result.state.pieces.find((p) => p.id === awayGK.id)!;
+    expect(moved.position).toEqual(target);
+  });
+
+  it('appends a CORNER_KICK_GK_PLACE event with side ATTACKING during the attacking window', () => {
+    const target = { q: 5, r: 20 };
+    const result = applyCornerKickGkPlace(baseCornerGkState, awayGK.id, target);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const event = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_GK_PLACE');
+    expect(event).toMatchObject({
+      type: 'CORNER_KICK_GK_PLACE',
+      pieceId: awayGK.id,
+      side: 'ATTACKING',
+      to: target,
+    });
+  });
+
+  it('appends a CORNER_KICK_GK_PLACE event with side DEFENDING during the defending window', () => {
+    const state: GameState = { ...baseCornerGkState, phase: 'CORNER_KICK_GK_SETUP_DEFENDING' };
+    const target = { q: 30, r: 20 };
+    const result = applyCornerKickGkPlace(state, homeGK.id, target);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const event = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_GK_PLACE');
+    expect(event).toMatchObject({
+      type: 'CORNER_KICK_GK_PLACE',
+      pieceId: homeGK.id,
+      side: 'DEFENDING',
+    });
+  });
+
+  it('allows re-placing the same goalkeeper again within the same window, overwriting its previous position', () => {
+    const firstTarget = { q: 5, r: 20 };
+    const first = applyCornerKickGkPlace(baseCornerGkState, awayGK.id, firstTarget);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const secondTarget = { q: 10, r: 10 };
+    const second = applyCornerKickGkPlace(first.state, awayGK.id, secondTarget);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    const moved = second.state.pieces.find((p) => p.id === awayGK.id)!;
+    expect(moved.position).toEqual(secondTarget);
+  });
+
+  it('leaves ball.position, ball.carrierId and cornerKickHex unchanged', () => {
+    const target = { q: 5, r: 20 };
+    const result = applyCornerKickGkPlace(baseCornerGkState, awayGK.id, target);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.ball).toEqual(baseCornerGkState.ball);
+    expect(result.state.cornerKickHex).toEqual(baseCornerGkState.cornerKickHex);
+  });
+});
+
+describe('applyCornerKickGkWindowEnd', () => {
+  it('rejects WRONG_PHASE outside the two GK setup phases', () => {
+    const state: GameState = { ...baseCornerGkState, phase: 'CORNER_KICK_TAKER_SELECT' };
+    const result = applyCornerKickGkWindowEnd(state);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('advances CORNER_KICK_GK_SETUP_ATTACKING to CORNER_KICK_GK_SETUP_DEFENDING, flipping activeTeam to the defending team', () => {
+    const result = applyCornerKickGkWindowEnd(baseCornerGkState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_DEFENDING');
+    expect(result.state.activeTeam).toBe('home'); // opposite of cornerKickTeam ('away')
+  });
+
+  it('advances CORNER_KICK_GK_SETUP_DEFENDING to CORNER_KICK_TAKER_SELECT, setting activeTeam back to cornerKickTeam', () => {
+    const state: GameState = {
+      ...baseCornerGkState,
+      phase: 'CORNER_KICK_GK_SETUP_DEFENDING',
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickGkWindowEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_TAKER_SELECT');
+    expect(result.state.activeTeam).toBe('away'); // cornerKickTeam
+  });
+
+  it('confirming with zero placements made is legal in both windows (D-06)', () => {
+    const attackingResult = applyCornerKickGkWindowEnd(baseCornerGkState);
+    expect(attackingResult.ok).toBe(true);
+
+    const defendingState: GameState = {
+      ...baseCornerGkState,
+      phase: 'CORNER_KICK_GK_SETUP_DEFENDING',
+    };
+    const defendingResult = applyCornerKickGkWindowEnd(defendingState);
+    expect(defendingResult.ok).toBe(true);
+  });
+
+  it('leaves ball.position, ball.carrierId and cornerKickHex unchanged', () => {
+    const result = applyCornerKickGkWindowEnd(baseCornerGkState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.ball).toEqual(baseCornerGkState.ball);
+    expect(result.state.cornerKickHex).toEqual(baseCornerGkState.cornerKickHex);
   });
 });

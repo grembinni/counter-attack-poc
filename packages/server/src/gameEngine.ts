@@ -3394,6 +3394,162 @@ export function triggerOutOfBoundsRestart(
 }
 
 // ---------------------------------------------------------------------------
+// applyCornerKickGkPlace
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickGkPlace. */
+export type ApplyCornerKickGkPlaceResult =
+  | {
+      ok: false;
+      reason:
+        | 'WRONG_PHASE'
+        | 'PIECE_NOT_FOUND'
+        | 'NOT_GOALKEEPER'
+        | 'WRONG_TEAM'
+        | 'INVALID_TARGET';
+    }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-01 (D-03/D-04): places a goalkeeper anywhere legal on-pitch during either
+ * corner-kick GK reposition window. The ATTACKING (kicking) manager's goalkeeper
+ * moves first (`CORNER_KICK_GK_SETUP_ATTACKING`), then the DEFENDING manager's
+ * (`CORNER_KICK_GK_SETUP_DEFENDING`) — turn order derived from `phase`, never read
+ * from `activeTeam` directly, so a stale `activeTeam` can never silently let the
+ * wrong side move.
+ *
+ * Guard order mirrors applyThrowInPlace: phase guard first, then piece lookup,
+ * then role check, then team ownership, then target legality — so the caller
+ * always receives the most specific reason.
+ *
+ * Re-placing the same goalkeeper again within the same window is allowed and
+ * overwrites its previous position (no lock/budget tracking for this action).
+ */
+export function applyCornerKickGkPlace(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyCornerKickGkPlaceResult {
+  if (
+    state.phase !== 'CORNER_KICK_GK_SETUP_ATTACKING' &&
+    state.phase !== 'CORNER_KICK_GK_SETUP_DEFENDING'
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.role !== 'GK') return { ok: false, reason: 'NOT_GOALKEEPER' };
+
+  // D-03/D-04: acting team is derived from phase + the persistent cornerKickTeam —
+  // never from activeTeam — so the attacking-then-defending turn order can never be
+  // subverted by a stale/tampered activeTeam value.
+  const actingTeam: 'home' | 'away' =
+    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING'
+      ? state.cornerKickTeam
+      : state.cornerKickTeam === 'home'
+        ? 'away'
+        : 'home';
+  if (piece.teamId !== actingTeam) return { ok: false, reason: 'WRONG_TEAM' };
+
+  // Placement model (RESEARCH.md Assumption A1, uncapped): CORNER-01 states no hex
+  // cap where CORNER-03/CORNER-06 both state one explicitly, so only on-pitch +
+  // unoccupied is validated here — deliberately no hexDistance cap. If the rulebook
+  // turns out to cap it, add `hexDistance(piece.position, to) > CAP` alongside the
+  // isPitchHex check below.
+  if (!isPitchHex(to)) return { ok: false, reason: 'INVALID_TARGET' };
+  if (
+    state.pieces.some((p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r)
+  ) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const side: 'ATTACKING' | 'DEFENDING' =
+    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ? 'ATTACKING' : 'DEFENDING';
+
+  const placeEvent: ActionEvent = {
+    type: 'CORNER_KICK_GK_PLACE',
+    pieceId,
+    side,
+    from: piece.position,
+    to,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+      eventLog: [...state.eventLog, placeEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickGkWindowEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickGkWindowEnd. */
+export type ApplyCornerKickGkWindowEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-01 (D-03/D-04/D-06): ends the active GK-reposition window on the active
+ * team's End Turn/Confirm.
+ *
+ * - From `CORNER_KICK_GK_SETUP_ATTACKING`: advances to
+ *   `CORNER_KICK_GK_SETUP_DEFENDING`, flipping `activeTeam` to the defending team.
+ * - From `CORNER_KICK_GK_SETUP_DEFENDING`: advances to `CORNER_KICK_TAKER_SELECT`,
+ *   setting `activeTeam` back to `cornerKickTeam`.
+ *
+ * D-06: confirming with zero placements made in either window is explicitly legal —
+ * this function performs no move validation of its own, it only advances the phase
+ * and `activeTeam`. No event is appended: the individual `CORNER_KICK_GK_PLACE`
+ * events already record every move, and there is no reversible-move boundary to
+ * protect here (Undo does not reach these phases).
+ */
+export function applyCornerKickGkWindowEnd(state: GameState): ApplyCornerKickGkWindowEndResult {
+  if (
+    state.phase !== 'CORNER_KICK_GK_SETUP_ATTACKING' &&
+    state.phase !== 'CORNER_KICK_GK_SETUP_DEFENDING'
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  const cornerKickTeam = state.cornerKickTeam;
+
+  if (state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING') {
+    const defendingTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'CORNER_KICK_GK_SETUP_DEFENDING',
+        activeTeam: defendingTeam,
+      },
+    };
+  }
+
+  // CORNER_KICK_GK_SETUP_DEFENDING -> CORNER_KICK_TAKER_SELECT (always).
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'CORNER_KICK_TAKER_SELECT',
+      activeTeam: cornerKickTeam,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyThrowInPlace
 // ---------------------------------------------------------------------------
 
