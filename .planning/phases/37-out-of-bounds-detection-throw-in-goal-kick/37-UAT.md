@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 37-out-of-bounds-detection-throw-in-goal-kick
 source: [37-14-SUMMARY.md, 37-15-SUMMARY.md, 37-16-SUMMARY.md, 37-17-SUMMARY.md, 37-18-SUMMARY.md]
 started: 2026-08-05T17:40:38Z
-updated: 2026-08-05T17:55:00Z
+updated: 2026-08-07T00:00:00Z
 ---
 
 ## Current Test
@@ -68,7 +68,7 @@ skipped: 0
 
 ```yaml
 - truth: 'After selecting the header target during a Goal Kick Kick path, the response-move highlight for both teams single-piece travel shows the same white radius/range hexes used elsewhere for a header response move, not just a marker at the target hex'
-  status: failed
+  status: resolved
   reason: 'User reported: partial pass. It does highlight the target hex but it should display the same white radius hexes as a header for the response move'
   severity: minor
   test: 6

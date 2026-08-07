@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Investigate issue: goal-kick-header-response-move-radius-missing. After a Goal Kick's Kick path selects a header target, the target hex now shows a distinct ring (fixed in Phase 37 plan 37-18), but the white range/radius hexes that normally indicate a piece's single-move response range during a response-move window are not shown for either team during this GOAL_KICK_MOVE travel window."
 created: 2026-08-05T18:08:55Z
-updated: 2026-08-05T18:35:00Z
+updated: 2026-08-07T00:00:00Z
 ---
 
 ## Current Focus
