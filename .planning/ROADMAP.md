@@ -130,7 +130,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 | Phase | Name                                   | Plans    | Status      |
 | ----- | -------------------------------------- | -------- | ----------- |
-| 37    | 19/19                                  | Complete | 2026-08-05  |
+| 37    | 19/19                                  | Complete | 2026-08-07  |
 | 38    | Corner Kick                            | TBD      | Not started |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD      | Not started |
 | 40    | Substitutions                          | TBD      | Not started |
