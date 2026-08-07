@@ -493,14 +493,16 @@ describe('triggerOutOfBoundsRestart GOAL_KICK placement (Plan 37-15)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// OOB-03 is Phase 38 scope — a defending touch at the byline must NOT award a
-// restart in Phase 37; it falls back to today's clamp behaviour.
+// OOB-03 / Phase 38: a defending touch at the byline now awards a corner kick
+// instead of falling back to the clamp/DEFLECTION path (superseded by Plan
+// 38-02 — this scenario moved from a "stays in play" assertion to a
+// CORNER_KICK award assertion per this describe block's own prior comment).
+// Full Corner Kick trigger-branch coverage lives in gameEngine.cornerKick.test.ts;
+// this test only guards the applyRoll → triggerOutOfBoundsRestart wiring.
 // ---------------------------------------------------------------------------
 
-describe('byline exit after a defending touch stays in play (OOB-03 is Phase 38)', () => {
-  it('falls back to the clamp/DEFLECTION path when the byline owner touched last', () => {
-    // Phase 38 / OOB-03: when Corner Kick is implemented, this scenario should be moved to
-    // a Phase 38 test asserting a CORNER_KICK award, not deleted here.
+describe('byline exit after a defending touch awards a corner kick (OOB-03, Phase 38)', () => {
+  it('routes to CORNER_KICK_GK_SETUP_ATTACKING, awarded to the opposite team from the byline owner', () => {
     const state: GameState = {
       ...baseLooseBallState,
       ball: {
@@ -513,11 +515,13 @@ describe('byline exit after a defending touch stays in play (OOB-03 is Phase 38)
     const result = applyRoll(state, 4, 2);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('PASS');
-    expect(result.state.lastActionType).toBe('DEFLECTION');
-    expect(result.state.ball.position).toEqual({ q: 0, r: 14 });
+    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+    expect(result.state.cornerKickTeam).toBe('away'); // inverted from byline owner 'home'
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
     const oobEvents = result.state.eventLog.filter((e) => e.type === 'OUT_OF_BOUNDS');
-    expect(oobEvents).toHaveLength(0);
+    expect(oobEvents).toHaveLength(1);
+    expect(oobEvents[0]).toMatchObject({ restart: 'CORNER_KICK', awardedTo: 'away' });
   });
 });
 

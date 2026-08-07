@@ -59,6 +59,7 @@ import {
   classifyOutOfBounds,
   resolveThrowInHex,
   GOAL_KICK_RESTART_HEX,
+  CORNER_KICK_HEX,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -3185,15 +3186,15 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 // ---------------------------------------------------------------------------
 
 /**
- * OOB-02/OOB-04/THROWIN-01/THROWIN-05: classifies a ball exit (`exitHex`, the first
- * off-pitch hex on the scatter trajectory) and returns the fully-formed restart
+ * OOB-02/OOB-03/OOB-04/THROWIN-01/THROWIN-05: classifies a ball exit (`exitHex`, the
+ * first off-pitch hex on the scatter trajectory) and returns the fully-formed restart
  * state — `THROW_IN_SETUP` for a sideline exit, `GOAL_KICK_SETUP_GK` for a byline
- * exit after an attacking touch (or no touch at all).
+ * exit after an attacking touch (or no touch at all), or `CORNER_KICK_GK_SETUP_ATTACKING`
+ * for a byline exit after a defending touch (OOB-03, Phase 38).
  *
- * Returns `null` when no Phase-37 restart applies: a `CORNER_KICK` classification
- * (OOB-03 — Phase 38 scope, see the comment below) or a defensive fallback (missing
- * GK piece). The caller must fall back to today's clamp-to-boundary behaviour on a
- * `null` result — this function never mutates or clamps anything itself.
+ * Returns `null` only on a defensive fallback (missing GK piece for a goal kick). The
+ * caller must fall back to today's clamp-to-boundary behaviour on a `null` result —
+ * this function never mutates or clamps anything itself.
  *
  * ARCH-01: pure and deterministic — never calls rollDice()/Math.random(). The
  * caller is solely responsible for gating this call behind
@@ -3211,13 +3212,7 @@ export function triggerOutOfBoundsRestart(
   const owner = bylineOwner(exitHex);
   const restart = classifyOutOfBounds(exit, state.ball.lastTouchedBy?.teamId ?? null, owner);
 
-  // OOB-03 / Phase 38: the only change Phase 38 needs at this call site is to
-  // replace this early return with a corner-kick trigger. classifyOutOfBounds's
-  // CORNER_KICK branch (packages/shared/src/outOfBounds.ts) must not be edited to
-  // support it — see that function's own doc comment.
-  if (restart === 'CORNER_KICK') return null;
-
-  // Common reset block shared by both branches below — every restart is a fresh
+  // Common reset block shared by every branch below — every restart is a fresh
   // phase boundary, so all Movement-sequence/dice/shot-path bookkeeping clears.
   const commonReset = {
     movementSlot: null,
@@ -3228,6 +3223,66 @@ export function triggerOutOfBoundsRestart(
     lastShotPath: null,
     lastActionType: null,
   } as const;
+
+  if (restart === 'CORNER_KICK') {
+    // OOB-03/CORNER-01 (Phase 38): `owner` is the BYLINE OWNER — the team whose
+    // defender touched the ball last (that is exactly what routed classifyOutOfBounds
+    // to 'CORNER_KICK'). A corner is awarded to the OPPOSITE team: team inversion is
+    // load-bearing here and deliberately differs from the GOAL_KICK branch below,
+    // where `owner` IS the awarded team. Do NOT copy that assignment for corners.
+    if (owner === null) return null; // defensive: a BYLINE exit always has an owner
+    const cornerKickTeam: 'home' | 'away' = owner === 'home' ? 'away' : 'home';
+
+    // D-01/D-02: pick the nearer of the byline owner's two fixed corner hexes to the
+    // ball's actual exit trajectory (lastInBoundsHex), tie-broken to 'top'. CORNER_KICK_HEX
+    // is indexed by `owner` (the byline owner), never by `cornerKickTeam`.
+    const cornerPair = CORNER_KICK_HEX[owner];
+    const distTop = hexDistance(lastInBoundsHex, cornerPair.top);
+    const distBottom = hexDistance(lastInBoundsHex, cornerPair.bottom);
+    const preferredCornerHex = distBottom < distTop ? cornerPair.bottom : cornerPair.top;
+
+    // No piece has been designated the corner-taker yet at trigger time, so the FULL
+    // piece list (not GK-excluded, unlike the GOAL_KICK branch) is used for occupancy
+    // resolution.
+    const resolvedCornerHex = resolveThrowInHex(preferredCornerHex, state.pieces);
+
+    const outOfBoundsEvent: ActionEvent = {
+      type: 'OUT_OF_BOUNDS',
+      exitHex,
+      kind: exit,
+      restart,
+      awardedTo: cornerKickTeam,
+      lastTouchedByPieceId: state.ball.lastTouchedBy?.pieceId ?? null,
+      timestamp: Date.now(),
+      ballAfter: { position: resolvedCornerHex, carrierId: null },
+    };
+
+    return {
+      ...state,
+      phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+      cornerKickTeam,
+      cornerKickHex: resolvedCornerHex,
+      // Pitfall 3: explicitly null every cornerKick* field even though ...state spreads —
+      // no stale value from a prior corner may survive into this one.
+      cornerKickTakerId: null,
+      cornerKickEligibleIds: null,
+      cornerKickStageIndex: null,
+      cornerKickStagePlacedIds: null,
+      cornerKickUsedPace: null,
+      cornerKickMoveSlot: null,
+      cornerKickMovedPieceId: null,
+      cornerKickPaceUsed: 0,
+      attackingTeam: cornerKickTeam,
+      activeTeam: cornerKickTeam,
+      ball: {
+        position: resolvedCornerHex,
+        carrierId: null,
+        lastTouchedBy: state.ball.lastTouchedBy,
+      },
+      eventLog: [...state.eventLog, outOfBoundsEvent],
+      ...commonReset,
+    };
+  }
 
   if (restart === 'THROW_IN') {
     // OOB-02: awarded to the team that did NOT last touch the ball; an untouched
@@ -3335,6 +3390,246 @@ export function triggerOutOfBoundsRestart(
     },
     eventLog: [...state.eventLog, outOfBoundsEvent],
     ...commonReset,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickGkPlace
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickGkPlace. */
+export type ApplyCornerKickGkPlaceResult =
+  | {
+      ok: false;
+      reason:
+        | 'WRONG_PHASE'
+        | 'PIECE_NOT_FOUND'
+        | 'NOT_GOALKEEPER'
+        | 'WRONG_TEAM'
+        | 'INVALID_TARGET';
+    }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-01 (D-03/D-04): places a goalkeeper anywhere legal on-pitch during either
+ * corner-kick GK reposition window. The ATTACKING (kicking) manager's goalkeeper
+ * moves first (`CORNER_KICK_GK_SETUP_ATTACKING`), then the DEFENDING manager's
+ * (`CORNER_KICK_GK_SETUP_DEFENDING`) — turn order derived from `phase`, never read
+ * from `activeTeam` directly, so a stale `activeTeam` can never silently let the
+ * wrong side move.
+ *
+ * Guard order mirrors applyThrowInPlace: phase guard first, then piece lookup,
+ * then role check, then team ownership, then target legality — so the caller
+ * always receives the most specific reason.
+ *
+ * Re-placing the same goalkeeper again within the same window is allowed and
+ * overwrites its previous position (no lock/budget tracking for this action).
+ */
+export function applyCornerKickGkPlace(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyCornerKickGkPlaceResult {
+  if (
+    state.phase !== 'CORNER_KICK_GK_SETUP_ATTACKING' &&
+    state.phase !== 'CORNER_KICK_GK_SETUP_DEFENDING'
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.role !== 'GK') return { ok: false, reason: 'NOT_GOALKEEPER' };
+
+  // D-03/D-04: acting team is derived from phase + the persistent cornerKickTeam —
+  // never from activeTeam — so the attacking-then-defending turn order can never be
+  // subverted by a stale/tampered activeTeam value.
+  const actingTeam: 'home' | 'away' =
+    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING'
+      ? state.cornerKickTeam
+      : state.cornerKickTeam === 'home'
+        ? 'away'
+        : 'home';
+  if (piece.teamId !== actingTeam) return { ok: false, reason: 'WRONG_TEAM' };
+
+  // Placement model (RESEARCH.md Assumption A1, uncapped): CORNER-01 states no hex
+  // cap where CORNER-03/CORNER-06 both state one explicitly, so only on-pitch +
+  // unoccupied is validated here — deliberately no hexDistance cap. If the rulebook
+  // turns out to cap it, add `hexDistance(piece.position, to) > CAP` alongside the
+  // isPitchHex check below.
+  if (!isPitchHex(to)) return { ok: false, reason: 'INVALID_TARGET' };
+  if (
+    state.pieces.some((p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r)
+  ) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const side: 'ATTACKING' | 'DEFENDING' =
+    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ? 'ATTACKING' : 'DEFENDING';
+
+  const placeEvent: ActionEvent = {
+    type: 'CORNER_KICK_GK_PLACE',
+    pieceId,
+    side,
+    from: piece.position,
+    to,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+      eventLog: [...state.eventLog, placeEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickGkWindowEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickGkWindowEnd. */
+export type ApplyCornerKickGkWindowEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-01 (D-03/D-04/D-06): ends the active GK-reposition window on the active
+ * team's End Turn/Confirm.
+ *
+ * - From `CORNER_KICK_GK_SETUP_ATTACKING`: advances to
+ *   `CORNER_KICK_GK_SETUP_DEFENDING`, flipping `activeTeam` to the defending team.
+ * - From `CORNER_KICK_GK_SETUP_DEFENDING`: advances to `CORNER_KICK_TAKER_SELECT`,
+ *   setting `activeTeam` back to `cornerKickTeam`.
+ *
+ * D-06: confirming with zero placements made in either window is explicitly legal —
+ * this function performs no move validation of its own, it only advances the phase
+ * and `activeTeam`. No event is appended: the individual `CORNER_KICK_GK_PLACE`
+ * events already record every move, and there is no reversible-move boundary to
+ * protect here (Undo does not reach these phases).
+ */
+export function applyCornerKickGkWindowEnd(state: GameState): ApplyCornerKickGkWindowEndResult {
+  if (
+    state.phase !== 'CORNER_KICK_GK_SETUP_ATTACKING' &&
+    state.phase !== 'CORNER_KICK_GK_SETUP_DEFENDING'
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  const cornerKickTeam = state.cornerKickTeam;
+
+  if (state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING') {
+    const defendingTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'CORNER_KICK_GK_SETUP_DEFENDING',
+        activeTeam: defendingTeam,
+      },
+    };
+  }
+
+  // CORNER_KICK_GK_SETUP_DEFENDING -> CORNER_KICK_TAKER_SELECT (always).
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'CORNER_KICK_TAKER_SELECT',
+      activeTeam: cornerKickTeam,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickTakerSelect
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickTakerSelect. */
+export type ApplyCornerKickTakerSelectResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' | 'WRONG_TEAM' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-02 (D-01): the kicking manager designates any own on-pitch piece (including
+ * the goalkeeper) as corner-taker. Copies `applyThrowInPlace`'s body shape: phase
+ * guard, then piece lookup, then team ownership, then an unconditional teleport —
+ * distance is irrelevant, this is a placement, not a move.
+ *
+ * Destination: `state.cornerKickHex` is re-resolved against the current piece list
+ * EXCLUDING the taker itself (`resolveThrowInHex(state.cornerKickHex, state.pieces.filter(p
+ * => p.id !== pieceId))`), so the taker's own current position can never block its own
+ * destination — the same exclude-the-moving-piece reasoning the GOAL_KICK trigger branch
+ * applies to the goalkeeper. This guards exactly the case where a goalkeeper was
+ * repositioned onto the corner hex during CORNER-01. The re-resolved hex is written back
+ * into `cornerKickHex` so downstream phases and the client read one consistent value.
+ *
+ * Ball and taker are set together in the same return literal so carrier position and
+ * ball position can never diverge; `ball.lastTouchedBy` is set here too — load-bearing,
+ * as it is the field a re-exit during this corner would classify against.
+ *
+ * Transitions to `CORNER_KICK_REPOSITION`, initializing the CORNER-03 window at stage 0
+ * (attacking side moves first per `CORNER_KICK_STAGES`). `cornerKickEligibleIds` is left
+ * `null` here — computed by 38-03's `computeCornerKickEligibleIds`, not this function.
+ */
+export function applyCornerKickTakerSelect(
+  state: GameState,
+  pieceId: string,
+): ApplyCornerKickTakerSelectResult {
+  if (state.phase !== 'CORNER_KICK_TAKER_SELECT') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.cornerKickTeam == null || state.cornerKickHex == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.teamId !== state.cornerKickTeam) return { ok: false, reason: 'WRONG_TEAM' };
+
+  const cornerKickTeam = state.cornerKickTeam;
+  const resolvedHex = resolveThrowInHex(
+    state.cornerKickHex,
+    state.pieces.filter((p) => p.id !== pieceId),
+  );
+
+  const takerPlacedEvent: ActionEvent = {
+    type: 'CORNER_KICK_TAKER_PLACED',
+    pieceId,
+    from: piece.position,
+    to: resolvedHex,
+    timestamp: Date.now(),
+    ballAfter: { position: resolvedHex, carrierId: pieceId },
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'CORNER_KICK_REPOSITION',
+      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: resolvedHex } : p)),
+      cornerKickHex: resolvedHex,
+      cornerKickTakerId: pieceId,
+      // 38-03's computeCornerKickEligibleIds wires this in — exactly one place to change.
+      cornerKickEligibleIds: null,
+      cornerKickStageIndex: 0,
+      cornerKickStagePlacedIds: [],
+      cornerKickUsedPace: {},
+      activeTeam: cornerKickTeam,
+      ball: {
+        position: resolvedHex,
+        carrierId: pieceId,
+        lastTouchedBy: { pieceId, teamId: cornerKickTeam },
+      },
+      eventLog: [...state.eventLog, takerPlacedEvent],
+    },
   };
 }
 

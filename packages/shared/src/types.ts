@@ -439,7 +439,7 @@ export type ActionEvent =
       type: 'OUT_OF_BOUNDS';
       exitHex: HexCoord;
       kind: 'SIDELINE' | 'BYLINE';
-      restart: 'THROW_IN' | 'GOAL_KICK';
+      restart: 'THROW_IN' | 'GOAL_KICK' | 'CORNER_KICK';
       awardedTo: 'home' | 'away';
       lastTouchedByPieceId: string | null;
       timestamp: number;
