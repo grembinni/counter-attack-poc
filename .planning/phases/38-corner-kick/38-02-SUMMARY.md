@@ -138,6 +138,17 @@ None - this plan implements complete, functioning engine logic for every behavio
 
 None - the plan's own threat model (T-38-04 through T-38-07, T-38-SC) was fully addressed as designed: acting-team derivation never reads `activeTeam` or a client-supplied value (T-38-04), `isPitchHex` + occupancy scanning gates every placement (T-38-05), the corner hex is entirely server-derived with no client-suppliable hex parameter (T-38-06), team inversion is unit-tested in both directions (T-38-07), and no package-manager installs occurred (T-38-SC).
 
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/server/src/**tests**/gameEngine.cornerKick.test.ts
+- FOUND: .planning/phases/38-corner-kick/38-02-SUMMARY.md
+- FOUND: commit 250c7eb (Task 1)
+- FOUND: commit ea4d82b (Task 2)
+- FOUND: commit 922a8fb (Task 3)
+- FOUND: commit 2277c2e (SUMMARY)
+- Working tree clean after final commit
+
 ---
 
 _Phase: 38-corner-kick_
