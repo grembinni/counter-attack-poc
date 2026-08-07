@@ -112,4 +112,9 @@ export const ELIGIBLE_NEXT_ACTIONS: Record<LastActionType, ReadonlySet<NextActio
   // GOALKICK-03 (Phase 37): the goal kick's "Standard Pass" branch. Mirrors FREE_KICK_RESTART's
   // purpose but is narrower — no MOVEMENT, no HIGH_PASS, no SNAPSHOT, no SHOT.
   GOAL_KICK_RESTART: new Set<NextActionType>(['STANDARD_PASS']),
+
+  // CORNER-04/CORNER-05 (Phase 38): the corner kick's Low/High accuracy options. Throw-In
+  // precedent: reuse the existing STANDARD_PASS/HIGH_PASS NextActionType labels for Low/High
+  // — do NOT invent dedicated corner-kick-specific High/Low NextActionType members.
+  CORNER_KICK_RESTART: new Set<NextActionType>(['STANDARD_PASS', 'HIGH_PASS']),
 };
