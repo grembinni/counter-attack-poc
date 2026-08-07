@@ -647,6 +647,27 @@ const THROW_IN_TEARDOWN = {
   throwInPhasesTaken: null,
 } as const;
 
+// CORNER-04/T-38-14 (Phase 38, 38-04): single shared teardown literal for a corner-kick
+// context. Every branch in applyRoll's PASS case that resolves a corner kick (accurate or
+// inaccurate, High or Low) MUST spread this so a stale cornerKick* field cannot survive to
+// mis-gate a later, unrelated STANDARD_PASS (T-38-14). Applied UNCONDITIONALLY at every PASS
+// resolving return (not just the corner-specific branches) — spreading already-null fields is
+// a harmless no-op for a non-corner pass, and a single unconditional teardown is simpler and
+// safer than three conditional variants (Pitfall-3 audit, Task 3). Not exported: nothing
+// outside this module needs it.
+const CORNER_KICK_TEARDOWN = {
+  cornerKickTeam: null,
+  cornerKickHex: null,
+  cornerKickTakerId: null,
+  cornerKickEligibleIds: null,
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickUsedPace: null,
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+} as const;
+
 // ---------------------------------------------------------------------------
 // applyMove
 // ---------------------------------------------------------------------------
@@ -1606,7 +1627,12 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       // GOALKICK-02 (Phase 37, 37-02): Undo can never cross from the opponent's reposition
       // window back into the kicking team's window.
       ((state.phase === 'GOAL_KICK_SETUP_GK' || state.phase === 'GOAL_KICK_SETUP_OPPONENT') &&
-        evt.type === 'GOAL_KICK_WINDOW_ADVANCE');
+        evt.type === 'GOAL_KICK_WINDOW_ADVANCE') ||
+      // CORNER-03/CORNER-06 (Phase 38, 38-04): Undo may never cross a stage handoff back
+      // into the opposing manager's completed round, nor un-place the corner-taker.
+      (state.phase === 'CORNER_KICK_REPOSITION' &&
+        (evt.type === 'CORNER_KICK_STAGE_ADVANCE' || evt.type === 'CORNER_KICK_TAKER_PLACED')) ||
+      (state.phase === 'CORNER_KICK_FINAL_SETUP' && evt.type === 'CORNER_KICK_STAGE_ADVANCE');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -1901,11 +1927,23 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const passTimeCost = state.lastActionType === 'FIRST_TIME_PASS' ? 0 : 1;
 
       // D-05: accuracy gate — HIGH_PASS and LONG_BALL require an accuracy check.
+      // CORNER-04: a corner's Low option (STANDARD_PASS lastActionType with cornerKickTeam
+      // set) is subject to the same 8+ combined-score accuracy check as High Pass. The
+      // PERSISTENT `cornerKickTeam` field — not `lastActionType` — is the corner signal:
+      // the GAME_ROLL handler overwrites `lastActionType` with the client's chosen passType
+      // (STANDARD_PASS or HIGH_PASS) before applyRoll runs, so `lastActionType` alone cannot
+      // distinguish a corner Low pass from an ordinary Standard Pass. `!= null` (loose) so
+      // both `null` and `undefined` are handled, matching the optional field declaration.
       const requiresAccuracyCheck =
-        state.lastActionType === 'HIGH_PASS' || state.lastActionType === 'LONG_BALL';
+        state.lastActionType === 'HIGH_PASS' ||
+        state.lastActionType === 'LONG_BALL' ||
+        (state.cornerKickTeam != null && state.lastActionType === 'STANDARD_PASS');
 
       let accurate = true;
       if (requiresAccuracyCheck) {
+        // CORNER-04: a corner Low pass (lastActionType === 'STANDARD_PASS') falls through
+        // to the 'HIGH' default below — its threshold is 8, same as High Pass — never a
+        // new accuracy type. A corner High pass IS 'HIGH_PASS' and also uses the default.
         let accuracyType: 'HIGH' | 'LONG_SAME_THIRD' | 'LONG_CROSS_THIRD' = 'HIGH';
         if (state.lastActionType === 'LONG_BALL') {
           const crossThird =
@@ -1918,6 +1956,67 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       }
 
       if (!accurate) {
+        // CORNER-04/T-38-15: a corner's own inaccurate roll (High or Low) gets a dedicated
+        // CORNER_KICK_ACCURACY event and an early return — it must NOT fall through to the
+        // inaccuratePassType cast below, which is only sound for HIGH_PASS/LONG_BALL because
+        // STANDARD_PASS could never reach this branch before corners existed (Rule 1 bugfix:
+        // that cast is unsound for a corner Low pass's STANDARD_PASS lastActionType).
+        if (state.cornerKickTeam != null) {
+          const cornerPassType: 'HIGH' | 'LOW' =
+            state.lastActionType === 'HIGH_PASS' ? 'HIGH' : 'LOW';
+          const cornerKickScore = computeCombinedScore(carrier.highPass, d1, []);
+          let cornerInaccurateLog: readonly ActionEvent[] = [
+            ...state.eventLog,
+            {
+              type: 'CORNER_KICK_ACCURACY',
+              takerId: state.cornerKickTakerId ?? carrier.id,
+              passType: cornerPassType,
+              targetHex,
+              accurate: false,
+              kickDie: d1,
+              kickScore: cornerKickScore,
+              timestamp: Date.now(),
+              ballAfter: { position: state.ball.position, carrierId: null },
+            },
+          ];
+          if (cornerPassType === 'HIGH') {
+            // Keep the existing HP_ACCURACY event too so the ActionLog's High Pass
+            // narration (which reads HP_ACCURACY specifically) is unbroken.
+            cornerInaccurateLog = [
+              ...cornerInaccurateLog,
+              {
+                type: 'HP_ACCURACY' as const,
+                passerId: state.highPassCarrierId ?? '',
+                accurate: false,
+                timestamp: Date.now(),
+              },
+            ];
+          }
+          return {
+            ok: true,
+            state: {
+              ...state,
+              phase: 'LOOSE_BALL',
+              // Preserve the existing ball-position rule for the LOOSE_BALL return (High:
+              // state.ball.position — treat corner Low the same as High since the corner
+              // ball has not moved to the target).
+              ball: {
+                position: state.ball.position,
+                carrierId: null,
+                lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
+              },
+              lastDiceRoll: { rolls: [d1], context: 'PASS_ACCURACY' },
+              lastActionType: 'DEFLECTION',
+              actionCount: state.actionCount + passTimeCost,
+              passTargetHex: null,
+              eventLog: cornerInaccurateLog,
+              // T-38-14: tear down every cornerKick* field now that the corner has resolved
+              // (inaccurate) — the next STANDARD_PASS must not be accuracy-gated (Task 3).
+              ...CORNER_KICK_TEARDOWN,
+            },
+          };
+        }
+
         // D-05/PASS-05: inaccurate → LOOSE_BALL; ball stays at carrier position.
         // HIGH_PASS: event was already logged at target selection (accurate: null); don't re-log.
         const inaccuratePassType = state.lastActionType as 'HIGH_PASS' | 'LONG_BALL';
@@ -2009,10 +2108,32 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           p.position.q === targetHex.q &&
           p.position.r === targetHex.r,
       );
-      let newEventLog: readonly ActionEvent[];
+      // CORNER-04/CORNER-05: log the corner's own accuracy roll BEFORE the per-type delivery
+      // event below, so a High corner shows [accuracy check, HP_ACCURACY, ...] and a Low
+      // corner shows [accuracy check, STANDARD_PASS delivery, ...] in the ActionLog. Mirrors
+      // the inaccurate branch's CORNER_KICK_ACCURACY-then-HP_ACCURACY ordering above.
+      let newEventLog: readonly ActionEvent[] = state.eventLog;
+      if (state.cornerKickTeam != null) {
+        const cornerPassType: 'HIGH' | 'LOW' = deliveredPassType === 'HIGH_PASS' ? 'HIGH' : 'LOW';
+        const cornerKickScore = computeCombinedScore(carrier.highPass, d1, []);
+        newEventLog = [
+          ...newEventLog,
+          {
+            type: 'CORNER_KICK_ACCURACY',
+            takerId: state.cornerKickTakerId ?? carrier.id,
+            passType: cornerPassType,
+            targetHex,
+            accurate: true,
+            kickDie: d1,
+            kickScore: cornerKickScore,
+            timestamp: Date.now(),
+            ballAfter: { position: targetHex, carrierId: passTeammate?.id ?? null },
+          },
+        ];
+      }
       if (deliveredPassType === 'HIGH_PASS') {
         newEventLog = [
-          ...state.eventLog,
+          ...newEventLog,
           {
             type: 'HP_ACCURACY' as const,
             passerId: state.highPassCarrierId ?? '',
@@ -2031,7 +2152,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           timestamp: Date.now(),
           ballAfter: { position: targetHex, carrierId: passTeammate?.id ?? null },
         };
-        newEventLog = [...state.eventLog, passAttemptEvent];
+        newEventLog = [...newEventLog, passAttemptEvent];
       }
 
       // BUG-01 (Phase 17 D-01): header passes are unblockable — skip interception entirely.
@@ -2044,7 +2165,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // can be non-empty for an FTP target. Bypass the loop for FIRST_TIME_PASS too; the
       // no-interception delivery is part of the FTP design (D-03), not a regression.
       const isFirstTimePass = newLastActionType === 'FIRST_TIME_PASS';
-      if (!isHeaderPass && !isFirstTimePass) {
+      // Assumption A2 (38-RESEARCH.md): a corner delivery (High or Low) is not interceptable,
+      // mirroring HIGH_PASS/LONG_BALL's fly-over behaviour — a corner kick flies directly into
+      // the box rather than being a grounded pass a defender can step in front of.
+      const isCornerKick = state.cornerKickTeam != null;
+      if (!isHeaderPass && !isFirstTimePass && !isCornerKick) {
         // D-10 case 1: autoIntercepts — destination hex was defender's hex; immediate interception, no dice.
         for (const interceptor of autoIntercepts) {
           const interceptionEvent: ActionEvent = {
@@ -2263,6 +2388,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
               tackleAttemptedByIds: [], // D-02
               eventLog: newEventLog,
+              // T-38-14: unconditional no-op for a non-corner pass; tears down a corner
+              // Low delivery to an occupied target hex (Task 3).
+              ...CORNER_KICK_TEARDOWN,
             },
           };
         }
@@ -2306,6 +2434,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               passTargetHex: null,
               preGeneratedInterceptionDice: [],
               eventLog: newEventLog,
+              // T-38-14: tears down a corner High delivery with no eligible header
+              // contestants (Task 3); unconditional no-op for a non-corner High Pass.
+              ...CORNER_KICK_TEARDOWN,
             },
           };
         }
@@ -2332,6 +2463,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             headerConfirmed: { home: !homeEligible, away: !awayEligible },
             headerTargetHex: null,
             headerAccuracyRollPending: true, // RULE-01 (Phase 11): gate contestant selection until attacker acks roll
+            // T-38-14: tears down an accurate corner High kick entering HEADER (Task 3);
+            // unconditional no-op for a non-corner High Pass.
+            ...CORNER_KICK_TEARDOWN,
           },
         };
       }
@@ -2356,6 +2490,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
           tackleAttemptedByIds: [], // D-02
           eventLog: newEventLog,
+          // T-38-14: tears down a corner Low delivery to an empty/teammate target hex
+          // (Task 3); unconditional no-op for any non-corner pass type.
+          ...CORNER_KICK_TEARDOWN,
         },
       };
     }
@@ -6536,6 +6673,11 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'OUT_OF_BOUNDS',
   'THROW_IN_PLACE',
   'GOAL_KICK',
+  // Phase 38 (38-04): corner-kick events that carry ballAfter. CORNER_KICK_STAGE_ADVANCE,
+  // CORNER_KICK_GK_PLACE and CORNER_KICK_MOVE are deliberately excluded — none carry
+  // ballAfter, matching the existing GOAL_KICK_MOVE exclusion above.
+  'CORNER_KICK_TAKER_PLACED',
+  'CORNER_KICK_ACCURACY',
 ]);
 
 /**
@@ -6694,6 +6836,16 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     // THROWIN-02 (Phase 37, 37-02): thrower placement — mirrors the KICK_OFF_SETUP branch
     // immediately above so the thrower's placement animates like a move.
     if (event.type === 'THROW_IN_PLACE') {
+      const existing = moveGroup.get(event.pieceId) ?? [];
+      existing.push({ to: event.to, ballAfter: event.ballAfter });
+      moveGroup.set(event.pieceId, existing);
+      continue;
+    }
+
+    // CORNER-02 (Phase 38, 38-04): corner-taker placement — byte-for-byte the THROW_IN_PLACE
+    // shape (pieceId, to, ballAfter), so it animates the same way (piece walks to the corner
+    // flag as the ball moves with them).
+    if (event.type === 'CORNER_KICK_TAKER_PLACED') {
       const existing = moveGroup.get(event.pieceId) ?? [];
       existing.push({ to: event.to, ballAfter: event.ballAfter });
       moveGroup.set(event.pieceId, existing);

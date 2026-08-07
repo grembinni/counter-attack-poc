@@ -9,9 +9,17 @@ import {
   applyCornerKickStageEnd,
   applyCornerKickFinalMove,
   applyCornerKickFinalSetupEnd,
+  applyRoll,
+  applyUndo,
+  buildReplayFrames,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
+import {
+  isPitchHex,
+  CORNER_KICK_HEX,
+  GOAL_KICK_RESTART_HEX,
+  cornerKickStageTeam,
+} from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures — mirrors gameEngine.outOfBounds.test.ts's fixture shapes
@@ -1309,5 +1317,557 @@ describe('applyCornerKickFinalSetupEnd', () => {
     if (!result.ok) return;
     expect(result.state.cornerKickHex).toEqual(baseCornerFinalSetupState.cornerKickHex);
     expect(result.state.cornerKickTakerId).toBe(awayTaker.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 1 (38-04): applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05)
+// ---------------------------------------------------------------------------
+
+/**
+ * PASS-phase fixture immediately after applyCornerKickFinalSetupEnd's DEFENDER-slot
+ * terminal return (see the 'applyCornerKickFinalSetupEnd' describe block above) —
+ * cornerKickTeam is preserved and every other cornerKick* field is torn down, matching
+ * that function's actual terminal-return shape. `lastActionType` here represents whatever
+ * the GAME_ROLL handler set (the client's chosen passType) BEFORE calling applyRoll —
+ * gameHandlers.ts overwrites lastActionType with the client's choice, which is exactly why
+ * the persistent `cornerKickTeam` field (not `lastActionType`) has to be the corner signal.
+ */
+const baseCornerPassState: GameState = {
+  ...baseLooseBallState,
+  phase: 'PASS',
+  pieces: [
+    homePiece,
+    homePiece2,
+    awayPiece,
+    awayPiece2,
+    awayPiece3,
+    awayEdge,
+    awayTaker,
+    homeGK,
+    awayGK,
+  ],
+  cornerKickTeam: 'away',
+  cornerKickHex: CORNER_KICK_HEX.home.top,
+  cornerKickTakerId: awayTaker.id,
+  cornerKickEligibleIds: null,
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickUsedPace: null,
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+  attackingTeam: 'away',
+  activeTeam: 'away',
+  ball: {
+    position: awayTaker.position,
+    carrierId: awayTaker.id,
+    lastTouchedBy: { pieceId: awayTaker.id, teamId: 'away' },
+  },
+  // Empty hex — no piece occupies {q:5,r:13} in the fixture piece list above.
+  passTargetHex: { q: 5, r: 13 },
+};
+
+/** Low corner: lastActionType is STANDARD_PASS (the client's chosen passType), cornerKickTeam set. */
+const cornerLowState: GameState = {
+  ...baseCornerPassState,
+  lastActionType: 'STANDARD_PASS',
+};
+
+/** High corner: targetHex is homePiece2's own hex — guarantees an eligible header contestant
+ * (home, distance 0) so the accurate branch reaches HEADER rather than the no-eligible LOOSE_BALL
+ * fallback. */
+const cornerHighState: GameState = {
+  ...baseCornerPassState,
+  lastActionType: 'HIGH_PASS',
+  passTargetHex: homePiece2.position,
+};
+
+/** Ordinary Standard Pass — cornerKickTeam unset — the D-01/D-02 baseline behaviour that must
+ * survive this plan's accuracy-gate extension untouched. */
+const ordinaryStandardPassState: GameState = {
+  ...baseCornerPassState,
+  cornerKickTeam: null,
+  lastActionType: 'STANDARD_PASS',
+};
+
+describe('applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05, 38-04 Task 1)', () => {
+  it('CORNER-04: Low corner (STANDARD_PASS + cornerKickTeam set) is accuracy-gated — die=2 (score 7 < 8) → inaccurate → LOOSE_BALL', () => {
+    const result = applyRoll(cornerLowState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+  });
+
+  it('CORNER-04: Low corner die=3 (score 8 >= 8, HIGH threshold) → accurate → ball delivered; phase stays PASS (not HEADER)', () => {
+    const result = applyRoll(cornerLowState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.position).toEqual({ q: 5, r: 13 });
+  });
+
+  it('regression: an ordinary STANDARD_PASS with cornerKickTeam unset still always delivers, regardless of the die', () => {
+    // die=1 would fail an 8+ accuracy check if this pass were (incorrectly) gated.
+    const result = applyRoll(ordinaryStandardPassState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.position).toEqual({ q: 5, r: 13 });
+  });
+
+  it('CORNER-05: High corner (HIGH_PASS + cornerKickTeam set) die=3 (score 8>=8) → accurate → phase HEADER via the existing unmodified transition', () => {
+    const result = applyRoll(cornerHighState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HEADER');
+  });
+
+  it('High corner die=2 (score 7 < 8) → inaccurate → LOOSE_BALL', () => {
+    const result = applyRoll(cornerHighState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+  });
+
+  it("LONG_BALL accuracy behaviour is unchanged: the corner gate doesn't leak into the LONG_BALL accuracyType branch", () => {
+    const longBallState: GameState = {
+      ...baseCornerPassState,
+      cornerKickTeam: null,
+      lastActionType: 'LONG_BALL',
+      passTargetHex: { q: 30, r: 13 },
+    };
+    // homePiece2.highPass=5 is not the carrier here; awayTaker.highPass=5, die=3 → score 8,
+    // which is < 9 (LONG_SAME_THIRD threshold) — must be inaccurate, proving LONG's own
+    // threshold (not HIGH's 8) still governs when cornerKickTeam is unset.
+    const result = applyRoll(longBallState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+  });
+
+  it('inaccurate Low corner appends a CORNER_KICK_ACCURACY event (passType LOW, accurate:false) — not a malformed STANDARD_PASS event', () => {
+    const result = applyRoll(cornerLowState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.filter((e) => e.type === 'STANDARD_PASS')).toHaveLength(0);
+    const cornerEvent = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_ACCURACY');
+    expect(cornerEvent).toMatchObject({
+      type: 'CORNER_KICK_ACCURACY',
+      passType: 'LOW',
+      accurate: false,
+      takerId: awayTaker.id,
+    });
+  });
+
+  it('accurate Low corner appends a CORNER_KICK_ACCURACY event (passType LOW, accurate:true) before the normal STANDARD_PASS delivery event', () => {
+    const result = applyRoll(cornerLowState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const accuracyIdx = result.state.eventLog.findIndex((e) => e.type === 'CORNER_KICK_ACCURACY');
+    const deliveryIdx = result.state.eventLog.findIndex((e) => e.type === 'STANDARD_PASS');
+    expect(accuracyIdx).toBeGreaterThanOrEqual(0);
+    expect(deliveryIdx).toBeGreaterThan(accuracyIdx);
+    expect(result.state.eventLog[accuracyIdx]).toMatchObject({ passType: 'LOW', accurate: true });
+  });
+
+  it('accurate High corner appends a CORNER_KICK_ACCURACY event (passType HIGH) alongside the existing HP_ACCURACY event, without suppressing it', () => {
+    const result = applyRoll(cornerHighState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const cornerEvent = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_ACCURACY');
+    const hpEvent = result.state.eventLog.find((e) => e.type === 'HP_ACCURACY');
+    expect(cornerEvent).toMatchObject({ passType: 'HIGH', accurate: true, takerId: awayTaker.id });
+    expect(hpEvent).toMatchObject({ accurate: true });
+  });
+
+  it('inaccurate High corner appends both CORNER_KICK_ACCURACY (passType HIGH, false) and HP_ACCURACY (false)', () => {
+    const result = applyRoll(cornerHighState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const cornerEvent = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_ACCURACY');
+    const hpEvent = result.state.eventLog.find((e) => e.type === 'HP_ACCURACY');
+    expect(cornerEvent).toMatchObject({ passType: 'HIGH', accurate: false });
+    expect(hpEvent).toMatchObject({ accurate: false });
+  });
+
+  it('accurate Low corner skips the interception loop: no STEAL_ATTEMPT event even with a defender standing exactly on the target hex', () => {
+    // homePiece's own hex as the target would normally be an auto-intercept (case 1, no roll)
+    // for an ordinary Standard Pass — the corner bypass must skip the loop entirely so no
+    // STEAL_ATTEMPT event is ever appended (Assumption A2).
+    const interceptTargetState: GameState = {
+      ...cornerLowState,
+      passTargetHex: homePiece.position,
+    };
+    const result = applyRoll(interceptTargetState, 3, 3, 3); // die=3 → accurate (score 8)
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.filter((e) => e.type === 'STEAL_ATTEMPT')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2 (38-04): Undo boundaries + Replay eligibility for corner-kick events
+// ---------------------------------------------------------------------------
+
+describe('applyUndo — corner-kick Undo boundaries (CORNER-03/CORNER-06, T-38-16)', () => {
+  /** CORNER_KICK_REPOSITION, stage 1: a stage-0 MOVE precedes a CORNER_KICK_STAGE_ADVANCE
+   * boundary; a stage-1 MOVE follows it. moveTypeForPhase defaults to 'MOVE' for
+   * CORNER_KICK_REPOSITION (the reposition window reuses the existing GAME_MOVE handler
+   * per 38-03's doc comment; 38-05 wires the handler that emits this event). */
+  const stage1RepositionState: GameState = {
+    ...baseCornerRepositionState,
+    cornerKickStageIndex: 1,
+    activeTeam: 'home', // stage 1 is the defending side (home, since cornerKickTeam is away)
+    eventLog: [
+      {
+        type: 'CORNER_KICK_TAKER_PLACED',
+        pieceId: awayTaker.id,
+        from: { q: 0, r: 0 },
+        to: awayTaker.position,
+        timestamp: 1000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'MOVE',
+        pieceId: awayPiece.id,
+        from: { q: 15, r: 16 },
+        to: awayPiece.position,
+        slot: 'ATTACKER_4',
+        timestamp: 2000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'CORNER_KICK_STAGE_ADVANCE',
+        fromStageIndex: 0,
+        timestamp: 3000,
+      },
+      {
+        type: 'MOVE',
+        pieceId: homePiece.id,
+        from: { q: 19, r: 10 },
+        to: homePiece.position,
+        slot: 'ATTACKER_4',
+        timestamp: 4000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it('undoes only the post-boundary stage-1 MOVE; the pre-boundary stage-0 MOVE remains in the eventLog and the piece stays moved', () => {
+    const result = applyUndo(stage1RepositionState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // homePiece (stage-1 mover) reverted to its pre-move position
+    const home = result.state.pieces.find((p) => p.id === homePiece.id);
+    expect(home?.position).toEqual({ q: 19, r: 10 });
+
+    // awayPiece (stage-0 mover) is UNCHANGED — Undo never crossed the CORNER_KICK_STAGE_ADVANCE
+    const away = result.state.pieces.find((p) => p.id === awayPiece.id);
+    expect(away?.position).toEqual(awayPiece.position);
+
+    // The stage-0 MOVE event for awayPiece is still present in the eventLog
+    const remainingMoves = result.state.eventLog.filter(
+      (e) => e.type === 'MOVE' && e.pieceId === awayPiece.id,
+    );
+    expect(remainingMoves).toHaveLength(1);
+
+    // The stage-1 MOVE event for homePiece was removed
+    const homeMoves = result.state.eventLog.filter(
+      (e) => e.type === 'MOVE' && e.pieceId === homePiece.id,
+    );
+    expect(homeMoves).toHaveLength(0);
+  });
+
+  it('a second Undo after the post-boundary move is gone returns UNDO_LOCKED (D-09) — the pre-boundary stage-0 move exists but the CORNER_KICK_STAGE_ADVANCE boundary is never crossed to reach it', () => {
+    const first = applyUndo(stage1RepositionState);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const second = applyUndo(first.state);
+    expect(second).toEqual({ ok: false, reason: 'UNDO_LOCKED' });
+  });
+
+  it('CORNER_KICK_TAKER_PLACED is an Undo boundary: once the only post-placement MOVE is undone, a further Undo cannot reach back to un-place the corner-taker', () => {
+    const takerBoundaryState: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 0,
+      eventLog: [
+        {
+          type: 'CORNER_KICK_TAKER_PLACED',
+          pieceId: awayTaker.id,
+          from: { q: 0, r: 0 },
+          to: awayTaker.position,
+          timestamp: 1000,
+          ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+        },
+        {
+          type: 'MOVE',
+          pieceId: awayPiece.id,
+          from: { q: 15, r: 16 },
+          to: awayPiece.position,
+          slot: 'ATTACKER_4',
+          timestamp: 2000,
+          ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+        },
+      ],
+    };
+    const first = applyUndo(takerBoundaryState);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    // Only the CORNER_KICK_TAKER_PLACED event remains — a second Undo has nothing left in the
+    // current stage and must NOT attempt to revert the taker placement itself.
+    const second = applyUndo(first.state);
+    expect(second).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+
+  it('CORNER_KICK_STAGE_ADVANCE is also a boundary in CORNER_KICK_FINAL_SETUP, blocking Undo from reaching back into stage 5', () => {
+    const finalSetupWithStageAdvanceState: GameState = {
+      ...baseCornerFinalSetupState,
+      eventLog: [
+        {
+          type: 'CORNER_KICK_STAGE_ADVANCE',
+          fromStageIndex: 5,
+          timestamp: 5000,
+        },
+      ],
+    };
+    // No MOVE after the boundary in the current (FINAL_SETUP) slot → NOTHING_TO_UNDO, not a
+    // reach-back into the stage-5 REPOSITION events (there are none in this fixture, but the
+    // boundary computation itself must find the CORNER_KICK_STAGE_ADVANCE as the floor).
+    const result = applyUndo(finalSetupWithStageAdvanceState);
+    expect(result).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+});
+
+describe('buildReplayFrames — corner-kick replay eligibility (T-38-15, 38-04 Task 2)', () => {
+  it('CORNER_KICK_ACCURACY produces a replay frame whose ball position matches ballAfter', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 1000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(1);
+    expect(frames[0]!.ball.position).toEqual({ q: 5, r: 13 });
+    expect(frames[0]!.ball.carrierId).toBeNull();
+  });
+
+  it('CORNER_KICK_TAKER_PLACED produces a replay frame and animates the taker to the corner hex, mirroring THROW_IN_PLACE', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_TAKER_PLACED',
+          pieceId: awayPiece.id,
+          from: awayPiece.position,
+          to: CORNER_KICK_HEX.home.top,
+          timestamp: 1000,
+          ballAfter: { position: CORNER_KICK_HEX.home.top, carrierId: awayPiece.id },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames.length).toBeGreaterThanOrEqual(1);
+    const lastFrame = frames[frames.length - 1]!;
+    const movedPiece = lastFrame.pieces.find((p) => p.id === awayPiece.id);
+    expect(movedPiece?.position).toEqual(CORNER_KICK_HEX.home.top);
+    expect(lastFrame.ball.position).toEqual(CORNER_KICK_HEX.home.top);
+    expect(lastFrame.ball.carrierId).toBe(awayPiece.id);
+  });
+
+  it('CORNER_KICK_STAGE_ADVANCE, CORNER_KICK_GK_PLACE and CORNER_KICK_MOVE are NOT replay-eligible (no ballAfter) — no frame produced for a log containing only these', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        { type: 'CORNER_KICK_STAGE_ADVANCE', fromStageIndex: 0, timestamp: 1000 },
+        {
+          type: 'CORNER_KICK_GK_PLACE',
+          pieceId: awayGK.id,
+          side: 'ATTACKING',
+          from: awayGK.position,
+          to: { q: 5, r: 20 },
+          timestamp: 2000,
+        },
+        {
+          type: 'CORNER_KICK_MOVE',
+          slot: 'ATTACKER',
+          pieceId: awayPiece.id,
+          from: awayPiece.position,
+          to: { q: 17, r: 16 },
+          timestamp: 3000,
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 (38-04): corner-context persistence and teardown audit (Pitfall 3, T-38-14)
+// ---------------------------------------------------------------------------
+
+describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-04 Task 3)', () => {
+  /**
+   * Drives a full corner-kick sequence — triggerOutOfBoundsRestart through
+   * applyCornerKickFinalSetupEnd's terminal PASS return — asserting the Pitfall-3 invariant
+   * (cornerKickTeam/cornerKickHex/cornerKickTakerId non-null) after every intermediate step.
+   * Confirming each of the 6 CORNER_KICK_REPOSITION stages and both CORNER_KICK_FINAL_SETUP
+   * slots with zero pieces moved is legal (D-06) — no applyCornerKickReposition/
+   * applyCornerKickFinalMove calls are needed to reach PASS.
+   *
+   * Returns the resulting PASS-phase state with lastActionType still 'CORNER_KICK_RESTART' —
+   * callers overwrite lastActionType (simulating the GAME_ROLL handler's overwrite with the
+   * client's chosen passType) before calling applyRoll.
+   */
+  function runCornerSequenceToPass(): GameState {
+    const oobState: GameState = {
+      ...baseLooseBallState,
+      pieces: [homePiece, homePiece2, awayPiece, awayPiece2, awayPiece3, homeGK, awayGK],
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+      },
+    };
+    let state = triggerOutOfBoundsRestart(oobState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    if (!state) throw new Error('triggerOutOfBoundsRestart returned null');
+    expect(state.cornerKickTeam).not.toBeNull();
+    expect(state.cornerKickHex).not.toBeNull();
+
+    const gkEnd1 = applyCornerKickGkWindowEnd(state); // ATTACKING -> DEFENDING
+    if (!gkEnd1.ok) throw new Error('applyCornerKickGkWindowEnd (1) failed');
+    state = gkEnd1.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+
+    const gkEnd2 = applyCornerKickGkWindowEnd(state); // DEFENDING -> TAKER_SELECT
+    if (!gkEnd2.ok) throw new Error('applyCornerKickGkWindowEnd (2) failed');
+    state = gkEnd2.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+
+    const takerResult = applyCornerKickTakerSelect(state, awayPiece.id);
+    if (!takerResult.ok) throw new Error('applyCornerKickTakerSelect failed');
+    state = takerResult.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+    expect(state.cornerKickHex).not.toBeNull();
+    expect(state.cornerKickTakerId).toBe(awayPiece.id);
+
+    const cornerKickTeam = state.cornerKickTeam!;
+    for (let i = 0; i < 6; i++) {
+      const team = cornerKickStageTeam(i as 0 | 1 | 2 | 3 | 4 | 5, cornerKickTeam);
+      const stageResult = applyCornerKickStageEnd(state, team);
+      if (!stageResult.ok) throw new Error(`applyCornerKickStageEnd(${i}) failed`);
+      state = stageResult.state;
+      expect(state.cornerKickTeam).not.toBeNull();
+      expect(state.cornerKickHex).not.toBeNull();
+      expect(state.cornerKickTakerId).toBe(awayPiece.id);
+    }
+    expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+
+    const attackerEnd = applyCornerKickFinalSetupEnd(state);
+    if (!attackerEnd.ok) throw new Error('applyCornerKickFinalSetupEnd (ATTACKER) failed');
+    state = attackerEnd.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+
+    const defenderEnd = applyCornerKickFinalSetupEnd(state);
+    if (!defenderEnd.ok) throw new Error('applyCornerKickFinalSetupEnd (DEFENDER) failed');
+    state = defenderEnd.state;
+    expect(state.phase).toBe('PASS');
+    expect(state.lastActionType).toBe('CORNER_KICK_RESTART');
+    expect(state.cornerKickTeam).toBe(cornerKickTeam);
+    expect(state.cornerKickHex).not.toBeNull();
+    expect(state.cornerKickTakerId).toBe(awayPiece.id);
+
+    return state;
+  }
+
+  /** Every cornerKick* field must be null/0 — asserted identically across all 3 branches. */
+  function expectAllCornerFieldsCleared(state: GameState) {
+    expect(state.cornerKickTeam).toBeNull();
+    expect(state.cornerKickHex).toBeNull();
+    expect(state.cornerKickTakerId).toBeNull();
+    expect(state.cornerKickEligibleIds).toBeNull();
+    expect(state.cornerKickStageIndex).toBeNull();
+    expect(state.cornerKickStagePlacedIds).toBeNull();
+    expect(state.cornerKickUsedPace).toBeNull();
+    expect(state.cornerKickMoveSlot).toBeNull();
+    expect(state.cornerKickMovedPieceId).toBeNull();
+    expect(state.cornerKickPaceUsed).toBe(0);
+  }
+
+  it('every cornerKick* field is null/0 after an accurate High corner resolves into HEADER', () => {
+    let state = runCornerSequenceToPass();
+    state = { ...state, lastActionType: 'HIGH_PASS', passTargetHex: homePiece2.position };
+    const result = applyRoll(state, 3, 3, 3); // awayPiece.highPass=5, die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HEADER');
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('every cornerKick* field is null/0 after an accurate Low corner delivers', () => {
+    let state = runCornerSequenceToPass();
+    state = { ...state, lastActionType: 'STANDARD_PASS', passTargetHex: { q: 5, r: 13 } };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('every cornerKick* field is null/0 after an inaccurate corner produces LOOSE_BALL', () => {
+    let state = runCornerSequenceToPass();
+    state = { ...state, lastActionType: 'STANDARD_PASS', passTargetHex: { q: 5, r: 13 } };
+    const result = applyRoll(state, 2, 3, 3); // die=2 -> score 7 -> inaccurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('LOAD-BEARING: a STANDARD_PASS taken on the action AFTER a corner resolves is not accuracy-gated, even with a die that would fail an 8+ check', () => {
+    let state = runCornerSequenceToPass();
+    // Deliver the Low corner to a teammate's hex so the teammate becomes the new carrier —
+    // the load-bearing scenario is "possession continues into an ordinary next action".
+    state = { ...state, lastActionType: 'STANDARD_PASS', passTargetHex: awayPiece2.position };
+    const cornerResolved = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate delivery
+    expect(cornerResolved.ok).toBe(true);
+    if (!cornerResolved.ok) return;
+    expect(cornerResolved.state.cornerKickTeam).toBeNull();
+    expect(cornerResolved.state.ball.carrierId).toBe(awayPiece2.id);
+
+    // Next action: an ordinary Standard Pass by the new carrier, with a die that would fail
+    // an 8+ accuracy check if this pass were (incorrectly) still gated by a leaked
+    // cornerKickTeam.
+    const nextPassState: GameState = {
+      ...cornerResolved.state,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 15, r: 16 },
+    };
+    const nextResult = applyRoll(nextPassState, 1, 3, 3); // die=1 -> would fail 8+ if (still) gated
+    expect(nextResult.ok).toBe(true);
+    if (!nextResult.ok) return;
+    expect(nextResult.state.phase).toBe('PASS');
+    expect(nextResult.state.ball.position).toEqual({ q: 15, r: 16 });
   });
 });
