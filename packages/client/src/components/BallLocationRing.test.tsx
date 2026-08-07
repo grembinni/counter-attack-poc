@@ -65,12 +65,40 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
     expect(polygon?.getAttribute('points')).toBe(expectedPoints);
   });
 
-  // Plan 37-18 (T-37-87): pins the real BALL_MARKER_PHASES set size so
+  // Plan 37-18 (T-37-87) / Plan 38-07: pins the real BALL_MARKER_PHASES set size so
   // docs/HIGHLIGHT-REFERENCE.md's stated phase count/enumeration cannot silently drift from
-  // the code again, as it did after Plan 37-02 added the six Phase-37 restart phases
-  // (THROW_IN_SETUP, GOAL_KICK_SETUP_GK, GOAL_KICK_SETUP_OPPONENT, GOAL_KICK_CHOICE,
-  // GOAL_KICK_TARGET, GOAL_KICK_MOVE) without updating the doc's "exact 11-phase list" claim.
-  it('BALL_MARKER_PHASES has grown to 17 members (11 original + 6 Phase-37 restart phases)', () => {
-    expect(BALL_MARKER_PHASES.size).toBe(17);
+  // the code again, as it did after Plan 37-02 added the six Phase-37 restart phases without
+  // updating the doc's "exact 11-phase list" claim. Grew from 17 (11 original + 6 Phase-37
+  // restart phases) to 22 with Plan 38-07's five Corner Kick phases.
+  it('BALL_MARKER_PHASES has grown to 22 members (17 + 5 Phase-38 corner-kick phases)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(22);
+  });
+
+  it("renders the marker during phase='CORNER_KICK_GK_SETUP_ATTACKING' (Phase 38 corner-kick phase)", () => {
+    const { container } = renderMarker('CORNER_KICK_GK_SETUP_ATTACKING');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='CORNER_KICK_TAKER_SELECT' (Phase 38 corner-kick phase)", () => {
+    const { container } = renderMarker('CORNER_KICK_TAKER_SELECT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='CORNER_KICK_REPOSITION' (Phase 38 corner-kick phase)", () => {
+    const { container } = renderMarker('CORNER_KICK_REPOSITION');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='CORNER_KICK_FINAL_SETUP' (Phase 38 corner-kick phase)", () => {
+    const { container } = renderMarker('CORNER_KICK_FINAL_SETUP');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
   });
 });

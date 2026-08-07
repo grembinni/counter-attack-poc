@@ -319,3 +319,60 @@ describe('GameBoard — THEME-03/THEME-04: runtime accent CSS variables', () => 
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Plan 38-07: each of the five Corner Kick phases (plus the PASS-with-cornerKickTeam High/Low
+// choice) renders CornerKickSetupPanel — not ActionPanel — via the top-band dispatch ternary.
+// ---------------------------------------------------------------------------
+describe('GameBoard — Phase 38 (38-07): Corner Kick phase dispatch', () => {
+  const CORNER_KICK_PHASES = [
+    'CORNER_KICK_GK_SETUP_ATTACKING',
+    'CORNER_KICK_GK_SETUP_DEFENDING',
+    'CORNER_KICK_TAKER_SELECT',
+    'CORNER_KICK_REPOSITION',
+    'CORNER_KICK_FINAL_SETUP',
+  ] as const;
+
+  it.each(CORNER_KICK_PHASES)(
+    'renders CornerKickSetupPanel (not ActionPanel) during %s',
+    (phase) => {
+      useGameStore.setState({
+        gameState: { ...mockMovementState, phase, cornerKickTeam: 'home' },
+      });
+      render(<GameBoard />);
+      expect(screen.getByText('Corner Kick')).toBeDefined();
+    },
+  );
+
+  it("renders CornerKickSetupPanel's High/Low Pass choice (not ActionPanel's generic chooser) during PASS once cornerKickTeam is set", () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PASS',
+        cornerKickTeam: 'home',
+        ball: { position: { q: 0, r: 1 }, carrierId: 'home-9', lastTouchedBy: null },
+      },
+      playerSlot: 1, // home === cornerKickTeam
+    });
+    render(<GameBoard />);
+    expect(screen.getByText('Corner Kick')).toBeDefined();
+    expect(screen.getByRole('button', { name: /^high pass$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^low pass$/i })).toBeDefined();
+  });
+
+  it('renders the ordinary ActionPanel during PASS when cornerKickTeam is null (unchanged, non-corner behavior)', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'PASS', cornerKickTeam: null },
+    });
+    render(<GameBoard />);
+    expect(screen.queryByText('Corner Kick')).toBeNull();
+  });
+
+  it.each(CORNER_KICK_PHASES)('PHASE_LABEL has a distinct human-readable entry for %s', (phase) => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase, cornerKickTeam: 'home' },
+    });
+    const { container } = render(<GameBoard />);
+    expect(container.textContent).toMatch(/CORNER KICK/);
+  });
+});

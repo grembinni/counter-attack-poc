@@ -921,3 +921,130 @@ describe('ActionLog — D-04: glyph rule', () => {
     expect(entry?.textContent).not.toMatch(/✗/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Plan 38-07: Corner Kick event rendering (CORNER_KICK_GK_PLACE, CORNER_KICK_TAKER_PLACED,
+// CORNER_KICK_STAGE_ADVANCE, CORNER_KICK_MOVE, CORNER_KICK_ACCURACY) and the OUT_OF_BOUNDS
+// restartLabel's three-way extension to 'CORNER_KICK'.
+// ---------------------------------------------------------------------------
+describe('ActionLog — Phase 38 (38-07): Corner Kick event rendering', () => {
+  it('an OUT_OF_BOUNDS event with restart CORNER_KICK renders "Corner Kick" (not Throw-In or Goal Kick)', () => {
+    setEventLog([
+      {
+        type: 'OUT_OF_BOUNDS',
+        exitHex: { q: 0, r: 5 },
+        kind: 'BYLINE',
+        restart: 'CORNER_KICK',
+        awardedTo: 'away',
+        lastTouchedByPieceId: 'home-1',
+        timestamp: 0,
+        ballAfter: { position: { q: 0, r: 1 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Corner Kick/);
+    expect(container.textContent).not.toMatch(/Throw-In/);
+  });
+
+  it("a CORNER_KICK_GK_PLACE event names the goalkeeper and which side's window it was", () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_GK_PLACE',
+        pieceId: 'away-0',
+        side: 'ATTACKING',
+        from: { q: 35, r: 13 },
+        to: { q: 30, r: 10 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[CORNER KICK\]/);
+    expect(container.textContent).toMatch(/Attacking GK/);
+    expect(container.textContent).toMatch(/30,10/);
+  });
+
+  it("a CORNER_KICK_TAKER_PLACED event names the corner-taker (mirrors THROW_IN_PLACE's wording shape)", () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_TAKER_PLACED',
+        pieceId: 'away-9',
+        from: { q: 22, r: 13 },
+        to: { q: 36, r: 1 },
+        timestamp: 0,
+        ballAfter: { position: { q: 36, r: 1 }, carrierId: 'away-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/placed at 36,1/);
+  });
+
+  it('a CORNER_KICK_STAGE_ADVANCE event renders a round-handoff line naming the side that just finished', () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_STAGE_ADVANCE',
+        fromStageIndex: 0,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[CORNER KICK\]/);
+    expect(container.textContent).toMatch(/Attacking team.*reposition round ended/);
+  });
+
+  it('a CORNER_KICK_MOVE event names the piece and slot (mirrors the GOAL_KICK_MOVE format)', () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_MOVE',
+        slot: 'ATTACKER',
+        pieceId: 'away-1',
+        from: { q: 30, r: 5 },
+        to: { q: 32, r: 5 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[CORNER KICK RESULT\]/);
+    expect(container.textContent).toMatch(/30,5.*32,5/);
+  });
+
+  it('an accurate High Pass CORNER_KICK_ACCURACY event names the taker, the die, combined score and outcome', () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_ACCURACY',
+        takerId: 'away-9',
+        passType: 'HIGH',
+        targetHex: { q: 33, r: 12 },
+        accurate: true,
+        kickDie: 5,
+        kickScore: 9,
+        timestamp: 0,
+        ballAfter: { position: { q: 33, r: 12 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[CORNER KICK ✓\]/);
+    expect(container.textContent).toMatch(/High Pass/);
+    expect(container.textContent).toMatch(/33,12/);
+    expect(container.textContent).toMatch(/Accurate/);
+  });
+
+  it('an inaccurate Low Pass CORNER_KICK_ACCURACY event renders the ✗ glyph and "Inaccurate — loose ball"', () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_ACCURACY',
+        takerId: 'away-9',
+        passType: 'LOW',
+        targetHex: { q: 33, r: 12 },
+        accurate: false,
+        kickDie: 2,
+        kickScore: 5,
+        timestamp: 0,
+        ballAfter: { position: { q: 33, r: 12 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[CORNER KICK ✗\]/);
+    expect(container.textContent).toMatch(/Low Pass/);
+    expect(container.textContent).toMatch(/Inaccurate — loose ball/);
+  });
+});

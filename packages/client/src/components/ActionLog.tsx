@@ -1,5 +1,5 @@
 import type { ActionEvent, HexCoord, MovementSlot } from '@counter-attack/shared';
-import { TEAM_CONFIGS } from '@counter-attack/shared';
+import { TEAM_CONFIGS, CORNER_KICK_STAGES } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import {
   teamAccentColor,
@@ -851,7 +851,13 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
       };
     case 'OUT_OF_BOUNDS': {
       // Phase 37 (37-02) / OOB-05: ball left the pitch; log exit kind + awarded restart.
-      const restartLabel = event.restart === 'THROW_IN' ? 'Throw-In' : 'Goal Kick';
+      // Phase 38 (38-07): extended to a three-way ternary for CORNER_KICK.
+      const restartLabel =
+        event.restart === 'THROW_IN'
+          ? 'Throw-In'
+          : event.restart === 'CORNER_KICK'
+            ? 'Corner Kick'
+            : 'Goal Kick';
       const kindLabel = event.kind === 'SIDELINE' ? 'sideline' : 'byline';
       return {
         prefix: '[OUT]',
@@ -925,6 +931,86 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
           <>
             {' '}
             <P pieceId={event.gkId} prefix="K" /> → {event.targetHex.q},{event.targetHex.r} — die:
+            {event.kickDie}+{event.kickScore - event.kickDie}={event.kickScore}
+            {accurate ? ' Accurate' : ' Inaccurate — loose ball'}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'CORNER_KICK_GK_PLACE': {
+      // CORNER-01 (Phase 38): goalkeeper placement during either of the two sequential
+      // GK-reposition windows — names the goalkeeper and which side's window it was.
+      const sideLabel = event.side === 'ATTACKING' ? 'Attacking' : 'Defending';
+      return {
+        prefix: '[CORNER KICK]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.pieceId} /> ({sideLabel} GK) repositioned to {event.to.q},
+            {event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'CORNER_KICK_TAKER_PLACED':
+      // CORNER-02 (Phase 38): the corner-taker is placed at the fixed corner hex — mirrors
+      // THROW_IN_PLACE's wording shape exactly.
+      return {
+        prefix: '[CORNER KICK]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.pieceId} /> placed at {event.to.q},{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    case 'CORNER_KICK_STAGE_ADVANCE': {
+      // CORNER-03 (Phase 38): undo boundary between the 6 alternating reposition stages —
+      // mirrors the GOAL_KICK_WINDOW_ADVANCE case's "{side}'s window ended" shape.
+      const fromSide = CORNER_KICK_STAGES[event.fromStageIndex].side;
+      const sideLabel = fromSide === 'attacking' ? "Attacking team's" : "Defending team's";
+      return {
+        prefix: '[CORNER KICK]',
+        prefixColor: aaTeamAccentColor(undefined),
+        content: ` ${sideLabel} reposition round ended`,
+        isGoal: false,
+      };
+    }
+    case 'CORNER_KICK_MOVE': {
+      // CORNER-06 (Phase 38): 1-player-per-team repositioning while the corner kick travels —
+      // byte-for-byte the GOAL_KICK_MOVE format, substituting the ATTACKER/DEFENDER slot.
+      const slotPrefix = event.slot === 'ATTACKER' ? 'A' : 'D';
+      return {
+        prefix: event.slot === 'ATTACKER' ? '[CORNER KICK RESULT]' : '[CORNER KICK RESPONSE MOVE]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.pieceId} prefix={slotPrefix} /> {event.from.q},{event.from.r} →{' '}
+            {event.to.q},{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'CORNER_KICK_ACCURACY': {
+      // CORNER-04/CORNER-05 (Phase 38): corner-kick High/Low accuracy roll resolution —
+      // byte-for-byte the GOAL_KICK case's vs-comparison format, plus the High/Low label.
+      const accurate = event.accurate;
+      const passLabel = event.passType === 'HIGH' ? 'High Pass' : 'Low Pass';
+      return {
+        prefix: accurate ? '[CORNER KICK ✓]' : '[CORNER KICK ✗]',
+        prefixColor: pieceColorOf(event.takerId),
+        content: (
+          <>
+            {' '}
+            <P pieceId={event.takerId} prefix="K" /> {passLabel} → {event.targetHex.q},
+            {event.targetHex.r} — die:
             {event.kickDie}+{event.kickScore - event.kickDie}={event.kickScore}
             {accurate ? ' Accurate' : ' Inaccurate — loose ball'}
           </>
