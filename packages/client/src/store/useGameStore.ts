@@ -12,6 +12,7 @@ import {
   hexDistance,
   getZoIDefenders,
   freeKickStageTeam,
+  cornerKickStageTeam,
   ELIGIBLE_NEXT_ACTIONS,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
@@ -182,6 +183,17 @@ export type GameStore = {
   emitGoalKickChoice: (choice: 'kick' | 'standard') => void;
   /** GOALKICK-05 (Phase 37): mirrors emitGKKickTarget. */
   emitGoalKickTarget: (targetHex: HexCoord) => void;
+  /**
+   * CORNER-01 (Phase 38): one-shot GK placement during either corner-kick GK reposition
+   * window. Mirrors emitFreeKickMove (two arguments, clears selectedPieceId after emitting)
+   * since the placement is one-shot, not a multi-click budgeted reposition.
+   */
+  emitCornerKickGkPlace: (pieceId: string, to: HexCoord) => void;
+  /**
+   * CORNER-02 (Phase 38): mirrors emitThrowInPlace exactly — a single pieceId argument, since
+   * the destination (cornerKickHex) is server-owned and never client-chosen.
+   */
+  emitCornerKickTaker: (pieceId: string) => void;
 };
 
 /**
@@ -220,14 +232,16 @@ type ResponseMoveValidHexConfig = {
     | 'gkKickMovedPieceId'
     | 'firstTimePassMovedPieceId'
     | 'snapDeflectMovedPieceId'
-    | 'goalKickMovedPieceId';
+    | 'goalKickMovedPieceId'
+    | 'cornerKickMovedPieceId';
   /** GameState field tracking cumulative hexes moved this slot. */
   paceUsedField:
     | 'highPassPaceUsed'
     | 'gkKickPaceUsed'
     | 'firstTimePassPaceUsed'
     | 'snapDeflectPaceUsed'
-    | 'goalKickPaceUsed';
+    | 'goalKickPaceUsed'
+    | 'cornerKickPaceUsed';
   /** Maximum hexes (pace) allowed this slot. */
   paceCap: number;
   /**
@@ -278,6 +292,18 @@ const SNAPSHOT_DEFLECT_CONFIG: ResponseMoveValidHexConfig = {
 const GOAL_KICK_MOVE_CONFIG: ResponseMoveValidHexConfig = {
   lockedPieceIdField: 'goalKickMovedPieceId',
   paceUsedField: 'goalKickPaceUsed',
+  paceCap: 3,
+  clickDistanceMode: 'strict-1',
+};
+/**
+ * CORNER-06 (Phase 38): the 3-hex pre-kick travel window while the corner kick is being
+ * taken — byte-for-byte the GOAL_KICK_MOVE_CONFIG shape with the corner-kick field names,
+ * mirroring the server's CORNER_KICK_FINAL_PACE_CAP so client highlights and server
+ * legality cannot drift.
+ */
+const CORNER_KICK_FINAL_SETUP_CONFIG: ResponseMoveValidHexConfig = {
+  lockedPieceIdField: 'cornerKickMovedPieceId',
+  paceUsedField: 'cornerKickPaceUsed',
   paceCap: 3,
   clickDistanceMode: 'strict-1',
 };
@@ -887,6 +913,159 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // CORNER_KICK_GK_SETUP_ATTACKING / _DEFENDING (CORNER-01): sequential GK-only reposition
+    // windows before the corner-taker is placed — the attacking team's GK first, then the
+    // defending team's GK. Assumption A1 (RESEARCH.md): destinations are every unoccupied
+    // on-pitch hex, deliberately uncapped, mirroring the server's applyCornerKickGkPlace —
+    // unlike GOAL_KICK_SETUP_GK/_OPPONENT's 6-hex-per-click budgeted reposition above, this is
+    // a single uncapped placement.
+    if (
+      gameState.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
+      gameState.phase === 'CORNER_KICK_GK_SETUP_DEFENDING'
+    ) {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickGk)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const cornerKickTeam = gameState.cornerKickTeam ?? null;
+      if (cornerKickTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const actingTeam: 'home' | 'away' =
+        gameState.phase === 'CORNER_KICK_GK_SETUP_ATTACKING'
+          ? cornerKickTeam
+          : cornerKickTeam === 'home'
+            ? 'away'
+            : 'home';
+      if (piece.teamId !== actingTeam || piece.role !== 'GK' || actingTeam !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // Assumption A1: every on-pitch hex not occupied by another piece — uncapped, mirroring
+      // the server's applyCornerKickGkPlace. Keep this comment adjacent to the computation so
+      // the client cap (none) and server cap stay discoverable together.
+      const valid = PITCH_HEXES.filter(
+        (hex) =>
+          !gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          ),
+      );
+      set({ selectedPieceId: id, validMoveHexes: valid, tackleRiskHexes: [] });
+      return;
+    }
+
+    // CORNER_KICK_TAKER_SELECT (CORNER-02): modelled on THROW_IN_SETUP above — the
+    // corner-taker's destination (cornerKickHex) is server-fixed, never client-chosen, so
+    // there is no per-piece destination set to compute here.
+    if (gameState.phase === 'CORNER_KICK_TAKER_SELECT') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickTaker)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // Mirrors applyCornerKickTaker's WRONG_TEAM guard (gameEngine.ts) — only the kicking
+      // team's own on-pitch pieces are selectable.
+      if (piece.teamId !== gameState.cornerKickTeam || gameState.cornerKickTeam !== myTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      set({ selectedPieceId: id, validMoveHexes: [], tackleRiskHexes: [] });
+      return;
+    }
+
+    // CORNER_KICK_REPOSITION (CORNER-03): 6 alternating attacking/defending stages, modelled
+    // byte-for-byte on the GOAL_KICK_SETUP_GK/_OPPONENT branch above, substituting the acting
+    // team (cornerKickStageTeam), the eligible-list side (attacking/defending keyed off
+    // cornerKickTeam) and the pace ledger (cornerKickUsedPace, cap 6). No stage-distinct-
+    // piece-count check here — a client-side "2 distinct pieces" hint is a display concern
+    // owned by the panel (38-07); the server rejects violations authoritatively.
+    if (gameState.phase === 'CORNER_KICK_REPOSITION') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickReposition)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const cornerKickTeam = gameState.cornerKickTeam ?? null;
+      const stageIndex = gameState.cornerKickStageIndex ?? null;
+      if (cornerKickTeam === null || stageIndex === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const actingTeam = cornerKickStageTeam(stageIndex, cornerKickTeam);
+      const side = actingTeam === cornerKickTeam ? 'attacking' : 'defending';
+      const eligibleIds = gameState.cornerKickEligibleIds?.[side] ?? [];
+      if (myTeam !== actingTeam || piece.teamId !== actingTeam || !eligibleIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // Preserve the GOAL_KICK_SETUP_GK/_OPPONENT precedent: a pace-exhausted piece stays
+      // selectable (so the UI can still show its stats) but yields no destinations.
+      const paceRemaining = 6 - (gameState.cornerKickUsedPace?.[id] ?? 0);
+      if (paceRemaining <= 0) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      const valid = computeFreeMoveValidHexes(id, piece, gameState);
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
+    // CORNER_KICK_FINAL_SETUP (CORNER-06): 1-player-per-team pre-kick reposition window,
+    // modelled on the GOAL_KICK_MOVE branch above via CORNER_KICK_FINAL_SETUP_CONFIG. The
+    // acting team derives from cornerKickMoveSlot; goalkeepers and the corner-taker are
+    // excluded server-side via cornerKickEligibleIds, so the client must not offer them.
+    if (gameState.phase === 'CORNER_KICK_FINAL_SETUP') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickFinal)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const cornerKickTeam = gameState.cornerKickTeam ?? null;
+      if (cornerKickTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const actingTeam: 'home' | 'away' =
+        gameState.cornerKickMoveSlot === 'ATTACKER'
+          ? cornerKickTeam
+          : cornerKickTeam === 'home'
+            ? 'away'
+            : 'home';
+      const side = actingTeam === cornerKickTeam ? 'attacking' : 'defending';
+      const eligibleIds = gameState.cornerKickEligibleIds?.[side] ?? [];
+      if (piece.teamId !== myTeam || piece.teamId !== actingTeam || !eligibleIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const lockedId = gameState.cornerKickMovedPieceId ?? null;
+      if (lockedId !== null && lockedId !== id) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const valid = computeResponseMoveValidHexes(
+        id,
+        piece,
+        gameState,
+        CORNER_KICK_FINAL_SETUP_CONFIG,
+      );
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // SNAPSHOT_DEFLECT: defending team moves 1 piece up to 2 hexes
     if (gameState.phase === 'SNAPSHOT_DEFLECT') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
@@ -946,12 +1125,20 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // selection belonging to the team whose slot just ended could survive into the other
     // team's slot (computeResponseMoveValidHexes has no team-ownership check of its own),
     // reproducing the exact BUG-09 failure mode this guard already closes for GK_KICK_MOVE.
+    // CORNER-06 (Phase 38): cornerKickMoveSlot mirrors goalKickMoveSlot's ATTACKER/DEFENDER
+    // handoff shape. CORNER-03 (Phase 38): cornerKickStageIndex changing is CORNER_KICK_REPOSITION's
+    // window-handoff signal — unlike GOAL_KICK_SETUP_GK/_OPPONENT (whose handoff is a distinct
+    // GamePhase value, already caught by phaseChanged below), all 6 reposition stages share the
+    // same phase value, so a stage advance must be detected explicitly here to always clear the
+    // outgoing manager's selection.
     const responseMoveStateChanged =
       newState.movementSlot !== prevState.movementSlot ||
       newState.firstTimePassMovementSlot !== prevState.firstTimePassMovementSlot ||
       newState.highPassMovementSlot !== prevState.highPassMovementSlot ||
       newState.gkKickMovementSlot !== prevState.gkKickMovementSlot ||
-      newState.goalKickMoveSlot !== prevState.goalKickMoveSlot;
+      newState.goalKickMoveSlot !== prevState.goalKickMoveSlot ||
+      newState.cornerKickMoveSlot !== prevState.cornerKickMoveSlot ||
+      newState.cornerKickStageIndex !== prevState.cornerKickStageIndex;
     // BUG-09: a response-move phase's per-piece pace allowance is exhausted — the stale
     // selection/highlight must clear even when the slot itself hasn't changed yet (e.g. the
     // piece that just moved is still locked into the current slot but has no pace left).
@@ -966,7 +1153,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
               ? (newState.snapDeflectPaceUsed ?? 0) >= 2
               : newState.phase === 'GOAL_KICK_MOVE'
                 ? (newState.goalKickPaceUsed ?? 0) >= 3
-                : false;
+                : newState.phase === 'CORNER_KICK_FINAL_SETUP'
+                  ? (newState.cornerKickPaceUsed ?? 0) >= 3
+                  : false;
     const phaseChanged = newState.phase !== prevState.phase;
     const pieceStillExists =
       prevSelectedId !== null && newState.pieces.some((p) => p.id === prevSelectedId);
@@ -1088,7 +1277,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       newState.phase === 'HIGH_PASS_MOVE' ||
       newState.phase === 'GK_KICK_MOVE' ||
       newState.phase === 'FIRST_TIME_PASS_MOVE' ||
-      newState.phase === 'GOAL_KICK_MOVE'
+      newState.phase === 'GOAL_KICK_MOVE' ||
+      newState.phase === 'CORNER_KICK_FINAL_SETUP'
     ) {
       const config =
         newState.phase === 'GK_KICK_MOVE'
@@ -1097,7 +1287,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
             ? FIRST_TIME_PASS_MOVE_CONFIG
             : newState.phase === 'GOAL_KICK_MOVE'
               ? GOAL_KICK_MOVE_CONFIG
-              : HIGH_PASS_MOVE_CONFIG;
+              : newState.phase === 'CORNER_KICK_FINAL_SETUP'
+                ? CORNER_KICK_FINAL_SETUP_CONFIG
+                : HIGH_PASS_MOVE_CONFIG;
       const lockedId = newState[config.lockedPieceIdField] ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid = locked
@@ -1148,16 +1340,23 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // fix #3, Phase 32-05 D-06) — previously duplicated inline in both places. GOAL_KICK_SETUP_GK/
     // OPPONENT (GOALKICK-02, Plan 37-10) added alongside its FREE_MOVE_* analog, using the
     // goalKick*-prefixed pace-budget lookup.
+    // CORNER_KICK_REPOSITION (CORNER-03) joins this block for within-stage stickiness — a
+    // stage handoff is already caught above (cornerKickStageIndex feeds responseMoveStateChanged),
+    // so reaching here means the same manager is still mid-round and the selection should
+    // persist with a freshly recomputed pace-remaining budget, matching the goal-kick precedent.
     if (
       newState.phase === 'FREE_MOVE_ATTACK' ||
       newState.phase === 'FREE_MOVE_DEFENSE' ||
       newState.phase === 'GOAL_KICK_SETUP_GK' ||
-      newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+      newState.phase === 'GOAL_KICK_SETUP_OPPONENT' ||
+      newState.phase === 'CORNER_KICK_REPOSITION'
     ) {
       const paceRemaining =
         newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
           ? 6 - (newState.goalKickUsedPace?.[prevSelectedId] ?? 0)
-          : 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
+          : newState.phase === 'CORNER_KICK_REPOSITION'
+            ? 6 - (newState.cornerKickUsedPace?.[prevSelectedId] ?? 0)
+            : 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
       const stickyValid =
         paceRemaining <= 0 ? [] : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
       set({
@@ -1301,5 +1500,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // GOALKICK-05: does not clear selectedPieceId — same rationale as emitGoalKickChoice above.
   emitGoalKickTarget: (targetHex) => {
     socket.emit(ClientEvents.GAME_GOAL_KICK_TARGET, targetHex);
+  },
+
+  // CORNER-01: mirrors emitFreeKickMove — clears selectedPieceId after emitting since the
+  // GK placement is a one-shot action, not a multi-click budgeted reposition.
+  emitCornerKickGkPlace: (pieceId, to) => {
+    socket.emit(ClientEvents.GAME_CORNER_KICK_GK_PLACE, pieceId, to);
+    set({ selectedPieceId: null, validMoveHexes: [] });
+  },
+
+  // CORNER-02: mirrors emitThrowInPlace — single pieceId argument, destination is
+  // server-owned (cornerKickHex), never client-chosen.
+  emitCornerKickTaker: (pieceId) => {
+    socket.emit(ClientEvents.GAME_CORNER_KICK_TAKER, pieceId);
   },
 }));

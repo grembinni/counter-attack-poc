@@ -621,6 +621,329 @@ describe('useGameStore — selectPiece GOAL_KICK_SETUP_GK / GOAL_KICK_MOVE (Plan
   });
 });
 
+// CORNER-01/02/03/06 (Plan 38-06): selectPiece coverage for the four interactive Corner
+// Kick phases — the two GK reposition windows, corner-taker selection, the 6-hex alternating
+// reposition window, and the 3-hex pre-kick window. Mirrors the GOAL_KICK_SETUP_GK/GOAL_KICK_MOVE
+// coverage above.
+describe('useGameStore — selectPiece Corner Kick (Plan 38-06)', () => {
+  const HOME_GK_ID = 'home-0';
+  const AWAY_GK_ID = 'away-0';
+  const REPOSITION_ELIGIBLE_ID = 'home-8';
+  const REPOSITION_INELIGIBLE_ID = 'home-10';
+  const FINAL_ELIGIBLE_ID = 'home-8';
+  const FINAL_OTHER_ID = 'home-10';
+
+  function cornerKickGkSetupState(overrides: {
+    phase?: 'CORNER_KICK_GK_SETUP_ATTACKING' | 'CORNER_KICK_GK_SETUP_DEFENDING';
+    cornerKickTeam?: 'home' | 'away';
+  }) {
+    return {
+      ...mockMovementState,
+      phase: overrides.phase ?? ('CORNER_KICK_GK_SETUP_ATTACKING' as const),
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+    };
+  }
+
+  function cornerKickTakerSelectState(overrides: { cornerKickTeam?: 'home' | 'away' }) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_TAKER_SELECT' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+    };
+  }
+
+  function cornerKickRepositionState(overrides: {
+    stageIndex?: 0 | 1 | 2 | 3 | 4 | 5;
+    cornerKickTeam?: 'home' | 'away';
+    eligibleIds?: { attacking: string[]; defending: string[] };
+    cornerKickUsedPace?: Record<string, number>;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_REPOSITION' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+      cornerKickStageIndex: overrides.stageIndex ?? 0,
+      cornerKickEligibleIds: overrides.eligibleIds ?? {
+        attacking: [REPOSITION_ELIGIBLE_ID],
+        defending: [] as readonly string[],
+      },
+      cornerKickUsedPace: overrides.cornerKickUsedPace ?? {},
+    };
+  }
+
+  function cornerKickFinalSetupState(overrides: {
+    cornerKickTeam?: 'home' | 'away';
+    slot?: 'ATTACKER' | 'DEFENDER';
+    movedPieceId?: string | null;
+    paceUsed?: number;
+    eligibleIds?: { attacking: string[]; defending: string[] };
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_FINAL_SETUP' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+      cornerKickMoveSlot: overrides.slot ?? ('ATTACKER' as const),
+      cornerKickMovedPieceId: overrides.movedPieceId ?? null,
+      cornerKickPaceUsed: overrides.paceUsed ?? 0,
+      cornerKickEligibleIds: overrides.eligibleIds ?? {
+        attacking: [FINAL_ELIGIBLE_ID],
+        defending: [] as readonly string[],
+      },
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({
+      playerSlot: 1, // home
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+  });
+
+  it('CORNER_KICK_GK_SETUP_ATTACKING: selects the attacking team GK and yields uncapped validMoveHexes (Assumption A1)', () => {
+    useGameStore.setState({
+      gameState: cornerKickGkSetupState({
+        phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+        cornerKickTeam: 'home',
+      }),
+    });
+    useGameStore.getState().selectPiece(HOME_GK_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(HOME_GK_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('CORNER_KICK_GK_SETUP_ATTACKING: rejects a non-GK own-team piece', () => {
+    useGameStore.setState({
+      gameState: cornerKickGkSetupState({
+        phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+        cornerKickTeam: 'home',
+      }),
+    });
+    useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID); // home-8, an FWD, not GK
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_GK_SETUP_DEFENDING: selects the defending team GK (the team opposite cornerKickTeam)', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away
+      gameState: cornerKickGkSetupState({
+        phase: 'CORNER_KICK_GK_SETUP_DEFENDING',
+        cornerKickTeam: 'home',
+      }),
+    });
+    useGameStore.getState().selectPiece(AWAY_GK_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(AWAY_GK_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('CORNER_KICK_TAKER_SELECT: accepts any own on-pitch piece and yields empty validMoveHexes', () => {
+    useGameStore.setState({ gameState: cornerKickTakerSelectState({ cornerKickTeam: 'home' }) });
+    useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(REPOSITION_ELIGIBLE_ID);
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_TAKER_SELECT: rejects an opponent piece', () => {
+    useGameStore.setState({ gameState: cornerKickTakerSelectState({ cornerKickTeam: 'home' }) });
+    useGameStore.getState().selectPiece(AWAY_GK_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it("CORNER_KICK_REPOSITION: rejects a piece absent from the current stage side's cornerKickEligibleIds", () => {
+    useGameStore.setState({ gameState: cornerKickRepositionState({}) });
+    useGameStore.getState().selectPiece(REPOSITION_INELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_REPOSITION: rejects a piece belonging to a team other than cornerKickStageTeam(stageIndex, cornerKickTeam)', () => {
+    // Stage 0 is the attacking side's stage (cornerKickTeam='home') — an away piece is never
+    // eligible this stage regardless of the eligible-list contents.
+    useGameStore.setState({
+      playerSlot: 2,
+      gameState: cornerKickRepositionState({
+        stageIndex: 0,
+        cornerKickTeam: 'home',
+        eligibleIds: { attacking: [], defending: ['away-8'] },
+      }),
+    });
+    useGameStore.getState().selectPiece('away-8');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_REPOSITION: selects a pace-exhausted piece (cornerKickUsedPace === 6) but yields empty validMoveHexes', () => {
+    useGameStore.setState({
+      gameState: cornerKickRepositionState({
+        cornerKickUsedPace: { [REPOSITION_ELIGIBLE_ID]: 6 },
+      }),
+    });
+    useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(REPOSITION_ELIGIBLE_ID);
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_REPOSITION: a piece with cornerKickUsedPace 2 yields only adjacent legal hexes', () => {
+    useGameStore.setState({
+      gameState: cornerKickRepositionState({
+        cornerKickUsedPace: { [REPOSITION_ELIGIBLE_ID]: 2 },
+      }),
+    });
+    useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(REPOSITION_ELIGIBLE_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: rejects a different eligible piece once cornerKickMovedPieceId is locked', () => {
+    useGameStore.setState({
+      gameState: cornerKickFinalSetupState({
+        movedPieceId: FINAL_ELIGIBLE_ID,
+        eligibleIds: { attacking: [FINAL_ELIGIBLE_ID, FINAL_OTHER_ID], defending: [] },
+      }),
+    });
+    useGameStore.getState().selectPiece(FINAL_OTHER_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: yields empty validMoveHexes once cornerKickPaceUsed reaches cap 3', () => {
+    useGameStore.setState({
+      gameState: cornerKickFinalSetupState({ movedPieceId: FINAL_ELIGIBLE_ID, paceUsed: 3 }),
+    });
+    useGameStore.getState().selectPiece(FINAL_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(FINAL_ELIGIBLE_ID);
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: the locked piece itself remains selectable and yields adjacent valid-move hexes', () => {
+    useGameStore.setState({
+      gameState: cornerKickFinalSetupState({ movedPieceId: FINAL_ELIGIBLE_ID, paceUsed: 1 }),
+    });
+    useGameStore.getState().selectPiece(FINAL_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(FINAL_ELIGIBLE_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
+// CORNER-03/06 (Plan 38-06): setGameState sticky-selection coverage — mirrors the BUG-09
+// response-move slot hand-off tests above, plus CORNER_KICK_REPOSITION's stage-handoff clear
+// (a same-phase-value transition, unlike GOAL_KICK_SETUP_GK->_OPPONENT's distinct phase values).
+describe('useGameStore — setGameState sticky-selection for Corner Kick (Plan 38-06)', () => {
+  const FINAL_LOCKED_ID = 'home-8';
+  const REPOSITION_LOCKED_ID = 'home-8';
+
+  function cornerKickFinalSetupBroadcast(overrides: {
+    slot?: 'ATTACKER' | 'DEFENDER';
+    paceUsed?: number;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_FINAL_SETUP' as const,
+      cornerKickTeam: 'home' as const,
+      cornerKickMoveSlot: overrides.slot ?? ('ATTACKER' as const),
+      cornerKickMovedPieceId: FINAL_LOCKED_ID,
+      cornerKickPaceUsed: overrides.paceUsed ?? 0,
+      cornerKickEligibleIds: { attacking: [FINAL_LOCKED_ID], defending: [] as readonly string[] },
+    };
+  }
+
+  function cornerKickRepositionBroadcast(overrides: {
+    stageIndex?: 0 | 1 | 2 | 3 | 4 | 5;
+    usedPace?: number;
+  }) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_REPOSITION' as const,
+      cornerKickTeam: 'home' as const,
+      cornerKickStageIndex: overrides.stageIndex ?? 0,
+      cornerKickEligibleIds: {
+        attacking: [REPOSITION_LOCKED_ID],
+        defending: [] as readonly string[],
+      },
+      cornerKickUsedPace:
+        overrides.usedPace !== undefined ? { [REPOSITION_LOCKED_ID]: overrides.usedPace } : {},
+    };
+  }
+
+  it('CORNER_KICK_FINAL_SETUP: keeps the locked piece selected across a same-phase, same-slot broadcast', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: cornerKickFinalSetupBroadcast({ slot: 'ATTACKER', paceUsed: 0 }),
+      selectedPieceId: FINAL_LOCKED_ID,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = cornerKickFinalSetupBroadcast({ slot: 'ATTACKER', paceUsed: 1 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(FINAL_LOCKED_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: clears selection on the ATTACKER -> DEFENDER slot flip', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: cornerKickFinalSetupBroadcast({ slot: 'ATTACKER' }),
+      selectedPieceId: FINAL_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = cornerKickFinalSetupBroadcast({ slot: 'DEFENDER' });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_REPOSITION: clears selection on every stage handoff (cornerKickStageIndex change)', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: cornerKickRepositionBroadcast({ stageIndex: 0 }),
+      selectedPieceId: REPOSITION_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = cornerKickRepositionBroadcast({ stageIndex: 1 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_REPOSITION: retains the locked piece within the same stage as pace accumulates', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: cornerKickRepositionBroadcast({ stageIndex: 0, usedPace: 0 }),
+      selectedPieceId: REPOSITION_LOCKED_ID,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    const broadcast = cornerKickRepositionBroadcast({ stageIndex: 0, usedPace: 1 });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(REPOSITION_LOCKED_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
 describe('useGameStore — Phase 7 setters', () => {
   it('setGameState replaces gameState wholesale', () => {
     const newState = { ...mockMovementState, phase: 'SHOT' as const };
@@ -702,6 +1025,25 @@ describe('useGameStore — emit actions', () => {
   it('emitFreeKickReady calls socket.emit with game:free-kick-ready', () => {
     useGameStore.getState().emitFreeKickReady();
     expect(emitMock).toHaveBeenCalledWith('game:free-kick-ready');
+  });
+
+  // CORNER-01 (Plan 38-06): mirrors emitFreeKickMove's shape (two args, clears selection).
+  it('emitCornerKickGkPlace calls socket.emit with game:corner-kick-gk-place, pieceId, hex and clears selection', () => {
+    const targetHex = { q: 3, r: 3 };
+    useGameStore.setState({ selectedPieceId: 'home-0', validMoveHexes: [targetHex] });
+    useGameStore.getState().emitCornerKickGkPlace('home-0', targetHex);
+    expect(emitMock).toHaveBeenCalledWith('game:corner-kick-gk-place', 'home-0', targetHex);
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+    expect(useGameStore.getState().validMoveHexes).toHaveLength(0);
+  });
+
+  // CORNER-02 (Plan 38-06): mirrors emitThrowInPlace's shape — a single pieceId argument, since
+  // the destination (cornerKickHex) is server-owned. T-38-24: the emitted call carries exactly
+  // one payload argument (event name + pieceId, no hex), so a tampered client cannot widen it.
+  it('emitCornerKickTaker calls socket.emit with game:corner-kick-taker and exactly one payload argument', () => {
+    useGameStore.getState().emitCornerKickTaker('home-8');
+    expect(emitMock).toHaveBeenCalledWith('game:corner-kick-taker', 'home-8');
+    expect(emitMock.mock.calls[emitMock.mock.calls.length - 1]).toHaveLength(2);
   });
 });
 
