@@ -56,6 +56,49 @@ export function freeKickStageTeam(
 }
 
 /**
+ * CORNER-03/D-05: fixed, alternating corner-kick reposition-window stage sequence.
+ * Index = `state.cornerKickStageIndex`. `side` resolves to the actual team via
+ * `state.cornerKickTeam` (the ATTACKING/kicking team awarded the corner) or its
+ * opposite ('defending') — see `cornerKickStageTeam` below.
+ *
+ * Deliberately uses the literals `'attacking'`/`'defending'` — NOT
+ * `FREE_KICK_STAGES`'s `'kicking'`/`'defending'` — because Corner Kick's acting
+ * team is resolved from `state.cornerKickTeam`, and reusing the free-kick literal
+ * would invite accidental cross-use of `freeKickStageTeam` on corner-kick state.
+ *
+ * D-05: strict pairs, attacking manager first, 3 rounds per side (6 stages total,
+ * alternating attacking/defending, each capped at 2 distinct pieces).
+ *
+ * Pitfall 4 divergence from `applyFreeKickReady`'s free-kick model: `max` is the
+ * per-stage cap on DISTINCT pieces touched DURING THAT STAGE (re-touching an
+ * already-counted piece in the same stage is free) — but, unlike free kick's
+ * PERMANENT `movedPieceIds` lock, a piece touched in one corner-kick stage is NOT
+ * locked out of later stages. Its per-piece 6-hex budget (`cornerKickUsedPace`)
+ * persists and stays spendable across all 6 stages.
+ */
+export const CORNER_KICK_STAGES = [
+  { side: 'attacking', max: 2 },
+  { side: 'defending', max: 2 },
+  { side: 'attacking', max: 2 },
+  { side: 'defending', max: 2 },
+  { side: 'attacking', max: 2 },
+  { side: 'defending', max: 2 },
+] as const;
+
+/**
+ * CORNER-03/D-05: resolves the actual team ('home' | 'away') acting in a given
+ * corner-kick stage, given the team awarded the corner (`cornerKickTeam`).
+ */
+export function cornerKickStageTeam(
+  stageIndex: 0 | 1 | 2 | 3 | 4 | 5,
+  cornerKickTeam: 'home' | 'away',
+): 'home' | 'away' {
+  const stage = CORNER_KICK_STAGES[stageIndex];
+  if (stage.side === 'attacking') return cornerKickTeam;
+  return cornerKickTeam === 'home' ? 'away' : 'home';
+}
+
+/**
  * D-24: direction multiplier for a team's attacking direction along the q-axis.
  * home attacks toward higher q (+1); away attacks toward lower q (-1).
  */
