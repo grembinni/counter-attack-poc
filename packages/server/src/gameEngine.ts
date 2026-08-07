@@ -647,6 +647,27 @@ const THROW_IN_TEARDOWN = {
   throwInPhasesTaken: null,
 } as const;
 
+// CORNER-04/T-38-14 (Phase 38, 38-04): single shared teardown literal for a corner-kick
+// context. Every branch in applyRoll's PASS case that resolves a corner kick (accurate or
+// inaccurate, High or Low) MUST spread this so a stale cornerKick* field cannot survive to
+// mis-gate a later, unrelated STANDARD_PASS (T-38-14). Applied UNCONDITIONALLY at every PASS
+// resolving return (not just the corner-specific branches) — spreading already-null fields is
+// a harmless no-op for a non-corner pass, and a single unconditional teardown is simpler and
+// safer than three conditional variants (Pitfall-3 audit, Task 3). Not exported: nothing
+// outside this module needs it.
+const CORNER_KICK_TEARDOWN = {
+  cornerKickTeam: null,
+  cornerKickHex: null,
+  cornerKickTakerId: null,
+  cornerKickEligibleIds: null,
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickUsedPace: null,
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+} as const;
+
 // ---------------------------------------------------------------------------
 // applyMove
 // ---------------------------------------------------------------------------
@@ -1989,6 +2010,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               actionCount: state.actionCount + passTimeCost,
               passTargetHex: null,
               eventLog: cornerInaccurateLog,
+              // T-38-14: tear down every cornerKick* field now that the corner has resolved
+              // (inaccurate) — the next STANDARD_PASS must not be accuracy-gated (Task 3).
+              ...CORNER_KICK_TEARDOWN,
             },
           };
         }
@@ -2364,6 +2388,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
               tackleAttemptedByIds: [], // D-02
               eventLog: newEventLog,
+              // T-38-14: unconditional no-op for a non-corner pass; tears down a corner
+              // Low delivery to an occupied target hex (Task 3).
+              ...CORNER_KICK_TEARDOWN,
             },
           };
         }
@@ -2407,6 +2434,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               passTargetHex: null,
               preGeneratedInterceptionDice: [],
               eventLog: newEventLog,
+              // T-38-14: tears down a corner High delivery with no eligible header
+              // contestants (Task 3); unconditional no-op for a non-corner High Pass.
+              ...CORNER_KICK_TEARDOWN,
             },
           };
         }
@@ -2433,6 +2463,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             headerConfirmed: { home: !homeEligible, away: !awayEligible },
             headerTargetHex: null,
             headerAccuracyRollPending: true, // RULE-01 (Phase 11): gate contestant selection until attacker acks roll
+            // T-38-14: tears down an accurate corner High kick entering HEADER (Task 3);
+            // unconditional no-op for a non-corner High Pass.
+            ...CORNER_KICK_TEARDOWN,
           },
         };
       }
@@ -2457,6 +2490,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
           tackleAttemptedByIds: [], // D-02
           eventLog: newEventLog,
+          // T-38-14: tears down a corner Low delivery to an empty/teammate target hex
+          // (Task 3); unconditional no-op for any non-corner pass type.
+          ...CORNER_KICK_TEARDOWN,
         },
       };
     }

@@ -14,7 +14,12 @@ import {
   buildReplayFrames,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
+import {
+  isPitchHex,
+  CORNER_KICK_HEX,
+  GOAL_KICK_RESTART_HEX,
+  cornerKickStageTeam,
+} from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Test fixtures — mirrors gameEngine.outOfBounds.test.ts's fixture shapes
@@ -1715,5 +1720,154 @@ describe('buildReplayFrames — corner-kick replay eligibility (T-38-15, 38-04 T
     };
     const frames = buildReplayFrames(finalState);
     expect(frames).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 (38-04): corner-context persistence and teardown audit (Pitfall 3, T-38-14)
+// ---------------------------------------------------------------------------
+
+describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-04 Task 3)', () => {
+  /**
+   * Drives a full corner-kick sequence — triggerOutOfBoundsRestart through
+   * applyCornerKickFinalSetupEnd's terminal PASS return — asserting the Pitfall-3 invariant
+   * (cornerKickTeam/cornerKickHex/cornerKickTakerId non-null) after every intermediate step.
+   * Confirming each of the 6 CORNER_KICK_REPOSITION stages and both CORNER_KICK_FINAL_SETUP
+   * slots with zero pieces moved is legal (D-06) — no applyCornerKickReposition/
+   * applyCornerKickFinalMove calls are needed to reach PASS.
+   *
+   * Returns the resulting PASS-phase state with lastActionType still 'CORNER_KICK_RESTART' —
+   * callers overwrite lastActionType (simulating the GAME_ROLL handler's overwrite with the
+   * client's chosen passType) before calling applyRoll.
+   */
+  function runCornerSequenceToPass(): GameState {
+    const oobState: GameState = {
+      ...baseLooseBallState,
+      pieces: [homePiece, homePiece2, awayPiece, awayPiece2, awayPiece3, homeGK, awayGK],
+      ball: {
+        position: { q: 1, r: 13 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+      },
+    };
+    let state = triggerOutOfBoundsRestart(oobState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    if (!state) throw new Error('triggerOutOfBoundsRestart returned null');
+    expect(state.cornerKickTeam).not.toBeNull();
+    expect(state.cornerKickHex).not.toBeNull();
+
+    const gkEnd1 = applyCornerKickGkWindowEnd(state); // ATTACKING -> DEFENDING
+    if (!gkEnd1.ok) throw new Error('applyCornerKickGkWindowEnd (1) failed');
+    state = gkEnd1.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+
+    const gkEnd2 = applyCornerKickGkWindowEnd(state); // DEFENDING -> TAKER_SELECT
+    if (!gkEnd2.ok) throw new Error('applyCornerKickGkWindowEnd (2) failed');
+    state = gkEnd2.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+
+    const takerResult = applyCornerKickTakerSelect(state, awayPiece.id);
+    if (!takerResult.ok) throw new Error('applyCornerKickTakerSelect failed');
+    state = takerResult.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+    expect(state.cornerKickHex).not.toBeNull();
+    expect(state.cornerKickTakerId).toBe(awayPiece.id);
+
+    const cornerKickTeam = state.cornerKickTeam!;
+    for (let i = 0; i < 6; i++) {
+      const team = cornerKickStageTeam(i as 0 | 1 | 2 | 3 | 4 | 5, cornerKickTeam);
+      const stageResult = applyCornerKickStageEnd(state, team);
+      if (!stageResult.ok) throw new Error(`applyCornerKickStageEnd(${i}) failed`);
+      state = stageResult.state;
+      expect(state.cornerKickTeam).not.toBeNull();
+      expect(state.cornerKickHex).not.toBeNull();
+      expect(state.cornerKickTakerId).toBe(awayPiece.id);
+    }
+    expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+
+    const attackerEnd = applyCornerKickFinalSetupEnd(state);
+    if (!attackerEnd.ok) throw new Error('applyCornerKickFinalSetupEnd (ATTACKER) failed');
+    state = attackerEnd.state;
+    expect(state.cornerKickTeam).not.toBeNull();
+
+    const defenderEnd = applyCornerKickFinalSetupEnd(state);
+    if (!defenderEnd.ok) throw new Error('applyCornerKickFinalSetupEnd (DEFENDER) failed');
+    state = defenderEnd.state;
+    expect(state.phase).toBe('PASS');
+    expect(state.lastActionType).toBe('CORNER_KICK_RESTART');
+    expect(state.cornerKickTeam).toBe(cornerKickTeam);
+    expect(state.cornerKickHex).not.toBeNull();
+    expect(state.cornerKickTakerId).toBe(awayPiece.id);
+
+    return state;
+  }
+
+  /** Every cornerKick* field must be null/0 — asserted identically across all 3 branches. */
+  function expectAllCornerFieldsCleared(state: GameState) {
+    expect(state.cornerKickTeam).toBeNull();
+    expect(state.cornerKickHex).toBeNull();
+    expect(state.cornerKickTakerId).toBeNull();
+    expect(state.cornerKickEligibleIds).toBeNull();
+    expect(state.cornerKickStageIndex).toBeNull();
+    expect(state.cornerKickStagePlacedIds).toBeNull();
+    expect(state.cornerKickUsedPace).toBeNull();
+    expect(state.cornerKickMoveSlot).toBeNull();
+    expect(state.cornerKickMovedPieceId).toBeNull();
+    expect(state.cornerKickPaceUsed).toBe(0);
+  }
+
+  it('every cornerKick* field is null/0 after an accurate High corner resolves into HEADER', () => {
+    let state = runCornerSequenceToPass();
+    state = { ...state, lastActionType: 'HIGH_PASS', passTargetHex: homePiece2.position };
+    const result = applyRoll(state, 3, 3, 3); // awayPiece.highPass=5, die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HEADER');
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('every cornerKick* field is null/0 after an accurate Low corner delivers', () => {
+    let state = runCornerSequenceToPass();
+    state = { ...state, lastActionType: 'STANDARD_PASS', passTargetHex: { q: 5, r: 13 } };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('every cornerKick* field is null/0 after an inaccurate corner produces LOOSE_BALL', () => {
+    let state = runCornerSequenceToPass();
+    state = { ...state, lastActionType: 'STANDARD_PASS', passTargetHex: { q: 5, r: 13 } };
+    const result = applyRoll(state, 2, 3, 3); // die=2 -> score 7 -> inaccurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('LOAD-BEARING: a STANDARD_PASS taken on the action AFTER a corner resolves is not accuracy-gated, even with a die that would fail an 8+ check', () => {
+    let state = runCornerSequenceToPass();
+    // Deliver the Low corner to a teammate's hex so the teammate becomes the new carrier —
+    // the load-bearing scenario is "possession continues into an ordinary next action".
+    state = { ...state, lastActionType: 'STANDARD_PASS', passTargetHex: awayPiece2.position };
+    const cornerResolved = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate delivery
+    expect(cornerResolved.ok).toBe(true);
+    if (!cornerResolved.ok) return;
+    expect(cornerResolved.state.cornerKickTeam).toBeNull();
+    expect(cornerResolved.state.ball.carrierId).toBe(awayPiece2.id);
+
+    // Next action: an ordinary Standard Pass by the new carrier, with a die that would fail
+    // an 8+ accuracy check if this pass were (incorrectly) still gated by a leaked
+    // cornerKickTeam.
+    const nextPassState: GameState = {
+      ...cornerResolved.state,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 15, r: 16 },
+    };
+    const nextResult = applyRoll(nextPassState, 1, 3, 3); // die=1 -> would fail 8+ if (still) gated
+    expect(nextResult.ok).toBe(true);
+    if (!nextResult.ok) return;
+    expect(nextResult.state.phase).toBe('PASS');
+    expect(nextResult.state.ball.position).toEqual({ q: 15, r: 16 });
   });
 });
