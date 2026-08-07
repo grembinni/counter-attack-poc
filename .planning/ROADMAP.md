@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 1/9                                    | In Progress |             |
+| 38    | 3/9                                    | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -232,8 +232,8 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 38-02-PLAN.md — Engine: corner trigger (OOB-03), goalkeeper reposition pair, corner-taker placement
-- [ ] 38-06-PLAN.md — Client: store selection branches, emitters, HexGrid selectability and tints
+- [x] 38-02-PLAN.md — Engine: corner trigger (OOB-03), goalkeeper reposition pair, corner-taker placement
+- [x] 38-06-PLAN.md — Client: store selection branches, emitters, HexGrid selectability and tints
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
