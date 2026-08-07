@@ -10,6 +10,8 @@ import {
   applyCornerKickFinalMove,
   applyCornerKickFinalSetupEnd,
   applyRoll,
+  applyUndo,
+  buildReplayFrames,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
@@ -1497,5 +1499,221 @@ describe('applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05, 38-04 T
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.eventLog.filter((e) => e.type === 'STEAL_ATTEMPT')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2 (38-04): Undo boundaries + Replay eligibility for corner-kick events
+// ---------------------------------------------------------------------------
+
+describe('applyUndo — corner-kick Undo boundaries (CORNER-03/CORNER-06, T-38-16)', () => {
+  /** CORNER_KICK_REPOSITION, stage 1: a stage-0 MOVE precedes a CORNER_KICK_STAGE_ADVANCE
+   * boundary; a stage-1 MOVE follows it. moveTypeForPhase defaults to 'MOVE' for
+   * CORNER_KICK_REPOSITION (the reposition window reuses the existing GAME_MOVE handler
+   * per 38-03's doc comment; 38-05 wires the handler that emits this event). */
+  const stage1RepositionState: GameState = {
+    ...baseCornerRepositionState,
+    cornerKickStageIndex: 1,
+    activeTeam: 'home', // stage 1 is the defending side (home, since cornerKickTeam is away)
+    eventLog: [
+      {
+        type: 'CORNER_KICK_TAKER_PLACED',
+        pieceId: awayTaker.id,
+        from: { q: 0, r: 0 },
+        to: awayTaker.position,
+        timestamp: 1000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'MOVE',
+        pieceId: awayPiece.id,
+        from: { q: 15, r: 16 },
+        to: awayPiece.position,
+        slot: 'ATTACKER_4',
+        timestamp: 2000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'CORNER_KICK_STAGE_ADVANCE',
+        fromStageIndex: 0,
+        timestamp: 3000,
+      },
+      {
+        type: 'MOVE',
+        pieceId: homePiece.id,
+        from: { q: 19, r: 10 },
+        to: homePiece.position,
+        slot: 'ATTACKER_4',
+        timestamp: 4000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it('undoes only the post-boundary stage-1 MOVE; the pre-boundary stage-0 MOVE remains in the eventLog and the piece stays moved', () => {
+    const result = applyUndo(stage1RepositionState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // homePiece (stage-1 mover) reverted to its pre-move position
+    const home = result.state.pieces.find((p) => p.id === homePiece.id);
+    expect(home?.position).toEqual({ q: 19, r: 10 });
+
+    // awayPiece (stage-0 mover) is UNCHANGED — Undo never crossed the CORNER_KICK_STAGE_ADVANCE
+    const away = result.state.pieces.find((p) => p.id === awayPiece.id);
+    expect(away?.position).toEqual(awayPiece.position);
+
+    // The stage-0 MOVE event for awayPiece is still present in the eventLog
+    const remainingMoves = result.state.eventLog.filter(
+      (e) => e.type === 'MOVE' && e.pieceId === awayPiece.id,
+    );
+    expect(remainingMoves).toHaveLength(1);
+
+    // The stage-1 MOVE event for homePiece was removed
+    const homeMoves = result.state.eventLog.filter(
+      (e) => e.type === 'MOVE' && e.pieceId === homePiece.id,
+    );
+    expect(homeMoves).toHaveLength(0);
+  });
+
+  it('a second Undo after the post-boundary move is gone returns UNDO_LOCKED (D-09) — the pre-boundary stage-0 move exists but the CORNER_KICK_STAGE_ADVANCE boundary is never crossed to reach it', () => {
+    const first = applyUndo(stage1RepositionState);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const second = applyUndo(first.state);
+    expect(second).toEqual({ ok: false, reason: 'UNDO_LOCKED' });
+  });
+
+  it('CORNER_KICK_TAKER_PLACED is an Undo boundary: once the only post-placement MOVE is undone, a further Undo cannot reach back to un-place the corner-taker', () => {
+    const takerBoundaryState: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 0,
+      eventLog: [
+        {
+          type: 'CORNER_KICK_TAKER_PLACED',
+          pieceId: awayTaker.id,
+          from: { q: 0, r: 0 },
+          to: awayTaker.position,
+          timestamp: 1000,
+          ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+        },
+        {
+          type: 'MOVE',
+          pieceId: awayPiece.id,
+          from: { q: 15, r: 16 },
+          to: awayPiece.position,
+          slot: 'ATTACKER_4',
+          timestamp: 2000,
+          ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+        },
+      ],
+    };
+    const first = applyUndo(takerBoundaryState);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    // Only the CORNER_KICK_TAKER_PLACED event remains — a second Undo has nothing left in the
+    // current stage and must NOT attempt to revert the taker placement itself.
+    const second = applyUndo(first.state);
+    expect(second).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+
+  it('CORNER_KICK_STAGE_ADVANCE is also a boundary in CORNER_KICK_FINAL_SETUP, blocking Undo from reaching back into stage 5', () => {
+    const finalSetupWithStageAdvanceState: GameState = {
+      ...baseCornerFinalSetupState,
+      eventLog: [
+        {
+          type: 'CORNER_KICK_STAGE_ADVANCE',
+          fromStageIndex: 5,
+          timestamp: 5000,
+        },
+      ],
+    };
+    // No MOVE after the boundary in the current (FINAL_SETUP) slot → NOTHING_TO_UNDO, not a
+    // reach-back into the stage-5 REPOSITION events (there are none in this fixture, but the
+    // boundary computation itself must find the CORNER_KICK_STAGE_ADVANCE as the floor).
+    const result = applyUndo(finalSetupWithStageAdvanceState);
+    expect(result).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+});
+
+describe('buildReplayFrames — corner-kick replay eligibility (T-38-15, 38-04 Task 2)', () => {
+  it('CORNER_KICK_ACCURACY produces a replay frame whose ball position matches ballAfter', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 1000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(1);
+    expect(frames[0]!.ball.position).toEqual({ q: 5, r: 13 });
+    expect(frames[0]!.ball.carrierId).toBeNull();
+  });
+
+  it('CORNER_KICK_TAKER_PLACED produces a replay frame and animates the taker to the corner hex, mirroring THROW_IN_PLACE', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_TAKER_PLACED',
+          pieceId: awayPiece.id,
+          from: awayPiece.position,
+          to: CORNER_KICK_HEX.home.top,
+          timestamp: 1000,
+          ballAfter: { position: CORNER_KICK_HEX.home.top, carrierId: awayPiece.id },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames.length).toBeGreaterThanOrEqual(1);
+    const lastFrame = frames[frames.length - 1]!;
+    const movedPiece = lastFrame.pieces.find((p) => p.id === awayPiece.id);
+    expect(movedPiece?.position).toEqual(CORNER_KICK_HEX.home.top);
+    expect(lastFrame.ball.position).toEqual(CORNER_KICK_HEX.home.top);
+    expect(lastFrame.ball.carrierId).toBe(awayPiece.id);
+  });
+
+  it('CORNER_KICK_STAGE_ADVANCE, CORNER_KICK_GK_PLACE and CORNER_KICK_MOVE are NOT replay-eligible (no ballAfter) — no frame produced for a log containing only these', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        { type: 'CORNER_KICK_STAGE_ADVANCE', fromStageIndex: 0, timestamp: 1000 },
+        {
+          type: 'CORNER_KICK_GK_PLACE',
+          pieceId: awayGK.id,
+          side: 'ATTACKING',
+          from: awayGK.position,
+          to: { q: 5, r: 20 },
+          timestamp: 2000,
+        },
+        {
+          type: 'CORNER_KICK_MOVE',
+          slot: 'ATTACKER',
+          pieceId: awayPiece.id,
+          from: awayPiece.position,
+          to: { q: 17, r: 16 },
+          timestamp: 3000,
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(0);
   });
 });

@@ -1606,7 +1606,12 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       // GOALKICK-02 (Phase 37, 37-02): Undo can never cross from the opponent's reposition
       // window back into the kicking team's window.
       ((state.phase === 'GOAL_KICK_SETUP_GK' || state.phase === 'GOAL_KICK_SETUP_OPPONENT') &&
-        evt.type === 'GOAL_KICK_WINDOW_ADVANCE');
+        evt.type === 'GOAL_KICK_WINDOW_ADVANCE') ||
+      // CORNER-03/CORNER-06 (Phase 38, 38-04): Undo may never cross a stage handoff back
+      // into the opposing manager's completed round, nor un-place the corner-taker.
+      (state.phase === 'CORNER_KICK_REPOSITION' &&
+        (evt.type === 'CORNER_KICK_STAGE_ADVANCE' || evt.type === 'CORNER_KICK_TAKER_PLACED')) ||
+      (state.phase === 'CORNER_KICK_FINAL_SETUP' && evt.type === 'CORNER_KICK_STAGE_ADVANCE');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -6632,6 +6637,11 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'OUT_OF_BOUNDS',
   'THROW_IN_PLACE',
   'GOAL_KICK',
+  // Phase 38 (38-04): corner-kick events that carry ballAfter. CORNER_KICK_STAGE_ADVANCE,
+  // CORNER_KICK_GK_PLACE and CORNER_KICK_MOVE are deliberately excluded — none carry
+  // ballAfter, matching the existing GOAL_KICK_MOVE exclusion above.
+  'CORNER_KICK_TAKER_PLACED',
+  'CORNER_KICK_ACCURACY',
 ]);
 
 /**
@@ -6790,6 +6800,16 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     // THROWIN-02 (Phase 37, 37-02): thrower placement — mirrors the KICK_OFF_SETUP branch
     // immediately above so the thrower's placement animates like a move.
     if (event.type === 'THROW_IN_PLACE') {
+      const existing = moveGroup.get(event.pieceId) ?? [];
+      existing.push({ to: event.to, ballAfter: event.ballAfter });
+      moveGroup.set(event.pieceId, existing);
+      continue;
+    }
+
+    // CORNER-02 (Phase 38, 38-04): corner-taker placement — byte-for-byte the THROW_IN_PLACE
+    // shape (pieceId, to, ballAfter), so it animates the same way (piece walks to the corner
+    // flag as the ball moves with them).
+    if (event.type === 'CORNER_KICK_TAKER_PLACED') {
       const existing = moveGroup.get(event.pieceId) ?? [];
       existing.push({ to: event.to, ballAfter: event.ballAfter });
       moveGroup.set(event.pieceId, existing);
