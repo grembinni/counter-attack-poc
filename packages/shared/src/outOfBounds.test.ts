@@ -5,6 +5,7 @@ import {
   bylineOwner,
   resolveThrowInHex,
   GOAL_KICK_RESTART_HEX,
+  CORNER_KICK_HEX,
 } from './outOfBounds.js';
 import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
 import { FORMATIONS } from './formations.js';
@@ -158,5 +159,43 @@ describe('GOAL_KICK_RESTART_HEX', () => {
     expect(result).not.toEqual(GOAL_KICK_RESTART_HEX.home);
     expect(isPitchHex(result)).toBe(true);
     expect(pieces.some((p) => p.position.q === result.q && p.position.r === result.r)).toBe(false);
+  });
+});
+
+describe('CORNER_KICK_HEX', () => {
+  it('home.top equals { q: 0, r: 1 } and home.bottom equals { q: 0, r: 25 }', () => {
+    expect(CORNER_KICK_HEX.home.top).toEqual({ q: 0, r: 1 });
+    expect(CORNER_KICK_HEX.home.bottom).toEqual({ q: 0, r: 25 });
+  });
+
+  it('away.top equals { q: 36, r: 1 } and away.bottom equals { q: 36, r: 25 }', () => {
+    expect(CORNER_KICK_HEX.away.top).toEqual({ q: 36, r: 1 });
+    expect(CORNER_KICK_HEX.away.bottom).toEqual({ q: 36, r: 25 });
+  });
+
+  it('is mirror-symmetric for both top and bottom: home.q + away.q === 36 and home.r === away.r', () => {
+    for (const row of ['top', 'bottom'] as const) {
+      expect(CORNER_KICK_HEX.home[row].q + CORNER_KICK_HEX.away[row].q).toBe(36);
+      expect(CORNER_KICK_HEX.home[row].r).toBe(CORNER_KICK_HEX.away[row].r);
+    }
+  });
+
+  it('all four hexes satisfy isPitchHex', () => {
+    for (const owner of ['home', 'away'] as const) {
+      for (const row of ['top', 'bottom'] as const) {
+        expect(isPitchHex(CORNER_KICK_HEX[owner][row])).toBe(true);
+      }
+    }
+  });
+
+  it('all four hexes are pairwise distinct', () => {
+    const hexes: HexCoord[] = [
+      CORNER_KICK_HEX.home.top,
+      CORNER_KICK_HEX.home.bottom,
+      CORNER_KICK_HEX.away.top,
+      CORNER_KICK_HEX.away.bottom,
+    ];
+    const keys = hexes.map((h) => `${h.q},${h.r}`);
+    expect(new Set(keys).size).toBe(hexes.length);
   });
 });

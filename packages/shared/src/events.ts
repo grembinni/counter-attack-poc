@@ -120,6 +120,22 @@ export const ClientEvents = {
   GAME_GOAL_KICK_CHOICE: 'game:goal-kick-choice',
   /** GOALKICK-05 (Phase 37): mirrors GAME_GK_KICK_TARGET. */
   GAME_GOAL_KICK_TARGET: 'game:goal-kick-target',
+  /**
+   * CORNER-01 (Phase 38): reposition a GK during either corner-kick GK reposition window
+   * (attacking GK first, then defending GK). Payload mirrors GAME_FREE_KICK_MOVE's
+   * pick-up-and-place shape.
+   *
+   * CORNER-03/CORNER-06 (Phase 38): the reposition windows for those requirements
+   * deliberately reuse the existing GAME_MOVE + GAME_END_TURN events (the goal-kick/
+   * FREE_MOVE precedent) — no further corner-kick reposition events are to be added.
+   */
+  GAME_CORNER_KICK_GK_PLACE: 'game:corner-kick-gk-place',
+  /**
+   * CORNER-02 (Phase 38): the attacking manager selects which of their pieces takes the
+   * corner. The destination hex is server-owned (`state.cornerKickHex`) and deliberately
+   * NOT part of the payload — mirrors GAME_THROW_IN_PLACE.
+   */
+  GAME_CORNER_KICK_TAKER: 'game:corner-kick-taker',
 } as const;
 
 export const ServerEvents = {
@@ -286,6 +302,16 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_GOAL_KICK_CHOICE]: (choice: 'kick' | 'standard') => void;
   /** GOALKICK-05 (Phase 37): GK's team selects the goal-kick target hex. */
   [ClientEvents.GAME_GOAL_KICK_TARGET]: (targetHex: HexCoord) => void;
+  /**
+   * CORNER-01 (Phase 38): reposition a GK during a corner-kick GK reposition window.
+   * Mirrors GAME_FREE_KICK_MOVE's (pieceId, to) shape.
+   */
+  [ClientEvents.GAME_CORNER_KICK_GK_PLACE]: (pieceId: string, to: HexCoord) => void;
+  /**
+   * CORNER-02 (Phase 38): the attacking manager selects which piece takes the corner.
+   * Destination hex is server-owned (`state.cornerKickHex`), never client-supplied.
+   */
+  [ClientEvents.GAME_CORNER_KICK_TAKER]: (pieceId: string) => void;
 }
 
 /**

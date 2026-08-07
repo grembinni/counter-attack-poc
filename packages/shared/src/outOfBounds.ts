@@ -49,6 +49,49 @@ export const GOAL_KICK_RESTART_HEX: Readonly<Record<'home' | 'away', HexCoord>> 
 };
 
 /**
+ * CORNER_KICK_HEX — the four fixed corner-taker hexes (D-01/D-02, CORNER-01).
+ * Unlike `GOAL_KICK_RESTART_HEX` (one hex per team), a corner kick has two
+ * candidate hexes per team — `top` and `bottom` — because a byline has two
+ * corners. `packages/server/src/gameEngine.ts` (Plan 38-02) resolves which of
+ * the pair to use by nearest-corner distance from the ball's actual exit hex.
+ *
+ * Keyed by BYLINE OWNER (the defending team whose goal line the ball
+ * crossed), matching `GOAL_KICK_RESTART_HEX`'s indexing convention — NOT by
+ * the attacking/kicking team. The corner is awarded to the OPPOSITE team
+ * from the key: `CORNER_KICK_HEX.home` is where an AWAY corner is taken from
+ * (home conceded), and `CORNER_KICK_HEX.away` is where a HOME corner is
+ * taken from (away conceded). This inversion is what Plan 38-02 depends on
+ * when resolving `cornerKickTeam` from `bylineOwnerTeam`.
+ *
+ * Coordinate rationale: `q=0` and `q=36` are `PITCH_REGIONS.homeGoal`'s and
+ * `PITCH_REGIONS.awayGoal`'s columns respectively (the bylines).
+ * `PITCH_HEXES` excludes `r=0` for even `q` (see `pitch.ts`'s `isPitchHex`
+ * doc comment), and both `0` and `36` are even, so `{q:0,r:0}`/`{q:36,r:0}`
+ * are off-pitch and `r=1` is the nearest valid top-row hex; `r=25` is the
+ * pitch's last row and is never excluded for any `q` parity. Mirror symmetry
+ * (`home.q + away.q === 36`, `home.r === away.r` per top/bottom pairing)
+ * matches `GOAL_KICK_RESTART_HEX`'s convention.
+ *
+ * WARNING (D-01): `DIFFICULT_ANGLE_HEXES` (`pitch.ts`, the PITCH-03
+ * shooting-penalty zone) is a DIFFERENT, much larger region that happens to
+ * share these four endpoint coordinates by independent derivation. It must
+ * NEVER be imported, aliased, or kept in sync with this constant — the two
+ * are unrelated concepts that coincidentally touch the same corner points.
+ */
+export const CORNER_KICK_HEX: Readonly<
+  Record<'home' | 'away', Record<'top' | 'bottom', HexCoord>>
+> = {
+  home: {
+    top: { q: 0, r: 1 },
+    bottom: { q: 0, r: 25 },
+  },
+  away: {
+    top: { q: 36, r: 1 },
+    bottom: { q: 36, r: 25 },
+  },
+};
+
+/**
  * Which boundary the ball crossed when it left the pitch, or `null` if it is
  * still on the pitch. `null` is a defensive branch — callers should only
  * invoke this on a hex already known/suspected to be out of bounds.

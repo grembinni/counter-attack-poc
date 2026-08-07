@@ -129,8 +129,16 @@ export type ActionEventType =
   | 'GOAL_KICK_WINDOW_ADVANCE' // goal-kick reposition window (GK team -> opponent) boundary
   | 'GOAL_KICK_CHOICE' // GK chose kick vs. standard pass restart
   | 'GOAL_KICK_MOVE' // 1-player-per-team repositioning while the goal kick travels
-  | 'GOAL_KICK'; // goal-kick accuracy roll resolution. Deliberately its own type, not DICE_ROLL
-// (see STATE.md pitfall: reusing DICE_ROLL reactivates a dormant full-slot Undo lockout).
+  | 'GOAL_KICK' // goal-kick accuracy roll resolution. Deliberately its own type, not DICE_ROLL
+  // (see STATE.md pitfall: reusing DICE_ROLL reactivates a dormant full-slot Undo lockout).
+  // Phase 38 (38-01): Corner Kick action event types. D-07/D-08 own dedicated phase chain,
+  // structurally independent of GK_RESTART and the GOAL_KICK_* chain (D-07). Deliberately
+  // NOT DICE_ROLL — same pitfall as GOAL_KICK above.
+  | 'CORNER_KICK_GK_PLACE' // GK placement during the two corner-kick GK reposition windows
+  | 'CORNER_KICK_TAKER_PLACED' // corner-taker placed at the fixed corner hex (CORNER-02)
+  | 'CORNER_KICK_STAGE_ADVANCE' // inter-stage transition among the 6 CORNER-03 stages
+  | 'CORNER_KICK_MOVE' // 1-player-per-team repositioning while the corner kick travels
+  | 'CORNER_KICK_ACCURACY'; // corner-kick High/Low accuracy roll resolution (CORNER-04)
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -485,6 +493,70 @@ export type ActionEvent =
       kickScore: number;
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  // Phase 38 (38-01): Corner Kick action events. D-07/D-08: own dedicated chain, no reuse
+  // of the GK_RESTART or GOAL_KICK_* phase chains; only pure helpers are shared.
+  | {
+      /**
+       * CORNER-01: GK placement during the two corner-kick GK reposition windows
+       * (attacking GK first, then defending GK). Mirrors THROW_IN_PLACE's from/to shape
+       * minus ballAfter — the ball does not move during GK placement.
+       */
+      type: 'CORNER_KICK_GK_PLACE';
+      pieceId: string;
+      side: 'ATTACKING' | 'DEFENDING';
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | {
+      /**
+       * CORNER-02: the corner-taker is placed at the fixed corner hex. Byte-for-byte
+       * THROW_IN_PLACE's shape (from/to + ballAfter — the ball moves with the taker).
+       */
+      type: 'CORNER_KICK_TAKER_PLACED';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /**
+       * CORNER-03: inter-stage transition among the 6 alternating reposition stages.
+       * Mirrors GOAL_KICK_WINDOW_ADVANCE / FK_STAGE_ADVANCE's undo-boundary shape.
+       */
+      type: 'CORNER_KICK_STAGE_ADVANCE';
+      fromStageIndex: 0 | 1 | 2 | 3 | 4 | 5;
+      timestamp: number;
+    }
+  | {
+      /**
+       * CORNER-06: 1-player-per-team repositioning while the corner kick travels.
+       * Byte-for-byte the GOAL_KICK_MOVE shape with the ATTACKER/DEFENDER slot literal.
+       */
+      type: 'CORNER_KICK_MOVE';
+      slot: 'ATTACKER' | 'DEFENDER';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | {
+      /**
+       * CORNER-04/CORNER-05: corner-kick High/Low accuracy roll resolution. Mirrors the
+       * GOAL_KICK shape with `gkId` renamed to `takerId` plus the High/Low discriminator.
+       * Deliberately its own type, not DICE_ROLL (same pitfall as GOAL_KICK above).
+       */
+      type: 'CORNER_KICK_ACCURACY';
+      takerId: string;
+      passType: 'HIGH' | 'LOW';
+      targetHex: HexCoord;
+      accurate: boolean;
+      kickDie: number;
+      kickScore: number;
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
     };
 
 export type GamePhase =
@@ -523,6 +595,15 @@ export type GamePhase =
   | 'GOAL_KICK_CHOICE' // GOALKICK-03: GK chooses kick vs. standard pass
   | 'GOAL_KICK_TARGET' // GOALKICK-04/05: GK's team selects kick destination
   | 'GOAL_KICK_MOVE' // GOALKICK-05: both teams reposition 1 player <=3 hexes while the kick travels
+  // Phase 38 (38-01) / D-07/D-08: Corner Kick phases. Genuinely new phase values, NOT
+  // aliases of GK_RESTART or the GOAL_KICK_* chain — CORNER-01 requires Corner Kick to be
+  // structurally independent, reusing only pure helpers (mirrors the Phase 37 GOALKICK-01
+  // precedent for keeping restart flows structurally separate).
+  | 'CORNER_KICK_GK_SETUP_ATTACKING' // CORNER-01: attacking GK repositions first
+  | 'CORNER_KICK_GK_SETUP_DEFENDING' // CORNER-01: defending GK repositions second
+  | 'CORNER_KICK_TAKER_SELECT' // CORNER-02: attacking manager selects the corner-taker
+  | 'CORNER_KICK_REPOSITION' // CORNER-03: 6 alternating stages, attacking first, 2 pieces max per stage
+  | 'CORNER_KICK_FINAL_SETUP' // CORNER-06: 1-player-per-team pre-kick reposition window
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -555,7 +636,14 @@ export type LastActionType =
   | 'THROW_IN_MOVEMENT_2'
   // GOALKICK-03: set when the GK chooses the Standard Pass restart branch. Mirrors the
   // existing FREE_KICK_RESTART row's purpose (restricted eligibility set).
-  | 'GOAL_KICK_RESTART';
+  | 'GOAL_KICK_RESTART'
+  // CORNER-04/CORNER-05 (Phase 38): set when the corner-kick final-setup window ends and the
+  // taker is ready to kick — restricts the next action to STANDARD_PASS/HIGH_PASS (Low/High).
+  // The PERSISTENT `cornerKickTeam` field — not this value — is what gates the Low-option
+  // accuracy check, because the GAME_ROLL handler overwrites `lastActionType` with the
+  // chosen passType before `applyRoll` runs (same pitfall documented on GOAL_KICK_RESTART's
+  // sibling THROW_IN_MOVEMENT_2 row).
+  | 'CORNER_KICK_RESTART';
 
 /**
  * UX-07 (Phase 18.4): Game speed selection — controls how many match-clock minutes
@@ -1169,4 +1257,64 @@ export type GameState = {
    * each slot transition.
    */
   goalKickPaceUsed?: number;
+  /**
+   * CORNER-01/CORNER-02 (Phase 38): the ATTACKING team awarded the corner kick — mirrors
+   * `throwInTeam`/`goalKickTeam`. Persistent through to kick resolution; the persistent
+   * value (not `lastActionType`) is what gates the Low-option accuracy check (see
+   * `LastActionType.CORNER_KICK_RESTART`'s JSDoc). null outside the corner-kick sequence.
+   */
+  cornerKickTeam?: 'home' | 'away' | null;
+  /**
+   * CORNER-01 (Phase 38): the occupancy-resolved fixed corner hex, computed once at
+   * trigger time from `CORNER_KICK_HEX` (`outOfBounds.ts`) via `resolveThrowInHex`.
+   * Mirrors `throwInHex`. null outside the corner-kick sequence.
+   */
+  cornerKickHex?: HexCoord | null;
+  /**
+   * CORNER-02 (Phase 38): the piece ID chosen as corner-taker. null before selection or
+   * outside the corner-kick sequence.
+   */
+  cornerKickTakerId?: string | null;
+  /**
+   * CORNER-02 (Phase 38): piece IDs eligible to be selected as corner-taker, precomputed
+   * once at trigger time. Mirrors `goalKickEligibleIds`'s two-key shape. null outside
+   * CORNER_KICK_TAKER_SELECT.
+   */
+  cornerKickEligibleIds?: { attacking: readonly string[]; defending: readonly string[] } | null;
+  /**
+   * CORNER-03 (Phase 38): index into `CORNER_KICK_STAGES` (`offside.ts`) — 0..5. Mirrors
+   * `freeKickStageIndex`. null outside CORNER_KICK_REPOSITION.
+   */
+  cornerKickStageIndex?: 0 | 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * CORNER-03 (Phase 38): distinct piece IDs touched THIS stage, cap 2 per
+   * `CORNER_KICK_STAGES[stageIndex].max`. Resets to `[]` at each stage transition. Mirrors
+   * `freeKickPlacedPieceIds`. null outside CORNER_KICK_REPOSITION.
+   */
+  cornerKickStagePlacedIds?: readonly string[] | null;
+  /**
+   * CORNER-03 (Phase 38): cumulative hexes moved per piece across the corner-kick
+   * reposition window, cap 6 per piece. Mirrors `goalKickUsedPace`'s shape. Pitfall-4
+   * divergence (see `CORNER_KICK_STAGES`'s JSDoc in `offside.ts`): this field persists
+   * across all 6 stages — it is NOT reset per stage, unlike `cornerKickStagePlacedIds`
+   * above. null outside CORNER_KICK_REPOSITION.
+   */
+  cornerKickUsedPace?: Readonly<Record<string, number>> | null;
+  /**
+   * CORNER-06 (Phase 38): whose repositioning slot is active during CORNER_KICK_FINAL_SETUP.
+   * 'ATTACKER' -> attacking team moves first; 'DEFENDER' -> defending team moves. Mirrors
+   * `goalKickMoveSlot`'s shape. null outside CORNER_KICK_FINAL_SETUP.
+   */
+  cornerKickMoveSlot?: 'ATTACKER' | 'DEFENDER' | null;
+  /**
+   * CORNER-06 (Phase 38): piece ID locked in for the current CORNER_KICK_FINAL_SETUP slot.
+   * Mirrors `goalKickMovedPieceId`. null if no piece has moved yet in the current slot.
+   */
+  cornerKickMovedPieceId?: string | null;
+  /**
+   * CORNER-06 (Phase 38): cumulative hexes moved by `cornerKickMovedPieceId` in the current
+   * CORNER_KICK_FINAL_SETUP slot. Capped at 3. Mirrors `goalKickPaceUsed`. Reset to 0 at
+   * each slot transition.
+   */
+  cornerKickPaceUsed?: number;
 };

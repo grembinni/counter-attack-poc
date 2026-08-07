@@ -314,4 +314,22 @@ describe('ELIGIBLE_NEXT_ACTIONS — D-08 eligibility table', () => {
       expect(set.has('SHOT')).toBe(false);
     });
   });
+
+  // CORNER-04/CORNER-05 (Phase 38): corner kick's Low/High accuracy options.
+  describe('CORNER_KICK_RESTART', () => {
+    const set = ELIGIBLE_NEXT_ACTIONS.CORNER_KICK_RESTART;
+
+    it('allows exactly STANDARD_PASS and HIGH_PASS (size === 2)', () => {
+      expect(set.size).toBe(2);
+      expect(set.has('STANDARD_PASS')).toBe(true);
+      expect(set.has('HIGH_PASS')).toBe(true);
+    });
+    it('does not allow MOVEMENT, FIRST_TIME_PASS, LONG_BALL, SNAPSHOT, or SHOT', () => {
+      expect(set.has('MOVEMENT')).toBe(false);
+      expect(set.has('FIRST_TIME_PASS')).toBe(false);
+      expect(set.has('LONG_BALL')).toBe(false);
+      expect(set.has('SNAPSHOT')).toBe(false);
+      expect(set.has('SHOT')).toBe(false);
+    });
+  });
 });
