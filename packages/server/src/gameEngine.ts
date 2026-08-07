@@ -3550,6 +3550,90 @@ export function applyCornerKickGkWindowEnd(state: GameState): ApplyCornerKickGkW
 }
 
 // ---------------------------------------------------------------------------
+// applyCornerKickTakerSelect
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickTakerSelect. */
+export type ApplyCornerKickTakerSelectResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' | 'WRONG_TEAM' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-02 (D-01): the kicking manager designates any own on-pitch piece (including
+ * the goalkeeper) as corner-taker. Copies `applyThrowInPlace`'s body shape: phase
+ * guard, then piece lookup, then team ownership, then an unconditional teleport —
+ * distance is irrelevant, this is a placement, not a move.
+ *
+ * Destination: `state.cornerKickHex` is re-resolved against the current piece list
+ * EXCLUDING the taker itself (`resolveThrowInHex(state.cornerKickHex, state.pieces.filter(p
+ * => p.id !== pieceId))`), so the taker's own current position can never block its own
+ * destination — the same exclude-the-moving-piece reasoning the GOAL_KICK trigger branch
+ * applies to the goalkeeper. This guards exactly the case where a goalkeeper was
+ * repositioned onto the corner hex during CORNER-01. The re-resolved hex is written back
+ * into `cornerKickHex` so downstream phases and the client read one consistent value.
+ *
+ * Ball and taker are set together in the same return literal so carrier position and
+ * ball position can never diverge; `ball.lastTouchedBy` is set here too — load-bearing,
+ * as it is the field a re-exit during this corner would classify against.
+ *
+ * Transitions to `CORNER_KICK_REPOSITION`, initializing the CORNER-03 window at stage 0
+ * (attacking side moves first per `CORNER_KICK_STAGES`). `cornerKickEligibleIds` is left
+ * `null` here — computed by 38-03's `computeCornerKickEligibleIds`, not this function.
+ */
+export function applyCornerKickTakerSelect(
+  state: GameState,
+  pieceId: string,
+): ApplyCornerKickTakerSelectResult {
+  if (state.phase !== 'CORNER_KICK_TAKER_SELECT') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.cornerKickTeam == null || state.cornerKickHex == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.teamId !== state.cornerKickTeam) return { ok: false, reason: 'WRONG_TEAM' };
+
+  const cornerKickTeam = state.cornerKickTeam;
+  const resolvedHex = resolveThrowInHex(
+    state.cornerKickHex,
+    state.pieces.filter((p) => p.id !== pieceId),
+  );
+
+  const takerPlacedEvent: ActionEvent = {
+    type: 'CORNER_KICK_TAKER_PLACED',
+    pieceId,
+    from: piece.position,
+    to: resolvedHex,
+    timestamp: Date.now(),
+    ballAfter: { position: resolvedHex, carrierId: pieceId },
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'CORNER_KICK_REPOSITION',
+      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: resolvedHex } : p)),
+      cornerKickHex: resolvedHex,
+      cornerKickTakerId: pieceId,
+      // 38-03's computeCornerKickEligibleIds wires this in — exactly one place to change.
+      cornerKickEligibleIds: null,
+      cornerKickStageIndex: 0,
+      cornerKickStagePlacedIds: [],
+      cornerKickUsedPace: {},
+      activeTeam: cornerKickTeam,
+      ball: {
+        position: resolvedHex,
+        carrierId: pieceId,
+        lastTouchedBy: { pieceId, teamId: cornerKickTeam },
+      },
+      eventLog: [...state.eventLog, takerPlacedEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyThrowInPlace
 // ---------------------------------------------------------------------------
 

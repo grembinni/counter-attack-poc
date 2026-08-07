@@ -3,6 +3,7 @@ import {
   triggerOutOfBoundsRestart,
   applyCornerKickGkPlace,
   applyCornerKickGkWindowEnd,
+  applyCornerKickTakerSelect,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
@@ -543,5 +544,139 @@ describe('applyCornerKickGkWindowEnd', () => {
     if (!result.ok) return;
     expect(result.state.ball).toEqual(baseCornerGkState.ball);
     expect(result.state.cornerKickHex).toEqual(baseCornerGkState.cornerKickHex);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3: corner-taker selection and placement at the fixed hex (CORNER-02, D-01)
+// ---------------------------------------------------------------------------
+
+/** Corner-kick taker-select fixture: away is the awarded (attacking) team. */
+const baseCornerTakerSelectState: GameState = {
+  ...baseLooseBallState,
+  phase: 'CORNER_KICK_TAKER_SELECT',
+  cornerKickTeam: 'away',
+  cornerKickHex: CORNER_KICK_HEX.home.top,
+  cornerKickTakerId: null,
+  cornerKickEligibleIds: null,
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickUsedPace: null,
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+  attackingTeam: 'away',
+  activeTeam: 'away',
+  ball: {
+    position: CORNER_KICK_HEX.home.top,
+    carrierId: null,
+    lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+  },
+};
+
+describe('applyCornerKickTakerSelect', () => {
+  it('rejects WRONG_PHASE outside CORNER_KICK_TAKER_SELECT', () => {
+    const state: GameState = { ...baseCornerTakerSelectState, phase: 'CORNER_KICK_REPOSITION' };
+    const result = applyCornerKickTakerSelect(state, awayPiece.id);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects PIECE_NOT_FOUND for an unknown piece id', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, 'ghost-piece');
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects WRONG_TEAM when the chosen piece does not belong to cornerKickTeam', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, homePiece.id);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('allows selecting the goalkeeper as corner-taker', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayGK.id);
+    expect(result.ok).toBe(true);
+  });
+
+  it("on success the chosen piece's position becomes the resolved cornerKickHex", () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const taker = result.state.pieces.find((p) => p.id === awayPiece.id)!;
+    expect(taker.position).toEqual(result.state.cornerKickHex);
+  });
+
+  it('sets ball.position/carrierId/lastTouchedBy to the taker on success', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.ball.carrierId).toBe(awayPiece.id);
+    expect(result.state.ball.position).toEqual(result.state.cornerKickHex);
+    expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: awayPiece.id, teamId: 'away' });
+  });
+
+  it('sets cornerKickTakerId and transitions to CORNER_KICK_REPOSITION at stage 0', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickTakerId).toBe(awayPiece.id);
+    expect(result.state.phase).toBe('CORNER_KICK_REPOSITION');
+    expect(result.state.cornerKickStageIndex).toBe(0);
+    expect(result.state.cornerKickStagePlacedIds).toEqual([]);
+    expect(result.state.cornerKickUsedPace).toEqual({});
+    expect(result.state.activeTeam).toBe('away'); // stage 0 is the attacking side
+  });
+
+  it('appends a CORNER_KICK_TAKER_PLACED event with from/to/ballAfter', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const event = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_TAKER_PLACED');
+    expect(event).toMatchObject({
+      type: 'CORNER_KICK_TAKER_PLACED',
+      pieceId: awayPiece.id,
+      from: awayPiece.position,
+      to: result.state.cornerKickHex,
+      ballAfter: { position: result.state.cornerKickHex, carrierId: awayPiece.id },
+    });
+  });
+
+  it('the ball and taker never disagree: pieces.find(carrierId).position deep-equals ball.position', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const carrierPiece = result.state.pieces.find((p) => p.id === result.state.ball.carrierId)!;
+    expect(carrierPiece.position).toEqual(result.state.ball.position);
+  });
+
+  it('re-resolves cornerKickHex against pieces EXCLUDING the taker: a goalkeeper repositioned onto the corner hex during CORNER-01 can still be selected and lands exactly on it', () => {
+    // Simulate CORNER-01: awayGK was repositioned onto the corner hex.
+    const state: GameState = {
+      ...baseCornerTakerSelectState,
+      pieces: baseCornerTakerSelectState.pieces.map((p) =>
+        p.id === awayGK.id ? { ...p, position: CORNER_KICK_HEX.home.top } : p,
+      ),
+    };
+    const result = applyCornerKickTakerSelect(state, awayGK.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // The taker's own prior position (== cornerKickHex) must not block its own destination.
+    expect(result.state.cornerKickHex).toEqual(CORNER_KICK_HEX.home.top);
+    const taker = result.state.pieces.find((p) => p.id === awayGK.id)!;
+    expect(taker.position).toEqual(CORNER_KICK_HEX.home.top);
+  });
+
+  it('relocates to the nearest free hex when the corner hex is occupied by a DIFFERENT piece', () => {
+    const state: GameState = {
+      ...baseCornerTakerSelectState,
+      pieces: baseCornerTakerSelectState.pieces.map((p) =>
+        p.id === homeGK.id ? { ...p, position: CORNER_KICK_HEX.home.top } : p,
+      ),
+    };
+    const result = applyCornerKickTakerSelect(state, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickHex).not.toEqual(CORNER_KICK_HEX.home.top);
+    expect(isPitchHex(result.state.cornerKickHex!)).toBe(true);
+    const occupied = result.state.pieces.map((p) => `${p.position.q},${p.position.r}`);
+    expect(new Set(occupied).size).toBe(occupied.length);
   });
 });
