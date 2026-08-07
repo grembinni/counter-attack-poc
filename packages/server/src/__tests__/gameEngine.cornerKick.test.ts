@@ -9,6 +9,7 @@ import {
   applyCornerKickStageEnd,
   applyCornerKickFinalMove,
   applyCornerKickFinalSetupEnd,
+  applyRoll,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
@@ -1309,5 +1310,192 @@ describe('applyCornerKickFinalSetupEnd', () => {
     if (!result.ok) return;
     expect(result.state.cornerKickHex).toEqual(baseCornerFinalSetupState.cornerKickHex);
     expect(result.state.cornerKickTakerId).toBe(awayTaker.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 1 (38-04): applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05)
+// ---------------------------------------------------------------------------
+
+/**
+ * PASS-phase fixture immediately after applyCornerKickFinalSetupEnd's DEFENDER-slot
+ * terminal return (see the 'applyCornerKickFinalSetupEnd' describe block above) —
+ * cornerKickTeam is preserved and every other cornerKick* field is torn down, matching
+ * that function's actual terminal-return shape. `lastActionType` here represents whatever
+ * the GAME_ROLL handler set (the client's chosen passType) BEFORE calling applyRoll —
+ * gameHandlers.ts overwrites lastActionType with the client's choice, which is exactly why
+ * the persistent `cornerKickTeam` field (not `lastActionType`) has to be the corner signal.
+ */
+const baseCornerPassState: GameState = {
+  ...baseLooseBallState,
+  phase: 'PASS',
+  pieces: [
+    homePiece,
+    homePiece2,
+    awayPiece,
+    awayPiece2,
+    awayPiece3,
+    awayEdge,
+    awayTaker,
+    homeGK,
+    awayGK,
+  ],
+  cornerKickTeam: 'away',
+  cornerKickHex: CORNER_KICK_HEX.home.top,
+  cornerKickTakerId: awayTaker.id,
+  cornerKickEligibleIds: null,
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickUsedPace: null,
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+  attackingTeam: 'away',
+  activeTeam: 'away',
+  ball: {
+    position: awayTaker.position,
+    carrierId: awayTaker.id,
+    lastTouchedBy: { pieceId: awayTaker.id, teamId: 'away' },
+  },
+  // Empty hex — no piece occupies {q:5,r:13} in the fixture piece list above.
+  passTargetHex: { q: 5, r: 13 },
+};
+
+/** Low corner: lastActionType is STANDARD_PASS (the client's chosen passType), cornerKickTeam set. */
+const cornerLowState: GameState = {
+  ...baseCornerPassState,
+  lastActionType: 'STANDARD_PASS',
+};
+
+/** High corner: targetHex is homePiece2's own hex — guarantees an eligible header contestant
+ * (home, distance 0) so the accurate branch reaches HEADER rather than the no-eligible LOOSE_BALL
+ * fallback. */
+const cornerHighState: GameState = {
+  ...baseCornerPassState,
+  lastActionType: 'HIGH_PASS',
+  passTargetHex: homePiece2.position,
+};
+
+/** Ordinary Standard Pass — cornerKickTeam unset — the D-01/D-02 baseline behaviour that must
+ * survive this plan's accuracy-gate extension untouched. */
+const ordinaryStandardPassState: GameState = {
+  ...baseCornerPassState,
+  cornerKickTeam: null,
+  lastActionType: 'STANDARD_PASS',
+};
+
+describe('applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05, 38-04 Task 1)', () => {
+  it('CORNER-04: Low corner (STANDARD_PASS + cornerKickTeam set) is accuracy-gated — die=2 (score 7 < 8) → inaccurate → LOOSE_BALL', () => {
+    const result = applyRoll(cornerLowState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+  });
+
+  it('CORNER-04: Low corner die=3 (score 8 >= 8, HIGH threshold) → accurate → ball delivered; phase stays PASS (not HEADER)', () => {
+    const result = applyRoll(cornerLowState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.position).toEqual({ q: 5, r: 13 });
+  });
+
+  it('regression: an ordinary STANDARD_PASS with cornerKickTeam unset still always delivers, regardless of the die', () => {
+    // die=1 would fail an 8+ accuracy check if this pass were (incorrectly) gated.
+    const result = applyRoll(ordinaryStandardPassState, 1, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.position).toEqual({ q: 5, r: 13 });
+  });
+
+  it('CORNER-05: High corner (HIGH_PASS + cornerKickTeam set) die=3 (score 8>=8) → accurate → phase HEADER via the existing unmodified transition', () => {
+    const result = applyRoll(cornerHighState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HEADER');
+  });
+
+  it('High corner die=2 (score 7 < 8) → inaccurate → LOOSE_BALL', () => {
+    const result = applyRoll(cornerHighState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+  });
+
+  it("LONG_BALL accuracy behaviour is unchanged: the corner gate doesn't leak into the LONG_BALL accuracyType branch", () => {
+    const longBallState: GameState = {
+      ...baseCornerPassState,
+      cornerKickTeam: null,
+      lastActionType: 'LONG_BALL',
+      passTargetHex: { q: 30, r: 13 },
+    };
+    // homePiece2.highPass=5 is not the carrier here; awayTaker.highPass=5, die=3 → score 8,
+    // which is < 9 (LONG_SAME_THIRD threshold) — must be inaccurate, proving LONG's own
+    // threshold (not HIGH's 8) still governs when cornerKickTeam is unset.
+    const result = applyRoll(longBallState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('LOOSE_BALL');
+  });
+
+  it('inaccurate Low corner appends a CORNER_KICK_ACCURACY event (passType LOW, accurate:false) — not a malformed STANDARD_PASS event', () => {
+    const result = applyRoll(cornerLowState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.filter((e) => e.type === 'STANDARD_PASS')).toHaveLength(0);
+    const cornerEvent = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_ACCURACY');
+    expect(cornerEvent).toMatchObject({
+      type: 'CORNER_KICK_ACCURACY',
+      passType: 'LOW',
+      accurate: false,
+      takerId: awayTaker.id,
+    });
+  });
+
+  it('accurate Low corner appends a CORNER_KICK_ACCURACY event (passType LOW, accurate:true) before the normal STANDARD_PASS delivery event', () => {
+    const result = applyRoll(cornerLowState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const accuracyIdx = result.state.eventLog.findIndex((e) => e.type === 'CORNER_KICK_ACCURACY');
+    const deliveryIdx = result.state.eventLog.findIndex((e) => e.type === 'STANDARD_PASS');
+    expect(accuracyIdx).toBeGreaterThanOrEqual(0);
+    expect(deliveryIdx).toBeGreaterThan(accuracyIdx);
+    expect(result.state.eventLog[accuracyIdx]).toMatchObject({ passType: 'LOW', accurate: true });
+  });
+
+  it('accurate High corner appends a CORNER_KICK_ACCURACY event (passType HIGH) alongside the existing HP_ACCURACY event, without suppressing it', () => {
+    const result = applyRoll(cornerHighState, 3, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const cornerEvent = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_ACCURACY');
+    const hpEvent = result.state.eventLog.find((e) => e.type === 'HP_ACCURACY');
+    expect(cornerEvent).toMatchObject({ passType: 'HIGH', accurate: true, takerId: awayTaker.id });
+    expect(hpEvent).toMatchObject({ accurate: true });
+  });
+
+  it('inaccurate High corner appends both CORNER_KICK_ACCURACY (passType HIGH, false) and HP_ACCURACY (false)', () => {
+    const result = applyRoll(cornerHighState, 2, 3, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const cornerEvent = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_ACCURACY');
+    const hpEvent = result.state.eventLog.find((e) => e.type === 'HP_ACCURACY');
+    expect(cornerEvent).toMatchObject({ passType: 'HIGH', accurate: false });
+    expect(hpEvent).toMatchObject({ accurate: false });
+  });
+
+  it('accurate Low corner skips the interception loop: no STEAL_ATTEMPT event even with a defender standing exactly on the target hex', () => {
+    // homePiece's own hex as the target would normally be an auto-intercept (case 1, no roll)
+    // for an ordinary Standard Pass — the corner bypass must skip the loop entirely so no
+    // STEAL_ATTEMPT event is ever appended (Assumption A2).
+    const interceptTargetState: GameState = {
+      ...cornerLowState,
+      passTargetHex: homePiece.position,
+    };
+    const result = applyRoll(interceptTargetState, 3, 3, 3); // die=3 → accurate (score 8)
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.filter((e) => e.type === 'STEAL_ATTEMPT')).toHaveLength(0);
   });
 });
