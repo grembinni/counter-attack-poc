@@ -59,6 +59,7 @@ import {
   classifyOutOfBounds,
   resolveThrowInHex,
   GOAL_KICK_RESTART_HEX,
+  CORNER_KICK_HEX,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -3185,15 +3186,15 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 // ---------------------------------------------------------------------------
 
 /**
- * OOB-02/OOB-04/THROWIN-01/THROWIN-05: classifies a ball exit (`exitHex`, the first
- * off-pitch hex on the scatter trajectory) and returns the fully-formed restart
+ * OOB-02/OOB-03/OOB-04/THROWIN-01/THROWIN-05: classifies a ball exit (`exitHex`, the
+ * first off-pitch hex on the scatter trajectory) and returns the fully-formed restart
  * state — `THROW_IN_SETUP` for a sideline exit, `GOAL_KICK_SETUP_GK` for a byline
- * exit after an attacking touch (or no touch at all).
+ * exit after an attacking touch (or no touch at all), or `CORNER_KICK_GK_SETUP_ATTACKING`
+ * for a byline exit after a defending touch (OOB-03, Phase 38).
  *
- * Returns `null` when no Phase-37 restart applies: a `CORNER_KICK` classification
- * (OOB-03 — Phase 38 scope, see the comment below) or a defensive fallback (missing
- * GK piece). The caller must fall back to today's clamp-to-boundary behaviour on a
- * `null` result — this function never mutates or clamps anything itself.
+ * Returns `null` only on a defensive fallback (missing GK piece for a goal kick). The
+ * caller must fall back to today's clamp-to-boundary behaviour on a `null` result —
+ * this function never mutates or clamps anything itself.
  *
  * ARCH-01: pure and deterministic — never calls rollDice()/Math.random(). The
  * caller is solely responsible for gating this call behind
@@ -3211,13 +3212,7 @@ export function triggerOutOfBoundsRestart(
   const owner = bylineOwner(exitHex);
   const restart = classifyOutOfBounds(exit, state.ball.lastTouchedBy?.teamId ?? null, owner);
 
-  // OOB-03 / Phase 38: the only change Phase 38 needs at this call site is to
-  // replace this early return with a corner-kick trigger. classifyOutOfBounds's
-  // CORNER_KICK branch (packages/shared/src/outOfBounds.ts) must not be edited to
-  // support it — see that function's own doc comment.
-  if (restart === 'CORNER_KICK') return null;
-
-  // Common reset block shared by both branches below — every restart is a fresh
+  // Common reset block shared by every branch below — every restart is a fresh
   // phase boundary, so all Movement-sequence/dice/shot-path bookkeeping clears.
   const commonReset = {
     movementSlot: null,
@@ -3228,6 +3223,66 @@ export function triggerOutOfBoundsRestart(
     lastShotPath: null,
     lastActionType: null,
   } as const;
+
+  if (restart === 'CORNER_KICK') {
+    // OOB-03/CORNER-01 (Phase 38): `owner` is the BYLINE OWNER — the team whose
+    // defender touched the ball last (that is exactly what routed classifyOutOfBounds
+    // to 'CORNER_KICK'). A corner is awarded to the OPPOSITE team: team inversion is
+    // load-bearing here and deliberately differs from the GOAL_KICK branch below,
+    // where `owner` IS the awarded team. Do NOT copy that assignment for corners.
+    if (owner === null) return null; // defensive: a BYLINE exit always has an owner
+    const cornerKickTeam: 'home' | 'away' = owner === 'home' ? 'away' : 'home';
+
+    // D-01/D-02: pick the nearer of the byline owner's two fixed corner hexes to the
+    // ball's actual exit trajectory (lastInBoundsHex), tie-broken to 'top'. CORNER_KICK_HEX
+    // is indexed by `owner` (the byline owner), never by `cornerKickTeam`.
+    const cornerPair = CORNER_KICK_HEX[owner];
+    const distTop = hexDistance(lastInBoundsHex, cornerPair.top);
+    const distBottom = hexDistance(lastInBoundsHex, cornerPair.bottom);
+    const preferredCornerHex = distBottom < distTop ? cornerPair.bottom : cornerPair.top;
+
+    // No piece has been designated the corner-taker yet at trigger time, so the FULL
+    // piece list (not GK-excluded, unlike the GOAL_KICK branch) is used for occupancy
+    // resolution.
+    const resolvedCornerHex = resolveThrowInHex(preferredCornerHex, state.pieces);
+
+    const outOfBoundsEvent: ActionEvent = {
+      type: 'OUT_OF_BOUNDS',
+      exitHex,
+      kind: exit,
+      restart,
+      awardedTo: cornerKickTeam,
+      lastTouchedByPieceId: state.ball.lastTouchedBy?.pieceId ?? null,
+      timestamp: Date.now(),
+      ballAfter: { position: resolvedCornerHex, carrierId: null },
+    };
+
+    return {
+      ...state,
+      phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+      cornerKickTeam,
+      cornerKickHex: resolvedCornerHex,
+      // Pitfall 3: explicitly null every cornerKick* field even though ...state spreads —
+      // no stale value from a prior corner may survive into this one.
+      cornerKickTakerId: null,
+      cornerKickEligibleIds: null,
+      cornerKickStageIndex: null,
+      cornerKickStagePlacedIds: null,
+      cornerKickUsedPace: null,
+      cornerKickMoveSlot: null,
+      cornerKickMovedPieceId: null,
+      cornerKickPaceUsed: 0,
+      attackingTeam: cornerKickTeam,
+      activeTeam: cornerKickTeam,
+      ball: {
+        position: resolvedCornerHex,
+        carrierId: null,
+        lastTouchedBy: state.ball.lastTouchedBy,
+      },
+      eventLog: [...state.eventLog, outOfBoundsEvent],
+      ...commonReset,
+    };
+  }
 
   if (restart === 'THROW_IN') {
     // OOB-02: awarded to the team that did NOT last touch the ball; an untouched
