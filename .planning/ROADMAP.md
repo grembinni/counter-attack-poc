@@ -225,17 +225,35 @@ Plans:
 4. The corner is taken as a High Pass (any hex in the penalty area with no distance limit, or elsewhere up to 15 hexes, receiver must attempt a header) or a Low Pass (no header), with the existing combined-score 8+ accuracy check applied to whichever is chosen.
 
 **Plans**: 9 plans
-
 Plans:
+**Wave 1**
 
 - [ ] 38-01-PLAN.md — Shared contracts: corner phases, state fields, CORNER_KICK_HEX, CORNER_KICK_STAGES, eligibility row, client events
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 38-02-PLAN.md — Engine: corner trigger (OOB-03), goalkeeper reposition pair, corner-taker placement
-- [ ] 38-03-PLAN.md — Engine: alternating 6-hex window (CORNER-03) and pre-kick 3-hex window (CORNER-06)
-- [ ] 38-04-PLAN.md — Engine: High/Low kick resolution, accuracy gate, event/Undo/Replay registration
-- [ ] 38-05-PLAN.md — Server handlers: corner socket surface, penalty-area range override, undo phases
 - [ ] 38-06-PLAN.md — Client: store selection branches, emitters, HexGrid selectability and tints
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 38-03-PLAN.md — Engine: alternating 6-hex window (CORNER-03) and pre-kick 3-hex window (CORNER-06)
 - [ ] 38-07-PLAN.md — Client: CornerKickSetupPanel, GameBoard dispatch, ball marker, action log
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
+- [ ] 38-04-PLAN.md — Engine: High/Low kick resolution, accuracy gate, event/Undo/Replay registration
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
+- [ ] 38-05-PLAN.md — Server handlers: corner socket surface, penalty-area range override, undo phases
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
 - [ ] 38-08-PLAN.md — Socket-level end-to-end integration coverage for OOB-03 and CORNER-01..06
+
+**Wave 7** _(blocked on Wave 6 completion)_
+
 - [ ] 38-09-PLAN.md — Human verification: two-browser walkthrough and rulebook-assumption sign-off
 
 **UI hint**: yes
