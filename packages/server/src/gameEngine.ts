@@ -53,6 +53,7 @@ import {
   evaluateOffside,
   FREE_KICK_STAGES,
   freeKickStageTeam,
+  cornerKickStageTeam,
   triggerOffsideFoul,
   classifyExit,
   bylineOwner,
@@ -3609,16 +3610,22 @@ export function applyCornerKickTakerSelect(
     ballAfter: { position: resolvedHex, carrierId: pieceId },
   };
 
+  const updatedPieces = state.pieces.map((p) =>
+    p.id === pieceId ? { ...p, position: resolvedHex } : p,
+  );
+
   return {
     ok: true,
     state: {
       ...state,
       phase: 'CORNER_KICK_REPOSITION',
-      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: resolvedHex } : p)),
+      pieces: updatedPieces,
       cornerKickHex: resolvedHex,
       cornerKickTakerId: pieceId,
-      // 38-03's computeCornerKickEligibleIds wires this in — exactly one place to change.
-      cornerKickEligibleIds: null,
+      // 38-03: computed once, at window entry, from the POST-placement piece list —
+      // never recomputed mid-window (mirrors goalKickEligibleIds'/freeMoveEligibleIds'
+      // contract).
+      cornerKickEligibleIds: computeCornerKickEligibleIds(updatedPieces, cornerKickTeam, pieceId),
       cornerKickStageIndex: 0,
       cornerKickStagePlacedIds: [],
       cornerKickUsedPace: {},
@@ -3629,6 +3636,419 @@ export function applyCornerKickTakerSelect(
         lastTouchedBy: { pieceId, teamId: cornerKickTeam },
       },
       eventLog: [...state.eventLog, takerPlacedEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// computeCornerKickEligibleIds
+// ---------------------------------------------------------------------------
+
+/**
+ * CORNER-03/CORNER-06 (Assumption A4, RESEARCH.md §5): computes both reposition-window
+ * eligible id lists exactly once, at corner-taker-select time (wired into
+ * `applyCornerKickTakerSelect`'s return, above), mirroring `computeGoalKickEligibleIds`'
+ * precompute-once contract.
+ *
+ * Assumption A4: excludes every piece with `role === 'GK'` (both goalkeepers were already
+ * positioned during CORNER-01) and excludes `cornerKickTakerId` (the taker is standing on
+ * the ball). Every other on-pitch piece from both teams is eligible for CORNER-03's
+ * alternating 6-hex window AND CORNER-06's pre-kick 3-hex window — the two windows reuse
+ * the same eligible pools.
+ */
+export function computeCornerKickEligibleIds(
+  pieces: readonly PlayerPiece[],
+  cornerKickTeam: 'home' | 'away',
+  cornerKickTakerId: string | null,
+): { attacking: readonly string[]; defending: readonly string[] } {
+  const eligible = pieces.filter((p) => p.role !== 'GK' && p.id !== cornerKickTakerId);
+  return {
+    attacking: eligible.filter((p) => p.teamId === cornerKickTeam).map((p) => p.id),
+    defending: eligible.filter((p) => p.teamId !== cornerKickTeam).map((p) => p.id),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickReposition
+// ---------------------------------------------------------------------------
+
+/** CORNER-03 (D-05): per-piece cumulative hex budget across the entire reposition window. */
+const CORNER_KICK_REPOSITION_PACE_CAP = 6;
+
+/** Discriminated union result for applyCornerKickReposition. */
+export type ApplyCornerKickRepositionResult =
+  | {
+      ok: false;
+      reason:
+        | 'WRONG_PHASE'
+        | 'PIECE_NOT_FOUND'
+        | 'WRONG_TEAM'
+        | 'NOT_ELIGIBLE'
+        | 'NOT_ADJACENT'
+        | 'INVALID_TARGET'
+        | 'PACE_EXHAUSTED'
+        | 'STAGE_LIMIT_REACHED';
+    }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-03 (D-05): single-hex-per-click repositioning during the CORNER_KICK_REPOSITION
+ * window's 6 alternating stages (see `CORNER_KICK_STAGES`/`cornerKickStageTeam`,
+ * `offside.ts`).
+ *
+ * D-05: this function structurally COPIES `applyGoalKickReposition`'s body (adjacency via
+ * `hexDistance === 1`, `isPitchHex` guard, occupancy scan excluding the moving piece, and
+ * cumulative-pace accumulation) — it does NOT call `applyGoalKickReposition`,
+ * `applyFreeMove`, or `applyMove`, for the same reasoning `applyGoalKickReposition`'s own
+ * doc comment gives for not calling `applyFreeMove`.
+ *
+ * Adds the one guard `applyGoalKickReposition` lacks, modelled on `applyFreeKickMove`'s
+ * `PLACEMENT_LIMIT_REACHED`: at most 2 DISTINCT pieces may be touched per stage
+ * (`cornerKickStagePlacedIds`) — re-touching an already-counted piece is always free of
+ * the stage cap. This is tracked entirely separately from the per-piece 6-hex pace budget
+ * (`cornerKickUsedPace`), which is a running total across ALL 6 stages, never reset
+ * per-stage (Pitfall 4 — see `applyCornerKickStageEnd` below, which is where this
+ * divergence actually matters).
+ *
+ * Acting team is derived from `cornerKickStageTeam(state.cornerKickStageIndex,
+ * state.cornerKickTeam)` — never from `activeTeam` (T-38-10).
+ */
+export function applyCornerKickReposition(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyCornerKickRepositionResult {
+  if (state.phase !== 'CORNER_KICK_REPOSITION') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.cornerKickStageIndex == null || state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const cornerKickTeam = state.cornerKickTeam;
+  const actingTeam = cornerKickStageTeam(state.cornerKickStageIndex, cornerKickTeam);
+  if (piece.teamId !== actingTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const eligibleIds =
+    actingTeam === cornerKickTeam
+      ? (state.cornerKickEligibleIds?.attacking ?? [])
+      : (state.cornerKickEligibleIds?.defending ?? []);
+  if (!eligibleIds.includes(pieceId)) {
+    return { ok: false, reason: 'NOT_ELIGIBLE' };
+  }
+
+  if (hexDistance(piece.position, to) !== 1) {
+    return { ok: false, reason: 'NOT_ADJACENT' };
+  }
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const usedSoFar = (state.cornerKickUsedPace ?? {})[pieceId] ?? 0;
+  if (usedSoFar >= CORNER_KICK_REPOSITION_PACE_CAP) {
+    return { ok: false, reason: 'PACE_EXHAUSTED' };
+  }
+
+  const stagePlacedIds = state.cornerKickStagePlacedIds ?? [];
+  const alreadyCountedThisStage = stagePlacedIds.includes(pieceId);
+  if (!alreadyCountedThisStage && stagePlacedIds.length >= 2) {
+    return { ok: false, reason: 'STAGE_LIMIT_REACHED' };
+  }
+
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+  const newStagePlacedIds = alreadyCountedThisStage ? stagePlacedIds : [...stagePlacedIds, pieceId];
+
+  // No per-move event appended here — the reposition windows reuse the existing GAME_MOVE
+  // handler, which emits its own event (38-05 wires that); adding one here would double-log.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      cornerKickUsedPace: {
+        ...(state.cornerKickUsedPace ?? {}),
+        [pieceId]: usedSoFar + 1,
+      },
+      cornerKickStagePlacedIds: newStagePlacedIds,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickStageEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickStageEnd. */
+export type ApplyCornerKickStageEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-03 (D-06): ends the CURRENTLY-active stage of the CORNER_KICK_REPOSITION window
+ * for `team`. Takes the confirming team as an explicit parameter exactly as
+ * `applyFreeKickReady` does, so the handler passes `socketTeam(socket)` and the engine —
+ * not the handler — owns the stage-team comparison.
+ *
+ * Guards: phase must be `CORNER_KICK_REPOSITION`; `team` must equal
+ * `cornerKickStageTeam(state.cornerKickStageIndex, state.cornerKickTeam)`.
+ *
+ * PITFALL 4 — the single most important line in this function: `cornerKickUsedPace` is
+ * spread forward UNCHANGED on EVERY advance. It is never reset, never cleared per stage,
+ * and this function deliberately does NOT port `applyFreeKickReady`'s behaviour of folding
+ * the stage's touched pieces into a permanent `movedPieceIds` lock — Corner's 6-hex budget
+ * is a per-piece TOTAL across the whole window, not a per-round allowance, so a
+ * permanently-locked piece here would be a rules violation. Do not "fix" this to match
+ * `applyFreeKickReady`.
+ *
+ * Confirming with zero pieces moved this stage is legal (D-06) — there is no minimum-move
+ * guard.
+ */
+export function applyCornerKickStageEnd(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplyCornerKickStageEndResult {
+  if (state.phase !== 'CORNER_KICK_REPOSITION') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.cornerKickStageIndex == null || state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const stageIndex = state.cornerKickStageIndex;
+  const cornerKickTeam = state.cornerKickTeam;
+  const activeTeamForStage = cornerKickStageTeam(stageIndex, cornerKickTeam);
+  if (team !== activeTeamForStage) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const stageAdvanceEvent: ActionEvent = {
+    type: 'CORNER_KICK_STAGE_ADVANCE',
+    fromStageIndex: stageIndex,
+    timestamp: Date.now(),
+  };
+
+  if (stageIndex < 5) {
+    const nextIndex = (stageIndex + 1) as 0 | 1 | 2 | 3 | 4 | 5;
+    return {
+      ok: true,
+      state: {
+        ...state,
+        cornerKickStageIndex: nextIndex,
+        cornerKickStagePlacedIds: [],
+        activeTeam: cornerKickStageTeam(nextIndex, cornerKickTeam),
+        // Pitfall 4: cornerKickUsedPace is intentionally NOT touched here — see doc
+        // comment above.
+        eventLog: [...state.eventLog, stageAdvanceEvent],
+      },
+    };
+  }
+
+  // stageIndex === 5 (terminal): transition into CORNER-06's pre-kick window.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'CORNER_KICK_FINAL_SETUP',
+      cornerKickStageIndex: null,
+      cornerKickStagePlacedIds: null,
+      cornerKickMoveSlot: 'ATTACKER',
+      cornerKickMovedPieceId: null,
+      cornerKickPaceUsed: 0,
+      activeTeam: cornerKickTeam,
+      // cornerKickUsedPace is left set (no longer read past this point, but nulling it
+      // here would make an Undo across the boundary lossy). cornerKickEligibleIds is left
+      // in place — CORNER-06 reuses the same eligible pools (Assumption A4).
+      eventLog: [...state.eventLog, stageAdvanceEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickFinalMove
+// ---------------------------------------------------------------------------
+
+/** CORNER-06 (D-05-analog): per-slot cumulative hex budget in CORNER_KICK_FINAL_SETUP. */
+const CORNER_KICK_FINAL_PACE_CAP = 3;
+
+/** Discriminated union result for applyCornerKickFinalMove. */
+export type ApplyCornerKickFinalMoveResult =
+  | {
+      ok: false;
+      reason:
+        | 'WRONG_PHASE'
+        | 'PIECE_NOT_FOUND'
+        | 'WRONG_TEAM'
+        | 'NOT_ELIGIBLE'
+        | 'PIECE_LOCKED'
+        | 'NOT_ADJACENT'
+        | 'INVALID_TARGET'
+        | 'PACE_EXHAUSTED';
+    }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-06: single-hex-per-click repositioning during the CORNER_KICK_FINAL_SETUP
+ * pre-kick window's two slots (ATTACKER, then DEFENDER).
+ *
+ * `applyCornerKickReposition`'s body with three changes: (1) the pace cap is
+ * `CORNER_KICK_FINAL_PACE_CAP`, read from the scalar `cornerKickPaceUsed` rather than the
+ * per-piece `cornerKickUsedPace` record; (2) the stage-distinct-piece-count guard is
+ * replaced by a single-piece lock (`cornerKickMovedPieceId !== null &&
+ * cornerKickMovedPieceId !== pieceId` -> `PIECE_LOCKED`); (3) the acting team comes from
+ * `cornerKickMoveSlot` (`'ATTACKER'` -> `state.cornerKickTeam`, `'DEFENDER'` -> its
+ * opposite) rather than from `cornerKickStageTeam`. Eligibility still reads
+ * `cornerKickEligibleIds` so goalkeepers and the corner-taker stay excluded (Assumption
+ * A4). Does NOT call `applyCornerKickReposition`.
+ */
+export function applyCornerKickFinalMove(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyCornerKickFinalMoveResult {
+  if (state.phase !== 'CORNER_KICK_FINAL_SETUP') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.cornerKickMoveSlot == null || state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const cornerKickTeam = state.cornerKickTeam;
+  const actingTeam: 'home' | 'away' =
+    state.cornerKickMoveSlot === 'ATTACKER'
+      ? cornerKickTeam
+      : cornerKickTeam === 'home'
+        ? 'away'
+        : 'home';
+  if (piece.teamId !== actingTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const eligibleIds =
+    actingTeam === cornerKickTeam
+      ? (state.cornerKickEligibleIds?.attacking ?? [])
+      : (state.cornerKickEligibleIds?.defending ?? []);
+  if (!eligibleIds.includes(pieceId)) {
+    return { ok: false, reason: 'NOT_ELIGIBLE' };
+  }
+
+  if (state.cornerKickMovedPieceId != null && state.cornerKickMovedPieceId !== pieceId) {
+    return { ok: false, reason: 'PIECE_LOCKED' };
+  }
+
+  if (hexDistance(piece.position, to) !== 1) {
+    return { ok: false, reason: 'NOT_ADJACENT' };
+  }
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const usedSoFar = state.cornerKickPaceUsed ?? 0;
+  if (usedSoFar >= CORNER_KICK_FINAL_PACE_CAP) {
+    return { ok: false, reason: 'PACE_EXHAUSTED' };
+  }
+
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+  const moveEvent: ActionEvent = {
+    type: 'CORNER_KICK_MOVE',
+    slot: state.cornerKickMoveSlot,
+    pieceId,
+    from: piece.position,
+    to,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      cornerKickMovedPieceId: pieceId,
+      cornerKickPaceUsed: usedSoFar + 1,
+      eventLog: [...state.eventLog, moveEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickFinalSetupEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickFinalSetupEnd. */
+export type ApplyCornerKickFinalSetupEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-06: ends the active CORNER_KICK_FINAL_SETUP slot. Mirrors
+ * `applyGoalKickMoveEnd`'s slot-flip-then-resolve shape, minus its accuracy roll — Corner's
+ * kick has NOT been taken yet at this point (the High/Low choice comes next, in a later
+ * plan), unlike Goal Kick where the ball is already travelling. Takes no die parameter and
+ * performs no dice work at all.
+ *
+ * `ATTACKER` slot's end: flips `cornerKickMoveSlot` to `DEFENDER`, resets
+ * `cornerKickMovedPieceId`/`cornerKickPaceUsed`, sets `activeTeam` to the defending team.
+ *
+ * `DEFENDER` slot's end: transitions to the generic `PASS` phase with
+ * `lastActionType: 'CORNER_KICK_RESTART'` (its `ELIGIBLE_NEXT_ACTIONS` row restricts the
+ * next action to `STANDARD_PASS`/`HIGH_PASS`), `attackingTeam`/`activeTeam` set to
+ * `cornerKickTeam`, and all three `cornerKickMoveSlot`/`cornerKickMovedPieceId`/
+ * `cornerKickPaceUsed` fields cleared.
+ *
+ * PITFALL 3 — `cornerKickTeam`, `cornerKickHex` and `cornerKickTakerId` are explicitly
+ * carried into the terminal return, not merely assumed to survive the `...state` spread:
+ * they are the signal a later accuracy-resolution plan reads AFTER `lastActionType` has
+ * been overwritten by the client's chosen passType.
+ *
+ * `ball.carrierId` is untouched by this function — it has carried the corner-taker since
+ * `applyCornerKickTakerSelect` and remains so across both slots and into `PASS`.
+ */
+export function applyCornerKickFinalSetupEnd(state: GameState): ApplyCornerKickFinalSetupEndResult {
+  if (state.phase !== 'CORNER_KICK_FINAL_SETUP') return { ok: false, reason: 'WRONG_PHASE' };
+  if (state.cornerKickMoveSlot == null || state.cornerKickTeam == null) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const cornerKickTeam = state.cornerKickTeam;
+
+  if (state.cornerKickMoveSlot === 'ATTACKER') {
+    const defendingTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+    return {
+      ok: true,
+      state: {
+        ...state,
+        cornerKickMoveSlot: 'DEFENDER',
+        cornerKickMovedPieceId: null,
+        cornerKickPaceUsed: 0,
+        activeTeam: defendingTeam,
+      },
+    };
+  }
+
+  // DEFENDER slot's end: finalize into the generic PASS phase.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'PASS',
+      lastActionType: 'CORNER_KICK_RESTART',
+      attackingTeam: cornerKickTeam,
+      activeTeam: cornerKickTeam,
+      passTargetHex: null,
+      cornerKickMoveSlot: null,
+      cornerKickMovedPieceId: null,
+      cornerKickPaceUsed: 0,
+      // Pitfall 3: explicitly carried forward — see doc comment above.
+      cornerKickTeam,
+      cornerKickHex: state.cornerKickHex ?? null,
+      cornerKickTakerId: state.cornerKickTakerId ?? null,
     },
   };
 }

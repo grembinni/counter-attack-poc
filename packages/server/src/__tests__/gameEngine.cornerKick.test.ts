@@ -4,6 +4,11 @@ import {
   applyCornerKickGkPlace,
   applyCornerKickGkWindowEnd,
   applyCornerKickTakerSelect,
+  computeCornerKickEligibleIds,
+  applyCornerKickReposition,
+  applyCornerKickStageEnd,
+  applyCornerKickFinalMove,
+  applyCornerKickFinalSetupEnd,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
 import { isPitchHex, CORNER_KICK_HEX, GOAL_KICK_RESTART_HEX } from '@counter-attack/shared';
@@ -678,5 +683,631 @@ describe('applyCornerKickTakerSelect', () => {
     expect(isPitchHex(result.state.cornerKickHex!)).toBe(true);
     const occupied = result.state.pieces.map((p) => `${p.position.q},${p.position.r}`);
     expect(new Set(occupied).size).toBe(occupied.length);
+  });
+
+  it('wires computeCornerKickEligibleIds into the result (38-03): eligible lists exclude GKs and the taker', () => {
+    const result = applyCornerKickTakerSelect(baseCornerTakerSelectState, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickEligibleIds).not.toBeNull();
+    expect(result.state.cornerKickEligibleIds!.attacking).not.toContain(awayGK.id);
+    expect(result.state.cornerKickEligibleIds!.attacking).not.toContain(awayPiece.id); // taker excluded
+    expect(result.state.cornerKickEligibleIds!.defending).not.toContain(homeGK.id);
+    expect(result.state.cornerKickEligibleIds!.defending).toContain(homePiece.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 1 (38-03): computeCornerKickEligibleIds + applyCornerKickReposition
+// ---------------------------------------------------------------------------
+
+const awayPiece2: PlayerPiece = { ...awayPiece, id: 'away-8', position: { q: 10, r: 16 } };
+const awayPiece3: PlayerPiece = { ...awayPiece, id: 'away-7', position: { q: 8, r: 16 } };
+const awayEdge: PlayerPiece = { ...awayPiece, id: 'away-edge', position: { q: 0, r: 13 } };
+const awayTaker: PlayerPiece = {
+  ...awayPiece,
+  id: 'away-taker',
+  position: CORNER_KICK_HEX.home.top,
+};
+const homePiece2: PlayerPiece = { ...homePiece, id: 'home-8', position: { q: 24, r: 10 } };
+
+describe('computeCornerKickEligibleIds', () => {
+  const pieces = [
+    homePiece,
+    homePiece2,
+    awayPiece,
+    awayPiece2,
+    awayPiece3,
+    awayEdge,
+    awayTaker,
+    homeGK,
+    awayGK,
+  ];
+
+  it('excludes goalkeepers and the corner-taker; partitions the rest by team', () => {
+    const result = computeCornerKickEligibleIds(pieces, 'away', awayTaker.id);
+    expect([...result.attacking].sort()).toEqual(
+      [awayPiece.id, awayPiece2.id, awayPiece3.id, awayEdge.id].sort(),
+    );
+    expect([...result.defending].sort()).toEqual([homePiece.id, homePiece2.id].sort());
+  });
+
+  it('returns empty lists when every piece is a goalkeeper', () => {
+    const result = computeCornerKickEligibleIds([homeGK, awayGK], 'away', null);
+    expect(result.attacking).toEqual([]);
+    expect(result.defending).toEqual([]);
+  });
+});
+
+/** CORNER_KICK_REPOSITION fixture: away is the awarded (attacking) team, stage 0. */
+const baseCornerRepositionState: GameState = {
+  ...baseLooseBallState,
+  phase: 'CORNER_KICK_REPOSITION',
+  pieces: [
+    homePiece,
+    homePiece2,
+    awayPiece,
+    awayPiece2,
+    awayPiece3,
+    awayEdge,
+    awayTaker,
+    homeGK,
+    awayGK,
+  ],
+  cornerKickTeam: 'away',
+  cornerKickHex: CORNER_KICK_HEX.home.top,
+  cornerKickTakerId: awayTaker.id,
+  cornerKickEligibleIds: {
+    attacking: [awayPiece.id, awayPiece2.id, awayPiece3.id, awayEdge.id],
+    defending: [homePiece.id, homePiece2.id],
+  },
+  cornerKickStageIndex: 0,
+  cornerKickStagePlacedIds: [],
+  cornerKickUsedPace: {},
+  cornerKickMoveSlot: null,
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+  attackingTeam: 'away',
+  activeTeam: 'away', // stage 0 is the attacking side
+  ball: {
+    position: CORNER_KICK_HEX.home.top,
+    carrierId: awayTaker.id,
+    lastTouchedBy: { pieceId: awayTaker.id, teamId: 'away' },
+  },
+};
+
+describe('applyCornerKickReposition', () => {
+  it('rejects WRONG_PHASE outside CORNER_KICK_REPOSITION', () => {
+    const state: GameState = { ...baseCornerRepositionState, phase: 'CORNER_KICK_FINAL_SETUP' };
+    const result = applyCornerKickReposition(state, awayPiece.id, { q: 17, r: 16 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects PIECE_NOT_FOUND for an unknown piece id', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, 'ghost-piece', {
+      q: 17,
+      r: 16,
+    });
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects WRONG_TEAM when the piece does not belong to the current stage team (stage 0 is attacking/away)', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, homePiece.id, {
+      q: 21,
+      r: 10,
+    });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('rejects NOT_ELIGIBLE for a goalkeeper even though its team matches the acting stage', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, awayGK.id, {
+      q: 34,
+      r: 5,
+    });
+    expect(result).toEqual({ ok: false, reason: 'NOT_ELIGIBLE' });
+  });
+
+  it('rejects NOT_ELIGIBLE for the corner-taker even though its team matches the acting stage', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, awayTaker.id, {
+      q: 1,
+      r: 1,
+    });
+    expect(result).toEqual({ ok: false, reason: 'NOT_ELIGIBLE' });
+  });
+
+  it('rejects NOT_ADJACENT when hexDistance(piece.position, to) !== 1', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, awayPiece.id, {
+      q: 20,
+      r: 20,
+    });
+    expect(result).toEqual({ ok: false, reason: 'NOT_ADJACENT' });
+  });
+
+  it('rejects INVALID_TARGET for an off-pitch hex', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, awayEdge.id, {
+      q: -1,
+      r: 13,
+    });
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects INVALID_TARGET for a hex occupied by another piece', () => {
+    const occupiedHex = { q: 17, r: 16 }; // adjacent to awayPiece {16,16}
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      pieces: baseCornerRepositionState.pieces.map((p) =>
+        p.id === homePiece2.id ? { ...p, position: occupiedHex } : p,
+      ),
+    };
+    const result = applyCornerKickReposition(state, awayPiece.id, occupiedHex);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('on success moves the piece, increments cornerKickUsedPace by 1, and adds pieceId to cornerKickStagePlacedIds', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, awayPiece.id, {
+      q: 17,
+      r: 16,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const moved = result.state.pieces.find((p) => p.id === awayPiece.id)!;
+    expect(moved.position).toEqual({ q: 17, r: 16 });
+    expect(result.state.cornerKickUsedPace).toEqual({ [awayPiece.id]: 1 });
+    expect(result.state.cornerKickStagePlacedIds).toEqual([awayPiece.id]);
+  });
+
+  it('leaves phase, cornerKickStageIndex, ball, and cornerKickTakerId unchanged on a successful move', () => {
+    const result = applyCornerKickReposition(baseCornerRepositionState, awayPiece.id, {
+      q: 17,
+      r: 16,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_REPOSITION');
+    expect(result.state.cornerKickStageIndex).toBe(0);
+    expect(result.state.ball).toEqual(baseCornerRepositionState.ball);
+    expect(result.state.cornerKickTakerId).toBe(awayTaker.id);
+  });
+
+  it('accepts a defending-team move during a defending stage', () => {
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 1,
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickReposition(state, homePiece.id, { q: 21, r: 10 });
+    expect(result.ok).toBe(true);
+  });
+
+  it('six successive successful single-hex moves of the same piece leave cornerKickUsedPace at 6, and a seventh returns PACE_EXHAUSTED', () => {
+    let state = baseCornerRepositionState;
+    let pos = awayPiece.position;
+    for (let i = 0; i < 6; i++) {
+      const to = { q: pos.q + 1, r: pos.r };
+      const result = applyCornerKickReposition(state, awayPiece.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+      pos = to;
+    }
+    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(6);
+
+    const seventh = applyCornerKickReposition(state, awayPiece.id, { q: pos.q + 1, r: pos.r });
+    expect(seventh).toEqual({ ok: false, reason: 'PACE_EXHAUSTED' });
+  });
+
+  it('rejects STAGE_LIMIT_REACHED for a third distinct piece in the same stage; re-moving one of the first two succeeds without growing the placed-id set', () => {
+    let state = baseCornerRepositionState;
+
+    const first = applyCornerKickReposition(state, awayPiece.id, { q: 17, r: 16 });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    state = first.state;
+
+    const second = applyCornerKickReposition(state, awayPiece2.id, { q: 11, r: 16 });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    state = second.state;
+
+    const third = applyCornerKickReposition(state, awayPiece3.id, { q: 9, r: 16 });
+    expect(third).toEqual({ ok: false, reason: 'STAGE_LIMIT_REACHED' });
+
+    const reMove = applyCornerKickReposition(state, awayPiece.id, { q: 18, r: 16 });
+    expect(reMove.ok).toBe(true);
+    if (!reMove.ok) return;
+    expect(reMove.state.cornerKickStagePlacedIds).toEqual(
+      expect.arrayContaining([awayPiece.id, awayPiece2.id]),
+    );
+    expect(reMove.state.cornerKickStagePlacedIds?.length).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2 (38-03): applyCornerKickStageEnd
+// ---------------------------------------------------------------------------
+
+describe('applyCornerKickStageEnd', () => {
+  it('rejects WRONG_PHASE outside CORNER_KICK_REPOSITION', () => {
+    const state: GameState = { ...baseCornerRepositionState, phase: 'CORNER_KICK_FINAL_SETUP' };
+    const result = applyCornerKickStageEnd(state, 'away');
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects WRONG_TEAM when the confirming team is not the current stage team', () => {
+    const result = applyCornerKickStageEnd(baseCornerRepositionState, 'home'); // stage 0 is away
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('confirming at stage 0 advances to stage 1 and flips activeTeam to the defending team', () => {
+    const result = applyCornerKickStageEnd(baseCornerRepositionState, 'away');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickStageIndex).toBe(1);
+    expect(result.state.activeTeam).toBe('home');
+  });
+
+  it('resets cornerKickStagePlacedIds to [] on every stage advance', () => {
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStagePlacedIds: [awayPiece.id, awayPiece2.id],
+    };
+    const result = applyCornerKickStageEnd(state, 'away');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickStagePlacedIds).toEqual([]);
+  });
+
+  it('appends a CORNER_KICK_STAGE_ADVANCE event with fromStageIndex on every advance', () => {
+    const result = applyCornerKickStageEnd(baseCornerRepositionState, 'away');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const event = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_STAGE_ADVANCE');
+    expect(event).toMatchObject({ type: 'CORNER_KICK_STAGE_ADVANCE', fromStageIndex: 0 });
+  });
+
+  it('confirming with zero pieces moved this stage is legal (D-06)', () => {
+    const result = applyCornerKickStageEnd(baseCornerRepositionState, 'away');
+    expect(result.ok).toBe(true);
+  });
+
+  it('does not add any piece to movedPieceIds on a stage advance', () => {
+    const result = applyCornerKickStageEnd(baseCornerRepositionState, 'away');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.movedPieceIds).toEqual(baseCornerRepositionState.movedPieceIds);
+  });
+
+  it('confirming at stage index 5 transitions to CORNER_KICK_FINAL_SETUP with the pre-kick window initialized', () => {
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 5,
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickStageEnd(state, 'home');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+    expect(result.state.cornerKickStageIndex).toBeNull();
+    expect(result.state.cornerKickStagePlacedIds).toBeNull();
+    expect(result.state.cornerKickMoveSlot).toBe('ATTACKER');
+    expect(result.state.cornerKickMovedPieceId).toBeNull();
+    expect(result.state.cornerKickPaceUsed).toBe(0);
+    expect(result.state.activeTeam).toBe('away'); // cornerKickTeam
+  });
+
+  it('appends CORNER_KICK_STAGE_ADVANCE on the terminal (stage 5) advance too', () => {
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 5,
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickStageEnd(state, 'home');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const event = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_STAGE_ADVANCE');
+    expect(event).toMatchObject({ type: 'CORNER_KICK_STAGE_ADVANCE', fromStageIndex: 5 });
+  });
+
+  it('Pitfall 4: cornerKickUsedPace persists across stage advances — 2 hexes in stage 0 + 1 hex in stage 2 => 3 total', () => {
+    let state = baseCornerRepositionState;
+
+    const move1 = applyCornerKickReposition(state, awayPiece.id, { q: 17, r: 16 });
+    expect(move1.ok).toBe(true);
+    if (!move1.ok) return;
+    state = move1.state;
+
+    const move2 = applyCornerKickReposition(state, awayPiece.id, { q: 18, r: 16 });
+    expect(move2.ok).toBe(true);
+    if (!move2.ok) return;
+    state = move2.state;
+    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(2);
+
+    const advance1 = applyCornerKickStageEnd(state, 'away');
+    expect(advance1.ok).toBe(true);
+    if (!advance1.ok) return;
+    state = advance1.state;
+    expect(state.cornerKickStageIndex).toBe(1);
+    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(2); // carried forward, not reset
+
+    const advance2 = applyCornerKickStageEnd(state, 'home');
+    expect(advance2.ok).toBe(true);
+    if (!advance2.ok) return;
+    state = advance2.state;
+    expect(state.cornerKickStageIndex).toBe(2);
+    expect(state.activeTeam).toBe('away'); // stage 2 is attacking again
+    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(2); // still carried forward
+
+    const move3 = applyCornerKickReposition(state, awayPiece.id, { q: 19, r: 16 });
+    expect(move3.ok).toBe(true);
+    if (!move3.ok) return;
+    expect(move3.state.cornerKickUsedPace?.[awayPiece.id]).toBe(3);
+  });
+
+  it('walks the full 6-stage sequence: attacking, defending, attacking, defending, attacking, defending', () => {
+    let state = baseCornerRepositionState;
+    const expectedTeams: Array<'home' | 'away'> = ['away', 'home', 'away', 'home', 'away', 'home'];
+    for (let i = 0; i < 6; i++) {
+      const team = expectedTeams[i]!;
+      expect(state.cornerKickStageIndex).toBe(i);
+      expect(state.activeTeam).toBe(team);
+      const result = applyCornerKickStageEnd(state, team);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+    }
+    expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 (38-03): applyCornerKickFinalMove + applyCornerKickFinalSetupEnd
+// ---------------------------------------------------------------------------
+
+/** CORNER_KICK_FINAL_SETUP fixture: ATTACKER slot (away, cornerKickTeam), zero moves made. */
+const baseCornerFinalSetupState: GameState = {
+  ...baseCornerRepositionState,
+  phase: 'CORNER_KICK_FINAL_SETUP',
+  cornerKickStageIndex: null,
+  cornerKickStagePlacedIds: null,
+  cornerKickMoveSlot: 'ATTACKER',
+  cornerKickMovedPieceId: null,
+  cornerKickPaceUsed: 0,
+  activeTeam: 'away', // ATTACKER slot's team is cornerKickTeam
+};
+
+describe('applyCornerKickFinalMove', () => {
+  it('rejects WRONG_PHASE outside CORNER_KICK_FINAL_SETUP', () => {
+    const state: GameState = { ...baseCornerFinalSetupState, phase: 'CORNER_KICK_REPOSITION' };
+    const result = applyCornerKickFinalMove(state, awayPiece.id, { q: 17, r: 16 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('rejects PIECE_NOT_FOUND for an unknown piece id', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, 'ghost-piece', {
+      q: 17,
+      r: 16,
+    });
+    expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
+  });
+
+  it('rejects WRONG_TEAM when the piece is not the ATTACKER slot team', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, homePiece.id, {
+      q: 21,
+      r: 10,
+    });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('rejects WRONG_TEAM when the piece is not the DEFENDER slot team', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMoveSlot: 'DEFENDER',
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickFinalMove(state, awayPiece.id, { q: 17, r: 16 });
+    expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
+  });
+
+  it('accepts a DEFENDER-slot move from the defending team', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMoveSlot: 'DEFENDER',
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickFinalMove(state, homePiece.id, { q: 21, r: 10 });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects NOT_ELIGIBLE for a goalkeeper', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, awayGK.id, {
+      q: 34,
+      r: 5,
+    });
+    expect(result).toEqual({ ok: false, reason: 'NOT_ELIGIBLE' });
+  });
+
+  it('rejects NOT_ELIGIBLE for the corner-taker', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, awayTaker.id, {
+      q: 1,
+      r: 1,
+    });
+    expect(result).toEqual({ ok: false, reason: 'NOT_ELIGIBLE' });
+  });
+
+  it('rejects PIECE_LOCKED when a different piece already moved this slot', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMovedPieceId: awayPiece2.id,
+    };
+    const result = applyCornerKickFinalMove(state, awayPiece.id, { q: 17, r: 16 });
+    expect(result).toEqual({ ok: false, reason: 'PIECE_LOCKED' });
+  });
+
+  it('allows re-moving the already-locked piece', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMovedPieceId: awayPiece.id,
+      cornerKickPaceUsed: 1,
+    };
+    const result = applyCornerKickFinalMove(state, awayPiece.id, { q: 17, r: 16 });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects NOT_ADJACENT when hexDistance(piece.position, to) !== 1', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, awayPiece.id, {
+      q: 20,
+      r: 20,
+    });
+    expect(result).toEqual({ ok: false, reason: 'NOT_ADJACENT' });
+  });
+
+  it('rejects INVALID_TARGET for an off-pitch hex', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, awayEdge.id, {
+      q: -1,
+      r: 13,
+    });
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects INVALID_TARGET for a hex occupied by another piece', () => {
+    const occupiedHex = { q: 17, r: 16 };
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      pieces: baseCornerFinalSetupState.pieces.map((p) =>
+        p.id === homePiece2.id ? { ...p, position: occupiedHex } : p,
+      ),
+    };
+    const result = applyCornerKickFinalMove(state, awayPiece.id, occupiedHex);
+    expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
+  });
+
+  it('rejects PACE_EXHAUSTED when cornerKickPaceUsed is already 3', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMovedPieceId: awayPiece.id,
+      cornerKickPaceUsed: 3,
+    };
+    const result = applyCornerKickFinalMove(state, awayPiece.id, { q: 17, r: 16 });
+    expect(result).toEqual({ ok: false, reason: 'PACE_EXHAUSTED' });
+  });
+
+  it('on success moves the piece, locks cornerKickMovedPieceId, and increments cornerKickPaceUsed', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, awayPiece.id, {
+      q: 17,
+      r: 16,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const moved = result.state.pieces.find((p) => p.id === awayPiece.id)!;
+    expect(moved.position).toEqual({ q: 17, r: 16 });
+    expect(result.state.cornerKickMovedPieceId).toBe(awayPiece.id);
+    expect(result.state.cornerKickPaceUsed).toBe(1);
+  });
+
+  it('appends a CORNER_KICK_MOVE event with the correct slot', () => {
+    const result = applyCornerKickFinalMove(baseCornerFinalSetupState, awayPiece.id, {
+      q: 17,
+      r: 16,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const event = result.state.eventLog.find((e) => e.type === 'CORNER_KICK_MOVE');
+    expect(event).toMatchObject({
+      type: 'CORNER_KICK_MOVE',
+      slot: 'ATTACKER',
+      pieceId: awayPiece.id,
+      to: { q: 17, r: 16 },
+    });
+  });
+
+  it('three successive moves of the same piece leave cornerKickPaceUsed at 3, and a fourth returns PACE_EXHAUSTED', () => {
+    let state = baseCornerFinalSetupState;
+    let pos = awayPiece.position;
+    for (let i = 0; i < 3; i++) {
+      const to = { q: pos.q + 1, r: pos.r };
+      const result = applyCornerKickFinalMove(state, awayPiece.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+      pos = to;
+    }
+    expect(state.cornerKickPaceUsed).toBe(3);
+
+    const fourth = applyCornerKickFinalMove(state, awayPiece.id, { q: pos.q + 1, r: pos.r });
+    expect(fourth).toEqual({ ok: false, reason: 'PACE_EXHAUSTED' });
+  });
+});
+
+describe('applyCornerKickFinalSetupEnd', () => {
+  it('rejects WRONG_PHASE outside CORNER_KICK_FINAL_SETUP', () => {
+    const state: GameState = { ...baseCornerFinalSetupState, phase: 'CORNER_KICK_REPOSITION' };
+    const result = applyCornerKickFinalSetupEnd(state);
+    expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
+  });
+
+  it('confirming with zero moves made is legal (D-06)', () => {
+    const result = applyCornerKickFinalSetupEnd(baseCornerFinalSetupState);
+    expect(result.ok).toBe(true);
+  });
+
+  it('ATTACKER slot end flips to DEFENDER, resets cornerKickMovedPieceId and cornerKickPaceUsed, and sets activeTeam to the defending team', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMovedPieceId: awayPiece.id,
+      cornerKickPaceUsed: 2,
+    };
+    const result = applyCornerKickFinalSetupEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+    expect(result.state.cornerKickMoveSlot).toBe('DEFENDER');
+    expect(result.state.cornerKickMovedPieceId).toBeNull();
+    expect(result.state.cornerKickPaceUsed).toBe(0);
+    expect(result.state.activeTeam).toBe('home');
+  });
+
+  it('DEFENDER slot end transitions to PASS with lastActionType CORNER_KICK_RESTART and cornerKickTeam preserved', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMoveSlot: 'DEFENDER',
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickFinalSetupEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('CORNER_KICK_RESTART');
+    expect(result.state.cornerKickTeam).not.toBeNull();
+    expect(result.state.cornerKickTeam).toBe('away');
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
+    expect(result.state.cornerKickMoveSlot).toBeNull();
+    expect(result.state.cornerKickMovedPieceId).toBeNull();
+    expect(result.state.cornerKickPaceUsed).toBe(0);
+  });
+
+  it("ball.carrierId is still the corner-taker after the DEFENDER slot's end", () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMoveSlot: 'DEFENDER',
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickFinalSetupEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.ball.carrierId).toBe(awayTaker.id);
+  });
+
+  it('preserves cornerKickHex and cornerKickTakerId across the DEFENDER slot end (Pitfall 3)', () => {
+    const state: GameState = {
+      ...baseCornerFinalSetupState,
+      cornerKickMoveSlot: 'DEFENDER',
+      activeTeam: 'home',
+    };
+    const result = applyCornerKickFinalSetupEnd(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickHex).toEqual(baseCornerFinalSetupState.cornerKickHex);
+    expect(result.state.cornerKickTakerId).toBe(awayTaker.id);
   });
 });
