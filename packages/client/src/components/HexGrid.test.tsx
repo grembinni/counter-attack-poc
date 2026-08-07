@@ -1560,6 +1560,345 @@ describe('HexGrid — GOAL_KICK_MOVE piece clickability (GOALKICK-05, Plan 37-10
   });
 });
 
+// CORNER-01/02/03/06 (Plan 38-06): piece selectability, safe-tint destination highlighting
+// and the fixed corner-taker hex's required ring, for all four interactive Corner Kick
+// phases — mirrors the GOAL_KICK_SETUP_GK/GOAL_KICK_MOVE clickability harness above.
+describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-01/02/03/06, Plan 38-06)', () => {
+  const HOME_GK_ID = 'home-0';
+  const AWAY_GK_ID = 'away-0';
+  const REPOSITION_ELIGIBLE_ID = 'home-8';
+  const FINAL_ELIGIBLE_ID = 'home-8';
+  const FINAL_OTHER_ID = 'home-10';
+
+  function cornerKickGkSetupState(
+    phase: 'CORNER_KICK_GK_SETUP_ATTACKING' | 'CORNER_KICK_GK_SETUP_DEFENDING',
+    cornerKickTeam: 'home' | 'away' = 'home',
+  ) {
+    return { ...mockMovementState, phase, cornerKickTeam };
+  }
+
+  function cornerKickTakerSelectState(
+    cornerKickTeam: 'home' | 'away' = 'home',
+    cornerKickHex: { q: number; r: number } = { q: 0, r: 1 },
+  ) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_TAKER_SELECT' as const,
+      cornerKickTeam,
+      cornerKickHex,
+    };
+  }
+
+  function cornerKickRepositionState(
+    overrides: {
+      stageIndex?: 0 | 1 | 2 | 3 | 4 | 5;
+      cornerKickTeam?: 'home' | 'away';
+      eligibleIds?: { attacking: string[]; defending: string[] };
+      cornerKickUsedPace?: Record<string, number>;
+    } = {},
+  ) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_REPOSITION' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+      cornerKickStageIndex: overrides.stageIndex ?? 0,
+      cornerKickEligibleIds: overrides.eligibleIds ?? {
+        attacking: [REPOSITION_ELIGIBLE_ID],
+        defending: [] as readonly string[],
+      },
+      cornerKickUsedPace: overrides.cornerKickUsedPace ?? {},
+    };
+  }
+
+  function cornerKickFinalSetupState(
+    overrides: {
+      cornerKickTeam?: 'home' | 'away';
+      slot?: 'ATTACKER' | 'DEFENDER';
+      movedPieceId?: string | null;
+      eligibleIds?: { attacking: string[]; defending: string[] };
+    } = {},
+  ) {
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_FINAL_SETUP' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+      cornerKickMoveSlot: overrides.slot ?? ('ATTACKER' as const),
+      cornerKickMovedPieceId: overrides.movedPieceId ?? null,
+      cornerKickPaceUsed: 0,
+      cornerKickEligibleIds: overrides.eligibleIds ?? {
+        attacking: [FINAL_ELIGIBLE_ID],
+        defending: [] as readonly string[],
+      },
+    };
+  }
+
+  /**
+   * True if ANY piece on the board renders the 'selectable' blue ring — used for the negative
+   * "non-acting player sees nothing clickable" assertions (mirrors hasSelectableRingAt's
+   * stroke/radius match, without position filtering).
+   */
+  function hasAnySelectableRing(container: HTMLElement): boolean {
+    return Array.from(container.querySelectorAll('circle')).some(
+      (c) => c.getAttribute('stroke') === '#60a5fa' && c.getAttribute('r') === '15',
+    );
+  }
+
+  it('CORNER_KICK_GK_SETUP_ATTACKING: renders the attacking team GK as selectable for the controlling player', () => {
+    const state = cornerKickGkSetupState('CORNER_KICK_GK_SETUP_ATTACKING', 'home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gk = state.pieces.find((p) => p.id === HOME_GK_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, gk.position.q, gk.position.r)).toBe(true);
+  });
+
+  it('CORNER_KICK_GK_SETUP_ATTACKING: its destination hexes render the safe tint once selected', () => {
+    const state = cornerKickGkSetupState('CORNER_KICK_GK_SETUP_ATTACKING', 'home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(HOME_GK_ID);
+    const { container } = render(<HexGrid />);
+    const hasSafeFill = Array.from(container.querySelectorAll('polygon')).some(
+      (p) => p.getAttribute('fill') === SAFE_FILL,
+    );
+    expect(hasSafeFill).toBe(true);
+  });
+
+  it('CORNER_KICK_GK_SETUP_ATTACKING: the non-acting (defending) player sees zero selectable pieces', () => {
+    const state = cornerKickGkSetupState('CORNER_KICK_GK_SETUP_ATTACKING', 'home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+
+  it('CORNER_KICK_GK_SETUP_DEFENDING: renders the defending team GK as selectable for the controlling player', () => {
+    const state = cornerKickGkSetupState('CORNER_KICK_GK_SETUP_DEFENDING', 'home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gk = state.pieces.find((p) => p.id === AWAY_GK_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, gk.position.q, gk.position.r)).toBe(true);
+  });
+
+  it('CORNER_KICK_GK_SETUP_DEFENDING: the non-acting (attacking) player sees zero selectable pieces', () => {
+    const state = cornerKickGkSetupState('CORNER_KICK_GK_SETUP_DEFENDING', 'home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+
+  it('CORNER_KICK_TAKER_SELECT: renders every own on-pitch piece as selectable for the kicking manager', () => {
+    const state = cornerKickTakerSelectState('home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === REPOSITION_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('CORNER_KICK_TAKER_SELECT: renders the required ring at cornerKickHex', () => {
+    const state = cornerKickTakerSelectState('home', { q: 0, r: 1 });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasFillAtHex(container, RING_STYLES.required.fill, 0, 1)).toBe(true);
+    expect(hasStrokeAtHex(container, RING_STYLES.required.stroke, 0, 1)).toBe(true);
+  });
+
+  it('CORNER_KICK_TAKER_SELECT: the non-acting (defending) player sees zero selectable pieces', () => {
+    const state = cornerKickTakerSelectState('home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+
+  it("CORNER_KICK_REPOSITION: renders the current stage team's eligible piece as selectable", () => {
+    const state = cornerKickRepositionState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === REPOSITION_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('CORNER_KICK_REPOSITION: does NOT render a pace-exhausted eligible piece (cornerKickUsedPace === 6) as selectable', () => {
+    const state = cornerKickRepositionState({
+      cornerKickUsedPace: { [REPOSITION_ELIGIBLE_ID]: 6 },
+    });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === REPOSITION_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it("CORNER_KICK_REPOSITION: renders the selected piece's adjacent legal hexes with the safe tint", () => {
+    const state = cornerKickRepositionState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID);
+    const { container } = render(<HexGrid />);
+    const hasSafeFill = Array.from(container.querySelectorAll('polygon')).some(
+      (p) => p.getAttribute('fill') === SAFE_FILL,
+    );
+    expect(hasSafeFill).toBe(true);
+  });
+
+  it('CORNER_KICK_REPOSITION: the non-acting (defending) team sees zero selectable pieces during the attacking stage', () => {
+    const state = cornerKickRepositionState({
+      stageIndex: 0,
+      cornerKickTeam: 'home',
+      eligibleIds: { attacking: [REPOSITION_ELIGIBLE_ID], defending: ['away-8'] },
+    });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+
+  it("CORNER_KICK_FINAL_SETUP: renders the slot team's eligible piece as selectable while unlocked", () => {
+    const state = cornerKickFinalSetupState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === FINAL_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: does NOT render a different eligible piece as selectable once cornerKickMovedPieceId locks another', () => {
+    const state = cornerKickFinalSetupState({
+      movedPieceId: FINAL_ELIGIBLE_ID,
+      eligibleIds: { attacking: [FINAL_ELIGIBLE_ID, FINAL_OTHER_ID], defending: [] },
+    });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const otherPiece = state.pieces.find((p) => p.id === FINAL_OTHER_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, otherPiece.position.q, otherPiece.position.r)).toBe(
+      false,
+    );
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: its destination hexes render the safe tint once the eligible piece is selected', () => {
+    const state = cornerKickFinalSetupState();
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    useGameStore.getState().selectPiece(FINAL_ELIGIBLE_ID);
+    const { container } = render(<HexGrid />);
+    const hasSafeFill = Array.from(container.querySelectorAll('polygon')).some(
+      (p) => p.getAttribute('fill') === SAFE_FILL,
+    );
+    expect(hasSafeFill).toBe(true);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: the non-acting (defending) team sees zero selectable pieces during the ATTACKER slot', () => {
+    const state = cornerKickFinalSetupState({ slot: 'ATTACKER', cornerKickTeam: 'home' });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+});
+
 // GOALKICK-05 (Phase 37, Plan 37-18): HeaderTargetRing renders as a second standalone
 // always-on-top overlay, alongside BallLocationRing, marking the goal-kick header contest
 // hex during the GOAL_KICK_MOVE travel window. Asserted via the imported HEADER_TARGET_STROKE
