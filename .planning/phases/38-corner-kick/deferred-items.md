@@ -26,3 +26,23 @@ Both are non-blocking for 38-06's own scope: `pnpm --filter @counter-attack/clie
 cleanly (674/674 tests). Flagging here so a later phase-38 plan (or a dedicated cleanup pass)
 resolves the `GameBoard.tsx` gap before phase close, and so `ActionLog.tsx`'s pre-existing
 issue is tracked rather than silently re-discovered.
+
+## From Plan 38-14 (GK save-spill → real LOOSE_BALL / second Corner Kick route)
+
+- **`pnpm lint` (repo root `eslint .`) fails with 8 `Parsing error: Too many files (>8) have
+matched the default project` errors, all inside `packages/shared/src/*.test.ts` and
+  `packages/shared/scripts/seed-rosters.ts`.** `eslint.config.js`'s
+  `allowDefaultProject: ['packages/shared/src/*.test.ts', 'packages/shared/scripts/*.ts']`
+  glob now matches 14 files in `packages/shared`, exceeding typescript-eslint's default
+  8-file `maximumDefaultProjectFileMatchCount` safety threshold — a config-vs-repo-growth
+  drift, not a code defect. None of the 8 failing files were touched by this plan (this plan's
+  `files_modified` are `packages/server/src/gameEngine.ts` and two `packages/server` test
+  files only); `packages/shared` was rebuilt (`pnpm --filter @counter-attack/shared build`)
+  but not edited. Confirmed out of scope by running `npx eslint` scoped to exactly this
+  plan's touched files (`gameEngine.ts`, `gameEngine.test.ts`, `gameEngine.cornerKick.test.ts`,
+  `gameEngine.phase17.test.ts`, `gameEngine.rule11.test.ts`) — zero errors. Fix belongs to a
+  dedicated cleanup pass: either raise
+  `parserOptions.projectService.maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING`
+  or add `packages/shared/src/**/*.test.ts`/`packages/shared/scripts/**/*.ts` to
+  `packages/shared/tsconfig.json`'s `include` so they resolve through the named project
+  instead of the default-project fallback.

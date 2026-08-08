@@ -513,21 +513,26 @@ describe('Phase 17 BUG-04: pass to occupied hex → ball pickup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// BUG-05: After D-07 (Phase 17.1), save spill routes to GK_RESTART (not LOOSE_BALL)
+// BUG-05: save dropped → the ball spawns at the GK's dive-adjusted hex, not the
+// shooter's hex (D-07 GK-hex-origin fix, still correct). 38-14 supersedes the
+// GK_RESTART/clean-catch outcome this test originally asserted: a dropped save
+// now produces a genuine LOOSE_BALL with the GK as lastTouchedBy — see
+// 38-14-SUMMARY.md D-GAP-02 and the Phase 17.1 D-07 TODO it closes.
 // ---------------------------------------------------------------------------
 
-describe('Phase 17 BUG-05: save dropped → GK_RESTART with GK holding ball at GK position (D-07)', () => {
-  it('handling die >= handling stat (dropped) → GK_RESTART; GK holds ball at GK hex', () => {
+describe('Phase 17 BUG-05: save dropped → ball spawns loose at GK position, not shooter hex (D-07 origin; 38-14 outcome)', () => {
+  it('handling die >= handling stat (dropped) → LOOSE_BALL; ball loose at GK hex, GK is lastTouchedBy', () => {
     // GK at {q:11, r:7}; shooter at {q:10, r:7}; distance 1 → saveable (no penalty)
     // shooterDice=2: 9+2=11; gkDice=6: 9+6=15; GK wins SAVE
-    // handlingDice=9: 9 >= handling=8 → DROPPED → D-07: GK_RESTART (not LOOSE_BALL)
+    // handlingDice=9: 9 >= handling=8 → DROPPED → 38-14: real LOOSE_BALL (not clean catch)
     const result = applyRoll(shotStateNearGK, 2, 6, 9);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // D-07 fix: spill routes to GK_RESTART with GK holding the ball
-    expect(result.state.phase).toBe('GK_RESTART');
-    expect(result.state.ball.carrierId).toBe('away-0'); // GK holds ball
-    // Ball must spawn at GK's position {q:11, r:7}, not shooter's {q:10, r:7}
+    // 38-14: spill routes to LOOSE_BALL; ball is not carried
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: 'away-0', teamId: 'away' });
+    // Ball must spawn at GK's position {q:11, r:7}, not shooter's {q:10, r:7} — D-07 origin fix
     expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // GK hex
     expect(result.state.ball.position).not.toEqual({ q: 10, r: 7 }); // NOT shot origin
   });
@@ -1482,21 +1487,22 @@ describe('Phase 17.1 D-06: GK_RESTART trigger at ATTACKER_2 End Turn', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 17.1 D-07: GK save spill routes to GK_RESTART (not LOOSE_BALL)
+// Phase 17.1 D-07 (superseded by 38-14): GK save spill routes to a genuine
+// LOOSE_BALL, not GK_RESTART. See 38-14-SUMMARY.md D-GAP-02.
 // ---------------------------------------------------------------------------
 
-describe('Phase 17.1 D-07: GK save spill → GK_RESTART with GK holding ball', () => {
-  it('save spill (handling failed) → GK_RESTART; ball.carrierId = GK id', () => {
+describe('38-14 (closes Phase 17.1 D-07): GK save spill → LOOSE_BALL, ball not carried', () => {
+  it('save spill (handling failed) → LOOSE_BALL; ball.carrierId is null, GK is lastTouchedBy', () => {
     // shotStateNearGK: homeFWD(shooting:9) at {q:10,r:7}, awayGK(saving:9,handling:8) at {q:11,r:7}
     // dice: shooterDice=2 (9+2=11), gkDice=6 (9+6=15) → GK wins SAVE
     // handlingDice=9: 9 >= handling=8 → DROPPED (spill)
-    // D-07: spill → GK_RESTART with GK holding ball
+    // 38-14: spill → real LOOSE_BALL; ball is not carried by the spilling keeper
     const result = applyRoll(shotStateNearGK, 2, 6, 9);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('GK_RESTART');
-    // GK holds ball after spill
-    expect(result.state.ball.carrierId).toBe('away-0'); // awayGK id
+    expect(result.state.phase).toBe('LOOSE_BALL');
+    expect(result.state.ball.carrierId).toBeNull();
+    expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: 'away-0', teamId: 'away' });
     // Ball position at GK hex (not shot origin)
     expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // GK's effective position
   });
