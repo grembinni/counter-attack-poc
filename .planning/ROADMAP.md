@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 13/15                                  | In Progress |             |
+| 38    | 14/15                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -271,7 +271,7 @@ Plans:
 
 **Wave 11** _(gap closure, blocked on Wave 10)_
 
-- [ ] 38-14-PLAN.md — Engine: real GK save-spill Loose Ball, second route into a Corner Kick (closes Phase 17.1 D-07)
+- [x] 38-14-PLAN.md — Engine: real GK save-spill Loose Ball, second route into a Corner Kick (closes Phase 17.1 D-07)
 
 **Wave 12** _(gap closure re-verification, blocked on all code-fix plans)_
 
