@@ -40,9 +40,12 @@ export function CornerKickSetupPanel() {
   const cornerKickMovedPieceId = useGameStore((s) => s.gameState.cornerKickMovedPieceId);
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const gameError = useGameStore((s) => s.gameError);
+  const eventLog = useGameStore((s) => s.gameState.eventLog);
+  const lastDiceRoll = useGameStore((s) => s.gameState.lastDiceRoll);
   const emitCornerKickTaker = useGameStore((s) => s.emitCornerKickTaker);
   const emitEndTurn = useGameStore((s) => s.emitEndTurn);
   const setSelectedPassType = useGameStore((s) => s.setSelectedPassType);
+  const emitUndo = useGameStore((s) => s.emitUndo);
   const myTeamOrNull = useMyTeam();
 
   const isCornerKickPhase =
@@ -224,6 +227,20 @@ export function CornerKickSetupPanel() {
       true,
     );
 
+    // UX mirror only — the server's applyUndo (gameEngine.ts) is the sole enforcement layer.
+    // Boundary types (CORNER_KICK_STAGE_ADVANCE, CORNER_KICK_TAKER_PLACED) and the scanned
+    // move type (MOVE, the phase's default in applyUndo's moveTypeForPhase) must stay in sync
+    // with applyUndo's isBoundary reduce for CORNER_KICK_REPOSITION.
+    const canUndoReposition = (() => {
+      if (lastDiceRoll) return false;
+      const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
+        const isBoundary =
+          evt.type === 'CORNER_KICK_STAGE_ADVANCE' || evt.type === 'CORNER_KICK_TAKER_PLACED';
+        return isBoundary ? idx : acc;
+      }, -1);
+      return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'MOVE');
+    })();
+
     return (
       <div className={styles.panel}>
         <span className={styles.panelHeading}>Corner Kick</span>
@@ -231,6 +248,9 @@ export function CornerKickSetupPanel() {
           {`${remaining} players still eligible to move this round — up to 2, up to 6 hexes each.`}
         </span>
         {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
+        <button className={styles.ctaButton} disabled={!canUndoReposition} onClick={emitUndo}>
+          Undo
+        </button>
         <button
           className={`${styles.ctaButton} ${repositionColorClass}`}
           onClick={withEndTurnGuard(remaining, emitEndTurn)}
@@ -264,11 +284,27 @@ export function CornerKickSetupPanel() {
       true,
     );
 
+    // UX mirror only — the server's applyUndo (gameEngine.ts) is the sole enforcement layer.
+    // Boundary type (CORNER_KICK_STAGE_ADVANCE) and the scanned move type (CORNER_KICK_MOVE)
+    // must stay in sync with applyUndo's isBoundary reduce and moveTypeForPhase for
+    // CORNER_KICK_FINAL_SETUP.
+    const canUndoFinalSetup = (() => {
+      if (lastDiceRoll) return false;
+      const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
+        const isBoundary = evt.type === 'CORNER_KICK_STAGE_ADVANCE';
+        return isBoundary ? idx : acc;
+      }, -1);
+      return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === 'CORNER_KICK_MOVE');
+    })();
+
     return (
       <div className={styles.panel}>
         <span className={styles.panelHeading}>Corner Kick</span>
         <span className={styles.constraintRow}>Reposition 1 player — up to 3 hexes.</span>
         {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
+        <button className={styles.ctaButton} disabled={!canUndoFinalSetup} onClick={emitUndo}>
+          Undo
+        </button>
         <button
           className={`${styles.ctaButton} ${finalColorClass}`}
           onClick={withEndTurnGuard(remaining, emitEndTurn)}
