@@ -312,7 +312,10 @@ async function driveLooseBallToCorner(
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_ROLL);
     const [state] = await statePromise;
-    if (state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING') {
+    // 38-20: a real corner award now lands in the mandatory clear-out step first —
+    // CORNER_KICK_GK_SETUP_ATTACKING is reached only via applyCornerKickClearOutEnd, which
+    // has no socket handler yet (wiring is 38-21's scope).
+    if (state.phase === 'CORNER_KICK_CLEAR_OUT') {
       return state;
     }
   }
@@ -838,11 +841,16 @@ function seedOrdinaryHighPassState(roomCode: string): { carrierId: string } {
 // ---------------------------------------------------------------------------
 
 describe('OOB-03: a home-byline exit after a home touch triggers a corner kick', () => {
-  it('awards the corner to away (team inversion) and enters CORNER_KICK_GK_SETUP_ATTACKING', async () => {
+  it('awards the corner to away (team inversion) and enters the mandatory clear-out CORNER_KICK_CLEAR_OUT (38-20)', async () => {
     const { clientA, roomCode } = await setupRoom();
     const state = await driveLooseBallToCorner(clientA, roomCode);
 
-    expect(state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+    // CORNER-01 (38-15 defect 3, 38-20): a real corner award now lands in the mandatory
+    // clear-out step first, with the attacking slot active — CORNER_KICK_GK_SETUP_ATTACKING
+    // is reached only via applyCornerKickClearOutEnd, which has no socket handler yet
+    // (wiring is 38-21's scope).
+    expect(state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+    expect(state.cornerKickClearOutSlot).toBe('ATTACKER');
     expect(state.cornerKickTeam).toBe('away');
     expect(state.cornerKickHex).not.toBeNull();
     expect(state.cornerKickHex?.q).toBe(0);

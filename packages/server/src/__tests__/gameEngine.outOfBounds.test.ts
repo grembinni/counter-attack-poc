@@ -502,7 +502,7 @@ describe('triggerOutOfBoundsRestart GOAL_KICK placement (Plan 37-15)', () => {
 // ---------------------------------------------------------------------------
 
 describe('byline exit after a defending touch awards a corner kick (OOB-03, Phase 38)', () => {
-  it('routes to CORNER_KICK_GK_SETUP_ATTACKING, awarded to the opposite team from the byline owner', () => {
+  it('routes to CORNER_KICK_CLEAR_OUT (38-20: the mandatory pre-corner clear-out), awarded to the opposite team from the byline owner', () => {
     const state: GameState = {
       ...baseLooseBallState,
       ball: {
@@ -515,7 +515,10 @@ describe('byline exit after a defending touch awards a corner kick (OOB-03, Phas
     const result = applyRoll(state, 4, 2);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+    // CORNER-01 (38-15 defect 3, 38-20): a corner now opens in the mandatory clear-out step,
+    // with the attacking slot active — not directly in CORNER_KICK_GK_SETUP_ATTACKING.
+    expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.cornerKickClearOutSlot).toBe('ATTACKER');
     expect(result.state.cornerKickTeam).toBe('away'); // inverted from byline owner 'home'
     expect(result.state.attackingTeam).toBe('away');
     expect(result.state.activeTeam).toBe('away');
