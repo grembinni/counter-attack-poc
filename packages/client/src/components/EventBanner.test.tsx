@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
-import type { ActionEvent } from '@counter-attack/shared';
+import type { ActionEvent, GamePhase } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
-import { EventBanner } from './EventBanner.js';
+import { EventBanner, RESTART_BANNERS } from './EventBanner.js';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -40,6 +40,12 @@ afterEach(() => {
 function setEventLog(eventLog: ActionEvent[]) {
   useGameStore.setState({
     gameState: { ...mockMovementState, eventLog },
+  });
+}
+
+function setPhase(phase: GamePhase) {
+  useGameStore.setState({
+    gameState: { ...mockMovementState, eventLog: [], phase },
   });
 }
 
@@ -254,5 +260,81 @@ describe('EventBanner — UX-14: auto-dismisses after ~1000ms', () => {
     });
 
     expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 38-19 (38-15 defect 4): restart banners (phase-entry, RESTART_BANNERS table)
+// ---------------------------------------------------------------------------
+
+describe('restart banners (38-15 defect 4)', () => {
+  it.each(Object.entries(RESTART_BANNERS))(
+    'shows "%s" banner when entering phase %s',
+    (phase, message) => {
+      // beforeEach seeds a non-restart phase ('MOVE' via mockMovementState).
+      render(<EventBanner />);
+
+      act(() => {
+        setPhase(phase as GamePhase);
+      });
+
+      expect(screen.getByText(message)).toBeDefined();
+    },
+  );
+
+  it('does NOT fire a banner on first mount into a restart phase (reconnect snapshot)', () => {
+    // A reconnecting client's first render can land directly on a restart phase — this must
+    // not be treated as a transition (T-38-64 "reconnect snapshot to banner").
+    useGameStore.setState({
+      gameState: { ...mockMovementState, eventLog: [], phase: 'THROW_IN_SETUP' },
+    });
+
+    render(<EventBanner />);
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('fires the restart banner once per entry, not once per broadcast while the phase is active', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setPhase('THROW_IN_SETUP');
+    });
+    expect(screen.getByText('Throw In!')).toBeDefined();
+
+    // Dismiss via the same fake-timer advance the other auto-dismiss tests use.
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+
+    // Re-broadcast of the SAME restart phase (e.g. another action inside the restart setup
+    // window) must not re-fire the banner.
+    act(() => {
+      setPhase('THROW_IN_SETUP');
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('does NOT fire a banner for a non-restart phase transition (MOVE -> PASS)', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setPhase('PASS');
+    });
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('uses the notable variant and the 1000ms duration, same as the turnover banners', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setPhase('THROW_IN_SETUP');
+    });
+
+    const banner = screen.getByRole('status');
+    expect(banner.className).toContain('notable');
+    expect(banner.style.animationDuration).toBe('1000ms');
   });
 });
