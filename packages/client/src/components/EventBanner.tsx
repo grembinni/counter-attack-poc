@@ -1,7 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ActionEvent } from '@counter-attack/shared';
+import type { ActionEvent, GamePhase } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import styles from './EventBanner.module.css';
+
+/**
+ * 38-15 defect 4 / 38-19: phase-keyed restart banner table.
+ *
+ * Keyed by each restart's ENTRY phase — exactly one row per restart family. Adding a second
+ * phase value from the same family (e.g. a later stage of the corner-kick sequence) would
+ * double-fire a banner on the intra-family transition, so this table must stay one-entry-
+ * per-family (T-38-66).
+ *
+ * Phase-driven rather than event-driven: the Free Kick award emits no `ActionEvent` at all
+ * (`triggerOffsideFoul` appends nothing to `eventLog`), so an event-keyed table could not cover
+ * all four restarts uniformly. A phase-entry table is also immune to the STATE.md v1.6 pitfall
+ * "EventBanner only inspects the last new event per broadcast" — this effect never inspects
+ * events at all.
+ *
+ * Penalty Kick (the fifth restart named by 38-15 defect 4) has no `GamePhase` entry point yet —
+ * it is Phase 39 scope (see .planning/phases/38-corner-kick/deferred-items.md, "From Plan 38-19
+ * (restart banners)"). Adding it later is exactly one row in this table.
+ */
+export const RESTART_BANNERS: Partial<Record<GamePhase, string>> = {
+  THROW_IN_SETUP: 'Throw In!',
+  GOAL_KICK_SETUP_GK: 'Goal Kick!',
+  CORNER_KICK_CLEAR_OUT: 'Corner Kick!',
+  FREE_KICK_SETUP: 'Free Kick!',
+};
 
 /**
  * Maps a qualifying ActionEvent to its banner message, variant, and display duration.
@@ -57,10 +82,17 @@ function getBannerMessage(
  */
 export function EventBanner() {
   const eventLog = useGameStore((s) => s.gameState.eventLog);
+  const phase = useGameStore((s) => s.gameState.phase);
 
   // Ref tracks the last eventLog length we processed — prevents re-firing
   // the same event on unrelated re-renders (D-03 lastPieceRef pattern).
   const lastProcessedLengthRef = useRef<number>(eventLog.length);
+
+  // 38-19: ref tracks the last phase we processed, initialised to the current phase on first
+  // render — mirrors lastProcessedLengthRef's mount-safety so a mount into a restart phase
+  // (e.g. a reconnect snapshot landing mid-restart) never fires a banner (T-38-64/threat register
+  // "reconnect snapshot to banner").
+  const prevPhaseRef = useRef<GamePhase>(phase);
 
   const [active, setActive] = useState<{
     message: string;
@@ -82,6 +114,19 @@ export function EventBanner() {
       setActive(banner);
     }
   }, [eventLog]);
+
+  // 38-19: phase-entry diff-and-trigger, mirroring the eventLog effect above. Fires at most once
+  // per restart entry — edge-detected against prevPhaseRef, not re-fired on every broadcast while
+  // the restart phase is active (T-38-64). The ref advances unconditionally, whether or not a
+  // banner fired, matching the existing effect's discipline.
+  useEffect(() => {
+    if (phase === prevPhaseRef.current) return;
+    const message = RESTART_BANNERS[phase];
+    prevPhaseRef.current = phase;
+    if (message !== undefined) {
+      setActive({ message, variant: 'notable', duration: 1000 });
+    }
+  }, [phase]);
 
   // Auto-dismiss timer: clear the banner after the variant-specific duration.
   // HP_ACCURACY uses 1500ms (D-20 / UX-15); all other events use 1000ms.
