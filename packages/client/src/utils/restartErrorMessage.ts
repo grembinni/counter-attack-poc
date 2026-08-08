@@ -62,6 +62,23 @@ export const RESTART_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INVALID_CONTESTANT: "That player can't contest this header.",
   KICKOFF_STANDARD_PASS_ONLY: 'Only a standard pass is allowed at kick-off.',
   NOT_KICK_OFF_TEAM: "It isn't your team's kick-off.",
+
+  // 38-18 (D-GAP-03/T-38-61): the new corner-reposition rejection reason below is emitted by
+  // both `applyCornerKickReposition` and `applyCornerKickFinalMove`. Re-running the grep this
+  // module's header comment mandates, plus a scan of every `ApplyCornerKick*Result` reason
+  // union in gameEngine.ts, additionally surfaced four PRE-EXISTING unmapped codes that were
+  // already leaking to the DOM as raw wire tokens before this plan: NOT_ELIGIBLE, NOT_ADJACENT,
+  // STAGE_LIMIT_REACHED (corner reposition/final-move guards) and NOT_GOALKEEPER
+  // (`applyCornerKickGkPlace`). The pre-kick 3-hex cap's rejection reason also scanned as
+  // unmapped — it remains a real, still-emitted reason for CORNER-06 (`applyCornerKickFinalMove`)
+  // even though 38-17 removes it from the reposition-window result union. All six are added
+  // below.
+  PIECE_LOCKED: 'That player has already been repositioned for this corner.',
+  NOT_ELIGIBLE: 'That player is not eligible for this action.',
+  NOT_ADJACENT: 'Choose a hex next to that player.',
+  STAGE_LIMIT_REACHED: 'The player limit for this round has been reached.',
+  NOT_GOALKEEPER: 'Only a goalkeeper can do that.',
+  PACE_EXHAUSTED: 'That player has already moved the maximum distance allowed.',
 };
 
 /**

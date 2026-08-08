@@ -41,7 +41,7 @@ function cornerKickState(
     cornerKickTakerId: null,
     cornerKickStageIndex: 0 as const,
     cornerKickStagePlacedIds: [] as readonly string[],
-    cornerKickUsedPace: {},
+    cornerKickActivatedIds: [] as readonly string[],
     cornerKickEligibleIds: {
       attacking: [] as readonly string[],
       defending: [] as readonly string[],
@@ -228,25 +228,28 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
     render(<CornerKickSetupPanel />);
     expect(
       screen.getByText(
-        /2 players still eligible to move this round — up to 2, up to 6 hexes each\./,
+        /2 players still eligible to move this round — up to 2, unlimited distance\./,
       ),
+    ).toBeDefined();
+    expect(
+      screen.getByText(/A player who has been repositioned is done for this window\./),
     ).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
-  it('remaining excludes a pace-exhausted piece, and once the round is full only already-touched pieces still count', () => {
+  it('remaining excludes a piece activated in an earlier stage, and once the round is full only already-touched pieces still count', () => {
     useGameStore.setState({
       gameState: cornerKickState('CORNER_KICK_REPOSITION', {
         cornerKickStageIndex: 0,
         cornerKickEligibleIds: { attacking: ['away-1', 'away-2', 'away-3'], defending: [] },
-        cornerKickUsedPace: { 'away-1': 6, 'away-2': 3 },
+        cornerKickActivatedIds: ['away-1', 'away-2'],
         cornerKickStagePlacedIds: ['away-2'],
       }),
       playerSlot: 2,
     });
     render(<CornerKickSetupPanel />);
-    // away-1 excluded (pace exhausted); the round is not yet full (1 of 2 placed), so
-    // away-2 (already touched, pace remaining) and away-3 (untouched, pace remaining) both count.
+    // away-1 excluded (activated in an earlier stage); the round is not yet full (1 of 2
+    // placed), so away-2 (already touched THIS stage) and away-3 (untouched) both count.
     expect(screen.getByText(/2 players still eligible to move this round/)).toBeDefined();
   });
 
@@ -255,14 +258,14 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
       gameState: cornerKickState('CORNER_KICK_REPOSITION', {
         cornerKickStageIndex: 0,
         cornerKickEligibleIds: { attacking: ['away-1', 'away-2', 'away-3'], defending: [] },
-        cornerKickUsedPace: { 'away-1': 2, 'away-2': 3 },
+        cornerKickActivatedIds: ['away-1', 'away-2'],
         cornerKickStagePlacedIds: ['away-1', 'away-2'],
       }),
       playerSlot: 2,
     });
     render(<CornerKickSetupPanel />);
-    // Stage full (2 placed): away-3 (untouched) no longer counts; away-1/away-2 still have
-    // pace remaining and are already in the round, so both count.
+    // Stage full (2 placed): away-3 (untouched) no longer counts; away-1/away-2 were both
+    // touched THIS stage (activated AND stagePlaced), so both still count.
     expect(screen.getByText(/2 players still eligible to move this round/)).toBeDefined();
   });
 
@@ -312,7 +315,8 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
     useGameStore.setState({
       gameState: cornerKickState('CORNER_KICK_REPOSITION', {
         cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
-        cornerKickUsedPace: { 'away-1': 6 },
+        cornerKickActivatedIds: ['away-1'],
+        cornerKickStagePlacedIds: [],
       }),
       playerSlot: 2,
     });

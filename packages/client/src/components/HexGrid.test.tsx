@@ -1594,7 +1594,8 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
       stageIndex?: 0 | 1 | 2 | 3 | 4 | 5;
       cornerKickTeam?: 'home' | 'away';
       eligibleIds?: { attacking: string[]; defending: string[] };
-      cornerKickUsedPace?: Record<string, number>;
+      cornerKickActivatedIds?: readonly string[];
+      cornerKickStagePlacedIds?: readonly string[];
     } = {},
   ) {
     return {
@@ -1606,7 +1607,8 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
         attacking: [REPOSITION_ELIGIBLE_ID],
         defending: [] as readonly string[],
       },
-      cornerKickUsedPace: overrides.cornerKickUsedPace ?? {},
+      cornerKickActivatedIds: overrides.cornerKickActivatedIds ?? [],
+      cornerKickStagePlacedIds: overrides.cornerKickStagePlacedIds ?? [],
     };
   }
 
@@ -1778,9 +1780,10 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
     expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
   });
 
-  it('CORNER_KICK_REPOSITION: does NOT render a pace-exhausted eligible piece (cornerKickUsedPace === 6) as selectable', () => {
+  it('CORNER_KICK_REPOSITION (D-GAP-03): a piece activated in an earlier stage is not selectable and renders as activated', () => {
     const state = cornerKickRepositionState({
-      cornerKickUsedPace: { [REPOSITION_ELIGIBLE_ID]: 6 },
+      cornerKickActivatedIds: [REPOSITION_ELIGIBLE_ID],
+      cornerKickStagePlacedIds: [],
     });
     useGameStore.setState({
       gameState: state,
@@ -1793,6 +1796,26 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
     const piece = state.pieces.find((p) => p.id === REPOSITION_ELIGIBLE_ID)!;
     const { container } = render(<HexGrid />);
     expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+    expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('CORNER_KICK_REPOSITION (D-GAP-03): a piece touched THIS stage is still selectable, uncapped', () => {
+    const state = cornerKickRepositionState({
+      cornerKickActivatedIds: [REPOSITION_ELIGIBLE_ID],
+      cornerKickStagePlacedIds: [REPOSITION_ELIGIBLE_ID],
+    });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === REPOSITION_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+    expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(false);
   });
 
   it("CORNER_KICK_REPOSITION: renders the selected piece's adjacent legal hexes with the safe tint", () => {

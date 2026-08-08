@@ -11,6 +11,7 @@ import {
   freeKickStageTeam,
   FREE_KICK_STAGES,
   cornerKickStageTeam,
+  CORNER_KICK_STAGES,
   TEAM_CONFIGS,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
@@ -142,14 +143,19 @@ export function HexGrid() {
   const goalKickMovedPieceId = useGameStore((s) => s.gameState.goalKickMovedPieceId);
   const goalKickTargetHex = useGameStore((s) => s.gameState.goalKickTargetHex);
   const emitGoalKickTarget = useGameStore((s) => s.emitGoalKickTarget);
-  // CORNER-01/02/03/06 (Phase 38, Plan 38-06): per-slice selectors for all 8 cornerKick*
+  // CORNER-01/02/03/06 (Phase 38, Plan 38-06): per-slice selectors for all cornerKick*
   // GameState fields — never a single object selector (Pitfall 6, T-38-25).
+  // cornerKickActivatedIds/cornerKickStagePlacedIds added by 38-18 (D-GAP-03): cornerKickUsedPace
+  // is no longer read here — reposition movement has no hex budget (38-15 defect 1/38-17); the
+  // per-window activation lock is what now gates selectability and the isSpentNow "activated"
+  // treatment.
   const cornerKickTeam = useGameStore((s) => s.gameState.cornerKickTeam);
   const cornerKickHex = useGameStore((s) => s.gameState.cornerKickHex);
   const cornerKickTakerId = useGameStore((s) => s.gameState.cornerKickTakerId);
   const cornerKickEligibleIds = useGameStore((s) => s.gameState.cornerKickEligibleIds);
   const cornerKickStageIndex = useGameStore((s) => s.gameState.cornerKickStageIndex);
-  const cornerKickUsedPace = useGameStore((s) => s.gameState.cornerKickUsedPace);
+  const cornerKickStagePlacedIds = useGameStore((s) => s.gameState.cornerKickStagePlacedIds);
+  const cornerKickActivatedIds = useGameStore((s) => s.gameState.cornerKickActivatedIds);
   const cornerKickMoveSlot = useGameStore((s) => s.gameState.cornerKickMoveSlot);
   const cornerKickMovedPieceId = useGameStore((s) => s.gameState.cornerKickMovedPieceId);
   const emitCornerKickGkPlace = useGameStore((s) => s.emitCornerKickGkPlace);
@@ -874,9 +880,15 @@ export function HexGrid() {
               piece.teamId === cornerKickTeam;
 
             // CORNER_KICK_REPOSITION (CORNER-03): only the current stage's acting team's
-            // eligible, pace-remaining pieces are selectable — mirrors canSelectGoalKickSetup's
-            // shape, substituting cornerKickStageTeam-derived acting team and cornerKickUsedPace
-            // (cap 6). No stage-distinct-piece-count check here (owned by the panel, 38-07).
+            // eligible pieces are selectable — mirrors canSelectGoalKickSetup's shape,
+            // substituting cornerKickStageTeam-derived acting team. D-GAP-03 (38-15 defect
+            // 1&2/38-17): movement is uncapped, so there is no pace-remaining term. Two terms
+            // replace it: (a) a piece activated in an EARLIER stage (cornerKickActivatedIds
+            // minus this stage's cornerKickStagePlacedIds) is excluded — it is spent for the
+            // rest of the window; (b) once this stage's distinct-piece budget is full
+            // (CORNER_KICK_STAGES[stageIndex].max, read from the shared table — never a
+            // literal 2), only pieces already touched this stage remain selectable, matching
+            // the stage cap CornerKickSetupPanel.tsx already enforces for its "remaining" count.
             const cornerKickRepositionActingTeam: 'home' | 'away' | null =
               phase === 'CORNER_KICK_REPOSITION' &&
               cornerKickTeam != null &&
@@ -889,6 +901,14 @@ export function HexGrid() {
                   ? 'attacking'
                   : 'defending'
                 : null;
+            const cornerKickPlacedThisStage = cornerKickStagePlacedIds?.includes(piece.id) ?? false;
+            const cornerKickActivatedEarlierStage =
+              (cornerKickActivatedIds?.includes(piece.id) ?? false) && !cornerKickPlacedThisStage;
+            const cornerKickStageFull =
+              phase === 'CORNER_KICK_REPOSITION' && cornerKickStageIndex != null
+                ? (cornerKickStagePlacedIds ?? []).length >=
+                  CORNER_KICK_STAGES[cornerKickStageIndex].max
+                : false;
             // Defense-in-depth (mirrors the highPassCarrierId/firstTimePassCarrierId exclusion
             // pattern elsewhere in this file): the corner-taker's own piece should never be
             // offered for reposition even if a future eligibleIds computation bug included it —
@@ -901,7 +921,8 @@ export function HexGrid() {
               piece.teamId === cornerKickRepositionActingTeam &&
               piece.id !== cornerKickTakerId &&
               (cornerKickEligibleIds?.[cornerKickRepositionSide]?.includes(piece.id) ?? false) &&
-              (cornerKickUsedPace?.[piece.id] ?? 0) < 6;
+              !cornerKickActivatedEarlierStage &&
+              (!cornerKickStageFull || cornerKickPlacedThisStage);
 
             // CORNER_KICK_FINAL_SETUP (CORNER-06): only the current slot's acting team's
             // eligible piece is selectable, honouring the cornerKickMovedPieceId lock —
@@ -1005,7 +1026,23 @@ export function HexGrid() {
                   : phase === 'FREE_KICK_SETUP'
                     ? movedPieceIds.includes(piece.id) ||
                       (freeKickPlacedPieceIds ?? []).includes(piece.id)
-                    : movedPieceIds.includes(piece.id);
+                    : phase === 'CORNER_KICK_REPOSITION'
+                      ? // D-GAP-03 (38-15 defect 2/38-17): a piece activated in an EARLIER
+                        // stage renders 'activated' (orange ring + red X) and is no longer
+                        // clickable — reusing cornerKickActivatedEarlierStage from the
+                        // canSelectCornerKickReposition computation above. Deliberately
+                        // excludes pieces touched THIS stage: they are still legally movable
+                        // for the rest of the stage, and painting them with the red X while
+                        // still clickable would be a worse lie than the current absence of
+                        // any marker.
+                        cornerKickActivatedEarlierStage
+                      : phase === 'CORNER_KICK_FINAL_SETUP'
+                        ? // D-GAP-03 (38-15 defect 2/38-17): the pre-kick window's activation
+                          // ledger is a single locked piece (cornerKickMovedPieceId), reset
+                          // fresh on entry to this phase — not the cleared
+                          // cornerKickActivatedIds array from the reposition stages.
+                          piece.id === cornerKickMovedPieceId
+                        : movedPieceIds.includes(piece.id);
             // Eligible ring: piece can still be selected for placement this stage.
             // Gated on budget remaining — hides ring once all stage slots are filled.
             const isFreeKickEligible =

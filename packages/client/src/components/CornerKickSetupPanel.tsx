@@ -34,7 +34,7 @@ export function CornerKickSetupPanel() {
   const cornerKickTeam = useGameStore((s) => s.gameState.cornerKickTeam);
   const cornerKickStageIndex = useGameStore((s) => s.gameState.cornerKickStageIndex);
   const cornerKickEligibleIds = useGameStore((s) => s.gameState.cornerKickEligibleIds);
-  const cornerKickUsedPace = useGameStore((s) => s.gameState.cornerKickUsedPace);
+  const cornerKickActivatedIds = useGameStore((s) => s.gameState.cornerKickActivatedIds);
   const cornerKickStagePlacedIds = useGameStore((s) => s.gameState.cornerKickStagePlacedIds);
   const cornerKickMoveSlot = useGameStore((s) => s.gameState.cornerKickMoveSlot);
   const cornerKickMovedPieceId = useGameStore((s) => s.gameState.cornerKickMovedPieceId);
@@ -191,8 +191,9 @@ export function CornerKickSetupPanel() {
     );
   }
 
-  // CORNER-03 (D-05): 6 alternating attacking/defending stages, strict pairs, up to 2 distinct
-  // pieces per stage, each up to 6 hexes (persistent across all 6 stages — cornerKickUsedPace).
+  // CORNER-03 (D-05/D-GAP-03): 6 alternating attacking/defending stages, strict pairs, up to
+  // 2 distinct pieces per stage, no per-piece hex cap — a piece is spent for the rest of the
+  // window once activated, not once a movement budget runs out (38-15 defect 1&2/38-17).
   if (phase === 'CORNER_KICK_REPOSITION') {
     const stageIndex = cornerKickStageIndex ?? 0;
     const stage = CORNER_KICK_STAGES[stageIndex];
@@ -210,13 +211,16 @@ export function CornerKickSetupPanel() {
 
     const eligibleIds = cornerKickEligibleIds?.[stage.side] ?? [];
     const stagePlaced = cornerKickStagePlacedIds ?? [];
+    const activatedIds = cornerKickActivatedIds ?? [];
     const stageFull = stagePlaced.length >= stage.max;
     // The count of pieces the acting manager can still legally move this round: eligible,
-    // pace-remaining pieces — restricted to the already-touched set once the round's
-    // distinct-piece budget (stage.max) is used up (Task 1 spec).
+    // not-yet-activated pieces — restricted to the already-touched set once the round's
+    // distinct-piece budget (stage.max) is used up (Task 1 spec). "Activated" means touched
+    // in an EARLIER stage (activatedIds minus this stage's stagePlaced) — a piece touched
+    // THIS stage is still eligible and still counts toward remaining.
     const remaining = eligibleIds.filter((id) => {
-      const paceOk = (cornerKickUsedPace?.[id] ?? 0) < 6;
-      if (!paceOk) return false;
+      const activatedEarlierStage = activatedIds.includes(id) && !stagePlaced.includes(id);
+      if (activatedEarlierStage) return false;
       if (!stageFull) return true;
       return stagePlaced.includes(id);
     }).length;
@@ -245,7 +249,10 @@ export function CornerKickSetupPanel() {
       <div className={styles.panel}>
         <span className={styles.panelHeading}>Corner Kick</span>
         <span className={styles.constraintRow}>
-          {`${remaining} players still eligible to move this round — up to 2, up to 6 hexes each.`}
+          {`${remaining} players still eligible to move this round — up to 2, unlimited distance.`}
+        </span>
+        <span className={styles.constraintRow}>
+          A player who has been repositioned is done for this window.
         </span>
         {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
         <button className={styles.ctaButton} disabled={!canUndoReposition} onClick={emitUndo}>

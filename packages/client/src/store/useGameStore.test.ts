@@ -656,7 +656,8 @@ describe('useGameStore — selectPiece Corner Kick (Plan 38-06)', () => {
     stageIndex?: 0 | 1 | 2 | 3 | 4 | 5;
     cornerKickTeam?: 'home' | 'away';
     eligibleIds?: { attacking: string[]; defending: string[] };
-    cornerKickUsedPace?: Record<string, number>;
+    cornerKickActivatedIds?: readonly string[];
+    cornerKickStagePlacedIds?: readonly string[];
   }) {
     return {
       ...mockMovementState,
@@ -667,7 +668,8 @@ describe('useGameStore — selectPiece Corner Kick (Plan 38-06)', () => {
         attacking: [REPOSITION_ELIGIBLE_ID],
         defending: [] as readonly string[],
       },
-      cornerKickUsedPace: overrides.cornerKickUsedPace ?? {},
+      cornerKickActivatedIds: overrides.cornerKickActivatedIds ?? [],
+      cornerKickStagePlacedIds: overrides.cornerKickStagePlacedIds ?? [],
     };
   }
 
@@ -781,10 +783,11 @@ describe('useGameStore — selectPiece Corner Kick (Plan 38-06)', () => {
     expect(state.validMoveHexes).toEqual([]);
   });
 
-  it('CORNER_KICK_REPOSITION: selects a pace-exhausted piece (cornerKickUsedPace === 6) but yields empty validMoveHexes', () => {
+  it('CORNER_KICK_REPOSITION (D-GAP-03): selects a piece activated in an earlier stage but yields empty validMoveHexes', () => {
     useGameStore.setState({
       gameState: cornerKickRepositionState({
-        cornerKickUsedPace: { [REPOSITION_ELIGIBLE_ID]: 6 },
+        cornerKickActivatedIds: [REPOSITION_ELIGIBLE_ID],
+        cornerKickStagePlacedIds: [],
       }),
     });
     useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID);
@@ -793,10 +796,11 @@ describe('useGameStore — selectPiece Corner Kick (Plan 38-06)', () => {
     expect(state.validMoveHexes).toEqual([]);
   });
 
-  it('CORNER_KICK_REPOSITION: a piece with cornerKickUsedPace 2 yields only adjacent legal hexes', () => {
+  it('CORNER_KICK_REPOSITION (D-GAP-03): a piece already touched THIS stage still yields adjacent legal hexes, uncapped', () => {
     useGameStore.setState({
       gameState: cornerKickRepositionState({
-        cornerKickUsedPace: { [REPOSITION_ELIGIBLE_ID]: 2 },
+        cornerKickActivatedIds: [REPOSITION_ELIGIBLE_ID],
+        cornerKickStagePlacedIds: [REPOSITION_ELIGIBLE_ID],
       }),
     });
     useGameStore.getState().selectPiece(REPOSITION_ELIGIBLE_ID);
@@ -863,7 +867,8 @@ describe('useGameStore — setGameState sticky-selection for Corner Kick (Plan 3
 
   function cornerKickRepositionBroadcast(overrides: {
     stageIndex?: 0 | 1 | 2 | 3 | 4 | 5;
-    usedPace?: number;
+    activated?: boolean;
+    placedThisStage?: boolean;
   }) {
     return {
       ...mockMovementState,
@@ -874,8 +879,8 @@ describe('useGameStore — setGameState sticky-selection for Corner Kick (Plan 3
         attacking: [REPOSITION_LOCKED_ID],
         defending: [] as readonly string[],
       },
-      cornerKickUsedPace:
-        overrides.usedPace !== undefined ? { [REPOSITION_LOCKED_ID]: overrides.usedPace } : {},
+      cornerKickActivatedIds: overrides.activated ? [REPOSITION_LOCKED_ID] : [],
+      cornerKickStagePlacedIds: overrides.placedThisStage ? [REPOSITION_LOCKED_ID] : [],
     };
   }
 
@@ -927,20 +932,57 @@ describe('useGameStore — setGameState sticky-selection for Corner Kick (Plan 3
     expect(state.validMoveHexes).toEqual([]);
   });
 
-  it('CORNER_KICK_REPOSITION: retains the locked piece within the same stage as pace accumulates', () => {
+  it('CORNER_KICK_REPOSITION (D-GAP-03): retains the locked piece within the same stage as it keeps moving, uncapped', () => {
     useGameStore.setState({
       playerSlot: 1,
-      gameState: cornerKickRepositionBroadcast({ stageIndex: 0, usedPace: 0 }),
+      gameState: cornerKickRepositionBroadcast({
+        stageIndex: 0,
+        activated: false,
+        placedThisStage: false,
+      }),
       selectedPieceId: REPOSITION_LOCKED_ID,
       validMoveHexes: [],
       tackleRiskHexes: [],
       lastMovedPieceId: null,
     });
-    const broadcast = cornerKickRepositionBroadcast({ stageIndex: 0, usedPace: 1 });
+    // Piece just moved this stage — activated AND placedThisStage both true (still fresh for
+    // the rest of the stage per the D-GAP-03 lock condition).
+    const broadcast = cornerKickRepositionBroadcast({
+      stageIndex: 0,
+      activated: true,
+      placedThisStage: true,
+    });
     useGameStore.getState().setGameState(broadcast);
     const state = useGameStore.getState();
     expect(state.selectedPieceId).toBe(REPOSITION_LOCKED_ID);
     expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('CORNER_KICK_REPOSITION (D-GAP-03): clears destinations once the locked piece was activated in an EARLIER stage', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: cornerKickRepositionBroadcast({
+        stageIndex: 0,
+        activated: true,
+        placedThisStage: true,
+      }),
+      selectedPieceId: REPOSITION_LOCKED_ID,
+      validMoveHexes: [{ q: 5, r: 5 }],
+      tackleRiskHexes: [],
+      lastMovedPieceId: null,
+    });
+    // A later-stage broadcast where the piece is still activated but no longer in this
+    // stage's placed set (i.e. the stage advanced but selection somehow persisted — the lock
+    // condition alone, independent of the earlier stage-handoff clear tested above).
+    const broadcast = cornerKickRepositionBroadcast({
+      stageIndex: 0,
+      activated: true,
+      placedThisStage: false,
+    });
+    useGameStore.getState().setGameState(broadcast);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(REPOSITION_LOCKED_ID);
+    expect(state.validMoveHexes).toEqual([]);
   });
 });
 

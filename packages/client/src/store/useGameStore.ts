@@ -983,10 +983,13 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     // CORNER_KICK_REPOSITION (CORNER-03): 6 alternating attacking/defending stages, modelled
     // byte-for-byte on the GOAL_KICK_SETUP_GK/_OPPONENT branch above, substituting the acting
-    // team (cornerKickStageTeam), the eligible-list side (attacking/defending keyed off
-    // cornerKickTeam) and the pace ledger (cornerKickUsedPace, cap 6). No stage-distinct-
-    // piece-count check here — a client-side "2 distinct pieces" hint is a display concern
-    // owned by the panel (38-07); the server rejects violations authoritatively.
+    // team (cornerKickStageTeam) and the eligible-list side (attacking/defending keyed off
+    // cornerKickTeam). D-GAP-03 (38-15 defect 1/38-17): movement is uncapped — there is no
+    // per-piece hex budget — so the only thing that can make a selected piece yield zero
+    // destinations is the per-window activation lock (cornerKickActivatedIds), not a spent
+    // pace ledger. No stage-distinct-piece-count check here — a client-side "2 distinct
+    // pieces" hint is a display concern owned by the panel (38-07); the server rejects
+    // violations authoritatively.
     if (gameState.phase === 'CORNER_KICK_REPOSITION') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
       // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickReposition)
@@ -1009,10 +1012,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      // Preserve the GOAL_KICK_SETUP_GK/_OPPONENT precedent: a pace-exhausted piece stays
-      // selectable (so the UI can still show its stats) but yields no destinations.
-      const paceRemaining = 6 - (gameState.cornerKickUsedPace?.[id] ?? 0);
-      if (paceRemaining <= 0) {
+      // D-GAP-03 (38-15 defect 1/38-17): the pace-remaining early return is gone — reposition
+      // movement has no hex budget. What remains is the activation lock: a piece touched in
+      // an EARLIER stage (present in cornerKickActivatedIds but not in this stage's
+      // cornerKickStagePlacedIds) stays selectable so the UI can still show its stats, but
+      // yields no destinations. A piece first touched THIS stage is in both sets and must
+      // remain freely movable for the rest of the stage.
+      const activatedEarlierStage =
+        (gameState.cornerKickActivatedIds?.includes(id) ?? false) &&
+        !(gameState.cornerKickStagePlacedIds?.includes(id) ?? false);
+      if (activatedEarlierStage) {
         set({ selectedPieceId: id, validMoveHexes: [] });
         return;
       }
@@ -1343,7 +1352,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // CORNER_KICK_REPOSITION (CORNER-03) joins this block for within-stage stickiness — a
     // stage handoff is already caught above (cornerKickStageIndex feeds responseMoveStateChanged),
     // so reaching here means the same manager is still mid-round and the selection should
-    // persist with a freshly recomputed pace-remaining budget, matching the goal-kick precedent.
+    // persist. D-GAP-03 (38-15 defect 1/38-17): corner reposition has no hex budget to
+    // recompute — it must NOT report a paceRemaining like the other two phases in this block.
+    // Its own stickiness gate is the activation lock (cornerKickActivatedIds minus this
+    // stage's cornerKickStagePlacedIds), mirroring selectPiece's CORNER_KICK_REPOSITION branch.
     if (
       newState.phase === 'FREE_MOVE_ATTACK' ||
       newState.phase === 'FREE_MOVE_DEFENSE' ||
@@ -1351,14 +1363,22 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       newState.phase === 'GOAL_KICK_SETUP_OPPONENT' ||
       newState.phase === 'CORNER_KICK_REPOSITION'
     ) {
-      const paceRemaining =
-        newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
-          ? 6 - (newState.goalKickUsedPace?.[prevSelectedId] ?? 0)
-          : newState.phase === 'CORNER_KICK_REPOSITION'
-            ? 6 - (newState.cornerKickUsedPace?.[prevSelectedId] ?? 0)
+      let stickyValid: HexCoord[];
+      if (newState.phase === 'CORNER_KICK_REPOSITION') {
+        const activatedEarlierStage =
+          (newState.cornerKickActivatedIds?.includes(prevSelectedId) ?? false) &&
+          !(newState.cornerKickStagePlacedIds?.includes(prevSelectedId) ?? false);
+        stickyValid = activatedEarlierStage
+          ? []
+          : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
+      } else {
+        const paceRemaining =
+          newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
+            ? 6 - (newState.goalKickUsedPace?.[prevSelectedId] ?? 0)
             : 6 - (newState.freeMoveUsedPace?.[prevSelectedId] ?? 0);
-      const stickyValid =
-        paceRemaining <= 0 ? [] : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
+        stickyValid =
+          paceRemaining <= 0 ? [] : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
+      }
       set({
         gameState: newState,
         selectedPieceId: prevSelectedId,
