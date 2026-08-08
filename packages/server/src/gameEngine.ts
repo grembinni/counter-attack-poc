@@ -49,6 +49,7 @@ import {
   validateHeading,
   hexDistance,
   hexLine,
+  hexNeighbors,
   computeBallZone,
   evaluateOffside,
   FREE_KICK_STAGES,
@@ -62,6 +63,9 @@ import {
   resolveThrowInHex,
   GOAL_KICK_RESTART_HEX,
   CORNER_KICK_HEX,
+  isWithinCornerExclusionZone,
+  cornerClearOutGoalHex,
+  isLegalClearOutStep,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -3494,11 +3498,17 @@ export function triggerOutOfBoundsRestart(
 
     return {
       ...state,
-      phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+      // CORNER-01 (38-15 defect 3, 38-20): a corner now opens in a mandatory clear-out
+      // step — before either goalkeeper is repositioned and before the taker is chosen.
+      // The attacking manager clears out first (D-03's attacker-first convention);
+      // applyCornerKickClearOutEnd hands off to CORNER_KICK_GK_SETUP_ATTACKING once both
+      // slots confirm.
+      phase: 'CORNER_KICK_CLEAR_OUT',
       cornerKickTeam,
       cornerKickHex: resolvedCornerHex,
-      // Pitfall 3: explicitly null every cornerKick* field even though ...state spreads —
-      // no stale value from a prior corner may survive into this one.
+      cornerKickClearOutSlot: 'ATTACKER',
+      // Pitfall 3: explicitly null every other cornerKick* field even though ...state
+      // spreads — no stale value from a prior corner may survive into this one.
       cornerKickTakerId: null,
       cornerKickEligibleIds: null,
       cornerKickStageIndex: null,
@@ -3626,6 +3636,242 @@ export function triggerOutOfBoundsRestart(
     },
     eventLog: [...state.eventLog, outOfBoundsEvent],
     ...commonReset,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// hasLegalClearOutMove
+// ---------------------------------------------------------------------------
+
+/**
+ * CORNER-01 (38-15 defect 3, 38-20): true when at least one hex adjacent to `piece.position`
+ * passes every clear-out step rule — on-pitch, unoccupied, and `isLegalClearOutStep` geometry.
+ * Consumed by `applyCornerKickClearOutEnd`'s completion gate. `applyCornerKickClearOut`'s own
+ * step guard checks the caller's specific `to` inline rather than calling this helper, but the
+ * gate and the move function can never disagree about what "still has a move" means because
+ * both ultimately read `isLegalClearOutStep` as the single source of truth (T-38-68
+ * deadlock-escape guarantee).
+ *
+ * Returns `false` (no legal move, so the piece is excused from the confirm gate) whenever the
+ * corner context is incomplete — a defensive fallback that should never be reachable while
+ * `state.phase === 'CORNER_KICK_CLEAR_OUT'`.
+ */
+function hasLegalClearOutMove(state: GameState, piece: PlayerPiece): boolean {
+  if (state.cornerKickHex == null || state.cornerKickTeam == null) return false;
+  const cornerKickHex = state.cornerKickHex;
+  // The byline owner (whose goal the clear-out moves toward) is the team OPPOSITE
+  // cornerKickTeam — cornerKickTeam is the AWARDED (attacking) side, per
+  // triggerOutOfBoundsRestart's team-inversion rule.
+  const bylineOwnerTeam: 'home' | 'away' = state.cornerKickTeam === 'home' ? 'away' : 'home';
+  const goalHex = cornerClearOutGoalHex(bylineOwnerTeam);
+
+  return hexNeighbors(piece.position).some((to) => {
+    if (!isPitchHex(to)) return false;
+    if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) return false;
+    return isLegalClearOutStep(piece.position, to, cornerKickHex, goalHex);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickClearOut
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickClearOut. */
+export type ApplyCornerKickClearOutResult =
+  | {
+      ok: false;
+      reason:
+        | 'WRONG_PHASE'
+        | 'PIECE_NOT_FOUND'
+        | 'WRONG_TEAM'
+        | 'NOT_ELIGIBLE'
+        | 'NOT_ADJACENT'
+        | 'INVALID_TARGET'
+        | 'NOT_TOWARD_GOAL';
+    }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-01 (38-15 defect 3, 38-20): mandatory pre-corner clear-out step. Every piece
+ * standing within `CORNER_EXCLUSION_RADIUS` hexes of the corner hex must be moved away from
+ * the corner and toward goal, one hex per click, before its manager can confirm
+ * (`applyCornerKickClearOutEnd`). The attacking manager clears out first
+ * (`cornerKickClearOutSlot: 'ATTACKER'`), then the defending manager.
+ *
+ * Guard order mirrors `applyCornerKickReposition`: phase/context guard, piece lookup, team
+ * ownership, eligibility (here: "still inside the zone"), adjacency, target legality, then the
+ * direction rule — so the caller always receives the most specific reason.
+ *
+ * `isLegalClearOutStep` (38-16, `outOfBounds.ts`) is the single source of truth for "closer to
+ * goal" — deliberately NOT inlined here so the client's destination highlighting (38-22) cannot
+ * disagree with the server. `goalHex` is `cornerClearOutGoalHex(bylineOwnerTeam)`, where
+ * `bylineOwnerTeam` is the team OPPOSITE `cornerKickTeam` (the conceding team, whose goal line
+ * the corner is being taken from) — the same inversion `triggerOutOfBoundsRestart` already
+ * applies when awarding the corner.
+ *
+ * Appends its own `CORNER_KICK_CLEAR_OUT_MOVE` event on success (mirrors
+ * `applyCornerKickFinalMove`, NOT `applyCornerKickReposition`, which reuses the generic
+ * GAME_MOVE handler's own event) — the handler must not append a second one.
+ */
+export function applyCornerKickClearOut(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyCornerKickClearOutResult {
+  if (state.phase !== 'CORNER_KICK_CLEAR_OUT') return { ok: false, reason: 'WRONG_PHASE' };
+  if (
+    state.cornerKickHex == null ||
+    state.cornerKickTeam == null ||
+    state.cornerKickClearOutSlot == null
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const cornerKickTeam = state.cornerKickTeam;
+  const actingTeam: 'home' | 'away' =
+    state.cornerKickClearOutSlot === 'ATTACKER'
+      ? cornerKickTeam
+      : cornerKickTeam === 'home'
+        ? 'away'
+        : 'home';
+  if (piece.teamId !== actingTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const cornerKickHex = state.cornerKickHex;
+  // A piece already clear of the zone is done and may not be walked further — this is what
+  // bounds the step (a manager cannot walk pieces arbitrarily up the pitch under cover of the
+  // clear-out).
+  if (!isWithinCornerExclusionZone(piece.position, cornerKickHex)) {
+    return { ok: false, reason: 'NOT_ELIGIBLE' };
+  }
+
+  if (hexDistance(piece.position, to) !== 1) {
+    return { ok: false, reason: 'NOT_ADJACENT' };
+  }
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  const bylineOwnerTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+  const goalHex = cornerClearOutGoalHex(bylineOwnerTeam);
+  if (!isLegalClearOutStep(piece.position, to, cornerKickHex, goalHex)) {
+    return { ok: false, reason: 'NOT_TOWARD_GOAL' };
+  }
+
+  const clearOutEvent: ActionEvent = {
+    type: 'CORNER_KICK_CLEAR_OUT_MOVE',
+    slot: state.cornerKickClearOutSlot,
+    pieceId,
+    from: piece.position,
+    to,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p)),
+      eventLog: [...state.eventLog, clearOutEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyCornerKickClearOutEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyCornerKickClearOutEnd. */
+export type ApplyCornerKickClearOutEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' | 'MUST_CLEAR_CORNER' }
+  | { ok: true; state: GameState };
+
+/**
+ * CORNER-01 (38-15 defect 3, 38-20): confirms the active clear-out slot for `team`. Takes the
+ * confirming team as an explicit parameter exactly as `applyCornerKickStageEnd` does, so the
+ * engine — not the handler — owns the slot-team comparison.
+ *
+ * The completion gate rejects with `MUST_CLEAR_CORNER` when any piece of `team` is still inside
+ * the exclusion zone AND `hasLegalClearOutMove` is true for it. A trapped piece with no legal
+ * step does NOT block the confirm — this is the deadlock escape (T-38-68): surrounding a piece
+ * with occupied/off-pitch hexes can never permanently stall the corner sequence.
+ *
+ * Transitions:
+ * - `'ATTACKER'` slot advances to `'DEFENDER'`, flipping `activeTeam` to the defending team,
+ *   phase unchanged.
+ * - `'DEFENDER'` slot advances into the existing attacking goalkeeper reposition phase with
+ *   `cornerKickClearOutSlot: null` and `activeTeam: cornerKickTeam` — exactly the state
+ *   `triggerOutOfBoundsRestart` used to produce directly before this plan.
+ *
+ * Neither transition appends an event — mirroring `applyCornerKickGkWindowEnd`, which likewise
+ * appends none, because the clear-out (like the GK setup windows and taker select) is not an
+ * undoable phase: `CORNER_KICK_CLEAR_OUT` is deliberately absent from `validUndoPhases`
+ * (`gameHandlers.ts`).
+ */
+export function applyCornerKickClearOutEnd(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplyCornerKickClearOutEndResult {
+  if (state.phase !== 'CORNER_KICK_CLEAR_OUT') return { ok: false, reason: 'WRONG_PHASE' };
+  if (
+    state.cornerKickHex == null ||
+    state.cornerKickTeam == null ||
+    state.cornerKickClearOutSlot == null
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const cornerKickTeam = state.cornerKickTeam;
+  const actingTeam: 'home' | 'away' =
+    state.cornerKickClearOutSlot === 'ATTACKER'
+      ? cornerKickTeam
+      : cornerKickTeam === 'home'
+        ? 'away'
+        : 'home';
+  if (team !== actingTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const cornerKickHex = state.cornerKickHex;
+  const stillMovable = state.pieces.some(
+    (p) =>
+      p.teamId === team &&
+      isWithinCornerExclusionZone(p.position, cornerKickHex) &&
+      hasLegalClearOutMove(state, p),
+  );
+  if (stillMovable) {
+    return { ok: false, reason: 'MUST_CLEAR_CORNER' };
+  }
+
+  if (state.cornerKickClearOutSlot === 'ATTACKER') {
+    const defendingTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+    return {
+      ok: true,
+      state: {
+        ...state,
+        cornerKickClearOutSlot: 'DEFENDER',
+        activeTeam: defendingTeam,
+      },
+    };
+  }
+
+  // DEFENDER slot's end: hand off to the existing goalkeeper window — exactly the state
+  // triggerOutOfBoundsRestart used to produce directly before this plan.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'CORNER_KICK_GK_SETUP_ATTACKING',
+      cornerKickClearOutSlot: null,
+      activeTeam: cornerKickTeam,
+    },
   };
 }
 
