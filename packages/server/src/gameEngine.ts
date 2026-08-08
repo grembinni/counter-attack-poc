@@ -2857,23 +2857,26 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             },
           };
         } else {
-          // D-07 (Phase 17.1): GK save spill → GK_RESTART (mirrors clean catch).
-          // pending out-of-bounds rules — spill treated as clean catch for now
+          // 38-14 (closes Phase 17.1 D-07): a failed handling check spills the ball — it
+          // becomes a real Loose Ball scattering from the keeper's dive-adjusted hex, not a
+          // clean catch. The next LOOSE_BALL case's scatter walk (and its existing
+          // triggerOutOfBoundsRestart call) classifies a byline-ward exit as a Corner Kick,
+          // mirroring the SHOT duel-tie LOOSE_BALL branch above. Possession is NOT handed to
+          // the spilling keeper's team — no activeTeam/attackingTeam reassignment here.
           return {
             ok: true,
             state: {
               ...state,
               pieces: piecesWithGKPos,
-              phase: 'GK_RESTART',
+              phase: 'LOOSE_BALL',
               ball: {
                 position: gkEffectivePos,
-                carrierId: gk.id,
+                carrierId: null,
                 lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
               },
-              activeTeam: gk.teamId,
-              attackingTeam: gk.teamId,
               lastDiceRoll: shotDiceRoll,
-              lastShotPath: null, // clear path — GK holds the ball
+              lastActionType: 'DEFLECTION',
+              lastShotPath: null, // clear path — ball is loose
               snapshotGkPenalty: null,
               eventLog: [...state.eventLog, shotAttempt],
             },

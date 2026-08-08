@@ -13,13 +13,16 @@ import {
   applyUndo,
   buildReplayFrames,
 } from '../gameEngine.js';
-import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import type { GameState, PlayerPiece, HexCoord } from '@counter-attack/shared';
 import {
   isPitchHex,
   CORNER_KICK_HEX,
   GOAL_KICK_RESTART_HEX,
   cornerKickStageTeam,
   CORNER_KICK_STAGES,
+  computeLooseBall,
+  classifyExit,
+  bylineOwner,
 } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -2449,5 +2452,127 @@ describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-
     if (!nextResult.ok) return;
     expect(nextResult.state.phase).toBe('PASS');
     expect(nextResult.state.ball.position).toEqual({ q: 6, r: 3 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 38-14 Task 2: spilled-save LOOSE_BALL routes a byline-ward scatter into a
+// Corner Kick. This block is proof, not new engine code — it drives applyRoll
+// end to end starting from a spilled-save-shaped LOOSE_BALL state, reusing the
+// existing triggerOutOfBoundsRestart/classifyOutOfBounds machinery exercised
+// above. No change is made to applyRoll's LOOSE_BALL case, triggerOutOfBoundsRestart,
+// classifyOutOfBounds, or computeLooseBall in this task.
+// ---------------------------------------------------------------------------
+
+describe('spilled save: the second route into a Corner Kick (38-14)', () => {
+  /** The keeper's own hex, adjacent to home's byline (mirrors the OOB-03 fixture position). */
+  const keeperHex: HexCoord = { q: 1, r: 13 };
+
+  /**
+   * Derives a (direction, distance) pair from `from` that reproduces the exact scatter
+   * `applyRoll`'s LOOSE_BALL case would walk: step 1..6 via computeLooseBall, stopping at
+   * the first off-pitch hex. Returns the first direction whose break-hex is a BYLINE exit
+   * owned by `ownerWanted`, so the test never hardcodes a direction/distance literal.
+   */
+  function findBylineExitDice(
+    from: HexCoord,
+    ownerWanted: 'home' | 'away',
+  ): { direction: 1 | 2 | 3 | 4 | 5 | 6; distance: 1 | 2 | 3 | 4 | 5 | 6; exitHex: HexCoord } {
+    for (let direction = 1; direction <= 6; direction++) {
+      for (let step = 1; step <= 6; step++) {
+        const hex = computeLooseBall(
+          from,
+          direction as 1 | 2 | 3 | 4 | 5 | 6,
+          step as 1 | 2 | 3 | 4 | 5 | 6,
+        );
+        if (!isPitchHex(hex)) {
+          if (classifyExit(hex) === 'BYLINE' && bylineOwner(hex) === ownerWanted) {
+            return {
+              direction: direction as 1 | 2 | 3 | 4 | 5 | 6,
+              distance: step as 1 | 2 | 3 | 4 | 5 | 6,
+              exitHex: hex,
+            };
+          }
+          break; // first off-pitch step for this direction didn't match — try the next direction
+        }
+      }
+    }
+    throw new Error(`no byline-exit dice found for ${ownerWanted} from ${JSON.stringify(from)}`);
+  }
+
+  /**
+   * Derives a (direction, distance) pair from `from` whose entire step-1..distance walk
+   * stays on the pitch — the "in front of the GK" case that resolves as an ordinary loose
+   * ball rather than a restart.
+   */
+  function findOnPitchDice(from: HexCoord): {
+    direction: 1 | 2 | 3 | 4 | 5 | 6;
+    distance: 1 | 2 | 3 | 4 | 5 | 6;
+  } {
+    for (let direction = 1; direction <= 6; direction++) {
+      const hex = computeLooseBall(from, direction as 1 | 2 | 3 | 4 | 5 | 6, 1);
+      if (isPitchHex(hex)) {
+        return { direction: direction as 1 | 2 | 3 | 4 | 5 | 6, distance: 1 };
+      }
+    }
+    throw new Error(`no on-pitch dice found from ${JSON.stringify(from)}`);
+  }
+
+  const bylineDice = findBylineExitDice(keeperHex, 'home');
+  const onPitchDice = findOnPitchDice(keeperHex);
+
+  /** LOOSE_BALL state shaped exactly like the SAVE branch's spill return (38-14 Task 1). */
+  const spilledSaveState: GameState = {
+    ...baseLooseBallState,
+    phase: 'LOOSE_BALL',
+    outOfBoundsEnabled: true,
+    pieces: baseLooseBallState.pieces.map((p) =>
+      p.id === homeGK.id ? { ...p, position: keeperHex } : p,
+    ),
+    ball: {
+      position: keeperHex,
+      carrierId: null,
+      lastTouchedBy: { pieceId: homeGK.id, teamId: homeGK.teamId },
+    },
+    lastActionType: 'DEFLECTION',
+  };
+
+  it("spilled save: a scatter across the keeper's own byline awards a CORNER_KICK to the attacking team", () => {
+    const result = applyRoll(spilledSaveState, bylineDice.direction, bylineDice.distance);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+    // cornerKickTeam is the team OPPOSITE the spilling keeper's (home) — team inversion,
+    // matching the T-38-48 mitigation and the existing OOB-03 CORNER_KICK branch.
+    expect(result.state.cornerKickTeam).toBe('away');
+    expect(result.state.attackingTeam).toBe('away');
+    expect(result.state.activeTeam).toBe('away');
+    // cornerKickHex is one of the byline owner's (home's) two fixed corner hexes.
+    expect([CORNER_KICK_HEX.home.top, CORNER_KICK_HEX.home.bottom]).toContainEqual(
+      result.state.cornerKickHex,
+    );
+    const oobEvents = result.state.eventLog.filter((e) => e.type === 'OUT_OF_BOUNDS');
+    expect(oobEvents).toHaveLength(1);
+    expect(oobEvents[0]).toMatchObject({ restart: 'CORNER_KICK', awardedTo: 'away' });
+  });
+
+  it('spilled save: a scatter that stays on the pitch resolves as an ordinary loose ball', () => {
+    const result = applyRoll(spilledSaveState, onPitchDice.direction, onPitchDice.distance);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.lastActionType).toBe('DEFLECTION');
+    expect(result.state.cornerKickTeam).toBeFalsy();
+  });
+
+  it('spilled save: with outOfBoundsEnabled false the scatter clamps to the pitch and never awards a corner', () => {
+    const toggledOffState: GameState = { ...spilledSaveState, outOfBoundsEnabled: false };
+    const result = applyRoll(toggledOffState, bylineDice.direction, bylineDice.distance);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(isPitchHex(result.state.ball.position)).toBe(true);
+    expect(result.state.cornerKickTeam).toBeFalsy();
+    expect(result.state.cornerKickHex ?? null).toBeNull();
   });
 });
