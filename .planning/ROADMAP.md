@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 12/15                                  | In Progress |             |
+| 38    | 13/15                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -267,7 +267,7 @@ Plans:
 
 **Wave 10** _(gap closure, blocked on Wave 9)_
 
-- [ ] 38-13-PLAN.md — Engine/client: A2 correction — Low Pass corners interceptable, High Pass not
+- [x] 38-13-PLAN.md — Engine/client: A2 correction — Low Pass corners interceptable, High Pass not
 
 **Wave 11** _(gap closure, blocked on Wave 10)_
 
