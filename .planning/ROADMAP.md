@@ -224,7 +224,7 @@ Plans:
 3. Immediately before the kick, in a second, separate repositioning window, both teams may each move one more player up to 3 hexes, attacking manager first.
 4. The corner is taken as a High Pass (any hex in the penalty area with no distance limit, or elsewhere up to 15 hexes, receiver must attempt a header) or a Low Pass (no header), with the existing combined-score 8+ accuracy check applied to whichever is chosen.
 
-**Plans**: 9 plans
+**Plans**: 15 plans (9 original + 6 gap closure)
 Plans:
 **Wave 1**
 
@@ -255,6 +255,27 @@ Plans:
 **Wave 7** _(blocked on Wave 6 completion)_
 
 - [x] 38-09-PLAN.md — Human verification: two-browser walkthrough and rulebook-assumption sign-off
+
+**Wave 8** _(gap closure from 38-09-SUMMARY.md + 38-REVIEW.md — plans run in parallel, no file overlap)_
+
+- [ ] 38-10-PLAN.md — Engine: applyUndo CR-01/CR-02 corner fixes + WR-03 test strengthening
+- [ ] 38-11-PLAN.md — Client: Undo affordance in CornerKickSetupPanel (enabler for the item-7 live Undo check)
+
+**Wave 9** _(gap closure, blocked on Wave 8)_
+
+- [ ] 38-12-PLAN.md — Engine: WR-01 replay piece-position tracking + WR-02 CORNER_KICK_STAGES cap read
+
+**Wave 10** _(gap closure, blocked on Wave 9)_
+
+- [ ] 38-13-PLAN.md — Engine/client: A2 correction — Low Pass corners interceptable, High Pass not
+
+**Wave 11** _(gap closure, blocked on Wave 10)_
+
+- [ ] 38-14-PLAN.md — Engine: real GK save-spill Loose Ball, second route into a Corner Kick (closes Phase 17.1 D-07)
+
+**Wave 12** _(gap closure re-verification, blocked on all code-fix plans)_
+
+- [ ] 38-15-PLAN.md — Human verification: post-gap-closure two-browser walkthrough, D-GAP-01/D-GAP-02 rulings
 
 **UI hint**: yes
 
