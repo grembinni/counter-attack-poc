@@ -1081,7 +1081,7 @@ describe('applyRoll', () => {
     }
   });
 
-  it('SHOT SAVE+CAUGHT → phase GK_RESTART; ball.carrierId set to GK id', () => {
+  it('SHOT SAVE + CAUGHT: still transitions to GK_RESTART with the keeper carrying the ball', () => {
     // Near GK (distance 1, no penalty): shooterDice=2 → 9+2=11; gkDice=4 → 9+4=13; gk wins → SAVE
     // handlingDice=1: 1 < gk.handling=8 → CAUGHT → GK_RESTART
     const result = applyRoll(shotStateNearGK, 2, 4, 1);
@@ -1089,7 +1089,34 @@ describe('applyRoll', () => {
     if (result.ok) {
       expect(result.state.phase).toBe('GK_RESTART');
       expect(result.state.ball.carrierId).toBe('away-0'); // away GK id
+      expect(result.state.activeTeam).toBe('away');
+      expect(result.state.attackingTeam).toBe('away');
       expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
+    }
+  });
+
+  it('SHOT SAVE + SPILL: phase becomes LOOSE_BALL with the ball loose at the keeper hex', () => {
+    // Near GK (distance 1, no penalty): shooterDice=2 → 9+2=11; gkDice=4 → 9+4=13; gk wins → SAVE
+    // handlingDice=8: 8 >= gk.handling=8 → SPILL → LOOSE_BALL (38-14, closes Phase 17.1 D-07)
+    const result = applyRoll(shotStateNearGK, 2, 4, 8);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.phase).toBe('LOOSE_BALL');
+      expect(result.state.ball.carrierId).toBeNull();
+      expect(result.state.ball.position).toEqual({ q: 11, r: 7 }); // GK hex (gkEffectivePos)
+      expect(result.state.lastActionType).toBe('DEFLECTION');
+      // Possession is NOT handed to the spilling keeper's team
+      expect(result.state.activeTeam).toBe('home');
+      expect(result.state.attackingTeam).toBe('home');
+      expect(result.state.lastDiceRoll?.context).toBe('SHOT_DUEL');
+    }
+  });
+
+  it('SHOT SAVE + SPILL: the keeper is recorded as ball.lastTouchedBy', () => {
+    const result = applyRoll(shotStateNearGK, 2, 4, 8);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.ball.lastTouchedBy).toEqual({ pieceId: 'away-0', teamId: 'away' });
     }
   });
 
