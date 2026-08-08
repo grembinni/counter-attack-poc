@@ -36,6 +36,7 @@ import {
   freeKickStageTeam,
   hexDistance,
   hexLine,
+  isInRegion,
   isPitchHex,
   validatePass,
 } from '@counter-attack/shared';
@@ -43,6 +44,13 @@ import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
   applyCancelMovement,
+  applyCornerKickFinalMove,
+  applyCornerKickFinalSetupEnd,
+  applyCornerKickGkPlace,
+  applyCornerKickGkWindowEnd,
+  applyCornerKickReposition,
+  applyCornerKickStageEnd,
+  applyCornerKickTakerSelect,
   applyDeclareShot,
   applyEndTurn,
   applyFreeKickMove,
@@ -105,6 +113,28 @@ const THROW_IN_MAX_DISTANCE = 6;
  */
 const isThrowInContext = (lastActionType: LastActionType | null): boolean =>
   lastActionType === 'THROW_IN_MOVEMENT_1' || lastActionType === 'THROW_IN_MOVEMENT_2';
+
+/**
+ * CORNER-04: a High Pass corner aimed inside the box the attacking team is shooting at has
+ * no distance limit. `validatePass`'s `options.maxDistance` REPLACES the per-type cap
+ * entirely (see its doc comment), so a sentinel value is the correct way to express
+ * "no limit" without changing `validatePass`'s signature or adding a new cap branch there.
+ */
+const CORNER_KICK_UNLIMITED_DISTANCE = Number.MAX_SAFE_INTEGER;
+
+/**
+ * Returns true when a corner-kick restart is in progress. Reads the PERSISTENT
+ * `state.cornerKickTeam` field rather than `lastActionType` (contrast `isThrowInContext`
+ * above, which does read `lastActionType`): by the time this check runs — inside the
+ * GAME_ROLL PASS branch, at the same site that resolves `passOptions` below —
+ * `lastActionType` has already been overwritten with the client's chosen passType (see
+ * the `room.gameState = { ...room.gameState, lastActionType: passType, ... }` commit a
+ * few lines below this handler's validatePass call), so a `lastActionType`-based check
+ * would already be gone. `cornerKickTeam` survives unmodified until
+ * `applyRoll`'s own PASS-case teardown (`CORNER_KICK_TEARDOWN`, added in Plan 38-04) runs
+ * — Pitfall 3.
+ */
+const isCornerKickContext = (state: GameState): boolean => state.cornerKickTeam != null;
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -720,6 +750,96 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // CORNER-03: CORNER_KICK_REPOSITION's 6-stage alternating reposition window.
+      // T-38-17: isActivePlayer is a correct pre-check here (activeTeam is kept in sync
+      // with cornerKickStageTeam at every stage transition — see applyCornerKickStageEnd)
+      // and closes a gap applyCornerKickReposition's own guard leaves open: that guard only
+      // verifies the SELECTED PIECE's team against the derived acting team, never the
+      // REQUESTING socket's team, so without this check a non-acting socket could submit a
+      // pieceId belonging to the acting team and have it accepted.
+      if (room.gameState.phase === 'CORNER_KICK_REPOSITION') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // ASVS V5 — validate payload shape before dispatch (mirrors the goal-kick branch;
+        // hexDistance/isPitchHex inside applyCornerKickReposition are not null-safe).
+        if (
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        // Capture `from` before the engine call — applyCornerKickReposition deliberately
+        // does NOT append its own MOVE event (see its doc comment: "the reposition windows
+        // reuse the existing GAME_MOVE handler, which emits its own event"), so this
+        // handler owns event construction, mirroring applyGoalKickReposition's own
+        // internal MOVE event shape (slot 'ATTACKER_2' — CORNER_KICK_REPOSITION has no
+        // MovementSlot of its own, same reasoning as the goal-kick reposition windows).
+        const priorPiece = room.gameState.pieces.find((p) => p.id === pieceId);
+        const from = priorPiece?.position ?? to;
+        const cornerRepoResult = applyCornerKickReposition(room.gameState, pieceId, to);
+        if (!cornerRepoResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerRepoResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        const cornerMoveEvent: ActionEvent = {
+          type: 'MOVE',
+          pieceId,
+          from,
+          to,
+          slot: 'ATTACKER_2',
+          timestamp: Date.now(),
+          ballAfter: {
+            position: cornerRepoResult.state.ball.position,
+            carrierId: cornerRepoResult.state.ball.carrierId,
+          },
+        };
+        room.gameState = {
+          ...cornerRepoResult.state,
+          eventLog: [...cornerRepoResult.state.eventLog, cornerMoveEvent],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      // CORNER-06: CORNER_KICK_FINAL_SETUP's 2-slot (ATTACKER, then DEFENDER) pre-kick
+      // reposition window. Unlike CORNER_KICK_REPOSITION above, applyCornerKickFinalMove
+      // DOES append its own CORNER_KICK_MOVE event internally — this handler must NOT
+      // construct a second one (would double-log every move in Undo/Replay).
+      if (room.gameState.phase === 'CORNER_KICK_FINAL_SETUP') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        if (
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        const cornerFinalMoveResult = applyCornerKickFinalMove(room.gameState, pieceId, to);
+        if (!cornerFinalMoveResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerFinalMoveResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerFinalMoveResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -1307,6 +1427,79 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // CORNER-01: ends the active corner-kick GK reposition window (attacking GK's
+      // window, then defending GK's window). Mirrors the GOAL_KICK_SETUP_GK/OPPONENT
+      // branch above — activeTeam is kept in sync at every corner-kick GK transition
+      // (triggerOutOfBoundsRestart sets it to cornerKickTeam at entry;
+      // applyCornerKickGkWindowEnd flips it to the defending team on advance), so
+      // isActivePlayer is a correct pre-check here, unlike FREE_KICK_SETUP's stage-team
+      // special case below.
+      if (
+        room.gameState.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
+        room.gameState.phase === 'CORNER_KICK_GK_SETUP_DEFENDING'
+      ) {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const cornerGkEndResult = applyCornerKickGkWindowEnd(room.gameState);
+        if (!cornerGkEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerGkEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerGkEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
+      // CORNER-03 (D-06): ends the CURRENTLY-active stage of the CORNER_KICK_REPOSITION
+      // window. Passes socketTeam(socket) straight through without a handler-level
+      // pre-check — applyCornerKickStageEnd owns the stage-team comparison exactly as
+      // applyFreeKickReady does for FREE_KICK_SETUP (see the GAME_UNDO handler's
+      // stage-team special case for the analogous reasoning). Confirming with 0 pieces
+      // moved this stage is legal (D-06) — no minimum-move guard here.
+      if (room.gameState.phase === 'CORNER_KICK_REPOSITION') {
+        const cornerStageEndResult = applyCornerKickStageEnd(room.gameState, socketTeam(socket));
+        if (!cornerStageEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerStageEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerStageEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
+      // CORNER-06: ends the active CORNER_KICK_FINAL_SETUP slot (ATTACKER, then
+      // DEFENDER). Unlike applyCornerKickStageEnd, applyCornerKickFinalSetupEnd takes no
+      // team parameter and performs no team validation of its own (T-38-17) — this
+      // handler-level isActivePlayer guard is the sole acting-team check, mirroring the
+      // GOAL_KICK_MOVE End Turn branch's identical-shape applyGoalKickMoveEnd pattern.
+      // activeTeam is kept in sync across both slots (applyCornerKickFinalSetupEnd flips
+      // it on the ATTACKER->DEFENDER handoff), so isActivePlayer is correct here.
+      // Explicitly generates NO die (unlike the GOAL_KICK_MOVE branch above): Corner's
+      // kick has not been taken yet when this window ends — the High/Low choice and its
+      // accuracy roll come later, from the client's own GAME_ROLL request in the
+      // resulting PASS phase. Do NOT "restore" a missing die here.
+      if (room.gameState.phase === 'CORNER_KICK_FINAL_SETUP') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const cornerFinalEndResult = applyCornerKickFinalSetupEnd(room.gameState);
+        if (!cornerFinalEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerFinalEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerFinalEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -1357,6 +1550,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // each contains a reversible piece move. THROW_IN_SETUP/GOAL_KICK_CHOICE/GOAL_KICK_TARGET
       // are deliberately NOT added — those phases contain no reversible piece move, and adding
       // them would make Undo a silent no-op there.
+      // Phase 38 (38-05): CORNER_KICK_REPOSITION/CORNER_KICK_FINAL_SETUP added — each
+      // contains a reversible piece move (CORNER-03/CORNER-06). CORNER_KICK_GK_SETUP_
+      // ATTACKING/_DEFENDING/CORNER_KICK_TAKER_SELECT are deliberately NOT added — those
+      // three steps are placements with no per-hex move to reverse, mirroring the
+      // rationale for excluding THROW_IN_SETUP/GOAL_KICK_CHOICE/GOAL_KICK_TARGET above.
       const validUndoPhases: GamePhase[] = [
         'MOVE',
         'HIGH_PASS_MOVE',
@@ -1369,6 +1567,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         'GOAL_KICK_SETUP_GK',
         'GOAL_KICK_SETUP_OPPONENT',
         'GOAL_KICK_MOVE',
+        'CORNER_KICK_REPOSITION',
+        'CORNER_KICK_FINAL_SETUP',
       ];
       if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
@@ -1377,6 +1577,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       // During FREE_KICK_SETUP, activeTeam is not updated between stages — use the stage
       // team from freeKickStageTeam instead of isActivePlayer (which reads activeTeam).
+      // CORNER_KICK_REPOSITION does NOT need an equivalent special-case arm (verified
+      // empirically, Plan 38-05 Task 2): unlike FREE_KICK_SETUP, Corner's activeTeam IS
+      // updated at every stage transition (triggerOutOfBoundsRestart sets it to
+      // cornerKickTeam at entry; applyCornerKickStageEnd sets it to
+      // cornerKickStageTeam(nextIndex, cornerKickTeam) on every advance) — so the default
+      // isActivePlayer branch below is already correct for both CORNER_KICK_REPOSITION and
+      // CORNER_KICK_FINAL_SETUP (whose activeTeam is likewise kept in sync by
+      // applyCornerKickFinalSetupEnd's ATTACKER->DEFENDER handoff).
       if (room.gameState.phase === 'FREE_KICK_SETUP') {
         const fkState = room.gameState;
         const stageTeam =
@@ -1607,6 +1815,34 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             LONG_BALL: 'LONG',
           };
           const vpType = passTypeMap[passType];
+          // CORNER-04: resolution order for validatePass's maxDistance override.
+          // 1. Throw-in context (checked FIRST so throw-in semantics never regress —
+          //    unchanged from before this plan).
+          // 2. A corner-kick High Pass aimed inside the box the attacking team is
+          //    shooting at gets no distance limit.
+          // 3. Otherwise undefined — the ordinary per-type caps in validatePass apply.
+          //
+          // PITFALL 5 — `defendingBox` MUST be the BYLINE OWNER's own penalty area (the
+          // box the ATTACKING team is shooting at), never the kicking team's own box.
+          // `cornerKickTeam` is the team taking the corner (the attacker); the byline
+          // owner — and therefore the box being attacked — is always the OPPOSITE team.
+          // Getting this backwards would key the unlimited-range rule to the box on the
+          // opposite side of the pitch from where a corner is ever aimed, silently
+          // disabling it for every real corner.
+          let passOptions: { maxDistance?: number } | undefined;
+          if (isThrowInContext(room.gameState.lastActionType)) {
+            passOptions = { maxDistance: THROW_IN_MAX_DISTANCE };
+          } else if (isCornerKickContext(room.gameState) && passType === 'HIGH_PASS') {
+            const cornerKickTeam = room.gameState.cornerKickTeam;
+            const bylineOwnerTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+            const defendingBox: 'homePenaltyArea' | 'awayPenaltyArea' =
+              bylineOwnerTeam === 'home' ? 'homePenaltyArea' : 'awayPenaltyArea';
+            passOptions = isInRegion(targetHex, defendingBox)
+              ? { maxDistance: CORNER_KICK_UNLIMITED_DISTANCE }
+              : undefined;
+          } else {
+            passOptions = undefined;
+          }
           // Authoritative server-side validatePass (D-10) — re-runs before committing
           const passResult = validatePass(
             room.gameState,
@@ -1614,9 +1850,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             carrier.position,
             targetHex,
             vpType,
-            isThrowInContext(room.gameState.lastActionType)
-              ? { maxDistance: THROW_IN_MAX_DISTANCE }
-              : undefined,
+            passOptions,
           );
           if (!passResult.ok) {
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
@@ -2334,6 +2568,127 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       const result = applyThrowInPlace(room.gameState, pieceId);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_CORNER_KICK_GK_PLACE — CORNER-01: reposition a GK during either corner-kick
+  // GK reposition window (attacking GK first, then defending GK). Mirrors
+  // GAME_FREE_KICK_MOVE's pick-up-and-place payload shape ({pieceId, to}), delegating all
+  // acting-team/role/legality validation to the pure applyCornerKickGkPlace.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_CORNER_KICK_GK_PLACE, (pieceId: string, to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be one of the two corner-kick GK reposition windows.
+      if (
+        room.gameState === null ||
+        (room.gameState.phase !== 'CORNER_KICK_GK_SETUP_ATTACKING' &&
+          room.gameState.phase !== 'CORNER_KICK_GK_SETUP_DEFENDING')
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 input validation: payload shape check before use (mirrors GAME_FREE_KICK_MOVE).
+      if (
+        typeof pieceId !== 'string' ||
+        pieceId.length === 0 ||
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // T-38-17: wrong-team pre-check against the phase-derived acting team. Not merely
+      // redundant with applyCornerKickGkPlace's own piece.teamId !== actingTeam check below —
+      // without this, a socket for the NON-acting team could place a GK belonging to the
+      // acting team (the engine only verifies the SELECTED PIECE's team, never the
+      // REQUESTING socket's team, since pieceId is its only identity-bearing input).
+      if (room.gameState.cornerKickTeam == null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      const phaseActingTeam: 'home' | 'away' =
+        room.gameState.phase === 'CORNER_KICK_GK_SETUP_ATTACKING'
+          ? room.gameState.cornerKickTeam
+          : room.gameState.cornerKickTeam === 'home'
+            ? 'away'
+            : 'home';
+      if (socketTeam(socket) !== phaseActingTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyCornerKickGkPlace(room.gameState, pieceId, { q: to.q, r: to.r });
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_CORNER_KICK_TAKER — CORNER-02: the attacking manager selects which of their
+  // pieces takes the corner. The destination hex is server-owned (state.cornerKickHex) —
+  // deliberately NOT part of the payload so a client can never choose where the corner is
+  // taken from. Mirrors GAME_THROW_IN_PLACE's single-pieceId payload shape.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_CORNER_KICK_TAKER, (pieceId: string) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be CORNER_KICK_TAKER_SELECT
+      if (room.gameState === null || room.gameState.phase !== 'CORNER_KICK_TAKER_SELECT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 input validation: payload shape check before use
+      if (typeof pieceId !== 'string' || pieceId.length === 0) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // T-38-17: turn guard — only the kicking team's own socket may designate the
+      // corner-taker. Not redundant with applyCornerKickTakerSelect's own
+      // piece.teamId !== cornerKickTeam check: that check only verifies the SELECTED
+      // PIECE's team, never the REQUESTING socket's team, since pieceId is its only
+      // identity-bearing input. Without this pre-check, the non-kicking team's socket
+      // could submit a pieceId belonging to the kicking team and have it accepted.
+      if (socketTeam(socket) !== room.gameState.cornerKickTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyCornerKickTakerSelect(room.gameState, pieceId);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
