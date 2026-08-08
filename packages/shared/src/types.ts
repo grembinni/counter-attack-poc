@@ -138,7 +138,9 @@ export type ActionEventType =
   | 'CORNER_KICK_TAKER_PLACED' // corner-taker placed at the fixed corner hex (CORNER-02)
   | 'CORNER_KICK_STAGE_ADVANCE' // inter-stage transition among the 6 CORNER-03 stages
   | 'CORNER_KICK_MOVE' // 1-player-per-team repositioning while the corner kick travels
-  | 'CORNER_KICK_ACCURACY'; // corner-kick High/Low accuracy roll resolution (CORNER-04)
+  | 'CORNER_KICK_ACCURACY' // corner-kick High/Low accuracy roll resolution (CORNER-04)
+  // Gap-closure round 2 (38-16, 38-15 defect 3): mandatory pre-corner clear-out movement.
+  | 'CORNER_KICK_CLEAR_OUT_MOVE'; // 1-player-per-team clear-out step during CORNER_KICK_CLEAR_OUT
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -557,6 +559,19 @@ export type ActionEvent =
       kickScore: number;
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /**
+       * CORNER-01 (38-15 defect 3, 38-16): mandatory pre-corner clear-out step. Byte-for-byte
+       * `CORNER_KICK_MOVE`'s shape (no `ballAfter` — the ball does not move during clear-out,
+       * exactly like `CORNER_KICK_GK_PLACE`).
+       */
+      type: 'CORNER_KICK_CLEAR_OUT_MOVE';
+      slot: 'ATTACKER' | 'DEFENDER';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
     };
 
 export type GamePhase =
@@ -599,6 +614,11 @@ export type GamePhase =
   // aliases of GK_RESTART or the GOAL_KICK_* chain — CORNER-01 requires Corner Kick to be
   // structurally independent, reusing only pure helpers (mirrors the Phase 37 GOALKICK-01
   // precedent for keeping restart flows structurally separate).
+  // Gap-closure round 2 (38-16, 38-15 defect 3): CORNER-01 mandatory pre-corner clear-out —
+  // every piece within `CORNER_EXCLUSION_RADIUS` of the corner hex must be moved goal-ward
+  // before the goalkeeper windows open. Attacking manager first, then defending, via
+  // `cornerKickClearOutSlot`.
+  | 'CORNER_KICK_CLEAR_OUT'
   | 'CORNER_KICK_GK_SETUP_ATTACKING' // CORNER-01: attacking GK repositions first
   | 'CORNER_KICK_GK_SETUP_DEFENDING' // CORNER-01: defending GK repositions second
   | 'CORNER_KICK_TAKER_SELECT' // CORNER-02: attacking manager selects the corner-taker
@@ -1317,4 +1337,30 @@ export type GameState = {
    * each slot transition.
    */
   cornerKickPaceUsed?: number;
+  /**
+   * CORNER-03 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 2): distinct piece IDs that
+   * have been moved at least one hex during the `CORNER_KICK_REPOSITION` window and are
+   * therefore "activated". Divergence from `cornerKickStagePlacedIds` (which resets to `[]`
+   * at every stage transition): this set PERSISTS across all six stages and is what makes
+   * CORNER-03's "up to 6 players" a count of six DISTINCT pieces per side. Cleared to `null`
+   * on entry to `CORNER_KICK_FINAL_SETUP` so the pre-kick 3-hex move may use any eligible
+   * piece, including one already repositioned. null outside CORNER_KICK_REPOSITION.
+   */
+  cornerKickActivatedIds?: readonly string[] | null;
+  /**
+   * CORNER-01 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 3): whose clear-out turn it
+   * is during `CORNER_KICK_CLEAR_OUT`. Deliberately mirrors `cornerKickMoveSlot`'s shape
+   * (single phase value plus a slot field) rather than adding a second
+   * `_ATTACKING`/`_DEFENDING` phase pair, to keep the new registration surface to one phase
+   * value. null outside CORNER_KICK_CLEAR_OUT.
+   */
+  cornerKickClearOutSlot?: 'ATTACKER' | 'DEFENDER' | null;
+  /**
+   * D-GAP-02 (Phase 38 gap-closure round 2, 38-16): the goalkeeper who spilled a save and
+   * thereby caused the current `LOOSE_BALL`. This is the ONLY signal that distinguishes a
+   * spill-caused loose ball from the SHOT duel-tie loose ball (both set
+   * `ball.lastTouchedBy` to the keeper); D-GAP-02's direction-only corner award is gated on
+   * it. Must be nulled at every `LOOSE_BALL` resolution and in the corner-kick teardown.
+   */
+  gkSpillKeeperId?: string | null;
 };

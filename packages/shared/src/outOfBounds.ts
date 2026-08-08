@@ -16,8 +16,9 @@
  */
 
 import type { HexCoord } from './types.js';
-import { isPitchHex } from './pitch.js';
+import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
 import { hexesInRange, hexDistance } from './hex.js';
+import { looseBallDirectionQStep } from './scoreUtils.js';
 
 /** Pitch bounds, single source of truth for this module (mirrors pitch.ts's 37x26 grid). */
 const MAX_Q = 36;
@@ -210,4 +211,92 @@ export function resolveThrowInHex(
 
   // Last-resort fallback: nothing free within radius 6 — return preferred unchanged.
   return preferred;
+}
+
+/**
+ * CORNER_EXCLUSION_RADIUS — the 3-hex radius named by 38-15 defect 3. It governs BOTH the
+ * mandatory pre-corner clear-out (every piece within this radius of the corner hex must be
+ * moved goal-ward before the goalkeeper windows open) and the permanent defender-exclusion
+ * rule (no defender may reposition to within this radius of the corner at any point during
+ * the corner-kick sequence), so the two rules can never drift apart. Both consumers MUST
+ * read this single constant rather than hardcoding `3`.
+ */
+export const CORNER_EXCLUSION_RADIUS = 3;
+
+/**
+ * CORNER-01 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 3): returns true when `hex` is
+ * within `CORNER_EXCLUSION_RADIUS` hexes of `cornerHex`. Pure — no pitch-bounds check; an
+ * off-pitch hex is rejected by the caller's own `isPitchHex` guard.
+ */
+export function isWithinCornerExclusionZone(hex: HexCoord, cornerHex: HexCoord): boolean {
+  return hexDistance(hex, cornerHex) <= CORNER_EXCLUSION_RADIUS;
+}
+
+/**
+ * CORNER-01 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 3): the goal-mouth centre on
+ * the byline the corner is being taken from. `q` is `0` for `'home'` and `MAX_Q` for
+ * `'away'`, reusing this module's existing byline convention (`bylineOwner`,
+ * `GOAL_KICK_RESTART_HEX`, `CORNER_KICK_HEX`). `r` is derived as the middle element of
+ * `GOAL_R_VALUES` (`pitch.js`), never a restated literal.
+ *
+ * "Closer to goal" in the clear-out rule (`isLegalClearOutStep`) means "smaller
+ * `hexDistance` to this hex".
+ */
+export function cornerClearOutGoalHex(bylineOwner: 'home' | 'away'): HexCoord {
+  const r = GOAL_R_VALUES[Math.floor(GOAL_R_VALUES.length / 2)]!;
+  const q = bylineOwner === 'home' ? 0 : MAX_Q;
+  return { q, r };
+}
+
+/**
+ * CORNER-01 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 3): the single source of
+ * truth for "must be moved closer to goal" during the mandatory pre-corner clear-out.
+ * Consumed by BOTH the engine (`applyCornerKickClearOut`, 38-20) and the client's
+ * destination-hex computation (38-22), so the two can never disagree.
+ *
+ * Returns true when `hexDistance(to, cornerHex)` is STRICTLY greater than
+ * `hexDistance(from, cornerHex)` (guarantees the clear-out terminates — every legal step
+ * moves strictly away from the corner) AND `hexDistance(to, goalHex)` is less than or equal
+ * to `hexDistance(from, goalHex)` (the goal term is "less than or equal", not "strictly
+ * less", because a piece already level with the goal-mouth row would otherwise have no legal
+ * step at all — "not retreating from goal" is the faithful reading of the rule).
+ *
+ * This function checks GEOMETRY ONLY — adjacency, pitch membership, and occupancy remain the
+ * caller's responsibility.
+ */
+export function isLegalClearOutStep(
+  from: HexCoord,
+  to: HexCoord,
+  cornerHex: HexCoord,
+  goalHex: HexCoord,
+): boolean {
+  const movesAwayFromCorner = hexDistance(to, cornerHex) > hexDistance(from, cornerHex);
+  const doesNotRetreatFromGoal = hexDistance(to, goalHex) <= hexDistance(from, goalHex);
+  return movesAwayFromCorner && doesNotRetreatFromGoal;
+}
+
+/**
+ * D-GAP-02 (Phase 38 gap-closure round 2, 38-16): decides whether a spilled-save Loose Ball
+ * direction awards an immediate corner kick, reading `looseBallDirectionQStep` rather than
+ * restating the direction table.
+ *
+ * Rule (verbatim from `38-15-SUMMARY.md`): "if Direction is next or behind the GK it is a
+ * Corner Kick. If the direction is in front of GK, roll for distance, and continue play
+ * normally." A purely vertical direction (`qStep === 0`) is "next to" the keeper, a
+ * byline-ward direction is "behind", and only the two directions with a column step toward
+ * the opposite goal are "in front".
+ *
+ * The keeper's OWN byline is at low q for `'home'` and high q for `'away'`, so
+ * `ownBylineStep` is `-1` for home and `+1` for away.
+ *
+ * This is DIRECTION-ONLY: the keeper's distance from their own byline is deliberately
+ * irrelevant, which is precisely what corrects 38-14's scatter-walk reading.
+ */
+export function isSpillCornerDirection(
+  direction: 1 | 2 | 3 | 4 | 5 | 6,
+  keeperTeamId: 'home' | 'away',
+): boolean {
+  const qStep = looseBallDirectionQStep(direction);
+  const ownBylineStep = keeperTeamId === 'home' ? -1 : 1;
+  return qStep === 0 || qStep === ownBylineStep;
 }

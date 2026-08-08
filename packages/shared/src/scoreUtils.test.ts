@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCombinedScore, computeLooseBall } from './scoreUtils.js';
+import { computeCombinedScore, computeLooseBall, looseBallDirectionQStep } from './scoreUtils.js';
 import { hexDistance } from './hex.js';
 import type { HexCoord } from './types.js';
 
@@ -100,4 +100,25 @@ describe('computeLooseBall', () => {
       }
     }
   });
+});
+
+describe('looseBallDirectionQStep (D-GAP-02)', () => {
+  const directions: (1 | 2 | 3 | 4 | 5 | 6)[] = [1, 2, 3, 4, 5, 6];
+  // Even-q and odd-q origins, away from any board edge, so a single-step scatter
+  // in every direction stays comfortably in bounds for the purpose of deriving
+  // the geometric q-delta.
+  const origins: HexCoord[] = [
+    { q: 20, r: 10 }, // even q
+    { q: 21, r: 10 }, // odd q
+  ];
+
+  for (const origin of origins) {
+    for (const direction of directions) {
+      it(`direction=${direction} from q=${origin.q} (${origin.q % 2 === 0 ? 'even' : 'odd'}-q) agrees with computeLooseBall's actual column delta`, () => {
+        const landed = computeLooseBall(origin, direction, 1);
+        const geometricQStep = landed.q - origin.q;
+        expect(looseBallDirectionQStep(direction)).toBe(geometricQStep);
+      });
+    }
+  }
 });

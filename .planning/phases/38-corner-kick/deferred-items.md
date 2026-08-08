@@ -27,6 +27,17 @@ cleanly (674/674 tests). Flagging here so a later phase-38 plan (or a dedicated 
 resolves the `GameBoard.tsx` gap before phase close, and so `ActionLog.tsx`'s pre-existing
 issue is tracked rather than silently re-discovered.
 
+**Update (38-16):** `CORNER_KICK_CLEAR_OUT` (the new gap-closure-round-2 phase value) is now
+also missing from `PHASE_LABEL`'s `Record<GamePhase, string>`, for the identical reason as
+the original 5 keys — `GameBoard.tsx` is not in this plan's `files_modified` (shared package
+contracts only) and its `PHASE_LABEL`/dispatch extension is explicitly deferred to the plan
+that builds the clear-out UI. `pnpm --filter @counter-attack/client typecheck` still reports
+exactly 2 errors (same count as this entry's original baseline) — `ActionLog.tsx`'s
+pre-existing gap plus this single `GameBoard.tsx` `Record` diagnostic (TypeScript's TS2741
+only names the first missing key per diagnostic, so the message text changed but the error
+count and category did not). Not a regression; will resolve alongside the other 5 keys when
+`GameBoard.tsx` is next touched.
+
 ## From Plan 38-14 (GK save-spill → real LOOSE_BALL / second Corner Kick route)
 
 - **`pnpm lint` (repo root `eslint .`) fails with 8 `Parsing error: Too many files (>8) have
