@@ -43,6 +43,9 @@ import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
   applyCancelMovement,
+  applyCornerKickGkPlace,
+  applyCornerKickGkWindowEnd,
+  applyCornerKickTakerSelect,
   applyDeclareShot,
   applyEndTurn,
   applyFreeKickMove,
@@ -1307,6 +1310,33 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // CORNER-01: ends the active corner-kick GK reposition window (attacking GK's
+      // window, then defending GK's window). Mirrors the GOAL_KICK_SETUP_GK/OPPONENT
+      // branch above — activeTeam is kept in sync at every corner-kick GK transition
+      // (triggerOutOfBoundsRestart sets it to cornerKickTeam at entry;
+      // applyCornerKickGkWindowEnd flips it to the defending team on advance), so
+      // isActivePlayer is a correct pre-check here, unlike FREE_KICK_SETUP's stage-team
+      // special case below.
+      if (
+        room.gameState.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
+        room.gameState.phase === 'CORNER_KICK_GK_SETUP_DEFENDING'
+      ) {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const cornerGkEndResult = applyCornerKickGkWindowEnd(room.gameState);
+        if (!cornerGkEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerGkEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerGkEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -2334,6 +2364,127 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       const result = applyThrowInPlace(room.gameState, pieceId);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_CORNER_KICK_GK_PLACE — CORNER-01: reposition a GK during either corner-kick
+  // GK reposition window (attacking GK first, then defending GK). Mirrors
+  // GAME_FREE_KICK_MOVE's pick-up-and-place payload shape ({pieceId, to}), delegating all
+  // acting-team/role/legality validation to the pure applyCornerKickGkPlace.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_CORNER_KICK_GK_PLACE, (pieceId: string, to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be one of the two corner-kick GK reposition windows.
+      if (
+        room.gameState === null ||
+        (room.gameState.phase !== 'CORNER_KICK_GK_SETUP_ATTACKING' &&
+          room.gameState.phase !== 'CORNER_KICK_GK_SETUP_DEFENDING')
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 input validation: payload shape check before use (mirrors GAME_FREE_KICK_MOVE).
+      if (
+        typeof pieceId !== 'string' ||
+        pieceId.length === 0 ||
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // T-38-17: wrong-team pre-check against the phase-derived acting team. Not merely
+      // redundant with applyCornerKickGkPlace's own piece.teamId !== actingTeam check below —
+      // without this, a socket for the NON-acting team could place a GK belonging to the
+      // acting team (the engine only verifies the SELECTED PIECE's team, never the
+      // REQUESTING socket's team, since pieceId is its only identity-bearing input).
+      if (room.gameState.cornerKickTeam == null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      const phaseActingTeam: 'home' | 'away' =
+        room.gameState.phase === 'CORNER_KICK_GK_SETUP_ATTACKING'
+          ? room.gameState.cornerKickTeam
+          : room.gameState.cornerKickTeam === 'home'
+            ? 'away'
+            : 'home';
+      if (socketTeam(socket) !== phaseActingTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyCornerKickGkPlace(room.gameState, pieceId, { q: to.q, r: to.r });
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_CORNER_KICK_TAKER — CORNER-02: the attacking manager selects which of their
+  // pieces takes the corner. The destination hex is server-owned (state.cornerKickHex) —
+  // deliberately NOT part of the payload so a client can never choose where the corner is
+  // taken from. Mirrors GAME_THROW_IN_PLACE's single-pieceId payload shape.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_CORNER_KICK_TAKER, (pieceId: string) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // Phase guard: must be CORNER_KICK_TAKER_SELECT
+      if (room.gameState === null || room.gameState.phase !== 'CORNER_KICK_TAKER_SELECT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      // ASVS V5 input validation: payload shape check before use
+      if (typeof pieceId !== 'string' || pieceId.length === 0) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // T-38-17: turn guard — only the kicking team's own socket may designate the
+      // corner-taker. Not redundant with applyCornerKickTakerSelect's own
+      // piece.teamId !== cornerKickTeam check: that check only verifies the SELECTED
+      // PIECE's team, never the REQUESTING socket's team, since pieceId is its only
+      // identity-bearing input. Without this pre-check, the non-kicking team's socket
+      // could submit a pieceId belonging to the kicking team and have it accepted.
+      if (socketTeam(socket) !== room.gameState.cornerKickTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      const result = applyCornerKickTakerSelect(room.gameState, pieceId);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back

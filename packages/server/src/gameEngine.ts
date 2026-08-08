@@ -1459,8 +1459,16 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
  * or goal-kick awarded near a final third can never be hijacked mid-sequence — the
  * centrally-invoked zone check would otherwise overlay FREE_MOVE_ATTACK/DEFENSE on top
  * of a restart phase, and `freeMoveResume` would then try to restore a restart phase it
- * has no way to correctly resume. Module-level so it stays greppable — Phase 38 has one
- * place to add `CORNER_KICK_*` when that restart family exists.
+ * has no way to correctly resume. Module-level so it stays greppable.
+ *
+ * Plan 38-05 (Rule 2 — missing critical functionality, discovered while wiring the
+ * Corner Kick socket surface): the five `CORNER_KICK_*` phases are added here for the
+ * identical reason as the Phase 37 restart phases above. A corner is, by definition,
+ * always awarded and taken from right next to a byline — i.e. always inside one of the
+ * two final thirds — so every corner-kick phase would otherwise be hijacked by this
+ * check on its very first broadcast. This constant was left un-extended by 38-01..38-04
+ * (their scope was the engine's own corner sequence, not this cross-cutting interrupt);
+ * this plan is the first to actually exercise the corner phases through `broadcastState`.
  */
 const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'HALF_TIME',
@@ -1473,6 +1481,11 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'GOAL_KICK_CHOICE',
   'GOAL_KICK_TARGET',
   'GOAL_KICK_MOVE',
+  'CORNER_KICK_GK_SETUP_ATTACKING',
+  'CORNER_KICK_GK_SETUP_DEFENDING',
+  'CORNER_KICK_TAKER_SELECT',
+  'CORNER_KICK_REPOSITION',
+  'CORNER_KICK_FINAL_SETUP',
 ]);
 
 /**
