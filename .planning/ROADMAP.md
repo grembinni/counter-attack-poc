@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 7/9                                    | In Progress |             |
+| 38    | 8/9                                    | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -250,7 +250,7 @@ Plans:
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
-- [ ] 38-08-PLAN.md — Socket-level end-to-end integration coverage for OOB-03 and CORNER-01..06
+- [x] 38-08-PLAN.md — Socket-level end-to-end integration coverage for OOB-03 and CORNER-01..06
 
 **Wave 7** _(blocked on Wave 6 completion)_
 
