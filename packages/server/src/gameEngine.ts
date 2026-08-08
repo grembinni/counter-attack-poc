@@ -664,6 +664,7 @@ const CORNER_KICK_TEARDOWN = {
   cornerKickStageIndex: null,
   cornerKickStagePlacedIds: null,
   cornerKickUsedPace: null,
+  cornerKickActivatedIds: null,
   cornerKickMoveSlot: null,
   cornerKickMovedPieceId: null,
   cornerKickPaceUsed: 0,
@@ -1875,9 +1876,24 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                                 )
                               : (state.cornerKickStagePlacedIds ?? null);
 
+                          // D-GAP-03 (38-17) riding on D-GAP-01's ruling: the human ruled that
+                          // undoing a piece's only move this stage releases its stage-cap slot;
+                          // releasing the slot without releasing the activation would leave the
+                          // piece permanently unusable for the rest of the window, which is
+                          // strictly worse than the bug D-GAP-01 was ruling on. Uses the SAME
+                          // remainingStageMovesForPiece condition as the stage-slot filter above
+                          // — no second derivation.
+                          const nextActivatedIds =
+                            remainingStageMovesForPiece === 0
+                              ? (state.cornerKickActivatedIds ?? []).filter(
+                                  (id) => id !== moveToUndo.pieceId,
+                                )
+                              : (state.cornerKickActivatedIds ?? null);
+
                           return {
                             cornerKickUsedPace: nextUsedPace,
                             cornerKickStagePlacedIds: nextStagePlacedIds,
+                            cornerKickActivatedIds: nextActivatedIds,
                           };
                         })()
                       : {};
@@ -3488,6 +3504,7 @@ export function triggerOutOfBoundsRestart(
       cornerKickStageIndex: null,
       cornerKickStagePlacedIds: null,
       cornerKickUsedPace: null,
+      cornerKickActivatedIds: null,
       cornerKickMoveSlot: null,
       cornerKickMovedPieceId: null,
       cornerKickPaceUsed: 0,
@@ -4097,6 +4114,9 @@ export function applyCornerKickStageEnd(
       phase: 'CORNER_KICK_FINAL_SETUP',
       cornerKickStageIndex: null,
       cornerKickStagePlacedIds: null,
+      // D-GAP-03 (38-17): the pre-kick 3-hex window is a fresh activation scope — a piece
+      // already repositioned during the 2-2-2 stages is eligible again for the final move.
+      cornerKickActivatedIds: null,
       cornerKickMoveSlot: 'ATTACKER',
       cornerKickMovedPieceId: null,
       cornerKickPaceUsed: 0,
@@ -4287,6 +4307,11 @@ export function applyCornerKickFinalSetupEnd(state: GameState): ApplyCornerKickF
       cornerKickMoveSlot: null,
       cornerKickMovedPieceId: null,
       cornerKickPaceUsed: 0,
+      // D-GAP-03 (38-17): explicitly re-asserted null (already null since the
+      // CORNER_KICK_FINAL_SETUP transition and never touched by this or
+      // applyCornerKickFinalMove) — Pitfall-3 belt-and-suspenders discipline, same as
+      // cornerKickStagePlacedIds, which stays null via the unlisted ...state spread here.
+      cornerKickActivatedIds: null,
       // Pitfall 3: explicitly carried forward — see doc comment above.
       cornerKickTeam,
       cornerKickHex: state.cornerKickHex ?? null,
