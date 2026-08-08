@@ -1925,6 +1925,182 @@ describe('buildReplayFrames — corner-kick replay eligibility (T-38-15, 38-04 T
     const frames = buildReplayFrames(finalState);
     expect(frames).toHaveLength(0);
   });
+
+  // -------------------------------------------------------------------------
+  // 38-12 (gap closure) Task 1: WR-01 — CORNER_KICK_GK_PLACE / CORNER_KICK_MOVE
+  // piece-position tracking
+  // -------------------------------------------------------------------------
+
+  // NOTE: buildReplayFrames reconstructs `current.pieces` from buildKickOffPieces (real squad/
+  // formation piece ids `home-0..home-10`/`away-0..away-10`), NOT from `finalState.pieces` — so
+  // the eventLog's `pieceId` fields below reference real reconstructed ids ('away-0' is the GK
+  // slot per FORMATIONS['4-4-2'].away.slots[0], 'away-9' matches awayPiece.id used by the
+  // existing CORNER_KICK_TAKER_PLACED replay test above), not the awayGK/awayPiece fixtures.
+  const awayGkReplayId = 'away-0';
+
+  it('buildReplayFrames: a CORNER_KICK_GK_PLACE position is carried into every subsequent frame', () => {
+    const gkPlaceTo = { q: 5, r: 20 };
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_GK_PLACE',
+          pieceId: awayGkReplayId,
+          side: 'ATTACKING',
+          from: { q: 33, r: 5 },
+          to: gkPlaceTo,
+          timestamp: 1000,
+        },
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 2000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(1);
+    const gk = frames[0]!.pieces.find((p) => p.id === awayGkReplayId);
+    expect(gk?.position).toEqual(gkPlaceTo);
+  });
+
+  it('buildReplayFrames: a CORNER_KICK_MOVE position is carried into every subsequent frame', () => {
+    const moveTo = { q: 17, r: 16 };
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_MOVE',
+          slot: 'ATTACKER',
+          pieceId: awayPiece.id,
+          from: awayPiece.position,
+          to: moveTo,
+          timestamp: 1000,
+        },
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 2000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(1);
+    const moved = frames[0]!.pieces.find((p) => p.id === awayPiece.id);
+    expect(moved?.position).toEqual(moveTo);
+  });
+
+  it('buildReplayFrames: neither CORNER_KICK_GK_PLACE nor CORNER_KICK_MOVE emits a frame of its own', () => {
+    // Baseline: CORNER_KICK_ACCURACY alone produces exactly 1 frame.
+    const baselineState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 3000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const baselineFrames = buildReplayFrames(baselineState);
+    expect(baselineFrames).toHaveLength(1);
+
+    // Adding a CORNER_KICK_GK_PLACE and a CORNER_KICK_MOVE ahead of the same accuracy event
+    // must not increase the emitted frame count.
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_GK_PLACE',
+          pieceId: awayGkReplayId,
+          side: 'ATTACKING',
+          from: { q: 33, r: 5 },
+          to: { q: 5, r: 20 },
+          timestamp: 1000,
+        },
+        {
+          type: 'CORNER_KICK_MOVE',
+          slot: 'ATTACKER',
+          pieceId: awayPiece.id,
+          from: awayPiece.position,
+          to: { q: 17, r: 16 },
+          timestamp: 2000,
+        },
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 3000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(baselineFrames.length);
+  });
+
+  it('buildReplayFrames: a CORNER_KICK_GK_PLACE does not move the ball', () => {
+    const finalState: GameState = {
+      ...baseLooseBallState,
+      phase: 'FULL_TIME',
+      pieces: [homePiece, awayPiece, homeGK, awayGK],
+      eventLog: [
+        {
+          type: 'CORNER_KICK_GK_PLACE',
+          pieceId: awayGkReplayId,
+          side: 'ATTACKING',
+          from: { q: 33, r: 5 },
+          to: { q: 5, r: 20 },
+          timestamp: 1000,
+        },
+        {
+          type: 'CORNER_KICK_ACCURACY',
+          takerId: awayPiece.id,
+          passType: 'LOW',
+          targetHex: { q: 5, r: 13 },
+          accurate: true,
+          kickDie: 3,
+          kickScore: 8,
+          timestamp: 2000,
+          ballAfter: { position: { q: 5, r: 13 }, carrierId: null },
+        },
+      ],
+    };
+    const frames = buildReplayFrames(finalState);
+    expect(frames).toHaveLength(1);
+    expect(frames[0]!.ball.position).toEqual({ q: 5, r: 13 });
+    expect(frames[0]!.ball.carrierId).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
