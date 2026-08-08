@@ -342,6 +342,56 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
     render(<CornerKickSetupPanel />);
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
+
+  it('CORNER_KICK_REPOSITION: renders an Undo button for the acting manager', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.getByRole('button', { name: /^undo$/i })).toBeDefined();
+  });
+
+  it('CORNER_KICK_REPOSITION: Undo is disabled with no MOVE after the last stage boundary', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        eventLog: [{ type: 'CORNER_KICK_TAKER_PLACED', timestamp: 1 }] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    expect(undoBtn).toHaveProperty('disabled', true);
+    fireEvent.click(undoBtn);
+    expect(emitMock).not.toHaveBeenCalledWith(ClientEvents.GAME_UNDO);
+  });
+
+  it('CORNER_KICK_REPOSITION: Undo is enabled and emits GAME_UNDO once a MOVE exists in the current stage', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        eventLog: [
+          { type: 'CORNER_KICK_TAKER_PLACED', timestamp: 1 },
+          {
+            type: 'MOVE',
+            pieceId: 'away-1',
+            from: { q: 36, r: 1 },
+            to: { q: 35, r: 1 },
+            timestamp: 2,
+          },
+        ] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    expect(undoBtn).toHaveProperty('disabled', false);
+    fireEvent.click(undoBtn);
+    expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_UNDO);
+  });
 });
 
 describe('CornerKickSetupPanel — CORNER_KICK_FINAL_SETUP (pre-kick 3-hex window)', () => {
@@ -390,6 +440,46 @@ describe('CornerKickSetupPanel — CORNER_KICK_FINAL_SETUP (pre-kick 3-hex windo
     });
     render(<CornerKickSetupPanel />);
     expect(screen.getByText(/Defending team is repositioning/)).toBeDefined();
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: Undo is enabled and emits GAME_UNDO once a CORNER_KICK_MOVE exists', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_FINAL_SETUP', {
+        cornerKickMoveSlot: 'ATTACKER',
+        cornerKickMovedPieceId: 'away-1',
+        eventLog: [
+          { type: 'CORNER_KICK_STAGE_ADVANCE', timestamp: 1 },
+          {
+            type: 'CORNER_KICK_MOVE',
+            slot: 'ATTACKER',
+            pieceId: 'away-1',
+            from: { q: 36, r: 1 },
+            to: { q: 35, r: 1 },
+            timestamp: 2,
+          },
+        ] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    expect(undoBtn).toHaveProperty('disabled', false);
+    fireEvent.click(undoBtn);
+    expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_UNDO);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: Undo is disabled with no CORNER_KICK_MOVE after the boundary', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_FINAL_SETUP', {
+        cornerKickMoveSlot: 'ATTACKER',
+        cornerKickMovedPieceId: null,
+        eventLog: [{ type: 'CORNER_KICK_STAGE_ADVANCE', timestamp: 1 }] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    expect(undoBtn).toHaveProperty('disabled', true);
   });
 });
 
@@ -503,5 +593,55 @@ describe('CornerKickSetupPanel — error display', () => {
     render(<CornerKickSetupPanel />);
     expect(screen.queryByText('RANGE_EXCEEDED')).toBeNull();
     expect(screen.getByText(restartErrorMessage('RANGE_EXCEEDED') ?? '')).toBeDefined();
+  });
+});
+
+describe('Undo is absent from the goalkeeper, taker-select, waiting-state and pass-choice branches', () => {
+  it('CORNER_KICK_GK_SETUP_ATTACKING: no Undo control renders for the acting manager', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_GK_SETUP_ATTACKING'),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByRole('button', { name: /^undo$/i })).toBeNull();
+  });
+
+  it('CORNER_KICK_GK_SETUP_DEFENDING: no Undo control renders for the acting manager', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_GK_SETUP_DEFENDING'),
+      playerSlot: 1,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByRole('button', { name: /^undo$/i })).toBeNull();
+  });
+
+  it('CORNER_KICK_TAKER_SELECT: no Undo control renders for the acting manager', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_TAKER_SELECT'),
+      playerSlot: 2,
+      selectedPieceId: 'away-3',
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByRole('button', { name: /^undo$/i })).toBeNull();
+  });
+
+  it('a waiting-state branch (CORNER_KICK_REPOSITION, non-acting manager): no Undo control renders', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', { cornerKickStageIndex: 0 }),
+      playerSlot: 1,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByRole('button', { name: /^undo$/i })).toBeNull();
+  });
+
+  it('the PASS-phase High/Low pass-choice branch: no Undo control renders', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('PASS', {
+        ball: { position: { q: 36, r: 1 }, carrierId: 'away-9', lastTouchedBy: null },
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByRole('button', { name: /^undo$/i })).toBeNull();
   });
 });
