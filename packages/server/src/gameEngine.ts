@@ -669,6 +669,10 @@ const CORNER_KICK_TEARDOWN = {
   cornerKickStagePlacedIds: null,
   cornerKickUsedPace: null,
   cornerKickActivatedIds: null,
+  // Gap-closure round 2 (38-20): the clear-out slot joins its sibling corner fields here —
+  // a resolved corner (accurate, inaccurate, or LOOSE_BALL) must not leave a stale slot value
+  // behind for a later, unrelated corner.
+  cornerKickClearOutSlot: null,
   cornerKickMoveSlot: null,
   cornerKickMovedPieceId: null,
   cornerKickPaceUsed: 0,
@@ -1475,6 +1479,10 @@ export function applyFreeMoveEnd(state: GameState): { ok: true; state: GameState
  * check on its very first broadcast. This constant was left un-extended by 38-01..38-04
  * (their scope was the engine's own corner sequence, not this cross-cutting interrupt);
  * this plan is the first to actually exercise the corner phases through `broadcastState`.
+ *
+ * Gap-closure round 2 (38-20): `CORNER_KICK_CLEAR_OUT` is added for the identical reason —
+ * it is always inside a final third by construction (it happens right next to the corner
+ * flag, before either goalkeeper window even opens).
  */
 const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'HALF_TIME',
@@ -1487,6 +1495,7 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'GOAL_KICK_CHOICE',
   'GOAL_KICK_TARGET',
   'GOAL_KICK_MOVE',
+  'CORNER_KICK_CLEAR_OUT',
   'CORNER_KICK_GK_SETUP_ATTACKING',
   'CORNER_KICK_GK_SETUP_DEFENDING',
   'CORNER_KICK_TAKER_SELECT',
@@ -3806,9 +3815,9 @@ export type ApplyCornerKickClearOutEndResult =
  * Transitions:
  * - `'ATTACKER'` slot advances to `'DEFENDER'`, flipping `activeTeam` to the defending team,
  *   phase unchanged.
- * - `'DEFENDER'` slot advances into the existing attacking goalkeeper reposition phase with
- *   `cornerKickClearOutSlot: null` and `activeTeam: cornerKickTeam` — exactly the state
- *   `triggerOutOfBoundsRestart` used to produce directly before this plan.
+ * - `'DEFENDER'` slot advances into the existing attacking goalkeeper reposition phase, clearing
+ *   the slot field back to null and resetting `activeTeam` to `cornerKickTeam` — exactly the
+ *   state `triggerOutOfBoundsRestart` used to produce directly before this plan.
  *
  * Neither transition appends an event — mirroring `applyCornerKickGkWindowEnd`, which likewise
  * appends none, because the clear-out (like the GK setup windows and taker select) is not an
@@ -3888,7 +3897,8 @@ export type ApplyCornerKickGkPlaceResult =
         | 'PIECE_NOT_FOUND'
         | 'NOT_GOALKEEPER'
         | 'WRONG_TEAM'
-        | 'INVALID_TARGET';
+        | 'INVALID_TARGET'
+        | 'CORNER_EXCLUSION_ZONE';
     }
   | { ok: true; state: GameState };
 
@@ -3927,15 +3937,14 @@ export function applyCornerKickGkPlace(
 
   if (piece.role !== 'GK') return { ok: false, reason: 'NOT_GOALKEEPER' };
 
+  const side: 'ATTACKING' | 'DEFENDING' =
+    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ? 'ATTACKING' : 'DEFENDING';
+
   // D-03/D-04: acting team is derived from phase + the persistent cornerKickTeam —
   // never from activeTeam — so the attacking-then-defending turn order can never be
   // subverted by a stale/tampered activeTeam value.
   const actingTeam: 'home' | 'away' =
-    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING'
-      ? state.cornerKickTeam
-      : state.cornerKickTeam === 'home'
-        ? 'away'
-        : 'home';
+    side === 'ATTACKING' ? state.cornerKickTeam : state.cornerKickTeam === 'home' ? 'away' : 'home';
   if (piece.teamId !== actingTeam) return { ok: false, reason: 'WRONG_TEAM' };
 
   // Placement model (RESEARCH.md Assumption A1, uncapped): CORNER-01 states no hex
@@ -3950,8 +3959,17 @@ export function applyCornerKickGkPlace(
     return { ok: false, reason: 'INVALID_TARGET' };
   }
 
-  const side: 'ATTACKING' | 'DEFENDING' =
-    state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ? 'ATTACKING' : 'DEFENDING';
+  // CORNER-01 (38-15 defect 3, 38-20): no defending piece may end a goalkeeper placement
+  // inside the permanent 3-hex exclusion zone, at any point in the corner sequence.
+  // `side` (this function's own acting-side computation) is the source of truth here —
+  // never `activeTeam` (T-38-10 precedent).
+  if (
+    side === 'DEFENDING' &&
+    state.cornerKickHex != null &&
+    isWithinCornerExclusionZone(to, state.cornerKickHex)
+  ) {
+    return { ok: false, reason: 'CORNER_EXCLUSION_ZONE' };
+  }
 
   const placeEvent: ActionEvent = {
     type: 'CORNER_KICK_GK_PLACE',
@@ -4165,7 +4183,8 @@ export type ApplyCornerKickRepositionResult =
         | 'PIECE_LOCKED'
         | 'NOT_ADJACENT'
         | 'INVALID_TARGET'
-        | 'STAGE_LIMIT_REACHED';
+        | 'STAGE_LIMIT_REACHED'
+        | 'CORNER_EXCLUSION_ZONE';
     }
   | { ok: true; state: GameState };
 
@@ -4245,6 +4264,18 @@ export function applyCornerKickReposition(
   }
   if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
     return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // CORNER-01 (38-15 defect 3, 38-20): no defending piece may end a reposition move inside
+  // the permanent 3-hex exclusion zone, at any point in the corner sequence. `actingTeam`
+  // (this function's own acting-side computation, derived from cornerKickStageTeam — never
+  // activeTeam, T-38-10 precedent) is the source of truth for "defending" here.
+  if (
+    actingTeam !== cornerKickTeam &&
+    state.cornerKickHex != null &&
+    isWithinCornerExclusionZone(to, state.cornerKickHex)
+  ) {
+    return { ok: false, reason: 'CORNER_EXCLUSION_ZONE' };
   }
 
   const usedSoFar = (state.cornerKickUsedPace ?? {})[pieceId] ?? 0;
@@ -4394,7 +4425,8 @@ export type ApplyCornerKickFinalMoveResult =
         | 'PIECE_LOCKED'
         | 'NOT_ADJACENT'
         | 'INVALID_TARGET'
-        | 'PACE_EXHAUSTED';
+        | 'PACE_EXHAUSTED'
+        | 'CORNER_EXCLUSION_ZONE';
     }
   | { ok: true; state: GameState };
 
@@ -4456,6 +4488,18 @@ export function applyCornerKickFinalMove(
   }
   if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
     return { ok: false, reason: 'INVALID_TARGET' };
+  }
+
+  // CORNER-01 (38-15 defect 3, 38-20): no defending piece may end a pre-kick move inside the
+  // permanent 3-hex exclusion zone, at any point in the corner sequence. `cornerKickMoveSlot`
+  // (this function's own acting-side computation) is the source of truth — never `activeTeam`
+  // (T-38-10 precedent).
+  if (
+    state.cornerKickMoveSlot === 'DEFENDER' &&
+    state.cornerKickHex != null &&
+    isWithinCornerExclusionZone(to, state.cornerKickHex)
+  ) {
+    return { ok: false, reason: 'CORNER_EXCLUSION_ZONE' };
   }
 
   const usedSoFar = state.cornerKickPaceUsed ?? 0;
@@ -4558,6 +4602,9 @@ export function applyCornerKickFinalSetupEnd(state: GameState): ApplyCornerKickF
       // applyCornerKickFinalMove) — Pitfall-3 belt-and-suspenders discipline, same as
       // cornerKickStagePlacedIds, which stays null via the unlisted ...state spread here.
       cornerKickActivatedIds: null,
+      // Gap-closure round 2 (38-20): same defensive re-assertion — already null since
+      // applyCornerKickClearOutEnd's DEFENDER-slot transition and never touched since.
+      cornerKickClearOutSlot: null,
       // Pitfall 3: explicitly carried forward — see doc comment above.
       cornerKickTeam,
       cornerKickHex: state.cornerKickHex ?? null,
@@ -7250,7 +7297,16 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     // `current.pieces` as its base for untouched pieces) or from a later REPLAY_ELIGIBLE_TYPES
     // event — without ever pushing a frame itself and without touching `current.ball` or
     // flushing an in-progress `moveGroup`.
-    if (event.type === 'CORNER_KICK_GK_PLACE' || event.type === 'CORNER_KICK_MOVE') {
+    //
+    // Gap-closure round 2 (38-20): CORNER_KICK_CLEAR_OUT_MOVE joins this same arm for the
+    // identical reason — it carries no `ballAfter` (the ball is stationary at the corner flag
+    // during the clear-out) and is deliberately NOT in REPLAY_ELIGIBLE_TYPES either, so a
+    // cleared-out piece does not teleport back to its pre-clear-out hex on a later frame.
+    if (
+      event.type === 'CORNER_KICK_GK_PLACE' ||
+      event.type === 'CORNER_KICK_MOVE' ||
+      event.type === 'CORNER_KICK_CLEAR_OUT_MOVE'
+    ) {
       current = {
         ...current,
         pieces: current.pieces.map((p) =>
