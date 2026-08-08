@@ -54,6 +54,7 @@ import {
   FREE_KICK_STAGES,
   freeKickStageTeam,
   cornerKickStageTeam,
+  CORNER_KICK_STAGES,
   triggerOffsideFoul,
   classifyExit,
   bylineOwner,
@@ -3958,9 +3959,15 @@ export function applyCornerKickReposition(
     return { ok: false, reason: 'PACE_EXHAUSTED' };
   }
 
+  // WR-02 (38-12, gap closure): CORNER_KICK_STAGES is the single source of truth for each
+  // stage's distinct-piece cap — CornerKickSetupPanel.tsx and useGameStore.ts both already
+  // read stage.max from this table; the engine's own enforcement path must agree, or a future
+  // edit to CORNER_KICK_STAGES could silently desync the server-enforced cap from what the
+  // client displays (T-38-40).
+  const stageMax = CORNER_KICK_STAGES[state.cornerKickStageIndex].max;
   const stagePlacedIds = state.cornerKickStagePlacedIds ?? [];
   const alreadyCountedThisStage = stagePlacedIds.includes(pieceId);
-  if (!alreadyCountedThisStage && stagePlacedIds.length >= 2) {
+  if (!alreadyCountedThisStage && stagePlacedIds.length >= stageMax) {
     return { ok: false, reason: 'STAGE_LIMIT_REACHED' };
   }
 

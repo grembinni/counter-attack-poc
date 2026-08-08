@@ -19,6 +19,7 @@ import {
   CORNER_KICK_HEX,
   GOAL_KICK_RESTART_HEX,
   cornerKickStageTeam,
+  CORNER_KICK_STAGES,
 } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -927,6 +928,53 @@ describe('applyCornerKickReposition', () => {
       expect.arrayContaining([awayPiece.id, awayPiece2.id]),
     );
     expect(reMove.state.cornerKickStagePlacedIds?.length).toBe(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // 38-12 (gap closure) Task 2: WR-02 — stage cap sourced from CORNER_KICK_STAGES
+  // -------------------------------------------------------------------------
+
+  it('applyCornerKickReposition: the stage cap comes from CORNER_KICK_STAGES, not a literal 2', () => {
+    // Genuine single-source-of-truth assertion: derive the expected cap from
+    // CORNER_KICK_STAGES itself rather than restating a literal 2 in this test.
+    const stageIndex = baseCornerRepositionState.cornerKickStageIndex!;
+    const expectedCap = CORNER_KICK_STAGES[stageIndex].max;
+    const eligibleAttackers = baseCornerRepositionState.cornerKickEligibleIds!.attacking;
+    expect(eligibleAttackers.length).toBeGreaterThan(expectedCap);
+
+    let state = baseCornerRepositionState;
+    const placedIds: string[] = [];
+    // Move exactly `expectedCap` distinct pieces, one hex each, so cornerKickStagePlacedIds
+    // reaches precisely the table-derived cap.
+    for (let i = 0; i < expectedCap; i++) {
+      const pieceId = eligibleAttackers[i]!;
+      const piece = state.pieces.find((p) => p.id === pieceId)!;
+      const to = { q: piece.position.q + 1, r: piece.position.r };
+      const result = applyCornerKickReposition(state, pieceId, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+      placedIds.push(pieceId);
+    }
+    expect(state.cornerKickStagePlacedIds?.length).toBe(expectedCap);
+
+    // A further distinct piece is rejected once the table-derived cap is reached.
+    const nextDistinctId = eligibleAttackers[expectedCap]!;
+    const nextPiece = state.pieces.find((p) => p.id === nextDistinctId)!;
+    const rejected = applyCornerKickReposition(state, nextDistinctId, {
+      q: nextPiece.position.q + 1,
+      r: nextPiece.position.r,
+    });
+    expect(rejected).toEqual({ ok: false, reason: 'STAGE_LIMIT_REACHED' });
+
+    // An already-placed piece is still free to move again once the cap is full.
+    const alreadyPlacedId = placedIds[0]!;
+    const alreadyPlacedPiece = state.pieces.find((p) => p.id === alreadyPlacedId)!;
+    const accepted = applyCornerKickReposition(state, alreadyPlacedId, {
+      q: alreadyPlacedPiece.position.q + 1,
+      r: alreadyPlacedPiece.position.r,
+    });
+    expect(accepted.ok).toBe(true);
   });
 });
 
