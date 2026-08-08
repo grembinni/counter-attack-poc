@@ -148,3 +148,16 @@ None - no external service configuration required.
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-08_
+
+## Self-Check: PASSED
+
+- FOUND: `packages/server/src/gameEngine.ts`
+- FOUND: `packages/server/src/__tests__/gameEngine.cornerKick.test.ts`
+- FOUND: `packages/server/src/__tests__/cornerKick.integration.test.ts`
+- FOUND: `.planning/phases/38-corner-kick/38-17-SUMMARY.md`
+- FOUND commit `90be7a2` (Task 1)
+- FOUND commit `1217486` (Task 2)
+- FOUND commit `6eea746` (Task 3)
+- FOUND commit `0023f76` (SUMMARY)
+- `pnpm --filter @counter-attack/server typecheck` exits 0
+- `pnpm --filter @counter-attack/server test` — 39/39 files, 1004 passed, 1 skipped, 1 todo (1006 total; baseline before this plan's test additions was 1001)
