@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: executing
-stopped_at: Phase 38 UI-SPEC approved
+stopped_at: Phase 38 gap-closure re-verification (38-15) — corrections needed, not approved
 last_updated: '2026-08-08T12:10:49.923Z'
-last_activity: 2026-08-08 -- Phase 38 execution started
+last_activity: 2026-08-08 -- Phase 38 gap-closure round complete (38-10..38-15); checkpoint found 4 new defects + D-GAP-02 correction, routing to a further gap-closure round
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 34
-  completed_plans: 28
+  completed_plans: 34
   percent: 25
 ---
 
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 38 (corner-kick) — EXECUTING
-Plan: 1 of 15
-Status: Executing Phase 38
-Last activity: 2026-08-08 -- Phase 38 execution started
+Phase: 38 (corner-kick) — GAPS FOUND
+Plan: 15 of 15 (all gap-closure plans landed; checkpoint 38-15 found further gaps)
+Status: Phase 38 gap-closure round complete; further gap-closure round needed before phase can close
+Last activity: 2026-08-08 -- 38-15 checkpoint recorded 4 new defects + a D-GAP-02 rule correction; route to /gsd-plan-phase 38 --gaps
 
 ## Project Reference
 
@@ -79,7 +79,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 | 35    | ActionPanel & Log Standardization             | Complete    | 2026-07-27 |
 | 36    | Bug Fixes                                     | Complete    | 2026-08-02 |
 | 37    | Out-of-Bounds Detection, Throw-In & Goal Kick | Complete    | 2026-08-04 |
-| 38    | Corner Kick                                   | Not started | -          |
+| 38    | Corner Kick                                   | Gaps Found  | -          |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks        | Not started | -          |
 | 40    | Substitutions                                 | Not started | -          |
 
