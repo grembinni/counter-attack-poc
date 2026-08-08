@@ -115,3 +115,13 @@ None - no external service configuration required.
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-08_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/EventBanner.tsx
+- FOUND: packages/client/src/components/EventBanner.test.tsx
+- FOUND: .planning/phases/38-corner-kick/deferred-items.md
+- FOUND: .planning/phases/38-corner-kick/38-19-SUMMARY.md
+- FOUND commit: 3303285 (feat(38-19): add RESTART_BANNERS phase-entry table to EventBanner)
+- FOUND commit: 1574696 (test(38-19): cover restart banners, fire-once and no-fire-on-mount rules)
+- FOUND commit: 353b715 (docs(38-19): add plan summary)
