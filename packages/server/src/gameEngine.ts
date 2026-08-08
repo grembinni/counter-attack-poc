@@ -54,6 +54,7 @@ import {
   FREE_KICK_STAGES,
   freeKickStageTeam,
   cornerKickStageTeam,
+  CORNER_KICK_STAGES,
   triggerOffsideFoul,
   classifyExit,
   bylineOwner,
@@ -3958,9 +3959,15 @@ export function applyCornerKickReposition(
     return { ok: false, reason: 'PACE_EXHAUSTED' };
   }
 
+  // WR-02 (38-12, gap closure): CORNER_KICK_STAGES is the single source of truth for each
+  // stage's distinct-piece cap — CornerKickSetupPanel.tsx and useGameStore.ts both already
+  // read stage.max from this table; the engine's own enforcement path must agree, or a future
+  // edit to CORNER_KICK_STAGES could silently desync the server-enforced cap from what the
+  // client displays (T-38-40).
+  const stageMax = CORNER_KICK_STAGES[state.cornerKickStageIndex].max;
   const stagePlacedIds = state.cornerKickStagePlacedIds ?? [];
   const alreadyCountedThisStage = stagePlacedIds.includes(pieceId);
-  if (!alreadyCountedThisStage && stagePlacedIds.length >= 2) {
+  if (!alreadyCountedThisStage && stagePlacedIds.length >= stageMax) {
     return { ok: false, reason: 'STAGE_LIMIT_REACHED' };
   }
 
@@ -6742,6 +6749,11 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // Phase 38 (38-04): corner-kick events that carry ballAfter. CORNER_KICK_STAGE_ADVANCE,
   // CORNER_KICK_GK_PLACE and CORNER_KICK_MOVE are deliberately excluded — none carry
   // ballAfter, matching the existing GOAL_KICK_MOVE exclusion above.
+  // WR-01 (38-12, gap closure): CORNER_KICK_GK_PLACE and CORNER_KICK_MOVE remain excluded
+  // from this eligible set (still emit no frame of their own) but are now piece-position-
+  // tracked (current.pieces updated directly, not via moveGroup — see the event-loop branch
+  // below for why), so a goalkeeper/player who repositions no longer teleports back to a
+  // stale hex on every subsequent frame.
   'CORNER_KICK_TAKER_PLACED',
   'CORNER_KICK_ACCURACY',
 ]);
@@ -6915,6 +6927,33 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
       const existing = moveGroup.get(event.pieceId) ?? [];
       existing.push({ to: event.to, ballAfter: event.ballAfter });
       moveGroup.set(event.pieceId, existing);
+      continue;
+    }
+
+    // WR-01 (38-12, gap closure): CORNER_KICK_GK_PLACE (either corner GK reposition window)
+    // and CORNER_KICK_MOVE (CORNER_KICK_FINAL_SETUP pre-kick reposition) update `current.pieces`
+    // directly rather than accumulating into `moveGroup`. This is a deliberate departure from
+    // the KICK_OFF_SETUP/THROW_IN_PLACE/CORNER_KICK_TAKER_PLACED arms above: those three types
+    // are all members of REPLAY_ELIGIBLE_TYPES, so `flushMoveGroup()` unconditionally emitting a
+    // frame per accumulated step is correct for them. CORNER_KICK_GK_PLACE/CORNER_KICK_MOVE are
+    // deliberately NOT in REPLAY_ELIGIBLE_TYPES — routing them through `moveGroup` would still
+    // produce a frame the next time the group flushes (flushMoveGroup pushes a frame for every
+    // pending step regardless of the originating event's eligibility), violating "emits no frame
+    // of its own" and regressing the existing test asserting a log of only
+    // CORNER_KICK_STAGE_ADVANCE/CORNER_KICK_GK_PLACE/CORNER_KICK_MOVE produces zero frames.
+    // Mutating `current.pieces` here (like the GOAL/HALF_TIME_KICKOFF_RESET/KICK_OFF board-
+    // mutation branches below) keeps the position correction visible to every later frame —
+    // whether that frame comes from a still-in-progress `moveGroup` flush (which reads
+    // `current.pieces` as its base for untouched pieces) or from a later REPLAY_ELIGIBLE_TYPES
+    // event — without ever pushing a frame itself and without touching `current.ball` or
+    // flushing an in-progress `moveGroup`.
+    if (event.type === 'CORNER_KICK_GK_PLACE' || event.type === 'CORNER_KICK_MOVE') {
+      current = {
+        ...current,
+        pieces: current.pieces.map((p) =>
+          p.id === event.pieceId ? { ...p, position: event.to } : p,
+        ),
+      };
       continue;
     }
 
