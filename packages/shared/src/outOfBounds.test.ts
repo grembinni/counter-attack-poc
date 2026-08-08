@@ -6,9 +6,16 @@ import {
   resolveThrowInHex,
   GOAL_KICK_RESTART_HEX,
   CORNER_KICK_HEX,
+  CORNER_EXCLUSION_RADIUS,
+  isWithinCornerExclusionZone,
+  cornerClearOutGoalHex,
+  isLegalClearOutStep,
+  isSpillCornerDirection,
 } from './outOfBounds.js';
 import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
 import { FORMATIONS } from './formations.js';
+import { hexesInRange, hexNeighbors, hexDistance } from './hex.js';
+import { looseBallDirectionQStep } from './scoreUtils.js';
 import type { HexCoord } from './types.js';
 
 describe('classifyExit', () => {
@@ -198,4 +205,133 @@ describe('CORNER_KICK_HEX', () => {
     const keys = hexes.map((h) => `${h.q},${h.r}`);
     expect(new Set(keys).size).toBe(hexes.length);
   });
+});
+
+describe('isWithinCornerExclusionZone (38-16, 38-15 defect 3)', () => {
+  const cornerHexes: HexCoord[] = [
+    CORNER_KICK_HEX.home.top,
+    CORNER_KICK_HEX.home.bottom,
+    CORNER_KICK_HEX.away.top,
+    CORNER_KICK_HEX.away.bottom,
+  ];
+
+  for (const cornerHex of cornerHexes) {
+    describe(`corner hex {q:${cornerHex.q},r:${cornerHex.r}}`, () => {
+      it('returns true for every probe hex at distance 0..CORNER_EXCLUSION_RADIUS', () => {
+        const withinRadius = hexesInRange(cornerHex, CORNER_EXCLUSION_RADIUS);
+        for (const probe of withinRadius) {
+          expect(isWithinCornerExclusionZone(probe, cornerHex)).toBe(true);
+        }
+      });
+
+      it('returns false for every probe hex at distance CORNER_EXCLUSION_RADIUS + 1', () => {
+        const wideRing = hexesInRange(cornerHex, CORNER_EXCLUSION_RADIUS + 1);
+        const withinRadius = hexesInRange(cornerHex, CORNER_EXCLUSION_RADIUS);
+        const withinRadiusKeys = new Set(withinRadius.map((h) => `${h.q},${h.r}`));
+        const outerRing = wideRing.filter((h) => !withinRadiusKeys.has(`${h.q},${h.r}`));
+        expect(outerRing.length).toBeGreaterThan(0);
+        for (const probe of outerRing) {
+          expect(hexDistance(probe, cornerHex)).toBe(CORNER_EXCLUSION_RADIUS + 1);
+          expect(isWithinCornerExclusionZone(probe, cornerHex)).toBe(false);
+        }
+      });
+    });
+  }
+});
+
+describe('cornerClearOutGoalHex (38-16, 38-15 defect 3)', () => {
+  it('is mirror-symmetric: home.q + away.q === 36 and home.r === away.r', () => {
+    const home = cornerClearOutGoalHex('home');
+    const away = cornerClearOutGoalHex('away');
+    expect(home.q + away.q).toBe(36);
+    expect(home.r).toBe(away.r);
+  });
+
+  it('r equals the middle element of GOAL_R_VALUES for both teams', () => {
+    const midpoint = GOAL_R_VALUES[Math.floor(GOAL_R_VALUES.length / 2)];
+    expect(cornerClearOutGoalHex('home').r).toBe(midpoint);
+    expect(cornerClearOutGoalHex('away').r).toBe(midpoint);
+  });
+
+  it("home.q is 0 and away.q is 36 (this module's byline convention)", () => {
+    expect(cornerClearOutGoalHex('home').q).toBe(0);
+    expect(cornerClearOutGoalHex('away').q).toBe(36);
+  });
+});
+
+describe('isLegalClearOutStep (38-16, 38-15 defect 3)', () => {
+  const cornerHex = CORNER_KICK_HEX.home.top;
+  const goalHex = cornerClearOutGoalHex('home');
+
+  it('a neighbour that increases corner-distance and decreases-or-holds goal-distance is legal', () => {
+    const legalNeighbour = hexNeighbors(cornerHex).find(
+      (n) =>
+        hexDistance(n, cornerHex) > hexDistance(cornerHex, cornerHex) &&
+        hexDistance(n, goalHex) <= hexDistance(cornerHex, goalHex),
+    );
+    expect(legalNeighbour).toBeDefined();
+    expect(isLegalClearOutStep(cornerHex, legalNeighbour, cornerHex, goalHex)).toBe(true);
+  });
+
+  it('a neighbour that decreases corner-distance is illegal', () => {
+    // Start one step away from the corner so a step back to the corner decreases distance.
+    const from = hexNeighbors(cornerHex).find((n) => hexDistance(n, cornerHex) === 1);
+    expect(from).toBeDefined();
+    expect(hexDistance(cornerHex, cornerHex)).toBeLessThan(hexDistance(from, cornerHex));
+    expect(isLegalClearOutStep(from, cornerHex, cornerHex, goalHex)).toBe(false);
+  });
+
+  it('a neighbour that increases goal-distance is illegal', () => {
+    const badNeighbour = hexNeighbors(cornerHex).find(
+      (n) =>
+        hexDistance(n, cornerHex) > hexDistance(cornerHex, cornerHex) &&
+        hexDistance(n, goalHex) > hexDistance(cornerHex, goalHex),
+    );
+    expect(badNeighbour).toBeDefined();
+    expect(isLegalClearOutStep(cornerHex, badNeighbour, cornerHex, goalHex)).toBe(false);
+  });
+
+  it('every hex inside the exclusion zone with an on-pitch neighbour has at least one legal step (no-deadlock-by-construction)', () => {
+    const zoneHexes = hexesInRange(cornerHex, CORNER_EXCLUSION_RADIUS).filter((h) => isPitchHex(h));
+    for (const from of zoneHexes) {
+      const onPitchNeighbours = hexNeighbors(from).filter((n) => isPitchHex(n));
+      if (onPitchNeighbours.length === 0) continue;
+      const hasLegalStep = onPitchNeighbours.some((to) =>
+        isLegalClearOutStep(from, to, cornerHex, goalHex),
+      );
+      expect(hasLegalStep).toBe(true);
+    }
+  });
+});
+
+describe('isSpillCornerDirection (D-GAP-02, 38-16)', () => {
+  const directions: (1 | 2 | 3 | 4 | 5 | 6)[] = [1, 2, 3, 4, 5, 6];
+
+  for (const keeperTeamId of ['home', 'away'] as const) {
+    describe(`keeperTeamId = ${keeperTeamId}`, () => {
+      const ownBylineStep = keeperTeamId === 'home' ? -1 : 1;
+      const oppositeBylineStep = keeperTeamId === 'home' ? 1 : -1;
+
+      const cornerDirections = directions.filter((d) => isSpillCornerDirection(d, keeperTeamId));
+      const noCornerDirections = directions.filter((d) => !isSpillCornerDirection(d, keeperTeamId));
+
+      it('awards a corner for exactly 4 of the 6 directions', () => {
+        expect(cornerDirections.length).toBe(4);
+      });
+
+      it('the 4 corner-awarding directions are exactly those with qStep 0 or the own-byline step', () => {
+        for (const d of cornerDirections) {
+          const qStep = looseBallDirectionQStep(d);
+          expect(qStep === 0 || qStep === ownBylineStep).toBe(true);
+        }
+      });
+
+      it('the 2 non-corner directions are exactly those pointing toward the opposite byline', () => {
+        expect(noCornerDirections.length).toBe(2);
+        for (const d of noCornerDirections) {
+          expect(looseBallDirectionQStep(d)).toBe(oppositeBylineStep);
+        }
+      });
+    });
+  }
 });
