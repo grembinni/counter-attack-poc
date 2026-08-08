@@ -128,3 +128,17 @@ None - no external service configuration required.
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-08_
+
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/server/src/**tests**/gameEngine.test.ts
+- FOUND: packages/server/src/**tests**/gameEngine.cornerKick.test.ts
+- FOUND: packages/server/src/**tests**/gameEngine.phase17.test.ts
+- FOUND: packages/server/src/**tests**/gameEngine.rule11.test.ts
+- FOUND: .planning/phases/38-corner-kick/deferred-items.md
+- FOUND: .planning/phases/38-corner-kick/38-14-SUMMARY.md
+- FOUND: commit 67ab728 (Task 1)
+- FOUND: commit e44bffb (Task 2)
+- FOUND: commit 9a392e2 (Task 3)
+- FOUND: commit e21e5ee (SUMMARY.md)
