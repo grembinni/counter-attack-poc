@@ -676,6 +676,9 @@ const CORNER_KICK_TEARDOWN = {
   cornerKickMoveSlot: null,
   cornerKickMovedPieceId: null,
   cornerKickPaceUsed: 0,
+  // 38-23 (T-38-77): a resolved corner must not leave a stale spill marker behind for a
+  // later, unrelated loose ball to mis-read as a direction-only corner award.
+  gkSpillKeeperId: null,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -2888,10 +2891,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         } else {
           // 38-14 (closes Phase 17.1 D-07): a failed handling check spills the ball — it
           // becomes a real Loose Ball scattering from the keeper's dive-adjusted hex, not a
-          // clean catch. The next LOOSE_BALL case's scatter walk (and its existing
-          // triggerOutOfBoundsRestart call) classifies a byline-ward exit as a Corner Kick,
-          // mirroring the SHOT duel-tie LOOSE_BALL branch above. Possession is NOT handed to
-          // the spilling keeper's team — no activeTeam/attackingTeam reassignment here.
+          // clean catch. Possession is NOT handed to the spilling keeper's team — no
+          // activeTeam/attackingTeam reassignment here.
+          // 38-23 (D-GAP-02 correction): `gkSpillKeeperId` — NOT `ball.lastTouchedBy` — is
+          // what applyRoll's LOOSE_BALL case reads to decide the direction-only corner award.
+          // The SHOT duel-tie LOOSE_BALL branch above ALSO sets `ball.lastTouchedBy` to this
+          // same keeper but deliberately does NOT set `gkSpillKeeperId`, so a duel-tie
+          // deflection can never be mistaken for a spill. The scatter walk (and its existing
+          // triggerOutOfBoundsRestart call) still runs for the "in front of the GK" case.
           return {
             ok: true,
             state: {
@@ -2903,6 +2910,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 carrierId: null,
                 lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
               },
+              gkSpillKeeperId: gk.id,
               lastDiceRoll: shotDiceRoll,
               lastActionType: 'DEFLECTION',
               lastShotPath: null, // clear path — ball is loose
@@ -3415,6 +3423,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           lastShotPath: null, // RULE-03: clear stale shot path — do not carry into CHOOSE_ACTION phase
           stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
           tackleAttemptedByIds: [], // D-02
+          // 38-23 (T-38-77): the marker never survives a resolved loose ball, whether the
+          // spill was in front of the GK (this path) or the ball simply carried on.
+          gkSpillKeeperId: null,
           // actionCount unchanged (+0 for Deflection per D-03 table)
           eventLog: [...state.eventLog, looseBallLandEvent],
         },
@@ -3470,6 +3481,9 @@ export function triggerOutOfBoundsRestart(
     tackleAttemptedByIds: [],
     lastShotPath: null,
     lastActionType: null,
+    // 38-23 (T-38-77): every restart is a fresh phase boundary — a stale spill marker
+    // must never survive into an unrelated later loose ball.
+    gkSpillKeeperId: null,
   } as const;
 
   if (restart === 'CORNER_KICK') {
