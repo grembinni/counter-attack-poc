@@ -1640,6 +1640,210 @@ describe('applyUndo — corner-kick Undo boundaries (CORNER-03/CORNER-06, T-38-1
     const result = applyUndo(finalSetupWithStageAdvanceState);
     expect(result).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
   });
+
+  // -------------------------------------------------------------------------
+  // 38-10 (gap closure) Task 1: CORNER_KICK_FINAL_SETUP Undo (CR-01)
+  // -------------------------------------------------------------------------
+
+  const finalMoveHex1 = { q: 17, r: 16 };
+  const finalMoveHex2 = { q: 18, r: 16 };
+
+  /** Single CORNER_KICK_MOVE: awayPiece moved from its base position to finalMoveHex1. */
+  const singleFinalMoveState: GameState = {
+    ...baseCornerFinalSetupState,
+    pieces: baseCornerFinalSetupState.pieces.map((p) =>
+      p.id === awayPiece.id ? { ...p, position: finalMoveHex1 } : p,
+    ),
+    cornerKickMovedPieceId: awayPiece.id,
+    cornerKickPaceUsed: 1,
+    eventLog: [
+      {
+        type: 'CORNER_KICK_MOVE',
+        slot: 'ATTACKER',
+        pieceId: awayPiece.id,
+        from: awayPiece.position,
+        to: finalMoveHex1,
+        timestamp: 1000,
+      },
+    ],
+  };
+
+  it('CORNER_KICK_FINAL_SETUP: Undo finds the CORNER_KICK_MOVE event and reverts the piece', () => {
+    const result = applyUndo(singleFinalMoveState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const moved = result.state.pieces.find((p) => p.id === awayPiece.id);
+    expect(moved?.position).toEqual(awayPiece.position);
+    const remaining = result.state.eventLog.filter((e) => e.type === 'CORNER_KICK_MOVE');
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: Undo refunds cornerKickPaceUsed and releases cornerKickMovedPieceId at zero', () => {
+    const result = applyUndo(singleFinalMoveState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickMovedPieceId).toBeNull();
+    expect(result.state.cornerKickPaceUsed).toBe(0);
+  });
+
+  /** Two successive CORNER_KICK_MOVE steps by the same piece; cornerKickPaceUsed is 2. */
+  const twoFinalMoveState: GameState = {
+    ...baseCornerFinalSetupState,
+    pieces: baseCornerFinalSetupState.pieces.map((p) =>
+      p.id === awayPiece.id ? { ...p, position: finalMoveHex2 } : p,
+    ),
+    cornerKickMovedPieceId: awayPiece.id,
+    cornerKickPaceUsed: 2,
+    eventLog: [
+      {
+        type: 'CORNER_KICK_MOVE',
+        slot: 'ATTACKER',
+        pieceId: awayPiece.id,
+        from: awayPiece.position,
+        to: finalMoveHex1,
+        timestamp: 1000,
+      },
+      {
+        type: 'CORNER_KICK_MOVE',
+        slot: 'ATTACKER',
+        pieceId: awayPiece.id,
+        from: finalMoveHex1,
+        to: finalMoveHex2,
+        timestamp: 2000,
+      },
+    ],
+  };
+
+  it('CORNER_KICK_FINAL_SETUP: partial Undo keeps cornerKickMovedPieceId locked while pace remains', () => {
+    const result = applyUndo(twoFinalMoveState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const moved = result.state.pieces.find((p) => p.id === awayPiece.id);
+    expect(moved?.position).toEqual(finalMoveHex1);
+    expect(result.state.cornerKickMovedPieceId).toBe(awayPiece.id);
+    expect(result.state.cornerKickPaceUsed).toBe(1);
+    const remaining = result.state.eventLog.filter((e) => e.type === 'CORNER_KICK_MOVE');
+    expect(remaining).toHaveLength(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // 38-10 (gap closure) Task 2: CORNER_KICK_REPOSITION Undo (CR-02)
+  // -------------------------------------------------------------------------
+
+  const repoMoveHex1 = { q: 11, r: 16 };
+  const repoMoveHex2 = { q: 12, r: 16 };
+
+  /**
+   * cornerKickUsedPace carries 2 "prior-stage" hexes plus 1 from the single current-stage
+   * MOVE below (total 3) — proves the refund decrements the running total without wrongly
+   * zeroing out pace earned in earlier stages (D-GAP-01 / CR-02 cross-stage case). The
+   * piece's only current-stage MOVE is undone, so it must also leave cornerKickStagePlacedIds.
+   */
+  const priorStagePaceRepositionState: GameState = {
+    ...baseCornerRepositionState,
+    pieces: baseCornerRepositionState.pieces.map((p) =>
+      p.id === awayPiece2.id ? { ...p, position: repoMoveHex1 } : p,
+    ),
+    cornerKickUsedPace: { [awayPiece2.id]: 3 },
+    cornerKickStagePlacedIds: [awayPiece2.id],
+    eventLog: [
+      {
+        type: 'MOVE',
+        pieceId: awayPiece2.id,
+        from: awayPiece2.position,
+        to: repoMoveHex1,
+        slot: 'ATTACKER_4',
+        timestamp: 1000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it("CORNER_KICK_REPOSITION: Undo refunds the piece's cornerKickUsedPace entry", () => {
+    const result = applyUndo(priorStagePaceRepositionState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 3 (2 prior-stage + 1 current-stage) refunded by 1 step -> 2, NOT deleted and NOT 0 —
+    // prior-stage pace must survive the undo of a later-stage move.
+    expect(result.state.cornerKickUsedPace?.[awayPiece2.id]).toBe(2);
+    // The piece's only current-stage MOVE was undone, so it leaves cornerKickStagePlacedIds
+    // even though its cumulative pace budget is still partially consumed.
+    expect(result.state.cornerKickStagePlacedIds).not.toContain(awayPiece2.id);
+  });
+
+  /** Single current-stage MOVE with no prior-stage pace — the refund must delete the key. */
+  const singleStagePaceRepositionState: GameState = {
+    ...baseCornerRepositionState,
+    pieces: baseCornerRepositionState.pieces.map((p) =>
+      p.id === awayPiece2.id ? { ...p, position: repoMoveHex1 } : p,
+    ),
+    cornerKickUsedPace: { [awayPiece2.id]: 1 },
+    cornerKickStagePlacedIds: [awayPiece2.id],
+    eventLog: [
+      {
+        type: 'MOVE',
+        pieceId: awayPiece2.id,
+        from: awayPiece2.position,
+        to: repoMoveHex1,
+        slot: 'ATTACKER_4',
+        timestamp: 1000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it('CORNER_KICK_REPOSITION: Undo drops the piece from cornerKickStagePlacedIds when its only stage move is unwound', () => {
+    const result = applyUndo(singleStagePaceRepositionState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Running total reaches 0 -> key deleted entirely (mirrors goalKickUsedPace).
+    expect(result.state.cornerKickUsedPace).not.toHaveProperty(awayPiece2.id);
+    expect(result.state.cornerKickStagePlacedIds).not.toContain(awayPiece2.id);
+  });
+
+  /** Two current-stage MOVE events by the same piece — undoing the last leaves one behind. */
+  const twoStageMovesRepositionState: GameState = {
+    ...baseCornerRepositionState,
+    pieces: baseCornerRepositionState.pieces.map((p) =>
+      p.id === awayPiece2.id ? { ...p, position: repoMoveHex2 } : p,
+    ),
+    cornerKickUsedPace: { [awayPiece2.id]: 2 },
+    cornerKickStagePlacedIds: [awayPiece2.id],
+    eventLog: [
+      {
+        type: 'MOVE',
+        pieceId: awayPiece2.id,
+        from: awayPiece2.position,
+        to: repoMoveHex1,
+        slot: 'ATTACKER_4',
+        timestamp: 1000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'MOVE',
+        pieceId: awayPiece2.id,
+        from: repoMoveHex1,
+        to: repoMoveHex2,
+        slot: 'ATTACKER_4',
+        timestamp: 2000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it('CORNER_KICK_REPOSITION: Undo keeps the piece in cornerKickStagePlacedIds when another move by it remains in the stage', () => {
+    const result = applyUndo(twoStageMovesRepositionState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const moved = result.state.pieces.find((p) => p.id === awayPiece2.id);
+    expect(moved?.position).toEqual(repoMoveHex1);
+    expect(result.state.cornerKickUsedPace?.[awayPiece2.id]).toBe(1);
+    expect(result.state.cornerKickStagePlacedIds).toContain(awayPiece2.id);
+    const remaining = result.state.eventLog.filter(
+      (e) => e.type === 'MOVE' && e.pieceId === awayPiece2.id,
+    );
+    expect(remaining).toHaveLength(1);
+  });
 });
 
 describe('buildReplayFrames — corner-kick replay eligibility (T-38-15, 38-04 Task 2)', () => {

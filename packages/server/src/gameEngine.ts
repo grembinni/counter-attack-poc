@@ -1672,7 +1672,12 @@ export function applyUndo(state: GameState): ApplyUndoResult {
               ? 'FK_SETUP_MOVE'
               : state.phase === 'GOAL_KICK_MOVE'
                 ? 'GOAL_KICK_MOVE' // GOALKICK-05 (Phase 37, 37-02)
-                : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE, GOAL_KICK_SETUP_GK/OPPONENT (applyMove emits MOVE)
+                : // CR-01 (38-10, gap closure): applyCornerKickFinalMove emits CORNER_KICK_MOVE,
+                  // never MOVE, so the 'MOVE' default below would never match and Undo would
+                  // silently no-op (38-REVIEW.md CR-01).
+                  state.phase === 'CORNER_KICK_FINAL_SETUP'
+                  ? 'CORNER_KICK_MOVE'
+                  : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE, GOAL_KICK_SETUP_GK/OPPONENT (applyMove emits MOVE)
 
   // Find the last MOVE (or phase-appropriate HP_MOVE/FTP_MOVE) in the current slot
   const lastMoveRelIdx = currentSlotEvents.reduce<number>((acc, evt, idx) => {
@@ -1704,7 +1709,8 @@ export function applyUndo(state: GameState): ApplyUndoResult {
         | 'GK_KICK_MOVE'
         | 'SNAP_DEFLECT_MOVE'
         | 'FK_SETUP_MOVE'
-        | 'GOAL_KICK_MOVE'; // GOALKICK-05 (Phase 37, 37-02)
+        | 'GOAL_KICK_MOVE' // GOALKICK-05 (Phase 37, 37-02)
+        | 'CORNER_KICK_MOVE'; // CR-01 (38-10, gap closure)
     }
   >;
 
@@ -1826,7 +1832,54 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                       }
                       return { goalKickUsedPace: nextUsedPace };
                     })()
-                  : {};
+                  : state.phase === 'CORNER_KICK_FINAL_SETUP'
+                    ? (() => {
+                        // CR-01 (38-10, gap closure): mirrors the GOAL_KICK_MOVE branch's shape
+                        // exactly — cornerKickPaceUsed is the CORNER_KICK_FINAL_SETUP-equivalent
+                        // scalar pace field, and cornerKickMovedPieceId is its single-piece lock.
+                        const rem = Math.max(0, (state.cornerKickPaceUsed ?? 0) - stepDistance);
+                        return rem > 0
+                          ? { cornerKickPaceUsed: rem }
+                          : { cornerKickMovedPieceId: null, cornerKickPaceUsed: 0 };
+                      })()
+                    : state.phase === 'CORNER_KICK_REPOSITION'
+                      ? (() => {
+                          // CR-02 (38-10, gap closure): refund the per-piece running-total pace
+                          // budget (mirrors the goalKickUsedPace arm above, field renamed), and
+                          // separately release the piece's slot in the current stage's
+                          // 2-distinct-piece cap (D-GAP-01) — driven by remaining current-stage
+                          // MOVE events for this piece, NOT by the pace value reaching 0, because
+                          // cornerKickUsedPace is a running total across all six stages (see
+                          // applyCornerKickReposition's doc comment) and would only reach 0 for a
+                          // piece touched in a single stage.
+                          const currentUsed = state.cornerKickUsedPace?.[moveToUndo.pieceId] ?? 0;
+                          const rem = Math.max(0, currentUsed - stepDistance);
+                          const nextUsedPace = { ...(state.cornerKickUsedPace ?? {}) };
+                          if (rem > 0) {
+                            nextUsedPace[moveToUndo.pieceId] = rem;
+                          } else {
+                            delete nextUsedPace[moveToUndo.pieceId];
+                          }
+
+                          const remainingStageMovesForPiece = currentSlotEvents.filter(
+                            (e, idx) =>
+                              idx !== lastMoveRelIdx &&
+                              e.type === 'MOVE' &&
+                              e.pieceId === moveToUndo.pieceId,
+                          ).length;
+                          const nextStagePlacedIds =
+                            remainingStageMovesForPiece === 0
+                              ? (state.cornerKickStagePlacedIds ?? []).filter(
+                                  (id) => id !== moveToUndo.pieceId,
+                                )
+                              : (state.cornerKickStagePlacedIds ?? null);
+
+                          return {
+                            cornerKickUsedPace: nextUsedPace,
+                            cornerKickStagePlacedIds: nextStagePlacedIds,
+                          };
+                        })()
+                      : {};
 
   return {
     ok: true,
