@@ -95,3 +95,28 @@ export function computeLooseBall(
   const cube = toCube(from);
   return fromCube(cube.x + dir.x * distance, cube.y + dir.y * distance, cube.z + dir.z * distance);
 }
+
+/**
+ * D-GAP-02 (Phase 38 gap-closure round 2, 38-16): the offset-column step (-1, 0, or +1) a
+ * Loose Ball direction would take, derived DIRECTLY from the module-private direction table
+ * above — it does NOT restate the six direction literals in a second table, so a future edit
+ * to the direction table cannot desync the corner-award rule from the scatter geometry.
+ *
+ * Cube `x` is the offset-column delta because `toCube`/`fromCube` map cube `x` directly to
+ * offset `q` (`toCube` sets `x = h.q`; `fromCube` sets `q = x`). Therefore a return of `+1`
+ * means "one column toward higher q", `-1` means "one column toward lower q", and `0` means
+ * the direction is purely vertical (no column change).
+ *
+ * Consumer: `isSpillCornerDirection` in `outOfBounds.ts` (D-GAP-02 direction-only corner
+ * award rule).
+ *
+ * @param direction - Direction die value (1-6); 1=E, 2=NE, 3=NW, 4=W, 5=SW, 6=SE
+ * @returns The offset-column step this direction takes: -1, 0, or +1
+ */
+export function looseBallDirectionQStep(direction: 1 | 2 | 3 | 4 | 5 | 6): -1 | 0 | 1 {
+  // Non-null assertion required by noUncheckedIndexedAccess.
+  // Safe by construction: the literal union 1|2|3|4|5|6 maps to indices 0-5 exactly.
+  const step = LOOSE_BALL_CUBE_DIRECTIONS[direction - 1]!.x;
+  // step is always -1, 0, or 1 by construction of the direction table above.
+  return step as -1 | 0 | 1;
+}
