@@ -46,11 +46,17 @@ The human verifier gave the above verdicts from code review context but explicit
 
 1. Make Low Pass corners interceptable (A2 correction) — High Pass corners stay non-interceptable via the existing header-contest resolution.
 2. Implement the real GK save-spill Loose Ball mechanic: scatter the ball on spill; if the landing direction is next to/behind the GK, route through `classifyOutOfBounds`/`triggerOutOfBoundsRestart` to award a Corner Kick; otherwise roll distance and continue play normally (replacing the current "spill treated as clean catch" placeholder).
-3. Re-run the full two-browser walkthrough (plan 38-09's `<how-to-verify>` steps 1, 3, 5, 6, 7, 8) once 1-2 are fixed, and record a final CONFIRMED/CORRECTED verdict.
+3. **[38-REVIEW.md CR-01, BLOCKER]** `applyUndo`'s `moveTypeForPhase` has no case for `CORNER_KICK_FINAL_SETUP` — it falls through to the `'MOVE'` default and never finds the `CORNER_KICK_MOVE` event it actually needs to undo, so Undo is a complete no-op (always `NOTHING_TO_UNDO`/`UNDO_LOCKED`) in that phase despite being listed in `validUndoPhases`. Add the missing `moveTypeForPhase` case and a matching `lockReset` branch (see 38-REVIEW.md for the exact fix). Also strengthen the masking test (`gameHandlers.cornerKick.test.ts:978`) to assert the piece's position actually reverted and no `GAME_ERROR` fired, not just `state.phase`.
+4. **[38-REVIEW.md CR-02, BLOCKER]** `applyUndo`'s `lockReset` has no branch for `CORNER_KICK_REPOSITION` — an undone move correctly reverts the piece's position but never refunds `cornerKickUsedPace`/`cornerKickStagePlacedIds`, silently and permanently burning part of that piece's 6-hex budget every time Undo is used. Add the missing `lockReset` branch (see 38-REVIEW.md for the exact fix), and decide whether an undone-to-zero piece should also be cleared from `cornerKickStagePlacedIds`.
+5. **[38-REVIEW.md WR-01, WARNING]** `buildReplayFrames` never updates piece positions for `CORNER_KICK_GK_PLACE`/`CORNER_KICK_MOVE` events, so a keeper or player who moved during a corner kick appears at a stale position for the rest of the post-match replay.
+6. **[38-REVIEW.md WR-02, WARNING]** `applyCornerKickReposition` hardcodes the per-stage 2-distinct-piece cap instead of reading `CORNER_KICK_STAGES[stageIndex].max` — will silently diverge from the client if that table's `max` is ever varied per stage.
+7. Re-run the full two-browser walkthrough (plan 38-09's `<how-to-verify>` steps 1, 3, 5, 6, 7, 8) once 1-6 are fixed, including an explicit Undo check during both `CORNER_KICK_REPOSITION` and `CORNER_KICK_FINAL_SETUP`, and record a final CONFIRMED/CORRECTED verdict.
+
+Full detail and suggested code for items 3-6: `.planning/phases/38-corner-kick/38-REVIEW.md`.
 
 ## Next Phase Readiness
 
-Phase 38 is **not** ready to be marked complete. Route to `/gsd-plan-phase 38 --gaps` to create gap-closure plans for the two items above, then `/gsd-execute-phase 38 --gaps-only` to execute them, then re-run this checkpoint's deferred verification steps.
+Phase 38 is **not** ready to be marked complete. Route to `/gsd-plan-phase 38 --gaps` to create gap-closure plans for all items above, then `/gsd-execute-phase 38 --gaps-only` to execute them, then re-run this checkpoint's deferred verification steps.
 
 ---
 
