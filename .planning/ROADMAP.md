@@ -224,7 +224,7 @@ Plans:
 3. Immediately before the kick, in a second, separate repositioning window, both teams may each move one more player up to 3 hexes, attacking manager first.
 4. The corner is taken as a High Pass (any hex in the penalty area with no distance limit, or elsewhere up to 15 hexes, receiver must attempt a header) or a Low Pass (no header), with the existing combined-score 8+ accuracy check applied to whichever is chosen.
 
-**Plans**: 15 plans (9 original + 6 gap closure)
+**Plans**: 24 plans (9 original + 6 gap closure + 9 second-round gap closure)
 Plans:
 **Wave 1**
 
@@ -276,6 +276,33 @@ Plans:
 **Wave 12** _(gap closure re-verification, blocked on all code-fix plans)_
 
 - [x] 38-15-PLAN.md — Human verification: post-gap-closure two-browser walkthrough, D-GAP-01/D-GAP-02 rulings
+
+**Wave 13** _(second gap-closure round from 38-15-SUMMARY.md — 4 new defects + the D-GAP-02 correction)_
+
+- [ ] 38-16-PLAN.md — Shared contracts: clear-out phase/event, activation + clear-out-slot + spill-keeper state, exclusion-zone and direction-only helpers
+
+**Wave 14** _(blocked on Wave 13; three plans run in parallel, no file overlap)_
+
+- [ ] 38-17-PLAN.md — Engine: uncapped CORNER-03 reposition + one-activation-per-piece lock (defects 1 and 2, D-GAP-03)
+- [ ] 38-18-PLAN.md — Client: uncapped reposition, activated rendering, corrected panel copy (defects 1 and 2)
+- [ ] 38-19-PLAN.md — Client: restart banners for Throw In / Goal Kick / Corner Kick / Free Kick (defect 4)
+
+**Wave 15** _(blocked on Wave 14)_
+
+- [ ] 38-20-PLAN.md — Engine: CORNER_KICK_CLEAR_OUT phase + permanent defender exclusion zone (defect 3)
+
+**Wave 16** _(blocked on Wave 15)_
+
+- [ ] 38-21-PLAN.md — Handlers: clear-out socket surface + socket-level integration coverage (defect 3)
+
+**Wave 17** _(blocked on Wave 16; two plans run in parallel, no file overlap)_
+
+- [ ] 38-22-PLAN.md — Client: clear-out panel, phase registration, exclusion-zone destination mirror (defect 3)
+- [ ] 38-23-PLAN.md — Engine: D-GAP-02 corrected — direction-only corner award on a spilled save
+
+**Wave 18** _(second gap-closure re-verification, blocked on all code-fix plans)_
+
+- [ ] 38-24-PLAN.md — Human verification: full ten-step two-browser walkthrough, D-GAP-03 ruling
 
 **UI hint**: yes
 
