@@ -428,8 +428,17 @@ function seedCornerKickReposition(
   attackingIds: string[];
   attackingStarts: HexCoord[];
   attackingNeighbors: HexCoord[];
+  // 38-17 (D-GAP-03): three DISTINCT defending pieces, one per defending stage (1, 3, 5) —
+  // a piece activated in one stage is now PIECE_LOCKED in any later stage, so the 3
+  // defending-stage occurrences across a full 6-stage walk can no longer reuse one piece.
+  defendingIds: string[];
+  defendingStarts: HexCoord[];
+  defendingNeighbors: HexCoord[];
+  /** @deprecated use defendingIds[0] — kept for tests that only ever touch one defender. */
   defendingId: string;
+  /** @deprecated use defendingStarts[0]. */
   defendingStart: HexCoord;
+  /** @deprecated use defendingNeighbors[0]. */
   defendingNeighbor: HexCoord;
 } {
   const room = getRoom(roomCode);
@@ -442,7 +451,9 @@ function seedCornerKickReposition(
   const attacking1 = awayOutfield[1]!;
   const attacking2 = awayOutfield[2]!;
   const attacking3 = awayOutfield[3]!;
-  const defending = homeOutfield[0]!;
+  const defending1 = homeOutfield[0]!;
+  const defending2 = homeOutfield[1]!;
+  const defending3 = homeOutfield[2]!;
 
   const ATTACKING_STARTS: HexCoord[] = [
     { q: 20, r: 10 },
@@ -452,20 +463,36 @@ function seedCornerKickReposition(
   const ATTACKING_NEIGHBORS = ATTACKING_STARTS.map(
     (h) => hexNeighbors(h).find((n) => isPitchHex(n))!,
   );
-  const DEFENDING_START: HexCoord = { q: 10, r: 10 };
-  const DEFENDING_NEIGHBOR = hexNeighbors(DEFENDING_START).find((h) => isPitchHex(h))!;
+  const DEFENDING_STARTS: HexCoord[] = [
+    { q: 10, r: 10 },
+    { q: 10, r: 12 },
+    { q: 10, r: 14 },
+  ];
+  const DEFENDING_NEIGHBORS = DEFENDING_STARTS.map(
+    (h) => hexNeighbors(h).find((n) => isPitchHex(n))!,
+  );
 
   let pieces = room.gameState.pieces.map((p) => {
     if (p.id === taker.id) return { ...p, position: CORNER_HEX };
     if (p.id === attacking1.id) return { ...p, position: ATTACKING_STARTS[0]! };
     if (p.id === attacking2.id) return { ...p, position: ATTACKING_STARTS[1]! };
     if (p.id === attacking3.id) return { ...p, position: ATTACKING_STARTS[2]! };
-    if (p.id === defending.id) return { ...p, position: DEFENDING_START };
+    if (p.id === defending1.id) return { ...p, position: DEFENDING_STARTS[0]! };
+    if (p.id === defending2.id) return { ...p, position: DEFENDING_STARTS[1]! };
+    if (p.id === defending3.id) return { ...p, position: DEFENDING_STARTS[2]! };
     return p;
   });
   pieces = parkBackgroundPieces(
     pieces,
-    new Set([taker.id, attacking1.id, attacking2.id, attacking3.id, defending.id]),
+    new Set([
+      taker.id,
+      attacking1.id,
+      attacking2.id,
+      attacking3.id,
+      defending1.id,
+      defending2.id,
+      defending3.id,
+    ]),
   );
 
   room.gameState = {
@@ -479,11 +506,12 @@ function seedCornerKickReposition(
     cornerKickTakerId: taker.id,
     cornerKickEligibleIds: {
       attacking: [attacking1.id, attacking2.id, attacking3.id],
-      defending: [defending.id],
+      defending: [defending1.id, defending2.id, defending3.id],
     },
     cornerKickStageIndex: stageIndex,
     cornerKickStagePlacedIds: [],
     cornerKickUsedPace: {},
+    cornerKickActivatedIds: [],
     cornerKickMoveSlot: null,
     cornerKickMovedPieceId: null,
     cornerKickPaceUsed: 0,
@@ -504,9 +532,12 @@ function seedCornerKickReposition(
     attackingIds: [attacking1.id, attacking2.id, attacking3.id],
     attackingStarts: ATTACKING_STARTS,
     attackingNeighbors: ATTACKING_NEIGHBORS,
-    defendingId: defending.id,
-    defendingStart: DEFENDING_START,
-    defendingNeighbor: DEFENDING_NEIGHBOR,
+    defendingIds: [defending1.id, defending2.id, defending3.id],
+    defendingStarts: DEFENDING_STARTS,
+    defendingNeighbors: DEFENDING_NEIGHBORS,
+    defendingId: defending1.id,
+    defendingStart: DEFENDING_STARTS[0]!,
+    defendingNeighbor: DEFENDING_NEIGHBORS[0]!,
   };
 }
 
@@ -931,7 +962,13 @@ describe('CORNER-02: GAME_CORNER_KICK_TAKER', () => {
 describe('CORNER-03: the 6-stage alternating reposition window', () => {
   it('driving all 6 stages with alternating game:move/game:end-turn reaches CORNER_KICK_FINAL_SETUP, rejecting every out-of-turn game:end-turn along the way', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
-    const { attackingIds, defendingId } = seedCornerKickReposition(roomCode, { stageIndex: 0 });
+    const { attackingIds, defendingIds } = seedCornerKickReposition(roomCode, { stageIndex: 0 });
+
+    // 38-17 (D-GAP-03): a piece may be activated only once per reposition window, so each of
+    // the 3 attacking stages (0, 2, 4) and each of the 3 defending stages (1, 3, 5) must move
+    // a DISTINCT piece — reusing one piece across stages of the same side is now PIECE_LOCKED.
+    let nextAttackingIdx = 0;
+    let nextDefendingIdx = 0;
 
     for (let i = 0; i < 6; i++) {
       const stageIndex = i as 0 | 1 | 2 | 3 | 4 | 5;
@@ -950,8 +987,12 @@ describe('CORNER-03: the 6-stage alternating reposition window', () => {
       expect(wrongTurnReason).toBe('WRONG_TEAM');
       expect(getRoom(roomCode)!.gameState!.cornerKickStageIndex).toBe(stageIndex);
 
-      // The acting team makes one legal move.
-      const pieceId = stageTeam === CORNER_KICK_TEAM ? attackingIds[0]! : defendingId;
+      // The acting team makes one legal move, always with a piece not yet activated this
+      // window.
+      const pieceId =
+        stageTeam === CORNER_KICK_TEAM
+          ? attackingIds[nextAttackingIdx++]!
+          : defendingIds[nextDefendingIdx++]!;
       const before = getRoom(roomCode)!.gameState!;
       const piece = before.pieces.find((p) => p.id === pieceId)!;
       const target = freeNeighbor(before, piece.position);
@@ -1003,7 +1044,11 @@ describe('CORNER-03: the 6-stage alternating reposition window', () => {
     expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_REPOSITION');
   });
 
-  it('moving one piece 7 single hexes (a budget that persists across the whole window, never resetting per stage) is rejected on the seventh', async () => {
+  // Reclassified by 38-17 (D-GAP-03, closing 38-15 defect 1): this test used to prove a
+  // 6-hex-per-piece budget that persisted across the whole window, rejecting a 7th move.
+  // That budget is gone — repositioning is uncapped within the activating stage. The test
+  // now proves the 7th successive move by the same piece still succeeds.
+  it('moving one piece 7 single hexes within its activating stage all succeed — movement is uncapped', async () => {
     const { clientB, roomCode } = await setupRoom();
     const { attackingIds, attackingStarts, attackingNeighbors } = seedCornerKickReposition(
       roomCode,
@@ -1014,19 +1059,15 @@ describe('CORNER-03: the 6-stage alternating reposition window', () => {
     const neighbor = attackingNeighbors[0]!;
     const targets = [neighbor, start, neighbor, start, neighbor, start, neighbor];
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
       clientB.emit(ClientEvents.GAME_MOVE, pieceId, targets[i]!);
       const [state] = await statePromise;
       expect(state.cornerKickUsedPace?.[pieceId]).toBe(i + 1);
     }
 
-    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
-    clientB.emit(ClientEvents.GAME_MOVE, pieceId, targets[6]!);
-    const [reason] = await errorPromise;
-
-    expect(reason).toBe('PACE_EXHAUSTED');
-    expect(getRoom(roomCode)!.gameState!.cornerKickUsedPace?.[pieceId]).toBe(6);
+    expect(getRoom(roomCode)!.gameState!.cornerKickUsedPace?.[pieceId]).toBe(7);
+    expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_REPOSITION');
   });
 });
 

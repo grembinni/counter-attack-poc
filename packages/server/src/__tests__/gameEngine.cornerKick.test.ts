@@ -891,10 +891,14 @@ describe('applyCornerKickReposition', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('six successive successful single-hex moves of the same piece leave cornerKickUsedPace at 6, and a seventh returns PACE_EXHAUSTED', () => {
+  // Reclassified by 38-17 (D-GAP-03, closing 38-15 defect 1): this test used to prove a
+  // 6-hex-per-piece cap with a 7th move rejected PACE_EXHAUSTED. That cap is gone —
+  // repositioning is now uncapped within an activating stage; the test now proves exactly
+  // that a 7th successive move by the same piece still succeeds.
+  it('seven successive successful single-hex moves of the same piece all succeed — movement is uncapped', () => {
     let state = baseCornerRepositionState;
     let pos = awayPiece.position;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       const to = { q: pos.q + 1, r: pos.r };
       const result = applyCornerKickReposition(state, awayPiece.id, to);
       expect(result.ok).toBe(true);
@@ -902,10 +906,9 @@ describe('applyCornerKickReposition', () => {
       state = result.state;
       pos = to;
     }
-    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(6);
-
-    const seventh = applyCornerKickReposition(state, awayPiece.id, { q: pos.q + 1, r: pos.r });
-    expect(seventh).toEqual({ ok: false, reason: 'PACE_EXHAUSTED' });
+    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(7);
+    const moved = state.pieces.find((p) => p.id === awayPiece.id)!;
+    expect(moved.position.q - awayPiece.position.q).toBe(7);
   });
 
   it('rejects STAGE_LIMIT_REACHED for a third distinct piece in the same stage; re-moving one of the first two succeeds without growing the placed-id set', () => {
@@ -978,6 +981,158 @@ describe('applyCornerKickReposition', () => {
       r: alreadyPlacedPiece.position.r,
     });
     expect(accepted.ok).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 38-17 (gap closure round 2): D-GAP-03 — uncapped reposition + one activation
+// per piece per window (closes 38-15 defects 1 and 2)
+// ---------------------------------------------------------------------------
+
+describe('D-GAP-03: uncapped reposition + one activation per piece per window', () => {
+  it('a repositioning piece may take more than six single-hex steps in one stage', () => {
+    const startState: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 1,
+      activeTeam: 'home', // stage 1 is the defending side (home, since cornerKickTeam is away)
+    };
+    let state = startState;
+    let pos = homePiece.position;
+    for (let i = 0; i < 7; i++) {
+      const to = { q: pos.q - 1, r: pos.r };
+      const result = applyCornerKickReposition(state, homePiece.id, to);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      state = result.state;
+      pos = to;
+    }
+    const moved = state.pieces.find((p) => p.id === homePiece.id)!;
+    expect(homePiece.position.q - moved.position.q).toBe(7);
+  });
+
+  it('a piece activated in an earlier stage is rejected with PIECE_LOCKED in a later stage', () => {
+    const firstMove = applyCornerKickReposition(baseCornerRepositionState, awayPiece.id, {
+      q: 17,
+      r: 16,
+    });
+    expect(firstMove.ok).toBe(true);
+    if (!firstMove.ok) return;
+    expect(firstMove.state.cornerKickActivatedIds).toContain(awayPiece.id);
+
+    // stage 0 -> stage 1 (defending/home)
+    const advance1 = applyCornerKickStageEnd(firstMove.state, 'away');
+    expect(advance1.ok).toBe(true);
+    if (!advance1.ok) return;
+
+    // stage 1 -> stage 2 (attacking/away again)
+    const advance2 = applyCornerKickStageEnd(advance1.state, 'home');
+    expect(advance2.ok).toBe(true);
+    if (!advance2.ok) return;
+    expect(advance2.state.cornerKickStageIndex).toBe(2);
+    expect(advance2.state.activeTeam).toBe('away');
+    // The lock survives both advances — cornerKickStagePlacedIds resets per stage, but
+    // cornerKickActivatedIds does not.
+    expect(advance2.state.cornerKickStagePlacedIds).toEqual([]);
+    expect(advance2.state.cornerKickActivatedIds).toContain(awayPiece.id);
+
+    const lockedAttempt = applyCornerKickReposition(advance2.state, awayPiece.id, {
+      q: 18,
+      r: 16,
+    });
+    expect(lockedAttempt).toEqual({ ok: false, reason: 'PIECE_LOCKED' });
+  });
+
+  it('a piece activated this stage stays movable this stage and does not consume a second stage slot', () => {
+    let state = baseCornerRepositionState;
+
+    const aFirst = applyCornerKickReposition(state, awayPiece.id, { q: 17, r: 16 });
+    expect(aFirst.ok).toBe(true);
+    if (!aFirst.ok) return;
+    state = aFirst.state;
+
+    const aSecond = applyCornerKickReposition(state, awayPiece.id, { q: 18, r: 16 });
+    expect(aSecond.ok).toBe(true);
+    if (!aSecond.ok) return;
+    state = aSecond.state;
+    // Re-touching the same piece never grew the stage-placed set past 1.
+    expect(state.cornerKickStagePlacedIds).toEqual([awayPiece.id]);
+
+    const bFirst = applyCornerKickReposition(state, awayPiece2.id, { q: 11, r: 16 });
+    expect(bFirst.ok).toBe(true);
+    if (!bFirst.ok) return;
+    state = bFirst.state;
+    expect(state.cornerKickStagePlacedIds).toEqual(
+      expect.arrayContaining([awayPiece.id, awayPiece2.id]),
+    );
+    expect(state.cornerKickStagePlacedIds?.length).toBe(2);
+
+    // A third DISTINCT piece is rejected — the stage cap is unchanged by D-GAP-03.
+    const cAttempt = applyCornerKickReposition(state, awayPiece3.id, { q: 9, r: 16 });
+    expect(cAttempt).toEqual({ ok: false, reason: 'STAGE_LIMIT_REACHED' });
+
+    // Piece A is still freely movable — activated-this-stage never consumes a second slot.
+    const aThird = applyCornerKickReposition(state, awayPiece.id, { q: 19, r: 16 });
+    expect(aThird.ok).toBe(true);
+  });
+
+  it('cornerKickActivatedIds is cleared on the transition into CORNER_KICK_FINAL_SETUP', () => {
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 5,
+      activeTeam: 'home', // stage 5 is defending (home, since cornerKickTeam is away)
+      cornerKickActivatedIds: [awayPiece.id, homePiece.id],
+    };
+    expect(state.cornerKickActivatedIds?.length).toBeGreaterThan(0);
+
+    const result = applyCornerKickStageEnd(state, 'home');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+    expect(result.state.cornerKickActivatedIds).toBeNull();
+  });
+
+  const activationRefundMoveHex = { q: 11, r: 16 };
+
+  /** Single current-stage MOVE by awayPiece2 — mirrors singleStagePaceRepositionState above,
+   * with cornerKickActivatedIds also populated so the refund arm's activation filter can be
+   * proven, not just the pre-existing stage-slot filter. */
+  const activationRefundState: GameState = {
+    ...baseCornerRepositionState,
+    pieces: baseCornerRepositionState.pieces.map((p) =>
+      p.id === awayPiece2.id ? { ...p, position: activationRefundMoveHex } : p,
+    ),
+    cornerKickUsedPace: { [awayPiece2.id]: 1 },
+    cornerKickStagePlacedIds: [awayPiece2.id],
+    cornerKickActivatedIds: [awayPiece2.id],
+    eventLog: [
+      {
+        type: 'MOVE',
+        pieceId: awayPiece2.id,
+        from: awayPiece2.position,
+        to: activationRefundMoveHex,
+        slot: 'ATTACKER_4',
+        timestamp: 1000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it("undoing a piece's only move this stage releases both its stage slot and its activation", () => {
+    const result = applyUndo(activationRefundState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.cornerKickStagePlacedIds).not.toContain(awayPiece2.id);
+    expect(result.state.cornerKickActivatedIds).not.toContain(awayPiece2.id);
+
+    const moved = result.state.pieces.find((p) => p.id === awayPiece2.id)!;
+    expect(moved.position).toEqual(awayPiece2.position);
+
+    const nextMove = applyCornerKickReposition(
+      result.state,
+      awayPiece2.id,
+      activationRefundMoveHex,
+    );
+    expect(nextMove.ok).toBe(true);
   });
 });
 
@@ -1067,7 +1222,14 @@ describe('applyCornerKickStageEnd', () => {
     expect(event).toMatchObject({ type: 'CORNER_KICK_STAGE_ADVANCE', fromStageIndex: 5 });
   });
 
-  it('Pitfall 4: cornerKickUsedPace persists across stage advances — 2 hexes in stage 0 + 1 hex in stage 2 => 3 total', () => {
+  // Reclassified by 38-17 (D-GAP-03, closing 38-15 defect 2): this test used to prove that
+  // cornerKickUsedPace's per-piece running total keeps accumulating for the SAME piece across
+  // stage advances with no lock. That is no longer true — a piece touched in stage 0 is now
+  // PIECE_LOCKED in any later stage it did not activate in. The pace-persistence assertions
+  // (through the two advances) still hold and are kept; the final move is now expected to be
+  // rejected rather than accepted, and cornerKickUsedPace stays unchanged because the
+  // rejected move never applied.
+  it('Pitfall 4 (revised by D-GAP-03): cornerKickUsedPace persists across stage advances, but the piece itself is PIECE_LOCKED once a later stage begins', () => {
     let state = baseCornerRepositionState;
 
     const move1 = applyCornerKickReposition(state, awayPiece.id, { q: 17, r: 16 });
@@ -1096,10 +1258,13 @@ describe('applyCornerKickStageEnd', () => {
     expect(state.activeTeam).toBe('away'); // stage 2 is attacking again
     expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(2); // still carried forward
 
+    // D-GAP-03: awayPiece was activated back in stage 0 and never touched in stage 2 (its
+    // cornerKickStagePlacedIds was reset to [] on both advances) — a further move is now
+    // rejected PIECE_LOCKED, not accepted.
     const move3 = applyCornerKickReposition(state, awayPiece.id, { q: 19, r: 16 });
-    expect(move3.ok).toBe(true);
-    if (!move3.ok) return;
-    expect(move3.state.cornerKickUsedPace?.[awayPiece.id]).toBe(3);
+    expect(move3).toEqual({ ok: false, reason: 'PIECE_LOCKED' });
+    // The rejected move never applied — the running total is unchanged.
+    expect(state.cornerKickUsedPace?.[awayPiece.id]).toBe(2);
   });
 
   it('walks the full 6-stage sequence: attacking, defending, attacking, defending, attacking, defending', () => {
@@ -2315,6 +2480,7 @@ describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-
     expect(state.cornerKickStageIndex).toBeNull();
     expect(state.cornerKickStagePlacedIds).toBeNull();
     expect(state.cornerKickUsedPace).toBeNull();
+    expect(state.cornerKickActivatedIds).toBeNull();
     expect(state.cornerKickMoveSlot).toBeNull();
     expect(state.cornerKickMovedPieceId).toBeNull();
     expect(state.cornerKickPaceUsed).toBe(0);
