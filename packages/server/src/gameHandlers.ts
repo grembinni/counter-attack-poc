@@ -36,6 +36,7 @@ import {
   freeKickStageTeam,
   hexDistance,
   hexLine,
+  isInRegion,
   isPitchHex,
   validatePass,
 } from '@counter-attack/shared';
@@ -112,6 +113,28 @@ const THROW_IN_MAX_DISTANCE = 6;
  */
 const isThrowInContext = (lastActionType: LastActionType | null): boolean =>
   lastActionType === 'THROW_IN_MOVEMENT_1' || lastActionType === 'THROW_IN_MOVEMENT_2';
+
+/**
+ * CORNER-04: a High Pass corner aimed inside the box the attacking team is shooting at has
+ * no distance limit. `validatePass`'s `options.maxDistance` REPLACES the per-type cap
+ * entirely (see its doc comment), so a sentinel value is the correct way to express
+ * "no limit" without changing `validatePass`'s signature or adding a new cap branch there.
+ */
+const CORNER_KICK_UNLIMITED_DISTANCE = Number.MAX_SAFE_INTEGER;
+
+/**
+ * Returns true when a corner-kick restart is in progress. Reads the PERSISTENT
+ * `state.cornerKickTeam` field rather than `lastActionType` (contrast `isThrowInContext`
+ * above, which does read `lastActionType`): by the time this check runs — inside the
+ * GAME_ROLL PASS branch, at the same site that resolves `passOptions` below —
+ * `lastActionType` has already been overwritten with the client's chosen passType (see
+ * the `room.gameState = { ...room.gameState, lastActionType: passType, ... }` commit a
+ * few lines below this handler's validatePass call), so a `lastActionType`-based check
+ * would already be gone. `cornerKickTeam` survives unmodified until
+ * `applyRoll`'s own PASS-case teardown (`CORNER_KICK_TEARDOWN`, added in Plan 38-04) runs
+ * — Pitfall 3.
+ */
+const isCornerKickContext = (state: GameState): boolean => state.cornerKickTeam != null;
 
 /** Typed Server alias for the project's four generic parameters. */
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -1792,6 +1815,34 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             LONG_BALL: 'LONG',
           };
           const vpType = passTypeMap[passType];
+          // CORNER-04: resolution order for validatePass's maxDistance override.
+          // 1. Throw-in context (checked FIRST so throw-in semantics never regress —
+          //    unchanged from before this plan).
+          // 2. A corner-kick High Pass aimed inside the box the attacking team is
+          //    shooting at gets no distance limit.
+          // 3. Otherwise undefined — the ordinary per-type caps in validatePass apply.
+          //
+          // PITFALL 5 — `defendingBox` MUST be the BYLINE OWNER's own penalty area (the
+          // box the ATTACKING team is shooting at), never the kicking team's own box.
+          // `cornerKickTeam` is the team taking the corner (the attacker); the byline
+          // owner — and therefore the box being attacked — is always the OPPOSITE team.
+          // Getting this backwards would key the unlimited-range rule to the box on the
+          // opposite side of the pitch from where a corner is ever aimed, silently
+          // disabling it for every real corner.
+          let passOptions: { maxDistance?: number } | undefined;
+          if (isThrowInContext(room.gameState.lastActionType)) {
+            passOptions = { maxDistance: THROW_IN_MAX_DISTANCE };
+          } else if (isCornerKickContext(room.gameState) && passType === 'HIGH_PASS') {
+            const cornerKickTeam = room.gameState.cornerKickTeam;
+            const bylineOwnerTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+            const defendingBox: 'homePenaltyArea' | 'awayPenaltyArea' =
+              bylineOwnerTeam === 'home' ? 'homePenaltyArea' : 'awayPenaltyArea';
+            passOptions = isInRegion(targetHex, defendingBox)
+              ? { maxDistance: CORNER_KICK_UNLIMITED_DISTANCE }
+              : undefined;
+          } else {
+            passOptions = undefined;
+          }
           // Authoritative server-side validatePass (D-10) — re-runs before committing
           const passResult = validatePass(
             room.gameState,
@@ -1799,9 +1850,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             carrier.position,
             targetHex,
             vpType,
-            isThrowInContext(room.gameState.lastActionType)
-              ? { maxDistance: THROW_IN_MAX_DISTANCE }
-              : undefined,
+            passOptions,
           );
           if (!passResult.ok) {
             socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');

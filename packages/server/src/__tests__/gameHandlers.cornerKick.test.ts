@@ -405,6 +405,66 @@ function seedCornerKickReposition(
   };
 }
 
+/** A pitch-centre hex used as the ball-carrier position for the Task 3 range tests. */
+const RANGE_CARRIER_HEX: HexCoord = { q: 18, r: 13 };
+
+/**
+ * Seeds a PASS-phase state for the Task 3 range-override tests. `cornerKickTeam: null`
+ * produces a non-corner PASS state (regression group); a non-null value produces a
+ * corner PASS state with `lastActionType: 'CORNER_KICK_RESTART'`. `lastActionType`
+ * may be overridden directly for the throw-in regression case. Every other piece is
+ * parked in the MIDDLE third (mirrors goalKick.integration.test.ts's parkBackgroundPieces
+ * rationale) so no background occupant can trigger the centralized ball-zone free-move
+ * interrupt when an accepted High Pass lands the ball inside a final third.
+ */
+function seedPassRangeState(
+  roomCode: string,
+  opts: {
+    cornerKickTeam: 'home' | 'away' | null;
+    lastActionType?: 'CORNER_KICK_RESTART' | 'THROW_IN_MOVEMENT_1' | 'MOVEMENT_PHASE';
+  },
+): { carrierId: string; carrierTeam: 'home' | 'away' } {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const carrierTeam: 'home' | 'away' = opts.cornerKickTeam ?? 'home';
+  const carrier = room.gameState.pieces.find((p) => p.teamId === carrierTeam && p.role !== 'GK')!;
+
+  const pieces = room.gameState.pieces.map((p, idx) =>
+    p.id === carrier.id
+      ? { ...p, position: RANGE_CARRIER_HEX }
+      : { ...p, position: { q: 12, r: idx % 25 } },
+  );
+
+  room.gameState = {
+    ...room.gameState,
+    phase: 'PASS',
+    outOfBoundsEnabled: true,
+    pieces,
+    attackingTeam: carrierTeam,
+    activeTeam: carrierTeam,
+    kickOffActive: false,
+    lastActionType:
+      opts.lastActionType ??
+      (opts.cornerKickTeam != null ? 'CORNER_KICK_RESTART' : 'MOVEMENT_PHASE'),
+    lastDiceRoll: null,
+    passTargetHex: null,
+    cornerKickTeam: opts.cornerKickTeam,
+    cornerKickHex: opts.cornerKickTeam != null ? RANGE_CARRIER_HEX : null,
+    cornerKickTakerId: opts.cornerKickTeam != null ? carrier.id : null,
+    throwInHex: opts.lastActionType === 'THROW_IN_MOVEMENT_1' ? RANGE_CARRIER_HEX : null,
+    throwInTeam: opts.lastActionType === 'THROW_IN_MOVEMENT_1' ? carrierTeam : null,
+    throwInPhasesTaken: opts.lastActionType === 'THROW_IN_MOVEMENT_1' ? 1 : null,
+    ball: {
+      position: RANGE_CARRIER_HEX,
+      carrierId: carrier.id,
+      lastTouchedBy: { pieceId: carrier.id, teamId: carrierTeam },
+    },
+  };
+
+  return { carrierId: carrier.id, carrierTeam };
+}
+
 /** Seeds CORNER_KICK_FINAL_SETUP at the given slot (default 'ATTACKER'). */
 function seedCornerKickFinalSetup(
   roomCode: string,
@@ -991,5 +1051,151 @@ describe('GAME_ROLL rejected in corner setup phases', () => {
     const [reason] = await errorPromise;
 
     expect(reason).toBe('WRONG_PHASE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CORNER-04: penalty-area-conditional range override for a High Pass corner
+// ---------------------------------------------------------------------------
+
+describe('CORNER-04: GAME_ROLL High Pass corner range override', () => {
+  it('cornerKickTeam=away: a High corner targeting deep inside homePenaltyArea (dist 18) is accepted regardless of distance', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const { carrierId } = seedPassRangeState(roomCode, { cornerKickTeam: 'away' });
+    const room = getRoom(roomCode)!;
+    // Carrier deliberately kept in the MIDDLE third (not a final third): a carrier left
+    // behind in the OPPOSITE final third after the kick would legitimately trigger the
+    // unrelated ball-zone free-move interrupt (applyFreeMoveZoneCheck), which is real
+    // engine behavior but would obscure this test's actual subject (the range override).
+    room.gameState = {
+      ...room.gameState!,
+      pieces: room.gameState!.pieces.map((p) =>
+        p.id === carrierId ? { ...p, position: { q: 20, r: 12 } } : p,
+      ),
+      ball: { ...room.gameState!.ball, position: { q: 20, r: 12 } },
+    };
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    // {q:2,r:12} is inside homePenaltyArea, distance 18 from the {20,12} carrier —
+    // beyond the ordinary 15-hex HIGH cap, so acceptance proves the override fired.
+    clientB.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 2, r: 12 });
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('HIGH_PASS_MOVE');
+    expect(state.ball.position).toEqual({ q: 2, r: 12 });
+  });
+
+  it('cornerKickTeam=away: a High corner targeting outside homePenaltyArea at distance 16 is rejected with RANGE_EXCEEDED (wire: INVALID_TARGET)', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, { cornerKickTeam: 'away' });
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    // {q:34,r:13} is distance 16 from RANGE_CARRIER_HEX and outside homePenaltyArea (q>5).
+    clientB.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 34, r: 13 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
+    expect(getRoom(roomCode)!.gameState!.phase).toBe('PASS');
+  });
+
+  it('cornerKickTeam=away: the same out-of-box High corner at distance 15 is accepted (default HIGH cap untouched)', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, { cornerKickTeam: 'away' });
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    // {q:33,r:13} is distance 15 from RANGE_CARRIER_HEX and outside homePenaltyArea.
+    clientB.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 33, r: 13 });
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('HIGH_PASS_MOVE');
+  });
+
+  it('cornerKickTeam=home (mirror): a High corner targeting deep inside awayPenaltyArea (dist 18) is accepted regardless of distance', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { carrierId } = seedPassRangeState(roomCode, { cornerKickTeam: 'home' });
+    const room = getRoom(roomCode)!;
+    // Carrier kept in the MIDDLE third — see the identical note in the away-team test above.
+    room.gameState = {
+      ...room.gameState!,
+      pieces: room.gameState!.pieces.map((p) =>
+        p.id === carrierId ? { ...p, position: { q: 16, r: 12 } } : p,
+      ),
+      ball: { ...room.gameState!.ball, position: { q: 16, r: 12 } },
+    };
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    // {q:34,r:12} is inside awayPenaltyArea, distance 18 from the {16,12} carrier.
+    clientA.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 34, r: 12 });
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('HIGH_PASS_MOVE');
+    expect(state.ball.position).toEqual({ q: 34, r: 12 });
+  });
+
+  it('cornerKickTeam=home (mirror): a High corner targeting outside awayPenaltyArea at distance 16 is rejected', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, { cornerKickTeam: 'home' });
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    // {q:2,r:13} is distance 16 from RANGE_CARRIER_HEX and outside awayPenaltyArea (q<31).
+    clientA.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 2, r: 13 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
+  });
+
+  it('cornerKickTeam=home (mirror): the same out-of-box High corner at distance 15 is accepted', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, { cornerKickTeam: 'home' });
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    // {q:3,r:13} is distance 15 from RANGE_CARRIER_HEX and outside awayPenaltyArea.
+    clientA.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 3, r: 13 });
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('HIGH_PASS_MOVE');
+  });
+
+  it('a STANDARD_PASS (Low) corner receives no range override and is bound by the ordinary 11-hex STANDARD cap', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, { cornerKickTeam: 'away' });
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    // {q:2,r:13} is inside homePenaltyArea and distance 18 from RANGE_CARRIER_HEX — the
+    // override is scoped to HIGH_PASS only (CORNER-04), so STANDARD's 11-hex cap applies.
+    clientB.emit(ClientEvents.GAME_ROLL, 'STANDARD_PASS', { q: 2, r: 13 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
+  });
+
+  it('a non-corner High Pass into a penalty area is still capped at 15 (regression)', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, { cornerKickTeam: null });
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    // {q:0,r:13} is inside homePenaltyArea and distance 18 — with no cornerKickTeam set,
+    // isCornerKickContext is false, so the ordinary 15-hex HIGH cap applies unmodified.
+    clientA.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 0, r: 13 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
+  });
+
+  it('a throw-in High Pass still gets THROW_IN_MAX_DISTANCE, not the corner override', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedPassRangeState(roomCode, {
+      cornerKickTeam: null,
+      lastActionType: 'THROW_IN_MOVEMENT_1',
+    });
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    // {q:25,r:13} is distance 7 from RANGE_CARRIER_HEX — exceeds THROW_IN_MAX_DISTANCE
+    // (6) while staying well inside the ordinary 15-hex HIGH cap, proving the throw-in
+    // override (not the corner override, and not the default HIGH cap) is in effect.
+    clientA.emit(ClientEvents.GAME_ROLL, 'HIGH_PASS', { q: 25, r: 13 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
   });
 });
