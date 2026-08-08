@@ -66,6 +66,7 @@ import {
   isWithinCornerExclusionZone,
   cornerClearOutGoalHex,
   isLegalClearOutStep,
+  isSpillCornerDirection,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -676,6 +677,9 @@ const CORNER_KICK_TEARDOWN = {
   cornerKickMoveSlot: null,
   cornerKickMovedPieceId: null,
   cornerKickPaceUsed: 0,
+  // 38-23 (T-38-77): a resolved corner must not leave a stale spill marker behind for a
+  // later, unrelated loose ball to mis-read as a direction-only corner award.
+  gkSpillKeeperId: null,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -2888,10 +2892,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         } else {
           // 38-14 (closes Phase 17.1 D-07): a failed handling check spills the ball — it
           // becomes a real Loose Ball scattering from the keeper's dive-adjusted hex, not a
-          // clean catch. The next LOOSE_BALL case's scatter walk (and its existing
-          // triggerOutOfBoundsRestart call) classifies a byline-ward exit as a Corner Kick,
-          // mirroring the SHOT duel-tie LOOSE_BALL branch above. Possession is NOT handed to
-          // the spilling keeper's team — no activeTeam/attackingTeam reassignment here.
+          // clean catch. Possession is NOT handed to the spilling keeper's team — no
+          // activeTeam/attackingTeam reassignment here.
+          // 38-23 (D-GAP-02 correction): `gkSpillKeeperId` — NOT `ball.lastTouchedBy` — is
+          // what applyRoll's LOOSE_BALL case reads to decide the direction-only corner award.
+          // The SHOT duel-tie LOOSE_BALL branch above ALSO sets `ball.lastTouchedBy` to this
+          // same keeper but deliberately does NOT set `gkSpillKeeperId`, so a duel-tie
+          // deflection can never be mistaken for a spill. The scatter walk (and its existing
+          // triggerOutOfBoundsRestart call) still runs for the "in front of the GK" case.
           return {
             ok: true,
             state: {
@@ -2903,6 +2911,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 carrierId: null,
                 lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
               },
+              gkSpillKeeperId: gk.id,
               lastDiceRoll: shotDiceRoll,
               lastActionType: 'DEFLECTION',
               lastShotPath: null, // clear path — ball is loose
@@ -3327,6 +3336,49 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const direction = d1 as 1 | 2 | 3 | 4 | 5 | 6;
       const distance = d2 as 1 | 2 | 3 | 4 | 5 | 6;
 
+      // 38-23 (D-GAP-02, corrects 38-14's scatter-walk reading — see 38-15-SUMMARY.md,
+      // verbatim rule text): "If your roll is equal to or higher than the goalkeeper's
+      // Handling attribute, run a 'Loose ball': if Direction is next or behind the GK it is
+      // a Corner Kick. If the direction is in front of GK, roll for distance, and continue
+      // play normally." The corner award after a SPILLED SAVE is decided by the rolled
+      // DIRECTION ALONE — a byline-ward or purely lateral direction awards a corner
+      // immediately, regardless of how far the keeper is standing from their own byline.
+      // This SUPERSEDES 38-14's scatter-walk reading, which under-awarded corners whenever
+      // the keeper was standing off the line — precisely the case this corrects. An
+      // in-front direction is exactly the untouched fall-through below: it still rolls for
+      // distance via the scatter walk and continues play normally, unchanged.
+      if (state.outOfBoundsEnabled === true && state.gkSpillKeeperId != null) {
+        const spillingKeeper = state.pieces.find((p) => p.id === state.gkSpillKeeperId);
+        if (spillingKeeper && isSpillCornerDirection(direction, spillingKeeper.teamId)) {
+          // Synthesise a byline exit beyond the keeper's OWN goal line so
+          // triggerOutOfBoundsRestart's existing CORNER_KICK classification builds the
+          // award through exactly the machinery OOB-03 already uses (and therefore
+          // automatically inherits 38-20's CORNER_KICK_CLEAR_OUT entry). classifyExit
+          // resolves any q-out hex to 'BYLINE'; bylineOwner(exitHex) resolves to the
+          // keeper's own team because the synthesised q is beyond the keeper's own byline
+          // column; ball.lastTouchedBy already names the keeper (set by the SAVE spill
+          // branch above) — so classifyOutOfBounds's lastTouchedByTeam === bylineOwnerTeam
+          // holds and 'CORNER_KICK' is returned, never 'GOAL_KICK'.
+          const spillExitHex: HexCoord = {
+            q:
+              spillingKeeper.teamId === 'home'
+                ? CORNER_KICK_HEX.home.top.q - 1
+                : CORNER_KICK_HEX.away.top.q + 1,
+            r: spillingKeeper.position.r,
+          };
+          const spillRestartState = triggerOutOfBoundsRestart(
+            {
+              ...state,
+              lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
+              gkSpillKeeperId: null,
+            },
+            spillExitHex,
+            spillingKeeper.position,
+          );
+          if (spillRestartState !== null) return { ok: true, state: spillRestartState };
+        }
+      }
+
       // D-08: clamp scatter to last valid pitch hex using the corrected parity-aware
       // trajectory walk (computeLooseBall is the single source of truth for the
       // scatter path — no duplicated fixed-delta math here, see scoreUtils.ts).
@@ -3415,6 +3467,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           lastShotPath: null, // RULE-03: clear stale shot path — do not carry into CHOOSE_ACTION phase
           stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
           tackleAttemptedByIds: [], // D-02
+          // 38-23 (T-38-77): the marker never survives a resolved loose ball, whether the
+          // spill was in front of the GK (this path) or the ball simply carried on.
+          gkSpillKeeperId: null,
           // actionCount unchanged (+0 for Deflection per D-03 table)
           eventLog: [...state.eventLog, looseBallLandEvent],
         },
@@ -3470,6 +3525,9 @@ export function triggerOutOfBoundsRestart(
     tackleAttemptedByIds: [],
     lastShotPath: null,
     lastActionType: null,
+    // 38-23 (T-38-77): every restart is a fresh phase boundary — a stale spill marker
+    // must never survive into an unrelated later loose ball.
+    gkSpillKeeperId: null,
   } as const;
 
   if (restart === 'CORNER_KICK') {

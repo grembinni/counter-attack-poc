@@ -1120,6 +1120,14 @@ describe('applyRoll', () => {
     }
   });
 
+  it('SHOT SAVE + SPILL (38-23/D-GAP-02): the spilling keeper is also recorded as gkSpillKeeperId, the dedicated gate the LOOSE_BALL case reads for the direction-only corner check', () => {
+    const result = applyRoll(shotStateNearGK, 2, 4, 8);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.gkSpillKeeperId).toBe('away-0');
+    }
+  });
+
   // ---- HEADER branch ----
   // Updated in 08.2-03: HEADER now reads headerContestants (D-17).
   // GK aerial challenge deferred to 8.3 (D-22); attacker wins → PASS phase.
