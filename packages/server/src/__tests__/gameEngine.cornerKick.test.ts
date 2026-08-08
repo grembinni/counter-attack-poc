@@ -1540,17 +1540,91 @@ describe('applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05, 38-04 T
     expect(hpEvent).toMatchObject({ accurate: false });
   });
 
-  it('accurate Low corner skips the interception loop: no STEAL_ATTEMPT event even with a defender standing exactly on the target hex', () => {
-    // homePiece's own hex as the target would normally be an auto-intercept (case 1, no roll)
-    // for an ordinary Standard Pass — the corner bypass must skip the loop entirely so no
-    // STEAL_ATTEMPT event is ever appended (Assumption A2).
-    const interceptTargetState: GameState = {
-      ...cornerLowState,
-      passTargetHex: homePiece.position,
-    };
-    const result = applyRoll(interceptTargetState, 3, 3, 3); // die=3 → accurate (score 8)
+  // Assumption A2 CORRECTED (38-09-SUMMARY.md, gap-closure plan 38-13): a Low Pass corner IS
+  // interceptable — only a High Pass corner flies over defenders untouched. The four tests
+  // below replace the old (incorrectly-passing-for-the-wrong-reason — the far-off target was
+  // RANGE_EXCEEDED, not actually exercising the bypass) "Low corner skips the interception
+  // loop" assertion with fixtures that keep the pass within STANDARD's 11-hex cap so
+  // validatePass genuinely populates the interception lists.
+
+  /** Home defender exactly on the Low corner's target hex — D-10 case 1 (auto-intercept),
+   * distance 4 from the taker's corner-hex position {q:0,r:1} (well within the 11-hex cap). */
+  const autoInterceptDefender: PlayerPiece = {
+    ...homePiece,
+    id: 'home-auto-intercept',
+    position: { q: 4, r: 3 },
+  };
+  const autoInterceptLowState: GameState = {
+    ...cornerLowState,
+    pieces: [...cornerLowState.pieces, autoInterceptDefender],
+    passTargetHex: { q: 4, r: 3 },
+  };
+
+  /** Home defender in ZoI of an intermediate path hex ({q:4,r:3} is on the path; {q:5,r:2} is
+   * adjacent to it but NOT on the path and NOT the destination) — D-10 case 3 (roll-intercept).
+   * tackling=1 (homePiece's attribute) means only die===6 can intercept (combined never
+   * reaches the 10 threshold), which keeps the success/fail fixtures below unambiguous. */
+  const zoiInterceptDefender: PlayerPiece = {
+    ...homePiece,
+    id: 'home-zoi-intercept',
+    position: { q: 5, r: 2 },
+  };
+  const zoiInterceptLowStateBase: GameState = {
+    ...cornerLowState,
+    pieces: [...cornerLowState.pieces, zoiInterceptDefender],
+    passTargetHex: { q: 7, r: 4 },
+  };
+
+  it('accurate Low corner: a defender on the target hex auto-intercepts and takes possession', () => {
+    const result = applyRoll(autoInterceptLowState, 3, 3, 3); // die=3 -> score 8 -> accurate
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe(autoInterceptDefender.id);
+    expect(result.state.phase).toBe('PASS');
+  });
+
+  it('accurate Low corner: a ZoI defender adjacent to the path rolls for interception', () => {
+    const state: GameState = { ...zoiInterceptLowStateBase, preGeneratedInterceptionDice: [6] };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate; interception die=6 -> intercepted
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const stealEvent = result.state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
+    expect(stealEvent).toMatchObject({ defenderId: zoiInterceptDefender.id, result: 'SUCCESS' });
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe(zoiInterceptDefender.id);
+  });
+
+  it('accurate Low corner: a failed interception roll still delivers the ball', () => {
+    const state: GameState = { ...zoiInterceptLowStateBase, preGeneratedInterceptionDice: [3] };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate; interception die=3 (combined 4) -> not intercepted
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const stealEvent = result.state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
+    expect(stealEvent).toMatchObject({ defenderId: zoiInterceptDefender.id, result: 'FAIL' });
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.ball.position).toEqual({ q: 7, r: 4 });
+    expect(result.state.ball.carrierId).toBeNull();
+  });
+
+  it('accurate High corner: an adjacent defender never triggers an interception and the phase becomes HEADER', () => {
+    // Adjacent to homePiece2 (the High corner's target hex, distance 0 header contestant) —
+    // HIGH passes never populate autoIntercepts/rollIntercepts in passValidator regardless of
+    // this bypass, so this regression-locks that a defender standing right next to the target
+    // still can't turn a High corner into an interception.
+    const adjacentDefender: PlayerPiece = {
+      ...homePiece,
+      id: 'home-high-adjacent',
+      position: { q: 25, r: 9 },
+    };
+    const state: GameState = {
+      ...cornerHighState,
+      pieces: [...cornerHighState.pieces, adjacentDefender],
+    };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('HEADER');
     expect(result.state.eventLog.filter((e) => e.type === 'STEAL_ATTEMPT')).toHaveLength(0);
   });
 });
@@ -2297,5 +2371,83 @@ describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-
     if (!nextResult.ok) return;
     expect(nextResult.state.phase).toBe('PASS');
     expect(nextResult.state.ball.position).toEqual({ q: 15, r: 16 });
+  });
+
+  it('intercepted Low corner: every cornerKick state field is torn down (auto-intercept path)', () => {
+    let state = runCornerSequenceToPass();
+    // A home defender sits exactly on the Low corner's target hex — destination-occupied
+    // auto-intercept (D-10 case 1), reachable within STANDARD's 11-hex range of the taker's
+    // corner-hex position {q:0,r:1}.
+    const autoInterceptDefender: PlayerPiece = {
+      ...homePiece,
+      id: 'home-auto-td',
+      position: { q: 4, r: 3 },
+    };
+    state = {
+      ...state,
+      pieces: [...state.pieces, autoInterceptDefender],
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 4, r: 3 },
+    };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe(autoInterceptDefender.id);
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('intercepted Low corner: every cornerKick state field is torn down (roll-intercept path)', () => {
+    let state = runCornerSequenceToPass();
+    // A home defender in ZoI of an intermediate path hex (not on the path itself, not on
+    // the destination) — rolled interception (D-10 case 3). die=6 always intercepts
+    // regardless of the defender's tackling attribute.
+    const zoiDefender: PlayerPiece = { ...homePiece, id: 'home-zoi-td', position: { q: 5, r: 2 } };
+    state = {
+      ...state,
+      pieces: [...state.pieces, zoiDefender],
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 7, r: 4 },
+      preGeneratedInterceptionDice: [6],
+    };
+    const result = applyRoll(state, 3, 3, 3); // die=3 -> score 8 -> accurate
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastActionType).toBe('SUCCESSFUL_TACKLE');
+    expect(result.state.ball.carrierId).toBe(zoiDefender.id);
+    expectAllCornerFieldsCleared(result.state);
+  });
+
+  it('LOAD-BEARING: an ordinary STANDARD_PASS taken immediately after an intercepted corner is not accuracy-gated, even with a die that would fail an 8+ check', () => {
+    let state = runCornerSequenceToPass();
+    const autoInterceptDefender: PlayerPiece = {
+      ...homePiece,
+      id: 'home-auto-td2',
+      position: { q: 4, r: 3 },
+    };
+    state = {
+      ...state,
+      pieces: [...state.pieces, autoInterceptDefender],
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 4, r: 3 },
+    };
+    const interceptedResult = applyRoll(state, 3, 3, 3);
+    expect(interceptedResult.ok).toBe(true);
+    if (!interceptedResult.ok) return;
+    expect(interceptedResult.state.cornerKickTeam).toBeNull();
+
+    // Next action: the defender who just intercepted takes an ordinary Standard Pass with a
+    // die that would fail an 8+ accuracy check if this pass were (incorrectly) still gated by
+    // a leaked cornerKickTeam.
+    const nextPassState: GameState = {
+      ...interceptedResult.state,
+      lastActionType: 'STANDARD_PASS',
+      passTargetHex: { q: 6, r: 3 },
+    };
+    const nextResult = applyRoll(nextPassState, 1, 3, 3); // die=1 -> would fail 8+ if (still) gated
+    expect(nextResult.ok).toBe(true);
+    if (!nextResult.ok) return;
+    expect(nextResult.state.phase).toBe('PASS');
+    expect(nextResult.state.ball.position).toEqual({ q: 6, r: 3 });
   });
 });

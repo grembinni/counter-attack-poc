@@ -2232,11 +2232,16 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // can be non-empty for an FTP target. Bypass the loop for FIRST_TIME_PASS too; the
       // no-interception delivery is part of the FTP design (D-03), not a regression.
       const isFirstTimePass = newLastActionType === 'FIRST_TIME_PASS';
-      // Assumption A2 (38-RESEARCH.md): a corner delivery (High or Low) is not interceptable,
-      // mirroring HIGH_PASS/LONG_BALL's fly-over behaviour — a corner kick flies directly into
-      // the box rather than being a grounded pass a defender can step in front of.
-      const isCornerKick = state.cornerKickTeam != null;
-      if (!isHeaderPass && !isFirstTimePass && !isCornerKick) {
+      // Assumption A2 (38-RESEARCH.md) — CORRECTED by the Phase 38 human-verification
+      // checkpoint (38-09-SUMMARY.md, A2 verdict CORRECTED (partial); narrowed here in
+      // gap-closure plan 38-13): only a High Pass corner is non-interceptable — it flies
+      // directly into the box, mirroring HIGH_PASS/LONG_BALL's fly-over behaviour. A Low
+      // Pass corner IS interceptable — it is a grounded pass a defender can step in front
+      // of, same as an ordinary Standard Pass. `newLastActionType` (not `state.lastActionType`)
+      // is used so this flag agrees with `deliveredPassType` used elsewhere in this block.
+      const isCornerKickHighDelivery =
+        state.cornerKickTeam != null && newLastActionType === 'HIGH_PASS';
+      if (!isHeaderPass && !isFirstTimePass && !isCornerKickHighDelivery) {
         // D-10 case 1: autoIntercepts — destination hex was defender's hex; immediate interception, no dice.
         for (const interceptor of autoIntercepts) {
           const interceptionEvent: ActionEvent = {
@@ -2270,6 +2275,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
               tackleAttemptedByIds: [], // D-02
               eventLog: newEventLog,
+              // T-38-43/38-13: unconditional no-op for a non-corner pass; tears down an
+              // auto-intercepted Low corner so the next STANDARD_PASS is not accuracy-gated.
+              ...CORNER_KICK_TEARDOWN,
             },
           };
         }
@@ -2314,6 +2322,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
                 tackleAttemptedByIds: [], // D-02
                 eventLog: newEventLog,
+                // T-38-43/38-13: unconditional no-op for a non-corner pass; tears down a
+                // roll-intercepted Low corner so the next STANDARD_PASS is not accuracy-gated.
+                ...CORNER_KICK_TEARDOWN,
               },
             };
           }

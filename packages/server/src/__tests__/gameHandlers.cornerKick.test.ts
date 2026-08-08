@@ -1236,3 +1236,85 @@ describe('CORNER-04: GAME_ROLL High Pass corner range override', () => {
     expect(reason).toBe('INVALID_TARGET');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CORNER-04 (38-13 Task 2): Low corner interception dice seeding
+// ---------------------------------------------------------------------------
+
+/** A pitch hex used as the ball-carrier position for the interception-dice-seeding test. */
+const INTERCEPT_CARRIER_HEX: HexCoord = { q: 18, r: 13 };
+/** Within STANDARD's 11-hex cap of INTERCEPT_CARRIER_HEX (distance 4). */
+const INTERCEPT_TARGET_HEX: HexCoord = { q: 22, r: 11 };
+/** Adjacent to {q:20,r:12} (an intermediate hex on the carrier->target path) but NOT itself
+ * on the path and NOT the destination — a case-3 ZoI roll-intercept, not a case-1 auto-intercept. */
+const INTERCEPT_ZOI_HEX: HexCoord = { q: 20, r: 11 };
+
+/**
+ * Seeds a corner-kick Low-pass PASS state with exactly one home defender positioned in ZoI
+ * of the intended pass path (not on the path, not on the destination) and an away carrier
+ * whose highPass is overridden high enough that the corner's own 8+ accuracy check always
+ * passes regardless of the real (unmocked) accuracy die — isolating this test's assertion to
+ * the interception-dice seeding plumbing, not the independent accuracy roll. Every other
+ * piece is parked out of the way at column 12 (mirrors seedPassRangeState) so no other piece
+ * can accidentally populate the interception lists.
+ */
+function seedCornerLowInterceptState(roomCode: string): { carrierId: string; defenderId: string } {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const carrier = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK')!;
+  const defender = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK')!;
+
+  const pieces = room.gameState.pieces.map((p, idx) => {
+    if (p.id === carrier.id) return { ...p, position: INTERCEPT_CARRIER_HEX, highPass: 10 };
+    if (p.id === defender.id) return { ...p, position: INTERCEPT_ZOI_HEX };
+    return { ...p, position: { q: 12, r: idx % 25 } };
+  });
+
+  room.gameState = {
+    ...room.gameState,
+    phase: 'PASS',
+    outOfBoundsEnabled: true,
+    pieces,
+    attackingTeam: 'away',
+    activeTeam: 'away',
+    kickOffActive: false,
+    lastActionType: 'CORNER_KICK_RESTART',
+    lastDiceRoll: null,
+    passTargetHex: null,
+    cornerKickTeam: 'away',
+    cornerKickHex: INTERCEPT_CARRIER_HEX,
+    cornerKickTakerId: carrier.id,
+    ball: {
+      position: INTERCEPT_CARRIER_HEX,
+      carrierId: carrier.id,
+      lastTouchedBy: { pieceId: carrier.id, teamId: 'away' },
+    },
+  };
+
+  return { carrierId: carrier.id, defenderId: defender.id };
+}
+
+describe('CORNER-04: a Low corner aimed past a ZoI defender seeds preGeneratedInterceptionDice', () => {
+  it('emits a STEAL_ATTEMPT event with a non-zero defenderDie, proving the handler seeded preGeneratedInterceptionDice before applyRoll consumed them', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const { defenderId } = seedCornerLowInterceptState(roomCode);
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_ROLL, 'STANDARD_PASS', INTERCEPT_TARGET_HEX);
+    const [state] = await statePromise;
+
+    // Before Task 1 (38-13), a corner's own isCornerKick bypass meant a Low corner never
+    // reached the interception loop at all — no STEAL_ATTEMPT could ever be logged for a
+    // corner pass. Its presence here proves both that the loop is reached (Task 1) and that
+    // the roll-intercept die was populated from preGeneratedInterceptionDice rather than
+    // silently defaulting (the only path that can produce a STEAL_ATTEMPT event for a
+    // ZoI-only defender at all).
+    const stealEvent = state.eventLog.find((e) => e.type === 'STEAL_ATTEMPT');
+    expect(stealEvent).toBeDefined();
+    expect(stealEvent).toMatchObject({ type: 'STEAL_ATTEMPT', defenderId });
+    if (stealEvent?.type === 'STEAL_ATTEMPT') {
+      expect(stealEvent.defenderDie).toBeGreaterThan(0);
+    }
+  });
+});
