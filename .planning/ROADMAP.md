@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 16/24                                  | In Progress |             |
+| 38    | 19/24                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -283,9 +283,9 @@ Plans:
 
 **Wave 14** _(blocked on Wave 13; three plans run in parallel, no file overlap)_
 
-- [ ] 38-17-PLAN.md — Engine: uncapped CORNER-03 reposition + one-activation-per-piece lock (defects 1 and 2, D-GAP-03)
-- [ ] 38-18-PLAN.md — Client: uncapped reposition, activated rendering, corrected panel copy (defects 1 and 2)
-- [ ] 38-19-PLAN.md — Client: restart banners for Throw In / Goal Kick / Corner Kick / Free Kick (defect 4)
+- [x] 38-17-PLAN.md — Engine: uncapped CORNER-03 reposition + one-activation-per-piece lock (defects 1 and 2, D-GAP-03)
+- [x] 38-18-PLAN.md — Client: uncapped reposition, activated rendering, corrected panel copy (defects 1 and 2)
+- [x] 38-19-PLAN.md — Client: restart banners for Throw In / Goal Kick / Corner Kick / Free Kick (defect 4)
 
 **Wave 15** _(blocked on Wave 14)_
 
