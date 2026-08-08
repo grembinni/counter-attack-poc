@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 19/24                                  | In Progress |             |
+| 38    | 20/24                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -289,7 +289,7 @@ Plans:
 
 **Wave 15** _(blocked on Wave 14)_
 
-- [ ] 38-20-PLAN.md — Engine: CORNER_KICK_CLEAR_OUT phase + permanent defender exclusion zone (defect 3)
+- [x] 38-20-PLAN.md — Engine: CORNER_KICK_CLEAR_OUT phase + permanent defender exclusion zone (defect 3)
 
 **Wave 16** _(blocked on Wave 15)_
 
