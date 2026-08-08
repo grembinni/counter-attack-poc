@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 11/15                                  | In Progress |             |
+| 38    | 12/15                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -263,7 +263,7 @@ Plans:
 
 **Wave 9** _(gap closure, blocked on Wave 8)_
 
-- [ ] 38-12-PLAN.md — Engine: WR-01 replay piece-position tracking + WR-02 CORNER_KICK_STAGES cap read
+- [x] 38-12-PLAN.md — Engine: WR-01 replay piece-position tracking + WR-02 CORNER_KICK_STAGES cap read
 
 **Wave 10** _(gap closure, blocked on Wave 9)_
 
