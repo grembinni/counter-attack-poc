@@ -66,6 +66,7 @@ import {
   isWithinCornerExclusionZone,
   cornerClearOutGoalHex,
   isLegalClearOutStep,
+  isSpillCornerDirection,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -3334,6 +3335,49 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
     case 'LOOSE_BALL': {
       const direction = d1 as 1 | 2 | 3 | 4 | 5 | 6;
       const distance = d2 as 1 | 2 | 3 | 4 | 5 | 6;
+
+      // 38-23 (D-GAP-02, corrects 38-14's scatter-walk reading — see 38-15-SUMMARY.md,
+      // verbatim rule text): "If your roll is equal to or higher than the goalkeeper's
+      // Handling attribute, run a 'Loose ball': if Direction is next or behind the GK it is
+      // a Corner Kick. If the direction is in front of GK, roll for distance, and continue
+      // play normally." The corner award after a SPILLED SAVE is decided by the rolled
+      // DIRECTION ALONE — a byline-ward or purely lateral direction awards a corner
+      // immediately, regardless of how far the keeper is standing from their own byline.
+      // This SUPERSEDES 38-14's scatter-walk reading, which under-awarded corners whenever
+      // the keeper was standing off the line — precisely the case this corrects. An
+      // in-front direction is exactly the untouched fall-through below: it still rolls for
+      // distance via the scatter walk and continues play normally, unchanged.
+      if (state.outOfBoundsEnabled === true && state.gkSpillKeeperId != null) {
+        const spillingKeeper = state.pieces.find((p) => p.id === state.gkSpillKeeperId);
+        if (spillingKeeper && isSpillCornerDirection(direction, spillingKeeper.teamId)) {
+          // Synthesise a byline exit beyond the keeper's OWN goal line so
+          // triggerOutOfBoundsRestart's existing CORNER_KICK classification builds the
+          // award through exactly the machinery OOB-03 already uses (and therefore
+          // automatically inherits 38-20's CORNER_KICK_CLEAR_OUT entry). classifyExit
+          // resolves any q-out hex to 'BYLINE'; bylineOwner(exitHex) resolves to the
+          // keeper's own team because the synthesised q is beyond the keeper's own byline
+          // column; ball.lastTouchedBy already names the keeper (set by the SAVE spill
+          // branch above) — so classifyOutOfBounds's lastTouchedByTeam === bylineOwnerTeam
+          // holds and 'CORNER_KICK' is returned, never 'GOAL_KICK'.
+          const spillExitHex: HexCoord = {
+            q:
+              spillingKeeper.teamId === 'home'
+                ? CORNER_KICK_HEX.home.top.q - 1
+                : CORNER_KICK_HEX.away.top.q + 1,
+            r: spillingKeeper.position.r,
+          };
+          const spillRestartState = triggerOutOfBoundsRestart(
+            {
+              ...state,
+              lastDiceRoll: { rolls: [d1, d2], context: 'LOOSE_BALL' },
+              gkSpillKeeperId: null,
+            },
+            spillExitHex,
+            spillingKeeper.position,
+          );
+          if (spillRestartState !== null) return { ok: true, state: spillRestartState };
+        }
+      }
 
       // D-08: clamp scatter to last valid pitch hex using the corrected parity-aware
       // trajectory walk (computeLooseBall is the single source of truth for the
