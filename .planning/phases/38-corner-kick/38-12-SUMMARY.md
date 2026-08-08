@@ -111,3 +111,9 @@ _No separate plan-metadata commit — SUMMARY.md is committed directly per workt
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-08_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/38-corner-kick/38-12-SUMMARY.md`
+- FOUND: commit `1d20a4a` (Task 1)
+- FOUND: commit `eb7c27c` (Task 2)
