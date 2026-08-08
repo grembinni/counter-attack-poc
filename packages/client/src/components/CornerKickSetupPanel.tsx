@@ -340,7 +340,7 @@ export function CornerKickSetupPanel() {
       </button>
       <button
         className={styles.ctaButton}
-        title="Low Pass — needs a combined score of 8 or more; no header required"
+        title="Low Pass — needs a combined score of 8 or more; no header required; can be intercepted by a defender in the pass path"
         onClick={() => setSelectedPassType('STANDARD_PASS')}
       >
         Low Pass
