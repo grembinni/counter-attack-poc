@@ -963,16 +963,36 @@ describe('GAME_UNDO validUndoPhases coverage for Corner Kick', () => {
   it('CORNER_KICK_REPOSITION accepts Undo after a move', async () => {
     const { clientA, roomCode } = await setupRoom();
     const { eligibleHomeId, eligibleHomeNeighbor } = seedCornerKickReposition(roomCode);
+    const preMovePosition = getRoom(roomCode)!.gameState!.pieces.find(
+      (p) => p.id === eligibleHomeId,
+    )!.position;
 
     const movePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
     await movePromise;
 
+    // WR-03 (38-10, gap closure): Undo previously silently no-op'd (CR-02) and this test
+    // asserted only state.phase, which stays 'CORNER_KICK_REPOSITION' on both success AND
+    // failure — masking the bug. Register a persistent GAME_ERROR listener BEFORE emitting
+    // GAME_UNDO (not awaited, so a GAME_ERROR that never fires cannot hang the test), then
+    // assert Undo's actual effect: position, pace ledger, and stage-cap membership.
+    let errorReason: string | undefined;
+    const errorHandler = (reason: string): void => {
+      errorReason = reason;
+    };
+    clientA.on(ServerEvents.GAME_ERROR, errorHandler);
+
     const undoPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_UNDO);
     const [state] = await undoPromise;
+    clientA.off(ServerEvents.GAME_ERROR, errorHandler);
 
+    expect(errorReason).toBeUndefined();
     expect(state.phase).toBe('CORNER_KICK_REPOSITION');
+    const moved = state.pieces.find((p) => p.id === eligibleHomeId);
+    expect(moved?.position).toEqual(preMovePosition);
+    expect(state.cornerKickUsedPace?.[eligibleHomeId]).toBeUndefined();
+    expect(state.cornerKickStagePlacedIds ?? []).not.toContain(eligibleHomeId);
   });
 
   it('CORNER_KICK_FINAL_SETUP accepts Undo after a move', async () => {
@@ -980,16 +1000,33 @@ describe('GAME_UNDO validUndoPhases coverage for Corner Kick', () => {
     const { eligibleHomeId, eligibleHomeNeighbor } = seedCornerKickFinalSetup(roomCode, {
       slot: 'ATTACKER',
     });
+    const preMovePosition = getRoom(roomCode)!.gameState!.pieces.find(
+      (p) => p.id === eligibleHomeId,
+    )!.position;
 
     const movePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
     await movePromise;
 
+    // WR-03 (38-10, gap closure): Undo previously silently no-op'd (CR-01) here too — assert
+    // the actual effect (position + single-piece lock/pace release), not just state.phase.
+    let errorReason: string | undefined;
+    const errorHandler = (reason: string): void => {
+      errorReason = reason;
+    };
+    clientA.on(ServerEvents.GAME_ERROR, errorHandler);
+
     const undoPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_UNDO);
     const [state] = await undoPromise;
+    clientA.off(ServerEvents.GAME_ERROR, errorHandler);
 
+    expect(errorReason).toBeUndefined();
     expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+    const moved = state.pieces.find((p) => p.id === eligibleHomeId);
+    expect(moved?.position).toEqual(preMovePosition);
+    expect(state.cornerKickMovedPieceId).toBeNull();
+    expect(state.cornerKickPaceUsed).toBe(0);
   });
 
   it('CORNER_KICK_TAKER_SELECT rejects Undo with WRONG_PHASE (placement, no reversible move)', async () => {
