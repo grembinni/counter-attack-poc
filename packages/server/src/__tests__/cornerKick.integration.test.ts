@@ -969,7 +969,9 @@ describe('CORNER-03: the 6-stage alternating reposition window', () => {
       if (stageIndex < 5) {
         expect(afterEndTurn.phase).toBe('CORNER_KICK_REPOSITION');
         expect(afterEndTurn.cornerKickStageIndex).toBe(stageIndex + 1);
-        expect(afterEndTurn.activeTeam).toBe(cornerKickStageTeam(stageIndex + 1, CORNER_KICK_TEAM));
+        expect(afterEndTurn.activeTeam).toBe(
+          cornerKickStageTeam((stageIndex + 1) as 0 | 1 | 2 | 3 | 4 | 5, CORNER_KICK_TEAM),
+        );
       } else {
         expect(afterEndTurn.phase).toBe('CORNER_KICK_FINAL_SETUP');
         expect(afterEndTurn.cornerKickMoveSlot).toBe('ATTACKER');
