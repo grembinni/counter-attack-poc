@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 6/9                                    | In Progress |             |
+| 38    | 7/9                                    | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -246,7 +246,7 @@ Plans:
 
 **Wave 5** _(blocked on Wave 4 completion)_
 
-- [ ] 38-05-PLAN.md — Server handlers: corner socket surface, penalty-area range override, undo phases
+- [x] 38-05-PLAN.md — Server handlers: corner socket surface, penalty-area range override, undo phases
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
