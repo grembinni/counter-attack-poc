@@ -57,3 +57,17 @@ matched the default project` errors, all inside `packages/shared/src/*.test.ts` 
   or add `packages/shared/src/**/*.test.ts`/`packages/shared/scripts/**/*.ts` to
   `packages/shared/tsconfig.json`'s `include` so they resolve through the named project
   instead of the default-project fallback.
+
+## From Plan 38-19 (restart banners)
+
+- **The Penalty Kick restart banner requested by 38-15 defect 4 cannot be implemented in Phase
+  38** because no penalty-kick `GamePhase` exists yet — Penalty Kick is Phase 39 scope
+  (requirement family PK per `ROADMAP.md`). `grep -rn "PENALTY" packages/shared/src` today
+  returns only the `NOT_IN_PENALTY_AREA` shot reason, confirming there is no phase value to key
+  a banner on.
+  `RESTART_BANNERS` (`packages/client/src/components/EventBanner.tsx`) is the extension point:
+  Phase 39 must add exactly one row — `<the Phase 39 penalty-kick entry phase>: 'Penalty Kick!'`
+  — to the existing table; no new mechanism is needed. The `it.each(Object.entries(RESTART_BANNERS))`
+  test in `EventBanner.test.tsx` automatically covers the new row once added, without further
+  test changes.
+  The 38-24 checkpoint records this same follow-up so it stays visible at Phase 38 close.
