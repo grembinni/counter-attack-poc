@@ -30,6 +30,8 @@ import {
   hexDistance,
   cornerClearOutGoalHex,
   CORNER_EXCLUSION_RADIUS,
+  isSpillCornerDirection,
+  looseBallDirectionQStep,
 } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -2653,15 +2655,15 @@ describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-
 });
 
 // ---------------------------------------------------------------------------
-// 38-14 Task 2: spilled-save LOOSE_BALL routes a byline-ward scatter into a
-// Corner Kick. This block is proof, not new engine code — it drives applyRoll
-// end to end starting from a spilled-save-shaped LOOSE_BALL state, reusing the
-// existing triggerOutOfBoundsRestart/classifyOutOfBounds machinery exercised
-// above. No change is made to applyRoll's LOOSE_BALL case, triggerOutOfBoundsRestart,
-// classifyOutOfBounds, or computeLooseBall in this task.
+// 38-14 Task 2 (RE-EXPECTED by 38-23/D-GAP-02): spilled-save LOOSE_BALL routes a
+// byline-ward scatter into a Corner Kick. 38-14 originally proved this via the
+// scatter-walk-exits-the-pitch reading; 38-23 corrects the award to be decided by
+// the rolled DIRECTION ALONE (see the `isSpillCornerDirection` gate at the head of
+// applyRoll's LOOSE_BALL case), so this block's fixture now carries `gkSpillKeeperId`
+// (the real gate) and its dice derivation is direction-first, not scatter-outcome-first.
 // ---------------------------------------------------------------------------
 
-describe('spilled save: the second route into a Corner Kick (38-14)', () => {
+describe('spilled save: the second route into a Corner Kick (38-14, corrected to direction-only by 38-23/D-GAP-02)', () => {
   /** The keeper's own hex, adjacent to home's byline (mirrors the OOB-03 fixture position). */
   const keeperHex: HexCoord = { q: 1, r: 13 };
 
@@ -2670,6 +2672,11 @@ describe('spilled save: the second route into a Corner Kick (38-14)', () => {
    * `applyRoll`'s LOOSE_BALL case would walk: step 1..6 via computeLooseBall, stopping at
    * the first off-pitch hex. Returns the first direction whose break-hex is a BYLINE exit
    * owned by `ownerWanted`, so the test never hardcodes a direction/distance literal.
+   *
+   * 38-23: retained (unchanged) to prove the two mechanisms agree on this scenario — see
+   * the assertion in the first test below that this direction is ALSO a spill-corner
+   * direction, since a straight-line scatter that exits on the keeper's own byline can
+   * only travel in a byline-ward (own-byline-step) direction.
    */
   function findBylineExitDice(
     from: HexCoord,
@@ -2698,27 +2705,35 @@ describe('spilled save: the second route into a Corner Kick (38-14)', () => {
   }
 
   /**
-   * Derives a (direction, distance) pair from `from` whose entire step-1..distance walk
-   * stays on the pitch — the "in front of the GK" case that resolves as an ordinary loose
-   * ball rather than a restart.
+   * 38-23: derives a (direction, distance=1) pair from `from` whose direction is NOT a
+   * spill-corner direction for `keeperTeamId` (i.e. "in front of the GK") AND whose
+   * single-step landing stays on the pitch — the case that must fall through to the
+   * unchanged scatter walk and continue play. Replaces 38-14's `findOnPitchDice`, which
+   * only checked the landing hex and could coincidentally pick a byline-ward direction.
    */
-  function findOnPitchDice(from: HexCoord): {
-    direction: 1 | 2 | 3 | 4 | 5 | 6;
-    distance: 1 | 2 | 3 | 4 | 5 | 6;
-  } {
+  function findInFrontOnPitchDice(
+    from: HexCoord,
+    keeperTeamId: 'home' | 'away',
+  ): { direction: 1 | 2 | 3 | 4 | 5 | 6; distance: 1 | 2 | 3 | 4 | 5 | 6 } {
     for (let direction = 1; direction <= 6; direction++) {
-      const hex = computeLooseBall(from, direction as 1 | 2 | 3 | 4 | 5 | 6, 1);
+      const d = direction as 1 | 2 | 3 | 4 | 5 | 6;
+      if (isSpillCornerDirection(d, keeperTeamId)) continue;
+      const hex = computeLooseBall(from, d, 1);
       if (isPitchHex(hex)) {
-        return { direction: direction as 1 | 2 | 3 | 4 | 5 | 6, distance: 1 };
+        return { direction: d, distance: 1 };
       }
     }
-    throw new Error(`no on-pitch dice found from ${JSON.stringify(from)}`);
+    throw new Error(`no in-front on-pitch dice found from ${JSON.stringify(from)}`);
   }
 
   const bylineDice = findBylineExitDice(keeperHex, 'home');
-  const onPitchDice = findOnPitchDice(keeperHex);
+  const inFrontDice = findInFrontOnPitchDice(keeperHex, 'home');
 
-  /** LOOSE_BALL state shaped exactly like the SAVE branch's spill return (38-14 Task 1). */
+  /**
+   * LOOSE_BALL state shaped exactly like the SAVE branch's spill return (38-14 Task 1,
+   * 38-23 Task 1) — `gkSpillKeeperId` is the field the D-GAP-02 direction-only check
+   * actually gates on, not `ball.lastTouchedBy` alone.
+   */
   const spilledSaveState: GameState = {
     ...baseLooseBallState,
     phase: 'LOOSE_BALL',
@@ -2731,10 +2746,12 @@ describe('spilled save: the second route into a Corner Kick (38-14)', () => {
       carrierId: null,
       lastTouchedBy: { pieceId: homeGK.id, teamId: homeGK.teamId },
     },
+    gkSpillKeeperId: homeGK.id,
     lastActionType: 'DEFLECTION',
   };
 
-  it("spilled save: a scatter across the keeper's own byline awards a CORNER_KICK to the attacking team, entering the mandatory clear-out (38-20)", () => {
+  it("BEFORE (38-14): asserted a corner via the scatter walk exiting on the keeper's own byline. AFTER (38-23): the same dice now award the corner via the direction-only check — proven by asserting bylineDice.direction is itself a spill-corner direction, independent of the scatter outcome", () => {
+    expect(isSpillCornerDirection(bylineDice.direction, 'home')).toBe(true);
     const result = applyRoll(spilledSaveState, bylineDice.direction, bylineDice.distance);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -2756,16 +2773,18 @@ describe('spilled save: the second route into a Corner Kick (38-14)', () => {
     expect(oobEvents[0]).toMatchObject({ restart: 'CORNER_KICK', awardedTo: 'away' });
   });
 
-  it('spilled save: a scatter that stays on the pitch resolves as an ordinary loose ball', () => {
-    const result = applyRoll(spilledSaveState, onPitchDice.direction, onPitchDice.distance);
+  it('BEFORE (38-14): "a scatter that stays on the pitch resolves as an ordinary loose ball" was derived from landing-hex-only dice. AFTER (38-23): the dice must ALSO be an in-front (non-spill-corner) direction, since direction now decides the award regardless of where the scatter lands', () => {
+    expect(isSpillCornerDirection(inFrontDice.direction, 'home')).toBe(false);
+    const result = applyRoll(spilledSaveState, inFrontDice.direction, inFrontDice.distance);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).toBe('PASS');
     expect(result.state.lastActionType).toBe('DEFLECTION');
     expect(result.state.cornerKickTeam).toBeFalsy();
+    expect(result.state.gkSpillKeeperId ?? null).toBeNull();
   });
 
-  it('spilled save: with outOfBoundsEnabled false the scatter clamps to the pitch and never awards a corner', () => {
+  it('BEFORE (38-14) and AFTER (38-23): with outOfBoundsEnabled false, a spilled save never awards a corner — the D-GAP-02 direction-only check is gated on the toggle exactly like the pre-existing scatter-walk exitInfo path', () => {
     const toggledOffState: GameState = { ...spilledSaveState, outOfBoundsEnabled: false };
     const result = applyRoll(toggledOffState, bylineDice.direction, bylineDice.distance);
     expect(result.ok).toBe(true);
@@ -2774,6 +2793,166 @@ describe('spilled save: the second route into a Corner Kick (38-14)', () => {
     expect(isPitchHex(result.state.ball.position)).toBe(true);
     expect(result.state.cornerKickTeam).toBeFalsy();
     expect(result.state.cornerKickHex ?? null).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 38-23: D-GAP-02 direction-only corner award — new tests proving the corrected rule.
+// Every direction is derived from `isSpillCornerDirection` at test-run time (never a
+// hardcoded die face), following the derived-not-restated convention the block above
+// established.
+// ---------------------------------------------------------------------------
+
+describe('D-GAP-02: direction-only corner award on a spilled save', () => {
+  /** First direction with qStep 0 (purely lateral — "next to" the keeper) for `teamId`. */
+  function findLateralDirection(teamId: 'home' | 'away'): 1 | 2 | 3 | 4 | 5 | 6 {
+    for (let direction = 1; direction <= 6; direction++) {
+      const d = direction as 1 | 2 | 3 | 4 | 5 | 6;
+      if (isSpillCornerDirection(d, teamId) && looseBallDirectionQStep(d) === 0) return d;
+    }
+    throw new Error(`no lateral spill-corner direction found for ${teamId}`);
+  }
+
+  /** First direction with qStep equal to teamId's own-byline step ("behind" the keeper). */
+  function findBehindDirection(teamId: 'home' | 'away'): 1 | 2 | 3 | 4 | 5 | 6 {
+    const ownBylineStep = teamId === 'home' ? -1 : 1;
+    for (let direction = 1; direction <= 6; direction++) {
+      const d = direction as 1 | 2 | 3 | 4 | 5 | 6;
+      if (isSpillCornerDirection(d, teamId) && looseBallDirectionQStep(d) === ownBylineStep) {
+        return d;
+      }
+    }
+    throw new Error(`no behind-GK spill-corner direction found for ${teamId}`);
+  }
+
+  /** First direction NOT a spill-corner direction ("in front" of the keeper). */
+  function findFrontDirection(teamId: 'home' | 'away'): 1 | 2 | 3 | 4 | 5 | 6 {
+    for (let direction = 1; direction <= 6; direction++) {
+      const d = direction as 1 | 2 | 3 | 4 | 5 | 6;
+      if (!isSpillCornerDirection(d, teamId)) return d;
+    }
+    throw new Error(`no in-front direction found for ${teamId}`);
+  }
+
+  /** Builds a spilled-save LOOSE_BALL state for `keeper`, standing at `keeperPos`. */
+  function buildSpillState(keeper: PlayerPiece, keeperPos: HexCoord): GameState {
+    return {
+      ...baseLooseBallState,
+      phase: 'LOOSE_BALL',
+      outOfBoundsEnabled: true,
+      pieces: baseLooseBallState.pieces.map((p) =>
+        p.id === keeper.id ? { ...p, position: keeperPos } : p,
+      ),
+      ball: {
+        position: keeperPos,
+        carrierId: null,
+        lastTouchedBy: { pieceId: keeper.id, teamId: keeper.teamId },
+      },
+      gkSpillKeeperId: keeper.id,
+      lastActionType: 'DEFLECTION',
+    };
+  }
+
+  it('a keeper standing several hexes OFF their own byline concedes a corner on a behind-the-GK direction', () => {
+    // homeGK's fixture position (q: 3) is already several hexes off home's own byline
+    // (q: 0) — this is exactly the case 38-14 got wrong: its scatter-walk reading only
+    // awarded a corner when the walk itself crossed q < 0, so a short scatter fell short.
+    const offBylineKeeperPos: HexCoord = { q: 8, r: 13 };
+    expect(hexDistance(offBylineKeeperPos, { q: 0, r: 13 })).toBeGreaterThan(1);
+    const direction = findBehindDirection('home');
+    const state = buildSpillState(homeGK, offBylineKeeperPos);
+    // A short distance whose scatter would land safely on the pitch under the OLD
+    // scatter-walk reading — proving the award no longer depends on distance at all.
+    const result = applyRoll(state, direction, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(isPitchHex(computeLooseBall(offBylineKeeperPos, direction, 1))).toBe(true);
+    expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.cornerKickTeam).toBe('away');
+    expect(result.state.gkSpillKeeperId ?? null).toBeNull();
+  });
+
+  it('a purely lateral (next-to-the-GK) direction also concedes a corner', () => {
+    const direction = findLateralDirection('home');
+    const state = buildSpillState(homeGK, { q: 6, r: 13 });
+    const result = applyRoll(state, direction, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.cornerKickTeam).toBe('away');
+  });
+
+  it('an in-front direction does not concede a corner and resolves as an ordinary loose ball', () => {
+    const keeperPos: HexCoord = { q: 6, r: 13 };
+    const direction = findFrontDirection('home');
+    const state = buildSpillState(homeGK, keeperPos);
+    const result = applyRoll(state, direction, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PASS');
+    expect(result.state.cornerKickTeam).toBeFalsy();
+    // The ball moved along the scatter trajectory (the untouched clamp/landing logic ran).
+    expect(result.state.ball.position).toEqual(computeLooseBall(keeperPos, direction, 1));
+  });
+
+  it('the direction-only rule does not fire for a SHOT duel-tie loose ball', () => {
+    const keeperPos: HexCoord = { q: 8, r: 13 };
+    const direction = findBehindDirection('home');
+    const duelTieState: GameState = {
+      ...baseLooseBallState,
+      phase: 'LOOSE_BALL',
+      outOfBoundsEnabled: true,
+      pieces: baseLooseBallState.pieces.map((p) =>
+        p.id === homeGK.id ? { ...p, position: keeperPos } : p,
+      ),
+      ball: {
+        position: keeperPos,
+        carrierId: null,
+        // The SHOT duel-tie branch also names the keeper as lastTouchedBy...
+        lastTouchedBy: { pieceId: homeGK.id, teamId: homeGK.teamId },
+      },
+      // ...but deliberately never sets gkSpillKeeperId (T-38-78).
+      gkSpillKeeperId: null,
+      lastActionType: 'DEFLECTION',
+    };
+    const result = applyRoll(duelTieState, direction, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).not.toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.cornerKickTeam).toBeFalsy();
+  });
+
+  it('with outOfBoundsEnabled false, a spilled save never awards a corner', () => {
+    const keeperPos: HexCoord = { q: 8, r: 13 };
+    const direction = findBehindDirection('home');
+    const state: GameState = {
+      ...buildSpillState(homeGK, keeperPos),
+      outOfBoundsEnabled: false,
+    };
+    const result = applyRoll(state, direction, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).not.toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.cornerKickTeam).toBeFalsy();
+    expect(isPitchHex(result.state.ball.position)).toBe(true);
+  });
+
+  it('the corner is awarded to the team OPPOSITE the spilling keeper', () => {
+    const homeDirection = findBehindDirection('home');
+    const homeResult = applyRoll(buildSpillState(homeGK, { q: 8, r: 13 }), homeDirection, 1);
+    expect(homeResult.ok).toBe(true);
+    if (homeResult.ok) {
+      expect(homeResult.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+      expect(homeResult.state.cornerKickTeam).toBe('away');
+    }
+
+    const awayDirection = findBehindDirection('away');
+    const awayResult = applyRoll(buildSpillState(awayGK, { q: 28, r: 13 }), awayDirection, 1);
+    expect(awayResult.ok).toBe(true);
+    if (awayResult.ok) {
+      expect(awayResult.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+      expect(awayResult.state.cornerKickTeam).toBe('home');
+    }
   });
 });
 
