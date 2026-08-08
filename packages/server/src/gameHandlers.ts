@@ -43,8 +43,12 @@ import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
   applyCancelMovement,
+  applyCornerKickFinalMove,
+  applyCornerKickFinalSetupEnd,
   applyCornerKickGkPlace,
   applyCornerKickGkWindowEnd,
+  applyCornerKickReposition,
+  applyCornerKickStageEnd,
   applyCornerKickTakerSelect,
   applyDeclareShot,
   applyEndTurn,
@@ -723,6 +727,96 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // CORNER-03: CORNER_KICK_REPOSITION's 6-stage alternating reposition window.
+      // T-38-17: isActivePlayer is a correct pre-check here (activeTeam is kept in sync
+      // with cornerKickStageTeam at every stage transition — see applyCornerKickStageEnd)
+      // and closes a gap applyCornerKickReposition's own guard leaves open: that guard only
+      // verifies the SELECTED PIECE's team against the derived acting team, never the
+      // REQUESTING socket's team, so without this check a non-acting socket could submit a
+      // pieceId belonging to the acting team and have it accepted.
+      if (room.gameState.phase === 'CORNER_KICK_REPOSITION') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // ASVS V5 — validate payload shape before dispatch (mirrors the goal-kick branch;
+        // hexDistance/isPitchHex inside applyCornerKickReposition are not null-safe).
+        if (
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        // Capture `from` before the engine call — applyCornerKickReposition deliberately
+        // does NOT append its own MOVE event (see its doc comment: "the reposition windows
+        // reuse the existing GAME_MOVE handler, which emits its own event"), so this
+        // handler owns event construction, mirroring applyGoalKickReposition's own
+        // internal MOVE event shape (slot 'ATTACKER_2' — CORNER_KICK_REPOSITION has no
+        // MovementSlot of its own, same reasoning as the goal-kick reposition windows).
+        const priorPiece = room.gameState.pieces.find((p) => p.id === pieceId);
+        const from = priorPiece?.position ?? to;
+        const cornerRepoResult = applyCornerKickReposition(room.gameState, pieceId, to);
+        if (!cornerRepoResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerRepoResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        const cornerMoveEvent: ActionEvent = {
+          type: 'MOVE',
+          pieceId,
+          from,
+          to,
+          slot: 'ATTACKER_2',
+          timestamp: Date.now(),
+          ballAfter: {
+            position: cornerRepoResult.state.ball.position,
+            carrierId: cornerRepoResult.state.ball.carrierId,
+          },
+        };
+        room.gameState = {
+          ...cornerRepoResult.state,
+          eventLog: [...cornerRepoResult.state.eventLog, cornerMoveEvent],
+        };
+        broadcastState(io, room);
+        return;
+      }
+
+      // CORNER-06: CORNER_KICK_FINAL_SETUP's 2-slot (ATTACKER, then DEFENDER) pre-kick
+      // reposition window. Unlike CORNER_KICK_REPOSITION above, applyCornerKickFinalMove
+      // DOES append its own CORNER_KICK_MOVE event internally — this handler must NOT
+      // construct a second one (would double-log every move in Undo/Replay).
+      if (room.gameState.phase === 'CORNER_KICK_FINAL_SETUP') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        if (
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        const cornerFinalMoveResult = applyCornerKickFinalMove(room.gameState, pieceId, to);
+        if (!cornerFinalMoveResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerFinalMoveResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerFinalMoveResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -1337,6 +1431,52 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // CORNER-03 (D-06): ends the CURRENTLY-active stage of the CORNER_KICK_REPOSITION
+      // window. Passes socketTeam(socket) straight through without a handler-level
+      // pre-check — applyCornerKickStageEnd owns the stage-team comparison exactly as
+      // applyFreeKickReady does for FREE_KICK_SETUP (see the GAME_UNDO handler's
+      // stage-team special case for the analogous reasoning). Confirming with 0 pieces
+      // moved this stage is legal (D-06) — no minimum-move guard here.
+      if (room.gameState.phase === 'CORNER_KICK_REPOSITION') {
+        const cornerStageEndResult = applyCornerKickStageEnd(room.gameState, socketTeam(socket));
+        if (!cornerStageEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerStageEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerStageEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
+      // CORNER-06: ends the active CORNER_KICK_FINAL_SETUP slot (ATTACKER, then
+      // DEFENDER). Unlike applyCornerKickStageEnd, applyCornerKickFinalSetupEnd takes no
+      // team parameter and performs no team validation of its own (T-38-17) — this
+      // handler-level isActivePlayer guard is the sole acting-team check, mirroring the
+      // GOAL_KICK_MOVE End Turn branch's identical-shape applyGoalKickMoveEnd pattern.
+      // activeTeam is kept in sync across both slots (applyCornerKickFinalSetupEnd flips
+      // it on the ATTACKER->DEFENDER handoff), so isActivePlayer is correct here.
+      // Explicitly generates NO die (unlike the GOAL_KICK_MOVE branch above): Corner's
+      // kick has not been taken yet when this window ends — the High/Low choice and its
+      // accuracy roll come later, from the client's own GAME_ROLL request in the
+      // resulting PASS phase. Do NOT "restore" a missing die here.
+      if (room.gameState.phase === 'CORNER_KICK_FINAL_SETUP') {
+        if (!isActivePlayer(socket, room)) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const cornerFinalEndResult = applyCornerKickFinalSetupEnd(room.gameState);
+        if (!cornerFinalEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, cornerFinalEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = cornerFinalEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       if (room.gameState.phase !== 'MOVE') {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
         broadcastState(io, room);
@@ -1387,6 +1527,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // each contains a reversible piece move. THROW_IN_SETUP/GOAL_KICK_CHOICE/GOAL_KICK_TARGET
       // are deliberately NOT added — those phases contain no reversible piece move, and adding
       // them would make Undo a silent no-op there.
+      // Phase 38 (38-05): CORNER_KICK_REPOSITION/CORNER_KICK_FINAL_SETUP added — each
+      // contains a reversible piece move (CORNER-03/CORNER-06). CORNER_KICK_GK_SETUP_
+      // ATTACKING/_DEFENDING/CORNER_KICK_TAKER_SELECT are deliberately NOT added — those
+      // three steps are placements with no per-hex move to reverse, mirroring the
+      // rationale for excluding THROW_IN_SETUP/GOAL_KICK_CHOICE/GOAL_KICK_TARGET above.
       const validUndoPhases: GamePhase[] = [
         'MOVE',
         'HIGH_PASS_MOVE',
@@ -1399,6 +1544,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         'GOAL_KICK_SETUP_GK',
         'GOAL_KICK_SETUP_OPPONENT',
         'GOAL_KICK_MOVE',
+        'CORNER_KICK_REPOSITION',
+        'CORNER_KICK_FINAL_SETUP',
       ];
       if (room.gameState === null || !validUndoPhases.includes(room.gameState.phase)) {
         socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
@@ -1407,6 +1554,14 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       // During FREE_KICK_SETUP, activeTeam is not updated between stages — use the stage
       // team from freeKickStageTeam instead of isActivePlayer (which reads activeTeam).
+      // CORNER_KICK_REPOSITION does NOT need an equivalent special-case arm (verified
+      // empirically, Plan 38-05 Task 2): unlike FREE_KICK_SETUP, Corner's activeTeam IS
+      // updated at every stage transition (triggerOutOfBoundsRestart sets it to
+      // cornerKickTeam at entry; applyCornerKickStageEnd sets it to
+      // cornerKickStageTeam(nextIndex, cornerKickTeam) on every advance) — so the default
+      // isActivePlayer branch below is already correct for both CORNER_KICK_REPOSITION and
+      // CORNER_KICK_FINAL_SETUP (whose activeTeam is likewise kept in sync by
+      // applyCornerKickFinalSetupEnd's ATTACKER->DEFENDER handoff).
       if (room.gameState.phase === 'FREE_KICK_SETUP') {
         const fkState = room.gameState;
         const stageTeam =

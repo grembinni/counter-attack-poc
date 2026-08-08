@@ -10,6 +10,14 @@
  * - GAME_CORNER_KICK_TAKER: WRONG_TEAM, WRONG_PHASE, malformed payload, success,
  *   double-emit mutex idempotency, finally-release on a rejected action.
  * - GAME_END_TURN wiring for the two GK-setup windows (applyCornerKickGkWindowEnd).
+ *
+ * Task 2 coverage (CORNER-03/CORNER-06):
+ * - GAME_MOVE during CORNER_KICK_REPOSITION/CORNER_KICK_FINAL_SETUP delegates to the
+ *   corner engine functions and logs the correct event shape for each window.
+ * - GAME_END_TURN during both windows delegates to the corner stage/slot-end engine
+ *   functions, with the CORNER_KICK_FINAL_SETUP branch generating no dice.
+ * - GAME_UNDO accepts the two reposition windows and rejects the three placement phases.
+ * - GAME_ROLL is rejected in every corner setup phase (DICE_PHASES exclusion).
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -25,7 +33,13 @@ import type {
   PlayerPiece,
   ServerToClientEvents,
 } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import {
+  ClientEvents,
+  ServerEvents,
+  cornerKickStageTeam,
+  hexNeighbors,
+  isPitchHex,
+} from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle (mirrors throwIn.integration.test.ts / goalKick.integration.test.ts)
@@ -304,6 +318,176 @@ function seedCornerKickTakerSelect(roomCode: string): {
   return { homeOutfield, awayOutfield };
 }
 
+/**
+ * Seeds CORNER_KICK_REPOSITION at the given stage index (default 0 — attacking side
+ * moves first per CORNER_KICK_STAGES). activeTeam derived from cornerKickStageTeam,
+ * mirroring the real trigger/applyCornerKickStageEnd assignment exactly.
+ */
+function seedCornerKickReposition(
+  roomCode: string,
+  opts?: { stageIndex?: 0 | 1 | 2 | 3 | 4 | 5 },
+): {
+  takerId: string;
+  eligibleHomeId: string;
+  eligibleHomeStart: HexCoord;
+  eligibleHomeNeighbor: HexCoord;
+  eligibleAwayId: string;
+  eligibleAwayStart: HexCoord;
+  eligibleAwayNeighbor: HexCoord;
+} {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const stageIndex = opts?.stageIndex ?? 0;
+  const homeOutfield = room.gameState.pieces.filter((p) => p.teamId === 'home' && p.role !== 'GK');
+  const awayOutfield = room.gameState.pieces.filter((p) => p.teamId === 'away' && p.role !== 'GK');
+  const taker = homeOutfield[0]!;
+  const eligibleHome = homeOutfield[1]!;
+  const eligibleAway = awayOutfield[0]!;
+
+  const ELIGIBLE_HOME_START: HexCoord = { q: 10, r: 10 };
+  const ELIGIBLE_HOME_NEIGHBOR = hexNeighbors(ELIGIBLE_HOME_START).find((h) => isPitchHex(h))!;
+  const ELIGIBLE_AWAY_START: HexCoord = { q: 20, r: 10 };
+  const ELIGIBLE_AWAY_NEIGHBOR = hexNeighbors(ELIGIBLE_AWAY_START).find((h) => isPitchHex(h))!;
+
+  let pieces = room.gameState.pieces.map((p) => {
+    if (p.id === taker.id) return { ...p, position: CORNER_HEX };
+    if (p.id === eligibleHome.id) return { ...p, position: ELIGIBLE_HOME_START };
+    if (p.id === eligibleAway.id) return { ...p, position: ELIGIBLE_AWAY_START };
+    return p;
+  });
+  // Deliberately do NOT exclude the two GKs from parking (unlike seedCornerKickGkSetup) —
+  // their default formation positions sit inside each team's own final third, which
+  // combined with the ball's post-transition CORNER_HEX/PASS-phase position would
+  // spuriously trigger applyFreeMoveZoneCheck's FREE_MOVE_ATTACK/DEFENSE overlay
+  // (see goalKick.integration.test.ts's identical parkBackgroundPieces note).
+  pieces = parkBackgroundPieces(pieces, new Set([taker.id, eligibleHome.id, eligibleAway.id]));
+
+  room.gameState = {
+    ...room.gameState,
+    phase: 'CORNER_KICK_REPOSITION',
+    outOfBoundsEnabled: true,
+    pieces,
+    movedPieceIds: [],
+    cornerKickTeam: CORNER_KICK_TEAM,
+    cornerKickHex: CORNER_HEX,
+    cornerKickTakerId: taker.id,
+    cornerKickEligibleIds: {
+      attacking: [eligibleHome.id],
+      defending: [eligibleAway.id],
+    },
+    cornerKickStageIndex: stageIndex,
+    cornerKickStagePlacedIds: [],
+    cornerKickUsedPace: {},
+    cornerKickMoveSlot: null,
+    cornerKickMovedPieceId: null,
+    cornerKickPaceUsed: 0,
+    attackingTeam: CORNER_KICK_TEAM,
+    activeTeam: cornerKickStageTeam(stageIndex, CORNER_KICK_TEAM),
+    kickOffActive: false,
+    lastActionType: null,
+    lastDiceRoll: null,
+    ball: {
+      position: CORNER_HEX,
+      carrierId: taker.id,
+      lastTouchedBy: { pieceId: taker.id, teamId: CORNER_KICK_TEAM },
+    },
+  };
+
+  return {
+    takerId: taker.id,
+    eligibleHomeId: eligibleHome.id,
+    eligibleHomeStart: ELIGIBLE_HOME_START,
+    eligibleHomeNeighbor: ELIGIBLE_HOME_NEIGHBOR,
+    eligibleAwayId: eligibleAway.id,
+    eligibleAwayStart: ELIGIBLE_AWAY_START,
+    eligibleAwayNeighbor: ELIGIBLE_AWAY_NEIGHBOR,
+  };
+}
+
+/** Seeds CORNER_KICK_FINAL_SETUP at the given slot (default 'ATTACKER'). */
+function seedCornerKickFinalSetup(
+  roomCode: string,
+  opts?: { slot?: 'ATTACKER' | 'DEFENDER' },
+): {
+  takerId: string;
+  eligibleHomeId: string;
+  eligibleHomeStart: HexCoord;
+  eligibleHomeNeighbor: HexCoord;
+  eligibleAwayId: string;
+  eligibleAwayStart: HexCoord;
+  eligibleAwayNeighbor: HexCoord;
+} {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const slot = opts?.slot ?? 'ATTACKER';
+  const homeOutfield = room.gameState.pieces.filter((p) => p.teamId === 'home' && p.role !== 'GK');
+  const awayOutfield = room.gameState.pieces.filter((p) => p.teamId === 'away' && p.role !== 'GK');
+  const taker = homeOutfield[0]!;
+  const eligibleHome = homeOutfield[1]!;
+  const eligibleAway = awayOutfield[0]!;
+
+  const ELIGIBLE_HOME_START: HexCoord = { q: 10, r: 10 };
+  const ELIGIBLE_HOME_NEIGHBOR = hexNeighbors(ELIGIBLE_HOME_START).find((h) => isPitchHex(h))!;
+  const ELIGIBLE_AWAY_START: HexCoord = { q: 20, r: 10 };
+  const ELIGIBLE_AWAY_NEIGHBOR = hexNeighbors(ELIGIBLE_AWAY_START).find((h) => isPitchHex(h))!;
+
+  let pieces = room.gameState.pieces.map((p) => {
+    if (p.id === taker.id) return { ...p, position: CORNER_HEX };
+    if (p.id === eligibleHome.id) return { ...p, position: ELIGIBLE_HOME_START };
+    if (p.id === eligibleAway.id) return { ...p, position: ELIGIBLE_AWAY_START };
+    return p;
+  });
+  // Deliberately do NOT exclude the two GKs from parking — see the identical note in
+  // seedCornerKickReposition above (this window's End Turn can resolve straight into
+  // PASS, which is NOT zone-check-exempt, so a GK left in its default final-third
+  // position would spuriously hijack the DEFENDER-slot-end resolution test below).
+  pieces = parkBackgroundPieces(pieces, new Set([taker.id, eligibleHome.id, eligibleAway.id]));
+
+  room.gameState = {
+    ...room.gameState,
+    phase: 'CORNER_KICK_FINAL_SETUP',
+    outOfBoundsEnabled: true,
+    pieces,
+    movedPieceIds: [],
+    cornerKickTeam: CORNER_KICK_TEAM,
+    cornerKickHex: CORNER_HEX,
+    cornerKickTakerId: taker.id,
+    cornerKickEligibleIds: {
+      attacking: [eligibleHome.id],
+      defending: [eligibleAway.id],
+    },
+    cornerKickStageIndex: null,
+    cornerKickStagePlacedIds: null,
+    cornerKickUsedPace: {},
+    cornerKickMoveSlot: slot,
+    cornerKickMovedPieceId: null,
+    cornerKickPaceUsed: 0,
+    attackingTeam: CORNER_KICK_TEAM,
+    activeTeam:
+      slot === 'ATTACKER' ? CORNER_KICK_TEAM : CORNER_KICK_TEAM === 'home' ? 'away' : 'home',
+    kickOffActive: false,
+    lastActionType: null,
+    lastDiceRoll: null,
+    ball: {
+      position: CORNER_HEX,
+      carrierId: taker.id,
+      lastTouchedBy: { pieceId: taker.id, teamId: CORNER_KICK_TEAM },
+    },
+  };
+
+  return {
+    takerId: taker.id,
+    eligibleHomeId: eligibleHome.id,
+    eligibleHomeStart: ELIGIBLE_HOME_START,
+    eligibleHomeNeighbor: ELIGIBLE_HOME_NEIGHBOR,
+    eligibleAwayId: eligibleAway.id,
+    eligibleAwayStart: ELIGIBLE_AWAY_START,
+    eligibleAwayNeighbor: ELIGIBLE_AWAY_NEIGHBOR,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // CORNER-01: GAME_CORNER_KICK_GK_PLACE
 // ---------------------------------------------------------------------------
@@ -554,5 +738,258 @@ describe('CORNER-01: GAME_END_TURN wiring for CORNER_KICK_GK_SETUP_ATTACKING/_DE
 
     expect(reason).toBe('WRONG_TEAM');
     expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CORNER-03: GAME_MOVE / GAME_END_TURN during CORNER_KICK_REPOSITION
+// ---------------------------------------------------------------------------
+
+describe('CORNER-03: GAME_MOVE/GAME_END_TURN during CORNER_KICK_REPOSITION', () => {
+  it('a valid move by the eligible attacking piece logs a MOVE event and repositions the piece', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeNeighbor } = seedCornerKickReposition(roomCode);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
+    const [state] = await statePromise;
+
+    expect(state.pieces.find((p) => p.id === eligibleHomeId)!.position).toEqual(
+      eligibleHomeNeighbor,
+    );
+    const moveEvents = state.eventLog.filter(
+      (e) => e.type === 'MOVE' && 'pieceId' in e && e.pieceId === eligibleHomeId,
+    );
+    expect(moveEvents).toHaveLength(1);
+  });
+
+  it('a move by the non-acting (defending-side) team at the attacking stage is rejected with WRONG_TEAM', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const { eligibleAwayId, eligibleAwayNeighbor } = seedCornerKickReposition(roomCode);
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_MOVE, eligibleAwayId, eligibleAwayNeighbor);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_TEAM');
+  });
+
+  it('ending the stage with zero moves made is legal (D-06) and advances to the next stage', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickReposition(roomCode, { stageIndex: 0 });
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('CORNER_KICK_REPOSITION');
+    expect(state.cornerKickStageIndex).toBe(1);
+    expect(state.activeTeam).toBe('away');
+  });
+
+  it('ending the terminal stage (5) transitions to CORNER_KICK_FINAL_SETUP', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedCornerKickReposition(roomCode, { stageIndex: 5 });
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_END_TURN);
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+    expect(state.cornerKickMoveSlot).toBe('ATTACKER');
+  });
+
+  it('the non-acting team ending the stage is rejected with WRONG_TEAM and does not advance', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedCornerKickReposition(roomCode, { stageIndex: 0 });
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_END_TURN);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_TEAM');
+    expect(getRoom(roomCode)!.gameState!.cornerKickStageIndex).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CORNER-06: GAME_MOVE / GAME_END_TURN during CORNER_KICK_FINAL_SETUP
+// ---------------------------------------------------------------------------
+
+describe('CORNER-06: GAME_MOVE/GAME_END_TURN during CORNER_KICK_FINAL_SETUP', () => {
+  it('a valid move by the eligible attacking piece logs exactly one CORNER_KICK_MOVE event', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeNeighbor } = seedCornerKickFinalSetup(roomCode, {
+      slot: 'ATTACKER',
+    });
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
+    const [state] = await statePromise;
+
+    expect(state.pieces.find((p) => p.id === eligibleHomeId)!.position).toEqual(
+      eligibleHomeNeighbor,
+    );
+    const moveEvents = state.eventLog.filter((e) => e.type === 'CORNER_KICK_MOVE');
+    // Exactly one — proves the handler does not double-log on top of
+    // applyCornerKickFinalMove's own internal event append.
+    expect(moveEvents).toHaveLength(1);
+  });
+
+  it('a move by the non-acting team during the ATTACKER slot is rejected with WRONG_TEAM', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    const { eligibleAwayId, eligibleAwayNeighbor } = seedCornerKickFinalSetup(roomCode, {
+      slot: 'ATTACKER',
+    });
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_MOVE, eligibleAwayId, eligibleAwayNeighbor);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_TEAM');
+  });
+
+  it('ending the ATTACKER slot hands off to DEFENDER with no dice rolled', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickFinalSetup(roomCode, { slot: 'ATTACKER' });
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+    expect(state.cornerKickMoveSlot).toBe('DEFENDER');
+    expect(state.activeTeam).toBe('away');
+    expect(state.lastDiceRoll).toBeNull();
+  });
+
+  it('ending the DEFENDER slot resolves into PASS with lastActionType CORNER_KICK_RESTART and no dice rolled', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedCornerKickFinalSetup(roomCode, { slot: 'DEFENDER' });
+
+    const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_END_TURN);
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('PASS');
+    expect(state.lastActionType).toBe('CORNER_KICK_RESTART');
+    expect(state.attackingTeam).toBe('home');
+    expect(state.activeTeam).toBe('home');
+    expect(state.lastDiceRoll).toBeNull();
+    // Pitfall 3: cornerKickTeam/cornerKickHex/cornerKickTakerId survive into PASS —
+    // the later accuracy-resolution site (Task 3) reads them after lastActionType has
+    // already been overwritten by the client's chosen passType.
+    expect(state.cornerKickTeam).toBe('home');
+  });
+
+  it('the non-acting team ending the DEFENDER slot is rejected with WRONG_TEAM', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickFinalSetup(roomCode, { slot: 'DEFENDER' });
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_TEAM');
+    expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_FINAL_SETUP');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAME_UNDO across the five corner-kick phases
+// ---------------------------------------------------------------------------
+
+describe('GAME_UNDO validUndoPhases coverage for Corner Kick', () => {
+  it('CORNER_KICK_REPOSITION accepts Undo after a move', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeNeighbor } = seedCornerKickReposition(roomCode);
+
+    const movePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
+    await movePromise;
+
+    const undoPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_UNDO);
+    const [state] = await undoPromise;
+
+    expect(state.phase).toBe('CORNER_KICK_REPOSITION');
+  });
+
+  it('CORNER_KICK_FINAL_SETUP accepts Undo after a move', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { eligibleHomeId, eligibleHomeNeighbor } = seedCornerKickFinalSetup(roomCode, {
+      slot: 'ATTACKER',
+    });
+
+    const movePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, eligibleHomeId, eligibleHomeNeighbor);
+    await movePromise;
+
+    const undoPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_UNDO);
+    const [state] = await undoPromise;
+
+    expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+  });
+
+  it('CORNER_KICK_TAKER_SELECT rejects Undo with WRONG_PHASE (placement, no reversible move)', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickTakerSelect(roomCode);
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_UNDO);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_PHASE');
+  });
+
+  it('CORNER_KICK_GK_SETUP_ATTACKING rejects Undo with WRONG_PHASE', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickGkSetup(roomCode, 'CORNER_KICK_GK_SETUP_ATTACKING');
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_UNDO);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_PHASE');
+  });
+
+  it('CORNER_KICK_GK_SETUP_DEFENDING rejects Undo with WRONG_PHASE', async () => {
+    const { clientB, roomCode } = await setupRoom();
+    seedCornerKickGkSetup(roomCode, 'CORNER_KICK_GK_SETUP_DEFENDING');
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_UNDO);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_PHASE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAME_ROLL is rejected in every corner setup phase (DICE_PHASES exclusion)
+// ---------------------------------------------------------------------------
+
+describe('GAME_ROLL rejected in corner setup phases', () => {
+  it('GAME_ROLL during CORNER_KICK_REPOSITION is rejected with WRONG_PHASE', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickReposition(roomCode);
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_ROLL, 'STANDARD_PASS', { q: 15, r: 10 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_PHASE');
+  });
+
+  it('GAME_ROLL during CORNER_KICK_TAKER_SELECT is rejected with WRONG_PHASE', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedCornerKickTakerSelect(roomCode);
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_ROLL, 'STANDARD_PASS', { q: 15, r: 10 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_PHASE');
   });
 });
