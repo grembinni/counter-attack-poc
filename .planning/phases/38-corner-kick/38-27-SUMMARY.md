@@ -119,3 +119,14 @@ None - no external service configuration required.
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-09_
+
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/shared/src/offside.ts
+- FOUND: packages/server/src/**tests**/gameEngine.cornerKick.test.ts
+- FOUND: packages/server/src/**tests**/cornerKick.integration.test.ts
+- FOUND: .planning/phases/38-corner-kick/38-27-SUMMARY.md
+- FOUND commit: 538cbed
+- FOUND commit: 11df9a0
+- FOUND commit: 48f7e1b
