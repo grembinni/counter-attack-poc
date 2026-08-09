@@ -56,13 +56,12 @@ import type {
 import {
   ClientEvents,
   ServerEvents,
-  cornerClearOutGoalHex,
+  CORNER_EXCLUSION_RADIUS,
   cornerKickStageTeam,
   hexDistance,
   hexesInRange,
   hexNeighbors,
   isInRegion,
-  isLegalClearOutStep,
   isPitchHex,
 } from '@counter-attack/shared';
 
@@ -129,35 +128,6 @@ function oncePromise<E extends keyof ServerToClientEvents>(
       clearTimeout(timer);
       resolve(args as Parameters<ServerToClientEvents[E]>);
     });
-  });
-}
-
-/**
- * Waits for the first GAME_STATE broadcast on `client` matching `predicate`, skipping any
- * earlier non-matching ones. Needed (rather than a plain `oncePromise`) whenever a client
- * has an un-drained backlog of GAME_STATE broadcasts it never listened for — e.g. every
- * client OTHER than the one `driveLooseBallToCorner` awaits internally receives one
- * broadcast per retry attempt with nobody consuming it, so a bare `.once()` attached
- * afterward can catch a stale backlog entry instead of the next fresh broadcast (38-21).
- */
-function waitForState(
-  client: Socket<ServerToClientEvents, ClientToServerEvents>,
-  predicate: (state: GameState) => boolean,
-  timeoutMs = 2000,
-): Promise<GameState> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      client.off(ServerEvents.GAME_STATE, handler);
-      reject(new Error(`Timed out waiting for a matching GAME_STATE after ${timeoutMs}ms`));
-    }, timeoutMs);
-    const handler = (state: GameState): void => {
-      if (predicate(state)) {
-        clearTimeout(timer);
-        client.off(ServerEvents.GAME_STATE, handler);
-        resolve(state);
-      }
-    };
-    client.on(ServerEvents.GAME_STATE, handler);
   });
 }
 
@@ -277,15 +247,34 @@ function freeNeighbor(state: GameState, pos: HexCoord): HexCoord {
  * and `lastTouchedBy` recording a HOME player (the defending touch that, per
  * classifyOutOfBounds, produces a CORNER_KICK restart awarded to the OPPOSITE team).
  * Mirrors throwIn.integration.test.ts's seedLooseBallForReclassification exactly.
+ *
+ * `opts.inZonePiece` (gap-closure round 3, 38-25) optionally keeps one named piece OUT of
+ * the parking sweep and places it at the given position instead — used to prove the
+ * automatic clear-out actually relocates a real in-zone piece over the real socket path.
  */
 function seedCornerKickLooseBall(
   roomCode: string,
-  opts?: { outOfBoundsEnabled?: boolean },
+  opts?: { outOfBoundsEnabled?: boolean; inZonePiece?: { id: string; position: HexCoord } },
 ): { homeToucherId: string } {
   const room = getRoom(roomCode);
   if (!room || !room.gameState) throw new Error('Room or gameState not found');
 
   const homeToucher = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK')!;
+
+  // Every piece (including both default-formation GKs, who otherwise sit inside their
+  // own final third) is parked in the MIDDLE third — a byline exit necessarily lands the
+  // ball inside a final third, and applyFreeMoveZoneCheck (run centrally by
+  // broadcastState on every resolved action, including the pre-existing clamp path when
+  // the toggle is off) would otherwise overlay FREE_MOVE_ATTACK/DEFENSE the instant an
+  // opposite-final-third occupant exists (mirrors goalKick.integration.test.ts's
+  // parkBackgroundPieces rationale). The optional inZonePiece is excluded from parking and
+  // placed at its explicit position instead.
+  const keepIds = opts?.inZonePiece ? new Set([opts.inZonePiece.id]) : new Set<string>();
+  let pieces = parkBackgroundPieces(room.gameState.pieces, keepIds);
+  if (opts?.inZonePiece) {
+    const { id, position } = opts.inZonePiece;
+    pieces = pieces.map((p) => (p.id === id ? { ...p, position } : p));
+  }
 
   room.gameState = {
     ...room.gameState,
@@ -311,14 +300,7 @@ function seedCornerKickLooseBall(
       carrierId: null,
       lastTouchedBy: { pieceId: homeToucher.id, teamId: 'home' },
     },
-    // Every piece (including both default-formation GKs, who otherwise sit inside their
-    // own final third) is parked in the MIDDLE third — a byline exit necessarily lands the
-    // ball inside a final third, and applyFreeMoveZoneCheck (run centrally by
-    // broadcastState on every resolved action, including the pre-existing clamp path when
-    // the toggle is off) would otherwise overlay FREE_MOVE_ATTACK/DEFENSE the instant an
-    // opposite-final-third occupant exists (mirrors goalKick.integration.test.ts's
-    // parkBackgroundPieces rationale).
-    pieces: parkBackgroundPieces(room.gameState.pieces, new Set()),
+    pieces,
   };
 
   return { homeToucherId: homeToucher.id };
@@ -333,23 +315,25 @@ function seedCornerKickLooseBall(
  * 2 of the 6 direction values guarantee a byline exit at step 1. Failure probability after
  * 60 attempts is astronomically small (mirrors throwIn.integration.test.ts's identical
  * retry-loop rationale and MAX_ATTEMPTS).
+ *
+ * `opts.inZonePiece` (gap-closure round 3, 38-25) is threaded through to
+ * `seedCornerKickLooseBall` on every retry attempt.
  */
 async function driveLooseBallToCorner(
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
   roomCode: string,
+  opts?: { inZonePiece?: { id: string; position: HexCoord } },
 ): Promise<GameState> {
   const MAX_ATTEMPTS = 60;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    seedCornerKickLooseBall(roomCode);
+    seedCornerKickLooseBall(roomCode, opts);
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_ROLL);
     const [state] = await statePromise;
-    // 38-20/38-21: a real corner award now lands in the mandatory clear-out step first.
-    // This helper deliberately stops HERE (rather than driving on into the GK windows) so
-    // every phase-specific describe block below can start from a known, minimal state —
-    // the real walk from CORNER_KICK_CLEAR_OUT into CORNER_KICK_GK_SETUP_ATTACKING is
-    // exercised separately in the "CORNER_KICK_CLEAR_OUT over the socket" describe block.
-    if (state.phase === 'CORNER_KICK_CLEAR_OUT') {
+    // Gap-closure round 3 (38-25): the clear-out is now automatic — a real corner award
+    // lands directly in CORNER_KICK_GK_SETUP_ATTACKING, so this helper stops there. Every
+    // phase-specific describe block below starts from this known, minimal state.
+    if (state.phase === 'CORNER_KICK_GK_SETUP_ATTACKING') {
       return state;
     }
   }
@@ -875,17 +859,13 @@ function seedOrdinaryHighPassState(roomCode: string): { carrierId: string } {
 // ---------------------------------------------------------------------------
 
 describe('OOB-03: a home-byline exit after a home touch triggers a corner kick', () => {
-  it('awards the corner to away (team inversion) and enters the mandatory clear-out CORNER_KICK_CLEAR_OUT (38-20)', async () => {
+  it('awards the corner to away (team inversion) and opens directly on CORNER_KICK_GK_SETUP_ATTACKING (gap-closure round 3, 38-25)', async () => {
     const { clientA, roomCode } = await setupRoom();
     const state = await driveLooseBallToCorner(clientA, roomCode);
 
-    // CORNER-01 (38-15 defect 3, 38-20): a real corner award now lands in the mandatory
-    // clear-out step first, with the attacking slot active — CORNER_KICK_GK_SETUP_ATTACKING
-    // is only reached after both applyCornerKickClearOutEnd confirms (38-21 wires the
-    // socket handlers for both; see the "CORNER_KICK_CLEAR_OUT over the socket" describe
-    // block below for the full real-emit walkthrough into that phase).
-    expect(state.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(state.cornerKickClearOutSlot).toBe('ATTACKER');
+    // CORNER-01 (gap-closure round 3, 38-25): the clear-out is automatic — a real corner
+    // award now lands directly in CORNER_KICK_GK_SETUP_ATTACKING, no intermediate phase.
+    expect(state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(state.cornerKickTeam).toBe('away');
     expect(state.cornerKickHex).not.toBeNull();
     expect(state.cornerKickHex?.q).toBe(0);
@@ -913,128 +893,45 @@ describe('OOB-03: a home-byline exit after a home touch triggers a corner kick',
 });
 
 // ---------------------------------------------------------------------------
-// CORNER_KICK_CLEAR_OUT over the socket (38-15 defect 3, Plan 38-21)
+// Automatic corner clear-out over the socket (gap-closure round 3, 38-25)
 // ---------------------------------------------------------------------------
 
-describe('CORNER_KICK_CLEAR_OUT over the socket (38-15 defect 3)', () => {
-  it('a corner award opens the clear-out with the attacking manager acting', async () => {
-    const { clientA, clientB, roomCode } = await setupRoom();
-
-    // clientB is 'away' (project-wide slot convention) — CORNER_KICK_TEAM in this file is
-    // 'away', so clientB is the attacking manager whose ATTACKER slot opens first.
-    // driveLooseBallToCorner only awaits clientA internally, so clientB accumulates an
-    // un-drained backlog of GAME_STATE broadcasts across its retry loop — waitForState
-    // (not a bare oncePromise) skips any stale backlog entries and resolves on the first
-    // broadcast that actually reflects the corner award (38-21).
-    const clientBClearOutPromise = waitForState(
-      clientB,
-      (s) => s.phase === 'CORNER_KICK_CLEAR_OUT',
-    );
-
-    const state = await driveLooseBallToCorner(clientA, roomCode);
-    const stateB = await clientBClearOutPromise;
-
-    expect(state.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(state.cornerKickClearOutSlot).toBe('ATTACKER');
-    expect(state.activeTeam).toBe('away');
-    expect(stateB.cornerKickClearOutSlot).toBe('ATTACKER');
-    expect(stateB.activeTeam).toBe('away');
-  });
-
-  it('both managers clear their in-zone pieces via real emits and the sequence reaches CORNER_KICK_GK_SETUP_ATTACKING', async () => {
-    const { clientA, clientB, roomCode } = await setupRoom();
-    const clearOutState = await driveLooseBallToCorner(clientA, roomCode);
-    const cornerHex = clearOutState.cornerKickHex!;
-
-    // Place one outfield piece per team just inside the exclusion zone (distance exactly
-    // CORNER_EXCLUSION_RADIUS from cornerHex) — a single legal step (strictly away from the
-    // corner) is guaranteed to exit the zone (distance 4 > radius 3), so one real GAME_MOVE
-    // per piece is enough to fully clear it. This adjusts PIECE POSITIONS only, not the
-    // phase itself — the corner award above came from a real LOOSE_BALL/dice sequence.
-    const room = getRoom(roomCode)!;
-    const homeOutfield = room.gameState!.pieces.find(
+describe('automatic corner clear-out over the socket (gap-closure round 3, 38-25)', () => {
+  it('relocates a real in-zone piece automatically, with no manual step, and lands directly in CORNER_KICK_GK_SETUP_ATTACKING', async () => {
+    const { clientA, roomCode, state: initialState } = await setupRoom();
+    const inZonePieceId = initialState.pieces.find(
       (p) => p.teamId === 'home' && p.role !== 'GK',
-    )!;
-    const awayOutfield = room.gameState!.pieces.find(
-      (p) => p.teamId === 'away' && p.role !== 'GK',
-    )!;
-    const zoneEdgeHexes = hexesInRange(cornerHex, 3).filter(
-      (h) => isPitchHex(h) && hexDistance(h, cornerHex) === 3,
-    );
-    const homeStart = zoneEdgeHexes[0]!;
-    const awayStart = zoneEdgeHexes.find((h) => h.q !== homeStart.q || h.r !== homeStart.r)!;
-    room.gameState = {
-      ...room.gameState!,
-      pieces: room.gameState!.pieces.map((p) => {
-        if (p.id === homeOutfield.id) return { ...p, position: homeStart };
-        if (p.id === awayOutfield.id) return { ...p, position: awayStart };
-        return p;
-      }),
-    };
+    )!.id;
+    // A neighbour of the corner hex — guaranteed inside CORNER_EXCLUSION_RADIUS (distance 1).
+    const inZonePosition = hexNeighbors(CORNER_HEX).find((h) => isPitchHex(h))!;
 
-    // cornerKickTeam is 'away' (CORNER_KICK_TEAM) — the byline owner (goal-ward direction)
-    // is therefore 'home', mirroring applyCornerKickClearOut's own inversion.
-    const goalHex = cornerClearOutGoalHex('home');
-    const awayTarget = hexNeighbors(awayStart).find(
-      (to) => isPitchHex(to) && isLegalClearOutStep(awayStart, to, cornerHex, goalHex),
-    )!;
-    const homeTarget = hexNeighbors(homeStart).find(
-      (to) => isPitchHex(to) && isLegalClearOutStep(homeStart, to, cornerHex, goalHex),
-    )!;
+    const state = await driveLooseBallToCorner(clientA, roomCode, {
+      inZonePiece: { id: inZonePieceId, position: inZonePosition },
+    });
 
-    // Every wait below uses waitForState (not a bare oncePromise): clientB (and later
-    // clientA) may carry an un-drained backlog of earlier broadcasts — see the "a corner
-    // award opens the clear-out" test's comment above for why a plain `.once()` is unsafe
-    // here.
-
-    // ATTACKER slot (away) clears first.
-    const awayMovePromise = waitForState(
-      clientB,
-      (s) =>
-        s.pieces.find((p) => p.id === awayOutfield.id)?.position.q === awayTarget.q &&
-        s.pieces.find((p) => p.id === awayOutfield.id)?.position.r === awayTarget.r,
+    expect(state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+    const cornerHex = state.cornerKickHex!;
+    // No piece of either team may remain inside the exclusion zone after the award.
+    for (const p of state.pieces) {
+      expect(hexDistance(p.position, cornerHex)).toBeGreaterThan(CORNER_EXCLUSION_RADIUS);
+    }
+    // The seeded in-zone piece produced exactly one CORNER_KICK_CLEAR_OUT_MOVE event.
+    const clearOutEvent = state.eventLog.find(
+      (e) => e.type === 'CORNER_KICK_CLEAR_OUT_MOVE' && e.pieceId === inZonePieceId,
     );
-    clientB.emit(ClientEvents.GAME_MOVE, awayOutfield.id, awayTarget);
-    const afterAwayMove = await awayMovePromise;
-    expect(afterAwayMove.pieces.find((p) => p.id === awayOutfield.id)!.position).toEqual(
-      awayTarget,
-    );
-
-    const attackerConfirmPromise = waitForState(
-      clientB,
-      (s) => s.cornerKickClearOutSlot === 'DEFENDER',
-    );
-    clientB.emit(ClientEvents.GAME_END_TURN);
-    const afterAttackerConfirm = await attackerConfirmPromise;
-    expect(afterAttackerConfirm.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(afterAttackerConfirm.cornerKickClearOutSlot).toBe('DEFENDER');
-    expect(afterAttackerConfirm.activeTeam).toBe('home');
-
-    // DEFENDER slot (home) clears second.
-    const homeMovePromise = waitForState(
-      clientA,
-      (s) =>
-        s.pieces.find((p) => p.id === homeOutfield.id)?.position.q === homeTarget.q &&
-        s.pieces.find((p) => p.id === homeOutfield.id)?.position.r === homeTarget.r,
-    );
-    clientA.emit(ClientEvents.GAME_MOVE, homeOutfield.id, homeTarget);
-    const afterHomeMove = await homeMovePromise;
-    expect(afterHomeMove.pieces.find((p) => p.id === homeOutfield.id)!.position).toEqual(
-      homeTarget,
-    );
-
-    const defenderConfirmPromise = waitForState(
-      clientA,
-      (s) => s.phase === 'CORNER_KICK_GK_SETUP_ATTACKING',
-    );
-    clientA.emit(ClientEvents.GAME_END_TURN);
-    const finalState = await defenderConfirmPromise;
-
-    expect(finalState.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
-    expect(finalState.cornerKickClearOutSlot).toBeNull();
-    expect(finalState.activeTeam).toBe('away');
+    expect(clearOutEvent).toBeDefined();
+    const movedPiece = state.pieces.find((p) => p.id === inZonePieceId)!;
+    expect(movedPiece.position).not.toEqual(inZonePosition);
   });
+});
 
+// ---------------------------------------------------------------------------
+// Permanent defender exclusion zone during CORNER_KICK_REPOSITION (unaffected by 38-25 —
+// the automatic clear-out only replaces the pre-corner clear-out step; the standing
+// exclusion-zone guard on later corner movement surfaces is untouched)
+// ---------------------------------------------------------------------------
+
+describe('permanent defender exclusion zone during CORNER_KICK_REPOSITION', () => {
   it('a defending reposition into the exclusion zone is rejected over the socket', async () => {
     const { clientA, roomCode } = await setupRoom();
     // Stage 1 is the first DEFENDING stage (CORNER_KICK_STAGES[1]); cornerKickStageTeam(1,
