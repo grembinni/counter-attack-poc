@@ -10,11 +10,12 @@ import {
   isWithinCornerExclusionZone,
   cornerClearOutGoalHex,
   isLegalClearOutStep,
+  cornerClearOutDestination,
   isSpillCornerDirection,
 } from './outOfBounds.js';
 import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
 import { FORMATIONS } from './formations.js';
-import { hexesInRange, hexNeighbors, hexDistance } from './hex.js';
+import { hexesInRange, hexNeighbors, hexDistance, hexLine } from './hex.js';
 import { looseBallDirectionQStep } from './scoreUtils.js';
 import type { HexCoord } from './types.js';
 
@@ -302,6 +303,55 @@ describe('isLegalClearOutStep (38-16, 38-15 defect 3)', () => {
       expect(hasLegalStep).toBe(true);
     }
   });
+});
+
+describe('cornerClearOutDestination (gap-closure round 3, 38-25)', () => {
+  const cornerHex = CORNER_KICK_HEX.home.top;
+  const goalHex = cornerClearOutGoalHex('home');
+
+  it('a piece already outside the exclusion zone returns its own hex unchanged', () => {
+    const outside = hexesInRange(cornerHex, CORNER_EXCLUSION_RADIUS + 2).find(
+      (h) => isPitchHex(h) && hexDistance(h, cornerHex) === CORNER_EXCLUSION_RADIUS + 2,
+    );
+    expect(outside).toBeDefined();
+    expect(cornerClearOutDestination(outside, cornerHex, goalHex, [])).toEqual(outside);
+  });
+
+  it('a piece on a zone hex lands strictly outside the zone', () => {
+    const result = cornerClearOutDestination(cornerHex, cornerHex, goalHex, []);
+    expect(isWithinCornerExclusionZone(result, cornerHex)).toBe(false);
+  });
+
+  it('the landing hex is always on-pitch', () => {
+    const result = cornerClearOutDestination(cornerHex, cornerHex, goalHex, []);
+    expect(isPitchHex(result)).toBe(true);
+  });
+
+  it('an occupied first candidate is skipped and a later line hex is returned', () => {
+    const line = hexLine(cornerHex, goalHex);
+    const firstCandidate = line[1];
+    const result = cornerClearOutDestination(cornerHex, cornerHex, goalHex, [firstCandidate]);
+    expect(result).not.toEqual(firstCandidate);
+    expect(isWithinCornerExclusionZone(result, cornerHex)).toBe(false);
+    expect(isPitchHex(result)).toBe(true);
+  });
+
+  for (const owner of ['home', 'away'] as const) {
+    for (const row of ['top', 'bottom'] as const) {
+      const corner = CORNER_KICK_HEX[owner][row];
+      const goal = cornerClearOutGoalHex(owner);
+
+      it(`corner ${owner}/${row}: destination is never inside the exclusion zone for every zone hex`, () => {
+        const zoneHexes = hexesInRange(corner, CORNER_EXCLUSION_RADIUS).filter((h) =>
+          isPitchHex(h),
+        );
+        for (const from of zoneHexes) {
+          const result = cornerClearOutDestination(from, corner, goal, []);
+          expect(isWithinCornerExclusionZone(result, corner)).toBe(false);
+        }
+      });
+    }
+  }
 });
 
 describe('isSpillCornerDirection (D-GAP-02, 38-16)', () => {

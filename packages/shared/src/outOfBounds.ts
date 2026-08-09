@@ -16,8 +16,8 @@
  */
 
 import type { HexCoord } from './types.js';
-import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
-import { hexesInRange, hexDistance } from './hex.js';
+import { isPitchHex, PITCH_HEXES, GOAL_R_VALUES } from './pitch.js';
+import { hexesInRange, hexDistance, hexLine } from './hex.js';
 import { looseBallDirectionQStep } from './scoreUtils.js';
 
 /** Pitch bounds, single source of truth for this module (mirrors pitch.ts's 37x26 grid). */
@@ -273,6 +273,73 @@ export function isLegalClearOutStep(
   const movesAwayFromCorner = hexDistance(to, cornerHex) > hexDistance(from, cornerHex);
   const doesNotRetreatFromGoal = hexDistance(to, goalHex) <= hexDistance(from, goalHex);
   return movesAwayFromCorner && doesNotRetreatFromGoal;
+}
+
+/**
+ * CORNER-01 (gap-closure round 3, 38-25): `cornerClearOutDestination` REPLACES the interactive
+ * `isLegalClearOutStep` walk (round-2's click-a-destination-per-step clear-out, rejected by the
+ * human verifier per `38-24-SUMMARY.md` bug 1) with a single automatic straight-line-toward-goal
+ * landing-hex computation applied once, at corner-award time. `CORNER_EXCLUSION_RADIUS` (via
+ * `isWithinCornerExclusionZone`) remains the single source of truth for the stop condition —
+ * this function never restates the "3 hexes clear" distance as a literal.
+ *
+ * 1. A piece already outside the exclusion zone is untouched — `from` is returned unchanged.
+ * 2. Otherwise, walk `hexLine(from, goalHex)` starting at index 1 (index 0 is `from` itself) and
+ *    return the FIRST hex that is on-pitch, unoccupied (per the caller-supplied `occupied` list,
+ *    which excludes the moving piece's own current hex), and outside the exclusion zone. A
+ *    blocked or in-zone intermediate hex is skipped, not treated as a dead end, so one occupied
+ *    hex mid-line can never strand a piece inside the zone.
+ * 3. If the line yields no candidate, fall back to scanning `PITCH_HEXES` for every unoccupied,
+ *    out-of-zone hex and return the one minimising `hexDistance(hex, from)`, tie-broken by
+ *    smaller `hexDistance(hex, goalHex)`, then smaller `q`, then smaller `r` — the same
+ *    deterministic (distance, q, r) comparator shape `resolveThrowInHex` already uses.
+ * 4. If even the fallback finds nothing (unreachable on the real 37x26 pitch with 22 pieces),
+ *    `from` is returned unchanged rather than an off-pitch or occupied hex.
+ *
+ * Pure: no `GameState`, no piece objects, no I/O. `occupied` is a plain `HexCoord[]` supplied by
+ * the caller so the engine controls whether the moving piece's own current hex is included (it
+ * must not be).
+ */
+export function cornerClearOutDestination(
+  from: HexCoord,
+  cornerHex: HexCoord,
+  goalHex: HexCoord,
+  occupied: readonly HexCoord[],
+): HexCoord {
+  if (!isWithinCornerExclusionZone(from, cornerHex)) return from;
+
+  const isOccupied = (hex: HexCoord): boolean =>
+    occupied.some((p) => p.q === hex.q && p.r === hex.r);
+
+  const line = hexLine(from, goalHex);
+  for (let i = 1; i < line.length; i++) {
+    const candidate = line[i]!;
+    if (
+      isPitchHex(candidate) &&
+      !isOccupied(candidate) &&
+      !isWithinCornerExclusionZone(candidate, cornerHex)
+    ) {
+      return candidate;
+    }
+  }
+
+  const fallbackCandidates = PITCH_HEXES.filter(
+    (hex) => !isOccupied(hex) && !isWithinCornerExclusionZone(hex, cornerHex),
+  );
+  if (fallbackCandidates.length === 0) return from;
+
+  const sorted = [...fallbackCandidates].sort((a, b) => {
+    const da = hexDistance(a, from);
+    const db = hexDistance(b, from);
+    if (da !== db) return da - db;
+    const ga = hexDistance(a, goalHex);
+    const gb = hexDistance(b, goalHex);
+    if (ga !== gb) return ga - gb;
+    if (a.q !== b.q) return a.q - b.q;
+    return a.r - b.r;
+  });
+
+  return sorted[0]!;
 }
 
 /**
