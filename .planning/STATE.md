@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
-status: executing
-stopped_at: Phase 38 gap-closure re-verification (38-24) — corrections needed, not approved
-last_updated: '2026-08-09T00:00:00.000Z'
-last_activity: 2026-08-09 -- Phase 38 gap-closure round 2 complete (38-16..38-24); checkpoint found 4 new defects (automatic clear-out, D-GAP-03 rejected as implemented, pre-kick move should not mark activation, ActionLog crash), routing to a third gap-closure round
+status: completed
+stopped_at: Phase 38 UI-SPEC approved
+last_updated: '2026-08-09T11:45:59.452Z'
+last_activity: 2026-08-09 -- 38-24 checkpoint recorded 4 new defects; route to /gsd-plan-phase 38 --gaps
 progress:
   total_phases: 4
   completed_phases: 1
