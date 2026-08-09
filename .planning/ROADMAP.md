@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 22/24                                  | In Progress |             |
+| 38    | 23/24                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -297,7 +297,7 @@ Plans:
 
 **Wave 17** _(blocked on Wave 16; two plans run in parallel, no file overlap)_
 
-- [ ] 38-22-PLAN.md — Client: clear-out panel, phase registration, exclusion-zone destination mirror (defect 3)
+- [x] 38-22-PLAN.md — Client: clear-out panel, phase registration, exclusion-zone destination mirror (defect 3)
 - [x] 38-23-PLAN.md — Engine: D-GAP-02 corrected — direction-only corner award on a spilled save
 
 **Wave 18** _(second gap-closure re-verification, blocked on all code-fix plans)_
