@@ -1857,14 +1857,13 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                       })()
                     : state.phase === 'CORNER_KICK_REPOSITION'
                       ? (() => {
-                          // CR-02 (38-10, gap closure): refund the per-piece running-total pace
-                          // budget (mirrors the goalKickUsedPace arm above, field renamed), and
-                          // separately release the piece's slot in the current stage's
-                          // 2-distinct-piece cap (D-GAP-01) — driven by remaining current-stage
-                          // MOVE events for this piece, NOT by the pace value reaching 0, because
-                          // cornerKickUsedPace is a running total across all six stages (see
-                          // applyCornerKickReposition's doc comment) and would only reach 0 for a
-                          // piece touched in a single stage.
+                          // 38-27: with the single-destination placement model, a piece gets at
+                          // most ONE MOVE event per stage — remainingStageMovesForPiece is
+                          // therefore always 0 after undoing that piece's placement, so this arm
+                          // always releases both the stage-cap slot AND the activation below.
+                          // cornerKickUsedPace is refunded by the actual hex distance traveled
+                          // (mirrors the goalKickUsedPace arm above, field renamed) purely as a
+                          // bookkeeping ledger — it enforces no cap of its own.
                           const currentUsed = state.cornerKickUsedPace?.[moveToUndo.pieceId] ?? 0;
                           const rem = Math.max(0, currentUsed - stepDistance);
                           const nextUsedPace = { ...(state.cornerKickUsedPace ?? {}) };
@@ -4070,7 +4069,6 @@ export type ApplyCornerKickRepositionResult =
         | 'WRONG_TEAM'
         | 'NOT_ELIGIBLE'
         | 'PIECE_LOCKED'
-        | 'NOT_ADJACENT'
         | 'INVALID_TARGET'
         | 'STAGE_LIMIT_REACHED'
         | 'CORNER_EXCLUSION_ZONE';
@@ -4078,30 +4076,30 @@ export type ApplyCornerKickRepositionResult =
   | { ok: true; state: GameState };
 
 /**
- * CORNER-03 (D-05, revised by D-GAP-03/38-17): single-hex-per-click repositioning during
- * the CORNER_KICK_REPOSITION window's 6 alternating stages (see
- * `CORNER_KICK_STAGES`/`cornerKickStageTeam`, `offside.ts`).
+ * CORNER-03 (D-05, corrected reading of D-GAP-03 per 38-24-SUMMARY.md bug 2, 38-27):
+ * single-DESTINATION-click repositioning during the CORNER_KICK_REPOSITION window's 6
+ * alternating stages (see `CORNER_KICK_STAGES`/`cornerKickStageTeam`, `offside.ts`),
+ * modelled directly on `applyFreeKickMove` — pick a piece, pick one destination hex
+ * inside a bounded allowed area, done. Adjacency is deliberately ABSENT: unlike
+ * `applyGoalKickReposition`'s `hexDistance === 1` step-walk, there is no distance
+ * constraint of any kind on the destination.
  *
- * D-05: this function structurally COPIES `applyGoalKickReposition`'s body (adjacency via
- * `hexDistance === 1`, `isPitchHex` guard, occupancy scan excluding the moving piece) — it
- * does NOT call `applyGoalKickReposition`, `applyFreeMove`, or `applyMove`, for the same
- * reasoning `applyGoalKickReposition`'s own doc comment gives for not calling
- * `applyFreeMove`.
+ * A-GAP3-AREA (allowed area per side): the ATTACKING side's allowed area is every
+ * on-pitch hex not occupied by another piece; the DEFENDING side's allowed area is the
+ * same set minus every hex inside `isWithinCornerExclusionZone(hex, cornerKickHex)` —
+ * the corner analogue of free kick's ">2 hexes from freeKickHex" defending rule, reusing
+ * the same exclusion radius this phase already enforces everywhere else.
  *
- * D-GAP-03 (38-17, closing 38-15 defects 1 and 2): movement within an activating stage is
- * now UNCAPPED — there is no per-piece hex budget. The window's real limit is that a piece
- * may be ACTIVATED (touched) at most once per reposition window, which is what makes
- * CORNER-03's "up to 6 players" mean six DISTINCT players per side: `cornerKickActivatedIds`
- * accumulates every piece ever touched and PERSISTS across all six stages (never cleared per
- * stage, mirrored structurally on `FREE_KICK_SETUP`'s `freeKickPlacedPieceIds` +
- * `movedPieceIds` pair). A piece already in `cornerKickActivatedIds` may keep moving freely
- * for the REST of the stage that activated it (guarded by also checking
- * `cornerKickStagePlacedIds`, which still resets every stage) but is rejected with
- * `PIECE_LOCKED` if touched again in any LATER stage. `cornerKickStagePlacedIds` separately
- * still caps DISTINCT pieces per stage at `CORNER_KICK_STAGES[stageIndex].max` — that cap is
- * unchanged by this revision. `cornerKickUsedPace` is retained as a pure step counter (still
- * accumulated on every accepted move, still read by `applyUndo`'s refund arm) but no longer
- * enforces any cap.
+ * `cornerKickActivatedIds` is applied the INSTANT a placement completes — not eagerly
+ * before the move, and not deferred — and locks the piece for the remainder of the WHOLE
+ * reposition window (all six stages), not just later stages. Re-touching a piece already
+ * activated in the SAME stage that activated it is now correctly rejected too; Undo is
+ * the mechanism for correcting a misplacement, not a same-stage re-touch allowance.
+ *
+ * A-GAP3-BUDGET (unchanged): `CORNER_KICK_STAGES` keeps its existing shape — six stages,
+ * `max: 2` distinct pieces each, alternating attacking/defending — so the net budget
+ * remains two distinct pieces per stage, six distinct pieces per side across its three
+ * stages. Only the interaction model and the activation timing changed in 38-27.
  *
  * Acting team is derived from `cornerKickStageTeam(state.cornerKickStageIndex,
  * state.cornerKickTeam)` — never from `activeTeam` (T-38-10).
@@ -4133,21 +4131,13 @@ export function applyCornerKickReposition(
     return { ok: false, reason: 'NOT_ELIGIBLE' };
   }
 
-  // D-GAP-03 (38-17): a piece activated in an EARLIER stage is locked out. A piece first
-  // touched in the CURRENT stage is present in both cornerKickActivatedIds AND
-  // cornerKickStagePlacedIds, and must remain freely movable for the rest of that stage —
-  // the second half of this condition is load-bearing.
-  const stagePlacedIdsForLockCheck = state.cornerKickStagePlacedIds ?? [];
-  if (
-    (state.cornerKickActivatedIds ?? []).includes(pieceId) &&
-    !stagePlacedIdsForLockCheck.includes(pieceId)
-  ) {
+  // 38-27 (corrected reading of D-GAP-03): a piece is activated the INSTANT its placement
+  // completes, so any later attempt to touch it again — including within the SAME stage
+  // that activated it — is rejected. Undo is the mechanism for correcting a misplacement.
+  if ((state.cornerKickActivatedIds ?? []).includes(pieceId)) {
     return { ok: false, reason: 'PIECE_LOCKED' };
   }
 
-  if (hexDistance(piece.position, to) !== 1) {
-    return { ok: false, reason: 'NOT_ADJACENT' };
-  }
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'INVALID_TARGET' };
   }
@@ -4174,22 +4164,27 @@ export function applyCornerKickReposition(
   // read stage.max from this table; the engine's own enforcement path must agree, or a future
   // edit to CORNER_KICK_STAGES could silently desync the server-enforced cap from what the
   // client displays (T-38-40).
+  //
+  // 38-27: the PIECE_LOCKED guard above already rejects any piece re-touch (same stage or
+  // later), so the prior "already counted this stage" re-touch exemption is unreachable —
+  // every placement that reaches this guard is a NEW distinct piece for the stage.
   const stageMax = CORNER_KICK_STAGES[state.cornerKickStageIndex].max;
   const stagePlacedIds = state.cornerKickStagePlacedIds ?? [];
-  const alreadyCountedThisStage = stagePlacedIds.includes(pieceId);
-  if (!alreadyCountedThisStage && stagePlacedIds.length >= stageMax) {
+  if (stagePlacedIds.length >= stageMax) {
     return { ok: false, reason: 'STAGE_LIMIT_REACHED' };
   }
 
   const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
-  const newStagePlacedIds = alreadyCountedThisStage ? stagePlacedIds : [...stagePlacedIds, pieceId];
+  const newStagePlacedIds = [...stagePlacedIds, pieceId];
   const activatedIds = state.cornerKickActivatedIds ?? [];
-  const newActivatedIds = activatedIds.includes(pieceId)
-    ? activatedIds
-    : [...activatedIds, pieceId];
+  const newActivatedIds = [...activatedIds, pieceId];
 
   // No per-move event appended here — the reposition windows reuse the existing GAME_MOVE
   // handler, which emits its own event (38-05 wires that); adding one here would double-log.
+  //
+  // 38-27: the pace ledger increments by the ACTUAL hex distance traveled (not a flat 1) —
+  // load-bearing, because applyUndo's refund arm subtracts hexDistance(from, to) from this
+  // same ledger; a flat +1 against a multi-hex placement would desync the two.
   return {
     ok: true,
     state: {
@@ -4197,7 +4192,7 @@ export function applyCornerKickReposition(
       pieces: newPieces,
       cornerKickUsedPace: {
         ...(state.cornerKickUsedPace ?? {}),
-        [pieceId]: usedSoFar + 1,
+        [pieceId]: usedSoFar + hexDistance(piece.position, to),
       },
       cornerKickStagePlacedIds: newStagePlacedIds,
       cornerKickActivatedIds: newActivatedIds,
@@ -4223,13 +4218,13 @@ export type ApplyCornerKickStageEndResult =
  * Guards: phase must be `CORNER_KICK_REPOSITION`; `team` must equal
  * `cornerKickStageTeam(state.cornerKickStageIndex, state.cornerKickTeam)`.
  *
- * PITFALL 4 — the single most important line in this function: `cornerKickUsedPace` is
- * spread forward UNCHANGED on EVERY advance. It is never reset, never cleared per stage,
- * and this function deliberately does NOT port `applyFreeKickReady`'s behaviour of folding
- * the stage's touched pieces into a permanent `movedPieceIds` lock — Corner's 6-hex budget
- * is a per-piece TOTAL across the whole window, not a per-round allowance, so a
- * permanently-locked piece here would be a rules violation. Do not "fix" this to match
- * `applyFreeKickReady`.
+ * PITFALL 4 (updated, 38-27): `cornerKickUsedPace` is spread forward UNCHANGED on EVERY
+ * advance and is never reset. There is no hex budget of any kind to enforce — `cornerKickUsedPace`
+ * survives purely as an Undo-refund ledger (`applyUndo` subtracts `hexDistance(from, to)` from
+ * it). Piece-level locking is handled entirely by `cornerKickActivatedIds`, which
+ * `applyCornerKickReposition` sets the instant a placement completes; this function does not
+ * need to fold anything into it — a piece is already locked the moment it is placed, not at
+ * stage-end.
  *
  * Confirming with zero pieces moved this stage is legal (D-06) — there is no minimum-move
  * guard.
