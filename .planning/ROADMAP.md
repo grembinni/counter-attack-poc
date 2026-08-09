@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 26/30                                  | In Progress |             |
+| 38    | 28/30                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -311,8 +311,8 @@ Plans:
 
 **Wave 20** _(blocked on Wave 19; two plans run in parallel, no file overlap)_
 
-- [ ] 38-27-PLAN.md — Engine: free-kick-style bounded reposition placement, activation on completion (bug 2, D-GAP-03 corrected)
-- [ ] 38-28-PLAN.md — Client/shared: CORNER_KICK_CLEAR_OUT phase surface removed, Corner Kick banner re-keyed (bug 1)
+- [x] 38-27-PLAN.md — Engine: free-kick-style bounded reposition placement, activation on completion (bug 2, D-GAP-03 corrected)
+- [x] 38-28-PLAN.md — Client/shared: CORNER_KICK_CLEAR_OUT phase surface removed, Corner Kick banner re-keyed (bug 1)
 
 **Wave 21** _(blocked on Wave 20)_
 
