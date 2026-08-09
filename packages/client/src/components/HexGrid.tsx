@@ -901,9 +901,10 @@ export function HexGrid() {
                   ? 'attacking'
                   : 'defending'
                 : null;
-            const cornerKickPlacedThisStage = cornerKickStagePlacedIds?.includes(piece.id) ?? false;
-            const cornerKickActivatedEarlierStage =
-              (cornerKickActivatedIds?.includes(piece.id) ?? false) && !cornerKickPlacedThisStage;
+            // D-GAP-03 corrected reading (38-24 bug 2, Plan 38-29 Task 2): a piece is locked the
+            // instant its placement completes — no same-stage exemption. cornerKickActivated is
+            // a plain cornerKickActivatedIds membership test.
+            const cornerKickActivated = cornerKickActivatedIds?.includes(piece.id) ?? false;
             const cornerKickStageFull =
               phase === 'CORNER_KICK_REPOSITION' && cornerKickStageIndex != null
                 ? (cornerKickStagePlacedIds ?? []).length >=
@@ -921,8 +922,8 @@ export function HexGrid() {
               piece.teamId === cornerKickRepositionActingTeam &&
               piece.id !== cornerKickTakerId &&
               (cornerKickEligibleIds?.[cornerKickRepositionSide]?.includes(piece.id) ?? false) &&
-              !cornerKickActivatedEarlierStage &&
-              (!cornerKickStageFull || cornerKickPlacedThisStage);
+              !cornerKickActivated &&
+              !cornerKickStageFull;
 
             // CORNER_KICK_FINAL_SETUP (CORNER-06): only the current slot's acting team's
             // eligible piece is selectable, honouring the cornerKickMovedPieceId lock —
@@ -1027,21 +1028,25 @@ export function HexGrid() {
                     ? movedPieceIds.includes(piece.id) ||
                       (freeKickPlacedPieceIds ?? []).includes(piece.id)
                     : phase === 'CORNER_KICK_REPOSITION'
-                      ? // D-GAP-03 (38-15 defect 2/38-17): a piece activated in an EARLIER
-                        // stage renders 'activated' (orange ring + red X) and is no longer
-                        // clickable — reusing cornerKickActivatedEarlierStage from the
-                        // canSelectCornerKickReposition computation above. Deliberately
-                        // excludes pieces touched THIS stage: they are still legally movable
-                        // for the rest of the stage, and painting them with the red X while
-                        // still clickable would be a worse lie than the current absence of
-                        // any marker.
-                        cornerKickActivatedEarlierStage
+                      ? // D-GAP-03 corrected reading (38-24 bug 2, Plan 38-29 Task 2): the piece
+                        // now renders 'activated' (orange ring + red X) as soon as its single
+                        // placement lands — reusing cornerKickActivated from the
+                        // canSelectCornerKickReposition computation above. This is exactly what
+                        // "marked activated after the move" means for a one-click placement;
+                        // there is no longer a same-stage exemption.
+                        cornerKickActivated
                       : phase === 'CORNER_KICK_FINAL_SETUP'
-                        ? // D-GAP-03 (38-15 defect 2/38-17): the pre-kick window's activation
-                          // ledger is a single locked piece (cornerKickMovedPieceId), reset
-                          // fresh on entry to this phase — not the cleared
-                          // cornerKickActivatedIds array from the reposition stages.
-                          piece.id === cornerKickMovedPieceId
+                        ? // Deliberately `false`, not `piece.id === cornerKickMovedPieceId` and
+                          // not deleted (38-24-SUMMARY.md bug 3, Plan 38-29 Task 2): the pre-kick
+                          // 3-hex window applies NO activation marker at all, at any pace value.
+                          // Falling through to the chain's default
+                          // (movedPieceIds.includes(piece.id)) would reintroduce an unrelated
+                          // marker for a piece that merely moved during MOVEMENT earlier this
+                          // half — a future editor must not "restore" the cornerKickMovedPieceId
+                          // test here. cornerKickMovedPieceId itself is untouched and still used
+                          // by canSelectCornerKickFinal — that is CORNER-06's one-player-per-team
+                          // SLOT LOCK, a different concept from this activation marker.
+                          false
                         : movedPieceIds.includes(piece.id);
             // Eligible ring: piece can still be selected for placement this stage.
             // Gated on budget remaining — hides ring once all stage slots are filled.

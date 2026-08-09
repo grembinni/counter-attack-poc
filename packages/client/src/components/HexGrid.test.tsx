@@ -1617,6 +1617,7 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
       cornerKickTeam?: 'home' | 'away';
       slot?: 'ATTACKER' | 'DEFENDER';
       movedPieceId?: string | null;
+      paceUsed?: number;
       eligibleIds?: { attacking: string[]; defending: string[] };
     } = {},
   ) {
@@ -1626,7 +1627,7 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
       cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
       cornerKickMoveSlot: overrides.slot ?? ('ATTACKER' as const),
       cornerKickMovedPieceId: overrides.movedPieceId ?? null,
-      cornerKickPaceUsed: 0,
+      cornerKickPaceUsed: overrides.paceUsed ?? 0,
       cornerKickEligibleIds: overrides.eligibleIds ?? {
         attacking: [FINAL_ELIGIBLE_ID],
         defending: [] as readonly string[],
@@ -1780,7 +1781,7 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
     expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
   });
 
-  it('CORNER_KICK_REPOSITION (D-GAP-03): a piece activated in an earlier stage is not selectable and renders as activated', () => {
+  it('CORNER_KICK_REPOSITION: a piece activated in an earlier stage is not selectable and renders as activated', () => {
     const state = cornerKickRepositionState({
       cornerKickActivatedIds: [REPOSITION_ELIGIBLE_ID],
       cornerKickStagePlacedIds: [],
@@ -1799,7 +1800,7 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
     expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(true);
   });
 
-  it('CORNER_KICK_REPOSITION (D-GAP-03): a piece touched THIS stage is still selectable, uncapped', () => {
+  it('CORNER_KICK_REPOSITION: a piece placed THIS stage also renders as activated and is not selectable — no same-stage exemption', () => {
     const state = cornerKickRepositionState({
       cornerKickActivatedIds: [REPOSITION_ELIGIBLE_ID],
       cornerKickStagePlacedIds: [REPOSITION_ELIGIBLE_ID],
@@ -1814,8 +1815,8 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
     });
     const piece = state.pieces.find((p) => p.id === REPOSITION_ELIGIBLE_ID)!;
     const { container } = render(<HexGrid />);
-    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
-    expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+    expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(true);
   });
 
   it("CORNER_KICK_REPOSITION: renders the selected piece's adjacent legal hexes with the safe tint", () => {
@@ -1919,6 +1920,59 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
     });
     const { container } = render(<HexGrid />);
     expect(hasAnySelectableRing(container)).toBe(false);
+  });
+
+  // 38-24-SUMMARY.md bug 3 (Plan 38-29 Task 2): the pre-kick 3-hex window must apply NO
+  // activation marker at all, at any pace value — isSpentNow's CORNER_KICK_FINAL_SETUP arm is
+  // now the literal `false`, not `piece.id === cornerKickMovedPieceId`.
+  it('CORNER_KICK_FINAL_SETUP: a piece that has moved one hex (cornerKickMovedPieceId locked, paceUsed=1) does NOT render as activated', () => {
+    const state = cornerKickFinalSetupState({ movedPieceId: FINAL_ELIGIBLE_ID, paceUsed: 1 });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === FINAL_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: a piece that has exhausted all 3 hexes (paceUsed=3) still does NOT render as activated', () => {
+    const state = cornerKickFinalSetupState({ movedPieceId: FINAL_ELIGIBLE_ID, paceUsed: 3 });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === FINAL_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasActivatedRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: a second, different eligible piece is still non-selectable while cornerKickMovedPieceId locks another (slot lock survives)', () => {
+    const state = cornerKickFinalSetupState({
+      movedPieceId: FINAL_ELIGIBLE_ID,
+      eligibleIds: { attacking: [FINAL_ELIGIBLE_ID, FINAL_OTHER_ID], defending: [] },
+    });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const otherPiece = state.pieces.find((p) => p.id === FINAL_OTHER_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, otherPiece.position.q, otherPiece.position.r)).toBe(
+      false,
+    );
   });
 });
 
