@@ -1864,6 +1864,16 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                           // cornerKickUsedPace is refunded by the actual hex distance traveled
                           // (mirrors the goalKickUsedPace arm above, field renamed) purely as a
                           // bookkeeping ledger — it enforces no cap of its own.
+                          //
+                          // 38-31 multi-undo contract: repeated applyUndo calls remove the last
+                          // remaining MOVE after the CORNER_KICK_TAKER_PLACED /
+                          // CORNER_KICK_STAGE_ADVANCE boundary in strict most-recent-first order
+                          // (LIFO), because the boundary reduce above always targets
+                          // currentSlotEvents' last MOVE. Two placements made in one stage are
+                          // therefore reverted second-then-first: each release restores the
+                          // piece's position and removes that piece from both
+                          // cornerKickStagePlacedIds and cornerKickActivatedIds (D-GAP-01,
+                          // re-opened by 38-30-SUMMARY.md).
                           const currentUsed = state.cornerKickUsedPace?.[moveToUndo.pieceId] ?? 0;
                           const rem = Math.max(0, currentUsed - stepDistance);
                           const nextUsedPace = { ...(state.cornerKickUsedPace ?? {}) };
@@ -4016,6 +4026,15 @@ export function applyCornerKickTakerSelect(
       cornerKickStageIndex: 0,
       cornerKickStagePlacedIds: [],
       cornerKickUsedPace: {},
+      // 38-31 (BUG-18/Phase-18.3 pattern, identical in intent to applyFreeMoveZoneCheck's
+      // FREE_MOVE entry and the GK_KICK_MOVE / SNAPSHOT_DEFLECT entries): clear lastDiceRoll
+      // on entry to this reversible-move window. Without this, CornerKickSetupPanel.tsx's
+      // canUndoReposition short-circuits on `if (lastDiceRoll) return false;` and the Undo
+      // control can never enable (38-30-SUMMARY.md bug 2, sub-finding 1). The stale value is
+      // always present here because triggerOutOfBoundsRestart's commonReset does not include
+      // lastDiceRoll, and both applyRoll LOOSE_BALL call sites pass a freshly-populated
+      // lastDiceRoll (context: 'LOOSE_BALL') into it.
+      lastDiceRoll: null,
       activeTeam: cornerKickTeam,
       ball: {
         position: resolvedHex,
@@ -4281,6 +4300,11 @@ export function applyCornerKickStageEnd(
       cornerKickMoveSlot: 'ATTACKER',
       cornerKickMovedPieceId: null,
       cornerKickPaceUsed: 0,
+      // 38-31: same pattern applied to canUndoFinalSetup. Defence-in-depth — no dice roll
+      // occurs between CORNER_KICK_REPOSITION and CORNER_KICK_FINAL_SETUP, so Site A's null
+      // already propagates here, but a future dice-bearing step inserted between the two
+      // windows must not silently re-break the pre-kick Undo.
+      lastDiceRoll: null,
       activeTeam: cornerKickTeam,
       // cornerKickUsedPace is left set (no longer read past this point, but nulling it
       // here would make an Undo across the boundary lossy). cornerKickEligibleIds is left
