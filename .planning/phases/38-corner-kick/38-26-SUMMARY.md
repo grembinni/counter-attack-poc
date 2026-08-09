@@ -119,3 +119,10 @@ None - no external service configuration required.
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-09_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/ActionLog.tsx
+- FOUND: .planning/phases/38-corner-kick/38-26-SUMMARY.md
+- FOUND: 352634e (Task 1 commit)
+- FOUND: 1974aca (plan metadata commit)
