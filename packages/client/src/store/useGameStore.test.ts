@@ -2,6 +2,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { useGameStore } from './useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
+import {
+  CORNER_KICK_HEX,
+  cornerClearOutGoalHex,
+  isLegalClearOutStep,
+  isWithinCornerExclusionZone,
+  hexNeighbors,
+  hexesInRange,
+  hexDistance,
+  isPitchHex,
+} from '@counter-attack/shared';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -840,6 +850,208 @@ describe('useGameStore — selectPiece Corner Kick (Plan 38-06)', () => {
     const state = useGameStore.getState();
     expect(state.selectedPieceId).toBe(FINAL_ELIGIBLE_ID);
     expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+});
+
+// CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-22): selectPiece coverage for the mandatory
+// pre-corner clear-out, plus the permanent defender exclusion-zone filter in
+// CORNER_KICK_REPOSITION/CORNER_KICK_FINAL_SETUP. Every probe hex below is derived from
+// CORNER_KICK_HEX + hex helpers (hexNeighbors/hexesInRange/hexDistance/isPitchHex) — never a
+// restated coordinate literal, per this plan's read_first instruction.
+describe('useGameStore — selectPiece CORNER_KICK_CLEAR_OUT and exclusion-zone filtering (Plan 38-22)', () => {
+  // cornerKickTeam='away' (attacking/awarded side) -> bylineOwnerTeam='home' (conceding side)
+  // -> the corner is taken from CORNER_KICK_HEX.home (matches outOfBounds.ts's inversion rule).
+  const CORNER_HEX = CORNER_KICK_HEX.home.top;
+  const GOAL_HEX = cornerClearOutGoalHex('home');
+
+  // A hex at exactly CORNER_EXCLUSION_RADIUS (3) from the corner, on-pitch, whose own on-pitch
+  // neighbours span both inside and outside the zone — derived by scanning the real geometry
+  // rather than hand-picking a literal, so this stays correct if the radius/corner constants
+  // ever change.
+  const ZONE_EDGE_HEX = (() => {
+    const ring = hexesInRange(CORNER_HEX, 3).filter(
+      (h) => hexDistance(h, CORNER_HEX) === 3 && isPitchHex(h),
+    );
+    const candidate = ring.find((c) => {
+      const neighbors = hexNeighbors(c).filter(isPitchHex);
+      const inZone = neighbors.filter((n) => isWithinCornerExclusionZone(n, CORNER_HEX));
+      const outZone = neighbors.filter((n) => !isWithinCornerExclusionZone(n, CORNER_HEX));
+      return inZone.length > 0 && outZone.length > 0;
+    });
+    if (!candidate) throw new Error('No zone-edge candidate found — geometry assumption broken');
+    return candidate;
+  })();
+
+  function cornerKickClearOutState(overrides: {
+    cornerKickTeam?: 'home' | 'away';
+    clearOutSlot?: 'ATTACKER' | 'DEFENDER';
+    pieceId?: string;
+    piecePosition?: { q: number; r: number };
+  }) {
+    const pieceId = overrides.pieceId ?? 'away-1';
+    const piecePosition = overrides.piecePosition ?? CORNER_HEX;
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_CLEAR_OUT' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('away' as const),
+      cornerKickHex: CORNER_HEX,
+      cornerKickClearOutSlot: overrides.clearOutSlot ?? ('ATTACKER' as const),
+      pieces: mockMovementState.pieces.map((p) =>
+        p.id === pieceId ? { ...p, position: piecePosition } : p,
+      ),
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({ playerSlot: 2, selectedPieceId: null, validMoveHexes: [] }); // away
+  });
+
+  it('an in-zone piece yields only legal goal-ward adjacent hexes', () => {
+    useGameStore.setState({ gameState: cornerKickClearOutState({}) });
+    useGameStore.getState().selectPiece('away-1');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('away-1');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+    for (const hex of state.validMoveHexes) {
+      expect(isLegalClearOutStep(CORNER_HEX, hex, CORNER_HEX, GOAL_HEX)).toBe(true);
+    }
+    // At least one on-pitch adjacent hex that fails the rule must be absent from the result.
+    const illegalNeighbor = hexNeighbors(CORNER_HEX)
+      .filter(isPitchHex)
+      .find((hex) => !isLegalClearOutStep(CORNER_HEX, hex, CORNER_HEX, GOAL_HEX));
+    expect(illegalNeighbor).toBeDefined();
+    expect(state.validMoveHexes).not.toContainEqual(illegalNeighbor);
+  });
+
+  it('a piece outside the zone yields no destinations', () => {
+    // away-1's default mockMovementState position ({q:32,r:7}) is far outside the 3-hex zone.
+    useGameStore.setState({
+      gameState: {
+        ...cornerKickClearOutState({}),
+        pieces: mockMovementState.pieces, // no override — away-1 keeps its default position
+      },
+    });
+    expect(
+      isWithinCornerExclusionZone(
+        mockMovementState.pieces.find((p) => p.id === 'away-1')!.position,
+        CORNER_HEX,
+      ),
+    ).toBe(false);
+    useGameStore.getState().selectPiece('away-1');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('away-1');
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('a piece of the non-acting team is not selected', () => {
+    // clearOutSlot='ATTACKER' -> acting team is cornerKickTeam ('away'); a home piece must be
+    // rejected regardless of its position.
+    useGameStore.setState({
+      gameState: cornerKickClearOutState({
+        clearOutSlot: 'ATTACKER',
+        pieceId: 'home-1',
+        piecePosition: CORNER_HEX,
+      }),
+    });
+    useGameStore.getState().selectPiece('home-1');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('CORNER_KICK_REPOSITION: a defending piece is not offered any hex inside the exclusion zone', () => {
+    // Stage 1 is the defending side's stage for cornerKickTeam='away' -> acting team 'home'.
+    useGameStore.setState({
+      playerSlot: 1, // home
+      gameState: {
+        ...mockMovementState,
+        phase: 'CORNER_KICK_REPOSITION' as const,
+        cornerKickTeam: 'away' as const,
+        cornerKickHex: CORNER_HEX,
+        cornerKickStageIndex: 1 as const,
+        cornerKickEligibleIds: {
+          attacking: [] as readonly string[],
+          defending: ['home-1'] as readonly string[],
+        },
+        cornerKickActivatedIds: [] as readonly string[],
+        cornerKickStagePlacedIds: [] as readonly string[],
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-1' ? { ...p, position: ZONE_EDGE_HEX } : p,
+        ),
+      },
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+    useGameStore.getState().selectPiece('home-1');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-1');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+    for (const hex of state.validMoveHexes) {
+      expect(isWithinCornerExclusionZone(hex, CORNER_HEX)).toBe(false);
+    }
+  });
+
+  it('CORNER_KICK_REPOSITION: an attacking piece IS offered hexes inside the exclusion zone', () => {
+    // Stage 0 is the attacking side's stage for cornerKickTeam='away' -> acting team 'away'.
+    useGameStore.setState({
+      playerSlot: 2, // away
+      gameState: {
+        ...mockMovementState,
+        phase: 'CORNER_KICK_REPOSITION' as const,
+        cornerKickTeam: 'away' as const,
+        cornerKickHex: CORNER_HEX,
+        cornerKickStageIndex: 0 as const,
+        cornerKickEligibleIds: {
+          attacking: ['away-1'] as readonly string[],
+          defending: [] as readonly string[],
+        },
+        cornerKickActivatedIds: [] as readonly string[],
+        cornerKickStagePlacedIds: [] as readonly string[],
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'away-1' ? { ...p, position: ZONE_EDGE_HEX } : p,
+        ),
+      },
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+    useGameStore.getState().selectPiece('away-1');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('away-1');
+    expect(state.validMoveHexes.some((hex) => isWithinCornerExclusionZone(hex, CORNER_HEX))).toBe(
+      true,
+    );
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: the DEFENDER slot is not offered any hex inside the exclusion zone', () => {
+    // slot='DEFENDER' -> acting team opposite cornerKickTeam ('away') -> 'home'.
+    useGameStore.setState({
+      playerSlot: 1, // home
+      gameState: {
+        ...mockMovementState,
+        phase: 'CORNER_KICK_FINAL_SETUP' as const,
+        cornerKickTeam: 'away' as const,
+        cornerKickHex: CORNER_HEX,
+        cornerKickMoveSlot: 'DEFENDER' as const,
+        cornerKickMovedPieceId: null,
+        cornerKickPaceUsed: 0,
+        cornerKickEligibleIds: {
+          attacking: [] as readonly string[],
+          defending: ['home-1'] as readonly string[],
+        },
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-1' ? { ...p, position: ZONE_EDGE_HEX } : p,
+        ),
+      },
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+    useGameStore.getState().selectPiece('home-1');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-1');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+    for (const hex of state.validMoveHexes) {
+      expect(isWithinCornerExclusionZone(hex, CORNER_HEX)).toBe(false);
+    }
   });
 });
 

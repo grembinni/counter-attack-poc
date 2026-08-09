@@ -3,7 +3,7 @@ import type { Mock } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
-import { ClientEvents } from '@counter-attack/shared';
+import { ClientEvents, CORNER_KICK_HEX, hexNeighbors } from '@counter-attack/shared';
 import { CornerKickSetupPanel } from './CornerKickSetupPanel.js';
 import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 
@@ -20,6 +20,7 @@ const emitMock: Mock = socket.emit as Mock;
 afterEach(() => cleanup());
 
 type CornerKickPhase =
+  | 'CORNER_KICK_CLEAR_OUT'
   | 'CORNER_KICK_GK_SETUP_ATTACKING'
   | 'CORNER_KICK_GK_SETUP_DEFENDING'
   | 'CORNER_KICK_TAKER_SELECT'
@@ -39,6 +40,7 @@ function cornerKickState(
     cornerKickTeam: 'away' as const,
     cornerKickHex: { q: 36, r: 1 },
     cornerKickTakerId: null,
+    cornerKickClearOutSlot: 'ATTACKER' as const,
     cornerKickStageIndex: 0 as const,
     cornerKickStagePlacedIds: [] as readonly string[],
     cornerKickActivatedIds: [] as readonly string[],
@@ -51,6 +53,21 @@ function cornerKickState(
     activeTeam: 'away' as const,
     ...overrides,
   };
+}
+
+// CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-22): probe hexes derived from CORNER_KICK_HEX +
+// hexNeighbors per this file's read_first instruction — never a restated coordinate literal.
+// CORNER_KICK_HEX.away.top === cornerKickState's default cornerKickHex ({q:36,r:1}).
+const CLEAR_OUT_CORNER_HEX = CORNER_KICK_HEX.away.top;
+// A direct neighbour of the corner hex is guaranteed inside CORNER_EXCLUSION_RADIUS (3).
+const CLEAR_OUT_IN_ZONE_HEX = hexNeighbors(CLEAR_OUT_CORNER_HEX)[0]!;
+
+/** Places `ids` at CLEAR_OUT_IN_ZONE_HEX; every other piece keeps its default (far-away,
+ *  out-of-zone) mockMovementState position. */
+function withPiecesInZone(ids: readonly string[]) {
+  return mockMovementState.pieces.map((p) =>
+    ids.includes(p.id) ? { ...p, position: CLEAR_OUT_IN_ZONE_HEX } : p,
+  );
 }
 
 beforeEach(() => {
@@ -107,6 +124,103 @@ describe('CornerKickSetupPanel — phase gating', () => {
     });
     const { container } = render(<CornerKickSetupPanel />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('CornerKickSetupPanel — CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-22)', () => {
+  it('the non-acting manager (home) sees the repositioning waiting phrase, no buttons', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', { cornerKickClearOutSlot: 'ATTACKER' }),
+      playerSlot: 1,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.getByText('Corner Kick')).toBeDefined();
+    expect(screen.getByText(/Attacking team is repositioning/)).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('the acting manager (away) sees the count of their own in-zone players', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', {
+        cornerKickClearOutSlot: 'ATTACKER',
+        pieces: withPiecesInZone(['away-1', 'away-2']),
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(
+      screen.getByText('2 of your players are too close to the corner — move them toward goal.'),
+    ).toBeDefined();
+    expect(
+      screen.getByText('Players within 3 hexes of the corner must clear out before the kick.'),
+    ).toBeDefined();
+  });
+
+  it('the CTA is pending-coloured while players remain in the zone and ready-coloured when none do', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', {
+        cornerKickClearOutSlot: 'ATTACKER',
+        pieces: withPiecesInZone(['away-1']),
+      }),
+      playerSlot: 2,
+    });
+    const { unmount } = render(<CornerKickSetupPanel />);
+    const pendingBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(pendingBtn.className).toContain('ctaButtonPending');
+    expect(pendingBtn.className).not.toContain('ctaButtonReady');
+    unmount();
+
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', {
+        cornerKickClearOutSlot: 'ATTACKER',
+        pieces: withPiecesInZone([]),
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const readyBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(readyBtn.className).toContain('ctaButtonReady');
+    expect(readyBtn.className).not.toContain('ctaButtonPending');
+  });
+
+  it('no Undo button and no soft end-turn dialog are rendered — Confirm calls emitEndTurn immediately even with players still in the zone', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', {
+        cornerKickClearOutSlot: 'ATTACKER',
+        pieces: withPiecesInZone(['away-1']),
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByRole('button', { name: /^undo$/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
+    expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_END_TURN);
+    expect(screen.queryByText(/are you sure/)).toBeNull();
+  });
+
+  it('DEFENDER slot: the acting manager is the defending (home) side', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', {
+        cornerKickClearOutSlot: 'DEFENDER',
+        pieces: withPiecesInZone(['home-1']),
+      }),
+      playerSlot: 1,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(
+      screen.getByText('1 of your players are too close to the corner — move them toward goal.'),
+    ).toBeDefined();
+  });
+
+  it('surfaces a non-null gameError, humanised, during CORNER_KICK_CLEAR_OUT', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_CLEAR_OUT', { cornerKickClearOutSlot: 'ATTACKER' }),
+      playerSlot: 2,
+      gameError: 'NOT_TOWARD_GOAL',
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.queryByText('NOT_TOWARD_GOAL')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('NOT_TOWARD_GOAL') ?? '')).toBeDefined();
   });
 });
 

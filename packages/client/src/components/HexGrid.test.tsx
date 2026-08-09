@@ -7,7 +7,13 @@ import { HexGrid } from './HexGrid.js';
 import { HIGHLIGHT_STYLES, RING_STYLES } from './HexCell.js';
 import { BALL_MARKER_STROKE } from './BallLocationRing.js';
 import { HEADER_TARGET_STROKE } from './HeaderTargetRing.js';
-import { PITCH_HEXES, hexDistance } from '@counter-attack/shared';
+import {
+  PITCH_HEXES,
+  hexDistance,
+  CORNER_KICK_HEX,
+  isWithinCornerExclusionZone,
+  hexNeighbors,
+} from '@counter-attack/shared';
 
 vi.mock('../socket.js', () => ({
   socket: {
@@ -1909,6 +1915,97 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
 
   it('CORNER_KICK_FINAL_SETUP: the non-acting (defending) team sees zero selectable pieces during the ATTACKER slot', () => {
     const state = cornerKickFinalSetupState({ slot: 'ATTACKER', cornerKickTeam: 'home' });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+});
+
+// CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-22): mirrors the GK-setup selectability harness
+// above — canSelectCornerKickClearOut's own zone-membership gate is asserted directly, not
+// just reused from selectPiece's behaviour, so a piece can never look clickable but be
+// rejected (or vice-versa). Probe hexes derived from CORNER_KICK_HEX/hexNeighbors, never a
+// restated coordinate literal.
+describe('HexGrid — CORNER_KICK_CLEAR_OUT piece selectability (38-15 defect 3, Plan 38-22)', () => {
+  const CLEAR_OUT_ELIGIBLE_ID = 'home-8';
+  const CORNER_HEX = CORNER_KICK_HEX.home.top;
+  // A direct neighbour is guaranteed inside CORNER_EXCLUSION_RADIUS (3).
+  const IN_ZONE_HEX = hexNeighbors(CORNER_HEX)[0]!;
+
+  /** Local mirror of the sibling describe block's helper above (function-scoped there). */
+  function hasAnySelectableRing(container: HTMLElement): boolean {
+    return Array.from(container.querySelectorAll('circle')).some(
+      (c) => c.getAttribute('stroke') === '#60a5fa' && c.getAttribute('r') === '15',
+    );
+  }
+
+  function cornerKickClearOutState(
+    overrides: {
+      cornerKickTeam?: 'home' | 'away';
+      clearOutSlot?: 'ATTACKER' | 'DEFENDER';
+      pieceId?: string;
+      piecePosition?: { q: number; r: number };
+    } = {},
+  ) {
+    const pieceId = overrides.pieceId ?? CLEAR_OUT_ELIGIBLE_ID;
+    const piecePosition = overrides.piecePosition ?? IN_ZONE_HEX;
+    return {
+      ...mockMovementState,
+      phase: 'CORNER_KICK_CLEAR_OUT' as const,
+      cornerKickTeam: overrides.cornerKickTeam ?? ('home' as const),
+      cornerKickHex: CORNER_HEX,
+      cornerKickClearOutSlot: overrides.clearOutSlot ?? ('ATTACKER' as const),
+      pieces: mockMovementState.pieces.map((p) =>
+        p.id === pieceId ? { ...p, position: piecePosition } : p,
+      ),
+    };
+  }
+
+  it('an in-zone piece of the acting team is selectable', () => {
+    const state = cornerKickClearOutState({});
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    expect(isWithinCornerExclusionZone(IN_ZONE_HEX, CORNER_HEX)).toBe(true);
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, IN_ZONE_HEX.q, IN_ZONE_HEX.r)).toBe(true);
+  });
+
+  it('a piece outside the zone is not selectable', () => {
+    // The eligible piece's default mockMovementState position ({q:4,r:19}, home-8's default via
+    // HOME_POSITIONS) is far outside the 3-hex zone — no position override needed.
+    const state = {
+      ...cornerKickClearOutState({}),
+      pieces: mockMovementState.pieces, // no in-zone override
+    };
+    const defaultPiece = state.pieces.find((p) => p.id === CLEAR_OUT_ELIGIBLE_ID)!;
+    expect(isWithinCornerExclusionZone(defaultPiece.position, CORNER_HEX)).toBe(false);
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+
+  it('the non-acting (defending) manager sees zero selectable pieces', () => {
+    const state = cornerKickClearOutState({});
     useGameStore.setState({
       gameState: state,
       screen: 'GAME_BOARD',
