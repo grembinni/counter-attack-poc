@@ -171,3 +171,15 @@ None - no external service configuration required.
 
 _Phase: 38-corner-kick_
 _Completed: 2026-08-09_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/store/useGameStore.ts
+- FOUND: packages/client/src/components/HexGrid.tsx
+- FOUND: packages/client/src/components/CornerKickSetupPanel.tsx
+- FOUND: packages/shared/src/types.ts
+- FOUND: packages/shared/src/outOfBounds.ts
+- FOUND: commit 6d825e7 (Task 1)
+- FOUND: commit 3a3083e (Task 2)
+- FOUND: commit 84ae442 (Task 3)
+- FOUND: commit 7cf94ea (SUMMARY.md)
