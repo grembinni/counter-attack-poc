@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
-status: completed
+status: executing
 stopped_at: Phase 38 UI-SPEC approved
-last_updated: '2026-08-09T11:45:59.452Z'
-last_activity: 2026-08-09 -- 38-24 checkpoint recorded 4 new defects; route to /gsd-plan-phase 38 --gaps
+last_updated: '2026-08-09T11:49:07.809Z'
+last_activity: 2026-08-09 -- Phase 38 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 43
+  total_plans: 49
   completed_plans: 43
   percent: 25
 ---
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 38 (corner-kick) — GAPS FOUND
-Plan: 24 of 24 (all gap-closure round 2 plans landed; checkpoint 38-24 found further gaps)
-Status: Phase 38 gap-closure round 2 complete; a third gap-closure round is needed before phase can close
-Last activity: 2026-08-09 -- 38-24 checkpoint recorded 4 new defects; route to /gsd-plan-phase 38 --gaps
+Phase: 38 (corner-kick) — EXECUTING
+Plan: 1 of 30
+Status: Executing Phase 38
+Last activity: 2026-08-09 -- Phase 38 execution started
 
 ## Project Reference
 
