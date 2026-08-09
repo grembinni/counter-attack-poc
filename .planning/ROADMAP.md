@@ -224,7 +224,7 @@ Plans:
 3. Immediately before the kick, in a second, separate repositioning window, both teams may each move one more player up to 3 hexes, attacking manager first.
 4. The corner is taken as a High Pass (any hex in the penalty area with no distance limit, or elsewhere up to 15 hexes, receiver must attempt a header) or a Low Pass (no header), with the existing combined-score 8+ accuracy check applied to whichever is chosen.
 
-**Plans**: 24 plans (9 original + 6 gap closure + 9 second-round gap closure)
+**Plans**: 30 plans (9 original + 6 gap closure + 9 second-round gap closure + 6 third-round gap closure)
 Plans:
 **Wave 1**
 
@@ -303,6 +303,24 @@ Plans:
 **Wave 18** _(second gap-closure re-verification, blocked on all code-fix plans)_
 
 - [x] 38-24-PLAN.md — Human verification: full ten-step two-browser walkthrough, D-GAP-03 ruling
+
+**Wave 19** _(third gap-closure round from 38-24-SUMMARY.md — 4 new defects; two plans run in parallel, no file overlap)_
+
+- [ ] 38-25-PLAN.md — Engine/handlers: automatic straight-line corner clear-out, interactive clear-out removed (bug 1)
+- [ ] 38-26-PLAN.md — Client: ActionLog CORNER_KICK_CLEAR_OUT_MOVE formatEvent case + compiler-exhaustive switch (bug 4)
+
+**Wave 20** _(blocked on Wave 19; two plans run in parallel, no file overlap)_
+
+- [ ] 38-27-PLAN.md — Engine: free-kick-style bounded reposition placement, activation on completion (bug 2, D-GAP-03 corrected)
+- [ ] 38-28-PLAN.md — Client/shared: CORNER_KICK_CLEAR_OUT phase surface removed, Corner Kick banner re-keyed (bug 1)
+
+**Wave 21** _(blocked on Wave 20)_
+
+- [ ] 38-29-PLAN.md — Client: bounded reposition UX, activation after the move, no activation marker in the pre-kick window (bugs 2 and 3)
+
+**Wave 22** _(third gap-closure re-verification, blocked on all code-fix plans)_
+
+- [ ] 38-30-PLAN.md — Human verification: full ten-step two-browser walkthrough, A-AUTO-01 / A-GAP3-BUDGET / A-GAP3-AREA rulings
 
 **UI hint**: yes
 
