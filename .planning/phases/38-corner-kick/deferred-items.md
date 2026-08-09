@@ -71,3 +71,58 @@ matched the default project` errors, all inside `packages/shared/src/*.test.ts` 
   test in `EventBanner.test.tsx` automatically covers the new row once added, without further
   test changes.
   The 38-24 checkpoint records this same follow-up so it stays visible at Phase 38 close.
+
+## From Plan 38-32 (round-4 triage of 38-30 bug 1)
+
+**Verdict: DEFERRED** out of Phase 38. Tracked as a pending todo:
+`.planning/todos/pending/2026-08-09-bug-offside-ring-after-goal.md`.
+
+**The verbatim report** (`38-30-SUMMARY.md` Bug 1): "after goal is scored and player positions
+are reset for kick off players still showed offsides rings when they should be reset."
+
+**Evidence gathered by static analysis during planning:**
+
+1. **The rendering path is `HexGrid.tsx`'s `isOffside` prop.** `isOffside={(offsidePieceIds ?? []).includes(piece.id)}`
+   feeds `PieceOverlay`'s independent red-ring layer, reading `gameState.offsidePieceIds` straight
+   from the server broadcast. There is no client-side offside derivation that could go stale on
+   its own.
+2. **Both live goal paths in `applyRoll`'s SHOT branch already clear the field.** The
+   GK-out-of-range GOAL branch and the duel GOAL branch (`gameEngine.ts` lines 2687 and 2782) both
+   set `offsidePieceIds: []` on the `KICK_OFF_SETUP` transition, each carrying the `BUG-06 / D-47`
+   comment.
+3. **Both reset paths are covered by passing regression tests.** The
+   `BUG-06: offsidePieceIds reset on GOAL restart path (applyRoll SHOT branch)` describe block in
+   `packages/server/src/__tests__/offside.test.ts` (line 1535), and the `D-47: both-ready
+transition resets offsidePieceIds to []` test in
+   `packages/server/src/__tests__/kickoffSetup.integration.test.ts` (line 446).
+4. **There is no third goal path that could bypass the reset.** `grep -n "state.score\["
+packages/server/src/gameEngine.ts` returns exactly the two scoring sites already covered above
+   (plus one unrelated occurrence inside a differently-shaped event-replay branch) — no additional
+   live scoring path exists.
+5. **Replay cannot resurrect a stale live value either.** `buildReplayFrames`' seed object
+   (`gameEngine.ts` line 7014 onward) does not include `offsidePieceIds` at all, so replay frames
+   carry `undefined` and can never render an offside ring; and the client's `setGameState` replaces
+   `gameState` wholesale rather than merging, so a replay frame cannot resurrect a stale live value
+   either.
+
+**Conclusion:** the root cause is NOT in the goal-to-kickoff reset code path as first assumed, and
+it is NOT in any file touched by 38-25 through 38-29 (`applyCornerKickReposition`,
+`applyAutomaticCornerClearOut`, `offside.ts`'s `CORNER_KICK_STAGES` docs, `ActionLog.tsx`,
+`useGameStore.ts`, `HexGrid.tsx`'s corner arms, `CornerKickSetupPanel.tsx`, `EventBanner.tsx`). No
+Phase 38 plan touches the offside lifecycle at all.
+
+**Strongest lead for the follow-up:** this defect has the same signature as the long-pending
+BUG-23 todo
+(`.planning/todos/pending/2026-07-02-bug-kickoff-setup-persistent-light-shading-on-shot-path-hexes.md`)
+— server provably nulls/clears the field, yet the client renders it for the entire
+`KICK_OFF_SETUP` phase. BUG-23 has been carried unresolved across four milestone closes. Treat a
+shared root cause as the leading hypothesis for the follow-up investigation.
+
+**Why deferring rather than fixing here:** root-causing needs live two-browser reproduction with
+the exact scoring action captured, not a code edit — an open-ended investigation. Phase 38's
+requirement set is OOB-03 and CORNER-01 through CORNER-06; none covers offside or kickoff.
+Bundling an open-ended investigation into the final gap-closure round would block a phase that is
+otherwise one surgical fix from closing.
+
+**Route:** `/gsd-debug` against the tracked todo, or a Phase 39 bug-fix item. Explicitly NOT a
+further Phase 38 gap-closure round.
