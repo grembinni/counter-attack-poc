@@ -337,4 +337,27 @@ describe('restart banners (38-15 defect 4)', () => {
     expect(banner.className).toContain('notable');
     expect(banner.style.animationDuration).toBe('1000ms');
   });
+
+  // Plan 38-28 (T-38-94): re-keying RESTART_BANNERS off the deleted CORNER_KICK_CLEAR_OUT
+  // phase onto CORNER_KICK_GK_SETUP_ATTACKING (the corner sequence's new entry phase) must not
+  // silently drop the Corner Kick banner shipped for 38-15 defect 4/38-19. Fires once on entry
+  // to the attacking-GK window and does not re-fire on the very next corner phase transition.
+  it('fires "Corner Kick!" once on entry to CORNER_KICK_GK_SETUP_ATTACKING and not again on the transition to CORNER_KICK_GK_SETUP_DEFENDING', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setPhase('CORNER_KICK_GK_SETUP_ATTACKING');
+    });
+    expect(screen.getByText('Corner Kick!')).toBeDefined();
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+
+    act(() => {
+      setPhase('CORNER_KICK_GK_SETUP_DEFENDING');
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
 });
