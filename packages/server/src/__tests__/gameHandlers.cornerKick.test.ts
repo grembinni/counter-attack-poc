@@ -36,11 +36,8 @@ import type {
 import {
   ClientEvents,
   ServerEvents,
-  cornerClearOutGoalHex,
   cornerKickStageTeam,
-  hexDistance,
   hexNeighbors,
-  isLegalClearOutStep,
   isPitchHex,
 } from '@counter-attack/shared';
 
@@ -548,111 +545,6 @@ function seedCornerKickFinalSetup(
     eligibleAwayId: eligibleAway.id,
     eligibleAwayStart: ELIGIBLE_AWAY_START,
     eligibleAwayNeighbor: ELIGIBLE_AWAY_NEIGHBOR,
-  };
-}
-
-/**
- * CORNER_KICK_CLEAR_OUT geometry (38-21). bylineOwnerTeam is the team OPPOSITE
- * CORNER_KICK_TEAM ('away'), mirroring applyCornerKickClearOut's own inversion — the
- * clear-out moves in-zone pieces toward the CONCEDING team's goal, not the kicking
- * team's own goal. goalHex derived via cornerClearOutGoalHex, never a restated literal
- * (mirrors gameEngine.cornerKick.test.ts's identical CORNER_KICK_CLEAR_OUT fixture).
- */
-const CLEAR_OUT_BYLINE_OWNER: 'home' | 'away' = CORNER_KICK_TEAM === 'home' ? 'away' : 'home';
-const CLEAR_OUT_GOAL_HEX: HexCoord = cornerClearOutGoalHex(CLEAR_OUT_BYLINE_OWNER);
-
-/** The first legal (away-from-corner, goal-ward) neighbor step for a hex inside the zone. */
-function clearOutLegalTarget(from: HexCoord): HexCoord {
-  return hexNeighbors(from).find(
-    (to) => isPitchHex(to) && isLegalClearOutStep(from, to, CORNER_HEX, CLEAR_OUT_GOAL_HEX),
-  )!;
-}
-
-/** A neighbor step that moves BACK toward the corner — fails isLegalClearOutStep. */
-function clearOutIllegalTarget(from: HexCoord): HexCoord {
-  return hexNeighbors(from).find(
-    (to) => isPitchHex(to) && hexDistance(to, CORNER_HEX) <= hexDistance(from, CORNER_HEX),
-  )!;
-}
-
-/**
- * Seeds CORNER_KICK_CLEAR_OUT with cornerKickTeam='home' (mirrors every sibling corner
- * seed helper in this file) and one in-zone piece per team, each placed on a distinct
- * on-pitch neighbor of CORNER_HEX (distance 1, guaranteed inside CORNER_EXCLUSION_RADIUS
- * 3). `slot` selects which side is currently active (default 'ATTACKER').
- */
-function seedCornerKickClearOut(
-  roomCode: string,
-  opts?: { slot?: 'ATTACKER' | 'DEFENDER' },
-): {
-  inZoneHomeId: string;
-  inZoneHomeStart: HexCoord;
-  inZoneAwayId: string;
-  inZoneAwayStart: HexCoord;
-} {
-  const room = getRoom(roomCode);
-  if (!room || !room.gameState) throw new Error('Room or gameState not found');
-
-  const slot = opts?.slot ?? 'ATTACKER';
-  const homeOutfield = room.gameState.pieces.filter((p) => p.teamId === 'home' && p.role !== 'GK');
-  const awayOutfield = room.gameState.pieces.filter((p) => p.teamId === 'away' && p.role !== 'GK');
-  const inZoneHome = homeOutfield[0]!;
-  const inZoneAway = awayOutfield[0]!;
-
-  const cornerNeighborsOnPitch = hexNeighbors(CORNER_HEX).filter((h) => isPitchHex(h));
-  const IN_ZONE_HOME_START = cornerNeighborsOnPitch[0]!;
-  // Exclude not just IN_ZONE_HOME_START itself but also its own legal/illegal probe targets
-  // (clearOutLegalTarget/clearOutIllegalTarget) — otherwise the away piece can land on the
-  // exact hex a home-piece test targets, turning an intended NOT_TOWARD_GOAL/legal-step
-  // assertion into an unrelated INVALID_TARGET (occupied) rejection.
-  const homeLegalTarget = clearOutLegalTarget(IN_ZONE_HOME_START);
-  const homeIllegalTarget = clearOutIllegalTarget(IN_ZONE_HOME_START);
-  const reserved = new Set(
-    [IN_ZONE_HOME_START, homeLegalTarget, homeIllegalTarget].map((h) => `${h.q},${h.r}`),
-  );
-  const IN_ZONE_AWAY_START = cornerNeighborsOnPitch.find((h) => !reserved.has(`${h.q},${h.r}`))!;
-
-  let pieces = room.gameState.pieces.map((p) => {
-    if (p.id === inZoneHome.id) return { ...p, position: IN_ZONE_HOME_START };
-    if (p.id === inZoneAway.id) return { ...p, position: IN_ZONE_AWAY_START };
-    return p;
-  });
-  pieces = parkBackgroundPieces(pieces, new Set([inZoneHome.id, inZoneAway.id]));
-
-  room.gameState = {
-    ...room.gameState,
-    phase: 'CORNER_KICK_CLEAR_OUT',
-    outOfBoundsEnabled: true,
-    pieces,
-    cornerKickTeam: CORNER_KICK_TEAM,
-    cornerKickHex: CORNER_HEX,
-    cornerKickClearOutSlot: slot,
-    cornerKickTakerId: null,
-    cornerKickEligibleIds: null,
-    cornerKickStageIndex: null,
-    cornerKickStagePlacedIds: null,
-    cornerKickUsedPace: null,
-    cornerKickMoveSlot: null,
-    cornerKickMovedPieceId: null,
-    cornerKickPaceUsed: 0,
-    attackingTeam: CORNER_KICK_TEAM,
-    activeTeam:
-      slot === 'ATTACKER' ? CORNER_KICK_TEAM : CORNER_KICK_TEAM === 'home' ? 'away' : 'home',
-    kickOffActive: false,
-    lastActionType: null,
-    lastDiceRoll: null,
-    ball: {
-      position: CORNER_HEX,
-      carrierId: null,
-      lastTouchedBy: { pieceId: inZoneAway.id, teamId: 'away' },
-    },
-  };
-
-  return {
-    inZoneHomeId: inZoneHome.id,
-    inZoneHomeStart: IN_ZONE_HOME_START,
-    inZoneAwayId: inZoneAway.id,
-    inZoneAwayStart: IN_ZONE_AWAY_START,
   };
 }
 
@@ -1168,93 +1060,6 @@ describe('GAME_UNDO validUndoPhases coverage for Corner Kick', () => {
     const [reason] = await errorPromise;
 
     expect(reason).toBe('WRONG_PHASE');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// CORNER_KICK_CLEAR_OUT over the socket (38-15 defect 3, Plan 38-21)
-// ---------------------------------------------------------------------------
-
-describe('CORNER_KICK_CLEAR_OUT over the socket (38-15 defect 3)', () => {
-  it("a non-acting socket's clear-out move is rejected with WRONG_TEAM and changes nothing", async () => {
-    const { clientB, roomCode } = await setupRoom();
-    const { inZoneHomeId, inZoneHomeStart } = seedCornerKickClearOut(roomCode, {
-      slot: 'ATTACKER',
-    });
-    const target = clearOutLegalTarget(inZoneHomeStart);
-
-    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
-    clientB.emit(ClientEvents.GAME_MOVE, inZoneHomeId, target);
-    const [reason] = await errorPromise;
-
-    expect(reason).toBe('WRONG_TEAM');
-    expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(
-      getRoom(roomCode)!.gameState!.pieces.find((p) => p.id === inZoneHomeId)!.position,
-    ).toEqual(inZoneHomeStart);
-  });
-
-  it('a malformed `to` payload is rejected with INVALID_TARGET', async () => {
-    const { clientA, roomCode } = await setupRoom();
-    const { inZoneHomeId } = seedCornerKickClearOut(roomCode, { slot: 'ATTACKER' });
-
-    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (clientA as any).emit(ClientEvents.GAME_MOVE, inZoneHomeId, null);
-    const [reason] = await errorPromise;
-
-    expect(reason).toBe('INVALID_TARGET');
-    expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_CLEAR_OUT');
-  });
-
-  it('an engine rejection reason reaches the requesting socket verbatim as a GAME_ERROR (NOT_TOWARD_GOAL)', async () => {
-    const { clientA, roomCode } = await setupRoom();
-    const { inZoneHomeId, inZoneHomeStart } = seedCornerKickClearOut(roomCode, {
-      slot: 'ATTACKER',
-    });
-    const illegalTarget = clearOutIllegalTarget(inZoneHomeStart);
-
-    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    clientA.emit(ClientEvents.GAME_MOVE, inZoneHomeId, illegalTarget);
-    const [reason] = await errorPromise;
-
-    expect(reason).toBe('NOT_TOWARD_GOAL');
-    expect(
-      getRoom(roomCode)!.gameState!.pieces.find((p) => p.id === inZoneHomeId)!.position,
-    ).toEqual(inZoneHomeStart);
-  });
-
-  it('confirming with an in-zone movable piece emits MUST_CLEAR_CORNER and does not advance the slot', async () => {
-    const { clientA, roomCode } = await setupRoom();
-    seedCornerKickClearOut(roomCode, { slot: 'ATTACKER' });
-
-    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
-    clientA.emit(ClientEvents.GAME_END_TURN);
-    const [reason] = await errorPromise;
-
-    expect(reason).toBe('MUST_CLEAR_CORNER');
-    expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(getRoom(roomCode)!.gameState!.cornerKickClearOutSlot).toBe('ATTACKER');
-  });
-
-  it('exactly one CORNER_KICK_CLEAR_OUT_MOVE is appended per accepted move (double-log guard)', async () => {
-    const { clientA, roomCode } = await setupRoom();
-    const { inZoneHomeId, inZoneHomeStart } = seedCornerKickClearOut(roomCode, {
-      slot: 'ATTACKER',
-    });
-    const target = clearOutLegalTarget(inZoneHomeStart);
-    const eventsBefore = getRoom(roomCode)!.gameState!.eventLog.length;
-
-    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
-    clientA.emit(ClientEvents.GAME_MOVE, inZoneHomeId, target);
-    const [state] = await statePromise;
-
-    expect(state.pieces.find((p) => p.id === inZoneHomeId)!.position).toEqual(target);
-    expect(state.eventLog.length - eventsBefore).toBe(1);
-    const clearOutMoveEvents = state.eventLog.filter(
-      (e) => e.type === 'CORNER_KICK_CLEAR_OUT_MOVE',
-    );
-    expect(clearOutMoveEvents).toHaveLength(1);
   });
 });
 

@@ -44,8 +44,6 @@ import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
 import {
   applyCancelMovement,
-  applyCornerKickClearOut,
-  applyCornerKickClearOutEnd,
   applyCornerKickFinalMove,
   applyCornerKickFinalSetupEnd,
   applyCornerKickGkPlace,
@@ -752,48 +750,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // CORNER-01/CORNER-02 (38-15 defect 3, 38-21): CORNER_KICK_CLEAR_OUT's mandatory
-      // pre-corner clear-out — one hex per click, attacking manager's slot first, then
-      // defending. T-38-17: isActivePlayer is a correct pre-check here for the same reason
-      // recorded at the CORNER_KICK_REPOSITION branch below — `activeTeam` is kept in sync
-      // with the clear-out slot by `triggerOutOfBoundsRestart` (initial ATTACKER slot) and by
-      // `applyCornerKickClearOutEnd`'s ATTACKER->DEFENDER slot handoff, so a non-acting
-      // socket can never pass this guard even if it submits a pieceId belonging to the
-      // acting team.
-      // Appends NO event of its own — applyCornerKickClearOut emits its own
-      // CORNER_KICK_CLEAR_OUT_MOVE, so this branch follows the CORNER_KICK_FINAL_SETUP
-      // pattern below (engine owns event construction), NOT the CORNER_KICK_REPOSITION
-      // pattern (handler owns event construction) — the two adjacent branches disagree on
-      // exactly this point and the wrong choice double-logs every clear-out move.
-      if (room.gameState.phase === 'CORNER_KICK_CLEAR_OUT') {
-        if (!isActivePlayer(socket, room)) {
-          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
-          broadcastState(io, room);
-          return;
-        }
-        // ASVS V5 — validate payload shape before dispatch (mirrors the sibling corner
-        // branches; hexDistance/isPitchHex inside applyCornerKickClearOut are not null-safe).
-        if (
-          typeof to !== 'object' ||
-          to === null ||
-          typeof to.q !== 'number' ||
-          typeof to.r !== 'number'
-        ) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
-          broadcastState(io, room);
-          return;
-        }
-        const clearOutResult = applyCornerKickClearOut(room.gameState, pieceId, to);
-        if (!clearOutResult.ok) {
-          socket.emit(ServerEvents.GAME_ERROR, clearOutResult.reason);
-          broadcastState(io, room);
-          return;
-        }
-        room.gameState = clearOutResult.state;
-        broadcastState(io, room);
-        return;
-      }
-
       // CORNER-03: CORNER_KICK_REPOSITION's 6-stage alternating reposition window.
       // T-38-17: isActivePlayer is a correct pre-check here (activeTeam is kept in sync
       // with cornerKickStageTeam at every stage transition — see applyCornerKickStageEnd)
@@ -1471,24 +1427,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
-      // CORNER-01/CORNER-02 (38-15 defect 3, 38-21): confirms the active clear-out slot.
-      // Delegates straight to applyCornerKickClearOutEnd(room.gameState, socketTeam(socket))
-      // with no handler-level pre-check — the engine owns the acting-team comparison,
-      // exactly as applyCornerKickStageEnd's branch below does, and exactly as this
-      // plan's own instructions require. MUST_CLEAR_CORNER is the rejection reason a
-      // player actually sees when in-zone pieces still have a legal step remaining.
-      if (room.gameState.phase === 'CORNER_KICK_CLEAR_OUT') {
-        const clearOutEndResult = applyCornerKickClearOutEnd(room.gameState, socketTeam(socket));
-        if (!clearOutEndResult.ok) {
-          socket.emit(ServerEvents.GAME_ERROR, clearOutEndResult.reason);
-          broadcastState(io, room);
-          return;
-        }
-        room.gameState = clearOutEndResult.state;
-        broadcastState(io, room);
-        return;
-      }
-
       // CORNER-01: ends the active corner-kick GK reposition window (attacking GK's
       // window, then defending GK's window). Mirrors the GOAL_KICK_SETUP_GK/OPPONENT
       // branch above — activeTeam is kept in sync at every corner-kick GK transition
@@ -1617,10 +1555,6 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // ATTACKING/_DEFENDING/CORNER_KICK_TAKER_SELECT are deliberately NOT added — those
       // three steps are placements with no per-hex move to reverse, mirroring the
       // rationale for excluding THROW_IN_SETUP/GOAL_KICK_CHOICE/GOAL_KICK_TARGET above.
-      // Phase 38 (38-20/38-21): CORNER_KICK_CLEAR_OUT joins that same exclusion list —
-      // per 38-20's recorded design decision the mandatory pre-corner clear-out is not
-      // undoable, exactly like the GK setup windows and taker select it sits alongside;
-      // do NOT add it here.
       const validUndoPhases: GamePhase[] = [
         'MOVE',
         'HIGH_PASS_MOVE',
