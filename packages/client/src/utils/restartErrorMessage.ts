@@ -74,11 +74,21 @@ export const RESTART_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // even though 38-17 removes it from the reposition-window result union. All six are added
   // below.
   PIECE_LOCKED: 'That player has already been repositioned for this corner.',
-  NOT_ELIGIBLE: 'That player is not eligible for this action.',
+  NOT_ELIGIBLE: 'That player cannot be moved in this step.',
   NOT_ADJACENT: 'Choose a hex next to that player.',
   STAGE_LIMIT_REACHED: 'The player limit for this round has been reached.',
   NOT_GOALKEEPER: 'Only a goalkeeper can do that.',
   PACE_EXHAUSTED: 'That player has already moved the maximum distance allowed.',
+
+  // 38-22 (38-15 defect 3): CORNER_KICK_CLEAR_OUT's applyCornerKickClearOut/
+  // applyCornerKickClearOutEnd wire codes (38-21-SUMMARY.md "Newly Reachable GAME_ERROR
+  // Codes") plus the permanent defender exclusion-zone rejection shared by
+  // applyCornerKickGkPlace/applyCornerKickReposition/applyCornerKickFinalMove (38-20).
+  // WRONG_PHASE, PIECE_NOT_FOUND, WRONG_TEAM, NOT_ELIGIBLE, NOT_ADJACENT, and INVALID_TARGET
+  // from that list are already mapped above.
+  MUST_CLEAR_CORNER: 'Move your players out of the corner area before confirming.',
+  NOT_TOWARD_GOAL: 'That player must move away from the corner and toward goal.',
+  CORNER_EXCLUSION_ZONE: 'Defenders cannot be positioned within three hexes of the corner.',
 };
 
 /**

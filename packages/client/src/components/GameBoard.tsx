@@ -64,6 +64,9 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   GOAL_KICK_TARGET: 'GOAL KICK — SELECT TARGET',
   GOAL_KICK_MOVE: 'GOAL KICK — REPOSITION',
   // Phase 38 (38-07): Corner Kick phases.
+  // 38-22 (38-15 defect 3): CORNER_KICK_CLEAR_OUT — mandatory pre-corner clear-out, matches the
+  // all-caps em-dash convention of the neighbouring corner entries.
+  CORNER_KICK_CLEAR_OUT: 'CORNER KICK — CLEAR THE CORNER',
   CORNER_KICK_GK_SETUP_ATTACKING: 'CORNER KICK — ATTACKING GK',
   CORNER_KICK_GK_SETUP_DEFENDING: 'CORNER KICK — DEFENDING GK',
   CORNER_KICK_TAKER_SELECT: 'CORNER KICK — CHOOSE TAKER',
@@ -357,7 +360,8 @@ export function GameBoard() {
             phase === 'GOAL_KICK_TARGET' ||
             phase === 'GOAL_KICK_MOVE' ? (
             <GoalKickSetupPanel />
-          ) : phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
+          ) : phase === 'CORNER_KICK_CLEAR_OUT' ||
+            phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
             phase === 'CORNER_KICK_GK_SETUP_DEFENDING' ||
             phase === 'CORNER_KICK_TAKER_SELECT' ||
             phase === 'CORNER_KICK_REPOSITION' ||

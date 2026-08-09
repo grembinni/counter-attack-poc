@@ -65,13 +65,14 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
     expect(polygon?.getAttribute('points')).toBe(expectedPoints);
   });
 
-  // Plan 37-18 (T-37-87) / Plan 38-07: pins the real BALL_MARKER_PHASES set size so
-  // docs/HIGHLIGHT-REFERENCE.md's stated phase count/enumeration cannot silently drift from
+  // Plan 37-18 (T-37-87) / Plan 38-07 / Plan 38-22: pins the real BALL_MARKER_PHASES set size
+  // so docs/HIGHLIGHT-REFERENCE.md's stated phase count/enumeration cannot silently drift from
   // the code again, as it did after Plan 37-02 added the six Phase-37 restart phases without
   // updating the doc's "exact 11-phase list" claim. Grew from 17 (11 original + 6 Phase-37
-  // restart phases) to 22 with Plan 38-07's five Corner Kick phases.
-  it('BALL_MARKER_PHASES has grown to 22 members (17 + 5 Phase-38 corner-kick phases)', () => {
-    expect(BALL_MARKER_PHASES.size).toBe(22);
+  // restart phases) to 22 with Plan 38-07's five Corner Kick phases, then to 23 with Plan
+  // 38-22's CORNER_KICK_CLEAR_OUT addition (38-15 defect 3).
+  it('BALL_MARKER_PHASES has grown to 23 members (17 + 5 Phase-38 corner-kick phases + 1 clear-out phase)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(23);
   });
 
   it("renders the marker during phase='CORNER_KICK_GK_SETUP_ATTACKING' (Phase 38 corner-kick phase)", () => {
