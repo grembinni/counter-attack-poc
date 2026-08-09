@@ -66,12 +66,12 @@
 
 ### Corner Kick (CORNER)
 
-- [ ] **CORNER-01**: When a corner kick is awarded, both goalkeepers may be repositioned first
-- [ ] **CORNER-02**: The kicking manager selects a corner-taker and places them in one of the corner's existing fixed corner-arc hexes with the ball
-- [ ] **CORNER-03**: Each manager then repositions up to 6 players, alternating 2 players at a time, attacking manager first
-- [ ] **CORNER-04**: The corner is taken as a High Pass (any hex within the penalty area with no distance limit, or elsewhere up to 15 hexes) or a Low Pass, with the existing combined-score accuracy check (8+) applied to whichever is chosen
-- [ ] **CORNER-05**: A High Pass corner requires the receiving player to attempt a header; a Low Pass does not
-- [ ] **CORNER-06**: Immediately before the kick, before the target is declared, both teams may each move one more player up to 3 hexes (attacking manager first) — a second, separate repositioning window from CORNER-03
+- [x] **CORNER-01**: When a corner kick is awarded, both goalkeepers may be repositioned first
+- [x] **CORNER-02**: The kicking manager selects a corner-taker and places them in one of the corner's existing fixed corner-arc hexes with the ball
+- [x] **CORNER-03**: Each manager then repositions up to 6 players, alternating 2 players at a time, attacking manager first
+- [x] **CORNER-04**: The corner is taken as a High Pass (any hex within the penalty area with no distance limit, or elsewhere up to 15 hexes) or a Low Pass, with the existing combined-score accuracy check (8+) applied to whichever is chosen
+- [x] **CORNER-05**: A High Pass corner requires the receiving player to attempt a header; a Low Pass does not
+- [x] **CORNER-06**: Immediately before the kick, before the target is declared, both teams may each move one more player up to 3 hexes (attacking manager first) — a second, separate repositioning window from CORNER-03
 
 ### Throw-In (THROWIN)
 
@@ -85,7 +85,7 @@
 
 - [x] **OOB-01**: The game tracks which piece (and team) last touched the ball, independent of current possession
 - [x] **OOB-02**: The ball exiting over a sideline awards a throw-in to the team that did not last touch it
-- [ ] **OOB-03**: The ball exiting over a byline after last being touched by a defending player awards a corner kick to the attacking team
+- [x] **OOB-03**: The ball exiting over a byline after last being touched by a defending player awards a corner kick to the attacking team
 - [x] **OOB-04**: The ball exiting over a byline after last being touched by an attacking player (or without being touched, e.g. an off-target shot) awards a goal kick to the defending team
 - [x] **OOB-05**: When Out-of-Bounds/Restarts is disabled, the ball continues to clamp to the pitch boundary exactly as it does today — none of OOB-01..04 or the Goal Kick/Corner Kick/Throw-In flows are reachable
 
@@ -144,13 +144,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GOALKICK-04 | Phase 37 | Complete |
 | GOALKICK-05 | Phase 37 | Complete |
 | GOALKICK-06 | Phase 37 | Complete |
-| OOB-03      | Phase 38 | Pending  |
-| CORNER-01   | Phase 38 | Pending  |
-| CORNER-02   | Phase 38 | Pending  |
-| CORNER-03   | Phase 38 | Pending  |
-| CORNER-04   | Phase 38 | Pending  |
-| CORNER-05   | Phase 38 | Pending  |
-| CORNER-06   | Phase 38 | Pending  |
+| OOB-03      | Phase 38 | Complete |
+| CORNER-01   | Phase 38 | Complete |
+| CORNER-02   | Phase 38 | Complete |
+| CORNER-03   | Phase 38 | Complete |
+| CORNER-04   | Phase 38 | Complete |
+| CORNER-05   | Phase 38 | Complete |
+| CORNER-06   | Phase 38 | Complete |
 | FOUL-01     | Phase 39 | Pending  |
 | FOUL-02     | Phase 39 | Pending  |
 | FOUL-03     | Phase 39 | Pending  |

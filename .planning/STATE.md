@@ -4,24 +4,24 @@ milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: executing
 stopped_at: Phase 38 UI-SPEC approved
-last_updated: '2026-08-09T19:17:38.349Z'
-last_activity: 2026-08-09 -- Phase 38 execution started
+last_updated: '2026-08-09T23:26:03.731Z'
+last_activity: 2026-08-09
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 52
-  completed_plans: 49
-  percent: 25
+  completed_plans: 52
+  percent: 50
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 38 (corner-kick) — EXECUTING
-Plan: 1 of 33
+Phase: 39
+Plan: Not started
 Status: Executing Phase 38
-Last activity: 2026-08-09 -- Phase 38 execution started
+Last activity: 2026-08-09
 
 ## Project Reference
 
