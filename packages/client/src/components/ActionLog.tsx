@@ -1018,6 +1018,27 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         isGoal: false,
       };
     }
+    case 'CORNER_KICK_CLEAR_OUT_MOVE': {
+      // CORNER-01 (Phase 38): fixes a runtime crash reported in 38-24-SUMMARY.md bug 4
+      // (gap-closure round 3) — this case was missing from the switch entirely, so
+      // formatEvent fell off the end and returned undefined, which crashed the ActionLog
+      // render loop's `{ prefix }` destructure. This event is now emitted automatically by
+      // applyAutomaticCornerClearOut at corner-award time rather than by an interactive
+      // phase, but it still needs a normal log line like every other corner-kick event.
+      const sideLabel = event.slot === 'ATTACKER' ? 'Attacking' : 'Defending';
+      return {
+        prefix: '[CORNER KICK]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.pieceId} /> ({sideLabel}) cleared the corner {event.from.q},
+            {event.from.r} → {event.to.q},{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
   }
 }
 

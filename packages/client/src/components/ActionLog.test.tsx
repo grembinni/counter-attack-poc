@@ -1047,4 +1047,49 @@ describe('ActionLog — Phase 38 (38-07): Corner Kick event rendering', () => {
     expect(container.textContent).toMatch(/Low Pass/);
     expect(container.textContent).toMatch(/Inaccurate — loose ball/);
   });
+
+  // Gap-closure round 3 (38-26): regression test for 38-24-SUMMARY.md bug 4 — a
+  // CORNER_KICK_CLEAR_OUT_MOVE event previously crashed formatEvent (missing switch case,
+  // TS2366) which crashed the whole ActionLog render via the { prefix } destructure.
+  it('a CORNER_KICK_CLEAR_OUT_MOVE event renders a normal action-log line instead of crashing', () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_CLEAR_OUT_MOVE',
+        slot: 'ATTACKER',
+        pieceId: 'away-3',
+        from: { q: 34, r: 12 },
+        to: { q: 31, r: 12 },
+        timestamp: 0,
+      },
+    ]);
+    expect(() => render(<ActionLog />)).not.toThrow();
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[CORNER KICK\]/);
+    expect(container.textContent).toMatch(/34,12.*31,12/);
+  });
+
+  it('a CORNER_KICK_CLEAR_OUT_MOVE event renders correctly alongside another corner event in a mixed list', () => {
+    setEventLog([
+      {
+        type: 'CORNER_KICK_TAKER_PLACED',
+        pieceId: 'away-9',
+        from: { q: 22, r: 13 },
+        to: { q: 36, r: 1 },
+        timestamp: 0,
+        ballAfter: { position: { q: 36, r: 1 }, carrierId: 'away-9' },
+      },
+      {
+        type: 'CORNER_KICK_CLEAR_OUT_MOVE',
+        slot: 'DEFENDER',
+        pieceId: 'home-4',
+        from: { q: 33, r: 11 },
+        to: { q: 30, r: 11 },
+        timestamp: 1,
+      },
+    ]);
+    expect(() => render(<ActionLog />)).not.toThrow();
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/placed at 36,1/);
+    expect(container.textContent).toMatch(/33,11.*30,11/);
+  });
 });
