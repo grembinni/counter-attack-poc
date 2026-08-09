@@ -3,6 +3,7 @@ import type { GameState, HexCoord } from '@counter-attack/shared';
 import {
   validateMove,
   hexesInRange,
+  hexNeighbors,
   ClientEvents,
   PITCH_HEXES,
   PITCH_REGIONS,
@@ -14,6 +15,9 @@ import {
   freeKickStageTeam,
   cornerKickStageTeam,
   ELIGIBLE_NEXT_ACTIONS,
+  isLegalClearOutStep,
+  isWithinCornerExclusionZone,
+  cornerClearOutGoalHex,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
@@ -913,6 +917,58 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-20/38-22): mandatory pre-corner clear-out —
+    // every piece within CORNER_EXCLUSION_RADIUS of the corner hex must be walked goal-ward
+    // one hex per click before either goalkeeper is repositioned. Mirrors
+    // gameEngine.ts's applyCornerKickClearOut/hasLegalClearOutMove: the acting team derives
+    // from cornerKickClearOutSlot ('ATTACKER' -> cornerKickTeam, otherwise the opposite), and
+    // the destination set is exactly the adjacent on-pitch, unoccupied hexes that satisfy the
+    // shared isLegalClearOutStep geometry rule — never a reimplemented distance comparison.
+    if (gameState.phase === 'CORNER_KICK_CLEAR_OUT') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickClearOut)
+      // already requires myTeam !== null.
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const cornerKickTeam = gameState.cornerKickTeam ?? null;
+      const cornerKickHex = gameState.cornerKickHex ?? null;
+      const clearOutSlot = gameState.cornerKickClearOutSlot ?? null;
+      if (cornerKickTeam === null || cornerKickHex === null || clearOutSlot === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const actingTeam: 'home' | 'away' =
+        clearOutSlot === 'ATTACKER' ? cornerKickTeam : cornerKickTeam === 'home' ? 'away' : 'home';
+      if (myTeam !== actingTeam || piece.teamId !== actingTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // A piece already clear of the zone is selectable so its stats show, but offers no
+      // destinations — mirrors the "selectable so stats show, but no destinations" precedent
+      // used elsewhere in this file (e.g. the activated-earlier-stage reposition branch below).
+      if (!isWithinCornerExclusionZone(piece.position, cornerKickHex)) {
+        set({ selectedPieceId: id, validMoveHexes: [] });
+        return;
+      }
+      const bylineOwnerTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
+      const goalHex = cornerClearOutGoalHex(bylineOwnerTeam);
+      const valid = hexNeighbors(piece.position).filter((hex) => {
+        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+        if (
+          gameState.pieces.some(
+            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
+          )
+        )
+          return false;
+        return isLegalClearOutStep(piece.position, hex, cornerKickHex, goalHex);
+      });
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // CORNER_KICK_GK_SETUP_ATTACKING / _DEFENDING (CORNER-01): sequential GK-only reposition
     // windows before the corner-taker is placed — the attacking team's GK first, then the
     // defending team's GK. Assumption A1 (RESEARCH.md): destinations are every unoccupied
@@ -949,12 +1005,27 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       // Assumption A1: every on-pitch hex not occupied by another piece — uncapped, mirroring
       // the server's applyCornerKickGkPlace. Keep this comment adjacent to the computation so
       // the client cap (none) and server cap stay discoverable together.
-      const valid = PITCH_HEXES.filter(
-        (hex) =>
-          !gameState.pieces.some(
+      // T-38-74/permanent exclusion zone (38-20): CORNER_KICK_GK_SETUP_DEFENDING additionally
+      // drops any hex inside the 3-hex zone — the defending GK may never be placed there,
+      // mirroring applyCornerKickGkPlace's CORNER_EXCLUSION_ZONE guard. The attacking window
+      // is unrestricted (attackers may stand anywhere, including inside the zone).
+      const cornerKickHexForGk = gameState.cornerKickHex ?? null;
+      const valid = PITCH_HEXES.filter((hex) => {
+        if (
+          gameState.pieces.some(
             (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          ),
-      );
+          )
+        )
+          return false;
+        if (
+          gameState.phase === 'CORNER_KICK_GK_SETUP_DEFENDING' &&
+          cornerKickHexForGk !== null &&
+          isWithinCornerExclusionZone(hex, cornerKickHexForGk)
+        ) {
+          return false;
+        }
+        return true;
+      });
       set({ selectedPieceId: id, validMoveHexes: valid, tackleRiskHexes: [] });
       return;
     }
@@ -1025,7 +1096,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: id, validMoveHexes: [] });
         return;
       }
-      const valid = computeFreeMoveValidHexes(id, piece, gameState);
+      let valid = computeFreeMoveValidHexes(id, piece, gameState);
+      // T-38-74/permanent exclusion zone (38-20): the defending side may never be offered a
+      // destination inside the 3-hex zone at any point in the corner sequence — filtered here
+      // using this branch's own acting-side computation (`side`), never `activeTeam`.
+      const cornerKickHexForReposition = gameState.cornerKickHex ?? null;
+      if (side === 'defending' && cornerKickHexForReposition !== null) {
+        valid = valid.filter(
+          (hex) => !isWithinCornerExclusionZone(hex, cornerKickHexForReposition),
+        );
+      }
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -1065,12 +1145,19 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(
+      let valid = computeResponseMoveValidHexes(
         id,
         piece,
         gameState,
         CORNER_KICK_FINAL_SETUP_CONFIG,
       );
+      // T-38-74/permanent exclusion zone (38-20): the defending side may never be offered a
+      // destination inside the 3-hex zone at any point in the corner sequence — filtered here
+      // using this branch's own acting-side computation (`side`), never `activeTeam`.
+      const cornerKickHexForFinal = gameState.cornerKickHex ?? null;
+      if (side === 'defending' && cornerKickHexForFinal !== null) {
+        valid = valid.filter((hex) => !isWithinCornerExclusionZone(hex, cornerKickHexForFinal));
+      }
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -1301,9 +1388,26 @@ export const useGameStore = create<GameStore>()((set, get) => ({
                 : HIGH_PASS_MOVE_CONFIG;
       const lockedId = newState[config.lockedPieceIdField] ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
-      const stickyValid = locked
+      let stickyValid = locked
         ? []
         : computeResponseMoveValidHexes(prevSelectedId, piece, newState, config);
+      // T-38-74/permanent exclusion zone (38-20): mirrors selectPiece's CORNER_KICK_FINAL_SETUP
+      // defending-side filter so a sticky selection across a broadcast can never re-offer an
+      // excluded-zone hex. Only applies to CORNER_KICK_FINAL_SETUP — the other phases in this
+      // shared block have no corner-exclusion concept.
+      if (newState.phase === 'CORNER_KICK_FINAL_SETUP' && !locked) {
+        const stickyCornerKickTeam = newState.cornerKickTeam ?? null;
+        const stickyCornerKickHex = newState.cornerKickHex ?? null;
+        if (
+          stickyCornerKickTeam !== null &&
+          stickyCornerKickHex !== null &&
+          piece.teamId !== stickyCornerKickTeam
+        ) {
+          stickyValid = stickyValid.filter(
+            (hex) => !isWithinCornerExclusionZone(hex, stickyCornerKickHex),
+          );
+        }
+      }
       set({
         gameState: newState,
         selectedPieceId: prevSelectedId,
@@ -1368,9 +1472,23 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         const activatedEarlierStage =
           (newState.cornerKickActivatedIds?.includes(prevSelectedId) ?? false) &&
           !(newState.cornerKickStagePlacedIds?.includes(prevSelectedId) ?? false);
-        stickyValid = activatedEarlierStage
-          ? []
-          : computeFreeMoveValidHexes(prevSelectedId, piece, newState);
+        if (activatedEarlierStage) {
+          stickyValid = [];
+        } else {
+          stickyValid = computeFreeMoveValidHexes(prevSelectedId, piece, newState);
+          // T-38-74/permanent exclusion zone (38-20): mirrors selectPiece's
+          // CORNER_KICK_REPOSITION defending-side filter so a sticky selection across a
+          // broadcast can never re-offer an excluded-zone hex.
+          const stickyCornerKickTeam = newState.cornerKickTeam ?? null;
+          const stickyCornerKickHex = newState.cornerKickHex ?? null;
+          if (stickyCornerKickTeam !== null && piece.teamId !== stickyCornerKickTeam) {
+            if (stickyCornerKickHex !== null) {
+              stickyValid = stickyValid.filter(
+                (hex) => !isWithinCornerExclusionZone(hex, stickyCornerKickHex),
+              );
+            }
+          }
+        }
       } else {
         const paceRemaining =
           newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
