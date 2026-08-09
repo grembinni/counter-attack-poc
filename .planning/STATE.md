@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: executing
-stopped_at: Phase 38 gap-closure re-verification (38-30) — corrections needed, not approved
-last_updated: '2026-08-09T18:30:01.000Z'
-last_activity: 2026-08-09 -- Phase 38 gap-closure round 3 complete (38-25..38-30); checkpoint found 2 new defects (offside ring not reset after goal/kickoff reset, Undo broken in the 2-2-2 corner reposition window), routing to a fourth gap-closure round
+stopped_at: Phase 38 UI-SPEC approved
+last_updated: '2026-08-09T19:17:38.349Z'
+last_activity: 2026-08-09 -- Phase 38 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 49
+  total_plans: 52
   completed_plans: 49
   percent: 25
 ---
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 38 (corner-kick) — GAPS FOUND
-Plan: 30 of 30 (all gap-closure round 3 plans landed; checkpoint 38-30 found further gaps)
-Status: Phase 38 gap-closure round 3 complete; a fourth gap-closure round is needed before phase can close
-Last activity: 2026-08-09 -- 38-30 checkpoint recorded 2 new defects; route to /gsd-plan-phase 38 --gaps
+Phase: 38 (corner-kick) — EXECUTING
+Plan: 1 of 33
+Status: Executing Phase 38
+Last activity: 2026-08-09 -- Phase 38 execution started
 
 ## Project Reference
 

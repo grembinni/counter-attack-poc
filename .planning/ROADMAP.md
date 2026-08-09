@@ -128,12 +128,12 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Out-of-bounds classification is a hard prerequisite for three of the four new restart types — throw-in, corner kick, and goal kick are all unreachable without it — so it lands first, paired with throw-in and goal kick (goal kick is built as its own dedicated setup flow per explicit product decision, not a reuse of the existing GK_RESTART chain, despite that reuse being the lower-effort path). Corner kick follows once that foundation exists, since it is the most state-machine-complex of the three restarts (two sequential repositioning windows, finer 2-at-a-time alternation than any existing staged flow). The fouls/cards/injury/GK-dive/penalty-kick cluster is the one true must-ship-together group in this milestone — injury and booking are unskippable side effects of every foul, and GK-dive-at-feet exists specifically to create a new foul source that feeds penalty kick, which has no other trigger — so it is deliberately sequenced third to give maximum lead time for resolving its rulebook ambiguities (which die triggers a foul, Professional Foul red-vs-yellow semantics) before implementation begins. Substitutions ships last: it is fully independent of every other cluster and only soft-depends on injury for one trigger source (forced substitution on a second injury), so placing it last avoids a small retroactive follow-up once that wiring already exists.
 
-| Phase | Name                                   | Plans      | Status      |
-| ----- | -------------------------------------- | ---------- | ----------- |
-| 37    | 19/19                                  | Complete   | 2026-08-07  |
-| 38    | 30/30                                  | Gaps Found | -           |
-| 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD        | Not started |
-| 40    | Substitutions                          | TBD        | Not started |
+| Phase | Name                                   | Plans       | Status      |
+| ----- | -------------------------------------- | ----------- | ----------- |
+| 37    | 19/19                                  | Complete    | 2026-08-07  |
+| 38    | 32/33                                  | In Progress |             |
+| 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
+| 40    | Substitutions                          | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
 
@@ -324,8 +324,8 @@ Plans:
 
 **Wave 23** _(fourth gap-closure round from 38-30-SUMMARY.md — the 2-2-2 window Undo regression; two plans run in parallel, no file overlap)_
 
-- [ ] 38-31-PLAN.md — Engine: clear lastDiceRoll at both corner reversible-window entries, LIFO multi-undo coverage (bug 2, D-GAP-01 re-opened)
-- [ ] 38-32-PLAN.md — Client: pin the Undo affordance and its enablement contract; record the offside-ring triage verdict (bug 2, bug 1 deferral)
+- [x] 38-31-PLAN.md — Engine: clear lastDiceRoll at both corner reversible-window entries, LIFO multi-undo coverage (bug 2, D-GAP-01 re-opened)
+- [x] 38-32-PLAN.md — Client: pin the Undo affordance and its enablement contract; record the offside-ring triage verdict (bug 2, bug 1 deferral)
 
 **Wave 24** _(fourth gap-closure re-verification, blocked on Wave 23)_
 
