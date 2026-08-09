@@ -50,8 +50,11 @@ export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   'GOAL_KICK_TARGET',
   'GOAL_KICK_MOVE',
   // Phase 38 (38-07): the ball is fixed at the corner hex or mid-repositioning throughout
-  // every one of the five corner-kick phases, matching the Phase 37 restart-phase precedent
+  // every one of the six corner-kick phases, matching the Phase 37 restart-phase precedent
   // directly above. Reuses the existing marker; no new tint type added (D-09).
+  // 38-22 (38-15 defect 3): CORNER_KICK_CLEAR_OUT added — the ball sits at the corner hex
+  // during the mandatory pre-corner clear-out too.
+  'CORNER_KICK_CLEAR_OUT',
   'CORNER_KICK_GK_SETUP_ATTACKING',
   'CORNER_KICK_GK_SETUP_DEFENDING',
   'CORNER_KICK_TAKER_SELECT',

@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { CORNER_KICK_STAGES, cornerKickStageTeam } from '@counter-attack/shared';
+import {
+  CORNER_KICK_STAGES,
+  cornerKickStageTeam,
+  isWithinCornerExclusionZone,
+} from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { ctaColorClass } from '../utils/ctaColorClass.js';
@@ -7,9 +11,10 @@ import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 import styles from './CornerKickSetupPanel.module.css';
 
 /**
- * Corner Kick sidebar panel — covers all five corner-kick phases (CORNER-01/02/03/06):
- * CORNER_KICK_GK_SETUP_ATTACKING, CORNER_KICK_GK_SETUP_DEFENDING, CORNER_KICK_TAKER_SELECT,
- * CORNER_KICK_REPOSITION, CORNER_KICK_FINAL_SETUP, plus the PASS-phase High/Low Pass choice
+ * Corner Kick sidebar panel — covers all six corner-kick phases (CORNER-01/02/03/06):
+ * CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-20/38-22), CORNER_KICK_GK_SETUP_ATTACKING,
+ * CORNER_KICK_GK_SETUP_DEFENDING, CORNER_KICK_TAKER_SELECT, CORNER_KICK_REPOSITION,
+ * CORNER_KICK_FINAL_SETUP, plus the PASS-phase High/Low Pass choice
  * (CORNER-04/05). Structurally mirrors GoalKickSetupPanel.tsx (38-UI-SPEC "Component reuse for
  * this phase"): `.panel` with no border rule, the single-CTA verb lock ("Confirm"), and the
  * verbatim waiting-state phrasing ("{Attacking|Defending} team is repositioning…"). The two
@@ -32,6 +37,9 @@ export function CornerKickSetupPanel() {
 
   const phase = useGameStore((s) => s.gameState.phase);
   const cornerKickTeam = useGameStore((s) => s.gameState.cornerKickTeam);
+  const cornerKickHex = useGameStore((s) => s.gameState.cornerKickHex);
+  const cornerKickClearOutSlot = useGameStore((s) => s.gameState.cornerKickClearOutSlot);
+  const pieces = useGameStore((s) => s.gameState.pieces);
   const cornerKickStageIndex = useGameStore((s) => s.gameState.cornerKickStageIndex);
   const cornerKickEligibleIds = useGameStore((s) => s.gameState.cornerKickEligibleIds);
   const cornerKickActivatedIds = useGameStore((s) => s.gameState.cornerKickActivatedIds);
@@ -49,6 +57,7 @@ export function CornerKickSetupPanel() {
   const myTeamOrNull = useMyTeam();
 
   const isCornerKickPhase =
+    phase === 'CORNER_KICK_CLEAR_OUT' ||
     phase === 'CORNER_KICK_GK_SETUP_ATTACKING' ||
     phase === 'CORNER_KICK_GK_SETUP_DEFENDING' ||
     phase === 'CORNER_KICK_TAKER_SELECT' ||
@@ -111,6 +120,64 @@ export function CornerKickSetupPanel() {
         </div>
       </div>
     ) : null;
+
+  // CORNER-01 (38-15 defect 3, 38-20/38-22): the mandatory pre-corner clear-out — every piece
+  // within 3 hexes of the corner must be walked goal-ward before either goalkeeper is
+  // repositioned. Attacking manager clears first (D-03 attacker-first convention), then
+  // defending. Placed BEFORE the goalkeeper-window branch so it reads in sequence order.
+  if (phase === 'CORNER_KICK_CLEAR_OUT') {
+    const clearOutSlot = cornerKickClearOutSlot ?? 'ATTACKER';
+    const actingTeam: 'home' | 'away' = clearOutSlot === 'ATTACKER' ? cornerKickTeam : oppTeam;
+    const sideLabel = clearOutSlot === 'ATTACKER' ? 'Attacking' : 'Defending';
+
+    if (myTeam !== actingTeam) {
+      return (
+        <div className={styles.panel}>
+          <span className={styles.panelHeading}>Corner Kick</span>
+          <span className={styles.constraintRow}>{sideLabel} team is repositioning&hellip;</span>
+        </div>
+      );
+    }
+
+    // {N}: the acting manager's own pieces still inside the exclusion zone — mirrors the
+    // server's hasLegalClearOutMove/applyCornerKickClearOutEnd completion gate, which counts
+    // over the SAME acting team's own pieces still within the zone.
+    const remaining =
+      cornerKickHex == null
+        ? 0
+        : pieces.filter(
+            (p) =>
+              p.teamId === actingTeam && isWithinCornerExclusionZone(p.position, cornerKickHex),
+          ).length;
+    const clearOutColorClass = ctaColorClass(
+      remaining,
+      { ready: styles.ctaButtonReady, pending: styles.ctaButtonPending },
+      true,
+    );
+
+    return (
+      <div className={styles.panel}>
+        <span className={styles.panelHeading}>Corner Kick</span>
+        <span className={styles.constraintRow}>
+          {`${remaining} of your players are too close to the corner — move them toward goal.`}
+        </span>
+        <span className={styles.constraintRow}>
+          Players within 3 hexes of the corner must clear out before the kick.
+        </span>
+        {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
+        {/*
+          NOT wrapped in withEndTurnGuard — the clear-out is mandatory, not optional
+          repositioning. A soft "are you sure" override would be misleading here: the server
+          rejects an early confirm with MUST_CLEAR_CORNER regardless, so there is nothing for
+          a confirm dialog to usefully ask. No Undo button either — CORNER_KICK_CLEAR_OUT is
+          deliberately absent from validUndoPhases (38-20/38-21).
+        */}
+        <button className={`${styles.ctaButton} ${clearOutColorClass}`} onClick={emitEndTurn}>
+          Confirm
+        </button>
+      </div>
+    );
+  }
 
   // CORNER-01: the two sequential goalkeeper reposition windows — attacking GK first, then
   // defending GK (D-03). Placement is uncapped (Assumption A1) so there is no "N eligible"
