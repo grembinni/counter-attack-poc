@@ -1140,29 +1140,29 @@ describe('CORNER-03: the 6-stage alternating reposition window', () => {
     expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_REPOSITION');
   });
 
-  // Reclassified by 38-17 (D-GAP-03, closing 38-15 defect 1): this test used to prove a
-  // 6-hex-per-piece budget that persisted across the whole window, rejecting a 7th move.
-  // That budget is gone — repositioning is uncapped within the activating stage. The test
-  // now proves the 7th successive move by the same piece still succeeds.
-  it('moving one piece 7 single hexes within its activating stage all succeed — movement is uncapped', async () => {
+  // 38-27 (gap closure round 3, corrected reading of D-GAP-03): repositioning is now a
+  // single-destination click at any distance (free-kick-style), activating the piece the
+  // instant that placement completes — a second GAME_MOVE for the same piece is rejected.
+  it('a single GAME_MOVE places the piece at a distant legal hex and activates it; a second GAME_MOVE for the same piece is rejected PIECE_LOCKED', async () => {
     const { clientB, roomCode } = await setupRoom();
-    const { attackingIds, attackingStarts, attackingNeighbors } = seedCornerKickReposition(
-      roomCode,
-      { stageIndex: 0 },
-    );
+    const { attackingIds, attackingStarts } = seedCornerKickReposition(roomCode, {
+      stageIndex: 0,
+    });
     const pieceId = attackingIds[0]!;
     const start = attackingStarts[0]!;
-    const neighbor = attackingNeighbors[0]!;
-    const targets = [neighbor, start, neighbor, start, neighbor, start, neighbor];
+    // Well beyond one hex away — adjacency is no longer required by 38-27.
+    const distantTarget: HexCoord = { q: start.q + 6, r: start.r };
 
-    for (let i = 0; i < 7; i++) {
-      const statePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
-      clientB.emit(ClientEvents.GAME_MOVE, pieceId, targets[i]!);
-      const [state] = await statePromise;
-      expect(state.cornerKickUsedPace?.[pieceId]).toBe(i + 1);
-    }
+    const movePromise = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_MOVE, pieceId, distantTarget);
+    const [afterMove] = await movePromise;
+    expect(afterMove.pieces.find((p) => p.id === pieceId)!.position).toEqual(distantTarget);
+    expect(afterMove.cornerKickActivatedIds).toContain(pieceId);
 
-    expect(getRoom(roomCode)!.gameState!.cornerKickUsedPace?.[pieceId]).toBe(7);
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_MOVE, pieceId, start);
+    const [reason] = await errorPromise;
+    expect(reason).toBe('PIECE_LOCKED');
     expect(getRoom(roomCode)!.gameState!.phase).toBe('CORNER_KICK_REPOSITION');
   });
 });
