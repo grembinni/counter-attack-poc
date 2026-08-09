@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   triggerOutOfBoundsRestart,
-  applyCornerKickClearOut,
-  applyCornerKickClearOutEnd,
+  applyAutomaticCornerClearOut,
   applyCornerKickGkPlace,
   applyCornerKickGkWindowEnd,
   applyCornerKickTakerSelect,
@@ -26,9 +25,10 @@ import {
   classifyExit,
   bylineOwner,
   hexNeighbors,
-  hexesInRange,
   hexDistance,
+  isWithinCornerExclusionZone,
   cornerClearOutGoalHex,
+  cornerClearOutDestination,
   CORNER_EXCLUSION_RADIUS,
   isSpillCornerDirection,
   looseBallDirectionQStep,
@@ -163,13 +163,12 @@ describe('triggerOutOfBoundsRestart CORNER_KICK branch (OOB-03)', () => {
     const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
     expect(result).not.toBeNull();
     expect(result!.cornerKickTeam).toBe('away');
-    // CORNER-01 (38-15 defect 3, 38-20): a corner now opens in the mandatory clear-out step,
-    // with the attacking slot active — not directly in CORNER_KICK_GK_SETUP_ATTACKING.
-    expect(result!.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(result!.cornerKickClearOutSlot).toBe('ATTACKER');
+    // CORNER-01 (gap-closure round 3, 38-25): the clear-out is now automatic — a corner
+    // opens directly on the attacking goalkeeper reposition window, no intermediate phase.
+    expect(result!.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
   });
 
-  it('awards a corner to HOME when an AWAY byline exit follows an AWAY (defending) touch — mirror case, entering the mandatory clear-out (38-20)', () => {
+  it('awards a corner to HOME when an AWAY byline exit follows an AWAY (defending) touch — mirror case, opening directly on the goalkeeper window (38-25)', () => {
     const state: GameState = {
       ...baseLooseBallState,
       ball: {
@@ -181,8 +180,7 @@ describe('triggerOutOfBoundsRestart CORNER_KICK branch (OOB-03)', () => {
     const result = triggerOutOfBoundsRestart(state, { q: 37, r: 13 }, { q: 36, r: 13 });
     expect(result).not.toBeNull();
     expect(result!.cornerKickTeam).toBe('home');
-    expect(result!.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(result!.cornerKickClearOutSlot).toBe('ATTACKER');
+    expect(result!.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
   });
 
   it('sets attackingTeam and activeTeam to cornerKickTeam', () => {
@@ -2419,11 +2417,10 @@ describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-
    * slots with zero pieces moved is legal (D-06) — no applyCornerKickReposition/
    * applyCornerKickFinalMove calls are needed to reach PASS.
    *
-   * 38-20: also drives the two applyCornerKickClearOutEnd confirms (attacking slot, then
-   * defending slot) immediately after triggerOutOfBoundsRestart, rather than seeding
-   * CORNER_KICK_GK_SETUP_ATTACKING directly — none of this fixture's pieces sit inside the
-   * exclusion zone, so both confirms are legal zero-movement confirms (D-06-style), exercising
-   * the new mandatory step through the existing downstream coverage.
+   * 38-25: the clear-out is now automatic (`applyAutomaticCornerClearOut`), applied inside
+   * `triggerOutOfBoundsRestart` itself — the corner opens directly on
+   * CORNER_KICK_GK_SETUP_ATTACKING with no intermediate confirm step. None of this fixture's
+   * pieces sit inside the exclusion zone, so the clear-out is a no-op move-wise here.
    *
    * Returns the resulting PASS-phase state with lastActionType still 'CORNER_KICK_RESTART' —
    * callers overwrite lastActionType (simulating the GAME_ROLL handler's overwrite with the
@@ -2443,19 +2440,6 @@ describe('Corner-context persistence and teardown audit (Pitfall 3, T-38-14, 38-
     if (!state) throw new Error('triggerOutOfBoundsRestart returned null');
     expect(state.cornerKickTeam).not.toBeNull();
     expect(state.cornerKickHex).not.toBeNull();
-    expect(state.phase).toBe('CORNER_KICK_CLEAR_OUT');
-
-    const cornerKickTeamForClearOut = state.cornerKickTeam!;
-    const defendingTeamForClearOut: 'home' | 'away' =
-      cornerKickTeamForClearOut === 'home' ? 'away' : 'home';
-
-    const clearOutAttackerEnd = applyCornerKickClearOutEnd(state, cornerKickTeamForClearOut);
-    if (!clearOutAttackerEnd.ok) throw new Error('applyCornerKickClearOutEnd (ATTACKER) failed');
-    state = clearOutAttackerEnd.state;
-
-    const clearOutDefenderEnd = applyCornerKickClearOutEnd(state, defendingTeamForClearOut);
-    if (!clearOutDefenderEnd.ok) throw new Error('applyCornerKickClearOutEnd (DEFENDER) failed');
-    state = clearOutDefenderEnd.state;
     expect(state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
 
     const gkEnd1 = applyCornerKickGkWindowEnd(state); // ATTACKING -> DEFENDING
@@ -2755,10 +2739,9 @@ describe('spilled save: the second route into a Corner Kick (38-14, corrected to
     const result = applyRoll(spilledSaveState, bylineDice.direction, bylineDice.distance);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // CORNER-01 (38-15 defect 3, 38-20): a corner now opens in the mandatory clear-out step,
-    // with the attacking slot active — not directly in CORNER_KICK_GK_SETUP_ATTACKING.
-    expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(result.state.cornerKickClearOutSlot).toBe('ATTACKER');
+    // CORNER-01 (gap-closure round 3, 38-25): the clear-out is automatic — a corner opens
+    // directly on CORNER_KICK_GK_SETUP_ATTACKING, no intermediate phase.
+    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     // cornerKickTeam is the team OPPOSITE the spilling keeper's (home) — team inversion,
     // matching the T-38-48 mitigation and the existing OOB-03 CORNER_KICK branch.
     expect(result.state.cornerKickTeam).toBe('away');
@@ -2867,7 +2850,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(isPitchHex(computeLooseBall(offBylineKeeperPos, direction, 1))).toBe(true);
-    expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(result.state.cornerKickTeam).toBe('away');
     expect(result.state.gkSpillKeeperId ?? null).toBeNull();
   });
@@ -2878,7 +2861,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
     const result = applyRoll(state, direction, 1);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(result.state.cornerKickTeam).toBe('away');
   });
 
@@ -2918,7 +2901,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
     const result = applyRoll(duelTieState, direction, 1);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).not.toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.phase).not.toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(result.state.cornerKickTeam).toBeFalsy();
   });
 
@@ -2932,7 +2915,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
     const result = applyRoll(state, direction, 1);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).not.toBe('CORNER_KICK_CLEAR_OUT');
+    expect(result.state.phase).not.toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(result.state.cornerKickTeam).toBeFalsy();
     expect(isPitchHex(result.state.ball.position)).toBe(true);
   });
@@ -2942,7 +2925,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
     const homeResult = applyRoll(buildSpillState(homeGK, { q: 8, r: 13 }), homeDirection, 1);
     expect(homeResult.ok).toBe(true);
     if (homeResult.ok) {
-      expect(homeResult.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+      expect(homeResult.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
       expect(homeResult.state.cornerKickTeam).toBe('away');
     }
 
@@ -2950,7 +2933,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
     const awayResult = applyRoll(buildSpillState(awayGK, { q: 28, r: 13 }), awayDirection, 1);
     expect(awayResult.ok).toBe(true);
     if (awayResult.ok) {
-      expect(awayResult.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
+      expect(awayResult.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
       expect(awayResult.state.cornerKickTeam).toBe('home');
     }
   });
@@ -2962,7 +2945,7 @@ describe('D-GAP-02: direction-only corner award on a spilled save', () => {
 // later corner movement surfaces.
 // ---------------------------------------------------------------------------
 
-describe('CORNER_KICK_CLEAR_OUT (38-15 defect 3)', () => {
+describe('automatic corner clear-out (gap-closure round 3, 38-25)', () => {
   // cornerKickTeam is 'away' (the awarded/attacking side); the byline owner (the
   // conceding team, whose goal the clear-out moves toward) is therefore 'home'.
   const clearOutCornerHex = CORNER_KICK_HEX.home.top;
@@ -2981,240 +2964,138 @@ describe('CORNER_KICK_CLEAR_OUT (38-15 defect 3)', () => {
 
   /** A piece 2 hexes from the corner — inside the zone, with at least one legal clear-out step. */
   const clearOutAway: PlayerPiece = { ...awayPiece, id: 'away-clearout', position: { q: 2, r: 2 } };
+  /** A defending piece also inside the zone, on the opposite (home) side. */
+  const clearOutHome: PlayerPiece = { ...homePiece, id: 'home-clearout', position: { q: 1, r: 2 } };
   /** The neighbor of clearOutAway that is strictly away from the corner AND not further from goal. */
   const clearOutLegalTarget = hexNeighbors(clearOutAway.position).find(
     (to) =>
       hexDistance(to, clearOutCornerHex) > hexDistance(clearOutAway.position, clearOutCornerHex) &&
       hexDistance(to, clearOutGoalHex) <= hexDistance(clearOutAway.position, clearOutGoalHex),
   )!;
-  /** A neighbor of clearOutAway that moves BACK toward the corner (fails the away-from-corner term). */
-  const clearOutTowardCornerTarget = hexNeighbors(clearOutAway.position).find(
-    (to) =>
-      hexDistance(to, clearOutCornerHex) < hexDistance(clearOutAway.position, clearOutCornerHex),
-  )!;
-  /** A neighbor of clearOutAway that IS away from the corner but retreats from goal. */
-  const clearOutRetreatsFromGoalTarget = hexNeighbors(clearOutAway.position).find(
-    (to) =>
-      hexDistance(to, clearOutCornerHex) > hexDistance(clearOutAway.position, clearOutCornerHex) &&
-      hexDistance(to, clearOutGoalHex) > hexDistance(clearOutAway.position, clearOutGoalHex),
-  )!;
 
-  it('fixture sanity: the three derived probe targets for clearOutAway are distinct on-pitch hexes', () => {
+  it('fixture sanity: clearOutAway and clearOutHome are both inside the exclusion zone; the derived legal target is on-pitch', () => {
+    expect(isWithinCornerExclusionZone(clearOutAway.position, clearOutCornerHex)).toBe(true);
+    expect(isWithinCornerExclusionZone(clearOutHome.position, clearOutCornerHex)).toBe(true);
     expect(clearOutLegalTarget).toBeDefined();
-    expect(clearOutTowardCornerTarget).toBeDefined();
-    expect(clearOutRetreatsFromGoalTarget).toBeDefined();
-    [clearOutLegalTarget, clearOutTowardCornerTarget, clearOutRetreatsFromGoalTarget].forEach(
-      (hex) => expect(isPitchHex(hex)).toBe(true),
-    );
+    expect(isPitchHex(clearOutLegalTarget)).toBe(true);
   });
 
-  /** Deliberately trapped: every on-pitch neighbor is either geometrically illegal or occupied. */
-  const clearOutTrapped: PlayerPiece = {
-    ...awayPiece,
-    id: 'away-clearout-trapped',
-    position: { q: 1, r: 0 },
-  };
-  /** Occupies clearOutTrapped's one geometrically-legal neighbor — the occupancy half of the trap. */
-  const clearOutBlocker: PlayerPiece = {
-    ...homePiece,
-    id: 'home-clearout-blocker',
-    position: hexNeighbors(clearOutTrapped.position).find(
-      (to) =>
-        isPitchHex(to) &&
-        hexDistance(to, clearOutCornerHex) >
-          hexDistance(clearOutTrapped.position, clearOutCornerHex) &&
-        hexDistance(to, clearOutGoalHex) <= hexDistance(clearOutTrapped.position, clearOutGoalHex),
-    )!,
-  };
-
-  const baseClearOutState: GameState = {
+  const triggerState: GameState = {
     ...baseLooseBallState,
-    phase: 'CORNER_KICK_CLEAR_OUT',
-    pieces: [homePiece, awayPiece, homeGK, awayGK],
-    cornerKickTeam: 'away',
-    cornerKickHex: clearOutCornerHex,
-    cornerKickClearOutSlot: 'ATTACKER',
-    cornerKickTakerId: null,
-    cornerKickEligibleIds: null,
-    cornerKickStageIndex: null,
-    cornerKickStagePlacedIds: null,
-    cornerKickUsedPace: null,
-    cornerKickActivatedIds: null,
-    cornerKickMoveSlot: null,
-    cornerKickMovedPieceId: null,
-    cornerKickPaceUsed: 0,
-    attackingTeam: 'away',
-    activeTeam: 'away',
+    pieces: [homePiece, awayPiece, homeGK, awayGK, clearOutAway, clearOutHome],
     ball: {
-      position: clearOutCornerHex,
+      position: { q: 1, r: 13 },
       carrierId: null,
       lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
     },
   };
 
-  it('a corner award enters CORNER_KICK_CLEAR_OUT with the attacking slot active', () => {
-    const state: GameState = {
-      ...baseLooseBallState,
-      ball: {
-        position: { q: 1, r: 13 },
-        carrierId: null,
-        lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
-      },
-    };
-    const result = triggerOutOfBoundsRestart(state, { q: -1, r: 13 }, { q: 0, r: 13 });
+  it('a corner award lands directly in CORNER_KICK_GK_SETUP_ATTACKING with no intermediate clear-out phase', () => {
+    const result = triggerOutOfBoundsRestart(triggerState, { q: -1, r: 13 }, { q: 0, r: 13 });
     expect(result).not.toBeNull();
-    expect(result!.phase).toBe('CORNER_KICK_CLEAR_OUT');
-    expect(result!.cornerKickClearOutSlot).toBe('ATTACKER');
+    expect(result!.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(result!.activeTeam).toBe(result!.cornerKickTeam);
+    expect(result!.cornerKickClearOutSlot ?? null).toBeNull();
   });
 
-  describe('applyCornerKickClearOut', () => {
-    it('rejects WRONG_PHASE outside CORNER_KICK_CLEAR_OUT', () => {
-      const state: GameState = { ...baseClearOutState, phase: 'CORNER_KICK_GK_SETUP_ATTACKING' };
-      const result = applyCornerKickClearOut(state, awayPiece.id, clearOutLegalTarget);
-      expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
-    });
+  it('no returned piece of either team is inside the exclusion zone of cornerKickHex', () => {
+    const result = triggerOutOfBoundsRestart(triggerState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    for (const p of result!.pieces) {
+      expect(isWithinCornerExclusionZone(p.position, result!.cornerKickHex!)).toBe(false);
+    }
+  });
 
-    it('rejects PIECE_NOT_FOUND for an unknown piece id', () => {
-      const result = applyCornerKickClearOut(baseClearOutState, 'ghost-piece', clearOutLegalTarget);
-      expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
-    });
+  it('appends one CORNER_KICK_CLEAR_OUT_MOVE event per piece that was inside the zone before the call', () => {
+    const inZoneCountBefore = triggerState.pieces.filter((p) =>
+      isWithinCornerExclusionZone(p.position, clearOutCornerHex),
+    ).length;
+    expect(inZoneCountBefore).toBe(2); // clearOutAway + clearOutHome
+    const result = triggerOutOfBoundsRestart(triggerState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const clearOutEvents = result!.eventLog.filter((e) => e.type === 'CORNER_KICK_CLEAR_OUT_MOVE');
+    expect(clearOutEvents).toHaveLength(inZoneCountBefore);
+  });
 
-    it('rejects WRONG_TEAM when the piece belongs to the non-acting slot side', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway],
-      };
-      // ATTACKER slot is active (cornerKickTeam 'away') — a home piece may not act.
-      const target = hexNeighbors(homePiece.position).find((h) => isPitchHex(h))!;
-      const result = applyCornerKickClearOut(state, homePiece.id, target);
-      expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
-    });
+  it('every piece already outside the zone keeps its exact prior position', () => {
+    const result = triggerOutOfBoundsRestart(triggerState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const outsideBefore = triggerState.pieces.filter(
+      (p) => !isWithinCornerExclusionZone(p.position, clearOutCornerHex),
+    );
+    expect(outsideBefore.length).toBeGreaterThan(0);
+    for (const before of outsideBefore) {
+      const after = result!.pieces.find((p) => p.id === before.id)!;
+      expect(after.position).toEqual(before.position);
+    }
+  });
 
-    it('a piece already outside the zone is rejected with NOT_ELIGIBLE', () => {
-      const target = hexNeighbors(awayPiece.position).find((h) => isPitchHex(h))!;
-      const result = applyCornerKickClearOut(baseClearOutState, awayPiece.id, target);
-      expect(result).toEqual({ ok: false, reason: 'NOT_ELIGIBLE' });
-    });
+  it('the appended clear-out events all appear AFTER the OUT_OF_BOUNDS event in eventLog', () => {
+    const result = triggerOutOfBoundsRestart(triggerState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const oobIndex = result!.eventLog.findIndex((e) => e.type === 'OUT_OF_BOUNDS');
+    expect(oobIndex).toBeGreaterThanOrEqual(0);
+    const clearOutIndices = result!.eventLog
+      .map((e, i) => (e.type === 'CORNER_KICK_CLEAR_OUT_MOVE' ? i : -1))
+      .filter((i) => i >= 0);
+    expect(clearOutIndices.length).toBeGreaterThan(0);
+    for (const i of clearOutIndices) {
+      expect(i).toBeGreaterThan(oobIndex);
+    }
+  });
 
-    it('a piece inside the zone may step away from the corner toward goal', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway],
-      };
-      const result = applyCornerKickClearOut(state, clearOutAway.id, clearOutLegalTarget);
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      const lastEvent = result.state.eventLog[result.state.eventLog.length - 1];
-      expect(lastEvent).toMatchObject({
+  it('each clear-out event slots ATTACKER for the awarded team and DEFENDER for the conceding team', () => {
+    const result = triggerOutOfBoundsRestart(triggerState, { q: -1, r: 13 }, { q: 0, r: 13 });
+    expect(result).not.toBeNull();
+    const cornerKickTeam = result!.cornerKickTeam!;
+    const awayEvent = result!.eventLog.find(
+      (e) => e.type === 'CORNER_KICK_CLEAR_OUT_MOVE' && e.pieceId === clearOutAway.id,
+    );
+    const homeEvent = result!.eventLog.find(
+      (e) => e.type === 'CORNER_KICK_CLEAR_OUT_MOVE' && e.pieceId === clearOutHome.id,
+    );
+    expect(awayEvent).toMatchObject({
+      slot: clearOutAway.teamId === cornerKickTeam ? 'ATTACKER' : 'DEFENDER',
+    });
+    expect(homeEvent).toMatchObject({
+      slot: clearOutHome.teamId === cornerKickTeam ? 'ATTACKER' : 'DEFENDER',
+    });
+  });
+
+  describe('applyAutomaticCornerClearOut (direct unit coverage)', () => {
+    it('moves an in-zone piece to the same destination cornerClearOutDestination would compute', () => {
+      const pieces = [homeGK, awayGK, clearOutAway];
+      const result = applyAutomaticCornerClearOut(pieces, clearOutCornerHex, 'away');
+      const expected = cornerClearOutDestination(
+        clearOutAway.position,
+        clearOutCornerHex,
+        clearOutGoalHex,
+        [homeGK.position, awayGK.position],
+      );
+      const moved = result.pieces.find((p) => p.id === clearOutAway.id)!;
+      expect(moved.position).toEqual(expected);
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]).toMatchObject({
         type: 'CORNER_KICK_CLEAR_OUT_MOVE',
         slot: 'ATTACKER',
         pieceId: clearOutAway.id,
         from: clearOutAway.position,
-        to: clearOutLegalTarget,
+        to: expected,
       });
-      const moved = result.state.pieces.find((p) => p.id === clearOutAway.id)!;
-      expect(moved.position).toEqual(clearOutLegalTarget);
     });
 
-    it('rejects NOT_ADJACENT for a non-adjacent target', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway],
-      };
-      const farHex = hexesInRange(clearOutAway.position, 2).find(
-        (h) => isPitchHex(h) && hexDistance(h, clearOutAway.position) === 2,
-      )!;
-      const result = applyCornerKickClearOut(state, clearOutAway.id, farHex);
-      expect(result).toEqual({ ok: false, reason: 'NOT_ADJACENT' });
+    it('leaves a piece already outside the zone untouched with no event', () => {
+      const pieces = [homeGK, awayGK];
+      const result = applyAutomaticCornerClearOut(pieces, clearOutCornerHex, 'away');
+      expect(result.events).toHaveLength(0);
+      expect(result.pieces).toEqual(pieces);
     });
 
-    it('rejects INVALID_TARGET for a hex occupied by another piece', () => {
-      const occupant: PlayerPiece = {
-        ...homeGK,
-        id: 'home-clearout-occupant',
-        position: clearOutLegalTarget,
-      };
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway, occupant],
-      };
-      const result = applyCornerKickClearOut(state, clearOutAway.id, clearOutLegalTarget);
-      expect(result).toEqual({ ok: false, reason: 'INVALID_TARGET' });
-    });
-
-    it('a step that moves toward the corner is rejected with NOT_TOWARD_GOAL', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway],
-      };
-      const result = applyCornerKickClearOut(state, clearOutAway.id, clearOutTowardCornerTarget);
-      expect(result).toEqual({ ok: false, reason: 'NOT_TOWARD_GOAL' });
-    });
-
-    it('a step that increases the distance to goal is rejected with NOT_TOWARD_GOAL', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway],
-      };
-      const result = applyCornerKickClearOut(
-        state,
-        clearOutAway.id,
-        clearOutRetreatsFromGoalTarget,
-      );
-      expect(result).toEqual({ ok: false, reason: 'NOT_TOWARD_GOAL' });
-    });
-  });
-
-  describe('applyCornerKickClearOutEnd', () => {
-    it('rejects WRONG_PHASE outside CORNER_KICK_CLEAR_OUT', () => {
-      const state: GameState = { ...baseClearOutState, phase: 'CORNER_KICK_GK_SETUP_ATTACKING' };
-      const result = applyCornerKickClearOutEnd(state, 'away');
-      expect(result).toEqual({ ok: false, reason: 'WRONG_PHASE' });
-    });
-
-    it('rejects WRONG_TEAM when the confirming team is not the acting slot side', () => {
-      const result = applyCornerKickClearOutEnd(baseClearOutState, 'home');
-      expect(result).toEqual({ ok: false, reason: 'WRONG_TEAM' });
-    });
-
-    it('confirming with an in-zone piece still movable is rejected with MUST_CLEAR_CORNER', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutAway],
-      };
-      const result = applyCornerKickClearOutEnd(state, 'away');
-      expect(result).toEqual({ ok: false, reason: 'MUST_CLEAR_CORNER' });
-    });
-
-    it('confirming is allowed when the only in-zone piece has no legal step (deadlock escape)', () => {
-      const state: GameState = {
-        ...baseClearOutState,
-        pieces: [...baseClearOutState.pieces, clearOutTrapped, clearOutBlocker],
-      };
-      const result = applyCornerKickClearOutEnd(state, 'away');
-      expect(result.ok).toBe(true);
-    });
-
-    it('the attacking confirm hands the slot to the defender', () => {
-      const result = applyCornerKickClearOutEnd(baseClearOutState, 'away');
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(result.state.phase).toBe('CORNER_KICK_CLEAR_OUT');
-      expect(result.state.cornerKickClearOutSlot).toBe('DEFENDER');
-      expect(result.state.activeTeam).toBe('home');
-    });
-
-    it('the defending confirm hands off to CORNER_KICK_GK_SETUP_ATTACKING with the slot cleared', () => {
-      const attackerEnd = applyCornerKickClearOutEnd(baseClearOutState, 'away');
-      expect(attackerEnd.ok).toBe(true);
-      if (!attackerEnd.ok) return;
-      const defenderEnd = applyCornerKickClearOutEnd(attackerEnd.state, 'home');
-      expect(defenderEnd.ok).toBe(true);
-      if (!defenderEnd.ok) return;
-      expect(defenderEnd.state.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
-      expect(defenderEnd.state.cornerKickClearOutSlot).toBeNull();
-      expect(defenderEnd.state.activeTeam).toBe('away');
+    it('later pieces in the array see the positions already produced by earlier pieces (order-stable occupancy)', () => {
+      const pieces = [clearOutAway, clearOutHome];
+      const result = applyAutomaticCornerClearOut(pieces, clearOutCornerHex, 'away');
+      const positions = result.pieces.map((p) => `${p.position.q},${p.position.r}`);
+      expect(new Set(positions).size).toBe(positions.length); // no two pieces share a hex
     });
   });
 
