@@ -411,6 +411,108 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
     fireEvent.click(undoBtn);
     expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_UNDO);
   });
+
+  it('CORNER_KICK_REPOSITION: Undo stays disabled while lastDiceRoll is non-null, even with a MOVE after the boundary (pins 38-30 bug 2 sub-finding 1 — the server nulls lastDiceRoll on entry to this phase as of plan 38-31)', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        lastDiceRoll: { rolls: [3, 4], context: 'LOOSE_BALL' },
+        eventLog: [
+          { type: 'CORNER_KICK_TAKER_PLACED', timestamp: 1 },
+          {
+            type: 'MOVE',
+            pieceId: 'away-1',
+            from: { q: 36, r: 1 },
+            to: { q: 35, r: 1 },
+            timestamp: 2,
+          },
+        ] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    expect(undoBtn).toHaveProperty('disabled', true);
+    fireEvent.click(undoBtn);
+    expect(emitMock).not.toHaveBeenCalledWith(ClientEvents.GAME_UNDO);
+  });
+
+  it('CORNER_KICK_REPOSITION: Undo tracks the multi-step MOVE stack across re-seeds — enabled with two moves, still enabled with one move, disabled with zero moves', () => {
+    const boundary = { type: 'CORNER_KICK_TAKER_PLACED', timestamp: 1 };
+    const move1 = {
+      type: 'MOVE',
+      pieceId: 'away-1',
+      from: { q: 36, r: 1 },
+      to: { q: 35, r: 1 },
+      timestamp: 2,
+    };
+    const move2 = {
+      type: 'MOVE',
+      pieceId: 'away-1',
+      from: { q: 35, r: 1 },
+      to: { q: 34, r: 1 },
+      timestamp: 3,
+    };
+
+    // Two moves after the boundary.
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        eventLog: [boundary, move1, move2] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.getByRole('button', { name: /^undo$/i })).toHaveProperty('disabled', false);
+    cleanup();
+
+    // One move after the boundary — simulates the server's post-undo broadcast.
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        eventLog: [boundary, move1] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.getByRole('button', { name: /^undo$/i })).toHaveProperty('disabled', false);
+    cleanup();
+
+    // Boundary only — no MOVE left to undo.
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        eventLog: [boundary] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(screen.getByRole('button', { name: /^undo$/i })).toHaveProperty('disabled', true);
+  });
+
+  it('CORNER_KICK_REPOSITION: Undo className carries neither ctaButtonReady nor ctaButtonPending, while the sibling Confirm button does (Movement-Phase-parity styling)', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickEligibleIds: { attacking: ['away-1'], defending: [] },
+        eventLog: [
+          { type: 'CORNER_KICK_TAKER_PLACED', timestamp: 1 },
+          {
+            type: 'MOVE',
+            pieceId: 'away-1',
+            from: { q: 36, r: 1 },
+            to: { q: 35, r: 1 },
+            timestamp: 2,
+          },
+        ] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(undoBtn.className).not.toMatch(/ctaButtonReady|ctaButtonPending/);
+    expect(confirmBtn.className).toMatch(/ctaButtonReady|ctaButtonPending/);
+  });
 });
 
 describe('CornerKickSetupPanel — CORNER_KICK_FINAL_SETUP (pre-kick 3-hex window)', () => {
@@ -499,6 +601,33 @@ describe('CornerKickSetupPanel — CORNER_KICK_FINAL_SETUP (pre-kick 3-hex windo
     render(<CornerKickSetupPanel />);
     const undoBtn = screen.getByRole('button', { name: /^undo$/i });
     expect(undoBtn).toHaveProperty('disabled', true);
+  });
+
+  it('CORNER_KICK_FINAL_SETUP: Undo stays disabled while lastDiceRoll is non-null, even with a CORNER_KICK_MOVE after the boundary (pins 38-30 bug 2 sub-finding 1 — the server nulls lastDiceRoll on entry to this phase as of plan 38-31)', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_FINAL_SETUP', {
+        cornerKickMoveSlot: 'ATTACKER',
+        cornerKickMovedPieceId: 'away-1',
+        lastDiceRoll: { rolls: [3, 4], context: 'LOOSE_BALL' },
+        eventLog: [
+          { type: 'CORNER_KICK_STAGE_ADVANCE', timestamp: 1 },
+          {
+            type: 'CORNER_KICK_MOVE',
+            slot: 'ATTACKER',
+            pieceId: 'away-1',
+            from: { q: 36, r: 1 },
+            to: { q: 35, r: 1 },
+            timestamp: 2,
+          },
+        ] as never,
+      }),
+      playerSlot: 2,
+    });
+    render(<CornerKickSetupPanel />);
+    const undoBtn = screen.getByRole('button', { name: /^undo$/i });
+    expect(undoBtn).toHaveProperty('disabled', true);
+    fireEvent.click(undoBtn);
+    expect(emitMock).not.toHaveBeenCalledWith(ClientEvents.GAME_UNDO);
   });
 });
 

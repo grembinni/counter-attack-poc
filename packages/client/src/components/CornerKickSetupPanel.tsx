@@ -233,6 +233,12 @@ export function CornerKickSetupPanel() {
     // Boundary types (CORNER_KICK_STAGE_ADVANCE, CORNER_KICK_TAKER_PLACED) and the scanned
     // move type (MOVE, the phase's default in applyUndo's moveTypeForPhase) must stay in sync
     // with applyUndo's isBoundary reduce for CORNER_KICK_REPOSITION.
+    // `lastDiceRoll` is nulled on entry to this phase by `applyCornerKickTakerSelect`, as of
+    // plan 38-31. Before that fix this guard short-circuited for the entire corner sequence and
+    // the control could never enable (`38-30-SUMMARY.md` bug 2). The guard itself is intentional
+    // and mirrors `ActionPanel.tsx`'s `canUndo` (`if (lastDiceRoll) return false;`) — the correct
+    // fix for any future "Undo never enables" report in a new restart family is to null
+    // `lastDiceRoll` at that family's reversible-window entry, never to drop this guard.
     const canUndoReposition = (() => {
       if (lastDiceRoll) return false;
       const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
@@ -295,6 +301,12 @@ export function CornerKickSetupPanel() {
     // Boundary type (CORNER_KICK_STAGE_ADVANCE) and the scanned move type (CORNER_KICK_MOVE)
     // must stay in sync with applyUndo's isBoundary reduce and moveTypeForPhase for
     // CORNER_KICK_FINAL_SETUP.
+    // `lastDiceRoll` is nulled on entry to this phase by `applyCornerKickStageEnd`'s terminal
+    // branch, as of plan 38-31. Before that fix this guard short-circuited for the entire corner
+    // sequence and the control could never enable (`38-30-SUMMARY.md` bug 2). The guard itself is
+    // intentional and mirrors `ActionPanel.tsx`'s `canUndo` (`if (lastDiceRoll) return false;`) —
+    // the correct fix for any future "Undo never enables" report in a new restart family is to
+    // null `lastDiceRoll` at that family's reversible-window entry, never to drop this guard.
     const canUndoFinalSetup = (() => {
       if (lastDiceRoll) return false;
       const lastBoundaryIdx = eventLog.reduce<number>((acc, evt, idx) => {
