@@ -224,7 +224,7 @@ Plans:
 3. Immediately before the kick, in a second, separate repositioning window, both teams may each move one more player up to 3 hexes, attacking manager first.
 4. The corner is taken as a High Pass (any hex in the penalty area with no distance limit, or elsewhere up to 15 hexes, receiver must attempt a header) or a Low Pass (no header), with the existing combined-score 8+ accuracy check applied to whichever is chosen.
 
-**Plans**: 30 plans (9 original + 6 gap closure + 9 second-round gap closure + 6 third-round gap closure)
+**Plans**: 33 plans (9 original + 6 gap closure + 9 second-round gap closure + 6 third-round gap closure + 3 fourth-round gap closure)
 Plans:
 **Wave 1**
 
@@ -321,6 +321,15 @@ Plans:
 **Wave 22** _(third gap-closure re-verification, blocked on all code-fix plans)_
 
 - [x] 38-30-PLAN.md — Human verification: full ten-step two-browser walkthrough, A-AUTO-01 / A-GAP3-BUDGET / A-GAP3-AREA rulings
+
+**Wave 23** _(fourth gap-closure round from 38-30-SUMMARY.md — the 2-2-2 window Undo regression; two plans run in parallel, no file overlap)_
+
+- [ ] 38-31-PLAN.md — Engine: clear lastDiceRoll at both corner reversible-window entries, LIFO multi-undo coverage (bug 2, D-GAP-01 re-opened)
+- [ ] 38-32-PLAN.md — Client: pin the Undo affordance and its enablement contract; record the offside-ring triage verdict (bug 2, bug 1 deferral)
+
+**Wave 24** _(fourth gap-closure re-verification, blocked on Wave 23)_
+
+- [ ] 38-33-PLAN.md — Human verification: two-browser Undo re-verification, D-GAP-01 re-ruling, bug 1 deferral sign-off
 
 **UI hint**: yes
 
