@@ -614,11 +614,6 @@ export type GamePhase =
   // aliases of GK_RESTART or the GOAL_KICK_* chain — CORNER-01 requires Corner Kick to be
   // structurally independent, reusing only pure helpers (mirrors the Phase 37 GOALKICK-01
   // precedent for keeping restart flows structurally separate).
-  // Gap-closure round 2 (38-16, 38-15 defect 3): CORNER-01 mandatory pre-corner clear-out —
-  // every piece within `CORNER_EXCLUSION_RADIUS` of the corner hex must be moved goal-ward
-  // before the goalkeeper windows open. Attacking manager first, then defending, via
-  // `cornerKickClearOutSlot`.
-  | 'CORNER_KICK_CLEAR_OUT'
   | 'CORNER_KICK_GK_SETUP_ATTACKING' // CORNER-01: attacking GK repositions first
   | 'CORNER_KICK_GK_SETUP_DEFENDING' // CORNER-01: defending GK repositions second
   | 'CORNER_KICK_TAKER_SELECT' // CORNER-02: attacking manager selects the corner-taker
@@ -1347,14 +1342,6 @@ export type GameState = {
    * piece, including one already repositioned. null outside CORNER_KICK_REPOSITION.
    */
   cornerKickActivatedIds?: readonly string[] | null;
-  /**
-   * CORNER-01 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 3): whose clear-out turn it
-   * is during `CORNER_KICK_CLEAR_OUT`. Deliberately mirrors `cornerKickMoveSlot`'s shape
-   * (single phase value plus a slot field) rather than adding a second
-   * `_ATTACKING`/`_DEFENDING` phase pair, to keep the new registration surface to one phase
-   * value. null outside CORNER_KICK_CLEAR_OUT.
-   */
-  cornerKickClearOutSlot?: 'ATTACKER' | 'DEFENDER' | null;
   /**
    * D-GAP-02 (Phase 38 gap-closure round 2, 38-16): the goalkeeper who spilled a save and
    * thereby caused the current `LOOSE_BALL`. This is the ONLY signal that distinguishes a

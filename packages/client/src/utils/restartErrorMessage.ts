@@ -80,14 +80,10 @@ export const RESTART_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   NOT_GOALKEEPER: 'Only a goalkeeper can do that.',
   PACE_EXHAUSTED: 'That player has already moved the maximum distance allowed.',
 
-  // 38-22 (38-15 defect 3): CORNER_KICK_CLEAR_OUT's applyCornerKickClearOut/
-  // applyCornerKickClearOutEnd wire codes (38-21-SUMMARY.md "Newly Reachable GAME_ERROR
-  // Codes") plus the permanent defender exclusion-zone rejection shared by
-  // applyCornerKickGkPlace/applyCornerKickReposition/applyCornerKickFinalMove (38-20).
-  // WRONG_PHASE, PIECE_NOT_FOUND, WRONG_TEAM, NOT_ELIGIBLE, NOT_ADJACENT, and INVALID_TARGET
-  // from that list are already mapped above.
-  MUST_CLEAR_CORNER: 'Move your players out of the corner area before confirming.',
-  NOT_TOWARD_GOAL: 'That player must move away from the corner and toward goal.',
+  // 38-20: the permanent defender exclusion-zone rejection shared by
+  // applyCornerKickGkPlace/applyCornerKickReposition/applyCornerKickFinalMove. Plan 38-28
+  // removed the two clear-out-only rejection codes this map used to carry, alongside the
+  // deleted automatic clear-out phase — those wire codes can no longer be emitted.
   CORNER_EXCLUSION_ZONE: 'Defenders cannot be positioned within three hexes of the corner.',
 };
 

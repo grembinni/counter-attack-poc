@@ -24,7 +24,7 @@ import styles from './EventBanner.module.css';
 export const RESTART_BANNERS: Partial<Record<GamePhase, string>> = {
   THROW_IN_SETUP: 'Throw In!',
   GOAL_KICK_SETUP_GK: 'Goal Kick!',
-  CORNER_KICK_CLEAR_OUT: 'Corner Kick!',
+  CORNER_KICK_GK_SETUP_ATTACKING: 'Corner Kick!',
   FREE_KICK_SETUP: 'Free Kick!',
 };
 

@@ -3026,7 +3026,6 @@ describe('automatic corner clear-out (gap-closure round 3, 38-25)', () => {
     expect(result).not.toBeNull();
     expect(result!.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
     expect(result!.activeTeam).toBe(result!.cornerKickTeam);
-    expect(result!.cornerKickClearOutSlot ?? null).toBeNull();
   });
 
   it('no returned piece of either team is inside the exclusion zone of cornerKickHex', () => {

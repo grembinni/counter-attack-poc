@@ -9,13 +9,12 @@ import {
   CORNER_EXCLUSION_RADIUS,
   isWithinCornerExclusionZone,
   cornerClearOutGoalHex,
-  isLegalClearOutStep,
   cornerClearOutDestination,
   isSpillCornerDirection,
 } from './outOfBounds.js';
 import { isPitchHex, GOAL_R_VALUES } from './pitch.js';
 import { FORMATIONS } from './formations.js';
-import { hexesInRange, hexNeighbors, hexDistance, hexLine } from './hex.js';
+import { hexesInRange, hexDistance, hexLine } from './hex.js';
 import { looseBallDirectionQStep } from './scoreUtils.js';
 import type { HexCoord } from './types.js';
 
@@ -257,51 +256,6 @@ describe('cornerClearOutGoalHex (38-16, 38-15 defect 3)', () => {
   it("home.q is 0 and away.q is 36 (this module's byline convention)", () => {
     expect(cornerClearOutGoalHex('home').q).toBe(0);
     expect(cornerClearOutGoalHex('away').q).toBe(36);
-  });
-});
-
-describe('isLegalClearOutStep (38-16, 38-15 defect 3)', () => {
-  const cornerHex = CORNER_KICK_HEX.home.top;
-  const goalHex = cornerClearOutGoalHex('home');
-
-  it('a neighbour that increases corner-distance and decreases-or-holds goal-distance is legal', () => {
-    const legalNeighbour = hexNeighbors(cornerHex).find(
-      (n) =>
-        hexDistance(n, cornerHex) > hexDistance(cornerHex, cornerHex) &&
-        hexDistance(n, goalHex) <= hexDistance(cornerHex, goalHex),
-    );
-    expect(legalNeighbour).toBeDefined();
-    expect(isLegalClearOutStep(cornerHex, legalNeighbour, cornerHex, goalHex)).toBe(true);
-  });
-
-  it('a neighbour that decreases corner-distance is illegal', () => {
-    // Start one step away from the corner so a step back to the corner decreases distance.
-    const from = hexNeighbors(cornerHex).find((n) => hexDistance(n, cornerHex) === 1);
-    expect(from).toBeDefined();
-    expect(hexDistance(cornerHex, cornerHex)).toBeLessThan(hexDistance(from, cornerHex));
-    expect(isLegalClearOutStep(from, cornerHex, cornerHex, goalHex)).toBe(false);
-  });
-
-  it('a neighbour that increases goal-distance is illegal', () => {
-    const badNeighbour = hexNeighbors(cornerHex).find(
-      (n) =>
-        hexDistance(n, cornerHex) > hexDistance(cornerHex, cornerHex) &&
-        hexDistance(n, goalHex) > hexDistance(cornerHex, goalHex),
-    );
-    expect(badNeighbour).toBeDefined();
-    expect(isLegalClearOutStep(cornerHex, badNeighbour, cornerHex, goalHex)).toBe(false);
-  });
-
-  it('every hex inside the exclusion zone with an on-pitch neighbour has at least one legal step (no-deadlock-by-construction)', () => {
-    const zoneHexes = hexesInRange(cornerHex, CORNER_EXCLUSION_RADIUS).filter((h) => isPitchHex(h));
-    for (const from of zoneHexes) {
-      const onPitchNeighbours = hexNeighbors(from).filter((n) => isPitchHex(n));
-      if (onPitchNeighbours.length === 0) continue;
-      const hasLegalStep = onPitchNeighbours.some((to) =>
-        isLegalClearOutStep(from, to, cornerHex, goalHex),
-      );
-      expect(hasLegalStep).toBe(true);
-    }
   });
 });
 

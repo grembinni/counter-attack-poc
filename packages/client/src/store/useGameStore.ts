@@ -3,7 +3,6 @@ import type { GameState, HexCoord } from '@counter-attack/shared';
 import {
   validateMove,
   hexesInRange,
-  hexNeighbors,
   ClientEvents,
   PITCH_HEXES,
   PITCH_REGIONS,
@@ -15,9 +14,7 @@ import {
   freeKickStageTeam,
   cornerKickStageTeam,
   ELIGIBLE_NEXT_ACTIONS,
-  isLegalClearOutStep,
   isWithinCornerExclusionZone,
-  cornerClearOutGoalHex,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
@@ -913,58 +910,6 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         return;
       }
       const valid = computeResponseMoveValidHexes(id, piece, gameState, GOAL_KICK_MOVE_CONFIG);
-      set({ selectedPieceId: id, validMoveHexes: valid });
-      return;
-    }
-
-    // CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-20/38-22): mandatory pre-corner clear-out —
-    // every piece within CORNER_EXCLUSION_RADIUS of the corner hex must be walked goal-ward
-    // one hex per click before either goalkeeper is repositioned. Mirrors
-    // gameEngine.ts's applyCornerKickClearOut/hasLegalClearOutMove: the acting team derives
-    // from cornerKickClearOutSlot ('ATTACKER' -> cornerKickTeam, otherwise the opposite), and
-    // the destination set is exactly the adjacent on-pitch, unoccupied hexes that satisfy the
-    // shared isLegalClearOutStep geometry rule — never a reimplemented distance comparison.
-    if (gameState.phase === 'CORNER_KICK_CLEAR_OUT') {
-      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
-      // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickClearOut)
-      // already requires myTeam !== null.
-      const myTeam = deriveMyTeam(playerSlot);
-      if (myTeam === null) {
-        set({ selectedPieceId: null, validMoveHexes: [] });
-        return;
-      }
-      const cornerKickTeam = gameState.cornerKickTeam ?? null;
-      const cornerKickHex = gameState.cornerKickHex ?? null;
-      const clearOutSlot = gameState.cornerKickClearOutSlot ?? null;
-      if (cornerKickTeam === null || cornerKickHex === null || clearOutSlot === null) {
-        set({ selectedPieceId: null, validMoveHexes: [] });
-        return;
-      }
-      const actingTeam: 'home' | 'away' =
-        clearOutSlot === 'ATTACKER' ? cornerKickTeam : cornerKickTeam === 'home' ? 'away' : 'home';
-      if (myTeam !== actingTeam || piece.teamId !== actingTeam) {
-        set({ selectedPieceId: null, validMoveHexes: [] });
-        return;
-      }
-      // A piece already clear of the zone is selectable so its stats show, but offers no
-      // destinations — mirrors the "selectable so stats show, but no destinations" precedent
-      // used elsewhere in this file (e.g. the activated-earlier-stage reposition branch below).
-      if (!isWithinCornerExclusionZone(piece.position, cornerKickHex)) {
-        set({ selectedPieceId: id, validMoveHexes: [] });
-        return;
-      }
-      const bylineOwnerTeam: 'home' | 'away' = cornerKickTeam === 'home' ? 'away' : 'home';
-      const goalHex = cornerClearOutGoalHex(bylineOwnerTeam);
-      const valid = hexNeighbors(piece.position).filter((hex) => {
-        if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
-        if (
-          gameState.pieces.some(
-            (p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r,
-          )
-        )
-          return false;
-        return isLegalClearOutStep(piece.position, hex, cornerKickHex, goalHex);
-      });
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }

@@ -239,7 +239,7 @@ export function isWithinCornerExclusionZone(hex: HexCoord, cornerHex: HexCoord):
  * `GOAL_KICK_RESTART_HEX`, `CORNER_KICK_HEX`). `r` is derived as the middle element of
  * `GOAL_R_VALUES` (`pitch.js`), never a restated literal.
  *
- * "Closer to goal" in the clear-out rule (`isLegalClearOutStep`) means "smaller
+ * "Closer to goal" in the clear-out rule (`cornerClearOutDestination`) means "smaller
  * `hexDistance` to this hex".
  */
 export function cornerClearOutGoalHex(bylineOwner: 'home' | 'away'): HexCoord {
@@ -249,39 +249,13 @@ export function cornerClearOutGoalHex(bylineOwner: 'home' | 'away'): HexCoord {
 }
 
 /**
- * CORNER-01 (Phase 38 gap-closure round 2, 38-16, 38-15 defect 3): the single source of
- * truth for "must be moved closer to goal" during the mandatory pre-corner clear-out.
- * Consumed by BOTH the engine (`applyCornerKickClearOut`, 38-20) and the client's
- * destination-hex computation (38-22), so the two can never disagree.
- *
- * Returns true when `hexDistance(to, cornerHex)` is STRICTLY greater than
- * `hexDistance(from, cornerHex)` (guarantees the clear-out terminates — every legal step
- * moves strictly away from the corner) AND `hexDistance(to, goalHex)` is less than or equal
- * to `hexDistance(from, goalHex)` (the goal term is "less than or equal", not "strictly
- * less", because a piece already level with the goal-mouth row would otherwise have no legal
- * step at all — "not retreating from goal" is the faithful reading of the rule).
- *
- * This function checks GEOMETRY ONLY — adjacency, pitch membership, and occupancy remain the
- * caller's responsibility.
- */
-export function isLegalClearOutStep(
-  from: HexCoord,
-  to: HexCoord,
-  cornerHex: HexCoord,
-  goalHex: HexCoord,
-): boolean {
-  const movesAwayFromCorner = hexDistance(to, cornerHex) > hexDistance(from, cornerHex);
-  const doesNotRetreatFromGoal = hexDistance(to, goalHex) <= hexDistance(from, goalHex);
-  return movesAwayFromCorner && doesNotRetreatFromGoal;
-}
-
-/**
  * CORNER-01 (gap-closure round 3, 38-25): `cornerClearOutDestination` REPLACES the interactive
- * `isLegalClearOutStep` walk (round-2's click-a-destination-per-step clear-out, rejected by the
- * human verifier per `38-24-SUMMARY.md` bug 1) with a single automatic straight-line-toward-goal
- * landing-hex computation applied once, at corner-award time. `CORNER_EXCLUSION_RADIUS` (via
- * `isWithinCornerExclusionZone`) remains the single source of truth for the stop condition —
- * this function never restates the "3 hexes clear" distance as a literal.
+ * per-step clear-out walk (round-2's click-a-destination-per-step clear-out, rejected by the
+ * human verifier per `38-24-SUMMARY.md` bug 1, and fully deleted in Plan 38-28) with a single
+ * automatic straight-line-toward-goal landing-hex computation applied once, at corner-award
+ * time. `CORNER_EXCLUSION_RADIUS` (via `isWithinCornerExclusionZone`) remains the single source
+ * of truth for the stop condition — this function never restates the "3 hexes clear" distance
+ * as a literal.
  *
  * 1. A piece already outside the exclusion zone is untouched — `from` is returned unchanged.
  * 2. Otherwise, walk `hexLine(from, goalHex)` starting at index 1 (index 0 is `from` itself) and

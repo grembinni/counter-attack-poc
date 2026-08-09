@@ -13,7 +13,6 @@ import {
   cornerKickStageTeam,
   CORNER_KICK_STAGES,
   TEAM_CONFIGS,
-  isWithinCornerExclusionZone,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -160,9 +159,6 @@ export function HexGrid() {
   const cornerKickMoveSlot = useGameStore((s) => s.gameState.cornerKickMoveSlot);
   const cornerKickMovedPieceId = useGameStore((s) => s.gameState.cornerKickMovedPieceId);
   const emitCornerKickGkPlace = useGameStore((s) => s.emitCornerKickGkPlace);
-  // CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-20/38-22): the mandatory pre-corner clear-out
-  // slot selector — mirrors the other cornerKick* per-slice selectors above (Pitfall 6).
-  const cornerKickClearOutSlot = useGameStore((s) => s.gameState.cornerKickClearOutSlot);
 
   const myTeam = useMyTeam();
   const isActivePlayer = myTeam !== null && myTeam === activeTeam;
@@ -855,31 +851,6 @@ export function HexGrid() {
               (goalKickUsedPace?.[piece.id] ?? 0) < 6 &&
               !movedPieceIds.includes(piece.id);
 
-            // CORNER_KICK_CLEAR_OUT (38-15 defect 3, 38-20/38-22): mirrors
-            // canSelectCornerKickReposition's shape — only the current slot's acting team's
-            // own in-zone pieces are selectable. A piece already clear of the zone is NOT
-            // selectable here (unlike selectPiece's own branch, which still allows selecting
-            // it so its stats can show) — HexGrid's isClickable/selectionState determine
-            // whether a piece SHOWS as interactive at all, and a cleared piece offering no
-            // destinations should not paint a selectable ring.
-            const cornerKickClearOutActingTeam: 'home' | 'away' | null =
-              phase === 'CORNER_KICK_CLEAR_OUT' &&
-              cornerKickTeam != null &&
-              cornerKickClearOutSlot != null
-                ? cornerKickClearOutSlot === 'ATTACKER'
-                  ? cornerKickTeam
-                  : cornerKickTeam === 'home'
-                    ? 'away'
-                    : 'home'
-                : null;
-            const canSelectCornerKickClearOut =
-              cornerKickClearOutActingTeam !== null &&
-              myTeam !== null &&
-              myTeam === cornerKickClearOutActingTeam &&
-              piece.teamId === cornerKickClearOutActingTeam &&
-              cornerKickHex != null &&
-              isWithinCornerExclusionZone(piece.position, cornerKickHex);
-
             // CORNER_KICK_GK_SETUP_ATTACKING/_DEFENDING (CORNER-01): only the phase-derived
             // acting team's own GK is selectable — mirrors selectPiece's identical predicate
             // in useGameStore.ts so a piece can never look clickable but be rejected.
@@ -1039,7 +1010,6 @@ export function HexGrid() {
                 canSelectFirstTimePassMove ||
                 canSelectFreeMove ||
                 canSelectGoalKickSetup ||
-                canSelectCornerKickClearOut ||
                 canSelectCornerKickGk ||
                 canSelectCornerKickTaker ||
                 canSelectCornerKickReposition ||
@@ -1126,46 +1096,44 @@ export function HexGrid() {
                                 ? () => selectPiece(piece.id)
                                 : canSelectGoalKickSetup
                                   ? () => selectPiece(piece.id)
-                                  : canSelectCornerKickClearOut
+                                  : canSelectCornerKickGk
                                     ? () => selectPiece(piece.id)
-                                    : canSelectCornerKickGk
+                                    : canSelectCornerKickTaker
                                       ? () => selectPiece(piece.id)
-                                      : canSelectCornerKickTaker
+                                      : canSelectCornerKickReposition
                                         ? () => selectPiece(piece.id)
-                                        : canSelectCornerKickReposition
+                                        : canSelectCornerKickFinal
                                           ? () => selectPiece(piece.id)
-                                          : canSelectCornerKickFinal
-                                            ? () => selectPiece(piece.id)
-                                            : isHeaderEligible
-                                              ? () => {
-                                                  toggleHeaderContestantId(piece.id);
-                                                }
-                                              : canSelectKickOff
+                                          : isHeaderEligible
+                                            ? () => {
+                                                toggleHeaderContestantId(piece.id);
+                                              }
+                                            : canSelectKickOff
+                                              ? () => selectPiece(piece.id)
+                                              : canSelectFreeKick
                                                 ? () => selectPiece(piece.id)
-                                                : canSelectFreeKick
+                                                : canSelectThrowIn
                                                   ? () => selectPiece(piece.id)
-                                                  : canSelectThrowIn
+                                                  : canSelect
                                                     ? () => selectPiece(piece.id)
-                                                    : canSelect
-                                                      ? () => selectPiece(piece.id)
-                                                      : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
-                                                        // player card via inspectPiece — same as unmoved pieces — but does NOT
-                                                        // re-trigger move-target highlighting (canSelect already excludes moved
-                                                        // pieces so selectPiece is never called here).
-                                                        phase === 'MOVE' &&
-                                                          myTeam !== null &&
-                                                          piece.teamId === myTeam &&
-                                                          movedPieceIds.includes(piece.id)
+                                                    : // BUG-10: clicking an already-moved own-team piece in MOVE opens its
+                                                      // player card via inspectPiece — same as unmoved pieces — but does NOT
+                                                      // re-trigger move-target highlighting (canSelect already excludes moved
+                                                      // pieces so selectPiece is never called here).
+                                                      phase === 'MOVE' &&
+                                                        myTeam !== null &&
+                                                        piece.teamId === myTeam &&
+                                                        movedPieceIds.includes(piece.id)
+                                                      ? () => inspectPiece(piece.id)
+                                                      : // BUG-26: clicking an opponent's activated (already-moved)
+                                                        // piece opens its stats panel via inspectPiece. The
+                                                        // canSelect guard above already excludes opponent pieces
+                                                        // from selectPiece, so no erroneous selection occurs.
+                                                        // No piece.teamId === myTeam constraint is needed here —
+                                                        // this branch fires only after canSelect is false.
+                                                        movedPieceIds.includes(piece.id)
                                                         ? () => inspectPiece(piece.id)
-                                                        : // BUG-26: clicking an opponent's activated (already-moved)
-                                                          // piece opens its stats panel via inspectPiece. The
-                                                          // canSelect guard above already excludes opponent pieces
-                                                          // from selectPiece, so no erroneous selection occurs.
-                                                          // No piece.teamId === myTeam constraint is needed here —
-                                                          // this branch fires only after canSelect is false.
-                                                          movedPieceIds.includes(piece.id)
-                                                          ? () => inspectPiece(piece.id)
-                                                          : () => undefined;
+                                                        : () => undefined;
 
             return (
               <PieceOverlay
