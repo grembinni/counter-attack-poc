@@ -426,6 +426,45 @@ function computeFreeKickSetupValidHexes(
 }
 
 /**
+ * CORNER_KICK_REPOSITION (CORNER-03) bounded-area destination computation (Plan 38-29 Task 1).
+ * Modelled on computeFreeKickSetupValidHexes directly above (bounded-area placement), not on
+ * computeFreeMoveValidHexes's adjacency-only model — D-GAP-03's corrected reading (38-24 bug 2)
+ * is one destination click at any distance inside the allowed area. Shared by selectPiece's
+ * CORNER_KICK_REPOSITION branch and setGameState's sticky-selection arm so the two call sites
+ * can never drift apart (mirrors how computeFreeKickSetupValidHexes itself is shared).
+ *
+ * Deliberate divergence from computeFreeKickSetupValidHexes: this excludes every hex occupied
+ * by ANY other piece (`p.id !== id`), not just own-team pieces, because
+ * applyCornerKickReposition (gameEngine.ts, rewritten by plan 38-27) rejects ANY occupied
+ * destination with INVALID_TARGET regardless of which team occupies it — free kick's kicking
+ * team has no such restriction, but a corner reposition placement does.
+ */
+function computeCornerRepositionValidHexes(
+  id: string,
+  gameState: GameState,
+  side: 'attacking' | 'defending',
+): HexCoord[] {
+  const cornerKickHex = gameState.cornerKickHex ?? null;
+  return PITCH_HEXES.filter((hex) => {
+    // Any-piece occupancy exclusion — mirrors applyCornerKickReposition's stricter INVALID_TARGET
+    // guard (gameEngine.ts), not computeFreeKickSetupValidHexes's own-team-only filter above.
+    if (
+      gameState.pieces.some((p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r)
+    )
+      return false;
+    // T-38-74/permanent exclusion zone (38-20): the defending side may never be offered a
+    // destination inside the corner exclusion zone at any point in the corner sequence.
+    if (
+      side === 'defending' &&
+      cornerKickHex !== null &&
+      isWithinCornerExclusionZone(hex, cornerKickHex)
+    )
+      return false;
+    return true;
+  });
+}
+
+/**
  * FREE_MOVE_ATTACK/DEFENSE valid-hex computation (SELECTOR-REVIEW.md fix #3, Phase 32-05
  * CLEANUP-03/D-06). Extracted from selectPiece's former inline FREE_MOVE_ATTACK/DEFENSE block —
  * was byte-for-byte duplicated in setGameState's sticky-selection block (differing only in the
@@ -997,15 +1036,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // CORNER_KICK_REPOSITION (CORNER-03): 6 alternating attacking/defending stages, modelled
-    // byte-for-byte on the GOAL_KICK_SETUP_GK/_OPPONENT branch above, substituting the acting
-    // team (cornerKickStageTeam) and the eligible-list side (attacking/defending keyed off
-    // cornerKickTeam). D-GAP-03 (38-15 defect 1/38-17): movement is uncapped — there is no
-    // per-piece hex budget — so the only thing that can make a selected piece yield zero
-    // destinations is the per-window activation lock (cornerKickActivatedIds), not a spent
-    // pace ledger. No stage-distinct-piece-count check here — a client-side "2 distinct
-    // pieces" hint is a display concern owned by the panel (38-07); the server rejects
-    // violations authoritatively.
+    // CORNER_KICK_REPOSITION (CORNER-03): 6 alternating attacking/defending stages. Modelled
+    // on computeFreeKickSetupValidHexes (bounded-area single-destination placement, Plan 38-29
+    // Task 1), not on the GOAL_KICK_SETUP_GK/_OPPONENT adjacency branch above — D-GAP-03's
+    // corrected reading (38-24 bug 2) is one destination click at any distance inside the
+    // allowed area, and the activation lock (cornerKickActivatedIds) applies the instant that
+    // placement lands, including within the same stage that activated it. No stage-distinct-
+    // piece-count check here — a client-side "2 distinct pieces" hint is a display concern
+    // owned by the panel (38-07); the server rejects violations authoritatively.
     if (gameState.phase === 'CORNER_KICK_REPOSITION') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
       // for full rationale); selectPiece's only real caller (HexGrid canSelectCornerKickReposition)
@@ -1028,29 +1066,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      // D-GAP-03 (38-15 defect 1/38-17): the pace-remaining early return is gone — reposition
-      // movement has no hex budget. What remains is the activation lock: a piece touched in
-      // an EARLIER stage (present in cornerKickActivatedIds but not in this stage's
-      // cornerKickStagePlacedIds) stays selectable so the UI can still show its stats, but
-      // yields no destinations. A piece first touched THIS stage is in both sets and must
-      // remain freely movable for the rest of the stage.
-      const activatedEarlierStage =
-        (gameState.cornerKickActivatedIds?.includes(id) ?? false) &&
-        !(gameState.cornerKickStagePlacedIds?.includes(id) ?? false);
-      if (activatedEarlierStage) {
+      // Activation lock: a piece is locked the moment its placement completes — no same-stage
+      // exemption. It stays selectable (so its stats panel can show) but yields no destinations.
+      const cornerKickActivated = gameState.cornerKickActivatedIds?.includes(id) ?? false;
+      if (cornerKickActivated) {
         set({ selectedPieceId: id, validMoveHexes: [] });
         return;
       }
-      let valid = computeFreeMoveValidHexes(id, piece, gameState);
-      // T-38-74/permanent exclusion zone (38-20): the defending side may never be offered a
-      // destination inside the 3-hex zone at any point in the corner sequence — filtered here
-      // using this branch's own acting-side computation (`side`), never `activeTeam`.
-      const cornerKickHexForReposition = gameState.cornerKickHex ?? null;
-      if (side === 'defending' && cornerKickHexForReposition !== null) {
-        valid = valid.filter(
-          (hex) => !isWithinCornerExclusionZone(hex, cornerKickHexForReposition),
-        );
-      }
+      const valid = computeCornerRepositionValidHexes(id, gameState, side);
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -1401,10 +1424,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // CORNER_KICK_REPOSITION (CORNER-03) joins this block for within-stage stickiness — a
     // stage handoff is already caught above (cornerKickStageIndex feeds responseMoveStateChanged),
     // so reaching here means the same manager is still mid-round and the selection should
-    // persist. D-GAP-03 (38-15 defect 1/38-17): corner reposition has no hex budget to
-    // recompute — it must NOT report a paceRemaining like the other two phases in this block.
-    // Its own stickiness gate is the activation lock (cornerKickActivatedIds minus this
-    // stage's cornerKickStagePlacedIds), mirroring selectPiece's CORNER_KICK_REPOSITION branch.
+    // persist. Its destination set is computed by the same computeCornerRepositionValidHexes
+    // helper selectPiece's CORNER_KICK_REPOSITION branch uses (Plan 38-29 Task 1), and its
+    // stickiness gate is the same single-term activation lock (cornerKickActivatedIds
+    // membership, no same-stage exemption).
     if (
       newState.phase === 'FREE_MOVE_ATTACK' ||
       newState.phase === 'FREE_MOVE_DEFENSE' ||
@@ -1414,25 +1437,20 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     ) {
       let stickyValid: HexCoord[];
       if (newState.phase === 'CORNER_KICK_REPOSITION') {
-        const activatedEarlierStage =
-          (newState.cornerKickActivatedIds?.includes(prevSelectedId) ?? false) &&
-          !(newState.cornerKickStagePlacedIds?.includes(prevSelectedId) ?? false);
-        if (activatedEarlierStage) {
+        const cornerKickActivated =
+          newState.cornerKickActivatedIds?.includes(prevSelectedId) ?? false;
+        if (cornerKickActivated) {
           stickyValid = [];
         } else {
-          stickyValid = computeFreeMoveValidHexes(prevSelectedId, piece, newState);
-          // T-38-74/permanent exclusion zone (38-20): mirrors selectPiece's
-          // CORNER_KICK_REPOSITION defending-side filter so a sticky selection across a
-          // broadcast can never re-offer an excluded-zone hex.
+          // side mirrors selectPiece's CORNER_KICK_REPOSITION derivation (actingTeam ===
+          // cornerKickTeam -> attacking): when cornerKickTeam is unset, default to 'attacking'
+          // (no exclusion filter), matching this block's pre-existing behaviour.
           const stickyCornerKickTeam = newState.cornerKickTeam ?? null;
-          const stickyCornerKickHex = newState.cornerKickHex ?? null;
-          if (stickyCornerKickTeam !== null && piece.teamId !== stickyCornerKickTeam) {
-            if (stickyCornerKickHex !== null) {
-              stickyValid = stickyValid.filter(
-                (hex) => !isWithinCornerExclusionZone(hex, stickyCornerKickHex),
-              );
-            }
-          }
+          const stickySide: 'attacking' | 'defending' =
+            stickyCornerKickTeam === null || piece.teamId === stickyCornerKickTeam
+              ? 'attacking'
+              : 'defending';
+          stickyValid = computeCornerRepositionValidHexes(prevSelectedId, newState, stickySide);
         }
       } else {
         const paceRemaining =
