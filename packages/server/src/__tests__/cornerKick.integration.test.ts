@@ -1052,6 +1052,53 @@ describe('CORNER-02: GAME_CORNER_KICK_TAKER', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 38-31 (gap closure round 4): socket-level proof that lastDiceRoll stays visible
+// through the GK setup windows but clears the instant CORNER_KICK_REPOSITION opens
+// (38-30-SUMMARY.md bug 2, sub-finding 1). This is the test that would have caught
+// the regression: every existing client-side Undo test seeds lastDiceRoll as null
+// via mockMovementState, so no client test could ever see it. Driven entirely
+// through real socket events off a real GAME_ROLL-triggered corner award — never
+// hand-seeded — so lastDiceRoll is guaranteed populated exactly the way live play
+// populates it.
+// ---------------------------------------------------------------------------
+
+describe('38-31: lastDiceRoll visible at GK setup, cleared at CORNER_KICK_REPOSITION', () => {
+  it('a real corner award leaves a non-null lastDiceRoll at CORNER_KICK_GK_SETUP_ATTACKING, but a real corner-taker selection clears it on entry to CORNER_KICK_REPOSITION', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const gkSetupState = await driveLooseBallToCorner(clientA, roomCode);
+
+    // The dice that produced the corner (a real GAME_ROLL, LOOSE_BALL context) stay
+    // visible during the goalkeeper reposition windows — deliberate, per Task 1's
+    // "Do NOT add lastDiceRoll: null to triggerOutOfBoundsRestart's commonReset" guard.
+    expect(gkSetupState.phase).toBe('CORNER_KICK_GK_SETUP_ATTACKING');
+    expect(gkSetupState.lastDiceRoll).not.toBeNull();
+
+    const p1 = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_END_TURN); // away confirms attacking GK setup
+    const [afterAttackingGk] = await p1;
+    expect(afterAttackingGk.phase).toBe('CORNER_KICK_GK_SETUP_DEFENDING');
+    expect(afterAttackingGk.lastDiceRoll).not.toBeNull();
+
+    const p2 = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN); // home confirms defending GK setup
+    const [afterDefendingGk] = await p2;
+    expect(afterDefendingGk.phase).toBe('CORNER_KICK_TAKER_SELECT');
+    expect(afterDefendingGk.lastDiceRoll).not.toBeNull();
+
+    const taker = afterDefendingGk.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK')!;
+    const p3 = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_CORNER_KICK_TAKER, taker.id);
+    const [afterTakerSelect] = await p3;
+
+    // This is the assertion the regression broke: without Task 1's fix,
+    // CornerKickSetupPanel.tsx's canUndoReposition guard would stay permanently
+    // blocked because lastDiceRoll never clears on entry to this window.
+    expect(afterTakerSelect.phase).toBe('CORNER_KICK_REPOSITION');
+    expect(afterTakerSelect.lastDiceRoll).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CORNER-03: the 6-stage alternating reposition window
 // ---------------------------------------------------------------------------
 

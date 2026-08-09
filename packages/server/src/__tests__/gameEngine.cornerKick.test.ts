@@ -718,6 +718,18 @@ describe('applyCornerKickTakerSelect', () => {
     expect(result.state.cornerKickEligibleIds!.defending).not.toContain(homeGK.id);
     expect(result.state.cornerKickEligibleIds!.defending).toContain(homePiece.id);
   });
+
+  it('38-31 (38-30-SUMMARY.md bug 2, sub-finding 1): clears a stale lastDiceRoll on transition to CORNER_KICK_REPOSITION so canUndoReposition is not permanently blocked', () => {
+    const state: GameState = {
+      ...baseCornerTakerSelectState,
+      lastDiceRoll: { rolls: [3, 4], context: 'LOOSE_BALL' },
+    };
+    const result = applyCornerKickTakerSelect(state, awayPiece.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastDiceRoll).toBeNull();
+    expect(result.state.phase).toBe('CORNER_KICK_REPOSITION');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1322,6 +1334,20 @@ describe('applyCornerKickStageEnd', () => {
       state = result.state;
     }
     expect(state.phase).toBe('CORNER_KICK_FINAL_SETUP');
+  });
+
+  it('38-31: clears a stale lastDiceRoll on the terminal (stage 5) transition to CORNER_KICK_FINAL_SETUP', () => {
+    const state: GameState = {
+      ...baseCornerRepositionState,
+      cornerKickStageIndex: 5,
+      activeTeam: 'home',
+      lastDiceRoll: { rolls: [1, 2], context: 'LOOSE_BALL' },
+    };
+    const result = applyCornerKickStageEnd(state, 'home');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.lastDiceRoll).toBeNull();
+    expect(result.state.phase).toBe('CORNER_KICK_FINAL_SETUP');
   });
 });
 
@@ -2175,6 +2201,130 @@ describe('applyUndo — corner-kick Undo boundaries (CORNER-03/CORNER-06, T-38-1
       (e) => e.type === 'MOVE' && e.pieceId === awayPiece2.id,
     );
     expect(remaining).toHaveLength(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // 38-31 (gap closure round 4): LIFO multi-step undo stack across two DISTINCT
+  // pieces (D-GAP-01, 38-30-SUMMARY.md bug 2, sub-findings 2 and 3)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Two placements in ONE stage, by two DISTINCT pieces (the scenario the 38-27 bounded
+   * single-destination placement model actually produces in live play — the same-piece
+   * two-MOVE fixture above, twoStageMovesRepositionState, is now unreachable in live play
+   * because PIECE_LOCKED rejects a second touch by the same piece within one stage).
+   */
+  const distinctPiecesRepositionState: GameState = {
+    ...baseCornerRepositionState,
+    pieces: baseCornerRepositionState.pieces.map((p) => {
+      if (p.id === awayPiece.id) return { ...p, position: repoMoveHex1 };
+      if (p.id === awayPiece2.id) return { ...p, position: repoMoveHex2 };
+      return p;
+    }),
+    cornerKickStagePlacedIds: [awayPiece.id, awayPiece2.id],
+    cornerKickActivatedIds: [awayPiece.id, awayPiece2.id],
+    cornerKickUsedPace: {
+      [awayPiece.id]: hexDistance(awayPiece.position, repoMoveHex1),
+      [awayPiece2.id]: hexDistance(awayPiece2.position, repoMoveHex2),
+    },
+    eventLog: [
+      {
+        type: 'CORNER_KICK_TAKER_PLACED',
+        pieceId: awayTaker.id,
+        from: { q: 0, r: 0 },
+        to: awayTaker.position,
+        timestamp: 1000,
+        ballAfter: { position: awayTaker.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'MOVE',
+        pieceId: awayPiece.id,
+        from: awayPiece.position,
+        to: repoMoveHex1,
+        slot: 'ATTACKER_4',
+        timestamp: 2000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+      {
+        type: 'MOVE',
+        pieceId: awayPiece2.id,
+        from: awayPiece2.position,
+        to: repoMoveHex2,
+        slot: 'ATTACKER_4',
+        timestamp: 3000,
+        ballAfter: { position: baseCornerRepositionState.ball.position, carrierId: awayTaker.id },
+      },
+    ],
+  };
+
+  it('38-31: LIFO multi-undo stack releases two distinct-piece placements most-recent-first, each restoring position, stage-cap slot and activation, and refuses to cross the taker-placement boundary', () => {
+    // First Undo: reverts awayPiece2 (the most recent placement). awayPiece (placed first
+    // this stage) must be UNTOUCHED — this is the crux of the D-GAP-01 re-open, since the
+    // regression this plan fixes made Undo appear to do nothing at all from the UI.
+    const first = applyUndo(distinctPiecesRepositionState);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const away2AfterFirst = first.state.pieces.find((p) => p.id === awayPiece2.id);
+    expect(away2AfterFirst?.position).toEqual(awayPiece2.position);
+    const awayAfterFirst = first.state.pieces.find((p) => p.id === awayPiece.id);
+    expect(awayAfterFirst?.position).toEqual(repoMoveHex1);
+
+    expect(first.state.cornerKickStagePlacedIds).toEqual([awayPiece.id]);
+    expect(first.state.cornerKickActivatedIds).toEqual([awayPiece.id]);
+    expect(first.state.cornerKickUsedPace).not.toHaveProperty(awayPiece2.id);
+
+    const movesAfterFirst = first.state.eventLog.filter((e) => e.type === 'MOVE');
+    expect(movesAfterFirst).toHaveLength(1);
+    expect(movesAfterFirst[0]).toMatchObject({ pieceId: awayPiece.id });
+
+    // Second Undo (applied to the FIRST result's state): reverts awayPiece, the sole
+    // remaining placement this stage.
+    const second = applyUndo(first.state);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    const awayAfterSecond = second.state.pieces.find((p) => p.id === awayPiece.id);
+    expect(awayAfterSecond?.position).toEqual(awayPiece.position);
+
+    expect(second.state.cornerKickStagePlacedIds).toEqual([]);
+    expect(second.state.cornerKickActivatedIds).toEqual([]);
+    expect(second.state.cornerKickUsedPace).not.toHaveProperty(awayPiece.id);
+    expect(second.state.cornerKickUsedPace).not.toHaveProperty(awayPiece2.id);
+
+    const movesAfterSecond = second.state.eventLog.filter((e) => e.type === 'MOVE');
+    expect(movesAfterSecond).toHaveLength(0);
+
+    // Third Undo: only CORNER_KICK_TAKER_PLACED remains in the current stage — the boundary
+    // is never crossed to un-place the taker.
+    const third = applyUndo(second.state);
+    expect(third).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+
+  // -------------------------------------------------------------------------
+  // 38-31 (gap closure round 4): targeted-fix guard — the shared commonReset block
+  // in triggerOutOfBoundsRestart must NOT be touched by this plan
+  // -------------------------------------------------------------------------
+
+  it('38-31 targeted-fix guard: a THROW_IN restart still carries an incoming non-null lastDiceRoll forward unchanged — this test fails if a future edit "fixes" the corner regression by nulling lastDiceRoll in the shared commonReset block instead of at the corner window entries', () => {
+    const throwInState: GameState = {
+      ...baseLooseBallState,
+      lastDiceRoll: { rolls: [5, 6], context: 'LOOSE_BALL' },
+      ball: {
+        position: { q: 18, r: 25 },
+        carrierId: null,
+        lastTouchedBy: { pieceId: homePiece.id, teamId: 'home' },
+      },
+    };
+    // A mid-pitch-q, beyond-MAX_R exit hex classifies as SIDELINE (classifyExit), which
+    // classifyOutOfBounds always maps to THROW_IN regardless of last-toucher team.
+    const exitHex: HexCoord = { q: 18, r: 26 };
+    const lastInBoundsHex: HexCoord = { q: 18, r: 25 };
+    const result = triggerOutOfBoundsRestart(throwInState, exitHex, lastInBoundsHex);
+    expect(result).not.toBeNull();
+    expect(result!.phase).toBe('THROW_IN_SETUP');
+    expect(result!.lastDiceRoll).not.toBeNull();
+    expect(result!.lastDiceRoll).toEqual({ rolls: [5, 6], context: 'LOOSE_BALL' });
   });
 });
 
