@@ -217,7 +217,7 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('stage 0 (attacking): the attacking manager (away) sees the eligibility helper and a Confirm button', () => {
+  it('stage 0 (attacking): the attacking manager (away) sees the eligibility helper (row 1 + attacking row 2) and a Confirm button', () => {
     useGameStore.setState({
       gameState: cornerKickState('CORNER_KICK_REPOSITION', {
         cornerKickStageIndex: 0,
@@ -227,17 +227,33 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
     });
     render(<CornerKickSetupPanel />);
     expect(
-      screen.getByText(
-        /2 players still eligible to move this round — up to 2, unlimited distance\./,
-      ),
+      screen.getByText(/2 players still eligible to move this round — up to 2\./),
     ).toBeDefined();
     expect(
-      screen.getByText(/A player who has been repositioned is done for this window\./),
+      screen.getByText(
+        /Pick a player, then pick their new position\. A repositioned player is done for this window\./,
+      ),
     ).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
   });
 
-  it('remaining excludes a piece activated in an earlier stage, and once the round is full only already-touched pieces still count', () => {
+  it('stage 1 (defending): the exclusion-radius sentence renders with CORNER_EXCLUSION_RADIUS interpolated', () => {
+    useGameStore.setState({
+      gameState: cornerKickState('CORNER_KICK_REPOSITION', {
+        cornerKickStageIndex: 1,
+        cornerKickEligibleIds: { attacking: [], defending: ['home-1'] },
+      }),
+      playerSlot: 1,
+    });
+    render(<CornerKickSetupPanel />);
+    expect(
+      screen.getByText(
+        /Pick a player, then pick their new position — not within 3 hexes of the corner\. A repositioned player is done for this window\./,
+      ),
+    ).toBeDefined();
+  });
+
+  it('remaining excludes every activated piece, regardless of whether it was touched this stage or an earlier one', () => {
     useGameStore.setState({
       gameState: cornerKickState('CORNER_KICK_REPOSITION', {
         cornerKickStageIndex: 0,
@@ -248,12 +264,11 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
       playerSlot: 2,
     });
     render(<CornerKickSetupPanel />);
-    // away-1 excluded (activated in an earlier stage); the round is not yet full (1 of 2
-    // placed), so away-2 (already touched THIS stage) and away-3 (untouched) both count.
-    expect(screen.getByText(/2 players still eligible to move this round/)).toBeDefined();
+    // away-1 and away-2 are both activated (no same-stage exemption) — only away-3 remains.
+    expect(screen.getByText(/1 players still eligible to move this round/)).toBeDefined();
   });
 
-  it('once the stage is full (2 distinct pieces placed), only already-touched pieces still count as remaining', () => {
+  it('remaining reaches 0 once cornerKickStagePlacedIds.length equals stage.max, even with unactivated eligible pieces left', () => {
     useGameStore.setState({
       gameState: cornerKickState('CORNER_KICK_REPOSITION', {
         cornerKickStageIndex: 0,
@@ -264,9 +279,9 @@ describe('CornerKickSetupPanel — CORNER_KICK_REPOSITION (alternating 6-hex win
       playerSlot: 2,
     });
     render(<CornerKickSetupPanel />);
-    // Stage full (2 placed): away-3 (untouched) no longer counts; away-1/away-2 were both
-    // touched THIS stage (activated AND stagePlaced), so both still count.
-    expect(screen.getByText(/2 players still eligible to move this round/)).toBeDefined();
+    // Stage full (2 placed === stage.max): the whole stage is closed, so remaining is 0 even
+    // though away-3 is still eligible and unactivated.
+    expect(screen.getByText(/0 players still eligible to move this round/)).toBeDefined();
   });
 
   it('opens the soft end-turn confirm dialog when Confirm is clicked with eligible pieces remaining', () => {

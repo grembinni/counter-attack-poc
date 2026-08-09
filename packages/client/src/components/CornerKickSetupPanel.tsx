@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { CORNER_KICK_STAGES, cornerKickStageTeam } from '@counter-attack/shared';
+import {
+  CORNER_EXCLUSION_RADIUS,
+  CORNER_KICK_STAGES,
+  cornerKickStageTeam,
+} from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { ctaColorClass } from '../utils/ctaColorClass.js';
@@ -213,17 +217,11 @@ export function CornerKickSetupPanel() {
     const stagePlaced = cornerKickStagePlacedIds ?? [];
     const activatedIds = cornerKickActivatedIds ?? [];
     const stageFull = stagePlaced.length >= stage.max;
-    // The count of pieces the acting manager can still legally move this round: eligible,
-    // not-yet-activated pieces — restricted to the already-touched set once the round's
-    // distinct-piece budget (stage.max) is used up (Task 1 spec). "Activated" means touched
-    // in an EARLIER stage (activatedIds minus this stage's stagePlaced) — a piece touched
-    // THIS stage is still eligible and still counts toward remaining.
-    const remaining = eligibleIds.filter((id) => {
-      const activatedEarlierStage = activatedIds.includes(id) && !stagePlaced.includes(id);
-      if (activatedEarlierStage) return false;
-      if (!stageFull) return true;
-      return stagePlaced.includes(id);
-    }).length;
+    // A piece is movable this stage if and only if it is eligible and NOT yet activated
+    // (D-GAP-03 corrected reading, 38-24 bug 2/3: activation applies the instant a placement
+    // completes, with no same-stage exemption). The whole stage is closed once the round's
+    // distinct-piece budget (stage.max) is used up, regardless of who is still unactivated.
+    const remaining = stageFull ? 0 : eligibleIds.filter((id) => !activatedIds.includes(id)).length;
 
     const repositionColorClass = ctaColorClass(
       remaining,
@@ -249,10 +247,12 @@ export function CornerKickSetupPanel() {
       <div className={styles.panel}>
         <span className={styles.panelHeading}>Corner Kick</span>
         <span className={styles.constraintRow}>
-          {`${remaining} players still eligible to move this round — up to 2, unlimited distance.`}
+          {`${remaining} players still eligible to move this round — up to ${stage.max}.`}
         </span>
         <span className={styles.constraintRow}>
-          A player who has been repositioned is done for this window.
+          {stage.side === 'defending'
+            ? `Pick a player, then pick their new position — not within ${CORNER_EXCLUSION_RADIUS} hexes of the corner. A repositioned player is done for this window.`
+            : 'Pick a player, then pick their new position. A repositioned player is done for this window.'}
         </span>
         {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
         <button className={styles.ctaButton} disabled={!canUndoReposition} onClick={emitUndo}>
