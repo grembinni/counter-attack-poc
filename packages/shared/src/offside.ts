@@ -69,12 +69,12 @@ export function freeKickStageTeam(
  * D-05: strict pairs, attacking manager first, 3 rounds per side (6 stages total,
  * alternating attacking/defending, each capped at 2 distinct pieces).
  *
- * Pitfall 4 divergence from `applyFreeKickReady`'s free-kick model: `max` is the
- * per-stage cap on DISTINCT pieces touched DURING THAT STAGE (re-touching an
- * already-counted piece in the same stage is free) — but, unlike free kick's
- * PERMANENT `movedPieceIds` lock, a piece touched in one corner-kick stage is NOT
- * locked out of later stages. Its per-piece 6-hex budget (`cornerKickUsedPace`)
- * persists and stays spendable across all 6 stages.
+ * Pitfall 4 (updated, 38-27): `max` is the per-stage cap on DISTINCT pieces touched
+ * DURING THAT STAGE. The free-kick `movedPieceIds` analogy now HOLDS: a piece touched
+ * in one corner-kick stage IS locked out of every later stage, via
+ * `cornerKickActivatedIds`, applied the instant its placement completes. There is no
+ * per-piece hex budget — `cornerKickUsedPace` survives only as an Undo-refund ledger,
+ * not a spendable cap.
  */
 export const CORNER_KICK_STAGES = [
   { side: 'attacking', max: 2 },
