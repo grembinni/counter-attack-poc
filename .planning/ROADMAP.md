@@ -131,7 +131,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | Phase | Name                                   | Plans       | Status      |
 | ----- | -------------------------------------- | ----------- | ----------- |
 | 37    | 19/19                                  | Complete    | 2026-08-07  |
-| 38    | 28/30                                  | In Progress |             |
+| 38    | 29/30                                  | In Progress |             |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD         | Not started |
 | 40    | Substitutions                          | TBD         | Not started |
 
@@ -316,7 +316,7 @@ Plans:
 
 **Wave 21** _(blocked on Wave 20)_
 
-- [ ] 38-29-PLAN.md — Client: bounded reposition UX, activation after the move, no activation marker in the pre-kick window (bugs 2 and 3)
+- [x] 38-29-PLAN.md — Client: bounded reposition UX, activation after the move, no activation marker in the pre-kick window (bugs 2 and 3)
 
 **Wave 22** _(third gap-closure re-verification, blocked on all code-fix plans)_
 
