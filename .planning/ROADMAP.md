@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | -------------------------------------- | -------- | ----------- |
 | 37    | 19/19                                  | Complete | 2026-08-07  |
 | 38    | 33/33                                  | Complete | 2026-08-09  |
-| 39    | Fouls, Cards, Injuries & Penalty Kicks | TBD      | Not started |
+| 39    | Fouls, Cards, Injuries & Penalty Kicks | 17       | Planned     |
 | 40    | Substitutions                          | TBD      | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -346,7 +346,52 @@ Plans:
 4. During a defending Movement Phase, a goalkeeper adjacent to the ball carrier can tackle via the existing duel; when the carrier dribbles within 3 hexes of the goalkeeper parallel to the goal line, the GK's team may dive at the attacker's feet (at most once per movement cycle, -1 dice penalty from the 3rd hex, displacing any occupied piece and the ball one hex further in the dive direction on success), and a GK roll of 1 in either context fouls into a penalty kick regardless of the duel's outcome.
 5. A penalty kick is a kicker-vs-goalkeeper duel with a -2 goalkeeper dice penalty; both teams freely reposition beforehand (only the kicker and the defending goalkeeper allowed in the penalty area, kicker chosen via the existing free-kick kicker-select flow), and a tied duel results in a Loose Ball at the penalty spot — and Fouls, Booking, and Injury are each independently toggleable at game creation, with Booking and Injury having no effect unless Fouls is also enabled.
 
-**Plans**: TBD
+**Plans**: 17 plans in 9 waves
+
+**Wave 1** _(contract surface — everything depends on it)_
+
+- [ ] 39-01-PLAN.md — Shared types, events, PENALTY_SPOT; repair exhaustive PHASE_LABEL/ActionLog consumers; D-15 loose-ball log
+
+**Wave 2** _(four parallel plans, no file overlap)_
+
+- [ ] 39-02-PLAN.md — Shared pure kernel: fouls.ts helpers + validateDiveAtFeetDistance
+- [ ] 39-03-PLAN.md — Four game-creation toggles end-to-end (SETTINGS-01..03, D-12/D-13/D-14)
+- [ ] 39-04-PLAN.md — EventBanner multi-event fix, foul/injury/booking banners, card badge + DOGSO
+- [ ] 39-05-PLAN.md — Client store: five emitters and selection/valid-hex wiring for the new phases
+
+**Wave 3** _(four parallel plans)_
+
+- [ ] 39-06-PLAN.md — Card/injury indicators on PieceOverlay and PlayerStatsPanel (D-04/D-05)
+- [ ] 39-07-PLAN.md — Engine: penalty-kick chain, -2 GK penalty, tie-to-loose-ball (PEN-01..03)
+- [ ] 39-08-PLAN.md — PenaltyKickSetupPanel
+- [ ] 39-09-PLAN.md — FoulChoicePanel, GkDiveAtFeetPromptPanel, GkBoxEntryPromptPanel
+
+**Wave 4** _(engine and handlers in parallel)_
+
+- [ ] 39-10-PLAN.md — Engine: foul detection, injury, booking, professional foul, foul choice, FK-01
+- [ ] 39-11-PLAN.md — Handlers: penalty-kick sockets + integration suite
+
+**Wave 5**
+
+- [ ] 39-12-PLAN.md — Engine: GK dive at feet, displacement, D-09 shared cap at all four GK_DIVE sites
+- [ ] 39-13-PLAN.md — Handlers: GAME_FOUL_CHOICE, server-rolled injury/booking dice, FK-01 integration
+
+**Wave 6**
+
+- [ ] 39-14-PLAN.md — Engine: box-entry GK response (D-10/D-11) and second-half mutual confirm (D-16)
+
+**Wave 7**
+
+- [ ] 39-15-PLAN.md — Handlers: broadcast-time offer hooks, GK prompts, reworked GAME_HALF_TIME_START
+
+**Wave 8**
+
+- [ ] 39-16-PLAN.md — Client integration: GameBoard dispatch, ball marker, highlights, mutual-confirm button
+
+**Wave 9**
+
+- [ ] 39-17-PLAN.md — Undo/Replay registration audit + blocking two-browser human verification
+
 **UI hint**: yes
 
 ### Phase 40: Substitutions
@@ -416,5 +461,5 @@ Plans:
 | 36. Bug Fixes                           | v1.5      | 5/5            | Complete    | 2026-08-02 |
 | 37. OOB Detection, Throw-In & Goal Kick | v1.6      | 0/TBD          | Not started | -          |
 | 38. Corner Kick                         | v1.6      | 0/TBD          | Not started | -          |
-| 39. Fouls, Cards & Penalty Kicks        | v1.6      | 0/TBD          | Not started | -          |
+| 39. Fouls, Cards & Penalty Kicks        | v1.6      | 0/17           | Planned     | -          |
 | 40. Substitutions                       | v1.6      | 0/TBD          | Not started | -          |
