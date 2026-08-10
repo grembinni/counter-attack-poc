@@ -74,6 +74,8 @@ Exceptions: none.
 
 ## Typography
 
+**Scope of this contract:** the table below is the 4-size cap for typography **newly authored by Phase 39** (`FoulChoicePanel`, `GkDiveAtFeetPromptPanel`, box-entry prompt, `PenaltyKickSetupPanel`, roster-panel chips, `ActionLog` entries, booking-banner badge/DOGSO label). It does not govern `.banner` at 28px — that size is a **pre-existing, app-wide legacy style** introduced before Phase 39 (used by every existing goal/interception/tackle event banner) that this phase's new foul/injury/booking banner variants **reuse verbatim, unchanged**, for visual parity with the existing banner family. Phase 39 introduces **zero new font sizes**: it reuses 4 existing role sizes (13/11/12/20) for its new panels/log entries, plus 1 existing legacy size (28, `.banner` only) that was already in production use prior to this phase. See the Display row below for the explicit exception pointer.
+
 | Role    | Size | Weight | Line Height |
 | ------- | ---- | ------ | ----------- |
 | Body    | 13px | 400    | 1.5         |
@@ -88,7 +90,7 @@ Role mapping for this phase's new components:
 - **Heading (12px/700)** — `FoulChoicePanel`/`GkDiveAtFeetPromptPanel`/box-entry-prompt/`PenaltyKickSetupPanel` panel titles (`"Foul!"`, `"Dive at Feet?"`, `"Goalkeeper Reposition?"`, `"Penalty Kick"` — see Copywriting Contract).
 - **Label (11px/400/1.5)** — `.helperLine2`-style detail text under each prompt heading, constraint/status rows, `.errorText`, CTA/choice button text, the roster-panel card/injury chip text, the booking banner's "DOGSO" label text.
 - **Body (13px/400/1.5)** — `ActionLog` entries for every new roll type (foul detection, injury check, booking check, GK-dive-at-feet duel, box-entry response, penalty-kick duel) — matches every existing `ActionLog` entry's `.entry`/`.content` sizing exactly, per D-02's "logs always" requirement. Also the extended `LOOSE_BALL_LAND` entry text (D-15).
-- **Display (20px/700/1.2)** — the transient `EventBanner` message text (`.banner` at `font-size: 28px` is the one existing exception to the 20px Display role — reuse the banner's own established 28px size, do not shrink it to 20px for this phase's new foul/injury/booking banner variants; this preserves visual parity with the existing goal/interception/tackle banners already at 28px).
+- **Display (20px/700/1.2)** — the transient `EventBanner` message text in the general case. `.banner`'s actual rendered size is 28px app-wide (pre-existing, out of this phase's 4-size cap per the Scope note above) — reuse the banner's own established 28px size verbatim, do not shrink it to 20px for this phase's new foul/injury/booking banner variants; this preserves visual parity with the existing goal/interception/tackle banners already at 28px.
 
 ---
 
