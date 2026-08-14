@@ -119,6 +119,64 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
   });
 });
 
+describe('PlayerStatsPanel — CARD-02/INJURY-02/INJURY-03/D-04: roster-panel card/injury chips', () => {
+  /** Applies field overrides to a single piece in the mock store's gameState.pieces. */
+  function overridePiece(pieceId: string, overrides: Record<string, unknown>) {
+    const state = useGameStore.getState();
+    useGameStore.setState({
+      gameState: {
+        ...state.gameState,
+        pieces: state.gameState.pieces.map((p) => (p.id === pieceId ? { ...p, ...overrides } : p)),
+      },
+    });
+  }
+
+  it('renders no chips for a clean player', () => {
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    expect(screen.queryByTestId('stats-card-chip')).toBeNull();
+    expect(screen.queryByTestId('stats-injury-chip')).toBeNull();
+  });
+
+  it('a yellow-carded player renders stats-card-chip with data-card="yellow"', () => {
+    overridePiece('home-1', { yellowCards: 1 });
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    const chip = screen.getByTestId('stats-card-chip');
+    expect(chip.getAttribute('data-card')).toBe('yellow');
+  });
+
+  it('a red-carded player renders data-card="red"', () => {
+    overridePiece('home-1', { redCarded: true });
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    const chip = screen.getByTestId('stats-card-chip');
+    expect(chip.getAttribute('data-card')).toBe('red');
+  });
+
+  it('an injured player renders stats-injury-chip reading "INJ"', () => {
+    overridePiece('home-1', { injuryCount: 1 });
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    expect(screen.getByTestId('stats-injury-chip').textContent).toBe('INJ');
+  });
+
+  it('a twice-injured player reads "INJ ×2"', () => {
+    overridePiece('home-1', { injuryCount: 2 });
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    expect(screen.getByTestId('stats-injury-chip').textContent).toBe('INJ ×2');
+  });
+
+  it('a booked-and-injured player renders both chips', () => {
+    overridePiece('home-1', { yellowCards: 1, injuryCount: 1 });
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    render(<PlayerStatsPanel />);
+    expect(screen.getByTestId('stats-card-chip')).toBeDefined();
+    expect(screen.getByTestId('stats-injury-chip')).toBeDefined();
+  });
+});
+
 describe('PlayerStatsPanel — D-08/D-06: MiniTokenBadge team-keyed patterns (15-03)', () => {
   it('home outfield piece: mini-token circle fill references url(#mini-city-jersey-<id>) and the pattern exists', () => {
     // home-1 is a DEF (outfield, teamId='home'); selectedTeams.home = city (Phase 19 D-04)

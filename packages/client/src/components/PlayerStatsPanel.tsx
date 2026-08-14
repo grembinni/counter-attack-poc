@@ -143,6 +143,31 @@ export function PlayerStatsPanel() {
             <NationFlag nationality={piece.nationality} size={20} />
             <span className={styles.roleChip}>{piece.role}</span>
             <span className={styles.jerseyNum}>#{piece.number}</span>
+            {/* CARD-02/D-04: card chip — red wins over yellow, mirroring the on-board badge
+                precedence in PieceOverlay.tsx and the EventBanner .cardBadge[data-card=...]
+                pattern established in Plan 39-04. */}
+            {(() => {
+              const cardColor: 'yellow' | 'red' | null =
+                piece.redCarded === true ? 'red' : (piece.yellowCards ?? 0) > 0 ? 'yellow' : null;
+              if (!cardColor) return null;
+              return (
+                <span
+                  data-testid="stats-card-chip"
+                  data-card={cardColor}
+                  className={styles.cardChip}
+                >
+                  {cardColor.toUpperCase()}
+                </span>
+              );
+            })()}
+            {/* INJURY-02/INJURY-03/D-04: injury chip. INJURY-02's -1-all-attributes degradation
+                is a stored mutation already visible in the stat rows below — this chip is only
+                a status flag, not a second place to render the numeric penalty. */}
+            {(piece.injuryCount ?? 0) > 0 && (
+              <span data-testid="stats-injury-chip" className={styles.injuryChip}>
+                {(piece.injuryCount ?? 0) >= 2 ? 'INJ ×2' : 'INJ'}
+              </span>
+            )}
           </div>
         </div>
 
