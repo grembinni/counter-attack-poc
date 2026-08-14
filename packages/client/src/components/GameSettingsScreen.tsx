@@ -25,6 +25,12 @@ type Props = {
     draftPools: DraftPoolId[];
     /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set toggle. */
     outOfBounds: boolean;
+    /** SETTINGS-01 (Phase 39): fouls toggle — Booking/Injury are inert unless this is true. */
+    fouls: boolean;
+    /** SETTINGS-02 (Phase 39): booking toggle — normalised to `fouls && booking` at confirm time. */
+    booking: boolean;
+    /** SETTINGS-03 (Phase 39): injury toggle — normalised to `fouls && injury` at confirm time. */
+    injury: boolean;
   }) => void;
   /**
    * BUG-33 (Phase 36) / D-01..D-05: called when the host clicks Back. Returns the host
@@ -38,8 +44,16 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   const [teamType, setTeamType] = useState<TeamType>('standard');
   // D-05: Original pre-checked by default when Draft mode is first selected.
   const [draftPools, setDraftPools] = useState<DraftPoolId[]>(['original']);
-  // GOALKICK-06 / OOB-05 (Phase 37): default off, matching the server-side safe default.
-  const [outOfBounds, setOutOfBounds] = useState<boolean>(false);
+  // SETTINGS-01 (Phase 39, D-14): all four Match Rules toggles default ON.
+  const [fouls, setFouls] = useState<boolean>(true);
+  // SETTINGS-02 (Phase 39, D-14): default ON; disabled/inert whenever Fouls is off.
+  const [booking, setBooking] = useState<boolean>(true);
+  // SETTINGS-03 (Phase 39, D-14): default ON; disabled/inert whenever Fouls is off.
+  const [injury, setInjury] = useState<boolean>(true);
+  // GOALKICK-06 / OOB-05 (Phase 37): D-14 (Phase 39) explicitly flips this to default ON,
+  // superseding the prior "safe default" comment. The SERVER-side default in
+  // buildInitialGameState deliberately stays `false` — this is a client-only UX default.
+  const [outOfBounds, setOutOfBounds] = useState<boolean>(true);
   // WR-03 (Phase 27 review): guard against a rapid double-click firing
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
@@ -70,6 +84,20 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
     );
   }
 
+  // D-13 (Phase 39): Booking is inert whenever Fouls is unchecked — mirrors
+  // toggleDraftPool's early-return-when-non-interactive shape so a disabled row can
+  // never flip state even if clicked programmatically.
+  function toggleBooking() {
+    if (!fouls) return;
+    setBooking((v) => !v);
+  }
+
+  // D-13 (Phase 39): Injury is inert whenever Fouls is unchecked — same guard as Booking.
+  function toggleInjury() {
+    if (!fouls) return;
+    setInjury((v) => !v);
+  }
+
   // D-06: Confirm is disabled whenever zero of the three enabled pools are checked.
   const confirmDisabled = teamType === 'draft' && draftPools.length === 0;
 
@@ -80,6 +108,11 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
       teamType,
       draftPools: teamType === 'draft' ? draftPools : [],
       outOfBounds,
+      fouls,
+      // SETTINGS-02/03: Booking/Injury have no effect unless Fouls is enabled — normalise
+      // at the source so a downstream consumer never has to re-derive it.
+      booking: fouls && booking,
+      injury: fouls && injury,
     });
   }
 
@@ -135,7 +168,21 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
         </div>
 
         <div className={styles.section}>
-          <span className={styles.sectionLabel}>Restarts</span>
+          <span className={styles.sectionLabel}>Match Rules</span>
+          <label className={styles.poolRow}>
+            <input type="checkbox" checked={fouls} onChange={() => setFouls((v) => !v)} />
+            Fouls
+          </label>
+          <label className={!fouls ? styles.poolRowDisabled : styles.poolRow}>
+            <input type="checkbox" checked={booking} disabled={!fouls} onChange={toggleBooking} />
+            Booking
+            {!fouls && <span className={styles.comingSoon}> (requires Fouls)</span>}
+          </label>
+          <label className={!fouls ? styles.poolRowDisabled : styles.poolRow}>
+            <input type="checkbox" checked={injury} disabled={!fouls} onChange={toggleInjury} />
+            Injury
+            {!fouls && <span className={styles.comingSoon}> (requires Fouls)</span>}
+          </label>
           <label className={styles.poolRow}>
             <input
               type="checkbox"

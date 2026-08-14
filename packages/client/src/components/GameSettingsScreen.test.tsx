@@ -123,7 +123,10 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
-      outOfBounds: false,
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 
@@ -139,7 +142,10 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original'],
-      outOfBounds: false,
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 
@@ -161,7 +167,10 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'standard',
       teamType: 'draft',
       draftPools: ['original', 'mls', 'legends', 'icons'],
-      outOfBounds: false,
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 
@@ -176,22 +185,25 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       speed: 'fast',
       teamType: 'standard',
       draftPools: [],
-      outOfBounds: false,
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 });
 
-describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OOB-05, Phase 37)', () => {
-  it('renders the "Out-of-Bounds / Restarts" row with an unchecked checkbox by default', () => {
+describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OOB-05, Phase 37; default flipped ON by D-14, Phase 39)', () => {
+  it('renders the "Out-of-Bounds / Restarts" row with a checked checkbox by default (D-14)', () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     const checkbox = screen.getByRole<HTMLInputElement>('checkbox', {
       name: 'Out-of-Bounds / Restarts',
     });
-    expect(checkbox.checked).toBe(false);
+    expect(checkbox.checked).toBe(true);
   });
 
-  it('clicking the toggle then Confirm Settings calls onConfirm with outOfBounds: true', async () => {
+  it('unchecking the toggle then Confirm Settings calls onConfirm with outOfBounds: false', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
 
@@ -202,11 +214,14 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
-      outOfBounds: true,
+      outOfBounds: false,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 
-  it('confirming without clicking the toggle calls onConfirm with outOfBounds: false', async () => {
+  it('confirming without touching the toggle calls onConfirm with outOfBounds: true', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
 
@@ -216,7 +231,10 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
-      outOfBounds: false,
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 });
