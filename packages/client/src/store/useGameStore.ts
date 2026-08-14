@@ -195,6 +195,16 @@ export type GameStore = {
    * the destination (cornerKickHex) is server-owned and never client-chosen.
    */
   emitCornerKickTaker: (pieceId: string) => void;
+  /** FOUL-03 (Phase 39 / D-01): attacker's continue-play-or-restart choice after a foul. */
+  emitFoulChoice: (choice: 'continue' | 'restart') => void;
+  /** GKDIVE-02 (Phase 39 / D-07): defending manager's accept/decline response to a dive-at-feet prompt. */
+  emitGkDiveAtFeet: (accept: boolean) => void;
+  /** D-10 (Phase 39): defending manager's accept/decline response to a box-entry GK reposition prompt. */
+  emitGkBoxEntryResponse: (accept: boolean) => void;
+  /** D-10 (Phase 39): GK's one-hex destination during GK_BOX_ENTRY_MOVE. */
+  emitGkBoxEntryMove: (to: HexCoord) => void;
+  /** PEN-02 (Phase 39): attacking manager's penalty-taker selection during PENALTY_KICK_TAKER_SELECT. */
+  emitPenaltyKickTaker: (pieceId: string) => void;
 };
 
 /**
@@ -1614,5 +1624,31 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // server-owned (cornerKickHex), never client-chosen.
   emitCornerKickTaker: (pieceId) => {
     socket.emit(ClientEvents.GAME_CORNER_KICK_TAKER, pieceId);
+  },
+
+  // FOUL-03 (D-01): fire-and-forget, no optimistic state mutation — the authoritative
+  // GAME_STATE broadcast is the only writer.
+  emitFoulChoice: (choice) => {
+    socket.emit(ClientEvents.GAME_FOUL_CHOICE, choice);
+  },
+
+  // GKDIVE-02 (D-07): fire-and-forget, no optimistic state mutation.
+  emitGkDiveAtFeet: (accept) => {
+    socket.emit(ClientEvents.GAME_GK_DIVE_AT_FEET, accept);
+  },
+
+  // D-10: fire-and-forget, no optimistic state mutation.
+  emitGkBoxEntryResponse: (accept) => {
+    socket.emit(ClientEvents.GAME_GK_BOX_ENTRY_RESPONSE, accept);
+  },
+
+  // D-10: fire-and-forget, no optimistic state mutation.
+  emitGkBoxEntryMove: (to) => {
+    socket.emit(ClientEvents.GAME_GK_BOX_ENTRY_MOVE, to);
+  },
+
+  // PEN-02: fire-and-forget, no optimistic state mutation.
+  emitPenaltyKickTaker: (pieceId) => {
+    socket.emit(ClientEvents.GAME_PENALTY_KICK_TAKER, pieceId);
   },
 }));
