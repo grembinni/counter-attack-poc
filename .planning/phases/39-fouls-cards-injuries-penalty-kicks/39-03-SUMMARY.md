@@ -158,3 +158,14 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-14_
+
+## Self-Check: PASSED
+
+- FOUND: `packages/client/src/components/GameSettingsScreen.tsx`
+- FOUND: `packages/client/src/components/GameSettingsScreen.test.tsx`
+- FOUND: `packages/client/src/App.tsx`
+- FOUND: `packages/client/src/App.test.tsx`
+- FOUND: `packages/server/src/roomHandlers.ts`
+- FOUND: `packages/server/src/__tests__/room.integration.test.ts`
+- FOUND: `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-03-SUMMARY.md`
+- FOUND: `c4bc992`, `d9068f2`, `39f0c6a`, `941db49`, `2e0e5fe` (all task + docs commits present in `git log --oneline --all`)
