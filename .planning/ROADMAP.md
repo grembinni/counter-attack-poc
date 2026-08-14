@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 9/17          | In Progress |             |
+| 39    | 11/17         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -368,8 +368,8 @@ Plans:
 
 **Wave 4** _(engine and handlers in parallel)_
 
-- [ ] 39-10-PLAN.md — Engine: foul detection, injury, booking, professional foul, foul choice, FK-01
-- [ ] 39-11-PLAN.md — Handlers: penalty-kick sockets + integration suite
+- [x] 39-10-PLAN.md — Engine: foul detection, injury, booking, professional foul, foul choice, FK-01
+- [x] 39-11-PLAN.md — Handlers: penalty-kick sockets + integration suite
 
 **Wave 5**
 
