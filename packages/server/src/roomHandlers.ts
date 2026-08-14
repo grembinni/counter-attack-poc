@@ -469,15 +469,21 @@ export function registerRoomHandlers(
           return;
         }
 
-        // T-39-01-04 (Phase 39): ASVS V5 allow-list guard — reject forged non-boolean
-        // fouls/booking/injury payloads before any room mutation. Mirrors the outOfBounds
-        // check immediately above.
-        if (
-          typeof fouls !== 'boolean' ||
-          typeof booking !== 'boolean' ||
-          typeof injury !== 'boolean'
-        ) {
-          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_FOUL_SETTINGS');
+        // T-39-03-01 (Phase 39): ASVS V5 allow-list guards — reject a forged non-boolean
+        // fouls/booking/injury payload before any room mutation. Three separate guards
+        // with distinct error codes (mirroring INVALID_SPEED/INVALID_TEAM_TYPE/
+        // INVALID_OUT_OF_BOUNDS above) so the client error surface names the offending
+        // field, rather than one combined check.
+        if (typeof fouls !== 'boolean') {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_FOULS');
+          return;
+        }
+        if (typeof booking !== 'boolean') {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_BOOKING');
+          return;
+        }
+        if (typeof injury !== 'boolean') {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_INJURY');
           return;
         }
 
@@ -541,8 +547,12 @@ export function registerRoomHandlers(
         room.draftPools = teamType === 'draft' ? draftPools : [];
         room.outOfBoundsEnabled = outOfBounds;
         room.foulsEnabled = fouls;
-        room.bookingEnabled = booking;
-        room.injuryEnabled = injury;
+        // SETTINGS-02/03 (T-39-03-03): server-side normalisation — Booking/Injury have no
+        // effect unless Fouls is enabled. The client already normalises this in
+        // handleConfirm, but the server must not trust it; a modified client sending
+        // fouls:false, booking:true must still land bookingEnabled:false here.
+        room.bookingEnabled = fouls && booking;
+        room.injuryEnabled = fouls && injury;
         room.settingsConfirmed = true;
         if (draftSession !== undefined) {
           room.draftSession = draftSession;
@@ -901,6 +911,9 @@ export function registerRoomHandlers(
             confirmedHomeOrder,
             confirmedAwayOrder,
             room.outOfBoundsEnabled ?? false,
+            room.foulsEnabled ?? false,
+            room.bookingEnabled ?? false,
+            room.injuryEnabled ?? false,
           );
         } catch (err) {
           console.error('buildInitialGameState failed in LINEUP_CONFIRM:', err);

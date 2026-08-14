@@ -644,6 +644,132 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
   }, 5000);
 
+  it('a forged non-boolean fouls payload is rejected with INVALID_FOULS before any room mutation (T-39-03-01)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid fouls
+      fouls: 'yes' as any,
+      booking: false,
+      injury: false,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_FOULS');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('a forged non-boolean booking payload is rejected with INVALID_BOOKING before any room mutation (T-39-03-01)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid booking
+      booking: 'yes' as any,
+      injury: false,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_BOOKING');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('a forged non-boolean injury payload is rejected with INVALID_INJURY before any room mutation (T-39-03-01)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid injury
+      injury: 'yes' as any,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_INJURY');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('confirming with fouls:false, booking:true, injury:true normalises to bookingEnabled/injuryEnabled false server-side (SETTINGS-02/03, T-39-03-03)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const confirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: true,
+      injury: true,
+    });
+    const [, , , , foulsEnabled, bookingEnabled, injuryEnabled] = await confirmedPromise;
+    expect(foulsEnabled).toBe(false);
+    expect(bookingEnabled).toBe(false);
+    expect(injuryEnabled).toBe(false);
+    const room = getRoom(roomCode)!;
+    expect(room.foulsEnabled).toBe(false);
+    expect(room.bookingEnabled).toBe(false);
+    expect(room.injuryEnabled).toBe(false);
+  }, 5000);
+
+  it('a happy-path confirm with all four toggles true reaches ROOM_SETTINGS_CONFIRMED with the three trailing booleans true (SETTINGS-01/02/03)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    await createJoinedPromise;
+
+    const confirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+    });
+    const [, , , outOfBoundsEnabled, foulsEnabled, bookingEnabled, injuryEnabled] =
+      await confirmedPromise;
+    expect(outOfBoundsEnabled).toBe(true);
+    expect(foulsEnabled).toBe(true);
+    expect(bookingEnabled).toBe(true);
+    expect(injuryEnabled).toBe(true);
+  }, 5000);
+
   it("draftPools allow-list accepts 'legends' now that Legends/Icons are enabled (Phase 30 D-08/T-30-01, supersedes T-27-02)", async () => {
     // Phase 30 D-08: SELECTABLE_DRAFT_POOLS was widened from 3 to 5 values — 'legends' and
     // 'icons' are no longer disabled/coming-soon; the server allow-list (single source of
