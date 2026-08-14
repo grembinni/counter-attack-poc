@@ -894,6 +894,58 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     await selectionStartCPromise;
     await selectionStartDPromise;
   }, 8000);
+
+  it('a live GAME_STATE snapshot after LINEUP_CONFIRM contains foulsEnabled/bookingEnabled/injuryEnabled (plan verification bullet)', async () => {
+    const clientA = createClient();
+    const clientB = createClient();
+    await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const settingsConfirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+    });
+    await settingsConfirmedPromise;
+
+    const selectionStartPromise = oncePromise(clientA, ServerEvents.TEAM_SELECTION_START, 2000);
+    const joinedBPromise = oncePromise(clientB, ServerEvents.ROOM_JOINED);
+    clientB.emit(ClientEvents.ROOM_JOIN, roomCode);
+    await joinedBPromise;
+    await selectionStartPromise;
+
+    const homePickedPromise = oncePromise(clientB, ServerEvents.TEAM_HOME_PICKED, 2000);
+    clientA.emit(ClientEvents.TEAM_PICK, 'city');
+    await homePickedPromise;
+    const uniformStartPromise = oncePromise(clientA, ServerEvents.UNIFORM_SELECTION_START, 2000);
+    clientB.emit(ClientEvents.TEAM_PICK, 'crew');
+    await uniformStartPromise;
+    const homeConfirmedPromise = oncePromise(clientB, ServerEvents.UNIFORM_HOME_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.UNIFORM_CONFIRM, 'city', 'pinstripes-vertical', '4-4-2', 'home');
+    await homeConfirmedPromise;
+
+    const stateOnPickPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
+    const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+    const [homeAssignment] = await readyAPromise;
+    await readyBPromise;
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+
+    const [state] = await stateOnPickPromiseA;
+    expect(state.foulsEnabled).toBe(true);
+    expect(state.bookingEnabled).toBe(true);
+    expect(state.injuryEnabled).toBe(true);
+  }, 5000);
 });
 
 // ---------------------------------------------------------------------------
