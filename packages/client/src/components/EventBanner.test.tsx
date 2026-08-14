@@ -363,3 +363,289 @@ describe('restart banners (38-15 defect 4)', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Plan 39-04: multi-event broadcast queue (Pitfall 1 fix) and foul/injury/
+// booking banner variants (D-02/D-03)
+// ---------------------------------------------------------------------------
+
+describe('multi-event broadcast (Pitfall 1)', () => {
+  it('displays FOUL_CALLED, then injury, then booking banners in order from a single broadcast', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'FOUL_CALLED',
+          defenderId: 'away-1',
+          victimId: 'home-9',
+          hex: { q: 14, r: 13 },
+          source: 'TACKLE',
+          defenderDie: 1,
+          professional: false,
+          timestamp: 1,
+        },
+        {
+          type: 'INJURY_CHECK',
+          victimId: 'home-9',
+          die: 6,
+          resilience: 2,
+          injured: true,
+          injuryCount: 1,
+          timestamp: 2,
+        },
+        {
+          type: 'BOOKING_CHECK',
+          defenderId: 'away-1',
+          die: 5,
+          leniency: 4,
+          card: 'yellow',
+          secondYellow: false,
+          professional: false,
+          timestamp: 3,
+        },
+      ]);
+    });
+
+    // Foul banner shows first.
+    expect(screen.getByText('Foul!')).toBeDefined();
+
+    // Advance past the foul banner's 1000ms duration — injury banner appears next.
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(screen.queryByText('Foul!')).toBeNull();
+    expect(screen.getByText(/is Injured!/)).toBeDefined();
+
+    // Advance past the injury banner's duration — booking banner appears next.
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(screen.queryByText(/is Injured!/)).toBeNull();
+    expect(screen.getByText(/Yellow Card/)).toBeDefined();
+  });
+
+  it('shows Foul! but no injury banner when the INJURY_CHECK does not injure', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'FOUL_CALLED',
+          defenderId: 'away-1',
+          victimId: 'home-9',
+          hex: { q: 14, r: 13 },
+          source: 'TACKLE',
+          defenderDie: 1,
+          professional: false,
+          timestamp: 1,
+        },
+        {
+          type: 'INJURY_CHECK',
+          victimId: 'home-9',
+          die: 1,
+          resilience: 5,
+          injured: false,
+          injuryCount: 0,
+          timestamp: 2,
+        },
+      ]);
+    });
+
+    expect(screen.getByText('Foul!')).toBeDefined();
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    // No injury banner should follow — the queue should be empty.
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('produces no banner for a BOOKING_CHECK with card: none', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'BOOKING_CHECK',
+          defenderId: 'away-1',
+          die: 1,
+          leniency: 4,
+          card: 'none',
+          secondYellow: false,
+          professional: false,
+          timestamp: 1,
+        },
+      ]);
+    });
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('caps the banner queue at 5 entries and drops overflow (T-39-04-02)', () => {
+    render(<EventBanner />);
+
+    // Six qualifying GOAL events in one broadcast — the 6th must never display.
+    act(() => {
+      setEventLog(
+        Array.from({ length: 6 }, (_, i) => ({
+          type: 'GOAL' as const,
+          scoringTeam: 'home' as const,
+          scorerId: `home-${i}`,
+          timestamp: i + 1,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        })),
+      );
+    });
+
+    let shown = 0;
+    while (screen.queryByRole('status') !== null) {
+      shown += 1;
+      act(() => {
+        vi.advanceTimersByTime(1100);
+      });
+    }
+
+    expect(shown).toBe(5);
+  });
+});
+
+describe('foul/injury/booking banners (D-02/D-03)', () => {
+  it('renders "{Player Name} — Yellow Card" with a yellow card badge', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'BOOKING_CHECK',
+          defenderId: 'away-1',
+          die: 5,
+          leniency: 4,
+          card: 'yellow',
+          secondYellow: false,
+          professional: false,
+          timestamp: 1,
+        },
+      ]);
+    });
+
+    expect(screen.getByText(/— Yellow Card/)).toBeDefined();
+    const badge = screen.getByTestId('card-badge');
+    expect(badge.getAttribute('data-card')).toBe('yellow');
+  });
+
+  it('renders "{Player Name} — Red Card (2nd Yellow)" with a red card badge for secondYellow', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'BOOKING_CHECK',
+          defenderId: 'away-1',
+          die: 6,
+          leniency: 4,
+          card: 'red',
+          secondYellow: true,
+          professional: false,
+          timestamp: 1,
+        },
+      ]);
+    });
+
+    expect(screen.getByText(/— Red Card \(2nd Yellow\)/)).toBeDefined();
+    const badge = screen.getByTestId('card-badge');
+    expect(badge.getAttribute('data-card')).toBe('red');
+  });
+
+  it('renders the literal DOGSO text when professional is true', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'BOOKING_CHECK',
+          defenderId: 'away-1',
+          die: 6,
+          leniency: 4,
+          card: 'red',
+          secondYellow: false,
+          professional: true,
+          timestamp: 1,
+        },
+      ]);
+    });
+
+    expect(screen.getByText('DOGSO')).toBeDefined();
+  });
+
+  it('does NOT render DOGSO when professional is false', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'BOOKING_CHECK',
+          defenderId: 'away-1',
+          die: 6,
+          leniency: 4,
+          card: 'red',
+          secondYellow: false,
+          professional: false,
+          timestamp: 1,
+        },
+      ]);
+    });
+
+    expect(screen.queryByText('DOGSO')).toBeNull();
+  });
+
+  it('renders "{Player Name} is Injured!" for an injuring INJURY_CHECK', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setEventLog([
+        {
+          type: 'INJURY_CHECK',
+          victimId: 'home-9',
+          die: 6,
+          resilience: 2,
+          injured: true,
+          injuryCount: 1,
+          timestamp: 1,
+        },
+      ]);
+    });
+
+    expect(screen.getByText(/is Injured!/)).toBeDefined();
+  });
+
+  it('shows "Penalty Kick!" exactly once when entering PENALTY_KICK_SETUP_ATTACKING, not again on the next broadcast', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      setPhase('PENALTY_KICK_SETUP_ATTACKING');
+    });
+    expect(screen.getByText('Penalty Kick!')).toBeDefined();
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+
+    act(() => {
+      setPhase('PENALTY_KICK_SETUP_ATTACKING');
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('does NOT fire a banner on first mount directly into PENALTY_KICK_SETUP_ATTACKING (reconnect snapshot)', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, eventLog: [], phase: 'PENALTY_KICK_SETUP_ATTACKING' },
+    });
+
+    render(<EventBanner />);
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+});
