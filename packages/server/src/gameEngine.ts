@@ -1448,6 +1448,126 @@ export function applyMove(
 }
 
 // ---------------------------------------------------------------------------
+// triggerFoulFreeKick
+// ---------------------------------------------------------------------------
+
+/**
+ * FK-01 (Phase 39, 39-10): awards a free kick to the team fouled by `foulerId`, reusing
+ * the EXISTING `FREE_KICK_SETUP` flow untouched. Modelled byte-for-byte on
+ * `triggerOffsideFoul`'s return shape (packages/shared/src/offside.ts) with two
+ * deliberate substitutions: `freeKickHex: foulHex` is the FOULER's tackle/steal contact
+ * hex (not an offside offender's position), and `offsidePieceIds` is omitted entirely —
+ * that field is offside-specific and has no foul-restart equivalent.
+ */
+export function triggerFoulFreeKick(
+  state: GameState,
+  foulerId: string,
+  foulHex: HexCoord,
+): GameState {
+  const fouler = state.pieces.find((p) => p.id === foulerId);
+  const foulerTeam: 'home' | 'away' = fouler?.teamId ?? state.attackingTeam;
+  const fouledTeam: 'home' | 'away' = foulerTeam === 'home' ? 'away' : 'home';
+
+  return {
+    ...state,
+    phase: 'FREE_KICK_SETUP',
+    freeKickHex: foulHex,
+    freeKickAttackingTeam: fouledTeam,
+    attackingTeam: fouledTeam,
+    activeTeam: fouledTeam,
+    // OOB-01/D-06 precedent (triggerOffsideFoul): pure repositioning, nobody has touched
+    // the ball at trigger time — carry lastTouchedBy forward unchanged.
+    ball: { position: foulHex, carrierId: null, lastTouchedBy: state.ball.lastTouchedBy },
+    freeKickStageIndex: 0,
+    freeKickPlacedPieceIds: [],
+    freeKickKickerChosen: false,
+    movedPieceIds: [],
+    lastDiceRoll: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyFoulChoice
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyFoulChoice. */
+export type ApplyFoulChoiceResult =
+  | { ok: true; state: GameState }
+  | { ok: false; reason: 'WRONG_PHASE' | 'INVALID_CHOICE' };
+
+/**
+ * FOUL-03 (Phase 39, 39-10): resolves the fouled attacker's continue-play vs.
+ * take-the-restart choice.
+ *
+ * 'continue' restores exactly the phase/activeTeam/attackingTeam/movementSlot/
+ * lastActionType the interrupted duel branch would have produced (captured in
+ * `state.foulResume` by resolveFoulChain's caller in applyMove) — falling back to
+ * `'PASS'`/the state's current values if `foulResume` is somehow null.
+ *
+ * 'restart' routes to `triggerPenaltyKick` when `state.foulSource === 'GK_DIVE_AT_FEET'`
+ * (GKDIVE-03/PEN-01 — a GK-dive foul is always a penalty, never a free kick), otherwise
+ * to `triggerFoulFreeKick` (FK-01, tackle/steal-sourced fouls).
+ *
+ * Both branches clear the entire foul* cluster unconditionally.
+ */
+export function applyFoulChoice(
+  state: GameState,
+  choice: 'continue' | 'restart',
+): ApplyFoulChoiceResult {
+  if (state.phase !== 'FOUL_CHOICE') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (choice !== 'continue' && choice !== 'restart') {
+    return { ok: false, reason: 'INVALID_CHOICE' };
+  }
+
+  const restart: 'FREE_KICK' | 'PENALTY' | null =
+    choice === 'continue' ? null : state.foulSource === 'GK_DIVE_AT_FEET' ? 'PENALTY' : 'FREE_KICK';
+
+  const choiceEvent: ActionEvent = {
+    type: 'FOUL_CHOICE_MADE',
+    team: state.attackingTeam,
+    choice,
+    restart,
+    timestamp: Date.now(),
+  };
+
+  const clearedState: GameState = {
+    ...state,
+    foulDefenderId: null,
+    foulVictimId: null,
+    foulHex: null,
+    foulSource: null,
+    foulResume: null,
+    eventLog: [...state.eventLog, choiceEvent],
+  };
+
+  if (choice === 'continue') {
+    const resume = state.foulResume;
+    return {
+      ok: true,
+      state: {
+        ...clearedState,
+        phase: resume?.phase ?? 'PASS',
+        activeTeam: resume?.activeTeam ?? state.activeTeam,
+        attackingTeam: resume?.attackingTeam ?? state.attackingTeam,
+        movementSlot: resume?.movementSlot ?? state.movementSlot,
+        lastActionType: resume?.lastActionType ?? state.lastActionType,
+      },
+    };
+  }
+
+  // 'restart'
+  if (state.foulSource === 'GK_DIVE_AT_FEET') {
+    return { ok: true, state: triggerPenaltyKick(clearedState, clearedState.attackingTeam) };
+  }
+  return {
+    ok: true,
+    state: triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyEndTurn
 // ---------------------------------------------------------------------------
 
@@ -1830,6 +1950,9 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'PENALTY_KICK_SETUP_DEFENDING',
   'PENALTY_KICK_TAKER_SELECT',
   'PENALTY_KICK',
+  // FOUL-03 (Phase 39, 39-10): the ball has not moved and no zone crossing should fire
+  // while the fouled manager is deciding continue-play vs. take-the-restart.
+  'FOUL_CHOICE',
 ]);
 
 /**
@@ -1995,7 +2118,14 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       ((state.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
         state.phase === 'PENALTY_KICK_SETUP_DEFENDING') &&
         evt.type === 'PENALTY_KICK_WINDOW_ADVANCE') ||
-      (state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED');
+      (state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED') ||
+      // FOUL-03 (Phase 39, 39-10): a manager cannot Undo their own already-committed
+      // continue/restart choice. Note: TACKLE_ATTEMPT/STEAL_ATTEMPT are ALREADY
+      // unconditional boundaries above, so Undo can never cross back over the roll that
+      // caused the foul in the first place — this is precisely why the stored injury/
+      // card mutations resolveFoulChain applies are safe from Undo. No new boundary term
+      // is needed for FOUL_CALLED/INJURY_CHECK/BOOKING_CHECK themselves.
+      (state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -7897,6 +8027,11 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // PENALTY_KICK_TAKER_PLACED are deliberately excluded — neither carries ballAfter,
   // matching the existing GOAL_KICK_WINDOW_ADVANCE exclusion above.
   'PENALTY_KICK',
+  // FOUL-01..05/CARD-01..04/INJURY-01..03 (Phase 39, 39-10): FOUL_CALLED, INJURY_CHECK,
+  // BOOKING_CHECK and FOUL_CHOICE_MADE are deliberately excluded from this set — none of
+  // the four carries a `ballAfter` field, matching the existing GOAL_KICK_CHOICE/
+  // GOAL_KICK_WINDOW_ADVANCE exclusion rule above. This is a confirmed decision, not an
+  // oversight — a future reader must not add them here.
 ]);
 
 /**
