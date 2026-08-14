@@ -99,6 +99,27 @@ export function validateGKDive(_gk: PlayerPiece, distance: number): DiveResult {
 }
 
 /**
+ * GKDIVE-02: determines whether the GK can reach a dive-at-feet interrupt, and the
+ * saving penalty incurred. Same distance-banded shape as validateGKDive (saveable up
+ * to 3 hexes, -1 penalty on the 3rd hex, unsavable beyond), but takes no PlayerPiece
+ * parameter — the dive-at-feet band depends only on distance, not on GK attributes.
+ *
+ * Deliberately NOT refactored to call/be-called-by validateGKDive. They are the same
+ * rule applied in two different contexts (shot-block dive vs. dive-at-feet); GKDIVE-05/
+ * D-09 already couples them behaviourally via a shared once-per-team-per-half cap, and
+ * collapsing them into one function would make a future divergence of either band
+ * silently affect the other.
+ *
+ * @param distance - Distance in hexes from GK to the carrier attempting dive-at-feet
+ */
+export function validateDiveAtFeetDistance(distance: number): DiveResult {
+  const d = Math.max(distance, 0);
+  if (d > 3) return { saveable: false, reason: 'OUT_OF_RANGE' };
+  const savingPenalty = d === 3 ? -1 : 0;
+  return { saveable: true, savingPenalty };
+}
+
+/**
  * Determines whether the GK catches the saved ball or spills it for a Loose Ball.
  *
  * SHOT-06: If diceValue >= gk.handling, the GK spills the ball (triggerLooseBall).

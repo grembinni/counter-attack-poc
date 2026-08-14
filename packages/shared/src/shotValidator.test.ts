@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { validateShotDuel, validateGKDive, validateHandlingCheck } from './shotValidator.js';
+import {
+  validateShotDuel,
+  validateGKDive,
+  validateHandlingCheck,
+  validateDiveAtFeetDistance,
+} from './shotValidator.js';
 import type { PlayerPiece } from './types.js';
 
 const shooter: PlayerPiece = {
@@ -100,6 +105,38 @@ describe('validateGKDive', () => {
 
   it('returns savingPenalty 0 at distance 0 (GK stays put)', () => {
     const result = validateGKDive(goalkeeper, 0);
+    expect(result.saveable).toBe(true);
+    if (result.saveable) expect(result.savingPenalty).toBe(0);
+  });
+});
+
+describe('validateDiveAtFeetDistance', () => {
+  it('returns savingPenalty 0 at distance 0', () => {
+    const result = validateDiveAtFeetDistance(0);
+    expect(result.saveable).toBe(true);
+    if (result.saveable) expect(result.savingPenalty).toBe(0);
+  });
+
+  it('returns savingPenalty 0 at distance 2', () => {
+    const result = validateDiveAtFeetDistance(2);
+    expect(result.saveable).toBe(true);
+    if (result.saveable) expect(result.savingPenalty).toBe(0);
+  });
+
+  it('returns savingPenalty -1 at distance 3', () => {
+    const result = validateDiveAtFeetDistance(3);
+    expect(result.saveable).toBe(true);
+    if (result.saveable) expect(result.savingPenalty).toBe(-1);
+  });
+
+  it('returns saveable:false with OUT_OF_RANGE at distance 4', () => {
+    const result = validateDiveAtFeetDistance(4);
+    expect(result.saveable).toBe(false);
+    if (!result.saveable) expect(result.reason).toBe('OUT_OF_RANGE');
+  });
+
+  it('clamps a negative distance to 0 (saveable, savingPenalty 0)', () => {
+    const result = validateDiveAtFeetDistance(-1);
     expect(result.saveable).toBe(true);
     if (result.saveable) expect(result.savingPenalty).toBe(0);
   });
