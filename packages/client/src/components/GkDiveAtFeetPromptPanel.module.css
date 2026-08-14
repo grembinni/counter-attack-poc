@@ -1,0 +1,72 @@
+/* GkDiveAtFeetPromptPanel — verbatim copy of FoulChoicePanel.module.css (one-module-per-
+   component convention). Phase 35 panel-family convention: no container border, two-line
+   title+detail helper block, co-equal un-coloured CTA buttons. Chrome colors sourced from
+   tokens.css (Phase 33 THEME-03 migration). Spacing uses only the declared xs(4)/sm(8) scale
+   — do NOT propagate FreeKickSetupPanel's legacy 3px/6px micro-scale (39-UI-SPEC.md). */
+
+.panel {
+  background: var(--color-bg-surface);
+  border-radius: 4px;
+  padding: 4px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.helperBlock,
+.errorText {
+  flex: 0 0 100%;
+}
+
+.helperBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.helperLine1 {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.helperLine2 {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* Co-equal, un-coloured — neither choice is visually promoted (D-01/UI-SPEC Visual hierarchy). */
+.ctaButton {
+  flex: 1 1 calc(50% - 4px);
+  max-width: 160px;
+  min-width: 0;
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ctaButton:hover {
+  background: var(--team-accent);
+}
+
+.errorText {
+  color: var(--color-danger);
+  font-size: 11px;
+  font-weight: 400;
+}
