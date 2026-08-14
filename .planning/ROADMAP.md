@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 5/17          | In Progress |             |
+| 39    | 9/17          | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -361,10 +361,10 @@ Plans:
 
 **Wave 3** _(four parallel plans)_
 
-- [ ] 39-06-PLAN.md — Card/injury indicators on PieceOverlay and PlayerStatsPanel (D-04/D-05)
-- [ ] 39-07-PLAN.md — Engine: penalty-kick chain, -2 GK penalty, tie-to-loose-ball (PEN-01..03)
-- [ ] 39-08-PLAN.md — PenaltyKickSetupPanel
-- [ ] 39-09-PLAN.md — FoulChoicePanel, GkDiveAtFeetPromptPanel, GkBoxEntryPromptPanel
+- [x] 39-06-PLAN.md — Card/injury indicators on PieceOverlay and PlayerStatsPanel (D-04/D-05)
+- [x] 39-07-PLAN.md — Engine: penalty-kick chain, -2 GK penalty, tie-to-loose-ball (PEN-01..03)
+- [x] 39-08-PLAN.md — PenaltyKickSetupPanel
+- [x] 39-09-PLAN.md — FoulChoicePanel, GkDiveAtFeetPromptPanel, GkBoxEntryPromptPanel
 
 **Wave 4** _(engine and handlers in parallel)_
 
