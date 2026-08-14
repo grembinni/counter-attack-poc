@@ -4,6 +4,7 @@ import type { PlayerPiece } from '@counter-attack/shared';
 import { COLOR_SCHEME_REGISTRY } from '@counter-attack/shared';
 import { PieceOverlay, ACTIVE_RING_STROKE } from './PieceOverlay.js';
 import type { SelectionState } from './PieceOverlay.js';
+import { axialToPixel } from '../utils/hexToPixel.js';
 
 vi.mock('../socket.js', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -264,6 +265,84 @@ describe('PieceOverlay — UX-05: selection ring states', () => {
     const paths = container.querySelectorAll('path');
     const xPaths = Array.from(paths).filter((p) => p.getAttribute('stroke') === '#f97316');
     expect(xPaths.length).toBe(0);
+  });
+});
+
+describe('card and injury badges (D-04/D-05)', () => {
+  it('a piece with no cards and no injury renders neither badge', () => {
+    const { container } = renderPiece(homeOutfield, 'none');
+    expect(container.querySelector('[data-testid="piece-card-badge"]')).toBeNull();
+    expect(container.querySelector('[data-testid="piece-injury-badge"]')).toBeNull();
+  });
+
+  it('yellowCards: 1 renders piece-card-badge with data-card="yellow"', () => {
+    const piece: PlayerPiece = { ...homeOutfield, yellowCards: 1 };
+    const { container } = renderPiece(piece, 'none');
+    const badge = container.querySelector('[data-testid="piece-card-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge!.getAttribute('data-card')).toBe('yellow');
+  });
+
+  it('redCarded: true renders data-card="red"', () => {
+    const piece: PlayerPiece = { ...homeOutfield, redCarded: true };
+    const { container } = renderPiece(piece, 'none');
+    const badge = container.querySelector('[data-testid="piece-card-badge"]');
+    expect(badge!.getAttribute('data-card')).toBe('red');
+  });
+
+  it('yellowCards: 1 AND redCarded: true also renders data-card="red" (red wins)', () => {
+    const piece: PlayerPiece = { ...homeOutfield, yellowCards: 1, redCarded: true };
+    const { container } = renderPiece(piece, 'none');
+    const badge = container.querySelector('[data-testid="piece-card-badge"]');
+    expect(badge!.getAttribute('data-card')).toBe('red');
+  });
+
+  it('injuryCount: 1 renders exactly one piece-injury-badge', () => {
+    const piece: PlayerPiece = { ...homeOutfield, injuryCount: 1 };
+    const { container } = renderPiece(piece, 'none');
+    const badges = container.querySelectorAll('[data-testid="piece-injury-badge"]');
+    expect(badges.length).toBe(1);
+  });
+
+  it('injuryCount: 2 still renders exactly one injury badge (no stacking a second icon)', () => {
+    const piece: PlayerPiece = { ...homeOutfield, injuryCount: 2 };
+    const { container } = renderPiece(piece, 'none');
+    const badges = container.querySelectorAll('[data-testid="piece-injury-badge"]');
+    expect(badges.length).toBe(1);
+  });
+
+  it('a piece with both yellowCards: 1 and injuryCount: 1 renders both badges, injury badge after card badge in DOM order (D-05 layering)', () => {
+    const piece: PlayerPiece = { ...homeOutfield, yellowCards: 1, injuryCount: 1 };
+    const { container } = renderPiece(piece, 'none');
+    const cardBadge = container.querySelector('[data-testid="piece-card-badge"]');
+    const injuryBadge = container.querySelector('[data-testid="piece-injury-badge"]');
+    expect(cardBadge).not.toBeNull();
+    expect(injuryBadge).not.toBeNull();
+    // DOCUMENT_POSITION_FOLLOWING (4) means injuryBadge comes after cardBadge in document order.
+    const position = cardBadge!.compareDocumentPosition(injuryBadge!);
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('home piece badge centre is up-and-left of cx/cy (opposite corner from the ball dot)', () => {
+    const piece: PlayerPiece = { ...homeOutfield, yellowCards: 1 };
+    const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
+    const { container } = renderPiece(piece, 'none');
+    const badge = container.querySelector('[data-testid="piece-card-badge"]') as SVGRectElement;
+    const badgeCenterX = Number(badge.getAttribute('x')) + Number(badge.getAttribute('width')) / 2;
+    const badgeCenterY = Number(badge.getAttribute('y')) + Number(badge.getAttribute('height')) / 2;
+    expect(badgeCenterX).toBeLessThan(cx);
+    expect(badgeCenterY).toBeLessThan(cy);
+  });
+
+  it('away piece badge centre is up-and-right of cx/cy (opposite corner from the ball dot)', () => {
+    const piece: PlayerPiece = { ...awayOutfield, yellowCards: 1 };
+    const { cx, cy } = axialToPixel(piece.position.q, piece.position.r);
+    const { container } = renderPiece(piece, 'none');
+    const badge = container.querySelector('[data-testid="piece-card-badge"]') as SVGRectElement;
+    const badgeCenterX = Number(badge.getAttribute('x')) + Number(badge.getAttribute('width')) / 2;
+    const badgeCenterY = Number(badge.getAttribute('y')) + Number(badge.getAttribute('height')) / 2;
+    expect(badgeCenterX).toBeGreaterThan(cx);
+    expect(badgeCenterY).toBeLessThan(cy);
   });
 });
 
