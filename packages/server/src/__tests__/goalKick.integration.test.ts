@@ -1124,8 +1124,14 @@ describe('GOALKICK-04/05: accuracy resolution after both travel-movement slots',
 
     // Any of the 3 LOOSE_BALL outcomes is a valid resolution of the shared clamp —
     // this test proves the goal kick's Loose Ball drop reuses that system unmodified,
-    // not any specific outcome.
-    expect(['PASS', 'THROW_IN_SETUP', 'GOAL_KICK_SETUP_GK']).toContain(finalState.phase);
+    // not any specific outcome. D-10 (Phase 39, 39-15): a scatter landing INSIDE a
+    // penalty area is also a legitimate "first entry" trigger for the new box-entry GK
+    // offer (D-10 explicitly includes "loose ball" among its means of entry) — a real,
+    // deterministic-per-dice-roll outcome discovered running this suite after wiring
+    // the offer hook into broadcastState, not a defect in either mechanism.
+    expect(['PASS', 'THROW_IN_SETUP', 'GOAL_KICK_SETUP_GK', 'GK_BOX_ENTRY_PROMPT']).toContain(
+      finalState.phase,
+    );
     // The completed kick's travel-window fields are cleared regardless of outcome —
     // goalKickTeam/goalKickGkId are excluded from this check because a byline exit
     // legitimately re-populates them with a brand-new goal kick (GOAL_KICK_SETUP_GK).
