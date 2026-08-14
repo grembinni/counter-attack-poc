@@ -445,7 +445,27 @@ export function broadcastState(io: Server, room: Room): void {
   // injury, GK-dive-at-feet, professional-foul check, and the resulting restart)"). The
   // box-entry offer above is a D-10 scope expansion, not part of any toggle's locked
   // scope, so it is NOT gated the same way.
-  if (room.gameState === state && state.phase === 'MOVE' && state.foulsEnabled === true) {
+  //
+  // Rule 1 auto-fix (discovered writing this task's integration suite): unlike
+  // `computeBoxEntryOffer`, `computeGkDiveAtFeetOffer` is LEVEL-triggered, not
+  // edge-triggered — it has no "previous state" concept and simply reports whether the
+  // carrier is CURRENTLY within range with the cap unset. Without a change-detection
+  // guard, declining the offer would immediately re-offer on the SAME decline response's
+  // own `broadcastState` call (the carrier hasn't moved, so the condition is still true)
+  // — the manager could never actually decline and resume play without first moving the
+  // carrier out of range. The `ballPositionChanged` check applies the identical
+  // edge-triggered principle `computeBoxEntryOffer` already uses, reusing the same
+  // `prevBallPosition` snapshot: only offer when the ball has actually moved since the
+  // last broadcast (a real qualifying MOVE), never on a broadcast that merely re-confirms
+  // an unchanged position (e.g. a decline's own resume-phase broadcast).
+  const ballPositionChanged =
+    prevBallPosition.q !== state.ball.position.q || prevBallPosition.r !== state.ball.position.r;
+  if (
+    room.gameState === state &&
+    state.phase === 'MOVE' &&
+    state.foulsEnabled === true &&
+    ballPositionChanged
+  ) {
     const diveOffer = computeGkDiveAtFeetOffer(state);
     if (diveOffer !== null) {
       room.gameState = {
