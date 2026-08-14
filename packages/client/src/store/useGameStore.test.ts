@@ -9,6 +9,7 @@ import {
   hexesInRange,
   hexDistance,
   isPitchHex,
+  isInRegion,
 } from '@counter-attack/shared';
 
 vi.mock('../socket.js', () => ({
@@ -1144,6 +1145,244 @@ describe('useGameStore — setGameState sticky-selection for Corner Kick (Plan 3
   });
 });
 
+// Phase 39 Plan 05: selectPiece coverage for the four new interactive phases (both penalty
+// reposition windows, taker-select, and the GK box-entry move) plus the three pure two-button
+// prompt phases that must leave no piece selectable. Mirrors the GOAL_KICK_SETUP_GK/Corner Kick
+// coverage above in structure.
+describe('useGameStore — selectPiece Penalty Kick / GK Box Entry / Foul Choice (Plan 39-05)', () => {
+  const ATTACKING_ELIGIBLE_ID = 'home-6'; // MID 2, {q:10,r:13} — far from either penalty area
+  const DEFENDING_ELIGIBLE_ID = 'away-6'; // MID 2, {q:26,r:13} — far from either penalty area
+
+  function penaltySetupState(overrides: {
+    phase?: 'PENALTY_KICK_SETUP_ATTACKING' | 'PENALTY_KICK_SETUP_DEFENDING';
+    penaltyKickTeam?: 'home' | 'away';
+    penaltyKickTakerId?: string | null;
+    eligibleAttacking?: string[];
+    eligibleDefending?: string[];
+    movedPieceIds?: string[];
+  }) {
+    return {
+      ...mockMovementState,
+      phase: overrides.phase ?? ('PENALTY_KICK_SETUP_ATTACKING' as const),
+      activeTeam:
+        overrides.phase === 'PENALTY_KICK_SETUP_DEFENDING' ? ('away' as const) : ('home' as const),
+      penaltyKickTeam: overrides.penaltyKickTeam ?? ('home' as const),
+      penaltyKickTakerId: overrides.penaltyKickTakerId ?? null,
+      penaltyKickEligibleIds: {
+        attacking: overrides.eligibleAttacking ?? [ATTACKING_ELIGIBLE_ID],
+        defending: overrides.eligibleDefending ?? [DEFENDING_ELIGIBLE_ID],
+      },
+      movedPieceIds: overrides.movedPieceIds ?? [],
+    };
+  }
+
+  beforeEach(() => {
+    useGameStore.setState({ selectedPieceId: null, validMoveHexes: [] });
+  });
+
+  it('PENALTY_KICK_SETUP_ATTACKING: selecting an eligible home piece (myTeam=home) yields unoccupied on-pitch neighbours', () => {
+    useGameStore.setState({ playerSlot: 1, gameState: penaltySetupState({}) });
+    useGameStore.getState().selectPiece(ATTACKING_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(ATTACKING_ELIGIBLE_ID);
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+    expect(state.validMoveHexes.length).toBeLessThanOrEqual(6);
+  });
+
+  it('PENALTY_KICK_SETUP_ATTACKING: selecting a piece absent from penaltyKickEligibleIds.attacking yields no selection', () => {
+    useGameStore.setState({ playerSlot: 1, gameState: penaltySetupState({}) });
+    // home-5 is on the active team but not in the eligible list above.
+    useGameStore.getState().selectPiece('home-5');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('PENALTY_KICK_SETUP_ATTACKING: excludes a neighbour hex inside the defending (away) penalty area for an ordinary outfielder, includes it for the chosen taker', () => {
+    // {q:30,r:13} sits just outside PITCH_REGIONS.awayPenaltyArea (q>=31,r 5..19); one of its
+    // ODD-Q neighbours, {q:31,r:13}, is real awayPenaltyArea territory (verified via isInRegion
+    // below rather than assumed) — per the Phase 10 STATE.md lesson, use real region membership,
+    // not invented coordinates.
+    const nearBoxHex = { q: 30, r: 13 };
+    const boxNeighbor = hexNeighbors(nearBoxHex).find((h) => isInRegion(h, 'awayPenaltyArea'));
+    expect(boxNeighbor).toBeDefined();
+
+    const gameStateBase = penaltySetupState({ eligibleAttacking: ['home-6', 'home-7'] });
+    const piecesWithOutfielderNearBox = gameStateBase.pieces.map((p) =>
+      p.id === 'home-6' ? { ...p, position: nearBoxHex } : p,
+    );
+
+    // Ordinary outfielder (home-6, not the taker, not the defending GK): the box neighbour is excluded.
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...gameStateBase, pieces: piecesWithOutfielderNearBox },
+    });
+    useGameStore.getState().selectPiece('home-6');
+    const outfielderState = useGameStore.getState();
+    expect(outfielderState.validMoveHexes).not.toContainEqual(boxNeighbor);
+
+    // Same piece, but now it IS the chosen penalty taker: the box neighbour is included.
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: {
+        ...gameStateBase,
+        pieces: piecesWithOutfielderNearBox,
+        penaltyKickTakerId: 'home-6',
+      },
+      selectedPieceId: null,
+      validMoveHexes: [],
+    });
+    useGameStore.getState().selectPiece('home-6');
+    const takerState = useGameStore.getState();
+    expect(takerState.validMoveHexes).toContainEqual(boxNeighbor);
+  });
+
+  it('PENALTY_KICK_SETUP_ATTACKING: a piece already in movedPieceIds is not selectable', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: penaltySetupState({ movedPieceIds: [ATTACKING_ELIGIBLE_ID] }),
+    });
+    useGameStore.getState().selectPiece(ATTACKING_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('PENALTY_KICK_SETUP_DEFENDING: a piece already in movedPieceIds is not selectable', () => {
+    useGameStore.setState({
+      playerSlot: 2,
+      gameState: penaltySetupState({
+        phase: 'PENALTY_KICK_SETUP_DEFENDING',
+        movedPieceIds: [DEFENDING_ELIGIBLE_ID],
+      }),
+    });
+    useGameStore.getState().selectPiece(DEFENDING_ELIGIBLE_ID);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('transitioning PENALTY_KICK_SETUP_ATTACKING -> PENALTY_KICK_SETUP_DEFENDING clears selectedPieceId', () => {
+    const attackingState = penaltySetupState({});
+    useGameStore.setState({ playerSlot: 1, gameState: attackingState });
+    useGameStore.getState().selectPiece(ATTACKING_ELIGIBLE_ID);
+    expect(useGameStore.getState().selectedPieceId).toBe(ATTACKING_ELIGIBLE_ID);
+
+    const defendingState = penaltySetupState({ phase: 'PENALTY_KICK_SETUP_DEFENDING' });
+    useGameStore.getState().setGameState(defendingState);
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+  });
+
+  it('PENALTY_KICK_TAKER_SELECT: clicking an own-team outfielder calls emitPenaltyKickTaker and leaves selectedPieceId null', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_TAKER_SELECT',
+        penaltyKickTeam: 'home',
+      },
+    });
+    useGameStore.getState().selectPiece('home-7');
+    expect(emitMock).toHaveBeenCalledWith('game:penalty-kick-taker', 'home-7');
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+  });
+
+  it('PENALTY_KICK_TAKER_SELECT: clicking the own goalkeeper emits nothing', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_TAKER_SELECT',
+        penaltyKickTeam: 'home',
+      },
+    });
+    useGameStore.getState().selectPiece('home-0'); // home-0 is the GK
+    expect(emitMock).not.toHaveBeenCalled();
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+  });
+
+  it('GK_BOX_ENTRY_MOVE: the responding team goalkeeper yields at most six valid hexes', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...mockMovementState, phase: 'GK_BOX_ENTRY_MOVE', gkBoxEntryTeam: 'home' },
+    });
+    useGameStore.getState().selectPiece('home-0'); // home-0 is the GK
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('home-0');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+    expect(state.validMoveHexes.length).toBeLessThanOrEqual(6);
+  });
+
+  it('GK_BOX_ENTRY_MOVE: a non-goalkeeper own-team piece yields no selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...mockMovementState, phase: 'GK_BOX_ENTRY_MOVE', gkBoxEntryTeam: 'home' },
+    });
+    useGameStore.getState().selectPiece('home-6'); // MID, not GK
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GK_BOX_ENTRY_MOVE: myTeam !== gkBoxEntryTeam yields no selection, even for the goalkeeper', () => {
+    useGameStore.setState({
+      playerSlot: 1, // home
+      gameState: { ...mockMovementState, phase: 'GK_BOX_ENTRY_MOVE', gkBoxEntryTeam: 'away' },
+    });
+    useGameStore.getState().selectPiece('home-0');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('entering FOUL_CHOICE clears any previously selected piece', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      selectedPieceId: 'home-6',
+      validMoveHexes: [{ q: 1, r: 1 }],
+      gameState: mockMovementState,
+    });
+    useGameStore.getState().setGameState({ ...mockMovementState, phase: 'FOUL_CHOICE' });
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('FOUL_CHOICE: selectPiece is a defense-in-depth no-op even if called directly', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...mockMovementState, phase: 'FOUL_CHOICE' },
+    });
+    useGameStore.getState().selectPiece('home-6');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GK_DIVE_AT_FEET_PROMPT: selectPiece is a defense-in-depth no-op', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...mockMovementState, phase: 'GK_DIVE_AT_FEET_PROMPT' },
+    });
+    useGameStore.getState().selectPiece('home-6');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GK_BOX_ENTRY_PROMPT: selectPiece is a defense-in-depth no-op', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: { ...mockMovementState, phase: 'GK_BOX_ENTRY_PROMPT' },
+    });
+    useGameStore.getState().selectPiece('home-6');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+});
+
 describe('useGameStore — Phase 7 setters', () => {
   it('setGameState replaces gameState wholesale', () => {
     const newState = { ...mockMovementState, phase: 'SHOT' as const };
@@ -1244,6 +1483,40 @@ describe('useGameStore — emit actions', () => {
     useGameStore.getState().emitCornerKickTaker('home-8');
     expect(emitMock).toHaveBeenCalledWith('game:corner-kick-taker', 'home-8');
     expect(emitMock.mock.calls[emitMock.mock.calls.length - 1]).toHaveLength(2);
+  });
+
+  // Phase 39 Plan 05: the five new fire-and-forget emitters — no optimistic local state
+  // mutation on any of them (unlike emitMove/emitFreeKickMove/emitCornerKickGkPlace, which
+  // clear selectedPieceId/validMoveHexes). Each is asserted to call socket.emit exactly once
+  // with the matching ClientEvents constant and payload.
+  it('emitFoulChoice calls socket.emit with game:foul-choice and the choice', () => {
+    useGameStore.getState().emitFoulChoice('restart');
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:foul-choice', 'restart');
+  });
+
+  it('emitGkDiveAtFeet calls socket.emit with game:gk-dive-at-feet and accept', () => {
+    useGameStore.getState().emitGkDiveAtFeet(true);
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:gk-dive-at-feet', true);
+  });
+
+  it('emitGkBoxEntryResponse calls socket.emit with game:gk-box-entry-response and accept', () => {
+    useGameStore.getState().emitGkBoxEntryResponse(false);
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:gk-box-entry-response', false);
+  });
+
+  it('emitGkBoxEntryMove calls socket.emit with game:gk-box-entry-move and the hex', () => {
+    useGameStore.getState().emitGkBoxEntryMove({ q: 4, r: 13 });
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:gk-box-entry-move', { q: 4, r: 13 });
+  });
+
+  it('emitPenaltyKickTaker calls socket.emit with game:penalty-kick-taker and the pieceId', () => {
+    useGameStore.getState().emitPenaltyKickTaker('home-7');
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:penalty-kick-taker', 'home-7');
   });
 });
 
