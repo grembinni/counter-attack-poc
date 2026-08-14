@@ -8638,6 +8638,88 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
 }
 
 // ---------------------------------------------------------------------------
+// applySecondHalfConfirm
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applySecondHalfConfirm. */
+export type ApplySecondHalfConfirmResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * D-16 (Phase 39, 39-14): mutual-confirm gate in front of `applyHalfTimeStart` — the
+ * second half starts only once BOTH managers have confirmed, in either order.
+ *
+ * RESEARCH.md Pitfall 4 rules out copying `LINEUP_CONFIRM`'s storage pattern:
+ * `LINEUP_CONFIRM`'s "either player may confirm first" flags live on the pre-match
+ * `Room` object because `GameState` does not exist yet at that point in the flow.
+ * Half-time is mid-match — `GameState` already exists — and there is no clean path to
+ * plumb a new `Room` field into `broadcastState` the way `LINEUP_CONFIRM` does.
+ * `GameState.headerConfirmed`'s `{ home: boolean; away: boolean } | null` shape is the
+ * correct GameState-scoped analog instead: it already reaches both clients through the
+ * existing full-snapshot `broadcastState` call with zero new plumbing, and
+ * `secondHalfConfirmed` (added in Plan 39-01) deliberately copies its exact shape.
+ *
+ * This function is a GATE in front of `applyHalfTimeStart`, not a reimplementation of
+ * it — `applyHalfTimeStart` remains the single owner of the actual transition (kick-off
+ * reset, half increment, kickOffTeam handling all stay in one place). Do NOT duplicate
+ * that logic here.
+ *
+ * `SECOND_HALF_CONFIRM` is registered nowhere in `REPLAY_ELIGIBLE_TYPES` (it carries no
+ * `ballAfter` and represents no board change) and is added to `applyUndo`'s
+ * `isBoundary`, guarded on `state.phase === 'HALF_TIME'`, so a confirm cannot be undone.
+ */
+export function applySecondHalfConfirm(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplySecondHalfConfirmResult {
+  if (state.phase !== 'HALF_TIME') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const prior = state.secondHalfConfirmed ?? { home: false, away: false };
+
+  // Idempotence: a manager clicking twice must be a no-op, not an error — no duplicate
+  // event, no transition.
+  if (prior[team] === true) {
+    return { ok: true, state };
+  }
+
+  const next = { ...prior, [team]: true };
+  const bothConfirmed = next.home && next.away;
+
+  const confirmEvent: ActionEvent = {
+    type: 'SECOND_HALF_CONFIRM',
+    team,
+    bothConfirmed,
+    timestamp: Date.now(),
+  };
+
+  const confirmedState: GameState = {
+    ...state,
+    secondHalfConfirmed: next,
+    eventLog: [...state.eventLog, confirmEvent],
+  };
+
+  // Only one side has confirmed so far — stay in HALF_TIME so the waiting manager's UI
+  // can read secondHalfConfirmed and show its waiting text.
+  if (!bothConfirmed) {
+    return { ok: true, state: confirmedState };
+  }
+
+  // Both confirmed: delegate to the EXISTING applyHalfTimeStart for the actual
+  // transition, then clear secondHalfConfirmed back to null on the result.
+  const startResult = applyHalfTimeStart(confirmedState);
+  if (!startResult.ok) {
+    // Unreachable in practice (phase is guarded to HALF_TIME above, and
+    // applyHalfTimeStart's only rejection is a phase mismatch) — kept for type safety.
+    return { ok: true, state: confirmedState };
+  }
+
+  return { ok: true, state: { ...startResult.state, secondHalfConfirmed: null } };
+}
+
+// ---------------------------------------------------------------------------
 // buildReplayFrames
 // ---------------------------------------------------------------------------
 
