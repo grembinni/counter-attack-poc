@@ -347,6 +347,22 @@ export function buildInitialGameState(
    * toggle is off.
    */
   outOfBoundsEnabled: boolean = false,
+  /**
+   * SETTINGS-01/FOUL-05 (Phase 39): Fouls system toggle baked into GameState at match
+   * start from Room.foulsEnabled. Defaults to `false` — the disabled path is the safe
+   * default even if a caller forgets to pass it. Plan 39-03 wires the real value from Room.
+   */
+  foulsEnabled: boolean = false,
+  /**
+   * SETTINGS-02/CARD-04 (Phase 39): Booking (cards) toggle baked into GameState at match
+   * start from Room.bookingEnabled. Defaults to `false` for the same reason as `foulsEnabled`.
+   */
+  bookingEnabled: boolean = false,
+  /**
+   * SETTINGS-03/INJURY-04 (Phase 39): Injury system toggle baked into GameState at match
+   * start from Room.injuryEnabled. Defaults to `false` for the same reason as `foulsEnabled`.
+   */
+  injuryEnabled: boolean = false,
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -387,6 +403,12 @@ export function buildInitialGameState(
     selectedFormation, // Phase 23 D-11: formation choices embedded in every snapshot
     gameSpeed, // UX-07 (Phase 18.4): drives per-MOVE clock increment
     outOfBoundsEnabled, // GOALKICK-06 / OOB-05 (Phase 37): Out-of-Bounds/Restarts toggle
+    foulsEnabled, // SETTINGS-01/FOUL-05 (Phase 39): Fouls system toggle
+    bookingEnabled, // SETTINGS-02/CARD-04 (Phase 39): Booking (cards) toggle
+    injuryEnabled, // SETTINGS-03/INJURY-04 (Phase 39): Injury system toggle
+    secondHalfConfirmed: null,
+    gkDiveAtFeetUsedByTeam: null,
+    gkBoxEntryUsedByTeam: null,
   };
 }
 
@@ -3440,6 +3462,8 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         type: 'LOOSE_BALL_LAND',
         from: state.ball.position,
         to: finalPosition,
+        direction,
+        distance,
         timestamp: Date.now(),
         ballAfter: { position: finalPosition, carrierId: finalCarrierId },
       };
