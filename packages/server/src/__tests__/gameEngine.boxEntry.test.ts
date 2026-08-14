@@ -122,7 +122,7 @@ describe('computeBoxEntryOffer (D-10) — fires on any means of entry', () => {
 
   it('offers the home team when the ball enters homePenaltyArea via a SHOT travelling into it', () => {
     const state = baseState([homeGk], {
-      lastActionType: 'SHOT_ATTEMPT',
+      lastActionType: 'SHOT',
       // A shot in flight is loose (no carrier) as it crosses into the box.
       ball: { position: INSIDE_HOME_AREA, carrierId: null, lastTouchedBy: null },
     });
@@ -133,7 +133,7 @@ describe('computeBoxEntryOffer (D-10) — fires on any means of entry', () => {
   it('offers the home team when a carrier MOVEs into homePenaltyArea', () => {
     const carrier = piece('carrier', 'away', INSIDE_HOME_AREA, { dribbling: 4 });
     const state = baseState([homeGk, carrier], {
-      lastActionType: 'MOVE',
+      lastActionType: 'MOVEMENT_PHASE',
       ball: { position: INSIDE_HOME_AREA, carrierId: 'carrier', lastTouchedBy: null },
     });
     const offer = computeBoxEntryOffer(OUTSIDE_HOME_AREA, state);
