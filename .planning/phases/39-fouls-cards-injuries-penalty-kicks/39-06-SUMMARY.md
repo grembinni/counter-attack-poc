@@ -105,3 +105,13 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-14_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/PieceOverlay.tsx
+- FOUND: packages/client/src/components/PlayerStatsPanel.tsx
+- FOUND: .planning/phases/39-fouls-cards-injuries-penalty-kicks/39-06-SUMMARY.md
+- FOUND commit: 1081b9c
+- FOUND commit: 8385ed0
+- FOUND commit: b49ab49
+- FOUND commit: 36e7664
