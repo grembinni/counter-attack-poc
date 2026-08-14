@@ -207,3 +207,11 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-14_
+
+## Self-Check: PASSED
+
+- FOUND: 51b26ca, 72d7662, 29ac066, 3aaae7f (all task + docs commits present in `git log --oneline --all`)
+- FOUND: `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-01-SUMMARY.md`
+- FOUND: `PENALTY_SPOT` in `packages/shared/src/pitch.ts`
+- FOUND: `GAME_FOUL_CHOICE` in `packages/shared/src/events.ts`
+- FOUND: `case 'FOUL_CALLED'` in `packages/client/src/components/ActionLog.tsx`
