@@ -80,6 +80,10 @@ import {
   computeHeaderDuelDetail,
   computeShotPathDeflection,
   applyOffsideFoulWithRelocation,
+  applyPenaltyKickReposition,
+  applyPenaltyKickWindowEnd,
+  applyPenaltyKickTaker,
+  applyPenaltyKickDuel,
   resolveHeaderWinnerPiece,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
@@ -746,6 +750,45 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           return;
         }
         room.gameState = goalKickResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
+      // PEN-02 (Plan 39-11): PENALTY_KICK_SETUP_ATTACKING/DEFENDING reposition windows —
+      // unbudgeted, single-hex-per-click, mirroring the goal-kick reposition branch above
+      // exactly (T-39-11-01/T-39-11-04). Placed immediately after the goal-kick branch per
+      // the plan. socketTeam(socket) !== activeTeam is checked here (not just inside the
+      // engine) so the wrong-team manager cannot even reach applyPenaltyKickReposition.
+      if (
+        room.gameState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+        room.gameState.phase === 'PENALTY_KICK_SETUP_DEFENDING'
+      ) {
+        if (socketTeam(socket) !== room.gameState.activeTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        // ASVS V5 — validate payload shape before dispatch (mirrors the goal-kick branch;
+        // hexDistance/isPitchHex inside applyPenaltyKickReposition are not null-safe).
+        if (
+          typeof pieceId !== 'string' ||
+          pieceId.length === 0 ||
+          typeof to !== 'object' ||
+          to === null ||
+          typeof to.q !== 'number' ||
+          typeof to.r !== 'number'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+          broadcastState(io, room);
+          return;
+        }
+        const penaltyRepoResult = applyPenaltyKickReposition(room.gameState, pieceId, to);
+        if (!penaltyRepoResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, penaltyRepoResult.reason);
+          broadcastState(io, room); // snap-back
+          return;
+        }
+        room.gameState = penaltyRepoResult.state;
         broadcastState(io, room);
         return;
       }
@@ -1427,6 +1470,34 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
 
+      // PEN-02 (Plan 39-11): ends the active penalty reposition window (attacking window,
+      // then defending window). Mirrors the GOAL_KICK_SETUP_GK/OPPONENT branch above — the
+      // engine already rejects the wrong team with WRONG_TEAM, but the handler-level
+      // socketTeam check still runs first so the error is emitted before the engine call,
+      // matching the existing handlers' defence-in-depth ordering.
+      if (
+        room.gameState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+        room.gameState.phase === 'PENALTY_KICK_SETUP_DEFENDING'
+      ) {
+        if (socketTeam(socket) !== room.gameState.activeTeam) {
+          socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+          broadcastState(io, room);
+          return;
+        }
+        const penaltyWindowEndResult = applyPenaltyKickWindowEnd(
+          room.gameState,
+          socketTeam(socket),
+        );
+        if (!penaltyWindowEndResult.ok) {
+          socket.emit(ServerEvents.GAME_ERROR, penaltyWindowEndResult.reason);
+          broadcastState(io, room);
+          return;
+        }
+        room.gameState = penaltyWindowEndResult.state;
+        broadcastState(io, room);
+        return;
+      }
+
       // CORNER-01: ends the active corner-kick GK reposition window (attacking GK's
       // window, then defending GK's window). Mirrors the GOAL_KICK_SETUP_GK/OPPONENT
       // branch above — activeTeam is kept in sync at every corner-kick GK transition
@@ -1713,6 +1784,35 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
 
       room.isProcessing = true;
       try {
+        // PEN-01/03 (Plan 39-11): PENALTY_KICK duel resolution. Not part of DICE_PHASES —
+        // it is resolved directly by applyPenaltyKickDuel, not applyRoll — so this branch
+        // must run before the DICE_PHASES guard below, which would otherwise reject this
+        // phase as WRONG_PHASE. Only the kicking manager may take the penalty
+        // (T-39-11-01-style guard, keyed on penaltyKickTeam rather than activeTeam).
+        if (room.gameState !== null && room.gameState.phase === 'PENALTY_KICK') {
+          if (socketTeam(socket) !== room.gameState.penaltyKickTeam) {
+            socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+            broadcastState(io, room);
+            return;
+          }
+          // T-39-11-03: dice are always server-generated via crypto.randomInt
+          // (rollDice()); no die value is ever read from the client payload.
+          const takerDie = rollDice();
+          const gkDie = rollDice();
+          const duelResult = applyPenaltyKickDuel(room.gameState, takerDie, gkDie);
+          if (!duelResult.ok) {
+            socket.emit(ServerEvents.GAME_ERROR, duelResult.reason);
+            broadcastState(io, room); // snap-back
+            return;
+          }
+          room.gameState = duelResult.state;
+          broadcastState(io, room); // ARCH-04
+          if (duelResult.state.phase === 'FULL_TIME') {
+            startReplayStream(io, room);
+          }
+          return;
+        }
+
         // Phase guard — must be in a dice-requiring phase (T-05-04)
         if (room.gameState === null || !DICE_PHASES.has(room.gameState.phase)) {
           socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
@@ -2689,6 +2789,63 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       const result = applyCornerKickTakerSelect(room.gameState, pieceId);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_PENALTY_KICK_TAKER — PEN-02 (Plan 39-11): the kicking manager selects which
+  // eligible outfielder takes the penalty once both reposition windows have closed.
+  //
+  // T-39-11-02: WRONG_TEAM guard — only the kicking manager may designate the taker.
+  // T-39-11-04: pieceId payload shape validated before any use (ASVS V5).
+  // T-39-11-05: isProcessing mutex prevents double-click race (SC-5).
+  // Five-step shape copied from GAME_GK_DIVE (null-state guard, phase guard, payload
+  // validation, team guard, engine call), mirroring GAME_CORNER_KICK_TAKER's taker-select
+  // idiom for the payload check itself.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_PENALTY_KICK_TAKER, (pieceId: string) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'PENALTY_KICK_TAKER_SELECT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. Payload validation (ASVS V5, mirrors GAME_CORNER_KICK_TAKER)
+      if (typeof pieceId !== 'string' || pieceId.length === 0) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the kicking manager may choose the taker (T-39-11-02)
+      if (socketTeam(socket) !== room.gameState.penaltyKickTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Engine call
+      const result = applyPenaltyKickTaker(room.gameState, pieceId);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
