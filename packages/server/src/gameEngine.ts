@@ -25,6 +25,7 @@ import type {
   FormationSlot,
   SlotRole,
   PoolPlayer,
+  BallState,
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
@@ -46,10 +47,13 @@ import {
   validateShotDuel,
   validateHandlingCheck,
   validateGKDive,
+  validateDiveAtFeetDistance,
   validateHeading,
   hexDistance,
   hexLine,
   hexNeighbors,
+  toCube,
+  fromCube,
   computeBallZone,
   evaluateOffside,
   FREE_KICK_STAGES,
@@ -1565,6 +1569,382 @@ export function applyFoulChoice(
     ok: true,
     state: triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!),
   };
+}
+
+// ---------------------------------------------------------------------------
+// computeGkDiveAtFeetOffer
+// ---------------------------------------------------------------------------
+
+/**
+ * GKDIVE-02/05 (Phase 39, 39-12): computes whether the defending team's goalkeeper is
+ * currently offered a dive-at-feet interrupt. Returns `null` whenever any precondition
+ * fails so the caller (a sibling plan's socket-handler layer) can no-op cleanly —
+ * mirrors resolveFoulChain's early-return-on-ineligible shape.
+ *
+ * GKDIVE-02 verbatim: "within 3 hexes of the goalkeeper, parallel to the goal line."
+ * Expressed as two guards: `hexDistance(gk, carrier) <= 3` AND the carrier sharing the
+ * goalkeeper's column band (`Math.abs(carrier.q - gk.q) <= 3`) — a carrier beyond this
+ * band is running away from goal, not across it. NOTE: because `toCube` maps cube-x
+ * directly to offset-q (hex.ts), `|Δq| <= hexDistance` always holds, so the column-band
+ * check is mathematically implied by the distance check above. It is kept as an
+ * explicit, independently-named guard anyway — matching GKDIVE-02's literal two-part
+ * wording — so a future change to either rule's wording cannot silently desync from
+ * the other without a test failing here.
+ */
+export function computeGkDiveAtFeetOffer(
+  state: GameState,
+): { gkId: string; carrierId: string; distance: number; team: 'home' | 'away' } | null {
+  const carrierId = state.ball.carrierId;
+  if (carrierId === null) return null;
+  const carrier = state.pieces.find((p) => p.id === carrierId);
+  if (carrier === undefined) return null;
+
+  const gkTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
+  const gk = state.pieces.find((p) => p.teamId === gkTeam && p.role === 'GK');
+  if (gk === undefined || gk.redCarded === true) return null;
+
+  const distance = hexDistance(gk.position, carrier.position);
+  if (distance > 3) return null;
+  if (Math.abs(carrier.position.q - gk.position.q) > 3) return null;
+
+  // GKDIVE-05: the once-per-movement-cycle cap this offer helper enforces.
+  if (state.gkDiveAtFeetUsedByTeam?.[gkTeam] === true) return null;
+
+  return { gkId: gk.id, carrierId, distance, team: gkTeam };
+}
+
+// ---------------------------------------------------------------------------
+// computeGkDiveDisplacement
+// ---------------------------------------------------------------------------
+
+/**
+ * GKDIVE-04 (Phase 39, 39-12): displaces every occupant of `to` (other than
+ * `excludeId`, the carrier being dispossessed in place — never displaced by their own
+ * dispossession) — and the ball, when it sits loose (no carrier) on `to` — exactly one
+ * hex further along the dive direction.
+ *
+ * The dive direction is derived from the LAST hop of `hexLine(from, to)` (the existing
+ * shared hex-line-draw algorithm, `hex.ts`), not a naive `(to - from) / distance`
+ * cube-vector division — the latter only reduces to a valid single-hex-step direction
+ * when `from`/`to` are exactly collinear along one of the 6 canonical directions, which
+ * is not guaranteed for an arbitrary GK-to-carrier pair up to 3 hexes apart. Using
+ * `hexLine`'s last-hop direction guarantees an exact single-neighbour-hex step for any
+ * `from`/`to` pair, reusing the same toCube/fromCube round-trip `computeLooseBall`
+ * already uses (scoreUtils.ts) rather than hand-rolling a fixed ODD-Q offset delta
+ * table — Phase 17.1-08 already fixed exactly that bug once.
+ *
+ * Cascades recursively: if the pushed destination is itself occupied, that occupant is
+ * displaced FIRST (clearing space) before the current occupant moves into it. A piece
+ * pushed off-pitch (T-39-12-04) stays exactly where it was and that chain stops.
+ * Termination (T-39-12-05): every step strictly advances one hex further along a FIXED
+ * direction from a bounded 37x26 grid, so no cycle is possible — recursion depth is
+ * bounded by the pitch's longest dimension.
+ */
+export function computeGkDiveDisplacement(
+  pieces: readonly PlayerPiece[],
+  ball: BallState,
+  from: HexCoord,
+  to: HexCoord,
+  excludeId?: string,
+): { pieces: readonly PlayerPiece[]; ball: BallState } {
+  const path = hexLine(from, to);
+  if (path.length < 2) {
+    // GK's origin and landing hex are the same hex — no direction to push along.
+    return { pieces, ball };
+  }
+  const secondLast = path[path.length - 2]!;
+  const cA = toCube(secondLast);
+  const cB = toCube(to);
+  const unit = { x: cB.x - cA.x, y: cB.y - cA.y, z: cB.z - cA.z };
+
+  const pushHex = (hex: HexCoord): HexCoord => {
+    const c = toCube(hex);
+    return fromCube(c.x + unit.x, c.y + unit.y, c.z + unit.z);
+  };
+
+  let workingPieces = pieces;
+  let workingBall = ball;
+
+  const displaceOccupantsOf = (hex: HexCoord): void => {
+    const occupants = workingPieces.filter(
+      (p) => p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r,
+    );
+    const ballHere =
+      workingBall.carrierId === null &&
+      workingBall.position.q === hex.q &&
+      workingBall.position.r === hex.r;
+    if (occupants.length === 0 && !ballHere) return;
+
+    const dest = pushHex(hex);
+    if (!isPitchHex(dest)) {
+      // T-39-12-04: off-pitch — leave every occupant/the ball exactly where they are.
+      return;
+    }
+
+    // Clear space at `dest` first (cascade) before moving anything into it.
+    displaceOccupantsOf(dest);
+
+    workingPieces = workingPieces.map((p) =>
+      p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r
+        ? { ...p, position: dest }
+        : p,
+    );
+    if (ballHere) {
+      workingBall = { ...workingBall, position: dest };
+    }
+  };
+
+  displaceOccupantsOf(to);
+
+  return { pieces: workingPieces, ball: workingBall };
+}
+
+// ---------------------------------------------------------------------------
+// applyGkDiveAtFeetResponse
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGkDiveAtFeetResponse. */
+export type ApplyGkDiveAtFeetResponseResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * GKDIVE-01..05 (Phase 39, 39-12): resolves the defending manager's accept/decline
+ * response to a dive-at-feet offer (`computeGkDiveAtFeetOffer`).
+ *
+ * GKDIVE-01: reuses the exact TACKLE_ATTEMPT duel shape (computeCombinedScore pairing,
+ * tie-goes-to-defender, ballAfter/carrier-transfer handling) with the GK as "tackler"
+ * and the carrier as "carrier" — no new duel type.
+ * GKDIVE-02: the -1 saving penalty applies only at exactly distance 3
+ * (`validateDiveAtFeetDistance`).
+ * GKDIVE-03: a GK die of 1 always calls a foul via the shared `resolveFoulChain`, on
+ * BOTH SUCCESS and FAIL outcomes — `resolveFoulChain` itself gates on
+ * `defenderDie === FOUL_TRIGGER_DIE`, so no separate `=== 1` check is needed here.
+ * GKDIVE-04: a successful landing on an occupied hex displaces every OTHER occupant
+ * (and the ball, if loose there) via `computeGkDiveDisplacement` — the carrier itself
+ * is excluded (dispossessed in place, never shoved elsewhere).
+ * GKDIVE-05: accepting always sets `gkDiveAtFeetUsedByTeam[team] = true`, on both
+ * SUCCESS and FAIL. Declining never does (see the decline branch above) — it does not
+ * consume the once-per-cycle allowance.
+ */
+export function applyGkDiveAtFeetResponse(
+  state: GameState,
+  accept: boolean,
+  dice: { gkDie: number; carrierDie: number; injuryDie: number; bookingDie: number },
+): ApplyGkDiveAtFeetResponseResult {
+  if (state.phase !== 'GK_DIVE_AT_FEET_PROMPT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gkId = state.gkDiveAtFeetGkId;
+  const carrierId = state.gkDiveAtFeetCarrierId;
+  const team = state.gkDiveAtFeetTeam;
+  const resume = state.gkDiveAtFeetResume;
+  if (
+    gkId === null ||
+    gkId === undefined ||
+    carrierId === null ||
+    carrierId === undefined ||
+    team === null ||
+    team === undefined
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const clearedFields = {
+    gkDiveAtFeetTeam: null,
+    gkDiveAtFeetGkId: null,
+    gkDiveAtFeetCarrierId: null,
+    gkDiveAtFeetDistance: null,
+    gkDiveAtFeetResume: null,
+  };
+
+  if (!accept) {
+    const declineEvent: ActionEvent = {
+      type: 'GK_DIVE_AT_FEET_DECLINED',
+      gkId,
+      carrierId,
+      timestamp: Date.now(),
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        ...clearedFields,
+        phase: resume?.phase ?? state.phase,
+        activeTeam: resume?.activeTeam ?? state.activeTeam,
+        movementSlot: resume?.movementSlot ?? state.movementSlot,
+        eventLog: [...state.eventLog, declineEvent],
+      },
+    };
+  }
+
+  const gk = state.pieces.find((p) => p.id === gkId);
+  const carrier = state.pieces.find((p) => p.id === carrierId);
+  if (gk === undefined || carrier === undefined) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const distanceBand = validateDiveAtFeetDistance(state.gkDiveAtFeetDistance ?? 0);
+  if (!distanceBand.saveable) {
+    // Offer is stale (e.g. the carrier has since moved out of range) — reject rather
+    // than silently resolving a duel with an undefined penalty.
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  const savingPenalty = distanceBand.savingPenalty;
+
+  const gkCombined = computeCombinedScore(gk.saving, dice.gkDie, [savingPenalty]);
+  const carrierCombined = computeCombinedScore(carrier.dribbling, dice.carrierDie, []);
+  // D-09/TACKLE_ATTEMPT convention: defender wins ties.
+  const result: 'SUCCESS' | 'FAIL' = gkCombined >= carrierCombined ? 'SUCCESS' : 'FAIL';
+
+  let pieces: readonly PlayerPiece[] = state.pieces;
+  let ball: BallState = state.ball;
+
+  if (result === 'SUCCESS') {
+    const displaced = computeGkDiveDisplacement(
+      pieces,
+      ball,
+      gk.position,
+      carrier.position,
+      carrierId,
+    );
+    pieces = displaced.pieces.map((p) =>
+      p.id === gkId ? { ...p, position: carrier.position } : p,
+    );
+    ball = {
+      position: carrier.position,
+      carrierId: gkId,
+      lastTouchedBy: { pieceId: gkId, teamId: gk.teamId },
+    };
+  }
+
+  const duelEvent: ActionEvent = {
+    type: 'GK_DIVE_AT_FEET',
+    gkId,
+    carrierId,
+    gkDie: dice.gkDie,
+    carrierDie: dice.carrierDie,
+    gkCombined,
+    carrierCombined,
+    distance: state.gkDiveAtFeetDistance ?? 0,
+    savingPenalty,
+    result,
+    timestamp: Date.now(),
+    ballAfter: { position: ball.position, carrierId: ball.carrierId },
+  };
+  let eventLog: readonly ActionEvent[] = [...state.eventLog, duelEvent];
+
+  // GKDIVE-03: fires regardless of SUCCESS/FAIL — resolveFoulChain itself gates on
+  // defenderDie === FOUL_TRIGGER_DIE, so this call is unconditional here.
+  const foulChain = resolveFoulChain({
+    state,
+    pieces,
+    eventLog,
+    defenderId: gkId,
+    victimId: carrierId,
+    foulHex: carrier.position,
+    source: 'GK_DIVE_AT_FEET',
+    defenderDie: dice.gkDie,
+    injuryDie: dice.injuryDie,
+    bookingDie: dice.bookingDie,
+  });
+  pieces = foulChain.pieces;
+  eventLog = foulChain.eventLog;
+
+  const usedByTeam = {
+    ...(state.gkDiveAtFeetUsedByTeam ?? { home: false, away: false }),
+    [team]: true,
+  };
+
+  const wouldBeState: GameState =
+    result === 'SUCCESS'
+      ? {
+          ...state,
+          ...clearedFields,
+          pieces,
+          ball,
+          attackingTeam: gk.teamId,
+          activeTeam: gk.teamId,
+          lastActionType: 'SUCCESSFUL_TACKLE',
+          phase: 'PASS',
+          movementSlot: null,
+          eventLog,
+          gkDiveAtFeetUsedByTeam: usedByTeam,
+        }
+      : {
+          ...state,
+          ...clearedFields,
+          pieces,
+          eventLog,
+          gkDiveAtFeetUsedByTeam: usedByTeam,
+          phase: resume?.phase ?? state.phase,
+          activeTeam: resume?.activeTeam ?? state.activeTeam,
+          movementSlot: resume?.movementSlot ?? state.movementSlot,
+        };
+
+  // FOUL-01/02/03 (mirrors applyMove's compute-would-be-state-then-override pattern,
+  // Plan 39-10): when GKDIVE-03 fired, override with a FOUL_CHOICE transition — the
+  // fouled (carrier's) team takes the choice, and foulResume captures exactly what
+  // this branch would otherwise have returned.
+  if (foulChain.fouled) {
+    return {
+      ok: true,
+      state: {
+        ...wouldBeState,
+        phase: 'FOUL_CHOICE',
+        attackingTeam: carrier.teamId,
+        activeTeam: carrier.teamId,
+        ...foulChain.foulFields,
+        foulResume: {
+          phase: wouldBeState.phase,
+          activeTeam: wouldBeState.activeTeam,
+          attackingTeam: wouldBeState.attackingTeam,
+          movementSlot: wouldBeState.movementSlot,
+          lastActionType: wouldBeState.lastActionType,
+        },
+      },
+    };
+  }
+
+  return { ok: true, state: wouldBeState };
+}
+
+// ---------------------------------------------------------------------------
+// enterGkDiveOrSkip
+// ---------------------------------------------------------------------------
+
+/**
+ * D-09 (Phase 39, 39-12): shared cap helper for ALL FOUR `phase: 'GK_DIVE'` transition
+ * sites (39-RESEARCH.md Pitfall 3: `applyDeclareShot`; the header goal-line route's
+ * uncontested-attacker-win branch; its contested-duel-win branch; and
+ * `applyResolveHeaderTarget`'s goal-line route). Missing even one of the four silently
+ * breaks D-09.
+ *
+ * When the goalkeeper's team has already used its dive-at-feet interrupt this
+ * movement cycle (`gkDiveAtFeetUsedByTeam[gkTeam]`), the shot-blocking GK_DIVE
+ * reposition window is skipped entirely — the goalkeeper stays exactly at
+ * `gkDivePosition` (its current position, unchanged) and the shot proceeds straight to
+ * `'SHOT'` resolution with no interactive reposition and no distance penalty either
+ * way. Otherwise the existing `'GK_DIVE'` transition proceeds unchanged.
+ *
+ * Documented reasoning (39-RESEARCH.md Assumption A3 / Code Examples): `GK_DIVE`
+ * auto-resolves on the goalkeeper's single click — `gameHandlers.ts`'s `GAME_GK_DIVE`
+ * handler rolls the shot immediately after the dive in the SAME handler invocation, it
+ * is not a multi-turn reposition window — so "disabled from diving" cannot mean
+ * "decline the dive" (there is no decline affordance to disable); it must mean
+ * skipping the interactive phase entirely and proceeding as though the GK chose not
+ * to move.
+ */
+export function enterGkDiveOrSkip(
+  state: GameState,
+  gkTeam: 'home' | 'away',
+  gkDivePosition: HexCoord,
+): { phase: GamePhase; gkDivePosition: HexCoord | null } {
+  if (state.gkDiveAtFeetUsedByTeam?.[gkTeam] === true) {
+    return { phase: 'SHOT', gkDivePosition };
+  }
+  return { phase: 'GK_DIVE', gkDivePosition };
 }
 
 // ---------------------------------------------------------------------------
