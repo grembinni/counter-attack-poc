@@ -68,6 +68,11 @@ import {
   cornerClearOutDestination,
   isSpillCornerDirection,
   PENALTY_SPOT,
+  FOUL_TRIGGER_DIE,
+  rollsInjury,
+  resolveBooking,
+  applyInjuryDegradation,
+  isProfessionalFoul,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -702,6 +707,152 @@ const CORNER_KICK_TEARDOWN = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// resolveFoulChain
+// ---------------------------------------------------------------------------
+
+/** Result of resolveFoulChain — threaded through applyMove's STEAL_ATTEMPT/TACKLE_ATTEMPT branches. */
+export type ResolveFoulChainResult = {
+  fouled: boolean;
+  pieces: readonly PlayerPiece[];
+  eventLog: readonly ActionEvent[];
+  foulFields: Partial<GameState>;
+};
+
+/**
+ * FOUL-01/02/04, INJURY-01..03, CARD-01..03 (Phase 39, 39-10): the inline
+ * foul/injury/booking sub-resolution appended to `eventLog` inside
+ * `applyMove`'s STEAL_ATTEMPT/TACKLE_ATTEMPT branches. Never a phase
+ * transition of its own — the caller decides how to fold `fouled`/`foulFields`
+ * into its own return object, so injury/booking always fire regardless of the
+ * attacker's later continue-or-restart choice (FOUL-02).
+ *
+ * Returns `{ fouled: false, pieces, eventLog, foulFields: {} }` (referential
+ * pass-through) immediately when Fouls is disabled or the defender's die
+ * isn't the trigger value — FOUL-01/FOUL-05. Tests `=== true` explicitly,
+ * never truthiness, matching every other `*Enabled` toggle in this file.
+ *
+ * DECISION (39-10, resolves 39-RESEARCH.md Assumption A1): `injuryDie` and
+ * `bookingDie` are FRESH dice, independent of `defenderDie` — see the
+ * decision comment at the top of gameEngine.fouls.test.ts.
+ */
+export function resolveFoulChain(input: {
+  state: GameState;
+  pieces: readonly PlayerPiece[];
+  eventLog: readonly ActionEvent[];
+  defenderId: string;
+  victimId: string;
+  foulHex: HexCoord;
+  source: 'TACKLE' | 'STEAL' | 'GK_DIVE_AT_FEET';
+  defenderDie: number;
+  injuryDie: number;
+  bookingDie: number;
+}): ResolveFoulChainResult {
+  const { state, defenderId, victimId, foulHex, source, defenderDie, injuryDie, bookingDie } =
+    input;
+  let pieces = input.pieces;
+  let eventLog = input.eventLog;
+
+  if (state.foulsEnabled !== true || defenderDie !== FOUL_TRIGGER_DIE) {
+    return { fouled: false, pieces, eventLog, foulFields: {} };
+  }
+
+  const professional = isProfessionalFoul(state, defenderId, foulHex);
+
+  const foulCalledEvent: ActionEvent = {
+    type: 'FOUL_CALLED',
+    defenderId,
+    victimId,
+    hex: foulHex,
+    source,
+    defenderDie,
+    professional,
+    timestamp: Date.now(),
+  };
+  eventLog = [...eventLog, foulCalledEvent];
+
+  // INJURY-01..03: victim's CURRENT (possibly already-degraded) resilience is read from
+  // `pieces` (the post-move array, which may already carry an earlier injury's mutation)
+  // — a previously-injured player is genuinely easier to injure again.
+  if (state.injuryEnabled === true) {
+    const victim = pieces.find((p) => p.id === victimId);
+    if (victim !== undefined) {
+      const injured = rollsInjury(injuryDie, victim.resilience);
+      const nextInjuryCount = injured ? (victim.injuryCount ?? 0) + 1 : (victim.injuryCount ?? 0);
+      const injuryCheckEvent: ActionEvent = {
+        type: 'INJURY_CHECK',
+        victimId,
+        die: injuryDie,
+        resilience: victim.resilience,
+        injured,
+        injuryCount: nextInjuryCount,
+        timestamp: Date.now(),
+      };
+      eventLog = [...eventLog, injuryCheckEvent];
+      if (injured) {
+        // D-06/39-CONTEXT.md: Phase 39 always takes INJURY-03's no-substitute branch —
+        // the player stays on the pitch at degraded attributes. Phase 40 (Substitutions)
+        // later reads this same injuryCount/degradation state to drive a forced sub; no
+        // stub or hook is needed here.
+        const degraded = applyInjuryDegradation(victim);
+        pieces = pieces.map((p) => (p.id === victimId ? degraded : p));
+      }
+    }
+  }
+
+  // CARD-01..03: fouler's CURRENT yellowCards is read from `pieces` (post-injury-mutation
+  // array — though injury and booking never target the same piece, so ordering here is
+  // moot in practice; still read from the latest `pieces` for consistency).
+  if (state.bookingEnabled === true) {
+    const fouler = pieces.find((p) => p.id === defenderId);
+    if (fouler !== undefined) {
+      const priorYellows = fouler.yellowCards ?? 0;
+      const outcome = resolveBooking({
+        die: bookingDie,
+        leniency: state.refereeCard.leniency,
+        priorYellows,
+        professional,
+      });
+      const bookingCheckEvent: ActionEvent = {
+        type: 'BOOKING_CHECK',
+        defenderId,
+        die: bookingDie,
+        leniency: state.refereeCard.leniency,
+        card: outcome.card,
+        secondYellow: outcome.secondYellow,
+        professional,
+        timestamp: Date.now(),
+      };
+      eventLog = [...eventLog, bookingCheckEvent];
+      if (outcome.card === 'yellow') {
+        pieces = pieces.map((p) => (p.id === defenderId ? { ...p, yellowCards: 1 } : p));
+      } else if (outcome.card === 'red') {
+        pieces = pieces.map((p) =>
+          p.id === defenderId
+            ? {
+                ...p,
+                redCarded: true,
+                yellowCards: outcome.secondYellow ? 2 : (p.yellowCards ?? 0),
+              }
+            : p,
+        );
+      }
+    }
+  }
+
+  return {
+    fouled: true,
+    pieces,
+    eventLog,
+    foulFields: {
+      foulDefenderId: defenderId,
+      foulVictimId: victimId,
+      foulHex,
+      foulSource: source,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyMove
 // ---------------------------------------------------------------------------
 
@@ -746,13 +897,22 @@ export type ApplyMoveResult =
  *                 stealDie: used for STEAL_ATTEMPT resolution.
  *                 tackleDie: used for TACKLE_ATTEMPT defender roll.
  *                 carrierDie: used for TACKLE_ATTEMPT carrier roll.
+ *                 injuryDie/bookingDie (Phase 39, 39-10): fresh dice for resolveFoulChain's
+ *                 INJURY_CHECK/BOOKING_CHECK sub-resolutions — see gameEngine.fouls.test.ts's
+ *                 Assumption A1 decision comment (never derived from stealDie/tackleDie).
  *                 Defaults to 3 (mid-range) when omitted — backward-compatible fallback.
  */
 export function applyMove(
   state: GameState,
   pieceId: string,
   to: HexCoord,
-  dice?: { stealDie: number; tackleDie: number; carrierDie: number },
+  dice?: {
+    stealDie: number;
+    tackleDie: number;
+    carrierDie: number;
+    injuryDie?: number;
+    bookingDie?: number;
+  },
 ): ApplyMoveResult {
   // MOVE-06 (Phase 17, corrected design D-34/D-35): FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE
   // sub-phases — each eligible piece (both teams, GK included) gets an independent
@@ -776,6 +936,13 @@ export function applyMove(
   // but may be injected on state by tests or carried from a non-standard path.
   if ((state.contestedPieceIds ?? []).includes(pieceId)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'CONTESTED_PIECE' };
+  }
+
+  // 2.6. CARD-02/CARD-04 (Phase 39, 39-10): a red-carded piece is kept in state.pieces
+  // (dismissal representation — see resolveFoulChain's comment) rather than spliced out,
+  // so it must be actively rejected here instead of simply no longer existing.
+  if (piece.redCarded === true) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'RED_CARDED' };
   }
 
   // 3. Team guard (T-4-01) — use state.activeTeam (authoritative after D-30 pickup mid-slot)
@@ -916,6 +1083,15 @@ export function applyMove(
   let newStealAttemptedByIds: readonly string[] = state.stealAttemptedByIds ?? [];
   let newTackleAttemptedByIds: readonly string[] = state.tackleAttemptedByIds ?? [];
 
+  // FOUL-01/02 (Phase 39, 39-10): threaded through both the STEAL_ATTEMPT and
+  // TACKLE_ATTEMPT branches below, and read at every one of this function's ok:true
+  // return sites (the two TACKLE_ATTEMPT early returns, the stealSuccess early return,
+  // and the shared bottom fallback) to override the branch's own would-be return with
+  // a FOUL_CHOICE transition when a foul was detected.
+  let fouled = false;
+  let foulFields: Partial<GameState> = {};
+  let effectivePieces: readonly PlayerPiece[] = newPieces;
+
   // Handle STEAL_ATTEMPT effect (D-06/D-07/D-08)
   let stealSuccess = false;
   let stealDefenderId: string | undefined;
@@ -949,6 +1125,27 @@ export function applyMove(
     newEventLog = [...newEventLog, stealEvent];
     // D-29: record the DEFENDER (not carrier) as having attempted a steal this phase
     newStealAttemptedByIds = [...newStealAttemptedByIds, stealDefenderId];
+
+    // FOUL-01/02 (Phase 39, 39-10): defender's own die (already extracted above as `die`)
+    // is the trigger — victim is the carrier (pieceId), fouler is the defender.
+    const stealFoulChain = resolveFoulChain({
+      state,
+      pieces: effectivePieces,
+      eventLog: newEventLog,
+      defenderId: stealDefenderId,
+      victimId: pieceId,
+      foulHex: to,
+      source: 'STEAL',
+      defenderDie: die,
+      injuryDie: dice?.injuryDie ?? 3,
+      bookingDie: dice?.bookingDie ?? 3,
+    });
+    effectivePieces = stealFoulChain.pieces;
+    newEventLog = stealFoulChain.eventLog;
+    if (stealFoulChain.fouled) {
+      fouled = true;
+      foulFields = stealFoulChain.foulFields;
+    }
   }
 
   // Handle TACKLE_ATTEMPT effect (D-11/D-12)
@@ -992,6 +1189,27 @@ export function applyMove(
       // D-29: record that this piece has now attempted a tackle this phase (success or fail)
       newTackleAttemptedByIds = [...newTackleAttemptedByIds, pieceId];
 
+      // FOUL-01/02 (Phase 39, 39-10): defender's own die (defDie, already extracted above)
+      // is the trigger — victim is the carrier, fouler is the tackling defender (pieceId).
+      const tackleFoulChain = resolveFoulChain({
+        state,
+        pieces: effectivePieces,
+        eventLog: newEventLog,
+        defenderId: pieceId,
+        victimId: carrierId,
+        foulHex: to,
+        source: 'TACKLE',
+        defenderDie: defDie,
+        injuryDie: dice?.injuryDie ?? 3,
+        bookingDie: dice?.bookingDie ?? 3,
+      });
+      effectivePieces = tackleFoulChain.pieces;
+      newEventLog = tackleFoulChain.eventLog;
+      if (tackleFoulChain.fouled) {
+        fouled = true;
+        foulFields = tackleFoulChain.foulFields;
+      }
+
       if (tackleSuccess) {
         // D-11: on SUCCESS, defender moves to `to`, ball possession transferred to defender.
         // Phase ends immediately — new attacking team chooses next action from CHOOSE_ACTION phase
@@ -1024,52 +1242,91 @@ export function applyMove(
         // GAP-2 (CR-01): check half-end boundary before returning; mirrors applyEndTurn logic.
         const tackleNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
         const tackleEndPhase = checkHalfEndOnTackle(state, tackleNewActionCount);
-        return {
-          ok: true,
-          state: {
+        const tackleSuccessWouldBeState: GameState = {
+          ...state,
+          phase: tackleEndPhase ?? 'PASS',
+          pieces: effectivePieces,
+          attackingTeam: piece.teamId,
+          activeTeam: piece.teamId,
+          movementSlot: null,
+          movedPieceIds: [],
+          paceUsedByPieceId: {},
+          ball: tackleSuccessBall,
+          eventLog: tackleCorrectedEventLog,
+          lastActionType: 'SUCCESSFUL_TACKLE',
+          // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
+          actionCount: tackleNewActionCount,
+          stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+          tackleAttemptedByIds: [], // D-02
+          offsidePieceIds: evaluateOffside({
             ...state,
-            phase: tackleEndPhase ?? 'PASS',
-            pieces: newPieces,
-            attackingTeam: piece.teamId,
-            activeTeam: piece.teamId,
-            movementSlot: null,
-            movedPieceIds: [],
-            paceUsedByPieceId: {},
+            pieces: effectivePieces,
             ball: tackleSuccessBall,
-            eventLog: tackleCorrectedEventLog,
-            lastActionType: 'SUCCESSFUL_TACKLE',
-            // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
-            actionCount: tackleNewActionCount,
-            stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
-            tackleAttemptedByIds: [], // D-02
-            offsidePieceIds: evaluateOffside({
-              ...state,
-              pieces: newPieces,
-              ball: tackleSuccessBall,
-            }),
-            // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
-            ...THROW_IN_TEARDOWN,
-          },
+          }),
+          // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
+          ...THROW_IN_TEARDOWN,
         };
+        // FOUL-01/02/03 (Phase 39, 39-10): compute the would-be return first (above), then
+        // override with a FOUL_CHOICE transition when a foul was detected — the fouled
+        // TEAM (the carrier's team, not the successful tackler's team) takes possession
+        // of the choice, and foulResume snapshots exactly what this branch would have
+        // returned so 'continue' can restore it byte-for-byte.
+        if (fouled) {
+          return {
+            ok: true,
+            state: {
+              ...tackleSuccessWouldBeState,
+              phase: 'FOUL_CHOICE',
+              attackingTeam: carrier.teamId,
+              activeTeam: carrier.teamId,
+              ...foulFields,
+              foulResume: {
+                phase: tackleSuccessWouldBeState.phase,
+                activeTeam: tackleSuccessWouldBeState.activeTeam,
+                attackingTeam: tackleSuccessWouldBeState.attackingTeam,
+                movementSlot: tackleSuccessWouldBeState.movementSlot,
+                lastActionType: tackleSuccessWouldBeState.lastActionType,
+              },
+            },
+          };
+        }
+        return { ok: true, state: tackleSuccessWouldBeState };
       }
       // FAIL: defender moves to `to` (newPieces already reflects this), carrier keeps ball.
       // Only the moving defender gets a tackle attempt — stationary adjacent defenders do not
       // auto-tackle. Movement phase continues; the carrier retains possession.
-      return {
-        ok: true,
-        state: {
-          ...state,
-          pieces: newPieces,
-          movedPieceIds: computeMovedPieceIds(), // spent only if pace exhausted
-          paceUsedByPieceId: {
-            ...state.paceUsedByPieceId,
-            [pieceId]: newPaceForPiece,
-          },
-          ball: state.ball,
-          eventLog: newEventLog,
-          tackleAttemptedByIds: newTackleAttemptedByIds, // D-29
+      const tackleFailWouldBeState: GameState = {
+        ...state,
+        pieces: effectivePieces,
+        movedPieceIds: computeMovedPieceIds(), // spent only if pace exhausted
+        paceUsedByPieceId: {
+          ...state.paceUsedByPieceId,
+          [pieceId]: newPaceForPiece,
         },
+        ball: state.ball,
+        eventLog: newEventLog,
+        tackleAttemptedByIds: newTackleAttemptedByIds, // D-29
       };
+      if (fouled) {
+        return {
+          ok: true,
+          state: {
+            ...tackleFailWouldBeState,
+            phase: 'FOUL_CHOICE',
+            attackingTeam: carrier.teamId,
+            activeTeam: carrier.teamId,
+            ...foulFields,
+            foulResume: {
+              phase: tackleFailWouldBeState.phase,
+              activeTeam: tackleFailWouldBeState.activeTeam,
+              attackingTeam: tackleFailWouldBeState.attackingTeam,
+              movementSlot: tackleFailWouldBeState.movementSlot,
+              lastActionType: tackleFailWouldBeState.lastActionType,
+            },
+          },
+        };
+      }
+      return { ok: true, state: tackleFailWouldBeState };
     }
   }
 
@@ -1103,46 +1360,210 @@ export function applyMove(
     // GAP-2 (CR-01): check half-end boundary before returning; mirrors applyEndTurn logic.
     const stealNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
     const stealEndPhase = checkHalfEndOnTackle(state, stealNewActionCount);
+    const stealSuccessWouldBeState: GameState = {
+      ...state,
+      phase: stealEndPhase ?? 'PASS',
+      pieces: effectivePieces,
+      attackingTeam: newOwnerTeam,
+      activeTeam: newOwnerTeam,
+      movementSlot: null,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      ball: stealSuccessBall,
+      eventLog: stealCorrectedEventLog,
+      lastActionType: 'SUCCESSFUL_TACKLE',
+      // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
+      actionCount: stealNewActionCount,
+      stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
+      tackleAttemptedByIds: [], // D-02
+      offsidePieceIds: evaluateOffside({
+        ...state,
+        pieces: effectivePieces,
+        ball: stealSuccessBall,
+      }),
+      // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
+      ...THROW_IN_TEARDOWN,
+    };
+    // FOUL-01/02/03 (Phase 39, 39-10): compute the would-be return first (above), then
+    // override with a FOUL_CHOICE transition when a foul was detected — the fouled TEAM
+    // is the carrier's (piece.teamId), not the successful defender's (newOwnerTeam).
+    if (fouled) {
+      return {
+        ok: true,
+        state: {
+          ...stealSuccessWouldBeState,
+          phase: 'FOUL_CHOICE',
+          attackingTeam: piece.teamId,
+          activeTeam: piece.teamId,
+          ...foulFields,
+          foulResume: {
+            phase: stealSuccessWouldBeState.phase,
+            activeTeam: stealSuccessWouldBeState.activeTeam,
+            attackingTeam: stealSuccessWouldBeState.attackingTeam,
+            movementSlot: stealSuccessWouldBeState.movementSlot,
+            lastActionType: stealSuccessWouldBeState.lastActionType,
+          },
+        },
+      };
+    }
+    return { ok: true, state: stealSuccessWouldBeState };
+  }
+
+  // Normal move (includes steal FAIL fall-through)
+  const normalWouldBeState: GameState = {
+    ...state,
+    pieces: effectivePieces,
+    movedPieceIds: computeMovedPieceIds(), // spent only when pace fully exhausted
+    paceUsedByPieceId: {
+      ...state.paceUsedByPieceId,
+      [pieceId]: newPaceForPiece,
+    },
+    ball: newBall,
+    eventLog: newEventLog,
+    stealAttemptedByIds: newStealAttemptedByIds, // D-29: propagate (may have been updated)
+  };
+  // FOUL-01/02/03 (Phase 39, 39-10): only reachable here via a STEAL_ATTEMPT FAIL
+  // (fouled is always false on a plain, effect-free move) — the fouled team is the
+  // carrier's (piece.teamId), since STEAL_ATTEMPT's victim is always the mover itself.
+  if (fouled) {
     return {
       ok: true,
       state: {
-        ...state,
-        phase: stealEndPhase ?? 'PASS',
-        pieces: newPieces,
-        attackingTeam: newOwnerTeam,
-        activeTeam: newOwnerTeam,
-        movementSlot: null,
-        movedPieceIds: [],
-        paceUsedByPieceId: {},
-        ball: stealSuccessBall,
-        eventLog: stealCorrectedEventLog,
-        lastActionType: 'SUCCESSFUL_TACKLE',
-        // UX-07 (Phase 18.4): clock increment is speed-derived at MOVE-completion
-        actionCount: stealNewActionCount,
-        stealAttemptedByIds: [], // D-02: reset at every 'PASS' transition
-        tackleAttemptedByIds: [], // D-02
-        offsidePieceIds: evaluateOffside({ ...state, pieces: newPieces, ball: stealSuccessBall }),
-        // THROWIN-03/CR-01: a break-in-play early return must not leave a throw-in context behind.
-        ...THROW_IN_TEARDOWN,
+        ...normalWouldBeState,
+        phase: 'FOUL_CHOICE',
+        attackingTeam: piece.teamId,
+        activeTeam: piece.teamId,
+        ...foulFields,
+        foulResume: {
+          phase: normalWouldBeState.phase,
+          activeTeam: normalWouldBeState.activeTeam,
+          attackingTeam: normalWouldBeState.attackingTeam,
+          movementSlot: normalWouldBeState.movementSlot,
+          lastActionType: normalWouldBeState.lastActionType,
+        },
+      },
+    };
+  }
+  return { ok: true, state: normalWouldBeState };
+}
+
+// ---------------------------------------------------------------------------
+// triggerFoulFreeKick
+// ---------------------------------------------------------------------------
+
+/**
+ * FK-01 (Phase 39, 39-10): awards a free kick to the team fouled by `foulerId`, reusing
+ * the EXISTING `FREE_KICK_SETUP` flow untouched. Modelled byte-for-byte on
+ * `triggerOffsideFoul`'s return shape (packages/shared/src/offside.ts) with two
+ * deliberate substitutions: `freeKickHex: foulHex` is the FOULER's tackle/steal contact
+ * hex (not an offside offender's position), and `offsidePieceIds` is omitted entirely —
+ * that field is offside-specific and has no foul-restart equivalent.
+ */
+export function triggerFoulFreeKick(
+  state: GameState,
+  foulerId: string,
+  foulHex: HexCoord,
+): GameState {
+  const fouler = state.pieces.find((p) => p.id === foulerId);
+  const foulerTeam: 'home' | 'away' = fouler?.teamId ?? state.attackingTeam;
+  const fouledTeam: 'home' | 'away' = foulerTeam === 'home' ? 'away' : 'home';
+
+  return {
+    ...state,
+    phase: 'FREE_KICK_SETUP',
+    freeKickHex: foulHex,
+    freeKickAttackingTeam: fouledTeam,
+    attackingTeam: fouledTeam,
+    activeTeam: fouledTeam,
+    // OOB-01/D-06 precedent (triggerOffsideFoul): pure repositioning, nobody has touched
+    // the ball at trigger time — carry lastTouchedBy forward unchanged.
+    ball: { position: foulHex, carrierId: null, lastTouchedBy: state.ball.lastTouchedBy },
+    freeKickStageIndex: 0,
+    freeKickPlacedPieceIds: [],
+    freeKickKickerChosen: false,
+    movedPieceIds: [],
+    lastDiceRoll: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyFoulChoice
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyFoulChoice. */
+export type ApplyFoulChoiceResult =
+  | { ok: true; state: GameState }
+  | { ok: false; reason: 'WRONG_PHASE' | 'INVALID_CHOICE' };
+
+/**
+ * FOUL-03 (Phase 39, 39-10): resolves the fouled attacker's continue-play vs.
+ * take-the-restart choice.
+ *
+ * 'continue' restores exactly the phase/activeTeam/attackingTeam/movementSlot/
+ * lastActionType the interrupted duel branch would have produced (captured in
+ * `state.foulResume` by resolveFoulChain's caller in applyMove) — falling back to
+ * `'PASS'`/the state's current values if `foulResume` is somehow null.
+ *
+ * 'restart' routes to `triggerPenaltyKick` when `state.foulSource === 'GK_DIVE_AT_FEET'`
+ * (GKDIVE-03/PEN-01 — a GK-dive foul is always a penalty, never a free kick), otherwise
+ * to `triggerFoulFreeKick` (FK-01, tackle/steal-sourced fouls).
+ *
+ * Both branches clear the entire foul* cluster unconditionally.
+ */
+export function applyFoulChoice(
+  state: GameState,
+  choice: 'continue' | 'restart',
+): ApplyFoulChoiceResult {
+  if (state.phase !== 'FOUL_CHOICE') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (choice !== 'continue' && choice !== 'restart') {
+    return { ok: false, reason: 'INVALID_CHOICE' };
+  }
+
+  const restart: 'FREE_KICK' | 'PENALTY' | null =
+    choice === 'continue' ? null : state.foulSource === 'GK_DIVE_AT_FEET' ? 'PENALTY' : 'FREE_KICK';
+
+  const choiceEvent: ActionEvent = {
+    type: 'FOUL_CHOICE_MADE',
+    team: state.attackingTeam,
+    choice,
+    restart,
+    timestamp: Date.now(),
+  };
+
+  const clearedState: GameState = {
+    ...state,
+    foulDefenderId: null,
+    foulVictimId: null,
+    foulHex: null,
+    foulSource: null,
+    foulResume: null,
+    eventLog: [...state.eventLog, choiceEvent],
+  };
+
+  if (choice === 'continue') {
+    const resume = state.foulResume;
+    return {
+      ok: true,
+      state: {
+        ...clearedState,
+        phase: resume?.phase ?? 'PASS',
+        activeTeam: resume?.activeTeam ?? state.activeTeam,
+        attackingTeam: resume?.attackingTeam ?? state.attackingTeam,
+        movementSlot: resume?.movementSlot ?? state.movementSlot,
+        lastActionType: resume?.lastActionType ?? state.lastActionType,
       },
     };
   }
 
-  // Normal move (includes steal FAIL fall-through)
+  // 'restart'
+  if (state.foulSource === 'GK_DIVE_AT_FEET') {
+    return { ok: true, state: triggerPenaltyKick(clearedState, clearedState.attackingTeam) };
+  }
   return {
     ok: true,
-    state: {
-      ...state,
-      pieces: newPieces,
-      movedPieceIds: computeMovedPieceIds(), // spent only when pace fully exhausted
-      paceUsedByPieceId: {
-        ...state.paceUsedByPieceId,
-        [pieceId]: newPaceForPiece,
-      },
-      ball: newBall,
-      eventLog: newEventLog,
-      stealAttemptedByIds: newStealAttemptedByIds, // D-29: propagate (may have been updated)
-    },
+    state: triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!),
   };
 }
 
@@ -1529,6 +1950,9 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'PENALTY_KICK_SETUP_DEFENDING',
   'PENALTY_KICK_TAKER_SELECT',
   'PENALTY_KICK',
+  // FOUL-03 (Phase 39, 39-10): the ball has not moved and no zone crossing should fire
+  // while the fouled manager is deciding continue-play vs. take-the-restart.
+  'FOUL_CHOICE',
 ]);
 
 /**
@@ -1694,7 +2118,14 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       ((state.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
         state.phase === 'PENALTY_KICK_SETUP_DEFENDING') &&
         evt.type === 'PENALTY_KICK_WINDOW_ADVANCE') ||
-      (state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED');
+      (state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED') ||
+      // FOUL-03 (Phase 39, 39-10): a manager cannot Undo their own already-committed
+      // continue/restart choice. Note: TACKLE_ATTEMPT/STEAL_ATTEMPT are ALREADY
+      // unconditional boundaries above, so Undo can never cross back over the roll that
+      // caused the foul in the first place — this is precisely why the stored injury/
+      // card mutations resolveFoulChain applies are safe from Undo. No new boundary term
+      // is needed for FOUL_CALLED/INJURY_CHECK/BOOKING_CHECK themselves.
+      (state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -7596,6 +8027,11 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // PENALTY_KICK_TAKER_PLACED are deliberately excluded — neither carries ballAfter,
   // matching the existing GOAL_KICK_WINDOW_ADVANCE exclusion above.
   'PENALTY_KICK',
+  // FOUL-01..05/CARD-01..04/INJURY-01..03 (Phase 39, 39-10): FOUL_CALLED, INJURY_CHECK,
+  // BOOKING_CHECK and FOUL_CHOICE_MADE are deliberately excluded from this set — none of
+  // the four carries a `ballAfter` field, matching the existing GOAL_KICK_CHOICE/
+  // GOAL_KICK_WINDOW_ADVANCE exclusion rule above. This is a confirmed decision, not an
+  // oversight — a future reader must not add them here.
 ]);
 
 /**
