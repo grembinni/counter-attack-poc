@@ -148,6 +148,9 @@ function confirmDraftRoomSettings(
       teamType: 'draft',
       draftPools,
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
   });
 }
@@ -288,6 +291,9 @@ describe('Draft-mode UNIFORM_CONFIRM bootstrap', () => {
         teamType: 'standard',
         draftPools: [],
         outOfBounds: false,
+        fouls: false,
+        booking: false,
+        injury: false,
       });
     });
     await settingsPromise;
@@ -343,6 +349,9 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
       teamType: 'draft',
       draftPools: ['legends'],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const draftPools = await confirmedPromise;
     expect(draftPools).toEqual(['legends']);
@@ -367,6 +376,9 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
       teamType: 'draft',
       draftPools: ['icons'],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const draftPools = await confirmedPromise;
     expect(draftPools).toEqual(['icons']);
@@ -392,6 +404,9 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id
       draftPools: ['not-a-real-pool' as any],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const reason = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');

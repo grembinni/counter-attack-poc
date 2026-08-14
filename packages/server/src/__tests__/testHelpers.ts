@@ -40,6 +40,9 @@ export function confirmDefaultRoomSettings(
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
   });
 }

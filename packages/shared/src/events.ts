@@ -136,6 +136,28 @@ export const ClientEvents = {
    * NOT part of the payload — mirrors GAME_THROW_IN_PLACE.
    */
   GAME_CORNER_KICK_TAKER: 'game:corner-kick-taker',
+  /**
+   * FOUL-03/D-01 (Phase 39): fouled attacker's continue-play vs. take-the-restart choice.
+   * Mirrors GAME_GK_RESTART's choice-payload shape.
+   */
+  GAME_FOUL_CHOICE: 'game:foul-choice',
+  /** GKDIVE-02/D-07 (Phase 39): GK's team accepts or declines the dive-at-feet offer. */
+  GAME_GK_DIVE_AT_FEET: 'game:gk-dive-at-feet',
+  /** D-10 (Phase 39): GK's team accepts or declines the box-entry response offer. */
+  GAME_GK_BOX_ENTRY_RESPONSE: 'game:gk-box-entry-response',
+  /** D-10 (Phase 39): GK's repositioning move during GK_BOX_ENTRY_MOVE. Mirrors GAME_GK_DIVE's single-hex payload. */
+  GAME_GK_BOX_ENTRY_MOVE: 'game:gk-box-entry-move',
+  /**
+   * PEN-02 (Phase 39): the attacking manager selects which piece takes the penalty.
+   * Mirrors GAME_CORNER_KICK_TAKER — the destination hex is NOT part of the payload;
+   * the server places the taker on `state.penaltyKickSpot`.
+   *
+   * PEN-02's penalty reposition windows deliberately reuse the existing GAME_MOVE +
+   * GAME_END_TURN events (handled inside applyMove/applyEndTurn dispatch), exactly as the
+   * goal-kick and corner-kick reposition windows already do — do not add redundant
+   * reposition events here.
+   */
+  GAME_PENALTY_KICK_TAKER: 'game:penalty-kick-taker',
 } as const;
 
 export const ServerEvents = {
@@ -205,6 +227,12 @@ export interface ClientToServerEvents {
     draftPools: DraftPoolId[];
     /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set game-creation toggle. */
     outOfBounds: boolean;
+    /** SETTINGS-01 (Phase 39): Fouls system game-creation toggle. */
+    fouls: boolean;
+    /** SETTINGS-02 (Phase 39): Booking (cards) game-creation toggle. */
+    booking: boolean;
+    /** SETTINGS-03 (Phase 39): Injury system game-creation toggle. */
+    injury: boolean;
   }) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
@@ -312,6 +340,20 @@ export interface ClientToServerEvents {
    * Destination hex is server-owned (`state.cornerKickHex`), never client-supplied.
    */
   [ClientEvents.GAME_CORNER_KICK_TAKER]: (pieceId: string) => void;
+  /** FOUL-03/D-01 (Phase 39): fouled attacker's continue-play vs. take-the-restart choice. */
+  [ClientEvents.GAME_FOUL_CHOICE]: (choice: 'continue' | 'restart') => void;
+  /** GKDIVE-02/D-07 (Phase 39): GK's team accepts or declines the dive-at-feet offer. */
+  [ClientEvents.GAME_GK_DIVE_AT_FEET]: (accept: boolean) => void;
+  /** D-10 (Phase 39): GK's team accepts or declines the box-entry response offer. */
+  [ClientEvents.GAME_GK_BOX_ENTRY_RESPONSE]: (accept: boolean) => void;
+  /** D-10 (Phase 39): GK's repositioning move during GK_BOX_ENTRY_MOVE. Mirrors GAME_GK_DIVE's single-hex payload. */
+  [ClientEvents.GAME_GK_BOX_ENTRY_MOVE]: (to: HexCoord) => void;
+  /**
+   * PEN-02 (Phase 39): the attacking manager selects which piece takes the penalty.
+   * Mirrors GAME_CORNER_KICK_TAKER; the destination hex is NOT part of the payload — the
+   * server places the taker on `state.penaltyKickSpot`.
+   */
+  [ClientEvents.GAME_PENALTY_KICK_TAKER]: (pieceId: string) => void;
 }
 
 /**
@@ -341,6 +383,12 @@ export interface ServerToClientEvents {
     draftPools: DraftPoolId[],
     /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set game-creation toggle. */
     outOfBounds: boolean,
+    /** SETTINGS-01 (Phase 39): Fouls system game-creation toggle. */
+    fouls: boolean,
+    /** SETTINGS-02 (Phase 39): Booking (cards) game-creation toggle. */
+    booking: boolean,
+    /** SETTINGS-03 (Phase 39): Injury system game-creation toggle. */
+    injury: boolean,
   ) => void;
   /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
   [ServerEvents.UNIFORM_SELECTION_START]: () => void;
