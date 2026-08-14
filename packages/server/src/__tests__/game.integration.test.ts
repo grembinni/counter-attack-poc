@@ -476,6 +476,12 @@ describe('game integration — Movement Phase scenarios', () => {
       // delivery (Review-CR-02), not MOVE-06.
       ballZone: computeBallZone(passTargetHex),
     };
+    // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already
+    // at passTargetHex so roomStore.ts's box-entry offer hook does not spuriously
+    // detect a "fresh entry" into a penalty area from this direct test-state graft —
+    // mirrors the ballZone pre-match above for the identical class of broadcastState
+    // side-effect. This fixture tests FTP DEFENDER-slot delivery, not D-10.
+    room.lastBroadcastBallPosition = passTargetHex;
 
     // The defending client is active in the DEFENDER slot — it ends the turn to complete delivery.
     // NOTE: against the pre-fix team-restricted lookup (`p.teamId === ftpEndState.attackingTeam`),
@@ -932,6 +938,12 @@ describe('game integration — game:gk-restart (D-22, D-23, T-05-07/08/09/10)', 
       // mid-seed — this fixture tests GK_RESTART, not MOVE-06.
       ballZone: computeBallZone(awayGK.position),
     };
+    // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already at
+    // the GK's position so roomStore.ts's box-entry offer hook does not spuriously
+    // detect a "fresh entry" into the GK's own penalty area from this direct
+    // test-state graft — mirrors the ballZone pre-match above. This fixture tests
+    // GK_RESTART, not D-10.
+    room.lastBroadcastBallPosition = awayGK.position;
 
     // clientA = slot 1 = 'home' = non-GK team (home was attacking, away GK caught)
     // clientB = slot 2 = 'away' = GK team

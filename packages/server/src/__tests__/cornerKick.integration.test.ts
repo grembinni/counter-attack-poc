@@ -302,6 +302,12 @@ function seedCornerKickLooseBall(
     },
     pieces,
   };
+  // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already
+  // current so roomStore.ts's box-entry offer hook does not spuriously detect a "fresh
+  // entry" into a penalty area from this direct test-state graft — mirrors the
+  // parkBackgroundPieces/ballZone rationale above for the identical class of
+  // broadcastState side-effect.
+  room.lastBroadcastBallPosition = HOME_BYLINE_LOOSE_BALL_HEX;
 
   return { homeToucherId: homeToucher.id };
 }

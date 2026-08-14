@@ -621,6 +621,11 @@ describe('OFFSIDE-02 D-41: SNAPSHOT_DEFLECT deflection triggers the foul for a f
         return p;
       }),
     };
+    // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already
+    // current so roomStore.ts's box-entry offer hook does not spuriously detect a
+    // "fresh entry" into a penalty area from this direct test-state graft — mirrors
+    // the ballZone pre-match above for the identical class of broadcastState side-effect.
+    room.lastBroadcastBallPosition = carrierPos;
     return { defenderId: onPathDefender.id };
   }
 
@@ -699,6 +704,11 @@ describe('OFFSIDE-02 D-41: regular GAME_SHOT deflection triggers the foul for a 
         return p;
       }),
     };
+    // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already
+    // current so roomStore.ts's box-entry offer hook does not spuriously detect a
+    // "fresh entry" into a penalty area from this direct test-state graft — mirrors
+    // the ballZone pre-match above for the identical class of broadcastState side-effect.
+    room.lastBroadcastBallPosition = carrierPos;
     return { defenderId: onPathDefender.id };
   }
 

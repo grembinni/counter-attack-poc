@@ -11,7 +11,7 @@
 
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid';
-import type { GameState, GameSpeed, HexCoord } from '@counter-attack/shared';
+import type { GamePhase, GameState, GameSpeed, HexCoord } from '@counter-attack/shared';
 import type {
   TeamId,
   UniformStyleId,
@@ -22,7 +22,11 @@ import type {
 } from '@counter-attack/shared';
 import { ServerEvents } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
-import { applyFreeMoveZoneCheck } from './gameEngine.js';
+import {
+  applyFreeMoveZoneCheck,
+  computeBoxEntryOffer,
+  computeGkDiveAtFeetOffer,
+} from './gameEngine.js';
 
 // Crockford-ish alphabet — excludes 0/O and 1/I to reduce transcription errors.
 // RESEARCH.md Pattern 2: customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 5)
@@ -191,6 +195,16 @@ export type Room = {
    * per-player packs, drafted ids, lineup/bench state (D-04/D-13).
    */
   draftSession?: DraftSession | null;
+  /**
+   * D-10 (Phase 39, 39-15): the ball's position as of the PREVIOUS `broadcastState`
+   * call. Exists solely so `computeBoxEntryOffer` can compare the pre-action ball
+   * position without a retroactive `eventLog` scan — the same reasoning
+   * `ball.lastTouchedBy` was introduced with in Phase 37 (RESEARCH.md ARCHITECTURE.md
+   * Q2: never derive retroactively from an event-log scan). `undefined`/`null` before
+   * the first broadcast of a match; set at the end of every `broadcastState` call where
+   * `gameState` is non-null.
+   */
+  lastBroadcastBallPosition?: HexCoord | null;
 };
 
 /**
@@ -343,6 +357,36 @@ export function findPlayerByToken(sessionToken: string): { room: Room; slot: 1 |
 }
 
 /**
+ * D-10 (Phase 39, 39-15): the ONLY phases the box-entry offer hook
+ * (`computeBoxEntryOffer`) may fire from — an inclusion whitelist rather than an
+ * exclusion blacklist.
+ *
+ * Rule 1 auto-fix (discovered wiring this task against the full existing suite): a
+ * blacklist naming every "restart-setup"/"Phase 39 prompt" phase is under-inclusive in
+ * a different, more damaging way than over-inclusive — the ball landing inside a
+ * penalty area as the DIRECT, ALREADY-ESTABLISHED consequence of an in-progress
+ * shot/header/corner/penalty/GK-catch sequence (SNAPSHOT_TARGET → SNAPSHOT_DEFLECT →
+ * GK_DIVE → GK_RESTART; HEADER → GK_DIVE; a corner's HIGH_PASS_MOVE/HEADER delivery;
+ * LOOSE_BALL from a tied penalty) is NOT a restart-SETUP phase and was not excluded by
+ * the original blacklist, yet offering a SECOND, unrelated GK interrupt on top of a
+ * duel/catch/reposition window that's ALREADY resolving the exact same "ball entered
+ * the box" situation is nonsensical and hijacks the existing, correct flow (confirmed
+ * by 8 pre-existing regression suites spanning shot/header/corner/FTP/GK-restart
+ * scenarios). A whitelist of the three genuinely "ordinary open play" phases — the
+ * carrier walking the ball in (`MOVE`), a delivered pass landing it there (`PASS`), or
+ * a scattered loose ball settling there (`LOOSE_BALL`) — is the correct, narrow scope:
+ * every other phase already has its own dedicated GK-interaction mechanic (GK_DIVE for
+ * shots/headers, GK_RESTART for catches, the restart-setup chains for kick-off/
+ * throw-in/goal-kick/corner-kick/free-kick/penalty-kick, and the Phase 39 prompt phases
+ * themselves) that must not be double-interrupted.
+ */
+const GK_BOX_ENTRY_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
+  'MOVE',
+  'PASS',
+  'LOOSE_BALL',
+]);
+
+/**
  * Broadcasts the current game state to all sockets in the room.
  *
  * ARCH-04: server broadcasts full game state snapshot after every validated action;
@@ -356,12 +400,92 @@ export function findPlayerByToken(sessionToken: string): { room: Room; slot: 1 |
  * FREE_MOVE_DEFENSE overlay fires after literally any resolved action with zero
  * per-handler changes elsewhere.
  *
+ * D-10/GKDIVE-02 (Phase 39, 39-15): immediately after the free-move zone check and
+ * before the snapshot is emitted, runs a single offer-hook block that fires AT MOST
+ * ONE offer per broadcast — mirroring `applyFreeMoveZoneCheck` as the single ARCH-04
+ * entry point so both goalkeeper interrupts fire after literally any action with zero
+ * per-handler wiring elsewhere. Box entry (D-10) is checked FIRST — a ball entering the
+ * box is the more urgent response — and dive-at-feet (GKDIVE-02) only when box entry did
+ * not fire. This must stay a pure phase substitution: never emits a second snapshot,
+ * never calls broadcastState recursively.
+ *
  * @param io - Socket.io Server instance
  * @param room - The room whose state should be broadcast
  */
 export function broadcastState(io: Server, room: Room): void {
   if (room.gameState === null) return;
   room.gameState = applyFreeMoveZoneCheck(room.gameState);
+
+  const state = room.gameState;
+  const prevBallPosition = room.lastBroadcastBallPosition ?? state.ball.position;
+
+  // D-10: box entry, checked FIRST.
+  if (GK_BOX_ENTRY_PHASES.has(state.phase)) {
+    const boxEntryOffer = computeBoxEntryOffer(prevBallPosition, state);
+    if (boxEntryOffer !== null) {
+      room.gameState = {
+        ...state,
+        phase: 'GK_BOX_ENTRY_PROMPT',
+        gkBoxEntryTeam: boxEntryOffer.team,
+        activeTeam: boxEntryOffer.team,
+        gkBoxEntryResume: {
+          phase: state.phase,
+          activeTeam: state.activeTeam,
+          movementSlot: state.movementSlot,
+        },
+      };
+    }
+  }
+
+  // GKDIVE-02: dive at feet, checked only when box entry did NOT fire above (referential
+  // equality against the pre-block `state` snapshot is the "did box entry fire?" check —
+  // guarantees at most one offer per invocation without a separate boolean flag).
+  // FOUL-05: the offer itself is gated on `foulsEnabled === true` — FOUL-05 explicitly
+  // lists "GK-dive-at-feet" among what the Fouls toggle enables ("Fouls (detection,
+  // injury, GK-dive-at-feet, professional-foul check, and the resulting restart)"). The
+  // box-entry offer above is a D-10 scope expansion, not part of any toggle's locked
+  // scope, so it is NOT gated the same way.
+  //
+  // Rule 1 auto-fix (discovered writing this task's integration suite): unlike
+  // `computeBoxEntryOffer`, `computeGkDiveAtFeetOffer` is LEVEL-triggered, not
+  // edge-triggered — it has no "previous state" concept and simply reports whether the
+  // carrier is CURRENTLY within range with the cap unset. Without a change-detection
+  // guard, declining the offer would immediately re-offer on the SAME decline response's
+  // own `broadcastState` call (the carrier hasn't moved, so the condition is still true)
+  // — the manager could never actually decline and resume play without first moving the
+  // carrier out of range. The `ballPositionChanged` check applies the identical
+  // edge-triggered principle `computeBoxEntryOffer` already uses, reusing the same
+  // `prevBallPosition` snapshot: only offer when the ball has actually moved since the
+  // last broadcast (a real qualifying MOVE), never on a broadcast that merely re-confirms
+  // an unchanged position (e.g. a decline's own resume-phase broadcast).
+  const ballPositionChanged =
+    prevBallPosition.q !== state.ball.position.q || prevBallPosition.r !== state.ball.position.r;
+  if (
+    room.gameState === state &&
+    state.phase === 'MOVE' &&
+    state.foulsEnabled === true &&
+    ballPositionChanged
+  ) {
+    const diveOffer = computeGkDiveAtFeetOffer(state);
+    if (diveOffer !== null) {
+      room.gameState = {
+        ...state,
+        phase: 'GK_DIVE_AT_FEET_PROMPT',
+        gkDiveAtFeetTeam: diveOffer.team,
+        gkDiveAtFeetGkId: diveOffer.gkId,
+        gkDiveAtFeetCarrierId: diveOffer.carrierId,
+        gkDiveAtFeetDistance: diveOffer.distance,
+        activeTeam: diveOffer.team,
+        gkDiveAtFeetResume: {
+          phase: state.phase,
+          activeTeam: state.activeTeam,
+          movementSlot: state.movementSlot,
+        },
+      };
+    }
+  }
+
+  room.lastBroadcastBallPosition = room.gameState.ball.position;
   io.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
 }
 
