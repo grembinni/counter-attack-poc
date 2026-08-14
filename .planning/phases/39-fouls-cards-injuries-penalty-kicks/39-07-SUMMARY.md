@@ -122,3 +122,11 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-14_
+
+## Self-Check: PASSED
+
+- FOUND: `packages/server/src/__tests__/gameEngine.penaltyKick.test.ts`
+- FOUND: `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-07-SUMMARY.md`
+- FOUND: commit `b833745` (test: RED state)
+- FOUND: commit `5ba851d` (feat: award/eligibility/reposition/taker)
+- FOUND: commit `7890c56` (feat: duel with -2 GK penalty)
