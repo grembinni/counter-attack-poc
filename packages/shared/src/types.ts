@@ -1546,8 +1546,10 @@ export type GameState = {
     lastActionType: LastActionType | null;
   } | null;
   /**
-   * GKDIVE-01..05/D-09 (Phase 39): SHARED once-per-team-per-half cap with the existing
-   * shot-block GK_DIVE mechanic. null outside the dive-at-feet sequence.
+   * GKDIVE-01..05/D-09 (Phase 39): SHARED once-per-movement-cycle (4-5-2) cap with the
+   * existing shot-block GK_DIVE mechanic — reset at every fresh movement-cycle start
+   * (39-12's `enterGkDiveOrSkip`/`applyStartMovement` et al.), NOT once per half.
+   * null outside the dive-at-feet sequence.
    */
   gkDiveAtFeetUsedByTeam?: { home: boolean; away: boolean } | null;
   /** GKDIVE-01..05 (Phase 39): the team whose GK is offered the dive-at-feet duel. null outside the sequence. */

@@ -517,6 +517,11 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       // stays unselectable for exactly this one Movement Phase, then clear the carry below.
       movedPieceIds: [...(state.carriedMovedPieceIds ?? [])],
       paceUsedByPieceId: {},
+      // GKDIVE-05 (Phase 39, 39-12): a fresh 4-5-2 movement cycle begins here — reset the
+      // once-per-cycle dive-at-feet cap. This is DISTINCT from a mid-cycle slot advance
+      // (applyEndTurn's ATTACKER_4->DEFENDER_5/DEFENDER_5->ATTACKER_2 transitions), which
+      // must NOT clear this flag — GKDIVE-05 caps the dive at once per CYCLE, not per slot.
+      gkDiveAtFeetUsedByTeam: { home: false, away: false },
       // Plan 31-06: the carry is consumed above — clear it so it does not persist beyond this
       // single Movement Phase transition.
       carriedMovedPieceIds: [],
@@ -2333,6 +2338,9 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   // FOUL-03 (Phase 39, 39-10): the ball has not moved and no zone crossing should fire
   // while the fouled manager is deciding continue-play vs. take-the-restart.
   'FOUL_CHOICE',
+  // GKDIVE-02 (Phase 39, 39-12): the ball has not moved while the defending manager
+  // decides whether to dive at the carrier's feet — same rationale as FOUL_CHOICE above.
+  'GK_DIVE_AT_FEET_PROMPT',
 ]);
 
 /**
@@ -2435,6 +2443,10 @@ export function applyRestartMovement(
       activeTeam: state.attackingTeam,
       movedPieceIds: [],
       paceUsedByPieceId: {},
+      // GKDIVE-05 (Phase 39, 39-12): "Start New Movement Phase" begins a fresh 4-5-2
+      // cycle from scratch — reset the once-per-cycle dive-at-feet cap (see the
+      // applyStartMovement comment for the cycle-vs-slot distinction).
+      gkDiveAtFeetUsedByTeam: { home: false, away: false },
     },
   };
 }
@@ -2505,7 +2517,10 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       // caused the foul in the first place — this is precisely why the stored injury/
       // card mutations resolveFoulChain applies are safe from Undo. No new boundary term
       // is needed for FOUL_CALLED/INJURY_CHECK/BOOKING_CHECK themselves.
-      (state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE');
+      (state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE') ||
+      // GKDIVE-01 (Phase 39, 39-12): a resolved GK_DIVE_AT_FEET duel is a committed dice
+      // outcome — unconditional boundary, exactly like TACKLE_ATTEMPT/STEAL_ATTEMPT above.
+      evt.type === 'GK_DIVE_AT_FEET';
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -3941,11 +3956,17 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
           const gkB = state.pieces.find((p) => p.teamId === defendingTeamForGkB && p.role === 'GK');
           const winnerPos = winnerPiece?.position ?? state.ball.position;
           const headerShotPathB = hexLine(winnerPos, tgtHexB);
+          // D-09 (Phase 39, 39-12): shared cap with the dive-at-feet interrupt — site 2/4.
+          const diveEntryB = enterGkDiveOrSkip(
+            state,
+            defendingTeamForGkB,
+            gkB?.position ?? state.ball.position,
+          );
           return {
             ok: true,
             state: {
               ...state,
-              phase: 'GK_DIVE',
+              ...diveEntryB,
               lastActionType: 'SHOT',
               ball: {
                 position: winnerPos,
@@ -3955,7 +3976,6 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                   : state.ball.lastTouchedBy,
               },
               shotTargetHex: tgtHexB,
-              gkDivePosition: gkB?.position ?? state.ball.position,
               lastShotPath: headerShotPathB,
               contestedPieceIds: attackerContestantIds,
               lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
@@ -4041,11 +4061,17 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state.attackingTeam === 'home' ? 'away' : 'home';
           const gk = state.pieces.find((p) => p.teamId === defendingTeamForGk && p.role === 'GK');
           const headerShotPath = hexLine(attackerPiece.position, tgtHex);
+          // D-09 (Phase 39, 39-12): shared cap with the dive-at-feet interrupt — site 3/4.
+          const diveEntry = enterGkDiveOrSkip(
+            state,
+            defendingTeamForGk,
+            gk?.position ?? state.ball.position,
+          );
           return {
             ok: true,
             state: {
               ...state,
-              phase: 'GK_DIVE',
+              ...diveEntry,
               lastActionType: 'SHOT',
               ball: {
                 position: attackerPiece.position,
@@ -4053,7 +4079,6 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
                 lastTouchedBy: { pieceId: attackerPiece.id, teamId: attackerPiece.teamId },
               },
               shotTargetHex: tgtHex,
-              gkDivePosition: gk?.position ?? state.ball.position,
               lastShotPath: headerShotPath,
               contestedPieceIds: contestedIds,
               lastDiceRoll: { rolls: duelRolls, context: 'HEADING_DUEL' },
@@ -5443,6 +5468,9 @@ export function applyThrowInPlace(state: GameState, pieceId: string): ApplyThrow
       // from a restart setup screen, which is not desired.
       movedPieceIds: [],
       paceUsedByPieceId: {},
+      // GKDIVE-05 (Phase 39, 39-12): the throw-in starts a fresh 4-5-2 movement cycle —
+      // reset the once-per-cycle dive-at-feet cap (see applyStartMovement's comment).
+      gkDiveAtFeetUsedByTeam: { home: false, away: false },
       contestedPieceIds: [],
       stealAttemptedByIds: [],
       tackleAttemptedByIds: [],
@@ -6709,6 +6737,9 @@ export function applyGKRestart(
         movementSlot: 'ATTACKER_4',
         movedPieceIds: [],
         paceUsedByPieceId: {},
+        // GKDIVE-05 (Phase 39, 39-12): GK restart movement begins a fresh 4-5-2 cycle —
+        // reset the once-per-cycle dive-at-feet cap (see applyStartMovement's comment).
+        gkDiveAtFeetUsedByTeam: { home: false, away: false },
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         // Ball stays with GK (carrierId unchanged)
@@ -7276,11 +7307,17 @@ export function applyResolveHeaderTarget(
     const gk = state.pieces.find((p) => p.teamId === defenderTeamForGk && p.role === 'GK');
     const winnerPos = resolvedWinner?.position ?? state.ball.position;
     const headerShotPath = hexLine(winnerPos, targetHex);
+    // D-09 (Phase 39, 39-12): shared cap with the dive-at-feet interrupt — site 4/4.
+    const diveEntry = enterGkDiveOrSkip(
+      state,
+      defenderTeamForGk,
+      gk?.position ?? state.ball.position,
+    );
     return {
       ok: true,
       state: {
         ...state,
-        phase: 'GK_DIVE',
+        ...diveEntry,
         lastActionType: 'SHOT',
         ball: {
           position: winnerPos,
@@ -7290,7 +7327,6 @@ export function applyResolveHeaderTarget(
             : state.ball.lastTouchedBy,
         },
         shotTargetHex: targetHex,
-        gkDivePosition: gk?.position ?? state.ball.position,
         lastShotPath: headerShotPath,
         contestedPieceIds: contestedIds,
         attackingTeam: winnerTeam,
@@ -7564,14 +7600,16 @@ export function applyDeclareShot(state: GameState, goalHex: HexCoord): ApplyDecl
   }
 
   const earlyPath = hexLine(shooter.position, goalHex);
+  // D-09 (Phase 39, 39-12): shared cap with the dive-at-feet interrupt — site 1/4.
+  // GK's starting position (gk.position) is the cumulative dive reference either way.
+  const diveEntry = enterGkDiveOrSkip(state, defendingTeam, gk.position);
   return {
     ok: true,
     state: {
       ...state,
-      phase: 'GK_DIVE',
+      ...diveEntry,
       lastActionType: 'SHOT', // marks that a shot was declared
       shotTargetHex: goalHex,
-      gkDivePosition: gk.position, // GK's starting position — used as cumulative dive reference
       lastShotPath: earlyPath,
     },
   };
@@ -8412,6 +8450,10 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // the four carries a `ballAfter` field, matching the existing GOAL_KICK_CHOICE/
   // GOAL_KICK_WINDOW_ADVANCE exclusion rule above. This is a confirmed decision, not an
   // oversight — a future reader must not add them here.
+  // GKDIVE-01..05 (Phase 39, 39-12): GK_DIVE_AT_FEET carries ballAfter on both SUCCESS
+  // and FAIL. GK_DIVE_AT_FEET_DECLINED is deliberately excluded — it carries no
+  // ballAfter, matching the FOUL_CHOICE_MADE exclusion immediately above.
+  'GK_DIVE_AT_FEET',
 ]);
 
 /**
