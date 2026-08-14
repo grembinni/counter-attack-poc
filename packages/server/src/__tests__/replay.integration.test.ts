@@ -868,6 +868,8 @@ describe('FULL_TIME → REPLAY stream', () => {
           type: 'LOOSE_BALL_LAND',
           from: fromHex,
           to: landHex,
+          direction: 1,
+          distance: 3,
           timestamp: 1,
           ballAfter: { position: landHex, carrierId: null },
         },

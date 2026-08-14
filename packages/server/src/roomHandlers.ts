@@ -237,6 +237,11 @@ export function registerRoomHandlers(
           joinedRoom.teamType!,
           joinedRoom.draftPools ?? [],
           joinedRoom.outOfBoundsEnabled ?? false,
+          // Phase 39: Fouls/Booking/Injury toggles. undefined (not yet confirmed) is
+          // treated as false (disabled), mirroring outOfBoundsEnabled's fallback above.
+          joinedRoom.foulsEnabled ?? false,
+          joinedRoom.bookingEnabled ?? false,
+          joinedRoom.injuryEnabled ?? false,
         );
         // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
         // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
@@ -408,11 +413,20 @@ export function registerRoomHandlers(
         teamType,
         draftPools,
         outOfBounds,
+        fouls,
+        booking,
+        injury,
       }: {
         speed: GameSpeed;
         teamType: TeamType;
         draftPools: DraftPoolId[];
         outOfBounds: boolean;
+        /** SETTINGS-01 (Phase 39): Fouls system game-creation toggle. */
+        fouls: boolean;
+        /** SETTINGS-02 (Phase 39): Booking (cards) game-creation toggle. */
+        booking: boolean;
+        /** SETTINGS-03 (Phase 39): Injury system game-creation toggle. */
+        injury: boolean;
       }) => {
         const roomCode = socket.data.roomCode;
         if (roomCode === undefined) return;
@@ -452,6 +466,18 @@ export function registerRoomHandlers(
         // outOfBounds payload before any room mutation.
         if (typeof outOfBounds !== 'boolean') {
           socket.emit(ServerEvents.GAME_ERROR, 'INVALID_OUT_OF_BOUNDS');
+          return;
+        }
+
+        // T-39-01-04 (Phase 39): ASVS V5 allow-list guard — reject forged non-boolean
+        // fouls/booking/injury payloads before any room mutation. Mirrors the outOfBounds
+        // check immediately above.
+        if (
+          typeof fouls !== 'boolean' ||
+          typeof booking !== 'boolean' ||
+          typeof injury !== 'boolean'
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_FOUL_SETTINGS');
           return;
         }
 
@@ -514,6 +540,9 @@ export function registerRoomHandlers(
         room.teamType = teamType;
         room.draftPools = teamType === 'draft' ? draftPools : [];
         room.outOfBoundsEnabled = outOfBounds;
+        room.foulsEnabled = fouls;
+        room.bookingEnabled = booking;
+        room.injuryEnabled = injury;
         room.settingsConfirmed = true;
         if (draftSession !== undefined) {
           room.draftSession = draftSession;
@@ -525,6 +554,9 @@ export function registerRoomHandlers(
           room.teamType,
           room.draftPools,
           room.outOfBoundsEnabled,
+          room.foulsEnabled,
+          room.bookingEnabled,
+          room.injuryEnabled,
         );
 
         // T-27-05/Pitfall 1: both-conditions gate — only fire TEAM_SELECTION_START once

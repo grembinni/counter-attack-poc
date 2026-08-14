@@ -1093,3 +1093,316 @@ describe('ActionLog — Phase 38 (38-07): Corner Kick event rendering', () => {
     expect(container.textContent).toMatch(/33,11.*30,11/);
   });
 });
+
+describe('ActionLog — Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks event rendering', () => {
+  it('a LOOSE_BALL_LAND event with direction 2, distance 3 renders both NE and 3 hex (D-15)', () => {
+    setEventLog([
+      {
+        type: 'LOOSE_BALL_LAND',
+        from: { q: 18, r: 13 },
+        to: { q: 19, r: 10 },
+        direction: 2,
+        distance: 3,
+        timestamp: 0,
+        ballAfter: { position: { q: 19, r: 10 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/NE/);
+    expect(container.textContent).toMatch(/3 hex/);
+  });
+
+  it('a LOOSE_BALL_LAND event with distance 1 renders singular "hex" (not "hexes")', () => {
+    setEventLog([
+      {
+        type: 'LOOSE_BALL_LAND',
+        from: { q: 18, r: 13 },
+        to: { q: 19, r: 13 },
+        direction: 1,
+        distance: 1,
+        timestamp: 0,
+        ballAfter: { position: { q: 19, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/1 hex\b/);
+    expect(container.textContent).not.toMatch(/1 hexes/);
+  });
+
+  it('a FOUL_CALLED event names the fouling player, victim, and die; appends DOGSO when professional', () => {
+    setEventLog([
+      {
+        type: 'FOUL_CALLED',
+        defenderId: 'away-1',
+        victimId: 'home-9',
+        hex: { q: 15, r: 22 },
+        source: 'TACKLE',
+        defenderDie: 1,
+        professional: true,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[FOUL\]/);
+    expect(container.textContent).toMatch(/fouled/);
+    expect(container.textContent).toMatch(/Professional Foul \(DOGSO\)/);
+  });
+
+  it('an INJURY_CHECK event shows the injured glyph and Resilience comparison when injured', () => {
+    setEventLog([
+      {
+        type: 'INJURY_CHECK',
+        victimId: 'home-9',
+        die: 5,
+        resilience: 3,
+        injured: true,
+        injuryCount: 1,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[INJURY ✓\]/);
+    expect(container.textContent).toMatch(/Resilience 3/);
+    expect(container.textContent).toMatch(/Injured/);
+  });
+
+  it('an INJURY_CHECK event shows the non-injured glyph and "No injury" when not injured', () => {
+    setEventLog([
+      {
+        type: 'INJURY_CHECK',
+        victimId: 'home-9',
+        die: 1,
+        resilience: 5,
+        injured: false,
+        injuryCount: 0,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[INJURY ✗\]/);
+    expect(container.textContent).toMatch(/No injury/);
+  });
+
+  it('a BOOKING_CHECK event renders Yellow Card and Leniency comparison', () => {
+    setEventLog([
+      {
+        type: 'BOOKING_CHECK',
+        defenderId: 'away-1',
+        die: 4,
+        leniency: 3,
+        card: 'yellow',
+        secondYellow: false,
+        professional: false,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[BOOKING\]/);
+    expect(container.textContent).toMatch(/Leniency 3/);
+    expect(container.textContent).toMatch(/Yellow Card/);
+  });
+
+  it('a BOOKING_CHECK event renders "Red Card (2nd Yellow)" for a second-yellow dismissal', () => {
+    setEventLog([
+      {
+        type: 'BOOKING_CHECK',
+        defenderId: 'away-1',
+        die: 5,
+        leniency: 3,
+        card: 'red',
+        secondYellow: true,
+        professional: false,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Red Card \(2nd Yellow\)/);
+  });
+
+  it('a FOUL_CHOICE_MADE event shows "Play continues" for a continue choice', () => {
+    setEventLog([
+      {
+        type: 'FOUL_CHOICE_MADE',
+        team: 'home',
+        choice: 'continue',
+        restart: null,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[FOUL\]/);
+    expect(container.textContent).toMatch(/Play continues/);
+  });
+
+  it('a FOUL_CHOICE_MADE event shows "Penalty awarded" for a penalty restart choice', () => {
+    setEventLog([
+      {
+        type: 'FOUL_CHOICE_MADE',
+        team: 'home',
+        choice: 'restart',
+        restart: 'PENALTY',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Penalty awarded/);
+  });
+
+  it('a GK_DIVE_AT_FEET event renders the vs-comparison and the -1-at-3-hexes note when penalized', () => {
+    setEventLog([
+      {
+        type: 'GK_DIVE_AT_FEET',
+        gkId: 'away-0',
+        carrierId: 'home-9',
+        gkDie: 3,
+        carrierDie: 4,
+        gkCombined: 7,
+        carrierCombined: 8,
+        distance: 3,
+        savingPenalty: -1,
+        result: 'FAIL',
+        timestamp: 0,
+        ballAfter: { position: { q: 15, r: 22 }, carrierId: 'home-9' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[DIVE AT FEET ✗\]/);
+    expect(container.textContent).toMatch(/Saving/);
+    expect(container.textContent).toMatch(/Dribbling/);
+    expect(container.textContent).toMatch(/−1 at 3 hexes/);
+  });
+
+  it('a GK_DIVE_AT_FEET_DECLINED event names the GK who declined', () => {
+    setEventLog([
+      {
+        type: 'GK_DIVE_AT_FEET_DECLINED',
+        gkId: 'away-0',
+        carrierId: 'home-9',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[DIVE AT FEET\]/);
+    expect(container.textContent).toMatch(/declined to dive/);
+  });
+
+  it('a GK_BOX_ENTRY_MOVE event shows the GK name and from/to coordinates', () => {
+    setEventLog([
+      {
+        type: 'GK_BOX_ENTRY_MOVE',
+        gkId: 'away-0',
+        from: { q: 33, r: 12 },
+        to: { q: 34, r: 13 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[KEEPER RESPONSE\]/);
+    expect(container.textContent).toMatch(/33,12.*34,13/);
+  });
+
+  it('a PENALTY_KICK_WINDOW_ADVANCE event names the team that finished repositioning', () => {
+    setEventLog([
+      {
+        type: 'PENALTY_KICK_WINDOW_ADVANCE',
+        from: 'ATTACKING',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[PENALTY KICK\]/);
+    expect(container.textContent).toMatch(/Attacking team finished repositioning/);
+  });
+
+  it('a PENALTY_KICK_TAKER_PLACED event names the taker and the penalty-spot hex', () => {
+    setEventLog([
+      {
+        type: 'PENALTY_KICK_TAKER_PLACED',
+        pieceId: 'home-9',
+        hex: { q: 4, r: 13 },
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[PENALTY KICK\]/);
+    expect(container.textContent).toMatch(/will take the penalty \(4,13\)/);
+  });
+
+  it('a PENALTY_KICK GOAL result renders the goal glyph, vs-comparison, and the GK -2 term', () => {
+    setEventLog([
+      {
+        type: 'PENALTY_KICK',
+        takerId: 'home-9',
+        gkId: 'away-0',
+        takerDie: 5,
+        gkDie: 3,
+        takerCombined: 10,
+        gkCombined: 5,
+        result: 'GOAL',
+        timestamp: 0,
+        ballAfter: { position: { q: 0, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[PENALTY ✓\]/);
+    expect(container.textContent).toMatch(/Shooting/);
+    expect(container.textContent).toMatch(/Saving/);
+    expect(container.textContent).toMatch(/- 2/);
+    expect(container.textContent).toMatch(/Goal!/);
+  });
+
+  it('a PENALTY_KICK SAVED result renders the saved glyph and "Saved"', () => {
+    setEventLog([
+      {
+        type: 'PENALTY_KICK',
+        takerId: 'home-9',
+        gkId: 'away-0',
+        takerDie: 2,
+        gkDie: 6,
+        takerCombined: 6,
+        gkCombined: 10,
+        result: 'SAVED',
+        timestamp: 0,
+        ballAfter: { position: { q: 4, r: 13 }, carrierId: 'away-0' },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[PENALTY ✗\]/);
+    expect(container.textContent).toMatch(/Saved/);
+  });
+
+  it('a PENALTY_KICK TIE result renders the tie glyph and "Tie — loose ball"', () => {
+    setEventLog([
+      {
+        type: 'PENALTY_KICK',
+        takerId: 'home-9',
+        gkId: 'away-0',
+        takerDie: 4,
+        gkDie: 4,
+        takerCombined: 8,
+        gkCombined: 8,
+        result: 'TIE',
+        timestamp: 0,
+        ballAfter: { position: { q: 4, r: 13 }, carrierId: null },
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[PENALTY\]/);
+    expect(container.textContent).toMatch(/Tie — loose ball/);
+  });
+
+  it('a SECOND_HALF_CONFIRM event names the confirming team and shows the starting note when both confirmed', () => {
+    setEventLog([
+      {
+        type: 'SECOND_HALF_CONFIRM',
+        team: 'away',
+        bothConfirmed: true,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[HALF TIME\]/);
+    expect(container.textContent).toMatch(/Away confirmed/);
+    expect(container.textContent).toMatch(/starting 2nd half/);
+  });
+});

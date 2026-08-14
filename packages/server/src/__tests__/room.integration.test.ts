@@ -213,6 +213,9 @@ describe('Room integration tests', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     await settingsConfirmedPromise;
 
@@ -332,6 +335,9 @@ describe('Room integration tests', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     await settingsConfirmedPromise;
 
@@ -415,6 +421,9 @@ describe('UNIFORM_CONFIRM — guard: away before home', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     await settingsConfirmedPromise;
 
@@ -458,6 +467,9 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     await settingsConfirmedPromise;
 
@@ -536,6 +548,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_TURN');
@@ -556,6 +571,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'draft',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('DRAFT_POOL_REQUIRED');
@@ -575,6 +593,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [speed, teamType, draftPools] = await confirmedPromise;
     expect(speed).toBe('standard');
@@ -590,6 +611,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'draft',
       draftPools: ['original'],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
@@ -610,6 +634,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       draftPools: [],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid outOfBounds
       outOfBounds: 'yes' as any,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_OUT_OF_BOUNDS');
@@ -634,6 +661,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'draft',
       draftPools: ['legends'],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [, , draftPools] = await confirmedPromise;
     expect(draftPools).toEqual(['legends']);
@@ -654,6 +684,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid pool id
       draftPools: ['not-a-real-pool' as any],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');
@@ -675,6 +708,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     await confirmedPromiseA;
     // Host must NOT prematurely receive TEAM_SELECTION_START before a joiner exists (D-01).
@@ -724,6 +760,9 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       teamType: 'standard',
       draftPools: [],
       outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
     });
     // Host confirm is the "second" condition here — must fire TEAM_SELECTION_START for both.
     await selectionStartCPromise;

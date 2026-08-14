@@ -187,6 +187,20 @@ const HEADER_RESULT_LABEL: Record<'ATTACKER_WIN' | 'DEFENDER_WIN' | 'TIE', strin
 };
 
 /**
+ * D-15 (Phase 39): compass labels for the LOOSE_BALL_LAND direction die, mirroring
+ * scoreUtils.ts's LOOSE_BALL_CUBE_DIRECTIONS table (module-private there — this is the
+ * display-side counterpart): 1=E, 2=NE, 3=NW, 4=W, 5=SW, 6=SE.
+ */
+const LOOSE_BALL_DIRECTION_LABELS: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
+  1: 'E',
+  2: 'NE',
+  3: 'NW',
+  4: 'W',
+  5: 'SW',
+  6: 'SE',
+};
+
+/**
  * BUG-19: Resolves a piece's jersey number from gameState.pieces via store lookup,
  * mirroring pieceName()'s lookup pattern exactly. Falls back to the raw pieceId string
  * on miss (graceful degradation — never throws).
@@ -720,13 +734,18 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: event.accurate ? ' Accurate → contesting header' : ' Inaccurate — loose ball',
         isGoal: false,
       };
-    case 'LOOSE_BALL_LAND':
+    case 'LOOSE_BALL_LAND': {
+      // D-15 (Phase 39): name the scatter direction and distance alongside the
+      // from/to coordinates. hex (singular) when distance === 1.
+      const directionLabel = LOOSE_BALL_DIRECTION_LABELS[event.direction];
+      const distanceLabel = event.distance === 1 ? '1 hex' : `${event.distance} hexes`;
       return {
         prefix: '[LOOSE BALL]',
         prefixColor: null,
-        content: ` ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
+        content: ` scatters ${directionLabel} (${distanceLabel}): ${event.from.q},${event.from.r} → ${event.to.q},${event.to.r}`,
         isGoal: false,
       };
+    }
     case 'HP_MOVE': {
       return {
         prefix: '[HIGH PASS MOVE 1]',
@@ -1036,6 +1055,190 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
             {event.from.r} → {event.to.q},{event.to.r}
           </>
         ),
+        isGoal: false,
+      };
+    }
+    // Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks log formatting.
+    case 'FOUL_CALLED':
+      return {
+        prefix: '[FOUL]',
+        prefixColor: pieceColorOf(event.defenderId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.defenderId} /> fouled <PNamed pieceId={event.victimId} /> — die:{' '}
+            {event.defenderDie}
+            {event.professional ? ' — Professional Foul (DOGSO)' : ''}
+          </>
+        ),
+        isGoal: false,
+      };
+    case 'INJURY_CHECK': {
+      const injuryLabel = event.injured ? 'Injured' : 'No injury';
+      return {
+        prefix: event.injured ? '[INJURY ✓]' : '[INJURY ✗]',
+        prefixColor: pieceColorOf(event.victimId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.victimId} /> die: {event.die} vs Resilience {event.resilience} →{' '}
+            {injuryLabel}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'BOOKING_CHECK': {
+      const cardLabel =
+        event.card === 'none'
+          ? 'No card'
+          : event.card === 'yellow'
+            ? 'Yellow Card'
+            : event.secondYellow
+              ? 'Red Card (2nd Yellow)'
+              : 'Red Card';
+      return {
+        prefix: '[BOOKING]',
+        prefixColor: pieceColorOf(event.defenderId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.defenderId} /> die: {event.die} vs Leniency {event.leniency} →{' '}
+            {cardLabel}
+            {event.professional ? ' (DOGSO)' : ''}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'FOUL_CHOICE_MADE': {
+      const choiceLabel =
+        event.choice === 'continue'
+          ? 'Play continues'
+          : event.restart === 'PENALTY'
+            ? 'Penalty awarded'
+            : 'Free Kick awarded';
+      return {
+        prefix: '[FOUL]',
+        prefixColor: null,
+        content: ` ${teamDisplayName(event.team)} — ${choiceLabel}`,
+        isGoal: false,
+      };
+    }
+    case 'GK_DIVE_AT_FEET': {
+      // Mirrors TACKLE_ATTEMPT's vs-comparison line exactly (D-12: no penalty field shown
+      // via fmtStatRoll — always 0); the -1-at-3-hexes penalty is called out separately.
+      const gkRawStat = event.gkCombined - event.gkDie;
+      const carrRawStat = event.carrierCombined - event.carrierDie;
+      const gkStr = fmtStatRoll('Saving', gkRawStat, event.gkDie, 0, event.gkCombined);
+      const carrStr = fmtStatRoll(
+        'Dribbling',
+        carrRawStat,
+        event.carrierDie,
+        0,
+        event.carrierCombined,
+      );
+      return {
+        prefix: event.result === 'SUCCESS' ? '[DIVE AT FEET ✓]' : '[DIVE AT FEET ✗]',
+        prefixColor: pieceColorOf(event.gkId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.gkId} /> ({gkStr}) vs <PNamed pieceId={event.carrierId} /> (
+            {carrStr}){event.savingPenalty === -1 ? ' (−1 at 3 hexes)' : ''}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'GK_DIVE_AT_FEET_DECLINED':
+      return {
+        prefix: '[DIVE AT FEET]',
+        prefixColor: pieceColorOf(event.gkId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.gkId} /> declined to dive
+          </>
+        ),
+        isGoal: false,
+      };
+    case 'GK_BOX_ENTRY_MOVE':
+      return {
+        prefix: '[KEEPER RESPONSE]',
+        prefixColor: pieceColorOf(event.gkId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.gkId} /> {event.from.q},{event.from.r} → {event.to.q},
+            {event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    case 'PENALTY_KICK_WINDOW_ADVANCE':
+      return {
+        prefix: '[PENALTY KICK]',
+        prefixColor: null,
+        content:
+          event.from === 'ATTACKING'
+            ? ' Attacking team finished repositioning'
+            : ' Defending team finished repositioning',
+        isGoal: false,
+      };
+    case 'PENALTY_KICK_TAKER_PLACED':
+      return {
+        prefix: '[PENALTY KICK]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.pieceId} /> will take the penalty ({event.hex.q},{event.hex.r})
+          </>
+        ),
+        isGoal: false,
+      };
+    case 'PENALTY_KICK': {
+      // Mirrors SHOT_ATTEMPT's vs-comparison shape; the GK's -2 dice penalty (PEN-01) is
+      // shown as its own term via fmtStatRoll, never a compact parenthetical (see the
+      // SHOT_ATTEMPT precedent above).
+      const takerRawStat = event.takerCombined - event.takerDie;
+      const gkRawStat = event.gkCombined - event.gkDie + 2;
+      const takerStr = fmtStatRoll(
+        'Shooting',
+        takerRawStat,
+        event.takerDie,
+        0,
+        event.takerCombined,
+      );
+      const gkStr = fmtStatRoll('Saving', gkRawStat, event.gkDie, -2, event.gkCombined);
+      const resultLabel =
+        event.result === 'GOAL' ? 'Goal!' : event.result === 'SAVED' ? 'Saved' : 'Tie — loose ball';
+      const prefix =
+        event.result === 'GOAL'
+          ? '[PENALTY ✓]'
+          : event.result === 'SAVED'
+            ? '[PENALTY ✗]'
+            : '[PENALTY]';
+      return {
+        prefix,
+        prefixColor: pieceColorOf(event.takerId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.takerId} /> ({takerStr}) vs <PNamed pieceId={event.gkId} /> (
+            {gkStr}) — {resultLabel}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
+    case 'SECOND_HALF_CONFIRM': {
+      const teamLabel = event.team === 'home' ? 'Home' : 'Away';
+      return {
+        prefix: '[HALF TIME]',
+        prefixColor: null,
+        content: ` ${teamLabel} confirmed${event.bothConfirmed ? ' — starting 2nd half' : ''}`,
         isGoal: false,
       };
     }

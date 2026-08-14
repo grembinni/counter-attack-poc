@@ -252,7 +252,15 @@ export function App() {
     setTeamType(settings.teamType);
     setDraftPools(settings.draftPools);
     setOutOfBounds(settings.outOfBounds);
-    socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, settings);
+    socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      ...settings,
+      // Phase 39: Fouls/Booking/Injury toggles. GameSettingsScreen does not yet expose
+      // UI for these (deferred to a later Phase 39 plan) — default to false (disabled)
+      // so existing behavior is unchanged until that UI is wired.
+      fouls: false,
+      booking: false,
+      injury: false,
+    });
   }
 
   // BUG-33 (Phase 36) / D-01/D-02/D-03: called from GameSettingsScreen's onBack. Tears down the
