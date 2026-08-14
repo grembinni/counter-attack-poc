@@ -82,7 +82,7 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
     expect(screen.queryByText('Game Settings')).toBeNull();
   });
 
-  it('emits ROOM_SETTINGS_CONFIRM with the bundled {speed, teamType, draftPools} payload when the host confirms', async () => {
+  it('emits ROOM_SETTINGS_CONFIRM with the bundled {speed, teamType, draftPools, ...} payload when the host confirms', async () => {
     render(<App />);
     const user = userEvent.setup();
 
@@ -93,14 +93,16 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Confirm Settings' }));
 
+    // D-14 (Phase 39): all four Match Rules toggles default ON in GameSettingsScreen —
+    // confirming without touching any toggle now forwards true for all four.
     expect(emitMock).toHaveBeenCalledWith(ClientEvents.ROOM_SETTINGS_CONFIRM, {
       speed: 'standard',
       teamType: 'standard',
       draftPools: [],
-      outOfBounds: false,
-      fouls: false,
-      booking: false,
-      injury: false,
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
     });
   });
 
