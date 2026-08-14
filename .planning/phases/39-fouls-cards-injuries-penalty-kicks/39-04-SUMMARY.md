@@ -134,3 +134,7 @@ None - no external service configuration required.
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Plan: 04_
 _Completed: 2026-08-14_
+
+## Self-Check: PASSED
+
+All modified files confirmed present on disk (EventBanner.tsx, EventBanner.module.css, EventBanner.test.tsx, tokens.css, this SUMMARY.md). All 5 commit hashes (eb0a4fe, b4a04f6, 5bb191c, 093956d, 81dc744) confirmed present in `git log --oneline --all`.
