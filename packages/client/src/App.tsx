@@ -51,6 +51,13 @@ export function App() {
   // co-located with teamType/draftPools (set via GameSettingsScreen confirm or the
   // ROOM_SETTINGS_CONFIRMED broadcast echo).
   const [outOfBounds, setOutOfBounds] = useState<boolean>(false);
+  // SETTINGS-01/02/03 (Phase 39): Fouls/Booking/Injury toggles are received on both
+  // handleSettingsConfirm (host) and the ROOM_SETTINGS_CONFIRMED echo (joiner/host-echo)
+  // but have no downstream consumer yet in this plan's scope (no settings-summary line,
+  // no ActionPanel gating exists until a later Phase 39 plan) — deliberately NOT stored
+  // in local state, mirroring the plan's "discard rather than introduce dead state"
+  // guidance. The values still flow end-to-end through the socket payload/ROOM_SETTINGS_CONFIRM
+  // emit and Room storage (roomStore.ts/roomHandlers.ts), which is what SETTINGS-01/02/03 require.
   // Phase 22 D-15: homeConfirmedStyle is local state — received via UNIFORM_HOME_CONFIRMED
   const [homeConfirmedStyle, setHomeConfirmedStyle] = useState<UniformStyleId | null>(null);
   // Phase 24: lineup local state — mirrors homePickedTeam pattern (not in Zustand — Pitfall 7)
@@ -135,6 +142,13 @@ export function App() {
       confirmedTeamType: TeamType,
       pools: DraftPoolId[],
       confirmedOutOfBounds: boolean,
+      // SETTINGS-01/02/03 (Phase 39): trailing Fouls/Booking/Injury booleans added to
+      // ROOM_SETTINGS_CONFIRMED in Plan 39-01. Accepted here to match the extended event
+      // signature; no local consumer yet in this plan's scope (see the outOfBounds state
+      // declaration comment above), so deliberately discarded rather than stored.
+      _confirmedFouls: boolean,
+      _confirmedBooking: boolean,
+      _confirmedInjury: boolean,
     ) {
       setSelectedSpeed(speed);
       setTeamType(confirmedTeamType);
@@ -247,20 +261,20 @@ export function App() {
     draftPools: DraftPoolId[];
     /** OOB-05/GOALKICK-06 (Phase 37): out-of-bounds detection + restart set toggle. */
     outOfBounds: boolean;
+    /** SETTINGS-01 (Phase 39): fouls toggle. */
+    fouls: boolean;
+    /** SETTINGS-02 (Phase 39): booking toggle. */
+    booking: boolean;
+    /** SETTINGS-03 (Phase 39): injury toggle. */
+    injury: boolean;
   }) {
     setSelectedSpeed(settings.speed);
     setTeamType(settings.teamType);
     setDraftPools(settings.draftPools);
     setOutOfBounds(settings.outOfBounds);
-    socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
-      ...settings,
-      // Phase 39: Fouls/Booking/Injury toggles. GameSettingsScreen does not yet expose
-      // UI for these (deferred to a later Phase 39 plan) — default to false (disabled)
-      // so existing behavior is unchanged until that UI is wired.
-      fouls: false,
-      booking: false,
-      injury: false,
-    });
+    // SETTINGS-01/02/03: fouls/booking/injury are forwarded wholesale via `settings`
+    // below — no local state to set (see the outOfBounds state declaration comment above).
+    socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, settings);
   }
 
   // BUG-33 (Phase 36) / D-01/D-02/D-03: called from GameSettingsScreen's onBack. Tears down the

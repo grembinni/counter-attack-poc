@@ -239,6 +239,97 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
   });
 });
 
+describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12/D-13/D-14, Phase 39)', () => {
+  it('all four checkboxes are checked on first render', () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Fouls' }).checked).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Booking' }).checked).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Injury' }).checked).toBe(true);
+    expect(
+      screen.getByRole<HTMLInputElement>('checkbox', { name: 'Out-of-Bounds / Restarts' }).checked,
+    ).toBe(true);
+  });
+
+  it('unchecking Fouls disables Booking/Injury and renders "(requires Fouls)" twice', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+
+    // Accessible name includes the trailing "(requires Fouls)" helper text once disabled.
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Booking/ }).disabled).toBe(
+      true,
+    );
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Injury/ }).disabled).toBe(true);
+    expect(screen.getAllByText('(requires Fouls)')).toHaveLength(2);
+  });
+
+  it('clicking a disabled Booking checkbox does not change its checked state', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+    // Accessible name includes the trailing "(requires Fouls)" helper text once disabled.
+    const booking = screen.getByRole<HTMLInputElement>('checkbox', { name: /^Booking/ });
+    expect(booking.checked).toBe(true);
+
+    await userEvent.click(booking);
+
+    expect(booking.checked).toBe(true);
+  });
+
+  it('re-checking Fouls re-enables Booking/Injury and removes the helper text', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    const fouls = screen.getByRole('checkbox', { name: 'Fouls' });
+    await userEvent.click(fouls);
+    expect(screen.getAllByText('(requires Fouls)')).toHaveLength(2);
+
+    await userEvent.click(fouls);
+
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Booking' }).disabled).toBe(
+      false,
+    );
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Injury' }).disabled).toBe(false);
+    expect(screen.queryByText('(requires Fouls)')).toBeNull();
+  });
+
+  it('confirming with all four checked calls onConfirm with fouls/booking/injury/outOfBounds: true', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+    });
+  });
+
+  it('confirming with Fouls unchecked calls onConfirm with fouls/booking/injury all false regardless of prior Booking/Injury state', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    // Fouls off — Booking/Injury remain checked in local state but are inert (D-13).
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: false,
+      booking: false,
+      injury: false,
+    });
+  });
+});
+
 describe('GameSettingsScreen — Back control (BUG-33, Phase 36)', () => {
   it('renders a Back control in the default Standard state', () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
