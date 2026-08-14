@@ -482,6 +482,33 @@ describe('multi-event broadcast (Pitfall 1)', () => {
 
     expect(screen.queryByRole('status')).toBeNull();
   });
+
+  it('caps the banner queue at 5 entries and drops overflow (T-39-04-02)', () => {
+    render(<EventBanner />);
+
+    // Six qualifying GOAL events in one broadcast — the 6th must never display.
+    act(() => {
+      setEventLog(
+        Array.from({ length: 6 }, (_, i) => ({
+          type: 'GOAL' as const,
+          scoringTeam: 'home' as const,
+          scorerId: `home-${i}`,
+          timestamp: i + 1,
+          ballAfter: { position: { q: 18, r: 13 }, carrierId: null },
+        })),
+      );
+    });
+
+    let shown = 0;
+    while (screen.queryByRole('status') !== null) {
+      shown += 1;
+      act(() => {
+        vi.advanceTimersByTime(1100);
+      });
+    }
+
+    expect(shown).toBe(5);
+  });
 });
 
 describe('foul/injury/booking banners (D-02/D-03)', () => {
