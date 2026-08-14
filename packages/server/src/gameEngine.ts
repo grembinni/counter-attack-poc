@@ -5649,6 +5649,182 @@ export function applyPenaltyKickTaker(
 }
 
 // ---------------------------------------------------------------------------
+// applyPenaltyKickDuel
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyPenaltyKickDuel. */
+export type ApplyPenaltyKickDuelResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'PIECE_NOT_FOUND' }
+  | { ok: true; state: GameState };
+
+/**
+ * PEN-01/03 (Phase 39): resolves the penalty-kick duel — attacker vs. goalkeeper,
+ * with a flat -2 dice penalty applied to the goalkeeper's combined score (PEN-01).
+ * Routes to GOAL (mirrors the existing SHOT branch's goal path), the existing
+ * GK_RESTART save-catch flow, or (on an exact tie) LOOSE_BALL at the penalty spot
+ * per PEN-03's "following the existing Loose Ball rules" — the scatter dice
+ * themselves are rolled by the existing `applyRoll` LOOSE_BALL branch, not here.
+ */
+export function applyPenaltyKickDuel(
+  state: GameState,
+  takerDie: number,
+  gkDie: number,
+): ApplyPenaltyKickDuelResult {
+  if (state.phase !== 'PENALTY_KICK') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const taker = state.pieces.find((p) => p.id === state.penaltyKickTakerId);
+  if (!taker) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const defendingTeam: 'home' | 'away' = taker.teamId === 'home' ? 'away' : 'home';
+  const gk = state.pieces.find((p) => p.teamId === defendingTeam && p.role === 'GK');
+  if (!gk) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  const takerCombined = computeCombinedScore(taker.shooting, takerDie, []);
+  // PEN-01: flat -2 GK dice penalty. RESEARCH.md's clamp-interaction note: because
+  // computeCombinedScore clamps the SUMMED penalty at -2 (Math.max(total, -2)), an
+  // already-penalised goalkeeper would not stack beyond -2 — this mirrors every
+  // existing shot-duel call site and is not a new edge case here.
+  const gkCombined = computeCombinedScore(gk.saving, gkDie, [-2]);
+
+  // INJURY-02 is deliberately NOT threaded as a penalty-array entry here: injury
+  // degradation is a stored attribute mutation (applyInjuryDegradation, Plan 39-02),
+  // so taker.shooting / gk.saving already carry it. Adding an injury penalty here
+  // would double-count it.
+
+  // Cleared on every terminal branch. penaltyKickSpot is included here too — the
+  // LOOSE_BALL scatter walk (TIE branch) reads its incident hex from ball.position,
+  // not penaltyKickSpot, so there is no reason to keep it populated past this point.
+  const clearedPenaltyCluster = {
+    penaltyKickTeam: null,
+    penaltyKickSpot: null,
+    penaltyKickEligibleIds: null,
+    penaltyKickUsedPace: {},
+    penaltyKickTakerId: null,
+  };
+
+  if (takerCombined > gkCombined) {
+    // GOAL — mirrors the SHOT branch's goal path (buildKickOffPieces reset, KICK_OFF_SETUP).
+    const scoringTeam = taker.teamId;
+    const newKickOffTeam: 'home' | 'away' = defendingTeam;
+    const newScore = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
+    const resetPieces = buildKickOffPieces(
+      newKickOffTeam,
+      state.selectedTeams,
+      state.selectedFormation,
+    );
+    const penEvent: ActionEvent = {
+      type: 'PENALTY_KICK',
+      takerId: taker.id,
+      gkId: gk.id,
+      takerDie,
+      gkDie,
+      takerCombined,
+      gkCombined,
+      result: 'GOAL',
+      timestamp: Date.now(),
+      ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        ...clearedPenaltyCluster,
+        pieces: resetPieces,
+        phase: 'KICK_OFF_SETUP',
+        score: newScore,
+        attackingTeam: newKickOffTeam,
+        activeTeam: newKickOffTeam,
+        ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null },
+        lastDiceRoll: { rolls: [takerDie, gkDie], context: 'PENALTY_KICK' },
+        lastActionType: null,
+        lastShotPath: null,
+        offsidePieceIds: [],
+        eventLog: [
+          ...state.eventLog,
+          penEvent,
+          {
+            type: 'GOAL' as const,
+            scoringTeam,
+            scorerId: taker.id,
+            timestamp: Date.now(),
+            ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+            piecesAfter: resetPieces,
+          },
+        ],
+      },
+    };
+  }
+
+  if (gkCombined > takerCombined) {
+    // SAVED — ball to the goalkeeper, existing post-save GK_RESTART flow (mirrors the
+    // SHOT branch's caught-save transition).
+    const penEvent: ActionEvent = {
+      type: 'PENALTY_KICK',
+      takerId: taker.id,
+      gkId: gk.id,
+      takerDie,
+      gkDie,
+      takerCombined,
+      gkCombined,
+      result: 'SAVED',
+      timestamp: Date.now(),
+      ballAfter: { position: gk.position, carrierId: gk.id },
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        ...clearedPenaltyCluster,
+        phase: 'GK_RESTART',
+        ball: {
+          position: gk.position,
+          carrierId: gk.id,
+          lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+        },
+        activeTeam: gk.teamId,
+        attackingTeam: gk.teamId,
+        lastDiceRoll: { rolls: [takerDie, gkDie], context: 'PENALTY_KICK' },
+        eventLog: [...state.eventLog, penEvent],
+      },
+    };
+  }
+
+  // TIE (PEN-03): route to the existing LOOSE_BALL phase at the penalty spot — the
+  // scatter direction/distance dice are rolled by applyRoll's LOOSE_BALL branch, not
+  // here (PEN-03 says "following the existing Loose Ball rules", not new mechanics).
+  const spot = state.penaltyKickSpot ?? gk.position;
+  const penEvent: ActionEvent = {
+    type: 'PENALTY_KICK',
+    takerId: taker.id,
+    gkId: gk.id,
+    takerDie,
+    gkDie,
+    takerCombined,
+    gkCombined,
+    result: 'TIE',
+    timestamp: Date.now(),
+    ballAfter: { position: spot, carrierId: null },
+  };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      ...clearedPenaltyCluster,
+      phase: 'LOOSE_BALL',
+      ball: {
+        position: spot,
+        carrierId: null,
+        lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
+      },
+      lastDiceRoll: null,
+      eventLog: [...state.eventLog, penEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyGKRestart
 // ---------------------------------------------------------------------------
 
@@ -7415,6 +7591,11 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // stale hex on every subsequent frame.
   'CORNER_KICK_TAKER_PLACED',
   'CORNER_KICK_ACCURACY',
+  // PEN-01 (Phase 39, 39-07): the penalty-kick duel resolution — carries ballAfter on
+  // every branch (GOAL/SAVED/TIE). PENALTY_KICK_WINDOW_ADVANCE and
+  // PENALTY_KICK_TAKER_PLACED are deliberately excluded — neither carries ballAfter,
+  // matching the existing GOAL_KICK_WINDOW_ADVANCE exclusion above.
+  'PENALTY_KICK',
 ]);
 
 /**
