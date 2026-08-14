@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 13/17         | In Progress |             |
+| 39    | 14/17         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -378,7 +378,7 @@ Plans:
 
 **Wave 6**
 
-- [ ] 39-14-PLAN.md — Engine: box-entry GK response (D-10/D-11) and second-half mutual confirm (D-16)
+- [x] 39-14-PLAN.md — Engine: box-entry GK response (D-10/D-11) and second-half mutual confirm (D-16)
 
 **Wave 7**
 
