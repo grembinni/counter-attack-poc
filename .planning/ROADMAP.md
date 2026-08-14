@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 1/17          | In Progress |             |
+| 39    | 5/17          | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -354,10 +354,10 @@ Plans:
 
 **Wave 2** _(four parallel plans, no file overlap)_
 
-- [ ] 39-02-PLAN.md — Shared pure kernel: fouls.ts helpers + validateDiveAtFeetDistance
-- [ ] 39-03-PLAN.md — Four game-creation toggles end-to-end (SETTINGS-01..03, D-12/D-13/D-14)
-- [ ] 39-04-PLAN.md — EventBanner multi-event fix, foul/injury/booking banners, card badge + DOGSO
-- [ ] 39-05-PLAN.md — Client store: five emitters and selection/valid-hex wiring for the new phases
+- [x] 39-02-PLAN.md — Shared pure kernel: fouls.ts helpers + validateDiveAtFeetDistance
+- [x] 39-03-PLAN.md — Four game-creation toggles end-to-end (SETTINGS-01..03, D-12/D-13/D-14)
+- [x] 39-04-PLAN.md — EventBanner multi-event fix, foul/injury/booking banners, card badge + DOGSO
+- [x] 39-05-PLAN.md — Client store: five emitters and selection/valid-hex wiring for the new phases
 
 **Wave 3** _(four parallel plans)_
 
