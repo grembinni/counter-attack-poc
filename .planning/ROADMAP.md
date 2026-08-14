@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 11/17         | In Progress |             |
+| 39    | 13/17         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -373,8 +373,8 @@ Plans:
 
 **Wave 5**
 
-- [ ] 39-12-PLAN.md — Engine: GK dive at feet, displacement, D-09 shared cap at all four GK_DIVE sites
-- [ ] 39-13-PLAN.md — Handlers: GAME_FOUL_CHOICE, server-rolled injury/booking dice, FK-01 integration
+- [x] 39-12-PLAN.md — Engine: GK dive at feet, displacement, D-09 shared cap at all four GK_DIVE sites
+- [x] 39-13-PLAN.md — Handlers: GAME_FOUL_CHOICE, server-rolled injury/booking dice, FK-01 integration
 
 **Wave 6**
 
