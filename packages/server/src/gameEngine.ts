@@ -1570,9 +1570,16 @@ export function applyFoulChoice(
   if (state.foulSource === 'GK_DIVE_AT_FEET') {
     return { ok: true, state: triggerPenaltyKick(clearedState, clearedState.attackingTeam) };
   }
+  // T-39-13: a TACKLE-sourced foul's fouling defender always ends up standing exactly on
+  // foulHex/freeKickHex (applyMove moves the mover to `to` unconditionally, win or lose
+  // the duel) — relocateTrappedFreeKickPieces (shared with applyOffsideFoulWithRelocation,
+  // D-59) clears every conceding-team piece within 2 hexes so the kicking team's mandatory
+  // kicker-first placement is never permanently blocked with OCCUPIED.
   return {
     ok: true,
-    state: triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!),
+    state: relocateTrappedFreeKickPieces(
+      triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!),
+    ),
   };
 }
 
@@ -7854,38 +7861,58 @@ export function applyOffsideFoulWithRelocation(
   explicitOffenderId?: string,
 ): GameState {
   const afterFoul = triggerOffsideFoul(state, explicitOffenderId);
+  return relocateTrappedFreeKickPieces(afterFoul);
+}
 
-  // No-op: the foul didn't fire (offender not flagged, or no ball-carrier on the
-  // implicit path) — triggerOffsideFoul returns `state` unchanged in that case.
-  if (afterFoul.phase !== 'FREE_KICK_SETUP' || !afterFoul.freeKickHex) {
-    return afterFoul;
+/**
+ * T-39-13 (extracted from the D-59 body above so Plan 39-13's TACKLE/STEAL-sourced
+ * `triggerFoulFreeKick` restart can share it): given a state that has just transitioned
+ * into `FREE_KICK_SETUP` (or is unrelated, in which case this is a no-op), relocates
+ * every CONCEDING-team piece within 2 hexes of `freeKickHex` — including a piece sitting
+ * exactly on it — so the kicking team is never permanently blocked from the mandatory
+ * kicker-first placement (rejected `OCCUPIED` at the gameHandlers.ts level).
+ *
+ * This matters for the TACKLE-sourced foul path specifically: `applyMove` moves the
+ * acting piece to `to` unconditionally, win or lose the duel (see the TACKLE_ATTEMPT FAIL
+ * branch's own comment) — so a TACKLE-sourced foul's fouling defender ALWAYS ends up
+ * standing exactly on `foulHex`/`freeKickHex` once `applyFoulChoice('restart')` calls
+ * `triggerFoulFreeKick`. Without this sweep, every such restart would be permanently
+ * stuck exactly like the pre-D-59 OFFSIDE-02 bug this helper was originally written for.
+ *
+ * See `applyOffsideFoulWithRelocation`'s original JSDoc (still above) for the full
+ * relocation-target algorithm rationale (D-53/D-59) — unchanged here, just no longer
+ * hardcoded to `triggerOffsideFoul`'s call site.
+ */
+function relocateTrappedFreeKickPieces(state: GameState): GameState {
+  // No-op: not currently in FREE_KICK_SETUP (foul didn't fire, or a different phase).
+  if (state.phase !== 'FREE_KICK_SETUP' || !state.freeKickHex) {
+    return state;
   }
 
-  const freeKickHex = afterFoul.freeKickHex;
-  const concedingTeam: 'home' | 'away' =
-    afterFoul.freeKickAttackingTeam === 'home' ? 'away' : 'home';
+  const freeKickHex = state.freeKickHex;
+  const concedingTeam: 'home' | 'away' = state.freeKickAttackingTeam === 'home' ? 'away' : 'home';
 
-  // D-59: the offender is NO LONGER excluded — every conceding-team piece within 2 hexes
-  // of freeKickHex is trapped, including the offender (always at distance 0).
-  const trappedIds = afterFoul.pieces
+  // D-59: every conceding-team piece within 2 hexes of freeKickHex is trapped, including
+  // a piece sitting exactly on it (always at distance 0).
+  const trappedIds = state.pieces
     .filter((p) => p.teamId === concedingTeam && hexDistance(p.position, freeKickHex) <= 2)
     .map((p) => p.id);
 
   if (trappedIds.length === 0) {
-    return afterFoul;
+    return state;
   }
 
   // Occupied-hex set: starts with every piece's CURRENT position (string-keyed for O(1)
   // structural-equality checks — PITCH-02 convention, never Array.includes on HexCoord).
   const hexKey = (h: HexCoord): string => `${h.q},${h.r}`;
-  const occupied = new Set(afterFoul.pieces.map((p) => hexKey(p.position)));
+  const occupied = new Set(state.pieces.map((p) => hexKey(p.position)));
 
   // Ring-3 candidates (D-59): all on-pitch hexes at EXACTLY distance 3 from freeKickHex.
   // Computed once — the occupancy filter is re-applied per piece below since the occupied
   // set mutates across iterations.
   const ring3Hexes = PITCH_HEXES.filter((h) => isPitchHex(h) && hexDistance(h, freeKickHex) === 3);
 
-  let pieces = afterFoul.pieces;
+  let pieces = state.pieces;
   for (const pieceId of trappedIds) {
     const piece = pieces.find((p) => p.id === pieceId);
     if (!piece) continue; // defensive
@@ -7926,7 +7953,7 @@ export function applyOffsideFoulWithRelocation(
     occupied.add(hexKey(destination));
   }
 
-  return { ...afterFoul, pieces };
+  return { ...state, pieces };
 }
 
 // ---------------------------------------------------------------------------

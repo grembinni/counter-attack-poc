@@ -53,6 +53,7 @@ import {
   applyCornerKickTakerSelect,
   applyDeclareShot,
   applyEndTurn,
+  applyFoulChoice,
   applyFreeKickMove,
   applyFreeKickReady,
   applyFreeMoveEnd,
@@ -898,7 +899,19 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       const stealDie = rollDice();
       const tackleDie = rollDice();
       const carrierDie = rollDice();
-      const result = applyMove(room.gameState, pieceId, to, { stealDie, tackleDie, carrierDie });
+      // T-39-13-01/INJURY-01/CARD-01: injury and booking dice are rolled unconditionally,
+      // on every GAME_MOVE, exactly like the trigger dice above — resolveFoulChain (Plan
+      // 39-10) reads these fresh, independent dice only when a foul actually fires and
+      // ignores them otherwise. They must NEVER come from the client payload.
+      const injuryDie = rollDice();
+      const bookingDie = rollDice();
+      const result = applyMove(room.gameState, pieceId, to, {
+        stealDie,
+        tackleDie,
+        carrierDie,
+        injuryDie,
+        bookingDie,
+      });
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // D-06: snap-back on rejection
@@ -2853,6 +2866,74 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       }
       room.gameState = result.state;
       broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_FOUL_CHOICE — FOUL-03 (Plan 39-13): the fouled manager chooses to continue
+  // play (resuming exactly where the foul interrupted the acting branch) or take the
+  // restart (FK-01: routes into the untouched FREE_KICK_SETUP flow, or a penalty kick
+  // when foulSource is GK_DIVE_AT_FEET).
+  //
+  // T-39-13-02: WRONG_TEAM guard — only the FOULED side (state.attackingTeam, set by
+  // resolveFoulChain) may submit the choice; the fouling manager is rejected.
+  // T-39-13-03: explicit two-value allow-list ('continue'/'restart') rejects any forged
+  // choice with INVALID_CHOICE before any state mutation (ASVS V5), mirroring
+  // GAME_GK_RESTART's 'kick'/'throw'/'movement' payload validation.
+  // T-39-13-04: isProcessing mutex prevents double-submit (SC-5).
+  // Five-step shape copied from GAME_GK_DIVE (null-state guard, phase guard, payload
+  // validation, team guard, engine call).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_FOUL_CHOICE, (choice: 'continue' | 'restart') => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'FOUL_CHOICE') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. Payload allow-list (ASVS V5, T-39-13-03): explicit two-value comparison,
+      // not a typeof check — a forged value must be rejected before any mutation.
+      if (choice !== 'continue' && choice !== 'restart') {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_CHOICE');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: the decision belongs to the FOULED side, which resolveFoulChain
+      // set as attackingTeam (T-39-13-02).
+      if (socketTeam(socket) !== room.gameState.attackingTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Engine call
+      const result = applyFoulChoice(room.gameState, choice);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+      // A foul resolved on the action that crosses full time can end the match,
+      // matching the existing pattern in GAME_GK_DIVE and GAME_END_TURN.
+      if (result.state.phase === 'FULL_TIME') {
+        startReplayStream(io, room);
+      }
     } finally {
       room.isProcessing = false; // MUST be in finally — Pitfall 5
     }
