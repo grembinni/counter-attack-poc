@@ -121,4 +121,20 @@
      (a subtle vertical divider) is conceptually different from a disabled-card border
      — no visual change. */
   --color-divider-subtle: rgba(255, 255, 255, 0.1);
+
+  /* Plan 39-04 (D-03): card semantic tokens for the booking-banner badge (and, per
+     39-UI-SPEC.md, the on-board PieceOverlay badge and roster-panel chip added by sibling
+     Phase 39 plans). Reuse existing swatches under dedicated card-specific names, matching
+     this file's established --color-border/--color-speed-* precedent of reusing a value
+     under a new semantic rather than introducing a new raw colour literal. */
+  --color-card-yellow: #eab308; /* reuses --color-confirm-pending-bg's swatch */
+  --color-card-red: #ef4444; /* reuses --color-danger's swatch */
+
+  /* Extended chrome token (Rule 3 deviation, Plan 39-04 Task 3): stylelint's
+     scale-unlimited/declaration-strict-value rule forbids raw rgba() in border-color/border
+     shorthand, so the booking banner card badge's outline (39-UI-SPEC.md: "matching the ball
+     dot's own stroke treatment", i.e. PieceOverlay.tsx's inline SVG rgba(0,0,0,0.5) stroke)
+     needs its own token — same pattern as --color-overlay-backdrop/--color-banner-backdrop
+     above. No new colour VALUE beyond what UI-SPEC already specifies; only its var() form. */
+  --color-card-badge-border: rgba(0, 0, 0, 0.5);
 }

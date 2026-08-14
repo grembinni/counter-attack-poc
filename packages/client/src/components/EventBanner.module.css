@@ -40,3 +40,32 @@
 .notable {
   color: var(--color-cta-pending-bg);
 }
+
+/* Plan 39-04 (D-03): booking banner card badge — a miniature card silhouette (taller than
+   wide) rendered inline before the message. Colour is set via the data-card attribute. */
+.cardBadge {
+  display: inline-block;
+  width: 18px;
+  height: 24px;
+  border-radius: 2px;
+  border: 1px solid var(--color-card-badge-border);
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.cardBadge[data-card='yellow'] {
+  background: var(--color-card-yellow);
+}
+
+.cardBadge[data-card='red'] {
+  background: var(--color-card-red);
+}
+
+/* Plan 39-04 (D-03): DOGSO label for a Professional Foul booking — Label role (11px/700). */
+.dogsoLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-text-inverse);
+  margin-left: 8px;
+}
