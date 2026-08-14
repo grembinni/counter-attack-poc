@@ -65,7 +65,6 @@ import {
   applyGoalKickReposition,
   applyGoalKickTarget,
   applyGoalKickWindowEnd,
-  applyHalfTimeStart,
   applyKickOffReady,
   applyMove,
   applyQuickThrow,
@@ -86,6 +85,10 @@ import {
   applyPenaltyKickTaker,
   applyPenaltyKickDuel,
   resolveHeaderWinnerPiece,
+  applyGkDiveAtFeetResponse,
+  applyBoxEntryResponse,
+  applyBoxEntryMove,
+  applySecondHalfConfirm,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
@@ -2940,8 +2943,202 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // -------------------------------------------------------------------------
-  // GAME_HALF_TIME_START — trigger 2nd half from HALF_TIME phase
-  // T-08-11: only the non-kick-off team may start the second half (D-26/D-28)
+  // GAME_GK_DIVE_AT_FEET — GKDIVE-01..05 (Plan 39-15): the defending manager
+  // accepts or declines the dive-at-feet duel offered by roomStore.ts's post-action
+  // offer hook (Task 1).
+  //
+  // T-39-15-01/T-39-15-03: team guard compares socketTeam(socket) against the
+  // EXPLICIT gkDiveAtFeetTeam field, NOT controlsGKTeam — that helper derives the
+  // goalkeeper's team from attackingTeam/ball.carrierId per phase, and this phase
+  // already names the team explicitly (set by the offer hook), so re-deriving it would
+  // be redundant and could desync if either derivation's assumptions ever drift.
+  // T-39-15-03: all four dice are rolled server-side (crypto.randomInt via rollDice())
+  // unconditionally, even when accept === false, so the handler stays free of rule
+  // logic and no die is ever read from the client payload.
+  // T-39-15-05: isProcessing mutex prevents double-click race (SC-5).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_DIVE_AT_FEET, (accept: boolean) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'GK_DIVE_AT_FEET_PROMPT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. Payload validation (ASVS V5)
+      if (typeof accept !== 'boolean') {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the goalkeeper's manager may respond (T-39-15-01). Compares
+      // against the explicit gkDiveAtFeetTeam field — see the handler-level comment above
+      // for why controlsGKTeam is deliberately NOT reused here.
+      if (socketTeam(socket) !== room.gameState.gkDiveAtFeetTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Roll all four dice server-side unconditionally (T-39-15-03) — even on
+      // accept === false, so this handler never branches on rule logic.
+      const gkDie = rollDice();
+      const carrierDie = rollDice();
+      const injuryDie = rollDice();
+      const bookingDie = rollDice();
+      const result = applyGkDiveAtFeetResponse(room.gameState, accept, {
+        gkDie,
+        carrierDie,
+        injuryDie,
+        bookingDie,
+      });
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+      if (result.state.phase === 'FULL_TIME') {
+        startReplayStream(io, room);
+      }
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GK_BOX_ENTRY_RESPONSE — D-10 (Plan 39-15): the defending manager accepts or
+  // declines the box-entry response offered by roomStore.ts's post-action offer hook.
+  //
+  // T-39-15-01: team guard compares socketTeam(socket) against the explicit
+  // gkBoxEntryTeam field — same rationale as GAME_GK_DIVE_AT_FEET above.
+  // T-39-15-05: isProcessing mutex prevents double-click race (SC-5). No dice involved.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_BOX_ENTRY_RESPONSE, (accept: boolean) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'GK_BOX_ENTRY_PROMPT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. Payload validation (ASVS V5)
+      if (typeof accept !== 'boolean') {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the goalkeeper's manager may respond (T-39-15-01).
+      if (socketTeam(socket) !== room.gameState.gkBoxEntryTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Engine call
+      const result = applyBoxEntryResponse(room.gameState, accept);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GK_BOX_ENTRY_MOVE — D-10 (Plan 39-15): the responding GK's one-hex
+  // reposition move, submitted after accepting the box-entry response.
+  //
+  // T-39-15-04: HexCoord payload validated verbatim against GAME_GK_DIVE's own
+  // shape-validation guard before any use (ASVS V5).
+  // T-39-15-01: team guard compares socketTeam(socket) against the explicit
+  // gkBoxEntryTeam field — same rationale as the two handlers above.
+  // T-39-15-05: isProcessing mutex prevents double-click race (SC-5).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_BOX_ENTRY_MOVE, (to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'GK_BOX_ENTRY_MOVE') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. HexCoord payload validation (ASVS V5, T-39-15-04) — verbatim GAME_GK_DIVE guard.
+      if (
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the goalkeeper's manager may move (T-39-15-01).
+      if (socketTeam(socket) !== room.gameState.gkBoxEntryTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Engine call: validates adjacency, on-pitch, unoccupied.
+      const result = applyBoxEntryMove(room.gameState, to);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_HALF_TIME_START — D-16 (Plan 39-15, reworked): trigger 2nd half from
+  // HALF_TIME phase. REPLACES the prior single-team kick-off-team-only gate — both
+  // managers may now confirm, in either order, via applySecondHalfConfirm's mutual
+  // both-confirm gate. A socket may only ever set its OWN team's flag — the team comes
+  // from socketTeam(socket), never from the payload (the event carries no payload).
   // T-08-14: isProcessing mutex guards against double-process (SC-5)
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_HALF_TIME_START, () => {
@@ -2958,18 +3155,13 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room); // snap-back
         return;
       }
-      // T-08-11: only the team that did NOT kick off in the 1st half may start the 2nd half
-      // The 2nd-half kick-off team is the opposite of kickOffTeam (D-26)
+      // D-16: the team comes from socketTeam(socket) only, never from the payload —
+      // a socket may only ever set its OWN team's confirm flag. socketTeam(socket)'s
+      // return type is always 'home' | 'away' in this codebase (every connected socket
+      // is assigned playerSlot 1 or 2 at room join — there is no spectator slot), so no
+      // separate null-team guard is needed here.
       const team = socketTeam(socket);
-      const secondHalfKickOffTeam: 'home' | 'away' =
-        room.gameState.kickOffTeam === 'home' ? 'away' : 'home';
-      if (team !== secondHalfKickOffTeam) {
-        socket.emit(ServerEvents.GAME_ERROR, 'NOT_KICK_OFF_TEAM');
-        broadcastState(io, room); // snap-back
-        return;
-      }
-      // Transition to KICK_OFF_SETUP for 2nd half (D-28)
-      const result = applyHalfTimeStart(room.gameState);
+      const result = applySecondHalfConfirm(room.gameState, team);
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room); // snap-back
