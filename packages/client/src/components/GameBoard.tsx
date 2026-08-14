@@ -16,6 +16,10 @@ import { FreeKickSetupPanel } from './FreeKickSetupPanel.js';
 import { ThrowInSetupPanel } from './ThrowInSetupPanel.js';
 import { GoalKickSetupPanel } from './GoalKickSetupPanel.js';
 import { CornerKickSetupPanel } from './CornerKickSetupPanel.js';
+import { FoulChoicePanel } from './FoulChoicePanel.js';
+import { GkDiveAtFeetPromptPanel } from './GkDiveAtFeetPromptPanel.js';
+import { GkBoxEntryPromptPanel } from './GkBoxEntryPromptPanel.js';
+import { PenaltyKickSetupPanel } from './PenaltyKickSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
@@ -377,6 +381,20 @@ export function GameBoard() {
             // chooses between a High Pass and a Low Pass before the corner is taken").
             (phase === 'PASS' && cornerKickTeam != null) ? (
             <CornerKickSetupPanel />
+          ) : phase === 'FOUL_CHOICE' ? (
+            <FoulChoicePanel />
+          ) : phase === 'GK_DIVE_AT_FEET_PROMPT' ? (
+            <GkDiveAtFeetPromptPanel />
+          ) : phase === 'GK_BOX_ENTRY_PROMPT' || phase === 'GK_BOX_ENTRY_MOVE' ? (
+            <GkBoxEntryPromptPanel />
+          ) : phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+            phase === 'PENALTY_KICK_SETUP_DEFENDING' ||
+            phase === 'PENALTY_KICK_TAKER_SELECT' ||
+            phase === 'PENALTY_KICK' ? (
+            // Unlike the corner kick's PASS-phase persistent-signal fallback above, the penalty
+            // duel has its own dedicated PENALTY_KICK phase rather than resolving inside the
+            // ordinary PASS phase — no analogous fallback branch is needed here (39-16 Task 1).
+            <PenaltyKickSetupPanel />
           ) : phase === 'REPLAY' ? (
             <ReplayPanel />
           ) : (
