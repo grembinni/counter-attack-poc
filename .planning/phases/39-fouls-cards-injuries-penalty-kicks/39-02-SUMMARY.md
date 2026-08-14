@@ -125,3 +125,13 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-14_
+
+## Self-Check: PASSED
+
+- FOUND: `packages/shared/src/fouls.ts`
+- FOUND: `packages/shared/src/fouls.test.ts`
+- FOUND: `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-02-SUMMARY.md`
+- FOUND: commit `7a966de` (test: RED state)
+- FOUND: commit `c7db43d` (feat: fouls.ts GREEN)
+- FOUND: commit `b0b8d0f` (feat: validateDiveAtFeetDistance)
+- FOUND: commit `224131d` (docs: this summary)
