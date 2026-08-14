@@ -93,6 +93,19 @@ export const PITCH_REGIONS: PitchRegions = {
 export const GOAL_R_VALUES = [10, 11, 12, 13, 14, 15, 16] as const;
 
 /**
+ * Penalty spot hexes (PEN-01..03, Phase 39). Keyed by the DEFENDING team — the team
+ * whose penalty area contains the spot (the ATTACKING/kicking team is the other key).
+ * Derivation: `homePenaltyArea` is `q<=5, r 5..19` and `homeGoal` is `q=0, r 10..16`, so
+ * the spot sits on the goal centre-line (`r=13`) two thirds of the way out (`q=4`); the
+ * away spot is the `36 - q_home` mirror, matching the existing `q_away = 36 - q_home`
+ * mirroring convention used throughout this file.
+ */
+export const PENALTY_SPOT: Readonly<Record<'home' | 'away', HexCoord>> = {
+  home: { q: 4, r: 13 },
+  away: { q: 32, r: 13 },
+};
+
+/**
  * Difficult-angle hexes — corner kick zones where shooting is penalised. PITCH-03.
  * 16 hexes per corner × 4 corners = 64 hexes total.
  *

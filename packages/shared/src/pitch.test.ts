@@ -7,6 +7,7 @@ import {
   isDifficultAngle,
   isPitchHex,
   computeBallZone,
+  PENALTY_SPOT,
 } from './pitch.js';
 
 describe('PITCH_HEXES', () => {
@@ -191,5 +192,27 @@ describe('isPitchHex', () => {
     it('returns true for odd-q r=25 hexes (kept, unchanged)', () => {
       expect(isPitchHex({ q: 21, r: 25 })).toBe(true);
     });
+  });
+});
+
+describe('PENALTY_SPOT (PEN-01..03, Phase 39)', () => {
+  it('home spot is { q: 4, r: 13 } and away spot is { q: 32, r: 13 }', () => {
+    expect(PENALTY_SPOT.home).toEqual({ q: 4, r: 13 });
+    expect(PENALTY_SPOT.away).toEqual({ q: 32, r: 13 });
+  });
+
+  it('both spots satisfy isPitchHex', () => {
+    expect(isPitchHex(PENALTY_SPOT.home)).toBe(true);
+    expect(isPitchHex(PENALTY_SPOT.away)).toBe(true);
+  });
+
+  it('home spot is inside homePenaltyArea and not inside homeSixYardBox', () => {
+    expect(isInRegion(PENALTY_SPOT.home, 'homePenaltyArea')).toBe(true);
+    expect(isInRegion(PENALTY_SPOT.home, 'homeSixYardBox')).toBe(false);
+  });
+
+  it('away spot is inside awayPenaltyArea and not inside awaySixYardBox', () => {
+    expect(isInRegion(PENALTY_SPOT.away, 'awayPenaltyArea')).toBe(true);
+    expect(isInRegion(PENALTY_SPOT.away, 'awaySixYardBox')).toBe(false);
   });
 });

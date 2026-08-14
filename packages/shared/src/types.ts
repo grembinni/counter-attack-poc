@@ -40,6 +40,27 @@ export type PlayerPiece = {
   nationality: string;
   /** Positional role. TEAM-02 */
   role: 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST';
+  /**
+   * v1.6 (Phase 39): number of times this player has been injured this match.
+   * 0 = uninjured, 1 = injured once (INJURY-01), 2+ = further injuries (INJURY-03,
+   * forces an immediate substitution). Optional so no existing PlayerPiece
+   * construction site breaks. This is a COUNTER for INJURY-03/CARD-02 bookkeeping
+   * and badge rendering only — it is NOT a live modifier. INJURY-02's "-1 to all
+   * attributes, floored at 1" is applied by MUTATING the stored numeric attributes
+   * (pace/shooting/tackling/dribbling/saving/handling/resilience/aerialAbility/
+   * highPass) at injury time, not via a computeCombinedScore penalty-array entry —
+   * `pace` is a movement budget consumed directly by moveValidator/applyMove and is
+   * never an input to computeCombinedScore, so a penalty-array approach cannot
+   * satisfy INJURY-02's literal "all attributes" requirement. Stored mutation is
+   * also safe against Undo because applyUndo already treats a resolved
+   * TACKLE_ATTEMPT/STEAL_ATTEMPT as an unconditional boundary (gameEngine.ts
+   * ~1646), so Undo can never cross back over the roll that caused the injury.
+   */
+  injuryCount?: number;
+  /** v1.6 (Phase 39 / CARD-01..04): accumulated yellow cards this match. A second yellow becomes a red (secondYellow). */
+  yellowCards?: 0 | 1 | 2;
+  /** v1.6 (Phase 39 / CARD-02..04): true once this player has been sent off (straight red or second yellow). */
+  redCarded?: boolean;
 };
 
 export type BallState = {
@@ -140,7 +161,21 @@ export type ActionEventType =
   | 'CORNER_KICK_MOVE' // 1-player-per-team repositioning while the corner kick travels
   | 'CORNER_KICK_ACCURACY' // corner-kick High/Low accuracy roll resolution (CORNER-04)
   // Gap-closure round 2 (38-16, 38-15 defect 3): mandatory pre-corner clear-out movement.
-  | 'CORNER_KICK_CLEAR_OUT_MOVE'; // 1-player-per-team clear-out step during CORNER_KICK_CLEAR_OUT
+  | 'CORNER_KICK_CLEAR_OUT_MOVE' // 1-player-per-team clear-out step during CORNER_KICK_CLEAR_OUT
+  // Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks action event types. None of
+  // these may be collapsed into the generic 'DICE_ROLL' type (STATE.md v1.6 pitfall —
+  // reusing DICE_ROLL reactivates a dormant full-slot Undo lockout).
+  | 'FOUL_CALLED' // a tackle/nutmeg/steal/GK-dive-at-feet duel roll of 1 called a foul
+  | 'INJURY_CHECK' // FOUL-04/INJURY-01..03: injury roll always fires after a foul
+  | 'BOOKING_CHECK' // FOUL-04/CARD-01..04: booking roll always fires after a foul
+  | 'FOUL_CHOICE_MADE' // FOUL-03: fouled attacker's continue-play vs. restart choice
+  | 'GK_DIVE_AT_FEET' // GKDIVE-01..05: GK-dive-at-feet duel resolution
+  | 'GK_DIVE_AT_FEET_DECLINED' // GKDIVE-02/D-07: GK's team declined the dive-at-feet offer
+  | 'GK_BOX_ENTRY_MOVE' // D-10: GK's repositioning move during GK_BOX_ENTRY_MOVE
+  | 'PENALTY_KICK_WINDOW_ADVANCE' // PEN-02/D-08: attacking->defending reposition window boundary
+  | 'PENALTY_KICK_TAKER_PLACED' // PEN-02: penalty-taker placed at the penalty spot
+  | 'PENALTY_KICK' // PEN-01: the penalty-kick duel resolution
+  | 'SECOND_HALF_CONFIRM'; // D-16: each manager's confirmation to start the second half
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -357,6 +392,15 @@ export type ActionEvent =
       type: 'LOOSE_BALL_LAND';
       from: HexCoord;
       to: HexCoord;
+      /**
+       * D-15 (Phase 39): the scatter direction die, mapped to a compass label by
+       * ActionLog's LOOSE_BALL_DIRECTION_LABELS (1=E, 2=NE, 3=NW, 4=W, 5=SW, 6=SE).
+       * Required (not optional) so the compiler flags any construction site that
+       * omits it — there is exactly one construction site (gameEngine.ts ~3439).
+       */
+      direction: 1 | 2 | 3 | 4 | 5 | 6;
+      /** D-15 (Phase 39): the scatter distance die (hexes travelled). Required for the same reason as `direction`. */
+      distance: 1 | 2 | 3 | 4 | 5 | 6;
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
     }
@@ -572,6 +616,110 @@ export type ActionEvent =
       from: HexCoord;
       to: HexCoord;
       timestamp: number;
+    }
+  // Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks action events.
+  | {
+      /** FOUL-01..05: a tackle/nutmeg/steal/GK-dive-at-feet duel roll of 1 called a foul. */
+      type: 'FOUL_CALLED';
+      defenderId: string;
+      victimId: string;
+      hex: HexCoord;
+      source: 'TACKLE' | 'STEAL' | 'GK_DIVE_AT_FEET';
+      defenderDie: number;
+      professional: boolean;
+      timestamp: number;
+    }
+  | {
+      /** INJURY-01..03: injury roll always fires after a foul, regardless of the FOUL_CHOICE_MADE outcome. */
+      type: 'INJURY_CHECK';
+      victimId: string;
+      die: number;
+      resilience: number;
+      injured: boolean;
+      injuryCount: number;
+      timestamp: number;
+    }
+  | {
+      /** CARD-01..04: booking roll always fires after a foul, regardless of the FOUL_CHOICE_MADE outcome. */
+      type: 'BOOKING_CHECK';
+      defenderId: string;
+      die: number;
+      leniency: number;
+      card: 'none' | 'yellow' | 'red';
+      secondYellow: boolean;
+      professional: boolean;
+      timestamp: number;
+    }
+  | {
+      /** FOUL-03/D-01: the fouled attacker's continue-play vs. take-the-restart choice. */
+      type: 'FOUL_CHOICE_MADE';
+      team: 'home' | 'away';
+      choice: 'continue' | 'restart';
+      restart: 'FREE_KICK' | 'PENALTY' | null;
+      timestamp: number;
+    }
+  | {
+      /** GKDIVE-01..05: GK-dive-at-feet duel resolution. */
+      type: 'GK_DIVE_AT_FEET';
+      gkId: string;
+      carrierId: string;
+      gkDie: number;
+      carrierDie: number;
+      gkCombined: number;
+      carrierCombined: number;
+      distance: number;
+      savingPenalty: number;
+      result: 'SUCCESS' | 'FAIL';
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /** GKDIVE-02/D-07: GK's team declined the dive-at-feet offer. */
+      type: 'GK_DIVE_AT_FEET_DECLINED';
+      gkId: string;
+      carrierId: string;
+      timestamp: number;
+    }
+  | {
+      /** D-10: GK's repositioning move during GK_BOX_ENTRY_MOVE. */
+      type: 'GK_BOX_ENTRY_MOVE';
+      gkId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
+    }
+  | {
+      /** PEN-02/D-08: attacking->defending reposition window boundary. Mirrors GOAL_KICK_WINDOW_ADVANCE. */
+      type: 'PENALTY_KICK_WINDOW_ADVANCE';
+      from: 'ATTACKING' | 'DEFENDING';
+      timestamp: number;
+    }
+  | {
+      /** PEN-02: penalty-taker placed at the penalty spot. */
+      type: 'PENALTY_KICK_TAKER_PLACED';
+      pieceId: string;
+      hex: HexCoord;
+      timestamp: number;
+    }
+  | {
+      /** PEN-01: the penalty-kick duel resolution — attacker vs. GK, GK dice penalty applied separately (-2). */
+      type: 'PENALTY_KICK';
+      takerId: string;
+      gkId: string;
+      takerDie: number;
+      gkDie: number;
+      takerCombined: number;
+      gkCombined: number;
+      result: 'GOAL' | 'SAVED' | 'TIE';
+      timestamp: number;
+      ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /** D-16: each manager's confirmation to start the second half. */
+      type: 'SECOND_HALF_CONFIRM';
+      team: 'home' | 'away';
+      bothConfirmed: boolean;
+      timestamp: number;
     };
 
 export type GamePhase =
@@ -619,6 +767,16 @@ export type GamePhase =
   | 'CORNER_KICK_TAKER_SELECT' // CORNER-02: attacking manager selects the corner-taker
   | 'CORNER_KICK_REPOSITION' // CORNER-03: 6 alternating stages, attacking first, 2 pieces max per stage
   | 'CORNER_KICK_FINAL_SETUP' // CORNER-06: 1-player-per-team pre-kick reposition window
+  // Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks phases. New GamePhase values —
+  // genuinely new, not aliases of any existing chain.
+  | 'FOUL_CHOICE' // FOUL-03: fouled attacker chooses continue-play vs. take the restart
+  | 'GK_DIVE_AT_FEET_PROMPT' // GKDIVE-02/D-07: GK's team offered the dive-at-feet duel
+  | 'GK_BOX_ENTRY_PROMPT' // D-10: GK's team offered the box-entry response
+  | 'GK_BOX_ENTRY_MOVE' // D-10: GK moves in response to a box-entry attacker
+  | 'PENALTY_KICK_SETUP_ATTACKING' // PEN-02/D-08: attacking team repositions before the penalty
+  | 'PENALTY_KICK_SETUP_DEFENDING' // PEN-02/D-08: defending team repositions before the penalty
+  | 'PENALTY_KICK_TAKER_SELECT' // PEN-02: attacking manager selects the penalty-taker
+  | 'PENALTY_KICK' // PEN-01: the penalty-kick duel itself
   | 'HALF_TIME'
   | 'FULL_TIME'
   | 'REPLAY';
@@ -1350,4 +1508,97 @@ export type GameState = {
    * it. Must be nulled at every `LOOSE_BALL` resolution and in the corner-kick teardown.
    */
   gkSpillKeeperId?: string | null;
+  /**
+   * SETTINGS-01 (Phase 39): game-creation toggle for the Fouls system (FOUL-01..05).
+   * Absent or `false` means the toggle is OFF. Every read site must test
+   * `=== true`, mirroring the existing `outOfBoundsEnabled` comment above.
+   */
+  foulsEnabled?: boolean;
+  /**
+   * SETTINGS-02 (Phase 39): game-creation toggle for Bookings (CARD-01..04).
+   * Absent or `false` means the toggle is OFF. Every read site must test `=== true`.
+   */
+  bookingEnabled?: boolean;
+  /**
+   * SETTINGS-03 (Phase 39): game-creation toggle for Injuries (INJURY-01..04).
+   * Absent or `false` means the toggle is OFF. Every read site must test `=== true`.
+   */
+  injuryEnabled?: boolean;
+  /** FOUL-01..05 (Phase 39): the defending player who committed the foul. null outside the foul sequence. */
+  foulDefenderId?: string | null;
+  /** FOUL-01..05 (Phase 39): the attacking player who was fouled. null outside the foul sequence. */
+  foulVictimId?: string | null;
+  /** FOUL-01..05 (Phase 39): the hex where the foul occurred (restart spot for FREE_KICK). null outside the foul sequence. */
+  foulHex?: HexCoord | null;
+  /** FOUL-01..05 (Phase 39): which duel type triggered the foul. null outside the foul sequence. */
+  foulSource?: 'TACKLE' | 'STEAL' | 'GK_DIVE_AT_FEET' | null;
+  /**
+   * FOUL-03 (Phase 39): snapshots the phase/team/movementSlot/lastActionType that were
+   * active immediately before the foul interrupted play, so a "continue play" choice can
+   * resume exactly where the duel left off. Shape modelled on the existing `freeMoveResume`
+   * field. null outside the foul sequence.
+   */
+  foulResume?: {
+    phase: GamePhase;
+    activeTeam: 'home' | 'away';
+    attackingTeam: 'home' | 'away';
+    movementSlot: MovementSlot | null;
+    lastActionType: LastActionType | null;
+  } | null;
+  /**
+   * GKDIVE-01..05/D-09 (Phase 39): SHARED once-per-team-per-half cap with the existing
+   * shot-block GK_DIVE mechanic. null outside the dive-at-feet sequence.
+   */
+  gkDiveAtFeetUsedByTeam?: { home: boolean; away: boolean } | null;
+  /** GKDIVE-01..05 (Phase 39): the team whose GK is offered the dive-at-feet duel. null outside the sequence. */
+  gkDiveAtFeetTeam?: 'home' | 'away' | null;
+  /** GKDIVE-01..05 (Phase 39): the GK piece ID offered the dive-at-feet duel. null outside the sequence. */
+  gkDiveAtFeetGkId?: string | null;
+  /** GKDIVE-01..05 (Phase 39): the ball-carrying attacker's piece ID targeted by the dive. null outside the sequence. */
+  gkDiveAtFeetCarrierId?: string | null;
+  /** GKDIVE-01..05 (Phase 39): hex distance between the GK and the carrier at offer time (drives the -1 at 3 hexes penalty). null outside the sequence. */
+  gkDiveAtFeetDistance?: number | null;
+  /**
+   * GKDIVE-01..05 (Phase 39): snapshots phase/activeTeam/movementSlot to resume play after
+   * the dive-at-feet duel resolves or is declined. null outside the sequence.
+   */
+  gkDiveAtFeetResume?: {
+    phase: GamePhase;
+    activeTeam: 'home' | 'away';
+    movementSlot: MovementSlot | null;
+  } | null;
+  /**
+   * D-10/D-11 (Phase 39): once-per-team-per-half cap for the box-entry response.
+   * INDEPENDENT of the D-09 `gkDiveAtFeetUsedByTeam` cap above — a team may use both the
+   * dive-at-feet duel AND the box-entry response in the same half.
+   */
+  gkBoxEntryUsedByTeam?: { home: boolean; away: boolean } | null;
+  /** D-10 (Phase 39): the team whose GK is offered the box-entry response. null outside the sequence. */
+  gkBoxEntryTeam?: 'home' | 'away' | null;
+  /**
+   * D-10 (Phase 39): snapshots phase/activeTeam/movementSlot to resume play after the
+   * box-entry response resolves or is declined. null outside the sequence.
+   */
+  gkBoxEntryResume?: {
+    phase: GamePhase;
+    activeTeam: 'home' | 'away';
+    movementSlot: MovementSlot | null;
+  } | null;
+  /** PEN-01..03 (Phase 39): the team taking the penalty kick (the KICKING team). null outside the penalty sequence. */
+  penaltyKickTeam?: 'home' | 'away' | null;
+  /** PEN-01..03 (Phase 39): the penalty spot hex (from `PENALTY_SPOT`, keyed by the defending team). null outside the sequence. */
+  penaltyKickSpot?: HexCoord | null;
+  /** PEN-02 (Phase 39): piece IDs eligible to reposition/be selected as taker, precomputed at trigger time. null outside the sequence. */
+  penaltyKickEligibleIds?: { attacking: readonly string[]; defending: readonly string[] } | null;
+  /** PEN-02 (Phase 39): cumulative hexes used per piece during the penalty reposition windows. null outside the sequence. */
+  penaltyKickUsedPace?: Readonly<Record<string, number>> | null;
+  /** PEN-02 (Phase 39): the piece ID chosen as penalty-taker. null before selection or outside the sequence. */
+  penaltyKickTakerId?: string | null;
+  /**
+   * D-16 (Phase 39): each manager's confirmation to start the second half. Deliberately
+   * copies `headerConfirmed`'s GameState-scoped `{home, away}` shape, NOT `LINEUP_CONFIRM`'s
+   * Room-scoped flags — half-time is mid-match, and `Room` fields have no path into
+   * `broadcastState` (RESEARCH.md Pitfall 4). null outside the half-time transition.
+   */
+  secondHalfConfirmed?: { home: boolean; away: boolean } | null;
 };
