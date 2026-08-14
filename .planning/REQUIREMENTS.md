@@ -29,11 +29,11 @@
 
 ### GK Dive at Feet (GKDIVE)
 
-- [ ] **GKDIVE-01**: During a defending Movement Phase, a goalkeeper adjacent to the ball carrier reuses the existing tackle duel with the GK as tackler (no new duel type)
-- [ ] **GKDIVE-02**: Whenever the ball carrier dribbles within 3 hexes of the goalkeeper, parallel to the goal line, the GK's team gets an interrupt opportunity to dive at the attacker's feet — alternating turn-by-turn as long as the attacker remains in range, comparing (Saving + dice) vs (Dribbling + dice), with a -1 dice penalty diving from the 3rd hex
-- [ ] **GKDIVE-03**: A GK roll of 1 in either dive-at-feet context is a foul awarding a penalty kick (not a free kick), regardless of the duel's outcome
-- [ ] **GKDIVE-04**: A successful dive landing on an occupied hex displaces every piece there (and the ball, if present) one hex further in the dive direction
-- [ ] **GKDIVE-05**: A goalkeeper may attempt the attacking-phase dive-at-feet at most once per movement cycle (the existing 4-5-2 slot sequence), even if the attacker remains in range across multiple hex-steps
+- [x] **GKDIVE-01**: During a defending Movement Phase, a goalkeeper adjacent to the ball carrier reuses the existing tackle duel with the GK as tackler (no new duel type)
+- [x] **GKDIVE-02**: Whenever the ball carrier dribbles within 3 hexes of the goalkeeper, parallel to the goal line, the GK's team gets an interrupt opportunity to dive at the attacker's feet — alternating turn-by-turn as long as the attacker remains in range, comparing (Saving + dice) vs (Dribbling + dice), with a -1 dice penalty diving from the 3rd hex
+- [x] **GKDIVE-03**: A GK roll of 1 in either dive-at-feet context is a foul awarding a penalty kick (not a free kick), regardless of the duel's outcome
+- [x] **GKDIVE-04**: A successful dive landing on an occupied hex displaces every piece there (and the ball, if present) one hex further in the dive direction
+- [x] **GKDIVE-05**: A goalkeeper may attempt the attacking-phase dive-at-feet at most once per movement cycle (the existing 4-5-2 slot sequence), even if the attacker remains in range across multiple hex-steps
 
 ### Penalty Kick (PEN)
 
@@ -164,11 +164,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INJURY-02   | Phase 39 | Pending  |
 | INJURY-03   | Phase 39 | Pending  |
 | INJURY-04   | Phase 39 | Pending  |
-| GKDIVE-01   | Phase 39 | Pending  |
-| GKDIVE-02   | Phase 39 | Pending  |
-| GKDIVE-03   | Phase 39 | Pending  |
-| GKDIVE-04   | Phase 39 | Pending  |
-| GKDIVE-05   | Phase 39 | Pending  |
+| GKDIVE-01   | Phase 39 | Complete |
+| GKDIVE-02   | Phase 39 | Complete |
+| GKDIVE-03   | Phase 39 | Complete |
+| GKDIVE-04   | Phase 39 | Complete |
+| GKDIVE-05   | Phase 39 | Complete |
 | PEN-01      | Phase 39 | Pending  |
 | PEN-02      | Phase 39 | Pending  |
 | PEN-03      | Phase 39 | Pending  |
