@@ -522,6 +522,10 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       // (applyEndTurn's ATTACKER_4->DEFENDER_5/DEFENDER_5->ATTACKER_2 transitions), which
       // must NOT clear this flag — GKDIVE-05 caps the dive at once per CYCLE, not per slot.
       gkDiveAtFeetUsedByTeam: { home: false, away: false },
+      // D-11 (Phase 39, 39-14): the box-entry response cap is INDEPENDENT of the
+      // dive-at-feet cap above but resets on the identical fresh-cycle/not-slot-advance
+      // schedule — same rationale, sibling field.
+      gkBoxEntryUsedByTeam: { home: false, away: false },
       // Plan 31-06: the carry is consumed above — clear it so it does not persist beyond this
       // single Movement Phase transition.
       carriedMovedPieceIds: [],
@@ -1960,6 +1964,206 @@ export function enterGkDiveOrSkip(
 }
 
 // ---------------------------------------------------------------------------
+// computeBoxEntryOffer
+// ---------------------------------------------------------------------------
+
+/**
+ * D-10 (Phase 39, 39-14): computes whether the defending team's goalkeeper is offered
+ * a one-hex box-entry response move — the first time the ball enters a penalty area
+ * during a movement cycle, BY ANY MEANS (pass, shot, move, or loose ball). This is
+ * explicitly NOT the existing shot-declared `GK_DIVE` phase (`applyDeclareShot`'s
+ * "GK's team repositions GK interactively" window) — it fires on mere ball entry into
+ * the box, regardless of shot intent.
+ *
+ * Comparing against a caller-supplied `prevBallPosition` rather than re-deriving from
+ * `eventLog` is deliberate: the same reasoning `ball.lastTouchedBy` was introduced with
+ * in Phase 37 (never derive retroactively from an event-log scan, RESEARCH.md
+ * ARCHITECTURE.md Q2) — the caller (a sibling plan's socket-handler layer, per
+ * 39-PATTERNS.md) is expected to snapshot the ball position immediately before the
+ * triggering action and pass it in here.
+ *
+ * Returns `null` whenever any precondition fails so the caller can no-op cleanly —
+ * mirrors `computeGkDiveAtFeetOffer`'s early-return-on-ineligible shape (39-12).
+ */
+export function computeBoxEntryOffer(
+  prevBallPosition: HexCoord,
+  state: GameState,
+): { team: 'home' | 'away'; gkId: string } | null {
+  const pos = state.ball.position;
+  let region: 'homePenaltyArea' | 'awayPenaltyArea' | null = null;
+  if (isInRegion(pos, 'homePenaltyArea')) {
+    region = 'homePenaltyArea';
+  } else if (isInRegion(pos, 'awayPenaltyArea')) {
+    region = 'awayPenaltyArea';
+  }
+  if (region === null) return null;
+
+  // Only the FIRST entry into this area offers a response this movement cycle — if the
+  // ball was already inside the SAME area before this action, do not re-offer.
+  if (isInRegion(prevBallPosition, region)) return null;
+
+  // The responding team is the area's OWNER (the team it defends), not the attacking
+  // team — homePenaltyArea is defended by 'home', awayPenaltyArea by 'away'.
+  const team: 'home' | 'away' = region === 'homePenaltyArea' ? 'home' : 'away';
+
+  const gk = state.pieces.find((p) => p.teamId === team && p.role === 'GK');
+  if (gk === undefined || gk.redCarded === true) return null;
+
+  // D-11: this cap is INDEPENDENT of gkDiveAtFeetUsedByTeam (D-09) — this function
+  // never reads that field, and applyBoxEntryResponse/applyBoxEntryMove below never
+  // read or write it either. A team may use both the box-entry response AND still be
+  // eligible for dive-at-feet in the same movement cycle.
+  if (state.gkBoxEntryUsedByTeam?.[team] === true) return null;
+
+  return { team, gkId: gk.id };
+}
+
+// ---------------------------------------------------------------------------
+// applyBoxEntryResponse
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyBoxEntryResponse. */
+export type ApplyBoxEntryResponseResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * D-10/D-11 (Phase 39, 39-14): resolves the defending manager's accept/decline
+ * response to a box-entry offer (`computeBoxEntryOffer`).
+ *
+ * T-39-14-03: declining STILL consumes the once-per-movement-cycle opportunity — the
+ * offer is a one-shot per entry, and re-offering on the next sub-action would spam the
+ * manager, exactly as `applyGkDiveAtFeetResponse`'s decline branch does NOT set its cap
+ * (an intentional asymmetry between the two mechanics — see 39-12's decline behavior)
+ * but THIS mechanic's own spec (39-14-PLAN.md Task 1) explicitly requires the opposite:
+ * both accept AND decline consume the box-entry cap.
+ *
+ * On accept, `gkBoxEntryUsedByTeam` is NOT set here — it is set by `applyBoxEntryMove`
+ * once the reposition actually completes, mirroring how the cap is only "spent" once
+ * the interrupt has fully resolved one way or the other.
+ */
+export function applyBoxEntryResponse(
+  state: GameState,
+  accept: boolean,
+): ApplyBoxEntryResponseResult {
+  if (state.phase !== 'GK_BOX_ENTRY_PROMPT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const team = state.gkBoxEntryTeam;
+  const resume = state.gkBoxEntryResume;
+  if (team === null || team === undefined) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  if (!accept) {
+    const usedByTeam = {
+      ...(state.gkBoxEntryUsedByTeam ?? { home: false, away: false }),
+      [team]: true,
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        gkBoxEntryTeam: null,
+        gkBoxEntryResume: null,
+        gkBoxEntryUsedByTeam: usedByTeam,
+        phase: resume?.phase ?? state.phase,
+        activeTeam: resume?.activeTeam ?? state.activeTeam,
+        movementSlot: resume?.movementSlot ?? state.movementSlot,
+      },
+    };
+  }
+
+  // Accept: hand control to the responding team's GK for the reposition move.
+  // gkBoxEntryTeam/gkBoxEntryResume are left INTACT — applyBoxEntryMove needs both to
+  // resolve the GK and to restore the interrupted phase once the move completes.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GK_BOX_ENTRY_MOVE',
+      activeTeam: team,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyBoxEntryMove
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyBoxEntryMove. */
+export type ApplyBoxEntryMoveResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: false; reason: 'MOVE_INVALID'; detail: string }
+  | { ok: true; state: GameState };
+
+/**
+ * D-10 (Phase 39, 39-14): resolves the accepted box-entry response — moves the
+ * defending GK exactly one hex.
+ *
+ * Guard ordering mirrors `applyGoalKickReposition`'s 37-13 ordering rationale (adjacency
+ * first so a distant off-pitch hex still returns OUT_OF_RANGE; OFF_PITCH precedes
+ * OCCUPIED because no piece can ever occupy an off-pitch hex, so the two are mutually
+ * exclusive): hexDistance !== 1 -> OUT_OF_RANGE, then !isPitchHex -> OFF_PITCH, then
+ * occupancy -> OCCUPIED.
+ */
+export function applyBoxEntryMove(state: GameState, to: HexCoord): ApplyBoxEntryMoveResult {
+  if (state.phase !== 'GK_BOX_ENTRY_MOVE') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const team = state.gkBoxEntryTeam;
+  const resume = state.gkBoxEntryResume;
+  if (team === null || team === undefined) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gk = state.pieces.find((p) => p.teamId === team && p.role === 'GK');
+  if (gk === undefined) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  if (hexDistance(gk.position, to) !== 1) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' };
+  }
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
+  }
+
+  const moveEvent: ActionEvent = {
+    type: 'GK_BOX_ENTRY_MOVE',
+    gkId: gk.id,
+    from: gk.position,
+    to,
+    timestamp: Date.now(),
+  };
+
+  const usedByTeam = {
+    ...(state.gkBoxEntryUsedByTeam ?? { home: false, away: false }),
+    [team]: true,
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: state.pieces.map((p) => (p.id === gk.id ? { ...p, position: to } : p)),
+      gkBoxEntryUsedByTeam: usedByTeam,
+      gkBoxEntryTeam: null,
+      gkBoxEntryResume: null,
+      phase: resume?.phase ?? state.phase,
+      activeTeam: resume?.activeTeam ?? state.activeTeam,
+      movementSlot: resume?.movementSlot ?? state.movementSlot,
+      eventLog: [...state.eventLog, moveEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // applyEndTurn
 // ---------------------------------------------------------------------------
 
@@ -2348,6 +2552,11 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   // GKDIVE-02 (Phase 39, 39-12): the ball has not moved while the defending manager
   // decides whether to dive at the carrier's feet — same rationale as FOUL_CHOICE above.
   'GK_DIVE_AT_FEET_PROMPT',
+  // D-10 (Phase 39, 39-14): the ball has not moved while the defending manager decides
+  // whether to reposition their GK on a fresh box entry, nor during the one-hex GK
+  // reposition move itself — same rationale as GK_DIVE_AT_FEET_PROMPT above.
+  'GK_BOX_ENTRY_PROMPT',
+  'GK_BOX_ENTRY_MOVE',
 ]);
 
 /**
@@ -2454,6 +2663,8 @@ export function applyRestartMovement(
       // cycle from scratch — reset the once-per-cycle dive-at-feet cap (see the
       // applyStartMovement comment for the cycle-vs-slot distinction).
       gkDiveAtFeetUsedByTeam: { home: false, away: false },
+      // D-11 (Phase 39, 39-14): sibling reset for the independent box-entry cap.
+      gkBoxEntryUsedByTeam: { home: false, away: false },
     },
   };
 }
@@ -2527,7 +2738,13 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       (state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE') ||
       // GKDIVE-01 (Phase 39, 39-12): a resolved GK_DIVE_AT_FEET duel is a committed dice
       // outcome — unconditional boundary, exactly like TACKLE_ATTEMPT/STEAL_ATTEMPT above.
-      evt.type === 'GK_DIVE_AT_FEET';
+      evt.type === 'GK_DIVE_AT_FEET' ||
+      // D-10 (Phase 39, 39-14): a completed box-entry GK reposition cannot be undone
+      // back across the offer that produced it.
+      (state.phase === 'GK_BOX_ENTRY_MOVE' && evt.type === 'GK_BOX_ENTRY_MOVE') ||
+      // D-16 (Phase 39, 39-14): a manager cannot Undo their own already-committed
+      // second-half confirm.
+      (state.phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -5478,6 +5695,8 @@ export function applyThrowInPlace(state: GameState, pieceId: string): ApplyThrow
       // GKDIVE-05 (Phase 39, 39-12): the throw-in starts a fresh 4-5-2 movement cycle —
       // reset the once-per-cycle dive-at-feet cap (see applyStartMovement's comment).
       gkDiveAtFeetUsedByTeam: { home: false, away: false },
+      // D-11 (Phase 39, 39-14): sibling reset for the independent box-entry cap.
+      gkBoxEntryUsedByTeam: { home: false, away: false },
       contestedPieceIds: [],
       stealAttemptedByIds: [],
       tackleAttemptedByIds: [],
@@ -6747,6 +6966,8 @@ export function applyGKRestart(
         // GKDIVE-05 (Phase 39, 39-12): GK restart movement begins a fresh 4-5-2 cycle —
         // reset the once-per-cycle dive-at-feet cap (see applyStartMovement's comment).
         gkDiveAtFeetUsedByTeam: { home: false, away: false },
+        // D-11 (Phase 39, 39-14): sibling reset for the independent box-entry cap.
+        gkBoxEntryUsedByTeam: { home: false, away: false },
         attackingTeam: gkTeam,
         activeTeam: gkTeam,
         // Ball stays with GK (carrierId unchanged)
@@ -8417,6 +8638,88 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
 }
 
 // ---------------------------------------------------------------------------
+// applySecondHalfConfirm
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applySecondHalfConfirm. */
+export type ApplySecondHalfConfirmResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * D-16 (Phase 39, 39-14): mutual-confirm gate in front of `applyHalfTimeStart` — the
+ * second half starts only once BOTH managers have confirmed, in either order.
+ *
+ * RESEARCH.md Pitfall 4 rules out copying `LINEUP_CONFIRM`'s storage pattern:
+ * `LINEUP_CONFIRM`'s "either player may confirm first" flags live on the pre-match
+ * `Room` object because `GameState` does not exist yet at that point in the flow.
+ * Half-time is mid-match — `GameState` already exists — and there is no clean path to
+ * plumb a new `Room` field into `broadcastState` the way `LINEUP_CONFIRM` does.
+ * `GameState.headerConfirmed`'s `{ home: boolean; away: boolean } | null` shape is the
+ * correct GameState-scoped analog instead: it already reaches both clients through the
+ * existing full-snapshot `broadcastState` call with zero new plumbing, and
+ * `secondHalfConfirmed` (added in Plan 39-01) deliberately copies its exact shape.
+ *
+ * This function is a GATE in front of `applyHalfTimeStart`, not a reimplementation of
+ * it — `applyHalfTimeStart` remains the single owner of the actual transition (kick-off
+ * reset, half increment, kickOffTeam handling all stay in one place). Do NOT duplicate
+ * that logic here.
+ *
+ * `SECOND_HALF_CONFIRM` is registered nowhere in `REPLAY_ELIGIBLE_TYPES` (it carries no
+ * `ballAfter` and represents no board change) and is added to `applyUndo`'s
+ * `isBoundary`, guarded on `state.phase === 'HALF_TIME'`, so a confirm cannot be undone.
+ */
+export function applySecondHalfConfirm(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplySecondHalfConfirmResult {
+  if (state.phase !== 'HALF_TIME') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const prior = state.secondHalfConfirmed ?? { home: false, away: false };
+
+  // Idempotence: a manager clicking twice must be a no-op, not an error — no duplicate
+  // event, no transition.
+  if (prior[team] === true) {
+    return { ok: true, state };
+  }
+
+  const next = { ...prior, [team]: true };
+  const bothConfirmed = next.home && next.away;
+
+  const confirmEvent: ActionEvent = {
+    type: 'SECOND_HALF_CONFIRM',
+    team,
+    bothConfirmed,
+    timestamp: Date.now(),
+  };
+
+  const confirmedState: GameState = {
+    ...state,
+    secondHalfConfirmed: next,
+    eventLog: [...state.eventLog, confirmEvent],
+  };
+
+  // Only one side has confirmed so far — stay in HALF_TIME so the waiting manager's UI
+  // can read secondHalfConfirmed and show its waiting text.
+  if (!bothConfirmed) {
+    return { ok: true, state: confirmedState };
+  }
+
+  // Both confirmed: delegate to the EXISTING applyHalfTimeStart for the actual
+  // transition, then clear secondHalfConfirmed back to null on the result.
+  const startResult = applyHalfTimeStart(confirmedState);
+  if (!startResult.ok) {
+    // Unreachable in practice (phase is guarded to HALF_TIME above, and
+    // applyHalfTimeStart's only rejection is a phase mismatch) — kept for type safety.
+    return { ok: true, state: confirmedState };
+  }
+
+  return { ok: true, state: { ...startResult.state, secondHalfConfirmed: null } };
+}
+
+// ---------------------------------------------------------------------------
 // buildReplayFrames
 // ---------------------------------------------------------------------------
 
@@ -8481,6 +8784,10 @@ const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // and FAIL. GK_DIVE_AT_FEET_DECLINED is deliberately excluded — it carries no
   // ballAfter, matching the FOUL_CHOICE_MADE exclusion immediately above.
   'GK_DIVE_AT_FEET',
+  // D-10/D-16 (Phase 39, 39-14): GK_BOX_ENTRY_MOVE and SECOND_HALF_CONFIRM are
+  // deliberately EXCLUDED from this set — neither carries a `ballAfter` field, matching
+  // the existing GK_KICK_MOVE/GOAL_KICK_MOVE exclusion rule above. This is a confirmed
+  // decision, not an oversight — a future reader must not add them here.
 ]);
 
 /**
