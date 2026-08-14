@@ -376,6 +376,11 @@ function seedPenaltyKickDuel(
       lastTouchedBy: { pieceId: taker.id, teamId: taker.teamId },
     },
   };
+  // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already at
+  // the penalty spot so roomStore.ts's box-entry offer hook does not spuriously detect
+  // a "fresh entry" into the penalty area when the duel resolves (e.g. a tie routing to
+  // LOOSE_BALL with the ball still at `spot`) — mirrors the ballZone pre-match above.
+  room.lastBroadcastBallPosition = spot;
 
   return { takerId: taker.id, gkId: gk.id, spot, gkSaving, takerShooting };
 }

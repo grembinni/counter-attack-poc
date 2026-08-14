@@ -191,6 +191,9 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
         return p;
       }),
     };
+    // D-10 (Phase 39, 39-15): see the identical comment below — prevents a false
+    // box-entry "fresh entry" detection from this direct test-state graft.
+    room.lastBroadcastBallPosition = carrierPos;
 
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_SHOT, { q: 36, r: 13 });
@@ -248,6 +251,11 @@ describe('Regular shot (GAME_SHOT): GK-range auto-GOAL gate', () => {
         return p;
       }),
     };
+    // D-10 (Phase 39, 39-15): mark the ball's PREVIOUS-broadcast position as already
+    // current so roomStore.ts's box-entry offer hook does not spuriously detect a
+    // "fresh entry" into the penalty area from this direct test-state graft — mirrors
+    // the ballZone pre-match above for the identical class of broadcastState side-effect.
+    room.lastBroadcastBallPosition = carrierPos;
 
     // Both clients receive the GK_DIVE broadcast — wait for clientB's copy too,
     // so the dive-response .once() listener registered below cannot race against
@@ -312,6 +320,9 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
         return p;
       }),
     };
+    // D-10 (Phase 39, 39-15): see the comment in the "GK within range" test above —
+    // prevents a false box-entry "fresh entry" detection from this direct test-state graft.
+    room.lastBroadcastBallPosition = carrierPos;
 
     const declarePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
     const declarePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
@@ -377,6 +388,9 @@ describe('Snapshot shot: GK-range gate and deterministic SAVE', () => {
         return p;
       }),
     };
+    // D-10 (Phase 39, 39-15): see the comment in the "GK within range" test above —
+    // prevents a false box-entry "fresh entry" detection from this direct test-state graft.
+    room.lastBroadcastBallPosition = carrierPos;
 
     const declarePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
     const declarePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
@@ -439,6 +453,10 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       headerAccuracyRollPending: null,
       headerDuelWinner: 'home',
     };
+    // D-10 (Phase 39, 39-15): see the comment in shotGkRange's "GK within range" test
+    // above — prevents a false box-entry "fresh entry" detection from this direct
+    // test-state graft.
+    room.lastBroadcastBallPosition = { q: 33, r: 13 };
 
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_HEADER_TARGET, { q: 36, r: 13 });
@@ -498,6 +516,10 @@ describe('Header shot: GK-range gate and deterministic SAVE', () => {
       headerAccuracyRollPending: null,
       headerDuelWinner: 'home',
     };
+    // D-10 (Phase 39, 39-15): see the comment in shotGkRange's "GK within range" test
+    // above — prevents a false box-entry "fresh entry" detection from this direct
+    // test-state graft.
+    room.lastBroadcastBallPosition = { q: 33, r: 13 };
 
     const targetPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
     const targetPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
