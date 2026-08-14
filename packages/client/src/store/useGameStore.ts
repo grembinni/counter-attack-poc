@@ -195,6 +195,16 @@ export type GameStore = {
    * the destination (cornerKickHex) is server-owned and never client-chosen.
    */
   emitCornerKickTaker: (pieceId: string) => void;
+  /** FOUL-03 (Phase 39 / D-01): attacker's continue-play-or-restart choice after a foul. */
+  emitFoulChoice: (choice: 'continue' | 'restart') => void;
+  /** GKDIVE-02 (Phase 39 / D-07): defending manager's accept/decline response to a dive-at-feet prompt. */
+  emitGkDiveAtFeet: (accept: boolean) => void;
+  /** D-10 (Phase 39): defending manager's accept/decline response to a box-entry GK reposition prompt. */
+  emitGkBoxEntryResponse: (accept: boolean) => void;
+  /** D-10 (Phase 39): GK's one-hex destination during GK_BOX_ENTRY_MOVE. */
+  emitGkBoxEntryMove: (to: HexCoord) => void;
+  /** PEN-02 (Phase 39): attacking manager's penalty-taker selection during PENALTY_KICK_TAKER_SELECT. */
+  emitPenaltyKickTaker: (pieceId: string) => void;
 };
 
 /**
@@ -482,6 +492,46 @@ function computeFreeMoveValidHexes(
     )
       return false;
     return hexDistance(piece.position, hex) === 1;
+  });
+}
+
+/**
+ * PENALTY_KICK_SETUP_ATTACKING/DEFENDING valid-hex computation (PEN-02, D-08, Phase 39 Plan
+ * 05). Structurally identical to {@link computeFreeMoveValidHexes} (single-step adjacency,
+ * on-pitch, unoccupied) — deliberately UNBUDGETED (no pace-cap cutoff is ported from the
+ * goal-kick reposition branch; PEN-02 is free repositioning with no per-piece hex budget).
+ *
+ * Additionally excludes any destination inside the DEFENDING team's penalty area unless the
+ * selected piece is the defending goalkeeper or the already-chosen penalty taker
+ * (`penaltyKickTakerId`). The kicking team (`penaltyKickTeam`) attacks the OTHER team's area,
+ * so the restricted region is the one belonging to the team that is NOT `penaltyKickTeam`.
+ * This is a client-side convenience highlight only — the server independently re-validates the
+ * same restriction (T-39-05-01); no client filter here is load-bearing for correctness.
+ */
+function computePenaltyKickValidHexes(
+  id: string,
+  piece: GameState['pieces'][number],
+  gameState: GameState,
+): HexCoord[] {
+  const penaltyKickTeam = gameState.penaltyKickTeam ?? null;
+  const restrictedRegion =
+    penaltyKickTeam === null
+      ? null
+      : penaltyKickTeam === 'home'
+        ? 'awayPenaltyArea'
+        : 'homePenaltyArea';
+  const isExempt =
+    (piece.role === 'GK' && penaltyKickTeam !== null && piece.teamId !== penaltyKickTeam) ||
+    id === gameState.penaltyKickTakerId;
+  return hexesInRange(piece.position, 1).filter((hex) => {
+    if (!PITCH_HEXES.some((h) => h.q === hex.q && h.r === hex.r)) return false;
+    if (
+      gameState.pieces.some((p) => p.id !== id && p.position.q === hex.q && p.position.r === hex.r)
+    )
+      return false;
+    if (hexDistance(piece.position, hex) !== 1) return false;
+    if (!isExempt && restrictedRegion !== null && isInRegion(hex, restrictedRegion)) return false;
+    return true;
   });
 }
 
@@ -1160,6 +1210,102 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // FOUL_CHOICE / GK_DIVE_AT_FEET_PROMPT / GK_BOX_ENTRY_PROMPT (Phase 39): pure two-button
+    // panels with no board interaction — no piece is ever selectable during these phases.
+    // Defense-in-depth guard (mirrors every other phase's explicit no-op branch above);
+    // setGameState's phaseChanged clear already zeroes selectedPieceId on entry to any of
+    // these, this branch additionally prevents a stray selectPiece call from re-selecting
+    // anything while one of these phases is active.
+    if (
+      gameState.phase === 'FOUL_CHOICE' ||
+      gameState.phase === 'GK_DIVE_AT_FEET_PROMPT' ||
+      gameState.phase === 'GK_BOX_ENTRY_PROMPT'
+    ) {
+      set({ selectedPieceId: null, validMoveHexes: [] });
+      return;
+    }
+
+    // PENALTY_KICK_SETUP_ATTACKING / PENALTY_KICK_SETUP_DEFENDING (PEN-02, D-08): the
+    // full-squad, unbudgeted reposition windows before a penalty kick — modelled on the
+    // GOAL_KICK_SETUP_GK/_OPPONENT branch above (precomputed eligible-piece list, no
+    // single-piece lock), but with NO per-piece hex budget (PEN-02 is unbudgeted free
+    // repositioning; do not port the goal-kick branch's usedPace >= 6 cutoff).
+    if (
+      gameState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+      gameState.phase === 'PENALTY_KICK_SETUP_DEFENDING'
+    ) {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale).
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      if (myTeam !== gameState.activeTeam) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const side = gameState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ? 'attacking' : 'defending';
+      const eligibleIds = gameState.penaltyKickEligibleIds?.[side] ?? [];
+      if (piece.teamId !== myTeam || !eligibleIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      // Already activated this window — mirrors the FREE_MOVE_*/GOAL_KICK_SETUP_* exhaustion
+      // guard (this window has no numeric pace budget, but a piece is still locked out once
+      // its activation completes and it lands in movedPieceIds).
+      if (gameState.movedPieceIds.includes(id)) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const valid = computePenaltyKickValidHexes(id, piece, gameState);
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
+    // PENALTY_KICK_TAKER_SELECT (PEN-02): clicking an own-team, non-goalkeeper, on-pitch piece
+    // calls emitPenaltyKickTaker(piece.id) directly and selects nothing — mirrors how
+    // THROW_IN_SETUP routes a piece click to emitThrowInPlace. No destination hex is chosen
+    // client-side; the server places the taker on penaltyKickSpot.
+    if (gameState.phase === 'PENALTY_KICK_TAKER_SELECT') {
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      if (
+        piece.teamId !== myTeam ||
+        piece.teamId !== gameState.penaltyKickTeam ||
+        piece.role === 'GK'
+      ) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      get().emitPenaltyKickTaker(id);
+      set({ selectedPieceId: null, validMoveHexes: [] });
+      return;
+    }
+
+    // GK_BOX_ENTRY_MOVE (D-10): only the piece whose id equals the responding team's
+    // goalkeeper is selectable, and only when myTeam === gkBoxEntryTeam. Valid hexes are that
+    // goalkeeper's adjacent on-pitch unoccupied neighbours — at most six, exactly one step, no
+    // budget (mirrors computeFreeMoveValidHexes exactly, same shape as the box-entry response's
+    // one-hex reposition choice).
+    if (gameState.phase === 'GK_BOX_ENTRY_MOVE') {
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      if (myTeam !== gameState.gkBoxEntryTeam || piece.teamId !== myTeam || piece.role !== 'GK') {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const valid = computeFreeMoveValidHexes(id, piece, gameState);
+      set({ selectedPieceId: id, validMoveHexes: valid });
+      return;
+    }
+
     // Normal MOVEMENT phase: show only adjacent hexes (step-by-step, D-07)
     const { validMoveHexes: valid, tackleRiskHexes: tackle } = computeMovementValidHexes(
       piece,
@@ -1428,12 +1574,24 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // helper selectPiece's CORNER_KICK_REPOSITION branch uses (Plan 38-29 Task 1), and its
     // stickiness gate is the same single-term activation lock (cornerKickActivatedIds
     // membership, no same-stage exemption).
+    // PENALTY_KICK_SETUP_ATTACKING / PENALTY_KICK_SETUP_DEFENDING (PEN-02, Phase 39 Plan 05)
+    // join this block for the identical reason FREE_MOVE_ATTACK/DEFENSE do: multiple
+    // independently-eligible pieces, no single-piece lock concept. The ATTACKING -> DEFENDING
+    // handoff is a distinct GamePhase value, already caught by phaseChanged above (mirrors
+    // GOAL_KICK_SETUP_GK -> GOAL_KICK_SETUP_OPPONENT) — reaching here means the same manager is
+    // still mid-window. Activation completion is already caught by the top-level
+    // activationComplete check (movedPieceIds membership), so no re-check is needed here.
+    // GK_BOX_ENTRY_MOVE (D-10) joins this block too — a single selectable piece (the GK), but
+    // same "no numeric budget, re-derive neighbours every broadcast" shape as FREE_MOVE_*.
     if (
       newState.phase === 'FREE_MOVE_ATTACK' ||
       newState.phase === 'FREE_MOVE_DEFENSE' ||
       newState.phase === 'GOAL_KICK_SETUP_GK' ||
       newState.phase === 'GOAL_KICK_SETUP_OPPONENT' ||
-      newState.phase === 'CORNER_KICK_REPOSITION'
+      newState.phase === 'CORNER_KICK_REPOSITION' ||
+      newState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+      newState.phase === 'PENALTY_KICK_SETUP_DEFENDING' ||
+      newState.phase === 'GK_BOX_ENTRY_MOVE'
     ) {
       let stickyValid: HexCoord[];
       if (newState.phase === 'CORNER_KICK_REPOSITION') {
@@ -1452,6 +1610,13 @@ export const useGameStore = create<GameStore>()((set, get) => ({
               : 'defending';
           stickyValid = computeCornerRepositionValidHexes(prevSelectedId, newState, stickySide);
         }
+      } else if (
+        newState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+        newState.phase === 'PENALTY_KICK_SETUP_DEFENDING'
+      ) {
+        stickyValid = computePenaltyKickValidHexes(prevSelectedId, piece, newState);
+      } else if (newState.phase === 'GK_BOX_ENTRY_MOVE') {
+        stickyValid = computeFreeMoveValidHexes(prevSelectedId, piece, newState);
       } else {
         const paceRemaining =
           newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
@@ -1614,5 +1779,31 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // server-owned (cornerKickHex), never client-chosen.
   emitCornerKickTaker: (pieceId) => {
     socket.emit(ClientEvents.GAME_CORNER_KICK_TAKER, pieceId);
+  },
+
+  // FOUL-03 (D-01): fire-and-forget, no optimistic state mutation — the authoritative
+  // GAME_STATE broadcast is the only writer.
+  emitFoulChoice: (choice) => {
+    socket.emit(ClientEvents.GAME_FOUL_CHOICE, choice);
+  },
+
+  // GKDIVE-02 (D-07): fire-and-forget, no optimistic state mutation.
+  emitGkDiveAtFeet: (accept) => {
+    socket.emit(ClientEvents.GAME_GK_DIVE_AT_FEET, accept);
+  },
+
+  // D-10: fire-and-forget, no optimistic state mutation.
+  emitGkBoxEntryResponse: (accept) => {
+    socket.emit(ClientEvents.GAME_GK_BOX_ENTRY_RESPONSE, accept);
+  },
+
+  // D-10: fire-and-forget, no optimistic state mutation.
+  emitGkBoxEntryMove: (to) => {
+    socket.emit(ClientEvents.GAME_GK_BOX_ENTRY_MOVE, to);
+  },
+
+  // PEN-02: fire-and-forget, no optimistic state mutation.
+  emitPenaltyKickTaker: (pieceId) => {
+    socket.emit(ClientEvents.GAME_PENALTY_KICK_TAKER, pieceId);
   },
 }));
