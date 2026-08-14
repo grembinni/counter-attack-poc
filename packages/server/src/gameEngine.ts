@@ -49,6 +49,7 @@ import {
   validateHeading,
   hexDistance,
   hexLine,
+  hexNeighbors,
   computeBallZone,
   evaluateOffside,
   FREE_KICK_STAGES,
@@ -66,6 +67,7 @@ import {
   cornerClearOutGoalHex,
   cornerClearOutDestination,
   isSpillCornerDirection,
+  PENALTY_SPOT,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -1521,6 +1523,12 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'CORNER_KICK_TAKER_SELECT',
   'CORNER_KICK_REPOSITION',
   'CORNER_KICK_FINAL_SETUP',
+  // PEN-01..03 (Phase 39, 39-07): the ball sits on the fixed penalty spot throughout
+  // all four penalty phases, exactly like every goal-kick/corner-kick phase above.
+  'PENALTY_KICK_SETUP_ATTACKING',
+  'PENALTY_KICK_SETUP_DEFENDING',
+  'PENALTY_KICK_TAKER_SELECT',
+  'PENALTY_KICK',
 ]);
 
 /**
@@ -1680,7 +1688,13 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       // into the opposing manager's completed round, nor un-place the corner-taker.
       (state.phase === 'CORNER_KICK_REPOSITION' &&
         (evt.type === 'CORNER_KICK_STAGE_ADVANCE' || evt.type === 'CORNER_KICK_TAKER_PLACED')) ||
-      (state.phase === 'CORNER_KICK_FINAL_SETUP' && evt.type === 'CORNER_KICK_STAGE_ADVANCE');
+      (state.phase === 'CORNER_KICK_FINAL_SETUP' && evt.type === 'CORNER_KICK_STAGE_ADVANCE') ||
+      // PEN-02 (Phase 39, 39-07): Undo may never cross the attacking->defending
+      // reposition-window handoff, nor un-place the penalty taker.
+      ((state.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+        state.phase === 'PENALTY_KICK_SETUP_DEFENDING') &&
+        evt.type === 'PENALTY_KICK_WINDOW_ADVANCE') ||
+      (state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED');
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -1712,7 +1726,10 @@ export function applyUndo(state: GameState): ApplyUndoResult {
                   // silently no-op (38-REVIEW.md CR-01).
                   state.phase === 'CORNER_KICK_FINAL_SETUP'
                   ? 'CORNER_KICK_MOVE'
-                  : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE, GOAL_KICK_SETUP_GK/OPPONENT (applyMove emits MOVE)
+                  : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE, GOAL_KICK_SETUP_GK/OPPONENT
+  // (applyMove emits MOVE) — and PENALTY_KICK_SETUP_ATTACKING/DEFENDING (Phase
+  // 39, 39-07): applyPenaltyKickReposition also emits a plain MOVE event, so no
+  // new mapping entry is needed here; confirmed deliberately, not an oversight.
 
   // Find the last MOVE (or phase-appropriate HP_MOVE/FTP_MOVE) in the current slot
   const lastMoveRelIdx = currentSlotEvents.reduce<number>((acc, evt, idx) => {
@@ -5264,6 +5281,369 @@ export function applyGoalKickMoveEnd(
         lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
       },
       lastActionType: 'DEFLECTION',
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// computePenaltyKickEligibleIds
+// ---------------------------------------------------------------------------
+
+/**
+ * PEN-02 (Phase 39): computes both penalty-kick reposition-window eligible lists at
+ * trigger time. Deliberately has NO third-of-pitch region filter — every on-pitch
+ * piece of each team is eligible (contrast with `computeGoalKickEligibleIds`'s
+ * homeThird/awayThird filter). Do not "fix" this to match the goal-kick sibling; the
+ * absence of a region filter is PEN-02's explicit full-squad requirement, not an
+ * oversight. `redCarded` pieces are excluded from both lists.
+ */
+export function computePenaltyKickEligibleIds(
+  pieces: readonly PlayerPiece[],
+  kickingTeam: 'home' | 'away',
+): { attacking: readonly string[]; defending: readonly string[] } {
+  const eligible = pieces.filter((p) => p.redCarded !== true);
+  return {
+    attacking: eligible.filter((p) => p.teamId === kickingTeam).map((p) => p.id),
+    defending: eligible.filter((p) => p.teamId !== kickingTeam).map((p) => p.id),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// triggerPenaltyKick
+// ---------------------------------------------------------------------------
+
+/**
+ * PEN-01/02/03 (Phase 39): awards a penalty kick to `kickingTeam`, opening the
+ * attacking (kicking) team's reposition window first (D-08). Modelled byte-for-byte
+ * on `triggerOffsideFoul`'s return shape (packages/shared/src/offside.ts) — spread
+ * `...state`, then override every penalty-kick field explicitly. The defending team
+ * is the opposite of `kickingTeam`; the spot is `PENALTY_SPOT[defendingTeam]` — the
+ * spot is keyed by the DEFENDING team (whose penalty area contains it), not the
+ * kicking team.
+ */
+export function triggerPenaltyKick(state: GameState, kickingTeam: 'home' | 'away'): GameState {
+  const defendingTeam: 'home' | 'away' = kickingTeam === 'home' ? 'away' : 'home';
+  const spot = PENALTY_SPOT[defendingTeam];
+  const eligibleIds = computePenaltyKickEligibleIds(state.pieces, kickingTeam);
+
+  return {
+    ...state,
+    phase: 'PENALTY_KICK_SETUP_ATTACKING',
+    penaltyKickTeam: kickingTeam,
+    penaltyKickSpot: spot,
+    penaltyKickEligibleIds: eligibleIds,
+    penaltyKickUsedPace: {},
+    penaltyKickTakerId: null,
+    attackingTeam: kickingTeam,
+    activeTeam: kickingTeam,
+    // OOB-01/D-06 precedent (triggerOffsideFoul): pure repositioning, nobody has
+    // touched the ball at trigger time — carry lastTouchedBy forward unchanged.
+    ball: { position: spot, carrierId: null, lastTouchedBy: state.ball.lastTouchedBy },
+    // Matches every other break-in-play restart-trigger's bookkeeping reset.
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    movementSlot: null,
+    lastDiceRoll: null,
+    stealAttemptedByIds: [],
+    tackleAttemptedByIds: [],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyPenaltyKickReposition
+// ---------------------------------------------------------------------------
+
+/**
+ * PEN-02 (Phase 39): single-hex-per-click repositioning during the
+ * PENALTY_KICK_SETUP_ATTACKING / PENALTY_KICK_SETUP_DEFENDING windows. Structurally
+ * copies `applyGoalKickReposition`'s body (phase guard, piece lookup, WRONG_TEAM
+ * guard, eligible-list guard, movedPieceIds activation lock, hexDistance===1 /
+ * isPitchHex / occupancy checks, abandonment sweep, MOVE event) with two deliberate
+ * deviations:
+ *
+ * 1. NO pace-budget cap — PEN-02 repositioning is unbudgeted (unlike goal kick's
+ *    6-hex cap). `penaltyKickUsedPace` is still accumulated (never read for a budget
+ *    rejection) because the abandonment sweep and the client's in-progress-activation
+ *    detection both read it.
+ * 2. A PENALTY_AREA_RESTRICTED guard, inserted after the OCCUPIED check: a
+ *    destination inside the DEFENDING team's penalty area is rejected unless the
+ *    moving piece is the defending goalkeeper or the already-chosen penalty taker
+ *    (`state.penaltyKickTakerId`) — PEN-02's "only the taker and the defending GK
+ *    may end up inside the box" rule.
+ */
+export function applyPenaltyKickReposition(
+  state: GameState,
+  pieceId: string,
+  to: HexCoord,
+): ApplyMoveResult {
+  if (
+    state.phase !== 'PENALTY_KICK_SETUP_ATTACKING' &&
+    state.phase !== 'PENALTY_KICK_SETUP_DEFENDING'
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.teamId !== state.activeTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const eligibleIds =
+    state.phase === 'PENALTY_KICK_SETUP_ATTACKING'
+      ? (state.penaltyKickEligibleIds?.attacking ?? [])
+      : (state.penaltyKickEligibleIds?.defending ?? []);
+  if (!eligibleIds.includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'NOT_ELIGIBLE' };
+  }
+  // Already activated this window (locked via the abandonment sweep below when the
+  // player switched to a different piece) — mirrors applyGoalKickReposition's
+  // movedPieceIds lock. There is no pace-exhaustion lock here (deviation 1 above);
+  // a piece continuously reactivated by the SAME player never reaches this branch.
+  if (state.movedPieceIds.includes(pieceId)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'PENALTY_KICK_PIECE_LOCKED' };
+  }
+
+  // Standard adjacency/occupancy validation (mirrors applyGoalKickReposition).
+  if (hexDistance(piece.position, to) !== 1) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OUT_OF_RANGE' };
+  }
+  if (!isPitchHex(to)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
+  }
+  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
+  }
+
+  // Deviation 2: PEN-02's penalty-area placement restriction. defendingAreaKey is
+  // keyed by penaltyKickTeam (the KICKING team), never by the moving piece's own
+  // team — the DEFENDING team's box is off-limits to everyone except their own GK
+  // and the already-chosen taker.
+  const defendingTeam: 'home' | 'away' = state.penaltyKickTeam === 'home' ? 'away' : 'home';
+  const defendingAreaKey: 'homePenaltyArea' | 'awayPenaltyArea' =
+    state.penaltyKickTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+  const isDefendingGk = piece.role === 'GK' && piece.teamId === defendingTeam;
+  const isChosenTaker = state.penaltyKickTakerId === pieceId;
+  if (isInRegion(to, defendingAreaKey) && !isDefendingGk && !isChosenTaker) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'PENALTY_AREA_RESTRICTED' };
+  }
+
+  const stepDistance = 1; // single-step adjacency already enforced above
+  const usedSoFar = (state.penaltyKickUsedPace ?? {})[pieceId] ?? 0;
+  const newUsed = usedSoFar + stepDistance;
+  // Deviation 1: no `usedSoFar + stepDistance > 6` budget rejection here — PEN-02
+  // repositioning is unbudgeted.
+
+  // Mirrors applyGoalKickReposition's abandonment sweep: starting a brand-new
+  // activation on this piece (usedSoFar === 0) locks in any OTHER piece with an
+  // in-progress, unfinished activation.
+  const isNewActivation = usedSoFar === 0;
+  const abandonedIds = isNewActivation
+    ? Object.keys(state.penaltyKickUsedPace ?? {}).filter(
+        (id) => id !== pieceId && !state.movedPieceIds.includes(id),
+      )
+    : [];
+  const newMovedPieceIds = new Set(state.movedPieceIds);
+  for (const id of abandonedIds) newMovedPieceIds.add(id);
+
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+  const moveEvent: ActionEvent = {
+    type: 'MOVE',
+    pieceId,
+    from: piece.position,
+    to,
+    // PENALTY_KICK_SETUP has no movementSlot (not part of the 4-5-2 sequence);
+    // ATTACKER_2 is the closest semantic match, mirroring applyGoalKickReposition.
+    slot: 'ATTACKER_2',
+    timestamp: Date.now(),
+    // Ball unchanged during the reposition windows.
+    ballAfter: { position: state.ball.position, carrierId: state.ball.carrierId },
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      eventLog: [...state.eventLog, moveEvent],
+      penaltyKickUsedPace: {
+        ...(state.penaltyKickUsedPace ?? {}),
+        [pieceId]: newUsed,
+      },
+      movedPieceIds: [...newMovedPieceIds],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyPenaltyKickWindowEnd
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyPenaltyKickWindowEnd. */
+export type ApplyPenaltyKickWindowEndResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' }
+  | { ok: true; state: GameState };
+
+/**
+ * PEN-02/D-08 (Phase 39): ends the active penalty reposition window on the acting
+ * team's End Turn. Mirrors `applyGoalKickWindowEnd`'s two-window handoff, but takes
+ * an explicit `team` parameter (checked against `state.activeTeam`, returning
+ * WRONG_TEAM on mismatch) and targets PENALTY_KICK_TAKER_SELECT — not a further
+ * choice phase — once the defending window closes.
+ */
+export function applyPenaltyKickWindowEnd(
+  state: GameState,
+  team: 'home' | 'away',
+): ApplyPenaltyKickWindowEndResult {
+  if (
+    state.phase !== 'PENALTY_KICK_SETUP_ATTACKING' &&
+    state.phase !== 'PENALTY_KICK_SETUP_DEFENDING'
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+  if (team !== state.activeTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const kickingTeam = state.penaltyKickTeam ?? state.activeTeam;
+
+  if (state.phase === 'PENALTY_KICK_SETUP_ATTACKING') {
+    const defendingTeam: 'home' | 'away' = kickingTeam === 'home' ? 'away' : 'home';
+    const advanceEvent: ActionEvent = {
+      type: 'PENALTY_KICK_WINDOW_ADVANCE',
+      from: 'ATTACKING',
+      timestamp: Date.now(),
+    };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'PENALTY_KICK_SETUP_DEFENDING',
+        activeTeam: defendingTeam,
+        // The second team's pieces have not moved yet in this window — fresh state.
+        movedPieceIds: [],
+        penaltyKickUsedPace: {},
+        eventLog: [...state.eventLog, advanceEvent],
+      },
+    };
+  }
+
+  // PENALTY_KICK_SETUP_DEFENDING -> PENALTY_KICK_TAKER_SELECT (always).
+  const advanceEvent: ActionEvent = {
+    type: 'PENALTY_KICK_WINDOW_ADVANCE',
+    from: 'DEFENDING',
+    timestamp: Date.now(),
+  };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'PENALTY_KICK_TAKER_SELECT',
+      activeTeam: kickingTeam,
+      movedPieceIds: [],
+      penaltyKickUsedPace: {},
+      eventLog: [...state.eventLog, advanceEvent],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyPenaltyKickTaker
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyPenaltyKickTaker. */
+export type ApplyPenaltyKickTakerResult =
+  | { ok: false; reason: 'WRONG_PHASE' | 'WRONG_TEAM' | 'TAKER_INVALID' | 'PIECE_NOT_FOUND' }
+  | { ok: true; state: GameState };
+
+/**
+ * PEN-02 (Phase 39): the kicking manager selects the penalty taker once both
+ * reposition windows have closed (phase PENALTY_KICK_TAKER_SELECT). Rejects a
+ * goalkeeper, a defending-team piece, a redCarded piece, and an unknown id. On
+ * success: displaces any occupant of `penaltyKickSpot` to the nearest unoccupied
+ * on-pitch hex outside the defending penalty area (walking outward to the
+ * neighbours-of-neighbours ring if all six immediate neighbours are blocked; leaves
+ * the occupant in place — never throws — if still blocked), then moves the taker
+ * onto the spot, hands them the ball, and transitions to PENALTY_KICK.
+ */
+export function applyPenaltyKickTaker(
+  state: GameState,
+  pieceId: string,
+): ApplyPenaltyKickTakerResult {
+  if (state.phase !== 'PENALTY_KICK_TAKER_SELECT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const piece = state.pieces.find((p) => p.id === pieceId);
+  if (!piece) return { ok: false, reason: 'PIECE_NOT_FOUND' };
+
+  if (piece.role === 'GK') {
+    return { ok: false, reason: 'TAKER_INVALID' };
+  }
+  if (piece.redCarded === true) {
+    return { ok: false, reason: 'TAKER_INVALID' };
+  }
+  if (piece.teamId !== state.penaltyKickTeam) {
+    return { ok: false, reason: 'WRONG_TEAM' };
+  }
+
+  const spot = state.penaltyKickSpot ?? piece.position;
+  const defendingAreaKey: 'homePenaltyArea' | 'awayPenaltyArea' =
+    state.penaltyKickTeam === 'home' ? 'awayPenaltyArea' : 'homePenaltyArea';
+
+  const occupant = state.pieces.find(
+    (p) => p.id !== pieceId && p.position.q === spot.q && p.position.r === spot.r,
+  );
+
+  let displacedPieces: readonly PlayerPiece[] = state.pieces;
+  if (occupant) {
+    const isFreeDisplacementHex = (h: HexCoord): boolean =>
+      isPitchHex(h) &&
+      !isInRegion(h, defendingAreaKey) &&
+      !state.pieces.some(
+        (p) => p.id !== occupant.id && p.position.q === h.q && p.position.r === h.r,
+      );
+
+    // Ring 1 (immediate neighbours), then ring 2 (neighbours-of-neighbours) if every
+    // ring-1 hex is blocked/inside the box. Never throws — if ring 2 is also fully
+    // blocked, the occupant is simply left in place (displacedPieces stays unchanged).
+    const ring1 = hexNeighbors(occupant.position);
+    let destination = ring1.find(isFreeDisplacementHex);
+    if (!destination) {
+      const ring2 = ring1.flatMap((h) => hexNeighbors(h));
+      destination = ring2.find(isFreeDisplacementHex);
+    }
+    if (destination) {
+      const finalDestination = destination;
+      displacedPieces = state.pieces.map((p) =>
+        p.id === occupant.id ? { ...p, position: finalDestination } : p,
+      );
+    }
+  }
+
+  const newPieces = displacedPieces.map((p) => (p.id === pieceId ? { ...p, position: spot } : p));
+
+  const placedEvent: ActionEvent = {
+    type: 'PENALTY_KICK_TAKER_PLACED',
+    pieceId,
+    hex: spot,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      penaltyKickTakerId: pieceId,
+      ball: {
+        position: spot,
+        carrierId: pieceId,
+        lastTouchedBy: { pieceId, teamId: piece.teamId },
+      },
+      eventLog: [...state.eventLog, placedEvent],
+      phase: 'PENALTY_KICK',
     },
   };
 }
