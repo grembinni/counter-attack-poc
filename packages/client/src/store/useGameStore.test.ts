@@ -1274,7 +1274,11 @@ describe('useGameStore — selectPiece Penalty Kick / GK Box Entry / Foul Choice
     expect(state.selectedPieceId).toBeNull();
   });
 
-  it('PENALTY_KICK_TAKER_SELECT: clicking an own-team outfielder calls emitPenaltyKickTaker and leaves selectedPieceId null', () => {
+  // 39-23 (gap-6 closure): PENALTY_KICK_TAKER_SELECT now mirrors CORNER_KICK_TAKER_SELECT —
+  // a board click SELECTS the piece and emits nothing; commitment happens via
+  // PenaltyKickSetupPanel's Confirm button (emitPenaltyKickTaker), tested separately in
+  // PenaltyKickSetupPanel.test.tsx.
+  it('PENALTY_KICK_TAKER_SELECT: clicking an own-team outfielder selects it and emits nothing', () => {
     useGameStore.setState({
       playerSlot: 1,
       gameState: {
@@ -1284,11 +1288,11 @@ describe('useGameStore — selectPiece Penalty Kick / GK Box Entry / Foul Choice
       },
     });
     useGameStore.getState().selectPiece('home-7');
-    expect(emitMock).toHaveBeenCalledWith('game:penalty-kick-taker', 'home-7');
-    expect(useGameStore.getState().selectedPieceId).toBeNull();
+    expect(useGameStore.getState().selectedPieceId).toBe('home-7');
+    expect(emitMock).not.toHaveBeenCalled();
   });
 
-  it('PENALTY_KICK_TAKER_SELECT: clicking the own goalkeeper emits nothing', () => {
+  it('PENALTY_KICK_TAKER_SELECT: clicking the own goalkeeper yields no selection', () => {
     useGameStore.setState({
       playerSlot: 1,
       gameState: {
@@ -1298,6 +1302,40 @@ describe('useGameStore — selectPiece Penalty Kick / GK Box Entry / Foul Choice
       },
     });
     useGameStore.getState().selectPiece('home-0'); // home-0 is the GK
+    expect(emitMock).not.toHaveBeenCalled();
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+  });
+
+  // 39-REVIEW IN-02 closure: a sent-off teammate is unselectable on the client, mirroring
+  // applyPenaltyKickTaker's server-side TAKER_INVALID rejection, instead of round-tripping a
+  // GAME_ERROR after an emission the server would reject anyway.
+  it('PENALTY_KICK_TAKER_SELECT: clicking a red-carded teammate yields no selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_TAKER_SELECT',
+        penaltyKickTeam: 'home',
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-7' ? { ...p, redCarded: true } : p,
+        ),
+      },
+    });
+    useGameStore.getState().selectPiece('home-7');
+    expect(emitMock).not.toHaveBeenCalled();
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+  });
+
+  it('PENALTY_KICK_TAKER_SELECT: clicking an opponent piece yields no selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_TAKER_SELECT',
+        penaltyKickTeam: 'home',
+      },
+    });
+    useGameStore.getState().selectPiece('away-7');
     expect(emitMock).not.toHaveBeenCalled();
     expect(useGameStore.getState().selectedPieceId).toBeNull();
   });

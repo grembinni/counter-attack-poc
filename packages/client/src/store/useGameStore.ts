@@ -1267,11 +1267,20 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // PENALTY_KICK_TAKER_SELECT (PEN-02): clicking an own-team, non-goalkeeper, on-pitch piece
-    // calls emitPenaltyKickTaker(piece.id) directly and selects nothing — mirrors how
-    // THROW_IN_SETUP routes a piece click to emitThrowInPlace. No destination hex is chosen
-    // client-side; the server places the taker on penaltyKickSpot.
+    // PENALTY_KICK_TAKER_SELECT (PEN-02, 39-23 gap-6 closure): clicking an own-team,
+    // non-goalkeeper, non-red-carded, on-pitch piece SELECTS it — mirrors
+    // CORNER_KICK_TAKER_SELECT above exactly. The destination is server-fixed
+    // (penaltyKickSpot), so there is no per-piece hex set to compute here; commitment
+    // happens via PenaltyKickSetupPanel's Confirm button (emitPenaltyKickTaker), not this
+    // click. A prior version emitted directly from here with no confirmation step, so a
+    // misclick committed the taker irreversibly (PENALTY_KICK_TAKER_PLACED is an Undo
+    // boundary) — 39-UAT gap 6. Also closes 39-REVIEW IN-02: the redCarded rejection below
+    // mirrors applyPenaltyKickTaker's TAKER_INVALID guard (gameEngine.ts) so a sent-off
+    // teammate is unselectable on the client, not merely rejected round-trip by the server.
     if (gameState.phase === 'PENALTY_KICK_TAKER_SELECT') {
+      // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
+      // for full rationale); selectPiece's only real caller (HexGrid canSelectPenaltyKickTaker)
+      // already requires myTeam !== null.
       const myTeam = deriveMyTeam(playerSlot);
       if (myTeam === null) {
         set({ selectedPieceId: null, validMoveHexes: [] });
@@ -1280,13 +1289,13 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       if (
         piece.teamId !== myTeam ||
         piece.teamId !== gameState.penaltyKickTeam ||
-        piece.role === 'GK'
+        piece.role === 'GK' ||
+        piece.redCarded === true
       ) {
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      get().emitPenaltyKickTaker(id);
-      set({ selectedPieceId: null, validMoveHexes: [] });
+      set({ selectedPieceId: id, validMoveHexes: [], tackleRiskHexes: [] });
       return;
     }
 

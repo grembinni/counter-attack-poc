@@ -911,17 +911,21 @@ export function HexGrid() {
               (penaltyKickEligibleIds?.[penaltyKickSetupSide]?.includes(piece.id) ?? false) &&
               !movedPieceIds.includes(piece.id);
 
-            // PENALTY_KICK_TAKER_SELECT (PEN-02): clicking an own-team, non-goalkeeper,
-            // on-pitch piece routes to selectPiece, which the store's dedicated branch
-            // resolves directly into emitPenaltyKickTaker — mirrors canSelectCornerKickTaker's
-            // shape (no hex highlight involved, per UI-SPEC).
+            // PENALTY_KICK_TAKER_SELECT (PEN-02, 39-23 gap-6 closure): clicking an own-team,
+            // non-goalkeeper, non-red-carded, on-pitch piece routes to selectPiece, which the
+            // store's dedicated branch now SELECTS the piece (feeding the panel's Confirm
+            // button) rather than resolving directly into emitPenaltyKickTaker — mirrors
+            // canSelectCornerKickTaker's shape exactly. The redCarded exclusion mirrors the
+            // store guard and the server's applyPenaltyKickTaker TAKER_INVALID rejection (this
+            // file's own convention: a piece must never look clickable and then be rejected).
             const canSelectPenaltyKickTaker =
               phase === 'PENALTY_KICK_TAKER_SELECT' &&
               myTeam !== null &&
               penaltyKickTeam != null &&
               myTeam === penaltyKickTeam &&
               piece.teamId === penaltyKickTeam &&
-              piece.role !== 'GK';
+              piece.role !== 'GK' &&
+              piece.redCarded !== true;
 
             // GK_BOX_ENTRY_MOVE (D-10): only the responding team's own goalkeeper is
             // selectable — mirrors useGameStore.ts's selectPiece guard exactly (no

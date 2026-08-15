@@ -1976,6 +1976,102 @@ describe('HexGrid — Corner Kick piece selectability, tints and rings (CORNER-0
   });
 });
 
+// PEN-02 (39-23 gap-6 closure): PENALTY_KICK_TAKER_SELECT piece selectability now mirrors
+// CORNER_KICK_TAKER_SELECT — a click SELECTS (feeding the panel's Confirm button) rather than
+// resolving directly into an emission. A red-carded teammate must render without a click
+// handler, closing 39-REVIEW IN-02 on the client side.
+describe('HexGrid — PENALTY_KICK_TAKER_SELECT piece selectability (PEN-02, Plan 39-23)', () => {
+  const TAKER_ELIGIBLE_ID = 'home-7'; // MID 3, own-team non-GK outfielder
+
+  function penaltyKickTakerSelectState(
+    penaltyKickTeam: 'home' | 'away' = 'home',
+    overrides: { redCardedId?: string } = {},
+  ) {
+    return {
+      ...mockMovementState,
+      phase: 'PENALTY_KICK_TAKER_SELECT' as const,
+      penaltyKickTeam,
+      pieces:
+        overrides.redCardedId !== undefined
+          ? mockMovementState.pieces.map((p) =>
+              p.id === overrides.redCardedId ? { ...p, redCarded: true } : p,
+            )
+          : mockMovementState.pieces,
+    };
+  }
+
+  function hasAnySelectableRing(container: HTMLElement): boolean {
+    return Array.from(container.querySelectorAll('circle')).some(
+      (c) => c.getAttribute('stroke') === '#60a5fa' && c.getAttribute('r') === '15',
+    );
+  }
+
+  it('renders a healthy own-team outfielder as selectable for the kicking manager', () => {
+    const state = penaltyKickTakerSelectState('home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === TAKER_ELIGIBLE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  it('a red-carded teammate renders without a click handler while a healthy teammate renders with one', () => {
+    const state = penaltyKickTakerSelectState('home', { redCardedId: TAKER_ELIGIBLE_ID });
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const redCardedPiece = state.pieces.find((p) => p.id === TAKER_ELIGIBLE_ID)!;
+    const healthyPiece = state.pieces.find((p) => p.id === 'home-6')!; // own-team, not GK, not red-carded
+    const { container } = render(<HexGrid />);
+    expect(
+      hasSelectableRingAt(container, redCardedPiece.position.q, redCardedPiece.position.r),
+    ).toBe(false);
+    expect(hasSelectableRingAt(container, healthyPiece.position.q, healthyPiece.position.r)).toBe(
+      true,
+    );
+  });
+
+  it('the own goalkeeper renders without a click handler', () => {
+    const state = penaltyKickTakerSelectState('home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gk = state.pieces.find((p) => p.id === 'home-0')!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, gk.position.q, gk.position.r)).toBe(false);
+  });
+
+  it('the non-acting (defending) player sees zero selectable pieces', () => {
+    const state = penaltyKickTakerSelectState('home');
+    useGameStore.setState({
+      gameState: state,
+      screen: 'GAME_BOARD',
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasAnySelectableRing(container)).toBe(false);
+  });
+});
+
 // GOALKICK-05 (Phase 37, Plan 37-18): HeaderTargetRing renders as a second standalone
 // always-on-top overlay, alongside BallLocationRing, marking the goal-kick header contest
 // hex during the GOAL_KICK_MOVE travel window. Asserted via the imported HEADER_TARGET_STROKE
