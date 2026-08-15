@@ -122,3 +122,13 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-14 (automated portion; checkpoint pending)_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/ActionPanel.tsx
+- FOUND: packages/client/src/components/ActionPanel.test.tsx
+- FOUND: packages/server/src/**tests**/gameEngine.undoReplay39.test.ts
+- FOUND: .planning/phases/39-fouls-cards-injuries-penalty-kicks/39-17-SUMMARY.md
+- FOUND commit a8549e4 (Task 1)
+- FOUND commit 2e3d088 (Task 2)
+- FOUND commit 7ec87b6 (docs: plan summary)
