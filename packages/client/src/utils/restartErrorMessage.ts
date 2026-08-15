@@ -85,6 +85,12 @@ export const RESTART_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // removed the two clear-out-only rejection codes this map used to carry, alongside the
   // deleted automatic clear-out phase — those wire codes can no longer be emitted.
   CORNER_EXCLUSION_ZONE: 'Defenders cannot be positioned within three hexes of the corner.',
+
+  // 39-18 (UAT gap 1): re-running this module's mandated grep for the new server-side
+  // CONTINUE_NOT_ALLOWED reason (added to ApplyFoulChoiceResult by applyFoulChoice and
+  // forwarded verbatim to GAME_ERROR by the existing GAME_FOUL_CHOICE handler) surfaced
+  // no other newly unmapped codes. Added below.
+  CONTINUE_NOT_ALLOWED: 'That side already has the ball back, so play cannot continue.',
 };
 
 /**

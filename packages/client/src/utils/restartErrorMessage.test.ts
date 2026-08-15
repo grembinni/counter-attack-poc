@@ -56,6 +56,14 @@ describe('restartErrorMessage', () => {
     expect(msg?.length).toBeGreaterThan(0);
   });
 
+  it('CONTINUE_NOT_ALLOWED (39-18) returns the mapped sentence, not the generic fallback', () => {
+    const msg = restartErrorMessage('CONTINUE_NOT_ALLOWED');
+    const generic = restartErrorMessage('SOME_FUTURE_CODE');
+    expect(msg).not.toBeNull();
+    expect(msg).not.toContain('CONTINUE_NOT_ALLOWED');
+    expect(msg).not.toBe(generic);
+  });
+
   it('empty string and null both return null so the caller renders nothing', () => {
     expect(restartErrorMessage('')).toBeNull();
     expect(restartErrorMessage(null)).toBeNull();
