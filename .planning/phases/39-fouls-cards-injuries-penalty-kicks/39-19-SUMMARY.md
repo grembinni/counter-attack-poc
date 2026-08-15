@@ -115,6 +115,15 @@ None - no external service configuration required.
 - No known stubs, no threat-surface changes beyond the existing accepted/mitigate dispositions already recorded in this plan's `<threat_model>` (all three threats — tampering on server-derived inputs, the bounded `hexLine` DoS mitigation, and the pre-existing repudiation/audit-trail acceptance — hold unchanged after implementation)
 - Full monorepo build, typecheck, and both `shared`/`server` test suites are green; no follow-up work identified
 
+## Self-Check: PASSED
+
+- FOUND: `packages/shared/src/fouls.ts`
+- FOUND: `packages/shared/src/fouls.test.ts`
+- FOUND: `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-19-SUMMARY.md`
+- FOUND: commit `81b649e` (Task 1)
+- FOUND: commit `f86557b` (Task 2)
+- FOUND: commit `3a4257d` (docs: summary)
+
 ---
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
