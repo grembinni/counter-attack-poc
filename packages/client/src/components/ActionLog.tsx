@@ -1068,6 +1068,9 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
             {' '}
             <PNamed pieceId={event.defenderId} /> fouled <PNamed pieceId={event.victimId} /> — die:{' '}
             {event.defenderDie}
+            {/* 39-24 (closes 39-UAT gap 7): a from-behind tackle foul is visibly distinct
+                from an ordinary foul entry, in the same suffix position/style as DOGSO. */}
+            {event.fromBehind ? ' — Tackle from Behind' : ''}
             {event.professional ? ' — Professional Foul (DOGSO)' : ''}
           </>
         ),

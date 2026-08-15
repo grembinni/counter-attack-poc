@@ -476,6 +476,8 @@ describe('applyGkDiveAtFeetTarget — GKDIVE-03 foul on gkDie===1', () => {
       expect(foulEvent.source).toBe('GK_DIVE_AT_FEET');
       expect(foulEvent.defenderId).toBe('home-gk');
       expect(foulEvent.victimId).toBe('carrier');
+      // 39-24: GK-dive-sourced fouls never widen to the from-behind trigger.
+      expect(foulEvent.fromBehind).toBe(false);
     }
     expect(result.state.phase).toBe('FOUL_CHOICE');
     expect(result.state.foulSource).toBe('GK_DIVE_AT_FEET');
@@ -502,6 +504,8 @@ describe('applyGkDiveAtFeetTarget — GKDIVE-03 foul on gkDie===1', () => {
     if (!result.ok) return;
     const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
     expect(foulEvent).toBeDefined();
+    // 39-24: GK-dive-sourced fouls never widen to the from-behind trigger.
+    if (foulEvent?.type === 'FOUL_CALLED') expect(foulEvent.fromBehind).toBe(false);
     expect(result.state.phase).toBe('FOUL_CHOICE');
     expect(result.state.foulSource).toBe('GK_DIVE_AT_FEET');
     expect(result.state.foulDuelSucceeded).toBe(false);

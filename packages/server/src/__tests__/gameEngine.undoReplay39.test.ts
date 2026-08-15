@@ -142,6 +142,7 @@ const eventFixtures: Partial<Record<ActionEventType, ActionEvent>> = {
     source: 'TACKLE',
     defenderDie: 1,
     professional: false,
+    fromBehind: false,
     timestamp: 0,
   },
   INJURY_CHECK: {

@@ -1139,12 +1139,53 @@ describe('ActionLog — Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks
         source: 'TACKLE',
         defenderDie: 1,
         professional: true,
+        fromBehind: false,
         timestamp: 0,
       },
     ]);
     const { container } = render(<ActionLog />);
     expect(container.textContent).toMatch(/\[FOUL\]/);
     expect(container.textContent).toMatch(/fouled/);
+    expect(container.textContent).toMatch(/Professional Foul \(DOGSO\)/);
+    expect(container.textContent).not.toMatch(/Tackle from Behind/);
+  });
+
+  it('a FOUL_CALLED event with fromBehind: true renders "Tackle from Behind" (39-24, closes 39-UAT gap 7)', () => {
+    setEventLog([
+      {
+        type: 'FOUL_CALLED',
+        defenderId: 'away-1',
+        victimId: 'home-9',
+        hex: { q: 15, r: 22 },
+        source: 'TACKLE',
+        defenderDie: 2,
+        professional: false,
+        fromBehind: true,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[FOUL\]/);
+    expect(container.textContent).toMatch(/Tackle from Behind/);
+    expect(container.textContent).not.toMatch(/Professional Foul \(DOGSO\)/);
+  });
+
+  it('a FOUL_CALLED event with both fromBehind: true AND professional: true renders both segments', () => {
+    setEventLog([
+      {
+        type: 'FOUL_CALLED',
+        defenderId: 'away-1',
+        victimId: 'home-9',
+        hex: { q: 15, r: 22 },
+        source: 'TACKLE',
+        defenderDie: 1,
+        professional: true,
+        fromBehind: true,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/Tackle from Behind/);
     expect(container.textContent).toMatch(/Professional Foul \(DOGSO\)/);
   });
 
