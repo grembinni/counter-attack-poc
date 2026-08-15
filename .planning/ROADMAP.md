@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 18/24         | In Progress |             |
+| 39    | 20/24         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -398,8 +398,8 @@ Plans:
 
 **Wave 11** _(two parallel plans, no file overlap)_
 
-- [ ] 39-19-PLAN.md — DOGSO goal-side + goal-path geometry rework (UAT gap 8)
-- [ ] 39-20-PLAN.md — GK dive-at-feet target phase + GK relocation, shared dive cap (UAT gaps 3-server, 4)
+- [x] 39-19-PLAN.md — DOGSO goal-side + goal-path geometry rework (UAT gap 8)
+- [x] 39-20-PLAN.md — GK dive-at-feet target phase + GK relocation, shared dive cap (UAT gaps 3-server, 4)
 
 **Wave 12** _(two parallel plans, no file overlap)_
 
