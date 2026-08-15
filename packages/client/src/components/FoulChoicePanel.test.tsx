@@ -119,6 +119,26 @@ describe('FoulChoicePanel — deciding manager (the fouled side)', () => {
     expect(screen.queryByText(/undefined/)).toBeNull();
   });
 
+  it('39-18: foulDuelSucceeded true hides Continue Play but still renders the restart button', () => {
+    useGameStore.setState({
+      gameState: foulChoiceState({ foulDuelSucceeded: true }),
+      playerSlot: 2,
+    });
+    render(<FoulChoicePanel />);
+    expect(screen.queryByText('Continue Play')).toBeNull();
+    expect(screen.getByRole('button', { name: /^take the free kick$/i })).toBeDefined();
+  });
+
+  it('39-18: foulDuelSucceeded false still renders both buttons (guards against over-suppression)', () => {
+    useGameStore.setState({
+      gameState: foulChoiceState({ foulDuelSucceeded: false }),
+      playerSlot: 2,
+    });
+    render(<FoulChoicePanel />);
+    expect(screen.getByRole('button', { name: /^continue play$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^take the free kick$/i })).toBeDefined();
+  });
+
   it('renders a humanised gameError in the error row', () => {
     useGameStore.setState({
       gameState: foulChoiceState(),

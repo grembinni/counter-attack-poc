@@ -8,8 +8,8 @@
 ### Fouls (FOUL)
 
 - [ ] **FOUL-01**: A tackle or steal attempt whose defending player's own die shows exactly 1 calls a foul on that defender (nutmeg is a distinct move deferred to a future milestone — not a v1.6 trigger)
-- [ ] **FOUL-02**: A foul immediately rolls an injury check (if Injury is enabled) and a booking check (if Booking is enabled), in that order, before the attacker's continue-or-restart choice
-- [ ] **FOUL-03**: After those rolls resolve, the attacking manager chooses to continue play or take the restart (free kick, or penalty if the foul came from a GK-dive-at-feet)
+- [x] **FOUL-02**: A foul immediately rolls an injury check (if Injury is enabled) and a booking check (if Booking is enabled), in that order, before the attacker's continue-or-restart choice
+- [x] **FOUL-03**: After those rolls resolve, the attacking manager chooses to continue play or take the restart (free kick, or penalty if the foul came from a GK-dive-at-feet)
 - [ ] **FOUL-04**: A Professional (Last Man) Foul — no other defending piece can reach the tackle hex within its remaining pace this movement phase — triggers the straight-red-vs-yellow booking check (CARD-03) instead of the normal booking roll
 - [ ] **FOUL-05**: Fouls (detection, injury, GK-dive-at-feet, professional-foul check, and the resulting restart) is enabled/disabled via an independent game-creation toggle
 
@@ -37,13 +37,13 @@
 
 ### Penalty Kick (PEN)
 
-- [ ] **PEN-01**: A penalty kick is a duel between the penalty taker and the goalkeeper, with the goalkeeper's combined score taking a -2 dice penalty
+- [x] **PEN-01**: A penalty kick is a duel between the penalty taker and the goalkeeper, with the goalkeeper's combined score taking a -2 dice penalty
 - [ ] **PEN-02**: Before a penalty kick, both teams freely reposition all players, with only the penalty taker and the defending goalkeeper allowed inside the penalty area; the kicker is chosen via the existing free-kick kicker-select flow
 - [ ] **PEN-03**: A tied penalty-kick duel results in a Loose Ball at the penalty spot, following the existing Loose Ball rules
 
 ### Foul-Triggered Free Kick (FK)
 
-- [ ] **FK-01**: A foul from a tackle or steal attempt (not from a GK-dive-at-feet) awards a free kick using the existing FREE_KICK_SETUP flow, with a new foul-based trigger alongside the existing offside trigger
+- [x] **FK-01**: A foul from a tackle or steal attempt (not from a GK-dive-at-feet) awards a free kick using the existing FREE_KICK_SETUP flow, with a new foul-based trigger alongside the existing offside trigger
 
 ### Substitutions (SUB)
 
@@ -152,8 +152,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORNER-05   | Phase 38 | Complete |
 | CORNER-06   | Phase 38 | Complete |
 | FOUL-01     | Phase 39 | Pending  |
-| FOUL-02     | Phase 39 | Pending  |
-| FOUL-03     | Phase 39 | Pending  |
+| FOUL-02     | Phase 39 | Complete |
+| FOUL-03     | Phase 39 | Complete |
 | FOUL-04     | Phase 39 | Pending  |
 | FOUL-05     | Phase 39 | Pending  |
 | CARD-01     | Phase 39 | Pending  |
@@ -169,10 +169,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GKDIVE-03   | Phase 39 | Complete |
 | GKDIVE-04   | Phase 39 | Complete |
 | GKDIVE-05   | Phase 39 | Complete |
-| PEN-01      | Phase 39 | Pending  |
+| PEN-01      | Phase 39 | Complete |
 | PEN-02      | Phase 39 | Pending  |
 | PEN-03      | Phase 39 | Pending  |
-| FK-01       | Phase 39 | Pending  |
+| FK-01       | Phase 39 | Complete |
 | SETTINGS-01 | Phase 39 | Pending  |
 | SETTINGS-02 | Phase 39 | Pending  |
 | SETTINGS-03 | Phase 39 | Pending  |
