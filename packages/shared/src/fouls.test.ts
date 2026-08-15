@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   FOUL_TRIGGER_DIE,
+  FOUL_TRIGGER_DIE_FROM_BEHIND,
   isInjured,
   applyInjuryDegradation,
   rollsInjury,
@@ -11,7 +12,11 @@ import {
   GOAL_PATH_R_MAX,
   clampGoalPathRow,
   attackerGoalPath,
+  hexesBehindAttacker,
+  isTackleFromBehind,
+  foulTriggerThreshold,
 } from './fouls.js';
+import { hexDistance } from './hex.js';
 import type { GameState, PlayerPiece } from './types.js';
 
 /**
@@ -511,5 +516,99 @@ describe('clampGoalPathRow / attackerGoalPath', () => {
   it('draws the path at the clamped row (5), not the raw row (1), for an out-of-band attacker', () => {
     const path = attackerGoalPath({ q: 21, r: 1 }, 'home');
     expect(path.every((h) => h.r === 5)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FOUL-01 (Plan 39-24, closes 39-UAT gap 7): tackle-from-behind geometry and
+// the widened trigger threshold.
+// ---------------------------------------------------------------------------
+
+describe('hexesBehindAttacker', () => {
+  it('EVEN q (20): home carrier -> exactly 2 hexes, both q===19', () => {
+    const result = hexesBehindAttacker({ q: 20, r: 13 }, 'home');
+    expect(result).toHaveLength(2);
+    expect(result.every((h) => h.q === 19)).toBe(true);
+  });
+
+  it('EVEN q (20): away carrier -> exactly 2 hexes, both q===21', () => {
+    const result = hexesBehindAttacker({ q: 20, r: 13 }, 'away');
+    expect(result).toHaveLength(2);
+    expect(result.every((h) => h.q === 21)).toBe(true);
+  });
+
+  it('ODD q (21): home carrier -> exactly 2 hexes, both q===20, r values differ from the even-q case (parity-correct)', () => {
+    const result = hexesBehindAttacker({ q: 21, r: 13 }, 'home');
+    expect(result).toHaveLength(2);
+    expect(result.every((h) => h.q === 20)).toBe(true);
+    const evenCaseRs = hexesBehindAttacker({ q: 20, r: 13 }, 'home')
+      .map((h) => h.r)
+      .sort();
+    const oddCaseRs = result.map((h) => h.r).sort();
+    expect(oddCaseRs).not.toEqual(evenCaseRs);
+  });
+
+  it('ODD q (21): away carrier -> exactly 2 hexes, both q===22', () => {
+    const result = hexesBehindAttacker({ q: 21, r: 13 }, 'away');
+    expect(result).toHaveLength(2);
+    expect(result.every((h) => h.q === 22)).toBe(true);
+  });
+
+  it('every returned hex is at hexDistance 1 from the attacker (even and odd q)', () => {
+    for (const attackerHex of [
+      { q: 20, r: 13 },
+      { q: 21, r: 13 },
+    ]) {
+      for (const team of ['home', 'away'] as const) {
+        for (const h of hexesBehindAttacker(attackerHex, team)) {
+          expect(hexDistance(attackerHex, h)).toBe(1);
+        }
+      }
+    }
+  });
+});
+
+describe('isTackleFromBehind', () => {
+  const attackerHex = { q: 20, r: 13 };
+
+  it('true for both behind hexes (home)', () => {
+    for (const behindHex of hexesBehindAttacker(attackerHex, 'home')) {
+      expect(isTackleFromBehind(attackerHex, behindHex, 'home')).toBe(true);
+    }
+  });
+
+  it('false for both lateral (Δq===0) neighbours', () => {
+    // Even q=20 neighbours: {21,12} front, {21,13} front, {20,12} lateral, {20,14}
+    // lateral, {19,12} behind, {19,13} behind (ODD_Q_NEIGHBORS[0] applied to {20,13}).
+    expect(isTackleFromBehind(attackerHex, { q: 20, r: 12 }, 'home')).toBe(false);
+    expect(isTackleFromBehind(attackerHex, { q: 20, r: 14 }, 'home')).toBe(false);
+  });
+
+  it('false for both in-front (Δq===+1 for home) neighbours', () => {
+    expect(isTackleFromBehind(attackerHex, { q: 21, r: 12 }, 'home')).toBe(false);
+    expect(isTackleFromBehind(attackerHex, { q: 21, r: 13 }, 'home')).toBe(false);
+  });
+
+  it('false for a non-adjacent hex', () => {
+    expect(isTackleFromBehind(attackerHex, { q: 0, r: 0 }, 'home')).toBe(false);
+  });
+
+  it('mirrors correctly for away: front neighbours (Δq===-1) are false, behind (Δq===+1) are true', () => {
+    for (const behindHex of hexesBehindAttacker(attackerHex, 'away')) {
+      expect(isTackleFromBehind(attackerHex, behindHex, 'away')).toBe(true);
+    }
+    expect(isTackleFromBehind(attackerHex, { q: 19, r: 12 }, 'away')).toBe(false);
+  });
+});
+
+describe('foulTriggerThreshold', () => {
+  it('foulTriggerThreshold(true) === FOUL_TRIGGER_DIE_FROM_BEHIND (2)', () => {
+    expect(foulTriggerThreshold(true)).toBe(2);
+    expect(foulTriggerThreshold(true)).toBe(FOUL_TRIGGER_DIE_FROM_BEHIND);
+  });
+
+  it('foulTriggerThreshold(false) === FOUL_TRIGGER_DIE (1)', () => {
+    expect(foulTriggerThreshold(false)).toBe(1);
+    expect(foulTriggerThreshold(false)).toBe(FOUL_TRIGGER_DIE);
   });
 });
