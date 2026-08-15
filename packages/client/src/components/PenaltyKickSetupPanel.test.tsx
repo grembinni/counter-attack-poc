@@ -230,17 +230,35 @@ describe('PenaltyKickSetupPanel — PENALTY_KICK_SETUP_DEFENDING (defending-team
 });
 
 describe('PenaltyKickSetupPanel — PENALTY_KICK_TAKER_SELECT', () => {
-  it('the kicking manager (away) sees "Choose your penalty taker." and no CTA button', () => {
+  it('the kicking manager (away), with no piece selected, sees "Choose your penalty taker.", a disabled Confirm button, and the select-first message', () => {
     useGameStore.setState({
       gameState: penaltyKickState('PENALTY_KICK_TAKER_SELECT'),
       playerSlot: 2,
+      selectedPieceId: null,
     });
     render(<PenaltyKickSetupPanel />);
     expect(screen.getByText('Choose your penalty taker.')).toBeDefined();
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByText('Select a player to take the penalty kick first.')).toBeDefined();
+    const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(confirmBtn).toHaveProperty('disabled', true);
   });
 
-  it('the other manager (home) sees the waiting text', () => {
+  it('with a piece selected, Confirm is enabled and clicking it calls emitPenaltyKickTaker exactly once with that id', () => {
+    useGameStore.setState({
+      gameState: penaltyKickState('PENALTY_KICK_TAKER_SELECT'),
+      playerSlot: 2,
+      selectedPieceId: 'away-7',
+    });
+    render(<PenaltyKickSetupPanel />);
+    expect(screen.queryByText('Select a player to take the penalty kick first.')).toBeNull();
+    const confirmBtn = screen.getByRole('button', { name: /^confirm$/i });
+    expect(confirmBtn).toHaveProperty('disabled', false);
+    fireEvent.click(confirmBtn);
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_PENALTY_KICK_TAKER, 'away-7');
+  });
+
+  it('the other manager (home) sees the waiting text and no Confirm button', () => {
     useGameStore.setState({
       gameState: penaltyKickState('PENALTY_KICK_TAKER_SELECT'),
       playerSlot: 1,
@@ -254,6 +272,7 @@ describe('PenaltyKickSetupPanel — PENALTY_KICK_TAKER_SELECT', () => {
     useGameStore.setState({
       gameState: penaltyKickState('PENALTY_KICK_TAKER_SELECT'),
       playerSlot: 2,
+      selectedPieceId: 'away-7',
       gameError: 'MISSING_TARGET',
     });
     render(<PenaltyKickSetupPanel />);
@@ -263,17 +282,22 @@ describe('PenaltyKickSetupPanel — PENALTY_KICK_TAKER_SELECT', () => {
 });
 
 describe('PenaltyKickSetupPanel — PENALTY_KICK (duel resolution)', () => {
-  it('the kicking manager sees "Take your penalty kick."', () => {
+  it('the kicking manager sees exactly one button, labelled Shoot, and clicking it calls emitRoll exactly once', () => {
     useGameStore.setState({
       gameState: penaltyKickState('PENALTY_KICK', { activeTeam: 'away' }),
       playerSlot: 2,
     });
     render(<PenaltyKickSetupPanel />);
     expect(screen.getByText('Take your penalty kick.')).toBeDefined();
-    expect(screen.queryByRole('button')).toBeNull();
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]?.textContent).toBe('Shoot');
+    fireEvent.click(buttons[0]!);
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith(ClientEvents.GAME_ROLL, undefined, undefined);
   });
 
-  it('the defending manager sees a waiting message', () => {
+  it('the defending manager sees a waiting message and no button', () => {
     useGameStore.setState({
       gameState: penaltyKickState('PENALTY_KICK', { activeTeam: 'away' }),
       playerSlot: 1,
@@ -292,5 +316,30 @@ describe('PenaltyKickSetupPanel — PENALTY_KICK (duel resolution)', () => {
     render(<PenaltyKickSetupPanel />);
     expect(screen.queryByText('DUEL_ALREADY_RESOLVED')).toBeNull();
     expect(screen.getByText(restartErrorMessage('DUEL_ALREADY_RESOLVED') ?? '')).toBeDefined();
+  });
+
+  it('no control in any penalty phase has a label containing Pass, High, Long or Move', () => {
+    const phases: PenaltyKickPhase[] = [
+      'PENALTY_KICK_SETUP_ATTACKING',
+      'PENALTY_KICK_SETUP_DEFENDING',
+      'PENALTY_KICK_TAKER_SELECT',
+      'PENALTY_KICK',
+    ];
+    for (const phase of phases) {
+      useGameStore.setState({
+        gameState: penaltyKickState(phase, {
+          penaltyKickEligibleIds: { attacking: ['away-1'], defending: ['home-1'] },
+          activeTeam: 'away',
+        }),
+        playerSlot: 2,
+        selectedPieceId: 'away-7',
+      });
+      const { unmount } = render(<PenaltyKickSetupPanel />);
+      const labels = screen.queryAllByRole('button').map((b) => b.textContent ?? '');
+      for (const label of labels) {
+        expect(label).not.toMatch(/Pass|High|Long|Move/);
+      }
+      unmount();
+    }
   });
 });
