@@ -255,6 +255,28 @@ export function ActionPanel() {
   // | TACKLE_ATTEMPT | STEAL_ATTEMPT). BUG-37 (Phase 36) / D-13: a resolved TACKLE_ATTEMPT or
   // STEAL_ATTEMPT is also a boundary — UX mirror only, the server's applyUndo is the sole
   // enforcement layer for this clamp.
+  //
+  // Phase 39 (39-17): this mirror MUST stay in sync, term for term, with applyUndo's
+  // isBoundary reduce in gameEngine.ts — this is the exact defect class that shipped twice
+  // already (BUG-30/31, BUG-37; see STATE.md Pitfalls). Six new terms were added by
+  // Plans 39-07/39-10/39-12/39-14:
+  //   - `evt.type === 'GK_DIVE_AT_FEET'` (unconditional — a resolved dive-at-feet duel is a
+  //     committed dice outcome, exactly like TACKLE_ATTEMPT/STEAL_ATTEMPT above)
+  //   - `state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE'`
+  //   - `(state.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
+  //      state.phase === 'PENALTY_KICK_SETUP_DEFENDING') &&
+  //      evt.type === 'PENALTY_KICK_WINDOW_ADVANCE'`
+  //   - `state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED'`
+  //   - `state.phase === 'GK_BOX_ENTRY_MOVE' && evt.type === 'GK_BOX_ENTRY_MOVE'`
+  //   - `state.phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM'`
+  // FOUL_CHOICE, PENALTY_KICK_SETUP_ATTACKING/DEFENDING, PENALTY_KICK_TAKER_SELECT and
+  // GK_BOX_ENTRY_MOVE are each rendered by their own dedicated GameBoard panel (FoulChoicePanel,
+  // PenaltyKickSetupPanel, GkBoxEntryPromptPanel) rather than by ActionPanel, so those four
+  // phase-guarded terms are currently unreachable here — no Undo control is ever offered in
+  // those phases (see ActionPanel.test.tsx "Phase 39 boundary mirror" describe block). They are
+  // still reproduced verbatim so the mirror is exhaustive and does not silently drift if
+  // ActionPanel is ever extended to those phases. HALF_TIME does fall through to ActionPanel's
+  // final `return null` — reachable, but currently renders no Undo affordance either.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
     // Bug-C (Phase 25 gap 25-07): canUndo must be false at the start of a MOVE slot when
@@ -276,12 +298,27 @@ export function ActionPanel() {
         evt.type === 'TACKLE_ATTEMPT' ||
         evt.type === 'STEAL_ATTEMPT' ||
         (phase === 'HIGH_PASS_MOVE' && evt.type === 'HP_REPOSITION') ||
-        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION');
+        (phase === 'FIRST_TIME_PASS_MOVE' && evt.type === 'FTP_REPOSITION') ||
+        // Phase 39 (39-17): see the comment block above `canUndo` for the full term-for-term
+        // rationale against applyUndo's isBoundary reduce.
+        (phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE') ||
+        evt.type === 'GK_DIVE_AT_FEET' ||
+        ((phase === 'PENALTY_KICK_SETUP_ATTACKING' || phase === 'PENALTY_KICK_SETUP_DEFENDING') &&
+          evt.type === 'PENALTY_KICK_WINDOW_ADVANCE') ||
+        (phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED') ||
+        (phase === 'GK_BOX_ENTRY_MOVE' && evt.type === 'GK_BOX_ENTRY_MOVE') ||
+        (phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM');
       return isBoundary ? idx : acc;
     }, -1);
     // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
     // emits HP_MOVE during HIGH_PASS_MOVE and FTP_MOVE during FIRST_TIME_PASS_MOVE, never MOVE.
     // BUG-18 (Phase 18.3): extended to match the server's expanded validUndoPhases.
+    // Phase 39 (39-17): GK_BOX_ENTRY_MOVE emits its own event type (never MOVE) — mapped here
+    // for exhaustiveness, matching the pattern the server would use were GK_BOX_ENTRY_MOVE ever
+    // reachable from applyUndo (it isn't, today — see the comment above `canUndo`). The penalty
+    // reposition phases (PENALTY_KICK_SETUP_ATTACKING/DEFENDING) deliberately stay on the
+    // default 'MOVE' branch below — applyPenaltyKickReposition emits plain MOVE events, exactly
+    // like the server's own moveTypeForPhase comment confirms.
     const moveTypeForPhase =
       phase === 'HIGH_PASS_MOVE'
         ? 'HP_MOVE'
@@ -291,7 +328,9 @@ export function ActionPanel() {
             ? 'GK_KICK_MOVE'
             : phase === 'SNAPSHOT_DEFLECT'
               ? 'SNAP_DEFLECT_MOVE'
-              : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE
+              : phase === 'GK_BOX_ENTRY_MOVE'
+                ? 'GK_BOX_ENTRY_MOVE'
+                : 'MOVE'; // covers MOVE, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE, PENALTY_KICK_SETUP_*
     return eventLog.slice(lastBoundaryIdx + 1).some((e) => e.type === moveTypeForPhase);
   })();
 
