@@ -1141,6 +1141,12 @@ export function applyMove(
 
     // FOUL-01/02 (Phase 39, 39-10): defender's own die (already extracted above as `die`)
     // is the trigger — victim is the carrier (pieceId), fouler is the defender.
+    // 39-18 (UAT gap 2 correction): `foulHex: to` needs NO change here, unlike the
+    // TACKLE_ATTEMPT call site below. In a STEAL_ATTEMPT the MOVER (`pieceId`) IS the ball
+    // carrier (see moveValidator's `state.ball.carrierId === piece.id` guard for
+    // STEAL_ATTEMPT), and `victimId: pieceId` above confirms it — so `to` is already the
+    // carrier's, and therefore the ball's, post-move hex. 39-UAT.md's root_cause note
+    // asserted both call sites were wrong; this one was already correct.
     const stealFoulChain = resolveFoulChain({
       state,
       pieces: effectivePieces,
@@ -1204,13 +1210,18 @@ export function applyMove(
 
       // FOUL-01/02 (Phase 39, 39-10): defender's own die (defDie, already extracted above)
       // is the trigger — victim is the carrier, fouler is the tackling defender (pieceId).
+      // 39-18 (UAT gap 2): the tackling defender moves to `to` unconditionally, win or lose
+      // the duel (see the tackleFailWouldBeState comment below) — so `to` is the FOULER's
+      // hex, not the ball's. The restart belongs where the ball was, which is the carrier's
+      // hex (`carrier.position`, in scope and non-null inside this `if (carrier !== undefined)`
+      // block).
       const tackleFoulChain = resolveFoulChain({
         state,
         pieces: effectivePieces,
         eventLog: newEventLog,
         defenderId: pieceId,
         victimId: carrierId,
-        foulHex: to,
+        foulHex: carrier.position,
         source: 'TACKLE',
         defenderDie: defDie,
         injuryDie: dice?.injuryDie ?? 3,
@@ -1293,6 +1304,9 @@ export function applyMove(
               attackingTeam: carrier.teamId,
               activeTeam: carrier.teamId,
               ...foulFields,
+              // 39-18 (UAT gap 1): this duel SUCCEEDED — possession already changed hands,
+              // so applyFoulChoice must reject 'continue'.
+              foulDuelSucceeded: true,
               foulResume: {
                 phase: tackleSuccessWouldBeState.phase,
                 activeTeam: tackleSuccessWouldBeState.activeTeam,
@@ -1329,6 +1343,9 @@ export function applyMove(
             attackingTeam: carrier.teamId,
             activeTeam: carrier.teamId,
             ...foulFields,
+            // 39-18 (UAT gap 1): this duel FAILED — play was not interrupted by a change of
+            // possession, so applyFoulChoice must still allow 'continue' (unchanged behaviour).
+            foulDuelSucceeded: false,
             foulResume: {
               phase: tackleFailWouldBeState.phase,
               activeTeam: tackleFailWouldBeState.activeTeam,
@@ -1409,6 +1426,9 @@ export function applyMove(
           attackingTeam: piece.teamId,
           activeTeam: piece.teamId,
           ...foulFields,
+          // 39-18 (UAT gap 1): this duel SUCCEEDED — possession already changed hands,
+          // so applyFoulChoice must reject 'continue'.
+          foulDuelSucceeded: true,
           foulResume: {
             phase: stealSuccessWouldBeState.phase,
             activeTeam: stealSuccessWouldBeState.activeTeam,
@@ -1447,6 +1467,9 @@ export function applyMove(
         attackingTeam: piece.teamId,
         activeTeam: piece.teamId,
         ...foulFields,
+        // 39-18 (UAT gap 1): only reachable here via a STEAL_ATTEMPT FAIL — the duel FAILED,
+        // so applyFoulChoice must still allow 'continue' (unchanged behaviour).
+        foulDuelSucceeded: false,
         foulResume: {
           phase: normalWouldBeState.phase,
           activeTeam: normalWouldBeState.activeTeam,
@@ -1468,9 +1491,10 @@ export function applyMove(
  * FK-01 (Phase 39, 39-10): awards a free kick to the team fouled by `foulerId`, reusing
  * the EXISTING `FREE_KICK_SETUP` flow untouched. Modelled byte-for-byte on
  * `triggerOffsideFoul`'s return shape (packages/shared/src/offside.ts) with two
- * deliberate substitutions: `freeKickHex: foulHex` is the FOULER's tackle/steal contact
- * hex (not an offside offender's position), and `offsidePieceIds` is omitted entirely —
- * that field is offside-specific and has no foul-restart equivalent.
+ * deliberate substitutions: `freeKickHex: foulHex` is now the BALL's hex at the moment
+ * of the foul — the fouled carrier's hex (39-18, UAT gap 2), not the fouler's contact
+ * hex — and `offsidePieceIds` is omitted entirely — that field is offside-specific and
+ * has no foul-restart equivalent.
  */
 export function triggerFoulFreeKick(
   state: GameState,
@@ -1506,7 +1530,7 @@ export function triggerFoulFreeKick(
 /** Discriminated union result for applyFoulChoice. */
 export type ApplyFoulChoiceResult =
   | { ok: true; state: GameState }
-  | { ok: false; reason: 'WRONG_PHASE' | 'INVALID_CHOICE' };
+  | { ok: false; reason: 'WRONG_PHASE' | 'INVALID_CHOICE' | 'CONTINUE_NOT_ALLOWED' };
 
 /**
  * FOUL-03 (Phase 39, 39-10): resolves the fouled attacker's continue-play vs.
@@ -1516,12 +1540,16 @@ export type ApplyFoulChoiceResult =
  * lastActionType the interrupted duel branch would have produced (captured in
  * `state.foulResume` by resolveFoulChain's caller in applyMove) — falling back to
  * `'PASS'`/the state's current values if `foulResume` is somehow null.
+ * 39-18 (UAT gap 1): 'continue' is rejected with `CONTINUE_NOT_ALLOWED` when
+ * `state.foulDuelSucceeded === true` — the duel that produced the foul already
+ * transferred possession, so there is no play left to continue.
  *
  * 'restart' routes to `triggerPenaltyKick` when `state.foulSource === 'GK_DIVE_AT_FEET'`
  * (GKDIVE-03/PEN-01 — a GK-dive foul is always a penalty, never a free kick), otherwise
  * to `triggerFoulFreeKick` (FK-01, tackle/steal-sourced fouls).
  *
- * Both branches clear the entire foul* cluster unconditionally.
+ * Both branches clear the entire foul* cluster unconditionally, including the
+ * 39-18 `foulDuelSucceeded` flag.
  */
 export function applyFoulChoice(
   state: GameState,
@@ -1532,6 +1560,12 @@ export function applyFoulChoice(
   }
   if (choice !== 'continue' && choice !== 'restart') {
     return { ok: false, reason: 'INVALID_CHOICE' };
+  }
+  // 39-18 (UAT gap 1): the duel that produced this foul already SUCCEEDED — possession
+  // already changed hands, so 'continue' is not a valid choice. Test `=== true` explicitly
+  // (never truthiness), matching every other optional-boolean read in this file.
+  if (choice === 'continue' && state.foulDuelSucceeded === true) {
+    return { ok: false, reason: 'CONTINUE_NOT_ALLOWED' };
   }
 
   const restart: 'FREE_KICK' | 'PENALTY' | null =
@@ -1552,6 +1586,7 @@ export function applyFoulChoice(
     foulHex: null,
     foulSource: null,
     foulResume: null,
+    foulDuelSucceeded: null,
     eventLog: [...state.eventLog, choiceEvent],
   };
 
@@ -1912,6 +1947,9 @@ export function applyGkDiveAtFeetResponse(
         attackingTeam: carrier.teamId,
         activeTeam: carrier.teamId,
         ...foulChain.foulFields,
+        // 39-18 (UAT gap 1): the GK-dive duel's own outcome determines whether possession
+        // already changed hands (SUCCESS = GK now has the ball).
+        foulDuelSucceeded: result === 'SUCCESS',
         foulResume: {
           phase: wouldBeState.phase,
           activeTeam: wouldBeState.activeTeam,

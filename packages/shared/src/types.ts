@@ -1546,6 +1546,14 @@ export type GameState = {
     lastActionType: LastActionType | null;
   } | null;
   /**
+   * 39-18 (UAT gap 1): set at the instant a foul is called — `true` when the duel that
+   * produced the foul itself SUCCEEDED (possession already changed hands, so there is no
+   * play left to continue), `false` otherwise. Read by `applyFoulChoice` to reject
+   * `'continue'` when `true`. Cleared to `null` by `applyFoulChoice` on both the
+   * `'continue'` and `'restart'` branches. null outside the foul sequence.
+   */
+  foulDuelSucceeded?: boolean | null;
+  /**
    * GKDIVE-01..05/D-09 (Phase 39): SHARED once-per-movement-cycle (4-5-2) cap with the
    * existing shot-block GK_DIVE mechanic — reset at every fresh movement-cycle start
    * (39-12's `enterGkDiveOrSkip`/`applyStartMovement` et al.), NOT once per half.

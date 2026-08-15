@@ -373,7 +373,9 @@ describe('applyFoulChoice: continue', () => {
 // ---------------------------------------------------------------------------
 
 describe('applyFoulChoice: restart (tackle/steal source -> FREE_KICK_SETUP)', () => {
-  it('TACKLE source: routes to FREE_KICK_SETUP at the foul hex, fouled team attacking', () => {
+  it('TACKLE source: routes to FREE_KICK_SETUP at the carrier (ball) hex, not the fouling defender hex, fouled team attacking', () => {
+    // 39-18 (UAT gap 2): tackleCarrier is stationary at {q:10,r:7} (C); tacklerFail moves
+    // to {q:11,r:7} (D). D !== C — the restart must land on C, the ball's hex.
     const fouled = applyMove(
       tackleState(tacklerFail),
       'tackler',
@@ -383,12 +385,14 @@ describe('applyFoulChoice: restart (tackle/steal source -> FREE_KICK_SETUP)', ()
     expect(fouled.ok).toBe(true);
     if (!fouled.ok) return;
     expect(fouled.state.foulSource).toBe('TACKLE');
+    // 39-18: foulHex is the carrier's hex (C), not the fouling defender's destination (D).
+    expect(fouled.state.foulHex).toEqual({ q: 10, r: 7 });
 
     const result = applyFoulChoice(fouled.state, 'restart');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.phase).toBe('FREE_KICK_SETUP');
-    expect(result.state.freeKickHex).toEqual({ q: 11, r: 7 });
+    expect(result.state.freeKickHex).toEqual({ q: 10, r: 7 });
     expect(result.state.freeKickAttackingTeam).toBe('home');
     expect(result.state.attackingTeam).toBe('home');
     expect(result.state.activeTeam).toBe('home');
@@ -396,7 +400,7 @@ describe('applyFoulChoice: restart (tackle/steal source -> FREE_KICK_SETUP)', ()
     expect(result.state.freeKickPlacedPieceIds).toEqual([]);
     expect(result.state.freeKickKickerChosen).toBe(false);
     expect(result.state.ball).toEqual({
-      position: { q: 11, r: 7 },
+      position: { q: 10, r: 7 },
       carrierId: null,
       lastTouchedBy: result.state.ball.lastTouchedBy,
     });
@@ -413,9 +417,11 @@ describe('applyFoulChoice: restart (tackle/steal source -> FREE_KICK_SETUP)', ()
     expect(result.state.foulHex ?? null).toBeNull();
     expect(result.state.foulSource ?? null).toBeNull();
     expect(result.state.foulResume ?? null).toBeNull();
+    // 39-18: both applyFoulChoice branches null the flag.
+    expect(result.state.foulDuelSucceeded ?? null).toBeNull();
   });
 
-  it('STEAL source: routes to FREE_KICK_SETUP at the foul hex, fouled team attacking', () => {
+  it('STEAL source: routes to FREE_KICK_SETUP at the carrier post-move destination hex (already correct — no change), fouled team attacking', () => {
     const fouled = applyMove(
       stealState(stealDefenderFail),
       'carrier',
@@ -425,6 +431,9 @@ describe('applyFoulChoice: restart (tackle/steal source -> FREE_KICK_SETUP)', ()
     expect(fouled.ok).toBe(true);
     if (!fouled.ok) return;
     expect(fouled.state.foulSource).toBe('STEAL');
+    // 39-18: the carrier IS the mover in a STEAL_ATTEMPT — foulHex already equals the
+    // carrier's post-move destination hex, no code change needed here.
+    expect(fouled.state.foulHex).toEqual({ q: 11, r: 7 });
 
     const result = applyFoulChoice(fouled.state, 'restart');
     expect(result.ok).toBe(true);
@@ -432,6 +441,82 @@ describe('applyFoulChoice: restart (tackle/steal source -> FREE_KICK_SETUP)', ()
     expect(result.state.phase).toBe('FREE_KICK_SETUP');
     expect(result.state.freeKickHex).toEqual({ q: 11, r: 7 });
     expect(result.state.freeKickAttackingTeam).toBe('home');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 39-18 (UAT gap 1): foulDuelSucceeded — SUCCESS duels reject 'continue'
+// ---------------------------------------------------------------------------
+
+describe('39-18: foulDuelSucceeded gates applyFoulChoice continue', () => {
+  it('TACKLE_ATTEMPT SUCCESS + foul: foulDuelSucceeded is true; continue is rejected, restart is allowed', () => {
+    const fouled = applyMove(
+      tackleState(tacklerSuccess),
+      'tackler',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(fouled.ok).toBe(true);
+    if (!fouled.ok) return;
+    expect(fouled.state.phase).toBe('FOUL_CHOICE');
+    expect(fouled.state.foulDuelSucceeded).toBe(true);
+
+    const continueResult = applyFoulChoice(fouled.state, 'continue');
+    expect(continueResult.ok).toBe(false);
+    if (!continueResult.ok) expect(continueResult.reason).toBe('CONTINUE_NOT_ALLOWED');
+
+    const restartResult = applyFoulChoice(fouled.state, 'restart');
+    expect(restartResult.ok).toBe(true);
+  });
+
+  it('TACKLE_ATTEMPT FAIL + foul: foulDuelSucceeded is false; continue still succeeds and resumes foulResume', () => {
+    const fouled = applyMove(
+      tackleState(tacklerFail),
+      'tackler',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(fouled.ok).toBe(true);
+    if (!fouled.ok) return;
+    expect(fouled.state.foulDuelSucceeded).toBe(false);
+
+    const continueResult = applyFoulChoice(fouled.state, 'continue');
+    expect(continueResult.ok).toBe(true);
+    if (!continueResult.ok) return;
+    expect(continueResult.state.phase).toBe(fouled.state.foulResume?.phase);
+    expect(continueResult.state.foulDuelSucceeded ?? null).toBeNull();
+  });
+
+  it('STEAL_ATTEMPT SUCCESS + foul: foulDuelSucceeded is true; continue is rejected', () => {
+    const fouled = applyMove(
+      stealState(stealDefenderSuccess),
+      'carrier',
+      { q: 11, r: 7 },
+      { stealDie: 1, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(fouled.ok).toBe(true);
+    if (!fouled.ok) return;
+    expect(fouled.state.phase).toBe('FOUL_CHOICE');
+    expect(fouled.state.foulDuelSucceeded).toBe(true);
+
+    const continueResult = applyFoulChoice(fouled.state, 'continue');
+    expect(continueResult.ok).toBe(false);
+    if (!continueResult.ok) expect(continueResult.reason).toBe('CONTINUE_NOT_ALLOWED');
+  });
+
+  it('STEAL_ATTEMPT FAIL + foul: foulDuelSucceeded is false; continue still succeeds (unchanged behaviour)', () => {
+    const fouled = applyMove(
+      stealState(stealDefenderFail),
+      'carrier',
+      { q: 11, r: 7 },
+      { stealDie: 1, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(fouled.ok).toBe(true);
+    if (!fouled.ok) return;
+    expect(fouled.state.foulDuelSucceeded).toBe(false);
+
+    const continueResult = applyFoulChoice(fouled.state, 'continue');
+    expect(continueResult.ok).toBe(true);
   });
 });
 
