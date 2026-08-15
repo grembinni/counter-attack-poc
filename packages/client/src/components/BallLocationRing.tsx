@@ -60,9 +60,11 @@ export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   // Phase 39 (39-16): the ball is at a fixed restart hex or mid-decision throughout every
   // one of these eight foul/GK-interrupt/penalty-kick phases, matching the Phase 37/38
   // restart-phase precedent directly above. Reuses the existing marker; no new tint type
-  // added.
+  // added. The dive-at-feet destination step joins this set too (39-UAT gap 3, Plan 39-21) —
+  // the ball stays stationary with the carrier while the diving keeper's hex is chosen.
   'FOUL_CHOICE',
   'GK_DIVE_AT_FEET_PROMPT',
+  'GK_DIVE_AT_FEET_TARGET',
   'GK_BOX_ENTRY_PROMPT',
   'GK_BOX_ENTRY_MOVE',
   'PENALTY_KICK_SETUP_ATTACKING',

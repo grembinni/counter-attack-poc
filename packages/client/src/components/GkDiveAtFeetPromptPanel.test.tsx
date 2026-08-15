@@ -142,3 +142,62 @@ describe('GkDiveAtFeetPromptPanel — the attacking manager (non-deciding)', () 
     expect(screen.queryByRole('button')).toBeNull();
   });
 });
+
+// GK_DIVE_AT_FEET_TARGET (GKDIVE-02/GKDIVE-04, 39-UAT gap 3, Plan 39-21): the destination-hex
+// step. Reuses diveAtFeetState's team/carrier/distance seeding, phase widened to the target step.
+function diveAtFeetTargetState(overrides: Partial<typeof mockMovementState> = {}) {
+  return diveAtFeetState({ phase: 'GK_DIVE_AT_FEET_TARGET' as const, ...overrides });
+}
+
+describe("GkDiveAtFeetPromptPanel — GK_DIVE_AT_FEET_TARGET, the goalkeeper's manager (deciding)", () => {
+  it('shows the hex-selection instruction and renders NO Dive/Decline buttons', () => {
+    useGameStore.setState({ gameState: diveAtFeetTargetState(), playerSlot: 1 }); // home, deciding
+    render(<GkDiveAtFeetPromptPanel />);
+    expect(screen.getByText('Dive at Feet')).toBeDefined();
+    expect(
+      screen.getByText(/Click a highlighted hex next to the carrier to send your goalkeeper there/),
+    ).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^dive$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^decline$/i })).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('the −1 dice penalty qualifier appears when gkDiveAtFeetDistance is 3', () => {
+    useGameStore.setState({
+      gameState: diveAtFeetTargetState({ gkDiveAtFeetDistance: 3 }),
+      playerSlot: 1,
+    });
+    render(<GkDiveAtFeetPromptPanel />);
+    expect(screen.getByText(/−1 dice penalty at this range/)).toBeDefined();
+  });
+
+  it('the −1 dice penalty qualifier does NOT appear when gkDiveAtFeetDistance is 2', () => {
+    useGameStore.setState({
+      gameState: diveAtFeetTargetState({ gkDiveAtFeetDistance: 2 }),
+      playerSlot: 1,
+    });
+    render(<GkDiveAtFeetPromptPanel />);
+    expect(screen.queryByText(/−1 dice penalty/)).toBeNull();
+  });
+
+  it('renders a humanised gameError in the error row', () => {
+    useGameStore.setState({
+      gameState: diveAtFeetTargetState(),
+      playerSlot: 1,
+      gameError: 'WRONG_TEAM',
+    });
+    render(<GkDiveAtFeetPromptPanel />);
+    expect(screen.queryByText('WRONG_TEAM')).toBeNull();
+    expect(screen.getByText(restartErrorMessage('WRONG_TEAM') ?? '')).toBeDefined();
+  });
+});
+
+describe('GkDiveAtFeetPromptPanel — GK_DIVE_AT_FEET_TARGET, the attacking manager (non-deciding)', () => {
+  it('sees a waiting message and no buttons', () => {
+    useGameStore.setState({ gameState: diveAtFeetTargetState(), playerSlot: 2 }); // away, carrier's side
+    render(<GkDiveAtFeetPromptPanel />);
+    expect(screen.getByText('Dive at Feet')).toBeDefined();
+    expect(screen.getByText(/is choosing where their goalkeeper dives/)).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+});
