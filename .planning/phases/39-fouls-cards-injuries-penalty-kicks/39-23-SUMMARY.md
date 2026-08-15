@@ -106,3 +106,13 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-15_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/store/useGameStore.ts
+- FOUND: packages/client/src/components/HexGrid.tsx
+- FOUND: packages/client/src/components/PenaltyKickSetupPanel.tsx
+- FOUND: .planning/phases/39-fouls-cards-injuries-penalty-kicks/39-23-SUMMARY.md
+- FOUND commit: 4a1ed20 (Task 1)
+- FOUND commit: 537062a (Task 2)
+- FOUND commit: d4b3016 (SUMMARY.md)
