@@ -1336,6 +1336,66 @@ describe('useGameStore — selectPiece Penalty Kick / GK Box Entry / Foul Choice
     expect(state.validMoveHexes).toEqual([]);
   });
 
+  // GK_DIVE_AT_FEET_TARGET (GKDIVE-02/GKDIVE-04, 39-UAT gap 3, Plan 39-21): away-0 (GK) is
+  // repositioned adjacent to home-9 (the ball carrier at {q:14,r:13}) so the shared
+  // computeGkDiveAtFeetTargetHexes helper returns a non-empty set within its 3-hex GK-range cap.
+  const gkDiveAtFeetTargetState = {
+    ...mockMovementState,
+    phase: 'GK_DIVE_AT_FEET_TARGET' as const,
+    gkDiveAtFeetTeam: 'away' as const,
+    gkDiveAtFeetGkId: 'away-0',
+    gkDiveAtFeetCarrierId: 'home-9',
+    pieces: mockMovementState.pieces.map((p) =>
+      p.id === 'away-0' ? { ...p, position: { q: 13, r: 13 } } : p,
+    ),
+  };
+
+  it('GK_DIVE_AT_FEET_TARGET: the diving goalkeeper (away-0) is selectable by its own manager and yields a non-empty validMoveHexes set', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away
+      gameState: gkDiveAtFeetTargetState,
+    });
+    useGameStore.getState().selectPiece('away-0');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe('away-0');
+    expect(state.validMoveHexes.length).toBeGreaterThan(0);
+  });
+
+  it('GK_DIVE_AT_FEET_TARGET: every hex in validMoveHexes is exactly hexDistance 1 from the carrier', () => {
+    useGameStore.setState({
+      playerSlot: 2,
+      gameState: gkDiveAtFeetTargetState,
+    });
+    useGameStore.getState().selectPiece('away-0');
+    const carrier = gkDiveAtFeetTargetState.pieces.find((p) => p.id === 'home-9')!;
+    const state = useGameStore.getState();
+    for (const hex of state.validMoveHexes) {
+      expect(hexDistance(hex, carrier.position)).toBe(1);
+    }
+  });
+
+  it('GK_DIVE_AT_FEET_TARGET: clicking a non-goalkeeper outfield piece yields no selection', () => {
+    useGameStore.setState({
+      playerSlot: 2,
+      gameState: gkDiveAtFeetTargetState,
+    });
+    useGameStore.getState().selectPiece('away-6'); // MID, not the diving GK
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('GK_DIVE_AT_FEET_TARGET: the attacking-team manager cannot select the diving goalkeeper', () => {
+    useGameStore.setState({
+      playerSlot: 1, // home (attacking team, NOT gkDiveAtFeetTeam)
+      gameState: gkDiveAtFeetTargetState,
+    });
+    useGameStore.getState().selectPiece('away-0');
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
   it('entering FOUL_CHOICE clears any previously selected piece', () => {
     useGameStore.setState({
       playerSlot: 1,
@@ -1499,6 +1559,16 @@ describe('useGameStore — emit actions', () => {
     useGameStore.getState().emitGkDiveAtFeet(true);
     expect(emitMock).toHaveBeenCalledTimes(1);
     expect(emitMock).toHaveBeenCalledWith('game:gk-dive-at-feet', true);
+  });
+
+  it('emitGkDiveAtFeetTarget calls socket.emit exactly once with game:gk-dive-at-feet-target and the hex, and clears selectedPieceId', () => {
+    useGameStore.setState({ selectedPieceId: 'away-0', validMoveHexes: [{ q: 5, r: 5 }] });
+    useGameStore.getState().emitGkDiveAtFeetTarget({ q: 5, r: 5 });
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:gk-dive-at-feet-target', { q: 5, r: 5 });
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
   });
 
   it('emitGkBoxEntryResponse calls socket.emit with game:gk-box-entry-response and accept', () => {

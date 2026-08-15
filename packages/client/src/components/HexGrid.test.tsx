@@ -2319,3 +2319,117 @@ describe('HexGrid — header-contest zone preview generalisation (GOALKICK-05, P
     ).toBe(false);
   });
 });
+
+// GK_DIVE_AT_FEET_TARGET (GKDIVE-02/GKDIVE-04, 39-UAT gap 3, Plan 39-21): the goalkeeper's
+// manager picks the dive destination on the board — mirrors the GOAL_KICK_SETUP_GK/
+// GK_BOX_ENTRY_MOVE clickability harnesses above. away-0 (the diving GK) is repositioned
+// adjacent to home-9 (the ball carrier) so computeGkDiveAtFeetTargetHexes returns a
+// non-empty set within its 3-hex GK-range cap.
+describe('HexGrid — GK_DIVE_AT_FEET_TARGET piece/hex clickability (GKDIVE-02/GKDIVE-04, Plan 39-21)', () => {
+  const CARRIER_ID_39 = 'home-9'; // {q:14, r:13} in mockMovementState
+  const DIVE_GK_ID = 'away-0';
+
+  function gkDiveAtFeetTargetState() {
+    const carrier = mockMovementState.pieces.find((p) => p.id === CARRIER_ID_39)!;
+    const gkPos = { q: carrier.position.q - 1, r: carrier.position.r }; // hexDistance===1
+    const pieces = mockMovementState.pieces.map((p) =>
+      p.id === DIVE_GK_ID ? { ...p, position: gkPos } : p,
+    );
+    return {
+      ...mockMovementState,
+      phase: 'GK_DIVE_AT_FEET_TARGET' as const,
+      gkDiveAtFeetTeam: 'away' as const,
+      gkDiveAtFeetGkId: DIVE_GK_ID,
+      gkDiveAtFeetCarrierId: CARRIER_ID_39,
+      pieces,
+      ball: { position: carrier.position, carrierId: CARRIER_ID_39, lastTouchedBy: null },
+    };
+  }
+
+  /** Finds a hex's base polygon by its <title>(q, r)</title> child — the stable,
+   *  coordinate-derived identifier HexCell always renders regardless of highlight state. */
+  function findHexPolygon(
+    container: HTMLElement,
+    q: number,
+    r: number,
+  ): SVGPolygonElement | undefined {
+    return Array.from(container.querySelectorAll<SVGPolygonElement>('polygon')).find(
+      (p) => p.querySelector('title')?.textContent === `(${q}, ${r})`,
+    );
+  }
+
+  it('renders the diving goalkeeper as selectable for its own manager (away)', () => {
+    const state = gkDiveAtFeetTargetState();
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2, // away
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gk = state.pieces.find((p) => p.id === DIVE_GK_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, gk.position.q, gk.position.r)).toBe(true);
+  });
+
+  it('does NOT render an outfield teammate as selectable', () => {
+    const state = gkDiveAtFeetTargetState();
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const teammate = state.pieces.find((p) => p.id === 'away-6')!; // MID, not the diving GK
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, teammate.position.q, teammate.position.r)).toBe(false);
+  });
+
+  it('the attacking-team manager sees the diving goalkeeper as NOT selectable', () => {
+    const state = gkDiveAtFeetTargetState();
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home (attacking team, NOT gkDiveAtFeetTeam)
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const gk = state.pieces.find((p) => p.id === DIVE_GK_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, gk.position.q, gk.position.r)).toBe(false);
+  });
+
+  it('clicking a valid destination hex while the goalkeeper is selected calls emitGkDiveAtFeetTarget once with that hex, and does NOT call emitMove', () => {
+    const state = gkDiveAtFeetTargetState();
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    // Drive real selectPiece to populate validMoveHexes via the shared helper (proven correct
+    // by Plan 39-21's Task 1 store tests) — this test is about the HexGrid click routing, not
+    // hex-set derivation.
+    useGameStore.getState().selectPiece(DIVE_GK_ID);
+    const targetHex = useGameStore.getState().validMoveHexes[0];
+    if (targetHex === undefined) throw new Error('expected at least one validMoveHexes entry');
+
+    const emitGkDiveAtFeetTargetSpy = vi.fn();
+    const emitMoveSpy = vi.fn();
+    useGameStore.setState({
+      emitGkDiveAtFeetTarget: emitGkDiveAtFeetTargetSpy,
+      emitMove: emitMoveSpy,
+    });
+
+    const { container } = render(<HexGrid />);
+    const hexPolygon = findHexPolygon(container, targetHex.q, targetHex.r);
+    expect(hexPolygon).toBeDefined();
+    fireEvent.click(hexPolygon!);
+
+    expect(emitGkDiveAtFeetTargetSpy).toHaveBeenCalledTimes(1);
+    expect(emitGkDiveAtFeetTargetSpy).toHaveBeenCalledWith(targetHex);
+    expect(emitMoveSpy).not.toHaveBeenCalled();
+  });
+});

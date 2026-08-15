@@ -15,6 +15,7 @@ import {
   cornerKickStageTeam,
   ELIGIBLE_NEXT_ACTIONS,
   isWithinCornerExclusionZone,
+  computeGkDiveAtFeetTargetHexes,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
@@ -199,6 +200,9 @@ export type GameStore = {
   emitFoulChoice: (choice: 'continue' | 'restart') => void;
   /** GKDIVE-02 (Phase 39 / D-07): defending manager's accept/decline response to a dive-at-feet prompt. */
   emitGkDiveAtFeet: (accept: boolean) => void;
+  /** GKDIVE-02/GKDIVE-04 (39-UAT gap 3, Plan 39-21): defending manager's chosen dive-destination
+   *  hex during GK_DIVE_AT_FEET_TARGET. */
+  emitGkDiveAtFeetTarget: (to: HexCoord) => void;
   /** D-10 (Phase 39): defending manager's accept/decline response to a box-entry GK reposition prompt. */
   emitGkBoxEntryResponse: (accept: boolean) => void;
   /** D-10 (Phase 39): GK's one-hex destination during GK_BOX_ENTRY_MOVE. */
@@ -1306,6 +1310,28 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
+    // GK_DIVE_AT_FEET_TARGET (GKDIVE-02/GKDIVE-04, 39-UAT gap 3, Plan 39-21): only the exact
+    // diving goalkeeper named by gkDiveAtFeetGkId is selectable, and only for the manager whose
+    // team is gkDiveAtFeetTeam — guard is on the goalkeeper's ID, not merely role === 'GK',
+    // since gameState already names the specific keeper. Valid hexes come from the SHARED
+    // computeGkDiveAtFeetTargetHexes helper (imported from @counter-attack/shared) — never
+    // re-derived locally — so the highlighted set can never drift from what the server accepts
+    // (Plan 39-20 put the helper in shared for exactly this reason).
+    if (gameState.phase === 'GK_DIVE_AT_FEET_TARGET') {
+      const myTeam = deriveMyTeam(playerSlot);
+      if (myTeam === null) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      if (myTeam !== gameState.gkDiveAtFeetTeam || id !== gameState.gkDiveAtFeetGkId) {
+        set({ selectedPieceId: null, validMoveHexes: [] });
+        return;
+      }
+      const valid = computeGkDiveAtFeetTargetHexes(gameState);
+      set({ selectedPieceId: id, validMoveHexes: valid, tackleRiskHexes: [] });
+      return;
+    }
+
     // Normal MOVEMENT phase: show only adjacent hexes (step-by-step, D-07)
     const { validMoveHexes: valid, tackleRiskHexes: tackle } = computeMovementValidHexes(
       piece,
@@ -1583,6 +1609,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // activationComplete check (movedPieceIds membership), so no re-check is needed here.
     // GK_BOX_ENTRY_MOVE (D-10) joins this block too — a single selectable piece (the GK), but
     // same "no numeric budget, re-derive neighbours every broadcast" shape as FREE_MOVE_*.
+    // GK_DIVE_AT_FEET_TARGET (GKDIVE-02/GKDIVE-04, Plan 39-21) joins for the identical reason:
+    // a single selectable piece (the diving GK) with no numeric budget, so any same-phase
+    // rebroadcast (e.g. reconnect resync) must re-derive the highlighted set rather than clear
+    // it, exactly like GK_BOX_ENTRY_MOVE's own sticky arm above.
     if (
       newState.phase === 'FREE_MOVE_ATTACK' ||
       newState.phase === 'FREE_MOVE_DEFENSE' ||
@@ -1591,7 +1621,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       newState.phase === 'CORNER_KICK_REPOSITION' ||
       newState.phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
       newState.phase === 'PENALTY_KICK_SETUP_DEFENDING' ||
-      newState.phase === 'GK_BOX_ENTRY_MOVE'
+      newState.phase === 'GK_BOX_ENTRY_MOVE' ||
+      newState.phase === 'GK_DIVE_AT_FEET_TARGET'
     ) {
       let stickyValid: HexCoord[];
       if (newState.phase === 'CORNER_KICK_REPOSITION') {
@@ -1617,6 +1648,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         stickyValid = computePenaltyKickValidHexes(prevSelectedId, piece, newState);
       } else if (newState.phase === 'GK_BOX_ENTRY_MOVE') {
         stickyValid = computeFreeMoveValidHexes(prevSelectedId, piece, newState);
+      } else if (newState.phase === 'GK_DIVE_AT_FEET_TARGET') {
+        stickyValid = computeGkDiveAtFeetTargetHexes(newState);
       } else {
         const paceRemaining =
           newState.phase === 'GOAL_KICK_SETUP_GK' || newState.phase === 'GOAL_KICK_SETUP_OPPONENT'
@@ -1790,6 +1823,15 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // GKDIVE-02 (D-07): fire-and-forget, no optimistic state mutation.
   emitGkDiveAtFeet: (accept) => {
     socket.emit(ClientEvents.GAME_GK_DIVE_AT_FEET, accept);
+  },
+
+  // emitGkDiveAtFeetTarget (GKDIVE-02/GKDIVE-04, 39-UAT gap 3, Plan 39-21): mirrors
+  // emitCornerKickGkPlace/emitGkBoxEntryMove's one-shot-action shape — clears
+  // selectedPieceId/validMoveHexes optimistically since the destination click is the final
+  // action of the target step.
+  emitGkDiveAtFeetTarget: (to) => {
+    socket.emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, to);
+    set({ selectedPieceId: null, validMoveHexes: [] });
   },
 
   // D-10: fire-and-forget, no optimistic state mutation.

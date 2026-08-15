@@ -72,8 +72,9 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
   // claim. Grew from 17 (11 original + 6 Phase-37 restart phases) to 22 with Plan 38-07's five
   // Corner Kick phases, briefly to 23 with Plan 38-22's CORNER_KICK_CLEAR_OUT addition (38-15
   // defect 3), then back to 22 with Plan 38-28's removal of the clear-out phase entirely.
-  it('BALL_MARKER_PHASES has 30 members (22 + 8 Phase-39 foul/GK-interrupt/penalty-kick phases)', () => {
-    expect(BALL_MARKER_PHASES.size).toBe(30);
+  // Grew to 31 with Plan 39-21's GK_DIVE_AT_FEET_TARGET addition (39-UAT gap 3).
+  it('BALL_MARKER_PHASES has 31 members (22 + 8 Phase-39 foul/GK-interrupt/penalty-kick phases + 1 Plan 39-21 addition)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(31);
   });
 
   it("renders the marker during phase='CORNER_KICK_GK_SETUP_ATTACKING' (Phase 38 corner-kick phase)", () => {
@@ -113,6 +114,13 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
 
   it("renders the marker during phase='GK_DIVE_AT_FEET_PROMPT' (Phase 39 GK-interrupt phase)", () => {
     const { container } = renderMarker('GK_DIVE_AT_FEET_PROMPT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='GK_DIVE_AT_FEET_TARGET' (39-UAT gap 3, Plan 39-21 — the dive-destination step)", () => {
+    const { container } = renderMarker('GK_DIVE_AT_FEET_TARGET');
     const polygons = Array.from(container.querySelectorAll('polygon'));
     expect(polygons).toHaveLength(1);
     expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
