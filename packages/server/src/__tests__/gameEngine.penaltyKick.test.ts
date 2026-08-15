@@ -6,10 +6,13 @@ import {
   applyPenaltyKickWindowEnd,
   applyPenaltyKickTaker,
   applyPenaltyKickDuel,
+  applyFoulChoice,
+  relocateOutsidePenaltyArea,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece, HexCoord } from '@counter-attack/shared';
 import {
   PENALTY_SPOT,
+  PENALTY_GOAL_LINE_CENTRE,
   PITCH_REGIONS,
   isInRegion,
   isPitchHex,
@@ -183,9 +186,69 @@ const baseState: GameState = {
 // ---------------------------------------------------------------------------
 
 describe('triggerPenaltyKick', () => {
-  it('sets phase to PENALTY_KICK_SETUP_ATTACKING', () => {
+  // 39-22 (gap closure, UAT gap 5): the award now routes straight to taker-select
+  // (kicker chosen BEFORE either reposition window opens), not SETUP_ATTACKING.
+  it('sets phase to PENALTY_KICK_TAKER_SELECT (39-22 reordered chain)', () => {
     const result = triggerPenaltyKick(baseState, 'home');
-    expect(result.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+    expect(result.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+  });
+
+  it('places the defending goalkeeper on PENALTY_GOAL_LINE_CENTRE[defendingTeam] (home kicks -> away GK to (36,13))', () => {
+    const result = triggerPenaltyKick(baseState, 'home');
+    const gk = result.pieces.find((p) => p.id === awayGK.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.away);
+  });
+
+  it('places the defending goalkeeper on PENALTY_GOAL_LINE_CENTRE.home when away kicks (mirror)', () => {
+    const result = triggerPenaltyKick(baseState, 'away');
+    const gk = result.pieces.find((p) => p.id === homeGK.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.home);
+  });
+
+  it('clears every non-GK piece out of the defending penalty area, leaving only the GK inside it', () => {
+    // Pack three away pieces inside the away box (defending side when home kicks).
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const boxed3: PlayerPiece = { ...awayDef, id: 'away-boxed-3', position: { q: 35, r: 15 } };
+    const state: GameState = {
+      ...baseState,
+      pieces: [...baseState.pieces, boxed1, boxed2, boxed3],
+    };
+    const result = triggerPenaltyKick(state, 'home');
+    const insideBox = result.pieces.filter((p) => isInRegion(p.position, 'awayPenaltyArea'));
+    expect(insideBox).toHaveLength(1);
+    expect(insideBox[0]!.id).toBe(awayGK.id);
+  });
+
+  it('no two pieces share a hex after the award-time box setup', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const state: GameState = { ...baseState, pieces: [...baseState.pieces, boxed1, boxed2] };
+    const result = triggerPenaltyKick(state, 'home');
+    const keys = result.pieces.map((p) => `${p.position.q},${p.position.r}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('running the same trigger twice on the same input yields identical clear-out positions (deterministic)', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const state: GameState = { ...baseState, pieces: [...baseState.pieces, boxed1, boxed2] };
+    const first = triggerPenaltyKick(state, 'home');
+    const second = triggerPenaltyKick(state, 'home');
+    expect(first.pieces.map((p) => p.position)).toEqual(second.pieces.map((p) => p.position));
+  });
+
+  it('appends one PENALTY_KICK_CLEAR_OUT_MOVE event per relocated piece', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const state: GameState = { ...baseState, pieces: [...baseState.pieces, boxed1] };
+    const result = triggerPenaltyKick(state, 'home');
+    const clearOutEvents = result.eventLog.filter((e) => e.type === 'PENALTY_KICK_CLEAR_OUT_MOVE');
+    expect(clearOutEvents.length).toBeGreaterThanOrEqual(1);
+    expect(
+      clearOutEvents.some(
+        (e) => e.type === 'PENALTY_KICK_CLEAR_OUT_MOVE' && e.pieceId === boxed1.id,
+      ),
+    ).toBe(true);
   });
 
   it('sets penaltyKickTeam to the kicking team', () => {
@@ -722,5 +785,138 @@ describe('applyPenaltyKickDuel', () => {
     expect(result.state.penaltyKickEligibleIds).toBeNull();
     expect(result.state.penaltyKickUsedPace).toEqual({});
     expect(result.state.penaltyKickTakerId).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// relocateOutsidePenaltyArea (39-22, gap closure — UAT gap 5)
+// ---------------------------------------------------------------------------
+
+describe('relocateOutsidePenaltyArea', () => {
+  it('relocates a piece inside the given area to the nearest legal hex outside it', () => {
+    const boxed: PlayerPiece = { ...awayDef, id: 'away-boxed', position: { q: 33, r: 13 } };
+    const pieces = [...baseState.pieces, boxed];
+    const result = relocateOutsidePenaltyArea(pieces, [boxed.id], 'awayPenaltyArea');
+    const relocated = result.pieces.find((p) => p.id === boxed.id)!;
+    expect(isInRegion(relocated.position, 'awayPenaltyArea')).toBe(false);
+    expect(isPitchHex(relocated.position)).toBe(true);
+  });
+
+  it('is fully deterministic — running twice on identical input yields identical output (never calls randomInt)', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const pieces = [...baseState.pieces, boxed1, boxed2];
+    const first = relocateOutsidePenaltyArea(pieces, [boxed1.id, boxed2.id], 'awayPenaltyArea');
+    const second = relocateOutsidePenaltyArea(pieces, [boxed1.id, boxed2.id], 'awayPenaltyArea');
+    expect(first.pieces.map((p) => p.position)).toEqual(second.pieces.map((p) => p.position));
+  });
+
+  it('never places two relocated pieces on the same hex', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 33, r: 11 } };
+    const pieces = [...baseState.pieces, boxed1, boxed2];
+    const result = relocateOutsidePenaltyArea(pieces, [boxed1.id, boxed2.id], 'awayPenaltyArea');
+    const p1 = result.pieces.find((p) => p.id === boxed1.id)!;
+    const p2 = result.pieces.find((p) => p.id === boxed2.id)!;
+    expect(p1.position).not.toEqual(p2.position);
+  });
+
+  it('leaves pieces untouched and emits no events when the id list is empty', () => {
+    const result = relocateOutsidePenaltyArea(baseState.pieces, [], 'awayPenaltyArea');
+    expect(result.pieces).toEqual(baseState.pieces);
+    expect(result.events).toEqual([]);
+  });
+
+  it('emits one PENALTY_KICK_CLEAR_OUT_MOVE event with correct from/to for each relocated piece', () => {
+    const boxed: PlayerPiece = { ...awayDef, id: 'away-boxed', position: { q: 33, r: 13 } };
+    const pieces = [...baseState.pieces, boxed];
+    const result = relocateOutsidePenaltyArea(pieces, [boxed.id], 'awayPenaltyArea');
+    expect(result.events).toHaveLength(1);
+    const event = result.events[0]!;
+    expect(event.type).toBe('PENALTY_KICK_CLEAR_OUT_MOVE');
+    if (event.type === 'PENALTY_KICK_CLEAR_OUT_MOVE') {
+      expect(event.pieceId).toBe(boxed.id);
+      expect(event.from).toEqual({ q: 33, r: 13 });
+      expect(isInRegion(event.to, 'awayPenaltyArea')).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyFoulChoice: box-location routing (39-22, gap closure — UAT gap 5)
+// ---------------------------------------------------------------------------
+
+/** FOUL_CHOICE fixture: away defender fouled the home attacker; home is the fouled/attacking team. */
+const foulFixtureState: GameState = {
+  ...baseState,
+  phase: 'FOUL_CHOICE',
+  attackingTeam: 'home',
+  activeTeam: 'home',
+  foulDefenderId: awayDef.id,
+  foulVictimId: homeTaker.id,
+  foulSource: 'TACKLE',
+  foulResume: null,
+  foulDuelSucceeded: false,
+};
+
+describe('applyFoulChoice: box-location routing (39-22, UAT gap 5)', () => {
+  it('awards a PENALTY when a TACKLE-sourced foul hex is inside the fouling (away) team penalty area', () => {
+    const state: GameState = { ...foulFixtureState, foulHex: { q: 33, r: 13 } };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+    const choiceEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CHOICE_MADE');
+    expect(choiceEvent).toBeDefined();
+    if (choiceEvent?.type === 'FOUL_CHOICE_MADE') {
+      expect(choiceEvent.restart).toBe('PENALTY');
+    }
+  });
+
+  it('awards a FREE_KICK when the same TACKLE-sourced foul hex is outside every penalty area', () => {
+    const state: GameState = { ...foulFixtureState, foulHex: { q: 18, r: 13 } };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FREE_KICK_SETUP');
+    const choiceEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CHOICE_MADE');
+    expect(choiceEvent).toBeDefined();
+    if (choiceEvent?.type === 'FOUL_CHOICE_MADE') {
+      expect(choiceEvent.restart).toBe('FREE_KICK');
+    }
+  });
+
+  it('a GK_DIVE_AT_FEET-sourced foul is STILL a penalty even when foulHex is outside every penalty area (GKDIVE-03 preserved)', () => {
+    const state: GameState = {
+      ...foulFixtureState,
+      foulSource: 'GK_DIVE_AT_FEET',
+      foulDefenderId: awayGK.id,
+      foulHex: { q: 18, r: 13 },
+    };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+  });
+
+  it('an in-box STEAL-sourced foul also yields a penalty', () => {
+    const state: GameState = {
+      ...foulFixtureState,
+      foulSource: 'STEAL',
+      foulHex: { q: 34, r: 10 },
+    };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+  });
+
+  it('after the award, the defending goalkeeper stands exactly on PENALTY_GOAL_LINE_CENTRE[defendingTeam]', () => {
+    const state: GameState = { ...foulFixtureState, foulHex: { q: 33, r: 13 } };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const gk = result.state.pieces.find((p) => p.id === awayGK.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.away);
   });
 });

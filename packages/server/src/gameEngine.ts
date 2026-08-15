@@ -73,6 +73,7 @@ import {
   cornerClearOutDestination,
   isSpillCornerDirection,
   PENALTY_SPOT,
+  PENALTY_GOAL_LINE_CENTRE,
   FOUL_TRIGGER_DIE,
   rollsInjury,
   resolveBooking,
@@ -1569,8 +1570,31 @@ export function applyFoulChoice(
     return { ok: false, reason: 'CONTINUE_NOT_ALLOWED' };
   }
 
+  // 39-22 (gap closure, UAT gap 5): an in-box foul now ALSO awards a penalty, not just a
+  // GK-dive-at-feet foul. "In-box" is evaluated against the FOULING team's OWN penalty
+  // area — the fouler is the defender who committed the foul, so a foul inside their own
+  // box is a penalty for the fouled (attacking) team, mirroring the real rule. T-39-22-03:
+  // both `state.foulSource` and `state.foulHex` are server-derived earlier in the foul
+  // chain (never client-supplied), so this decision has no client-tampering surface.
+  // GKDIVE-03/PEN-01 is preserved verbatim via the explicit OR term — a GK-dive-at-feet
+  // foul is ALWAYS a penalty regardless of location. This single boolean feeds BOTH the
+  // `restart` literal below AND the branch selecting triggerPenaltyKick vs.
+  // triggerFoulFreeKick further down, so the two can never drift out of sync.
+  const fouler = state.foulDefenderId
+    ? state.pieces.find((p) => p.id === state.foulDefenderId)
+    : undefined;
+  const foulingTeam: 'home' | 'away' =
+    fouler?.teamId ?? (state.attackingTeam === 'home' ? 'away' : 'home');
+  const foulingAreaKey: 'homePenaltyArea' | 'awayPenaltyArea' =
+    foulingTeam === 'home' ? 'homePenaltyArea' : 'awayPenaltyArea';
+  const isPenaltyRestart: boolean =
+    state.foulSource === 'GK_DIVE_AT_FEET' ||
+    (state.foulHex !== null &&
+      state.foulHex !== undefined &&
+      isInRegion(state.foulHex, foulingAreaKey));
+
   const restart: 'FREE_KICK' | 'PENALTY' | null =
-    choice === 'continue' ? null : state.foulSource === 'GK_DIVE_AT_FEET' ? 'PENALTY' : 'FREE_KICK';
+    choice === 'continue' ? null : isPenaltyRestart ? 'PENALTY' : 'FREE_KICK';
 
   const choiceEvent: ActionEvent = {
     type: 'FOUL_CHOICE_MADE',
@@ -1607,7 +1631,7 @@ export function applyFoulChoice(
   }
 
   // 'restart'
-  if (state.foulSource === 'GK_DIVE_AT_FEET') {
+  if (isPenaltyRestart) {
     return { ok: true, state: triggerPenaltyKick(clearedState, clearedState.attackingTeam) };
   }
   // T-39-13: a TACKLE-sourced foul's fouling defender always ends up standing exactly on
@@ -6524,26 +6548,146 @@ export function computePenaltyKickEligibleIds(
 }
 
 // ---------------------------------------------------------------------------
+// relocateOutsidePenaltyArea
+// ---------------------------------------------------------------------------
+
+/** Result of relocateOutsidePenaltyArea: the updated pieces array plus any appended events. */
+export type RelocateOutsidePenaltyAreaResult = {
+  pieces: PlayerPiece[];
+  events: ActionEvent[];
+};
+
+/**
+ * 39-22 (gap closure, UAT gap 5): relocates every piece in `pieceIds` to the nearest
+ * unoccupied on-pitch hex OUTSIDE `areaKey`, processing ids in the given order and
+ * threading a mutable working copy through the loop (mirrors
+ * `applyAutomaticCornerClearOut`'s working-copy + per-piece-occupancy pattern) so each
+ * subsequent piece's candidate search sees the positions already produced by pieces
+ * relocated earlier in the same call — deterministic and order-stable, never two
+ * relocated pieces colliding.
+ *
+ * For each piece: the candidate hex is the nearest `PITCH_HEXES` member (every member
+ * already satisfies `isPitchHex` by construction) that is NOT `isInRegion(hex, areaKey)`
+ * and not occupied by any OTHER piece's current (possibly already-relocated) position —
+ * nearest by `hexDistance` from the piece's own current hex, ties broken by lowest `q`
+ * then lowest `r`. Deliberately never calls `randomInt` — that is
+ * `relocateTrappedFreeKickPieces`'s wart (T-39-13's doc comment), not a pattern to copy;
+ * every candidate here is chosen by a fully deterministic, order-stable comparator so the
+ * SAME input state always relocates to the SAME output positions.
+ *
+ * A piece whose nearest legal candidate equals its current hex produces no event and no
+ * position write (impossible in the current caller, since every id passed in is by
+ * definition standing inside `areaKey` and no `areaKey` hex is ever a legal candidate —
+ * kept as a defensive equality check for any future caller). If NO candidate exists at
+ * all for a piece (impossible on a 943-hex pitch with 22 pieces) it is left in place
+ * rather than throwing (T-39-22-05, Denial-of-Service mitigation).
+ */
+export function relocateOutsidePenaltyArea(
+  pieces: readonly PlayerPiece[],
+  pieceIds: readonly string[],
+  areaKey: 'homePenaltyArea' | 'awayPenaltyArea',
+): RelocateOutsidePenaltyAreaResult {
+  let working: PlayerPiece[] = [...pieces];
+  const events: ActionEvent[] = [];
+
+  for (const pieceId of pieceIds) {
+    const piece = working.find((p) => p.id === pieceId);
+    if (!piece) continue; // defensive — id not found in the working set
+
+    // Vacate this piece's own current hex before searching — it's about to leave it,
+    // and a single relocating piece must not be blocked from candidacy by itself.
+    const occupied = new Set(
+      working.filter((p) => p.id !== pieceId).map((p) => `${p.position.q},${p.position.r}`),
+    );
+
+    const candidates = PITCH_HEXES.filter(
+      (hex) => !isInRegion(hex, areaKey) && !occupied.has(`${hex.q},${hex.r}`),
+    );
+    candidates.sort((a, b) => {
+      const distA = hexDistance(piece.position, a);
+      const distB = hexDistance(piece.position, b);
+      if (distA !== distB) return distA - distB;
+      if (a.q !== b.q) return a.q - b.q;
+      return a.r - b.r;
+    });
+    const to = candidates[0];
+
+    if (!to) continue; // defensive — no legal destination exists
+
+    if (to.q === piece.position.q && to.r === piece.position.r) continue;
+
+    const from = piece.position;
+    working = working.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
+    events.push({
+      type: 'PENALTY_KICK_CLEAR_OUT_MOVE',
+      pieceId,
+      from,
+      to,
+      timestamp: Date.now(),
+    });
+  }
+
+  return { pieces: working, events };
+}
+
+// ---------------------------------------------------------------------------
 // triggerPenaltyKick
 // ---------------------------------------------------------------------------
 
 /**
- * PEN-01/02/03 (Phase 39): awards a penalty kick to `kickingTeam`, opening the
- * attacking (kicking) team's reposition window first (D-08). Modelled byte-for-byte
- * on `triggerOffsideFoul`'s return shape (packages/shared/src/offside.ts) — spread
- * `...state`, then override every penalty-kick field explicitly. The defending team
- * is the opposite of `kickingTeam`; the spot is `PENALTY_SPOT[defendingTeam]` — the
- * spot is keyed by the DEFENDING team (whose penalty area contains it), not the
- * kicking team.
+ * PEN-01/02/03 (Phase 39): awards a penalty kick to `kickingTeam`. Modelled
+ * byte-for-byte on `triggerOffsideFoul`'s return shape (packages/shared/src/offside.ts)
+ * — spread `...state`, then override every penalty-kick field explicitly. The
+ * defending team is the opposite of `kickingTeam`; the spot is
+ * `PENALTY_SPOT[defendingTeam]` — the spot is keyed by the DEFENDING team (whose
+ * penalty area contains it), not the kicking team.
+ *
+ * 39-22 (gap closure, UAT gap 5): the award now performs the full board setup the
+ * user specified, BEFORE either reposition window opens:
+ *  1. Clear-out FIRST — every piece currently inside the defending penalty area,
+ *     EXCEPT the defending goalkeeper, is relocated outside it via
+ *     `relocateOutsidePenaltyArea`. Exempting the goalkeeper avoids relocating them
+ *     out only to immediately teleport them back onto the goal-line centre below.
+ *  2. THEN the defending goalkeeper is placed on `PENALTY_GOAL_LINE_CENTRE[defendingTeam]`
+ *     — because the clear-out already ran, that hex is guaranteed free of everyone else.
+ *  3. Transitions to `PENALTY_KICK_TAKER_SELECT` (NOT `PENALTY_KICK_SETUP_ATTACKING`) —
+ *     39-UAT test 5's narrative order is keeper repositions -> box cleared -> attacking
+ *     team selects a kicker -> kicker and ball to the spot -> THEN standard free-kick-
+ *     style movement with exceptions. This also matches the corner-kick precedent
+ *     (`CORNER_KICK_TAKER_SELECT` precedes `CORNER_KICK_REPOSITION`), and is what makes
+ *     "the kicker cannot be moved" enforceable at all (Task 2, T-39-22-02).
+ *  4. `penaltyKickEligibleIds` is computed here (full squad, exactly as before) so the
+ *     field is never null — `applyPenaltyKickTaker` (Task 2) narrows it once the taker
+ *     is known, excluding both the taker and the defending goalkeeper.
  */
 export function triggerPenaltyKick(state: GameState, kickingTeam: 'home' | 'away'): GameState {
   const defendingTeam: 'home' | 'away' = kickingTeam === 'home' ? 'away' : 'home';
   const spot = PENALTY_SPOT[defendingTeam];
   const eligibleIds = computePenaltyKickEligibleIds(state.pieces, kickingTeam);
+  const areaKey: 'homePenaltyArea' | 'awayPenaltyArea' =
+    defendingTeam === 'home' ? 'homePenaltyArea' : 'awayPenaltyArea';
+
+  const defendingGk = state.pieces.find((p) => p.teamId === defendingTeam && p.role === 'GK');
+
+  // Step 1: clear-out every piece inside the defending penalty area EXCEPT the
+  // defending goalkeeper (identified below, before it is placed on the goal-line centre).
+  const toClearOut = state.pieces
+    .filter((p) => p.id !== defendingGk?.id && isInRegion(p.position, areaKey))
+    .map((p) => p.id);
+  const clearOut = relocateOutsidePenaltyArea(state.pieces, toClearOut, areaKey);
+
+  // Step 2: place the defending goalkeeper on the goal-line centre — guaranteed free
+  // of everyone else now that the clear-out above has already run.
+  const gkPlacedPieces: PlayerPiece[] = defendingGk
+    ? clearOut.pieces.map((p) =>
+        p.id === defendingGk.id ? { ...p, position: PENALTY_GOAL_LINE_CENTRE[defendingTeam] } : p,
+      )
+    : clearOut.pieces;
 
   return {
     ...state,
-    phase: 'PENALTY_KICK_SETUP_ATTACKING',
+    pieces: gkPlacedPieces,
+    phase: 'PENALTY_KICK_TAKER_SELECT',
     penaltyKickTeam: kickingTeam,
     penaltyKickSpot: spot,
     penaltyKickEligibleIds: eligibleIds,
@@ -6561,6 +6705,7 @@ export function triggerPenaltyKick(state: GameState, kickingTeam: 'home' | 'away
     lastDiceRoll: null,
     stealAttemptedByIds: [],
     tackleAttemptedByIds: [],
+    eventLog: [...state.eventLog, ...clearOut.events],
   };
 }
 
@@ -9153,10 +9298,16 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     // identical reason — it carries no `ballAfter` (the ball is stationary at the corner flag
     // during the clear-out) and is deliberately NOT in REPLAY_ELIGIBLE_TYPES either, so a
     // cleared-out piece does not teleport back to its pre-clear-out hex on a later frame.
+    //
+    // 39-22 (gap closure, UAT gap 5): PENALTY_KICK_CLEAR_OUT_MOVE joins this same arm for the
+    // identical reason as its corner-kick sibling — no `ballAfter` (ball stationary at the
+    // spot during the box clear-out), deliberately NOT in REPLAY_ELIGIBLE_TYPES, so a
+    // cleared-out piece does not teleport back to its pre-clear-out hex on a later frame.
     if (
       event.type === 'CORNER_KICK_GK_PLACE' ||
       event.type === 'CORNER_KICK_MOVE' ||
-      event.type === 'CORNER_KICK_CLEAR_OUT_MOVE'
+      event.type === 'CORNER_KICK_CLEAR_OUT_MOVE' ||
+      event.type === 'PENALTY_KICK_CLEAR_OUT_MOVE'
     ) {
       current = {
         ...current,

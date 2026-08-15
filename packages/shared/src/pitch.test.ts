@@ -8,6 +8,7 @@ import {
   isPitchHex,
   computeBallZone,
   PENALTY_SPOT,
+  PENALTY_GOAL_LINE_CENTRE,
 } from './pitch.js';
 
 describe('PITCH_HEXES', () => {
@@ -214,5 +215,27 @@ describe('PENALTY_SPOT (PEN-01..03, Phase 39)', () => {
   it('away spot is inside awayPenaltyArea and not inside awaySixYardBox', () => {
     expect(isInRegion(PENALTY_SPOT.away, 'awayPenaltyArea')).toBe(true);
     expect(isInRegion(PENALTY_SPOT.away, 'awaySixYardBox')).toBe(false);
+  });
+});
+
+describe('PENALTY_GOAL_LINE_CENTRE (PEN-02, Phase 39, 39-22)', () => {
+  it('home centre is { q: 0, r: 13 } and away centre is { q: 36, r: 13 }', () => {
+    expect(PENALTY_GOAL_LINE_CENTRE.home).toEqual({ q: 0, r: 13 });
+    expect(PENALTY_GOAL_LINE_CENTRE.away).toEqual({ q: 36, r: 13 });
+  });
+
+  it('both centres satisfy isPitchHex', () => {
+    expect(isPitchHex(PENALTY_GOAL_LINE_CENTRE.home)).toBe(true);
+    expect(isPitchHex(PENALTY_GOAL_LINE_CENTRE.away)).toBe(true);
+  });
+
+  it('home centre is inside homeGoal and homePenaltyArea', () => {
+    expect(isInRegion(PENALTY_GOAL_LINE_CENTRE.home, 'homeGoal')).toBe(true);
+    expect(isInRegion(PENALTY_GOAL_LINE_CENTRE.home, 'homePenaltyArea')).toBe(true);
+  });
+
+  it('away centre is inside awayGoal and awayPenaltyArea', () => {
+    expect(isInRegion(PENALTY_GOAL_LINE_CENTRE.away, 'awayGoal')).toBe(true);
+    expect(isInRegion(PENALTY_GOAL_LINE_CENTRE.away, 'awayPenaltyArea')).toBe(true);
   });
 });

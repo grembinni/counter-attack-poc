@@ -175,6 +175,11 @@ export type ActionEventType =
   | 'PENALTY_KICK_WINDOW_ADVANCE' // PEN-02/D-08: attacking->defending reposition window boundary
   | 'PENALTY_KICK_TAKER_PLACED' // PEN-02: penalty-taker placed at the penalty spot
   | 'PENALTY_KICK' // PEN-01: the penalty-kick duel resolution
+  // 39-22 (gap closure, UAT gap 5): mandatory pre-penalty box clear-out step, byte-for-byte
+  // sibling of CORNER_KICK_CLEAR_OUT_MOVE. Carries NO ballAfter (the ball is stationary at
+  // the spot during the clear-out) and is deliberately excluded from REPLAY_ELIGIBLE_TYPES
+  // for the same reason its corner-kick sibling is — see buildReplayFrames.
+  | 'PENALTY_KICK_CLEAR_OUT_MOVE'
   | 'SECOND_HALF_CONFIRM'; // D-16: each manager's confirmation to start the second half
 
 /**
@@ -717,6 +722,20 @@ export type ActionEvent =
       result: 'GOAL' | 'SAVED' | 'TIE';
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
+    }
+  | {
+      /**
+       * 39-22 (gap closure, UAT gap 5): mandatory pre-penalty box clear-out step —
+       * byte-for-byte `CORNER_KICK_CLEAR_OUT_MOVE`'s shape minus its `slot` field (a
+       * penalty clear-out has no attacker/defender distinction worth logging; every
+       * cleared piece is, by definition, on the defending side). No `ballAfter` — the
+       * ball does not move during the clear-out, exactly like its corner-kick sibling.
+       */
+      type: 'PENALTY_KICK_CLEAR_OUT_MOVE';
+      pieceId: string;
+      from: HexCoord;
+      to: HexCoord;
+      timestamp: number;
     }
   | {
       /** D-16: each manager's confirmation to start the second half. */

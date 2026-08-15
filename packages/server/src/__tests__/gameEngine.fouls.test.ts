@@ -526,7 +526,7 @@ describe('39-18: foulDuelSucceeded gates applyFoulChoice continue', () => {
 // ---------------------------------------------------------------------------
 
 describe('applyFoulChoice: restart (GK_DIVE_AT_FEET source -> penalty)', () => {
-  it('routes to PENALTY_KICK_SETUP_ATTACKING via triggerPenaltyKick, never FREE_KICK_SETUP', () => {
+  it('routes to PENALTY_KICK_TAKER_SELECT via triggerPenaltyKick, never FREE_KICK_SETUP', () => {
     // Hand-crafted FOUL_CHOICE state — GK-dive-at-feet itself is out of this plan's scope
     // (built in a sibling plan); this test exercises only applyFoulChoice's branch.
     const gkDiveFoulChoiceState: GameState = baseState([tackleCarrier, tacklerFail], {
@@ -549,7 +549,9 @@ describe('applyFoulChoice: restart (GK_DIVE_AT_FEET source -> penalty)', () => {
     const result = applyFoulChoice(gkDiveFoulChoiceState, 'restart');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+    // 39-22 (gap closure, UAT gap 5): triggerPenaltyKick now routes straight to
+    // taker-select (kicker chosen BEFORE either reposition window opens).
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
     expect(result.state.phase).not.toBe('FREE_KICK_SETUP');
     expect(result.state.penaltyKickTeam).toBe('home');
 

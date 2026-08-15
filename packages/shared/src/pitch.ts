@@ -106,6 +106,20 @@ export const PENALTY_SPOT: Readonly<Record<'home' | 'away', HexCoord>> = {
 };
 
 /**
+ * Penalty goal-line-centre hexes (PEN-02, Phase 39, 39-22): where the defending
+ * goalkeeper is auto-placed the instant a penalty is awarded. Keyed by the DEFENDING
+ * team, exactly like `PENALTY_SPOT`. Derivation: `r = 13` is the centre of
+ * `GOAL_R_VALUES` (10..16) and `q` is each team's own goal column (`homeGoal` is
+ * `q = 0`, `awayGoal` is `q = 36`) — so this is the exact centre hex of each team's
+ * own goal line, distinct from `PENALTY_SPOT` (which sits two thirds of the way out
+ * from the goal line, not on it).
+ */
+export const PENALTY_GOAL_LINE_CENTRE: Readonly<Record<'home' | 'away', HexCoord>> = {
+  home: { q: 0, r: 13 },
+  away: { q: 36, r: 13 },
+};
+
+/**
  * Difficult-angle hexes — corner kick zones where shooting is penalised. PITCH-03.
  * 16 hexes per corner × 4 corners = 64 hexes total.
  *
