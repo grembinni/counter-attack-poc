@@ -7,25 +7,25 @@
 
 ### Fouls (FOUL)
 
-- [ ] **FOUL-01**: A tackle or steal attempt whose defending player's own die shows exactly 1 calls a foul on that defender (nutmeg is a distinct move deferred to a future milestone — not a v1.6 trigger)
+- [x] **FOUL-01**: A tackle or steal attempt whose defending player's own die shows exactly 1 calls a foul on that defender (nutmeg is a distinct move deferred to a future milestone — not a v1.6 trigger)
 - [x] **FOUL-02**: A foul immediately rolls an injury check (if Injury is enabled) and a booking check (if Booking is enabled), in that order, before the attacker's continue-or-restart choice
 - [x] **FOUL-03**: After those rolls resolve, the attacking manager chooses to continue play or take the restart (free kick, or penalty if the foul came from a GK-dive-at-feet)
-- [ ] **FOUL-04**: A Professional (Last Man) Foul — no other defending piece can reach the tackle hex within its remaining pace this movement phase — triggers the straight-red-vs-yellow booking check (CARD-03) instead of the normal booking roll
-- [ ] **FOUL-05**: Fouls (detection, injury, GK-dive-at-feet, professional-foul check, and the resulting restart) is enabled/disabled via an independent game-creation toggle
+- [x] **FOUL-04**: A Professional (Last Man) Foul — no other defending piece can reach the tackle hex within its remaining pace this movement phase — triggers the straight-red-vs-yellow booking check (CARD-03) instead of the normal booking roll
+- [x] **FOUL-05**: Fouls (detection, injury, GK-dive-at-feet, professional-foul check, and the resulting restart) is enabled/disabled via an independent game-creation toggle
 
 ### Cards / Booking (CARD)
 
-- [ ] **CARD-01**: When Booking is enabled and a foul occurs, a die ≥ the referee's Leniency attribute issues a yellow card to the fouling player; Booking has no effect if Fouls is disabled
-- [ ] **CARD-02**: A player's second yellow card (tracked per-player) becomes a red card for that player — immediate dismissal, no substitute replacement
-- [ ] **CARD-03**: A Professional (Last Man) Foul rolls directly for red-vs-yellow (≥ Leniency = straight red, otherwise yellow) instead of the normal single booking roll
-- [ ] **CARD-04**: Booking is enabled/disabled via a game-creation toggle independent of Fouls, Injury, and Out-of-Bounds/Restarts
+- [x] **CARD-01**: When Booking is enabled and a foul occurs, a die ≥ the referee's Leniency attribute issues a yellow card to the fouling player; Booking has no effect if Fouls is disabled
+- [x] **CARD-02**: A player's second yellow card (tracked per-player) becomes a red card for that player — immediate dismissal, no substitute replacement
+- [x] **CARD-03**: A Professional (Last Man) Foul rolls directly for red-vs-yellow (≥ Leniency = straight red, otherwise yellow) instead of the normal single booking roll
+- [x] **CARD-04**: Booking is enabled/disabled via a game-creation toggle independent of Fouls, Injury, and Out-of-Bounds/Restarts
 
 ### Injury (INJURY)
 
-- [ ] **INJURY-01**: After a foul, a die ≥ the fouled player's Resilience attribute injures them
-- [ ] **INJURY-02**: An injured player has all attributes reduced by 1, floored at 1, for the rest of the match
-- [ ] **INJURY-03**: A second injury forces an immediate substitution; if none is available, the player continues at degraded attributes rather than blocking the match
-- [ ] **INJURY-04**: Injury is enabled/disabled via an independent game-creation toggle (no effect unless Fouls is also enabled)
+- [x] **INJURY-01**: After a foul, a die ≥ the fouled player's Resilience attribute injures them
+- [x] **INJURY-02**: An injured player has all attributes reduced by 1, floored at 1, for the rest of the match
+- [x] **INJURY-03**: A second injury forces an immediate substitution; if none is available, the player continues at degraded attributes rather than blocking the match
+- [x] **INJURY-04**: Injury is enabled/disabled via an independent game-creation toggle (no effect unless Fouls is also enabled)
 
 ### GK Dive at Feet (GKDIVE)
 
@@ -38,8 +38,8 @@
 ### Penalty Kick (PEN)
 
 - [x] **PEN-01**: A penalty kick is a duel between the penalty taker and the goalkeeper, with the goalkeeper's combined score taking a -2 dice penalty
-- [ ] **PEN-02**: Before a penalty kick, both teams freely reposition all players, with only the penalty taker and the defending goalkeeper allowed inside the penalty area; the kicker is chosen via the existing free-kick kicker-select flow
-- [ ] **PEN-03**: A tied penalty-kick duel results in a Loose Ball at the penalty spot, following the existing Loose Ball rules
+- [x] **PEN-02**: Before a penalty kick, both teams freely reposition all players, with only the penalty taker and the defending goalkeeper allowed inside the penalty area; the kicker is chosen via the existing free-kick kicker-select flow
+- [x] **PEN-03**: A tied penalty-kick duel results in a Loose Ball at the penalty spot, following the existing Loose Ball rules
 
 ### Foul-Triggered Free Kick (FK)
 
@@ -91,9 +91,9 @@
 
 ### Settings (SETTINGS)
 
-- [ ] **SETTINGS-01**: Game creation offers 4 independent toggles — Fouls, Booking, Injury, and Out-of-Bounds/Restarts — any combination of which can be enabled
-- [ ] **SETTINGS-02**: Booking has no effect unless Fouls is also enabled
-- [ ] **SETTINGS-03**: Injury has no effect unless Fouls is also enabled
+- [x] **SETTINGS-01**: Game creation offers 4 independent toggles — Fouls, Booking, Injury, and Out-of-Bounds/Restarts — any combination of which can be enabled
+- [x] **SETTINGS-02**: Booking has no effect unless Fouls is also enabled
+- [x] **SETTINGS-03**: Injury has no effect unless Fouls is also enabled
 - [ ] **SETTINGS-04**: Substitutions are always available regardless of toggle state
 
 ## Future Requirements
@@ -151,31 +151,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORNER-04   | Phase 38 | Complete |
 | CORNER-05   | Phase 38 | Complete |
 | CORNER-06   | Phase 38 | Complete |
-| FOUL-01     | Phase 39 | Pending  |
+| FOUL-01     | Phase 39 | Complete |
 | FOUL-02     | Phase 39 | Complete |
 | FOUL-03     | Phase 39 | Complete |
-| FOUL-04     | Phase 39 | Pending  |
-| FOUL-05     | Phase 39 | Pending  |
-| CARD-01     | Phase 39 | Pending  |
-| CARD-02     | Phase 39 | Pending  |
-| CARD-03     | Phase 39 | Pending  |
-| CARD-04     | Phase 39 | Pending  |
-| INJURY-01   | Phase 39 | Pending  |
-| INJURY-02   | Phase 39 | Pending  |
-| INJURY-03   | Phase 39 | Pending  |
-| INJURY-04   | Phase 39 | Pending  |
+| FOUL-04     | Phase 39 | Complete |
+| FOUL-05     | Phase 39 | Complete |
+| CARD-01     | Phase 39 | Complete |
+| CARD-02     | Phase 39 | Complete |
+| CARD-03     | Phase 39 | Complete |
+| CARD-04     | Phase 39 | Complete |
+| INJURY-01   | Phase 39 | Complete |
+| INJURY-02   | Phase 39 | Complete |
+| INJURY-03   | Phase 39 | Complete |
+| INJURY-04   | Phase 39 | Complete |
 | GKDIVE-01   | Phase 39 | Complete |
 | GKDIVE-02   | Phase 39 | Complete |
 | GKDIVE-03   | Phase 39 | Complete |
 | GKDIVE-04   | Phase 39 | Complete |
 | GKDIVE-05   | Phase 39 | Complete |
 | PEN-01      | Phase 39 | Complete |
-| PEN-02      | Phase 39 | Pending  |
-| PEN-03      | Phase 39 | Pending  |
+| PEN-02      | Phase 39 | Complete |
+| PEN-03      | Phase 39 | Complete |
 | FK-01       | Phase 39 | Complete |
-| SETTINGS-01 | Phase 39 | Pending  |
-| SETTINGS-02 | Phase 39 | Pending  |
-| SETTINGS-03 | Phase 39 | Pending  |
+| SETTINGS-01 | Phase 39 | Complete |
+| SETTINGS-02 | Phase 39 | Complete |
+| SETTINGS-03 | Phase 39 | Complete |
 | SUB-01      | Phase 40 | Pending  |
 | SUB-02      | Phase 40 | Pending  |
 | SUB-03      | Phase 40 | Pending  |
