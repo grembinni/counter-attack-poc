@@ -145,3 +145,11 @@ None - no external service configuration required.
 
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-15_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-21-SUMMARY.md`
+- FOUND: commit `e12752c` (Task 1)
+- FOUND: commit `e6d8510` (Task 2)
+- FOUND: commit `2079597` (Task 3)
+- FOUND: commit `22ad550` (this SUMMARY)
