@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 20/24         | In Progress |             |
+| 39    | 22/24         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -403,8 +403,8 @@ Plans:
 
 **Wave 12** _(two parallel plans, no file overlap)_
 
-- [ ] 39-21-PLAN.md — Client interaction for choosing the dive destination hex (UAT gap 3-client)
-- [ ] 39-22-PLAN.md — All in-box fouls award a penalty; award-time setup and reposition locks (UAT gap 5)
+- [x] 39-21-PLAN.md — Client interaction for choosing the dive destination hex (UAT gap 3-client)
+- [x] 39-22-PLAN.md — All in-box fouls award a penalty; award-time setup and reposition locks (UAT gap 5)
 
 **Wave 13** _(two parallel plans, no file overlap)_
 
