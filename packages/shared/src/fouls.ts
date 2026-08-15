@@ -1,5 +1,5 @@
 import type { GameState, HexCoord, PlayerPiece } from './types.js';
-import { hexDistance } from './hex.js';
+import { hexDistance, hexLine } from './hex.js';
 
 /**
  * v1.6 (Phase 39): pure, side-effect-free foul/injury/booking/professional-foul rule
@@ -10,6 +10,15 @@ import { hexDistance } from './hex.js';
  * — the INVERSE convention of every other duel in this codebase (which route through
  * `computeCombinedScore`). Higher resilience/leniency makes the roll LESS likely to
  * injure/book its owner. This is intentional rulebook behaviour — do not "correct" it.
+ *
+ * FOUL-04 (Plan 39-19, closes 39-UAT gap 8): `isProfessionalFoul`'s reachability model
+ * changed from omnidirectional teammate-coverage ("could any teammate anywhere reach the
+ * foul hex") to goal-side + goal-path coverage — only defenders horizontally BETWEEN the
+ * attacker and the goal they are attacking count, and only if they can reach the
+ * attacker's straight-line goal path (see `attackerGoalPath` below) with their remaining
+ * pace. The goalkeeper of the fouling (defending) team is now explicitly excluded from
+ * the covering-defender set — previously only the fouler itself and red-carded pieces
+ * were excluded.
  */
 
 /**
@@ -117,27 +126,91 @@ export function resolveBooking(input: {
 }
 
 /**
- * FOUL-04: true only when NO other piece on the fouler's team (excluding the fouler
- * itself and excluding any redCarded piece) could have reached `foulHex` with its
+ * FOUL-04 (Plan 39-19): the goal-path row is clamped into this inclusive band before the
+ * attacker's goal-path line is drawn. Quoting the user's rule verbatim: "Attackers
+ * position (X,Y>20) = (X,20) AND position (X,Y<5) = (X,5) for calculations." Never
+ * inline these numbers — always reference these constants.
+ */
+export const GOAL_PATH_R_MIN = 5;
+export const GOAL_PATH_R_MAX = 20;
+
+/**
+ * FOUL-04: clamps a raw `r` (row) value into the inclusive `[GOAL_PATH_R_MIN,
+ * GOAL_PATH_R_MAX]` band used for the attacker's goal-path calculation.
+ */
+export function clampGoalPathRow(r: number): number {
+  return Math.min(GOAL_PATH_R_MAX, Math.max(GOAL_PATH_R_MIN, r));
+}
+
+/**
+ * FOUL-04: returns the straight hex line from the fouled attacker's hex (with `r`
+ * clamped via `clampGoalPathRow`) to the attacked goal column, at that SAME clamped row
+ * — not the attacker's raw row. `attackingTeam` resolves the attacked goal column using
+ * the repo-wide convention (`goalQ = attackingTeam === 'home' ? 36 : 0`, mirrored from
+ * `applyDeclareShot`/`applySnapshot`/`applyResolveHeaderTarget` in gameEngine.ts).
+ *
+ * `hexLine` returns both endpoints inclusive (length = hexDistance + 1) — the returned
+ * path includes the attacker's clamped hex and the goal-column hex at the clamped row.
+ */
+export function attackerGoalPath(
+  attackerHex: HexCoord,
+  attackingTeam: 'home' | 'away',
+): HexCoord[] {
+  const clampedR = clampGoalPathRow(attackerHex.r);
+  const goalQ = attackingTeam === 'home' ? 36 : 0;
+  return hexLine({ q: attackerHex.q, r: clampedR }, { q: goalQ, r: clampedR });
+}
+
+/**
+ * FOUL-04: true (DOGSO) only when NO non-goalkeeper, non-red-carded defender on the
+ * fouler's team is BOTH horizontally closer to the attacked goal than the fouled
+ * attacker AND able to reach any hex of the attacker's clamped goal path with its
  * remaining pace this Movement Phase.
  *
+ * `attackerHex` is the FOULED ATTACKER's hex (guaranteed by every `resolveFoulChain`
+ * call site as of Plan 39-18) — NOT the tackle contact hex.
+ *
+ * This replaces the prior omnidirectional "could any teammate anywhere reach the foul
+ * hex" test (39-UAT gap 8): a defender standing BEHIND the attacker (further from the
+ * attacked goal) never suppresses DOGSO, no matter how much pace they have, and the
+ * fouling team's goalkeeper never counts as a covering defender.
+ *
  * RESEARCH.md Pitfall 5: straight-line ("as the crow flies") reachability —
- * `hexDistance(other.position, foulHex) <= other.pace - (state.paceUsedByPieceId[other.id] ?? 0)`.
- * No path-walk, no occupancy simulation — this matches the move-range highlighting
- * standard already used elsewhere in the codebase.
+ * `hexDistance(candidate.position, h) <= candidate.pace - (state.paceUsedByPieceId[candidate.id] ?? 0)`
+ * for some hex `h` on the goal path. No path-walk, no occupancy simulation — this
+ * matches the move-range highlighting standard already used elsewhere in the codebase.
  */
-export function isProfessionalFoul(state: GameState, foulerId: string, foulHex: HexCoord): boolean {
+export function isProfessionalFoul(
+  state: GameState,
+  foulerId: string,
+  attackerHex: HexCoord,
+): boolean {
   const fouler = state.pieces.find((p) => p.id === foulerId);
   if (!fouler) return true;
 
-  const couldHaveCovered = state.pieces.some((other) => {
-    if (other.id === foulerId) return false;
-    if (other.teamId !== fouler.teamId) return false;
-    if (other.redCarded) return false;
-    const paceUsed = state.paceUsedByPieceId[other.id] ?? 0;
-    const budget = other.pace - paceUsed;
-    return hexDistance(other.position, foulHex) <= budget;
+  const defendingTeam = fouler.teamId;
+  const attackingTeam: 'home' | 'away' = defendingTeam === 'home' ? 'away' : 'home';
+  const goalQ = attackingTeam === 'home' ? 36 : 0;
+
+  const path = attackerGoalPath(attackerHex, attackingTeam);
+
+  const candidates = state.pieces.filter((candidate) => {
+    const isGoalSide =
+      goalQ === 36 ? candidate.position.q > attackerHex.q : candidate.position.q < attackerHex.q;
+    return (
+      candidate.teamId === defendingTeam &&
+      candidate.id !== foulerId &&
+      candidate.role !== 'GK' &&
+      candidate.redCarded !== true &&
+      isGoalSide
+    );
   });
 
-  return !couldHaveCovered;
+  const covered = candidates.some((candidate) => {
+    const paceUsed = state.paceUsedByPieceId[candidate.id] ?? 0;
+    const budget = candidate.pace - paceUsed;
+    return path.some((h) => hexDistance(candidate.position, h) <= budget);
+  });
+
+  return !covered;
 }
