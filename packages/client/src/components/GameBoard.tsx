@@ -204,6 +204,9 @@ export function GameBoard() {
   const kickOffTeam = useGameStore((s) => s.gameState.kickOffTeam);
   const addedTime = useGameStore((s) => s.gameState.addedTime);
   const emitHalfTimeStart = useGameStore((s) => s.emitHalfTimeStart);
+  // D-16 (Phase 39-16): mutual-confirm gate replacing the D-28 single-team kick-off-team-only
+  // gate — both managers may confirm the second half, in either order.
+  const secondHalfConfirmed = useGameStore((s) => s.gameState.secondHalfConfirmed);
 
   // D-08/D-09: event-driven clock. Format: "MM:00". Always rendered (CLOCK-02).
   const clockDisplay = String(actionCount).padStart(2, '0') + ':00';
@@ -233,11 +236,17 @@ export function GameBoard() {
   if (currentPiece) lastPieceRef.current = currentPiece;
   const displayPiece = lastPieceRef.current;
 
-  // HALF_TIME overlay: canStart logic (D-28 preserved verbatim from HalfTimeScreen.tsx)
+  // HALF_TIME overlay: D-16 mutual-confirm gate — replaces the D-28 single-team
+  // kick-off-team-only gate entirely. Both managers now see an actionable button; each sees
+  // a waiting state once THEY have confirmed, independent of the other's confirm state.
   const myTeam = useMyTeam();
-  const canStart = myTeam !== null && myTeam !== kickOffTeam;
+  const myConfirmed = myTeam !== null && (secondHalfConfirmed?.[myTeam] ?? false);
+  const canStart = myTeam !== null && !myConfirmed;
   const secondHalfKickOffTeam = kickOffTeam === 'home' ? 'away' : 'home';
   const secondHalfTeamName = secondHalfKickOffTeam === 'home' ? 'Home' : 'Away';
+  // D-16 waiting-state opponent label — derived from myTeam (the OTHER manager), independent
+  // of secondHalfKickOffTeam (which communicates who kicks off, a separate concept per D-16).
+  const opponentTeamName = myTeam === 'home' ? 'Away' : 'Home';
 
   // FULL_TIME overlay: result derivation (from FullTimeScreen.tsx)
   const resultText =
@@ -452,15 +461,23 @@ export function GameBoard() {
                   </span>
                 </div>
 
-                {/* Start 2nd Half button — gated to non-first-half kick-off team (D-28) */}
-                <button
-                  className={styles.overlayCtaButton}
-                  disabled={!canStart}
-                  title={!canStart ? 'Only the 2nd half kick-off team can start' : undefined}
-                  onClick={() => emitHalfTimeStart()}
-                >
-                  Start 2nd Half
-                </button>
+                {/* Start 2nd Half — D-16 mutual-confirm gate replaces the D-28 single-team
+                    kick-off-team-only gate. Both managers see an actionable button before
+                    THEIR OWN confirm; each switches to a waiting message once they have
+                    confirmed, independent of the opponent's confirm state. */}
+                {myConfirmed ? (
+                  <p className={styles.overlayBody}>
+                    Waiting for {opponentTeamName} to start the 2nd half&hellip;
+                  </p>
+                ) : (
+                  <button
+                    className={styles.overlayCtaButton}
+                    disabled={!canStart}
+                    onClick={() => emitHalfTimeStart()}
+                  >
+                    Start 2nd Half
+                  </button>
+                )}
               </div>
             </div>
           )}

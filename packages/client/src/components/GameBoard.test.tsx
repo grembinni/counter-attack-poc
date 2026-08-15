@@ -21,6 +21,29 @@ vi.mock('../socket.js', () => ({
   },
 }));
 
+// Phase 39 (39-16 Task 3): the four new prompt/setup panels are mocked to identifiable
+// stubs for the phase-dispatch assertions below — the point of those tests is which panel
+// GameBoard's topBandRight ternary routes to, not each panel's own internal guard/copy
+// logic (already covered by their own dedicated test suites from Plans 39-08/39-09).
+vi.mock('./FoulChoicePanel.js', () => ({
+  FoulChoicePanel: () => <div data-testid="mock-foul-choice-panel">MockFoulChoicePanel</div>,
+}));
+vi.mock('./GkDiveAtFeetPromptPanel.js', () => ({
+  GkDiveAtFeetPromptPanel: () => (
+    <div data-testid="mock-gk-dive-at-feet-prompt-panel">MockGkDiveAtFeetPromptPanel</div>
+  ),
+}));
+vi.mock('./GkBoxEntryPromptPanel.js', () => ({
+  GkBoxEntryPromptPanel: () => (
+    <div data-testid="mock-gk-box-entry-prompt-panel">MockGkBoxEntryPromptPanel</div>
+  ),
+}));
+vi.mock('./PenaltyKickSetupPanel.js', () => ({
+  PenaltyKickSetupPanel: () => (
+    <div data-testid="mock-penalty-kick-setup-panel">MockPenaltyKickSetupPanel</div>
+  ),
+}));
+
 afterEach(() => cleanup());
 
 beforeEach(() => {
@@ -375,4 +398,117 @@ describe('GameBoard — Phase 38 (38-07): Corner Kick phase dispatch', () => {
     const { container } = render(<GameBoard />);
     expect(container.textContent).toMatch(/CORNER KICK/);
   });
+});
+
+// ---------------------------------------------------------------------------
+// D-16 (Phase 39-16): mutual-confirm Start 2nd Half button — replaces the D-28
+// single-team kick-off-team-only gate. Both managers see an actionable button before their
+// own confirm; each sees a waiting message once THEY have confirmed.
+// ---------------------------------------------------------------------------
+describe('GameBoard — D-16: mutual-confirm Start 2nd Half button', () => {
+  function halfTimeState(overrides: Partial<typeof mockMovementState> = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'HALF_TIME' as const,
+      kickOffTeam: 'home' as const,
+      secondHalfConfirmed: null,
+      ...overrides,
+    };
+  }
+
+  it('shows an enabled Start 2nd Half button for the home-viewing manager when secondHalfConfirmed is null (D-16 regression: previously disabled for the non-kick-off team)', () => {
+    useGameStore.setState({ gameState: halfTimeState(), playerSlot: 1 }); // home
+    render(<GameBoard />);
+    const button = screen.getByRole('button', { name: /^start 2nd half$/i });
+    expect(button).toBeDefined();
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('shows an enabled Start 2nd Half button for the away-viewing manager when secondHalfConfirmed is null (D-16 regression: previously the ONLY side that saw an enabled button)', () => {
+    useGameStore.setState({ gameState: halfTimeState(), playerSlot: 2 }); // away
+    render(<GameBoard />);
+    const button = screen.getByRole('button', { name: /^start 2nd half$/i });
+    expect(button).toBeDefined();
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('clicking Start 2nd Half calls emitHalfTimeStart exactly once', () => {
+    const emitHalfTimeStartSpy = vi.fn();
+    useGameStore.setState({
+      gameState: halfTimeState(),
+      playerSlot: 1,
+      emitHalfTimeStart: emitHalfTimeStartSpy,
+    });
+    render(<GameBoard />);
+    screen.getByRole('button', { name: /^start 2nd half$/i }).click();
+    expect(emitHalfTimeStartSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces the button with "Waiting for Away to start the 2nd half…" when secondHalfConfirmed is {home:true, away:false} and myTeam is home', () => {
+    useGameStore.setState({
+      gameState: halfTimeState({ secondHalfConfirmed: { home: true, away: false } }),
+      playerSlot: 1, // home
+    });
+    render(<GameBoard />);
+    expect(screen.queryByRole('button', { name: /^start 2nd half$/i })).toBeNull();
+    expect(screen.getByText(/Waiting for Away to start the 2nd half/)).toBeDefined();
+  });
+
+  it('shows an enabled Start 2nd Half button (not the waiting message) when secondHalfConfirmed is {home:true, away:false} and myTeam is away', () => {
+    useGameStore.setState({
+      gameState: halfTimeState({ secondHalfConfirmed: { home: true, away: false } }),
+      playerSlot: 2, // away
+    });
+    render(<GameBoard />);
+    const button = screen.getByRole('button', { name: /^start 2nd half$/i });
+    expect(button).toBeDefined();
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/Waiting for/)).toBeNull();
+  });
+
+  it('never renders the removed "Only the 2nd half kick-off team can start" tooltip text, regardless of confirm state', () => {
+    useGameStore.setState({ gameState: halfTimeState(), playerSlot: 1 });
+    const { container: containerA } = render(<GameBoard />);
+    expect(containerA.textContent).not.toMatch(/Only the 2nd half kick-off team can start/);
+    cleanup();
+
+    useGameStore.setState({
+      gameState: halfTimeState({ secondHalfConfirmed: { home: true, away: false } }),
+      playerSlot: 1,
+    });
+    const { container: containerB } = render(<GameBoard />);
+    expect(containerB.textContent).not.toMatch(/Only the 2nd half kick-off team can start/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 39 (39-16 Task 1/3): the eight new foul/GK-interrupt/penalty-kick phases each
+// dispatch to their own mocked panel stub, never the generic ActionPanel.
+// ---------------------------------------------------------------------------
+describe('GameBoard — Phase 39 (39-16): new phase dispatch', () => {
+  const NEW_PHASE_DISPATCH = [
+    { phase: 'FOUL_CHOICE', testId: 'mock-foul-choice-panel' },
+    { phase: 'GK_DIVE_AT_FEET_PROMPT', testId: 'mock-gk-dive-at-feet-prompt-panel' },
+    { phase: 'GK_BOX_ENTRY_PROMPT', testId: 'mock-gk-box-entry-prompt-panel' },
+    { phase: 'GK_BOX_ENTRY_MOVE', testId: 'mock-gk-box-entry-prompt-panel' },
+    { phase: 'PENALTY_KICK_SETUP_ATTACKING', testId: 'mock-penalty-kick-setup-panel' },
+    { phase: 'PENALTY_KICK_SETUP_DEFENDING', testId: 'mock-penalty-kick-setup-panel' },
+    { phase: 'PENALTY_KICK_TAKER_SELECT', testId: 'mock-penalty-kick-setup-panel' },
+    { phase: 'PENALTY_KICK', testId: 'mock-penalty-kick-setup-panel' },
+  ] as const;
+
+  it.each(NEW_PHASE_DISPATCH)(
+    'renders the mocked panel (not ActionPanel) during $phase',
+    ({ phase, testId }) => {
+      useGameStore.setState({
+        gameState: { ...mockMovementState, phase },
+      });
+      render(<GameBoard />);
+      expect(screen.getByTestId(testId)).toBeDefined();
+      // ActionPanel's "Confirm" button (the generic-dispatch fallback assertion used
+      // elsewhere in this file, e.g. the MOVEMENT-phase test above) must not appear —
+      // proves the ternary routed to the mocked panel, not the generic ActionPanel.
+      expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
+    },
+  );
 });
