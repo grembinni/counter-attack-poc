@@ -623,9 +623,13 @@ describe('applyFoulChoice: restart preserves ball lastTouchedBy', () => {
 });
 
 describe('FOUL-04: Professional Foul reachability', () => {
-  it('a teammate that exists but has no remaining pace to reach the foul hex still yields professional: true', () => {
-    // reachableTeammate is far away AND has already used all its pace this phase.
-    const exhaustedTeammate = piece('away-cover', 'away', { q: 30, r: 7 }, { pace: 6 });
+  // Plan 39-19 (closes 39-UAT gap 8): fixtures updated for goal-side + goal-path
+  // reachability. The attacked carrier sits at {q:10,r:7} (home attacking q=36), so
+  // the attacker's goal path runs along r=7 from q=10 to q=36.
+  it('a teammate that exists but has no remaining pace to reach the goal path still yields professional: true', () => {
+    // goalSideTeammate is goal-side (q=30 > 10) and 3 hexes off the r=7 goal-path row
+    // (reachable with its full pace of 6), but has already used all its pace this phase.
+    const exhaustedTeammate = piece('away-cover', 'away', { q: 30, r: 10 }, { pace: 6 });
     const state = baseState([tackleCarrier, tacklerFail, exhaustedTeammate], {
       movementSlot: 'DEFENDER_5',
       activeTeam: 'away',
@@ -647,8 +651,10 @@ describe('FOUL-04: Professional Foul reachability', () => {
 });
 
 describe('FOUL-04: Professional Foul reachability (reachable/unreachable teammate)', () => {
-  it('a reachable teammate of the fouler yields professional: false', () => {
-    const reachableTeammate = piece('away-cover', 'away', { q: 9, r: 7 }, { pace: 6 });
+  it('a goal-side teammate within reach of the goal path yields professional: false', () => {
+    // {q:15,r:9} is goal-side (15 > 10) and 2 hexes from the r=7 goal-path row —
+    // reachable with pace 6.
+    const reachableTeammate = piece('away-cover', 'away', { q: 15, r: 9 }, { pace: 6 });
     const state = baseState([tackleCarrier, tacklerFail, reachableTeammate], {
       movementSlot: 'DEFENDER_5',
       activeTeam: 'away',
@@ -665,6 +671,29 @@ describe('FOUL-04: Professional Foul reachability (reachable/unreachable teammat
     if (!result.ok) return;
     const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
     expect(foulEvent?.type === 'FOUL_CALLED' && foulEvent.professional).toBe(false);
+  });
+
+  it('a teammate BEHIND the attacker (not goal-side) never suppresses DOGSO, even if adjacent to the foul hex', () => {
+    // {q:9,r:7} is one hex from the foul hex {q:10,r:7} but q=9 < 10 is NOT goal-side
+    // (home attacks q=36) — this used to be "reachable" under the old omnidirectional
+    // rule; under the goal-side + goal-path rule it never counts as cover.
+    const behindTeammate = piece('away-cover', 'away', { q: 9, r: 7 }, { pace: 6 });
+    const state = baseState([tackleCarrier, tacklerFail, behindTeammate], {
+      movementSlot: 'DEFENDER_5',
+      activeTeam: 'away',
+      attackingTeam: 'home',
+      ball: { position: { q: 10, r: 7 }, carrierId: 'carrier', lastTouchedBy: null },
+    });
+    const result = applyMove(
+      state,
+      'tackler',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
+    expect(foulEvent?.type === 'FOUL_CALLED' && foulEvent.professional).toBe(true);
   });
 
   it('no reachable teammate of the fouler yields professional: true', () => {
