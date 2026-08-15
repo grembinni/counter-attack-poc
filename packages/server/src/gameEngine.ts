@@ -8723,8 +8723,16 @@ export function applySecondHalfConfirm(
 // buildReplayFrames
 // ---------------------------------------------------------------------------
 
-/** Non-SLOT_ADVANCE event types that produce replay frames (D-32). */
-const REPLAY_ELIGIBLE_TYPES = new Set<string>([
+/**
+ * Non-SLOT_ADVANCE event types that produce replay frames (D-32).
+ *
+ * Exported (39-17, Task 2) so the cross-cutting registration suite
+ * (`gameEngine.undoReplay39.test.ts`) can assert every new Phase 39 ActionEventType's
+ * membership directly against this set, rather than only inferring it indirectly through
+ * `buildReplayFrames`'s frame count — this is the literal "registered in REPLAY_ELIGIBLE_TYPES"
+ * check the BUG-30/31/37 defect class requires.
+ */
+export const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   'MOVE',
   'DICE_ROLL',
   'STEAL_ATTEMPT',

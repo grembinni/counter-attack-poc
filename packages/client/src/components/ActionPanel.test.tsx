@@ -1489,3 +1489,256 @@ describe('ActionPanel — D-09: phase-specific waiting text', () => {
     expect(screen.queryByText(/Waiting for opponent/)).toBeNull();
   });
 });
+
+// Phase 39 (39-17): mirrors gameEngine.ts applyUndo's isBoundary reduce term-for-term.
+// GK_DIVE_AT_FEET is unconditional, so it is directly testable through the MOVE-phase Undo
+// button exactly like the existing BUG-37 TACKLE_ATTEMPT/STEAL_ATTEMPT tests above. The other
+// five new terms are guarded on a phase (FOUL_CHOICE, PENALTY_KICK_SETUP_ATTACKING/DEFENDING,
+// PENALTY_KICK_TAKER_SELECT, GK_BOX_ENTRY_MOVE, HALF_TIME) that ActionPanel either never
+// renders an Undo control for (FoulChoicePanel/PenaltyKickSetupPanel/GkBoxEntryPromptPanel own
+// those phases in GameBoard's routing) or falls through to a bare `return null` for (HALF_TIME)
+// — so those five assert that no Undo affordance leaks through ActionPanel in those phases,
+// confirming the mirror term is present without ever offering a false undo control.
+describe('ActionPanel — Phase 39 boundary mirror (39-17): GK_DIVE_AT_FEET unconditional boundary', () => {
+  it('Undo button is disabled when the eventLog ends in a resolved GK_DIVE_AT_FEET', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 1 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'GK_DIVE_AT_FEET',
+            gkId: 'away-0',
+            carrierId: 'home-9',
+            gkDie: 4,
+            carrierDie: 2,
+            gkCombined: 8,
+            carrierCombined: 6,
+            distance: 2,
+            savingPenalty: 0,
+            result: 'SUCCESS',
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: null },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Undo button is enabled again once a further MOVE exists after the resolved GK_DIVE_AT_FEET', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 2 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'GK_DIVE_AT_FEET',
+            gkId: 'away-0',
+            carrierId: 'home-9',
+            gkDie: 4,
+            carrierDie: 2,
+            gkCombined: 8,
+            carrierCombined: 6,
+            distance: 2,
+            savingPenalty: 0,
+            result: 'FAIL',
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 15, r: 13 },
+            to: { q: 16, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 2000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('GK_DIVE_AT_FEET also clamps Undo inside HIGH_PASS_MOVE (unconditional term applies to every phase)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HIGH_PASS_MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        highPassMovedPieceId: 'home-9',
+        eventLog: [
+          {
+            type: 'HP_MOVE',
+            slot: 'ATTACKER',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            timestamp: 500,
+          },
+          // GK_DIVE_AT_FEET is the LAST event with no subsequent HP_MOVE — Undo must clamp
+          // here exactly like it does after a resolved TACKLE_ATTEMPT/STEAL_ATTEMPT, even
+          // though an earlier HP_MOVE exists before the boundary.
+          {
+            type: 'GK_DIVE_AT_FEET',
+            gkId: 'away-0',
+            carrierId: 'home-9',
+            gkDie: 4,
+            carrierDie: 2,
+            gkCombined: 8,
+            carrierCombined: 6,
+            distance: 2,
+            savingPenalty: 0,
+            result: 'SUCCESS',
+            timestamp: 1000,
+            ballAfter: { position: { q: 15, r: 13 }, carrierId: null },
+          },
+        ],
+      },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('ActionPanel — Phase 39 boundary mirror (39-17): phase-guarded terms never leak an Undo control', () => {
+  it('FOUL_CHOICE: ActionPanel renders no Undo button (FoulChoicePanel owns this phase; term present for exhaustiveness)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'FOUL_CHOICE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'FOUL_CHOICE_MADE',
+            team: 'home',
+            choice: 'continue',
+            restart: null,
+            timestamp: 1000,
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+
+  it('PENALTY_KICK_SETUP_ATTACKING: ActionPanel renders no Undo button (PenaltyKickSetupPanel owns this phase)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_SETUP_ATTACKING',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        penaltyKickTeam: 'home',
+        eventLog: [
+          {
+            type: 'PENALTY_KICK_WINDOW_ADVANCE',
+            from: 'ATTACKING',
+            timestamp: 1000,
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+
+  it('PENALTY_KICK_TAKER_SELECT: ActionPanel renders no Undo button (PenaltyKickSetupPanel owns this phase)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_TAKER_SELECT',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        penaltyKickTeam: 'home',
+        eventLog: [
+          {
+            type: 'PENALTY_KICK_TAKER_PLACED',
+            pieceId: 'home-9',
+            hex: { q: 18, r: 4 },
+            timestamp: 1000,
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+
+  it('GK_BOX_ENTRY_MOVE: ActionPanel renders no Undo button (GkBoxEntryPromptPanel owns this phase)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'GK_BOX_ENTRY_MOVE',
+        activeTeam: 'away',
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'GK_BOX_ENTRY_MOVE',
+            gkId: 'away-0',
+            from: { q: 1, r: 13 },
+            to: { q: 2, r: 13 },
+            timestamp: 1000,
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+
+  it('HALF_TIME: ActionPanel renders no Undo button after a SECOND_HALF_CONFIRM event (falls through to bare null)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HALF_TIME',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        eventLog: [
+          {
+            type: 'SECOND_HALF_CONFIRM',
+            team: 'home',
+            bothConfirmed: false,
+            timestamp: 1000,
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
+  });
+});
