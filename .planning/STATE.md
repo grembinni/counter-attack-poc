@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: executing
-stopped_at: Phase 39 UI-SPEC approved
+stopped_at: Phase 39 complete — 24/24 plans, all 9 live-UAT gaps closed
 last_updated: '2026-08-15T23:16:12.699Z'
 last_activity: 2026-08-15
 progress:
@@ -20,7 +20,7 @@ progress:
 
 Phase: 40
 Plan: Not started
-Status: Executing Phase 39
+Status: Ready to start Phase 40
 Last activity: 2026-08-15
 
 ## Project Reference
@@ -28,7 +28,7 @@ Last activity: 2026-08-15
 See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 39 — fouls-cards-injuries-penalty-kicks
+**Current focus:** Phase 40 — substitutions
 
 ## Phase Status
 
@@ -80,7 +80,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 | 36    | Bug Fixes                                     | Complete    | 2026-08-02 |
 | 37    | Out-of-Bounds Detection, Throw-In & Goal Kick | Complete    | 2026-08-04 |
 | 38    | Corner Kick                                   | Gaps Found  | -          |
-| 39    | Fouls, Cards, Injuries & Penalty Kicks        | Not started | -          |
+| 39    | Fouls, Cards, Injuries & Penalty Kicks        | Complete    | 2026-08-15 |
 | 40    | Substitutions                                 | Not started | -          |
 
 ## Blocking Dependencies
