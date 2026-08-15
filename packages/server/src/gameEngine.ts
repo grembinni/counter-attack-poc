@@ -5640,6 +5640,10 @@ export function applyCornerKickFinalSetupEnd(state: GameState): ApplyCornerKickF
       lastActionType: 'CORNER_KICK_RESTART',
       attackingTeam: cornerKickTeam,
       activeTeam: cornerKickTeam,
+      // 39-18 (UAT gap 9): the corner kick is taken at this DEFENDER-slot terminal
+      // return (not the ATTACKER-slot handoff above) — charge the flat +1 minute clock
+      // cost that applyGoalKickMoveEnd's teardown already charges for goal kicks.
+      actionCount: state.actionCount + 1,
       passTargetHex: null,
       cornerKickMoveSlot: null,
       cornerKickMovedPieceId: null,
@@ -6840,6 +6844,9 @@ export function applyPenaltyKickDuel(
         attackingTeam: newKickOffTeam,
         activeTeam: newKickOffTeam,
         ball: { position: PITCH_REGIONS.kickOffHex, carrierId: null, lastTouchedBy: null },
+        // 39-18 (UAT gap 9): the penalty kick costs 1 minute regardless of outcome — added
+        // per-branch (matching this file's explicit-per-branch style) rather than hoisted.
+        actionCount: state.actionCount + 1,
         lastDiceRoll: { rolls: [takerDie, gkDie], context: 'PENALTY_KICK' },
         lastActionType: null,
         lastShotPath: null,
@@ -6888,6 +6895,8 @@ export function applyPenaltyKickDuel(
         },
         activeTeam: gk.teamId,
         attackingTeam: gk.teamId,
+        // 39-18 (UAT gap 9): the penalty kick costs 1 minute regardless of outcome.
+        actionCount: state.actionCount + 1,
         lastDiceRoll: { rolls: [takerDie, gkDie], context: 'PENALTY_KICK' },
         eventLog: [...state.eventLog, penEvent],
       },
@@ -6921,6 +6930,8 @@ export function applyPenaltyKickDuel(
         carrierId: null,
         lastTouchedBy: { pieceId: gk.id, teamId: gk.teamId },
       },
+      // 39-18 (UAT gap 9): the penalty kick costs 1 minute regardless of outcome.
+      actionCount: state.actionCount + 1,
       lastDiceRoll: null,
       eventLog: [...state.eventLog, penEvent],
     },
@@ -8574,6 +8585,10 @@ export function applyFreeKickReady(
       attackingTeam: kickingTeam,
       activeTeam: kickingTeam,
       lastActionType: 'FREE_KICK_RESTART',
+      // 39-18 (UAT gap 9): the free kick is taken at this stageIndex===3 terminal return
+      // (not the three stageIndex<3 stage-advance returns above) — charge the flat +1
+      // minute clock cost that applyGoalKickMoveEnd's teardown already charges.
+      actionCount: state.actionCount + 1,
       freeKickHex: null,
       freeKickAttackingTeam: null,
       freeKickStageIndex: null,

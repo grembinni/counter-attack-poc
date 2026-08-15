@@ -49,7 +49,7 @@ import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { broadcastState, clearAllRooms, getRoom } from '../roomStore.js';
 import { confirmDefaultRoomSettings } from './testHelpers.js';
-import { applyMove } from '../gameEngine.js';
+import { applyMove, applyFreeKickMove, applyFoulChoice } from '../gameEngine.js';
 import type {
   ClientToServerEvents,
   GameState,
@@ -323,7 +323,15 @@ function seedFoulChoiceViaSteal(
   return { carrier, defender, foulHex: MID_HEX };
 }
 
-/** Seeds FOUL_CHOICE via a real TACKLE_ATTEMPT (defender moves DEFENDER_HEX -> MID_HEX, injected tackleDie: 1). */
+/**
+ * Seeds FOUL_CHOICE via a real TACKLE_ATTEMPT (defender moves DEFENDER_HEX -> MID_HEX,
+ * injected tackleDie: 1).
+ *
+ * 39-18 (UAT gap 2): the returned `foulHex` is the stationary carrier's own hex (CENTER),
+ * NOT the fouling defender's destination hex (MID_HEX) — the tackling defender moves to
+ * `to` unconditionally, win or lose the duel, so `to`/MID_HEX is the FOULER's hex, while
+ * the restart belongs where the ball was, i.e. the carrier's hex.
+ */
 function seedFoulChoiceViaTackle(
   roomCode: string,
   diceOverrides: { injuryDie?: number; bookingDie?: number } = {},
@@ -342,7 +350,7 @@ function seedFoulChoiceViaTackle(
   });
   if (!result.ok) throw new Error(`Seed applyMove (tackle) failed: ${result.reason}`);
   room.gameState = result.state;
-  return { carrier, defender, foulHex: MID_HEX };
+  return { carrier, defender, foulHex: CENTER };
 }
 
 // ---------------------------------------------------------------------------
@@ -494,14 +502,29 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
       expect(madeEvent.restart).toBe('FREE_KICK');
     }
 
-    // A TACKLE-sourced foul's fouling defender always ends up standing exactly on
-    // foulHex/freeKickHex (applyMove moves the mover to `to` unconditionally, win or
-    // lose the duel) — relocateTrappedFreeKickPieces must have cleared freeKickHex, or
-    // the kicking team's mandatory kicker-first placement below would be permanently
-    // stuck behind OCCUPIED (the same class of bug D-59 already fixed for OFFSIDE-02).
-    expect(state.pieces.some((p) => p.position.q === foulHex.q && p.position.r === foulHex.r)).toBe(
-      false,
-    );
+    // 39-18 (UAT gap 2): foulHex is now the CARRIER's hex (the ball's hex), not the
+    // fouling defender's landing hex — so the fouled team's own carrier (kicking team,
+    // 'home') is EXPECTED to remain standing exactly on freeKickHex; it is the CONCEDING
+    // team ('away', which includes the tackling defender who landed adjacent to the
+    // carrier at MID_HEX) that relocateTrappedFreeKickPieces must have cleared away from
+    // freeKickHex, or the kicking team's mandatory kicker-first placement below would be
+    // permanently stuck behind OCCUPIED (the same class of bug D-59 already fixed for
+    // OFFSIDE-02).
+    const concedingTeam: 'home' | 'away' = fouledTeam === 'home' ? 'away' : 'home';
+    expect(
+      state.pieces.some(
+        (p) =>
+          p.teamId === concedingTeam && p.position.q === foulHex.q && p.position.r === foulHex.r,
+      ),
+    ).toBe(false);
+    // The kicking team's own carrier legitimately still stands exactly on freeKickHex —
+    // this is the T-39-18-05 threat-register condition Task 3's next assertion proves is
+    // still playable, not a bug.
+    expect(
+      state.pieces.some(
+        (p) => p.teamId === fouledTeam && p.position.q === foulHex.q && p.position.r === foulHex.r,
+      ),
+    ).toBe(true);
 
     // FK-01: the kicking team (fouledTeam, 'home') places their kicker on freeKickHex —
     // a real GAME_FREE_KICK_MOVE through the untouched, pre-existing handler.
@@ -517,6 +540,33 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
     clientA.emit(ClientEvents.GAME_FREE_KICK_READY);
     const [afterReady] = await readyStatePromise;
     expect(afterReady.freeKickStageIndex).toBe(1);
+  });
+
+  it('39-18 (integration risk proof): the fouled carrier now standing exactly on freeKickHex can still complete the mandatory kicker-first placement via applyFreeKickMove', async () => {
+    const { roomCode } = await setupRoom();
+    const { carrier } = seedFoulChoiceViaTackle(roomCode);
+    const seeded = getRoom(roomCode)!.gameState!;
+    expect(seeded.foulSource).toBe('TACKLE');
+
+    // applyFoulChoice('restart') — direct engine call, exercising the exact same path
+    // GAME_FOUL_CHOICE drives, to keep this a pure engine-level proof.
+    const restarted = applyFoulChoice(seeded, 'restart');
+    expect(restarted.ok).toBe(true);
+    if (!restarted.ok) return;
+    const state = restarted.state;
+    expect(state.phase).toBe('FREE_KICK_SETUP');
+    expect(state.freeKickKickerChosen).toBe(false);
+
+    // 39-18/Task 1: the carrier is the fouled team's own piece — relocateTrappedFreeKickPieces
+    // only relocates the CONCEDING team, so the carrier is left standing exactly on
+    // freeKickHex (the ball's hex at the moment of the foul).
+    const carrierAfter = state.pieces.find((p) => p.id === carrier.id)!;
+    expect(carrierAfter.position).toEqual(state.freeKickHex);
+
+    const moveResult = applyFreeKickMove(state, carrier.id, state.freeKickHex!);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.state.freeKickKickerChosen).toBe(true);
   });
 });
 
