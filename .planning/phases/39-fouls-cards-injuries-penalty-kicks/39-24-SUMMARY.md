@@ -156,3 +156,7 @@ None - no external service configuration required.
 ---
 *Phase: 39-fouls-cards-injuries-penalty-kicks*
 *Completed: 2026-08-15*
+
+## Self-Check: PASSED
+
+All created/modified files verified present (`fouls.ts`, `types.ts`, `gameEngine.ts`, `ActionLog.tsx`, this SUMMARY.md). All 3 commits (`9d46e09`, `e58fc80`, `4f8b7f5`) verified present in `git log`.
