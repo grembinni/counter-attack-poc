@@ -536,14 +536,22 @@ describe('No Phase 39 engine path ever emits the generic DICE_ROLL event type', 
 
     // Step 2: the fouled (carrier's) team takes the restart -> GKDIVE-03/PEN-01 routes a
     // GK-dive-sourced foul straight to a penalty kick, never a free kick.
+    // 39-22 (gap closure, UAT gap 5): triggerPenaltyKick now routes straight to
+    // taker-select — the reposition windows come AFTER the taker is chosen.
     const choiceResult = applyFoulChoice(diveResult.state, 'restart');
     expect(choiceResult.ok).toBe(true);
     if (!choiceResult.ok) return;
-    expect(choiceResult.state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+    expect(choiceResult.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
     expect(choiceResult.state.penaltyKickTeam).toBe('away');
 
-    // Step 3/4: advance both reposition windows (no repositioning needed for this test).
-    const window1 = applyPenaltyKickWindowEnd(choiceResult.state, choiceResult.state.activeTeam);
+    // Step 3: the away carrier (an eligible outfield piece) is chosen as the taker.
+    const takerResult = applyPenaltyKickTaker(choiceResult.state, awayCarrier.id);
+    expect(takerResult.ok).toBe(true);
+    if (!takerResult.ok) return;
+    expect(takerResult.state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+
+    // Step 4/5: advance both reposition windows (no repositioning needed for this test).
+    const window1 = applyPenaltyKickWindowEnd(takerResult.state, takerResult.state.activeTeam);
     expect(window1.ok).toBe(true);
     if (!window1.ok) return;
     expect(window1.state.phase).toBe('PENALTY_KICK_SETUP_DEFENDING');
@@ -551,16 +559,10 @@ describe('No Phase 39 engine path ever emits the generic DICE_ROLL event type', 
     const window2 = applyPenaltyKickWindowEnd(window1.state, window1.state.activeTeam);
     expect(window2.ok).toBe(true);
     if (!window2.ok) return;
-    expect(window2.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
-
-    // Step 5: the away carrier (an eligible outfield piece) is chosen as the taker.
-    const takerResult = applyPenaltyKickTaker(window2.state, awayCarrier.id);
-    expect(takerResult.ok).toBe(true);
-    if (!takerResult.ok) return;
-    expect(takerResult.state.phase).toBe('PENALTY_KICK');
+    expect(window2.state.phase).toBe('PENALTY_KICK');
 
     // Step 6: resolve the duel.
-    const duelResult = applyPenaltyKickDuel(takerResult.state, 4, 2);
+    const duelResult = applyPenaltyKickDuel(window2.state, 4, 2);
     expect(duelResult.ok).toBe(true);
     if (!duelResult.ok) return;
 

@@ -6,10 +6,14 @@ import {
   applyPenaltyKickWindowEnd,
   applyPenaltyKickTaker,
   applyPenaltyKickDuel,
+  applyFoulChoice,
+  relocateOutsidePenaltyArea,
+  applyUndo,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece, HexCoord } from '@counter-attack/shared';
 import {
   PENALTY_SPOT,
+  PENALTY_GOAL_LINE_CENTRE,
   PITCH_REGIONS,
   isInRegion,
   isPitchHex,
@@ -183,9 +187,69 @@ const baseState: GameState = {
 // ---------------------------------------------------------------------------
 
 describe('triggerPenaltyKick', () => {
-  it('sets phase to PENALTY_KICK_SETUP_ATTACKING', () => {
+  // 39-22 (gap closure, UAT gap 5): the award now routes straight to taker-select
+  // (kicker chosen BEFORE either reposition window opens), not SETUP_ATTACKING.
+  it('sets phase to PENALTY_KICK_TAKER_SELECT (39-22 reordered chain)', () => {
     const result = triggerPenaltyKick(baseState, 'home');
-    expect(result.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+    expect(result.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+  });
+
+  it('places the defending goalkeeper on PENALTY_GOAL_LINE_CENTRE[defendingTeam] (home kicks -> away GK to (36,13))', () => {
+    const result = triggerPenaltyKick(baseState, 'home');
+    const gk = result.pieces.find((p) => p.id === awayGK.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.away);
+  });
+
+  it('places the defending goalkeeper on PENALTY_GOAL_LINE_CENTRE.home when away kicks (mirror)', () => {
+    const result = triggerPenaltyKick(baseState, 'away');
+    const gk = result.pieces.find((p) => p.id === homeGK.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.home);
+  });
+
+  it('clears every non-GK piece out of the defending penalty area, leaving only the GK inside it', () => {
+    // Pack three away pieces inside the away box (defending side when home kicks).
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const boxed3: PlayerPiece = { ...awayDef, id: 'away-boxed-3', position: { q: 35, r: 15 } };
+    const state: GameState = {
+      ...baseState,
+      pieces: [...baseState.pieces, boxed1, boxed2, boxed3],
+    };
+    const result = triggerPenaltyKick(state, 'home');
+    const insideBox = result.pieces.filter((p) => isInRegion(p.position, 'awayPenaltyArea'));
+    expect(insideBox).toHaveLength(1);
+    expect(insideBox[0]!.id).toBe(awayGK.id);
+  });
+
+  it('no two pieces share a hex after the award-time box setup', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const state: GameState = { ...baseState, pieces: [...baseState.pieces, boxed1, boxed2] };
+    const result = triggerPenaltyKick(state, 'home');
+    const keys = result.pieces.map((p) => `${p.position.q},${p.position.r}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('running the same trigger twice on the same input yields identical clear-out positions (deterministic)', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const state: GameState = { ...baseState, pieces: [...baseState.pieces, boxed1, boxed2] };
+    const first = triggerPenaltyKick(state, 'home');
+    const second = triggerPenaltyKick(state, 'home');
+    expect(first.pieces.map((p) => p.position)).toEqual(second.pieces.map((p) => p.position));
+  });
+
+  it('appends one PENALTY_KICK_CLEAR_OUT_MOVE event per relocated piece', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const state: GameState = { ...baseState, pieces: [...baseState.pieces, boxed1] };
+    const result = triggerPenaltyKick(state, 'home');
+    const clearOutEvents = result.eventLog.filter((e) => e.type === 'PENALTY_KICK_CLEAR_OUT_MOVE');
+    expect(clearOutEvents.length).toBeGreaterThanOrEqual(1);
+    expect(
+      clearOutEvents.some(
+        (e) => e.type === 'PENALTY_KICK_CLEAR_OUT_MOVE' && e.pieceId === boxed1.id,
+      ),
+    ).toBe(true);
   });
 
   it('sets penaltyKickTeam to the kicking team', () => {
@@ -370,43 +434,55 @@ describe('applyPenaltyKickReposition', () => {
     });
   });
 
-  it('allows the defending goalkeeper to move inside the defending penalty area', () => {
-    const to = hexNeighbors(awayGK.position).find(
-      (h) => isPitchHex(h) && isInRegion(h, 'awayPenaltyArea'),
-    );
-    expect(to).toBeDefined();
-    const result = applyPenaltyKickReposition(baseDefendingState, awayGK.id, to!);
-    expect(result.ok).toBe(true);
+  // 39-22 (gap closure, UAT gap 5): taker-select now precedes both reposition
+  // windows, so the defending goalkeeper and the chosen taker are BOTH known here —
+  // and BOTH are now unconditionally immovable (the former GK/taker exemptions from
+  // the PENALTY_AREA_RESTRICTED guard are removed entirely; see T-39-22-02).
+  it('rejects the defending goalkeeper with PENALTY_KICK_PIECE_IMMOVABLE, even for a legal destination', () => {
+    const to = hexNeighbors(awayGK.position).find((h) => isPitchHex(h))!;
+    const state: GameState = { ...baseDefendingState, penaltyKickTakerId: homeTaker.id };
+    const result = applyPenaltyKickReposition(state, awayGK.id, to);
+    expect(result).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'PENALTY_KICK_PIECE_IMMOVABLE',
+    });
   });
 
-  it('allows the chosen penalty taker to move inside the defending penalty area (taker exemption)', () => {
-    // homeTaker sits at {q:10,r:13}, far from awayPenaltyArea (q>=31) — construct a
-    // taker adjacent to the box instead, mirroring the awayDef fixture's position.
-    // Reposition windows precede taker selection in the real sequence; this state is
-    // hand-crafted (penaltyKickTakerId pre-set) purely to exercise the taker-exemption
-    // guard in applyPenaltyKickReposition in isolation, per the plan's explicit contract
-    // ("neither the defending goalkeeper ... nor state.penaltyKickTakerId").
-    const takerNearBox: PlayerPiece = {
-      ...homeTaker,
-      id: 'home-taker-nearbox',
-      position: { q: 30, r: 15 }, // distinct from awayDef's {q:30,r:13}; adjacent to awayPenaltyArea
-    };
-    const nearBoxTo = hexNeighbors(takerNearBox.position).find(
+  it('rejects the chosen penalty taker with PENALTY_KICK_PIECE_IMMOVABLE, even for a legal destination', () => {
+    // homeTaker is both eligible (per baseAttackingState's list) and the chosen taker
+    // here — the immovability guard fires before the eligible-list/adjacency checks.
+    const to = hexNeighbors(homeTaker.position).find((h) => isPitchHex(h))!;
+    const state: GameState = { ...baseAttackingState, penaltyKickTakerId: homeTaker.id };
+    const result = applyPenaltyKickReposition(state, homeTaker.id, to);
+    expect(result).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'PENALTY_KICK_PIECE_IMMOVABLE',
+    });
+  });
+
+  it('rejects ANY eligible piece (attacking or defending) moving into the defending penalty area — no exemptions remain', () => {
+    // awayDef is neither the taker nor the defending GK — under the OLD rules this
+    // was already rejected; the point of this test is that there is now NO piece
+    // (other than the two immovable ones above, which never reach this guard at
+    // all) that can ever legally enter the box.
+    const to = hexNeighbors(awayDef.position).find(
       (h) => isPitchHex(h) && isInRegion(h, 'awayPenaltyArea'),
     )!;
-    // Stays in the ATTACKING window (activeTeam already 'home' in baseAttackingState) so
-    // the piece-team/window-team relationship remains realistic; only penaltyKickTakerId
-    // is hand-set ahead of its normal assignment time to exercise the exemption branch.
-    const state: GameState = {
-      ...baseAttackingState,
-      penaltyKickTakerId: takerNearBox.id,
-      pieces: [...baseAttackingState.pieces, takerNearBox],
-      penaltyKickEligibleIds: {
-        attacking: [homeTaker.id, homeGK.id, homeMid.id, takerNearBox.id],
-        defending: [awayGK.id, awayDef.id],
-      },
-    };
-    const result = applyPenaltyKickReposition(state, takerNearBox.id, nearBoxTo);
+    const state: GameState = { ...baseDefendingState, penaltyKickTakerId: homeTaker.id };
+    const result = applyPenaltyKickReposition(state, awayDef.id, to);
+    expect(result).toEqual({
+      ok: false,
+      reason: 'MOVE_INVALID',
+      detail: 'PENALTY_AREA_RESTRICTED',
+    });
+  });
+
+  it('allows an eligible, non-immovable piece to reposition to a legal hex outside the box', () => {
+    const to = hexNeighbors(homeMid.position).find((h) => isPitchHex(h))!;
+    const state: GameState = { ...baseAttackingState, penaltyKickTakerId: homeTaker.id };
+    const result = applyPenaltyKickReposition(state, homeMid.id, to);
     expect(result.ok).toBe(true);
   });
 
@@ -471,11 +547,13 @@ describe('applyPenaltyKickWindowEnd', () => {
     }
   });
 
-  it('advances PENALTY_KICK_SETUP_DEFENDING to PENALTY_KICK_TAKER_SELECT, activeTeam back to penaltyKickTeam, appends PENALTY_KICK_WINDOW_ADVANCE(from: DEFENDING)', () => {
+  // 39-22 (gap closure, UAT gap 5): taker-select now precedes both windows, so the
+  // DEFENDING terminal goes straight to PENALTY_KICK (the duel), not TAKER_SELECT.
+  it('advances PENALTY_KICK_SETUP_DEFENDING to PENALTY_KICK, activeTeam back to penaltyKickTeam, appends PENALTY_KICK_WINDOW_ADVANCE(from: DEFENDING)', () => {
     const result = applyPenaltyKickWindowEnd(baseDefendingState, 'away');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+    expect(result.state.phase).toBe('PENALTY_KICK');
     expect(result.state.activeTeam).toBe('home');
     const advanceEvent = result.state.eventLog.find(
       (e) => e.type === 'PENALTY_KICK_WINDOW_ADVANCE',
@@ -530,7 +608,9 @@ describe('applyPenaltyKickTaker', () => {
     expect(result).toEqual({ ok: false, reason: 'PIECE_NOT_FOUND' });
   });
 
-  it('on success moves the taker onto penaltyKickSpot, sets penaltyKickTakerId, sets ball.carrierId, appends PENALTY_KICK_TAKER_PLACED, transitions to PENALTY_KICK', () => {
+  // 39-22 (gap closure, UAT gap 5): taker-select now precedes both reposition
+  // windows — success transitions to PENALTY_KICK_SETUP_ATTACKING, not PENALTY_KICK.
+  it('on success moves the taker onto penaltyKickSpot, sets penaltyKickTakerId, sets ball.carrierId, appends PENALTY_KICK_TAKER_PLACED, transitions to PENALTY_KICK_SETUP_ATTACKING', () => {
     const result = applyPenaltyKickTaker(baseTakerSelectState, homeTaker.id);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -539,9 +619,23 @@ describe('applyPenaltyKickTaker', () => {
     expect(result.state.penaltyKickTakerId).toBe(homeTaker.id);
     expect(result.state.ball.carrierId).toBe(homeTaker.id);
     expect(result.state.ball.position).toEqual(PENALTY_SPOT.away);
-    expect(result.state.phase).toBe('PENALTY_KICK');
+    expect(result.state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+    expect(result.state.activeTeam).toBe('home');
     const placedEvent = result.state.eventLog.find((e) => e.type === 'PENALTY_KICK_TAKER_PLACED');
     expect(placedEvent).toBeDefined();
+  });
+
+  it('recomputes penaltyKickEligibleIds excluding the chosen taker and the defending goalkeeper from BOTH lists', () => {
+    const result = applyPenaltyKickTaker(baseTakerSelectState, homeTaker.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.penaltyKickEligibleIds?.attacking).not.toContain(homeTaker.id);
+    expect(result.state.penaltyKickEligibleIds?.attacking).not.toContain(awayGK.id);
+    expect(result.state.penaltyKickEligibleIds?.defending).not.toContain(homeTaker.id);
+    expect(result.state.penaltyKickEligibleIds?.defending).not.toContain(awayGK.id);
+    // Non-immovable pieces of both teams remain eligible.
+    expect(result.state.penaltyKickEligibleIds?.attacking).toContain(homeMid.id);
+    expect(result.state.penaltyKickEligibleIds?.defending).toContain(awayDef.id);
   });
 
   it('displaces an occupant of the penalty spot to the nearest unoccupied on-pitch hex outside the penalty area before placing the taker', () => {
@@ -722,5 +816,287 @@ describe('applyPenaltyKickDuel', () => {
     expect(result.state.penaltyKickEligibleIds).toBeNull();
     expect(result.state.penaltyKickUsedPace).toEqual({});
     expect(result.state.penaltyKickTakerId).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// relocateOutsidePenaltyArea (39-22, gap closure — UAT gap 5)
+// ---------------------------------------------------------------------------
+
+describe('relocateOutsidePenaltyArea', () => {
+  it('relocates a piece inside the given area to the nearest legal hex outside it', () => {
+    const boxed: PlayerPiece = { ...awayDef, id: 'away-boxed', position: { q: 33, r: 13 } };
+    const pieces = [...baseState.pieces, boxed];
+    const result = relocateOutsidePenaltyArea(pieces, [boxed.id], 'awayPenaltyArea');
+    const relocated = result.pieces.find((p) => p.id === boxed.id)!;
+    expect(isInRegion(relocated.position, 'awayPenaltyArea')).toBe(false);
+    expect(isPitchHex(relocated.position)).toBe(true);
+  });
+
+  it('is fully deterministic — running twice on identical input yields identical output (never calls randomInt)', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 34, r: 12 } };
+    const pieces = [...baseState.pieces, boxed1, boxed2];
+    const first = relocateOutsidePenaltyArea(pieces, [boxed1.id, boxed2.id], 'awayPenaltyArea');
+    const second = relocateOutsidePenaltyArea(pieces, [boxed1.id, boxed2.id], 'awayPenaltyArea');
+    expect(first.pieces.map((p) => p.position)).toEqual(second.pieces.map((p) => p.position));
+  });
+
+  it('never places two relocated pieces on the same hex', () => {
+    const boxed1: PlayerPiece = { ...awayDef, id: 'away-boxed-1', position: { q: 33, r: 10 } };
+    const boxed2: PlayerPiece = { ...awayDef, id: 'away-boxed-2', position: { q: 33, r: 11 } };
+    const pieces = [...baseState.pieces, boxed1, boxed2];
+    const result = relocateOutsidePenaltyArea(pieces, [boxed1.id, boxed2.id], 'awayPenaltyArea');
+    const p1 = result.pieces.find((p) => p.id === boxed1.id)!;
+    const p2 = result.pieces.find((p) => p.id === boxed2.id)!;
+    expect(p1.position).not.toEqual(p2.position);
+  });
+
+  it('leaves pieces untouched and emits no events when the id list is empty', () => {
+    const result = relocateOutsidePenaltyArea(baseState.pieces, [], 'awayPenaltyArea');
+    expect(result.pieces).toEqual(baseState.pieces);
+    expect(result.events).toEqual([]);
+  });
+
+  it('emits one PENALTY_KICK_CLEAR_OUT_MOVE event with correct from/to for each relocated piece', () => {
+    const boxed: PlayerPiece = { ...awayDef, id: 'away-boxed', position: { q: 33, r: 13 } };
+    const pieces = [...baseState.pieces, boxed];
+    const result = relocateOutsidePenaltyArea(pieces, [boxed.id], 'awayPenaltyArea');
+    expect(result.events).toHaveLength(1);
+    const event = result.events[0]!;
+    expect(event.type).toBe('PENALTY_KICK_CLEAR_OUT_MOVE');
+    if (event.type === 'PENALTY_KICK_CLEAR_OUT_MOVE') {
+      expect(event.pieceId).toBe(boxed.id);
+      expect(event.from).toEqual({ q: 33, r: 13 });
+      expect(isInRegion(event.to, 'awayPenaltyArea')).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyFoulChoice: box-location routing (39-22, gap closure — UAT gap 5)
+// ---------------------------------------------------------------------------
+
+/** FOUL_CHOICE fixture: away defender fouled the home attacker; home is the fouled/attacking team. */
+const foulFixtureState: GameState = {
+  ...baseState,
+  phase: 'FOUL_CHOICE',
+  attackingTeam: 'home',
+  activeTeam: 'home',
+  foulDefenderId: awayDef.id,
+  foulVictimId: homeTaker.id,
+  foulSource: 'TACKLE',
+  foulResume: null,
+  foulDuelSucceeded: false,
+};
+
+describe('applyFoulChoice: box-location routing (39-22, UAT gap 5)', () => {
+  it('awards a PENALTY when a TACKLE-sourced foul hex is inside the fouling (away) team penalty area', () => {
+    const state: GameState = { ...foulFixtureState, foulHex: { q: 33, r: 13 } };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+    const choiceEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CHOICE_MADE');
+    expect(choiceEvent).toBeDefined();
+    if (choiceEvent?.type === 'FOUL_CHOICE_MADE') {
+      expect(choiceEvent.restart).toBe('PENALTY');
+    }
+  });
+
+  it('awards a FREE_KICK when the same TACKLE-sourced foul hex is outside every penalty area', () => {
+    const state: GameState = { ...foulFixtureState, foulHex: { q: 18, r: 13 } };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FREE_KICK_SETUP');
+    const choiceEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CHOICE_MADE');
+    expect(choiceEvent).toBeDefined();
+    if (choiceEvent?.type === 'FOUL_CHOICE_MADE') {
+      expect(choiceEvent.restart).toBe('FREE_KICK');
+    }
+  });
+
+  it('a GK_DIVE_AT_FEET-sourced foul is STILL a penalty even when foulHex is outside every penalty area (GKDIVE-03 preserved)', () => {
+    const state: GameState = {
+      ...foulFixtureState,
+      foulSource: 'GK_DIVE_AT_FEET',
+      foulDefenderId: awayGK.id,
+      foulHex: { q: 18, r: 13 },
+    };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+  });
+
+  it('an in-box STEAL-sourced foul also yields a penalty', () => {
+    const state: GameState = {
+      ...foulFixtureState,
+      foulSource: 'STEAL',
+      foulHex: { q: 34, r: 10 },
+    };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+  });
+
+  it('after the award, the defending goalkeeper stands exactly on PENALTY_GOAL_LINE_CENTRE[defendingTeam]', () => {
+    const state: GameState = { ...foulFixtureState, foulHex: { q: 33, r: 13 } };
+    const result = applyFoulChoice(state, 'restart');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const gk = result.state.pieces.find((p) => p.id === awayGK.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.away);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2 (39-22, gap closure — UAT gap 5): the reordered chain runs end-to-end
+// through the real engine functions: TAKER_SELECT -> SETUP_ATTACKING ->
+// SETUP_DEFENDING -> PENALTY_KICK.
+// ---------------------------------------------------------------------------
+
+describe('reordered penalty chain (39-22): TAKER_SELECT -> SETUP_ATTACKING -> SETUP_DEFENDING -> PENALTY_KICK', () => {
+  it('runs the full chain end-to-end via the real engine functions', () => {
+    const awarded = triggerPenaltyKick(baseState, 'home');
+    expect(awarded.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+
+    const takerResult = applyPenaltyKickTaker(awarded, homeTaker.id);
+    expect(takerResult.ok).toBe(true);
+    if (!takerResult.ok) return;
+    expect(takerResult.state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+
+    const window1 = applyPenaltyKickWindowEnd(takerResult.state, 'home');
+    expect(window1.ok).toBe(true);
+    if (!window1.ok) return;
+    expect(window1.state.phase).toBe('PENALTY_KICK_SETUP_DEFENDING');
+
+    const window2 = applyPenaltyKickWindowEnd(window1.state, 'away');
+    expect(window2.ok).toBe(true);
+    if (!window2.ok) return;
+    expect(window2.state.phase).toBe('PENALTY_KICK');
+
+    const duelResult = applyPenaltyKickDuel(window2.state, 4, 2);
+    expect(duelResult.ok).toBe(true);
+    if (!duelResult.ok) return;
+    expect(['KICK_OFF_SETUP', 'GK_RESTART', 'LOOSE_BALL']).toContain(duelResult.state.phase);
+  });
+
+  it('the taker stands on penaltyKickSpot, carries the ball, and appears in NEITHER eligible list throughout the windows', () => {
+    const awarded = triggerPenaltyKick(baseState, 'home');
+    const takerResult = applyPenaltyKickTaker(awarded, homeTaker.id);
+    expect(takerResult.ok).toBe(true);
+    if (!takerResult.ok) return;
+    expect(takerResult.state.penaltyKickEligibleIds?.attacking).not.toContain(homeTaker.id);
+    expect(takerResult.state.penaltyKickEligibleIds?.defending).not.toContain(homeTaker.id);
+    const taker = takerResult.state.pieces.find((p) => p.id === homeTaker.id)!;
+    expect(taker.position).toEqual(takerResult.state.penaltyKickSpot);
+    expect(takerResult.state.ball.carrierId).toBe(homeTaker.id);
+  });
+
+  it('the defending goalkeeper also appears in neither eligible list', () => {
+    const awarded = triggerPenaltyKick(baseState, 'home');
+    const takerResult = applyPenaltyKickTaker(awarded, homeTaker.id);
+    expect(takerResult.ok).toBe(true);
+    if (!takerResult.ok) return;
+    expect(takerResult.state.penaltyKickEligibleIds?.attacking).not.toContain(awayGK.id);
+    expect(takerResult.state.penaltyKickEligibleIds?.defending).not.toContain(awayGK.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2 item 5: applyUndo's penalty-kick boundary terms remain correct under
+// the 39-22 reordering — confirmed by test, not by assumption.
+// ---------------------------------------------------------------------------
+
+describe('applyUndo: penalty-kick boundary terms (39-22 reordering)', () => {
+  it('cannot cross PENALTY_KICK_WINDOW_ADVANCE back into a completed reposition window during PENALTY_KICK_SETUP_DEFENDING', () => {
+    const advanceEvent = {
+      type: 'PENALTY_KICK_WINDOW_ADVANCE' as const,
+      from: 'ATTACKING' as const,
+      timestamp: Date.now(),
+    };
+    const state: GameState = {
+      ...baseDefendingState,
+      eventLog: [advanceEvent],
+    };
+    const result = applyUndo(state);
+    // Slice after the boundary is empty -> nothing to undo within this window yet.
+    expect(result).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+
+  it('PENALTY_KICK_TAKER_PLACED still bounds PENALTY_KICK_TAKER_SELECT (the phase the placement event fires FROM)', () => {
+    const placedEvent = {
+      type: 'PENALTY_KICK_TAKER_PLACED' as const,
+      pieceId: homeTaker.id,
+      hex: PENALTY_SPOT.away,
+      timestamp: Date.now(),
+    };
+    const state: GameState = {
+      ...baseTakerSelectState,
+      eventLog: [placedEvent],
+    };
+    const result = applyUndo(state);
+    expect(result).toEqual({ ok: false, reason: 'NOTHING_TO_UNDO' });
+  });
+
+  it('a MOVE event AFTER the PENALTY_KICK_WINDOW_ADVANCE boundary IS undoable (positive control)', () => {
+    const advanceEvent = {
+      type: 'PENALTY_KICK_WINDOW_ADVANCE' as const,
+      from: 'ATTACKING' as const,
+      timestamp: Date.now(),
+    };
+    const moved = baseDefendingState.pieces.find((p) => p.id === awayDef.id)!;
+    const to = hexNeighbors(moved.position).find((h) => isPitchHex(h))!;
+    const moveEvent = {
+      type: 'MOVE' as const,
+      pieceId: awayDef.id,
+      from: moved.position,
+      to,
+      slot: 'ATTACKER_2' as const,
+      timestamp: Date.now(),
+      ballAfter: { position: baseDefendingState.ball.position, carrierId: null },
+    };
+    const state: GameState = {
+      ...baseDefendingState,
+      pieces: baseDefendingState.pieces.map((p) =>
+        p.id === awayDef.id ? { ...p, position: to } : p,
+      ),
+      eventLog: [advanceEvent, moveEvent],
+    };
+    const result = applyUndo(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const reverted = result.state.pieces.find((p) => p.id === awayDef.id)!;
+    expect(reverted.position).toEqual(moved.position);
+  });
+
+  it('PENALTY_KICK_WINDOW_ADVANCE is NOT a boundary outside the two setup phases (negative control — term is phase-specific)', () => {
+    const advanceEvent = {
+      type: 'PENALTY_KICK_WINDOW_ADVANCE' as const,
+      from: 'ATTACKING' as const,
+      timestamp: Date.now(),
+    };
+    const moveEvent = {
+      type: 'MOVE' as const,
+      pieceId: homeMid.id,
+      from: { q: 17, r: 13 },
+      to: PITCH_REGIONS.kickOffHex,
+      slot: 'ATTACKER_4' as const,
+      timestamp: Date.now(),
+      ballAfter: { position: PITCH_REGIONS.kickOffHex, carrierId: null },
+    };
+    // Outside PENALTY_KICK_SETUP_ATTACKING/DEFENDING, the term does not fire — a MOVE
+    // event before it in the log stays reachable via the generic MOVE-search path.
+    const state: GameState = {
+      ...baseState,
+      phase: 'MOVE',
+      movementSlot: 'ATTACKER_4',
+      eventLog: [advanceEvent, moveEvent],
+    };
+    const result = applyUndo(state);
+    expect(result.ok).toBe(true);
   });
 });

@@ -27,7 +27,12 @@ import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import { confirmDefaultRoomSettings } from './testHelpers.js';
-import { applyPenaltyKickDuel, triggerPenaltyKick } from '../gameEngine.js';
+import {
+  applyMove,
+  applyPenaltyKickDuel,
+  applyPenaltyKickTaker,
+  triggerPenaltyKick,
+} from '../gameEngine.js';
 import type {
   ClientToServerEvents,
   GameState,
@@ -38,6 +43,7 @@ import type {
 import {
   ClientEvents,
   PENALTY_SPOT,
+  PENALTY_GOAL_LINE_CENTRE,
   ServerEvents,
   hexNeighbors,
   isInRegion,
@@ -231,9 +237,11 @@ function parkBackgroundPieces(
 }
 
 /**
- * Seeds PENALTY_KICK_SETUP_ATTACKING via the real `triggerPenaltyKick` (mirrors what
- * the foul chain will call in production, per the 39-07 SUMMARY's "ready for Plan 39-11"
- * note) so eligibleIds/spot/ball are exactly what the engine itself produces.
+ * Seeds PENALTY_KICK_SETUP_ATTACKING via the real `triggerPenaltyKick` + `applyPenaltyKickTaker`
+ * chain (39-22: taker-select now precedes both reposition windows) so eligibleIds/spot/ball
+ * are exactly what the engine itself produces. `taker` is a THIRD home outfielder, distinct
+ * from `mover`/`boxBoundaryPiece`, so those two remain eligible for the reposition tests below
+ * (the chosen taker and the defending GK are excluded from both eligible lists — T-39-22-02).
  */
 function seedPenaltyKickSetupAttacking(roomCode: string): {
   moverPieceId: string;
@@ -244,6 +252,7 @@ function seedPenaltyKickSetupAttacking(roomCode: string): {
   boxNeighbor: HexCoord; // inside awayPenaltyArea, adjacent to boxBoundaryStart
   homeGkId: string;
   awayGkId: string;
+  takerId: string;
 } {
   const room = getRoom(roomCode);
   if (!room || !room.gameState) throw new Error('Room or gameState not found');
@@ -253,6 +262,7 @@ function seedPenaltyKickSetupAttacking(roomCode: string): {
   const homeOutfield = room.gameState.pieces.filter((p) => p.teamId === 'home' && p.role !== 'GK');
   const mover = homeOutfield[0]!;
   const boxBoundaryPiece = homeOutfield[1]!;
+  const taker = homeOutfield[2]!;
 
   const moverNeighbor = hexNeighbors(MOVER_START).find(
     (h) => isPitchHex(h) && !isInRegion(h, 'awayPenaltyArea') && !isInRegion(h, 'homePenaltyArea'),
@@ -270,10 +280,14 @@ function seedPenaltyKickSetupAttacking(roomCode: string): {
   });
   pieces = parkBackgroundPieces(
     pieces,
-    new Set([mover.id, boxBoundaryPiece.id, homeGk.id, awayGk.id]),
+    new Set([mover.id, boxBoundaryPiece.id, taker.id, homeGk.id, awayGk.id]),
   );
 
-  room.gameState = triggerPenaltyKick({ ...room.gameState, pieces }, PENALTY_KICK_TEAM);
+  const awarded = triggerPenaltyKick({ ...room.gameState, pieces }, PENALTY_KICK_TEAM);
+  const takerResult = applyPenaltyKickTaker(awarded, taker.id);
+  if (!takerResult.ok)
+    throw new Error(`seed: applyPenaltyKickTaker failed (${takerResult.reason})`);
+  room.gameState = takerResult.state;
 
   return {
     moverPieceId: mover.id,
@@ -284,6 +298,7 @@ function seedPenaltyKickSetupAttacking(roomCode: string): {
     boxNeighbor,
     homeGkId: homeGk.id,
     awayGkId: awayGk.id,
+    takerId: taker.id,
   };
 }
 
@@ -390,23 +405,29 @@ function seedPenaltyKickDuel(
 // ---------------------------------------------------------------------------
 
 describe('PEN-02: PENALTY_KICK_SETUP_ATTACKING/DEFENDING reposition windows', () => {
-  it('an awarded penalty seeds PENALTY_KICK_SETUP_ATTACKING with the ball on PENALTY_SPOT[away] and full-squad eligibility for both teams (no third-of-pitch filter)', async () => {
+  // 39-22 (gap closure, UAT gap 5): taker-select now precedes both reposition windows,
+  // so by the time SETUP_ATTACKING is reached the taker is already on the spot holding
+  // the ball, and eligibility has been narrowed to exclude the taker + defending GK.
+  it('an awarded+taker-selected penalty seeds PENALTY_KICK_SETUP_ATTACKING with the taker on PENALTY_SPOT[away] holding the ball, and eligibility excluding the taker + defending GK', async () => {
     const { roomCode } = await setupRoom();
-    const { homeGkId, awayGkId } = seedPenaltyKickSetupAttacking(roomCode);
+    const { homeGkId, awayGkId, takerId } = seedPenaltyKickSetupAttacking(roomCode);
 
     const state = getRoom(roomCode)!.gameState!;
     expect(state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
     expect(state.ball.position).toEqual(PENALTY_SPOT[DEFENDING_TEAM]);
-    expect(state.ball.carrierId).toBeNull();
+    expect(state.ball.carrierId).toBe(takerId);
 
     const homeCount = state.pieces.filter((p) => p.teamId === 'home').length;
     const awayCount = state.pieces.filter((p) => p.teamId === 'away').length;
-    expect(state.penaltyKickEligibleIds?.attacking).toHaveLength(homeCount);
-    expect(state.penaltyKickEligibleIds?.defending).toHaveLength(awayCount);
-    // Full-squad eligibility (no third-of-pitch filter, unlike goal kick): both GKs
-    // are included even though neither is anywhere near the penalty spot.
+    // Narrowed: -1 for the excluded taker (attacking) and -1 for the excluded
+    // defending GK (defending) versus the full-squad counts.
+    expect(state.penaltyKickEligibleIds?.attacking).toHaveLength(homeCount - 1);
+    expect(state.penaltyKickEligibleIds?.defending).toHaveLength(awayCount - 1);
+    // The attacking team's OWN goalkeeper is NOT excluded — only the chosen taker and
+    // the DEFENDING team's goalkeeper are immovable during the windows.
     expect(state.penaltyKickEligibleIds?.attacking).toContain(homeGkId);
-    expect(state.penaltyKickEligibleIds?.defending).toContain(awayGkId);
+    expect(state.penaltyKickEligibleIds?.attacking).not.toContain(takerId);
+    expect(state.penaltyKickEligibleIds?.defending).not.toContain(awayGkId);
   });
 
   it('the defending manager emitting GAME_MOVE during the attacking window receives WRONG_TEAM and the snapshot is unchanged', async () => {
@@ -464,7 +485,9 @@ describe('PEN-02: PENALTY_KICK_SETUP_ATTACKING/DEFENDING reposition windows', ()
 // ---------------------------------------------------------------------------
 
 describe('PEN-02/D-08: window handoff (GAME_END_TURN)', () => {
-  it('attacking window End Turn advances to PENALTY_KICK_SETUP_DEFENDING with activeTeam flipped and movedPieceIds reset; defending window End Turn then advances to PENALTY_KICK_TAKER_SELECT', async () => {
+  // 39-22: taker-select now precedes both windows, so the DEFENDING terminal goes
+  // straight to PENALTY_KICK (the duel) — there is no further choice phase left.
+  it('attacking window End Turn advances to PENALTY_KICK_SETUP_DEFENDING with activeTeam flipped and movedPieceIds reset; defending window End Turn then advances to PENALTY_KICK', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
     seedPenaltyKickSetupAttacking(roomCode);
 
@@ -481,7 +504,7 @@ describe('PEN-02/D-08: window handoff (GAME_END_TURN)', () => {
     const p2 = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientB.emit(ClientEvents.GAME_END_TURN);
     const [afterSecond] = await p2;
-    expect(afterSecond.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+    expect(afterSecond.phase).toBe('PENALTY_KICK');
     expect(afterSecond.activeTeam).toBe('home');
   });
 
@@ -529,7 +552,9 @@ describe('PEN-02: GAME_PENALTY_KICK_TAKER (taker selection)', () => {
     expect(state.penaltyKickTakerId).toBeNull();
   });
 
-  it('the kicking manager selecting a valid outfielder places them on penaltyKickSpot, sets penaltyKickTakerId, and transitions to PENALTY_KICK', async () => {
+  // 39-22: success now transitions to PENALTY_KICK_SETUP_ATTACKING (the reposition
+  // windows come AFTER taker-select), not PENALTY_KICK.
+  it('the kicking manager selecting a valid outfielder places them on penaltyKickSpot, sets penaltyKickTakerId, and transitions to PENALTY_KICK_SETUP_ATTACKING', async () => {
     const { clientA, roomCode } = await setupRoom();
     const { eligibleOutfielderId } = seedPenaltyKickTakerSelect(roomCode);
     const spot = PENALTY_SPOT[DEFENDING_TEAM];
@@ -538,10 +563,12 @@ describe('PEN-02: GAME_PENALTY_KICK_TAKER (taker selection)', () => {
     clientA.emit(ClientEvents.GAME_PENALTY_KICK_TAKER, eligibleOutfielderId);
     const [state] = await statePromise;
 
-    expect(state.phase).toBe('PENALTY_KICK');
+    expect(state.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
     expect(state.penaltyKickTakerId).toBe(eligibleOutfielderId);
     expect(state.pieces.find((p) => p.id === eligibleOutfielderId)!.position).toEqual(spot);
     expect(state.ball.carrierId).toBe(eligibleOutfielderId);
+    // The chosen taker is excluded from both eligible lists (T-39-22-02).
+    expect(state.penaltyKickEligibleIds?.attacking).not.toContain(eligibleOutfielderId);
   });
 
   it('a non-string payload (42) is rejected with INVALID_TARGET and mutates nothing', async () => {
@@ -569,7 +596,10 @@ describe('PEN-02: GAME_PENALTY_KICK_TAKER (taker selection)', () => {
     clientA.emit(ClientEvents.GAME_PENALTY_KICK_TAKER, eligibleOutfielderId);
     const states = await statesPromise;
 
-    expect(states[states.length - 1]!.phase).toBe('PENALTY_KICK');
+    // 39-22: the first emit transitions to PENALTY_KICK_SETUP_ATTACKING; the second
+    // (redundant) emit now hits the WRONG_PHASE guard and snaps back — still exactly
+    // one PENALTY_KICK_TAKER_PLACED event either way.
+    expect(states[states.length - 1]!.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
     const finalState = getRoom(roomCode)!.gameState!;
     const placedEvents = finalState.eventLog.filter((e) => e.type === 'PENALTY_KICK_TAKER_PLACED');
     expect(placedEvents).toHaveLength(1);
@@ -630,6 +660,250 @@ describe('PEN-01/03: GAME_ROLL duel resolution', () => {
     const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_ROLL);
     const [finalState] = await statePromise;
+    expect(['KICK_OFF_SETUP', 'GK_RESTART', 'LOOSE_BALL']).toContain(finalState.phase);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 (39-22, gap closure — UAT gap 5): the whole in-box-foul-to-penalty
+// journey, proven end to end over the real socket surface.
+//
+// Seeds via a real, unmocked `applyMove` TACKLE_ATTEMPT (mirrors
+// foulFreeKick.integration.test.ts's `seedFoulChoiceViaTackle` pattern) with the
+// carrier standing INSIDE the defending (away) penalty area and an adjacent
+// defender, injected tackleDie: 1 so the foul fires deterministically. Every
+// subsequent step drives real ClientEvents over the wire and asserts on the
+// broadcast GAME_STATE — never a direct engine call — so this is a genuine
+// proof that no socket handler needed a change for the 39-22 reorder (the
+// phase guards are per-function and were already correct).
+// ---------------------------------------------------------------------------
+
+/** A hex well inside awayPenaltyArea (q>=31, r 5..19), away from the six-yard-box edge. */
+const IN_BOX_CENTER: HexCoord = { q: 33, r: 13 };
+const IN_BOX_MID_HEX: HexCoord = hexNeighbors(IN_BOX_CENTER).find(
+  (h) => isPitchHex(h) && isInRegion(h, 'awayPenaltyArea'),
+)!;
+const IN_BOX_DEFENDER_HEX: HexCoord = hexNeighbors(IN_BOX_MID_HEX).find(
+  (h) => isPitchHex(h) && !(h.q === IN_BOX_CENTER.q && h.r === IN_BOX_CENTER.r),
+)!;
+/** A hex well outside every penalty area, in the open middle of the pitch. */
+const OUT_OF_BOX_CENTER: HexCoord = { q: 18, r: 13 };
+const OUT_OF_BOX_MID_HEX: HexCoord = hexNeighbors(OUT_OF_BOX_CENTER).find((h) => isPitchHex(h))!;
+const OUT_OF_BOX_DEFENDER_HEX: HexCoord = hexNeighbors(OUT_OF_BOX_MID_HEX).find(
+  (h) => isPitchHex(h) && !(h.q === OUT_OF_BOX_CENTER.q && h.r === OUT_OF_BOX_CENTER.r),
+)!;
+
+/**
+ * Parks every piece not in `keepIds` to a middleThird hex (q=12/13, clear of BOTH
+ * penalty areas: homePenaltyArea is q<=5, awayPenaltyArea is q>=31) — unlike
+ * foulFreeKick.integration.test.ts's sibling helper (which parks into q=2/34,
+ * harmless there since that suite never asserts on box occupancy), this suite's
+ * in-box assertions require every non-participant piece to be OUTSIDE both boxes.
+ */
+function parkBackgroundPiecesFoul(
+  pieces: readonly PlayerPiece[],
+  keepIds: ReadonlySet<string>,
+): PlayerPiece[] {
+  return pieces.map((p, idx) =>
+    keepIds.has(p.id) ? p : { ...p, position: { q: p.teamId === 'home' ? 12 : 13, r: idx % 25 } },
+  );
+}
+
+/**
+ * Seeds FOUL_CHOICE via a real TACKLE_ATTEMPT with the carrier standing at `carrierHex`
+ * (stationary) and the defender approaching from `defenderHex` through `approachHex`
+ * (adjacent to `carrierHex`), injected `tackleDie: 1`. Mirrors
+ * foulFreeKick.integration.test.ts's `seedFoulChoiceViaTackle` — 39-18 (UAT gap 2):
+ * `foulHex` is the stationary CARRIER's hex, not the fouling defender's landing hex.
+ */
+function seedFoulChoiceViaTackleAt(
+  roomCode: string,
+  carrierHex: HexCoord,
+  approachHex: HexCoord,
+  defenderHex: HexCoord,
+): { carrier: PlayerPiece; defender: PlayerPiece; homeGk: PlayerPiece; awayGk: PlayerPiece } {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const homeOutfield = room.gameState.pieces.filter((p) => p.teamId === 'home' && p.role !== 'GK');
+  const awayOutfield = room.gameState.pieces.filter((p) => p.teamId === 'away' && p.role !== 'GK');
+  const homeGk = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role === 'GK')!;
+  const awayGk = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role === 'GK')!;
+  const carrier = homeOutfield[0]!;
+  const defender = awayOutfield[0]!;
+
+  // Explicitly relocate both goalkeepers away from the carrier/defender/approach
+  // triangle — their default lineup positions can otherwise collide with the
+  // in-box test hexes (r=12..14) and trip OCCUPIED in validateMove.
+  let pieces = room.gameState.pieces.map((p) => {
+    if (p.id === carrier.id) return { ...p, position: carrierHex };
+    if (p.id === defender.id) return { ...p, position: defenderHex };
+    if (p.id === homeGk.id) return { ...p, position: HOME_GK_HEX };
+    if (p.id === awayGk.id) return { ...p, position: AWAY_GK_HEX };
+    return p;
+  });
+  pieces = parkBackgroundPiecesFoul(
+    pieces,
+    new Set([carrier.id, defender.id, homeGk.id, awayGk.id]),
+  );
+
+  room.gameState = {
+    ...room.gameState,
+    pieces,
+    phase: 'MOVE',
+    attackingTeam: 'home',
+    activeTeam: 'away',
+    movementSlot: 'DEFENDER_5',
+    movedPieceIds: [],
+    paceUsedByPieceId: {},
+    stealAttemptedByIds: [],
+    tackleAttemptedByIds: [],
+    ball: { position: carrierHex, carrierId: carrier.id, lastTouchedBy: null },
+    ballZone: isInRegion(carrierHex, 'awayPenaltyArea') ? 'away' : 'middle',
+    foulsEnabled: true,
+    injuryEnabled: true,
+    bookingEnabled: true,
+  };
+
+  const result = applyMove(room.gameState, defender.id, approachHex, {
+    stealDie: 3,
+    tackleDie: 1,
+    carrierDie: 3,
+    injuryDie: 3,
+    bookingDie: 3,
+  });
+  if (!result.ok) {
+    const detail = 'detail' in result ? result.detail : undefined;
+    throw new Error(`Seed applyMove (tackle) failed: ${result.reason} ${detail ?? ''}`);
+  }
+  room.gameState = result.state;
+
+  return { carrier, defender, homeGk, awayGk };
+}
+
+describe('39-22 (gap closure, UAT gap 5): in-box-foul-to-penalty journey over sockets', () => {
+  it('a tackle foul committed OUTSIDE any penalty area still broadcasts FREE_KICK_SETUP', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    seedFoulChoiceViaTackleAt(
+      roomCode,
+      OUT_OF_BOX_CENTER,
+      OUT_OF_BOX_MID_HEX,
+      OUT_OF_BOX_DEFENDER_HEX,
+    );
+    expect(getRoom(roomCode)!.gameState!.phase).toBe('FOUL_CHOICE');
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_FOUL_CHOICE, 'restart');
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('FREE_KICK_SETUP');
+  });
+
+  it('a tackle foul committed INSIDE the fouling team penalty area broadcasts the full penalty award: PENALTY_KICK_TAKER_SELECT, defending GK on the goal-line centre, exactly one piece in the box, no shared hexes', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { awayGk } = seedFoulChoiceViaTackleAt(
+      roomCode,
+      IN_BOX_CENTER,
+      IN_BOX_MID_HEX,
+      IN_BOX_DEFENDER_HEX,
+    );
+    const seeded = getRoom(roomCode)!.gameState!;
+    expect(seeded.phase).toBe('FOUL_CHOICE');
+    expect(seeded.foulSource).toBe('TACKLE');
+    expect(isInRegion(seeded.foulHex!, 'awayPenaltyArea')).toBe(true);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_FOUL_CHOICE, 'restart');
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+    const madeEvent = state.eventLog.find((e) => e.type === 'FOUL_CHOICE_MADE');
+    if (madeEvent?.type === 'FOUL_CHOICE_MADE') {
+      expect(madeEvent.restart).toBe('PENALTY');
+    }
+
+    const gk = state.pieces.find((p) => p.id === awayGk.id)!;
+    expect(gk.position).toEqual(PENALTY_GOAL_LINE_CENTRE.away);
+    const insideBox = state.pieces.filter((p) => isInRegion(p.position, 'awayPenaltyArea'));
+    expect(insideBox).toHaveLength(1);
+    expect(insideBox[0]!.id).toBe(awayGk.id);
+    const keys = state.pieces.map((p) => `${p.position.q},${p.position.r}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('drives the full journey: award -> taker select -> one legal reposition -> one rejected reposition (box) -> one rejected reposition (taker) -> both window ends -> duel', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    seedFoulChoiceViaTackleAt(roomCode, IN_BOX_CENTER, IN_BOX_MID_HEX, IN_BOX_DEFENDER_HEX);
+
+    // Award: 'restart' from the fouled (home) manager.
+    const awardPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_FOUL_CHOICE, 'restart');
+    const [awarded] = await awardPromise;
+    expect(awarded.phase).toBe('PENALTY_KICK_TAKER_SELECT');
+    expect(awarded.penaltyKickTeam).toBe('home');
+
+    // Kicker selection: the kicking (home) manager picks an eligible outfielder.
+    const taker = awarded.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK')!;
+    const takerPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_PENALTY_KICK_TAKER, taker.id);
+    const [afterTaker] = await takerPromise;
+    expect(afterTaker.phase).toBe('PENALTY_KICK_SETUP_ATTACKING');
+    expect(afterTaker.penaltyKickTakerId).toBe(taker.id);
+    expect(afterTaker.ball.carrierId).toBe(taker.id);
+
+    // One legal reposition: an eligible home piece (not the taker) moves one hex.
+    const mover = afterTaker.pieces.find(
+      (p) => p.teamId === 'home' && p.id !== taker.id && p.role !== 'GK',
+    )!;
+    const legalTo = hexNeighbors(mover.position).find(
+      (h) =>
+        isPitchHex(h) &&
+        !isInRegion(h, 'awayPenaltyArea') &&
+        !afterTaker.pieces.some((p) => p.position.q === h.q && p.position.r === h.r),
+    )!;
+    const legalMovePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_MOVE, mover.id, legalTo);
+    const [afterLegalMove] = await legalMovePromise;
+    expect(afterLegalMove.pieces.find((p) => p.id === mover.id)!.position).toEqual(legalTo);
+
+    // One rejected reposition: the same mover targeting a hex inside the box.
+    const boxTarget = hexNeighbors(legalTo).find(
+      (h) => isPitchHex(h) && isInRegion(h, 'awayPenaltyArea'),
+    );
+    if (boxTarget) {
+      const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+      clientA.emit(ClientEvents.GAME_MOVE, mover.id, boxTarget);
+      const [reason] = await errorPromise;
+      expect(reason).toBe('MOVE_INVALID');
+    }
+
+    // One rejected reposition: naming the taker itself is immovable. `taker`'s captured
+    // `.position` is stale (pre-selection) — the taker now stands on penaltyKickSpot.
+    const takerCurrentPosition = afterTaker.pieces.find((p) => p.id === taker.id)!.position;
+    const takerAdjacent = hexNeighbors(takerCurrentPosition).find((h) => isPitchHex(h))!;
+    const takerErrorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_MOVE, taker.id, takerAdjacent);
+    const [takerReason] = await takerErrorPromise;
+    expect(takerReason).toBe('MOVE_INVALID');
+    expect(getRoom(roomCode)!.gameState!.pieces.find((p) => p.id === taker.id)!.position).toEqual(
+      takerCurrentPosition,
+    );
+
+    // Both window ends.
+    const window1Promise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [afterWindow1] = await window1Promise;
+    expect(afterWindow1.phase).toBe('PENALTY_KICK_SETUP_DEFENDING');
+
+    const window2Promise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientB.emit(ClientEvents.GAME_END_TURN);
+    const [afterWindow2] = await window2Promise;
+    expect(afterWindow2.phase).toBe('PENALTY_KICK');
+
+    // Duel resolves to one of GOAL / SAVED / LOOSE_BALL (via the game's phase surface).
+    const duelPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_ROLL);
+    const [finalState] = await duelPromise;
     expect(['KICK_OFF_SETUP', 'GK_RESTART', 'LOOSE_BALL']).toContain(finalState.phase);
   });
 });

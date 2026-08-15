@@ -1176,6 +1176,25 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         ),
         isGoal: false,
       };
+    case 'PENALTY_KICK_CLEAR_OUT_MOVE': {
+      // 39-22 (gap closure, UAT gap 5): mandatory pre-penalty box clear-out step —
+      // byte-for-byte CORNER_KICK_CLEAR_OUT_MOVE's log-formatting sibling, minus the
+      // ATTACKER/DEFENDER slot label (every cleared piece here is on the defending
+      // side, by definition). Emitted automatically at award time by triggerPenaltyKick,
+      // before either reposition window opens.
+      return {
+        prefix: '[PENALTY KICK]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.pieceId} /> cleared the box {event.from.q},{event.from.r} →{' '}
+            {event.to.q},{event.to.r}
+          </>
+        ),
+        isGoal: false,
+      };
+    }
     case 'PENALTY_KICK_WINDOW_ADVANCE':
       return {
         prefix: '[PENALTY KICK]',
