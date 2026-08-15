@@ -57,6 +57,18 @@ export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   'CORNER_KICK_TAKER_SELECT',
   'CORNER_KICK_REPOSITION',
   'CORNER_KICK_FINAL_SETUP',
+  // Phase 39 (39-16): the ball is at a fixed restart hex or mid-decision throughout every
+  // one of these eight foul/GK-interrupt/penalty-kick phases, matching the Phase 37/38
+  // restart-phase precedent directly above. Reuses the existing marker; no new tint type
+  // added.
+  'FOUL_CHOICE',
+  'GK_DIVE_AT_FEET_PROMPT',
+  'GK_BOX_ENTRY_PROMPT',
+  'GK_BOX_ENTRY_MOVE',
+  'PENALTY_KICK_SETUP_ATTACKING',
+  'PENALTY_KICK_SETUP_DEFENDING',
+  'PENALTY_KICK_TAKER_SELECT',
+  'PENALTY_KICK',
 ]);
 
 /**

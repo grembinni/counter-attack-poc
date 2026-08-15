@@ -72,8 +72,8 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
   // claim. Grew from 17 (11 original + 6 Phase-37 restart phases) to 22 with Plan 38-07's five
   // Corner Kick phases, briefly to 23 with Plan 38-22's CORNER_KICK_CLEAR_OUT addition (38-15
   // defect 3), then back to 22 with Plan 38-28's removal of the clear-out phase entirely.
-  it('BALL_MARKER_PHASES has 22 members (17 + 5 Phase-38 corner-kick phases)', () => {
-    expect(BALL_MARKER_PHASES.size).toBe(22);
+  it('BALL_MARKER_PHASES has 30 members (22 + 8 Phase-39 foul/GK-interrupt/penalty-kick phases)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(30);
   });
 
   it("renders the marker during phase='CORNER_KICK_GK_SETUP_ATTACKING' (Phase 38 corner-kick phase)", () => {
@@ -99,6 +99,62 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
 
   it("renders the marker during phase='CORNER_KICK_FINAL_SETUP' (Phase 38 corner-kick phase)", () => {
     const { container } = renderMarker('CORNER_KICK_FINAL_SETUP');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='FOUL_CHOICE' (Phase 39 foul phase)", () => {
+    const { container } = renderMarker('FOUL_CHOICE');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='GK_DIVE_AT_FEET_PROMPT' (Phase 39 GK-interrupt phase)", () => {
+    const { container } = renderMarker('GK_DIVE_AT_FEET_PROMPT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='GK_BOX_ENTRY_PROMPT' (Phase 39 GK-interrupt phase)", () => {
+    const { container } = renderMarker('GK_BOX_ENTRY_PROMPT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='GK_BOX_ENTRY_MOVE' (Phase 39 GK-interrupt phase)", () => {
+    const { container } = renderMarker('GK_BOX_ENTRY_MOVE');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='PENALTY_KICK_SETUP_ATTACKING' (Phase 39 penalty-kick phase)", () => {
+    const { container } = renderMarker('PENALTY_KICK_SETUP_ATTACKING');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='PENALTY_KICK_SETUP_DEFENDING' (Phase 39 penalty-kick phase)", () => {
+    const { container } = renderMarker('PENALTY_KICK_SETUP_DEFENDING');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='PENALTY_KICK_TAKER_SELECT' (Phase 39 penalty-kick phase)", () => {
+    const { container } = renderMarker('PENALTY_KICK_TAKER_SELECT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='PENALTY_KICK' (Phase 39 penalty-kick phase)", () => {
+    const { container } = renderMarker('PENALTY_KICK');
     const polygons = Array.from(container.querySelectorAll('polygon'));
     expect(polygons).toHaveLength(1);
     expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
