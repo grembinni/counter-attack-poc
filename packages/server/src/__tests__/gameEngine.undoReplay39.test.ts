@@ -22,14 +22,17 @@ import { describe, it, expect } from 'vitest';
 import {
   applyUndo,
   buildReplayFrames,
+  buildKickOffPieces,
   resolveFoulChain,
   applyGkDiveAtFeetResponse,
+  applyGkDiveAtFeetTarget,
   applyFoulChoice,
   applyPenaltyKickWindowEnd,
   applyPenaltyKickTaker,
   applyPenaltyKickDuel,
   REPLAY_ELIGIBLE_TYPES,
 } from '../gameEngine.js';
+import { computeGkDiveAtFeetTargetHexes } from '@counter-attack/shared';
 import type {
   ActionEvent,
   ActionEventType,
@@ -180,6 +183,10 @@ const eventFixtures: Partial<Record<ActionEventType, ActionEvent>> = {
     result: 'SUCCESS',
     timestamp: 0,
     ballAfter: { position: { q: 1, r: 13 }, carrierId: 'gk' },
+    // 39-UAT gap 3 (39-20): diveFrom/diveTo record the GK's pre-dive hex and the
+    // manager-chosen landing hex.
+    diveFrom: { q: 0, r: 13 },
+    diveTo: { q: 1, r: 13 },
   },
   GK_DIVE_AT_FEET_DECLINED: {
     type: 'GK_DIVE_AT_FEET_DECLINED',
@@ -307,6 +314,44 @@ describe('buildReplayFrames — survives all 11 new event types interleaved with
     expect(() => buildReplayFrames(finalState)).not.toThrow();
     const frames = buildReplayFrames(finalState);
     expect(frames.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 39-UAT gap 3 (39-20): buildReplayFrames must place the goalkeeper on `diveTo` in
+// the frame the GK_DIVE_AT_FEET event produces — previously only ballAfter was
+// applied, leaving the goalkeeper's own piece stranded at its pre-dive hex on replay.
+// ---------------------------------------------------------------------------
+
+describe('buildReplayFrames — GK_DIVE_AT_FEET places the goalkeeper on diveTo (39-UAT gap 3)', () => {
+  it('the frame produced by a GK_DIVE_AT_FEET event shows the gk piece at diveTo, not its pre-dive hex', () => {
+    // buildReplayFrames seeds `current.pieces` internally from
+    // buildKickOffPieces(kickOffTeam, selectedTeams, selectedFormation) — it does NOT use
+    // finalState.pieces directly. Compute the same real squad here (deterministic, pure) so
+    // the diveEvent's gkId matches a piece that actually exists inside the reconstruction.
+    const selectedTeams = { home: 'city' as const, away: 'crew' as const };
+    const kickOffPieces = buildKickOffPieces('home', selectedTeams);
+    const gk = kickOffPieces.find((p) => p.teamId === 'home' && p.role === 'GK')!;
+    const diveToHex: HexCoord = { q: gk.position.q + 2, r: gk.position.r };
+    const diveEvent: ActionEvent = {
+      ...eventFixtures.GK_DIVE_AT_FEET!,
+      gkId: gk.id,
+      diveFrom: gk.position,
+      diveTo: diveToHex,
+    } as ActionEvent;
+
+    const finalState = baseState(kickOffPieces, {
+      selectedTeams,
+      kickOffTeam: 'home',
+      eventLog: [diveEvent],
+    });
+
+    const frames = buildReplayFrames(finalState);
+    expect(frames.length).toBeGreaterThan(0);
+    const lastFrame = frames[frames.length - 1]!;
+    const gkInFrame = lastFrame.pieces.find((p) => p.id === gk.id);
+    expect(gkInFrame?.position).toEqual(diveToHex);
+    expect(gkInFrame?.position).not.toEqual(gk.position);
   });
 });
 
@@ -470,8 +515,15 @@ describe('No Phase 39 engine path ever emits the generic DICE_ROLL event type', 
       gkDiveAtFeetResume: { phase: 'MOVE', activeTeam: 'away', movementSlot: 'ATTACKER_4' },
     });
 
-    // Step 1: the GK's die is the FOUL_TRIGGER_DIE — GKDIVE-03 fires a foul on the dive duel.
-    const diveResult = applyGkDiveAtFeetResponse(promptState, true, {
+    // Step 1a: accept opens the GK_DIVE_AT_FEET_TARGET destination-hex step (39-UAT gap 3).
+    const acceptResult = applyGkDiveAtFeetResponse(promptState, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    expect(acceptResult.state.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    const diveToHex = computeGkDiveAtFeetTargetHexes(acceptResult.state)[0]!;
+
+    // Step 1b: the GK's die is the FOUL_TRIGGER_DIE — GKDIVE-03 fires a foul on the dive duel.
+    const diveResult = applyGkDiveAtFeetTarget(acceptResult.state, diveToHex, {
       gkDie: FOUL_TRIGGER_DIE,
       carrierDie: 6,
       injuryDie: 3,

@@ -86,6 +86,8 @@ import {
   applyPenaltyKickDuel,
   resolveHeaderWinnerPiece,
   applyGkDiveAtFeetResponse,
+  applyGkDiveAtFeetTarget,
+  enterGkDiveOrSkip,
   applyBoxEntryResponse,
   applyBoxEntryMove,
   applySecondHalfConfirm,
@@ -1431,12 +1433,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           return;
         }
 
-        // GK in range: transition to GK_DIVE so GK can choose a dive hex
+        // GK in range: transition to GK_DIVE so GK can choose a dive hex — UNLESS the
+        // defending team already used its dive-at-feet interrupt this movement cycle
+        // (D-09 shared cap). 39-UAT gap 4: this is the fifth GK_DIVE transition site —
+        // it previously set `phase: 'GK_DIVE'` directly, bypassing enterGkDiveOrSkip, which
+        // is why a keeper who had already dived at feet could still block this snapshot.
+        const diveEntry = enterGkDiveOrSkip(baseSnapState, defendingTeam, snapGk.position);
         room.gameState = {
           ...baseSnapState,
-          phase: 'GK_DIVE',
+          ...diveEntry,
           lastActionType: 'SHOT',
-          gkDivePosition: snapGk.position,
           snapshotGkPenalty: null,
           eventLog: [...baseSnapState.eventLog, ...deflectEvents],
         };
@@ -2947,14 +2953,16 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
   // accepts or declines the dive-at-feet duel offered by roomStore.ts's post-action
   // offer hook (Task 1).
   //
-  // T-39-15-01/T-39-15-03: team guard compares socketTeam(socket) against the
+  // 39-UAT gap 3 (39-20): this handler now performs NO dice work at all. Accepting
+  // only opens the GK_DIVE_AT_FEET_TARGET destination-hex step (applyGkDiveAtFeetResponse
+  // no longer resolves the duel) — the four dice that used to be rolled here belong to
+  // the GAME_GK_DIVE_AT_FEET_TARGET handler below, once the manager has chosen a hex.
+  //
+  // T-39-15-01: team guard compares socketTeam(socket) against the
   // EXPLICIT gkDiveAtFeetTeam field, NOT controlsGKTeam — that helper derives the
   // goalkeeper's team from attackingTeam/ball.carrierId per phase, and this phase
   // already names the team explicitly (set by the offer hook), so re-deriving it would
   // be redundant and could desync if either derivation's assumptions ever drift.
-  // T-39-15-03: all four dice are rolled server-side (crypto.randomInt via rollDice())
-  // unconditionally, even when accept === false, so the handler stays free of rule
-  // logic and no die is ever read from the client payload.
   // T-39-15-05: isProcessing mutex prevents double-click race (SC-5).
   // -------------------------------------------------------------------------
   socket.on(ClientEvents.GAME_GK_DIVE_AT_FEET, (accept: boolean) => {
@@ -2991,13 +2999,83 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         broadcastState(io, room);
         return;
       }
-      // 5. Roll all four dice server-side unconditionally (T-39-15-03) — even on
-      // accept === false, so this handler never branches on rule logic.
+      // 5. Engine call — accept opens GK_DIVE_AT_FEET_TARGET; decline resumes play.
+      const result = applyGkDiveAtFeetResponse(room.gameState, accept);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+      if (result.state.phase === 'FULL_TIME') {
+        startReplayStream(io, room);
+      }
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_GK_DIVE_AT_FEET_TARGET — 39-UAT gap 3 (Plan 39-20): the GK manager's chosen
+  // dive-destination hex, submitted after accepting the dive-at-feet offer. Structurally
+  // copies GAME_GK_BOX_ENTRY_MOVE's shape (null-state guard, phase guard, HexCoord
+  // payload validation, team guard against the explicit gkDiveAtFeetTeam field).
+  //
+  // T-39-20-01/T-39-20-02: applyGkDiveAtFeetTarget re-derives the legal hex set with
+  // computeGkDiveAtFeetTargetHexes and rejects any non-member BEFORE any mutation — this
+  // handler performs shape validation only, never the membership check itself.
+  // T-39-20-03: team guard compares against gkDiveAtFeetTeam, never controlsGKTeam — same
+  // rationale as GAME_GK_DIVE_AT_FEET above.
+  // T-39-20-04: all four dice are rolled server-side (crypto.randomInt via rollDice())
+  // here, unconditionally — never read from the client payload.
+  // T-39-20-05: isProcessing mutex prevents double-click race (SC-5, Pitfall 5).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, (to: HexCoord) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'GK_DIVE_AT_FEET_TARGET') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. HexCoord payload validation (ASVS V5) — verbatim GAME_GK_BOX_ENTRY_MOVE guard.
+      if (
+        typeof to !== 'object' ||
+        to === null ||
+        typeof to.q !== 'number' ||
+        typeof to.r !== 'number'
+      ) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the goalkeeper's manager may choose the destination.
+      if (socketTeam(socket) !== room.gameState.gkDiveAtFeetTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Roll all four dice server-side unconditionally (T-39-20-04).
       const gkDie = rollDice();
       const carrierDie = rollDice();
       const injuryDie = rollDice();
       const bookingDie = rollDice();
-      const result = applyGkDiveAtFeetResponse(room.gameState, accept, {
+      // 6. Engine call — re-validates `to` against computeGkDiveAtFeetTargetHexes before
+      // any mutation, then resolves the duel and moves the goalkeeper's piece.
+      const result = applyGkDiveAtFeetTarget(room.gameState, to, {
         gkDie,
         carrierDie,
         injuryDie,

@@ -1531,6 +1531,9 @@ describe('ActionPanel — Phase 39 boundary mirror (39-17): GK_DIVE_AT_FEET unco
             result: 'SUCCESS',
             timestamp: 1000,
             ballAfter: { position: { q: 15, r: 13 }, carrierId: null },
+            // 39-UAT gap 3 (39-20): diveFrom/diveTo are now required on this event variant.
+            diveFrom: { q: 14, r: 12 },
+            diveTo: { q: 15, r: 13 },
           },
         ],
       },
@@ -1571,6 +1574,9 @@ describe('ActionPanel — Phase 39 boundary mirror (39-17): GK_DIVE_AT_FEET unco
             result: 'FAIL',
             timestamp: 1000,
             ballAfter: { position: { q: 15, r: 13 }, carrierId: 'home-9' },
+            // 39-UAT gap 3 (39-20): diveFrom/diveTo are now required on this event variant.
+            diveFrom: { q: 14, r: 12 },
+            diveTo: { q: 15, r: 13 },
           },
           {
             type: 'MOVE',
@@ -1622,6 +1628,9 @@ describe('ActionPanel — Phase 39 boundary mirror (39-17): GK_DIVE_AT_FEET unco
             result: 'SUCCESS',
             timestamp: 1000,
             ballAfter: { position: { q: 15, r: 13 }, carrierId: null },
+            // 39-UAT gap 3 (39-20): diveFrom/diveTo are now required on this event variant.
+            diveFrom: { q: 14, r: 12 },
+            diveTo: { q: 15, r: 13 },
           },
         ],
       },

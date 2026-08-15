@@ -48,6 +48,7 @@ import {
   validateHandlingCheck,
   validateGKDive,
   validateDiveAtFeetDistance,
+  computeGkDiveAtFeetTargetHexes,
   validateHeading,
   hexDistance,
   hexLine,
@@ -1763,25 +1764,25 @@ export type ApplyGkDiveAtFeetResponseResult =
  * GKDIVE-01..05 (Phase 39, 39-12): resolves the defending manager's accept/decline
  * response to a dive-at-feet offer (`computeGkDiveAtFeetOffer`).
  *
- * GKDIVE-01: reuses the exact TACKLE_ATTEMPT duel shape (computeCombinedScore pairing,
- * tie-goes-to-defender, ballAfter/carrier-transfer handling) with the GK as "tackler"
- * and the carrier as "carrier" — no new duel type.
- * GKDIVE-02: the -1 saving penalty applies only at exactly distance 3
- * (`validateDiveAtFeetDistance`).
- * GKDIVE-03: a GK die of 1 always calls a foul via the shared `resolveFoulChain`, on
- * BOTH SUCCESS and FAIL outcomes — `resolveFoulChain` itself gates on
- * `defenderDie === FOUL_TRIGGER_DIE`, so no separate `=== 1` check is needed here.
- * GKDIVE-04: a successful landing on an occupied hex displaces every OTHER occupant
- * (and the ball, if loose there) via `computeGkDiveDisplacement` — the carrier itself
- * is excluded (dispossessed in place, never shoved elsewhere).
- * GKDIVE-05: accepting always sets `gkDiveAtFeetUsedByTeam[team] = true`, on both
- * SUCCESS and FAIL. Declining never does (see the decline branch above) — it does not
- * consume the once-per-cycle allowance.
+ * 39-20 (39-UAT gap 3): the dive is now a TWO-STEP action. This function only resolves
+ * accept/decline — the duel itself, the GK's piece relocation, and the ball handoff all
+ * moved to `applyGkDiveAtFeetTarget`, which runs once the GK manager has chosen a
+ * destination hex. The dice parameter is gone entirely: the four dice this offer used
+ * to consume on accept now belong to the target step.
+ *
+ * GKDIVE-05: accepting always sets `gkDiveAtFeetUsedByTeam[team] = true` HERE, on accept
+ * — not deferred to the target step. This both satisfies GKDIVE-05 (accepting always
+ * consumes the once-per-cycle allowance) and makes an abandoned target step unable to
+ * re-offer the same dive.
+ *
+ * On accept, every `gkDiveAtFeet*` field is left INTACT (the `clearedFields` shape below
+ * is used only by the decline branch) — `applyGkDiveAtFeetTarget` needs
+ * `gkDiveAtFeetGkId`/`gkDiveAtFeetCarrierId`/`gkDiveAtFeetDistance` to re-derive the
+ * legal hex set and resolve the duel.
  */
 export function applyGkDiveAtFeetResponse(
   state: GameState,
   accept: boolean,
-  dice: { gkDie: number; carrierDie: number; injuryDie: number; bookingDie: number },
 ): ApplyGkDiveAtFeetResponseResult {
   if (state.phase !== 'GK_DIVE_AT_FEET_PROMPT') {
     return { ok: false, reason: 'WRONG_PHASE' };
@@ -1802,15 +1803,14 @@ export function applyGkDiveAtFeetResponse(
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
-  const clearedFields = {
-    gkDiveAtFeetTeam: null,
-    gkDiveAtFeetGkId: null,
-    gkDiveAtFeetCarrierId: null,
-    gkDiveAtFeetDistance: null,
-    gkDiveAtFeetResume: null,
-  };
-
   if (!accept) {
+    const clearedFields = {
+      gkDiveAtFeetTeam: null,
+      gkDiveAtFeetGkId: null,
+      gkDiveAtFeetCarrierId: null,
+      gkDiveAtFeetDistance: null,
+      gkDiveAtFeetResume: null,
+    };
     const declineEvent: ActionEvent = {
       type: 'GK_DIVE_AT_FEET_DECLINED',
       gkId,
@@ -1836,6 +1836,105 @@ export function applyGkDiveAtFeetResponse(
     return { ok: false, reason: 'WRONG_PHASE' };
   }
 
+  // GKDIVE-05: accepting always consumes the once-per-cycle allowance, regardless of
+  // what the GK manager does next at the target step.
+  const usedByTeam = {
+    ...(state.gkDiveAtFeetUsedByTeam ?? { home: false, away: false }),
+    [team]: true,
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'GK_DIVE_AT_FEET_TARGET',
+      activeTeam: team,
+      gkDiveAtFeetUsedByTeam: usedByTeam,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyGkDiveAtFeetTarget
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyGkDiveAtFeetTarget. */
+export type ApplyGkDiveAtFeetTargetResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: false; reason: 'MOVE_INVALID'; detail: 'INVALID_DIVE_TARGET' }
+  | { ok: true; state: GameState };
+
+/**
+ * 39-UAT gap 3 (Phase 39, 39-20): resolves the GK manager's chosen dive-destination hex
+ * — the second step of the now-two-step dive-at-feet action. Runs the whole duel this
+ * function's predecessor used to run on accept, PLUS the actual fix: the goalkeeper's
+ * piece is moved to the chosen hex on BOTH outcomes.
+ *
+ * GKDIVE-01: reuses the exact TACKLE_ATTEMPT duel shape (computeCombinedScore pairing,
+ * tie-goes-to-defender) with the GK as "tackler" and the carrier as "carrier".
+ * GKDIVE-02: the saving penalty basis is `validateDiveAtFeetDistance(gkDiveAtFeetDistance)`
+ * — the GK-to-CARRIER distance recorded at OFFER time, NOT the distance to the chosen
+ * hex. 39-UAT gap 3 asked only for hex selection and goalkeeper movement; re-basing
+ * GKDIVE-02's -1 band on the chosen hex would be an unrequested duel-math change.
+ * GKDIVE-03: a GK die of 1 always calls a foul via the shared `resolveFoulChain`, on
+ * BOTH SUCCESS and FAIL outcomes.
+ * GKDIVE-04: `computeGkDiveDisplacement` runs on BOTH outcomes now (not only SUCCESS) —
+ * the goalkeeper physically lands on `to` either way, so anything standing there must be
+ * pushed regardless of duel result. No `excludeId` is passed: `to` can never hold the
+ * carrier (it is exactly one hex from them by construction of
+ * `computeGkDiveAtFeetTargetHexes`), so the old `excludeId: carrierId` argument that
+ * protected the carrier from being displaced by its own dispossession is no longer
+ * needed here.
+ */
+export function applyGkDiveAtFeetTarget(
+  state: GameState,
+  to: HexCoord,
+  dice: { gkDie: number; carrierDie: number; injuryDie: number; bookingDie: number },
+): ApplyGkDiveAtFeetTargetResult {
+  if (state.phase !== 'GK_DIVE_AT_FEET_TARGET') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gkId = state.gkDiveAtFeetGkId;
+  const carrierId = state.gkDiveAtFeetCarrierId;
+  const team = state.gkDiveAtFeetTeam;
+  const resume = state.gkDiveAtFeetResume;
+  if (
+    gkId === null ||
+    gkId === undefined ||
+    carrierId === null ||
+    carrierId === undefined ||
+    team === null ||
+    team === undefined
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const gk = state.pieces.find((p) => p.id === gkId);
+  const carrier = state.pieces.find((p) => p.id === carrierId);
+  if (gk === undefined || carrier === undefined) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // T-39-20-01/ASVS V5: re-derive the legal set server-side and reject any non-member
+  // BEFORE any mutation. Structural q/r comparison — never Array.includes on a HexCoord
+  // (PITCH-02 convention).
+  const legalHexes = computeGkDiveAtFeetTargetHexes(state);
+  const isLegal = legalHexes.some((h) => h.q === to.q && h.r === to.r);
+  if (!isLegal) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'INVALID_DIVE_TARGET' };
+  }
+
+  const clearedFields = {
+    gkDiveAtFeetTeam: null,
+    gkDiveAtFeetGkId: null,
+    gkDiveAtFeetCarrierId: null,
+    gkDiveAtFeetDistance: null,
+    gkDiveAtFeetResume: null,
+  };
+
+  // GKDIVE-02: saving penalty is basis on the GK-to-CARRIER distance recorded at offer
+  // time, not the distance to the chosen hex (see doc comment above).
   const distanceBand = validateDiveAtFeetDistance(state.gkDiveAtFeetDistance ?? 0);
   if (!distanceBand.saveable) {
     // Offer is stale (e.g. the carrier has since moved out of range) — reject rather
@@ -1849,26 +1948,28 @@ export function applyGkDiveAtFeetResponse(
   // D-09/TACKLE_ATTEMPT convention: defender wins ties.
   const result: 'SUCCESS' | 'FAIL' = gkCombined >= carrierCombined ? 'SUCCESS' : 'FAIL';
 
-  let pieces: readonly PlayerPiece[] = state.pieces;
-  let ball: BallState = state.ball;
+  // GKDIVE-04: displace occupants of `to` on BOTH outcomes — the goalkeeper physically
+  // lands on `to` regardless of duel result. `to` can never hold the carrier (exactly
+  // one hex from them), so no excludeId is needed.
+  const displaced = computeGkDiveDisplacement(state.pieces, state.ball, gk.position, to);
+  // The literal fix for 39-UAT gap 3: the goalkeeper's piece moves to `to` on BOTH
+  // outcomes.
+  let pieces: readonly PlayerPiece[] = displaced.pieces.map((p) =>
+    p.id === gkId ? { ...p, position: to } : p,
+  );
+  let ball: BallState = displaced.ball;
 
   if (result === 'SUCCESS') {
-    const displaced = computeGkDiveDisplacement(
-      pieces,
-      ball,
-      gk.position,
-      carrier.position,
-      carrierId,
-    );
-    pieces = displaced.pieces.map((p) =>
-      p.id === gkId ? { ...p, position: carrier.position } : p,
-    );
+    // The ball travels with the diving keeper to the chosen hex, no longer to
+    // carrier.position.
     ball = {
-      position: carrier.position,
+      position: to,
       carrierId: gkId,
       lastTouchedBy: { pieceId: gkId, teamId: gk.teamId },
     };
   }
+  // FAIL: ball is left untouched apart from any displacement computed above (loose ball
+  // sitting on `to`, if any, already pushed by computeGkDiveDisplacement).
 
   const duelEvent: ActionEvent = {
     type: 'GK_DIVE_AT_FEET',
@@ -1883,11 +1984,15 @@ export function applyGkDiveAtFeetResponse(
     result,
     timestamp: Date.now(),
     ballAfter: { position: ball.position, carrierId: ball.carrierId },
+    diveFrom: gk.position,
+    diveTo: to,
   };
   let eventLog: readonly ActionEvent[] = [...state.eventLog, duelEvent];
 
   // GKDIVE-03: fires regardless of SUCCESS/FAIL — resolveFoulChain itself gates on
   // defenderDie === FOUL_TRIGGER_DIE, so this call is unconditional here.
+  // The restart still belongs on the ball's hex — foulHex stays carrier.position
+  // (Plan 39-18's rule), NOT the goalkeeper's new position.
   const foulChain = resolveFoulChain({
     state,
     pieces,
@@ -1903,11 +2008,6 @@ export function applyGkDiveAtFeetResponse(
   pieces = foulChain.pieces;
   eventLog = foulChain.eventLog;
 
-  const usedByTeam = {
-    ...(state.gkDiveAtFeetUsedByTeam ?? { home: false, away: false }),
-    [team]: true,
-  };
-
   const wouldBeState: GameState =
     result === 'SUCCESS'
       ? {
@@ -1921,14 +2021,13 @@ export function applyGkDiveAtFeetResponse(
           phase: 'PASS',
           movementSlot: null,
           eventLog,
-          gkDiveAtFeetUsedByTeam: usedByTeam,
         }
       : {
           ...state,
           ...clearedFields,
           pieces,
+          ball,
           eventLog,
-          gkDiveAtFeetUsedByTeam: usedByTeam,
           phase: resume?.phase ?? state.phase,
           activeTeam: resume?.activeTeam ?? state.activeTeam,
           movementSlot: resume?.movementSlot ?? state.movementSlot,
@@ -1969,11 +2068,14 @@ export function applyGkDiveAtFeetResponse(
 // ---------------------------------------------------------------------------
 
 /**
- * D-09 (Phase 39, 39-12): shared cap helper for ALL FOUR `phase: 'GK_DIVE'` transition
+ * D-09 (Phase 39, 39-12): shared cap helper for ALL FIVE `phase: 'GK_DIVE'` transition
  * sites (39-RESEARCH.md Pitfall 3: `applyDeclareShot`; the header goal-line route's
- * uncontested-attacker-win branch; its contested-duel-win branch; and
- * `applyResolveHeaderTarget`'s goal-line route). Missing even one of the four silently
- * breaks D-09.
+ * uncontested-attacker-win branch; its contested-duel-win branch;
+ * `applyResolveHeaderTarget`'s goal-line route; and, as of 39-20 (39-UAT gap 4),
+ * `gameHandlers.ts`'s `GAME_END_TURN` snapshot-resolution branch, which previously set
+ * `phase: 'GK_DIVE'` directly — bypassing this cap entirely and letting a keeper who had
+ * already used the dive-at-feet interrupt still block a snapshot in the same movement
+ * cycle). Missing even one of the five silently breaks D-09.
  *
  * When the goalkeeper's team has already used its dive-at-feet interrupt this
  * movement cycle (`gkDiveAtFeetUsedByTeam[gkTeam]`), the shot-blocking GK_DIVE
@@ -2590,6 +2692,9 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   // GKDIVE-02 (Phase 39, 39-12): the ball has not moved while the defending manager
   // decides whether to dive at the carrier's feet — same rationale as FOUL_CHOICE above.
   'GK_DIVE_AT_FEET_PROMPT',
+  // 39-UAT gap 3 (39-20): the ball has not moved while the GK manager picks the dive
+  // destination hex — same rationale as GK_BOX_ENTRY_MOVE below.
+  'GK_DIVE_AT_FEET_TARGET',
   // D-10 (Phase 39, 39-14): the ball has not moved while the defending manager decides
   // whether to reposition their GK on a fresh box entry, nor during the one-hex GK
   // reposition move itself — same rationale as GK_DIVE_AT_FEET_PROMPT above.
@@ -2776,6 +2881,9 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       (state.phase === 'FOUL_CHOICE' && evt.type === 'FOUL_CHOICE_MADE') ||
       // GKDIVE-01 (Phase 39, 39-12): a resolved GK_DIVE_AT_FEET duel is a committed dice
       // outcome — unconditional boundary, exactly like TACKLE_ATTEMPT/STEAL_ATTEMPT above.
+      // 39-20: this term is UNCONDITIONAL (not phase-scoped), so it already covers a duel
+      // resolved via the two-step accept-then-GK_DIVE_AT_FEET_TARGET flow — no separate
+      // phase-scoped duplicate for GK_DIVE_AT_FEET_TARGET is needed here.
       evt.type === 'GK_DIVE_AT_FEET' ||
       // D-10 (Phase 39, 39-14): a completed box-entry GK reposition cannot be undone
       // back across the offer that produced it.
@@ -9081,6 +9189,20 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
       current = { ...current, pieces: event.piecesAfter };
     } else if (event.type === 'KICK_OFF') {
       current = { ...current, movementSlot: 'ATTACKER_4' };
+    } else if (event.type === 'GK_DIVE_AT_FEET') {
+      // 39-UAT gap 3 (39-20): GK_DIVE_AT_FEET is already REPLAY_ELIGIBLE_TYPES and already
+      // applies ballAfter (universal handling below), but nothing previously moved the
+      // goalkeeper's own piece. Unlike the CORNER_KICK_GK_PLACE/CORNER_KICK_MOVE arm above,
+      // this event type IS replay-eligible and must still fall through to the universal
+      // ballAfter handling and frame push below (no `continue`) — pieces displaced by
+      // computeGkDiveDisplacement (occupants pushed off the chosen hex) remain untracked in
+      // replay frames here, which is pre-existing behaviour and out of scope for this fix.
+      current = {
+        ...current,
+        pieces: current.pieces.map((p) =>
+          p.id === event.gkId ? { ...p, position: event.diveTo } : p,
+        ),
+      };
     }
 
     // Universal ball position update — driven by ballAfter on replay-eligible events (REPLAY-06)

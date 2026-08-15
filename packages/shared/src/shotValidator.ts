@@ -10,8 +10,10 @@
  * SHOT-06: Handling check — if diceValue >= gk.handling, the ball is spilled (triggerLooseBall).
  */
 
-import type { PlayerPiece } from './types.js';
+import type { GameState, HexCoord, PlayerPiece } from './types.js';
 import { computeCombinedScore } from './scoreUtils.js';
+import { hexDistance, hexNeighbors } from './hex.js';
+import { isPitchHex } from './pitch.js';
 
 /**
  * Discriminated union for shot duel outcome.
@@ -117,6 +119,44 @@ export function validateDiveAtFeetDistance(distance: number): DiveResult {
   if (d > 3) return { saveable: false, reason: 'OUT_OF_RANGE' };
   const savingPenalty = d === 3 ? -1 : 0;
   return { saveable: true, savingPenalty };
+}
+
+/**
+ * 39-UAT gap 3: computes the legal set of destination hexes the goalkeeper manager may
+ * choose after ACCEPTING the dive-at-feet offer. This is the single source of truth for
+ * that set — both the client's highlight computation and the server's authority check
+ * import this same function, so a client can never offer a hex the server will reject.
+ * The server remains authoritative regardless (re-validates on receipt of the chosen hex).
+ *
+ * "a hex in range next to the attacker" (39-UAT gap 3) is exactly one hex from the
+ * carrier — never the carrier's own hex, never two away — intersected with the existing
+ * GKDIVE-02 dive-range band (validateDiveAtFeetDistance, saveable up to 3 hexes from the
+ * goalkeeper).
+ *
+ * Occupied hexes are deliberately NOT excluded: GKDIVE-04's computeGkDiveDisplacement
+ * exists precisely to resolve a landing on an occupied hex, and filtering them here would
+ * silently delete that requirement.
+ *
+ * Returns [] when either `state.gkDiveAtFeetGkId` or `state.gkDiveAtFeetCarrierId` is
+ * missing or its piece cannot be found — the same early-return-on-ineligible shape
+ * `computeGkDiveAtFeetOffer` (gameEngine.ts) already uses.
+ *
+ * @param state - Current GameState, read for gkDiveAtFeetGkId/gkDiveAtFeetCarrierId and pieces
+ */
+export function computeGkDiveAtFeetTargetHexes(state: GameState): HexCoord[] {
+  const gkId = state.gkDiveAtFeetGkId;
+  const carrierId = state.gkDiveAtFeetCarrierId;
+  if (gkId === null || gkId === undefined || carrierId === null || carrierId === undefined) {
+    return [];
+  }
+  const gk = state.pieces.find((p) => p.id === gkId);
+  const carrier = state.pieces.find((p) => p.id === carrierId);
+  if (gk === undefined || carrier === undefined) return [];
+
+  return hexNeighbors(carrier.position).filter(
+    (h) =>
+      isPitchHex(h) && validateDiveAtFeetDistance(hexDistance(gk.position, h)).saveable === true,
+  );
 }
 
 /**

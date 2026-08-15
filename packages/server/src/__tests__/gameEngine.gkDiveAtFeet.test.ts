@@ -11,14 +11,25 @@ import {
   computeGkDiveAtFeetOffer,
   computeGkDiveDisplacement,
   applyGkDiveAtFeetResponse,
+  applyGkDiveAtFeetTarget,
   enterGkDiveOrSkip,
 } from '../gameEngine.js';
+import { computeGkDiveAtFeetTargetHexes } from '@counter-attack/shared';
 import type { GameState, PlayerPiece, HexCoord, BallState } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Task 1 (39-12): gameEngine.gkDiveAtFeet.test.ts — RED-state spec for
 // GKDIVE-01..05 and D-09 (shared once-per-movement-cycle cap with the
 // existing shot-blocking GK_DIVE reposition window).
+//
+// 39-20 (39-UAT gap 3): the dive is now a TWO-STEP action —
+// applyGkDiveAtFeetResponse(state, accept) only resolves accept/decline and, on
+// accept, transitions to GK_DIVE_AT_FEET_TARGET with every gkDiveAtFeet* field left
+// intact. applyGkDiveAtFeetTarget(state, to, dice) resolves the duel itself and moves
+// the goalkeeper's piece to the manager-chosen hex on BOTH outcomes. Every test below
+// that used to call applyGkDiveAtFeetResponse(state, true, dice) directly now calls
+// applyGkDiveAtFeetResponse(state, true) first, then applyGkDiveAtFeetTarget on the
+// resulting GK_DIVE_AT_FEET_TARGET state.
 //
 // No `vi.mock('../diceUtils.js')` anywhere in this file — every die is an
 // explicit, injected argument, mirroring gameEngine.fouls.test.ts's Assumption
@@ -105,6 +116,13 @@ const homeGk = piece('home-gk', 'home', { q: 0, r: 13 }, { role: 'GK', saving: 5
 const carrierAt = (q: number, over: Partial<PlayerPiece> = {}): PlayerPiece =>
   piece('carrier', 'away', { q, r: 13 }, { dribbling: 4, ...over });
 
+/** Picks the first legal dive-destination hex for the given target-phase state. Throws if none exist (fixture bug). */
+function firstLegalTarget(state: GameState): HexCoord {
+  const hexes = computeGkDiveAtFeetTargetHexes(state);
+  if (hexes.length === 0) throw new Error('fixture produced no legal dive targets');
+  return hexes[0]!;
+}
+
 // ---------------------------------------------------------------------------
 // computeGkDiveAtFeetOffer (GKDIVE-02, GKDIVE-05)
 // ---------------------------------------------------------------------------
@@ -188,31 +206,22 @@ function promptState(
 // ---------------------------------------------------------------------------
 
 describe('applyGkDiveAtFeetResponse — decline', () => {
-  it('appends GK_DIVE_AT_FEET_DECLINED and restores phase/activeTeam/movementSlot from gkDiveAtFeetResume', () => {
+  it('appends GK_DIVE_AT_FEET_DECLINED and restores phase/activeTeam/movementSlot from gkDiveAtFeetResume, never reaching GK_DIVE_AT_FEET_TARGET', () => {
     const state = promptState();
-    const result = applyGkDiveAtFeetResponse(state, false, {
-      gkDie: 3,
-      carrierDie: 3,
-      injuryDie: 3,
-      bookingDie: 3,
-    });
+    const result = applyGkDiveAtFeetResponse(state, false);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const declineEvent = result.state.eventLog.find((e) => e.type === 'GK_DIVE_AT_FEET_DECLINED');
     expect(declineEvent).toBeDefined();
     expect(result.state.phase).toBe('MOVE');
+    expect(result.state.phase).not.toBe('GK_DIVE_AT_FEET_TARGET');
     expect(result.state.activeTeam).toBe('away');
     expect(result.state.movementSlot).toBe('ATTACKER_4');
   });
 
   it('does NOT set gkDiveAtFeetUsedByTeam on decline (does not consume the cap)', () => {
     const state = promptState();
-    const result = applyGkDiveAtFeetResponse(state, false, {
-      gkDie: 3,
-      carrierDie: 3,
-      injuryDie: 3,
-      bookingDie: 3,
-    });
+    const result = applyGkDiveAtFeetResponse(state, false);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.gkDiveAtFeetUsedByTeam?.home).not.toBe(true);
@@ -220,12 +229,7 @@ describe('applyGkDiveAtFeetResponse — decline', () => {
 
   it('clears the gkDiveAtFeet* context cluster on decline', () => {
     const state = promptState();
-    const result = applyGkDiveAtFeetResponse(state, false, {
-      gkDie: 3,
-      carrierDie: 3,
-      injuryDie: 3,
-      bookingDie: 3,
-    });
+    const result = applyGkDiveAtFeetResponse(state, false);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.gkDiveAtFeetTeam).toBeNull();
@@ -242,26 +246,46 @@ describe('applyGkDiveAtFeetResponse — decline', () => {
 describe('applyGkDiveAtFeetResponse — guards', () => {
   it('rejects when phase is not GK_DIVE_AT_FEET_PROMPT', () => {
     const state = promptState({ phase: 'MOVE' });
-    const result = applyGkDiveAtFeetResponse(state, true, {
-      gkDie: 3,
-      carrierDie: 3,
-      injuryDie: 3,
-      bookingDie: 3,
-    });
+    const result = applyGkDiveAtFeetResponse(state, true);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
   });
 });
 
 // ---------------------------------------------------------------------------
-// applyGkDiveAtFeetResponse — GKDIVE-01 duel reuse + GKDIVE-02 distance penalty
+// applyGkDiveAtFeetResponse — accept opens GK_DIVE_AT_FEET_TARGET (39-UAT gap 3)
 // ---------------------------------------------------------------------------
 
-describe('applyGkDiveAtFeetResponse — accept (GKDIVE-01/02)', () => {
-  it('SUCCESS at distance 1 (no penalty): GK moves onto the carrier hex, ball transfers, team turns over', () => {
-    // saving:5 + gkDie:5 = 10 (no penalty at distance 1); dribbling:4 + carrierDie:3 = 7 -> SUCCESS
+describe('applyGkDiveAtFeetResponse — accept opens GK_DIVE_AT_FEET_TARGET (39-UAT gap 3)', () => {
+  it('accept transitions to GK_DIVE_AT_FEET_TARGET, leaves gkDiveAtFeet* fields intact, sets gkDiveAtFeetUsedByTeam[team]=true, and appends no GK_DIVE_AT_FEET event yet', () => {
+    const state = promptState();
+    const result = applyGkDiveAtFeetResponse(state, true);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    expect(result.state.activeTeam).toBe('home');
+    expect(result.state.gkDiveAtFeetGkId).toBe('home-gk');
+    expect(result.state.gkDiveAtFeetCarrierId).toBe('carrier');
+    expect(result.state.gkDiveAtFeetDistance).not.toBeNull();
+    expect(result.state.gkDiveAtFeetResume).not.toBeNull();
+    expect(result.state.gkDiveAtFeetUsedByTeam?.home).toBe(true);
+    expect(result.state.eventLog.find((e) => e.type === 'GK_DIVE_AT_FEET')).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGkDiveAtFeetTarget — GKDIVE-01 duel reuse + GKDIVE-02 distance penalty
+// + the 39-UAT gap 3 core assertions (GK piece provably moves to the chosen hex)
+// ---------------------------------------------------------------------------
+
+describe('applyGkDiveAtFeetTarget — resolve (GKDIVE-01/02, gap-3 core assertions)', () => {
+  it('SUCCESS at distance 1 (no penalty): GK moves to the CHOSEN hex, ball transfers there, team turns over', () => {
     const state = promptState({}, { saving: 5 }, { dribbling: 4 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 5,
       carrierDie: 3,
       injuryDie: 3,
@@ -275,55 +299,56 @@ describe('applyGkDiveAtFeetResponse — accept (GKDIVE-01/02)', () => {
       expect(duelEvent.result).toBe('SUCCESS');
       expect(duelEvent.savingPenalty).toBe(0);
       expect(duelEvent.distance).toBe(1);
+      expect(duelEvent.diveFrom).toEqual(homeGk.position);
+      expect(duelEvent.diveTo).toEqual(to);
     }
+    // 39-UAT gap 3 core assertion: the goalkeeper's own piece provably ends up on `to`.
     const gkPiece = result.state.pieces.find((p) => p.id === 'home-gk');
-    expect(gkPiece?.position).toEqual({ q: 1, r: 13 });
+    expect(gkPiece?.position).toEqual(to);
+    expect(result.state.ball.position).toEqual(to);
     expect(result.state.ball.carrierId).toBe('home-gk');
     expect(result.state.attackingTeam).toBe('home');
   });
 
-  it('FAIL: ball and positions unchanged; gkDiveAtFeetUsedByTeam still set; resumes gkDiveAtFeetResume', () => {
-    // saving:1 + gkDie:1 = 2 (distance 1, no penalty); dribbling:8 + carrierDie:6 = 14 -> FAIL
+  it('FAIL: the goalkeeper ALSO moves to the chosen hex; ball/possession unchanged; gkDiveAtFeetUsedByTeam still set; resumes gkDiveAtFeetResume', () => {
     const state = promptState({}, { saving: 1 }, { dribbling: 8 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    // gkDie:3 (not the FOUL_TRIGGER_DIE) isolates FAIL from GKDIVE-03.
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 3,
       carrierDie: 6,
       injuryDie: 3,
       bookingDie: 3,
     });
-    // Use gkDie:3 (not the FOUL_TRIGGER_DIE) so this test isolates FAIL from GKDIVE-03.
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const duelEvent = result.state.eventLog.find((e) => e.type === 'GK_DIVE_AT_FEET');
     if (duelEvent?.type === 'GK_DIVE_AT_FEET') {
       expect(duelEvent.result).toBe('FAIL');
+      expect(duelEvent.diveTo).toEqual(to);
     }
+    // 39-UAT gap 3 core assertion (FAIL branch): the goalkeeper's piece ALSO ends up on
+    // `to` even though the duel failed.
     const gkPiece = result.state.pieces.find((p) => p.id === 'home-gk');
-    expect(gkPiece?.position).toEqual({ q: 0, r: 13 });
+    expect(gkPiece?.position).toEqual(to);
     expect(result.state.ball.carrierId).toBe('carrier');
     expect(result.state.phase).toBe('MOVE');
     expect(result.state.gkDiveAtFeetUsedByTeam?.home).toBe(true);
   });
 
-  it('accepting always sets gkDiveAtFeetUsedByTeam[team]=true on SUCCESS', () => {
-    const state = promptState({}, { saving: 5 }, { dribbling: 4 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
-      gkDie: 5,
-      carrierDie: 3,
-      injuryDie: 3,
-      bookingDie: 3,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.state.gkDiveAtFeetUsedByTeam?.home).toBe(true);
-  });
-
-  it('GKDIVE-02: the -1 saving penalty applies only at exactly distance 3 and can flip SUCCESS to FAIL', () => {
+  it('GKDIVE-02: the -1 saving penalty applies only at exactly distance 3 (basis = gkDiveAtFeetDistance recorded at offer time, not the chosen hex) and can flip SUCCESS to FAIL', () => {
     // At distance 3: saving:5 + gkDie:5 = 10, penalty -1 -> 9. dribbling:5 + carrierDie:5 = 10.
     // Without the penalty this would be a 10-10 tie (defender wins ties -> SUCCESS);
     // with the -1 penalty it is 9 < 10 -> FAIL.
     const state = promptState({ gkDiveAtFeetDistance: 3 }, { saving: 5 }, { dribbling: 5 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 5,
       carrierDie: 5,
       injuryDie: 3,
@@ -337,10 +362,20 @@ describe('applyGkDiveAtFeetResponse — accept (GKDIVE-01/02)', () => {
       expect(duelEvent.result).toBe('FAIL');
     }
   });
+});
 
-  it('rejects (WRONG_PHASE) when gkDiveAtFeetDistance is stale/out-of-range (>3)', () => {
+// ---------------------------------------------------------------------------
+// applyGkDiveAtFeetTarget — guards (T-39-20-01: server-side authority check)
+// ---------------------------------------------------------------------------
+
+describe('applyGkDiveAtFeetTarget — guards', () => {
+  it('rejects (WRONG_PHASE) when gkDiveAtFeetDistance is stale/out-of-range (>3), even for an otherwise-legal hex', () => {
     const state = promptState({ gkDiveAtFeetDistance: 5 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 5,
       carrierDie: 3,
       injuryDie: 3,
@@ -349,17 +384,85 @@ describe('applyGkDiveAtFeetResponse — accept (GKDIVE-01/02)', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
   });
+
+  it('rejects when phase is not GK_DIVE_AT_FEET_TARGET', () => {
+    const state = promptState();
+    const to = { q: 1, r: 12 };
+    const result = applyGkDiveAtFeetTarget(state, to, {
+      gkDie: 5,
+      carrierDie: 3,
+      injuryDie: 3,
+      bookingDie: 3,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('WRONG_PHASE');
+  });
+
+  it('rejects (MOVE_INVALID/INVALID_DIVE_TARGET) a hex two hexes from the carrier — not adjacent', () => {
+    const state = promptState();
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    // carrier is at {q:1,r:13}; {q:3,r:13} is two hexes away in the same row (verified
+    // against the same row-geometry used by the shared homeGk/carrierAt fixtures above).
+    const to: HexCoord = { q: 3, r: 13 };
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
+      gkDie: 5,
+      carrierDie: 3,
+      injuryDie: 3,
+      bookingDie: 3,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('MOVE_INVALID');
+      if (result.reason === 'MOVE_INVALID') expect(result.detail).toBe('INVALID_DIVE_TARGET');
+    }
+  });
+
+  it('rejects (MOVE_INVALID/INVALID_DIVE_TARGET) a hex adjacent to the carrier but outside the GK dive range (hexDistance(gk, to) > 3)', () => {
+    // gk at {q:0,r:13}; carrier at {q:3,r:13} (distance 3 from gk, per the shared fixture
+    // comment's verified row geometry). {q:4,r:13} is adjacent to the carrier (distance 1)
+    // but distance 4 from the gk — legal-looking (next to the attacker) but out of dive range.
+    const gk = homeGk;
+    const carrier = carrierAt(3);
+    const state = baseState([gk, carrier], {
+      phase: 'GK_DIVE_AT_FEET_TARGET',
+      ball: { position: carrier.position, carrierId: carrier.id, lastTouchedBy: null },
+      gkDiveAtFeetTeam: 'home',
+      gkDiveAtFeetGkId: gk.id,
+      gkDiveAtFeetCarrierId: carrier.id,
+      gkDiveAtFeetDistance: 3,
+      gkDiveAtFeetResume: { phase: 'MOVE', activeTeam: 'away', movementSlot: 'ATTACKER_4' },
+      gkDiveAtFeetUsedByTeam: { home: true, away: false },
+    });
+    const to: HexCoord = { q: 4, r: 13 };
+    const result = applyGkDiveAtFeetTarget(state, to, {
+      gkDie: 5,
+      carrierDie: 3,
+      injuryDie: 3,
+      bookingDie: 3,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('MOVE_INVALID');
+      if (result.reason === 'MOVE_INVALID') expect(result.detail).toBe('INVALID_DIVE_TARGET');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
-// applyGkDiveAtFeetResponse — GKDIVE-03: GK die of 1 fouls regardless of outcome
+// applyGkDiveAtFeetTarget — GKDIVE-03: GK die of 1 fouls regardless of outcome
 // ---------------------------------------------------------------------------
 
-describe('applyGkDiveAtFeetResponse — GKDIVE-03 foul on gkDie===1', () => {
-  it('fires on gkDie===1 when the duel SUCCEEDS', () => {
+describe('applyGkDiveAtFeetTarget — GKDIVE-03 foul on gkDie===1', () => {
+  it('fires on gkDie===1 when the duel SUCCEEDS; foulHex stays on the CARRIER hex; foulDuelSucceeded=true', () => {
     // saving:8 + gkDie:1 = 9; dribbling:1 + carrierDie:1 = 2 -> SUCCESS
     const state = promptState({}, { saving: 8 }, { dribbling: 1 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 1,
       carrierDie: 1,
       injuryDie: 3,
@@ -376,12 +479,20 @@ describe('applyGkDiveAtFeetResponse — GKDIVE-03 foul on gkDie===1', () => {
     }
     expect(result.state.phase).toBe('FOUL_CHOICE');
     expect(result.state.foulSource).toBe('GK_DIVE_AT_FEET');
+    // Plan 39-18's rule: the restart belongs on the ball's (carrier's) hex, not the GK's
+    // new hex.
+    expect(result.state.foulHex).toEqual({ q: 1, r: 13 });
+    expect(result.state.foulDuelSucceeded).toBe(true);
   });
 
-  it('fires on gkDie===1 when the duel FAILS', () => {
+  it('fires on gkDie===1 when the duel FAILS; foulDuelSucceeded=false', () => {
     // saving:1 + gkDie:1 = 2; dribbling:8 + carrierDie:6 = 14 -> FAIL
     const state = promptState({}, { saving: 1 }, { dribbling: 8 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 1,
       carrierDie: 6,
       injuryDie: 3,
@@ -393,11 +504,16 @@ describe('applyGkDiveAtFeetResponse — GKDIVE-03 foul on gkDie===1', () => {
     expect(foulEvent).toBeDefined();
     expect(result.state.phase).toBe('FOUL_CHOICE');
     expect(result.state.foulSource).toBe('GK_DIVE_AT_FEET');
+    expect(result.state.foulDuelSucceeded).toBe(false);
   });
 
   it('does NOT fire a foul when gkDie !== 1', () => {
     const state = promptState({}, { saving: 5 }, { dribbling: 4 });
-    const result = applyGkDiveAtFeetResponse(state, true, {
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const result = applyGkDiveAtFeetTarget(acceptResult.state, to, {
       gkDie: 5,
       carrierDie: 3,
       injuryDie: 3,
@@ -408,6 +524,63 @@ describe('applyGkDiveAtFeetResponse — GKDIVE-03 foul on gkDie===1', () => {
     const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
     expect(foulEvent).toBeUndefined();
     expect(result.state.phase).not.toBe('FOUL_CHOICE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyGkDiveAtFeetTarget — GKDIVE-04 preserved: displacement on an occupied hex,
+// on BOTH SUCCESS and FAIL (39-20 widened the displacement call to run unconditionally)
+// ---------------------------------------------------------------------------
+
+describe('applyGkDiveAtFeetTarget — GKDIVE-04 displacement on an occupied chosen hex', () => {
+  it('displaces the occupant of the chosen hex on SUCCESS', () => {
+    const state = promptState({}, { saving: 5 }, { dribbling: 4 });
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const occupant = piece('occ1', 'home', to);
+    const stateWithOccupant: GameState = {
+      ...acceptResult.state,
+      pieces: [...acceptResult.state.pieces, occupant],
+    };
+    const result = applyGkDiveAtFeetTarget(stateWithOccupant, to, {
+      gkDie: 5,
+      carrierDie: 3,
+      injuryDie: 3,
+      bookingDie: 3,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const occ = result.state.pieces.find((p) => p.id === 'occ1');
+    expect(occ?.position).not.toEqual(to);
+    const gkPiece = result.state.pieces.find((p) => p.id === 'home-gk');
+    expect(gkPiece?.position).toEqual(to);
+  });
+
+  it('displaces the occupant of the chosen hex on FAIL too', () => {
+    const state = promptState({}, { saving: 1 }, { dribbling: 8 });
+    const acceptResult = applyGkDiveAtFeetResponse(state, true);
+    expect(acceptResult.ok).toBe(true);
+    if (!acceptResult.ok) return;
+    const to = firstLegalTarget(acceptResult.state);
+    const occupant = piece('occ1', 'home', to);
+    const stateWithOccupant: GameState = {
+      ...acceptResult.state,
+      pieces: [...acceptResult.state.pieces, occupant],
+    };
+    const result = applyGkDiveAtFeetTarget(stateWithOccupant, to, {
+      gkDie: 3,
+      carrierDie: 6,
+      injuryDie: 3,
+      bookingDie: 3,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const occ = result.state.pieces.find((p) => p.id === 'occ1');
+    expect(occ?.position).not.toEqual(to);
+    const gkPiece = result.state.pieces.find((p) => p.id === 'home-gk');
+    expect(gkPiece?.position).toEqual(to);
   });
 });
 

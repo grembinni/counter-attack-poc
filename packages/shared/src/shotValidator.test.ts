@@ -4,8 +4,10 @@ import {
   validateGKDive,
   validateHandlingCheck,
   validateDiveAtFeetDistance,
+  computeGkDiveAtFeetTargetHexes,
 } from './shotValidator.js';
-import type { PlayerPiece } from './types.js';
+import { hexDistance } from './hex.js';
+import type { GameState, PlayerPiece } from './types.js';
 
 const shooter: PlayerPiece = {
   id: 'p1',
@@ -139,6 +141,96 @@ describe('validateDiveAtFeetDistance', () => {
     const result = validateDiveAtFeetDistance(-1);
     expect(result.saveable).toBe(true);
     if (result.saveable) expect(result.savingPenalty).toBe(0);
+  });
+});
+
+describe('computeGkDiveAtFeetTargetHexes', () => {
+  const gk: PlayerPiece = { ...goalkeeper, id: 'gk1', position: { q: 10, r: 10 } };
+  const carrier: PlayerPiece = { ...shooter, id: 'p1', position: { q: 11, r: 10 } };
+
+  function makeState(overrides: Partial<GameState> = {}): GameState {
+    return {
+      roomCode: 'TEST',
+      phase: 'GK_DIVE_AT_FEET_TARGET',
+      activeTeam: 'away',
+      pieces: [gk, carrier],
+      ball: { position: carrier.position, carrierId: carrier.id, lastTouchedBy: null },
+      score: { home: 0, away: 0 },
+      actionCount: 0,
+      half: 1,
+      eventLog: [],
+      refereeCard: { leniency: 3 },
+      attackingTeam: 'home',
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      movementSlot: 'ATTACKER_4',
+      ballZone: 'middle',
+      addedTime: null,
+      lastActionType: null,
+      kickOffTeam: 'home',
+      kickOffActive: false,
+      selectedTeams: { home: 'city', away: 'crew' },
+      selectedUniformStyles: { home: 'pinstripes-horizontal', away: 'pinstripes-horizontal' },
+      gameSpeed: 'standard',
+      gkDiveAtFeetGkId: gk.id,
+      gkDiveAtFeetCarrierId: carrier.id,
+      ...overrides,
+    };
+  }
+
+  it('every returned hex is exactly hexDistance 1 from the carrier', () => {
+    const hexes = computeGkDiveAtFeetTargetHexes(makeState());
+    expect(hexes.length).toBeGreaterThan(0);
+    for (const h of hexes) expect(hexDistance(h, carrier.position)).toBe(1);
+  });
+
+  it('every returned hex is within hexDistance <= 3 of the goalkeeper', () => {
+    const hexes = computeGkDiveAtFeetTargetHexes(makeState());
+    for (const h of hexes) expect(hexDistance(h, gk.position)).toBeLessThanOrEqual(3);
+  });
+
+  it('a carrier hard against a pitch edge returns fewer than six hexes', () => {
+    const edgeCarrier: PlayerPiece = { ...carrier, position: { q: 0, r: 10 } };
+    const nearGk: PlayerPiece = { ...gk, position: { q: 0, r: 9 } };
+    const hexes = computeGkDiveAtFeetTargetHexes(
+      makeState({
+        pieces: [nearGk, edgeCarrier],
+        gkDiveAtFeetGkId: nearGk.id,
+        gkDiveAtFeetCarrierId: edgeCarrier.id,
+      }),
+    );
+    expect(hexes.length).toBeLessThan(6);
+  });
+
+  it('a goalkeeper far from the carrier returns only the subset within range', () => {
+    const farGk: PlayerPiece = { ...gk, position: { q: 20, r: 10 } };
+    const hexes = computeGkDiveAtFeetTargetHexes(
+      makeState({ pieces: [farGk, carrier], gkDiveAtFeetGkId: farGk.id }),
+    );
+    expect(hexes.length).toBe(0);
+  });
+
+  it('an occupied neighbour hex IS still returned', () => {
+    const occupant: PlayerPiece = {
+      ...carrier,
+      id: 'occ1',
+      teamId: 'away',
+      position: { q: 11, r: 9 },
+    };
+    const hexes = computeGkDiveAtFeetTargetHexes(makeState({ pieces: [gk, carrier, occupant] }));
+    expect(hexes.some((h) => h.q === occupant.position.q && h.r === occupant.position.r)).toBe(
+      true,
+    );
+  });
+
+  it('returns [] when gkDiveAtFeetGkId is missing', () => {
+    const hexes = computeGkDiveAtFeetTargetHexes(makeState({ gkDiveAtFeetGkId: null }));
+    expect(hexes).toEqual([]);
+  });
+
+  it('returns [] when gkDiveAtFeetCarrierId is missing', () => {
+    const hexes = computeGkDiveAtFeetTargetHexes(makeState({ gkDiveAtFeetCarrierId: null }));
+    expect(hexes).toEqual([]);
   });
 });
 

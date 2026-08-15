@@ -143,6 +143,12 @@ export const ClientEvents = {
   GAME_FOUL_CHOICE: 'game:foul-choice',
   /** GKDIVE-02/D-07 (Phase 39): GK's team accepts or declines the dive-at-feet offer. */
   GAME_GK_DIVE_AT_FEET: 'game:gk-dive-at-feet',
+  /**
+   * 39-UAT gap 3 (Phase 39): the GK manager chooses the dive destination hex after accepting
+   * the dive-at-feet offer. Mirrors GAME_GK_BOX_ENTRY_MOVE's single-hex payload — the server
+   * already knows which goalkeeper is diving from `gkDiveAtFeetGkId`.
+   */
+  GAME_GK_DIVE_AT_FEET_TARGET: 'game:gk-dive-at-feet-target',
   /** D-10 (Phase 39): GK's team accepts or declines the box-entry response offer. */
   GAME_GK_BOX_ENTRY_RESPONSE: 'game:gk-box-entry-response',
   /** D-10 (Phase 39): GK's repositioning move during GK_BOX_ENTRY_MOVE. Mirrors GAME_GK_DIVE's single-hex payload. */
@@ -344,6 +350,11 @@ export interface ClientToServerEvents {
   [ClientEvents.GAME_FOUL_CHOICE]: (choice: 'continue' | 'restart') => void;
   /** GKDIVE-02/D-07 (Phase 39): GK's team accepts or declines the dive-at-feet offer. */
   [ClientEvents.GAME_GK_DIVE_AT_FEET]: (accept: boolean) => void;
+  /**
+   * 39-UAT gap 3 (Phase 39): the GK manager chooses the dive destination hex. Mirrors
+   * GAME_GK_BOX_ENTRY_MOVE's `(to: HexCoord) => void` shape.
+   */
+  [ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET]: (to: HexCoord) => void;
   /** D-10 (Phase 39): GK's team accepts or declines the box-entry response offer. */
   [ClientEvents.GAME_GK_BOX_ENTRY_RESPONSE]: (accept: boolean) => void;
   /** D-10 (Phase 39): GK's repositioning move during GK_BOX_ENTRY_MOVE. Mirrors GAME_GK_DIVE's single-hex payload. */
