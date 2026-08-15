@@ -568,6 +568,39 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
     if (!moveResult.ok) return;
     expect(moveResult.state.freeKickKickerChosen).toBe(true);
   });
+
+  it('39-REVIEW CR-01: a kicking-team piece OTHER than the carrier cannot be placed onto freeKickHex while the carrier still occupies it', async () => {
+    const { roomCode } = await setupRoom();
+    const { carrier } = seedFoulChoiceViaTackle(roomCode);
+    const seeded = getRoom(roomCode)!.gameState!;
+
+    const restarted = applyFoulChoice(seeded, 'restart');
+    expect(restarted.ok).toBe(true);
+    if (!restarted.ok) return;
+    const state = restarted.state;
+    expect(state.freeKickKickerChosen).toBe(false);
+
+    // Carrier legitimately still stands on freeKickHex (39-18) — pick a DIFFERENT
+    // kicking-team piece and attempt to place it on the same occupied hex, mirroring a
+    // forged/malformed GAME_FREE_KICK_MOVE that bypasses the client's own guard.
+    const otherKickingPiece = state.pieces.find(
+      (p) => p.teamId === carrier.teamId && p.id !== carrier.id,
+    )!;
+    expect(otherKickingPiece).toBeDefined();
+
+    const moveResult = applyFreeKickMove(state, otherKickingPiece.id, state.freeKickHex!);
+    expect(moveResult.ok).toBe(false);
+    if (moveResult.ok) return;
+    expect(moveResult.reason).toBe('KICKER_HEX_OCCUPIED');
+
+    // No state corruption: the carrier is still alone on freeKickHex, and kicker-select
+    // is still pending (a rejected placement must not advance freeKickKickerChosen).
+    expect(
+      state.pieces.filter(
+        (p) => p.position.q === state.freeKickHex!.q && p.position.r === state.freeKickHex!.r,
+      ).length,
+    ).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

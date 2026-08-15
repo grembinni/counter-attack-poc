@@ -8571,7 +8571,9 @@ export type ApplyFreeKickMoveResult =
         | 'PIECE_LOCKED'
         // Plan 25-06: kicker-select sub-step error codes.
         | 'WRONG_PIECE' // non-kicking-team piece selected during kicker-select sub-step
-        | 'KICKER_PLACEMENT_REQUIRED'; // destination is not freeKickHex during kicker-select
+        | 'KICKER_PLACEMENT_REQUIRED' // destination is not freeKickHex during kicker-select
+        // 39-REVIEW CR-01: another piece already occupies freeKickHex during kicker-select.
+        | 'KICKER_HEX_OCCUPIED';
     }
   | { ok: true; state: GameState };
 
@@ -8650,6 +8652,20 @@ export function applyFreeKickMove(
     // Destination must be freeKickHex.
     if (to.q !== freeKickHex.q || to.r !== freeKickHex.r) {
       return { ok: false, reason: 'KICKER_PLACEMENT_REQUIRED' };
+    }
+    // 39-REVIEW CR-01: 39-18 made freeKickHex the fouled carrier's own hex, so the
+    // carrier now legitimately already stands there when kicker-select begins. The
+    // client only ever offers the carrier itself as a selectable kicker in that case
+    // (computeFreeKickSetupValidHexes), but the server is this codebase's trust
+    // boundary (every sibling reposition function re-validates occupancy server-side)
+    // — reject any other piece to prevent silent same-hex stacking from a forged or
+    // malformed GAME_FREE_KICK_MOVE message. Moving the occupant onto its own hex is
+    // still a no-op success.
+    const kickerHexOccupant = state.pieces.find(
+      (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+    );
+    if (kickerHexOccupant) {
+      return { ok: false, reason: 'KICKER_HEX_OCCUPIED' };
     }
     // Valid kicker placement: move piece to freeKickHex, emit FK_KICKER_CHOSEN event,
     // set freeKickKickerChosen: true, lock kicker in movedPieceIds (D-54 — permanent,
