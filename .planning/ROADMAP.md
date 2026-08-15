@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 15/17         | In Progress |             |
+| 39    | 16/17         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -386,7 +386,7 @@ Plans:
 
 **Wave 8**
 
-- [ ] 39-16-PLAN.md — Client integration: GameBoard dispatch, ball marker, highlights, mutual-confirm button
+- [x] 39-16-PLAN.md — Client integration: GameBoard dispatch, ball marker, highlights, mutual-confirm button
 
 **Wave 9**
 
