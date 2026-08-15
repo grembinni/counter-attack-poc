@@ -1141,8 +1141,8 @@ export function applyMove(
 
     // FOUL-01/02 (Phase 39, 39-10): defender's own die (already extracted above as `die`)
     // is the trigger — victim is the carrier (pieceId), fouler is the defender.
-    // 39-18 (UAT gap 2 correction): `foulHex: to` needs NO change here, unlike the
-    // TACKLE_ATTEMPT call site below. In a STEAL_ATTEMPT the MOVER (`pieceId`) IS the ball
+    // 39-18 (UAT gap 2 correction): the `foulHex` argument below needs NO change here,
+    // unlike the TACKLE_ATTEMPT call site below. In a STEAL_ATTEMPT the MOVER (`pieceId`) IS the ball
     // carrier (see moveValidator's `state.ball.carrierId === piece.id` guard for
     // STEAL_ATTEMPT), and `victimId: pieceId` above confirms it — so `to` is already the
     // carrier's, and therefore the ball's, post-move hex. 39-UAT.md's root_cause note
