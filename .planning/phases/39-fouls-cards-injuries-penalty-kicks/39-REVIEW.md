@@ -1,309 +1,268 @@
 ---
 phase: 39-fouls-cards-injuries-penalty-kicks
-reviewed: 2026-08-15T13:40:07Z
+reviewed: 2026-08-15T23:04:38Z
 depth: standard
-files_reviewed: 72
+files_reviewed: 29
 files_reviewed_list:
-  - packages/client/src/App.test.tsx
-  - packages/client/src/App.tsx
-  - packages/client/src/components/ActionLog.test.tsx
-  - packages/client/src/components/ActionLog.tsx
-  - packages/client/src/components/ActionPanel.test.tsx
-  - packages/client/src/components/ActionPanel.tsx
-  - packages/client/src/components/BallLocationRing.test.tsx
-  - packages/client/src/components/BallLocationRing.tsx
-  - packages/client/src/components/EventBanner.module.css
-  - packages/client/src/components/EventBanner.test.tsx
-  - packages/client/src/components/EventBanner.tsx
-  - packages/client/src/components/FoulChoicePanel.module.css
-  - packages/client/src/components/FoulChoicePanel.test.tsx
-  - packages/client/src/components/FoulChoicePanel.tsx
-  - packages/client/src/components/GameBoard.test.tsx
-  - packages/client/src/components/GameBoard.tsx
-  - packages/client/src/components/GameSettingsScreen.test.tsx
-  - packages/client/src/components/GameSettingsScreen.tsx
-  - packages/client/src/components/GkBoxEntryPromptPanel.module.css
-  - packages/client/src/components/GkBoxEntryPromptPanel.test.tsx
-  - packages/client/src/components/GkBoxEntryPromptPanel.tsx
-  - packages/client/src/components/GkDiveAtFeetPromptPanel.module.css
-  - packages/client/src/components/GkDiveAtFeetPromptPanel.test.tsx
-  - packages/client/src/components/GkDiveAtFeetPromptPanel.tsx
-  - packages/client/src/components/HexGrid.tsx
-  - packages/client/src/components/PenaltyKickSetupPanel.module.css
-  - packages/client/src/components/PenaltyKickSetupPanel.test.tsx
-  - packages/client/src/components/PenaltyKickSetupPanel.tsx
-  - packages/client/src/components/PieceOverlay.test.tsx
-  - packages/client/src/components/PieceOverlay.tsx
-  - packages/client/src/components/PlayerStatsPanel.module.css
-  - packages/client/src/components/PlayerStatsPanel.test.tsx
-  - packages/client/src/components/PlayerStatsPanel.tsx
-  - packages/client/src/store/useGameStore.test.ts
-  - packages/client/src/store/useGameStore.ts
-  - packages/client/src/styles/tokens.css
-  - packages/server/src/__tests__/cornerKick.integration.test.ts
-  - packages/server/src/__tests__/draftReconnect.integration.test.ts
-  - packages/server/src/__tests__/draftSession.integration.test.ts
-  - packages/server/src/__tests__/foulFreeKick.integration.test.ts
-  - packages/server/src/__tests__/game.integration.test.ts
-  - packages/server/src/__tests__/gameEngine.booking.test.ts
-  - packages/server/src/__tests__/gameEngine.boxEntry.test.ts
-  - packages/server/src/__tests__/gameEngine.fouls.test.ts
-  - packages/server/src/__tests__/gameEngine.gkDiveAtFeet.test.ts
-  - packages/server/src/__tests__/gameEngine.injury.test.ts
-  - packages/server/src/__tests__/gameEngine.penaltyKick.test.ts
-  - packages/server/src/__tests__/gameEngine.secondHalf.test.ts
-  - packages/server/src/__tests__/gameEngine.undoReplay39.test.ts
-  - packages/server/src/__tests__/gameHandlers.boxEntry.test.ts
-  - packages/server/src/__tests__/gameHandlers.halfTime.test.ts
-  - packages/server/src/__tests__/gameHandlers.phase17-06.test.ts
-  - packages/server/src/__tests__/gkDiveAtFeet.integration.test.ts
-  - packages/server/src/__tests__/goalKick.integration.test.ts
-  - packages/server/src/__tests__/penaltyKick.integration.test.ts
-  - packages/server/src/__tests__/replay.integration.test.ts
-  - packages/server/src/__tests__/room.integration.test.ts
-  - packages/server/src/__tests__/shotGkRange.test.ts
-  - packages/server/src/__tests__/testHelpers.ts
+  - packages/shared/src/types.ts
+  - packages/shared/src/fouls.ts
+  - packages/shared/src/fouls.test.ts
+  - packages/shared/src/events.ts
+  - packages/shared/src/shotValidator.ts
+  - packages/shared/src/shotValidator.test.ts
+  - packages/shared/src/pitch.ts
+  - packages/shared/src/pitch.test.ts
   - packages/server/src/gameEngine.ts
   - packages/server/src/gameHandlers.ts
-  - packages/server/src/roomHandlers.ts
-  - packages/server/src/roomStore.ts
-  - packages/shared/src/events.ts
-  - packages/shared/src/fouls.test.ts
-  - packages/shared/src/fouls.ts
-  - packages/shared/src/index.ts
-  - packages/shared/src/pitch.test.ts
-  - packages/shared/src/pitch.ts
-  - packages/shared/src/shotValidator.test.ts
-  - packages/shared/src/shotValidator.ts
-  - packages/shared/src/types.ts
+  - packages/server/src/__tests__/gameEngine.fouls.test.ts
+  - packages/server/src/__tests__/foulFreeKick.integration.test.ts
+  - packages/server/src/__tests__/gameEngine.restartTimeCost.test.ts
+  - packages/server/src/__tests__/gameEngine.gkDiveAtFeet.test.ts
+  - packages/server/src/__tests__/gkDiveAtFeet.integration.test.ts
+  - packages/server/src/__tests__/gameEngine.undoReplay39.test.ts
+  - packages/server/src/__tests__/gameEngine.penaltyKick.test.ts
+  - packages/server/src/__tests__/penaltyKick.integration.test.ts
+  - packages/client/src/components/FoulChoicePanel.tsx
+  - packages/client/src/components/FoulChoicePanel.test.tsx
+  - packages/client/src/utils/restartErrorMessage.ts
+  - packages/client/src/utils/restartErrorMessage.test.ts
+  - packages/client/src/components/GameBoard.tsx
+  - packages/client/src/components/GameBoard.test.tsx
+  - packages/client/src/store/useGameStore.ts
+  - packages/client/src/store/useGameStore.test.ts
+  - packages/client/src/components/HexGrid.tsx
+  - packages/client/src/components/HexGrid.test.tsx
+  - packages/client/src/components/GkDiveAtFeetPromptPanel.tsx
+  - packages/client/src/components/GkDiveAtFeetPromptPanel.test.tsx
+  - packages/client/src/components/BallLocationRing.tsx
+  - packages/client/src/components/PenaltyKickSetupPanel.tsx
+  - packages/client/src/components/PenaltyKickSetupPanel.test.tsx
+  - packages/client/src/components/ActionLog.tsx
+  - packages/client/src/components/ActionLog.test.tsx
 findings:
   critical: 1
-  warning: 3
+  warning: 2
   info: 2
-  total: 6
+  total: 5
 status: issues_found
 ---
 
-# Phase 39: Code Review Report
+# Phase 39: Code Review Report (Gap-Closure Round, Plans 39-18..39-24)
 
-**Reviewed:** 2026-08-15T13:40:07Z
+**Reviewed:** 2026-08-15T23:04:38Z
 **Depth:** standard
-**Files Reviewed:** 72
+**Files Reviewed:** 29
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the Phase 39 (Fouls, Cards, Injuries & Penalty Kicks) implementation across the
-shared rule kernel (`fouls.ts`, `shotValidator.ts`, `pitch.ts`, `types.ts`, `events.ts`),
-the server engine/handlers (`gameEngine.ts`, `gameHandlers.ts`, `roomHandlers.ts`,
-`roomStore.ts`) and the new client panels (`FoulChoicePanel`, `GkDiveAtFeetPromptPanel`,
-`GkBoxEntryPromptPanel`, `PenaltyKickSetupPanel`, `PlayerStatsPanel`, `EventBanner`,
-`ActionLog`).
+This review covers only the gap-closure diff (`0fb210d^..HEAD`, plans 39-18 through
+39-24) layered on top of the already-reviewed Phase 39 baseline — restart-placement
+fixes (foulHex now the ball's hex, not the fouler's landing hex), Professional Foul
+goal-path geometry, GK dive-at-feet two-step targeting, in-box foul → penalty routing
+and award-time board setup, penalty-taker confirm+shoot UI, and tackle-from-behind
+detection.
 
-Overall this is a carefully engineered, heavily documented change set: dice are rolled
-server-side with `crypto.randomInt` (never client-supplied), every new socket handler
-follows the same five-step guard shape (null-state → phase → payload allow-list → team
-ownership → engine call) with an `isProcessing` mutex, `ROOM_SETTINGS_CONFIRM` re-validates
-and re-normalizes the Fouls/Booking/Injury toggles server-side rather than trusting the
-client's own normalization, and most of the new restart flows (penalty kick reposition,
-GK dive-at-feet, box-entry) correctly exclude `redCarded` pieces from eligibility lists.
+The gap-closure work itself is unusually well-documented and thoroughly tested — every
+plan's doc comments trace back to a specific UAT gap, and new server logic (fouls.ts's
+tackle-from-behind helpers, `applyGkDiveAtFeetTarget`, `relocateOutsidePenaltyArea`,
+`triggerPenaltyKick`'s award-time clear-out) is exercised by matching unit and
+integration tests, including several "characterisation"/"integration risk proof" tests
+that specifically probe the interaction between old and new behaviour (e.g. the fouled
+carrier legitimately remaining on `freeKickHex` after the 39-18 fix).
 
-The most significant finding is a real correctness gap: `redCarded` (sent-off) pieces are
-excluded from GK-dive-at-feet/box-entry/penalty-taker eligibility, and are explicitly
-excluded from the "could a teammate have covered this foul" professional-foul check
-(`isProfessionalFoul` in `fouls.ts`), but are **not** excluded from the Zone-of-Influence
-opponent list that drives `STEAL_ATTEMPT`/`TACKLE_ATTEMPT` triggers. Since a sent-off piece
-is deliberately kept on the pitch (never removed from `state.pieces`) but is blocked from
-ever moving again, this makes it a permanent, immovable phantom defender that can still
-contest and win the ball, and can even draw fresh fouls/cards/injuries against itself. This
-is flagged as a BLOCKER below.
-
-A second, smaller finding is a dead/tautological conditional in `FoulChoicePanel.tsx` that
-appears to be a copy-paste leftover from the (legitimately conditional) sibling panels.
+That last interaction, however, surfaces a real defect: 39-18's change to
+`triggerFoulFreeKick`'s `foulHex` (now always the fouled carrier's own hex, which the
+carrier continues to occupy) turns a previously near-impossible occupancy collision at
+`freeKickHex` into the **guaranteed default state** for every foul-triggered free kick —
+and the kicker-select step in `applyFreeKickMove` has no server-side occupancy check to
+catch it. This is flagged as the sole Critical finding below (CR-01). Two Warnings and
+two Info items round out the rest of the review; none of the other gap-closure changes
+(GK dive-at-feet two-step flow, penalty award/clear-out, DOGSO goal-path rewrite,
+tackle-from-behind widening, actionCount/clock-cost additions) turned up correctness
+defects under close tracing.
 
 ## Critical Issues
 
-### CR-01: Red-carded (sent-off) pieces retain full Zone-of-Influence and can still contest the ball
+### CR-01: `applyFreeKickMove`'s kicker-select branch has no server-side occupancy check — 39-18 makes the collision the default case for every foul-triggered free kick
 
-**File:** `packages/shared/src/moveValidator.ts:95` (consumed by `packages/server/src/gameEngine.ts:1111-1224`, `resolveFoulChain` at `packages/server/src/gameEngine.ts:751-866`)
+**File:** `packages/server/src/gameEngine.ts:8645-8685` (kicker-select branch of
+`applyFreeKickMove`), triggered via `triggerFoulFreeKick` (`gameEngine.ts:1531-1556`)
 
 **Issue:**
-CARD-02/CARD-04 deliberately keep a sent-off piece in `state.pieces` rather than removing
-it (see the comment on `applyMove`'s red-card guard, `gameEngine.ts:954-959`), and
-`applyMove` correctly rejects any attempt to _move_ a `redCarded` piece
-(`gameEngine.ts:957-959`). However, `validateMove`'s Zone-of-Influence computation for
-`STEAL_ATTEMPT` never filters `redCarded` pieces out of the opponent list:
+Before this gap-closure round, `triggerFoulFreeKick`'s `freeKickHex` was the FOULING
+defender's landing hex (`to`) — a hex on the CONCEDING team's side, which
+`relocateTrappedFreeKickPieces` always vacates before kicker-select begins. Plan 39-18
+(closing 39-UAT gap 2) deliberately changed `foulHex`/`freeKickHex` for a
+`TACKLE_ATTEMPT`-sourced foul to the fouled **carrier's own hex** instead
+(`gameEngine.ts` ~1254, `foulHex: carrier.position`), and the carrier is never moved by
+a failed/fouling tackle. For a `STEAL_ATTEMPT`-sourced foul, `foulHex` was already the
+carrier's post-move hex. In both cases the carrier — a piece on the KICKING
+(fouled) team — is now guaranteed to be standing exactly on `freeKickHex` when
+`FREE_KICK_SETUP` begins (`relocateTrappedFreeKickPieces` only relocates the CONCEDING
+team; this is confirmed intentional and tested in
+`foulFreeKick.integration.test.ts`'s new "39-18 (integration risk proof)" test, which
+only exercises placing the _carrier itself_ as kicker).
+
+`applyFreeKickMove`'s kicker-select branch (`state.freeKickKickerChosen === false`)
+accepts ANY kicking-team piece and unconditionally writes it onto `freeKickHex`:
 
 ```ts
-// packages/shared/src/moveValidator.ts:94-102
-if (state.ball.carrierId === piece.id) {
-  const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
-  const allDefenders = getZoIDefenders(to, opponents);
-  const defenders = allDefenders.filter((d) => !(state.stealAttemptedByIds ?? []).includes(d.id));
-  if (defenders.length > 0) {
-    return { ok: true, effect: { type: 'STEAL_ATTEMPT', defenders } };
+if (state.freeKickKickerChosen === false) {
+  if (piece.teamId !== kickingTeam) {
+    return { ok: false, reason: 'WRONG_PIECE' };
   }
-}
-```
-
-`getZoIDefenders` (`hex.ts:136-141`) is a pure distance filter with no `redCarded` check
-either. `gameEngine.ts`'s `applyMove` then trusts `result.effect.defenders[0]` verbatim
-(`gameEngine.ts:1111-1161`) and runs a full steal duel against it — a sent-off player can
-still win the ball back via `computeCombinedScore(defender.tackling, die, [])`. The same
-gap applies to `TACKLE_ATTEMPT`'s adjacency trigger (`moveValidator.ts:109-124`), although
-in practice a `redCarded` piece can never be the _mover_ there since `applyMove` blocks
-its own movement — but it can still be the passive `carrier`'s adjacent-opponent target for
-another (non-carded) teammate's tackle, which is fine; the bug is specifically that a
-`redCarded` piece itself keeps acting as a live defender that the carrier must duel through.
-
-Compounding this, `resolveFoulChain` (`gameEngine.ts:751-866`) — which fires whenever
-`defenderDie === FOUL_TRIGGER_DIE` — also never checks whether `defenderId` is already
-`redCarded`, so a sent-off "ghost" defender can draw fresh `FOUL_CALLED`/`INJURY_CHECK`/
-`BOOKING_CHECK` events against opponents and teammates indefinitely.
-
-This is a real, provable inconsistency: `isProfessionalFoul` (`fouls.ts:129-143`) already
-excludes `redCarded` pieces from the "could a teammate have covered this" reachability
-check (`fouls.ts:136`, with a dedicated test at `fouls.test.ts:299`), and
-`computeGkDiveAtFeetOffer`/`computeBoxEntryOffer`/`computePenaltyKickEligibleIds`/
-`applyPenaltyKickTaker` (`gameEngine.ts:1620`, `2010`, `6369`, `6649-6651`) all correctly
-exclude `redCarded` pieces from their respective eligibility. Only the core ZoI/duel-trigger
-path was missed. No test in the suite (`gameEngine.fouls.test.ts`, `gameEngine.booking.test.ts`,
-`gameEngine.injury.test.ts`, etc.) exercises a `redCarded` defender against
-`STEAL_ATTEMPT`/`TACKLE_ATTEMPT`, confirming this path is untested.
-
-**Impact:** once any player is sent off, that piece becomes a permanent, unmovable obstacle
-that keeps contesting the ball (and can keep drawing further fouls/injuries/cards) for the
-rest of the match — a correctness bug that breaks core gameplay after the very feature this
-phase implements (cards) is exercised.
-
-**Fix:** filter `redCarded` pieces out of the opponent list before computing ZoI defenders,
-and/or add a defensive `redCarded !== true` guard at the top of `resolveFoulChain`:
-
-```ts
-// moveValidator.ts
-if (state.ball.carrierId === piece.id) {
-  const opponents = state.pieces.filter(
-    (p) => p.teamId !== piece.teamId && p.redCarded !== true,
-  );
-  const allDefenders = getZoIDefenders(to, opponents);
+  if (to.q !== freeKickHex.q || to.r !== freeKickHex.r) {
+    return { ok: false, reason: 'KICKER_PLACEMENT_REQUIRED' };
+  }
+  // no occupancy check anywhere below this point
+  const newPieces = state.pieces.map((p) => (p.id === pieceId ? { ...p, position: to } : p));
   ...
 }
-// ...and for the TACKLE_ATTEMPT trigger:
-if (
-  carrier !== undefined &&
-  piece.teamId !== carrier.teamId &&
-  carrier.redCarded !== true &&
-  hexDistance(to, carrier.position) === 1
-) { ... }
 ```
+
+There is no check anywhere in this branch (nor in the rest of `applyFreeKickMove`) that
+`freeKickHex` is unoccupied by another piece before writing the new position. Since the
+carrier is now guaranteed to already be standing there, selecting **any kicking-team
+piece other than the carrier** as the free-kick taker silently stacks two pieces on the
+same hex — a real state-corruption bug (breaks every downstream occupancy/hexDistance
+assumption the rest of the codebase relies on).
+
+The client's own `computeFreeKickSetupValidHexes` (`useGameStore.ts:416-423`) DOES guard
+this case (`fkOccupied` check returns `[]` for any piece other than the one already on
+`freeKickHex`), so an honest client cannot trigger it through the UI — the manager simply
+has no way to choose a kicker other than the carrier. But the server is the trust
+boundary in this codebase's own stated convention (every sibling reposition function —
+`applyPenaltyKickReposition`'s `OCCUPIED` guard, `applyCornerKickReposition`'s occupancy
+check, `applyGoalKickReposition`'s occupancy check — re-validates occupancy
+server-side, never relying on the client to withhold the action). A modified/forged
+`GAME_FREE_KICK_MOVE(otherPieceId, freeKickHex)` message bypasses the client guard
+entirely and the server accepts it unconditionally today.
+
+**Fix:** Add an explicit occupancy guard to the kicker-select branch (and, ideally, to
+the rest of `applyFreeKickMove`, which has the same gap on its later placement branches
+— out of scope for this diff but worth a follow-up), mirroring
+`applyPenaltyKickReposition`'s convention:
+
+```ts
+if (state.freeKickKickerChosen === false) {
+  if (piece.teamId !== kickingTeam) {
+    return { ok: false, reason: 'WRONG_PIECE' };
+  }
+  if (to.q !== freeKickHex.q || to.r !== freeKickHex.r) {
+    return { ok: false, reason: 'KICKER_PLACEMENT_REQUIRED' };
+  }
+  const occupant = state.pieces.find(
+    (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+  );
+  if (occupant) {
+    return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
+  }
+  // ... existing placement logic
+}
+```
+
+Since the carrier legitimately occupies `freeKickHex` in the normal case, rejecting the
+action with `OCCUPIED` still leaves the manager stuck (same UX gap the client already
+has) — the more complete fix is to special-case "the occupant is the carrier and the
+selected piece is also the carrier" as a no-op success (current behaviour), and either
+(a) auto-select the carrier as kicker when no other choice is possible, or (b) relocate
+the carrier off `freeKickHex` (mirroring `relocateOutsidePenaltyArea`'s pattern used
+elsewhere in this same gap-closure round) before a different kicker is placed. At
+minimum, the silent same-hex stacking must be closed.
 
 ## Warnings
 
-### WR-01: Dead/tautological conditional in FoulChoicePanel's waiting-state label
+### WR-01: `GK_DIVE_AT_FEET_TARGET` has no decline/escape path if `computeGkDiveAtFeetTargetHexes` returns an empty set
 
-**File:** `packages/client/src/components/FoulChoicePanel.tsx:20,33,37`
-**Issue:**
+**File:** `packages/shared/src/shotValidator.ts:146-160` (`computeGkDiveAtFeetTargetHexes`),
+consumed by `packages/server/src/gameEngine.ts:1943-1980` (`applyGkDiveAtFeetTarget`)
 
-```ts
-const attackingTeam = useGameStore((s) => s.gameState.attackingTeam);
-...
-const decidingTeam = attackingTeam;         // line 33: decidingTeam IS attackingTeam
-...
-if (myTeam !== decidingTeam) {
-  const sideLabel = decidingTeam === attackingTeam ? 'Attacking' : 'Defending'; // line 37
-```
+**Issue:** `computeGkDiveAtFeetOffer` (unchanged by this round) only requires
+`hexDistance(gk, carrier) <= 3` and `|carrier.q - gk.q| <= 3` before making the offer.
+`computeGkDiveAtFeetTargetHexes` requires a hex that is BOTH exactly distance 1 from the
+carrier AND on-pitch AND within the GK's 3-hex saveable band. Near a pitch edge/corner
+(`PITCH_HEXES` is bounded to q∈[0,36], r∈[0,25], with the 19 even-q `r=0` hexes further
+excluded), a carrier can have as few as 2-3 on-pitch neighbours, and it is not proven
+that at least one of those neighbours is always within the GK's saveable band once both
+the pitch-edge and the 3-hex-band filters are applied together. Once
+`applyGkDiveAtFeetResponse(accept: true)` has run, the once-per-cycle cap is already
+consumed (by design, per the 39-20 doc comment) and the phase is locked into
+`GK_DIVE_AT_FEET_TARGET` with no decline affordance — if the legal hex set is genuinely
+empty here, the manager has no action available to progress the game (an `Undo` may or
+may not reach far enough back to escape it, since no `GK_DIVE_AT_FEET`-boundary event has
+been logged yet at this point).
 
-`decidingTeam` is assigned directly from `attackingTeam` on line 33, so the comparison on
-line 37 (`decidingTeam === attackingTeam`) is always `true` by construction — `sideLabel` can
-never be `'Defending'`, making that branch of the ternary dead code. This is almost
-certainly a copy-paste artifact from the structurally similar `GkDiveAtFeetPromptPanel.tsx`
-and `GkBoxEntryPromptPanel.tsx`, where the identical-looking ternary is _not_ dead — in
-those panels `decidingTeam` is derived from `gkDiveAtFeetTeam`/`gkBoxEntryTeam`, a genuinely
-different field from `attackingTeam`, so the comparison is meaningful there. In its current
-form the displayed text always happens to read "Attacking team is deciding…" (which is
-correct today only because `resolveFoulChain`'s callers always set `attackingTeam` to the
-fouled/deciding team), but the logic is fragile: a future refactor that decouples "who
-decides" from `attackingTeam` would silently keep showing the wrong label, because the check
-can never actually catch the divergence.
-**Fix:** either remove the dead ternary and hardcode the string (since `decidingTeam` is
-always `attackingTeam` here), or — to guard against future drift — compare against the
-_reader's own_ relationship to the deciding team instead of comparing a variable to its own
-source value, e.g. derive `sideLabel` from `myTeam === state.foulSource ...` semantics or
-simply drop the conditional:
+**Fix:** Either (a) prove exhaustively that `computeGkDiveAtFeetTargetHexes` can never be
+empty whenever `computeGkDiveAtFeetOffer` returned non-null (add a property-based/
+exhaustive test over every on-pitch carrier position), or (b) add a server-side fallback
+in `applyGkDiveAtFeetTarget`/the offer hook that detects an empty legal set and
+auto-resolves the dive at the GK's current position (or auto-declines) rather than
+stranding the phase.
 
-```ts
-const sideLabel = 'Attacking'; // decidingTeam is always attackingTeam by construction
-```
+### WR-02: `PENALTY_KICK_PIECE_IMMOVABLE` guard in `applyPenaltyKickReposition` is currently unreachable dead code
 
-### WR-02: `resolveFoulChain` does not guard against a `redCarded` fouler (see CR-01)
+**File:** `packages/server/src/gameEngine.ts:6821-6831`
 
-**File:** `packages/server/src/gameEngine.ts:751-866`
-**Issue:** Separately from CR-01's root cause, `resolveFoulChain` itself has no defensive
-check that `defenderId`'s piece isn't already `redCarded` before appending a new
-`FOUL_CALLED`/`INJURY_CHECK`/`BOOKING_CHECK` chain. Every other Phase 39 helper in this file
-(`computeGkDiveAtFeetOffer`, `computeBoxEntryOffer`, `computePenaltyKickEligibleIds`,
-`applyPenaltyKickTaker`) treats `redCarded` exclusion as a precondition it enforces itself,
-not something callers must remember. `resolveFoulChain` breaks that pattern — even once
-CR-01's ZoI-level fix lands, this function would still silently process a foul "committed"
-by an already-sent-off piece if any other call site ever manages to route one to it.
-**Fix:** add a defensive early return, matching the file's established idiom:
+**Issue:** The guard added by 39-22 to reject moving the chosen taker or the defending
+GK is placed AFTER the `eligibleIds.includes(pieceId)` / `NOT_ELIGIBLE` check
+(`gameEngine.ts:6813-6819`). Since `applyPenaltyKickTaker` (the only place
+`state.penaltyKickEligibleIds` is (re)computed once a taker is known) already excludes
+both the taker and the defending GK from `eligibleIds` via
+`computePenaltyKickEligibleIds(..., [pieceId, defendingGk?.id])`, and repositioning is
+only reachable AFTER `applyPenaltyKickTaker` has run (phase gating), the
+`NOT_ELIGIBLE` rejection always fires first for these two pieces — the
+`PENALTY_KICK_PIECE_IMMOVABLE` branch can never actually execute under the current data
+flow. This isn't a correctness bug today (the intended behaviour — taker/GK can't move —
+is still enforced, just by the wrong guard), but it means the "belt and braces" comment's
+premise is untested and a future refactor that changes `eligibleIds` computation could
+silently rely on a guard that has never actually been exercised in practice.
 
-```ts
-const fouler = pieces.find((p) => p.id === defenderId);
-if (fouler?.redCarded === true) {
-  return { fouled: false, pieces, eventLog, foulFields: {} };
-}
-```
-
-### WR-03: `ActionLog` list items keyed by array index despite reordering on every new event
-
-**File:** `packages/client/src/components/ActionLog.tsx:1277,1296`
-**Issue:** `ActionLog` renders `recent = [...consolidated].reverse().slice(0, 30)` and keys
-every row with `key={index}`. Because the log is re-reversed on every render as new events
-are appended, the item that occupies a given `index` changes on almost every state update
-(everything shifts down by one). React key stability is violated: React may reuse a DOM/row
-instance for a logically different event, which can cause stale `style`/color mismatches or
-incorrect CSS transition/animation behavior on rows, and makes the component harder to
-reason about for future maintainers relying on key stability. Every event type in
-`ActionEvent` already carries a `timestamp: number` field, and move-group entries carry a
-`groupKey` — a stable key is one small step away.
-**Fix:** derive a stable key, e.g. `` `${item.event.timestamp}-${index}` `` for event items and
-`item.groupKey` for move groups, instead of the bare `index`.
+**Fix:** Add a unit test that reaches `applyPenaltyKickReposition` with `pieceId` equal
+to the taker/defending-GK id while `eligibleIds` is NOT the narrowed post-39-22 list
+(e.g. directly constructing a `PENALTY_KICK_SETUP_ATTACKING` state with a full
+`penaltyKickEligibleIds` and calling `applyPenaltyKickReposition` for the taker id) to
+prove the `PENALTY_KICK_PIECE_IMMOVABLE` branch is actually reachable and correct in
+isolation, independent of the `NOT_ELIGIBLE` guard's current behaviour.
 
 ## Info
 
-### IN-01: `injuryPenalty` helper is exported but never consumed by any duel site
+### IN-01: `relocateOutsidePenaltyArea`/clear-out does not exclude `redCarded` pieces
 
-**File:** `packages/shared/src/fouls.ts:44-52`
-**Issue:** `injuryPenalty` is exported with an explicit warning in its own doc comment that
-adding it to a `computeCombinedScore` penalty array would double-count injury (since
-INJURY-02 is delivered via stored attribute mutation instead). Grepping the reviewed file
-set turns up no call site for this function outside its own doc comment — it is dead,
-unused public API surface that exists only as a documented "do not use this" trap. This
-isn't wrong, but it is a maintenance smell: an unused exported function whose entire purpose
-is a warning against using it is easy for a future contributor to miss and wire up
-incorrectly anyway.
-**Fix:** either remove `injuryPenalty` until Phase 40 (Substitutions) actually needs it, or
-mark it `@deprecated`/`@internal` more forcefully, or add a one-line unit test asserting it
-is intentionally unused (as documentation-as-code) if it must stay exported for a future
-consumer.
+**File:** `packages/server/src/gameEngine.ts:663-709` (`relocateOutsidePenaltyArea`),
+`gameEngine.ts:6721-6724` (`triggerPenaltyKick`'s `toClearOut` computation)
 
-### IN-02: `PENALTY_KICK_TAKER_SELECT` client-side piece-click guard omits the `redCarded` check present server-side
+**Issue:** `toClearOut` is built from every piece inside the defending penalty area
+except the defending GK, with no `redCarded !== true` filter (unlike
+`computePenaltyKickEligibleIds`, which does exclude `redCarded` pieces). A sent-off
+player still occupying a pitch hex (this codebase appears to leave dismissed players on
+the board with `redCarded: true` rather than removing them) will be relocated by the
+award-time clear-out along with everyone else. This is very likely harmless (a red-carded
+piece isn't going anywhere important), but it's an inconsistency worth a one-line comment
+confirming it's intentional, since every other penalty-kick helper in this same
+gap-closure round (`computePenaltyKickEligibleIds`) explicitly reasons about
+`redCarded`.
 
-**File:** `packages/client/src/store/useGameStore.ts:1270-1287`
-**Issue:** The client-side click handler for selecting a penalty taker checks
-`piece.teamId !== myTeam`, `piece.teamId !== gameState.penaltyKickTeam`, and
-`piece.role === 'GK'`, but does not also exclude `piece.redCarded === true` the way the
-server's `applyPenaltyKickTaker` does (`gameEngine.ts:6646-6654`, `TAKER_INVALID`). This is
-not a security issue (the server is authoritative and will reject the request), but it means
-a manager can click a sent-off teammate and get a round-trip `GAME_ERROR` instead of the
-piece simply being unselectable/un-clickable, which is worse UX than the other guards in the
-same block provide.
-**Fix:** add `|| piece.redCarded === true` to the rejection condition on line ~1279 to match
-server-side eligibility before emitting.
+### IN-02: `applyGkDiveAtFeetTarget`'s `resume` variable is read but the FAIL branch's `wouldBeState` silently falls back to `state.phase`/`state.activeTeam`/`state.movementSlot` if `resume` is null
+
+**File:** `packages/server/src/gameEngine.ts:1955, 2081-2090`
+
+**Issue:** `resume = state.gkDiveAtFeetResume` is destructured and used only in the FAIL
+branch's `wouldBeState` (`phase: resume?.phase ?? state.phase`, etc.), exactly mirroring
+the pre-existing `applyGkDiveAtFeetResponse` decline-branch pattern. This is consistent
+with the codebase's established fallback convention elsewhere, so it's not flagged as a
+bug — but unlike the SUCCESS branch (which has an explicit, well-reasoned
+`lastActionType: 'SUCCESSFUL_TACKLE'` / `phase: 'PASS'` transition), there is no comment
+explaining what a null `resume` at this specific two-step call site would mean in
+practice (it would resume into whatever the CURRENT — mid-flight — phase happens to be,
+which may not be a sensible resumption point). Given `gkDiveAtFeetResume` is set once at
+OFFER time and deliberately kept intact through the ACCEPT step (per the 39-20 doc
+comment), a null value here should be unreachable in practice; a short comment noting
+that invariant (or a defensive assertion) would make the fallback's safety explicit
+rather than implicit.
 
 ---
 
-_Reviewed: 2026-08-15T13:40:07Z_
+_Reviewed: 2026-08-15T23:04:38Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
