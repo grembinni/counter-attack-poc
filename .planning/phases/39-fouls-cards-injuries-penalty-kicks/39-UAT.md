@@ -1,85 +1,85 @@
 ---
-status: partial
+status: resolved
 phase: 39-fouls-cards-injuries-penalty-kicks
 source: [39-07-SUMMARY.md, 39-10-SUMMARY.md, 39-12-SUMMARY.md, 39-13-SUMMARY.md, 39-17-SUMMARY.md]
 started: 2026-08-15T13:28:24Z
-updated: 2026-08-15T13:28:24Z
+updated: 2026-08-15T23:16:56.238Z
 ---
 
 ## Current Test
 
-[testing paused — 9 items outstanding, live two-browser session not completed]
+[all 9 gaps closed by gap-closure plans 39-18 through 39-24; verified in 39-VERIFICATION.md]
 
 ## Tests
 
 ### 1. Continue-or-restart offered after a successful tackle/steal that was also a foul
 
 expected: When the defender's duel succeeds (turnover) AND the same duel triggers a foul (defender die of 1), the fouled manager should never see a "Continue Play" option — there is no play to continue, since the ball just changed possession via the foul. Only a restart (free kick/penalty kick) should be available.
-result: issue
+result: resolved
 reported: "if the tackle or steal succeeds but there is a foul, do not allow play to continue - proceed with free kick/penalty kick"
 severity: major
 
 ### 2. Restart location uses the fouler's contact hex instead of the ball's hex
 
 expected: The free kick/penalty restart should be placed where the ball was at the moment of the foul (the carrier/victim's hex), not where the fouling defender ended up.
-result: issue
+result: resolved
 reported: "kick location is there the ball was, not where the defender was when making the foul"
 severity: major
 
 ### 3. GK dive-at-feet has no hex-selection step
 
 expected: When the defending manager accepts the dive-at-feet prompt, they should choose which in-range hex (adjacent to the attacker/ball carrier) the goalkeeper dives to, as part of taking the action — not have the destination computed automatically with no input. The goalkeeper's piece must actually move to that chosen hex as part of resolving the dive action (not just use it to compute the duel/displacement while the GK piece stays put).
-result: issue
+result: resolved
 reported: "when keeper dives they should be choosing a hex in range next to the attacker with the ball as part of the action - to add and gk should move to that hex as part of the action."
 severity: major
 
 ### 4. Goalkeeper can shot-block dive again in the same movement phase after a dive-at-feet
 
 expected: The once-per-movement-cycle cap shared between the dive-at-feet interrupt and the shot-block GK_DIVE (documented D-09) should prevent a second dive of either kind until the next movement cycle. Observed behavior violates that cap.
-result: issue
+result: resolved
 reported: "keeper was able to attempt a save after making dive in the same movement phase"
 severity: major
 
 ### 5. Penalty kick trigger is scoped to GK-dive fouls only, not all in-box fouls
 
 expected: Any foul (tackle-sourced, steal-sourced, or GK-dive-sourced) that occurs inside the penalty box should award a penalty kick, not just fouls whose source is a GK dive-at-feet. On award: the defending goalkeeper automatically moves to the center of their own goal line (away: (36,13), home: (0,13)); every other piece inside the box is displaced outside the box using the existing anti-stacking relocation logic; the attacking team selects a kicker; the kicker and ball are placed at the penalty spot ((32,13) for away kicking / (4,13) for home kicking); standard free-kick movement rules apply except the kicker and the defending goalkeeper cannot be moved and no piece may move into the penalty box; Shoot is the only restart option (no pass options).
-result: issue
+result: resolved
 reported: "all fouls inside the box should be treated as penalty kicks, not just fouls from goalie dives. For penalty kick keeper automatically moves to the center goalline 36,13 / 0,13. all players in the box are moved outside the box using standard logic to prevent players stacking on each other. attacking team selects a kicker. kicker and ball are moved to 32,13 /4,13. standard free kick movement is allow with the following exceptions kicker and defending keeper cannot be moved and no player can move into the penalty box. Shoot is the only option on restart."
 severity: major
 
 ### 6. No explicit penalty-kicker selection UX
 
 expected: The attacking manager must explicitly select and confirm a penalty taker, matching the existing select-and-confirm pattern used for corner-kick taker and offside free-kick taker selection. If a different piece is already standing on the kick spot, it is displaced one hex back using the existing anti-stacking relocation logic.
-result: issue
+result: resolved
 reported: "cannot choose player to take penalty kick. Need to select and confirm kicker like with a corner kick or offsides kick. If different player is at kick spot move them back 1 spot using standard logic to prevent players stacking on each other."
 severity: major
 
 ### 7. No tackle-from-behind rule
 
 expected: When a tackle targets either of the two hexes directly behind the attacker (relative to attack direction), a foul should be triggered on a defender die of 1 OR 2 (a wider trigger than the standard die-of-1-only rule), and the Action Log should record it distinctly as a tackle from behind when it fires.
-result: issue
+result: resolved
 reported: "when tackling, if targeting either of the 2 spaces behind the attacker a foul is triggered on a 1 or a 2. Log tackle from behind if foul is called."
 severity: major
 
 ### 8. Professional foul (DOGSO) detection uses the wrong geometry
 
 expected: A foul counts as a professional foul (DOGSO) only when BOTH hold: (a) no defender other than the goalkeeper is horizontally closer to the goal than the attacker, AND (b) no defender other than the goalkeeper who IS closer to goal has a movement range that could reach the attacker's path toward goal. Worked example given: attacker at (21,15); a defender at (29,12) with move 4 is within range of (29,25) — wait, reachability is evaluated along the attacker's path, not a straight hex-distance to the attacker's current hex — so this defender does NOT establish DOGSO. The attacker's goal-path Y-coordinate is clamped: Y>20 is treated as 20, Y<5 is treated as 5, for these calculations.
-result: issue
+result: resolved
 reported: "dogso. No defender (besides the goalie) is horizontally closer than the attacker to the goal OR no defender who is closer to the goal (besides the goalie) movement cannot take them to the path of the attacker. i.e. attacker is on (21,15) when foul occurs. Defender at (29,12) with move 4 is within range of (29,25) so no DOGSO. Attackers position (X,Y>20) = (X,20) AND position (X,Y<5) = (X,5) for calculations."
 severity: major
 
 ### 9. Restart time cost — corner kick, free kick, penalty kick should cost 1 minute
 
 expected: Taking a corner kick, free kick, or penalty kick should each advance the game clock by 1 minute, matching the goal kick's existing +1 cost. Currently these three restarts cost 0 minutes (only the goal kick charges +1; the clock otherwise only advances on movement-cycle completion, a successful tackle/steal, or a non-first-time pass).
-result: issue
+result: resolved
 reported: "time cost. corner kick, free kick, penalty kick should all cost 1 min."
 severity: minor
 
 ## Summary
 
 total: 9
-passed: 0
-issues: 9
+passed: 9
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
