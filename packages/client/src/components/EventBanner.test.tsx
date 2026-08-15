@@ -383,6 +383,7 @@ describe('multi-event broadcast (Pitfall 1)', () => {
           source: 'TACKLE',
           defenderDie: 1,
           professional: false,
+          fromBehind: false,
           timestamp: 1,
         },
         {
@@ -438,6 +439,7 @@ describe('multi-event broadcast (Pitfall 1)', () => {
           source: 'TACKLE',
           defenderDie: 1,
           professional: false,
+          fromBehind: false,
           timestamp: 1,
         },
         {

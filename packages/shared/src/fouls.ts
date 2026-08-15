@@ -1,5 +1,5 @@
 import type { GameState, HexCoord, PlayerPiece } from './types.js';
-import { hexDistance, hexLine } from './hex.js';
+import { hexDistance, hexLine, hexNeighbors } from './hex.js';
 
 /**
  * v1.6 (Phase 39): pure, side-effect-free foul/injury/booking/professional-foul rule
@@ -19,6 +19,12 @@ import { hexDistance, hexLine } from './hex.js';
  * pace. The goalkeeper of the fouling (defending) team is now explicitly excluded from
  * the covering-defender set — previously only the fouler itself and red-carded pieces
  * were excluded.
+ *
+ * FOUL-01 from-behind variant (Plan 39-24, closes 39-UAT gap 7): a TACKLE_ATTEMPT that
+ * arrives on either of the two hexes directly behind the ball carrier fouls on a
+ * defender die of 1 OR 2 (`FOUL_TRIGGER_DIE_FROM_BEHIND`), instead of only 1
+ * (`FOUL_TRIGGER_DIE`). STEAL_ATTEMPT and GK_DIVE_AT_FEET fouls are unaffected and keep
+ * the die-of-1 trigger — see `foulTriggerThreshold`.
  */
 
 /**
@@ -30,6 +36,16 @@ import { hexDistance, hexLine } from './hex.js';
  * existing duel types (STEAL_ATTEMPT, TACKLE_ATTEMPT) can produce a foul.
  */
 export const FOUL_TRIGGER_DIE = 1;
+
+/**
+ * FOUL-01 (Plan 39-24, 39-UAT gap 7): widened trigger for a TACKLE_ATTEMPT that arrives
+ * from behind the ball carrier — a foul is called on a defender die less than or equal
+ * to this value (so 1 OR 2). Every other duel (STEAL_ATTEMPT, GK_DIVE_AT_FEET, and a
+ * TACKLE_ATTEMPT that is NOT from behind) keeps `FOUL_TRIGGER_DIE`. Never compare a die
+ * to this constant directly at a call site — always go through `foulTriggerThreshold`,
+ * the single place the two constants are chosen between.
+ */
+export const FOUL_TRIGGER_DIE_FROM_BEHIND = 2;
 
 /** INJURY-02: the nine numeric PlayerPiece attributes degraded by an injury. */
 export const INJURY_DEGRADED_ATTRIBUTES = [
@@ -213,4 +229,52 @@ export function isProfessionalFoul(
   });
 
   return !covered;
+}
+
+/**
+ * FOUL-01 (Plan 39-24, 39-UAT gap 7): returns the two hexes directly behind
+ * `attackerHex`, relative to the goal `attackingTeam` is attacking (`goalQ = 36` for
+ * `'home'`, `goalQ = 0` for `'away'`, the repo-wide convention mirrored from
+ * `attackerGoalPath` above). "Behind" means away from the attacked goal — the two
+ * `hexNeighbors` results with `q === attackerHex.q - 1` for `'home'` (attacking toward
+ * increasing q) or `q === attackerHex.q + 1` for `'away'` (attacking toward decreasing
+ * q).
+ *
+ * The ODD-Q neighbour set (`hexNeighbors`, imported from `./hex.js` — never hand-rolled
+ * here, per Phase 17.1-08's parity-bug precedent) always contains exactly two hexes at
+ * each of `Δq = -1`, `Δq = 0`, `Δq = +1`, so this always returns exactly two hexes.
+ * On-pitch filtering is deliberately NOT applied here — the caller compares this result
+ * against a defender's actual (already move-validated, therefore on-pitch) destination
+ * hex, so an off-pitch "behind" hex, if one exists at a board edge, simply never matches.
+ */
+export function hexesBehindAttacker(
+  attackerHex: HexCoord,
+  attackingTeam: 'home' | 'away',
+): HexCoord[] {
+  const behindQ = attackingTeam === 'home' ? attackerHex.q - 1 : attackerHex.q + 1;
+  return hexNeighbors(attackerHex).filter((h) => h.q === behindQ);
+}
+
+/**
+ * FOUL-01 (Plan 39-24): true when `tackleHex` structurally equals (matching `q` AND `r`
+ * — never `Array.includes` on a `HexCoord`, the PITCH-02 structural-equality convention)
+ * one of `hexesBehindAttacker(attackerHex, attackingTeam)`'s two hexes.
+ */
+export function isTackleFromBehind(
+  attackerHex: HexCoord,
+  tackleHex: HexCoord,
+  attackingTeam: 'home' | 'away',
+): boolean {
+  return hexesBehindAttacker(attackerHex, attackingTeam).some(
+    (h) => h.q === tackleHex.q && h.r === tackleHex.r,
+  );
+}
+
+/**
+ * FOUL-01 (Plan 39-24): the single place `FOUL_TRIGGER_DIE` and
+ * `FOUL_TRIGGER_DIE_FROM_BEHIND` are chosen between — no call site should ever branch on
+ * a `fromBehind` boolean itself.
+ */
+export function foulTriggerThreshold(fromBehind: boolean): number {
+  return fromBehind ? FOUL_TRIGGER_DIE_FROM_BEHIND : FOUL_TRIGGER_DIE;
 }

@@ -632,6 +632,13 @@ export type ActionEvent =
       source: 'TACKLE' | 'STEAL' | 'GK_DIVE_AT_FEET';
       defenderDie: number;
       professional: boolean;
+      /**
+       * FOUL-01 (Plan 39-24, 39-UAT gap 7): true only for a TACKLE-sourced foul whose
+       * destination was one of the two hexes directly behind the carrier (widened
+       * die-of-1-OR-2 trigger). Always false for STEAL and GK_DIVE_AT_FEET sources, which
+       * keep the die-of-1 trigger.
+       */
+      fromBehind: boolean;
       timestamp: number;
     }
   | {

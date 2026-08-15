@@ -78,6 +78,8 @@ import {
   resolveBooking,
   applyInjuryDegradation,
   isProfessionalFoul,
+  isTackleFromBehind,
+  foulTriggerThreshold,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -748,6 +750,13 @@ export type ResolveFoulChainResult = {
  * DECISION (39-10, resolves 39-RESEARCH.md Assumption A1): `injuryDie` and
  * `bookingDie` are FRESH dice, independent of `defenderDie` — see the
  * decision comment at the top of gameEngine.fouls.test.ts.
+ *
+ * FOUL-01 from-behind variant (Plan 39-24, 39-UAT gap 7): `triggerThreshold` (default
+ * `FOUL_TRIGGER_DIE`) and `fromBehind` (default `false`) let the TACKLE_ATTEMPT call
+ * site widen the trigger to a defender die of 1 OR 2 when the tackle arrives from
+ * behind the carrier. Only the TACKLE_ATTEMPT call site ever passes a computed
+ * `triggerThreshold`/`fromBehind` — STEAL_ATTEMPT and GK_DIVE_AT_FEET take the defaults
+ * and therefore always keep the die-of-1 trigger.
  */
 export function resolveFoulChain(input: {
   state: GameState;
@@ -760,13 +769,25 @@ export function resolveFoulChain(input: {
   defenderDie: number;
   injuryDie: number;
   bookingDie: number;
+  triggerThreshold?: number;
+  fromBehind?: boolean;
 }): ResolveFoulChainResult {
-  const { state, defenderId, victimId, foulHex, source, defenderDie, injuryDie, bookingDie } =
-    input;
+  const {
+    state,
+    defenderId,
+    victimId,
+    foulHex,
+    source,
+    defenderDie,
+    injuryDie,
+    bookingDie,
+    triggerThreshold = FOUL_TRIGGER_DIE,
+    fromBehind = false,
+  } = input;
   let pieces = input.pieces;
   let eventLog = input.eventLog;
 
-  if (state.foulsEnabled !== true || defenderDie !== FOUL_TRIGGER_DIE) {
+  if (state.foulsEnabled !== true || defenderDie > triggerThreshold) {
     return { fouled: false, pieces, eventLog, foulFields: {} };
   }
 
@@ -780,6 +801,7 @@ export function resolveFoulChain(input: {
     source,
     defenderDie,
     professional,
+    fromBehind,
     timestamp: Date.now(),
   };
   eventLog = [...eventLog, foulCalledEvent];
@@ -1148,6 +1170,8 @@ export function applyMove(
     // STEAL_ATTEMPT), and `victimId: pieceId` above confirms it — so `to` is already the
     // carrier's, and therefore the ball's, post-move hex. 39-UAT.md's root_cause note
     // asserted both call sites were wrong; this one was already correct.
+    // 39-24: no triggerThreshold/fromBehind passed here — steals keep the die-of-1
+    // trigger; do not "helpfully" extend the from-behind widening to this call site.
     const stealFoulChain = resolveFoulChain({
       state,
       pieces: effectivePieces,
@@ -1216,6 +1240,11 @@ export function applyMove(
       // hex, not the ball's. The restart belongs where the ball was, which is the carrier's
       // hex (`carrier.position`, in scope and non-null inside this `if (carrier !== undefined)`
       // block).
+      // 39-24 (39-UAT gap 7): a tackle whose destination (`to`) is one of the two hexes
+      // directly behind the carrier widens the trigger to a defender die of 1 OR 2 — the
+      // attacker's team is the CARRIER's team (`carrier.teamId`), and `to` is already
+      // validated by validateMove before this branch is ever reached.
+      const tackleFromBehind = isTackleFromBehind(carrier.position, to, carrier.teamId);
       const tackleFoulChain = resolveFoulChain({
         state,
         pieces: effectivePieces,
@@ -1227,6 +1256,8 @@ export function applyMove(
         defenderDie: defDie,
         injuryDie: dice?.injuryDie ?? 3,
         bookingDie: dice?.bookingDie ?? 3,
+        triggerThreshold: foulTriggerThreshold(tackleFromBehind),
+        fromBehind: tackleFromBehind,
       });
       effectivePieces = tackleFoulChain.pieces;
       newEventLog = tackleFoulChain.eventLog;
@@ -2016,6 +2047,8 @@ export function applyGkDiveAtFeetTarget(
   // defenderDie === FOUL_TRIGGER_DIE, so this call is unconditional here.
   // The restart still belongs on the ball's hex — foulHex stays carrier.position
   // (Plan 39-18's rule), NOT the goalkeeper's new position.
+  // 39-24: no triggerThreshold/fromBehind passed here — GK-dive-at-feet fouls keep the
+  // die-of-1 trigger; do not "helpfully" extend the from-behind widening to this call site.
   const foulChain = resolveFoulChain({
     state,
     pieces,

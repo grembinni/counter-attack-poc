@@ -120,6 +120,45 @@ function tackleState(tackler: PlayerPiece, over: Partial<GameState> = {}): GameS
 }
 
 // ---------------------------------------------------------------------------
+// Plan 39-24 (closes 39-UAT gap 7) fixtures: a home carrier at {q:10,r:7}
+// (even q) has neighbours {11,6}/{11,7} (front), {10,6}/{10,8} (lateral), and
+// {9,6}/{9,7} (behind — hexesBehindAttacker({q:10,r:7},'home')). Each tackler
+// below starts one hex outside its target neighbour and moves onto it.
+// ---------------------------------------------------------------------------
+function tackleStateFrom(
+  tacklerStart: HexCoord,
+  tacklerOver: Partial<PlayerPiece> = {},
+  over: Partial<GameState> = {},
+): GameState {
+  const tackler = piece('tackler', 'away', tacklerStart, { tackling: 1, ...tacklerOver });
+  return baseState([tackleCarrier, tackler], {
+    movementSlot: 'DEFENDER_5',
+    activeTeam: 'away',
+    attackingTeam: 'home',
+    ball: { position: { q: 10, r: 7 }, carrierId: 'carrier', lastTouchedBy: null },
+    ...over,
+  });
+}
+
+// Away-attacking mirror: away carrier at {q:20,r:7} (even q) has behind hexes
+// {21,6}/{21,7} (q+1) — proves the direction term is not hardcoded to home.
+const awayMirrorCarrier = piece('carrier', 'away', { q: 20, r: 7 }, { dribbling: 4 });
+function awayMirrorTackleStateFrom(
+  tacklerStart: HexCoord,
+  tacklerOver: Partial<PlayerPiece> = {},
+  over: Partial<GameState> = {},
+): GameState {
+  const tackler = piece('tackler', 'home', tacklerStart, { tackling: 1, ...tacklerOver });
+  return baseState([awayMirrorCarrier, tackler], {
+    movementSlot: 'DEFENDER_5',
+    activeTeam: 'home',
+    attackingTeam: 'away',
+    ball: { position: { q: 20, r: 7 }, carrierId: 'carrier', lastTouchedBy: null },
+    ...over,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // FOUL-01: defender die === 1 calls a foul
 // ---------------------------------------------------------------------------
 
@@ -710,5 +749,129 @@ describe('FOUL-04: Professional Foul reachability (reachable/unreachable teammat
     if (!result.ok) return;
     const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
     expect(foulEvent?.type === 'FOUL_CALLED' && foulEvent.professional).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FOUL-01 (Plan 39-24, closes 39-UAT gap 7): tackle-from-behind widened
+// trigger — a TACKLE_ATTEMPT landing on either of the two hexes behind the
+// carrier fouls on a defender die of 1 OR 2. Lateral/in-front destinations,
+// STEAL_ATTEMPT, and GK_DIVE_AT_FEET all keep the die-of-1 trigger.
+// ---------------------------------------------------------------------------
+
+describe('FOUL-01 from-behind: TACKLE_ATTEMPT onto a behind hex widens the trigger to 1 OR 2', () => {
+  it('tackleDie:2 onto a behind hex ({9,7}) fouls, FOUL_CHOICE, fromBehind:true', () => {
+    const result = applyMove(
+      tackleStateFrom({ q: 8, r: 7 }),
+      'tackler',
+      { q: 9, r: 7 },
+      { stealDie: 3, tackleDie: 2, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
+    expect(foulEvent).toBeDefined();
+    if (foulEvent?.type === 'FOUL_CALLED') {
+      expect(foulEvent.fromBehind).toBe(true);
+      expect(foulEvent.defenderDie).toBe(2);
+      expect(foulEvent.source).toBe('TACKLE');
+    }
+    expect(result.state.phase).toBe('FOUL_CHOICE');
+  });
+
+  it('tackleDie:1 onto the same behind hex also fouls, fromBehind:true', () => {
+    const result = applyMove(
+      tackleStateFrom({ q: 8, r: 7 }),
+      'tackler',
+      { q: 9, r: 7 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
+    expect(foulEvent).toBeDefined();
+    if (foulEvent?.type === 'FOUL_CALLED') expect(foulEvent.fromBehind).toBe(true);
+    expect(result.state.phase).toBe('FOUL_CHOICE');
+  });
+
+  it('tackleDie:3 onto the same behind hex does NOT foul', () => {
+    const result = applyMove(
+      tackleStateFrom({ q: 8, r: 7 }),
+      'tackler',
+      { q: 9, r: 7 },
+      { stealDie: 3, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.some((e) => e.type === 'FOUL_CALLED')).toBe(false);
+    expect(result.state.phase).not.toBe('FOUL_CHOICE');
+  });
+
+  it('tackleDie:2 onto a LATERAL neighbour ({10,6}, Δq===0) does NOT foul', () => {
+    const result = applyMove(
+      tackleStateFrom({ q: 11, r: 6 }),
+      'tackler',
+      { q: 10, r: 6 },
+      { stealDie: 3, tackleDie: 2, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.some((e) => e.type === 'FOUL_CALLED')).toBe(false);
+    expect(result.state.phase).not.toBe('FOUL_CHOICE');
+  });
+
+  it('tackleDie:1 onto the same LATERAL neighbour fouls, but fromBehind:false', () => {
+    const result = applyMove(
+      tackleStateFrom({ q: 11, r: 6 }),
+      'tackler',
+      { q: 10, r: 6 },
+      { stealDie: 3, tackleDie: 1, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
+    expect(foulEvent).toBeDefined();
+    if (foulEvent?.type === 'FOUL_CALLED') expect(foulEvent.fromBehind).toBe(false);
+    expect(result.state.phase).toBe('FOUL_CHOICE');
+  });
+
+  it('tackleDie:2 onto an IN-FRONT neighbour ({11,7}, Δq===+1 for home) does NOT foul', () => {
+    const result = applyMove(
+      tackleStateFrom({ q: 12, r: 7 }),
+      'tackler',
+      { q: 11, r: 7 },
+      { stealDie: 3, tackleDie: 2, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.some((e) => e.type === 'FOUL_CALLED')).toBe(false);
+    expect(result.state.phase).not.toBe('FOUL_CHOICE');
+  });
+
+  it('STEAL_ATTEMPT with stealDie:2 does NOT foul (threshold unchanged for steals)', () => {
+    const result = applyMove(
+      stealState(stealDefenderFail),
+      'carrier',
+      { q: 11, r: 7 },
+      { stealDie: 2, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.eventLog.some((e) => e.type === 'FOUL_CALLED')).toBe(false);
+  });
+
+  it('away-attacking mirror: behind hexes are at q+1; tackleDie:2 onto {21,7} fouls with fromBehind:true', () => {
+    const result = applyMove(
+      awayMirrorTackleStateFrom({ q: 22, r: 7 }),
+      'tackler',
+      { q: 21, r: 7 },
+      { stealDie: 3, tackleDie: 2, carrierDie: 3, injuryDie: 3, bookingDie: 3 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const foulEvent = result.state.eventLog.find((e) => e.type === 'FOUL_CALLED');
+    expect(foulEvent).toBeDefined();
+    if (foulEvent?.type === 'FOUL_CALLED') expect(foulEvent.fromBehind).toBe(true);
+    expect(result.state.phase).toBe('FOUL_CHOICE');
   });
 });
