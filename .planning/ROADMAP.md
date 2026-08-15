@@ -346,7 +346,7 @@ Plans:
 4. During a defending Movement Phase, a goalkeeper adjacent to the ball carrier can tackle via the existing duel; when the carrier dribbles within 3 hexes of the goalkeeper parallel to the goal line, the GK's team may dive at the attacker's feet (at most once per movement cycle, -1 dice penalty from the 3rd hex, displacing any occupied piece and the ball one hex further in the dive direction on success), and a GK roll of 1 in either context fouls into a penalty kick regardless of the duel's outcome.
 5. A penalty kick is a kicker-vs-goalkeeper duel with a -2 goalkeeper dice penalty; both teams freely reposition beforehand (only the kicker and the defending goalkeeper allowed in the penalty area, kicker chosen via the existing free-kick kicker-select flow), and a tied duel results in a Loose Ball at the penalty spot — and Fouls, Booking, and Injury are each independently toggleable at game creation, with Booking and Injury having no effect unless Fouls is also enabled.
 
-**Plans**: 17 plans in 9 waves
+**Plans**: 24 plans in 13 waves (17 original + 7 gap-closure)
 
 **Wave 1** _(contract surface — everything depends on it)_
 
@@ -391,6 +391,25 @@ Plans:
 **Wave 9**
 
 - [ ] 39-17-PLAN.md — Undo/Replay registration audit + blocking two-browser human verification
+
+**Wave 10** _(gap closure — 9 live-UAT defects from 39-UAT.md)_
+
+- [ ] 39-18-PLAN.md — Foul restart routing, location and time cost (UAT gaps 1, 2, 9)
+
+**Wave 11** _(two parallel plans, no file overlap)_
+
+- [ ] 39-19-PLAN.md — DOGSO goal-side + goal-path geometry rework (UAT gap 8)
+- [ ] 39-20-PLAN.md — GK dive-at-feet target phase + GK relocation, shared dive cap (UAT gaps 3-server, 4)
+
+**Wave 12** _(two parallel plans, no file overlap)_
+
+- [ ] 39-21-PLAN.md — Client interaction for choosing the dive destination hex (UAT gap 3-client)
+- [ ] 39-22-PLAN.md — All in-box fouls award a penalty; award-time setup and reposition locks (UAT gap 5)
+
+**Wave 13** _(two parallel plans, no file overlap)_
+
+- [ ] 39-23-PLAN.md — Penalty-taker select-and-confirm UX and shoot-only restart (UAT gap 6)
+- [ ] 39-24-PLAN.md — Tackle-from-behind rule and distinct Action Log entry (UAT gap 7)
 
 **UI hint**: yes
 
