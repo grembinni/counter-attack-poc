@@ -132,7 +132,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | ----- | ------------- | ----------- | ----------- |
 | 37    | 19/19         | Complete    | 2026-08-07  |
 | 38    | 33/33         | Complete    | 2026-08-09  |
-| 39    | 16/17         | In Progress |             |
+| 39    | 18/24         | In Progress |             |
 | 40    | Substitutions | TBD         | Not started |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
@@ -390,11 +390,11 @@ Plans:
 
 **Wave 9**
 
-- [ ] 39-17-PLAN.md — Undo/Replay registration audit + blocking two-browser human verification
+- [x] 39-17-PLAN.md — Undo/Replay registration audit + blocking two-browser human verification
 
 **Wave 10** _(gap closure — 9 live-UAT defects from 39-UAT.md)_
 
-- [ ] 39-18-PLAN.md — Foul restart routing, location and time cost (UAT gaps 1, 2, 9)
+- [x] 39-18-PLAN.md — Foul restart routing, location and time cost (UAT gaps 1, 2, 9)
 
 **Wave 11** _(two parallel plans, no file overlap)_
 
