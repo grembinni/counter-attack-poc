@@ -28,9 +28,9 @@ severity: major
 
 ### 3. GK dive-at-feet has no hex-selection step
 
-expected: When the defending manager accepts the dive-at-feet prompt, they should choose which in-range hex (adjacent to the attacker/ball carrier) the goalkeeper dives to, as part of taking the action — not have the destination computed automatically with no input.
+expected: When the defending manager accepts the dive-at-feet prompt, they should choose which in-range hex (adjacent to the attacker/ball carrier) the goalkeeper dives to, as part of taking the action — not have the destination computed automatically with no input. The goalkeeper's piece must actually move to that chosen hex as part of resolving the dive action (not just use it to compute the duel/displacement while the GK piece stays put).
 result: issue
-reported: "when keeper dives they should be choosing a hex in range next to the attacker with the ball as part of the action"
+reported: "when keeper dives they should be choosing a hex in range next to the attacker with the ball as part of the action - to add and gk should move to that hex as part of the action."
 severity: major
 
 ### 4. Goalkeeper can shot-block dive again in the same movement phase after a dive-at-feet
@@ -112,19 +112,20 @@ blocked: 0
   - "Change foulHex to the carrier's position at both call sites; verify triggerFoulFreeKick/triggerPenaltyKick still consume it correctly"
     debug_session: ""
 
-- truth: "Accepting a dive-at-feet prompt requires the defending manager to choose the destination hex (in range, adjacent to the ball carrier) as part of the action"
+- truth: "Accepting a dive-at-feet prompt requires the defending manager to choose the destination hex (in range, adjacent to the ball carrier) as part of the action, and the goalkeeper's piece moves to that chosen hex as part of resolving the action"
   status: failed
-  reason: "User reported: when keeper dives they should be choosing a hex in range next to the attacker with the ball as part of the action"
+  reason: "User reported: when keeper dives they should be choosing a hex in range next to the attacker with the ball as part of the action - to add and gk should move to that hex as part of the action."
   severity: major
   test: 3
   root_cause: ""
   artifacts:
   - path: "packages/server/src/gameEngine.ts"
-    issue: "applyGkDiveAtFeetResponse / computeGkDiveAtFeetOffer / computeGkDiveDisplacement (Plan 39-12) compute the dive outcome and displacement automatically with no manager-chosen target hex"
+    issue: "applyGkDiveAtFeetResponse / computeGkDiveAtFeetOffer / computeGkDiveDisplacement (Plan 39-12) compute the dive outcome and displacement automatically with no manager-chosen target hex, and never relocate the GK's own piece to a dive destination"
   - path: "packages/client/src/components/GkDiveAtFeetPromptPanel.tsx"
     issue: "Dive/Decline two-button panel has no hex-selection step"
     missing:
   - "A hex-selection interaction (likely mirroring the existing goalkeeper reposition-window pattern) before the dive duel resolves"
+  - "Server-side: move the goalkeeper's piece position to the manager-chosen hex as part of applying the dive action (not just using the hex to compute duel/displacement outcomes)"
     debug_session: ""
 
 - truth: "The dive-at-feet interrupt and the shot-block GK_DIVE share one once-per-movement-cycle cap, enforced correctly within a single movement phase"
