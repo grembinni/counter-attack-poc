@@ -55,7 +55,7 @@ import type {
   PlayerPiece,
   ServerToClientEvents,
 } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, computeGkDiveAtFeetTargetHexes } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle (mirrors foulFreeKick.integration.test.ts verbatim)
@@ -454,8 +454,25 @@ describe('GKDIVE-02/D-07: declining the dive-at-feet offer', () => {
 // 5. Accept — cap consumed (GKDIVE-05)
 // ---------------------------------------------------------------------------
 
-describe('GKDIVE-01/05: accepting the dive-at-feet offer', () => {
-  it('accept:true appends GK_DIVE_AT_FEET with both dice/scores and sets the cap so a further qualifying move does NOT re-offer', async () => {
+describe('GKDIVE-01/05 (39-UAT gap 3): accepting the dive-at-feet offer opens GK_DIVE_AT_FEET_TARGET', () => {
+  it('accept:true broadcasts phase GK_DIVE_AT_FEET_TARGET with no GK_DIVE_AT_FEET event appended yet, and sets the cap immediately', async () => {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const { carrierId } = seedDiveAtFeetMove(roomCode);
+    await driveIntoRange(clientA, clientB, carrierId);
+
+    const acceptPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const acceptPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_GK_DIVE_AT_FEET, true);
+    const [[acceptedState]] = await Promise.all([acceptPromiseA, acceptPromiseB]);
+
+    expect(acceptedState.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    expect(acceptedState.eventLog.find((e) => e.type === 'GK_DIVE_AT_FEET')).toBeUndefined();
+    expect(acceptedState.gkDiveAtFeetUsedByTeam?.home).toBe(true);
+    expect(acceptedState.gkDiveAtFeetGkId).not.toBeNull();
+    expect(acceptedState.gkDiveAtFeetCarrierId).toBe(carrierId);
+  });
+
+  it('accept:true then resolving GAME_GK_DIVE_AT_FEET_TARGET appends GK_DIVE_AT_FEET with both dice/scores and sets the cap so a further qualifying move does NOT re-offer', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
     // Deterministic FAIL (carrier always wins the duel regardless of dice) so play resumes
     // in MOVE with the away carrier still holding the ball — lets the "further move does
@@ -463,13 +480,19 @@ describe('GKDIVE-01/05: accepting the dive-at-feet offer', () => {
     const { carrierId } = seedDiveAtFeetMove(roomCode, { gkSaving: 1, carrierDribbling: 10 });
     await driveIntoRange(clientA, clientB, carrierId);
 
-    // Wait for BOTH clients' copies (see driveIntoRange's doc comment).
     const acceptPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
     const acceptPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_GK_DIVE_AT_FEET, true);
     const [[acceptedState]] = await Promise.all([acceptPromiseA, acceptPromiseB]);
+    expect(acceptedState.phase).toBe('GK_DIVE_AT_FEET_TARGET');
 
-    const diveEvent = acceptedState.eventLog.find((e) => e.type === 'GK_DIVE_AT_FEET');
+    const chosenHex = computeGkDiveAtFeetTargetHexes(acceptedState)[0]!;
+    const resolvePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const resolvePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, chosenHex);
+    const [[resolvedState]] = await Promise.all([resolvePromiseA, resolvePromiseB]);
+
+    const diveEvent = resolvedState.eventLog.find((e) => e.type === 'GK_DIVE_AT_FEET');
     expect(diveEvent).toBeDefined();
     if (diveEvent?.type !== 'GK_DIVE_AT_FEET') throw new Error('unreachable');
     expect(typeof diveEvent.gkDie).toBe('number');
@@ -477,9 +500,10 @@ describe('GKDIVE-01/05: accepting the dive-at-feet offer', () => {
     expect(typeof diveEvent.gkCombined).toBe('number');
     expect(typeof diveEvent.carrierCombined).toBe('number');
     expect(diveEvent.result).toBe('FAIL');
-    expect(acceptedState.gkDiveAtFeetUsedByTeam?.home).toBe(true);
-    expect(acceptedState.phase).toBe('MOVE');
-    expect(acceptedState.activeTeam).toBe('away');
+    expect(diveEvent.diveTo).toEqual(chosenHex);
+    expect(resolvedState.gkDiveAtFeetUsedByTeam?.home).toBe(true);
+    expect(resolvedState.phase).toBe('MOVE');
+    expect(resolvedState.activeTeam).toBe('away');
 
     // A further qualifying move (one more hex closer, still <=3) must NOT re-offer —
     // the cap is set.
@@ -487,6 +511,110 @@ describe('GKDIVE-01/05: accepting the dive-at-feet offer', () => {
 
     expect(noOfferState.phase).toBe('MOVE');
     expect(noOfferState.gkDiveAtFeetTeam).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5b. GAME_GK_DIVE_AT_FEET_TARGET — access control, payload validation, server-side
+// membership check, and the happy path (39-UAT gap 3)
+// ---------------------------------------------------------------------------
+
+describe('39-UAT gap 3: GAME_GK_DIVE_AT_FEET_TARGET', () => {
+  async function acceptAndReachTarget(): Promise<{
+    clientA: Socket<ServerToClientEvents, ClientToServerEvents>;
+    clientB: Socket<ServerToClientEvents, ClientToServerEvents>;
+    roomCode: string;
+    acceptedState: GameState;
+    gkId: string;
+    carrierId: string;
+  }> {
+    const { clientA, clientB, roomCode } = await setupRoom();
+    const { carrierId, homeGkId } = seedDiveAtFeetMove(roomCode);
+    await driveIntoRange(clientA, clientB, carrierId);
+
+    const acceptPromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const acceptPromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_GK_DIVE_AT_FEET, true);
+    const [[acceptedState]] = await Promise.all([acceptPromiseA, acceptPromiseB]);
+
+    return { clientA, clientB, roomCode, acceptedState, gkId: homeGkId, carrierId };
+  }
+
+  it('the NON-goalkeeper manager emitting GAME_GK_DIVE_AT_FEET_TARGET receives WRONG_TEAM and mutates nothing', async () => {
+    const { clientB, roomCode, acceptedState, gkId } = await acceptAndReachTarget();
+    const to = computeGkDiveAtFeetTargetHexes(acceptedState)[0]!;
+
+    const errorPromise = oncePromise(clientB, ServerEvents.GAME_ERROR);
+    clientB.emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, to);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('WRONG_TEAM');
+    const state = getRoom(roomCode)!.gameState!;
+    expect(state.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    expect(state.pieces.find((p) => p.id === gkId)?.position).toEqual(HOME_GK_HEX);
+  });
+
+  it('a malformed payload (missing q) receives INVALID_TARGET and mutates nothing', async () => {
+    const { clientA, roomCode, gkId } = await acceptAndReachTarget();
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clientA as any).emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, { r: 13 });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
+    const state = getRoom(roomCode)!.gameState!;
+    expect(state.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    expect(state.pieces.find((p) => p.id === gkId)?.position).toEqual(HOME_GK_HEX);
+  });
+
+  it('a malformed payload (string r) receives INVALID_TARGET and mutates nothing', async () => {
+    const { clientA, roomCode, gkId } = await acceptAndReachTarget();
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clientA as any).emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, { q: 1, r: '13' });
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('INVALID_TARGET');
+    const state = getRoom(roomCode)!.gameState!;
+    expect(state.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    expect(state.pieces.find((p) => p.id === gkId)?.position).toEqual(HOME_GK_HEX);
+  });
+
+  it('a legal-looking but out-of-set hex (adjacent to the carrier, but outside the GK dive range) receives MOVE_INVALID and leaves the goalkeeper unmoved', async () => {
+    const { clientA, roomCode, gkId } = await acceptAndReachTarget();
+    // The carrier sits at CARRIER_BOUNDARY_HEX ({q:3,r:13}), distance 3 from HOME_GK_HEX.
+    // {q:4,r:13} is adjacent to the carrier (distance 1) but distance 4 from the GK —
+    // "next to the attacker" but outside dive range.
+    const outOfRangeButAdjacent: HexCoord = { q: 4, r: 13 };
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    clientA.emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, outOfRangeButAdjacent);
+    const [reason] = await errorPromise;
+
+    expect(reason).toBe('MOVE_INVALID');
+    const state = getRoom(roomCode)!.gameState!;
+    expect(state.phase).toBe('GK_DIVE_AT_FEET_TARGET');
+    expect(state.pieces.find((p) => p.id === gkId)?.position).toEqual(HOME_GK_HEX);
+  });
+
+  it('happy path: the goalkeeper piece ends up on the emitted hex and the event log ends with a matching GK_DIVE_AT_FEET event', async () => {
+    const { clientA, clientB, acceptedState, gkId } = await acceptAndReachTarget();
+    const chosenHex = computeGkDiveAtFeetTargetHexes(acceptedState)[0]!;
+
+    const statePromiseA = oncePromise(clientA, ServerEvents.GAME_STATE);
+    const statePromiseB = oncePromise(clientB, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_GK_DIVE_AT_FEET_TARGET, chosenHex);
+    const [[resolvedState]] = await Promise.all([statePromiseA, statePromiseB]);
+
+    expect(resolvedState.pieces.find((p) => p.id === gkId)?.position).toEqual(chosenHex);
+    const lastEvent = resolvedState.eventLog[resolvedState.eventLog.length - 1];
+    expect(lastEvent?.type).toBe('GK_DIVE_AT_FEET');
+    if (lastEvent?.type === 'GK_DIVE_AT_FEET') {
+      expect(lastEvent.diveTo).toEqual(chosenHex);
+      expect(lastEvent.gkId).toBe(gkId);
+    }
   });
 });
 
@@ -504,6 +632,64 @@ describe('D-09: a used dive-at-feet cap skips the shot-block GK_DIVE reposition 
     const [state] = await statePromise;
 
     expect(state.phase).not.toBe('GK_DIVE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 39-UAT gap 4 regression: the fifth GK_DIVE entry point (GAME_END_TURN's
+// SNAPSHOT_DEFLECT resolution branch) must also route through enterGkDiveOrSkip.
+// ---------------------------------------------------------------------------
+
+/**
+ * Seeds a SNAPSHOT_DEFLECT phase (away attacking, home defending) with the home team's
+ * dive-at-feet cap ALREADY used, the shot path clear of any home outfield defender (no
+ * deflection), and the home GK within range of the shot path (so, absent the fix, the
+ * snapshot resolution would reach a shot-block GK_DIVE reposition window) — ready for a
+ * real GAME_END_TURN emitted by the defending (home) manager.
+ */
+function seedSnapshotDeflectCapUsed(roomCode: string): { shooterId: string } {
+  const room = getRoom(roomCode);
+  if (!room || !room.gameState) throw new Error('Room or gameState not found');
+
+  const homeGk = room.gameState.pieces.find((p) => p.teamId === 'home' && p.role === 'GK')!;
+  const shooter = room.gameState.pieces.find((p) => p.teamId === 'away' && p.role !== 'GK')!;
+
+  let pieces = room.gameState.pieces.map((p) => {
+    if (p.id === homeGk.id) return { ...p, position: HOME_GK_HEX };
+    if (p.id === shooter.id) return { ...p, position: CARRIER_BOUNDARY_HEX };
+    return p;
+  });
+  pieces = parkBackgroundPieces(pieces, new Set([homeGk.id, shooter.id]));
+
+  room.gameState = {
+    ...room.gameState,
+    phase: 'SNAPSHOT_DEFLECT',
+    attackingTeam: 'away',
+    activeTeam: 'home',
+    shotTargetHex: HOME_GK_HEX,
+    ball: { position: CARRIER_BOUNDARY_HEX, carrierId: shooter.id, lastTouchedBy: null },
+    ballZone: 'home',
+    foulsEnabled: true,
+    gkDiveAtFeetUsedByTeam: { home: true, away: false },
+    pieces,
+  };
+  room.lastBroadcastBallPosition = CARRIER_BOUNDARY_HEX;
+
+  return { shooterId: shooter.id };
+}
+
+describe('39-UAT gap 4: SNAPSHOT_DEFLECT resolution routes through enterGkDiveOrSkip', () => {
+  it('a snapshot resolved via GAME_END_TURN when the defending team already used its dive-at-feet produces phase SHOT, never GK_DIVE', async () => {
+    const { clientA, roomCode } = await setupRoom(); // clientA = home = defending team here
+    seedSnapshotDeflectCapUsed(roomCode);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_END_TURN);
+    const [state] = await statePromise;
+
+    expect(state.phase).toBe('SHOT');
+    expect(state.phase).not.toBe('GK_DIVE');
+    expect(getRoom(roomCode)!.gameState!.phase).toBe('SHOT');
   });
 });
 
