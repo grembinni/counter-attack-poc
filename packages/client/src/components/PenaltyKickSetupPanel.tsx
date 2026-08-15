@@ -30,8 +30,11 @@ export function PenaltyKickSetupPanel() {
   const penaltyKickUsedPace = useGameStore((s) => s.gameState.penaltyKickUsedPace);
   const penaltyKickTakerId = useGameStore((s) => s.gameState.penaltyKickTakerId);
   const movedPieceIds = useGameStore((s) => s.gameState.movedPieceIds);
+  const selectedPieceId = useGameStore((s) => s.selectedPieceId);
   const gameError = useGameStore((s) => s.gameError);
   const emitEndTurn = useGameStore((s) => s.emitEndTurn);
+  const emitPenaltyKickTaker = useGameStore((s) => s.emitPenaltyKickTaker);
+  const emitRoll = useGameStore((s) => s.emitRoll);
   const myTeamOrNull = useMyTeam();
 
   const isPenaltyKickPhase =
@@ -148,8 +151,12 @@ export function PenaltyKickSetupPanel() {
     );
   }
 
-  // PEN-02: the attacking manager selects the penalty taker by clicking a piece on the board
-  // (routed to emitPenaltyKickTaker by Plan 39-05's selectPiece branch) — no CTA button here.
+  // PEN-02 (39-23 gap-6 closure): the attacking manager selects a candidate by clicking a
+  // piece on the board (the store's PENALTY_KICK_TAKER_SELECT branch now only sets
+  // selectedPieceId — see 39-05's selectPiece branch, rewritten in Plan 39-23), then commits
+  // with an explicit Confirm click here — mirrors CornerKickSetupPanel's CORNER_KICK_TAKER_SELECT
+  // branch exactly, closing the misclick-commits-irreversibly defect (PENALTY_KICK_TAKER_PLACED
+  // is an Undo boundary).
   if (phase === 'PENALTY_KICK_TAKER_SELECT') {
     if (myTeam !== penaltyKickTeam) {
       return (
@@ -162,6 +169,12 @@ export function PenaltyKickSetupPanel() {
       );
     }
 
+    const takerColorClass = ctaColorClass(
+      selectedPieceId === null ? 1 : 0,
+      { ready: styles.ctaButtonReady, pending: styles.ctaButtonPending },
+      true,
+    );
+
     return (
       <div className={styles.panel}>
         <span className={styles.panelHeading}>Penalty Kick</span>
@@ -170,14 +183,32 @@ export function PenaltyKickSetupPanel() {
             ? 'Choose your penalty taker.'
             : 'Placing your penalty taker…'}
         </span>
+        {selectedPieceId === null && (
+          <span className={styles.errorText}>Select a player to take the penalty kick first.</span>
+        )}
         {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
+        <button
+          className={`${styles.ctaButton} ${takerColorClass}`}
+          disabled={selectedPieceId === null}
+          title={
+            selectedPieceId === null ? 'Select a player to take the penalty kick first' : undefined
+          }
+          onClick={() => {
+            if (selectedPieceId !== null) emitPenaltyKickTaker(selectedPieceId);
+          }}
+        >
+          Confirm
+        </button>
       </div>
     );
   }
 
-  // PEN-01: the penalty-kick duel itself resolves server-side on the roll — no CTA here
-  // (single-CTA verb lock; the Roll Dice action lives in ActionPanel, wired in Plan 39-16).
-  // Gated on activeTeam, mirroring GoalKickSetupPanel's GOAL_KICK_MOVE travel-window branch.
+  // PEN-01: the penalty-kick duel itself resolves server-side on the roll. Previously this
+  // branch's acting-manager arm rendered no control at all — the claim that "the Roll Dice
+  // action lives in ActionPanel" was false, because GameBoard routes the PENALTY_KICK phase to
+  // this panel and never renders ActionPanel during it, leaving the phase with no reachable
+  // control (found while planning 39-UAT gap 6, not separately reported). Gated on activeTeam,
+  // mirroring GoalKickSetupPanel's GOAL_KICK_MOVE travel-window branch.
   if (myTeam !== activeTeam) {
     return (
       <div className={styles.panel}>
@@ -193,6 +224,13 @@ export function PenaltyKickSetupPanel() {
       <span className={styles.panelHeading}>Penalty Kick</span>
       <span className={styles.constraintRow}>Take your penalty kick.</span>
       {humanisedError && <span className={styles.errorText}>{humanisedError}</span>}
+      <button
+        className={`${styles.ctaButton} ${styles.ctaButtonReady ?? ''}`}
+        title="Take a penalty shot at goal, contested by the goalkeeper."
+        onClick={() => emitRoll()}
+      >
+        Shoot
+      </button>
     </div>
   );
 }
