@@ -76,6 +76,8 @@ const PHASE_LABEL: Record<GamePhase, string> = {
   // Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks phases.
   FOUL_CHOICE: 'FOUL',
   GK_DIVE_AT_FEET_PROMPT: 'DIVE AT FEET',
+  // 39-UAT gap 3: destination-hex step after accepting the dive; same label as the prompt.
+  GK_DIVE_AT_FEET_TARGET: 'DIVE AT FEET',
   GK_BOX_ENTRY_PROMPT: 'KEEPER RESPONSE',
   GK_BOX_ENTRY_MOVE: 'KEEPER RESPONSE',
   PENALTY_KICK_SETUP_ATTACKING: 'PENALTY SETUP',
@@ -392,7 +394,11 @@ export function GameBoard() {
             <CornerKickSetupPanel />
           ) : phase === 'FOUL_CHOICE' ? (
             <FoulChoicePanel />
-          ) : phase === 'GK_DIVE_AT_FEET_PROMPT' ? (
+          ) : phase === 'GK_DIVE_AT_FEET_PROMPT' || phase === 'GK_DIVE_AT_FEET_TARGET' ? (
+            // 39-UAT gap 3: GK_DIVE_AT_FEET_TARGET is the destination-hex step after accept.
+            // The panel's own phase guard is widened in Plan 39-21 to render the hex-choice UI;
+            // during this plan the target phase renders GkDiveAtFeetPromptPanel with no content
+            // for that phase, which is expected and NOT fixed here (client work is 39-21's).
             <GkDiveAtFeetPromptPanel />
           ) : phase === 'GK_BOX_ENTRY_PROMPT' || phase === 'GK_BOX_ENTRY_MOVE' ? (
             <GkBoxEntryPromptPanel />

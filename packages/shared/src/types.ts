@@ -672,6 +672,10 @@ export type ActionEvent =
       result: 'SUCCESS' | 'FAIL';
       timestamp: number;
       ballAfter: { position: HexCoord; carrierId: string | null };
+      /** 39-UAT gap 3: the goalkeeper's pre-dive hex. */
+      diveFrom: HexCoord;
+      /** 39-UAT gap 3: the manager-chosen landing hex the goalkeeper's piece moves to. */
+      diveTo: HexCoord;
     }
   | {
       /** GKDIVE-02/D-07: GK's team declined the dive-at-feet offer. */
@@ -771,6 +775,7 @@ export type GamePhase =
   // genuinely new, not aliases of any existing chain.
   | 'FOUL_CHOICE' // FOUL-03: fouled attacker chooses continue-play vs. take the restart
   | 'GK_DIVE_AT_FEET_PROMPT' // GKDIVE-02/D-07: GK's team offered the dive-at-feet duel
+  | 'GK_DIVE_AT_FEET_TARGET' // 39-UAT gap 3: destination-hex step the GK manager takes after accepting the dive
   | 'GK_BOX_ENTRY_PROMPT' // D-10: GK's team offered the box-entry response
   | 'GK_BOX_ENTRY_MOVE' // D-10: GK moves in response to a box-entry attacker
   | 'PENALTY_KICK_SETUP_ATTACKING' // PEN-02/D-08: attacking team repositions before the penalty
