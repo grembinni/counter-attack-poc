@@ -1263,6 +1263,9 @@ describe('ActionLog — Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks
         result: 'FAIL',
         timestamp: 0,
         ballAfter: { position: { q: 15, r: 22 }, carrierId: 'home-9' },
+        // 39-UAT gap 3 (39-20): diveFrom/diveTo are now required on this event variant.
+        diveFrom: { q: 14, r: 22 },
+        diveTo: { q: 15, r: 22 },
       },
     ]);
     const { container } = render(<ActionLog />);
