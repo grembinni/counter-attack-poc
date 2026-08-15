@@ -149,5 +149,11 @@ None - no external service configuration required.
 
 ---
 
+## Self-Check: PASSED
+
+All 9 modified source/test files and the SUMMARY.md itself verified present on disk. All 4 commit hashes (`aca0455`, `780a207`, `2f82379`, `c76e673`) verified present in git history.
+
+---
+
 _Phase: 39-fouls-cards-injuries-penalty-kicks_
 _Completed: 2026-08-15_
