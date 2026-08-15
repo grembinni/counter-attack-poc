@@ -7,6 +7,10 @@ import {
   rollsBooking,
   resolveBooking,
   isProfessionalFoul,
+  GOAL_PATH_R_MIN,
+  GOAL_PATH_R_MAX,
+  clampGoalPathRow,
+  attackerGoalPath,
 } from './fouls.js';
 import type { GameState, PlayerPiece } from './types.js';
 
@@ -259,53 +263,253 @@ describe('resolveBooking', () => {
 });
 
 describe('isProfessionalFoul', () => {
-  // RESEARCH.md Pitfall 5: straight-line "as the crow flies" reachability — no path-walk,
-  // no occupancy simulation. hexDistance(other.position, foulHex) <= other.pace - paceUsed.
-  const foulHex = { q: 10, r: 10 };
+  // Plan 39-19 (closes 39-UAT gap 8): goal-side + goal-path reachability replaces the
+  // old omnidirectional "could any teammate anywhere reach the foul hex" test.
+  // RESEARCH.md Pitfall 5 still applies: straight-line ("as the crow flies")
+  // reachability — no path-walk, no occupancy simulation.
 
-  it('a reachable teammate (2 hexes away, pace 5, 0 pace used) means NOT a professional foul', () => {
-    const fouler = makePiece({ id: 'fouler', teamId: 'home', position: { q: 20, r: 20 } });
-    const teammate = makePiece({
-      id: 'teammate',
-      teamId: 'home',
-      position: { q: 12, r: 10 },
-      pace: 5,
+  it(
+    '39-UAT test 8 worked example (verbatim, NOT DOGSO): home attacker fouled on ' +
+      '{q:21,r:15}, away defender on {q:29,r:12} with pace 4 reaches the goal path at ' +
+      '{q:29,r:15}',
+    () => {
+      // The user's worked example reads "Defender at (29,12) with move 4 is within range
+      // of (29,25)". (29,25) is a transcription slip for (29,15): hexDistance(29,12 ->
+      // 29,25) is 13 (unreachable with pace 4), whereas hexDistance(29,12 -> 29,15) is 3
+      // (reachable with pace 4), and hexLine(21,15 -> 36,15) provably contains
+      // {q:29,r:15}. Do NOT "fix" these coordinates back to (29,25) — see PLAN.md.
+      const attackerHex = { q: 21, r: 15 };
+      const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+      const coveringDefender = makePiece({
+        id: 'defender',
+        teamId: 'away',
+        role: 'DEF',
+        position: { q: 29, r: 12 },
+        pace: 4,
+      });
+      const state = makeState({
+        pieces: [fouler, coveringDefender],
+        paceUsedByPieceId: {},
+      });
+      expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(false);
+    },
+  );
+
+  it('same worked example, covering defender one hex further away (pace 2, DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const farDefender = makePiece({
+      id: 'defender',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 12 },
+      pace: 2, // hexDistance({q:29,r:12},{q:29,r:15}) === 3 exceeds a pace-2 budget
     });
-    const state = makeState({ pieces: [fouler, teammate], paceUsedByPieceId: {} });
-    expect(isProfessionalFoul(state, 'fouler', foulHex)).toBe(false);
+    const state = makeState({ pieces: [fouler, farDefender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
   });
 
-  it('the same teammate with 4 of 5 pace already used (only 1 hex of budget left) IS a professional foul', () => {
-    const fouler = makePiece({ id: 'fouler', teamId: 'home', position: { q: 20, r: 20 } });
-    const teammate = makePiece({
-      id: 'teammate',
-      teamId: 'home',
-      position: { q: 12, r: 10 },
-      pace: 5,
+  it('same worked example, covering defender has already used pace this Movement Phase (DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const defender = makePiece({
+      id: 'defender',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 12 },
+      pace: 4,
     });
     const state = makeState({
-      pieces: [fouler, teammate],
-      paceUsedByPieceId: { teammate: 4 },
+      pieces: [fouler, defender],
+      paceUsedByPieceId: { defender: 2 }, // budget 2 is short of the required 3
     });
-    expect(isProfessionalFoul(state, 'fouler', foulHex)).toBe(true);
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
   });
 
-  it('only the fouler on the team IS a professional foul', () => {
-    const fouler = makePiece({ id: 'fouler', teamId: 'home', position: { q: 20, r: 20 } });
-    const state = makeState({ pieces: [fouler], paceUsedByPieceId: {} });
-    expect(isProfessionalFoul(state, 'fouler', foulHex)).toBe(true);
+  it('a defender BEHIND the attacker never suppresses DOGSO, even with huge pace', () => {
+    // Home attacker at q=21 attacking q=36 — q=10 is further from goal than the attacker.
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const behindDefender = makePiece({
+      id: 'defender',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 10, r: 15 },
+      pace: 20,
+    });
+    const state = makeState({ pieces: [fouler, behindDefender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
   });
 
-  it('a teammate in range but redCarded IS a professional foul (dismissed pieces cannot cover)', () => {
-    const fouler = makePiece({ id: 'fouler', teamId: 'home', position: { q: 20, r: 20 } });
-    const teammate = makePiece({
-      id: 'teammate',
-      teamId: 'home',
-      position: { q: 12, r: 10 },
-      pace: 5,
+  it('a defender LEVEL with the attacker (same q, not strictly closer to goal) is not goal-side (DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const levelDefender = makePiece({
+      id: 'defender',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 21, r: 18 },
+      pace: 20,
+    });
+    const state = makeState({ pieces: [fouler, levelDefender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
+  });
+
+  it('a goalkeeper is excluded from the covering-defender set (DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const gk = makePiece({
+      id: 'gk',
+      teamId: 'away',
+      role: 'GK',
+      position: { q: 29, r: 12 },
+      pace: 4,
+    });
+    const state = makeState({ pieces: [fouler, gk], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
+  });
+
+  it('a red-carded piece is excluded from the covering-defender set (DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const dismissed = makePiece({
+      id: 'dismissed',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 12 },
+      pace: 4,
       redCarded: true,
     });
-    const state = makeState({ pieces: [fouler, teammate], paceUsedByPieceId: {} });
-    expect(isProfessionalFoul(state, 'fouler', foulHex)).toBe(true);
+    const state = makeState({ pieces: [fouler, dismissed], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
+  });
+
+  it('away-attacking mirror: a home defender goal-side (lower q) and in range is NOT DOGSO', () => {
+    // Away attacker at {q:15,r:15} attacks q=0 — proves the direction term is not
+    // hardcoded to home.
+    const attackerHex = { q: 15, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'home', position: { q: 30, r: 5 } });
+    const coveringDefender = makePiece({
+      id: 'defender',
+      teamId: 'home',
+      role: 'DEF',
+      position: { q: 10, r: 15 }, // on the away attacker's clamped goal path
+      pace: 1,
+    });
+    const state = makeState({ pieces: [fouler, coveringDefender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(false);
+  });
+
+  it('away-attacking mirror: the same defender at HIGHER q (not goal-side) IS DOGSO', () => {
+    const attackerHex = { q: 15, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'home', position: { q: 30, r: 5 } });
+    const behindDefender = makePiece({
+      id: 'defender',
+      teamId: 'home',
+      role: 'DEF',
+      position: { q: 20, r: 15 },
+      pace: 20,
+    });
+    const state = makeState({ pieces: [fouler, behindDefender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
+  });
+
+  it('row clamping (r > 20): a defender intercepting the r=20 clamped path (not the raw r=24 line) proves the clamp is applied (NOT DOGSO)', () => {
+    const attackerHex = { q: 21, r: 24 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const defender = makePiece({
+      id: 'defender',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 20 }, // on the CLAMPED path; hexDistance to {q:29,r:24} is 4
+      pace: 1,
+    });
+    const state = makeState({ pieces: [fouler, defender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(false);
+  });
+
+  it('row clamping (r < 5): a defender intercepting the r=5 clamped path (not the raw r=1 line) proves the clamp is applied (NOT DOGSO)', () => {
+    const attackerHex = { q: 21, r: 1 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 20 } });
+    const defender = makePiece({
+      id: 'defender',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 5 }, // on the CLAMPED path; hexDistance to {q:29,r:1} is 4
+      pace: 1,
+    });
+    const state = makeState({ pieces: [fouler, defender], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(false);
+  });
+
+  it('the fouler itself is excluded from the covering-defender set, even if goal-side and in range (DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({
+      id: 'fouler',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 15 }, // on the attacker's own goal path
+      pace: 10,
+    });
+    const state = makeState({ pieces: [fouler], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
+  });
+
+  it('returns true (DOGSO) when the fouler cannot be found on state.pieces', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const state = makeState({ pieces: [], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'missing-fouler', attackerHex)).toBe(true);
+  });
+});
+
+describe('clampGoalPathRow / attackerGoalPath', () => {
+  it('GOAL_PATH_R_MIN is 5 and GOAL_PATH_R_MAX is 20', () => {
+    expect(GOAL_PATH_R_MIN).toBe(5);
+    expect(GOAL_PATH_R_MAX).toBe(20);
+  });
+
+  it('clamps a row below the band up to GOAL_PATH_R_MIN', () => {
+    expect(clampGoalPathRow(4)).toBe(5);
+    expect(clampGoalPathRow(0)).toBe(5);
+  });
+
+  it('leaves GOAL_PATH_R_MIN unchanged', () => {
+    expect(clampGoalPathRow(5)).toBe(5);
+  });
+
+  it('leaves a row inside the band unchanged', () => {
+    expect(clampGoalPathRow(15)).toBe(15);
+  });
+
+  it('leaves GOAL_PATH_R_MAX unchanged', () => {
+    expect(clampGoalPathRow(20)).toBe(20);
+  });
+
+  it('clamps a row above the band down to GOAL_PATH_R_MAX', () => {
+    expect(clampGoalPathRow(21)).toBe(20);
+    expect(clampGoalPathRow(25)).toBe(20);
+  });
+
+  it('home attackerGoalPath runs from the attacker hex to q=36 at the clamped row and contains {q:29,r:15}', () => {
+    const path = attackerGoalPath({ q: 21, r: 15 }, 'home');
+    expect(path[0]).toEqual({ q: 21, r: 15 });
+    expect(path[path.length - 1]).toEqual({ q: 36, r: 15 });
+    expect(path).toContainEqual({ q: 29, r: 15 });
+  });
+
+  it('away attackerGoalPath runs from the attacker hex to q=0 at the clamped row', () => {
+    const path = attackerGoalPath({ q: 15, r: 15 }, 'away');
+    expect(path[0]).toEqual({ q: 15, r: 15 });
+    expect(path[path.length - 1]).toEqual({ q: 0, r: 15 });
+  });
+
+  it('draws the path at the clamped row (20), not the raw row (24), for an out-of-band attacker', () => {
+    const path = attackerGoalPath({ q: 21, r: 24 }, 'home');
+    expect(path.every((h) => h.r === 20)).toBe(true);
+  });
+
+  it('draws the path at the clamped row (5), not the raw row (1), for an out-of-band attacker', () => {
+    const path = attackerGoalPath({ q: 21, r: 1 }, 'home');
+    expect(path.every((h) => h.r === 5)).toBe(true);
   });
 });
