@@ -133,7 +133,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | 37    | 19/19 | Complete    | 2026-08-07 |
 | 38    | 33/33 | Complete    | 2026-08-09 |
 | 39    | 24/24 | Complete    | 2026-08-15 |
-| 40    | 3/7   | In Progress |            |
+| 40    | 6/7   | In Progress |            |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
 
@@ -440,9 +440,9 @@ Plans:
 
 **Wave 3** _(three parallel plans, no file overlap)_
 
-- [ ] 40-04-PLAN.md — Server: bench seeding at LINEUP_CONFIRM (empty for Standard rooms per D-12), playerId on every piece, D-13 red-carded players relocated onto the bench, roster continuity at the four in-engine resets
-- [ ] 40-05-PLAN.md — Server: GAME_SUBSTITUTION handler + roster continuity at the three handler-side goal resets
-- [ ] 40-06-PLAN.md — Client: persistent stoppage-gated SUB affordance, substitution modal, emitSubstitution store action
+- [x] 40-04-PLAN.md — Server: bench seeding at LINEUP_CONFIRM (empty for Standard rooms per D-12), playerId on every piece, D-13 red-carded players relocated onto the bench, roster continuity at the four in-engine resets
+- [x] 40-05-PLAN.md — Server: GAME_SUBSTITUTION handler + roster continuity at the three handler-side goal resets
+- [x] 40-06-PLAN.md — Client: persistent stoppage-gated SUB affordance, substitution modal, emitSubstitution store action
 
 **Wave 4**
 
