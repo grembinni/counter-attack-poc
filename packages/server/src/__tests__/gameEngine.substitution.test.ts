@@ -209,42 +209,46 @@ describe('applySubstitution', () => {
     let state = makeSubState();
     const outfielders = BASE_PIECES.filter((p) => p.teamId === 'home' && p.role !== 'GK');
 
-    for (let i = 0; i < MAX_SUBS_PER_TEAM; i++) {
-      const result = applySubstitution(
-        state,
-        'home',
-        outfielders[i]!.id,
-        homeBenchBase[0]!.playerId,
-      );
+    // Three DISTINCT bench entries consumed in turn (homeBenchBase has exactly 3 slots);
+    // the third is the bench GK, so it substitutes the home GK slot to satisfy GK parity.
+    const subs: Array<{ outId: string; inPlayerId: string }> = [
+      { outId: outfielders[0]!.id, inPlayerId: homeBenchBase[0]!.playerId },
+      { outId: outfielders[1]!.id, inPlayerId: homeBenchBase[1]!.playerId },
+      { outId: homeGKPiece().id, inPlayerId: homeBenchBase[2]!.playerId },
+    ];
+    expect(subs.length).toBe(MAX_SUBS_PER_TEAM);
+
+    for (const sub of subs) {
+      const result = applySubstitution(state, 'home', sub.outId, sub.inPlayerId);
       expect(result.ok).toBe(true);
       if (result.ok) state = result.state;
     }
     expect(state.subsUsed?.home).toBe(MAX_SUBS_PER_TEAM);
 
-    const fourth = applySubstitution(
-      state,
-      'home',
-      outfielders[MAX_SUBS_PER_TEAM]!.id,
-      homeBenchBase[1]!.playerId,
-    );
+    const fourth = applySubstitution(state, 'home', outfielders[2]!.id, homeBenchBase[0]!.playerId);
     expect(fourth).toEqual({ ok: false, reason: 'SUB_CAP_REACHED' });
     expect(state.subsUsed?.away ?? 0).toBe(0);
   });
 
   it('SUB-04: subsUsed survives an applyEndTurn HALF_TIME transition unchanged', () => {
-    const subState = makeSubState({ subsUsed: { home: 2, away: 1 } });
+    const subState = makeSubState({
+      subsUsed: { home: 2, away: 1 },
+      refereeCard: { leniency: 0 },
+    });
     const outPiece = homeOutfieldPiece();
     const subResult = applySubstitution(subState, 'home', outPiece.id, homeBenchBase[0]!.playerId);
     expect(subResult.ok).toBe(true);
     if (!subResult.ok) return;
 
+    // actionCount=45+2(standard speed)=47; leniency=0, roll=1, bonus=1(from the sub above)
+    // => halfEnd=45+2=47 <= newActionCount(47) => HALF_TIME reached.
     const attacker2State: GameState = {
       ...subResult.state,
       phase: 'MOVE',
       movementSlot: 'ATTACKER_2',
-      actionCount: 44,
+      actionCount: 45,
     };
-    const endTurnResult = applyEndTurn(attacker2State, { addedTimeRoll: 3 });
+    const endTurnResult = applyEndTurn(attacker2State, { addedTimeRoll: 1 });
     expect(endTurnResult.ok).toBe(true);
     if (!endTurnResult.ok) return;
     expect(endTurnResult.state.phase).toBe('HALF_TIME');
