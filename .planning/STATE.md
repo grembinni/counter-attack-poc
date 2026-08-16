@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
-status: Ready to start Phase 40
+status: executing
 stopped_at: Phase 40 UI-SPEC approved
-last_updated: '2026-08-16T12:55:01.096Z'
-last_activity: 2026-08-16 -- Phase 40 planning complete
+last_updated: '2026-08-16T17:25:25.183Z'
+last_activity: 2026-08-16 -- Phase 40 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 76
+  total_plans: 83
   completed_plans: 76
   percent: 75
 ---
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 40
-Plan: Not started
-Status: Ready to start Phase 40
-Last activity: 2026-08-16 - Completed quick task 260816-bn5: Fix two knip findings (unused export + redundant knip.json entry patterns)
+Phase: 40 (substitutions) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 40
+Last activity: 2026-08-16 -- Phase 40 execution started
 
 ## Project Reference
 
