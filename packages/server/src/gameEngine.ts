@@ -286,14 +286,18 @@ function buildSquadPieces(
   const homeSquad = homePlayers.map((p, i) => ({
     ...p,
     teamId: 'home' as const,
-    id: `home-${i}`,
+    id: `home-${i}`, // slot identity — a substitution deliberately preserves this (SUB-03)
+    playerId: p.id, // Phase 40 (SUB-03): who currently occupies the slot; the spread's `...p`
+    // copies the pool player's own `id` in first, which the explicit `id:` override above
+    // then replaces — `playerId` is what retains the pool identity.
     position: { ...homeSlots[i]!.position }, // spread — never mutate the readonly slot (T-23-01)
     number: homeSlots[i]!.jerseyNumber,
   }));
   const awaySquad = awayPlayers.map((p, i) => ({
     ...p,
     teamId: 'away' as const,
-    id: `away-${i}`,
+    id: `away-${i}`, // slot identity — a substitution deliberately preserves this (SUB-03)
+    playerId: p.id, // Phase 40 (SUB-03): who currently occupies the slot (see home comment above)
     position: { q: 36 - awaySlots[i]!.position.q, r: awaySlots[i]!.position.r }, // away mirror
     number: awaySlots[i]!.jerseyNumber,
   }));
@@ -381,6 +385,18 @@ export function buildInitialGameState(
    * start from Room.injuryEnabled. Defaults to `false` for the same reason as `foulsEnabled`.
    */
   injuryEnabled: boolean = false,
+  /**
+   * SUB-02/07 (Phase 40, D-01/D-02): the home team's pre-match bench, exactly as computed
+   * by the LINEUP_CONFIRM handler (roster minus starting 11). Defaults to an empty array so
+   * every pre-Phase-40 caller keeps compiling and behaving identically. Stored VERBATIM —
+   * never inspected, never branched on, never topped up from any pool. D-12: an empty bench
+   * is a legitimate, expected state for a Standard-mode room (11-player squads today); the
+   * earlier D-10 pool-based auto-fill design was retracted by the user — reintroducing any
+   * bench generation here (or anywhere in the engine) is a scope violation, not a fix.
+   */
+  homeBench: readonly BenchEntry[] = [],
+  /** SUB-02/07 (Phase 40, D-01/D-02): the away team's pre-match bench. See `homeBench` above. */
+  awayBench: readonly BenchEntry[] = [],
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -427,6 +443,9 @@ export function buildInitialGameState(
     secondHalfConfirmed: null,
     gkDiveAtFeetUsedByTeam: null,
     gkBoxEntryUsedByTeam: null,
+    bench: { home: homeBench, away: awayBench }, // SUB-02/07: seeded verbatim, never generated (D-12)
+    subsUsed: { home: 0, away: 0 }, // SUB-04: whole-match cap counter, starts at zero
+    addedTimeBonus: 0, // SUB-05: per-half accumulator, starts at zero
   };
 }
 
@@ -727,6 +746,53 @@ const CORNER_KICK_TEARDOWN = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// relocateRedCardedToBench
+// ---------------------------------------------------------------------------
+
+/**
+ * D-13 (Phase 40, 40-04 Task 4): moves a red-carded player's record onto their team's bench
+ * so the Roster/substitution screen shows WHO is unavailable and WHY.
+ *
+ * The D-13 contract, precisely, because it is easy to over-implement:
+ * - The sent-off `PlayerPiece` REMAINS in `state.pieces` with `redCarded: true` and
+ *   `onPitch: false` (Phase 39's shipped representation, commit `ecfb30b`). This function
+ *   never splices it out of `pieces` — `maxOnPitchFor`'s `11 - redCardCount` (D-08/D-09)
+ *   counts red cards from `pieces`, and `applyMove`'s `RED_CARDED` rejection looks the piece
+ *   up by id. Removing it would silently lift the permanent headcount cap.
+ * - The bench entry exists purely so the Roster/substitution screen can display WHO is
+ *   unavailable and WHY (D-13). It is a display record, permanently unfillable —
+ *   `applySubstitution` (40-02 guard 7) already rejects it with `CANNOT_SUB_IN_RED_CARDED`.
+ * - D-13 changes only WHERE the record is displayed, never the cap math.
+ *
+ * Pure: never mutates `bench` or either team array. Idempotent: a second call for the same
+ * `piece.playerId` returns the input unchanged (normalised) rather than appending a duplicate.
+ * Defensive: returns the input (normalised to `{ home: [], away: [] }` when `bench` is
+ * undefined) unchanged when `piece.playerId` is undefined — a piece built before the 40-04
+ * Task 1 `playerId` stamping has no pool identity to record.
+ */
+export function relocateRedCardedToBench(
+  bench: GameState['bench'],
+  piece: PlayerPiece,
+): NonNullable<GameState['bench']> {
+  const normalised = bench ?? { home: [], away: [] };
+  if (piece.playerId === undefined) return normalised;
+
+  const teamBench = normalised[piece.teamId];
+  const alreadyPresent = teamBench.some((entry) => entry.playerId === piece.playerId);
+  if (alreadyPresent) return normalised;
+
+  const newEntry: BenchEntry = {
+    playerId: piece.playerId,
+    jerseyNumber: piece.number,
+    status: 'redCarded',
+  };
+  return {
+    ...normalised,
+    [piece.teamId]: [...teamBench, newEntry],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // resolveFoulChain
 // ---------------------------------------------------------------------------
 
@@ -839,6 +905,11 @@ export function resolveFoulChain(input: {
     }
   }
 
+  // D-13 (Phase 40): set only inside the red-card branch below, folded into foulFields
+  // conditionally so a non-red foul's foulFields never carries a `bench` key at all —
+  // spreading `bench: undefined` over a real state would blank the bench.
+  let redCardBench: GameState['bench'] | undefined;
+
   // CARD-01..03: fouler's CURRENT yellowCards is read from `pieces` (post-injury-mutation
   // array — though injury and booking never target the same piece, so ordering here is
   // moot in practice; still read from the latest `pieces` for consistency).
@@ -880,6 +951,12 @@ export function resolveFoulChain(input: {
               }
             : p,
         );
+        // D-13: mirror the now-sent-off player onto their team's bench so the
+        // Roster/substitution screen shows WHO is unavailable and WHY. The piece
+        // deliberately stays in `pieces` (see relocateRedCardedToBench's doc comment) —
+        // this is a display-only addition, never a move.
+        const updatedFouler = pieces.find((p) => p.id === defenderId)!;
+        redCardBench = relocateRedCardedToBench(state.bench, updatedFouler);
       }
     }
   }
@@ -893,6 +970,9 @@ export function resolveFoulChain(input: {
       foulVictimId: victimId,
       foulHex,
       foulSource: source,
+      // D-13: only present when this foul produced a red card — see the comment on
+      // `redCardBench`'s declaration above for why this must never be unconditional.
+      ...(redCardBench !== undefined ? { bench: redCardBench } : {}),
     },
   };
 }
@@ -4219,10 +4299,16 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const newScoreUnsaveable = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
         // D-01 (BUG-30): hoisted so the exact same reset pieces feed both state.pieces and the
         // GOAL event's piecesAfter — mirrors the resetPieces hoist at applyHalfTimeStart:4442.
-        const resetPieces = buildKickOffPieces(
-          newKickOffTeam,
-          state.selectedTeams,
-          state.selectedFormation,
+        // Phase 40 (SUB-03/07, D-08/D-13): buildKickOffPieces rebuilds from getSquadPlayers'
+        // default order, so without applyRosterContinuity a goal would undo every substitution,
+        // clear redCarded (silently lifting D-08's permanent headcount cap) and clear
+        // onPitch:false (putting a sent-off player visibly back on the pitch). Positions still
+        // come from the fresh formation reset; identity/match state is overlaid from state.pieces.
+        // state.bench is never touched here — no reset rebuilds it, so subbed-out/red-carded
+        // bench entries persist across goals and half-time for free.
+        const resetPieces = applyRosterContinuity(
+          buildKickOffPieces(newKickOffTeam, state.selectedTeams, state.selectedFormation),
+          state.pieces,
         );
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
@@ -4314,10 +4400,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const newScore = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
         // D-01 (BUG-30): hoisted so the exact same reset pieces feed both state.pieces and the
         // GOAL event's piecesAfter — mirrors the resetPieces hoist at applyHalfTimeStart:4442.
-        const resetPieces = buildKickOffPieces(
-          newKickOffTeam,
-          state.selectedTeams,
-          state.selectedFormation,
+        // Phase 40 (SUB-03/07, D-08/D-13): applyRosterContinuity overlay — see the unsaveable-shot
+        // GOAL branch above for the full rationale.
+        const resetPieces = applyRosterContinuity(
+          buildKickOffPieces(newKickOffTeam, state.selectedTeams, state.selectedFormation),
+          state.pieces,
         );
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
@@ -7421,13 +7508,14 @@ export function applyPenaltyKickDuel(
 
   if (takerCombined > gkCombined) {
     // GOAL — mirrors the SHOT branch's goal path (buildKickOffPieces reset, KICK_OFF_SETUP).
+    // Phase 40 (SUB-03/07, D-08/D-13): applyRosterContinuity overlay — see the unsaveable-shot
+    // GOAL branch (applyDeclareShot) for the full rationale.
     const scoringTeam = taker.teamId;
     const newKickOffTeam: 'home' | 'away' = defendingTeam;
     const newScore = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
-    const resetPieces = buildKickOffPieces(
-      newKickOffTeam,
-      state.selectedTeams,
-      state.selectedFormation,
+    const resetPieces = applyRosterContinuity(
+      buildKickOffPieces(newKickOffTeam, state.selectedTeams, state.selectedFormation),
+      state.pieces,
     );
     const penEvent: ActionEvent = {
       type: 'PENALTY_KICK',
@@ -9291,10 +9379,11 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
   const newAttackingTeam: 'home' | 'away' = state.kickOffTeam === 'home' ? 'away' : 'home';
 
   // Reset pieces to formation starting positions using selectedTeams (Phase 16, Pitfall 6; "4-5-2" = movement sequence)
-  const resetPieces = buildKickOffPieces(
-    newAttackingTeam,
-    state.selectedTeams,
-    state.selectedFormation,
+  // Phase 40 (SUB-03/07, D-08/D-13): applyRosterContinuity overlay — see the unsaveable-shot
+  // GOAL branch (applyDeclareShot) for the full rationale. state.bench is never touched here.
+  const resetPieces = applyRosterContinuity(
+    buildKickOffPieces(newAttackingTeam, state.selectedTeams, state.selectedFormation),
+    state.pieces,
   );
 
   // D-02 (same defect class as BUG-30): this atomic piece-formation reset previously had no
@@ -9531,6 +9620,10 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
   // and expect determinism. Instead, we build a seeded initial state manually.
   // A2 (RESEARCH.md): kickOffTeam is recorded in finalState; use it to seed the initial attackingTeam.
   // Phase 16: use buildKickOffPieces with finalState.selectedTeams for correct squad positions.
+  // Phase 40 (40-04 Task 3): deliberately NOT overlaid with applyRosterContinuity — the replay
+  // reconstructs the match from its starting XI forward, and SUBSTITUTION is intentionally
+  // excluded from REPLAY_ELIGIBLE_TYPES (plan 40-01), so the replay shows the starting lineup
+  // throughout, never a substituted-in player.
   let current: GameState = {
     roomCode: finalState.roomCode,
     phase: 'KICK_OFF',
