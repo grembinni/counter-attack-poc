@@ -227,7 +227,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 
 ### Pending Todos
 
-2 pending todos in `.planning/todos/pending/` (as of v1.5 close, 2026-08-03): a KICK_OFF_SETUP shot-path shading rendering bug (root cause unresolved) and a low-priority CSV-consolidation idea. Both unassigned to a phase — see Deferred Items below.
+4 pending todos in `.planning/todos/pending/` (as of 2026-08-16): a KICK_OFF_SETUP shot-path shading rendering bug, a low-priority CSV-consolidation idea, an offside-ring-after-goal rendering bug, and a SUB-06 permanent-slot-cap note scoped to Phase 40 (`resolves_phase: 40`, auto-closes when that phase completes).
 
 ## Quick Tasks Completed
 
