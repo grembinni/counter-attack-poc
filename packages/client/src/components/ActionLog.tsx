@@ -1264,6 +1264,15 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         isGoal: false,
       };
     }
+    case 'SUBSTITUTION':
+      // Phase 40 (SUB-01..07): the outgoing player is no longer in `pieces`, so no
+      // PNamed lookup is used — both names are denormalised into the event itself.
+      return {
+        prefix: '[SUB]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: ` #${event.jerseyNumber} ${event.offPlayerName} → ${event.onPlayerName} (${event.subsUsed}/3)`,
+        isGoal: false,
+      };
   }
 }
 

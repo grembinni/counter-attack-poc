@@ -269,6 +269,9 @@ export function ActionPanel() {
   //   - `state.phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED'`
   //   - `state.phase === 'GK_BOX_ENTRY_MOVE' && evt.type === 'GK_BOX_ENTRY_MOVE'`
   //   - `state.phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM'`
+  // Phase 40 (40-01): a seventh term was added — `evt.type === 'SUBSTITUTION'`
+  // (unconditional, no phase guard) — a substitution is a committed roster change that
+  // Undo must never cross, exactly like GK_DIVE_AT_FEET above.
   // FOUL_CHOICE, PENALTY_KICK_SETUP_ATTACKING/DEFENDING, PENALTY_KICK_TAKER_SELECT and
   // GK_BOX_ENTRY_MOVE are each rendered by their own dedicated GameBoard panel (FoulChoicePanel,
   // PenaltyKickSetupPanel, GkBoxEntryPromptPanel) rather than by ActionPanel, so those four
@@ -307,7 +310,10 @@ export function ActionPanel() {
           evt.type === 'PENALTY_KICK_WINDOW_ADVANCE') ||
         (phase === 'PENALTY_KICK_TAKER_SELECT' && evt.type === 'PENALTY_KICK_TAKER_PLACED') ||
         (phase === 'GK_BOX_ENTRY_MOVE' && evt.type === 'GK_BOX_ENTRY_MOVE') ||
-        (phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM');
+        (phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM') ||
+        // Phase 40 (40-01): a substitution is a committed roster change — Undo must
+        // never cross it, unconditionally, matching applyUndo's isBoundary reduce.
+        evt.type === 'SUBSTITUTION';
       return isBoundary ? idx : acc;
     }, -1);
     // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
