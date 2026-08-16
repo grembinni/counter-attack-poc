@@ -115,3 +115,7 @@ None - no external service configuration required.
 
 _Phase: 40-substitutions_
 _Completed: 2026-08-16_
+
+## Self-Check: PASSED
+
+All 6 key files (5 modified components/tests + SUMMARY.md itself) confirmed present on disk. All 4 task/docs commit hashes (`fcaf791`, `e349430`, `c591d2b`, `5c53a21`) confirmed present in git log.
