@@ -140,3 +140,17 @@ None - no external service configuration required.
 
 _Phase: 40-substitutions_
 _Completed: 2026-08-16_
+
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/server/src/roomHandlers.ts
+- FOUND: packages/server/src/**tests**/gameEngine.substitution.test.ts
+- FOUND: .planning/phases/40-substitutions/40-04-SUMMARY.md
+- FOUND: relocateRedCardedToBench export in gameEngine.ts
+- FOUND commit: 4dff753 (Task 1 RED)
+- FOUND commit: f6ef69e (Task 1 GREEN)
+- FOUND commit: b7f5924 (Task 2)
+- FOUND commit: 69b4795 (Task 3)
+- FOUND commit: c6445fa (Task 4)
+- FOUND commit: 638deff (plan summary)
