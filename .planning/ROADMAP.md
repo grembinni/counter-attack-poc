@@ -133,7 +133,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 | 37    | 19/19 | Complete    | 2026-08-07 |
 | 38    | 33/33 | Complete    | 2026-08-09 |
 | 39    | 24/24 | Complete    | 2026-08-15 |
-| 40    | 1/7   | In Progress |            |
+| 40    | 3/7   | In Progress |            |
 
 ### Phase 37: Out-of-Bounds Detection, Throw-In & Goal Kick
 
@@ -435,8 +435,8 @@ Plans:
 
 **Wave 2** _(two parallel plans, no file overlap)_
 
-- [ ] 40-02-PLAN.md — Engine: applySubstitution rules, added-time accumulator, roster-continuity helper
-- [ ] 40-03-PLAN.md — Client: LineupAssignmentScreen mid-match mode, OUT badges, card/injury chips, drag-to-substitute
+- [x] 40-02-PLAN.md — Engine: applySubstitution rules, added-time accumulator, roster-continuity helper
+- [x] 40-03-PLAN.md — Client: LineupAssignmentScreen mid-match mode, OUT badges, card/injury chips, drag-to-substitute
 
 **Wave 3** _(three parallel plans, no file overlap)_
 
