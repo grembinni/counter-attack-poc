@@ -440,20 +440,23 @@ onPitch?: boolean;
 
 ## Open Questions
 
-1. **Exact `STOPPAGE_PHASES` membership (SUB-01 stage-granularity)**
+_All three questions below were resolved during planning (across the initial plan and two subsequent revision passes for D-10/D-12/D-13) — see each item's RESOLVED note._
+
+1. **Exact `STOPPAGE_PHASES` membership (SUB-01 stage-granularity)** — RESOLVED
    - What we know: SUB-01 names 7 stoppage types; each maps to 1–8 discrete `GamePhase` values in the current union (mapped exhaustively above); `.planning/research/ARCHITECTURE.md` proposed an illustrative-but-incomplete list (`gameHandlers.ts`-era draft, written before Phase 39's `PENALTY_KICK_*`/`FOUL_CHOICE`/`GK_*` phases existed).
    - What's unclear: Whether "kick-off" in SUB-01 means only `KICK_OFF_SETUP` (repositioning) or also the immediately-following `KICK_OFF` phase itself; whether "penalty kick" means the full `PENALTY_KICK_SETUP_ATTACKING` → `PENALTY_KICK_TAKER_SELECT` chain or excludes the live `PENALTY_KICK` duel phase; whether `GK_RESTART`/`GK_KICK_TARGET`/`GK_QUICK_THROW` (the GK-catch/save restart chain, structurally separate from "goal kick" per Phase 37's explicit design) should count as a stoppage at all, since SUB-01's prose doesn't name it.
-   - Recommendation: Resolve via `/gsd-discuss-phase` follow-up or explicit planner decision before locking `STOPPAGE_PHASES` — Assumption A1 above is the recommended default (setup/reposition stages yes, in-flight/duel stages no, GK-restart-chain and foul-choice excluded) but should be presented to the user as a confirmable list, not silently assumed.
+   - RESOLVED: Locked to the 15-value list in `40-01-PLAN.md` Task 1 (kick-off/half-time/free-kick/throw-in setup, all goal-kick setup/choice, all corner-kick, all penalty setup/taker-select phases), with inline exclusion comments for `KICK_OFF`, in-flight/duel phases, the `GK_RESTART` chain, and Phase 39's decision-prompt phases. Presented to and confirmed by the user rather than silently assumed, per the recommendation below.
+   - (Original recommendation, superseded by the locked list above:) Resolve via `/gsd-discuss-phase` follow-up or explicit planner decision before locking `STOPPAGE_PHASES` — Assumption A1 above is the recommended default (setup/reposition stages yes, in-flight/duel stages no, GK-restart-chain and foul-choice excluded) but should be presented to the user as a confirmable list, not silently assumed.
 
-2. **Representation of a substituted-out player in `state.pieces`**
+2. **Representation of a substituted-out player in `state.pieces`** — RESOLVED
    - What we know: Phase 39 established a precedent (`onPitch: false`, piece stays in array) for a structurally similar problem (red-carded player is gone from play but shouldn't vanish from data structures) and explicitly flagged that this specific field must NOT be reused for Phase 40's purposes.
-   - What's unclear: Whether Phase 40 should follow the identical shape (new `subbedOut?: boolean` flag, piece stays in `pieces[]`) or fully remove the piece from `pieces[]` and rely solely on `bench[team]` (with the substitute's entry removed) to represent "who's out."
-   - Recommendation: Follow the same shape as `redCarded`/`onPitch` (Assumption A2) — keeps `pieces.length` stable at 22 for the whole match, which likely simplifies every existing piece-counting/rendering call site rather than requiring an audit of assumptions about squad size.
+   - RESOLVED: `state.pieces` itself is untouched by a substitution — the incoming substitute _takes over the departing player's slot object_ (id, number, position preserved), so `pieces.length` stays 22 and no new per-piece "subbed out" flag was needed on `PlayerPiece` at all. The outgoing player's unavailability is tracked separately, on their `BenchEntry.status` (`'available' | 'subbedOut' | 'redCarded'`, `40-01-PLAN.md` Task 2) — a different, simpler resolution than either option this question originally posed.
+   - (Original recommendation:) Follow the same shape as `redCarded`/`onPitch` (Assumption A2) — keeps `pieces.length` stable at 22 for the whole match. (The stable-`pieces.length` goal was achieved, but via slot-takeover rather than a new flag.)
 
-3. **Whether `GameState.bench` needs full `PlayerPiece`-shaped entries or just id references**
+3. **Whether `GameState.bench` needs full `PlayerPiece`-shaped entries or just id references** — RESOLVED
    - What we know: Pre-match `benchIds: string[]` (just ids) is resolved to full player data via `PLAYER_MAP`/`getSquadPlayers` lookups client-side (`LineupAssignmentScreen.tsx:37-38`, `resolveTieredCard`). Server-side, bench players are not yet `PlayerPiece` objects (no `position`, no per-match mutable state like `injuryCount`) until they're substituted onto the pitch.
-   - What's unclear: Whether the substitute inherits any pre-existing match-day state (they shouldn't have any, since they haven't played) or whether bench entries need to track anything match-specific before being subbed on (e.g. can a bench player be "injured" while on the bench? Rulebook-wise, almost certainly no — bench players are inert until subbed on).
-   - Recommendation: Keep `GameState.bench: { home: string[]; away: string[] }` (id references only, mirroring `benchIds`), resolved to full player data via the existing `getSquadPlayers`/`PLAYER_MAP` pattern only within the client-side substitution modal — no new server-side per-bench-player state needed, since a bench player has no in-match mutable state until the moment they become a `PlayerPiece` via substitution.
+   - RESOLVED: Landed between the two options — `BenchEntry = { playerId: string; jerseyNumber: number; status: BenchEntryStatus }` (`40-01-PLAN.md` Task 2). Slightly richer than plain id references (carries `jerseyNumber` and `status` alongside the id) but still far short of a full `PlayerPiece` — no `position` or other per-match mutable state. The `status` field also absorbs D-13's later requirement (red-carded players relocated onto the bench, marked distinctly from `'subbedOut'`), which wasn't yet known when this question was first written.
+   - (Original recommendation:) Keep `GameState.bench: { home: string[]; away: string[] }` (id references only, mirroring `benchIds`) — superseded once `status` and `jerseyNumber` proved necessary.
 
 ## Environment Availability
 
