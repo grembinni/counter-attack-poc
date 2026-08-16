@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
-import { TEAM_CONFIGS } from '@counter-attack/shared';
+import type { Mock } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { TEAM_CONFIGS, STOPPAGE_PHASES } from '@counter-attack/shared';
+import type { GamePhase } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import {
@@ -20,6 +22,12 @@ vi.mock('../socket.js', () => ({
     io: { on: vi.fn(), off: vi.fn() },
   },
 }));
+
+import { socket } from '../socket.js';
+
+// Capture mock reference once — avoids @typescript-eslint/unbound-method on socket.emit
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const emitMock: Mock = socket.emit as Mock;
 
 // Phase 39 (39-16 Task 3): the four new prompt/setup panels are mocked to identifiable
 // stubs for the phase-dispatch assertions below — the point of those tests is which panel
@@ -511,4 +519,128 @@ describe('GameBoard — Phase 39 (39-16): new phase dispatch', () => {
       expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
     },
   );
+});
+
+// ---------------------------------------------------------------------------
+// Phase 40 (SUB-01/02, Task 2 — Wave 0 RED): persistent stoppage-gated SUB
+// affordance + substitution modal. 'HALF_TIME' is sampled from STOPPAGE_PHASES
+// (the shared allow-list); 'MOVE'/'PENALTY_KICK' are sampled non-stoppage phases.
+// ---------------------------------------------------------------------------
+describe('substitution affordance (SUB-01/02)', () => {
+  const HOME_BENCH_ENTRY = { playerId: 'p900', jerseyNumber: 30, status: 'available' as const };
+  const AWAY_BENCH_ENTRY = { playerId: 'p901', jerseyNumber: 31, status: 'available' as const };
+
+  const STOPPAGE_SAMPLE: GamePhase = 'HALF_TIME';
+  const NON_STOPPAGE_SAMPLES: readonly GamePhase[] = ['MOVE', 'PENALTY_KICK'];
+
+  function seedRosterState(phase: GamePhase) {
+    useGameStore.setState({
+      playerSlot: 1, // home — myTeam scoping asserted below
+      gameState: {
+        ...mockMovementState,
+        phase,
+        // playerId seeded on every home piece so the modal has bench-substitution data to
+        // render (Task 2 instruction: "Seed ... pieces with playerId values").
+        pieces: mockMovementState.pieces.map((p) =>
+          p.teamId === 'home' ? { ...p, playerId: `pid-${p.id}` } : p,
+        ),
+        bench: { home: [HOME_BENCH_ENTRY], away: [AWAY_BENCH_ENTRY] },
+        subsUsed: { home: 0, away: 0 },
+      },
+    });
+  }
+
+  it('confirms HALF_TIME is a sampled STOPPAGE_PHASES member (sanity check for the fixture below)', () => {
+    expect(STOPPAGE_PHASES).toContain(STOPPAGE_SAMPLE);
+  });
+
+  it('renders in every phase, including non-stoppage phases (persistent, never conditionally mounted)', () => {
+    for (const phase of [...NON_STOPPAGE_SAMPLES, STOPPAGE_SAMPLE]) {
+      seedRosterState(phase);
+      const { unmount } = render(<GameBoard />);
+      const button =
+        screen.queryByRole('button', { name: 'Open substitutions' }) ??
+        screen.queryByRole('button', { name: 'Substitutions unavailable — not a stoppage' });
+      expect(button).not.toBeNull();
+      unmount();
+    }
+  });
+
+  it('is enabled with aria-label "Open substitutions" during a stoppage phase', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    const button = screen.getByRole('button', { name: 'Open substitutions' });
+    expect(button).not.toBeDisabled();
+  });
+
+  it.each(NON_STOPPAGE_SAMPLES)(
+    'is disabled outside a stoppage (%s), carries the disabled aria-label and tooltip',
+    (phase) => {
+      seedRosterState(phase);
+      render(<GameBoard />);
+      const button = screen.getByRole('button', {
+        name: 'Substitutions unavailable — not a stoppage',
+      });
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute(
+        'title',
+        'Substitutions are only available during a stoppage in play.',
+      );
+    },
+  );
+
+  it('clicking while enabled renders the substitution modal containing the roster screen', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    expect(screen.getByText('Substitution')).toBeDefined();
+  });
+
+  it('clicking while disabled renders nothing', () => {
+    seedRosterState('MOVE');
+    render(<GameBoard />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Substitutions unavailable — not a stoppage' }),
+    );
+    expect(screen.queryByText('Substitution')).toBeNull();
+  });
+
+  it('the close control (aria-label="Close substitutions") dismisses the modal with no emit', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    expect(screen.getByText('Substitution')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Close substitutions' }));
+    expect(screen.queryByText('Substitution')).toBeNull();
+    expect(emitMock).not.toHaveBeenCalled();
+  });
+
+  it("renders the caller's own team only — the opposing teamId's pieces do not appear", () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    const homePiece = mockMovementState.pieces.find((p) => p.teamId === 'home');
+    const awayPiece = mockMovementState.pieces.find((p) => p.teamId === 'away');
+    expect(homePiece).toBeDefined();
+    expect(awayPiece).toBeDefined();
+    expect(
+      screen.getAllByText(`${homePiece!.firstName} ${homePiece!.lastName}`).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(`${awayPiece!.firstName} ${awayPiece!.lastName}`)).toBeNull();
+  });
+
+  it('is not rendered on a phase transition by itself, and closes automatically when the phase leaves the stoppage set while open', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    const { rerender } = render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    expect(screen.getByText('Substitution')).toBeDefined();
+
+    // Server-driven phase change (not a user click) leaves the stoppage set — the modal must
+    // self-close via the useEffect force-close, not merely become unopenable.
+    useGameStore.setState({
+      gameState: { ...useGameStore.getState().gameState, phase: 'MOVE' },
+    });
+    rerender(<GameBoard />);
+    expect(screen.queryByText('Substitution')).toBeNull();
+  });
 });
