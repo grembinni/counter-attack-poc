@@ -867,6 +867,11 @@ export function resolveFoulChain(input: {
             ? {
                 ...p,
                 redCarded: true,
+                // Debug red-card-bench-removal-scope (Part 1): dismiss the piece from the
+                // client's pitch rendering. `position` is deliberately left untouched — see
+                // the `onPitch` doc comment on PlayerPiece (types.ts) and the CARD-02/CARD-04
+                // comment at applyMove's redCarded rejection below for why.
+                onPitch: false,
                 yellowCards: outcome.secondYellow ? 2 : (p.yellowCards ?? 0),
               }
             : p,
@@ -2789,7 +2794,11 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
  *   third — including a direct home↔away jump with no intervening middle action).
  * - D-34: eligible pieces are ALL pieces of both teams (GK included) in the OPPOSITE
  *   final third from the ball's new zone, split into attack/defense relative to
- *   `state.attackingTeam`.
+ *   `state.attackingTeam`. Debug red-card-bench-removal-scope (Part 1): `redCarded`
+ *   pieces are excluded from eligibility, mirroring `computePenaltyKickEligibleIds`'s
+ *   existing `redCarded !== true` filter — a sent-off piece keeps a live on-pitch
+ *   `position` (see the `onPitch` doc comment on PlayerPiece) so without this filter it
+ *   would otherwise pass the region check.
  * - D-35/D-36: if both lists are non-empty, snapshots `{phase, activeTeam}` into
  *   freeMoveResume and overlays FREE_MOVE_ATTACK (or FREE_MOVE_DEFENSE if the attack
  *   list is empty) on top of whatever phase the triggering action already produced.
@@ -2820,7 +2829,9 @@ export function applyFreeMoveZoneCheck(state: GameState): GameState {
 
   // Fresh entry into a final third (D-33) — the opposite final third gets the free move.
   const oppositeThird = newZone === 'home' ? 'awayThird' : 'homeThird';
-  const eligiblePieces = state.pieces.filter((p) => isInRegion(p.position, oppositeThird));
+  const eligiblePieces = state.pieces.filter(
+    (p) => p.redCarded !== true && isInRegion(p.position, oppositeThird),
+  );
   const attackIds = eligiblePieces.filter((p) => p.teamId === state.attackingTeam).map((p) => p.id);
   const defenseIds = eligiblePieces
     .filter((p) => p.teamId !== state.attackingTeam)
@@ -5383,13 +5394,20 @@ export function applyCornerKickTakerSelect(
  * the ball). Every other on-pitch piece from both teams is eligible for CORNER-03's
  * alternating 6-hex window AND CORNER-06's pre-kick 3-hex window — the two windows reuse
  * the same eligible pools.
+ *
+ * Debug red-card-bench-removal-scope (Part 1): also excludes `redCarded` pieces, mirroring
+ * `computePenaltyKickEligibleIds`'s existing `redCarded !== true` filter. A sent-off piece
+ * keeps a live on-pitch `position` (see the `onPitch` doc comment on PlayerPiece) so without
+ * this filter it would otherwise pass the role/taker checks.
  */
 export function computeCornerKickEligibleIds(
   pieces: readonly PlayerPiece[],
   cornerKickTeam: 'home' | 'away',
   cornerKickTakerId: string | null,
 ): { attacking: readonly string[]; defending: readonly string[] } {
-  const eligible = pieces.filter((p) => p.role !== 'GK' && p.id !== cornerKickTakerId);
+  const eligible = pieces.filter(
+    (p) => p.role !== 'GK' && p.id !== cornerKickTakerId && p.redCarded !== true,
+  );
   return {
     attacking: eligible.filter((p) => p.teamId === cornerKickTeam).map((p) => p.id),
     defending: eligible.filter((p) => p.teamId !== cornerKickTeam).map((p) => p.id),
@@ -5961,13 +5979,20 @@ export function applyThrowInPlace(state: GameState, pieceId: string): ApplyThrow
  * piece that walks OUT of a final third mid-window keeps its remaining
  * 6-hex budget, and a piece that walks IN during the window does not gain
  * a fresh one.
+ *
+ * Debug red-card-bench-removal-scope (Part 1): excludes `redCarded` pieces from both
+ * lists, mirroring `computePenaltyKickEligibleIds`'s existing `redCarded !== true` filter.
+ * A sent-off piece keeps a live on-pitch `position` (see the `onPitch` doc comment on
+ * PlayerPiece) so without this filter it would otherwise satisfy the region check.
  */
 export function computeGoalKickEligibleIds(
   pieces: readonly PlayerPiece[],
   goalKickTeam: 'home' | 'away',
 ): { gkTeam: readonly string[]; opponent: readonly string[] } {
   const eligible = pieces.filter(
-    (p) => isInRegion(p.position, 'homeThird') || isInRegion(p.position, 'awayThird'),
+    (p) =>
+      p.redCarded !== true &&
+      (isInRegion(p.position, 'homeThird') || isInRegion(p.position, 'awayThird')),
   );
   return {
     gkTeam: eligible.filter((p) => p.teamId === goalKickTeam).map((p) => p.id),

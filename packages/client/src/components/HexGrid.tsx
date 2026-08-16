@@ -747,8 +747,19 @@ export function HexGrid() {
           <PitchMarkings />
           {/* Layer 2: Ball marker — above hexes, below pieces */}
           <BallMarker ball={ball} />
-          {/* Layer 3: Piece overlays — topmost layer, all 22 pieces */}
+          {/* Layer 3: Piece overlays — topmost layer, all 22 pieces (fewer once a piece is
+              dismissed — see the onPitch === false guard immediately below). */}
           {pieces.map((piece) => {
+            // Debug red-card-bench-removal-scope (Part 1): a dismissed (redCarded) piece is
+            // given onPitch: false by gameEngine.ts but deliberately KEEPS a live `position`
+            // (see the onPitch doc comment on PlayerPiece in packages/shared/src/types.ts) —
+            // so the skip must happen here, at the render map, rather than by filtering
+            // `pieces` upstream or by nulling position. PieceOverlay itself stays a pure
+            // renderer (untouched) so PieceOverlay.test.tsx's direct-render card-badge
+            // coverage keeps working; this early return is the only place a dismissed piece
+            // stops appearing on the pitch.
+            if (piece.onPitch === false) return null;
+
             // During GK_DIVE, visually show the defending GK at their current dive position.
             // gk.position in state.pieces is the original position (used for cumulative distance check);
             // gkDivePosition tracks where they actually are on screen.

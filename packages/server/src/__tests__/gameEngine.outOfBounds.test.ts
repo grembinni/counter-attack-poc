@@ -1308,6 +1308,16 @@ describe('computeGoalKickEligibleIds', () => {
     expect(result.gkTeam).not.toContain(homePiece.id);
     expect(result.opponent).not.toContain(awayPiece.id);
   });
+
+  // Debug red-card-bench-removal-scope (Part 1): a redCarded piece keeps a live on-pitch
+  // `position` (see the onPitch doc comment on PlayerPiece) so, prior to this fix, it would
+  // still satisfy the region check and appear in the eligible list.
+  it('excludes a redCarded piece even when its position is in a final third', () => {
+    const redHomeMidThird: PlayerPiece = { ...homeMidThird, id: 'home-red', redCarded: true };
+    const result = computeGoalKickEligibleIds([...eligibilityPieces, redHomeMidThird], 'home');
+    expect(result.gkTeam).not.toContain(redHomeMidThird.id);
+    expect(result.opponent).not.toContain(redHomeMidThird.id);
+  });
 });
 
 /** GOAL_KICK_SETUP_GK fixture: home is taking the goal kick; homeGK holds the ball. */

@@ -776,6 +776,16 @@ describe('computeCornerKickEligibleIds', () => {
     expect(result.attacking).toEqual([]);
     expect(result.defending).toEqual([]);
   });
+
+  // Debug red-card-bench-removal-scope (Part 1): a redCarded piece keeps a live on-pitch
+  // `position` (see the onPitch doc comment on PlayerPiece) so, prior to this fix, it would
+  // still pass the role/taker checks and appear in the eligible list.
+  it('excludes a redCarded piece from both lists', () => {
+    const redHomePiece: PlayerPiece = { ...homePiece, id: 'home-red', redCarded: true };
+    const result = computeCornerKickEligibleIds([...pieces, redHomePiece], 'away', awayTaker.id);
+    expect(result.attacking).not.toContain(redHomePiece.id);
+    expect(result.defending).not.toContain(redHomePiece.id);
+  });
 });
 
 /** CORNER_KICK_REPOSITION fixture: away is the awarded (attacking) team, stage 0. */

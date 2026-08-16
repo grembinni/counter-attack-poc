@@ -2529,3 +2529,62 @@ describe('HexGrid — GK_DIVE_AT_FEET_TARGET piece/hex clickability (GKDIVE-02/G
     expect(emitMoveSpy).not.toHaveBeenCalled();
   });
 });
+
+// Debug red-card-bench-removal-scope (Part 1): a dismissed (redCarded) piece is given
+// onPitch: false by gameEngine.ts's booking resolution but deliberately keeps its live
+// `position` (see the onPitch doc comment on PlayerPiece, packages/shared/src/types.ts).
+// HexGrid must stop rendering it entirely once onPitch === false, while a healthy piece at
+// the same kind of position keeps rendering normally.
+describe('HexGrid — dismissed (onPitch: false) piece is not rendered on the pitch', () => {
+  const DISMISSED_ID = 'home-8'; // FWD 1 at {q:14, r:9} in mockMovementState
+  const DISMISSED_POS = { q: 14, r: 9 };
+
+  it('does not render a base piece circle for a piece with onPitch: false', () => {
+    const pieces = mockMovementState.pieces.map((p) =>
+      p.id === DISMISSED_ID ? { ...p, redCarded: true, onPitch: false } : p,
+    );
+    useGameStore.setState({
+      gameState: { ...mockMovementState, pieces },
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(findBasePieceCircle(container, DISMISSED_POS.q, DISMISSED_POS.r)).toBeUndefined();
+  });
+
+  it('still renders a redCarded piece that has no onPitch flag set (undefined defaults to on-pitch)', () => {
+    const pieces = mockMovementState.pieces.map((p) =>
+      p.id === DISMISSED_ID ? { ...p, redCarded: true } : p,
+    );
+    useGameStore.setState({
+      gameState: { ...mockMovementState, pieces },
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(findBasePieceCircle(container, DISMISSED_POS.q, DISMISSED_POS.r)).toBeDefined();
+  });
+
+  it('still renders every other (healthy) piece normally when one piece has onPitch: false', () => {
+    const healthy = mockMovementState.pieces.find((p) => p.id !== DISMISSED_ID)!;
+    const pieces = mockMovementState.pieces.map((p) =>
+      p.id === DISMISSED_ID ? { ...p, redCarded: true, onPitch: false } : p,
+    );
+    useGameStore.setState({
+      gameState: { ...mockMovementState, pieces },
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(findBasePieceCircle(container, healthy.position.q, healthy.position.r)).toBeDefined();
+  });
+});

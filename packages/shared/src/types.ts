@@ -61,6 +61,19 @@ export type PlayerPiece = {
   yellowCards?: 0 | 1 | 2;
   /** v1.6 (Phase 39 / CARD-02..04): true once this player has been sent off (straight red or second yellow). */
   redCarded?: boolean;
+  /**
+   * Debug session red-card-bench-removal-scope (Part 1, post-Phase-39): true/undefined = the
+   * piece renders normally at `position` on the pitch (the default for every piece). `false`
+   * once a piece has been dismissed (redCarded) — the client stops rendering it, but `position`
+   * itself is DELIBERATELY left untouched (never nulled out). gameEngine.ts's applyMove
+   * comment (CARD-02/CARD-04) explains why `position` must stay a real on-pitch HexCoord for a
+   * redCarded piece: it is kept in `state.pieces` rather than spliced out, and movement/
+   * eligibility guards actively reject it by id rather than relying on an absent position. This
+   * flag is a pure client-rendering signal, independent of `redCarded`'s rules meaning — do not
+   * repurpose it for Phase 40 (Substitutions) roster/bench semantics; SUB-01..07 need their own
+   * data model.
+   */
+  onPitch?: boolean;
 };
 
 export type BallState = {

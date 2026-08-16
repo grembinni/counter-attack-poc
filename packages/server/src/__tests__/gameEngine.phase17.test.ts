@@ -626,6 +626,26 @@ describe('Phase 17 MOVE-06 (corrected design): applyFreeMoveZoneCheck', () => {
     expect(result.activeTeam).toBe('away'); // attackingTeam starts the FREE_MOVE_ATTACK sub-phase
   });
 
+  // Debug red-card-bench-removal-scope (Part 1): a redCarded piece keeps a live on-pitch
+  // `position` (see the onPitch doc comment on PlayerPiece) so, prior to this fix, it would
+  // still satisfy the region check and appear in the eligible list.
+  it('excludes a redCarded piece even when its position is in the opposite final third', () => {
+    const state: GameState = {
+      ...middleZonePassState,
+      ball: { position: { q: 30, r: 7 }, carrierId: 'home-9', lastTouchedBy: null }, // awayThird
+      ballZone: 'home', // direct home→away jump
+      pieces: [
+        { ...homeFWD, position: { q: 30, r: 7 } },
+        { ...homeMID, position: { q: 5, r: 7 }, redCarded: true }, // homeThird but redCarded — excluded
+        { ...awayGK, position: { q: 5, r: 8 } }, // homeThird — still eligible
+        { ...awayDEF, position: { q: 15, r: 7 } }, // middleThird — not eligible
+      ],
+    };
+    const result = applyFreeMoveZoneCheck(state);
+    expect(result.phase).toBe('FREE_MOVE_DEFENSE');
+    expect(result.freeMoveEligibleIds).toEqual({ attack: [], defense: ['away-0'] });
+  });
+
   it('skips straight to FREE_MOVE_DEFENSE when the attack list is empty', () => {
     const state: GameState = {
       ...middleZonePassState,

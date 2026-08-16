@@ -161,6 +161,11 @@ describe('CARD-02: second yellow -> red', () => {
     const fouler = result.state.pieces.find((p) => p.id === 'defender');
     expect(fouler?.redCarded).toBe(true);
     expect(fouler?.yellowCards).toBe(2);
+    // Debug red-card-bench-removal-scope (Part 1): the piece is dismissed from the client's
+    // pitch rendering (onPitch: false) but `position` itself is untouched — see the onPitch
+    // doc comment on PlayerPiece.
+    expect(fouler?.onPitch).toBe(false);
+    expect(fouler?.position).toEqual({ q: 12, r: 7 });
   });
 
   it('a red-carded piece is rejected from a subsequent MOVE attempt with detail RED_CARDED', () => {
