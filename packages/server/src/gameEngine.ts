@@ -2447,7 +2447,14 @@ export function applyEndTurn(
     if (newActionCount >= HALF_LENGTH && state.addedTime === null) {
       // Injected roll (Pitfall 1 — never call randomInt here; caller injects via options)
       const roll = options?.addedTimeRoll ?? 3; // default 3 for backward compatibility
-      newAddedTime = roll + state.refereeCard.leniency;
+      // SUB-05/D-06 (Phase 40): fold in the per-half substitution accumulator. This is the
+      // ONLY reassignment of `newAddedTime` — all four `addedTime: newAddedTime` return
+      // sites below read this same local, so this is a single edit, not four. The
+      // `state.addedTime === null` guard above is untouched: the set-once-per-half
+      // invariant survives (a substitution made AFTER this roll fires increments
+      // `addedTime` directly instead — see `applySubstitution`'s mutually-exclusive
+      // fold-in/direct-increment split).
+      newAddedTime = roll + state.refereeCard.leniency + (state.addedTimeBonus ?? 0);
     }
 
     // Pitfall 5: check HALF_TIME vs FULL_TIME by half
@@ -2471,6 +2478,14 @@ export function applyEndTurn(
           lastShotPath: null, // prevent stale shot-path tint from bleeding into HALF_TIME screen
           // THROWIN-03/D-09: a throw-in context cannot survive across a half boundary.
           ...THROW_IN_TEARDOWN,
+          // SUB-05/D-07 (Phase 40): the per-half substitution bonus resets at the END of
+          // the half (not in applyHalfTimeStart) because HALF_TIME is itself a stoppage —
+          // substitutions made during the half-time screen must accumulate toward the
+          // SECOND half's added time, so the reset must happen exactly once, here, at the
+          // boundary crossing. `subsUsed` (SUB-04's whole-match cap) is deliberately NOT
+          // reset here or anywhere else — the two counters are independent and must never
+          // be conflated.
+          addedTimeBonus: 0,
         },
       };
     }
@@ -3058,7 +3073,7 @@ export function applySubstitution(
   // `applyEndTurn` only runs while `addedTime === null`, so these two paths are mutually
   // exclusive and can never double-count a substitution's added-time minute.
   const newAddedTimeBonus = (state.addedTimeBonus ?? 0) + 1;
-  const newAddedTime = state.addedTime === null ? state.addedTime : state.addedTime + 1;
+  const substitutionAddedTime = state.addedTime === null ? state.addedTime : state.addedTime + 1;
 
   // T-40-08 (Repudiation): every accepted substitution appends an audit-trail event.
   const substitutionEvent: ActionEvent = {
@@ -3080,7 +3095,7 @@ export function applySubstitution(
       bench: newBench,
       subsUsed: newSubsUsed,
       addedTimeBonus: newAddedTimeBonus,
-      addedTime: newAddedTime,
+      addedTime: substitutionAddedTime,
       eventLog: [...state.eventLog, substitutionEvent],
       // `phase`, `activeTeam` and `movementSlot` are NOT changed — a substitution never
       // advances the FSM.
