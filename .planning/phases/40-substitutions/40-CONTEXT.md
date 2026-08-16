@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Managers can substitute players at any stoppage under a 3-per-match cap, with number/position inheritance, added-time contribution, and restrictions on red-carded or previously-substituted players — regardless of which other v1.6 toggles are enabled. Covers SUB-01..07, SETTINGS-04. Depends on Phase 39 (soft — only the forced-2nd-injury trigger and red-card non-replacement rule read Phase 39 state). Does not build formation change, referee-leniency tuning, a settings-screen advanced dropdown, or a referee-leniency scoreboard display — all explicitly raised during discussion and deferred (see Deferred Ideas).
+Managers can substitute players at any stoppage under a 3-per-match cap, with number/position inheritance, added-time contribution, and restrictions on red-carded or previously-substituted players — regardless of which other v1.6 toggles are enabled. Covers SUB-01..07, SETTINGS-04. Depends on Phase 39 (soft — only the red-card non-replacement rule reads Phase 39 state). Does not build formation change, referee-leniency tuning, a settings-screen advanced dropdown, or a referee-leniency scoreboard display — all explicitly raised during discussion and deferred (see Deferred Ideas).
 
 </domain>
 
@@ -85,7 +85,7 @@ Managers can substitute players at any stoppage under a 3-per-match cap, with nu
 
 ### Prior-phase precedent
 
-- `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-CONTEXT.md` D-04/D-05 — existing on-pitch card/injury badge design (corner-of-piece, ball-possession-dot sizing), explicitly NOT changed by this phase; D-06 — Phase 39's "no substitute available" fallback for a second injury, which this phase's actual forced-substitution trigger now supersedes
+- `.planning/phases/39-fouls-cards-injuries-penalty-kicks/39-CONTEXT.md` D-04/D-05 — existing on-pitch card/injury badge design (corner-of-piece, ball-possession-dot sizing), explicitly NOT changed by this phase; D-06 — Phase 39's "no substitute available" fallback for a second injury, which this phase deliberately leaves untouched (D-11 retracted — no forced substitution is built)
 
 ### Existing code (reuse targets)
 

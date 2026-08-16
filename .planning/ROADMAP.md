@@ -126,7 +126,7 @@ Full archive: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · [Requi
 
 **Milestone Goal:** Bring the match engine to full rulebook fidelity for stoppages — fouls, bookings, injuries, substitutions, and the complete out-of-bounds restart set (throw-in, corner kick, goal kick, penalty kick) — each independently toggleable at game creation.
 
-**Phase Order Rationale:** Out-of-bounds classification is a hard prerequisite for three of the four new restart types — throw-in, corner kick, and goal kick are all unreachable without it — so it lands first, paired with throw-in and goal kick (goal kick is built as its own dedicated setup flow per explicit product decision, not a reuse of the existing GK_RESTART chain, despite that reuse being the lower-effort path). Corner kick follows once that foundation exists, since it is the most state-machine-complex of the three restarts (two sequential repositioning windows, finer 2-at-a-time alternation than any existing staged flow). The fouls/cards/injury/GK-dive/penalty-kick cluster is the one true must-ship-together group in this milestone — injury and booking are unskippable side effects of every foul, and GK-dive-at-feet exists specifically to create a new foul source that feeds penalty kick, which has no other trigger — so it is deliberately sequenced third to give maximum lead time for resolving its rulebook ambiguities (which die triggers a foul, Professional Foul red-vs-yellow semantics) before implementation begins. Substitutions ships last: it is fully independent of every other cluster and only soft-depends on injury for one trigger source (forced substitution on a second injury), so placing it last avoids a small retroactive follow-up once that wiring already exists.
+**Phase Order Rationale:** Out-of-bounds classification is a hard prerequisite for three of the four new restart types — throw-in, corner kick, and goal kick are all unreachable without it — so it lands first, paired with throw-in and goal kick (goal kick is built as its own dedicated setup flow per explicit product decision, not a reuse of the existing GK_RESTART chain, despite that reuse being the lower-effort path). Corner kick follows once that foundation exists, since it is the most state-machine-complex of the three restarts (two sequential repositioning windows, finer 2-at-a-time alternation than any existing staged flow). The fouls/cards/injury/GK-dive/penalty-kick cluster is the one true must-ship-together group in this milestone — injury and booking are unskippable side effects of every foul, and GK-dive-at-feet exists specifically to create a new foul source that feeds penalty kick, which has no other trigger — so it is deliberately sequenced third to give maximum lead time for resolving its rulebook ambiguities (which die triggers a foul, Professional Foul red-vs-yellow semantics) before implementation begins. Substitutions ships last: it is fully independent of every other cluster and only soft-depends on injury for the red-card non-replacement rule, so placing it last avoids a small retroactive follow-up once that wiring already exists. (This originally also cited a forced substitution on a second injury as a trigger source; that decision — Phase 40 D-11 — was retracted by the user during planning and no forced-substitution path is built.)
 
 | Phase | Name          | Plans    | Status      |
 | ----- | ------------- | -------- | ----------- |
@@ -416,7 +416,7 @@ Plans:
 ### Phase 40: Substitutions
 
 **Goal**: Managers can substitute players at any stoppage under a 3-per-match cap, with number/position inheritance, added-time contribution, and restrictions on red-carded or previously-substituted players — regardless of which other v1.6 toggles are enabled.
-**Depends on**: Phase 39 (soft — substitution mechanics are independently built; only the forced-2nd-injury trigger and red-card non-replacement rule read Phase 39 state)
+**Depends on**: Phase 39 (soft — substitution mechanics are independently built; only the red-card non-replacement rule reads Phase 39 state)
 **Requirements**: SUB-01, SUB-02, SUB-03, SUB-04, SUB-05, SUB-06, SUB-07, SETTINGS-04
 **Success Criteria** (what must be TRUE):
 
@@ -425,13 +425,13 @@ Plans:
 3. Each completed substitution adds 1 minute to the current half's added-time calculation.
 4. A red-carded player cannot be replaced by a substitute, and a player who has been substituted out is shown a clear "unavailable" indicator on the roster screen and can never return for the remainder of the match.
 
-**Plans**: 8 plans
+**Plans**: 7 plans
 
 Plans:
 
 **Wave 1**
 
-- [ ] 40-01-PLAN.md — Shared substitution contracts: STOPPAGE_PHASES allow-list, GameState bench/subsUsed/addedTimeBonus, SUBSTITUTION event (incl. `forced`) + per-event-type registration
+- [ ] 40-01-PLAN.md — Shared substitution contracts: STOPPAGE_PHASES allow-list, GameState bench/subsUsed/addedTimeBonus, SUBSTITUTION event + per-event-type registration
 
 **Wave 2** _(two parallel plans, no file overlap)_
 
@@ -445,10 +445,6 @@ Plans:
 - [ ] 40-06-PLAN.md — Client: persistent stoppage-gated SUB affordance, substitution modal, emitSubstitution store action
 
 **Wave 4**
-
-- [ ] 40-08-PLAN.md — Engine: D-11 forced substitution on a second injury, replacing Phase 39's stubbed INJURY-03 fallback
-
-**Wave 5**
 
 - [ ] 40-07-PLAN.md — Two-client substitution integration test + two-browser human verification checkpoint
 
