@@ -29,6 +29,14 @@ type BenchCarouselProps = {
   teamId: TeamId;
   /** Jersey numbers by card id — shown once the draft completes (D-15). */
   benchNumbers?: Record<string, number>;
+  /** Phase 40 (SUB-07): card ids (PLAYER_POOL ids) that have been substituted out —
+   * rendered with an "OUT" badge, dimmed, and non-draggable. Undefined in every
+   * pre-match (draft) call site — pre-match draft usage is unaffected. */
+  unavailablePlayerIds?: readonly string[];
+  /** Phase 40 (D-13): card ids that have been sent off — rendered with a distinct
+   * "RED CARD" badge (takes precedence over unavailablePlayerIds), dimmed, and
+   * non-draggable. Undefined in every pre-match (draft) call site. */
+  redCardedPlayerIds?: readonly string[];
   /** Called on drag-start with the dragged card's bench index (source-tracking only —
    * the parent resolves which card/origin this refers to). */
   onCardDragStart: (benchIndex: number) => void;
@@ -44,6 +52,8 @@ export function BenchCarousel({
   cards,
   teamId,
   benchNumbers,
+  unavailablePlayerIds,
+  redCardedPlayerIds,
   onCardDragStart,
   onDropToBench,
 }: BenchCarouselProps) {
@@ -83,7 +93,12 @@ export function BenchCarousel({
     setTimeout(updateScrollState, 300);
   }
 
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>, benchIndex: number) {
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>, benchIndex: number, cardId: string) {
+    // Phase 40 (SUB-07/D-13): a card that is OUT or RED CARD is never a drag
+    // source — a single combined guard is fine here because both mean "not a
+    // drag source"; the visual distinction lives in the badge, not the drag
+    // behaviour (BenchCarousel.tsx module doc / D-13).
+    if (unavailablePlayerIds?.includes(cardId) || redCardedPlayerIds?.includes(cardId)) return;
     // Native HTML5 drag initiation requires a dataTransfer payload, but this
     // string is NOT the resolution channel (see module doc) — the parent
     // resolves drag source/origin from onCardDragStart(benchIndex) instead.
@@ -153,7 +168,9 @@ export function BenchCarousel({
                 teamId={teamId}
                 {...(jerseyNumber !== undefined ? { jerseyNumber } : {})}
                 draggable={true}
-                onDragStart={(e) => handleDragStart(e, benchIndex)}
+                unavailable={unavailablePlayerIds?.includes(card.id) ?? false}
+                redCarded={redCardedPlayerIds?.includes(card.id) ?? false}
+                onDragStart={(e) => handleDragStart(e, benchIndex, card.id)}
               />
             );
           })}

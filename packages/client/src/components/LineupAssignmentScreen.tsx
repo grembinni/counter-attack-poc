@@ -17,8 +17,10 @@ import {
   DRAFT_ROUND_COUNT,
 } from '@counter-attack/shared';
 import type {
+  BenchEntry,
   FormationId,
   FormationSlot,
+  PlayerPiece,
   PoolPlayer,
   TeamId,
   DraftClientView,
@@ -69,6 +71,22 @@ type Props = {
   onDraftPick?: (cardId: string, destination: DraftDestination) => void;
   /** Phase 29 D-08/D-10: emitted when an already-drafted card is rearranged (lineup<->bench, lineup<->lineup). */
   onDraftRearrange?: (from: DraftSlotRef, to: DraftSlotRef) => void;
+  /** Phase 40 (D-01/D-04): 'midmatch' activates the live-GameState substitution
+   * branch below. Defaults to 'pregame' (undefined) — every existing pre-match
+   * call site is unaffected. */
+  mode?: 'pregame' | 'midmatch';
+  /** Phase 40 (SUB-02): the caller's own team's live on-pitch pieces (mid-match mode only). */
+  midmatchPieces?: readonly PlayerPiece[];
+  /** Phase 40 (SUB-02/07/D-13): the caller's own team's bench, including subbedOut/redCarded
+   * entries (mid-match mode only). */
+  bench?: readonly BenchEntry[];
+  /** Phase 40 (SUB-04/SUB-06): this team's whole-match substitution count / permanent
+   * on-pitch headcount cap (11 - redCardCount, D-08). */
+  subsUsed?: number;
+  maxOnPitch?: number;
+  /** Phase 40 (SUB-02/D-04): emitted when a bench card is dropped onto an eligible
+   * on-pitch card — a single 1-for-1 swap, gated server-side by GAME_SUBSTITUTION. */
+  onSubstitute?: (outPieceId: string, inPlayerId: string) => void;
 };
 
 /** Phase 29 (DRAFT-06): a single parent-owned drag-state variable resolves every drop —
@@ -81,10 +99,24 @@ type DragState =
 
 /* ─── LineupStatCard — flat format matching GameBoard/PlayerStatsPanel ────── */
 
+/**
+ * Phase 40 (Task 3): widened card-player type so a live-match `PlayerPiece` can be
+ * passed directly to `LineupStatCard` in mid-match mode, without disturbing the
+ * pregame/draft branches which always pass a real `PoolPlayer`/`TieredPoolPlayer`.
+ * `id`/`sourceTeamId`/`poolTag` are PoolPlayer-only fields with no PlayerPiece
+ * equivalent, so they become optional rather than required.
+ */
+type RosterCardPlayer = Omit<PoolPlayer, 'id' | 'sourceTeamId' | 'poolTag'> &
+  Partial<Pick<PoolPlayer, 'id' | 'sourceTeamId' | 'poolTag'>>;
+
 type StatCardProps = {
-  player: PoolPlayer;
-  slotMeta: FormationSlot;
-  /** Absolute slot index — 0 = GK (always locked). */
+  player: RosterCardPlayer;
+  /** Optional in mid-match mode — the jersey number instead comes from `player.number`
+   * (the live PlayerPiece's own number, already reflecting any prior substitution's
+   * number inheritance per SUB-03). Required in practice for pregame/draft modes. */
+  slotMeta?: FormationSlot;
+  /** Absolute slot index — 0 = GK (always locked) in pregame/draft mode. In mid-match
+   * mode this is a rendering-only sequence index (no formation-slot meaning). */
   slotIndex: number;
   isDragSource: boolean;
   isDropTarget: boolean;
@@ -105,6 +137,17 @@ type StatCardProps = {
    * are drafted with a rarity tier (Standard-mode auto-assigned cards are untouched, D-23
    * scopes tier color to "everywhere a drafted card appears", not Standard-mode lineups). */
   showTierBorder?: boolean;
+  /** Phase 40 (RESEARCH.md Pitfall 6): a STRUCTURALLY SEPARATE mid-match rendering/
+   * drag-gating branch — never merged with the GK-lock expression above. */
+  mode?: 'pregame' | 'midmatch';
+  /** Phase 40 (D-05): red beats yellow, mirrors PlayerStatsPanel.tsx's cardColor derivation. */
+  cardColor?: 'yellow' | 'red' | null;
+  /** Phase 40 (D-05): mirrors PlayerStatsPanel.tsx's injury-chip derivation. */
+  injuryCount?: number;
+  /** Phase 40 (SUB-02): true while this on-pitch card is the hovered bench-drag drop target. */
+  isSubTarget?: boolean;
+  /** Phase 40 (SUB-06): true for a red-carded on-pitch card — never a valid sub target. */
+  isSubBlocked?: boolean;
 };
 
 function LineupStatCard({
@@ -122,12 +165,29 @@ function LineupStatCard({
   onDragEnd,
   allowGKDrag,
   showTierBorder,
+  mode,
+  cardColor,
+  injuryCount,
+  isSubTarget,
+  isSubBlocked,
 }: StatCardProps) {
-  const isGK = slotIndex === 0;
-  const isDraggable = allowGKDrag ? !lineupConfirmed : !isGK && !lineupConfirmed;
+  const isMidmatch = mode === 'midmatch';
+  const isGK = !isMidmatch && slotIndex === 0;
+  // Phase 40 (RESEARCH.md Pitfall 6): mid-match draggability is a structurally
+  // separate condition — bench->pitch is the only substitution gesture, so every
+  // on-pitch card is non-draggable regardless of the pregame GK-lock rule below.
+  const isDraggable = isMidmatch
+    ? false
+    : allowGKDrag
+      ? !lineupConfirmed
+      : !isGK && !lineupConfirmed;
 
   let cardClass: string | undefined;
-  if (isGK && !allowGKDrag) {
+  if (isMidmatch) {
+    cardClass = styles.statCard;
+    if (isSubBlocked) cardClass = `${cardClass} ${styles.statCardSubBlocked}`;
+    if (isSubTarget) cardClass = `${cardClass} ${styles.statCardSubTarget}`;
+  } else if (isGK && !allowGKDrag) {
     cardClass = styles.statCardLocked;
   } else if (lineupConfirmed) {
     cardClass = styles.statCardConfirmed;
@@ -143,9 +203,14 @@ function LineupStatCard({
   // border and drag/lock/confirm state are independent concerns, matching how
   // DraftPackCarousel/BenchCarousel apply TIER_CARD_CLASS alongside interaction state.
   if (showTierBorder) {
-    const tier = classifyTier(computeTotalStat(player));
+    const tier = classifyTier(computeTotalStat(player as PoolPlayer));
     cardClass = `${cardClass} ${TIER_CARD_CLASS[tier]}`;
   }
+
+  // Phase 40 (SUB-03): mid-match jersey number comes from the live piece's own
+  // `number` field (already reflecting any prior substitution's number
+  // inheritance) — never from a FormationSlot, which mid-match mode doesn't have.
+  const displayNumber = isMidmatch ? player.number : slotMeta?.jerseyNumber;
 
   return (
     <div
@@ -168,9 +233,22 @@ function LineupStatCard({
           <div className={styles.cardMeta}>
             <NationFlag nationality={player.nationality} size={14} />
             <span className={styles.cardRole}>{player.role}</span>
-            {/* D-15 Pitfall 5: jersey number from slotMeta, not player */}
-            <span className={styles.cardNum}>#{slotMeta.jerseyNumber}</span>
+            {/* D-15 Pitfall 5: jersey number from slotMeta, not player (pregame/draft only) */}
+            <span className={styles.cardNum}>#{displayNumber}</span>
             {isGK && !allowGKDrag && <span className={styles.lockedBadge}>LOCK</span>}
+            {/* Phase 40 (D-05): card/injury chips — identical classes/copy to
+                PlayerStatsPanel.tsx's top-left player card (cardColor/injuryCount
+                are undefined for pregame/draft cards, so this is a no-op there). */}
+            {cardColor && (
+              <span data-testid="stats-card-chip" data-card={cardColor} className={styles.cardChip}>
+                {cardColor.toUpperCase()}
+              </span>
+            )}
+            {(injuryCount ?? 0) > 0 && (
+              <span data-testid="stats-injury-chip" className={styles.injuryChip}>
+                {(injuryCount ?? 0) >= 2 ? 'INJ ×2' : 'INJ'}
+              </span>
+            )}
           </div>
         </div>
         {/* 3-column stat chip grid → 2 rows of 3+3 (6 role-filtered stats) */}
@@ -210,6 +288,12 @@ export function LineupAssignmentScreen({
   draftView,
   onDraftPick,
   onDraftRearrange,
+  mode,
+  midmatchPieces,
+  bench,
+  subsUsed,
+  maxOnPitch,
+  onSubstitute,
 }: Props) {
   const currentPlayerLabel = playerSlot === 1 ? 'HOME' : 'VISITOR';
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
@@ -239,6 +323,18 @@ export function LineupAssignmentScreen({
       message = 'Rearrange rejected — lineup already confirmed.';
     } else if (gameError === 'LINEUP_INCOMPLETE') {
       message = 'Fill all 11 lineup positions before confirming.';
+    } else if (gameError === 'SUB_CAP_REACHED') {
+      message = 'Substitution rejected — limit reached.';
+    } else if (gameError === 'ALREADY_SUBBED') {
+      message = 'Substitution rejected — player already substituted.';
+    } else if (gameError === 'WRONG_PHASE') {
+      message = 'Substitution rejected — not currently a stoppage.';
+    } else if (gameError === 'CANNOT_SUB_RED_CARD') {
+      message = 'Substitution rejected — a sent-off player cannot be replaced.';
+    } else if (gameError === 'CANNOT_SUB_IN_RED_CARDED') {
+      message = 'Substitution rejected — a sent-off player cannot return.';
+    } else if (gameError === 'INVALID_SUBSTITUTE') {
+      message = 'Substitution rejected — invalid substitute.';
     }
     if (message === null) return;
     setRejectionMessage(message);
@@ -319,6 +415,64 @@ export function LineupAssignmentScreen({
     // Gap-closure 29-12 (DRAFT-09) is preserved. resolveTieredCard is now a useCallback keyed
     // on cardCache, so its own identity change already covers the prior cardCache dependency.
   }, [draftView, resolveTieredCard]);
+
+  // ─── Phase 40 (SUB-02/03/06/07, D-12/D-13): mid-match substitution state ───
+
+  /** The bench card whose drag started this substitution gesture — set by
+   * BenchCarousel's onCardDragStart, mirroring the parent-owned drag-state
+   * pattern already used in draft mode (never read dataTransfer at drop time). */
+  const [midmatchDragPlayerId, setMidmatchDragPlayerId] = useState<string | null>(null);
+  const [midmatchDropTargetPieceId, setMidmatchDropTargetPieceId] = useState<string | null>(null);
+
+  /** Renders one mid-match on-pitch position column, grouped by `piece.role` — GK
+   * column: 'GK'; DEF: 'DEF'; MID: 'MID'; FWD: 'FWD' and 'ST'. Never derives slot
+   * indices by parsing piece ids (RESEARCH.md instruction) — grouping reads
+   * `piece.role` directly. */
+  function renderMidmatchColumn(label: string, pieces: readonly PlayerPiece[]) {
+    return (
+      <div className={styles.column}>
+        <div className={styles.columnHeader}>{label}</div>
+        <div className={styles.columnCards}>
+          {pieces.map((piece, i) => {
+            const cardColor: 'yellow' | 'red' | null =
+              piece.redCarded === true ? 'red' : (piece.yellowCards ?? 0) > 0 ? 'yellow' : null;
+            const isBlocked = piece.redCarded === true;
+            return (
+              <LineupStatCard
+                key={piece.id}
+                player={piece}
+                slotIndex={i}
+                isDragSource={false}
+                isDropTarget={midmatchDropTargetPieceId === piece.id}
+                lineupConfirmed={false}
+                teamId={myTeamId}
+                mode="midmatch"
+                cardColor={cardColor}
+                injuryCount={piece.injuryCount ?? 0}
+                isSubTarget={midmatchDropTargetPieceId === piece.id}
+                isSubBlocked={isBlocked}
+                onDragStart={() => {}}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setMidmatchDropTargetPieceId(piece.id);
+                }}
+                onDragLeave={() => setMidmatchDropTargetPieceId(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setMidmatchDropTargetPieceId(null);
+                  const inPlayerId = midmatchDragPlayerId;
+                  setMidmatchDragPlayerId(null);
+                  if (!inPlayerId || isBlocked) return;
+                  onSubstitute?.(piece.id, inPlayerId);
+                }}
+                onDragEnd={() => {}}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   // D-14: group slots by slotRole prefix into 4 columns
   const formation = FORMATIONS[formationId];
@@ -555,6 +709,97 @@ export function LineupAssignmentScreen({
             ),
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (mode === 'midmatch') {
+    const pieces = midmatchPieces ?? [];
+    const benchList = bench ?? [];
+    const subsUsedVal = subsUsed ?? 0;
+    const redCardCount = maxOnPitch !== undefined ? 11 - maxOnPitch : 0;
+
+    const midmatchGk: PlayerPiece[] = [];
+    const midmatchDef: PlayerPiece[] = [];
+    const midmatchMid: PlayerPiece[] = [];
+    const midmatchFwd: PlayerPiece[] = [];
+    for (const piece of pieces) {
+      if (piece.role === 'GK') midmatchGk.push(piece);
+      else if (piece.role === 'DEF') midmatchDef.push(piece);
+      else if (piece.role === 'MID') midmatchMid.push(piece);
+      else midmatchFwd.push(piece); // 'FWD' and 'ST'
+    }
+
+    // D-12: the bench is roster-minus-starting-XI, nothing is ever generated to
+    // fill it — a Standard-mode room's bench is legitimately empty. This branch
+    // renders calmly either way (no error styling, no retry affordance), whether
+    // the bench was never populated or has simply been used up (D-12/D-13).
+    const midmatchBenchCards: TieredPoolPlayer[] = benchList
+      .map((entry) => resolveTieredCard(entry.playerId))
+      .filter((c): c is TieredPoolPlayer => c !== null);
+    const midmatchBenchNumbers: Record<string, number> = {};
+    for (const entry of benchList) midmatchBenchNumbers[entry.playerId] = entry.jerseyNumber;
+    const unavailablePlayerIds = benchList
+      .filter((e) => e.status === 'subbedOut')
+      .map((e) => e.playerId);
+    const redCardedPlayerIds = benchList
+      .filter((e) => e.status === 'redCarded')
+      .map((e) => e.playerId);
+    const hasAvailableBenchEntry = benchList.some((e) => e.status === 'available');
+    const showEmptyBenchCopy = benchList.length === 0 || !hasAvailableBenchEntry;
+
+    return (
+      <div className={styles.screen}>
+        <h2 className={styles.matchSetupHeading}>Substitution</h2>
+        <p className={styles.cyclePickCounter}>
+          Drag a bench card onto an on-pitch card to Substitute.
+        </p>
+
+        <span
+          className={
+            subsUsedVal >= 3
+              ? `${styles.subCounterChip} ${styles.subCounterChipCapped}`
+              : styles.subCounterChip
+          }
+        >
+          {subsUsedVal}/3 SUBS USED
+        </span>
+
+        {maxOnPitch !== undefined && maxOnPitch < 11 && (
+          <p className={styles.slotCapNote}>
+            {currentPlayerLabel} is down to {maxOnPitch} players after {redCardCount} red card
+            {redCardCount === 1 ? '' : 's'}. The vacated slot cannot be filled.
+          </p>
+        )}
+
+        {/* D-14: horizontal GK | DEF | MID | FWD formation grid, driven by midmatchPieces */}
+        <div className={styles.formationColumns}>
+          {renderMidmatchColumn('GK', midmatchGk)}
+          {renderMidmatchColumn('DEF', midmatchDef)}
+          {renderMidmatchColumn('MID', midmatchMid)}
+          {renderMidmatchColumn('FWD', midmatchFwd)}
+        </div>
+
+        <div className={styles.benchSection}>
+          <span className={styles.benchLabel}>BENCH</span>
+          <BenchCarousel
+            cards={midmatchBenchCards}
+            teamId={myTeamId}
+            benchNumbers={midmatchBenchNumbers}
+            unavailablePlayerIds={unavailablePlayerIds}
+            redCardedPlayerIds={redCardedPlayerIds}
+            onCardDragStart={(benchIndex) => {
+              const card = midmatchBenchCards[benchIndex];
+              if (card) setMidmatchDragPlayerId(card.id);
+            }}
+            onDropToBench={() => setMidmatchDragPlayerId(null)}
+          />
+          {showEmptyBenchCopy && (
+            <p className={styles.cyclePickCounter}>No available substitutes on the bench.</p>
+          )}
+        </div>
+
+        {rejectionMessage !== null && <p className={styles.swapRejection}>{rejectionMessage}</p>}
       </div>
     );
   }
