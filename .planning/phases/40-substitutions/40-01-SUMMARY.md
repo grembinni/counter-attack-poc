@@ -121,3 +121,13 @@ None - no external service configuration required.
 
 _Phase: 40-substitutions_
 _Completed: 2026-08-16_
+
+## Self-Check: PASSED
+
+- FOUND: packages/shared/src/stoppagePhases.ts
+- FOUND: packages/shared/src/stoppagePhases.test.ts
+- FOUND: .planning/phases/40-substitutions/40-01-SUMMARY.md
+- FOUND commit: f7fcc90 (Task 1)
+- FOUND commit: 92b1082 (Task 2)
+- FOUND commit: 4464905 (Task 3)
+- FOUND commit: 6d12392 (plan metadata)
