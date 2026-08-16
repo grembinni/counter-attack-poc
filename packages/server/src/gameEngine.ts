@@ -4238,10 +4238,16 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const newScoreUnsaveable = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
         // D-01 (BUG-30): hoisted so the exact same reset pieces feed both state.pieces and the
         // GOAL event's piecesAfter — mirrors the resetPieces hoist at applyHalfTimeStart:4442.
-        const resetPieces = buildKickOffPieces(
-          newKickOffTeam,
-          state.selectedTeams,
-          state.selectedFormation,
+        // Phase 40 (SUB-03/07, D-08/D-13): buildKickOffPieces rebuilds from getSquadPlayers'
+        // default order, so without applyRosterContinuity a goal would undo every substitution,
+        // clear redCarded (silently lifting D-08's permanent headcount cap) and clear
+        // onPitch:false (putting a sent-off player visibly back on the pitch). Positions still
+        // come from the fresh formation reset; identity/match state is overlaid from state.pieces.
+        // state.bench is never touched here — no reset rebuilds it, so subbed-out/red-carded
+        // bench entries persist across goals and half-time for free.
+        const resetPieces = applyRosterContinuity(
+          buildKickOffPieces(newKickOffTeam, state.selectedTeams, state.selectedFormation),
+          state.pieces,
         );
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
@@ -4333,10 +4339,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         const newScore = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
         // D-01 (BUG-30): hoisted so the exact same reset pieces feed both state.pieces and the
         // GOAL event's piecesAfter — mirrors the resetPieces hoist at applyHalfTimeStart:4442.
-        const resetPieces = buildKickOffPieces(
-          newKickOffTeam,
-          state.selectedTeams,
-          state.selectedFormation,
+        // Phase 40 (SUB-03/07, D-08/D-13): applyRosterContinuity overlay — see the unsaveable-shot
+        // GOAL branch above for the full rationale.
+        const resetPieces = applyRosterContinuity(
+          buildKickOffPieces(newKickOffTeam, state.selectedTeams, state.selectedFormation),
+          state.pieces,
         );
         const shotAttemptGoal: ActionEvent = {
           type: 'SHOT_ATTEMPT',
@@ -7440,13 +7447,14 @@ export function applyPenaltyKickDuel(
 
   if (takerCombined > gkCombined) {
     // GOAL — mirrors the SHOT branch's goal path (buildKickOffPieces reset, KICK_OFF_SETUP).
+    // Phase 40 (SUB-03/07, D-08/D-13): applyRosterContinuity overlay — see the unsaveable-shot
+    // GOAL branch (applyDeclareShot) for the full rationale.
     const scoringTeam = taker.teamId;
     const newKickOffTeam: 'home' | 'away' = defendingTeam;
     const newScore = { ...state.score, [scoringTeam]: state.score[scoringTeam] + 1 };
-    const resetPieces = buildKickOffPieces(
-      newKickOffTeam,
-      state.selectedTeams,
-      state.selectedFormation,
+    const resetPieces = applyRosterContinuity(
+      buildKickOffPieces(newKickOffTeam, state.selectedTeams, state.selectedFormation),
+      state.pieces,
     );
     const penEvent: ActionEvent = {
       type: 'PENALTY_KICK',
@@ -9310,10 +9318,11 @@ export function applyHalfTimeStart(state: GameState): ApplyHalfTimeStartResult {
   const newAttackingTeam: 'home' | 'away' = state.kickOffTeam === 'home' ? 'away' : 'home';
 
   // Reset pieces to formation starting positions using selectedTeams (Phase 16, Pitfall 6; "4-5-2" = movement sequence)
-  const resetPieces = buildKickOffPieces(
-    newAttackingTeam,
-    state.selectedTeams,
-    state.selectedFormation,
+  // Phase 40 (SUB-03/07, D-08/D-13): applyRosterContinuity overlay — see the unsaveable-shot
+  // GOAL branch (applyDeclareShot) for the full rationale. state.bench is never touched here.
+  const resetPieces = applyRosterContinuity(
+    buildKickOffPieces(newAttackingTeam, state.selectedTeams, state.selectedFormation),
+    state.pieces,
   );
 
   // D-02 (same defect class as BUG-30): this atomic piece-formation reset previously had no
@@ -9550,6 +9559,10 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
   // and expect determinism. Instead, we build a seeded initial state manually.
   // A2 (RESEARCH.md): kickOffTeam is recorded in finalState; use it to seed the initial attackingTeam.
   // Phase 16: use buildKickOffPieces with finalState.selectedTeams for correct squad positions.
+  // Phase 40 (40-04 Task 3): deliberately NOT overlaid with applyRosterContinuity — the replay
+  // reconstructs the match from its starting XI forward, and SUBSTITUTION is intentionally
+  // excluded from REPLAY_ELIGIBLE_TYPES (plan 40-01), so the replay shows the starting lineup
+  // throughout, never a substituted-in player.
   let current: GameState = {
     roomCode: finalState.roomCode,
     phase: 'KICK_OFF',

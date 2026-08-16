@@ -17,6 +17,8 @@ import {
   applySubstitution,
   applyRosterContinuity,
   applyEndTurn,
+  applyRoll,
+  applyHalfTimeStart,
   buildKickOffPieces,
   buildInitialGameState,
 } from '../gameEngine.js';
@@ -581,5 +583,110 @@ describe('buildInitialGameState: playerId stamping + bench/subsUsed/addedTimeBon
     expect(state.bench?.away.length).toBe(0);
     expect(state.subsUsed).toEqual({ home: 0, away: 0 });
     expect(state.addedTimeBonus).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3: roster continuity wired into the four in-engine kick-off resets
+// ---------------------------------------------------------------------------
+
+describe('Phase 40 Plan 04 Task 3: roster continuity at goal + half-time resets', () => {
+  const awayGKPiece = () => BASE_PIECES.find((p) => p.teamId === 'away' && p.role === 'GK')!;
+
+  /**
+   * Builds a live in-match state with one home substitution already applied (SUB-03) and a
+   * different away outfield piece carrying a red card + yellow card + injury (D-08/D-13's
+   * bench mirror entry is added directly here — Task 4's relocateRedCardedToBench wiring is
+   * this same plan's next task, but only the resulting bench SHAPE matters for this test).
+   */
+  function buildLiveState(): GameState {
+    const base = makeSubState();
+    const outPiece = homeOutfieldPiece();
+    const subResult = applySubstitution(base, 'home', outPiece.id, homeBenchBase[0]!.playerId);
+    if (!subResult.ok) throw new Error('fixture setup: substitution unexpectedly rejected');
+
+    const cardedPiece = awayOutfieldPiece();
+    const piecesWithCard = subResult.state.pieces.map((p) =>
+      p.id === cardedPiece.id
+        ? { ...p, redCarded: true, onPitch: false, yellowCards: 1 as const, injuryCount: 1 }
+        : p,
+    );
+    const awayBenchWithRedCard: BenchEntry[] = [
+      ...subResult.state.bench!.away,
+      { playerId: cardedPiece.playerId!, jerseyNumber: cardedPiece.number, status: 'redCarded' },
+    ];
+
+    return {
+      ...subResult.state,
+      pieces: piecesWithCard,
+      bench: { home: subResult.state.bench!.home, away: awayBenchWithRedCard },
+    };
+  }
+
+  function assertContinuity(resultState: GameState, liveState: GameState): void {
+    const subbedSlotId = homeOutfieldPiece().id;
+    const subbedInPiece = resultState.pieces.find((p) => p.id === subbedSlotId)!;
+    expect(subbedInPiece.playerId).toBe(homeBenchBase[0]!.playerId);
+    expect(subbedInPiece.playerId).not.toBe(homeOutfieldPiece().playerId);
+
+    // The substituted-out starter never reappears anywhere in pieces after the reset.
+    const originalStarterPlayerId = homeOutfieldPiece().playerId!;
+    expect(resultState.pieces.some((p) => p.playerId === originalStarterPlayerId)).toBe(false);
+    expect(
+      resultState.bench?.home.find((e) => e.playerId === originalStarterPlayerId)?.status,
+    ).toBe('subbedOut');
+    expect(resultState.subsUsed).toEqual(liveState.subsUsed);
+
+    const cardedPiece = awayOutfieldPiece();
+    const resultCarded = resultState.pieces.find((p) => p.id === cardedPiece.id)!;
+    expect(resultCarded.redCarded).toBe(true);
+    expect(resultCarded.onPitch).toBe(false);
+    expect(resultCarded.yellowCards).toBe(1);
+    expect(resultCarded.injuryCount).toBe(1);
+    // Position comes from the fresh formation reset, not the live (pre-reset) piece's position.
+    const livePosition = liveState.pieces.find((p) => p.id === cardedPiece.id)!.position;
+    expect(resultCarded.position).not.toEqual(livePosition);
+
+    const redCardBenchEntry = resultState.bench?.away.find((e) => e.status === 'redCarded');
+    expect(redCardBenchEntry).toBeDefined();
+    expect(redCardBenchEntry?.playerId).toBe(cardedPiece.playerId);
+  }
+
+  it('a goal reset (unsaveable-shot GOAL branch) preserves substitution + red card state', () => {
+    const liveState = buildLiveState();
+    const shooter = BASE_PIECES.find(
+      (p) => p.teamId === 'home' && p.id !== homeOutfieldPiece().id && p.role !== 'GK',
+    )!;
+    const shotState: GameState = {
+      ...liveState,
+      phase: 'SHOT',
+      ball: { position: shooter.position, carrierId: shooter.id, lastTouchedBy: null },
+      // Far enough from the away GK to force the unsaveable (>3 hexes) GOAL branch.
+      gkDivePosition: { q: 0, r: awayGKPiece().position.r },
+    };
+    const result = applyRoll(shotState, 6, 1, 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('KICK_OFF_SETUP');
+    assertContinuity(result.state, liveState);
+  });
+
+  it('applyHalfTimeStart preserves substitution + red card state', () => {
+    const liveState = buildLiveState();
+    const halfTimeState: GameState = { ...liveState, phase: 'HALF_TIME' };
+    const result = applyHalfTimeStart(halfTimeState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('KICK_OFF_SETUP');
+    assertContinuity(result.state, liveState);
+  });
+
+  it('state.bench is never rebuilt by a reset — bench identity is referentially the same object', () => {
+    const liveState = buildLiveState();
+    const halfTimeState: GameState = { ...liveState, phase: 'HALF_TIME' };
+    const result = applyHalfTimeStart(halfTimeState);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.bench).toBe(liveState.bench);
   });
 });
