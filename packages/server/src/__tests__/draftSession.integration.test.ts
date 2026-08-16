@@ -957,6 +957,39 @@ describe('Draft-mode LINEUP_CONFIRM roster resolution', () => {
     }
   }, 40000);
 
+  it("Phase 40 SUB-02/07: a draft room's first broadcast GameState has a 6-entry available bench per team and zeroed subsUsed/addedTimeBonus", async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+    expect(driver.getViewA().draftComplete).toBe(true);
+    expect(driver.getViewB().draftComplete).toBe(true);
+    // 17 total picks per side, 11 placed into lineup slots by pickIntoLineup's fallback ->
+    // the remaining 6 land on the bench for each side.
+    expect(driver.getViewA().benchIds).toHaveLength(6);
+    expect(driver.getViewB().benchIds).toHaveLength(6);
+
+    const gameStateAPromise = new Promise<GameState>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 2000);
+      clientA.once(ServerEvents.GAME_STATE, (state) => {
+        clearTimeout(timer);
+        resolve(state);
+      });
+    });
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: [] });
+    const gameStateA = await gameStateAPromise;
+
+    expect(gameStateA.bench?.home).toHaveLength(6);
+    expect(gameStateA.bench?.away).toHaveLength(6);
+    for (const entry of gameStateA.bench?.home ?? []) {
+      expect(entry.status).toBe('available');
+    }
+    for (const entry of gameStateA.bench?.away ?? []) {
+      expect(entry.status).toBe('available');
+    }
+    expect(gameStateA.subsUsed).toEqual({ home: 0, away: 0 });
+    expect(gameStateA.addedTimeBonus).toBe(0);
+  }, 40000);
+
   it('a draft LINEUP_CONFIRM with a null starting slot emits LINEUP_INCOMPLETE and does not start the game', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     // Drive the FULL draft to draftComplete=true while sending every pick to the bench, so

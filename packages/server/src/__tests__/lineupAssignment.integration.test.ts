@@ -385,6 +385,25 @@ describe('Phase 24 — ASSIGN-05: LINEUP_CONFIRM both-confirm gate', () => {
     expect(stateA.roomCode).toBe(stateB.roomCode);
   }, 8000);
 
+  it("Phase 40 D-12: a STANDARD room's first broadcast GameState has an EMPTY bench for both teams — nothing generated", async () => {
+    const { clientA, clientB } = await setupThroughUniformConfirm();
+
+    const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+    const [[homeAssignment], [awayAssignment]] = await Promise.all([readyAPromise, readyBPromise]);
+
+    const gameStateAPromise = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: awayAssignment });
+    const [stateA] = await gameStateAPromise;
+
+    expect(stateA.bench?.home).toHaveLength(0);
+    expect(stateA.bench?.away).toHaveLength(0);
+    expect(stateA.subsUsed).toEqual({ home: 0, away: 0 });
+    expect(stateA.addedTimeBonus).toBe(0);
+  }, 8000);
+
   it('D-11: GAME_STATE pieces reflect confirmed (possibly swapped) assignment order', async () => {
     const { clientA, clientB } = await setupThroughUniformConfirm();
 

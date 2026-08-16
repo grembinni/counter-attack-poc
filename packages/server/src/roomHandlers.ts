@@ -24,6 +24,7 @@
  */
 
 import type {
+  BenchEntry,
   ClientToServerEvents,
   DraftPickPayload,
   DraftPoolId,
@@ -894,6 +895,43 @@ export function registerRoomHandlers(
           );
         }
 
+        // Phase 40 (SUB-02/07, D-01/D-02): compute each team's bench — the roster minus the
+        // starting 11 — for hand-off into live GameState. Server-authoritative source only:
+        // draft rooms read the drafted-but-unplaced session bench ids; standard rooms read
+        // the full squad filtered against the confirmed starting assignment. Never sourced
+        // from the client's confirmedOrder payload (T-40-11, mirrors the starting-XI stance
+        // already documented above).
+        let confirmedHomeBench: BenchEntry[];
+        let confirmedAwayBench: BenchEntry[];
+
+        if (isDraftRoom) {
+          const session = room.draftSession!;
+          confirmedHomeBench = session.homeBenchIds.map((id) => ({
+            playerId: id,
+            jerseyNumber: session.homeBenchNumbers[id] ?? 0,
+            status: 'available' as const,
+          }));
+          confirmedAwayBench = session.awayBenchIds.map((id) => ({
+            playerId: id,
+            jerseyNumber: session.awayBenchNumbers[id] ?? 0,
+            status: 'available' as const,
+          }));
+        } else {
+          // Every non-draft squad in PLAYER_POOL holds exactly 11 players today, so this list
+          // comes out EMPTY for standard rooms. Per D-12 the empty case is deliberately NOT
+          // special-cased anywhere: no pool is consulted, no substitute is generated — the
+          // substitution screen simply shows "no available substitutes" until a future phase
+          // expands rosters. This is expected behavior, not a gap.
+          const homeAssignedIds = new Set(room.homeAssignment ?? []);
+          const awayAssignedIds = new Set(room.awayAssignment ?? []);
+          confirmedHomeBench = getSquadPlayers(room.homePickedTeam!)
+            .filter((p) => !homeAssignedIds.has(p.id))
+            .map((p) => ({ playerId: p.id, jerseyNumber: p.number, status: 'available' as const }));
+          confirmedAwayBench = getSquadPlayers(room.awayPickedTeam!)
+            .filter((p) => !awayAssignedIds.has(p.id))
+            .map((p) => ({ playerId: p.id, jerseyNumber: p.number, status: 'available' as const }));
+        }
+
         // D-11: build game state from the confirmed player orderings.
         // All required fields were stored on room during UNIFORM_CONFIRM.
         let gameState: import('@counter-attack/shared').GameState;
@@ -914,6 +952,8 @@ export function registerRoomHandlers(
             room.foulsEnabled ?? false,
             room.bookingEnabled ?? false,
             room.injuryEnabled ?? false,
+            confirmedHomeBench,
+            confirmedAwayBench,
           );
         } catch (err) {
           console.error('buildInitialGameState failed in LINEUP_CONFIRM:', err);
