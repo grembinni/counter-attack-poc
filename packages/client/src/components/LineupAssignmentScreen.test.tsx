@@ -10,15 +10,18 @@
  * - D-23 (Phase 30): tier-color border on filled starting-11 lineup slot cards
  * - Standard-mode non-regression (draftMode falsy renders exactly as before)
  */
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent, within, act } from '@testing-library/react';
 import { PLAYER_POOL, computeTotalStat } from '@counter-attack/shared';
 import type {
+  BenchEntry,
   DraftClientView,
   DraftTier,
+  PlayerPiece,
   PoolPlayer,
   TieredPoolPlayer,
 } from '@counter-attack/shared';
+import { useGameStore } from '../store/useGameStore.js';
 import { LineupAssignmentScreen } from './LineupAssignmentScreen.js';
 import { TIER_CARD_CLASS } from './DraftPackCarousel.js';
 
@@ -402,5 +405,350 @@ describe('LineupAssignmentScreen — Standard-mode non-regression', () => {
     expect(columnHeaders).toEqual(['GK', 'DEF', 'MID', 'FWD']);
     expect(screen.getByLabelText('Confirm lineup')).toBeDefined();
     expect(screen.getByText('MATCH SETUP: STEP 3 — HOME PLAYER (YOU)')).toBeDefined();
+  });
+});
+
+/* ─── Phase 40 (40-03): mid-match substitution mode (SUB-02/03/06/07, D-12/D-13) ──────── */
+
+function makePiece(
+  overrides: Partial<PlayerPiece> &
+    Pick<PlayerPiece, 'id' | 'playerId' | 'role' | 'number' | 'firstName' | 'lastName'>,
+): PlayerPiece {
+  return {
+    teamId: 'home',
+    position: { q: 10, r: 10 },
+    pace: 5,
+    shooting: 5,
+    tackling: 5,
+    dribbling: 5,
+    saving: 5,
+    handling: 5,
+    resilience: 5,
+    aerialAbility: 5,
+    highPass: 5,
+    nationality: 'Canada',
+    ...overrides,
+  };
+}
+
+/** 11-piece home XI: GK + 4 DEF (one redCarded) + 3 MID (one yellow, one injured-once) +
+ * 2 FWD (one injured-twice) + 1 ST (must render in the FWD column, not a 5th column). */
+const HOME_TEAM_PIECES: PlayerPiece[] = [
+  makePiece({
+    id: 'home-1',
+    playerId: 'p001',
+    role: 'GK',
+    number: 1,
+    firstName: 'Home',
+    lastName: 'Keeper',
+  }),
+  makePiece({
+    id: 'home-2',
+    playerId: 'p002',
+    role: 'DEF',
+    number: 2,
+    firstName: 'Home',
+    lastName: 'DefOne',
+  }),
+  makePiece({
+    id: 'home-3',
+    playerId: 'p003',
+    role: 'DEF',
+    number: 3,
+    firstName: 'Home',
+    lastName: 'DefTwo',
+  }),
+  makePiece({
+    id: 'home-4',
+    playerId: 'p004',
+    role: 'DEF',
+    number: 4,
+    firstName: 'Home',
+    lastName: 'DefThree',
+  }),
+  makePiece({
+    id: 'home-5',
+    playerId: 'p005',
+    role: 'DEF',
+    number: 5,
+    firstName: 'Home',
+    lastName: 'DefRedCarded',
+    redCarded: true,
+  }),
+  makePiece({
+    id: 'home-6',
+    playerId: 'p006',
+    role: 'MID',
+    number: 6,
+    firstName: 'Home',
+    lastName: 'MidOne',
+  }),
+  makePiece({
+    id: 'home-7',
+    playerId: 'p007',
+    role: 'MID',
+    number: 7,
+    firstName: 'Home',
+    lastName: 'MidYellow',
+    yellowCards: 1,
+  }),
+  makePiece({
+    id: 'home-8',
+    playerId: 'p008',
+    role: 'MID',
+    number: 8,
+    firstName: 'Home',
+    lastName: 'MidInjuredOnce',
+    injuryCount: 1,
+  }),
+  makePiece({
+    id: 'home-9',
+    playerId: 'p009',
+    role: 'FWD',
+    number: 9,
+    firstName: 'Home',
+    lastName: 'FwdInjuredTwice',
+    injuryCount: 2,
+  }),
+  makePiece({
+    id: 'home-10',
+    playerId: 'p010',
+    role: 'FWD',
+    number: 10,
+    firstName: 'Home',
+    lastName: 'FwdOne',
+  }),
+  makePiece({
+    id: 'home-11',
+    playerId: 'p011',
+    role: 'ST',
+    number: 11,
+    firstName: 'Home',
+    lastName: 'Striker',
+  }),
+];
+
+/** Real PLAYER_POOL ids so PLAYER_MAP/resolveTieredCard lookups resolve (Task 1 read_first). */
+const BENCH_MIXED: BenchEntry[] = [
+  { playerId: 'p013', jerseyNumber: 13, status: 'available' },
+  { playerId: 'p014', jerseyNumber: 14, status: 'subbedOut' },
+  { playerId: 'p015', jerseyNumber: 15, status: 'redCarded' },
+];
+
+const BENCH_ONLY_UNAVAILABLE: BenchEntry[] = [
+  { playerId: 'p014', jerseyNumber: 14, status: 'subbedOut' },
+  { playerId: 'p015', jerseyNumber: 15, status: 'redCarded' },
+];
+
+type MidmatchOverrides = {
+  midmatchPieces?: PlayerPiece[];
+  bench?: BenchEntry[];
+  subsUsed?: number;
+  maxOnPitch?: number;
+  onSubstitute?: (outPieceId: string, inPlayerId: string) => void;
+};
+
+function renderMidmatch(overrides: MidmatchOverrides = {}) {
+  return render(
+    <LineupAssignmentScreen
+      assignment={[]}
+      formationId="4-4-2"
+      playerSlot={1}
+      myTeamId="city"
+      onSwap={NOOP}
+      onConfirm={NOOP}
+      lineupConfirmed={false}
+      mode="midmatch"
+      midmatchPieces={overrides.midmatchPieces ?? HOME_TEAM_PIECES}
+      bench={overrides.bench ?? BENCH_MIXED}
+      subsUsed={overrides.subsUsed ?? 0}
+      maxOnPitch={overrides.maxOnPitch ?? 11}
+      onSubstitute={overrides.onSubstitute ?? NOOP}
+    />,
+  );
+}
+
+describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/07, D-12/D-13)', () => {
+  it('SUB-02: groups on-pitch pieces into GK/DEF/MID/FWD columns, with ST pieces rendering in the FWD column', () => {
+    const { container } = renderMidmatch();
+    const headers = Array.from(container.querySelectorAll('[class*="columnHeader"]'));
+    expect(headers.map((h) => h.textContent)).toEqual(['GK', 'DEF', 'MID', 'FWD']);
+
+    const fwdHeader = headers.find((h) => h.textContent === 'FWD');
+    expect(fwdHeader?.parentElement?.textContent).toContain('Home Striker');
+    const gkHeader = headers.find((h) => h.textContent === 'GK');
+    expect(gkHeader?.parentElement?.textContent).toContain('Home Keeper');
+  });
+
+  it('SUB-02: does not render the draft pack row, round/pick counter, or Confirm button, and shows a Substitute-labelled CTA', () => {
+    const { container } = renderMidmatch();
+    expect(container.querySelector('[class*="draftPackRow"]')).toBeNull();
+    expect(screen.queryByText(/Round \d of \d/)).toBeNull();
+    expect(screen.queryByText('GK Round')).toBeNull();
+    expect(screen.queryByLabelText('Confirm lineup')).toBeNull();
+    expect(screen.getByText(/Substitute/)).toBeDefined();
+  });
+
+  it('SUB-03: on-pitch cards display the live PlayerPiece jersey number (post-substitution inheritance)', () => {
+    renderMidmatch();
+    const card = screen.getByText('Home DefOne').closest('[class*="statCard"]') as HTMLElement;
+    expect(within(card).getByText('#2')).toBeDefined();
+  });
+
+  it('SUB-06: sub-counter chip renders "0/3 SUBS USED"', () => {
+    renderMidmatch({ subsUsed: 0 });
+    expect(screen.getByText('0/3 SUBS USED')).toBeDefined();
+  });
+
+  it('SUB-06: sub-counter chip renders "3/3 SUBS USED" with the capped styling when subsUsed is 3', () => {
+    renderMidmatch({ subsUsed: 3 });
+    const chip = screen.getByText('3/3 SUBS USED');
+    expect(chip.className).toMatch(/subCounterChipCapped/);
+  });
+
+  it('SUB-06: renders the permanent-slot-cap note naming the team, headcount, and red-card count when maxOnPitch < 11', () => {
+    renderMidmatch({ maxOnPitch: 10 });
+    expect(screen.getByText(/down to 10 players/)).toBeDefined();
+    expect(screen.getByText(/1 red card/)).toBeDefined();
+  });
+
+  it('SUB-06: does not render the permanent-slot-cap note when maxOnPitch is 11', () => {
+    renderMidmatch({ maxOnPitch: 11 });
+    expect(screen.queryByText(/vacated slot cannot be filled/)).toBeNull();
+  });
+
+  it('SUB-07: a subbedOut bench entry renders an OUT badge, is dimmed, and is not draggable', () => {
+    renderMidmatch();
+    const outBadge = screen.getByTestId('bench-out-badge');
+    expect(outBadge.textContent).toBe('OUT');
+    const card = outBadge.closest('[draggable]');
+    expect(card).not.toBeNull();
+    expect(card!.getAttribute('draggable')).toBe('false');
+    expect(card!.className).toMatch(/cardUnavailable/);
+  });
+
+  it('D-13: a redCarded bench entry renders a RED CARD badge distinct from OUT, is dimmed, and is not draggable', () => {
+    renderMidmatch();
+    const redBadge = screen.getByTestId('bench-red-card-badge');
+    expect(redBadge.textContent).toBe('RED CARD');
+    const card = redBadge.closest('[draggable]') as HTMLElement;
+    expect(card).not.toBeNull();
+    expect(card.getAttribute('draggable')).toBe('false');
+    expect(card.className).toMatch(/cardUnavailable/);
+    expect(within(card).queryByTestId('bench-out-badge')).toBeNull();
+  });
+
+  it('D-13: dragging a redCarded bench card never calls onSubstitute', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    const redBadge = screen.getByTestId('bench-red-card-badge');
+    const card = redBadge.closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(card, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('SUB-02: dragging an available bench card and dropping it on an on-pitch card calls onSubstitute once with (outPieceId, inPlayerId)', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(onSubstitute).toHaveBeenCalledTimes(1);
+    expect(onSubstitute).toHaveBeenCalledWith('home-2', 'p013');
+  });
+
+  it('SUB-06: dropping a bench card onto a redCarded on-pitch card does not call onSubstitute', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefRedCarded').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('SUB-02: on-pitch cards are never draggable in mid-match mode', () => {
+    renderMidmatch();
+    const card = screen.getByText('Home DefOne').closest('[draggable]');
+    expect(card).not.toBeNull();
+    expect(card!.getAttribute('draggable')).toBe('false');
+  });
+
+  it('SUB-02: renders a yellow card chip for an on-pitch piece with yellowCards 1', () => {
+    renderMidmatch();
+    const card = screen.getByText('Home MidYellow').closest('[class*="statCard"]') as HTMLElement;
+    const chip = within(card).getByTestId('stats-card-chip');
+    expect(chip.getAttribute('data-card')).toBe('yellow');
+  });
+
+  it('SUB-02: renders a red chip for a redCarded on-pitch piece', () => {
+    renderMidmatch();
+    const card = screen
+      .getByText('Home DefRedCarded')
+      .closest('[class*="statCard"]') as HTMLElement;
+    const chip = within(card).getByTestId('stats-card-chip');
+    expect(chip.getAttribute('data-card')).toBe('red');
+  });
+
+  it('SUB-02: renders INJ for injuryCount 1 and INJ ×2 for injuryCount 2', () => {
+    renderMidmatch();
+    const cardOnce = screen
+      .getByText('Home MidInjuredOnce')
+      .closest('[class*="statCard"]') as HTMLElement;
+    expect(within(cardOnce).getByTestId('stats-injury-chip').textContent).toBe('INJ');
+    const cardTwice = screen
+      .getByText('Home FwdInjuredTwice')
+      .closest('[class*="statCard"]') as HTMLElement;
+    expect(within(cardTwice).getByTestId('stats-injury-chip').textContent).toBe('INJ ×2');
+  });
+
+  it('D-12: an empty bench renders the no-substitutes empty state and no bench card, without error', () => {
+    renderMidmatch({ bench: [] });
+    expect(screen.getByText('No available substitutes on the bench.')).toBeDefined();
+    expect(screen.queryByTestId('bench-out-badge')).toBeNull();
+    expect(screen.queryByTestId('bench-red-card-badge')).toBeNull();
+  });
+
+  it('D-12/D-13: a bench with only subbedOut/redCarded entries renders the empty-state copy alongside the badged cards', () => {
+    renderMidmatch({ bench: BENCH_ONLY_UNAVAILABLE });
+    expect(screen.getByText('No available substitutes on the bench.')).toBeDefined();
+    expect(screen.getByTestId('bench-out-badge')).toBeDefined();
+    expect(screen.getByTestId('bench-red-card-badge')).toBeDefined();
+  });
+
+  describe('rejection messages', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      useGameStore.setState({ gameError: null });
+      vi.useRealTimers();
+    });
+
+    it('SUB-06: SUB_CAP_REACHED surfaces the rejection copy and clears after 2s', () => {
+      renderMidmatch();
+      act(() => {
+        useGameStore.setState({ gameError: 'SUB_CAP_REACHED' });
+      });
+      expect(screen.getByText('Substitution rejected — limit reached.')).toBeDefined();
+      act(() => {
+        vi.advanceTimersByTime(2100);
+      });
+      expect(screen.queryByText('Substitution rejected — limit reached.')).toBeNull();
+    });
+
+    it('D-13: CANNOT_SUB_IN_RED_CARDED surfaces its own distinct rejection copy', () => {
+      renderMidmatch();
+      act(() => {
+        useGameStore.setState({ gameError: 'CANNOT_SUB_IN_RED_CARDED' });
+      });
+      expect(
+        screen.getByText('Substitution rejected — a sent-off player cannot return.'),
+      ).toBeDefined();
+    });
   });
 });
