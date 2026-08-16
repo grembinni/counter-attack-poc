@@ -511,6 +511,45 @@ describe('multi-event broadcast (Pitfall 1)', () => {
 
     expect(shown).toBe(5);
   });
+
+  // debug fix foul-banner-sequence-not-pausing: a single broadcast can simultaneously append a
+  // qualifying event AND transition `phase` into a RESTART_BANNERS-tracked phase (e.g. a loose
+  // ball scattering out of bounds mid-broadcast, or any future call site that does the same).
+  // Both the eventLog effect and the phase-entry effect used to decide "show now vs. enqueue" by
+  // reading the `active` React-state closure, which is stale between two effects in the same
+  // commit — the phase effect's direct setActive call silently overwrote the eventLog effect's,
+  // permanently dropping the already-dequeued event banner.
+  it('does not lose a queued event banner when the same broadcast also enters a RESTART_BANNERS phase', () => {
+    render(<EventBanner />);
+
+    act(() => {
+      useGameStore.setState({
+        gameState: {
+          ...mockMovementState,
+          phase: 'FREE_KICK_SETUP',
+          eventLog: [
+            {
+              type: 'GOAL',
+              scoringTeam: 'home',
+              scorerId: 'home-9',
+              timestamp: 1,
+              ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+            },
+          ],
+        },
+      });
+    });
+
+    // The GOAL banner was enqueued first — it must display before the restart banner, not be
+    // silently overwritten by it.
+    expect(screen.getByText('GOOOOOAL!!!')).toBeDefined();
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(screen.queryByText('GOOOOOAL!!!')).toBeNull();
+    expect(screen.getByText('Free Kick!')).toBeDefined();
+  });
 });
 
 describe('foul/injury/booking banners (D-02/D-03)', () => {

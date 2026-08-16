@@ -177,6 +177,19 @@ export function EventBanner() {
 
   const [active, setActive] = useState<Banner | null>(null);
 
+  // debug fix foul-banner-sequence-not-pausing: mirrors `active` but is updated SYNCHRONOUSLY
+  // at the exact moment a banner is shown or cleared (dequeue in the eventLog effect, the
+  // phase-entry effect, and the auto-dismiss timer below). The eventLog effect and the
+  // phase-entry effect both need to answer "is a banner active right now?" — reading the
+  // `active` REACT-STATE closure is unsafe here because when a single broadcast simultaneously
+  // (a) appends a qualifying event AND (b) transitions phase into a RESTART_BANNERS phase, both
+  // effects run in the SAME commit and see the SAME stale `active` snapshot. Two plain
+  // (non-functional) setActive calls in that commit mean the LAST one silently overwrites the
+  // first — the first banner is lost even though it was already dequeued from queueRef. Routing
+  // both effects' decisions through this ref instead makes "show now vs. enqueue" correct
+  // regardless of effect execution order within a commit.
+  const activeRef = useRef<Banner | null>(null);
+
   // Diff-and-trigger: runs in an effect on eventLog change so setActive is
   // never called during render. The ref is advanced even when no banner fires
   // so the same events are never re-processed on subsequent effect invocations.
@@ -192,43 +205,49 @@ export function EventBanner() {
     if (banners.length === 0) return;
     // T-39-04-02: cap the queue at 5 entries and drop overflow.
     queueRef.current = [...queueRef.current, ...banners].slice(0, 5);
-    if (active === null) {
+    if (activeRef.current === null) {
       const next = queueRef.current.shift();
-      if (next !== undefined) setActive(next);
+      if (next !== undefined) {
+        activeRef.current = next;
+        setActive(next);
+      }
     }
-  }, [eventLog, pieceName, active]);
+  }, [eventLog, pieceName]);
 
   // 38-19: phase-entry diff-and-trigger, mirroring the eventLog effect above. Fires at most once
   // per restart entry — edge-detected against prevPhaseRef, not re-fired on every broadcast while
   // the restart phase is active (T-38-64). The ref advances unconditionally, whether or not a
   // banner fired, matching the existing effect's discipline. Plan 39-04: enqueues through the
   // SAME queue as event-derived banners so a restart banner never overwrites a mid-sequence
-  // foul banner — it simply waits its turn.
+  // foul banner — it simply waits its turn. Branches on `activeRef` (not the `active` state
+  // closure) for the same same-commit race reason documented on activeRef's declaration above.
   useEffect(() => {
     if (phase === prevPhaseRef.current) return;
     const message = RESTART_BANNERS[phase];
     prevPhaseRef.current = phase;
     if (message === undefined) return;
     const banner: Banner = { message, variant: 'notable', duration: 1000 };
-    if (active === null) {
+    if (activeRef.current === null) {
+      activeRef.current = banner;
       setActive(banner);
     } else {
       queueRef.current = [...queueRef.current, banner].slice(0, 5);
     }
-  }, [phase, active]);
+  }, [phase]);
 
   // Auto-dismiss timer: clear the banner after its own duration, then pull the next queued
   // banner (if any) instead of simply going idle (Plan 39-04 queue drain).
   // HP_ACCURACY uses 1500ms (D-20 / UX-15); all other events use 1000ms.
   // The `animationDuration` inline style keeps the CSS bannerFade animation aligned with the
   // timer so the fade-out completes at the same moment the DOM element is removed.
+  // activeRef is updated synchronously here too, in lockstep with setActive, so the eventLog and
+  // phase-entry effects always see the current value even before this component re-renders.
   useEffect(() => {
     if (active === null) return;
     const timerId = setTimeout(() => {
-      setActive(() => {
-        const next = queueRef.current.shift();
-        return next ?? null;
-      });
+      const next = queueRef.current.shift() ?? null;
+      activeRef.current = next;
+      setActive(next);
     }, active.duration);
     return () => {
       clearTimeout(timerId);

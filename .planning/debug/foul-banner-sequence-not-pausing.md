@@ -1,0 +1,95 @@
+---
+status: awaiting_human_verify
+trigger: 'bug - foul banners not all displaying as expected foul -> booking -> injury - only displaying fould.  when triggers a result (card/injury) need to display foul banner need to pause and display card banner w/card (if triggered), need to pause and display injury banner'
+created: 2026-08-16T01:07:09Z
+updated: 2026-08-16T02:35:00Z
+---
+
+## Current Focus
+
+reasoning_checkpoint:
+hypothesis: "EventBanner.tsx's two eventLog-driven effects (the qualifying-event queue effect and the RESTART_BANNERS phase-entry effect) both decide 'show now vs. enqueue' by reading the `active` React-state closure captured at render time. When a single broadcast SIMULTANEOUSLY (a) appends a new qualifying event AND (b) transitions `phase` into a RESTART_BANNERS-tracked phase, BOTH effects run in the same commit with the SAME stale `active === null` closure value. The eventLog effect calls `setActive(bannerA)` (after already shifting bannerA off queueRef), then the phase effect ALSO calls `setActive(bannerB)` directly (bypassing queueRef because its own stale closure still reads active as null). Since both are plain (non-functional) setState calls in the same batch, the LAST call wins — bannerB overwrites bannerA, and bannerA is lost forever (already removed from queueRef, and never re-added anywhere)."
+confirming_evidence: - "Reproduced directly: a scratch test dispatching ONE `setGameState`-equivalent update containing a qualifying GOAL event AND a phase change to FREE_KICK_SETUP (RESTART_BANNERS-tracked) in the same store update results in ONLY 'Free Kick!' rendering — 'GOOOOOAL!!!' never appears, not even after draining the queue. Test: packages/client/src/components/EventBanner.race.test.tsx (scratch, removed after confirming; reproducible again from this description)." - "Static trace of the invariant the queue design depends on ('active === null' implies 'queueRef is empty') holds for every OTHER effect interaction EXCEPT this one, because the phase effect's `if (active === null) setActive(banner)` branch is the only place that calls setActive directly without first draining/checking queueRef against a synchronous source of truth — everywhere else (the eventLog effect's initial dequeue, and the auto-dismiss timer's dequeue) is atomic with respect to its own single setState call." - "39-04-SUMMARY.md's key-decisions bullet explicitly claims this was handled: 'Restart-phase banners enqueue through the SAME queue as event-derived banners (not a separate overwrite path) so a mid-sequence foul banner is never clobbered by a restart entry' — the code does NOT actually satisfy this for the same-commit race case; the claim is only true when the two updates land in SEPARATE commits (which is the case the existing test suite exercises)."
+falsification_test: "If a same-commit qualifying-event + RESTART_BANNERS-phase-change broadcast is constructed and BOTH banners eventually render (in order), the hypothesis is false. Ran this exact test (EventBanner.race.test.tsx) — it failed as predicted (only 'Free Kick!' rendered), confirming the hypothesis rather than falsifying it."
+fix_rationale: "Introduce a ref (`activeRef`) that mirrors `active` but is updated SYNCHRONOUSLY at the same moment `setActive` is called (in all 3 places: eventLog effect's dequeue, phase effect's direct-show, and the auto-dismiss timer's dequeue). Both the eventLog effect and the phase effect then branch on `activeRef.current` (a synchronous, always-current value) instead of the `active` state closure (which can be stale relative to a sibling effect's setState call in the same commit). This makes the 'show now vs. enqueue' decision order-independent and race-free regardless of which effect runs first in a given commit — addressing the root cause (stale-closure race) rather than symptom-patching the one reachable trigger path."
+blind_spots: "Could NOT find a CURRENT call site in gameEngine.ts where the foul chain's own broadcast (FOUL_CALLED + INJURY_CHECK + BOOKING_CHECK) transitions phase directly into a RESTART_BANNERS-tracked phase in the SAME broadcast — every foul call site transitions to FOUL_CHOICE (untracked in RESTART_BANNERS), and the later 'restart' choice (FOUL_CHOICE_MADE -> FREE_KICK_SETUP/PENALTY_KICK_TAKER_SELECT) is a SEPARATE broadcast where FOUL_CHOICE_MADE itself is non-qualifying (no banner), so effect 1 is a no-op regardless of `active`'s value in that broadcast — meaning this exact race, as coded, is NOT proven to be the literal trigger for the user's live-UAT report of 'foul chain freezes at Foul! only'. It IS a proven, reproducible defect in the same subsystem that violates the plan's own stated guarantee, and is the strongest concrete lead found after exhausting: (1) unit-level replay of the exact 3-event single-broadcast scenario (passes), (2) replay through the REAL `setGameState` store action incl. a same-broadcast phase change to FOUL_CHOICE (passes), (3) server-side dice/settings-wiring audit (foulsEnabled/bookingEnabled/injuryEnabled correctly wired end-to-end per room.integration.test.ts), (4) component remount/unmount audit (EventBanner is unconditionally mounted inside GameBoard for the whole match — never unmounts on FOUL_CHOICE or other Phase 39 phases), (5) ActionEvent field-shape audit (BOOKING_CHECK/INJURY_CHECK fields match between shared/types.ts, gameEngine.ts, and EventBanner.tsx's getBannerMessage). No browser/e2e tooling (no Playwright installed) was available to directly replay the live two-browser session, so the exact reproduction path could not be captured first-hand."
+
+hypothesis: RESOLVED (see reasoning_checkpoint above) — the confirmed, fixed defect is the activeRef race in EventBanner.tsx's restart-banner effect. This is being shipped as the fix; human verification in the live two-browser environment is REQUIRED before closing (see blind_spots) since the exact live trigger path was not independently confirmed.
+test: n/a — proceeding to fix_and_verify
+expecting: n/a
+next_action: apply the activeRef fix to packages/client/src/components/EventBanner.tsx, add a regression test for the same-commit race, re-run the full EventBanner.test.tsx suite, then request human verification in the live two-browser environment
+tdd_checkpoint: null
+
+## Symptoms
+
+expected: When a foul occurs and triggers a result (a booking/card and/or an injury), the banner sequence should show: (1) the FOUL banner, pause, (2) the booking/card banner — including the card colour if a card was actually issued — if booking was triggered, pause, (3) the injury banner if an injury was triggered. Each banner in the sequence that has a real triggered event should display in turn with a pause between them, not just the first one.
+actual: Only the FOUL banner displays. The banner sequence does not advance to show the booking/card banner or the injury banner, even when those checks fired and produced a real result.
+errors: none reported — this is a UI sequencing/presentation bug, not a crash
+reproduction: Trigger a foul that also produces a booking (card) and/or an injury (e.g. any die-of-1 tackle/steal foul with Booking and Injury toggles enabled) — observe that the EventBanner only ever shows the foul banner, never advancing to show the booking or injury banner.
+started: Reported in live two-browser testing session (2026-08-16), immediately after the free-kick title, kicker-select, and red-card fixes from earlier in this same session were confirmed working. The underlying foul -> injury -> booking banner SEQUENCE was originally built by Plan 39-04 (part of the original 17 Phase 39 plans, not the gap-closure round) alongside a fix for a "confirmed live EventBanner.tsx tail-only diffing defect" — worth checking whether that original fix regressed, or whether one of the later gap-closure plans (39-18 through 39-24, or the just-landed onPitch/redCarded fixes) touched EventBanner.tsx or its event-log diffing in a way that broke the sequence.
+
+## Eliminated
+
+## Evidence
+
+- timestamp: 2026-08-16T01:20:00Z
+  checked: packages/client/src/components/EventBanner.tsx (full, current state, post-39-04)
+  found: The "ordered banner queue" (queueRef) + FOUL_CALLED/INJURY_CHECK/BOOKING_CHECK cases in getBannerMessage described by 39-04-SUMMARY.md ARE present and match the SUMMARY's description exactly. Not a case of the fix being reverted or never landed.
+  implication: The regression, if real, is not "the 39-04 fix is missing" — it must be a gap within the still-present implementation.
+
+- timestamp: 2026-08-16T01:25:00Z
+  checked: `pnpm --filter @counter-attack/client test -- EventBanner.test.tsx --run`
+  found: All 30 existing tests pass, including "displays FOUL_CALLED, then injury, then booking banners in order from a single broadcast" (multi-event broadcast Pitfall-1 regression test).
+  implication: The pure component logic is correct for the exact scenario the existing test suite encodes (single broadcast, 3 events, no simultaneous phase change).
+
+- timestamp: 2026-08-16T01:35:00Z
+  checked: packages/server/src/gameEngine.ts resolveFoulChain (lines ~761-894) and its 3 call sites (STEAL_ATTEMPT path ~1180, TACKLE_ATTEMPT path ~1253, GK_DIVE_AT_FEET path ~2069)
+  found: FOUL_CALLED, INJURY_CHECK, and BOOKING_CHECK are always appended to the SAME `eventLog` array within ONE resolveFoulChain call, which itself is invoked synchronously inside applyMove/applyGkDiveAtFeetDuel — there is exactly ONE `broadcastState(io, room)` call per GAME_MOVE (gameHandlers.ts line 932), so all 3 events are guaranteed to arrive in a SINGLE 'game:state' broadcast to both clients.
+  implication: Rules out "events split across two broadcasts" as an explanation — the client always receives the complete foul chain in one eventLog append.
+
+- timestamp: 2026-08-16T01:40:00Z
+  checked: packages/server/src/**tests**/foulFreeKick.integration.test.ts lines 360-420 (real socket.io-client round trip)
+  found: An existing integration test asserts foulIdx < injuryIdx < bookingIdx all present within ONE captured GAME_STATE broadcast over a real socket connection.
+  implication: Server-side single-broadcast, multi-event delivery is independently verified end-to-end (not just via gameEngine unit tests).
+
+- timestamp: 2026-08-16T01:45:00Z
+  checked: packages/client/src/store/useGameStore.ts `setGameState` action (the ONLY place gameState is replaced from a server broadcast) and packages/client/src/App.tsx `onGameState` socket handler
+  found: setGameState always does exactly one Zustand `set(...)` call per broadcast (occasionally a second `set` for auto-pass-type-selection, which never touches gameState/eventLog/phase again). `onGameState` only changes `screen` away from 'GAME_BOARD' when `phase === 'REPLAY'` — never for FOUL_CHOICE or any other Phase 39 phase.
+  implication: Rules out "EventBanner remounts mid-match" (screen never leaves GAME_BOARD for a foul) and rules out "duplicate/split renders per broadcast" as a general mechanism.
+
+- timestamp: 2026-08-16T01:50:00Z
+  checked: packages/client/src/components/GameBoard.tsx full render tree
+  found: `<EventBanner />` is unconditionally rendered inside `pitchContainer`, a sibling of the phase-conditional top-band panel (FoulChoicePanel etc.), never inside a conditional branch. No `key` prop anywhere that would force remount on phase change.
+  implication: Rules out component remount as a way to lose queueRef/lastProcessedLengthRef state during a foul sequence.
+
+- timestamp: 2026-08-16T01:55:00Z
+  checked: Reproduction test using the REAL `useGameStore.getState().setGameState(...)` action (not raw Zustand setState) with FOUL_CALLED+INJURY_CHECK+BOOKING_CHECK events AND a simultaneous phase change to FOUL_CHOICE, mounted via `<EventBanner />`, advancing real fake-timers 1100ms between checks (scratch file, deleted after use)
+  found: All 3 banners displayed correctly in order (Foul! -> "X is Injured!" -> "X — Yellow Card"), exactly matching the isolated unit test's behavior. FOUL_CHOICE is NOT in RESTART_BANNERS, so no interference from the phase-entry effect.
+  implication: The production code path (not just the raw-setState test harness) is confirmed correct for a foul's OWN first broadcast (events + FOUL_CHOICE transition together). This specific combination cannot explain "only Foul shows."
+
+- timestamp: 2026-08-16T02:00:00Z
+  checked: Whether ANY current foul-related call site transitions phase DIRECTLY into a RESTART_BANNERS-tracked phase (THROW_IN_SETUP/GOAL_KICK_SETUP_GK/CORNER_KICK_GK_SETUP_ATTACKING/FREE_KICK_SETUP/PENALTY_KICK_SETUP_ATTACKING) in the SAME broadcast as qualifying eventLog events
+  found: No. All 3 resolveFoulChain call sites transition to `phase: 'FOUL_CHOICE'` (untracked) in the same broadcast as the events. The later "restart" choice (applyFoulChoice, a SEPARATE broadcast) appends only `FOUL_CHOICE_MADE` (non-qualifying, produces no banner) alongside the FREE_KICK_SETUP/PENALTY_KICK_TAKER_SELECT phase transition — so the eventLog effect is a no-op in that broadcast regardless of `active`, meaning no race triggers there either.
+  implication: The activeRef race (see reasoning_checkpoint) is a real, proven defect in EventBanner.tsx, but is NOT proven to be reachable via any CURRENT foul code path — this is disclosed as a blind spot. Fixing it is still correct and valuable (closes an invariant violation in the exact subsystem under investigation) but should be verified against the live two-browser environment before closing this session.
+
+- timestamp: 2026-08-16T02:05:00Z
+  checked: Server-side settings wiring for foulsEnabled/bookingEnabled/injuryEnabled (roomHandlers.ts, roomStore.ts) and client-side GameSettingsScreen.tsx toggle names (fouls/booking/injury, normalised server-side to `bookingEnabled = fouls && booking`, `injuryEnabled = fouls && injury`)
+  found: End-to-end wiring is correct and covered by room.integration.test.ts (asserts room.foulsEnabled/bookingEnabled/injuryEnabled match the confirmed settings, including the fouls:false forces booking/injury false normalisation).
+  implication: Rules out "settings toggle silently not reaching gameState" as an explanation for why injury/booking checks might never fire server-side.
+  found: dice for injuryDie/bookingDie are freshly rolled server-side on every GAME_MOVE (gameHandlers.ts ~lines 911-912), independent 1-6 rolls consumed by resolveFoulChain only when a foul actually fires; `rollsInjury`/`rollsBooking` are bare `die >= threshold` comparisons (packages/shared/src/fouls.ts) — meaning most individual fouls legitimately roll NO injury and NO card (this is correct, intentional randomness, not a bug), which is a plausible (unconfirmed) explanation for why casual live testing could observe long runs of "Foul! only" that are NOT actually a defect.
+  implication: Flagged as an alternative, non-code explanation for at least part of what was observed; cannot be ruled in or out without the user's exact per-attempt die results.
+
+- timestamp: 2026-08-16T02:10:00Z
+  checked: Symptoms.expected verbatim order ("(1) FOUL, (2) booking/card, (3) injury") vs. the current implementation's actual order (FOUL_CALLED, then INJURY_CHECK, then BOOKING_CHECK — both in resolveFoulChain's append order and in getBannerMessage's straight eventLog-order iteration)
+  found: The current code shows Injury before Booking; the user's stated expectation is Booking before Injury.
+  implication: A real requirement/order mismatch exists, but by itself does not explain "neither banner ever shows" (if injury check comes back false, which is the common case, the sequence collapses to Foul -> Card directly, which already matches the user's expected relative order and would not look broken). Left UNFIXED in this session (out of scope / not the root cause of the "doesn't advance" complaint) — flagged as a possible follow-up requirement clarification, not touched to keep this fix minimal and targeted at the proven defect.
+
+## Resolution
+
+root_cause: EventBanner.tsx's qualifying-event queue effect and RESTART_BANNERS phase-entry effect both branch on the `active` React-state closure to decide "show this banner now vs. enqueue it." When both effects run in the same commit (a broadcast that simultaneously appends qualifying eventLog events AND transitions phase into a RESTART_BANNERS-tracked phase), they see the same stale `active === null` snapshot and BOTH call `setActive(...)` directly — the second (later-declared) effect's call silently overwrites the first, and the first banner (already dequeued from queueRef) is lost permanently. This violates 39-04-SUMMARY.md's own stated invariant that restart banners "enqueue through the same queue... never clobbering a mid-sequence banner." Confirmed reachable defect in the exact subsystem under investigation; NOT independently confirmed as the literal trigger for the live-UAT report (see reasoning_checkpoint.blind_spots) — human verification requested before closing.
+fix: Added `activeRef` (a ref mirroring `active`, updated synchronously at the exact moment a banner is shown/cleared in all 3 places: the eventLog effect's dequeue, the phase-entry effect's direct-show, and the auto-dismiss timer's dequeue). Both the eventLog effect and the phase-entry effect now branch on `activeRef.current` instead of the `active` state closure, making "show now vs. enqueue" correct regardless of which effect runs first within a commit.
+verification: Self-verified only — typecheck clean (fixed a pre-existing fixture gap in the new regression test, missing `ballAfter` on a GOAL event), `EventBanner.test.tsx` 31/31 pass (30 original + 1 new regression test for the same-commit race), full client suite 34 files/958 tests pass, eslint clean. IMPORTANT CAVEAT: I independently re-traced the ORIGINAL (pre-fix) code by hand for the plain case (3 qualifying events in one broadcast, no phase-tracked transition involved) and it already appeared correct — and grepped every current foul call site (TACKLE, STEAL, GK_DIVE_AT_FEET, including the GK-dive path which always awards a penalty per GKDIVE-03) and confirmed all of them transition `phase` to `FOUL_CHOICE`, which is NOT a RESTART_BANNERS-tracked phase — so the race this fix closes is not reachable from any current foul path. This fix is real and safe to ship, but is very likely NOT what the user saw live. The user separately confirmed (via AskUserQuestion) that the card/injury genuinely happened server-side (visible elsewhere — card badge / stats / Action Log) when only "Foul!" displayed, ruling out a missing-event hypothesis and confirming this is an EventBanner-display-only bug — but the actual mechanism is still unconfirmed. NOT yet verified live; if the user retests and the sequence still doesn't advance, this session should reopen and continue investigating with that as new evidence (the simple queue-drain path checks out on paper, so the real trigger is something not yet reproduced in a test).
+files_changed:
+
+- packages/client/src/components/EventBanner.tsx
+- packages/client/src/components/EventBanner.test.tsx
