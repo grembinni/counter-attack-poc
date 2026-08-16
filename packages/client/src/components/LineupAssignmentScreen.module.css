@@ -462,3 +462,109 @@
   flex-direction: column;
   width: 100%;
 }
+
+/* ─── Phase 40 (40-03): substitution badges/chips (SUB-02/06/07, D-05/D-13) ────
+   No new colour values — every rule below resolves an existing tokens.css
+   custom property already used elsewhere in the app. */
+
+/* SUB-07: "OUT" bench badge — explicitly NOT --color-accent-gold (that's
+   .lockedBadge's "required/special" gold; OUT communicates unavailability). */
+.outBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-surface-alt);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* D-13: "RED CARD" bench badge — same geometry as .outBadge, red-card colour
+   language matching PlayerStatsPanel.module.css's .cardChip[data-card='red']. */
+.redCardBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-inverse);
+  background: var(--color-card-red);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* SUB-07/D-13: dimmed, non-interactive treatment shared by OUT and RED CARD
+   bench cards — mirrors .statCardLocked's 0.7-opacity convention. */
+.cardUnavailable {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* D-05: card/injury chips on sub-roster rows — copied verbatim from
+   PlayerStatsPanel.module.css so the two surfaces are visually identical. */
+.cardChip,
+.injuryChip {
+  font-size: 11px;
+  font-weight: 400;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.cardChip[data-card='yellow'] {
+  background: var(--color-card-yellow);
+  color: var(--color-bg-page);
+}
+
+.cardChip[data-card='red'] {
+  background: var(--color-card-red);
+  color: var(--color-text-inverse);
+}
+
+.injuryChip {
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-inverse);
+}
+
+/* SUB-06: sub-counter chip — same pill geometry as .injuryChip. */
+.subCounterChip {
+  font-size: 11px;
+  font-weight: 400;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-alt);
+}
+
+.subCounterChipCapped {
+  color: var(--color-danger);
+}
+
+/* SUB-06/D-08: permanent-slot-cap note — .swapRejection's body-text treatment,
+   but a standing condition (no timed-fade coupling). */
+.slotCapNote {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin: 0;
+}
+
+/* SUB-02: drop-target highlight for an on-pitch card during a bench->pitch
+   drag — reuses .statCardDropTarget's treatment. */
+.statCardSubTarget {
+  border: 2px solid var(--color-accent-gold);
+  box-shadow: 0 0 0 2px var(--color-accent-gold-glow);
+}
+
+/* SUB-06: a red-carded on-pitch card can never be a substitution target. */
+.statCardSubBlocked {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

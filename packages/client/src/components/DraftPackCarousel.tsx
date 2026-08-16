@@ -56,6 +56,15 @@ type DraftCardBodyProps = {
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  /** Phase 40 (SUB-07): true when this card's player has been substituted out —
+   * renders an "OUT" badge, dims the card, and forces draggable={false} regardless
+   * of the `draggable` prop above. Default false — every existing call site
+   * (draft pack row, ordinary bench cards) is unaffected. */
+  unavailable?: boolean;
+  /** Phase 40 (D-13): true when this card's player has been sent off — renders a
+   * "RED CARD" badge (takes precedence over `unavailable`), dims the card, and
+   * forces draggable={false}. Default false. */
+  redCarded?: boolean;
 };
 
 /**
@@ -73,13 +82,19 @@ export function DraftCardBody({
   onDragStart,
   onDragOver,
   onDrop,
+  unavailable,
+  redCarded,
 }: DraftCardBodyProps) {
   const isGK = card.role === 'GK';
+  const isUnavailable = unavailable === true || redCarded === true;
+  const className = isUnavailable
+    ? `${TIER_CARD_CLASS[card.tier]} ${styles.cardUnavailable}`
+    : TIER_CARD_CLASS[card.tier];
 
   return (
     <div
-      className={TIER_CARD_CLASS[card.tier]}
-      draggable={draggable}
+      className={className}
+      draggable={isUnavailable ? false : draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -95,6 +110,19 @@ export function DraftCardBody({
             <NationFlag nationality={card.nationality} size={14} />
             <span className={styles.cardRole}>{card.role}</span>
             {jerseyNumber !== undefined && <span className={styles.cardNum}>#{jerseyNumber}</span>}
+            {/* Phase 40 (SUB-07/D-13): redCarded takes precedence over unavailable —
+                a sent-off player is never mislabelled as merely substituted out. */}
+            {redCarded === true ? (
+              <span className={styles.redCardBadge} data-testid="bench-red-card-badge">
+                RED CARD
+              </span>
+            ) : (
+              unavailable === true && (
+                <span className={styles.outBadge} data-testid="bench-out-badge">
+                  OUT
+                </span>
+              )
+            )}
           </div>
         </div>
         <div className={styles.statGrid}>
