@@ -440,7 +440,7 @@ Plans:
 
 **Wave 3** _(three parallel plans, no file overlap)_
 
-- [ ] 40-04-PLAN.md — Server: bench seeding at LINEUP_CONFIRM, D-10 free-agent auto-fill for empty benches, playerId on every piece, roster continuity at the four in-engine resets
+- [ ] 40-04-PLAN.md — Server: bench seeding at LINEUP_CONFIRM (empty for Standard rooms per D-12), playerId on every piece, D-13 red-carded players relocated onto the bench, roster continuity at the four in-engine resets
 - [ ] 40-05-PLAN.md — Server: GAME_SUBSTITUTION handler + roster continuity at the three handler-side goal resets
 - [ ] 40-06-PLAN.md — Client: persistent stoppage-gated SUB affordance, substitution modal, emitSubstitution store action
 
