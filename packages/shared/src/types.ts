@@ -74,6 +74,46 @@ export type PlayerPiece = {
    * data model.
    */
   onPitch?: boolean;
+  /**
+   * Phase 40 (SUB-03): the `PLAYER_POOL` id of the human currently occupying this slot.
+   * `PlayerPiece.id` stays the slot identity (e.g. `home-3`), which a substitution
+   * deliberately preserves (SUB-03: the substitute inherits the departing player's slot,
+   * jersey number and position) — so `playerId` is the only field that tells you WHO is
+   * in the slot. Optional so no existing `PlayerPiece` construction site breaks;
+   * `buildSquadPieces` populates it (plan 40-04). Explicitly NOT `onPitch` — see that
+   * field's guardrail comment above.
+   */
+  playerId?: string;
+};
+
+/**
+ * Phase 40 (D-13/SUB-07): the three mutually exclusive states a bench entry can be in.
+ * A single `status` field is used rather than parallel booleans so the states are
+ * mutually exclusive by construction (CONTEXT.md Claude's Discretion for D-13).
+ *
+ * - `'available'` — an ordinary bench player who may be substituted on.
+ * - `'subbedOut'` — a player who has LEFT the pitch via a substitution and may never
+ *   return (SUB-07). The entry is replaced in place at substitution time (plan 40-02),
+ *   so a substitution never changes bench length.
+ * - `'redCarded'` — D-13: a sent-off player, shown on the bench so the roster screen
+ *   makes clear WHO is unavailable and WHY; permanently unfillable and never draggable
+ *   into a slot. The red-carded `PlayerPiece` REMAINS in `state.pieces` (with
+ *   `redCarded: true`, `onPitch: false`) — this bench entry is a display mirror, not a
+ *   move — because `maxOnPitchFor`'s `11 - redCardCount` math (D-08/D-09) counts red
+ *   cards from `pieces` and must not change.
+ */
+export type BenchEntryStatus = 'available' | 'subbedOut' | 'redCarded';
+
+/** Phase 40 (D-13/SUB-02/07): a single bench slot for one team. */
+export type BenchEntry = {
+  /** A `PLAYER_POOL` id (`p001`-style), NOT a `PlayerPiece.id`. */
+  playerId: string;
+  /**
+   * The bench shirt number. Draft rooms: `DraftSession.*BenchNumbers`; standard rooms:
+   * the pool player's own `number`; D-13 red-card entries: the sent-off piece's `number`.
+   */
+  jerseyNumber: number;
+  status: BenchEntryStatus;
 };
 
 export type BallState = {
@@ -193,7 +233,12 @@ export type ActionEventType =
   // the spot during the clear-out) and is deliberately excluded from REPLAY_ELIGIBLE_TYPES
   // for the same reason its corner-kick sibling is — see buildReplayFrames.
   | 'PENALTY_KICK_CLEAR_OUT_MOVE'
-  | 'SECOND_HALF_CONFIRM'; // D-16: each manager's confirmation to start the second half
+  | 'SECOND_HALF_CONFIRM' // D-16: each manager's confirmation to start the second half
+  // Phase 40 (40-01): substitution action event. Deliberately NOT DICE_ROLL (STATE.md
+  // v1.6 pitfall) and carries no `ballAfter` (the ball does not move). Every
+  // substitution is manager-initiated — this phase creates no automatic/forced
+  // substitution path, so the event carries no origin discriminator.
+  | 'SUBSTITUTION';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -762,6 +807,24 @@ export type ActionEvent =
       type: 'SECOND_HALF_CONFIRM';
       team: 'home' | 'away';
       bothConfirmed: boolean;
+      timestamp: number;
+    }
+  | {
+      /**
+       * Phase 40 (SUB-01..07): a completed 1-for-1 substitution. `pieceId` is the slot
+       * piece id (which now holds the incoming player, so both names are denormalised
+       * into the event for a stable log line). `subsUsed` is the POST-increment count
+       * used by the log's `n/3` suffix. A red card produces no `SUBSTITUTION` event
+       * (D-13's bench relocation is not a substitution) — it is already recorded by
+       * Phase 39's `BOOKING_CHECK` event.
+       */
+      type: 'SUBSTITUTION';
+      team: 'home' | 'away';
+      pieceId: string;
+      offPlayerName: string;
+      onPlayerName: string;
+      jerseyNumber: number;
+      subsUsed: number;
       timestamp: number;
     };
 
@@ -1655,4 +1718,28 @@ export type GameState = {
    * `broadcastState` (RESEARCH.md Pitfall 4). null outside the half-time transition.
    */
   secondHalfConfirmed?: { home: boolean; away: boolean } | null;
+  /**
+   * SUB-02/07 + D-13 (Phase 40): each team's bench, seeded at kick-off from the pre-match
+   * lineup/bench split and appended to (in place, `status: 'redCarded'`) when a red card
+   * is shown. D-12: nothing is ever generated or auto-filled into this array from any
+   * player pool — a Standard-mode room's bench is legitimately empty. Optional so no
+   * existing `GameState` construction site breaks; every read site uses `?? []` defaults.
+   */
+  bench?: { home: readonly BenchEntry[]; away: readonly BenchEntry[] };
+  /**
+   * SUB-04 (Phase 40): whole-match substitution count per team. NEVER reset at half-time
+   * — independent of `addedTimeBonus` below, which IS per-half. Optional so no existing
+   * `GameState` construction site breaks; every read site uses `?? 0` defaults.
+   */
+  subsUsed?: { home: number; away: number };
+  /**
+   * SUB-05/D-06/D-07 (Phase 40): per-half running accumulator, incremented by 1 on every
+   * completed substitution for either team, folded into the `addedTime` roll at minute
+   * 45/90 (`newAddedTime = roll + refereeCard.leniency + addedTimeBonus`). Reset to 0 at
+   * the half boundary. `subsUsed` and `addedTimeBonus` are independent counters and must
+   * never be reset together — `subsUsed` is whole-match, this field is per-half only.
+   * Optional so no existing `GameState` construction site breaks; every read site uses
+   * `?? 0` defaults.
+   */
+  addedTimeBonus?: number;
 };
