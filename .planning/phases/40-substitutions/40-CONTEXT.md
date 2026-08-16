@@ -34,11 +34,20 @@ Managers can substitute players at any stoppage under a 3-per-match cap, with nu
 - **D-08:** A red card **permanently reduces the team's max on-pitch headcount**, independent of the 3-substitution allowance. Model as `maxOnPitch = 11 - redCardCount` per team (not a separate "blocked slots" counter) — substitution validation checks `pieces.filter(onPitch, team).length < maxOnPitch` as a distinct guard from `subsUsed[team] < 3`. A team with 1 red card is capped at 10 on-pitch players for the rest of the match even with substitutions still remaining; 2 red cards → 9; etc.
 - **D-09:** The vacated slot is **unfillable the instant the red card is shown** — no grace substitution is offered for the sent-off player specifically. This mirrors real-world football and the original todo's framing.
 
+### Empty-bench auto-fill (Standard rooms)
+
+- **D-10:** Superseding D-02's framing that Standard rooms simply have no bench: **substitutions must work in all room flows**, not just Draft. At kickoff, if a team's bench (per D-01/D-02's derivation) is empty — the case for every Standard-mode 11-player squad — auto-seed that team's bench with **4 players randomly drafted from the common free-agent pool** (`PLAYER_POOL` entries with `sourceTeamId === 'free-agent'`, the same pool Draft mode already draws from), one of each of the four core `PoolPlayer.role` values: **GK, DEF, MID, FWD** (the `'ST'` role variant does not count toward the FWD slot). This applies only when the bench is empty at seed time — Draft-mode/any room that already has a non-empty bench from `LineupAssignmentScreen`'s pre-match split is unaffected. The 4 auto-filled players become ordinary bench entries — no special "auto-filled" flag or restriction beyond the normal substitution rules (3-per-match cap, 1-for-1, no-return).
+
+### Forced-2nd-injury trigger (Phase 39 hook)
+
+- **D-11:** Phase 39 (now shipped) deliberately stubbed its "second injury forces substitution" rule (INJURY-03) to always take the "no substitute available" fallback branch, with an explicit documented hook for Phase 40 to wire the real check (`39-CONTEXT.md` D-06: _"Phase 40 later adds the actual forced-substitution trigger that reads this same injury state"_). **In scope for this phase**: locate the exact spot in Phase 39's shipped code where this fallback always fires unconditionally, and replace it with a real availability check (`bench[team].length > 0 && subsUsed[team] < 3`) that, when true, performs a forced substitution through the same `applySubstitution`/roster-continuity mechanics as a manager-initiated one (auto-selecting a bench player, no manager drag-and-drop needed since play cannot pause for input at this trigger point) rather than building a parallel/new injury-substitution pathway.
+
 ### Claude's Discretion
 
 - Exact `GameState`/`ActionEvent` field naming for the new `bench`, `subsUsed`, `addedTimeBonus`, `maxOnPitch`/`redCardCount` fields, following the codebase's existing flat-counter naming conventions (`actionCount`, `addedTime`).
 - Internal mechanics of adapting `LineupAssignmentScreen` for mid-match use (e.g. whether it's rendered in a modal/overlay vs. an in-place swap) — the screen/interaction pattern is locked (D-01), the exact modal chrome is not.
 - Exact placement/sizing of the new top-left player-card badge (D-05), so long as it visually matches the sub-roster style.
+- Which bench player the forced-2nd-injury trigger (D-11) auto-selects when more than one is available (e.g. first-by-role-match, first-by-bench-order) — any deterministic, documented rule is acceptable.
 
 ### Folded Todos
 
