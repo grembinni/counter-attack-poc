@@ -7,8 +7,12 @@ import { restartErrorMessage } from '../utils/restartErrorMessage.js';
 import styles from './FreeKickSetupPanel.module.css';
 
 /**
- * Offside free-kick setup sidebar panel — shown to BOTH players during FREE_KICK_SETUP
- * phase (OFFSIDE-02, D-49 rulebook-correction rework). Reworked from the original
+ * Free-kick setup sidebar panel — shown to BOTH players during FREE_KICK_SETUP phase
+ * (OFFSIDE-02, D-49 rulebook-correction rework). Covers BOTH trigger sources: offside
+ * (triggerOffsideFoul) and foul-awarded restarts (triggerFoulFreeKick, Phase 39, e.g.
+ * tackle-from-behind) — the panel heading is intentionally generic ("Free Kick", not
+ * "Offside — Free Kick") since GameState carries no field distinguishing which trigger
+ * fired (see debug session free-kick-title-wrong-tackle.md). Reworked from the original
  * simultaneous-both-teams-then-dual-Ready model into a staged, alternating, turn-gated
  * UI: only the CURRENTLY-active stage's team sees the End-Turn-style "End Stage" button
  * and constraint rows; the inactive team sees a waiting message (mirrors ActionPanel's
@@ -78,7 +82,7 @@ export function FreeKickSetupPanel() {
   if (!isMyStage) {
     return (
       <div className={styles.panel}>
-        <span className={styles.panelHeading}>Offside — Free Kick</span>
+        <span className={styles.panelHeading}>Free Kick</span>
         <span className={styles.constraintRow}>
           {isKicking ? 'Attacking' : 'Defending'} team is repositioning&hellip;
         </span>
@@ -184,7 +188,7 @@ export function FreeKickSetupPanel() {
 
   return (
     <div className={styles.panel}>
-      <span className={styles.panelHeading}>Offside — Free Kick</span>
+      <span className={styles.panelHeading}>Free Kick</span>
 
       {!isKickerSelectionPhase && (
         <span className={styles.constraintRow}>

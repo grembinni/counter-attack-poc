@@ -504,12 +504,12 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
 
     // 39-18 (UAT gap 2): foulHex is now the CARRIER's hex (the ball's hex), not the
     // fouling defender's landing hex — so the fouled team's own carrier (kicking team,
-    // 'home') is EXPECTED to remain standing exactly on freeKickHex; it is the CONCEDING
-    // team ('away', which includes the tackling defender who landed adjacent to the
-    // carrier at MID_HEX) that relocateTrappedFreeKickPieces must have cleared away from
-    // freeKickHex, or the kicking team's mandatory kicker-first placement below would be
-    // permanently stuck behind OCCUPIED (the same class of bug D-59 already fixed for
-    // OFFSIDE-02).
+    // 'home') would otherwise remain standing exactly on freeKickHex. debug fix
+    // free-kick-kicker-select-stuck: relocateTrappedFreeKickPieces is now ALSO called for
+    // the KICKING team (in addition to the CONCEDING team, unchanged), so freeKickHex is
+    // vacated by BOTH teams before kicker-select becomes interactive — otherwise the
+    // carrier would permanently block every other kicking-team piece from being selected
+    // as kicker (39-REVIEW CR-01).
     const concedingTeam: 'home' | 'away' = fouledTeam === 'home' ? 'away' : 'home';
     expect(
       state.pieces.some(
@@ -517,14 +517,13 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
           p.teamId === concedingTeam && p.position.q === foulHex.q && p.position.r === foulHex.r,
       ),
     ).toBe(false);
-    // The kicking team's own carrier legitimately still stands exactly on freeKickHex —
-    // this is the T-39-18-05 threat-register condition Task 3's next assertion proves is
-    // still playable, not a bug.
+    // The kicking team's own carrier is relocated away from freeKickHex too — freeKickHex
+    // is fully vacated so any kicking-team piece (not just the carrier) can be chosen.
     expect(
       state.pieces.some(
         (p) => p.teamId === fouledTeam && p.position.q === foulHex.q && p.position.r === foulHex.r,
       ),
-    ).toBe(true);
+    ).toBe(false);
 
     // FK-01: the kicking team (fouledTeam, 'home') places their kicker on freeKickHex —
     // a real GAME_FREE_KICK_MOVE through the untouched, pre-existing handler.
@@ -542,7 +541,7 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
     expect(afterReady.freeKickStageIndex).toBe(1);
   });
 
-  it('39-18 (integration risk proof): the fouled carrier now standing exactly on freeKickHex can still complete the mandatory kicker-first placement via applyFreeKickMove', async () => {
+  it('debug fix free-kick-kicker-select-stuck: the carrier is relocated off freeKickHex by "restart" but can still complete the mandatory kicker-first placement via applyFreeKickMove', async () => {
     const { roomCode } = await setupRoom();
     const { carrier } = seedFoulChoiceViaTackle(roomCode);
     const seeded = getRoom(roomCode)!.gameState!;
@@ -557,19 +556,22 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
     expect(state.phase).toBe('FREE_KICK_SETUP');
     expect(state.freeKickKickerChosen).toBe(false);
 
-    // 39-18/Task 1: the carrier is the fouled team's own piece — relocateTrappedFreeKickPieces
-    // only relocates the CONCEDING team, so the carrier is left standing exactly on
-    // freeKickHex (the ball's hex at the moment of the foul).
+    // debug fix free-kick-kicker-select-stuck: relocateTrappedFreeKickPieces now ALSO
+    // sweeps the KICKING team (in addition to the CONCEDING team, unchanged) — the
+    // carrier is a kicking-team piece guaranteed to be within the 2-hex bubble (distance
+    // 0, standing exactly on freeKickHex), so it is relocated away, vacating freeKickHex.
     const carrierAfter = state.pieces.find((p) => p.id === carrier.id)!;
-    expect(carrierAfter.position).toEqual(state.freeKickHex);
+    expect(carrierAfter.position).not.toEqual(state.freeKickHex);
 
+    // The carrier remains a legal kicker choice — placing it back onto the now-vacated
+    // freeKickHex still completes the mandatory kicker-first placement.
     const moveResult = applyFreeKickMove(state, carrier.id, state.freeKickHex!);
     expect(moveResult.ok).toBe(true);
     if (!moveResult.ok) return;
     expect(moveResult.state.freeKickKickerChosen).toBe(true);
   });
 
-  it('39-REVIEW CR-01: a kicking-team piece OTHER than the carrier cannot be placed onto freeKickHex while the carrier still occupies it', async () => {
+  it('debug fix free-kick-kicker-select-stuck: a kicking-team piece OTHER than the carrier can now be placed onto freeKickHex once "restart" has vacated it', async () => {
     const { roomCode } = await setupRoom();
     const { carrier } = seedFoulChoiceViaTackle(roomCode);
     const seeded = getRoom(roomCode)!.gameState!;
@@ -580,23 +582,70 @@ describe('FK-01: restart routes a TACKLE-sourced foul into the untouched FREE_KI
     const state = restarted.state;
     expect(state.freeKickKickerChosen).toBe(false);
 
-    // Carrier legitimately still stands on freeKickHex (39-18) — pick a DIFFERENT
-    // kicking-team piece and attempt to place it on the same occupied hex, mirroring a
-    // forged/malformed GAME_FREE_KICK_MOVE that bypasses the client's own guard.
+    // Root cause of the reported bug: before this fix, the carrier legitimately still
+    // stood on freeKickHex here, and CR-01's occupancy guard rejected every other
+    // kicking-team piece with KICKER_HEX_OCCUPIED — the manager had no way to choose
+    // anyone but the carrier as kicker. Now freeKickHex is vacated by 'restart' itself,
+    // so a DIFFERENT kicking-team piece succeeds on the first attempt.
     const otherKickingPiece = state.pieces.find(
       (p) => p.teamId === carrier.teamId && p.id !== carrier.id,
     )!;
     expect(otherKickingPiece).toBeDefined();
 
     const moveResult = applyFreeKickMove(state, otherKickingPiece.id, state.freeKickHex!);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.state.freeKickKickerChosen).toBe(true);
+    expect(moveResult.state.pieces.find((p) => p.id === otherKickingPiece.id)!.position).toEqual(
+      state.freeKickHex,
+    );
+  });
+
+  it('39-REVIEW CR-01 (regression, guard still active): applyFreeKickMove still rejects a kicking-team piece placed onto an ALREADY-occupied freeKickHex, independent of the relocation fix', async () => {
+    const { roomCode } = await setupRoom();
+    const { carrier } = seedFoulChoiceViaTackle(roomCode);
+    const seeded = getRoom(roomCode)!.gameState!;
+
+    const restarted = applyFoulChoice(seeded, 'restart');
+    expect(restarted.ok).toBe(true);
+    if (!restarted.ok) return;
+    const state = restarted.state;
+    expect(state.freeKickKickerChosen).toBe(false);
+
+    // debug fix free-kick-kicker-select-stuck relocates the carrier away, so freeKickHex
+    // is vacated by the normal 'restart' flow now — CR-01's underlying guard is no longer
+    // reachable through that path. Reconstruct the collision directly (mirrors a
+    // defensive-fallback scenario where relocation could leave a piece in place, or a
+    // forged message racing ahead of a legitimate placement) so the guard itself stays
+    // regression-tested independent of the relocation fix.
+    const otherKickingPiece = state.pieces.find(
+      (p) => p.teamId === carrier.teamId && p.id !== carrier.id,
+    )!;
+    expect(otherKickingPiece).toBeDefined();
+    const collidedState = {
+      ...state,
+      pieces: state.pieces.map((p) =>
+        p.id === otherKickingPiece.id ? { ...p, position: state.freeKickHex! } : p,
+      ),
+    };
+
+    // A THIRD kicking-team piece now attempts to also land on the already-occupied
+    // freeKickHex — must still be rejected.
+    const thirdKickingPiece = state.pieces.find(
+      (p) => p.teamId === carrier.teamId && p.id !== carrier.id && p.id !== otherKickingPiece.id,
+    )!;
+    expect(thirdKickingPiece).toBeDefined();
+
+    const moveResult = applyFreeKickMove(collidedState, thirdKickingPiece.id, state.freeKickHex!);
     expect(moveResult.ok).toBe(false);
     if (moveResult.ok) return;
     expect(moveResult.reason).toBe('KICKER_HEX_OCCUPIED');
 
-    // No state corruption: the carrier is still alone on freeKickHex, and kicker-select
-    // is still pending (a rejected placement must not advance freeKickKickerChosen).
+    // No state corruption: only the manually-placed occupant is on freeKickHex, and
+    // kicker-select is still pending (a rejected placement must not advance
+    // freeKickKickerChosen).
     expect(
-      state.pieces.filter(
+      collidedState.pieces.filter(
         (p) => p.position.q === state.freeKickHex!.q && p.position.r === state.freeKickHex!.r,
       ).length,
     ).toBe(1);

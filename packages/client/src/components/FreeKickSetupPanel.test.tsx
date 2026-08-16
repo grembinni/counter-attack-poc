@@ -77,7 +77,7 @@ describe('FreeKickSetupPanel — turn gating (active vs inactive team)', () => {
   it('stage 0 (kicking = away): the INACTIVE team (home, playerSlot 1) sees only a waiting message, no End-Turn button', () => {
     useGameStore.setState({ gameState: freeKickSetupState(0), playerSlot: 1 });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/offside — free kick/i)).toBeDefined();
+    expect(screen.getByText(/^free kick$/i)).toBeDefined();
     expect(screen.getByText(/repositioning/i)).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
   });
@@ -139,7 +139,7 @@ describe('FreeKickSetupPanel — kicker selection sub-step (freeKickKickerChosen
       playerSlot: 2,
     });
     render(<FreeKickSetupPanel />);
-    expect(screen.getByText(/offside — free kick/i)).toBeDefined();
+    expect(screen.getByText(/^free kick$/i)).toBeDefined();
     expect(screen.getByText(/kicker: move a player onto the free-kick hex first/i)).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByText(/of \d+ placed/i)).toBeNull();

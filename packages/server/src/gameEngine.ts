@@ -1669,11 +1669,23 @@ export function applyFoulChoice(
   // the duel) — relocateTrappedFreeKickPieces (shared with applyOffsideFoulWithRelocation,
   // D-59) clears every conceding-team piece within 2 hexes so the kicking team's mandatory
   // kicker-first placement is never permanently blocked with OCCUPIED.
+  const afterFoul = triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!);
+  const afterConcedingRelocation = relocateTrappedFreeKickPieces(afterFoul);
+  // debug fix free-kick-kicker-select-stuck: Plan 39-18 made freeKickHex the fouled
+  // carrier's OWN hex for TACKLE/STEAL-sourced fouls, so the carrier — a KICKING-team
+  // piece — is now guaranteed to occupy freeKickHex too, which the conceding-team-only
+  // sweep above never touches. Without this second sweep, the carrier permanently blocks
+  // every other kicking-team piece from being placed as kicker (39-REVIEW CR-01's
+  // KICKER_HEX_OCCUPIED guard rejects them, and the client hides them as candidates).
+  // Passing the KICKING team explicitly relocates the carrier (and any other kicking-team
+  // piece within the same 2-hex bubble) before kicker-select becomes interactive.
+  const kickingTeam = afterConcedingRelocation.freeKickAttackingTeam;
+  const afterKickingRelocation = kickingTeam
+    ? relocateTrappedFreeKickPieces(afterConcedingRelocation, kickingTeam)
+    : afterConcedingRelocation;
   return {
     ok: true,
-    state: relocateTrappedFreeKickPieces(
-      triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!),
-    ),
+    state: afterKickingRelocation,
   };
 }
 
@@ -8467,7 +8479,7 @@ export function applyOffsideFoulWithRelocation(
  * T-39-13 (extracted from the D-59 body above so Plan 39-13's TACKLE/STEAL-sourced
  * `triggerFoulFreeKick` restart can share it): given a state that has just transitioned
  * into `FREE_KICK_SETUP` (or is unrelated, in which case this is a no-op), relocates
- * every CONCEDING-team piece within 2 hexes of `freeKickHex` — including a piece sitting
+ * every piece of `team` within 2 hexes of `freeKickHex` — including a piece sitting
  * exactly on it — so the kicking team is never permanently blocked from the mandatory
  * kicker-first placement (rejected `OCCUPIED` at the gameHandlers.ts level).
  *
@@ -8481,8 +8493,28 @@ export function applyOffsideFoulWithRelocation(
  * See `applyOffsideFoulWithRelocation`'s original JSDoc (still above) for the full
  * relocation-target algorithm rationale (D-53/D-59) — unchanged here, just no longer
  * hardcoded to `triggerOffsideFoul`'s call site.
+ *
+ * `team` (debug fix free-kick-kicker-select-stuck): optional override, defaults to the
+ * CONCEDING team (`freeKickAttackingTeam`'s opponent) — every existing caller
+ * (`applyOffsideFoulWithRelocation`, and `applyFoulChoice`'s first call below) keeps its
+ * original conceding-team-only behavior byte-for-byte. `applyFoulChoice`'s TACKLE/STEAL
+ * restart branch additionally calls this a SECOND time passing the KICKING team
+ * explicitly: Plan 39-18 made `freeKickHex` the fouled carrier's own hex for that path,
+ * so the carrier — a KICKING-team piece — is now guaranteed to occupy `freeKickHex` too,
+ * which the conceding-team-only sweep never touched. That left the manager unable to
+ * select any kicker other than the carrier itself (39-REVIEW CR-01's server-side
+ * `KICKER_HEX_OCCUPIED` guard, plus the client's own `computeFreeKickSetupValidHexes`,
+ * both reject/hide every other candidate while the carrier still occupies the hex).
+ * Reusing this same function/algorithm for the kicking team means each relocated piece
+ * still sorts candidates by proximity to ITS OWN goal line — since the kicking and
+ * conceding teams defend opposite ends of the pitch, this sweep naturally pushes
+ * kicking-team pieces in the opposite direction from the conceding-team sweep, with no
+ * new sorting logic required. Not applied to the offside path: `triggerOffsideFoul` sets
+ * `freeKickHex` to the offside OFFENDER's position, who is always on the CONCEDING team —
+ * the kicking (defending) team has no guaranteed piece on `freeKickHex` there, so this bug
+ * class does not exist on that path and it is left untouched.
  */
-function relocateTrappedFreeKickPieces(state: GameState): GameState {
+function relocateTrappedFreeKickPieces(state: GameState, team?: 'home' | 'away'): GameState {
   // No-op: not currently in FREE_KICK_SETUP (foul didn't fire, or a different phase).
   if (state.phase !== 'FREE_KICK_SETUP' || !state.freeKickHex) {
     return state;
@@ -8490,11 +8522,12 @@ function relocateTrappedFreeKickPieces(state: GameState): GameState {
 
   const freeKickHex = state.freeKickHex;
   const concedingTeam: 'home' | 'away' = state.freeKickAttackingTeam === 'home' ? 'away' : 'home';
+  const targetTeam: 'home' | 'away' = team ?? concedingTeam;
 
-  // D-59: every conceding-team piece within 2 hexes of freeKickHex is trapped, including
+  // D-59: every targetTeam piece within 2 hexes of freeKickHex is trapped, including
   // a piece sitting exactly on it (always at distance 0).
   const trappedIds = state.pieces
-    .filter((p) => p.teamId === concedingTeam && hexDistance(p.position, freeKickHex) <= 2)
+    .filter((p) => p.teamId === targetTeam && hexDistance(p.position, freeKickHex) <= 2)
     .map((p) => p.id);
 
   if (trappedIds.length === 0) {
