@@ -38,6 +38,7 @@ import {
   hexLine,
   isInRegion,
   isPitchHex,
+  isStoppagePhase,
   validatePass,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
@@ -91,6 +92,7 @@ import {
   applyBoxEntryResponse,
   applyBoxEntryMove,
   applySecondHalfConfirm,
+  applySubstitution,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
@@ -101,6 +103,7 @@ import type {
   GameState,
   LastActionType,
   PlayerPiece,
+  SubstitutionPayload,
 } from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
@@ -1697,6 +1700,91 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         return;
       }
       const result = applyUndo(room.gameState);
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room);
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_SUBSTITUTION — SUB-01..07/SETTINGS-04: a manager-initiated 1-for-1
+  // substitution during any stoppage. Mirrors GAME_UNDO's mutex/phase-guard/
+  // team-guard/pure-function-delegate/broadcast shape (40-PATTERNS.md).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_SUBSTITUTION, (payload: SubstitutionPayload) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5
+
+    room.isProcessing = true;
+    try {
+      // T-40-17: untrusted payload shape — reject before any lookup, never throw.
+      const p = payload as unknown;
+      const isValidPayload =
+        typeof p === 'object' &&
+        p !== null &&
+        typeof (p as Record<string, unknown>).outPieceId === 'string' &&
+        (p as Record<string, unknown>).outPieceId !== '' &&
+        typeof (p as Record<string, unknown>).inPlayerId === 'string' &&
+        (p as Record<string, unknown>).inPlayerId !== '';
+      if (!isValidPayload) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SUBSTITUTE');
+        broadcastState(io, room);
+        return;
+      }
+
+      // SUB-01: gated on the shared stoppage-phase allow-list, never a locally
+      // re-declared array (that would defeat the whole point of promoting
+      // STOPPAGE_PHASES to packages/shared — see 40-CONTEXT.md).
+      if (room.gameState === null || !isStoppagePhase(room.gameState.phase)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+
+      // SUB-01: deliberately socketTeam, NOT isActivePlayer — a substitution is not
+      // turn-bound; either manager may act during a stoppage regardless of activeTeam.
+      // Do not "fix" this into an isActivePlayer check.
+      const team = socketTeam(socket);
+
+      // T-40-15 (defence in depth — the engine re-checks ownership too): resolve the
+      // outgoing piece and reject a missing id or an opponent-owned id before ever
+      // calling into the engine.
+      const outPiece = room.gameState.pieces.find((piece) => piece.id === payload.outPieceId);
+      if (outPiece === undefined) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_SUBSTITUTE');
+        broadcastState(io, room);
+        return;
+      }
+      if (outPiece.teamId !== team) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+
+      // No bench inspection/mutation here — the bench is written only by
+      // LINEUP_CONFIRM seeding (40-04), applySubstitution (40-02) and
+      // resolveFoulChain's red-card branch (40-04). D-12: an EMPTY bench must fall
+      // through to the engine's INVALID_SUBSTITUTE, never special-cased or filled.
+      //
+      // SETTINGS-04: this handler reads none of foulsEnabled/bookingEnabled/
+      // injuryEnabled/outOfBoundsEnabled — a substitution is available regardless of
+      // which v1.6 toggles are on. Do not add a toggle gate here in a later phase.
+      const result = applySubstitution(
+        room.gameState,
+        team,
+        payload.outPieceId,
+        payload.inPlayerId,
+      );
+      // Every SubstitutionRejection reason, including D-13's CANNOT_SUB_IN_RED_CARDED,
+      // must reach the client verbatim — never remap or catch-all this reason string.
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room);
