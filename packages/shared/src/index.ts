@@ -20,3 +20,4 @@ export * from './formations.js'; // Phase 23: FormationId, FormationSlot, SlotRo
 export * from './draftEngine.js'; // Phase 28: pool derivation + tier classification (DRAFT-04)
 export * from './outOfBounds.js'; // Phase 37 OOB-01/OOB-02/OOB-04: sideline/byline classification + restart-type geometry
 export * from './fouls.js'; // Phase 39 FOUL-01..04/CARD-01..03/INJURY-01..02: pure foul, injury, booking and professional-foul helpers
+export * from './stoppagePhases.js'; // Phase 40 SUB-01/04/06: stoppage-phase allow-list, isStoppagePhase, substitution/red-card caps

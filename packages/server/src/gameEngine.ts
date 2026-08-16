@@ -2972,7 +2972,11 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       (state.phase === 'GK_BOX_ENTRY_MOVE' && evt.type === 'GK_BOX_ENTRY_MOVE') ||
       // D-16 (Phase 39, 39-14): a manager cannot Undo their own already-committed
       // second-half confirm.
-      (state.phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM');
+      (state.phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM') ||
+      // Phase 40 (40-01, RESEARCH.md Assumption A4): a SUBSTITUTION is a committed
+      // roster change — Undo must never cross it, unconditionally (no phase guard),
+      // exactly like TACKLE_ATTEMPT/STEAL_ATTEMPT/GK_DIVE_AT_FEET above.
+      evt.type === 'SUBSTITUTION';
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -9248,6 +9252,10 @@ export const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // deliberately EXCLUDED from this set — neither carries a `ballAfter` field, matching
   // the existing GK_KICK_MOVE/GOAL_KICK_MOVE exclusion rule above. This is a confirmed
   // decision, not an oversight — a future reader must not add them here.
+  // Phase 40 (40-01, RESEARCH.md Assumption A4): SUBSTITUTION is deliberately EXCLUDED
+  // from this set — a substitution moves no piece and changes no ball state, so it
+  // produces no replay frame; it is visible in the match log only. This is an explicit
+  // exclusion decision, not an omission — a future reader must not add it here.
 ]);
 
 /**

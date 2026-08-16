@@ -164,6 +164,14 @@ export const ClientEvents = {
    * reposition events here.
    */
   GAME_PENALTY_KICK_TAKER: 'game:penalty-kick-taker',
+  /**
+   * SUB-01..07 (Phase 40): a manager-initiated 1-for-1 substitution during any stoppage
+   * (`isStoppagePhase`). Payload carries the outgoing on-pitch slot id and the incoming
+   * bench player's pool id — see `SubstitutionPayload` below. This is a compile-time
+   * convenience only; runtime validation (cap, red-card, no-return) happens server-side
+   * in `applySubstitution` (T-40-01).
+   */
+  GAME_SUBSTITUTION: 'game:substitution',
 } as const;
 
 export const ServerEvents = {
@@ -208,6 +216,14 @@ export const ServerEvents = {
    */
   DRAFT_STATE_UPDATED: 'draft:state-updated',
 } as const;
+
+/**
+ * SUB-01..07 (Phase 40): payload for `GAME_SUBSTITUTION`. `outPieceId` is the on-pitch
+ * slot id being vacated (a `PlayerPiece.id`, e.g. `home-3`); `inPlayerId` is the incoming
+ * bench player's pool id (a `BenchEntry.playerId`, e.g. `p012`) — deliberately NOT a
+ * `PlayerPiece.id`, since a bench player has no slot until the swap resolves.
+ */
+export type SubstitutionPayload = { outPieceId: string; inPlayerId: string };
 
 /**
  * Typed event map for client-to-server events.
@@ -365,6 +381,11 @@ export interface ClientToServerEvents {
    * server places the taker on `state.penaltyKickSpot`.
    */
   [ClientEvents.GAME_PENALTY_KICK_TAKER]: (pieceId: string) => void;
+  /**
+   * SUB-01..07 (Phase 40): a manager-initiated 1-for-1 substitution during any stoppage.
+   * See `SubstitutionPayload` above; runtime validation happens server-side.
+   */
+  [ClientEvents.GAME_SUBSTITUTION]: (payload: SubstitutionPayload) => void;
 }
 
 /**
