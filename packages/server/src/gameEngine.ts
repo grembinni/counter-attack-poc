@@ -1533,11 +1533,7 @@ export function applyMove(
  * hex — and `offsidePieceIds` is omitted entirely — that field is offside-specific and
  * has no foul-restart equivalent.
  */
-export function triggerFoulFreeKick(
-  state: GameState,
-  foulerId: string,
-  foulHex: HexCoord,
-): GameState {
+function triggerFoulFreeKick(state: GameState, foulerId: string, foulHex: HexCoord): GameState {
   const fouler = state.pieces.find((p) => p.id === foulerId);
   const foulerTeam: 'home' | 'away' = fouler?.teamId ?? state.attackingTeam;
   const fouledTeam: 'home' | 'away' = foulerTeam === 'home' ? 'away' : 'home';
