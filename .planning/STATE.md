@@ -4,7 +4,7 @@ milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
 status: Ready to start Phase 40
 stopped_at: Phase 40 UI-SPEC approved
-last_updated: '2026-08-16T12:23:03.036Z'
+last_updated: '2026-08-16T12:55:01.096Z'
 last_activity: 2026-08-16 -- Phase 40 planning complete
 progress:
   total_phases: 4
