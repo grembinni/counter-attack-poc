@@ -26,6 +26,7 @@ import type {
   SlotRole,
   PoolPlayer,
   BallState,
+  BenchEntry,
 } from '@counter-attack/shared';
 import type { TeamId } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
@@ -80,6 +81,9 @@ import {
   isProfessionalFoul,
   isTackleFromBehind,
   foulTriggerThreshold,
+  isStoppagePhase,
+  MAX_SUBS_PER_TEAM,
+  PLAYER_POOL,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -2443,7 +2447,14 @@ export function applyEndTurn(
     if (newActionCount >= HALF_LENGTH && state.addedTime === null) {
       // Injected roll (Pitfall 1 — never call randomInt here; caller injects via options)
       const roll = options?.addedTimeRoll ?? 3; // default 3 for backward compatibility
-      newAddedTime = roll + state.refereeCard.leniency;
+      // SUB-05/D-06 (Phase 40): fold in the per-half substitution accumulator. This is the
+      // ONLY reassignment of `newAddedTime` — all four `addedTime: newAddedTime` return
+      // sites below read this same local, so this is a single edit, not four. The
+      // `state.addedTime === null` guard above is untouched: the set-once-per-half
+      // invariant survives (a substitution made AFTER this roll fires increments
+      // `addedTime` directly instead — see `applySubstitution`'s mutually-exclusive
+      // fold-in/direct-increment split).
+      newAddedTime = roll + state.refereeCard.leniency + (state.addedTimeBonus ?? 0);
     }
 
     // Pitfall 5: check HALF_TIME vs FULL_TIME by half
@@ -2467,6 +2478,14 @@ export function applyEndTurn(
           lastShotPath: null, // prevent stale shot-path tint from bleeding into HALF_TIME screen
           // THROWIN-03/D-09: a throw-in context cannot survive across a half boundary.
           ...THROW_IN_TEARDOWN,
+          // SUB-05/D-07 (Phase 40): the per-half substitution bonus resets at the END of
+          // the half (not in applyHalfTimeStart) because HALF_TIME is itself a stoppage —
+          // substitutions made during the half-time screen must accumulate toward the
+          // SECOND half's added time, so the reset must happen exactly once, here, at the
+          // boundary crossing. `subsUsed` (SUB-04's whole-match cap) is deliberately NOT
+          // reset here or anywhere else — the two counters are independent and must never
+          // be conflated.
+          addedTimeBonus: 0,
         },
       };
     }
@@ -2885,6 +2904,229 @@ export function applyRestartMovement(
       gkBoxEntryUsedByTeam: { home: false, away: false },
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// applySubstitution / applyRosterContinuity (Phase 40: SUB-02..07, D-08/D-09, D-12, D-13)
+// ---------------------------------------------------------------------------
+
+/**
+ * Phase 40: rejection reasons for a substitution attempt.
+ *
+ * `CANNOT_SUB_RED_CARD` = the OUTGOING on-pitch piece has been sent off — SUB-06/D-09: the
+ * vacated slot is permanently unfillable, no substitute is ever offered for it specifically.
+ *
+ * `CANNOT_SUB_IN_RED_CARDED` = the INCOMING bench entry is itself a sent-off player, shown
+ * on the bench for display only (D-13) — it may never return to the pitch, regardless of
+ * which slot is being filled. These two reasons must never be confused with each other.
+ */
+export type SubstitutionRejection =
+  | 'WRONG_PHASE'
+  | 'SUB_CAP_REACHED'
+  | 'CANNOT_SUB_RED_CARD'
+  | 'CANNOT_SUB_IN_RED_CARDED'
+  | 'INVALID_SUBSTITUTE'
+  | 'ALREADY_SUBBED'
+  | 'GK_SLOT_REQUIRES_GK'
+  | 'NON_GK_SLOT_REJECTS_GK';
+
+export type ApplySubstitutionResult =
+  | { ok: true; state: GameState }
+  | { ok: false; reason: SubstitutionRejection };
+
+/**
+ * Phase 40 (SUB-02..07, SETTINGS-04): the sole pure-function authority for a 1-for-1
+ * in-match substitution. Validates every guard BEFORE any mutation (T-40-04..T-40-08,
+ * T-40-29), in the exact order documented per guard below, then builds the new state as a
+ * single set of immutable spreads — `state` itself is never mutated.
+ */
+export function applySubstitution(
+  state: GameState,
+  team: 'home' | 'away',
+  outPieceId: string,
+  inPlayerId: string,
+): ApplySubstitutionResult {
+  // 1. SUB-01 defence in depth — the handler (plan 40-05) also checks isStoppagePhase,
+  // but the engine never trusts the caller to have done so.
+  if (!isStoppagePhase(state.phase)) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. SUB-04: whole-match cap, never reset at half-time (D-07 only resets addedTimeBonus,
+  // a structurally independent counter).
+  if ((state.subsUsed?.[team] ?? 0) >= MAX_SUBS_PER_TEAM) {
+    return { ok: false, reason: 'SUB_CAP_REACHED' };
+  }
+
+  // 3. T-40-04 (Elevation of Privilege): re-validate ownership even though the handler also
+  // checks — an opponent's piece id, or an id with no pool identity at all, can never be
+  // substituted regardless of caller.
+  const outPiece = state.pieces.find((p) => p.id === outPieceId);
+  if (outPiece === undefined || outPiece.teamId !== team || outPiece.playerId === undefined) {
+    return { ok: false, reason: 'INVALID_SUBSTITUTE' };
+  }
+
+  // 4. SUB-06/D-09: the vacated slot of a sent-off player is permanently unfillable — no
+  // grace substitution is ever offered for the outgoing piece specifically.
+  if (outPiece.redCarded === true) {
+    return { ok: false, reason: 'CANNOT_SUB_RED_CARD' };
+  }
+
+  // 5. D-12 (empty bench) / T-40-05: `bench?.[team] ?? []` being empty makes every lookup
+  // below miss — this function deliberately never compensates by generating a substitute
+  // from PLAYER_POOL or any other pool. The retracted D-10 auto-fill design (seeding an
+  // empty bench from an unclaimed-player pool) must never be reintroduced here.
+  const benchEntries: readonly BenchEntry[] = state.bench?.[team] ?? [];
+  const benchEntry = benchEntries.find((e) => e.playerId === inPlayerId);
+  if (benchEntry === undefined) {
+    return { ok: false, reason: 'INVALID_SUBSTITUTE' };
+  }
+
+  // 6. SUB-07: a substituted-out player may never return to the pitch.
+  if (benchEntry.status === 'subbedOut') {
+    return { ok: false, reason: 'ALREADY_SUBBED' };
+  }
+
+  // 7. D-13: a red-carded bench entry is a display mirror only, never a live substitute.
+  // Kept structurally separate from guard 6 — never collapse into a single
+  // `status !== 'available'` test — the client renders a distinct message and bench badge
+  // for each.
+  if (benchEntry.status === 'redCarded') {
+    return { ok: false, reason: 'CANNOT_SUB_IN_RED_CARDED' };
+  }
+
+  // 8. T-40-05 (Tampering): the incoming id must resolve in the server-owned PLAYER_POOL.
+  const inPoolPlayer = PLAYER_POOL.find((p) => p.id === inPlayerId);
+  if (inPoolPlayer === undefined) {
+    return { ok: false, reason: 'INVALID_SUBSTITUTE' };
+  }
+
+  // 9. GK parity (RESEARCH.md Pitfall 6): two structurally separate checks, never merged
+  // with any other boolean. Reuses the pre-match lineup flow's existing error strings
+  // verbatim.
+  if (outPiece.role === 'GK' && inPoolPlayer.role !== 'GK') {
+    return { ok: false, reason: 'GK_SLOT_REQUIRES_GK' };
+  }
+  if (outPiece.role !== 'GK' && inPoolPlayer.role === 'GK') {
+    return { ok: false, reason: 'NON_GK_SLOT_REJECTS_GK' };
+  }
+
+  // --- All guards passed — build the new state immutably. ---
+
+  // SUB-03: the substitute inherits the slot's `id`/`teamId`/`number`/`position` (via the
+  // `...outPiece` spread below) — this is what makes `ball.carrierId`, `movedPieceIds`,
+  // `paceUsedByPieceId` and every restart-stage per-piece budget continue to point at the
+  // slot. T-40-06: the substitute deliberately inherits the slot's already-spent
+  // movement/reposition budget for the current cycle — a substitution can never be used to
+  // refresh a budget. No per-cycle tracking field is scrubbed by this function.
+  const newPiece: PlayerPiece = {
+    ...outPiece,
+    playerId: inPoolPlayer.id,
+    firstName: inPoolPlayer.firstName,
+    lastName: inPoolPlayer.lastName,
+    nationality: inPoolPlayer.nationality,
+    role: inPoolPlayer.role,
+    pace: inPoolPlayer.pace,
+    shooting: inPoolPlayer.shooting,
+    tackling: inPoolPlayer.tackling,
+    dribbling: inPoolPlayer.dribbling,
+    saving: inPoolPlayer.saving,
+    handling: inPoolPlayer.handling,
+    resilience: inPoolPlayer.resilience,
+    aerialAbility: inPoolPlayer.aerialAbility,
+    highPass: inPoolPlayer.highPass,
+    // SUB-03: a substitute arrives clean — none of the outgoing piece's match-accumulated
+    // disciplinary/injury state carries over.
+    redCarded: false,
+    yellowCards: 0,
+    injuryCount: 0,
+  };
+  const newPieces = state.pieces.map((p) => (p.id === outPieceId ? newPiece : p));
+
+  // The outgoing player takes over the vacated bench card in place — bench length never
+  // changes; the incoming player simply disappears from the bench. Any OTHER entry with
+  // `status: 'redCarded'` is copied through untouched (D-13: a substitution never rewrites
+  // a red-card entry). The other team's bench array is re-used by reference.
+  const newTeamBench: BenchEntry[] = benchEntries.map((e) =>
+    e.playerId === inPlayerId
+      ? {
+          playerId: outPiece.playerId!,
+          jerseyNumber: benchEntry.jerseyNumber,
+          status: 'subbedOut' as const,
+        }
+      : e,
+  );
+  const newBench = {
+    home: team === 'home' ? newTeamBench : (state.bench?.home ?? []),
+    away: team === 'away' ? newTeamBench : (state.bench?.away ?? []),
+  };
+
+  // SUB-04
+  const newTeamSubsUsed = (state.subsUsed?.[team] ?? 0) + 1;
+  const newSubsUsed = {
+    home: team === 'home' ? newTeamSubsUsed : (state.subsUsed?.home ?? 0),
+    away: team === 'away' ? newTeamSubsUsed : (state.subsUsed?.away ?? 0),
+  };
+
+  // SUB-05/D-06/T-40-07: the bonus increments unconditionally; `addedTime` only increments
+  // when the per-half roll has already fired (`addedTime !== null`) — the fold-in path in
+  // `applyEndTurn` only runs while `addedTime === null`, so these two paths are mutually
+  // exclusive and can never double-count a substitution's added-time minute.
+  const newAddedTimeBonus = (state.addedTimeBonus ?? 0) + 1;
+  const substitutionAddedTime = state.addedTime === null ? state.addedTime : state.addedTime + 1;
+
+  // T-40-08 (Repudiation): every accepted substitution appends an audit-trail event.
+  const substitutionEvent: ActionEvent = {
+    type: 'SUBSTITUTION',
+    team,
+    pieceId: outPieceId,
+    offPlayerName: `${outPiece.firstName} ${outPiece.lastName}`,
+    onPlayerName: `${inPoolPlayer.firstName} ${inPoolPlayer.lastName}`,
+    jerseyNumber: outPiece.number,
+    subsUsed: newTeamSubsUsed,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      bench: newBench,
+      subsUsed: newSubsUsed,
+      addedTimeBonus: newAddedTimeBonus,
+      addedTime: substitutionAddedTime,
+      eventLog: [...state.eventLog, substitutionEvent],
+      // `phase`, `activeTeam` and `movementSlot` are NOT changed — a substitution never
+      // advances the FSM.
+    },
+  };
+}
+
+/**
+ * Phase 40 (D-08 roster-continuity fix): overlays a freshly-rebuilt `resetPieces` array
+ * (e.g. from `buildKickOffPieces`, which re-derives pieces from the DEFAULT squad order via
+ * `getSquadPlayers` and therefore discards slot identity plus every accumulated per-match
+ * mutation) with the LIVE roster's identity and match-state fields, matched by piece `id`.
+ * Without this overlay, a goal or the half-time reset would resurrect a substituted-out
+ * player (violating SUB-03/SUB-07) and wipe `redCarded`/`onPitch: false` (undoing D-08's
+ * permanent headcount cap and returning a sent-off player to the pitch). Positions always
+ * come from `resetPieces` (the kick-off formation, the +4 shift and the jersey-#9 anchor are
+ * already applied there, and jersey numbers are identical on both sides of the overlay);
+ * identity and match state always come from `currentPieces`. Never touches `state.bench` —
+ * the bench (including D-13's red-card entries) is not rebuilt by any reset. This plan only
+ * exports the helper — wiring it into the reset call sites (goal reset, applyHalfTimeStart)
+ * is plans 40-04 and 40-05.
+ */
+export function applyRosterContinuity(
+  resetPieces: PlayerPiece[],
+  currentPieces: readonly PlayerPiece[],
+): PlayerPiece[] {
+  return resetPieces.map((resetPiece) => {
+    const currentPiece = currentPieces.find((p) => p.id === resetPiece.id);
+    if (currentPiece === undefined) return resetPiece;
+    return { ...currentPiece, position: resetPiece.position };
+  });
 }
 
 // ---------------------------------------------------------------------------
