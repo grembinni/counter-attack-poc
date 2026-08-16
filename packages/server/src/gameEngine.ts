@@ -746,6 +746,53 @@ const CORNER_KICK_TEARDOWN = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// relocateRedCardedToBench
+// ---------------------------------------------------------------------------
+
+/**
+ * D-13 (Phase 40, 40-04 Task 4): moves a red-carded player's record onto their team's bench
+ * so the Roster/substitution screen shows WHO is unavailable and WHY.
+ *
+ * The D-13 contract, precisely, because it is easy to over-implement:
+ * - The sent-off `PlayerPiece` REMAINS in `state.pieces` with `redCarded: true` and
+ *   `onPitch: false` (Phase 39's shipped representation, commit `ecfb30b`). This function
+ *   never splices it out of `pieces` — `maxOnPitchFor`'s `11 - redCardCount` (D-08/D-09)
+ *   counts red cards from `pieces`, and `applyMove`'s `RED_CARDED` rejection looks the piece
+ *   up by id. Removing it would silently lift the permanent headcount cap.
+ * - The bench entry exists purely so the Roster/substitution screen can display WHO is
+ *   unavailable and WHY (D-13). It is a display record, permanently unfillable —
+ *   `applySubstitution` (40-02 guard 7) already rejects it with `CANNOT_SUB_IN_RED_CARDED`.
+ * - D-13 changes only WHERE the record is displayed, never the cap math.
+ *
+ * Pure: never mutates `bench` or either team array. Idempotent: a second call for the same
+ * `piece.playerId` returns the input unchanged (normalised) rather than appending a duplicate.
+ * Defensive: returns the input (normalised to `{ home: [], away: [] }` when `bench` is
+ * undefined) unchanged when `piece.playerId` is undefined — a piece built before the 40-04
+ * Task 1 `playerId` stamping has no pool identity to record.
+ */
+export function relocateRedCardedToBench(
+  bench: GameState['bench'],
+  piece: PlayerPiece,
+): NonNullable<GameState['bench']> {
+  const normalised = bench ?? { home: [], away: [] };
+  if (piece.playerId === undefined) return normalised;
+
+  const teamBench = normalised[piece.teamId];
+  const alreadyPresent = teamBench.some((entry) => entry.playerId === piece.playerId);
+  if (alreadyPresent) return normalised;
+
+  const newEntry: BenchEntry = {
+    playerId: piece.playerId,
+    jerseyNumber: piece.number,
+    status: 'redCarded',
+  };
+  return {
+    ...normalised,
+    [piece.teamId]: [...teamBench, newEntry],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // resolveFoulChain
 // ---------------------------------------------------------------------------
 
@@ -858,6 +905,11 @@ export function resolveFoulChain(input: {
     }
   }
 
+  // D-13 (Phase 40): set only inside the red-card branch below, folded into foulFields
+  // conditionally so a non-red foul's foulFields never carries a `bench` key at all —
+  // spreading `bench: undefined` over a real state would blank the bench.
+  let redCardBench: GameState['bench'] | undefined;
+
   // CARD-01..03: fouler's CURRENT yellowCards is read from `pieces` (post-injury-mutation
   // array — though injury and booking never target the same piece, so ordering here is
   // moot in practice; still read from the latest `pieces` for consistency).
@@ -899,6 +951,12 @@ export function resolveFoulChain(input: {
               }
             : p,
         );
+        // D-13: mirror the now-sent-off player onto their team's bench so the
+        // Roster/substitution screen shows WHO is unavailable and WHY. The piece
+        // deliberately stays in `pieces` (see relocateRedCardedToBench's doc comment) —
+        // this is a display-only addition, never a move.
+        const updatedFouler = pieces.find((p) => p.id === defenderId)!;
+        redCardBench = relocateRedCardedToBench(state.bench, updatedFouler);
       }
     }
   }
@@ -912,6 +970,9 @@ export function resolveFoulChain(input: {
       foulVictimId: victimId,
       foulHex,
       foulSource: source,
+      // D-13: only present when this foul produced a red card — see the comment on
+      // `redCardBench`'s declaration above for why this must never be unconditional.
+      ...(redCardBench !== undefined ? { bench: redCardBench } : {}),
     },
   };
 }

@@ -19,10 +19,18 @@ import {
   applyEndTurn,
   applyRoll,
   applyHalfTimeStart,
+  applyMove,
+  relocateRedCardedToBench,
   buildKickOffPieces,
   buildInitialGameState,
 } from '../gameEngine.js';
-import type { GameState, PlayerPiece, BenchEntry, BenchEntryStatus } from '@counter-attack/shared';
+import type {
+  GameState,
+  PlayerPiece,
+  BenchEntry,
+  BenchEntryStatus,
+  HexCoord,
+} from '@counter-attack/shared';
 import {
   PITCH_REGIONS,
   getSquadPlayers,
@@ -688,5 +696,255 @@ describe('Phase 40 Plan 04 Task 3: roster continuity at goal + half-time resets'
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.bench).toBe(liveState.bench);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4 (D-13): relocateRedCardedToBench — pure-function unit tests
+// ---------------------------------------------------------------------------
+
+describe('D-13: red-carded player relocation to the bench', () => {
+  const redPiece: PlayerPiece = { ...homeOutfieldPiece(), redCarded: true };
+
+  it('returns a bench whose team array has ONE more entry, with playerId/jerseyNumber/status: redCarded', () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    const result = relocateRedCardedToBench(bench, redPiece);
+    expect(result.home.length).toBe(bench.home.length + 1);
+    const newEntry = result.home[result.home.length - 1]!;
+    expect(newEntry.playerId).toBe(redPiece.playerId);
+    expect(newEntry.jerseyNumber).toBe(redPiece.number);
+    expect(newEntry.status).toBe('redCarded');
+  });
+
+  it("appends to the sent-off player's OWN team array and leaves the opposing team's array referentially unchanged", () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    const result = relocateRedCardedToBench(bench, redPiece);
+    expect(result.away).toBe(bench.away);
+  });
+
+  it('is idempotent: calling it twice with the same piece does not produce a duplicate entry', () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    const once = relocateRedCardedToBench(bench, redPiece);
+    const twice = relocateRedCardedToBench(once, redPiece);
+    expect(twice.home.length).toBe(once.home.length);
+  });
+
+  it('returns the bench unchanged when piece.playerId is undefined (defensive — a piece built before Task 1 stamping)', () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    // exactOptionalPropertyTypes: omit the key entirely rather than assign `undefined`.
+    const { playerId: _omit, ...withoutPlayerId } = redPiece;
+    const noPlayerIdPiece: PlayerPiece = withoutPlayerId;
+    const result = relocateRedCardedToBench(bench, noPlayerIdPiece);
+    expect(result).toEqual(bench);
+  });
+
+  it('never mutates the input bench object or either team array', () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    const homeRef = bench.home;
+    const awayRef = bench.away;
+    relocateRedCardedToBench(bench, redPiece);
+    expect(bench.home).toBe(homeRef);
+    expect(bench.away).toBe(awayRef);
+    expect(bench.home.length).toBe(homeBenchBase.length);
+  });
+
+  it('produces a well-formed { home, away } bench containing exactly the one new entry when bench is undefined', () => {
+    const result = relocateRedCardedToBench(undefined, redPiece);
+    expect(result.home).toEqual([
+      { playerId: redPiece.playerId, jerseyNumber: redPiece.number, status: 'redCarded' },
+    ]);
+    expect(result.away).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4 (D-13): resolveFoulChain integration via applyMove
+// ---------------------------------------------------------------------------
+
+describe('D-13 integration: a red card relocates through resolveFoulChain/applyMove', () => {
+  function foulPiece(
+    id: string,
+    teamId: 'home' | 'away',
+    position: HexCoord,
+    over: Partial<PlayerPiece> = {},
+  ): PlayerPiece {
+    return {
+      id,
+      teamId,
+      position,
+      playerId: `${id}-player`,
+      firstName: teamId === 'home' ? 'Home' : 'Away',
+      lastName: id.toUpperCase(),
+      number: 9,
+      nationality: 'Test',
+      role: 'FWD',
+      pace: 6,
+      shooting: 4,
+      tackling: 4,
+      dribbling: 4,
+      saving: 1,
+      handling: 1,
+      resilience: 4,
+      aerialAbility: 4,
+      highPass: 4,
+      ...over,
+    };
+  }
+
+  const d13Carrier = foulPiece('d13-carrier', 'home', { q: 10, r: 7 });
+  const d13Cover = foulPiece('d13-defender-cover', 'away', { q: 13, r: 7 }, { pace: 6 });
+
+  function foulState(
+    defenderOver: Partial<PlayerPiece> = {},
+    stateOver: Partial<GameState> = {},
+  ): GameState {
+    const defender = foulPiece(
+      'd13-defender',
+      'away',
+      { q: 12, r: 7 },
+      { tackling: 4, ...defenderOver },
+    );
+    return {
+      roomCode: 'D13-TEST',
+      phase: 'MOVE',
+      activeTeam: 'home',
+      attackingTeam: 'home',
+      pieces: [d13Carrier, defender, d13Cover],
+      ball: { position: { q: 10, r: 7 }, carrierId: 'd13-carrier', lastTouchedBy: null },
+      score: { home: 0, away: 0 },
+      actionCount: 0,
+      half: 1,
+      eventLog: [],
+      refereeCard: { leniency: 4 },
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      movementSlot: 'ATTACKER_4',
+      ballZone: 'middle',
+      addedTime: null,
+      lastActionType: null,
+      kickOffTeam: 'home',
+      kickOffActive: false,
+      selectedTeams: { home: HOME_TEAM, away: AWAY_TEAM },
+      selectedUniformStyles: { home: 'pinstripes-vertical', away: 'bar-diagonal' },
+      gameSpeed: 'standard' as const,
+      foulsEnabled: true,
+      bookingEnabled: true,
+      bench: { home: [], away: [] },
+      subsUsed: { home: 0, away: 0 },
+      addedTimeBonus: 0,
+      ...stateOver,
+    };
+  }
+
+  /** Drives a foul that produces a straight red via the second-yellow branch (CARD-02 fixture shape). */
+  function runRedCardFoul(stateOver: Partial<GameState> = {}) {
+    return applyMove(
+      foulState({ yellowCards: 1 }, stateOver),
+      'd13-carrier',
+      { q: 11, r: 7 },
+      { stealDie: 1, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 4 },
+    );
+  }
+
+  /**
+   * exactOptionalPropertyTypes forbids assigning `bench: undefined` via Partial<GameState>
+   * overrides — the key must be absent entirely, not present-and-undefined. Builds the same
+   * red-card fixture with the `bench` key omitted from the object altogether.
+   */
+  function runRedCardFoulWithoutBench() {
+    const full = foulState({ yellowCards: 1 });
+    const { bench: _omit, ...withoutBench } = full;
+    return applyMove(
+      withoutBench,
+      'd13-carrier',
+      { q: 11, r: 7 },
+      { stealDie: 1, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 4 },
+    );
+  }
+
+  it("a red-card foul's foulFields.bench (and result.state.bench) contains the new redCarded entry for the fouler's team", () => {
+    const result = runRedCardFoul();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const fouler = result.state.pieces.find((p) => p.id === 'd13-defender')!;
+    expect(fouler.redCarded).toBe(true);
+    const benchEntry = result.state.bench?.away.find((e) => e.status === 'redCarded');
+    expect(benchEntry).toBeDefined();
+    expect(benchEntry?.playerId).toBe(fouler.playerId);
+  });
+
+  it('the same call still leaves the fouler in pieces with redCarded:true and onPitch:false (unchanged Phase 39 behaviour)', () => {
+    const result = runRedCardFoul();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const fouler = result.state.pieces.find((p) => p.id === 'd13-defender')!;
+    expect(fouler.redCarded).toBe(true);
+    expect(fouler.onPitch).toBe(false);
+  });
+
+  it('maxOnPitchFor reports 10 after one red card and 9 after two (D-08 cap math untouched by D-13)', () => {
+    const result = runRedCardFoul();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(maxOnPitchFor(result.state.pieces, 'away')).toBe(10);
+
+    const piecesWithSecondRedCard = result.state.pieces.map((p) =>
+      p.id === 'd13-defender-cover' ? { ...p, redCarded: true } : p,
+    );
+    expect(maxOnPitchFor(piecesWithSecondRedCard, 'away')).toBe(9);
+  });
+
+  it('a YELLOW-card outcome adds NO bench entry', () => {
+    const result = applyMove(
+      foulState(),
+      'd13-carrier',
+      { q: 11, r: 7 },
+      { stealDie: 1, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 4 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const bookingEvent = result.state.eventLog.find((e) => e.type === 'BOOKING_CHECK');
+    expect(bookingEvent?.type === 'BOOKING_CHECK' && bookingEvent.card).toBe('yellow');
+    expect(result.state.bench?.away.length ?? 0).toBe(0);
+  });
+
+  it('a second yellow that becomes a red DOES add the bench entry — keyed on the red outcome, not straight-red-only', () => {
+    const result = runRedCardFoul();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const bookingEvent = result.state.eventLog.find((e) => e.type === 'BOOKING_CHECK');
+    expect(bookingEvent?.type === 'BOOKING_CHECK' && bookingEvent.secondYellow).toBe(true);
+    expect(result.state.bench?.away.some((e) => e.status === 'redCarded')).toBe(true);
+  });
+
+  it('a foul with bookingEnabled:false adds no bench entry', () => {
+    const result = applyMove(
+      foulState({ yellowCards: 1 }, { bookingEnabled: false }),
+      'd13-carrier',
+      { q: 11, r: 7 },
+      { stealDie: 1, tackleDie: 3, carrierDie: 3, injuryDie: 3, bookingDie: 4 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.bench?.away.length ?? 0).toBe(0);
+  });
+
+  it('a red card issued when state.bench is undefined produces a well-formed bench containing exactly the one new entry', () => {
+    const result = runRedCardFoulWithoutBench();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.bench?.home).toEqual([]);
+    expect(result.state.bench?.away.length).toBe(1);
+    expect(result.state.bench?.away[0]?.status).toBe('redCarded');
+  });
+
+  it('the red-carded bench entry is rejected by applySubstitution with CANNOT_SUB_IN_RED_CARDED (end-to-end tie-in with 40-02 guard 7)', () => {
+    const result = runRedCardFoul();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const subState: GameState = { ...result.state, phase: 'KICK_OFF_SETUP' };
+    const redEntry = subState.bench!.away.find((e) => e.status === 'redCarded')!;
+    const subResult = applySubstitution(subState, 'away', 'd13-defender-cover', redEntry.playerId);
+    expect(subResult).toEqual({ ok: false, reason: 'CANNOT_SUB_IN_RED_CARDED' });
   });
 });
