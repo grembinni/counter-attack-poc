@@ -21,7 +21,7 @@ progress:
 Phase: 40
 Plan: Not started
 Status: Ready to start Phase 40
-Last activity: 2026-08-16 -- Phase 40 planning complete
+Last activity: 2026-08-16 - Completed quick task 260816-bn5: Fix two knip findings (unused export + redundant knip.json entry patterns)
 
 ## Project Reference
 
@@ -250,6 +250,7 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 | 260621-hnd             | 2026-06-21 | Removed last D/A role-letter prefixes (DEFLECT_ATTEMPT, STEAL_ATTEMPT x2, uncontested HEADER); fixed SNAPSHOT raw home/away id leak — resolves to PNamed player name                                           |
 | 260727-9f1             | 2026-07-27 | Fixed v1.5 milestone-audit doc drift: ROADMAP.md malformed Phase 34 row + stale Progress table, REQUIREMENTS.md THEME-01/04 checkboxes, 34-VERIFICATION.md stale status, HIGHLIGHT-REFERENCE.md opacity values |
 | 260727-o85             | 2026-07-27 | Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)                                                                                          |
+| 260816-bn5             | 2026-08-16 | Fix two knip findings: dropped unused `export` from `triggerFoulFreeKick` (self-file usage only); pruned 6 redundant `entry` patterns from root `knip.json` — `pnpm knip` now exits clean                      |
 
 ## Deferred Items (acknowledged at milestone close 2026-08-03, v1.5)
 
