@@ -425,7 +425,29 @@ Plans:
 3. Each completed substitution adds 1 minute to the current half's added-time calculation.
 4. A red-carded player cannot be replaced by a substitute, and a player who has been substituted out is shown a clear "unavailable" indicator on the roster screen and can never return for the remainder of the match.
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 40-01-PLAN.md — Shared substitution contracts: STOPPAGE_PHASES allow-list, GameState bench/subsUsed/addedTimeBonus, SUBSTITUTION event + per-event-type registration
+
+**Wave 2** _(two parallel plans, no file overlap)_
+
+- [ ] 40-02-PLAN.md — Engine: applySubstitution rules, added-time accumulator, roster-continuity helper
+- [ ] 40-03-PLAN.md — Client: LineupAssignmentScreen mid-match mode, OUT badges, card/injury chips, drag-to-substitute
+
+**Wave 3** _(three parallel plans, no file overlap)_
+
+- [ ] 40-04-PLAN.md — Server: bench seeding at LINEUP_CONFIRM, playerId on every piece, roster continuity at the four in-engine resets
+- [ ] 40-05-PLAN.md — Server: GAME_SUBSTITUTION handler + roster continuity at the three handler-side goal resets
+- [ ] 40-06-PLAN.md — Client: persistent stoppage-gated SUB affordance, substitution modal, emitSubstitution store action
+
+**Wave 4**
+
+- [ ] 40-07-PLAN.md — Two-client substitution integration test + two-browser human verification checkpoint
+
 **UI hint**: yes
 
 ---
