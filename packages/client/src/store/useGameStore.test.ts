@@ -1626,6 +1626,22 @@ describe('useGameStore — emit actions', () => {
     expect(emitMock).toHaveBeenCalledTimes(1);
     expect(emitMock).toHaveBeenCalledWith('game:penalty-kick-taker', 'home-7');
   });
+
+  // SUB-02 (Phase 40): fire-and-forget, no optimistic state mutation — mirrors emitFoulChoice's
+  // shape. Payload is a single object ({ outPieceId, inPlayerId }), matching SubstitutionPayload.
+  it('emitSubstitution calls socket.emit once with game:substitution and { outPieceId, inPlayerId }, and does not mutate store state', () => {
+    const prevState = useGameStore.getState();
+    useGameStore.getState().emitSubstitution('home-4', 'p055');
+    expect(emitMock).toHaveBeenCalledTimes(1);
+    expect(emitMock).toHaveBeenCalledWith('game:substitution', {
+      outPieceId: 'home-4',
+      inPlayerId: 'p055',
+    });
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBe(prevState.selectedPieceId);
+    expect(state.validMoveHexes).toBe(prevState.validMoveHexes);
+    expect(state.gameState).toBe(prevState.gameState);
+  });
 });
 
 // OFFSIDE-02 (Phase 17 D-49 staged rework): only the piece belonging to the CURRENTLY-active

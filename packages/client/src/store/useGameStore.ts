@@ -209,6 +209,12 @@ export type GameStore = {
   emitGkBoxEntryMove: (to: HexCoord) => void;
   /** PEN-02 (Phase 39): attacking manager's penalty-taker selection during PENALTY_KICK_TAKER_SELECT. */
   emitPenaltyKickTaker: (pieceId: string) => void;
+  /**
+   * SUB-02 (Phase 40): manager's 1-for-1 substitution intent (bench player in for an on-pitch
+   * player). Fire-and-forget: no optimistic mutation of gameState, because the server's
+   * full-snapshot broadcast is the only source of truth for roster state.
+   */
+  emitSubstitution: (outPieceId: string, inPlayerId: string) => void;
 };
 
 /**
@@ -1856,5 +1862,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // PEN-02: fire-and-forget, no optimistic state mutation.
   emitPenaltyKickTaker: (pieceId) => {
     socket.emit(ClientEvents.GAME_PENALTY_KICK_TAKER, pieceId);
+  },
+
+  // SUB-02: fire-and-forget, no optimistic state mutation — a substitution happens inside a
+  // modal and must not disturb pitch selection state (selectedPieceId/validMoveHexes untouched).
+  emitSubstitution: (outPieceId, inPlayerId) => {
+    socket.emit(ClientEvents.GAME_SUBSTITUTION, { outPieceId, inPlayerId });
   },
 }));
