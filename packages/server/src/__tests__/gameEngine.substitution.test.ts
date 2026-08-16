@@ -18,6 +18,7 @@ import {
   applyRosterContinuity,
   applyEndTurn,
   buildKickOffPieces,
+  buildInitialGameState,
 } from '../gameEngine.js';
 import type { GameState, PlayerPiece, BenchEntry, BenchEntryStatus } from '@counter-attack/shared';
 import {
@@ -483,5 +484,102 @@ describe('applyRosterContinuity', () => {
     expect(mergedRedCarded.position).not.toEqual(
       currentPieces.find((p) => p.id === homeOutfieldPiece().id)!.position,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildInitialGameState — Phase 40 Plan 04 Task 1: playerId stamping +
+// bench/subsUsed/addedTimeBonus seeding
+// ---------------------------------------------------------------------------
+
+describe('buildInitialGameState: playerId stamping + bench/subsUsed/addedTimeBonus seeding', () => {
+  const DEFAULT_STYLES_P40: { home: 'pinstripes-vertical'; away: 'bar-diagonal' } = {
+    home: 'pinstripes-vertical',
+    away: 'bar-diagonal',
+  };
+
+  it('every piece has a non-empty playerId, and all 22 playerId values are distinct', () => {
+    const state = buildInitialGameState(
+      'ROOM-P40-01',
+      { home: HOME_TEAM, away: AWAY_TEAM },
+      'standard',
+      DEFAULT_STYLES_P40,
+    );
+    expect(state.pieces.length).toBe(22);
+    for (const piece of state.pieces) {
+      expect(piece.playerId).toBeTruthy();
+    }
+    const distinctPlayerIds = new Set(state.pieces.map((p) => p.playerId));
+    expect(distinctPlayerIds.size).toBe(22);
+  });
+
+  it('a NON-empty homeBench is returned verbatim on bench.home — same length/ids/order, all available', () => {
+    const state = buildInitialGameState(
+      'ROOM-P40-02',
+      { home: HOME_TEAM, away: AWAY_TEAM },
+      'standard',
+      DEFAULT_STYLES_P40,
+      { home: '4-4-2', away: '4-4-2' },
+      { home: 'home', away: 'away' },
+      undefined,
+      undefined,
+      false,
+      false,
+      false,
+      false,
+      homeBenchBase,
+      awayBenchBase,
+    );
+    expect(state.bench?.home).toEqual(homeBenchBase);
+    expect(state.bench?.away).toEqual(awayBenchBase);
+    expect(state.bench?.home.length).toBe(homeBenchBase.length);
+    for (const entry of state.bench?.home ?? []) {
+      expect(entry.status).toBe('available');
+    }
+  });
+
+  it('D-12: EMPTY homeBench/awayBench returns bench.home.length===0 and bench.away.length===0 — nothing generated', () => {
+    const state = buildInitialGameState(
+      'ROOM-P40-03',
+      { home: HOME_TEAM, away: AWAY_TEAM },
+      'standard',
+      DEFAULT_STYLES_P40,
+      { home: '4-4-2', away: '4-4-2' },
+      { home: 'home', away: 'away' },
+      undefined,
+      undefined,
+      false,
+      false,
+      false,
+      false,
+      [],
+      [],
+    );
+    expect(state.bench?.home.length).toBe(0);
+    expect(state.bench?.away.length).toBe(0);
+  });
+
+  it('subsUsed is {home:0, away:0} and addedTimeBonus is 0 on a freshly built state', () => {
+    const state = buildInitialGameState(
+      'ROOM-P40-04',
+      { home: HOME_TEAM, away: AWAY_TEAM },
+      'standard',
+      DEFAULT_STYLES_P40,
+    );
+    expect(state.subsUsed).toEqual({ home: 0, away: 0 });
+    expect(state.addedTimeBonus).toBe(0);
+  });
+
+  it('omitting the two new trailing arguments (pre-Phase-40 call shape) still compiles and returns an empty bench', () => {
+    const state = buildInitialGameState(
+      'ROOM-P40-05',
+      { home: HOME_TEAM, away: AWAY_TEAM },
+      'standard',
+      DEFAULT_STYLES_P40,
+    );
+    expect(state.bench?.home.length).toBe(0);
+    expect(state.bench?.away.length).toBe(0);
+    expect(state.subsUsed).toEqual({ home: 0, away: 0 });
+    expect(state.addedTimeBonus).toBe(0);
   });
 });
