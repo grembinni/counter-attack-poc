@@ -286,14 +286,18 @@ function buildSquadPieces(
   const homeSquad = homePlayers.map((p, i) => ({
     ...p,
     teamId: 'home' as const,
-    id: `home-${i}`,
+    id: `home-${i}`, // slot identity — a substitution deliberately preserves this (SUB-03)
+    playerId: p.id, // Phase 40 (SUB-03): who currently occupies the slot; the spread's `...p`
+    // copies the pool player's own `id` in first, which the explicit `id:` override above
+    // then replaces — `playerId` is what retains the pool identity.
     position: { ...homeSlots[i]!.position }, // spread — never mutate the readonly slot (T-23-01)
     number: homeSlots[i]!.jerseyNumber,
   }));
   const awaySquad = awayPlayers.map((p, i) => ({
     ...p,
     teamId: 'away' as const,
-    id: `away-${i}`,
+    id: `away-${i}`, // slot identity — a substitution deliberately preserves this (SUB-03)
+    playerId: p.id, // Phase 40 (SUB-03): who currently occupies the slot (see home comment above)
     position: { q: 36 - awaySlots[i]!.position.q, r: awaySlots[i]!.position.r }, // away mirror
     number: awaySlots[i]!.jerseyNumber,
   }));
@@ -381,6 +385,18 @@ export function buildInitialGameState(
    * start from Room.injuryEnabled. Defaults to `false` for the same reason as `foulsEnabled`.
    */
   injuryEnabled: boolean = false,
+  /**
+   * SUB-02/07 (Phase 40, D-01/D-02): the home team's pre-match bench, exactly as computed
+   * by the LINEUP_CONFIRM handler (roster minus starting 11). Defaults to an empty array so
+   * every pre-Phase-40 caller keeps compiling and behaving identically. Stored VERBATIM —
+   * never inspected, never branched on, never topped up from any pool. D-12: an empty bench
+   * is a legitimate, expected state for a Standard-mode room (11-player squads today); the
+   * earlier D-10 pool-based auto-fill design was retracted by the user — reintroducing any
+   * bench generation here (or anywhere in the engine) is a scope violation, not a fix.
+   */
+  homeBench: readonly BenchEntry[] = [],
+  /** SUB-02/07 (Phase 40, D-01/D-02): the away team's pre-match bench. See `homeBench` above. */
+  awayBench: readonly BenchEntry[] = [],
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -427,6 +443,9 @@ export function buildInitialGameState(
     secondHalfConfirmed: null,
     gkDiveAtFeetUsedByTeam: null,
     gkBoxEntryUsedByTeam: null,
+    bench: { home: homeBench, away: awayBench }, // SUB-02/07: seeded verbatim, never generated (D-12)
+    subsUsed: { home: 0, away: 0 }, // SUB-04: whole-match cap counter, starts at zero
+    addedTimeBonus: 0, // SUB-05: per-half accumulator, starts at zero
   };
 }
 
