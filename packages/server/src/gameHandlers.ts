@@ -93,6 +93,7 @@ import {
   applyBoxEntryMove,
   applySecondHalfConfirm,
   applySubstitution,
+  applyRosterContinuity,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
@@ -1399,10 +1400,17 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // D-01 (BUG-30): hoist once and feed both state.pieces and the GOAL event's
           // piecesAfter so buildReplayFrames reconstructs every piece at the new kickoff
           // formation, not just the ball (mirrors gameEngine.ts's resetPieces pattern).
-          const resetPieces = buildKickOffPieces(
-            newKickOffTeam,
-            baseSnapState.selectedTeams,
-            baseSnapState.selectedFormation,
+          // Phase 40 (D-08 roster continuity): without applyRosterContinuity here, this
+          // goal reset would resurrect a substituted-out player and clear redCarded/
+          // onPitch: false, putting a sent-off player back on the pitch while the D-13
+          // bench entry still lists them as sent off.
+          const resetPieces = applyRosterContinuity(
+            buildKickOffPieces(
+              newKickOffTeam,
+              baseSnapState.selectedTeams,
+              baseSnapState.selectedFormation,
+            ),
+            baseSnapState.pieces,
           );
           room.gameState = {
             ...baseSnapState,
@@ -2394,10 +2402,15 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         // D-01 (BUG-30): hoist once and feed both state.pieces and the GOAL event's
         // piecesAfter so buildReplayFrames reconstructs every piece at the new kickoff
         // formation, not just the ball (mirrors gameEngine.ts's resetPieces pattern).
-        const resetPieces = buildKickOffPieces(
-          newKickOffTeam,
-          declaredState.selectedTeams,
-          declaredState.selectedFormation,
+        // Phase 40 (D-08 roster continuity): applyRosterContinuity overlay — see the
+        // first goal-reset site above for the full rationale.
+        const resetPieces = applyRosterContinuity(
+          buildKickOffPieces(
+            newKickOffTeam,
+            declaredState.selectedTeams,
+            declaredState.selectedFormation,
+          ),
+          declaredState.pieces,
         );
         room.gameState = {
           ...declaredState,
@@ -3848,10 +3861,15 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // D-01 (BUG-30): hoist once and feed both state.pieces and the GOAL event's
           // piecesAfter so buildReplayFrames reconstructs every piece at the new kickoff
           // formation, not just the ball (mirrors gameEngine.ts's resetPieces pattern).
-          const resetPieces = buildKickOffPieces(
-            newKickOffTeam,
-            headerTargetState.selectedTeams,
-            headerTargetState.selectedFormation,
+          // Phase 40 (D-08 roster continuity): applyRosterContinuity overlay — see the
+          // first goal-reset site above for the full rationale.
+          const resetPieces = applyRosterContinuity(
+            buildKickOffPieces(
+              newKickOffTeam,
+              headerTargetState.selectedTeams,
+              headerTargetState.selectedFormation,
+            ),
+            headerTargetState.pieces,
           );
           room.gameState = {
             ...headerTargetState,

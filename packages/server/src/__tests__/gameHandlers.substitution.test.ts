@@ -23,6 +23,9 @@
  * - SC-5: room.isProcessing is released (finally) after a rejected substitution.
  * - Broadcast GameState eventLog tail is the SUBSTITUTION event for both sockets.
  * - SETTINGS-04: the same success case passes with all four toggles off and all four on.
+ * - Task 3 (D-08 roster continuity): a GAME_SHOT auto-GOAL kick-off reset preserves a
+ *   substitute at their slot, never resurrects the departed player, and leaves
+ *   subsUsed/bench (including a red-carded entry) untouched.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as ioClient } from 'socket.io-client';
@@ -45,6 +48,7 @@ import {
   ServerEvents,
   STOPPAGE_PHASES,
   MAX_SUBS_PER_TEAM,
+  computeBallZone,
   getSquadPlayers,
   PLAYER_POOL,
 } from '@counter-attack/shared';
@@ -805,5 +809,76 @@ describe('SETTINGS-04: substitution succeeds regardless of the four v1.6 toggle 
     const [state] = await statePromise;
 
     expect(state.subsUsed?.home).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 (D-08 roster continuity): handler-side goal-reset sites preserve the
+// live roster instead of resurrecting a substituted-out player.
+// ---------------------------------------------------------------------------
+
+describe('Task 3: roster continuity survives a handler-side goal reset', () => {
+  it('a GAME_SHOT auto-GOAL kick-off reset preserves the substitute, never resurrects the departed player, and leaves subsUsed/bench untouched', async () => {
+    const { clientA, roomCode } = await setupRoom();
+    const { homeOutfield } = seedSubState(roomCode, 'HALF_TIME', {
+      activeTeam: 'home',
+      // D-13: a distinct red-carded bench entry (index 1) must survive the reset
+      // untouched, structurally separate from the substitution at index 0.
+      benchOverride: { team: 'home', index: 1, status: 'redCarded' },
+    });
+    const departedPlayerId = homeOutfield.playerId!;
+    const incomingPlayerId = HOME_BENCH_BASE[0]!.playerId;
+
+    // Step 1: perform the substitution.
+    const subStatePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_SUBSTITUTION, {
+      outPieceId: homeOutfield.id,
+      inPlayerId: incomingPlayerId,
+    });
+    const [afterSub] = await subStatePromise;
+
+    expect(afterSub.pieces.find((p) => p.id === homeOutfield.id)!.playerId).toBe(incomingPlayerId);
+    expect(afterSub.subsUsed?.home).toBe(1);
+
+    // Step 2: drive a GK-far-away GAME_SHOT auto-GOAL (mirrors shotGkRange.test.ts's
+    // "GK far from every shot-path hex" fixture) with the substitute-in slot carrying
+    // the ball, so the kick-off reset at gameHandlers.ts's GAME_SHOT site fires.
+    const room = getRoom(roomCode)!;
+    const awayGK = afterSub.pieces.find((p) => p.teamId === 'away' && p.role === 'GK')!;
+    const carrierPos = { q: 30, r: 13 };
+    const gkPos = { q: 5, r: 0 }; // far away — >3 hexes from any hex on the q=36 path
+    room.gameState = {
+      ...afterSub,
+      phase: 'PASS',
+      attackingTeam: 'home',
+      activeTeam: 'home',
+      lastActionType: null,
+      ball: { position: carrierPos, carrierId: homeOutfield.id, lastTouchedBy: null },
+      ballZone: computeBallZone(carrierPos),
+      pieces: afterSub.pieces.map((p) => {
+        if (p.id === homeOutfield.id) return { ...p, position: carrierPos };
+        if (p.id === awayGK.id) return { ...p, position: gkPos };
+        return p;
+      }),
+    };
+    // D-10 (Phase 39, 39-15): prevents a false box-entry "fresh entry" detection from
+    // this direct test-state graft (mirrors shotGkRange.test.ts).
+    room.lastBroadcastBallPosition = carrierPos;
+
+    const goalStatePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_SHOT, { q: 36, r: 13 });
+    const [finalState] = await goalStatePromise;
+
+    expect(finalState.phase).toBe('KICK_OFF_SETUP');
+    expect(finalState.score.home).toBe(1);
+
+    // The substitute is still occupying the slot; the departed player never returns.
+    const slotPiece = finalState.pieces.find((p) => p.id === homeOutfield.id)!;
+    expect(slotPiece.playerId).toBe(incomingPlayerId);
+    expect(finalState.pieces.some((p) => p.playerId === departedPlayerId)).toBe(false);
+
+    // subsUsed and the bench (including the untouched redCarded entry) survive the reset.
+    expect(finalState.subsUsed).toEqual(afterSub.subsUsed);
+    expect(finalState.bench).toEqual(afterSub.bench);
   });
 });
