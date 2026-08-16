@@ -570,3 +570,80 @@
 .halfTimeKickOff.accentAway {
   color: var(--away-accent);
 }
+
+/* ─── Substitution affordance (SUB-01/D-03, Phase 40) ─────────────────────── */
+
+/* Mirrors .sideLogCollapsed (28px strip), but on the opposite edge of pitchRow — always
+   rendered, never conditionally mounted, per D-03. */
+.subButtonStrip {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-surface);
+}
+
+/* Vertical "SUB" label — .sideLogChevron already supplies the unstyled button treatment
+   (no background, text-secondary, hover to text-primary); this only rotates the text. */
+.subButtonLabel {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* Disabled outside a stoppage — mirrors .statCardLocked's 0.7-opacity dimming convention
+   (UI-SPEC.md), applied at 0.35 per the frozen spec value, plus a not-allowed cursor. */
+.subButtonDisabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.subButtonDisabled:hover {
+  color: var(--color-text-secondary);
+}
+
+/* Modal backdrop — copies .confirmOverlay (ActionPanel.module.css) verbatim. */
+.substitutionOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-backdrop);
+  z-index: 20;
+}
+
+/* Wider than .confirmCard's 280px cap — sized to fit the full formation grid + bench
+   carousel (UI-SPEC.md), NOT the small confirm-dialog card. */
+.substitutionModalCard {
+  position: relative;
+  background: var(--color-bg-surface);
+  border-radius: 4px;
+  padding: 16px;
+  max-width: 960px;
+  width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Top-right close button — identical unstyled-icon-button treatment as .sideLogChevron. */
+.substitutionModalClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.substitutionModalClose:hover {
+  color: var(--color-text-primary);
+}

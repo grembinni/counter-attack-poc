@@ -569,8 +569,12 @@ describe('substitution affordance (SUB-01/02)', () => {
   it('is enabled with aria-label "Open substitutions" during a stoppage phase', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
-    const button = screen.getByRole('button', { name: 'Open substitutions' });
-    expect(button).not.toBeDisabled();
+    // getByRole returns HTMLElement per this project's tsc config; cast required for .disabled.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const button = screen.getByRole('button', {
+      name: 'Open substitutions',
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
   });
 
   it.each(NON_STOPPAGE_SAMPLES)(
@@ -578,12 +582,12 @@ describe('substitution affordance (SUB-01/02)', () => {
     (phase) => {
       seedRosterState(phase);
       render(<GameBoard />);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- see above
       const button = screen.getByRole('button', {
         name: 'Substitutions unavailable — not a stoppage',
-      });
-      expect(button).toBeDisabled();
-      expect(button).toHaveAttribute(
-        'title',
+      }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(button.getAttribute('title')).toBe(
         'Substitutions are only available during a stoppage in play.',
       );
     },
