@@ -59,15 +59,15 @@ completed: 2026-08-16
 
 # Phase 40 Plan 07: Substitution Integration Test Summary
 
-**One integration test file (packages/server/src/**tests**/substitution.integration.test.ts, 12 `it()` blocks, ~1020 lines) proving SUB-01..07/SETTINGS-04/D-12/D-13 across a real Socket.io server with two connected clients, plus a checkpoint-continuation gap-closure cycle fixing a formation-shape bug and four mid-match roster-panel UX issues the human found during the Task 2 walkthrough — a fresh two-browser re-verification is now pending.**
+**One integration test file (packages/server/src/**tests**/substitution.integration.test.ts, 12 `it()` blocks, ~1020 lines) proving SUB-01..07/SETTINGS-04/D-12/D-13 across a real Socket.io server with two connected clients, plus a checkpoint-continuation gap-closure cycle fixing a formation-shape bug and four mid-match roster-panel UX issues the human found during the Task 2 walkthrough — the human re-verified the full 7-step gap-closure script plus the original 11-step Task 2 script in two browsers and approved with no remaining issues.**
 
 ## Performance
 
-- **Duration:** ~55 min (Task 1) + ~50 min (checkpoint gap-closure cycle)
-- **Tasks:** 1 of 2 completed as originally scoped (Task 2 is a `checkpoint:human-verify` — see below); the gap-closure cycle below is additional work triggered by the human's findings, not a new Task 3
+- **Duration:** ~55 min (Task 1) + ~50 min (checkpoint gap-closure cycle) + human re-verification
+- **Tasks:** 2 of 2 complete — Task 1 (automated integration test) and Task 2 (`checkpoint:human-verify`, approved after one gap-closure cycle)
 - **Files modified:** 1 created (Task 1) + 6 modified (gap-closure cycle)
 
-## Status: PAUSED AT CHECKPOINT (continuation cycle 1 complete, awaiting re-verification)
+## Status: COMPLETE — both tasks done, Task 2 checkpoint approved
 
 This plan has two tasks. **Task 1 (automated integration test) is complete, verified, and committed.** **Task 2 is a `checkpoint:human-verify` requiring a live two-browser walkthrough** that cannot be automated (dragging bench cards onto pitch slots, visually confirming badges/chips/dimmed states). Per this plan's `autonomous: false` frontmatter and the project's `auto_advance: false` config, this execution stopped at the checkpoint rather than guessing at human approval.
 
@@ -108,6 +108,33 @@ The human started the Task 2 walkthrough and reported real issues instead of app
 - `pnpm run lint` fails with a pre-existing, unrelated ESLint infrastructure error in `packages/shared` ("Too many files (>8) have matched the default project" — a typescript-eslint `projectService` file-count cap on `packages/shared/src/*.test.ts` and `scripts/seed-rosters.ts`, none of which this gap-closure cycle touched). Targeted `eslint` on every file this cycle modified (`LineupAssignmentScreen.tsx`/`.test.tsx`, `GameBoard.tsx`/`.module.css`/`.test.tsx`, `BenchCarousel.tsx`/`.test.tsx`) is clean. Out of scope per the deviation rules' scope boundary — not fixed, noted here for visibility.
 - Dev servers started fresh from this worktree for the human re-walkthrough (a stray pre-existing `node`/`vite` process from the main checkout was occupying ports 3001/5173 with STALE pre-fix code and was stopped so the human cannot accidentally test against it): server on `http://localhost:3001`, client on `http://localhost:5174`.
 
+### Task 2 re-verification — APPROVED
+
+The human ran a combined re-verification script in two side-by-side browser windows,
+covering both the newly-fixed gap-closure items and the original Task 2 walkthrough:
+
+1. Formation-shape fix: substituting a FWD into a vacated MID slot in a 4-4-2 kept the
+   lineup rendering as 4-4-2 (grouped by fixed formation slot, not the substitute's own
+   role).
+2. Always-open, read-only-outside-a-stoppage panel: the roster panel opens at any time;
+   outside a stoppage its CTA reads the read-only copy and no bench card is draggable.
+3. Full-screen panel: the modal now fills the viewport instead of floating a small card
+   over the pitch.
+4. Bench/lineup width match: the bench carousel renders at the same width as the
+   formation columns now that the 960px modal cap is gone.
+5. Green "actionable" SUB header: the SUB button/header shows the green active treatment
+   only while a stoppage phase is live.
+6. Original Task 2 script: drag-and-drop substitution (number/hex inheritance, chip
+   increment, OUT badge), 3/3 cap rejection with the red chip and rejection message,
+   D-13 red-card bench badge (dimmed, undraggable, permanent slot-cap note, empty slot
+   unfillable), half-time added-time display including one minute per substitution, and
+   D-12's calm empty-bench state on a Standard-mode room (modal opens normally, "No
+   available substitutes on the bench.", no error).
+
+The human replied **"approved"** — full approval, no remaining issues reported. Task 2
+(`checkpoint:human-verify`) is complete. Dev servers (client :5174, server :3001) were
+stopped after approval.
+
 ## Accomplishments
 
 - Drove a DRAFT room all the way to a live `KICK_OFF_SETUP` match twice per test (once per `it()`, matching the codebase's per-test-isolation convention) to get a real, substitutable 6-entry bench per team (SUB-02) — the only room type with a non-empty bench today.
@@ -130,8 +157,12 @@ The human started the Task 2 walkthrough and reported real issues instead of app
 ## Task Commits
 
 1. **Task 1: Two-client substitution integration test** - `a624e4d` (test)
+2. **Task 2: Two-browser substitution walkthrough** - human-verify checkpoint; approved
+   after one gap-closure cycle (fix + UX commits `558e205`, `066185e`, `948f94c`; summary
+   commits `c0b35b4`, `bc800ed`; no additional code commit required for the approval
+   itself)
 
-**Plan metadata:** not yet created — plan is paused at the Task 2 checkpoint, not complete.
+**Plan metadata:** complete — all tasks done, Task 2 checkpoint approved.
 
 ## Files Created/Modified
 
@@ -163,9 +194,15 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-**Awaiting a fresh Task 2 (`checkpoint:human-verify`) re-walkthrough** covering both the original 11-step script in `.planning/phases/40-substitutions/40-07-PLAN.md` and the newly-fixed items from this gap-closure cycle (formation shape preserved after a sub, panel open-anytime read-only behavior, full-size panel, bench/lineup width match, green header during a stoppage). Once approved, this plan can be finalized: STATE.md/ROADMAP.md/REQUIREMENTS.md updates and the final metadata commit are owned by the orchestrator after the wave completes, per this execution's parallel-worktree instructions.
+**Plan 40-07 is complete.** Task 1 (automated integration test) and Task 2
+(`checkpoint:human-verify`) are both done — the human re-verified the full combined
+script (gap-closure items + original 11-step Task 2 script) in two browsers and
+approved with no remaining issues. Dev servers stopped. This closes out the last plan
+in the 40-substitutions milestone's final wave. STATE.md/ROADMAP.md/REQUIREMENTS.md
+updates and the final metadata commit are owned by the orchestrator, per this
+execution's parallel-worktree instructions.
 
 ---
 
 _Phase: 40-substitutions_
-_Completed: Task 1 — 2026-08-16; checkpoint-continuation cycle 1 (gap-closure) — 2026-08-16 (Task 2 checkpoint still pending, fresh re-verification requested)_
+_Completed: Task 1 — 2026-08-16; checkpoint-continuation cycle 1 (gap-closure) — 2026-08-16; Task 2 checkpoint approved — 2026-08-16_
