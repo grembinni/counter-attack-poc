@@ -522,9 +522,15 @@ describe('GameBoard — Phase 39 (39-16): new phase dispatch', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 40 (SUB-01/02, Task 2 — Wave 0 RED): persistent stoppage-gated SUB
-// affordance + substitution modal. 'HALF_TIME' is sampled from STOPPAGE_PHASES
-// (the shared allow-list); 'MOVE'/'PENALTY_KICK' are sampled non-stoppage phases.
+// Phase 40 (SUB-01/02, Task 2 — Wave 0 RED): persistent SUB affordance + substitution
+// modal. 'HALF_TIME' is sampled from STOPPAGE_PHASES (the shared allow-list);
+// 'MOVE'/'PENALTY_KICK' are sampled non-stoppage phases.
+//
+// Checkpoint gap-closure (40-07 Task 2 human-verify feedback, items 2a/2d): this block was
+// rewritten — the button is now ALWAYS clickable (opens a read-only roster view outside a
+// stoppage instead of being disabled), and its visual "actionable" state (green) replaces
+// the former disabled/dimmed state. The modal no longer force-closes on a phase transition
+// (removed T-40-20 useEffect) — it stays open and flips to read-only live instead.
 // ---------------------------------------------------------------------------
 describe('substitution affordance (SUB-01/02)', () => {
   const HOME_BENCH_ENTRY = { playerId: 'p900', jerseyNumber: 30, status: 'available' as const };
@@ -560,13 +566,13 @@ describe('substitution affordance (SUB-01/02)', () => {
       const { unmount } = render(<GameBoard />);
       const button =
         screen.queryByRole('button', { name: 'Open substitutions' }) ??
-        screen.queryByRole('button', { name: 'Substitutions unavailable — not a stoppage' });
+        screen.queryByRole('button', { name: 'View roster' });
       expect(button).not.toBeNull();
       unmount();
     }
   });
 
-  it('is enabled with aria-label "Open substitutions" during a stoppage phase', () => {
+  it('is clickable with aria-label "Open substitutions" and the green active class during a stoppage phase', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
     // getByRole returns HTMLElement per this project's tsc config; cast required for .disabled.
@@ -575,38 +581,44 @@ describe('substitution affordance (SUB-01/02)', () => {
       name: 'Open substitutions',
     }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
+    expect(button.className).toMatch(/subButtonActive/);
   });
 
   it.each(NON_STOPPAGE_SAMPLES)(
-    'is disabled outside a stoppage (%s), carries the disabled aria-label and tooltip',
+    'is still clickable outside a stoppage (%s), carries the view-only aria-label/tooltip, and is never the green active class',
     (phase) => {
       seedRosterState(phase);
       render(<GameBoard />);
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- see above
-      const button = screen.getByRole('button', {
-        name: 'Substitutions unavailable — not a stoppage',
-      }) as HTMLButtonElement;
-      expect(button.disabled).toBe(true);
+      const button = screen.getByRole('button', { name: 'View roster' }) as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
       expect(button.getAttribute('title')).toBe(
-        'Substitutions are only available during a stoppage in play.',
+        'Viewing roster — substitutions are only available during a stoppage in play.',
       );
+      expect(button.className).not.toMatch(/subButtonActive/);
     },
   );
 
-  it('clicking while enabled renders the substitution modal containing the roster screen', () => {
+  it('clicking during a stoppage renders the substitution modal in its actionable (draggable) presentation', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
+    expect(
+      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
+    ).toBeDefined();
   });
 
-  it('clicking while disabled renders nothing', () => {
+  it('clicking outside a stoppage now OPENS the modal (not disabled) in a read-only presentation', () => {
     seedRosterState('MOVE');
     render(<GameBoard />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Substitutions unavailable — not a stoppage' }),
-    );
-    expect(screen.queryByText('Substitution')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'View roster' }));
+    expect(screen.getByText('Substitution')).toBeDefined();
+    expect(
+      screen.getByText(
+        'Viewing roster — substitutions are only available during a stoppage in play.',
+      ),
+    ).toBeDefined();
   });
 
   it('the close control (aria-label="Close substitutions") dismisses the modal with no emit', () => {
@@ -633,18 +645,26 @@ describe('substitution affordance (SUB-01/02)', () => {
     expect(screen.queryByText(`${awayPiece!.firstName} ${awayPiece!.lastName}`)).toBeNull();
   });
 
-  it('is not rendered on a phase transition by itself, and closes automatically when the phase leaves the stoppage set while open', () => {
+  it('stays open across a phase transition that leaves the stoppage set, and switches live to the read-only presentation', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     const { rerender } = render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
+    expect(
+      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
+    ).toBeDefined();
 
-    // Server-driven phase change (not a user click) leaves the stoppage set — the modal must
-    // self-close via the useEffect force-close, not merely become unopenable.
+    // Server-driven phase change (not a user click) leaves the stoppage set — the panel must
+    // remain open for viewing (40-07 gap-closure) but flip to its read-only copy.
     useGameStore.setState({
       gameState: { ...useGameStore.getState().gameState, phase: 'MOVE' },
     });
     rerender(<GameBoard />);
-    expect(screen.queryByText('Substitution')).toBeNull();
+    expect(screen.getByText('Substitution')).toBeDefined();
+    expect(
+      screen.getByText(
+        'Viewing roster — substitutions are only available during a stoppage in play.',
+      ),
+    ).toBeDefined();
   });
 });

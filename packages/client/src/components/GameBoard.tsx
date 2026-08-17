@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { GamePhase } from '@counter-attack/shared';
 import type { MovementSlot } from '@counter-attack/shared';
@@ -175,21 +175,31 @@ function SideLog() {
  * SUB-01/D-03 (Phase 40): persistent substitution affordance — a 28px strip mirroring
  * SideLog's collapsed-chevron structural template, but mirrored to the opposite (right)
  * edge of pitchRow (SideLog already owns the left edge). ALWAYS rendered across every
- * phase (never a conditional per-phase panel) — enabled only during a stoppage
- * (isStoppagePhase), matching D-03's explicit "not a per-phase dispatch case" decision.
- * Opens a modal (not an inline expand like SideLog) — the one structural deviation.
+ * phase (never a conditional per-phase panel).
+ *
+ * Checkpoint gap-closure (40-07 Task 2 human-verify feedback): the button is now ALWAYS
+ * clickable — a manager can open the roster to view it at any time, not only during a
+ * stoppage. `actionable` (renamed from the original `enabled`, which used to gate
+ * click-ability) now only drives the visual state: it turns the strip green
+ * (`.subButtonActive`) when a stoppage is in progress and a substitution can actually be
+ * made right now, giving an at-a-glance signal distinct from the neutral "viewable but not
+ * actionable" default. Opens a modal (not an inline expand like SideLog) — the one
+ * structural deviation.
  */
-function SubstitutionButton({ enabled, onOpen }: { enabled: boolean; onOpen: () => void }) {
+function SubstitutionButton({ actionable, onOpen }: { actionable: boolean; onOpen: () => void }) {
   return (
     <div className={styles.subButtonStrip}>
       <button
         className={
-          enabled ? styles.sideLogChevron : `${styles.sideLogChevron} ${styles.subButtonDisabled}`
+          actionable ? `${styles.sideLogChevron} ${styles.subButtonActive}` : styles.sideLogChevron
         }
-        onClick={enabled ? onOpen : undefined}
-        disabled={!enabled}
-        aria-label={enabled ? 'Open substitutions' : 'Substitutions unavailable — not a stoppage'}
-        title={enabled ? undefined : 'Substitutions are only available during a stoppage in play.'}
+        onClick={onOpen}
+        aria-label={actionable ? 'Open substitutions' : 'View roster'}
+        title={
+          actionable
+            ? 'Substitutions available — open to make a change.'
+            : 'Viewing roster — substitutions are only available during a stoppage in play.'
+        }
       >
         <span className={styles.subButtonLabel}>SUB</span>
       </button>
@@ -311,12 +321,13 @@ export function GameBoard() {
   // D-19/Pitfall 7: drag/modal-open state is local, never Zustand.
   const [subOpen, setSubOpen] = useState(false);
   const isSubEligiblePhase = isStoppagePhase(phase);
-  // T-40-20: force-close the modal the instant the phase leaves the stoppage set — a
-  // server-driven phase change (not a user click) must never leave a stale actionable
-  // modal open, since the server's own isStoppagePhase guard would now reject the action.
-  useEffect(() => {
-    if (!isSubEligiblePhase) setSubOpen(false);
-  }, [isSubEligiblePhase]);
+  // Checkpoint gap-closure (40-07 Task 2 human-verify feedback): T-40-20's original
+  // force-close-on-phase-transition useEffect is REMOVED — the panel is now always
+  // viewable (2a), so a server-driven phase change leaving the stoppage set must no
+  // longer close it. Staleness is instead handled live: `isSubEligiblePhase` is read
+  // directly from the store on every render and passed through as `readOnly` below, so
+  // the instant the phase leaves the stoppage set the modal (still open) flips to its
+  // read-only presentation on its own next render — no imperative close needed.
 
   return (
     <div className={styles.gameBoard} style={rootStyle}>
@@ -562,10 +573,12 @@ export function GameBoard() {
             </div>
           )}
 
-          {/* SUB-01..07/D-01/D-03 (Phase 40): substitution modal — sibling overlay alongside
-              HALF_TIME/FULL_TIME above, anchored to pitchContainer (position:relative). Only
-              openable while isSubEligiblePhase is true (button enablement), and force-closed by
-              the useEffect above the instant the phase leaves the stoppage set. */}
+          {/* SUB-01..07/D-01/D-03 (Phase 40): substitution panel. Checkpoint gap-closure
+              (40-07 Task 2 human-verify feedback, item 2a/2b): now openable at ANY time (not
+              gated behind isSubEligiblePhase — that only drives the button's visual state and
+              the `readOnly` prop below) and rendered full-size via `.substitutionModalCard`'s
+              100%-of-viewport treatment, matching the pre-match LineupAssignmentScreen's own
+              `.screen` full-screen presentation rather than a small centred card. */}
           {subOpen && myTeam !== null && (
             <div className={styles.substitutionOverlay}>
               <div className={styles.substitutionModalCard}>
@@ -592,15 +605,20 @@ export function GameBoard() {
                   subsUsed={subsUsed?.[myTeam] ?? 0}
                   maxOnPitch={maxOnPitchFor(pieces, myTeam)}
                   onSubstitute={emitSubstitution}
+                  // Checkpoint gap-closure (40-07, item 2a): read-only the instant a live
+                  // phase change (or simply opening the panel outside a stoppage) makes a
+                  // substitution un-actionable — mirrors the server's own WRONG_PHASE guard.
+                  readOnly={!isSubEligiblePhase}
                 />
               </div>
             </div>
           )}
         </div>
 
-        {/* SUB-01/D-03: persistent stoppage-gated affordance, mirrored to the opposite edge
-            from SideLog — always rendered, interactive only during a stoppage. */}
-        <SubstitutionButton enabled={isSubEligiblePhase} onOpen={() => setSubOpen(true)} />
+        {/* SUB-01/D-03: persistent roster affordance, mirrored to the opposite edge from
+            SideLog — always rendered and always clickable (40-07 gap-closure item 2a); turns
+            green (`actionable`) only while a substitution can actually be made right now. */}
+        <SubstitutionButton actionable={isSubEligiblePhase} onOpen={() => setSubOpen(true)} />
       </div>
     </div>
   );
