@@ -594,18 +594,24 @@
   letter-spacing: 0.05em;
 }
 
-/* Disabled outside a stoppage — mirrors .statCardLocked's 0.7-opacity dimming convention
-   (UI-SPEC.md), applied at 0.35 per the frozen spec value, plus a not-allowed cursor. */
-.subButtonDisabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+/* Active state — a stoppage is in progress, a substitution can be made right now.
+   Checkpoint gap-closure (40-07 Task 2 human-verify feedback, item 2d): the button is
+   ALWAYS clickable now (view-only roster otherwise), so this replaces the old disabled/
+   dimmed treatment with a green "actionable" signal instead. Reuses --color-success (text)
+   and --color-speed-standard-bg (strip tint — same green swatch, already used for the
+   game-speed picker's "standard" accent; see tokens.css) — no new colour literal. */
+.subButtonActive {
+  background: var(--color-speed-standard-bg);
+  color: var(--color-success);
 }
 
-.subButtonDisabled:hover {
-  color: var(--color-text-secondary);
+.subButtonActive:hover {
+  color: var(--color-success-hover);
 }
 
-/* Modal backdrop — copies .confirmOverlay (ActionPanel.module.css) verbatim. */
+/* Modal backdrop — copies .confirmOverlay (ActionPanel.module.css) verbatim. Still fixed/
+   inset:0 so it always spans the full viewport even though .substitutionModalCard below no
+   longer leaves any backdrop visible once it fills the overlay. */
 .substitutionOverlay {
   position: fixed;
   inset: 0;
@@ -616,32 +622,38 @@
   z-index: 20;
 }
 
-/* Wider than .confirmCard's 280px cap — sized to fit the full formation grid + bench
-   carousel (UI-SPEC.md), NOT the small confirm-dialog card. */
+/* Checkpoint gap-closure (40-07 Task 2 human-verify feedback, item 2b): full-viewport
+   treatment replacing the former 960px/92vw centred card — the roster panel now REPLACES
+   the entire field view instead of floating a small card over a still-visible pitch,
+   matching the pre-match LineupAssignmentScreen's own full-screen `.screen` presentation.
+   `background` mirrors `.screen`'s var(--color-bg-page) so the panel reads as a real
+   screen, not a card sitting on a dimmed backdrop (LineupAssignmentScreen.module.css
+   `.screen` already supplies its own 24px padding — no padding duplicated here). */
 .substitutionModalCard {
   position: relative;
-  background: var(--color-bg-surface);
-  border-radius: 4px;
-  padding: 16px;
-  max-width: 960px;
-  width: 92vw;
-  max-height: 90vh;
+  background: var(--color-bg-page);
+  width: 100%;
+  height: 100%;
   overflow-y: auto;
 }
 
-/* Top-right close button — identical unstyled-icon-button treatment as .sideLogChevron. */
+/* Top-right close button — identical unstyled-icon-button treatment as .sideLogChevron.
+   `position: fixed` (not absolute) so it stays anchored to the viewport corner even though
+   .substitutionModalCard now scrolls its own full-height content (40-07 gap-closure). */
 .substitutionModalClose {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  position: fixed;
+  top: 12px;
+  right: 12px;
   font-size: 14px;
   font-weight: 700;
   color: var(--color-text-secondary);
-  background: none;
-  border: none;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 8px;
   line-height: 1;
+  z-index: 21;
 }
 
 .substitutionModalClose:hover {

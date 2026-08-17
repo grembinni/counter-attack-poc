@@ -431,11 +431,22 @@ function makePiece(
   };
 }
 
-/** 11-piece home XI: GK + 4 DEF (one redCarded) + 3 MID (one yellow, one injured-once) +
- * 2 FWD (one injured-twice) + 1 ST (must render in the FWD column, not a 5th column). */
+/** 11-piece home XI, ids matching the REAL gameEngine.ts slot-identity convention
+ * (`${team}-${slotIndex}`, 0-indexed, aligned to FORMATIONS['4-4-2'].slots — see
+ * buildSquadPieces/applySubstitution) rather than arbitrary 1-indexed test ids, because
+ * the mid-match column grouping now derives each piece's column from its SLOT (parsed
+ * from `id`), not from `piece.role` (checkpoint gap-closure, 40-07 Task 2 human-verify
+ * feedback). 4-4-2 slot map: 0=GK, 1-4=DEF, 5-8=MID, 9-10=FWD.
+ *
+ * `home-8` (a MID slot) deliberately carries `role: 'FWD'` — this is the regression
+ * fixture for the formation-shape bug: a forward who has been substituted into a
+ * midfield slot must still render in the MID column (preserving the 4-4-2 shape),
+ * never in the FWD column just because that's their own playing specialism. `home-10`
+ * (the true FWD-central/ST slot) keeps `role: 'ST'` so the pre-existing "ST renders in
+ * the FWD column" coverage is preserved (both role- and slot-based grouping agree here). */
 const HOME_TEAM_PIECES: PlayerPiece[] = [
   makePiece({
-    id: 'home-1',
+    id: 'home-0',
     playerId: 'p001',
     role: 'GK',
     number: 1,
@@ -443,7 +454,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     lastName: 'Keeper',
   }),
   makePiece({
-    id: 'home-2',
+    id: 'home-1',
     playerId: 'p002',
     role: 'DEF',
     number: 2,
@@ -451,7 +462,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     lastName: 'DefOne',
   }),
   makePiece({
-    id: 'home-3',
+    id: 'home-2',
     playerId: 'p003',
     role: 'DEF',
     number: 3,
@@ -459,7 +470,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     lastName: 'DefTwo',
   }),
   makePiece({
-    id: 'home-4',
+    id: 'home-3',
     playerId: 'p004',
     role: 'DEF',
     number: 4,
@@ -467,7 +478,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     lastName: 'DefThree',
   }),
   makePiece({
-    id: 'home-5',
+    id: 'home-4',
     playerId: 'p005',
     role: 'DEF',
     number: 5,
@@ -476,7 +487,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     redCarded: true,
   }),
   makePiece({
-    id: 'home-6',
+    id: 'home-5',
     playerId: 'p006',
     role: 'MID',
     number: 6,
@@ -484,7 +495,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     lastName: 'MidOne',
   }),
   makePiece({
-    id: 'home-7',
+    id: 'home-6',
     playerId: 'p007',
     role: 'MID',
     number: 7,
@@ -493,7 +504,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     yellowCards: 1,
   }),
   makePiece({
-    id: 'home-8',
+    id: 'home-7',
     playerId: 'p008',
     role: 'MID',
     number: 8,
@@ -502,16 +513,16 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     injuryCount: 1,
   }),
   makePiece({
-    id: 'home-9',
+    id: 'home-8',
     playerId: 'p009',
-    role: 'FWD',
+    role: 'FWD', // deliberately mismatched vs. its MID slot — see fixture doc above
     number: 9,
     firstName: 'Home',
     lastName: 'FwdInjuredTwice',
     injuryCount: 2,
   }),
   makePiece({
-    id: 'home-10',
+    id: 'home-9',
     playerId: 'p010',
     role: 'FWD',
     number: 10,
@@ -519,7 +530,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     lastName: 'FwdOne',
   }),
   makePiece({
-    id: 'home-11',
+    id: 'home-10',
     playerId: 'p011',
     role: 'ST',
     number: 11,
@@ -546,6 +557,9 @@ type MidmatchOverrides = {
   subsUsed?: number;
   maxOnPitch?: number;
   onSubstitute?: (outPieceId: string, inPlayerId: string) => void;
+  /** Checkpoint gap-closure (40-07 Task 2 human-verify feedback): defaults to false/
+   * undefined in every existing call so pre-existing tests are unaffected. */
+  readOnly?: boolean;
 };
 
 function renderMidmatch(overrides: MidmatchOverrides = {}) {
@@ -564,6 +578,7 @@ function renderMidmatch(overrides: MidmatchOverrides = {}) {
       subsUsed={overrides.subsUsed ?? 0}
       maxOnPitch={overrides.maxOnPitch ?? 11}
       onSubstitute={overrides.onSubstitute ?? NOOP}
+      readOnly={overrides.readOnly ?? false}
     />,
   );
 }
@@ -578,6 +593,32 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(fwdHeader?.parentElement?.textContent).toContain('Home Striker');
     const gkHeader = headers.find((h) => h.textContent === 'GK');
     expect(gkHeader?.parentElement?.textContent).toContain('Home Keeper');
+  });
+
+  /* Checkpoint gap-closure (40-07 Task 2 human-verify feedback): regression coverage for
+   * the formation-shape bug — "in a 4-4-2 if a mid is in the 5 and is replaced with a FWD
+   * then the new lineup will show as a 4-3-3 instead of the selected lineup." Grouping must
+   * key off the piece's fixed formation SLOT (from its id's slot-identity suffix), never off
+   * `piece.role` (the occupant's own specialism), or a substitute re-shuffles the visible
+   * formation shape purely because their own natural position differs from the vacated slot. */
+  it('formation-shape regression: a FWD-role piece occupying a MID slot renders in the MID column, not the FWD column (4-4-2 shape preserved)', () => {
+    const { container } = renderMidmatch();
+    const headers = Array.from(container.querySelectorAll('[class*="columnHeader"]'));
+
+    const midHeader = headers.find((h) => h.textContent === 'MID');
+    const fwdHeader = headers.find((h) => h.textContent === 'FWD');
+
+    // home-8 is a MID slot (4-4-2 slot index 8) occupied by a piece whose own `role` is
+    // 'FWD' — it must render in the MID column (preserving 4 DEF / 4 MID / 2 FWD), not the
+    // FWD column (which would collapse the shape to a 4-3-3-looking 4/3/4 split).
+    expect(midHeader?.parentElement?.textContent).toContain('Home FwdInjuredTwice');
+    expect(fwdHeader?.parentElement?.textContent).not.toContain('Home FwdInjuredTwice');
+
+    // Shape check: MID column has 4 cards (the true formation slot count), not 3.
+    const midColumnCards = midHeader?.parentElement?.querySelectorAll('[class*="statCard"]');
+    expect(midColumnCards?.length).toBe(4);
+    const fwdColumnCards = fwdHeader?.parentElement?.querySelectorAll('[class*="statCard"]');
+    expect(fwdColumnCards?.length).toBe(2);
   });
 
   it('SUB-02: does not render the draft pack row, round/pick counter, or Confirm button, and shows a Substitute-labelled CTA', () => {
@@ -657,7 +698,7 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
     fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
     expect(onSubstitute).toHaveBeenCalledTimes(1);
-    expect(onSubstitute).toHaveBeenCalledWith('home-2', 'p013');
+    expect(onSubstitute).toHaveBeenCalledWith('home-1', 'p013');
   });
 
   it('SUB-06: dropping a bench card onto a redCarded on-pitch card does not call onSubstitute', () => {
@@ -749,6 +790,49 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
       expect(
         screen.getByText('Substitution rejected — a sent-off player cannot return.'),
       ).toBeDefined();
+    });
+  });
+
+  /* Checkpoint gap-closure (40-07 Task 2 human-verify feedback, item 2a): the panel is now
+   * openable at ANY time so a manager can view their roster outside a stoppage — but it must
+   * be read-only: no bench card is draggable and a drop can never call onSubstitute. */
+  describe('read-only presentation (checkpoint gap-closure 2a)', () => {
+    it('shows the read-only copy instead of the drag CTA when readOnly is true', () => {
+      renderMidmatch({ readOnly: true });
+      expect(
+        screen.getByText(
+          'Viewing roster — substitutions are only available during a stoppage in play.',
+        ),
+      ).toBeDefined();
+      expect(
+        screen.queryByText('Drag a bench card onto an on-pitch card to Substitute.'),
+      ).toBeNull();
+    });
+
+    it('shows the normal drag CTA when readOnly is false/undefined', () => {
+      renderMidmatch();
+      expect(
+        screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
+      ).toBeDefined();
+    });
+
+    it('bench cards are not draggable when readOnly is true, even an otherwise-available entry', () => {
+      renderMidmatch({ readOnly: true });
+      const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+      expect(benchCard.getAttribute('draggable')).toBe('false');
+    });
+
+    it('dragging a bench card and dropping it on an on-pitch card never calls onSubstitute when readOnly is true', () => {
+      const onSubstitute = vi.fn();
+      renderMidmatch({ readOnly: true, onSubstitute });
+      const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+      // The card itself is non-draggable, but exercise the drop handler directly too —
+      // belt-and-suspenders per the onDrop-level readOnly guard added alongside the
+      // draggable=false gate (never rely on drag-source gating alone).
+      fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+      fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+      expect(onSubstitute).not.toHaveBeenCalled();
     });
   });
 });
