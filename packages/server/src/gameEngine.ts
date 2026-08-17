@@ -3000,7 +3000,7 @@ export function applyRestartMovement(
  * on the bench for display only (D-13) — it may never return to the pitch, regardless of
  * which slot is being filled. These two reasons must never be confused with each other.
  */
-export type SubstitutionRejection =
+type SubstitutionRejection =
   | 'WRONG_PHASE'
   | 'SUB_CAP_REACHED'
   | 'CANNOT_SUB_RED_CARD'
