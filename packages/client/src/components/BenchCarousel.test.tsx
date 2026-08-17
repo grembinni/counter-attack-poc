@@ -133,6 +133,72 @@ describe('BenchCarousel — drag-source/drop-target contract preserved', () => {
   });
 });
 
+describe('BenchCarousel — checkpoint gap-closure (40-07 Task 2): disabled/read-only bench', () => {
+  it('every card is draggable="false" when disabled is true, even a normally-available card', () => {
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        disabled
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const cardEls = container.querySelectorAll('[draggable]');
+    expect(cardEls.length).toBe(2);
+    cardEls.forEach((el) => expect(el.getAttribute('draggable')).toBe('false'));
+  });
+
+  it('onCardDragStart is never called from a card drag-start when disabled is true', () => {
+    const onCardDragStart = vi.fn();
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        disabled
+        onCardDragStart={onCardDragStart}
+        onDropToBench={() => {}}
+      />,
+    );
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
+    fireEvent.dragStart(cardEl!, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    expect(onCardDragStart).not.toHaveBeenCalled();
+  });
+
+  it('onDropToBench is never called from a container drop when disabled is true', () => {
+    const onDropToBench = vi.fn();
+    const cards = [makeCard('b1', 'common')];
+    render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        disabled
+        onCardDragStart={() => {}}
+        onDropToBench={onDropToBench}
+      />,
+    );
+    const benchEl = screen.getByTestId('bench-carousel');
+    fireEvent.drop(benchEl, { dataTransfer: { getData: () => '' } });
+    expect(onDropToBench).not.toHaveBeenCalled();
+  });
+
+  it('draggable stays true (unaffected) when disabled is false/undefined', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const cardEl = container.querySelector('[draggable]');
+    expect(cardEl?.getAttribute('draggable')).toBe('true');
+  });
+});
+
 describe('BenchCarousel — D-22: empty bench placeholder', () => {
   it('renders the dashed benchSlot placeholder for 0 cards and it remains a valid drop target', () => {
     const onDropToBench = vi.fn();

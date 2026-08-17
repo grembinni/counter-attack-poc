@@ -37,6 +37,12 @@ type BenchCarouselProps = {
    * "RED CARD" badge (takes precedence over unavailablePlayerIds), dimmed, and
    * non-draggable. Undefined in every pre-match (draft) call site. */
   redCardedPlayerIds?: readonly string[];
+  /** Checkpoint gap-closure (40-07 Task 2 human-verify feedback): true when the
+   * whole bench is view-only (mid-match panel opened outside a stoppage) — every
+   * card becomes non-draggable regardless of unavailable/redCarded state, and a
+   * drop on the bench is a no-op. Undefined/false in every other call site
+   * (pre-match draft never sets this — the bench is always interactive there). */
+  disabled?: boolean;
   /** Called on drag-start with the dragged card's bench index (source-tracking only —
    * the parent resolves which card/origin this refers to). */
   onCardDragStart: (benchIndex: number) => void;
@@ -54,6 +60,7 @@ export function BenchCarousel({
   benchNumbers,
   unavailablePlayerIds,
   redCardedPlayerIds,
+  disabled,
   onCardDragStart,
   onDropToBench,
 }: BenchCarouselProps) {
@@ -94,6 +101,9 @@ export function BenchCarousel({
   }
 
   function handleDragStart(e: React.DragEvent<HTMLDivElement>, benchIndex: number, cardId: string) {
+    // Checkpoint gap-closure (40-07): a disabled (read-only) bench never starts a
+    // drag at all, regardless of the card's own availability state.
+    if (disabled === true) return;
     // Phase 40 (SUB-07/D-13): a card that is OUT or RED CARD is never a drag
     // source — a single combined guard is fine here because both mean "not a
     // drag source"; the visual distinction lives in the badge, not the drag
@@ -113,6 +123,7 @@ export function BenchCarousel({
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
+    if (disabled === true) return;
     onDropToBench();
   }
 
@@ -167,7 +178,7 @@ export function BenchCarousel({
                 card={card}
                 teamId={teamId}
                 {...(jerseyNumber !== undefined ? { jerseyNumber } : {})}
-                draggable={true}
+                draggable={disabled !== true}
                 unavailable={unavailablePlayerIds?.includes(card.id) ?? false}
                 redCarded={redCardedPlayerIds?.includes(card.id) ?? false}
                 onDragStart={(e) => handleDragStart(e, benchIndex, card.id)}
