@@ -47,13 +47,13 @@
 
 ### Substitutions (SUB)
 
-- [ ] **SUB-01**: A manager can substitute a player at any stoppage (kick-off, half-time, free kick, penalty kick, goal kick, corner kick, or throw-in setup), regardless of which other v1.6 toggles are enabled
-- [ ] **SUB-02**: Substitutions are made via the Roster screen using drag-and-drop to replace an on-pitch player with a bench player; each substitution action replaces exactly one player
-- [ ] **SUB-03**: A substitute inherits the departing player's jersey number and pitch position/lineup slot
-- [ ] **SUB-04**: Each team is limited to 3 substitutions for the full match (not per half); the count never resets at half-time
-- [ ] **SUB-05**: Each completed substitution adds 1 minute to the current half's added-time calculation
-- [ ] **SUB-06**: A red-carded (sent-off) player cannot be replaced by a substitute
-- [ ] **SUB-07**: A player who has been substituted out may never return to play for the remainder of the match, and is shown a clear "unavailable" indicator on the roster screen
+- [x] **SUB-01**: A manager can substitute a player at any stoppage (kick-off, half-time, free kick, penalty kick, goal kick, corner kick, or throw-in setup), regardless of which other v1.6 toggles are enabled
+- [x] **SUB-02**: Substitutions are made via the Roster screen using drag-and-drop to replace an on-pitch player with a bench player; each substitution action replaces exactly one player
+- [x] **SUB-03**: A substitute inherits the departing player's jersey number and pitch position/lineup slot
+- [x] **SUB-04**: Each team is limited to 3 substitutions for the full match (not per half); the count never resets at half-time
+- [x] **SUB-05**: Each completed substitution adds 1 minute to the current half's added-time calculation
+- [x] **SUB-06**: A red-carded (sent-off) player cannot be replaced by a substitute
+- [x] **SUB-07**: A player who has been substituted out may never return to play for the remainder of the match, and is shown a clear "unavailable" indicator on the roster screen
 
 ### Goal Kick (GOALKICK)
 
@@ -94,7 +94,7 @@
 - [x] **SETTINGS-01**: Game creation offers 4 independent toggles — Fouls, Booking, Injury, and Out-of-Bounds/Restarts — any combination of which can be enabled
 - [x] **SETTINGS-02**: Booking has no effect unless Fouls is also enabled
 - [x] **SETTINGS-03**: Injury has no effect unless Fouls is also enabled
-- [ ] **SETTINGS-04**: Substitutions are always available regardless of toggle state
+- [x] **SETTINGS-04**: Substitutions are always available regardless of toggle state
 
 ## Future Requirements
 
@@ -176,14 +176,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SETTINGS-01 | Phase 39 | Complete |
 | SETTINGS-02 | Phase 39 | Complete |
 | SETTINGS-03 | Phase 39 | Complete |
-| SUB-01      | Phase 40 | Pending  |
-| SUB-02      | Phase 40 | Pending  |
-| SUB-03      | Phase 40 | Pending  |
-| SUB-04      | Phase 40 | Pending  |
-| SUB-05      | Phase 40 | Pending  |
-| SUB-06      | Phase 40 | Pending  |
-| SUB-07      | Phase 40 | Pending  |
-| SETTINGS-04 | Phase 40 | Pending  |
+| SUB-01      | Phase 40 | Complete |
+| SUB-02      | Phase 40 | Complete |
+| SUB-03      | Phase 40 | Complete |
+| SUB-04      | Phase 40 | Complete |
+| SUB-05      | Phase 40 | Complete |
+| SUB-06      | Phase 40 | Complete |
+| SUB-07      | Phase 40 | Complete |
+| SETTINGS-04 | Phase 40 | Complete |
 
 **Coverage:**
 
