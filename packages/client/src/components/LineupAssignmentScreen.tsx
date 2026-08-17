@@ -87,6 +87,13 @@ type Props = {
   /** Phase 40 (SUB-02/D-04): emitted when a bench card is dropped onto an eligible
    * on-pitch card — a single 1-for-1 swap, gated server-side by GAME_SUBSTITUTION. */
   onSubstitute?: (outPieceId: string, inPlayerId: string) => void;
+  /** Checkpoint gap-closure (40-07 Task 2 human-verify feedback): true when the
+   * panel is open OUTSIDE a stoppage — the roster is still viewable, but bench
+   * cards are never draggable and a drop can never call `onSubstitute` (the
+   * server would reject it as `WRONG_PHASE` anyway; this mirrors that guard
+   * client-side so the panel reads as calmly read-only, not broken). Mid-match
+   * mode only; every other mode ignores this prop. */
+  readOnly?: boolean;
 };
 
 /** Phase 29 (DRAFT-06): a single parent-owned drag-state variable resolves every drop —
@@ -294,6 +301,7 @@ export function LineupAssignmentScreen({
   subsUsed,
   maxOnPitch,
   onSubstitute,
+  readOnly,
 }: Props) {
   const currentPlayerLabel = playerSlot === 1 ? 'HOME' : 'VISITOR';
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
@@ -424,10 +432,19 @@ export function LineupAssignmentScreen({
   const [midmatchDragPlayerId, setMidmatchDragPlayerId] = useState<string | null>(null);
   const [midmatchDropTargetPieceId, setMidmatchDropTargetPieceId] = useState<string | null>(null);
 
-  /** Renders one mid-match on-pitch position column, grouped by `piece.role` — GK
-   * column: 'GK'; DEF: 'DEF'; MID: 'MID'; FWD: 'FWD' and 'ST'. Never derives slot
-   * indices by parsing piece ids (RESEARCH.md instruction) — grouping reads
-   * `piece.role` directly. */
+  /** Renders one mid-match on-pitch position column. Checkpoint gap-closure
+   * (40-07 Task 2 human-verify feedback): originally grouped by `piece.role` (the
+   * occupant's own playing specialism), which broke formation shape on a
+   * substitution — subbing a FWD into a MID slot re-grouped the roster into a
+   * "4-3-3"-looking column layout instead of keeping the selected "4-4-2" shape,
+   * because the FWD's `role` moved it into the FWD column regardless of which
+   * slot it actually filled. Now grouped by the FIXED formation SLOT's role
+   * (`FORMATIONS[formationId].slots[slotIndex].slotRole`, resolved via the slot
+   * index encoded in `piece.id`, e.g. `home-5` -> index 5) — identical grouping
+   * key to the pregame `renderColumn`'s `slotMeta.slotRole` above. `piece.id` is
+   * documented "slot identity" in gameEngine.ts's buildSquadPieces/applySubstitution
+   * (SUB-03: a substitution deliberately never changes it), so parsing it here is
+   * the same contract the server already guarantees, not a fragile inference. */
   function renderMidmatchColumn(label: string, pieces: readonly PlayerPiece[]) {
     return (
       <div className={styles.column}>
@@ -462,7 +479,14 @@ export function LineupAssignmentScreen({
                   setMidmatchDropTargetPieceId(null);
                   const inPlayerId = midmatchDragPlayerId;
                   setMidmatchDragPlayerId(null);
-                  if (!inPlayerId || isBlocked) return;
+                  // Checkpoint gap-closure (40-07): readOnly mirrors the server's
+                  // WRONG_PHASE guard client-side — outside a stoppage the panel is
+                  // viewable but a drop can never trigger a substitution. In
+                  // practice nothing CAN be dragged here while readOnly (bench
+                  // cards are non-draggable below), but this guard is kept as a
+                  // defensive second gate rather than relying on drag-source
+                  // gating alone.
+                  if (!inPlayerId || isBlocked || readOnly === true) return;
                   onSubstitute?.(piece.id, inPlayerId);
                 }}
                 onDragEnd={() => {}}
@@ -724,10 +748,20 @@ export function LineupAssignmentScreen({
     const midmatchMid: PlayerPiece[] = [];
     const midmatchFwd: PlayerPiece[] = [];
     for (const piece of pieces) {
-      if (piece.role === 'GK') midmatchGk.push(piece);
-      else if (piece.role === 'DEF') midmatchDef.push(piece);
-      else if (piece.role === 'MID') midmatchMid.push(piece);
-      else midmatchFwd.push(piece); // 'FWD' and 'ST'
+      // Checkpoint gap-closure (40-07): resolve the FIXED formation slot for this
+      // piece from its id's slot-identity suffix (`${team}-${slotIndex}`,
+      // gameEngine.ts buildSquadPieces/applySubstitution) and group by that slot's
+      // `slotRole` — never by `piece.role` (the occupant's own specialism), which
+      // would re-shuffle the formation shape on every substitution. Falls back to
+      // `piece.role` only if the id is unparseable or out of range, so a malformed
+      // id never crashes the roster panel.
+      const parsedSlotIndex = /-(\d+)$/.exec(piece.id);
+      const ownSlotMeta = parsedSlotIndex !== null ? slots[Number(parsedSlotIndex[1])] : undefined;
+      const slotRole = ownSlotMeta?.slotRole ?? piece.role;
+      if (slotRole === 'GK') midmatchGk.push(piece);
+      else if (slotRole.startsWith('DEF')) midmatchDef.push(piece);
+      else if (slotRole.startsWith('MID')) midmatchMid.push(piece);
+      else midmatchFwd.push(piece); // 'FWD-*' slotRole, or 'FWD'/'ST' piece.role fallback
     }
 
     // D-12: the bench is roster-minus-starting-XI, nothing is ever generated to
@@ -752,7 +786,9 @@ export function LineupAssignmentScreen({
       <div className={styles.screen}>
         <h2 className={styles.matchSetupHeading}>Substitution</h2>
         <p className={styles.cyclePickCounter}>
-          Drag a bench card onto an on-pitch card to Substitute.
+          {readOnly === true
+            ? 'Viewing roster — substitutions are only available during a stoppage in play.'
+            : 'Drag a bench card onto an on-pitch card to Substitute.'}
         </p>
 
         <span
@@ -788,7 +824,9 @@ export function LineupAssignmentScreen({
             benchNumbers={midmatchBenchNumbers}
             unavailablePlayerIds={unavailablePlayerIds}
             redCardedPlayerIds={redCardedPlayerIds}
+            disabled={readOnly === true}
             onCardDragStart={(benchIndex) => {
+              if (readOnly === true) return;
               const card = midmatchBenchCards[benchIndex];
               if (card) setMidmatchDragPlayerId(card.id);
             }}
