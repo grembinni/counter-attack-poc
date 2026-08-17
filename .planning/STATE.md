@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Fouls, Cards & Restarts
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 40 UI-SPEC approved
-last_updated: '2026-08-17T00:47:03.991Z'
-last_activity: 2026-08-17
+last_updated: '2026-08-17T01:31:35.633Z'
+last_activity: 2026-08-17 — Milestone v1.6 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 40
-Plan: Not started
-Status: Executing Phase 40
-Last activity: 2026-08-17
+Phase: Milestone v1.6 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-17 — Milestone v1.6 completed and archived
 
 ## Project Reference
 
@@ -252,6 +252,23 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 | 260727-o85             | 2026-07-27 | Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)                                                                                          |
 | 260816-bn5             | 2026-08-16 | Fix two knip findings: dropped unused `export` from `triggerFoulFreeKick` (self-file usage only); pruned 6 redundant `entry` patterns from root `knip.json` — `pnpm knip` now exits clean                      |
 
+## Deferred Items (acknowledged at milestone close 2026-08-17, v1.6)
+
+Items acknowledged and deferred at v1.6 milestone close on 2026-08-17 (see [.planning/milestones/v1.6-MILESTONE-AUDIT.md](milestones/v1.6-MILESTONE-AUDIT.md) for full detail):
+
+| Category   | Item                                                                                      | Status                                                                                                                                                                                                                                                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| debug      | foul-banner-sequence-not-pausing                                                          | investigating — foul->injury->booking EventBanner sequence stops after the Foul banner in live play; a real fix shipped (activeRef race) but user-confirmed it did not resolve the live symptom; root cause still unconfirmed; explicitly paused by user 2026-08-16 ("defer to after 40 and let's close out this phase") |
+| quick_task | 260816-bn5-fix-two-knip-findings-remove-unnecessary                                       | unknown (metadata gap only) — work itself (dropped unused export, pruned knip.json entries) is complete, verified by a clean pnpm knip run                                                                                                                                                                               |
+| todo       | KICK_OFF_SETUP shot-path shading persists (root cause unknown)                            | pending — carried forward again (rendering, tracked since v1.2)                                                                                                                                                                                                                                                          |
+| todo       | offside-ring-after-goal                                                                   | pending — triaged out of Phase 38 scope with written evidence trail (`.planning/todos/pending/2026-08-09-bug-offside-ring-after-goal.md`)                                                                                                                                                                                |
+| todo       | CSV consolidation (player-pool.csv)                                                       | pending — low priority idea, still not assigned to a phase                                                                                                                                                                                                                                                               |
+| tech_debt  | Phase 38 WR-01/WR-02 (ActionLog exhaustiveness gap, corner-kick occupancy-check mismatch) | non-blocking, 0 Critical/Blocker per 38-REVIEW.md                                                                                                                                                                                                                                                                        |
+| tech_debt  | Phase 40 WR-01/WR-02 (cosmetic GK-parity rejection copy, inert missing dragover guard)    | non-blocking, 0 Critical/Blocker per 40-REVIEW.md                                                                                                                                                                                                                                                                        |
+| nyquist    | Phases 38/39/40 VALIDATION.md staleness                                                   | pre-execution planning docs never refreshed post-execution; each phase's own VERIFICATION.md independently confirms comprehensive automated coverage passing — documentation-currency gap, not a coverage gap                                                                                                            |
+
+Known deferred items at close: 8 (see above)
+
 ## Deferred Items (acknowledged at milestone close 2026-08-03, v1.5)
 
 Items acknowledged and deferred at v1.5 milestone close on 2026-08-03:
@@ -475,4 +492,4 @@ Resume: Run `/gsd-plan-phase 37` to begin planning Phase 37 (Out-of-Bounds Detec
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 37` to plan Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick) — the first phase of v1.6.
+- Start the next milestone with /gsd-new-milestone
