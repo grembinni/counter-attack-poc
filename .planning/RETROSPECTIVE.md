@@ -1,5 +1,70 @@
 # Retrospective — Counter Attack Web
 
+## v1.6 Fouls, Cards & Restarts (2026-08-03 → 2026-08-17)
+
+**Shipped:** 2026-08-17
+**Phases:** 4 | **Plans:** 83 | **Duration:** 14 days
+
+### What Was Built
+
+- **Phase 37** (19 plans): Continuous `ball.lastTouchedBy` tracking; pure out-of-bounds classification module; staged throw-in flow (1/2 Movement Phase choice, 6-hex Low/High throw); dedicated 5-phase goal-kick flow (not a reuse of the existing GK_RESTART chain, per explicit user override of the research recommendation); independent Out-of-Bounds/Restarts game-creation toggle. 3 gap-closure rounds (37-11..37-19) closed 2 BLOCKERs and 6 UAT-surfaced client gaps.
+- **Phase 38** (33 plans — 9 original + 24 across 4 gap-closure rounds): Corner kick's full two-window repositioning (GK pair → corner-taker placement → 6-stage alternating reposition → separate pre-kick 3-hex window) and High/Low kick resolution. Four full live-two-browser gap-closure rounds — the largest single-phase iteration count in the project's history — converged the mandatory pre-corner clear-out from interactive to fully automatic, and the reposition model from an unbounded adjacency walk to a free-kick-style bounded placement; the final round fixed an Undo-enablement regression the third round's own rewrite had introduced.
+- **Phase 39** (24 plans across 13 waves): Full foul→injury→booking chain (die of 1 calls a foul, injury then booking roll in that order before the continue-or-restart choice), Professional/Last-Man Foul straight-red-vs-yellow, GK-dive-at-feet (reuses the existing tackle duel, -1 die from the 3rd hex, once per movement cycle), and a full penalty-kick chain (-2 GK dice penalty, box-restricted reposition, tie→Loose Ball). One gap-closure round (39-18..39-24) closed all 9 live-UAT defects plus 1 Critical code-review finding (missing server-side occupancy check on free-kick kicker placement) in a single pass.
+- **Phase 40** (7 plans): Substitution system — any stoppage, drag-and-drop on the Roster screen, jersey-number/slot inheritance, a whole-match 3-sub cap that never resets at half-time, +1 added-time minute per sub, red-carded/subbed-out players permanently unavailable — built on an independent `STOPPAGE_PHASES` allow-list decoupled from the primary turn-sequencing state machine. One mid-execution human-verify checkpoint found a real formation-grouping bug plus 4 UX gaps, all closed in a single gap-closure cycle.
+
+### What Worked
+
+**The phase-order rationale (out-of-bounds foundation → corner kick → fouls cluster → substitutions last) held up exactly as designed.** Corner kick's `triggerOutOfBoundsRestart` branch built cleanly on Phase 37's already-shipped classification module with zero rework of Phase 37 code. The fouls/cards/injury/GK-dive/penalty cluster — deliberately sequenced third to leave maximum lead time for resolving rulebook ambiguities — needed no mid-phase pivot on either of its two flagged ambiguities (which die triggers a foul; Professional Foul red-vs-yellow phrasing). Substitutions, placed last specifically to avoid a retroactive follow-up on the red-card non-replacement rule, needed none.
+
+**Pre-close cross-phase integration audit caught nothing new, which is itself a signal the milestone's phase-order design worked.** The dedicated integration checker specifically probed the four riskiest cross-phase seams (restart-routing exhaustiveness, the shared `STOPPAGE_PHASES` list staying in sync as three later phases added new `GamePhase` values, Undo/Replay event-type registration across all 4 phases' new event types, and toggle-gate propagation) and found all four PASS with direct code evidence — no BLOCKER-level wiring gaps. The only open item found was already known and already user-deferred (the EventBanner sequencing bug), not a new discovery.
+
+**Explicit user retraction of a locked decision, honored cleanly.** Phase 40's D-11 (forced substitution on a second injury) was locked, planned into `40-08-PLAN.md`, then explicitly retracted by the user mid-planning ("substitution must never be automatic or forced"). The plan and its Wave-0 test file were deleted outright rather than left as dead code, and the retraction was documented in both `40-VALIDATION.md`'s revision notes and STATE.md's Decisions Locked — a clean example of a design reversal handled without leaving debris.
+
+### What Was Inefficient
+
+**Corner Kick (Phase 38) needed four full live-two-browser gap-closure rounds — 24 gap-closure plans against 9 original ones.** Each round's fix sometimes introduced the next round's regression (the round-3 bounded-reposition rewrite broke Undo, caught only by round 4). This is the single largest per-phase iteration count in the project across all 6+ milestones. The underlying cause looks structural: corner kick has more interacting state (two goalkeepers, two repositioning windows, a mandatory clear-out, alternating turn order) than any prior restart type, and the interaction design itself (clear-out mechanics, reposition boundedness) was still being discovered through live play rather than fully specified up front. A dedicated design-spike or paper-prototype pass on corner kick's exact interaction model, before Wave 1, might have caught 1-2 of these rounds earlier.
+
+**A phase-level `VALIDATION.md` Nyquist-compliance document went unrefreshed after execution on 3 of 4 phases.** Phases 38, 39, and 40 all still show `nyquist_compliant: false` or an all-pending per-task status table in their `VALIDATION.md`, despite each phase's own independently-verified `VERIFICATION.md` confirming exactly the automated coverage those plans called for. This is a documentation-currency gap (the milestone audit had to spend time distinguishing "test coverage missing" from "post-execution doc refresh missing"), not a real gap — but it's now happened across enough phases in this milestone that it looks like a process step (refresh `VALIDATION.md` frontmatter when a phase's `VERIFICATION.md` lands) that isn't happening reliably.
+
+**The EventBanner foul-sequencing bug consumed a full debug session without reaching a confirmed root cause.** A real, reproducible defect was found and fixed (a same-commit React state-closure race), but the user's live retest showed the actual reported symptom was unchanged — meaning the debug session's strongest lead (activeRef race) was real but not the actual trigger. The session correctly recognized this, eliminated the hypothesis with evidence, and proposed a next concrete lead (FoulChoicePanel mount timing) before being explicitly paused by the user to close out Phase 40. This is a reasonable outcome (a real defect fixed, a dead end honestly disclosed rather than claimed-fixed), but it's a reminder that UI-timing bugs reported from live play without browser-devtools access are disproportionately expensive to chase via synthetic reproduction alone.
+
+### Patterns Established
+
+- **Independent allow-list modules (`STOPPAGE_PHASES`, mirroring the existing `validUndoPhases` idiom) for any new phase-eligibility question, rather than threading a new concern through the primary `ELIGIBLE_NEXT_ACTIONS` state machine.** Keeps unrelated eligibility questions decoupled and independently testable.
+- **`applyRosterContinuity`-style overlay of live entity state onto every reset site**, rather than re-deriving from `eventLog`, for any invariant that must survive a full-state reset (goal, half-time). Mirrors the existing snapshot/replay-reconstruction pattern in this codebase.
+- **When a live two-browser gap-closure round's own fix introduces a new regression, the next round must explicitly re-verify the previous round's fix alongside the new one** — Phase 38's round 4 caught its round-3-introduced Undo regression specifically because the human-verify checkpoint re-ran the full walkthrough, not just the new fix's specific scenario.
+- **Cross-phase integration audits pay for themselves at milestone scale.** A dedicated integration-checker pass immediately before close, targeting the specific seams a multi-phase milestone's design deliberately created (shared classification modules, shared allow-lists, cross-cutting event-type registries), is now proven across this milestone to catch exactly the class of bug this codebase has shipped before (event types invisible to Undo) — with a clean pass this time.
+
+### Known Gaps Entering Next Milestone
+
+| Gap                               | Description                                                                                                                                                                                                                              | Location                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| RESP-01..09                       | Response-move single-selection activation model — still undelivered, now deferred across 3 consecutive milestones (v1.4, v1.5, v1.6)                                                                                                     | `gameEngine.ts` (old per-move-type logic unchanged)                      |
+| EventBanner foul-sequencing bug   | foul→injury→booking banner sequence stops after the Foul banner in live play; a real same-commit race was found and fixed but does not resolve the reported symptom — root cause still open, investigation explicitly paused by the user | `.planning/debug/foul-banner-sequence-not-pausing.md`, `EventBanner.tsx` |
+| Nyquist `VALIDATION.md` staleness | Phases 38/39/40's `VALIDATION.md` frontmatter never refreshed post-execution — documentation-currency gap only, actual coverage independently confirmed extensive by each phase's `VERIFICATION.md`                                      | `.planning/phases/38-*/38-VALIDATION.md`, `39-*`, `40-*`                 |
+| Phase 38 WR-01/WR-02              | `ActionLog` `formatEvent` switch lacks compile-time exhaustiveness guard; corner-kick server occupancy check doesn't exclude the moving piece's own hex — both non-blocking                                                              | `38-REVIEW.md`                                                           |
+| Phase 40 WR-01/WR-02              | Cosmetic GK-parity rejection copy reuses pregame wording in mid-match mode; `onDragOver` missing a `readOnly` guard (confirmed inert) — both non-blocking                                                                                | `40-REVIEW.md`                                                           |
+| createServer.ts reconnect         | Misplaced `return` leaves some reconnecting sockets with no handlers registered — flagged repeatedly since Phase 07, still unremediated                                                                                                  | `packages/server/src/createServer.ts:99-167`                             |
+| KICK_OFF_SETUP shot-path shading  | Persists on some SNAPSHOT_DEFLECT-goal paths — root cause still unknown after extensive static analysis, carried since v1.2                                                                                                              | `.planning/todos/pending/2026-07-02-bug-kickoff-setup-...md`             |
+| offside-ring-after-goal           | Offside rings persist after a goal resets positions for kick-off — triaged out of Phase 38 scope with full written evidence trail                                                                                                        | `.planning/todos/pending/2026-08-09-bug-offside-ring-after-goal.md`      |
+| CSV consolidation                 | Merge 7 team CSVs into one player-pool.csv — low priority, unscheduled                                                                                                                                                                   | `.planning/todos/pending/csv-consolidation-player-pool.md`               |
+
+### Metrics
+
+| Metric        | Value                                                                          |
+| ------------- | ------------------------------------------------------------------------------ |
+| Duration      | 14 days (2026-08-03 → 2026-08-17)                                              |
+| Phases        | 4 (Phases 37–40)                                                               |
+| Plans         | 83                                                                             |
+| Tasks         | 206                                                                            |
+| Files changed | 504                                                                            |
+| Insertions    | 93,014                                                                         |
+| Deletions     | 3,387                                                                          |
+| Requirements  | 55/55                                                                          |
+| Test suite    | 3,276 tests across shared (839) / server (1,439, 1 skip/1 todo) / client (998) |
+
+---
+
 ## v1.5 UX Refresh & Code Cleanup (2026-07-22 → 2026-08-03)
 
 **Shipped:** 2026-08-03
