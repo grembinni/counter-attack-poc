@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: planning
-stopped_at: Phase 41 context gathered
-last_updated: '2026-08-21T12:26:50.044Z'
+stopped_at: Phase 41 UI-SPEC approved
+last_updated: '2026-08-21T16:32:16.590Z'
 last_activity: 2026-08-21 — v1.7 ROADMAP.md created (Phases 41–46, 44/44 requirements mapped, no orphans)
 progress:
   total_phases: 6
@@ -370,9 +370,9 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-21T12:26:50.035Z
-Stopped at: Phase 41 context gathered
-Resume file: .planning/phases/41-card-injury-iconography/41-CONTEXT.md
+Last session: 2026-08-21T13:05:08.506Z
+Stopped at: Phase 41 UI-SPEC approved
+Resume file: .planning/phases/41-card-injury-iconography/41-UI-SPEC.md
 Resume: Run `/gsd-plan-phase 41` to begin planning Phase 41 (Card & Injury Iconography).
 
 ## Performance Metrics
