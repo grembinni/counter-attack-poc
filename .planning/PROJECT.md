@@ -40,7 +40,22 @@ A code-review pass on Phase 30 found and fixed one critical bug: `DRAFT_PICK`/`D
 
 **Phase 33 (Design Tokens & Highlight Standardization) complete 2026-07-26.** Validated in Phase 33: THEME-03, HILITE-01 through HILITE-05 (see below). Delivered: a chrome design-token layer (`packages/client/src/styles/tokens.css`) with a single runtime `--team-accent` CSS variable replacing per-component `TEAM_CONFIGS` lookups; every chrome-color CSS Module across in-game panels, lobby, settings, and team/draft selection migrated to `var(--token)`; `HexCell.tsx`'s `HIGHLIGHT_STYLES`/`RING_STYLES` extended to a single source of truth covering all 10 hex-tint types plus the compound gold ring; the goal-target tint recolored red→purple and `safe` recolored gold→green so red means offside only, app-wide within the highlight system; a standalone always-on-top white `BallLocationRing` ball-location marker added, gated to 11 response phases (including `KICK_OFF_SETUP`, added mid-phase for consistency); and `docs/HIGHLIGHT-REFERENCE.md` written as the permanent single-source-of-truth reference (HILITE-05). The plan 33-07 phase-gate checkpoint went through several rounds of human-verify iteration on the "already-moved" piece marker (HILITE-03) — a grey-ring mechanism from Plan 33-05 was tried as an app-wide unification, then contrast-tweaked, then ultimately removed entirely in favor of the pre-existing orange-ring-+-red-X `activated` state, now used consistently everywhere a piece has already acted. BUG-23 (KICK_OFF_SETUP stale shot-path shading) was included in the final approved visual checklist with no issue reported. Test suite: shared 583 / server 627 / client 407 (1,617 total), all green; code review found 0 blockers (1 warning + 2 info, both addressed).
 
-## Current Milestone: v1.6 Fouls, Cards & Restarts
+## Current Milestone: v1.7 UI Consistency, Substitution Rework & Match Summary
+
+**Goal:** Polish and unify the UI (card/injury iconography, advanced toggle drawer), rework the substitution flow around a default player-positioning roster screen, add referee-leniency and tackle/steal-decline toggles, build an on-demand match summary popup with soccer-style stats/xG, and close out a final consistency/dead-code cleanup pass.
+
+**Target features:**
+
+- Referee Leniency toggle — default off; when enabled, manager manually sets leniency in range 2–5, overriding the random 1–6 roll
+- UI iconography/layout consistency — card and injury status use the same iconography across player card, pitch card, roster card, and bench card (positioned between name and flag, or after flag); game-creation toggles moved under an Advanced dropdown, laid out left/right rather than purely vertical
+- Substitution UX overhaul — roster screen defaults to a player-positioning mode (drag-and-drop swap for on-field players, disabled when an action is selected, bench players not selectable); substitution triggered via an action button (disabled at 3 subs used); button becomes Cancel in substitution mode; only 1 sub selectable per action; confirmation popup states player off/player on; green Resume button replaces the small close (X); side banner background (not just text) turns green when editable; red-carded players show on the bench as a red-card marker (repositionable in formation, not substitutable, renders no player on pitch) plus a bug fix ensuring red-carded players are fully removed from play in every phase, not just visually hidden
+- Tackle/Steal prompt-and-decline toggle — default on; a declined tackle/steal keeps the risk ring active so the defender can be prompted again on a later move step
+- Game Summary popup — settings/toggle recap (including referee leniency) plus live match stats (possession %, passes, successful tackles + steals, tackle/steal success %, shots, xG per shot via the given formula, fouls/yellows/reds); reachable via an (i) icon on the scoreboard at any time, in addition to the existing half-time/full-time display
+- Final cleanup pass — gameplay consistency audit (expected-function gaps, consistent dead-ball hex highlighting), phase info-text clarity (all steps indicated, clearer response-move trigger language), duplicate-behavior consolidation (movement patterns, kicker/thrower selection alignment, card layout unification across pitch/roster/bench), removal of single-action steps, dead code cleanup
+
+**Explicitly deferred:** RESP-01..09 (response-move activation model) — deferred again, now across four consecutive milestones (v1.4, v1.5, v1.6, v1.7).
+
+## Completed Milestone: v1.6 Fouls, Cards & Restarts
 
 **Goal:** Bring the match engine to full rulebook fidelity for stoppages — fouls, bookings, injuries, substitutions, and the complete out-of-bounds restart set (throw-in, corner kick, goal kick, penalty kick) — each independently toggleable at game creation.
 
@@ -188,9 +203,9 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 - ✓ **GKDIVE-01..05, PEN-01..03, FK-01** — GK-dive-at-feet interrupt within 3 hexes parallel to goal line (-1 die from the 3rd hex, once per movement cycle, displacement on success); a GK roll of 1 always fouls into a penalty; penalty kick is a -2 GK-dice-penalty duel with box repositioning restricted to taker + GK, tie → Loose Ball at the spot; tackle/steal fouls reuse the existing FREE_KICK_SETUP flow unmodified — Phase 39
 - ✓ **SUB-01..07, SETTINGS-01..04** — Substitution at any stoppage via roster-screen drag-and-drop, regardless of other toggles; number/slot inheritance; whole-match 3-sub cap that never resets at half-time; +1 added-time minute per sub; red-carded players unreplaceable; subbed-out players permanently unavailable with a clear indicator; 4 independent game-creation toggles (Fouls/Booking/Injury/Out-of-Bounds) — Phases 39-40
 
-### Deferred (carried forward from v1.4 — not scheduled for v1.5 or v1.6, still open)
+### Deferred (carried forward from v1.4 — not scheduled for v1.5, v1.6, or v1.7, still open)
 
-- [ ] **RESP-01..09** — Response-move (header/deflect/final-third/dive/keeper-ball-in-box) single-selection activation model with eligibility gating, range-hex highlighting, and auto-skip. Not delivered in v1.4 despite being half of that milestone's stated goal; explicitly deferred again during both v1.5 and v1.6 scoping — see `.planning/v1.4-MILESTONE-AUDIT.md`. Top candidate for whatever comes after v1.6.
+- [ ] **RESP-01..09** — Response-move (header/deflect/final-third/dive/keeper-ball-in-box) single-selection activation model with eligibility gating, range-hex highlighting, and auto-skip. Not delivered in v1.4 despite being half of that milestone's stated goal; explicitly deferred again during v1.5, v1.6, and v1.7 scoping — see `.planning/v1.4-MILESTONE-AUDIT.md`. Now deferred across four consecutive milestones; top candidate for whatever comes after v1.7.
 
 ### Deferred (raised during v1.6 scoping)
 
@@ -198,12 +213,13 @@ All v1.2 requirements are archived in [.planning/milestones/v1.2-REQUIREMENTS.md
 
 ### Deferred (v2 candidates)
 
-- [ ] Game-stats overlay — possession, tackles, shots, goals, xG, interceptions, saves (raised during v1.5 scoping as priority #5, carried forward again at v1.6 close)
 - [ ] Reconnection grace period (server holds room state for disconnected player) — note: a related bug exists today (`createServer.ts` misplaced `return`) that leaves some reconnecting sockets with no handlers at all; see Context
 - [ ] Rematch flow
 - [ ] Chat
 - [ ] Draft history/replay (DRAFT-12), async draft mode (DRAFT-13)
 - [ ] Substitution roster limit beyond 3 — no Extra Time/overtime period exists in this implementation for the rulebook's +1-sub allowance to attach to (confirmed out of scope for v1.6, see `.planning/milestones/v1.6-REQUIREMENTS.md`)
+
+**Note:** the game-stats overlay item previously listed here (possession, tackles, shots, xG, etc.) is now in scope for v1.7's Game Summary popup — see Current Milestone above.
 
 ### Out of Scope
 
@@ -295,4 +311,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-08-17 after v1.6 milestone close_
+_Last updated: 2026-08-21 after v1.7 milestone started_
