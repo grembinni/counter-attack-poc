@@ -98,3 +98,13 @@ None - no external service configuration required.
 
 _Phase: 41-card-injury-iconography_
 _Completed: 2026-08-21_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/LineupAssignmentScreen.tsx
+- FOUND: packages/client/src/components/LineupAssignmentScreen.module.css
+- FOUND: packages/client/src/components/LineupAssignmentScreen.test.tsx
+- FOUND: .planning/phases/41-card-injury-iconography/41-04-SUMMARY.md
+- FOUND commit: bcd4beb (Task 1)
+- FOUND commit: 901c761 (Task 2)
+- FOUND commit: 847ff41 (plan metadata)
