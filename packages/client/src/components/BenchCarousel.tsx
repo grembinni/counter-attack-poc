@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TeamId, TieredPoolPlayer } from '@counter-attack/shared';
 import { DraftCardBody } from './DraftPackCarousel.js';
+import type { BenchCardStatus } from './CardInjuryBadge.js';
 import styles from './LineupAssignmentScreen.module.css';
 
 type BenchCarouselProps = {
@@ -37,6 +38,12 @@ type BenchCarouselProps = {
    * "RED CARD" badge (takes precedence over unavailablePlayerIds), dimmed, and
    * non-draggable. Undefined in every pre-match (draft) call site. */
   redCardedPlayerIds?: readonly string[];
+  /** Phase 41 (ICON-03): `benchCardStatus` is per-card disciplinary/fitness glyph state,
+   * keyed by PLAYER_POOL card id (the same key space as `unavailablePlayerIds`/
+   * `redCardedPlayerIds`/`benchNumbers`). Undefined in every pre-match (draft) call
+   * site — pre-match bench cards have no card/injury state and render no glyph,
+   * exactly as before. */
+  benchCardStatus?: Readonly<Record<string, BenchCardStatus>>;
   /** Checkpoint gap-closure (40-07 Task 2 human-verify feedback): true when the
    * whole bench is view-only (mid-match panel opened outside a stoppage) — every
    * card becomes non-draggable regardless of unavailable/redCarded state, and a
@@ -60,6 +67,7 @@ export function BenchCarousel({
   benchNumbers,
   unavailablePlayerIds,
   redCardedPlayerIds,
+  benchCardStatus,
   disabled,
   onCardDragStart,
   onDropToBench,
@@ -172,6 +180,7 @@ export function BenchCarousel({
         <div className={styles.carouselTrack} ref={trackRef} onScroll={updateScrollState}>
           {cards.map((card, benchIndex) => {
             const jerseyNumber = benchNumbers?.[card.id];
+            const status = benchCardStatus?.[card.id];
             return (
               <DraftCardBody
                 key={card.id}
@@ -181,6 +190,8 @@ export function BenchCarousel({
                 draggable={disabled !== true}
                 unavailable={unavailablePlayerIds?.includes(card.id) ?? false}
                 redCarded={redCardedPlayerIds?.includes(card.id) ?? false}
+                cardColor={status?.cardColor ?? null}
+                injuryCount={status?.injuryCount ?? 0}
                 onDragStart={(e) => handleDragStart(e, benchIndex, card.id)}
               />
             );
