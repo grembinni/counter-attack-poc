@@ -9,6 +9,7 @@
 - ✅ **v1.4 Response Polish + Draft Mode** — Phases 26–30 (shipped 2026-07-22, with 1 known gap — RESP-01..09 deferred; see [audit](milestones/v1.4-MILESTONE-AUDIT.md))
 - ✅ **v1.5 UX Refresh & Code Cleanup** — Phases 31–36 (shipped 2026-08-03; see [audit](milestones/v1.5-MILESTONE-AUDIT.md))
 - ✅ **v1.6 Fouls, Cards & Restarts** — Phases 37–40 (shipped 2026-08-17; see [audit](milestones/v1.6-MILESTONE-AUDIT.md))
+- 🚧 **v1.7 UI Consistency, Substitution Rework & Match Summary** — Phases 41–46 (in progress)
 
 ## Phases
 
@@ -136,55 +137,167 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 
 ---
 
+### 🚧 v1.7 UI Consistency, Substitution Rework & Match Summary (Phases 41–46) — IN PROGRESS
+
+**Milestone Goal:** Polish and unify the UI (card/injury iconography, advanced toggle drawer), rework the substitution flow around a default player-positioning roster screen, add referee-leniency and tackle/steal-decline toggles, build an on-demand match summary popup with soccer-style stats/xG, and close out a final consistency/dead-code cleanup pass.
+
+**Phase Order Rationale:** Card & Injury Iconography ships first as a small, self-contained shared-component extraction with no engine risk — and because Substitution UX's new bench red-card marker needs a real shared badge to render, rather than a fourth throwaway implementation. Substitution UX Overhaul follows immediately: it is the largest and highest-regression-risk phase in the milestone (a second interaction mode layered onto an already-tested roster screen), so it benefits from landing on a clean iconography base, and it absorbs BUG-38's red-card field-removal fix as prerequisite engine work within the same phase rather than as a separate phase — REQUIREMENTS.md already scopes the bug fix under this feature, and fixing the engine before building new positioning/substitution UI against it avoids testing atop a known-broken foundation. Tackle/Steal Prompt & Decline ships third as a fully independent new engine state machine (its own phase/panel/toggle) with no file overlap with the first two phases. Referee Leniency and Advanced Settings Drawer are combined into one phase and sequenced fourth, after Tackle/Steal, because the Advanced drawer must lay out the final settings-toggle count — the 4 existing match-rule toggles plus the new Referee Leniency and Tackle/Steal Decline toggles — so building it after both toggle-adding features avoids reworking the two-column layout twice. Game Summary Popup ships fifth because its stats (substitutions used, tackle/steal success, referee Leniency recap) are read from state the four preceding phases produce. Final Cleanup ships last as a whole-milestone audit and consolidation pass that depends on every other phase's surfaces (card layout, restart flows, movement patterns) already existing in order to unify them.
+
+| Phase | Name                                        | Plans | Status      |
+| ----- | ------------------------------------------- | ----- | ----------- |
+| 41    | Card & Injury Iconography                   | TBD   | Not started |
+| 42    | Substitution UX Overhaul                    | TBD   | Not started |
+| 43    | Tackle/Steal Prompt & Decline               | TBD   | Not started |
+| 44    | Referee Leniency & Advanced Settings Drawer | TBD   | Not started |
+| 45    | Game Summary Popup                          | TBD   | Not started |
+| 46    | Final Cleanup                               | TBD   | Not started |
+
+### Phase 41: Card & Injury Iconography
+
+**Goal**: Card and injury status render through one shared badge component, in the same position, across every player-showing surface — including the bench, which previously showed neither.
+**Depends on**: Phase 40 (last phase of v1.6) — first phase of v1.7
+**Requirements**: ICON-01, ICON-02, ICON-03
+**Success Criteria** (what must be TRUE):
+
+1. Player card, pitch card, roster card, and bench card all render card/injury status through one shared badge component, with identical iconography and identical relative position (between name and flag, or immediately after flag) on every surface.
+2. A bench player who has been booked or injured now shows that status on the bench, which it never did before.
+3. A booking or injury applied mid-match updates all four surfaces consistently, with no surface left showing a stale or missing icon.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 42: Substitution UX Overhaul
+
+**Goal**: The mid-match roster screen defaults to a drag-and-drop player-positioning mode, substitutions are staged through an explicit action-and-confirm flow capped at 3 per team, and a red-carded player is removed from every gameplay computation, not just the pitch, roster, and bench display.
+**Depends on**: Phase 41 (bench red-card marker consumes the shared iconography component)
+**Requirements**: SUB-08, SUB-09, SUB-10, SUB-11, SUB-12, SUB-13, SUB-14, SUB-15, SUB-16, SUB-17, SUB-18, BUG-38
+**Success Criteria** (what must be TRUE):
+
+1. On the mid-match roster screen, a manager can drag an on-field player onto another on-field player to swap formation positions, but only when no other action is selected/pending, and bench players are never draggable or selectable in this mode.
+2. Clicking the substitution action button (disabled once a team has used all 3 substitutions) enters substitution mode, replacing the button with Cancel; dragging a field or bench player onto a target stages exactly one swap and shows a confirmation popup naming the player coming off and the player coming on before it applies.
+3. Confirming the popup applies the substitution and returns to positioning mode; cancelling it stays in substitution mode with the pending selection reset; a green Resume button replaces the old small close control, and the side banner's background (not just its text) turns green while that team's roster screen is editable.
+4. A red-carded player appears on the bench as a red-card marker — their formation slot can still be repositioned, but they are never rendered on the pitch and can never be a substitution target.
+5. A red-carded player's vacated pitch hex no longer blocks movement, occupancy, targeting, Zone-of-Influence, or deflection eligibility anywhere in the game — including the previously confirmed live defects in `DEFLECT_ATTEMPT` defender-input building and the ZoI opponent list.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 43: Tackle/Steal Prompt & Decline
+
+**Goal**: A defending manager can decline a tackle/steal attempt before it resolves, without losing the chance to attempt again later in the same movement phase.
+**Depends on**: Nothing new (independent of Phases 41–42; sequenced third to land before the settings-drawer phase that needs its toggle)
+**Requirements**: TACKLE-01, TACKLE-02, TACKLE-03, TACKLE-04
+**Success Criteria** (what must be TRUE):
+
+1. With the toggle on (default), a defending manager sees a decline prompt before a tackle/steal attempt resolves and can decline it without the attempt counting against them.
+2. A declined opportunity's risk ring stays active, so the same defender can be prompted again on a later move step, until the ball carrier moves out of range or the movement phase ends.
+3. With the toggle off, tackle/steal duels resolve immediately with no decline prompt, exactly as they did before this milestone.
+
+**Plans**: TBD
+
+### Phase 44: Referee Leniency & Advanced Settings Drawer
+
+**Goal**: At game creation, all match-rule toggles — the four existing plus a new Referee Leniency override — live in a collapsed-by-default Advanced section on the settings screen, laid out in a two-column layout instead of a single vertical stack.
+**Depends on**: Phase 43 (the Advanced drawer must lay out the final toggle set, including the Tackle/Steal Decline toggle Phase 43 adds)
+**Requirements**: REFEREE-01, REFEREE-02, REFEREE-03, REFEREE-04, SETTINGS-05, SETTINGS-06, SETTINGS-07
+**Success Criteria** (what must be TRUE):
+
+1. At game creation, the host can enable a manual Referee Leniency override (default off); when enabled, the host sets a value 2–5 via an up/down stepper defaulting to a mid value, and that value drives both the booking threshold and the added-time calculation, with UI copy noting the coupling.
+2. When the override is left off, Leniency is randomly assigned 1–6 at match start exactly as before.
+3. All match-rule toggles — Fouls, Booking, Injury, Out-of-Bounds, Referee Leniency, and Tackle/Steal Decline — live under a collapsed-by-default Advanced section on the settings screen, laid out in a two-column layout instead of a single vertical stack.
+4. Booking and Injury still visibly grey out whenever Fouls is off, inside the new layout, whether checked at render time or at confirm time, driven by one shared derivation.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 45: Game Summary Popup
+
+**Goal**: An (i) icon on the scoreboard opens a match-summary modal at any point in the match, showing a settings/toggle recap and live soccer-style stats (possession, passes, tackle/steal success, shots, xG, fouls, cards) per team, in addition to the existing half-time/full-time recap screen.
+**Depends on**: Phase 42, Phase 43, Phase 44 (reads substitution-cap, tackle/steal-success, and referee-Leniency state those phases produce)
+**Requirements**: STATS-01, STATS-02, STATS-03, STATS-04, STATS-05, STATS-06, STATS-07, STATS-08, STATS-09
+**Success Criteria** (what must be TRUE):
+
+1. Clicking an (i) icon on the scoreboard opens a match-summary modal at any point during the match, and the modal remains reachable at half-time and full-time in addition to the existing recap screen.
+2. The modal shows a settings/toggle recap (including referee Leniency) plus, per team: possession as a percentage of elapsed minutes, total completed passes, successful tackles+steals with success percentage, total shots, fouls, yellow cards, and red cards.
+3. The modal shows accumulated xG per team, computed from the specified formula (defenders in the goal box, defenders in the penalty box, shot-hex distance from goal center) and captured across every shot-resolution type — standard shot, snapshot/deflection, headed shot, penalty, and GK-dive-at-feet penalty.
+4. All match-summary stats reflect the true whole-match total and are never reset at half-time, mirroring the existing subsUsed persistence pattern.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 46: Final Cleanup
+
+**Goal**: A milestone-closing audit closes gameplay consistency gaps, clarifies phase help text, consolidates duplicate movement and restart-selection logic, aligns pitch/roster/bench card layout, collapses redundant single-action steps, and removes dead code accumulated across the milestone.
+**Depends on**: Phases 41–45 (audits and consolidates the whole milestone's new surfaces plus pre-existing debt)
+**Requirements**: CLEANUP-05, CLEANUP-06, CLEANUP-07, CLEANUP-08, CLEANUP-09, CLEANUP-10, CLEANUP-11, CLEANUP-12, CLEANUP-13
+**Success Criteria** (what must be TRUE):
+
+1. A gameplay consistency audit closes identified functional gaps, and the dead ball's hex is highlighted consistently across every phase where players are being selected or moved with the ball dead.
+2. Every step of a multi-step phase has help/info text describing it, and response-move trigger language names what triggered the move (e.g., a final-third movement).
+3. Duplicate movement-pattern logic is consolidated, and kicker/thrower selection interaction is aligned across every restart type.
+4. Pitch card, roster card, and bench card layout are visually aligned, and any redundant multi-step flow that only ever takes one action is collapsed to a single step.
+5. Dead code identified during the milestone is removed, and the full monorepo build/typecheck/test suite stays green.
+
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
 ## Progress
 
-| Phase                                   | Milestone | Plans Complete | Status   | Completed  |
-| --------------------------------------- | --------- | -------------- | -------- | ---------- |
-| 1. Monorepo Scaffold                    | v1.0      | 3/3            | Complete | 2026-05-28 |
-| 2. Move Validator                       | v1.0      | 4/4            | Complete | 2026-05-29 |
-| 3. Server Room Manager                  | v1.0      | 3/3            | Complete | 2026-05-29 |
-| 4. Game Engine + FSM                    | v1.0      | 3/3            | Complete | 2026-05-30 |
-| 5. Dice Resolver                        | v1.0      | 4/4            | Complete | 2026-05-30 |
-| 6. React Hex Grid                       | v1.0      | 3/3            | Complete | 2026-05-31 |
-| 7. Client-Server Integration            | v1.0      | 4/4            | Complete | 2026-06-03 |
-| 7.1. UI Cleanup                         | v1.0      | 3/3            | Complete | 2026-06-04 |
-| 8. Match Lifecycle                      | v1.0      | 8/8            | Complete | 2026-06-05 |
-| 8.1. Cleanup                            | v1.0      | 3/3            | Complete | 2026-06-05 |
-| 8.2. Passing Cleanup                    | v1.0      | 6/6            | Complete | 2026-06-07 |
-| 9. Render Deployment                    | v1.0      | 2/2            | Complete | 2026-06-08 |
-| 10. Remaining Flows                     | v1.0      | 5/5            | Complete | 2026-06-11 |
-| 11. Rule Correctness                    | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 12. Visual Token & Hex Layer            | v1.1      | 4/4            | Complete | 2026-06-12 |
-| 13. Layout & Clock                      | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 14. Kick Off Rules & Replay             | v1.1      | 3/3            | Complete | 2026-06-12 |
-| 15. Team Identity                       | v1.2      | 3/3            | Complete | 2026-06-13 |
-| 16. Player Roster & Selection           | v1.2      | 4/4            | Complete | 2026-06-14 |
-| 17. Rule Bugs                           | v1.2      | 6/6            | Complete | 2026-06-21 |
-| 17.1. Action Flow Cleanup               | v1.2      | 16/16          | Complete | 2026-06-20 |
-| 18. Messaging & Logging Cons.           | v1.2      | 3/3            | Complete | 2026-07-02 |
-| 18.1. Replay Review                     | v1.2      | 2/2            | Complete | 2026-06-21 |
-| 18.2. Code Cleanup & Dup-Bugs           | v1.2      | 6/6            | Complete | 2026-06-22 |
-| 18.3. Bug-Bash (Rule Correct.)          | v1.2      | 5/5            | Complete | 2026-07-02 |
-| 18.4. UX Enhancements                   | v1.2      | 7/7            | Complete | 2026-07-02 |
-| 19. Data Model & Team Palette           | v1.3      | 3/3            | Complete | 2026-07-03 |
-| 20. Uniform Style System                | v1.3      | 3/3            | Complete | 2026-07-04 |
-| 21. New Teams (MLS + Intl)              | v1.3      | 2/2            | Complete | 2026-07-04 |
-| 22. Uniform Selection Screen            | v1.3      | 3/3            | Complete | 2026-07-05 |
-| 23. Formation System                    | v1.3      | 3/3            | Complete | 2026-07-05 |
-| 24. Auto-Assignment & Lineup            | v1.3      | 4/4            | Complete | 2026-07-10 |
-| 25. Bug & UAT Closure                   | v1.3      | 9/9            | Complete | 2026-07-11 |
-| 26. Bug Fixes                           | v1.4      | 3/3            | Complete | 2026-07-12 |
-| 27. Game Creation Settings              | v1.4      | 5/5            | Complete | 2026-07-21 |
-| 28. Draft Data Model                    | v1.4      | 4/4            | Complete | 2026-07-21 |
-| 29. Draft UI + Pick-and-Swap            | v1.4      | 12/12          | Complete | 2026-07-22 |
-| 30. Recalibrate Draft                   | v1.4      | 6/6            | Complete | 2026-07-22 |
-| 31. Bug Fixes                           | v1.5      | 6/6            | Complete | 2026-07-24 |
-| 32. Code Cleanup                        | v1.5      | 6/6            | Complete | 2026-07-25 |
-| 33. Design Tokens & Highlight           | v1.5      | 7/7            | Complete | 2026-07-26 |
-| 34. Visual Theme Restyle                | v1.5      | 5/5            | Complete | 2026-07-27 |
-| 35. ActionPanel & Log Standard.         | v1.5      | 6/6            | Complete | 2026-07-27 |
-| 36. Bug Fixes                           | v1.5      | 5/5            | Complete | 2026-08-02 |
-| 37. OOB Detection, Throw-In & Goal Kick | v1.6      | 19/19          | Complete | 2026-08-07 |
-| 38. Corner Kick                         | v1.6      | 33/33          | Complete | 2026-08-09 |
-| 39. Fouls, Cards & Penalty Kicks        | v1.6      | 24/24          | Complete | 2026-08-15 |
-| 40. Substitutions                       | v1.6      | 7/7            | Complete | 2026-08-17 |
+| Phase                                    | Milestone | Plans Complete | Status      | Completed  |
+| ---------------------------------------- | --------- | -------------- | ----------- | ---------- |
+| 1. Monorepo Scaffold                     | v1.0      | 3/3            | Complete    | 2026-05-28 |
+| 2. Move Validator                        | v1.0      | 4/4            | Complete    | 2026-05-29 |
+| 3. Server Room Manager                   | v1.0      | 3/3            | Complete    | 2026-05-29 |
+| 4. Game Engine + FSM                     | v1.0      | 3/3            | Complete    | 2026-05-30 |
+| 5. Dice Resolver                         | v1.0      | 4/4            | Complete    | 2026-05-30 |
+| 6. React Hex Grid                        | v1.0      | 3/3            | Complete    | 2026-05-31 |
+| 7. Client-Server Integration             | v1.0      | 4/4            | Complete    | 2026-06-03 |
+| 7.1. UI Cleanup                          | v1.0      | 3/3            | Complete    | 2026-06-04 |
+| 8. Match Lifecycle                       | v1.0      | 8/8            | Complete    | 2026-06-05 |
+| 8.1. Cleanup                             | v1.0      | 3/3            | Complete    | 2026-06-05 |
+| 8.2. Passing Cleanup                     | v1.0      | 6/6            | Complete    | 2026-06-07 |
+| 9. Render Deployment                     | v1.0      | 2/2            | Complete    | 2026-06-08 |
+| 10. Remaining Flows                      | v1.0      | 5/5            | Complete    | 2026-06-11 |
+| 11. Rule Correctness                     | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 12. Visual Token & Hex Layer             | v1.1      | 4/4            | Complete    | 2026-06-12 |
+| 13. Layout & Clock                       | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 14. Kick Off Rules & Replay              | v1.1      | 3/3            | Complete    | 2026-06-12 |
+| 15. Team Identity                        | v1.2      | 3/3            | Complete    | 2026-06-13 |
+| 16. Player Roster & Selection            | v1.2      | 4/4            | Complete    | 2026-06-14 |
+| 17. Rule Bugs                            | v1.2      | 6/6            | Complete    | 2026-06-21 |
+| 17.1. Action Flow Cleanup                | v1.2      | 16/16          | Complete    | 2026-06-20 |
+| 18. Messaging & Logging Cons.            | v1.2      | 3/3            | Complete    | 2026-07-02 |
+| 18.1. Replay Review                      | v1.2      | 2/2            | Complete    | 2026-06-21 |
+| 18.2. Code Cleanup & Dup-Bugs            | v1.2      | 6/6            | Complete    | 2026-06-22 |
+| 18.3. Bug-Bash (Rule Correct.)           | v1.2      | 5/5            | Complete    | 2026-07-02 |
+| 18.4. UX Enhancements                    | v1.2      | 7/7            | Complete    | 2026-07-02 |
+| 19. Data Model & Team Palette            | v1.3      | 3/3            | Complete    | 2026-07-03 |
+| 20. Uniform Style System                 | v1.3      | 3/3            | Complete    | 2026-07-04 |
+| 21. New Teams (MLS + Intl)               | v1.3      | 2/2            | Complete    | 2026-07-04 |
+| 22. Uniform Selection Screen             | v1.3      | 3/3            | Complete    | 2026-07-05 |
+| 23. Formation System                     | v1.3      | 3/3            | Complete    | 2026-07-05 |
+| 24. Auto-Assignment & Lineup             | v1.3      | 4/4            | Complete    | 2026-07-10 |
+| 25. Bug & UAT Closure                    | v1.3      | 9/9            | Complete    | 2026-07-11 |
+| 26. Bug Fixes                            | v1.4      | 3/3            | Complete    | 2026-07-12 |
+| 27. Game Creation Settings               | v1.4      | 5/5            | Complete    | 2026-07-21 |
+| 28. Draft Data Model                     | v1.4      | 4/4            | Complete    | 2026-07-21 |
+| 29. Draft UI + Pick-and-Swap             | v1.4      | 12/12          | Complete    | 2026-07-22 |
+| 30. Recalibrate Draft                    | v1.4      | 6/6            | Complete    | 2026-07-22 |
+| 31. Bug Fixes                            | v1.5      | 6/6            | Complete    | 2026-07-24 |
+| 32. Code Cleanup                         | v1.5      | 6/6            | Complete    | 2026-07-25 |
+| 33. Design Tokens & Highlight            | v1.5      | 7/7            | Complete    | 2026-07-26 |
+| 34. Visual Theme Restyle                 | v1.5      | 5/5            | Complete    | 2026-07-27 |
+| 35. ActionPanel & Log Standard.          | v1.5      | 6/6            | Complete    | 2026-07-27 |
+| 36. Bug Fixes                            | v1.5      | 5/5            | Complete    | 2026-08-02 |
+| 37. OOB Detection, Throw-In & Goal Kick  | v1.6      | 19/19          | Complete    | 2026-08-07 |
+| 38. Corner Kick                          | v1.6      | 33/33          | Complete    | 2026-08-09 |
+| 39. Fouls, Cards & Penalty Kicks         | v1.6      | 24/24          | Complete    | 2026-08-15 |
+| 40. Substitutions                        | v1.6      | 7/7            | Complete    | 2026-08-17 |
+| 41. Card & Injury Iconography            | v1.7      | 0/TBD          | Not started | -          |
+| 42. Substitution UX Overhaul             | v1.7      | 0/TBD          | Not started | -          |
+| 43. Tackle/Steal Prompt & Decline        | v1.7      | 0/TBD          | Not started | -          |
+| 44. Referee Leniency & Advanced Settings | v1.7      | 0/TBD          | Not started | -          |
+| 45. Game Summary Popup                   | v1.7      | 0/TBD          | Not started | -          |
+| 46. Final Cleanup                        | v1.7      | 0/TBD          | Not started | -          |

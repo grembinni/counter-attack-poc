@@ -102,24 +102,24 @@ Explicitly excluded. Documented to prevent scope creep.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement     | Phase | Status  |
-| --------------- | ----- | ------- |
-| BUG-38          | TBD   | Pending |
-| ICON-01..03     | TBD   | Pending |
-| REFEREE-01..04  | TBD   | Pending |
-| TACKLE-01..04   | TBD   | Pending |
-| SUB-08..18      | TBD   | Pending |
-| SETTINGS-05..07 | TBD   | Pending |
-| STATS-01..09    | TBD   | Pending |
-| CLEANUP-05..13  | TBD   | Pending |
+| Requirement     | Phase    | Status  |
+| --------------- | -------- | ------- |
+| ICON-01..03     | Phase 41 | Pending |
+| SUB-08..18      | Phase 42 | Pending |
+| BUG-38          | Phase 42 | Pending |
+| TACKLE-01..04   | Phase 43 | Pending |
+| REFEREE-01..04  | Phase 44 | Pending |
+| SETTINGS-05..07 | Phase 44 | Pending |
+| STATS-01..09    | Phase 45 | Pending |
+| CLEANUP-05..13  | Phase 46 | Pending |
 
 **Coverage:**
 
-- v1.7 requirements: 39 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 39 ⚠️ (expected — roadmap not yet created)
+- v1.7 requirements: 44 total (REFEREE 4, ICON 3, SETTINGS 3, SUB 11, BUG-38 1, TACKLE 4, STATS 9, CLEANUP 9 — corrects the initial 39-count estimate made before every category was fully itemized)
+- Mapped to phases: 44/44
+- Unmapped: 0 — no orphans
 
 ---
 
 _Requirements defined: 2026-08-21_
-_Last updated: 2026-08-21 after initial v1.7 definition_
+_Last updated: 2026-08-21 after v1.7 roadmap creation (Phases 41–46, 44/44 requirements mapped, no orphans)_

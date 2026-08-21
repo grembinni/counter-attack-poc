@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: planning
-last_updated: '2026-08-21T11:21:42.317Z'
+last_updated: '2026-08-21T00:00:00.000Z'
 last_activity: 2026-08-21
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-08-21 — Milestone v1.7 started
+Phase: 41 — Card & Injury Iconography (1st of 6 phases in v1.7; project-wide phase numbering continues from Phase 40)
+Plan: — (not yet planned)
+Status: Roadmap created; ready to plan Phase 41
+Last activity: 2026-08-21 — v1.7 ROADMAP.md created (Phases 41–46, 44/44 requirements mapped, no orphans)
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
+See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 40 — substitutions
+**Current focus:** Phase 41 — Card & Injury Iconography
 
 ## Phase Status
 
@@ -78,20 +78,27 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 | 35    | ActionPanel & Log Standardization             | Complete    | 2026-07-27 |
 | 36    | Bug Fixes                                     | Complete    | 2026-08-02 |
 | 37    | Out-of-Bounds Detection, Throw-In & Goal Kick | Complete    | 2026-08-04 |
-| 38    | Corner Kick                                   | Gaps Found  | -          |
+| 38    | Corner Kick                                   | Complete    | 2026-08-09 |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks        | Complete    | 2026-08-15 |
-| 40    | Substitutions                                 | Not started | -          |
+| 40    | Substitutions                                 | Complete    | 2026-08-17 |
+| 41    | Card & Injury Iconography                     | Not started | -          |
+| 42    | Substitution UX Overhaul                      | Not started | -          |
+| 43    | Tackle/Steal Prompt & Decline                 | Not started | -          |
+| 44    | Referee Leniency & Advanced Settings Drawer   | Not started | -          |
+| 45    | Game Summary Popup                            | Not started | -          |
+| 46    | Final Cleanup                                 | Not started | -          |
 
 ## Blocking Dependencies
 
 - **Board layout (RESOLVED in Phase 6 plan):** Real 37×26 grid (q∈[0,36], r∈[0,25]) with exact region boundaries defined in Phase 6 CONTEXT.md D-04/D-05. Difficult-angle hexes approximated; TODO: verify against docs/board-photo.jpg when available (D-06).
 - **Hex orientation (RESOLVED in Phase 6 plan):** Flat-top confirmed (CONTEXT.md D-01). axialToPixel formula locked.
 - **Team squad attributes:** Full 9-attribute sets for both hardcoded squads not yet defined. Must be finalised before Phase 5 dice resolution uses attribute values.
-- **Referee card behaviour:** Whether Leniency affects anything beyond added time is unconfirmed from rulebook v1.4.1. Hardcode one card for v1; clarify before Phase 8.
+- **Referee card behaviour:** Whether Leniency affects anything beyond added time is unconfirmed from rulebook v1.4.1. Hardcode one card for v1; clarify before Phase 8. Now directly relevant again in v1.7 Phase 44 (REFEREE-04 keeps Leniency's booking/added-time coupling explicit).
 - **Pass range distance type:** Resolved in Phase 2 — implemented as axial hex distance (hexDistance). Physical rulebook verification pending before Phase 5 live use.
 - **ZoI scope:** Resolved in Phase 2 — ZoI triggers a STEAL_ATTEMPT for movement (moveValidator) and produces an interceptors list for passes (passValidator). Physical rulebook verification pending before Phase 5 live use.
 - **Formation hex coordinates (v1.3):** Exact hex positions for 5-3-2, 4-3-3, 3-4-3 formations to be authored during Phase 23 with reference to the physical board. 4-4-2 positions are already established from the existing hardcoded layout.
 - **v1.6 rulebook ambiguities (flagged by research, must confirm before/during Phase 39 implementation):** which die triggers a foul (defender's die assumed); Professional Foul red-vs-yellow phrasing (whether it's always-straight-red or a modified red-vs-yellow roll); "nutmeg" mapping to the existing STEAL_ATTEMPT mechanic (assumed, not a third duel type) — see `.planning/research/FEATURES.md` for full detail and recommended defaults.
+- **v1.7 xG formula inputs (Phase 45):** STATS-08 specifies defenders-in-goal-box, defenders-in-penalty-box, and shot-hex X/Y distance from goal center as formula inputs; the exact weighting formula itself needs to be pinned down during Phase 45 planning (research flagged xG capture as spanning 4+ independently-coded shot-resolution branches with no shared hook).
 
 ## Accumulated Context
 
@@ -104,7 +111,9 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - v1.5 Phases 31–35 added 2026-07-22 (Bug Fixes → Code Cleanup → Design Tokens & Highlight Standardization → Visual Theme Restyle → ActionPanel & Log Standardization); 20/20 v1.5 requirements mapped, no orphans
 - Phase 36 added 2026-07-27: Bug Fixes (Game Settings button restore, duplicate draft players, draft pool restriction verify, blocked-shot loose-ball path origin, undo-past-dice-roll); expanded v1.5 to 25/25 requirements mapped
 - v1.5 shipped 2026-08-03 (Phases 31–36, 35 plans, 25/25 requirements) — see `.planning/milestones/v1.5-ROADMAP.md`
-- v1.6 Phases 37–40 added 2026-08-03 (Out-of-Bounds Detection/Throw-In/Goal Kick → Corner Kick → Fouls/Cards/Injuries/Penalty Kicks → Substitutions); 55/55 v1.6 requirements mapped, no orphans — see `.planning/ROADMAP.md`
+- v1.6 Phases 37–40 added 2026-08-03 (Out-of-Bounds Detection/Throw-In/Goal Kick → Corner Kick → Fouls/Cards/Injuries/Penalty Kicks → Substitutions); 55/55 v1.6 requirements mapped, no orphans — see `.planning/milestones/v1.6-ROADMAP.md`
+- v1.6 shipped 2026-08-17 (Phases 37–40, 83 plans, 206 tasks, 55/55 requirements) — see `.planning/milestones/v1.6-ROADMAP.md`
+- v1.7 Phases 41–46 added 2026-08-21 (Card & Injury Iconography → Substitution UX Overhaul incl. BUG-38 → Tackle/Steal Prompt & Decline → Referee Leniency & Advanced Settings Drawer → Game Summary Popup → Final Cleanup); 44/44 v1.7 requirements mapped, no orphans — BUG-38 deliberately bundled into the Substitution UX Overhaul phase rather than given its own phase, since REQUIREMENTS.md scopes it as a sub-item of that category and standard granularity (4–6 phases) disfavors a standalone single-item phase — see `.planning/ROADMAP.md`
 
 ### Decisions Locked
 
@@ -131,12 +140,18 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - ODD-Q offset arithmetic used for both hex neighbour calculation (highlight reachability) and 3-colour formula — axial arithmetic is wrong for visual adjacency in ODD-Q layout
 - LobbyScreen uses MOCK42 placeholder room code — real server-generated code wired in Phase 7
 - v1.6: generalize FREE_KICK_SETUP's staged-repositioning mechanism (stage-index pattern) into a reusable `RestartSetupState`/`RESTART_STAGES` module rather than copy-pasting free-kick-specific fields three more times for Goal Kick/Corner Kick/Throw-In (research ARCHITECTURE.md Q1)
-- v1.6: Goal Kick reuses the existing `GK_RESTART`→`GK_KICK_TARGET`→`GK_KICK_MOVE` chain via a new out-of-bounds trigger — NOT a new staged phase (research ARCHITECTURE.md, biggest scope-reduction finding)
+- v1.6: Goal Kick reuses the existing `GK_RESTART`→`GK_KICK_TARGET`→`GK_KICK_MOVE` chain via a new out-of-bounds trigger — NOT a new staged phase (research ARCHITECTURE.md, biggest scope-reduction finding) — later explicitly overridden by the user during v1.6 requirements definition (see below)
 - v1.6: new `ball.lastTouchedBy: {pieceId, teamId} | null` field on `BallState` is the single source of truth for out-of-bounds classification — not derived retroactively from `eventLog` scans (research ARCHITECTURE.md Q2)
 - v1.6: injury/booking rolls are wired inline into the `TACKLE_ATTEMPT`/`STEAL_ATTEMPT`/`GK_DIVE_AT_FEET` duel-resolution branches (mirrors existing non-phase-transitioning dice sub-resolution pattern) — never inside the restart-setup phases, so "continue play" fouls still always roll injury/booking (research ARCHITECTURE.md Q3)
 - v1.6: substitutions use an independent `GamePhase[]` allow-list (`STOPPAGE_PHASES`/`isStoppagePhase`), mirroring the existing `validUndoPhases` idiom — NOT threaded through `ELIGIBLE_NEXT_ACTIONS` (research ARCHITECTURE.md Q4)
-- v1.6: user explicitly rejected reusing the GK*RESTART chain for Goal Kick during requirements definition despite this being the research recommendation for the \_engine* reuse — GOALKICK-01 requires Goal Kick to read as its own dedicated flow; reconcile this at Phase 37 planning time (do not silently revert to pure reuse without re-confirming the requirement's intent)
+- v1.6: user explicitly rejected reusing the GK_RESTART chain for Goal Kick during requirements definition despite this being the research recommendation for the engine reuse — GOALKICK-01 required Goal Kick to read as its own dedicated flow; delivered as such in Phase 37 (grep-verified non-reuse)
 - v1.6: 4 independent game-creation toggles (Fouls, Booking, Injury, Out-of-Bounds/Restarts) — Injury was split out as its own toggle independent of Booking during requirements definition, differing from research's initial 3-toggle assumption
+- v1.7: `CardInjuryBadge.tsx` is the single shared component backing card/injury display on pitch/player-stats/roster/bench cards, replacing 3 duplicated implementations and adding the bench's first-ever card/injury display (research ARCHITECTURE.md)
+- v1.7: BUG-38's red-card field-removal fix is scoped inside the Substitution UX Overhaul phase (Phase 42), not a standalone phase — REQUIREMENTS.md lists it as a sub-item of that category, and it is prerequisite engine work the phase's own new positioning/substitution UI should be tested against once fixed, not before
+- v1.7: Referee Leniency and Advanced Settings Drawer are combined into one phase (Phase 44) sequenced after Tackle/Steal Prompt & Decline (Phase 43), so the Advanced drawer lays out the final settings-toggle count (4 existing + Referee Leniency + Tackle/Steal Decline) once, not twice
+- v1.7: Tackle/Steal declined state needs its own sibling field with an explicit reset policy — must not overload the existing `stealAttemptedByIds`/`tackleAttemptedByIds` arrays, which reset at ~30 independent call sites with a different semantic (research PITFALLS.md #5)
+- v1.7: Referee Leniency is a dual-consumer field (booking threshold AND added-time bonus) — REFEREE-04 keeps them coupled by explicit decision; an override implementation touching only booking code would silently leave added time on the old random-roll value and must be avoided (research PITFALLS.md #2)
+- v1.7: match-summary stat counters (possession, passes, tackle/steal, fouls/cards) must follow the `subsUsed` never-reset-at-half-time pattern, not the `addedTimeBonus` reset-per-half pattern (research PITFALLS.md #4)
 
 ### Key Pitfalls to Avoid
 
@@ -150,6 +165,10 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - v1.6: do not reuse the generic `DICE_ROLL` event type for new rolls — it reactivates a dormant full-slot Undo lockout that contradicts the always-fires-without-stopping-play requirement; every new roll needs its own specific ActionEventType
 - v1.6: EventBanner only inspects the last new event per broadcast — a single foul resolution can append 3 chained events (foul, injury, booking) in one broadcast; must process all newly-appended events, not just the tail
 - v1.6: out-of-bounds detection touches 5+ independent existing clamp-to-pitch call sites — audit each individually rather than fixing one and assuming the rest follow
+- v1.7: red-carded players still triggering deflections/ZoI steals is a confirmed, currently-live bug at 2+ sites (`DEFLECT_ATTEMPT` defender-input building in `gameHandlers.ts`, ZoI opponent list in `moveValidator.ts`) — the filter has been hand-written ad hoc at each site 3+ times now; extract a shared `isActivePiece` helper while fixing it in Phase 42, and audit for any further sites (BUG-38)
+- v1.7: card/injury iconography is triplicated today (pitch, player-stats, roster cards) and the bench (a 4th surface) has neither — Phase 41's unification is a genuine 4-surface consolidation, not a 3-surface refactor
+- v1.7: Substitution positioning-mode and substitution-mode (Phase 42) share the same tested `LineupAssignmentScreen.tsx` component and drag handlers — highest regression risk in the milestone; keep drop handlers separate and re-run the full SUB-0X test suite as an explicit gate before considering the phase done
+- v1.7: xG capture (Phase 45/STATS-08) must be instrumented at every shot-resolution branch (SHOT, SNAPSHOT_DEFLECT, headed shot, penalty, GK-dive-at-feet penalty) or it will silently under-report — no single shared hook exists today
 
 ### Open Questions (resolve before indicated phase)
 
@@ -160,6 +179,12 @@ See: .planning/PROJECT.md (updated 2026-08-03 after v1.5 milestone close)
 - Phase 39: Which die triggers a foul — defender's die (recommended default) or the combined-score outcome? Confirm against rulebook text before implementation.
 - Phase 39: Professional (Last Man) Foul — is CARD-03 always-straight-red, or a modified roll that can still produce yellow? Confirm verbatim rulebook wording before implementation (flagged as the single most safety-critical booking ambiguity this milestone).
 - Phase 39: Confirm "nutmeg" (FOUL-01) maps to the existing STEAL_ATTEMPT mechanic, not a third new duel type.
+- Phase 42: Enumerate every existing SUB-0X guard before implementation (test-first for the positioning/substitution mode-coexistence boundary) given confirmed regression risk (research ARCHITECTURE.md).
+- Phase 42: Identify the wrapper component owning the substitution-mode banner/Resume-button chrome (green banner, green Resume button) — not identified during research; needs a planning-time look at `App.tsx` or the equivalent wrapper.
+- Phase 42: Check `useGameStore.ts` selection-state fields for the existing is-an-action-pending guard needed to disable positioning-mode drag during an active game action.
+- Phase 43: Fully specify the Tackle/Steal decline state machine — exact GameState field shape, resume-snapshot mechanics, and reset-policy table across ~30 existing reset sites — during Phase 43 planning (research ARCHITECTURE.md Gaps).
+- Phase 45: Identify the scoreboard component that will host the new (i)-icon affordance — not identified during research; needs a planning-time lookup.
+- Phase 45: Pin the exact xG weighting formula (inputs are specified — box/goal-box defender counts, shot-hex distance — but the formula itself needs confirming) and decide live-counter-vs-eventLog-scan architecture for possession/pass-count stats before implementation (research Gaps).
 
 ### Decisions Locked (Phase 11 Plan 02)
 
@@ -266,7 +291,7 @@ Items acknowledged and deferred at v1.6 milestone close on 2026-08-17 (see [.pla
 | tech_debt  | Phase 40 WR-01/WR-02 (cosmetic GK-parity rejection copy, inert missing dragover guard)    | non-blocking, 0 Critical/Blocker per 40-REVIEW.md                                                                                                                                                                                                                                                                        |
 | nyquist    | Phases 38/39/40 VALIDATION.md staleness                                                   | pre-execution planning docs never refreshed post-execution; each phase's own VERIFICATION.md independently confirms comprehensive automated coverage passing — documentation-currency gap, not a coverage gap                                                                                                            |
 
-Known deferred items at close: 8 (see above)
+Known deferred items at close: 8 (see above). Most remain open entering v1.7 (see Pending Todos above); the foul-banner-sequence-not-pausing debug item is still unresolved and not in v1.7 scope.
 
 ## Deferred Items (acknowledged at milestone close 2026-08-03, v1.5)
 
@@ -344,9 +369,10 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-16T04:41:54.992Z
-Stopped at: Phase 40 UI-SPEC approved
-Resume: Run `/gsd-plan-phase 37` to begin planning Phase 37 (Out-of-Bounds Detection, Throw-In & Goal Kick).
+Last session: 2026-08-21T00:00:00.000Z
+Stopped at: v1.7 ROADMAP.md created (Phases 41–46, 44/44 requirements mapped, no orphans); REQUIREMENTS.md traceability updated; STATE.md refreshed for the new milestone.
+Resume file: None
+Resume: Run `/gsd-plan-phase 41` to begin planning Phase 41 (Card & Injury Iconography).
 
 ## Performance Metrics
 
@@ -491,4 +517,4 @@ Resume: Run `/gsd-plan-phase 37` to begin planning Phase 37 (Out-of-Bounds Detec
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 41` to begin planning Phase 41 (Card & Injury Iconography), the first phase of v1.7.
