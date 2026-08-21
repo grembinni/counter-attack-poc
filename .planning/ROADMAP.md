@@ -145,7 +145,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 
 | Phase | Name                                        | Plans | Status      |
 | ----- | ------------------------------------------- | ----- | ----------- |
-| 41    | Card & Injury Iconography                   | TBD   | Not started |
+| 41    | Card & Injury Iconography                   | 0/6   | Planned     |
 | 42    | Substitution UX Overhaul                    | TBD   | Not started |
 | 43    | Tackle/Steal Prompt & Decline               | TBD   | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD   | Not started |
@@ -163,7 +163,17 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 2. A bench player who has been booked or injured now shows that status on the bench, which it never did before.
 3. A booking or injury applied mid-match updates all four surfaces consistently, with no surface left showing a stale or missing icon.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+
+- [ ] 41-01-PLAN.md — Create the shared CardInjuryBadge module (glyph geometry, derivations, both render modes)
+- [ ] 41-02-PLAN.md — Extend BenchEntry with yellowCards/injuryCount and populate both engine construction sites
+- [ ] 41-03-PLAN.md — Migrate the pitch token and the scoreboard player-stats card onto the shared badge
+- [ ] 41-04-PLAN.md — Migrate the roster/lineup card and delete the last card-colour ternary copy
+- [ ] 41-05-PLAN.md — Give the bench card card/injury iconography for the first time
+- [ ] 41-06-PLAN.md — Cross-surface ICON-01 consolidation audit and four-surface consistency spec
+
 **UI hint**: yes
 
 ### Phase 42: Substitution UX Overhaul
