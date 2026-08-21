@@ -3,25 +3,25 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: executing
-stopped_at: Phase 41 UI-SPEC approved
-last_updated: '2026-08-21T16:34:30.995Z'
-last_activity: 2026-08-21 -- Phase 41 execution started
+stopped_at: Phase 41 complete (6/6 plans, verification passed)
+last_updated: '2026-08-21T21:21:25.296Z'
+last_activity: 2026-08-21 — Phase 41 (Card & Injury Iconography) complete, all 6 plans merged and verified
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 0
-  percent: 0
+  completed_plans: 6
+  percent: 17
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 41 (card-injury-iconography) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 41
-Last activity: 2026-08-21 -- Phase 41 execution started
+Phase: 42
+Plan: Not started
+Status: Phase 41 complete; ready to plan Phase 42
+Last activity: 2026-08-21 — Phase 41 (Card & Injury Iconography) complete, all 6 plans merged and verified
 
 ## Project Reference
 
@@ -370,10 +370,10 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-21T13:05:08.506Z
-Stopped at: Phase 41 UI-SPEC approved
-Resume file: .planning/phases/41-card-injury-iconography/41-UI-SPEC.md
-Resume: Run `/gsd-plan-phase 41` to begin planning Phase 41 (Card & Injury Iconography).
+Last session: 2026-08-21T21:21:25.296Z
+Stopped at: Phase 41 complete (6/6 plans, verification passed)
+Resume file: .planning/phases/41-card-injury-iconography/41-VERIFICATION.md
+Resume: Run `/gsd-plan-phase 42` to begin planning Phase 42 (Substitution UX Overhaul).
 
 ## Performance Metrics
 
