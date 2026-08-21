@@ -102,3 +102,14 @@ None - no external service configuration required.
 
 _Phase: 41-card-injury-iconography_
 _Completed: 2026-08-21_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/PieceOverlay.tsx
+- FOUND: packages/client/src/components/PlayerStatsPanel.tsx
+- FOUND: packages/client/src/components/PlayerStatsPanel.module.css
+- FOUND: packages/client/src/components/PlayerStatsPanel.test.tsx
+- FOUND: .planning/phases/41-card-injury-iconography/41-03-SUMMARY.md
+- FOUND commit: a0de3a9 (Task 1)
+- FOUND commit: b24a132 (Task 2)
+- FOUND commit: c182538 (SUMMARY.md)
