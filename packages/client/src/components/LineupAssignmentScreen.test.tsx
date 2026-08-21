@@ -406,6 +406,36 @@ describe('LineupAssignmentScreen — Standard-mode non-regression', () => {
     expect(screen.getByLabelText('Confirm lineup')).toBeDefined();
     expect(screen.getByText('MATCH SETUP: STEP 3 — HOME PLAYER (YOU)')).toBeDefined();
   });
+
+  it('ICON-02: a pregame lineup card renders no badge markup (no card/injury data is passed)', () => {
+    const assignment = [
+      'p001',
+      'p002',
+      'p003',
+      'p004',
+      'p005',
+      'p006',
+      'p007',
+      'p008',
+      'p009',
+      'p010',
+      'p011',
+    ];
+
+    const { container } = render(
+      <LineupAssignmentScreen
+        assignment={assignment}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={NOOP}
+        onConfirm={NOOP}
+        lineupConfirmed={false}
+      />,
+    );
+
+    expect(container.querySelector('[data-testid="card-injury-badge"]')).toBeNull();
+  });
 });
 
 /* ─── Phase 40 (40-03): mid-match substitution mode (SUB-02/03/06/07, D-12/D-13) ──────── */
@@ -718,32 +748,75 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(card!.getAttribute('draggable')).toBe('false');
   });
 
-  it('SUB-02: renders a yellow card chip for an on-pitch piece with yellowCards 1', () => {
+  it('ICON-02: renders a yellow card glyph for an on-pitch piece with yellowCards 1', () => {
     renderMidmatch();
     const card = screen.getByText('Home MidYellow').closest('[class*="statCard"]') as HTMLElement;
-    const chip = within(card).getByTestId('stats-card-chip');
-    expect(chip.getAttribute('data-card')).toBe('yellow');
+    const badge = within(card).getByTestId('piece-card-badge');
+    expect(badge.getAttribute('data-card')).toBe('yellow');
   });
 
-  it('SUB-02: renders a red chip for a redCarded on-pitch piece', () => {
+  it('ICON-02: renders a red card glyph for a redCarded on-pitch piece', () => {
     renderMidmatch();
     const card = screen
       .getByText('Home DefRedCarded')
       .closest('[class*="statCard"]') as HTMLElement;
-    const chip = within(card).getByTestId('stats-card-chip');
-    expect(chip.getAttribute('data-card')).toBe('red');
+    const badge = within(card).getByTestId('piece-card-badge');
+    expect(badge.getAttribute('data-card')).toBe('red');
   });
 
-  it('SUB-02: renders INJ for injuryCount 1 and INJ ×2 for injuryCount 2', () => {
+  it('ICON-02: renders exactly one injury glyph for injuryCount 1 and for injuryCount 2, with the count preserved only in the accessible label', () => {
     renderMidmatch();
     const cardOnce = screen
       .getByText('Home MidInjuredOnce')
       .closest('[class*="statCard"]') as HTMLElement;
-    expect(within(cardOnce).getByTestId('stats-injury-chip').textContent).toBe('INJ');
+    expect(within(cardOnce).getAllByTestId('piece-injury-badge')).toHaveLength(1);
+    expect(within(cardOnce).getByTestId('card-injury-badge').getAttribute('aria-label')).toBe(
+      'Injured',
+    );
+
     const cardTwice = screen
       .getByText('Home FwdInjuredTwice')
       .closest('[class*="statCard"]') as HTMLElement;
-    expect(within(cardTwice).getByTestId('stats-injury-chip').textContent).toBe('INJ ×2');
+    expect(within(cardTwice).getAllByTestId('piece-injury-badge')).toHaveLength(1);
+    expect(within(cardTwice).getByTestId('card-injury-badge').getAttribute('aria-label')).toBe(
+      'Injured ×2',
+    );
+  });
+
+  it('ICON-02/D-02: the roster-card glyph renders immediately after the jersey number', () => {
+    renderMidmatch();
+    const card = screen.getByText('Home MidYellow').closest('[class*="statCard"]') as HTMLElement;
+    const cardNum = card.querySelector('[class*="cardNum"]') as HTMLElement;
+    expect(cardNum.nextElementSibling?.getAttribute('data-testid')).toBe('card-injury-badge');
+  });
+
+  it('ICON-02/D-04: a booked AND injured roster card shows both glyphs side by side', () => {
+    const { container } = renderMidmatch({
+      midmatchPieces: [
+        makePiece({
+          id: 'home-6',
+          playerId: 'p007',
+          role: 'MID',
+          number: 7,
+          firstName: 'Home',
+          lastName: 'MidBookedInjured',
+          yellowCards: 1,
+          injuryCount: 1,
+        }),
+      ],
+    });
+    const card = screen
+      .getByText('Home MidBookedInjured')
+      .closest('[class*="statCard"]') as HTMLElement;
+    const cardBadge = within(card).getByTestId('piece-card-badge');
+    const injuryBadge = within(card).getByTestId('piece-injury-badge');
+    const cardX = Number(cardBadge.getAttribute('x'));
+    const cardWidth = Number(cardBadge.getAttribute('width'));
+    const injuryCrossX = Number(injuryBadge.firstElementChild?.getAttribute('x'));
+    expect(cardX + cardWidth).toBeLessThanOrEqual(injuryCrossX);
+    expect(
+      container.querySelector('[data-testid="card-injury-badge"]')?.getAttribute('aria-label'),
+    ).toBe('Yellow card, Injured');
   });
 
   it('D-12: an empty bench renders the no-substitutes empty state and no bench card, without error', () => {

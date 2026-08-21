@@ -16,8 +16,8 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 ### Card & Injury Iconography
 
-- [ ] **ICON-01**: A single shared card/injury badge component replaces the three independently-implemented treatments (pitch piece overlay, player-stats card, roster/lineup card)
-- [ ] **ICON-02**: Card and injury status render with identical iconography and identical relative position (between name and flag, or immediately after flag) on the player card, pitch card, roster card, and bench card
+- [x] **ICON-01**: A single shared card/injury badge component replaces the three independently-implemented treatments (pitch piece overlay, player-stats card, roster/lineup card)
+- [x] **ICON-02**: Card and injury status render with identical iconography and identical relative position (between name and flag, or immediately after flag) on the player card, pitch card, roster card, and bench card
 - [ ] **ICON-03**: Bench card gains card/injury status display for the first time (previously showed neither)
 
 ### Advanced Settings Drawer

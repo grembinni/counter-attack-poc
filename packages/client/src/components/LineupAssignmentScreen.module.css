@@ -481,7 +481,8 @@
 }
 
 /* D-13: "RED CARD" bench badge — same geometry as .outBadge, red-card colour
-   language matching PlayerStatsPanel.module.css's .cardChip[data-card='red']. */
+   language via `var(--color-card-red)`, the same token the shared
+   CardInjuryBadge uses (Phase 41). */
 .redCardBadge {
   font-size: 9px;
   font-weight: 700;
@@ -500,36 +501,9 @@
   cursor: not-allowed;
 }
 
-/* D-05: card/injury chips on sub-roster rows — copied verbatim from
-   PlayerStatsPanel.module.css so the two surfaces are visually identical. */
-.cardChip,
-.injuryChip {
-  font-size: 11px;
-  font-weight: 400;
-  padding: 1px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  margin-left: 8px;
-}
-
-.cardChip[data-card='yellow'] {
-  background: var(--color-card-yellow);
-  color: var(--color-bg-page);
-}
-
-.cardChip[data-card='red'] {
-  background: var(--color-card-red);
-  color: var(--color-text-inverse);
-}
-
-.injuryChip {
-  background: var(--color-bg-surface-alt);
-  color: var(--color-text-inverse);
-}
-
-/* SUB-06: sub-counter chip — same pill geometry as .injuryChip. */
+/* SUB-06: sub-counter chip — 11px uppercase pill (the geometry the former
+ * .injuryChip shared, before Phase 41 replaced those chips with the
+ * CardInjuryBadge glyph). */
 .subCounterChip {
   font-size: 11px;
   font-weight: 400;
