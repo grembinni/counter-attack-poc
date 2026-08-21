@@ -581,6 +581,14 @@ const BENCH_ONLY_UNAVAILABLE: BenchEntry[] = [
   { playerId: 'p015', jerseyNumber: 15, status: 'redCarded' },
 ];
 
+/** Phase 41 (ICON-03): real PLAYER_POOL ids so PLAYER_MAP/resolveTieredCard lookups
+ * resolve, proving the BenchEntry -> glyph derivation is really wired end-to-end. */
+const BENCH_WITH_STATUS: BenchEntry[] = [
+  { playerId: 'p013', jerseyNumber: 13, status: 'available' },
+  { playerId: 'p014', jerseyNumber: 14, status: 'subbedOut', yellowCards: 1, injuryCount: 1 },
+  { playerId: 'p015', jerseyNumber: 15, status: 'redCarded', injuryCount: 0 },
+];
+
 type MidmatchOverrides = {
   midmatchPieces?: PlayerPiece[];
   bench?: BenchEntry[];
@@ -831,6 +839,31 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(screen.getByText('No available substitutes on the bench.')).toBeDefined();
     expect(screen.getByTestId('bench-out-badge')).toBeDefined();
     expect(screen.getByTestId('bench-red-card-badge')).toBeDefined();
+  });
+
+  it('ICON-03: bench cards derive their glyph from BenchEntry — booked/injured subbedOut entry shows both glyphs, red-carded entry shows the red glyph, available entry shows none', () => {
+    renderMidmatch({ bench: BENCH_WITH_STATUS });
+    const bench = screen.getByTestId('bench-carousel');
+    const badges = within(bench).getAllByTestId('card-injury-badge');
+    expect(badges.length).toBe(2);
+
+    const cardBadges = within(bench).getAllByTestId('piece-card-badge');
+    const redBadge = cardBadges.find((b) => b.getAttribute('data-card') === 'red');
+    const yellowBadge = cardBadges.find((b) => b.getAttribute('data-card') === 'yellow');
+    expect(redBadge).toBeDefined();
+    expect(yellowBadge).toBeDefined();
+
+    // The yellow-carded card (p014) also carries an injury glyph in the same wrapper.
+    const yellowWrapper = yellowBadge!.closest('[data-testid="card-injury-badge"]') as HTMLElement;
+    expect(within(yellowWrapper).getByTestId('piece-injury-badge')).toBeDefined();
+
+    // The red-carded card (p015) has no injury glyph (injuryCount: 0).
+    const redWrapper = redBadge!.closest('[data-testid="card-injury-badge"]') as HTMLElement;
+    expect(within(redWrapper).queryByTestId('piece-injury-badge')).toBeNull();
+
+    // p013 (available, no card/injury state) shows no badge at all.
+    const availableCard = screen.getByText('#13').closest('[class*="cardBody"]') as HTMLElement;
+    expect(within(availableCard).queryByTestId('card-injury-badge')).toBeNull();
   });
 
   describe('rejection messages', () => {

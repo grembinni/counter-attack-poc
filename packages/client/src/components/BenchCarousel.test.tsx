@@ -10,7 +10,7 @@
  * valid drop target.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import type { TieredPoolPlayer, DraftTier, HexCoord } from '@counter-attack/shared';
 import { BenchCarousel } from './BenchCarousel.js';
 import { TIER_CARD_CLASS } from './DraftPackCarousel.js';
@@ -215,6 +215,136 @@ describe('BenchCarousel — D-22: empty bench placeholder', () => {
     expect(slot).not.toBeNull();
     fireEvent.drop(benchEl, { dataTransfer: { getData: () => '' } });
     expect(onDropToBench).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => {
+  it('no benchCardStatus prop renders no badge markup at all (pre-match draft non-regression)', () => {
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    expect(container.querySelector('[data-testid="card-injury-badge"]')).toBeNull();
+  });
+
+  it('ICON-03: a booked bench player shows a yellow card glyph', () => {
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchCardStatus={{ b1: { cardColor: 'yellow', injuryCount: 0 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const badges = container.querySelectorAll('[data-testid="card-injury-badge"]');
+    expect(badges.length).toBe(1);
+    const cardBadge = badges[0]!.querySelector('[data-testid="piece-card-badge"]');
+    expect(cardBadge?.getAttribute('data-card')).toBe('yellow');
+
+    const b2El = container.querySelector(`.${TIER_CARD_CLASS.rare}`) as HTMLElement;
+    expect(within(b2El).queryByTestId('card-injury-badge')).toBeNull();
+  });
+
+  it('ICON-03: an injured bench player shows exactly one injury glyph and no card glyph', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchCardStatus={{ b1: { cardColor: null, injuryCount: 1 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll('[data-testid="piece-injury-badge"]').length).toBe(1);
+    expect(container.querySelectorAll('[data-testid="piece-card-badge"]').length).toBe(0);
+    const wrapper = container.querySelector('[data-testid="card-injury-badge"]');
+    expect(wrapper?.getAttribute('aria-label')).toBe('Injured');
+  });
+
+  it('ICON-03: injuryCount 2 still renders one glyph, with the count only in the label', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchCardStatus={{ b1: { cardColor: 'yellow', injuryCount: 2 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll('[data-testid="piece-injury-badge"]').length).toBe(1);
+    const cardRect = container.querySelector('[data-testid="piece-card-badge"]') as SVGRectElement;
+    const injuryGroup = container.querySelector('[data-testid="piece-injury-badge"]');
+    expect(cardRect).not.toBeNull();
+    expect(injuryGroup).not.toBeNull();
+    const wrapper = container.querySelector('[data-testid="card-injury-badge"]');
+    expect(wrapper?.getAttribute('aria-label')).toBe('Yellow card, Injured ×2');
+
+    const cardRight = Number(cardRect.getAttribute('x')) + Number(cardRect.getAttribute('width'));
+    const injuryFirstRect = injuryGroup!.querySelector('rect') as SVGRectElement;
+    const injuryLeft = Number(injuryFirstRect.getAttribute('x'));
+    expect(cardRight).toBeLessThanOrEqual(injuryLeft);
+  });
+
+  it('UI-SPEC coexistence: a red-carded bench card shows BOTH the red glyph and the RED CARD text badge', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        redCardedPlayerIds={['b1']}
+        benchCardStatus={{ b1: { cardColor: 'red', injuryCount: 0 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const cardBadge = container.querySelector('[data-testid="piece-card-badge"]');
+    expect(cardBadge?.getAttribute('data-card')).toBe('red');
+    expect(screen.getByTestId('bench-red-card-badge')).toBeDefined();
+  });
+
+  it('ICON-02/D-02: the bench glyph sits between the jersey number and the status badge', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchNumbers={{ b1: 13 }}
+        unavailablePlayerIds={['b1']}
+        benchCardStatus={{ b1: { cardColor: 'yellow', injuryCount: 0 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const cardNum = container.querySelector('[class*="cardNum"]') as HTMLElement;
+    expect(cardNum).not.toBeNull();
+    const glyph = cardNum.nextElementSibling;
+    expect(glyph?.getAttribute('data-testid')).toBe('card-injury-badge');
+    const statusBadge = glyph?.nextElementSibling;
+    expect(statusBadge?.getAttribute('data-testid')).toBe('bench-out-badge');
+  });
+
+  it('the glyph never affects draggability', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchCardStatus={{ b1: { cardColor: 'red', injuryCount: 0 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
+    expect(cardEl?.getAttribute('draggable')).toBe('true');
   });
 });
 
