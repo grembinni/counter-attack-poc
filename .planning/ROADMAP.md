@@ -145,7 +145,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
-| 41    | 4/6                                         | In Progress |             |
+| 41    | 5/6                                         | In Progress |             |
 | 42    | Substitution UX Overhaul                    | TBD         | Not started |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
@@ -177,7 +177,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 41-05-PLAN.md — Give the bench card card/injury iconography for the first time
+- [x] 41-05-PLAN.md — Give the bench card card/injury iconography for the first time
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
