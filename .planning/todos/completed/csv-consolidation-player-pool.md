@@ -5,6 +5,11 @@ source: user-request
 phase_context: post-19
 priority: low
 resolves_phase: 29
+status: complete
+completed: 2026-08-21
+resolution: >
+  Verified during v1.7 Phase 41 discussion — packages/shared/src/data/ now contains
+  a single player-pool.csv with no per-team CSVs remaining. Consolidation already done.
 ---
 
 # Idea: Consolidate all CSV files into a single player-pool.csv
