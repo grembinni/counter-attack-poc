@@ -31,6 +31,7 @@ import type {
 import { useGameStore } from '../store/useGameStore.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
+import { CardInjuryBadge, cardColorFor, type CardColor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { DraftPackCarousel, TIER_CARD_CLASS } from './DraftPackCarousel.js';
 import { BenchCarousel } from './BenchCarousel.js';
@@ -147,9 +148,9 @@ type StatCardProps = {
   /** Phase 40 (RESEARCH.md Pitfall 6): a STRUCTURALLY SEPARATE mid-match rendering/
    * drag-gating branch — never merged with the GK-lock expression above. */
   mode?: 'pregame' | 'midmatch';
-  /** Phase 40 (D-05): red beats yellow, mirrors PlayerStatsPanel.tsx's cardColor derivation. */
-  cardColor?: 'yellow' | 'red' | null;
-  /** Phase 40 (D-05): mirrors PlayerStatsPanel.tsx's injury-chip derivation. */
+  /** Phase 41 (ICON-01): derived by the shared `cardColorFor`; the local Phase 40 ternary is gone. */
+  cardColor?: CardColor;
+  /** Phase 41 (ICON-01): derived by the shared `cardColorFor`; the local Phase 40 ternary is gone. */
   injuryCount?: number;
   /** Phase 40 (SUB-02): true while this on-pitch card is the hovered bench-drag drop target. */
   isSubTarget?: boolean;
@@ -242,20 +243,12 @@ function LineupStatCard({
             <span className={styles.cardRole}>{player.role}</span>
             {/* D-15 Pitfall 5: jersey number from slotMeta, not player (pregame/draft only) */}
             <span className={styles.cardNum}>#{displayNumber}</span>
+            <CardInjuryBadge
+              cardColor={cardColor ?? null}
+              injuryCount={injuryCount ?? 0}
+              size={16}
+            />
             {isGK && !allowGKDrag && <span className={styles.lockedBadge}>LOCK</span>}
-            {/* Phase 40 (D-05): card/injury chips — identical classes/copy to
-                PlayerStatsPanel.tsx's top-left player card (cardColor/injuryCount
-                are undefined for pregame/draft cards, so this is a no-op there). */}
-            {cardColor && (
-              <span data-testid="stats-card-chip" data-card={cardColor} className={styles.cardChip}>
-                {cardColor.toUpperCase()}
-              </span>
-            )}
-            {(injuryCount ?? 0) > 0 && (
-              <span data-testid="stats-injury-chip" className={styles.injuryChip}>
-                {(injuryCount ?? 0) >= 2 ? 'INJ ×2' : 'INJ'}
-              </span>
-            )}
           </div>
         </div>
         {/* 3-column stat chip grid → 2 rows of 3+3 (6 role-filtered stats) */}
@@ -451,8 +444,6 @@ export function LineupAssignmentScreen({
         <div className={styles.columnHeader}>{label}</div>
         <div className={styles.columnCards}>
           {pieces.map((piece, i) => {
-            const cardColor: 'yellow' | 'red' | null =
-              piece.redCarded === true ? 'red' : (piece.yellowCards ?? 0) > 0 ? 'yellow' : null;
             const isBlocked = piece.redCarded === true;
             return (
               <LineupStatCard
@@ -464,7 +455,7 @@ export function LineupAssignmentScreen({
                 lineupConfirmed={false}
                 teamId={myTeamId}
                 mode="midmatch"
-                cardColor={cardColor}
+                cardColor={cardColorFor(piece)}
                 injuryCount={piece.injuryCount ?? 0}
                 isSubTarget={midmatchDropTargetPieceId === piece.id}
                 isSubBlocked={isBlocked}
