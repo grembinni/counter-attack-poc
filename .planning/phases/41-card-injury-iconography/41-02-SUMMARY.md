@@ -100,3 +100,10 @@ None - no external service configuration required.
 
 _Phase: 41-card-injury-iconography_
 _Completed: 2026-08-21_
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/41-card-injury-iconography/41-02-SUMMARY.md`
+- FOUND: commit `b03dc50` (Task 1)
+- FOUND: commit `02d2e68` (Task 2)
+- FOUND: commit `911235e` (SUMMARY.md)
