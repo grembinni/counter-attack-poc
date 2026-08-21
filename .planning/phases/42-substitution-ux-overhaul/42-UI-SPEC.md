@@ -51,14 +51,21 @@ Exceptions:
 
 Only the sizes/weights needed by this phase's NEW elements are declared below. Every value is a value already in use elsewhere in the codebase — no new size or weight is introduced.
 
+**Weight budget for this phase: 2 weights — 400 and 700.** Both are new-to-this-phase declarations, used exactly as the 2-weight rule intends: 400 for body/helper copy, 700 for labels/small buttons.
+
 | Role                                                           | Size | Weight | Line Height |
 | -------------------------------------------------------------- | ---- | ------ | ----------- |
 | Body / helper text                                             | 13px | 400    | 1.5         |
 | Label / meta (badges, chip text, slot caption)                 | 12px | 700    | 1.2         |
 | Small button (mode-toggle action button, matches `.ctaButton`) | 11px | 700    | 1.2         |
-| CTA (Resume button, matches `.confirmButtonReady`)             | 20px | 800    | 1.2         |
 
-Only two weights are load-bearing for interaction state (regular 400 for body/helper copy, bold 700 for labels/small buttons); 800 is the project's pre-existing "primary CTA" weight (`.confirmButtonReady`, `.confirmButton`) and is reused as-is for the Resume button rather than introduced fresh.
+**Accepted deviation — CTA row (not counted against the 2-weight budget above):**
+
+| Role                                               | Size | Weight | Line Height |
+| -------------------------------------------------- | ---- | ------ | ----------- |
+| CTA (Resume button, matches `.confirmButtonReady`) | 20px | 800    | 1.2         |
+
+This phase adds zero new elements that originate a new font weight of their own — the Resume button is a straight visual-weight match to the app's single, pre-existing "primary CTA" convention (`.confirmButtonReady`, `.confirmButton`), which has already been weight-800 everywhere it appears since before Phase 42 (see `ActionPanel.module.css`, referenced directly by D-04 in `42-CONTEXT.md`: the Resume button must match "the visual weight of other CTA buttons in the app (e.g. the ActionPanel's Confirm button)"). Declaring it at 700 instead would fabricate a _new_, phase-local visual treatment that contradicts D-04's explicit instruction to reuse the existing CTA convention as-is — a worse outcome than reusing a pre-existing, zero-new-weight exception. Per the dimension-4 rule, this is requested as an accepted deviation: the phase's own weight budget is 2 (400, 700); 800 is not a third phase-introduced weight, it is the unmodified reuse of an app-wide convention that predates this phase and appears in zero other new elements here.
 
 ---
 
