@@ -1,7 +1,7 @@
 import type { PlayerPiece, UniformStyleId, TeamPalette } from '@counter-attack/shared';
 import { axialToPixel } from '../utils/hexToPixel.js';
 import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
-import { CardInjuryBadgeGroup, cardColorFor } from './CardInjuryBadge.js';
+import { CardInjuryBadgeGroup, cardColorFor, cardInjuryLabel } from './CardInjuryBadge.js';
 
 /** Green active-selection ring stroke. Exported so PieceOverlay.test.tsx asserts against
  * this constant instead of retyping the hex literal. */
@@ -125,6 +125,15 @@ export function PieceOverlay({
   const dotOffsetX = piece.teamId === 'home' ? PIECE_RADIUS * 0.715 : -(PIECE_RADIUS * 0.715);
   const dotOffsetY = PIECE_RADIUS * 0.715;
 
+  // WR-01 fix: CardInjuryBadgeGroup no longer carries its own role/aria-label (it is a
+  // raw-primitives group meant to be composed), so PieceOverlay — its only unwrapped
+  // consumer — derives the single combined accessible name here and applies it to the
+  // wrapping <g> below, matching the combined-label contract CardInjuryBadge's own
+  // <svg> wrapper already provides.
+  const pieceCardColor = cardColorFor(piece);
+  const pieceInjuryCount = piece.injuryCount ?? 0;
+  const pieceBadgeLabel = cardInjuryLabel(pieceCardColor, pieceInjuryCount);
+
   return (
     <>
       {/* Phase 20 D-15: parameterized pattern defs — delegated to UNIFORM_STYLES[uniformStyle] */}
@@ -231,13 +240,18 @@ export function PieceOverlay({
           wherever the ball dot renders — top-left for home pieces, top-right for away —
           in every case, per D-05. A future change to the dot geometry above moves both
           together since this derivation is not an independently hardcoded offset. */}
-      <CardInjuryBadgeGroup
-        cx={cx - dotOffsetX}
-        cy={cy - dotOffsetY}
-        r={PIECE_RADIUS * 0.59}
-        cardColor={cardColorFor(piece)}
-        injuryCount={piece.injuryCount ?? 0}
-      />
+      <g
+        pointerEvents="none"
+        {...(pieceBadgeLabel ? { role: 'img', 'aria-label': pieceBadgeLabel } : {})}
+      >
+        <CardInjuryBadgeGroup
+          cx={cx - dotOffsetX}
+          cy={cy - dotOffsetY}
+          r={PIECE_RADIUS * 0.59}
+          cardColor={pieceCardColor}
+          injuryCount={pieceInjuryCount}
+        />
+      </g>
       {/* Player number label */}
       <text
         x={cx}

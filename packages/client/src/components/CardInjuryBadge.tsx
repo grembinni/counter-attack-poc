@@ -96,6 +96,12 @@ export type CardInjuryBadgeGroupProps = {
  * `cardWidth = r * 1.5`, `cardHeight = r * 2`, `barLength = r * 1.8`,
  * `barThickness = r * 0.6`. The injury cross renders AFTER the card rect in DOM order
  * (existing D-05 layering, asserted by `PieceOverlay.test.tsx`).
+ *
+ * Deliberately carries NO `role`/`aria-label` of its own (WR-01 fix): an `img` role is
+ * meant to represent a single atomic image, not a container of further labeled images.
+ * Every call site is responsible for wrapping its own single combined accessible name —
+ * `CardInjuryBadge` does this on its outer `<svg>`, `PieceOverlay` does this on a
+ * wrapping `<g>` — so no consumer ever produces nested `role="img"` elements.
  */
 export function CardInjuryBadgeGroup({
   cx,
@@ -127,8 +133,6 @@ export function CardInjuryBadgeGroup({
           stroke="var(--color-card-badge-border)"
           strokeWidth={1}
           pointerEvents="none"
-          role="img"
-          aria-label={cardInjuryLabel(cardColor, 0)}
         />
       )}
       {/* Injury badge — white plus-sign glyph, rendered AFTER the card badge so it layers
@@ -136,12 +140,7 @@ export function CardInjuryBadgeGroup({
           not colour, since both may occupy the same corner simultaneously. Binary by design
           (D-01): injuryCount >= 2 differs only in the accessible label, never the shape. */}
       {hasInjury && (
-        <g
-          data-testid="piece-injury-badge"
-          pointerEvents="none"
-          role="img"
-          aria-label={cardInjuryLabel(null, injuryCount)}
-        >
+        <g data-testid="piece-injury-badge" pointerEvents="none">
           <rect
             x={cx - barLength / 2}
             y={cy - barThickness / 2}
