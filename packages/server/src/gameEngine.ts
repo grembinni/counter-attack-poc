@@ -785,6 +785,12 @@ export function relocateRedCardedToBench(
     playerId: piece.playerId,
     jerseyNumber: piece.number,
     status: 'redCarded',
+    // ICON-03 (Phase 41, 41-02): carry the departing piece's card/injury state forward
+    // so the bench card can render the same glyph as every other surface. `?? 0` is
+    // required by `exactOptionalPropertyTypes` (never assign a possibly-undefined value
+    // to an optional field whose type excludes `undefined`).
+    yellowCards: piece.yellowCards ?? 0,
+    injuryCount: piece.injuryCount ?? 0,
   };
   return {
     ...normalised,
@@ -3133,6 +3139,11 @@ export function applySubstitution(
           playerId: outPiece.playerId!,
           jerseyNumber: benchEntry.jerseyNumber,
           status: 'subbedOut' as const,
+          // ICON-03 (Phase 41, 41-02): carry the departing piece's card/injury state
+          // forward so the bench card can render the same glyph as every other surface.
+          // `?? 0` is required by `exactOptionalPropertyTypes`.
+          yellowCards: outPiece.yellowCards ?? 0,
+          injuryCount: outPiece.injuryCount ?? 0,
         }
       : e,
   );

@@ -216,6 +216,52 @@ describe('applySubstitution', () => {
     expect(newPiece.injuryCount ?? 0).toBe(0);
   });
 
+  it("ICON-03: the outgoing player's yellowCards/injuryCount land on their subbedOut bench entry while the incoming piece stays clean", () => {
+    const dirtyOutPiece: PlayerPiece = {
+      ...homeOutfieldPiece(),
+      yellowCards: 1,
+      injuryCount: 2,
+    };
+    const state = makeSubState({
+      pieces: BASE_PIECES.map((p) => (p.id === dirtyOutPiece.id ? dirtyOutPiece : p)),
+    });
+    const inPlayerId = homeBenchBase[0]!.playerId;
+
+    const result = applySubstitution(state, 'home', dirtyOutPiece.id, inPlayerId);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const subbedOutEntry = result.state.bench!.home.find(
+      (e) => e.playerId === dirtyOutPiece.playerId,
+    )!;
+    expect(subbedOutEntry.status).toBe('subbedOut');
+    expect(subbedOutEntry.yellowCards).toBe(1);
+    expect(subbedOutEntry.injuryCount).toBe(2);
+
+    // The incoming substitute's PlayerPiece still arrives clean (SUB-03 unchanged by this plan).
+    const newPiece = result.state.pieces.find((p) => p.id === dirtyOutPiece.id)!;
+    expect(newPiece.redCarded).toBeFalsy();
+    expect(newPiece.yellowCards ?? 0).toBe(0);
+    expect(newPiece.injuryCount ?? 0).toBe(0);
+  });
+
+  it('ICON-03: bench array length is unchanged by a substitution, and any other redCarded entry is copied through untouched', () => {
+    const state = makeSubState(undefined, { team: 'home', index: 1, status: 'redCarded' });
+    const outPiece = homeOutfieldPiece();
+    const inPlayerId = homeBenchBase[0]!.playerId;
+
+    const result = applySubstitution(state, 'home', outPiece.id, inPlayerId);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.state.bench!.home.length).toBe(state.bench!.home.length);
+    const untouchedRedCardEntry = result.state.bench!.home.find(
+      (e) => e.playerId === homeBenchBase[1]!.playerId,
+    )!;
+    expect(untouchedRedCardEntry.status).toBe('redCarded');
+    expect(untouchedRedCardEntry).toEqual(state.bench!.home[1]);
+  });
+
   it('SUB-04: three successful substitutions succeed; the 4th is SUB_CAP_REACHED; other team untouched', () => {
     let state = makeSubState();
     const outfielders = BASE_PIECES.filter((p) => p.teamId === 'home' && p.role !== 'GK');
@@ -751,9 +797,50 @@ describe('D-13: red-carded player relocation to the bench', () => {
   it('produces a well-formed { home, away } bench containing exactly the one new entry when bench is undefined', () => {
     const result = relocateRedCardedToBench(undefined, redPiece);
     expect(result.home).toEqual([
-      { playerId: redPiece.playerId, jerseyNumber: redPiece.number, status: 'redCarded' },
+      {
+        playerId: redPiece.playerId,
+        jerseyNumber: redPiece.number,
+        status: 'redCarded',
+        yellowCards: 0,
+        injuryCount: 0,
+      },
     ]);
     expect(result.away).toEqual([]);
+  });
+
+  it("ICON-03: carries the piece's yellowCards/injuryCount onto the redCarded bench entry", () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    const dirtyRedPiece: PlayerPiece = { ...redPiece, yellowCards: 2, injuryCount: 1 };
+    const result = relocateRedCardedToBench(bench, dirtyRedPiece);
+    const newEntry = result.home[result.home.length - 1]!;
+    expect(newEntry.status).toBe('redCarded');
+    expect(newEntry.yellowCards).toBe(2);
+    expect(newEntry.injuryCount).toBe(1);
+  });
+
+  it('ICON-03: coalesces a piece with neither yellowCards nor injuryCount set to 0/0 on the bench entry, never undefined', () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    // exactOptionalPropertyTypes: omit the keys entirely rather than assign `undefined`.
+    const { yellowCards: _y, injuryCount: _i, ...cleanRedPieceRest } = redPiece;
+    const cleanRedPiece: PlayerPiece = cleanRedPieceRest;
+    const result = relocateRedCardedToBench(bench, cleanRedPiece);
+    const newEntry = result.home[result.home.length - 1]!;
+    expect(newEntry.yellowCards).toBe(0);
+    expect(newEntry.injuryCount).toBe(0);
+  });
+
+  it('ICON-03: relocateRedCardedToBench remains idempotent for card/injury fields — a second call does not overwrite the entry', () => {
+    const bench = { home: [...homeBenchBase], away: [...awayBenchBase] };
+    const dirtyRedPiece: PlayerPiece = { ...redPiece, yellowCards: 2, injuryCount: 1 };
+    const once = relocateRedCardedToBench(bench, dirtyRedPiece);
+    // A second call for the same playerId — even with different live card/injury values on
+    // the piece — must not append a duplicate or mutate the already-recorded entry.
+    const evenDirtierPiece: PlayerPiece = { ...dirtyRedPiece, yellowCards: 2, injuryCount: 5 };
+    const twice = relocateRedCardedToBench(once, evenDirtierPiece);
+    expect(twice.home.length).toBe(once.home.length);
+    const entry = twice.home[twice.home.length - 1]!;
+    expect(entry.yellowCards).toBe(2);
+    expect(entry.injuryCount).toBe(1);
   });
 });
 

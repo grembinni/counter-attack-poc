@@ -114,6 +114,22 @@ export type BenchEntry = {
    */
   jerseyNumber: number;
   status: BenchEntryStatus;
+  /**
+   * Phase 41 (ICON-03): carried forward from the departing `PlayerPiece`'s live
+   * `yellowCards` at the moment that player left the pitch (sent off or subbed off), so
+   * the bench card can render the same glyph as every other surface. A never-played
+   * `status: 'available'` entry legitimately leaves this undefined. `status ===
+   * 'redCarded'` remains sufficient on its own to derive a red card, so `yellowCards` on
+   * a red-card entry is informational only.
+   */
+  yellowCards?: 0 | 1 | 2;
+  /**
+   * Phase 41 (ICON-03): carried forward from the departing `PlayerPiece`'s live
+   * `injuryCount` at the moment that player left the pitch (sent off or subbed off), so
+   * the bench card can render the same glyph as every other surface. A never-played
+   * `status: 'available'` entry legitimately leaves this undefined.
+   */
+  injuryCount?: number;
 };
 
 export type BallState = {
