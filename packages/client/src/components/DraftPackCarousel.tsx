@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { DraftTier, TeamId, TieredPoolPlayer } from '@counter-attack/shared';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
+import { CardInjuryBadge, type CardColor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import styles from './LineupAssignmentScreen.module.css';
 
@@ -65,6 +66,15 @@ type DraftCardBodyProps = {
    * "RED CARD" badge (takes precedence over `unavailable`), dims the card, and
    * forces draggable={false}. Default false. */
   redCarded?: boolean;
+  /** Phase 41 (ICON-02/ICON-03): disciplinary glyph colour for this card, derived by the
+   * caller from the shared `cardColorFor`/`cardColorForBenchEntry`. Default undefined —
+   * the draft-pack row and every pre-match bench call site pass nothing and render no
+   * glyph. */
+  cardColor?: CardColor;
+  /** Phase 41 (ICON-03): live injury count carried onto the bench entry. The glyph is
+   * binary (present/absent) per the UI-SPEC; the count survives only in the accessible
+   * label. Default undefined -> 0. */
+  injuryCount?: number;
 };
 
 /**
@@ -84,6 +94,8 @@ export function DraftCardBody({
   onDrop,
   unavailable,
   redCarded,
+  cardColor,
+  injuryCount,
 }: DraftCardBodyProps) {
   const isGK = card.role === 'GK';
   const isUnavailable = unavailable === true || redCarded === true;
@@ -110,6 +122,14 @@ export function DraftCardBody({
             <NationFlag nationality={card.nationality} size={14} />
             <span className={styles.cardRole}>{card.role}</span>
             {jerseyNumber !== undefined && <span className={styles.cardNum}>#{jerseyNumber}</span>}
+            {/* Phase 41 (ICON-02/ICON-03/D-02): card/injury glyph — locked position
+                immediately after the jersey number, ahead of the RED CARD/OUT status
+                badge below. Coexists with that badge (UI-SPEC lock); never replaces it. */}
+            <CardInjuryBadge
+              cardColor={cardColor ?? null}
+              injuryCount={injuryCount ?? 0}
+              size={16}
+            />
             {/* Phase 40 (SUB-07/D-13): redCarded takes precedence over unavailable —
                 a sent-off player is never mislabelled as merely substituted out. */}
             {redCarded === true ? (
