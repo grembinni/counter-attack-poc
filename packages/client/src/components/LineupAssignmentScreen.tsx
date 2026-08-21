@@ -31,7 +31,13 @@ import type {
 import { useGameStore } from '../store/useGameStore.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
-import { CardInjuryBadge, cardColorFor, type CardColor } from './CardInjuryBadge.js';
+import {
+  CardInjuryBadge,
+  cardColorFor,
+  cardColorForBenchEntry,
+  type CardColor,
+  type BenchCardStatus,
+} from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { DraftPackCarousel, TIER_CARD_CLASS } from './DraftPackCarousel.js';
 import { BenchCarousel } from './BenchCarousel.js';
@@ -764,6 +770,17 @@ export function LineupAssignmentScreen({
       .filter((c): c is TieredPoolPlayer => c !== null);
     const midmatchBenchNumbers: Record<string, number> = {};
     for (const entry of benchList) midmatchBenchNumbers[entry.playerId] = entry.jerseyNumber;
+    // Phase 41 (ICON-03): per-card disciplinary/fitness glyph state derived from the
+    // same benchList the other bench derivations already use. cardColorForBenchEntry
+    // (not cardColorFor) — a bench entry has no `redCarded` field, so its
+    // `status: 'redCarded'` alone derives red.
+    const benchCardStatus: Record<string, BenchCardStatus> = {};
+    for (const entry of benchList) {
+      benchCardStatus[entry.playerId] = {
+        cardColor: cardColorForBenchEntry(entry),
+        injuryCount: entry.injuryCount ?? 0,
+      };
+    }
     const unavailablePlayerIds = benchList
       .filter((e) => e.status === 'subbedOut')
       .map((e) => e.playerId);
@@ -815,6 +832,7 @@ export function LineupAssignmentScreen({
             benchNumbers={midmatchBenchNumbers}
             unavailablePlayerIds={unavailablePlayerIds}
             redCardedPlayerIds={redCardedPlayerIds}
+            benchCardStatus={benchCardStatus}
             disabled={readOnly === true}
             onCardDragStart={(benchIndex) => {
               if (readOnly === true) return;
