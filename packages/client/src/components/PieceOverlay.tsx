@@ -1,6 +1,7 @@
 import type { PlayerPiece, UniformStyleId, TeamPalette } from '@counter-attack/shared';
 import { axialToPixel } from '../utils/hexToPixel.js';
 import { UNIFORM_STYLES } from '../styles/uniformStyles.js';
+import { CardInjuryBadgeGroup, cardColorFor } from './CardInjuryBadge.js';
 
 /** Green active-selection ring stroke. Exported so PieceOverlay.test.tsx asserts against
  * this constant instead of retyping the hex literal. */
@@ -230,66 +231,13 @@ export function PieceOverlay({
           wherever the ball dot renders — top-left for home pieces, top-right for away —
           in every case, per D-05. A future change to the dot geometry above moves both
           together since this derivation is not an independently hardcoded offset. */}
-      {(() => {
-        const badgeCx = cx - dotOffsetX;
-        const badgeCy = cy - dotOffsetY;
-        const badgeR = PIECE_RADIUS * 0.59;
-        const cardColor: 'yellow' | 'red' | null =
-          piece.redCarded === true ? 'red' : (piece.yellowCards ?? 0) > 0 ? 'yellow' : null;
-        const hasInjury = (piece.injuryCount ?? 0) > 0;
-        const cardWidth = badgeR * 1.5;
-        const cardHeight = badgeR * 2;
-        const barLength = badgeR * 1.8;
-        const barThickness = badgeR * 0.6;
-        return (
-          <>
-            {/* Card badge — rect (not a circle) so it reads distinctly from the round ball dot.
-                Red always wins over yellow, matching CARD-02's second-yellow-becomes-red rule. */}
-            {cardColor && (
-              <rect
-                data-testid="piece-card-badge"
-                data-card={cardColor}
-                x={badgeCx - cardWidth / 2}
-                y={badgeCy - cardHeight / 2}
-                width={cardWidth}
-                height={cardHeight}
-                rx={1.5}
-                fill={cardColor === 'red' ? 'var(--color-card-red)' : 'var(--color-card-yellow)'}
-                stroke="rgba(0,0,0,0.5)"
-                strokeWidth={1}
-                pointerEvents="none"
-              />
-            )}
-            {/* Injury badge — white plus-sign glyph, rendered AFTER the card badge so it
-                layers on top per D-05. Distinguished from the card badge by SHAPE (cross vs.
-                rectangle), not colour, since both may occupy the same corner simultaneously. */}
-            {hasInjury && (
-              <g data-testid="piece-injury-badge" pointerEvents="none">
-                <rect
-                  x={badgeCx - barLength / 2}
-                  y={badgeCy - barThickness / 2}
-                  width={barLength}
-                  height={barThickness}
-                  rx={1}
-                  fill="var(--color-text-inverse)"
-                  stroke="rgba(0,0,0,0.5)"
-                  strokeWidth={0.75}
-                />
-                <rect
-                  x={badgeCx - barThickness / 2}
-                  y={badgeCy - barLength / 2}
-                  width={barThickness}
-                  height={barLength}
-                  rx={1}
-                  fill="var(--color-text-inverse)"
-                  stroke="rgba(0,0,0,0.5)"
-                  strokeWidth={0.75}
-                />
-              </g>
-            )}
-          </>
-        );
-      })()}
+      <CardInjuryBadgeGroup
+        cx={cx - dotOffsetX}
+        cy={cy - dotOffsetY}
+        r={PIECE_RADIUS * 0.59}
+        cardColor={cardColorFor(piece)}
+        injuryCount={piece.injuryCount ?? 0}
+      />
       {/* Player number label */}
       <text
         x={cx}

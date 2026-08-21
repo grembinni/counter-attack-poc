@@ -77,37 +77,6 @@
   flex-shrink: 0;
 }
 
-/* Plan 39-06 (D-04): card/injury roster-indicator chips, rendered after .jerseyNum in
-   .playerMeta. Label role per UI-SPEC — 11px/400. */
-.cardChip,
-.injuryChip {
-  font-size: 11px;
-  font-weight: 400;
-  padding: 1px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  margin-left: 8px;
-}
-
-.cardChip[data-card='yellow'] {
-  background: var(--color-card-yellow);
-  /* Existing darkest available token, reused for contrast against the light yellow fill
-     (no new colour literal introduced). */
-  color: var(--color-bg-page);
-}
-
-.cardChip[data-card='red'] {
-  background: var(--color-card-red);
-  color: var(--color-text-inverse);
-}
-
-.injuryChip {
-  background: var(--color-bg-surface-alt);
-  color: var(--color-text-inverse);
-}
-
 /* ─── 2-row stat grid ─────────────────────────────────────────────────────── */
 
 /* Equal-width 3-column grid — all columns sized to the widest stat (DRIBBLING) */

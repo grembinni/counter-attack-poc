@@ -119,7 +119,7 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
   });
 });
 
-describe('PlayerStatsPanel — CARD-02/INJURY-02/INJURY-03/D-04: roster-panel card/injury chips', () => {
+describe('PlayerStatsPanel — ICON-01/ICON-02/D-04: roster-panel card/injury glyphs (shared badge)', () => {
   /** Applies field overrides to a single piece in the mock store's gameState.pieces. */
   function overridePiece(pieceId: string, overrides: Record<string, unknown>) {
     const state = useGameStore.getState();
@@ -131,49 +131,63 @@ describe('PlayerStatsPanel — CARD-02/INJURY-02/INJURY-03/D-04: roster-panel ca
     });
   }
 
-  it('renders no chips for a clean player', () => {
+  it('renders no glyph for a clean player', () => {
     useGameStore.setState({ selectedPieceId: 'home-1' });
-    render(<PlayerStatsPanel />);
-    expect(screen.queryByTestId('stats-card-chip')).toBeNull();
-    expect(screen.queryByTestId('stats-injury-chip')).toBeNull();
+    const { container } = render(<PlayerStatsPanel />);
+    expect(container.querySelector('[data-testid="card-injury-badge"]')).toBeNull();
   });
 
-  it('a yellow-carded player renders stats-card-chip with data-card="yellow"', () => {
+  it('ICON-02: a yellow-carded player renders the shared glyph with data-card="yellow"', () => {
     overridePiece('home-1', { yellowCards: 1 });
     useGameStore.setState({ selectedPieceId: 'home-1' });
-    render(<PlayerStatsPanel />);
-    const chip = screen.getByTestId('stats-card-chip');
-    expect(chip.getAttribute('data-card')).toBe('yellow');
+    const { container } = render(<PlayerStatsPanel />);
+    const badge = container.querySelector('[data-testid="piece-card-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge!.getAttribute('data-card')).toBe('yellow');
   });
 
-  it('a red-carded player renders data-card="red"', () => {
+  it('a red-carded player renders the shared glyph with data-card="red"', () => {
     overridePiece('home-1', { redCarded: true });
     useGameStore.setState({ selectedPieceId: 'home-1' });
-    render(<PlayerStatsPanel />);
-    const chip = screen.getByTestId('stats-card-chip');
-    expect(chip.getAttribute('data-card')).toBe('red');
+    const { container } = render(<PlayerStatsPanel />);
+    const badge = container.querySelector('[data-testid="piece-card-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge!.getAttribute('data-card')).toBe('red');
   });
 
-  it('an injured player renders stats-injury-chip reading "INJ"', () => {
+  it('an injured player renders exactly one injury glyph with aria-label "Injured"', () => {
     overridePiece('home-1', { injuryCount: 1 });
     useGameStore.setState({ selectedPieceId: 'home-1' });
-    render(<PlayerStatsPanel />);
-    expect(screen.getByTestId('stats-injury-chip').textContent).toBe('INJ');
+    const { container } = render(<PlayerStatsPanel />);
+    const injuryGlyphs = container.querySelectorAll('[data-testid="piece-injury-badge"]');
+    expect(injuryGlyphs.length).toBe(1);
+    const wrapper = container.querySelector('[data-testid="card-injury-badge"]');
+    expect(wrapper!.getAttribute('aria-label')).toBe('Injured');
   });
 
-  it('a twice-injured player reads "INJ ×2"', () => {
+  it('a twice-injured player still renders exactly one injury glyph (binary glyph rule), aria-label "Injured ×2"', () => {
     overridePiece('home-1', { injuryCount: 2 });
     useGameStore.setState({ selectedPieceId: 'home-1' });
-    render(<PlayerStatsPanel />);
-    expect(screen.getByTestId('stats-injury-chip').textContent).toBe('INJ ×2');
+    const { container } = render(<PlayerStatsPanel />);
+    const injuryGlyphs = container.querySelectorAll('[data-testid="piece-injury-badge"]');
+    expect(injuryGlyphs.length).toBe(1);
+    const wrapper = container.querySelector('[data-testid="card-injury-badge"]');
+    expect(wrapper!.getAttribute('aria-label')).toBe('Injured ×2');
   });
 
-  it('a booked-and-injured player renders both chips', () => {
+  it('D-04: a booked-and-injured player renders both glyphs side by side, non-overlapping', () => {
     overridePiece('home-1', { yellowCards: 1, injuryCount: 1 });
     useGameStore.setState({ selectedPieceId: 'home-1' });
-    render(<PlayerStatsPanel />);
-    expect(screen.getByTestId('stats-card-chip')).toBeDefined();
-    expect(screen.getByTestId('stats-injury-chip')).toBeDefined();
+    const { container } = render(<PlayerStatsPanel />);
+    const cardBadge = container.querySelector('[data-testid="piece-card-badge"]');
+    const injuryBadge = container.querySelector('[data-testid="piece-injury-badge"]');
+    expect(cardBadge).not.toBeNull();
+    expect(injuryBadge).not.toBeNull();
+    const cardX = Number(cardBadge!.getAttribute('x'));
+    const cardWidth = Number(cardBadge!.getAttribute('width'));
+    const injuryRect = injuryBadge!.querySelector('rect');
+    const injuryX = Number(injuryRect!.getAttribute('x'));
+    expect(cardX + cardWidth).toBeLessThanOrEqual(injuryX);
   });
 });
 
