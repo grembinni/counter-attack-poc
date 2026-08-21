@@ -1,168 +1,192 @@
 # Project Research Summary
 
-**Project:** Counter Attack POC - v1.6 Milestone (Fouls, Cards and Restarts)
-**Domain:** Rule-fidelity expansion of an existing server-authoritative, real-time hex-grid football game FSM (Node.js/Socket.io + TypeScript monorepo)
-**Researched:** 2026-08-03
+**Project:** Counter Attack POC — v1.7 (UI/UX Consistency, Substitution Rework & Match Summary)
+**Domain:** Feature-addition milestone on an existing, shipped, server-authoritative real-time hex-grid football game (Node.js/Socket.io + React monorepo)
+**Researched:** 2026-08-21
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone adds fouls, bookings (yellow/red cards), injuries, substitutions, penalty kicks, GK-dive-at-feet, and three new dead-ball restart types (goal kick, corner kick, throw-in) plus out-of-bounds detection to an already-mature, server-authoritative dice-duel game engine (5 prior shipped milestones, 4747-line gameEngine.ts, 1738 tests). The single most important finding across all four research files is that this is a pure extension of existing patterns, not new infrastructure: every new mechanic has a direct, already-built precedent in the codebase (FREE_KICK_SETUP staged sub-flow, computeCombinedScore penalty-array mechanism, TACKLE_ATTEMPT/STEAL_ATTEMPT inline non-phase-transitioning dice sub-resolution, SELECTABLE_DRAFT_POOLS server-side allow-list pattern). Zero new npm dependencies are needed.
+This is not greenfield work — it is a polish/consistency milestone layered onto a mature, already-shipped codebase (React 18 + Zustand 4 + Socket.io 4 + hand-written shared TypeScript hex math, full-state-snapshot broadcast). All research this round was grounded in direct inspection of the actual shipped code. The unanimous conclusion across all four research files: no new npm dependencies are needed. All six target features (referee-leniency override, unified card/injury iconography, an Advanced settings drawer, a substitution UX overhaul, a tackle/steal decline-and-retry toggle, and an on-demand match-summary/xG popup) are buildable by extending patterns already proven in this codebase.
 
-The recommended approach is to generalize FREE_KICK_SETUP staging mechanism into a reusable RestartSetupState/RESTART_STAGES module, recognize that Goal Kick needs almost no new state-machine work (it is a new trigger into the already-existing GK_RESTART to GK_KICK_TARGET to GK_KICK_MOVE chain), and add a new ball.lastTouchedBy field as the foundational prerequisite for all out-of-bounds classification. The rulebook text contains numerous genuine ambiguities (which die triggers a foul, professional-foul red-vs-yellow semantics, booking/fouls toggle interaction, Corner Kick two-stage repositioning) that must be resolved as explicit REQUIREMENTS.md decisions before implementation, not left to be silently interpreted during phase planning.
+The recommended approach is six semi-independent feature slices plus one embedded cross-cutting bug-fix (red-carded players still triggering deflections/ZoI steals — a confirmed, currently-live bug), sequenced by dependency and risk rather than request order. The highest-risk item is the Substitution UX overhaul: it adds a second, coexisting interaction mode to an already-tested component (LineupAssignmentScreen.tsx), risking regression to existing SUB-02..07 guards. The second-highest risk is the tackle/steal decline mechanic, genuinely novel engine state with no code path or genre precedent to extend from.
 
-The dominant risk is whether every new event type is fully wired into the four disconnected registries this codebase uses for replay/undo, and whether same-phase broadcasts and batched multi-event narration correctly reach the client - both risk classes have already caused real shipped regressions in this exact codebase (BUG-37, Phase 32-05 SELECTOR-REVIEW). A secondary risk is process, not code: this project has twice silently dropped requirements during phase renaming (v1.4 RESP-01..09), and this milestone six loosely-coupled subsystems behind three independent toggles is more exposed to that failure mode than any prior milestone.
+Key risks and mitigations: (1) the red-card exclusion bug has now recurred 3+ times because the filter is hand-written ad hoc at each site, so extract a shared isActivePiece helper while fixing it; (2) refereeCard.leniency is a dual-consumer field (booking AND added-time), so an override touching only booking code will silently change added time too; (3) card/injury iconography is triplicated today and a 4th surface (bench) has neither icon, so unify is a genuine 4-surface consolidation; (4) match-stat counters must follow subsUsed (never reset at half-time), not addedTimeBonus (reset per-half); (5) xG capture must be instrumented at every shot-resolution branch (SHOT, SNAPSHOT_DEFLECT, headed shot, penalty, GK-dive-at-feet penalty) or it will silently under-report.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new npm packages are needed anywhere in packages/shared, packages/server, or packages/client. Every v1.6 feature is expressible via the existing GamePhase FSM (new union members plus apply\* handlers), the existing pure dice-duel pattern (crypto.randomInt-backed rollDice() called only from the socket handler layer, injected into pure engine functions), and the existing pure hex-math module (hex.ts/pitch.ts). This continues the project established philosophy of rejecting frameworks (Colyseus, boardgame.io, XState, Redux, icon libraries, RNG libraries) in favor of hand-rolled, event-driven, server-authoritative logic that already scales to 27 GamePhase members without strain.
+No new packages required. All work operates within the already-validated stack: React 18.3.1, Zustand 4.5.7, Socket.io 4.8.3, TypeScript project-wide, inline SVG (no Canvas), CSS Modules, and hand-written shared hex/validator math in packages/shared (no honeycomb-grid, despite the v1.0 recommendation, since custom hex math was actually shipped).
 
-Core technologies (all unchanged, no version bumps):
+Core technologies (all pre-existing, zero installs):
 
-- TypeScript 5.9.3 - new fields (resilience usage, yellowCards, injured, etc.) are additive interface changes, not new infrastructure
-- Node.js crypto.randomInt (existing rollDice()) - sole sanctioned RNG source for every new dice roll (foul check, injury, booking, GK-dive-at-feet, penalty duel); no new die range needed
-- Socket.io 4.8.3 - new events (FOUL_DECISION, SUBSTITUTE, restart-move events) follow the existing event-oriented pattern
-- Zustand 4.5.7 - new selectors/slices on the existing single client store
+- React 18 + Zustand 4 — ordinary component/state work, no new rendering paradigm
+- Socket.io 4 — new fields ride the existing full-snapshot broadcast; new events mirror existing handler shapes
+- Native HTML5 Drag and Drop API — already implements substitution drag-and-drop at the required scale
+- Inline SVG + CSS Modules — every visual glyph is a hand-tuned SVG primitive keyed off tokens.css
+- packages/shared/src/hex.ts — hexDistance() and box-occupancy helpers directly reusable for xG inputs
 
 ### Expected Features
 
-Must have (table stakes, rulebook-mandated, all in-scope for v1.6):
+All six features are explicitly in-scope P1 per PROJECT.md — none should be cut. Genre research (FIFA/EA FC, Football Manager, broadcast stats) confirms the requested shape closely matches industry convention, with two exceptions flagged as project-specific inventions.
 
-- Fouls (roll-of-1 on tackle/steal/GK-dive) - always-fire injury and booking rolls, attacker continue-or-restart choice
-- Bookings - yellow greater or equal to Leniency, 2nd yellow to red, Professional/Last-Man foul to straight red (semantics need rulebook confirmation)
-- Injuries - roll greater or equal to Resilience, -1 all attributes, 2nd injury forces substitution (with a no-sub-available fallback)
-- Substitutions - up to 3 per team per match (not per-half), jersey-number plus lineup-slot inheritance, +1 added time each, available at any stoppage, always-on (no settings gate)
-- Penalty Kick - -2 GK dice modifier (reuses existing computeCombinedScore penalty array), tie to Loose Ball (reuses existing mechanic)
-- GK-Dive-at-Feet - new duel type (attacking-phase, up to 3 hexes parallel to goal, -1 dice penalty at 3rd hex); defensive-phase variant is just the existing TACKLE_ATTEMPT with a GK-source branch
-- Goal Kick / Corner Kick / Throw-In - new restart flows triggered by out-of-bounds classification
-- Out-of-Bounds Detection - sideline/attacking-byline/defending-byline classification, requires new lastTouchedByPieceId/ball.lastTouchedBy tracking that does not exist today
-- Three independent game-creation settings toggles: Fouls, Booking, Out-of-Bounds/Restarts (Booking is inert without Fouls; Penalty Kick gates under Fouls, not Restarts)
+Must have (table stakes):
 
-Explicitly deferred (per PROJECT.md, confirmed out of scope this milestone):
+- Consistent card/injury iconography, one fixed position, across every player-showing surface
+- Explicit off/on confirmation before a substitution commits
+- Red-carded/unavailable bench players stay visible with a status marker, never removed
+- Progressive-disclosure Advanced settings section
+- Basic on-demand match stats (possession, shots, cards) reachable mid-match
 
-- RESP-01..09, game-stats overlay, reconnection grace period, rematch, chat, draft history
+Should have (differentiators, partially novel):
+
+- Referee Leniency manual override (2-5 dial) — thin override of existing random-roll logic
+- Tackle/Steal decline-and-retry with persistent still-live ring — no mainstream soccer-game precedent; nearest analogue is turn-based tactics games' overwatch/reserved-action pattern
+- Default drag-and-drop on-field positioning mode — also no direct precedent, project's own invention
+- On-demand info-icon stats popup, lighter than the existing full-screen half-time/full-time recap
+
+Defer (anti-features, not v1.7 scope):
+
+- Heat maps, pass-network diagrams, shot maps, per-player ratings
+- Leniency override permitting 1 or 6 (meaningless extremes) — must stay bounded 2-5
+- Undo/redo for a confirmed substitution
+- AI-suggested substitutions / tactical-instructions system
+- Configurable decline thresholds — binary toggle only
 
 ### Architecture Approach
 
-Every new mechanic maps onto one of four already-proven shapes in gameEngine.ts: (1) a new GamePhase union member plus apply\* handler for anything needing distinct client UI, following the FREE_KICK_SETUP precedent exactly; (2) a new duel-resolution function shaped like computeHeaderDuelDetail for GK-dive-at-feet and penalty kick; (3) inline, non-phase-transitioning dice sub-resolution (mirroring TACKLE_ATTEMPT/STEAL_ATTEMPT) for the always-fires injury/booking rolls; (4) a standalone phase-keyed allow-list (mirroring applyUndo validUndoPhases) for substitution eligibility, which does not fit the ELIGIBLE_NEXT_ACTIONS sequencing table.
+The existing Settings-to-Room-to-buildInitialGameState-to-GameState propagation pipeline (broadcast in full on every action, Zustand replaces state wholesale) is the load-bearing seam for 4 of 6 features. Two other recurring idioms anchor the rest: the two-button decision-prompt family (FoulChoicePanel/GkDiveAtFeetPromptPanel — deciding-team field plus resume snapshot plus waiting-message branch plus paired DECLINED event) is the template for the new Tackle/Steal prompt; and the new-event-type registration checklist (formatEvent, REPLAY_ELIGIBLE_TYPES, applyUndo isBoundary disjunction, PHASE_LABEL map, STOPPAGE_PHASES) is a documented recurring bug class every feature adding a new ActionEventType or GamePhase (Features 4, 5, 6) must budget for.
 
-Major components:
+Major components (new/modified):
 
-1. Generalized RestartSetupState/RESTART_STAGES module - refactor of FREE_KICK_SETUP currently free-kick-specific fields into a kind-parameterized structure shared by Free Kick, Goal Kick (mostly unneeded - see below), Corner Kick, and Throw-In. Should land early, as its own task, before building the new restart types on top of it.
-2. ball.lastTouchedBy tracking (new field on BallState) - the single true prerequisite for all out-of-bounds work; must be updated at every existing ball-state mutation site.
-3. Goal Kick as a new trigger, not new machinery - reuses the existing GK_RESTART to GK_KICK_TARGET to GK_KICK_MOVE chain unmodified; this is the single biggest scope-reduction finding and should be explicitly costed lower than Corner Kick/Throw-In.
-4. Inline foul/injury/booking resolution inside the existing TACKLE_ATTEMPT/STEAL_ATTEMPT/GK_DIVE_AT_FEET duel branches - never inside the restart-setup phases, or continue-play fouls would silently skip injury/booking.
-5. Standalone substitution eligibility check (isStoppagePhase/STOPPAGE_PHASES allow-list) plus new GameState.bench/subsUsed fields (bench roster state does not exist in live GameState today, only pre-match in DraftSession).
-6. Settings toggles as GameState fields, validated server-side at every gated handler (mirrors SELECTABLE_DRAFT_POOLS existing security pattern) - not client-UI-only gating.
+1. CardInjuryBadge.tsx — replaces 3 duplicated inline implementations, adds card/injury display to the bench (currently has neither); should land before/alongside the substitution rework
+2. LineupAssignmentScreen.tsx rework — coexisting subMode (default positioning/reposition vs. explicit substitution), new applyRosterReposition server function, client-side confirmation modal
+3. TackleStealPromptPanel.tsx plus new GamePhase/GameState fields mirroring GkDiveAtFeetPromptPanel — decline must use a sibling exclusion field, not overload stealAttemptedByIds/tackleAttemptedByIds
+4. GameSummaryPopup.tsx plus new match-wide counter fields (mirroring subsUsed never-reset shape) plus shooterHex/defendersInBox captured at every shot-resolution branch for xG
 
 ### Critical Pitfalls
 
-1. New dice-roll event types are invisible to Undo/Replay unless registered in at minimum four disconnected lists (isBoundary server plus client mirror, REPLAY_ELIGIBLE_TYPES, possibly ELIGIBLE_NEXT_ACTIONS) - this exact bug class (BUG-37, BUG-30/31) has already shipped twice in this project. Treat every new ActionEventType as a per-event checklist item, not a one-time fix.
-2. Reusing the generic DICE_ROLL event type reactivates a dormant full-slot Undo lockout that directly contradicts the always-fires-without-stopping-play requirement - every new roll needs its own specific ActionEventType.
-3. Same-phase broadcasts silently go stale on the client if new derived UI state keys off phase instead of eventLog/full gameState - this milestone is the first to introduce dice rolls that fire without a phase transition by design, exercising this bug class (already shipped once, Phase 32-05) far more than any prior milestone.
-4. EventBanner only inspects the last new event per broadcast, but a single foul resolution can append 3 chained events (foul, injury, booking) in one broadcast - must be changed to process all newly-appended events, not just the tail.
-5. Out-of-bounds detection is not centralized - today, 5+ independent call sites each locally clamp the ball to stay in-bounds; converting clamp to detect-and-classify requires auditing every site individually or an inconsistent, hard-to-notice bug results (ball exits correctly from a pass but stays clamped from a loose-ball bounce).
+1. CONFIRMED LIVE BUG — red-carded players still trigger deflections and ZoI steal/tackle prompts. Two DEFLECT_ATTEMPT defender-input builders and moveValidator.ts ZoI opponent list never exclude redCarded/onPitch false pieces. Fix at both sites; extract a shared isActivePiece helper.
+2. Referee Leniency is a dual-consumer field (booking threshold plus added-time bonus) — an override touching only booking code silently changes added time too.
+3. Card/injury iconography is already triplicated, and a 4th surface (bench) has neither icon. Unify means replacing 3 tested implementations AND adding net-new bench display.
+4. Substitution positioning-mode and substitution-mode share the same tested component and drag handlers — highest regression risk in the milestone. Keep drop handlers separate; re-run the full SUB-0X test suite as an explicit gate.
+5. Tackle/Steal declined state must not overload the existing attempted-tracking arrays, which reset at roughly 30 independent call sites with a different semantic. Needs a sibling field with its own explicit reset policy.
 
 ## Implications for Roadmap
 
-Based on combined research (FEATURES.md dependency graph and phase-splitting recommendation, ARCHITECTURE.md build order, PITFALLS.md per-pitfall phase mapping), the following phase structure is recommended:
+Based on combined research (ARCHITECTURE.md Suggested Build Order and PITFALLS.md phase-mapping table independently converged on a similar sequence):
 
-### Phase 1: Out-of-Bounds Foundation + Throw-In + Goal Kick
+### Phase 1: Red-Card Eligibility Bug Fix
 
-Rationale: Out-of-bounds classification is a hard prerequisite for all three new restart types (nothing downstream is testable without it) and requires the new ball.lastTouchedBy field - a wide-touching but low-risk, purely mechanical change best done first while the codebase is freshest to this pattern. Goal Kick is nearly free once this lands (new trigger into the existing GK_RESTART chain, not new staging machinery), so bundling it here avoids treating it as a peer-cost item to Corner Kick.
+Rationale: Zero dependencies, pure server-side correctness fix, confirmed live bug. Ships first so later phases aren't tested against a still-buggy engine.
+Delivers: Fixed DEFLECT_ATTEMPT filters (2 sites) and moveValidator.ts ZoI filter; extracted shared isActivePiece helper; regression tests.
+Addresses: The bug-fix requirement embedded in the Substitution UX ask (red-carded players fully removed from play).
+Avoids: Pitfalls #6, #7 (confirmed live bugs).
 
-Delivers: ball.lastTouchedBy tracking, classifyOutOfBounds pure function, Throw-In staged flow (new, moderate complexity), Goal Kick (trigger-only, low complexity), the Out-of-Bounds/Restarts settings toggle.
+### Phase 2: Unified Card/Injury Iconography
 
-Addresses: Out-of-Bounds Detection, Throw-In, Goal Kick target features.
+Rationale: Lands before the substitution rework so its bench red-card marker consumes a real shared component.
+Delivers: New CardInjuryBadge.tsx; replaces 3 duplicated implementations; adds card/injury display to the bench.
+Addresses: Table-stakes consistent iconography.
+Avoids: Pitfall #3 (triplicated logic plus missing 4th-surface coverage).
 
-Avoids: inconsistent OOB clamp sites (requires an explicit audit checklist of every existing isPitchHex clamp call site) and client-only settings-toggle gating (must be server-validated).
+### Phase 3: Referee Leniency Manual Override
 
-### Phase 2: Corner Kick
+Rationale: Small, isolated, settings-pipeline-only; no file overlap with Phase 2.
+Delivers: refereeLeniencyOverride threaded through the Settings-Room-GameState pipeline (both real build site and late-joiner echo site); server-side range re-validation (2-5 integer); UI toggle plus stepper.
+Uses: Existing toggle-propagation pipeline.
+Avoids: Pitfalls #1 (dual-consumer field) and #2 (missing server-side re-validation).
 
-Rationale: The most state-machine-complex of the three restart types (two sequential repositioning windows, finer 2-at-a-time alternation granularity than FREE_KICK_SETUP existing per-team-stage model) - sequencing it after Phase 1 lets it build on the classification foundation and, ideally, the generalized RestartSetupState/RESTART_STAGES refactor rather than duplicating free-kick-specific fields a third time.
+### Phase 4: Tackle/Steal Prompt-and-Decline Toggle
 
-Delivers: Corner Kick staged flow, generalized restart-staging module (if not already extracted in Phase 1).
+Rationale: Isolated new phase/event/panel family; highest design risk after the substitution rework — sequenced before Match Summary since a decline changes what an attempt means for that stat.
+Delivers: New GamePhase, GameState fields mirroring GkDiveAtFeetPromptPanel, new TackleStealPromptPanel.tsx, sibling exclusion field for declined state, new ActionEventType with explicit Undo/Replay registration decisions.
+Implements: Two-button decision-prompt architecture pattern.
+Avoids: Pitfalls #8 (declined/attempted state conflation) and #9 (new event type missing from Undo/Replay checklist).
 
-Uses: RestartSetupState generalization, existing HEADER phase as a transition target.
+### Phase 5: Substitution UX Overhaul (largest, highest-risk phase)
 
-Implements: New multi-window stage-index state machine.
+Rationale: Largest, most interdependent feature — benefits from Phase 1 clean engine and Phase 2 shared badge already in place.
+Delivers: Coexisting subMode in LineupAssignmentScreen.tsx; new applyRosterReposition server function; new GAME_ROSTER_REPOSITION event; confirmation modal; bench red-card marker (consuming Phase 2 badge); green Resume-button/banner visuals.
+Addresses: Table-stakes substitution confirmation, positioning-mode differentiator, bench red-card marker.
+Avoids: Pitfall #5 (mode guard entanglement) — requires separate drop handlers and full SUB-0X re-verification.
 
-### Phase 3: Fouls + Injury + Booking + GK-Dive-at-Feet + Penalty Kick + Foul-triggered Free Kick
+### Phase 6: Advanced Settings Drawer
 
-Rationale: This is the identified must-ship-together cluster - injury/booking are unskippable side effects of every foul, GK-dive-at-feet exists specifically to feed Penalty Kick (which has no other trigger), and Foul-triggered Free Kick is meaningless without Fouls existing. Deferred to give maximum lead time for resolving this cluster numerous rulebook ambiguities (which die triggers a foul, Professional Foul red-vs-yellow semantics, Booking/Fouls toggle interaction) via REQUIREMENTS.md before implementation starts.
+Rationale: Built last among settings-touching phases so it sizes itself against the final toggle count (4 existing plus Leniency plus Tackle/Steal Decline equals 6).
+Delivers: Collapsed-by-default Advanced section; two-column CSS Grid; single derived-state function shared between render-time and confirm-time Fouls-dependency logic.
+Uses: Existing local useState plus CSS Modules pattern.
+Avoids: Pitfall #4 (Fouls-dependency logic split across two mechanisms).
 
-Delivers: Foul detection on tackle/steal/GK-dive, inline injury+booking resolution, GK-Dive-at-Feet duel, Penalty Kick, Foul-triggered Free Kick (pure reuse of FREE_KICK_SETUP), Fouls plus Booking settings toggles.
+### Phase 7: Match Summary / Stats Popup with xG
 
-Uses: computeCombinedScore existing penalty-array mechanism, RefereeCard.leniency/PlayerAttributes.resilience (already-typed, currently-unused fields).
-
-Implements: Inline non-phase-transitioning dice sub-resolution pattern (mirrors TACKLE_ATTEMPT/STEAL_ATTEMPT).
-
-### Phase 4: Substitutions
-
-Rationale: Fully independent of all other clusters (only soft-depends on Injury for one trigger source: forced substitution on 2nd injury). Placed last so the injury/red-card trigger wiring from Phase 3 already exists (avoiding a small retroactive follow-up), but could be moved earlier or built in parallel if the roadmapper prefers to de-risk it first.
-
-Delivers: Substitution eligibility check (isStoppagePhase allow-list), new GameState.bench/subsUsed state, jersey-number/lineup-slot inheritance, +1 added-time integration, always-on UI affordance (not phase-gated).
-
-Addresses: Substitutions target feature (no settings toggle - always available).
+Rationale: Last — it reads state the other features produce, and touches the largest number of existing gameEngine.ts call sites, so building it after the engine stabilizes avoids rebasing across concurrent engine edits.
+Delivers: New match-wide (never-reset) counter fields for possession/passes/tackle-steal/fouls-cards; shooterHex/defendersInBox captured at every shot-resolution branch for xG; GameSummaryPopup.tsx deriving xG from an on-demand eventLog scan; scoreboard info-icon; settings/toggle recap.
+Addresses: Table-stakes on-demand match stats; the largest net-new server-side surface of the six.
+Avoids: Pitfalls #10 (wrongly reset at half-time), #11 (xG missing for non-main-branch shot types), #12 (possession/pass-count source-of-truth ambiguity — default to on-demand eventLog scan, mirroring the ball.lastTouchedBy precedent).
 
 ### Phase Ordering Rationale
 
-- Out-of-bounds classification is phased first because it is a strict dependency of 3 of the 4 remaining feature clusters (Throw-In, Corner Kick, Goal Kick) - phasing it later would mean phasing effects before their cause.
-- The Fouls/Injury/Booking/GK-Dive/Penalty cluster is deliberately phased later (not first) specifically because it carries this milestone highest concentration of genuine rulebook ambiguities (die-side ambiguity, Professional Foul semantics, toggle-interaction semantics) - later phasing gives more lead time to resolve these via REQUIREMENTS.md rather than under implementation pressure.
-- Substitutions is phased last because it is architecturally the most independent (no FSM dependency on any other cluster), so it carries the least schedule risk regardless of position and benefits from Phase 3 injury/red-card wiring already existing.
-- This order also front-loads the more novel state-machine work (multi-window staged repositioning, new ball-touch tracking field) while the codebase context is freshest.
+- Bug fix and low-novelty toggles first, novel state machines and highest-regression-risk UI in the middle, stats aggregation last — follows both the dependency graph (Match Summary reads state earlier phases produce) and risk-mitigation logic (fix the engine before testing new UI against it; build the shared badge before the UI that needs it).
+- Substitution UX is deliberately not first, despite being the largest feature, because it benefits measurably from Phase 1 (clean engine, since it owns the red-card bug-fix scope) and Phase 2 (shared badge) landing first.
+- This avoids the specific pitfall class already documented in this codebase (new-event-type registration gaps, dual-consumer field surprises, duplicated eligibility filters) by grouping related audit work into the phase introducing the new state.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning (--research-phase):
+Needs deeper research/design during phase planning:
 
-- Phase 2 (Corner Kick): Genuinely new state-machine shape (2-at-a-time alternating sub-batches within a shared stage, two sequential repositioning windows) with no direct 1:1 precedent in the existing codebase - the closest precedent (freeKickStageIndex) has no per-stage move-count cap today, so this needs new design work, not just a template fill-in.
-- Phase 3 (Fouls/Booking cluster): Multiple rulebook-ambiguity items flagged as must-confirm-against-physical-rulebook-text-before-implementation (which die triggers a foul, Professional Foul red-vs-yellow reading, nutmeg vs. existing STEAL_ATTEMPT mapping) - these are rules questions, not architecture questions, but should be resolved before/during this phase planning, not discovered mid-implementation.
+- Phase 4 (Tackle/Steal decline): Genuinely novel engine state machine, no genre precedent, no existing code path to extend from. Flag for deeper design/context work at plan time.
+- Phase 7 (Match Summary/xG): xG capture spans 4+ independently-coded shot-resolution branches with no shared hook — needs explicit branch enumeration before implementation. Also needs an explicit live-counter-vs-eventLog-scan architecture decision recorded before implementation.
+- Phase 5 (Substitution UX): Should get dedicated planning time enumerating every existing SUB-0X guard before implementation (test-first for the mode-coexistence boundary) given confirmed regression risk.
 
-Phases with standard, well-documented patterns (safe to skip research-phase, or use it only lightly):
+Phases with standard, well-documented patterns (skip deep research-phase):
 
-- Phase 1 (Out-of-Bounds + Throw-In + Goal Kick): Goal Kick is a near-zero-risk trigger addition to an existing chain; Throw-In and the classification function are new but structurally simple (single repositioning window, fixed-hex-range check) with strong precedent in hex.ts/pitch.ts.
-- Phase 4 (Substitutions): Precedent for the phase-keyed allow-list pattern already exists cleanly (applyUndo validUndoPhases); the main new work (bench state, jersey-number inheritance) is data-shape work, not novel FSM design.
+- Phase 1 (bug fix): Mechanical filter additions at already-identified sites.
+- Phase 2 (iconography): Standard component-extraction refactor; visual pattern already confirmed industry-standard and partially implemented.
+- Phase 3 (Leniency override): Thin override mirroring an already-established toggle-propagation pattern used 4 times before.
+- Phase 6 (Advanced drawer): Native details/useState plus CSS Grid; zero new architecture.
 
 ## Confidence Assessment
 
-| Area         | Confidence                                                               | Notes                                                                                                                                                                                                                               |
-| ------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stack        | HIGH                                                                     | Grounded entirely in direct codebase inspection; zero new dependencies means zero external-ecosystem risk.                                                                                                                          |
-| Features     | HIGH (rulebook fidelity) / MEDIUM (general stoppage-sequencing patterns) | Rulebook text was supplied verbatim by the user and cross-checked against real codebase mechanics for every claim; the small MEDIUM carve-out is for general web-sourced FSM-pattern discussion used only as illustrative contrast. |
-| Architecture | HIGH                                                                     | Every finding is a direct file:line citation from the current committed source; no external framework research was needed since this is an internal FSM-extension question scoped entirely to this codebase own conventions.        |
-| Pitfalls     | HIGH                                                                     | Grounded in direct reading of the actual implementation plus two real, already-shipped incidents in this exact codebase (BUG-37, Phase 32-05 SELECTOR-REVIEW) that generalize directly to this milestone new risk surface.          |
+| Area         | Confidence | Notes                                                                                                                                                                                                                                     |
+| ------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stack        | HIGH       | Grounded in direct inspection of package.json manifests and shipped code; unanimous no-new-deps-needed conclusion                                                                                                                         |
+| Features     | MEDIUM     | Established genre/UX conventions cross-checked against public sources, but 2 of 6 features (tackle/steal decline, default positioning mode) have no direct genre precedent — flagged explicitly rather than forced into a false precedent |
+| Architecture | HIGH       | Every integration claim backed by file:line citations from direct code reads; no speculative APIs                                                                                                                                         |
+| Pitfalls     | HIGH       | Grounded in direct code reads; two pitfalls (#6, #7) are confirmed, currently-live, reproducible bugs discovered during this research                                                                                                     |
 
 Overall confidence: HIGH
 
 ### Gaps to Address
 
-- Which die triggers a foul (defender vs. carrier) on tackle/steal - recommended default (defender die) must be confirmed against the physical rulebook text before Phase 3 implementation; get this wrong and fouls silently fire at the wrong rate/side with no test catching it (1-in-6 probability bug, invisible in casual playtesting).
-- Nutmeg mapping - likely flavor text for the existing STEAL_ATTEMPT mechanic rather than a third duel type, but must be confirmed against the rulebook glossary; if wrong, under-scopes Phase 3 by a whole new duel type.
-- Professional/Last-Man Foul red-vs-yellow phrasing - genuinely ambiguous between always-straight-red and a modified roll that can produce either outcome; flagged as the single most safety-critical booking ambiguity in the milestone, needs a verbatim rulebook re-quote in REQUIREMENTS.md before Phase 3 starts.
-- Corner Kick exact stage/alternation shape - the brief describes what reads as two distinct repositioning windows with different granularities; must be pinned down as an explicit design decision before Phase 2 implementation, not discovered mid-build.
-- Booking-without-Fouls toggle semantics - recommended default is Booking has no effect unless Fouls is also enabled (an allowed-but-inert combination); should be documented explicitly in REQUIREMENTS.md so it is not discovered as a surprise during UAT.
-- Requirement traceability risk (process gap, not a research gap): this project has twice silently dropped requirements during phase renaming (v1.4 RESP-01..09). Given this milestone bundles six loosely-related subsystems behind three toggles, assign stable requirement IDs (FOUL-xx, BOOK-xx, INJ-xx, SUB-xx, RESTART-xx, OOB-xx) before phase planning and enforce traceability diffing at every /gsd-transition.
+- Tackle/Steal decline state machine design is not fully specified — exact GameState field shape, resume-snapshot mechanics, and reset-policy table across roughly 30 existing reset sites needs to be worked out during Phase 4 planning.
+- The wrapper component owning the substitution-mode banner/Resume-button chrome (green banner, green Resume button) was not identified during architecture research — needs a planning-time look at App.tsx or the equivalent wrapper.
+- The scoreboard component that will host the new info-icon affordance was not identified — needs a planning-time lookup (referenced only via PROJECT.md LAYOUT-01 decision).
+- Whether Referee Leniency's added-time coupling should be fixed (split the field) or just documented/messaged in UI is an open product decision — confirm with the user before implementation.
+- The is-an-action-pending guard needed to disable positioning-mode drag during an active game action needs a planning-time check of useGameStore.ts selection-state fields.
 
 ## Sources
 
 ### Primary (HIGH confidence)
 
-- Direct codebase inspection: packages/server/src/gameEngine.ts (4747 lines), packages/server/src/gameHandlers.ts, packages/server/src/roomStore.ts, packages/server/src/diceUtils.ts, packages/shared/src/types.ts, packages/shared/src/hex.ts, packages/shared/src/pitch.ts, packages/shared/src/offside.ts, packages/shared/src/scoreUtils.ts, packages/shared/src/actionSequence.ts, packages/shared/src/moveValidator.ts, packages/client/src/components/GameBoard.tsx, packages/client/src/components/ActionPanel.tsx, packages/client/src/components/EventBanner.tsx, packages/client/src/store/useGameStore.ts.
-- D:\dev\repo\counter-attack-poc\CLAUDE.md - project-authored stack constraints and framework-rejection rationale.
-- .planning/PROJECT.md - v1.6 milestone brief, target features, prior Key Decisions, known tech debt.
+- Direct repository inspection: packages/client/package.json, packages/server/package.json, packages/shared/package.json
+- Direct component/module inspection: PieceOverlay.tsx, PlayerStatsPanel.tsx, LineupAssignmentScreen.tsx, ActionPanel.tsx, GameSettingsScreen.tsx, HexGrid.tsx, BenchCarousel.tsx, DraftPackCarousel.tsx, GkDiveAtFeetPromptPanel.tsx, FoulChoicePanel.tsx
+- Direct server/shared module inspection: gameEngine.ts, gameHandlers.ts, roomHandlers.ts, roomStore.ts, moveValidator.ts, fouls.ts, stoppagePhases.ts, types.ts, hex.ts
+- .planning/PROJECT.md and .planning/STATE.md — documented pitfall precedents (subsUsed/addedTimeBonus, lastTouchedBy decision, BUG-30/31/37)
+- .planning/debug/resolved/red-card-bench-removal-scope.md — prior investigation directly informing the confirmed live-bug pitfalls
 
 ### Secondary (MEDIUM confidence)
 
-- General turn-based/CCG stack-sequencing background (MTG APNAP triggered-ability ordering) and general layered-FSM pattern discussion (Game Programming Patterns - State) - used only as contrast to justify why a generic interrupt-stack model is unneeded here; the concrete recommendation is grounded entirely in the project own FREE_KICK_SETUP code.
+- FIFA/EA Sports FC and Football Manager substitution-flow public references — confirms the select-outgoing/select-incoming/Confirm pattern
+- Sportmonks/football-stats glossary sources — standard broadcast stat-category taxonomy
+- Progressive Disclosure UX pattern references (LogRocket, UXPin) — standard collapsed-by-default Advanced-section convention
 
 ### Tertiary (LOW confidence)
 
-- None - no low-confidence sources were used in this research pass.
+- None flagged — all findings were either direct code reads or corroborated by multiple independent public sources
 
 ---
 
-Research completed: 2026-08-03
+Research completed: 2026-08-21
 Ready for roadmap: yes
