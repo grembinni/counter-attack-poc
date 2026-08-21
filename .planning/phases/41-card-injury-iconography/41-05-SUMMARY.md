@@ -108,6 +108,10 @@ None - no external service configuration required.
 - All four card/injury display surfaces (pitch token, player-stats card, roster card, bench card) now share one component and one locked visual contract — ready for Phase 42's substitution UX overhaul, which the plan notes will consume this component for its own bench red-card marker (per `41-CONTEXT.md` Integration Points).
 - Full client test suite (1034 tests) and `pnpm -r typecheck` both green after this plan; no regressions in draft-pack, bench drag/drop, or roster-card behavior.
 
+## Self-Check: PASSED
+
+All created/modified files confirmed present on disk; all 4 commits (`f6422c6`, `a475d0b`, `0e4727c`, `de66b43`) confirmed in `git log`.
+
 ---
 
 _Phase: 41-card-injury-iconography_
