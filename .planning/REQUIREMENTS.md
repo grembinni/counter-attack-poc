@@ -18,7 +18,7 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 - [x] **ICON-01**: A single shared card/injury badge component replaces the three independently-implemented treatments (pitch piece overlay, player-stats card, roster/lineup card)
 - [x] **ICON-02**: Card and injury status render with identical iconography and identical relative position (between name and flag, or immediately after flag) on the player card, pitch card, roster card, and bench card
-- [ ] **ICON-03**: Bench card gains card/injury status display for the first time (previously showed neither)
+- [x] **ICON-03**: Bench card gains card/injury status display for the first time (previously showed neither)
 
 ### Advanced Settings Drawer
 
@@ -102,16 +102,16 @@ Explicitly excluded. Documented to prevent scope creep.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement     | Phase    | Status  |
-| --------------- | -------- | ------- |
-| ICON-01..03     | Phase 41 | Pending |
-| SUB-08..18      | Phase 42 | Pending |
-| BUG-38          | Phase 42 | Pending |
-| TACKLE-01..04   | Phase 43 | Pending |
-| REFEREE-01..04  | Phase 44 | Pending |
-| SETTINGS-05..07 | Phase 44 | Pending |
-| STATS-01..09    | Phase 45 | Pending |
-| CLEANUP-05..13  | Phase 46 | Pending |
+| Requirement     | Phase    | Status   |
+| --------------- | -------- | -------- |
+| ICON-01..03     | Phase 41 | Complete |
+| SUB-08..18      | Phase 42 | Pending  |
+| BUG-38          | Phase 42 | Pending  |
+| TACKLE-01..04   | Phase 43 | Pending  |
+| REFEREE-01..04  | Phase 44 | Pending  |
+| SETTINGS-05..07 | Phase 44 | Pending  |
+| STATS-01..09    | Phase 45 | Pending  |
+| CLEANUP-05..13  | Phase 46 | Pending  |
 
 **Coverage:**
 
