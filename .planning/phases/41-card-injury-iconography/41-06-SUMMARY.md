@@ -226,3 +226,12 @@ None - no external service configuration required.
 
 _Phase: 41-card-injury-iconography_
 _Completed: 2026-08-21_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/CardInjuryBadge.audit.test.ts
+- FOUND: packages/client/src/components/CardInjuryBadge.crossSurface.test.tsx
+- FOUND: .planning/phases/41-card-injury-iconography/41-06-SUMMARY.md
+- FOUND: commit 9ce5b13 (Task 1)
+- FOUND: commit 6b15c81 (Task 2)
+- FOUND: commit 409d49f (plan metadata)
