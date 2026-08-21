@@ -2,7 +2,7 @@
 created: 2026-08-09T00:00:00.000Z
 title: 'Bug — offside rings still rendered after a goal resets positions for kick-off'
 area: rendering
-resolves_phase: null
+resolves_phase: 46
 files:
   - packages/client/src/components/HexGrid.tsx
   - packages/client/src/components/PieceOverlay.tsx

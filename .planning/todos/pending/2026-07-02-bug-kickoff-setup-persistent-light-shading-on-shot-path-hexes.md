@@ -2,7 +2,7 @@
 created: 2026-07-02T00:00:00.000Z
 title: 'Bug — KICK_OFF_SETUP shows persistent light shading on hexes matching prior shot path'
 area: rendering
-resolves_phase: 25
+resolves_phase: 46
 files:
   - packages/client/src/components/HexGrid.tsx
   - packages/server/src/gameHandlers.ts
