@@ -668,3 +668,52 @@ describe('substitution affordance (SUB-01/02)', () => {
     ).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Debug card-and-injury-icons-are-not: GameBoard's own inline top-left player
+// card (`.playerCardFlat`) is the one actually rendered by the live app —
+// PlayerStatsPanel.tsx is never mounted in production. This spec proves the
+// shared CardInjuryBadge glyph renders on THIS surface.
+// ---------------------------------------------------------------------------
+describe('GameBoard — top-left player card renders the shared card/injury badge', () => {
+  it('shows no card/injury badge for a clean selected piece', () => {
+    useGameStore.setState({ selectedPieceId: 'home-0' });
+    render(<GameBoard />);
+    expect(screen.queryByTestId('card-injury-badge')).toBeNull();
+  });
+
+  it('shows the yellow card + injury badge for a selected piece with yellowCards/injuryCount set', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-0' ? { ...p, yellowCards: 1 as const, injuryCount: 1 } : p,
+        ),
+      },
+      selectedPieceId: 'home-0',
+    });
+    render(<GameBoard />);
+    const badge = screen.getByTestId('card-injury-badge');
+    expect(badge).toBeDefined();
+    expect(screen.getAllByTestId('piece-card-badge')[0]!.getAttribute('data-card')).toBe('yellow');
+    expect(screen.getAllByTestId('piece-injury-badge').length).toBeGreaterThan(0);
+  });
+
+  it('keeps showing the badge for the persisted displayPiece after selectedPieceId is cleared (D-03 sticky card)', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-0' ? { ...p, redCarded: true } : p,
+        ),
+      },
+      selectedPieceId: 'home-0',
+    });
+    const { rerender } = render(<GameBoard />);
+    expect(screen.getAllByTestId('piece-card-badge')[0]!.getAttribute('data-card')).toBe('red');
+
+    useGameStore.setState({ selectedPieceId: null });
+    rerender(<GameBoard />);
+    expect(screen.getAllByTestId('piece-card-badge')[0]!.getAttribute('data-card')).toBe('red');
+  });
+});

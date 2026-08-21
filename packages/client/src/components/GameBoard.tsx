@@ -24,6 +24,7 @@ import { PenaltyKickSetupPanel } from './PenaltyKickSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
 import { NationFlag } from './NationFlag.js';
+import { CardInjuryBadge, cardColorFor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { LineupAssignmentScreen } from './LineupAssignmentScreen.js';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
@@ -349,6 +350,16 @@ export function GameBoard() {
                     <NationFlag nationality={displayPiece.nationality} size={18} />
                     <span className={styles.playerCardRole}>{displayPiece.role}</span>
                     <span className={styles.playerCardNum}>#{displayPiece.number}</span>
+                    {/* Debug card-and-injury-icons-are-not: this inline card is the actual
+                        top-left player card the app renders (PlayerStatsPanel.tsx is not
+                        used in the live tree — see debug session). ICON-01/ICON-02 (D-01/D-02):
+                        shared CardInjuryBadge glyph, positioned immediately after the jersey
+                        number, mirroring PieceOverlay/PlayerStatsPanel/roster/bench. */}
+                    <CardInjuryBadge
+                      cardColor={cardColorFor(displayPiece)}
+                      injuryCount={displayPiece.injuryCount ?? 0}
+                      size={18}
+                    />
                   </div>
                 </div>
                 <div className={styles.playerCardStatGrid}>
