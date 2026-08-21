@@ -41,6 +41,22 @@ function readCss(file: string): string {
     .replace(/\s+/g, ' ');
 }
 
+/** Like `readCss`, but for TS/TSX source: strips BOTH block comments and line
+ * comments BEFORE matching (WR-02 fix). Used only by the "derivation exists
+ * exactly once" self-check below — every other assertion in this file
+ * deliberately keeps reading comments-and-all via `read()`/`readCss()`,
+ * because those checks are validating doc-comment prose itself (e.g. the
+ * allowlist test below expects CardInjuryBadge.tsx's module header comment to
+ * be the source of its one allowed `redCarded === true ?` occurrence). The
+ * self-check needs the opposite: it must exercise the real `cardColorFor`
+ * code path, not incidental prose describing it. */
+function readSourceOnly(file: string): string {
+  return readFileSync(join(COMPONENTS_DIR, file), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\s+/g, ' ');
+}
+
 const SURFACES = [
   'PieceOverlay.tsx',
   'PlayerStatsPanel.tsx',
@@ -79,8 +95,16 @@ describe('ICON-01: the card-colour derivation exists in exactly one place', () =
   });
 
   it('CardInjuryBadge.tsx contains the derivation exactly once (guards against a second copy sprouting inside it)', () => {
-    const content = read('CardInjuryBadge.tsx');
-    const matches = content.match(new RegExp(derivationRegex.source, 'g')) ?? [];
+    // WR-02 fix: `cardColorFor`'s real implementation is an `if`-statement
+    // (`if (piece.redCarded === true) return 'red';`), not the ternary
+    // `derivationRegex` above is written to detect — that ternary shape only
+    // ever matched this file's own doc-comment prose describing the pattern
+    // consumers must not re-introduce. Matching the actual implementation
+    // shape, on comment-stripped source, exercises the real code path
+    // instead of incidental prose.
+    const implementationRegex = /if\s*\(\s*piece\.redCarded\s*===\s*true\s*\)\s*return\s*['"]red['"]/;
+    const content = readSourceOnly('CardInjuryBadge.tsx');
+    const matches = content.match(new RegExp(implementationRegex.source, 'g')) ?? [];
     expect(matches.length).toBe(1);
   });
 
