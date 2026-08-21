@@ -145,7 +145,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
-| 41    | 2/6                                         | In Progress |             |
+| 41    | 4/6                                         | In Progress |             |
 | 42    | Substitution UX Overhaul                    | TBD         | Not started |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
@@ -172,8 +172,8 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 41-03-PLAN.md — Migrate the pitch token and the scoreboard player-stats card onto the shared badge
-- [ ] 41-04-PLAN.md — Migrate the roster/lineup card and delete the last card-colour ternary copy
+- [x] 41-03-PLAN.md — Migrate the pitch token and the scoreboard player-stats card onto the shared badge
+- [x] 41-04-PLAN.md — Migrate the roster/lineup card and delete the last card-colour ternary copy
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
