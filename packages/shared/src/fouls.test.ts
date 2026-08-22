@@ -389,6 +389,23 @@ describe('isProfessionalFoul', () => {
     expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
   });
 
+  // BUG-38 (Phase 42): isProfessionalFoul now uses isActivePiece (was a hand-written
+  // `redCarded !== true` clause that did not check onPitch).
+  it('an onPitch: false piece (without redCarded) is also excluded from the covering-defender set, proving the two-clause predicate (DOGSO)', () => {
+    const attackerHex = { q: 21, r: 15 };
+    const fouler = makePiece({ id: 'fouler', teamId: 'away', position: { q: 5, r: 5 } });
+    const benched = makePiece({
+      id: 'benched',
+      teamId: 'away',
+      role: 'DEF',
+      position: { q: 29, r: 12 },
+      pace: 4,
+      onPitch: false,
+    });
+    const state = makeState({ pieces: [fouler, benched], paceUsedByPieceId: {} });
+    expect(isProfessionalFoul(state, 'fouler', attackerHex)).toBe(true);
+  });
+
   it('away-attacking mirror: a home defender goal-side (lower q) and in range is NOT DOGSO', () => {
     // Away attacker at {q:15,r:15} attacks q=0 — proves the direction term is not
     // hardcoded to home.

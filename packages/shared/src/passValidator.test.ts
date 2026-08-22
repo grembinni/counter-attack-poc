@@ -257,6 +257,74 @@ describe('validatePass', () => {
     });
     expect(result.ok).toBe(true);
   });
+
+  // BUG-38 (Phase 42): isActivePiece exclusion of red-carded/benched opponents from
+  // path-blocking and interceptor lists.
+  describe('BUG-38: red-carded/benched opponent exclusion', () => {
+    it('does NOT block a STANDARD pass when a red-carded opponent sits on the intermediate hex', () => {
+      const blocker: PlayerPiece = { ...makeOpponent('redCarded1', 5, 0), redCarded: true };
+      const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(true);
+    });
+
+    it('still blocks a STANDARD pass when a live opponent sits on the intermediate hex (guard narrowed, not removed)', () => {
+      const blocker = makeOpponent('live1', 5, 0);
+      const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('PATH_BLOCKED');
+    });
+
+    it('does NOT return a red-carded opponent on the destination hex as an autoIntercept (destination no longer occupied)', () => {
+      const defender: PlayerPiece = { ...makeOpponent('redCarded2', 5, 0), redCarded: true };
+      const state: GameState = { ...baseState, pieces: [basePiece, defender] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.autoIntercepts).toHaveLength(0);
+      }
+    });
+
+    it('still returns a live opponent on the destination hex as an autoIntercept (guard narrowed, not removed)', () => {
+      const defender = makeOpponent('live2', 5, 0);
+      const state: GameState = { ...baseState, pieces: [basePiece, defender] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.autoIntercepts).toHaveLength(1);
+        expect(result.autoIntercepts[0]?.id).toBe('live2');
+      }
+    });
+
+    it('does NOT count a red-carded opponent adjacent to the destination as a rollIntercept', () => {
+      const opp: PlayerPiece = { ...makeOpponent('redCarded3', 6, 0), redCarded: true };
+      const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.rollIntercepts).toHaveLength(0);
+      }
+    });
+
+    it('still counts a live opponent adjacent to the destination as a rollIntercept (guard narrowed, not removed)', () => {
+      const opp = makeOpponent('live3', 6, 0);
+      const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 5, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.rollIntercepts).toHaveLength(1);
+        expect(result.rollIntercepts[0]?.id).toBe('live3');
+      }
+    });
+
+    it('excludes an onPitch: false opponent (without redCarded) from path blocking, proving the two-clause predicate', () => {
+      const blocker: PlayerPiece = { ...makeOpponent('benched1', 5, 0), onPitch: false };
+      const state: GameState = { ...baseState, pieces: [basePiece, blocker] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'STANDARD');
+      expect(result.ok).toBe(true);
+    });
+  });
 });
 
 describe('validatePassAccuracy', () => {

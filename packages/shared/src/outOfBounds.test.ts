@@ -121,6 +121,30 @@ describe('resolveThrowInHex', () => {
     const second = resolveThrowInHex(preferred, pieces);
     expect(first).toEqual(second);
   });
+
+  // BUG-38 (Phase 42): isActivePiece exclusion of a red-carded/benched piece from occupancy.
+  describe('BUG-38: red-carded/benched piece exclusion', () => {
+    it('returns the preferred hex unchanged when only a red-carded piece sits on it', () => {
+      const preferred: HexCoord = { q: 18, r: 13 };
+      const pieces = [{ position: preferred, redCarded: true }];
+      const result = resolveThrowInHex(preferred, pieces);
+      expect(result).toEqual(preferred);
+    });
+
+    it('still relocates when a live piece sits on the preferred hex (guard narrowed, not removed)', () => {
+      const preferred: HexCoord = { q: 18, r: 13 };
+      const pieces = [{ position: preferred }];
+      const result = resolveThrowInHex(preferred, pieces);
+      expect(result).not.toEqual(preferred);
+    });
+
+    it('returns the preferred hex unchanged when only an onPitch: false piece sits on it (proves the two-clause predicate)', () => {
+      const preferred: HexCoord = { q: 18, r: 13 };
+      const pieces = [{ position: preferred, onPitch: false }];
+      const result = resolveThrowInHex(preferred, pieces);
+      expect(result).toEqual(preferred);
+    });
+  });
 });
 
 describe('GOAL_KICK_RESTART_HEX', () => {
