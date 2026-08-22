@@ -188,8 +188,18 @@ function SideLog() {
  * structural deviation.
  */
 function SubstitutionButton({ actionable, onOpen }: { actionable: boolean; onOpen: () => void }) {
+  // SUB-17 (Phase 42): the whole 28px full-height strip now carries the editable signal, not
+  // just the inner button's label/text — `actionable` is applied to the OUTER container
+  // below, in addition to the existing inner `.subButtonActive` composition (both change
+  // together; D-03 names both tokens).
   return (
-    <div className={styles.subButtonStrip}>
+    <div
+      className={
+        actionable
+          ? `${styles.subButtonStrip} ${styles.subButtonStripActive}`
+          : styles.subButtonStrip
+      }
+    >
       <button
         className={
           actionable ? `${styles.sideLogChevron} ${styles.subButtonActive}` : styles.sideLogChevron
@@ -319,6 +329,8 @@ export function GameBoard() {
   const selectedFormation = useGameStore((s) => s.gameState.selectedFormation);
   const playerSlot = useGameStore((s) => s.playerSlot);
   const emitSubstitution = useGameStore((s) => s.emitSubstitution);
+  // SUB-08 (Phase 42): same selector style as emitSubstitution above.
+  const emitRosterReposition = useGameStore((s) => s.emitRosterReposition);
   // D-19/Pitfall 7: drag/modal-open state is local, never Zustand.
   const [subOpen, setSubOpen] = useState(false);
   const isSubEligiblePhase = isStoppagePhase(phase);
@@ -593,13 +605,6 @@ export function GameBoard() {
           {subOpen && myTeam !== null && (
             <div className={styles.substitutionOverlay}>
               <div className={styles.substitutionModalCard}>
-                <button
-                  className={styles.substitutionModalClose}
-                  onClick={() => setSubOpen(false)}
-                  aria-label="Close substitutions"
-                >
-                  &times;
-                </button>
                 <LineupAssignmentScreen
                   mode="midmatch"
                   assignment={[]}
@@ -616,11 +621,32 @@ export function GameBoard() {
                   subsUsed={subsUsed?.[myTeam] ?? 0}
                   maxOnPitch={maxOnPitchFor(pieces, myTeam)}
                   onSubstitute={emitSubstitution}
+                  // SUB-08 (Phase 42): wires the roster panel's positioning-mode drag-swap to
+                  // the server via the same selector-style store emitter as onSubstitute above.
+                  onReposition={emitRosterReposition}
+                  // SUB-09 (Phase 42): selectedPieceId !== null is the confirmed "a game action
+                  // is currently selected/pending" signal (resolved from STATE.md's open
+                  // question). Layers ON TOP of the existing readOnly gate below rather than
+                  // replacing it — selectedPieceId is already selected above (~line 238), so no
+                  // second selector is added here.
+                  actionPending={selectedPieceId !== null}
                   // Checkpoint gap-closure (40-07, item 2a): read-only the instant a live
                   // phase change (or simply opening the panel outside a stoppage) makes a
                   // substitution un-actionable — mirrors the server's own WRONG_PHASE guard.
                   readOnly={!isSubEligiblePhase}
                 />
+                {/* SUB-16/D-04 (Phase 42): full-width green Resume CTA replaces the small
+                    corner close control — same visual weight as the app's existing primary-CTA
+                    convention (LineupAssignmentScreen's own .confirmButtonReady). */}
+                <div className={styles.resumeCtaRow}>
+                  <button
+                    className={styles.resumeCta}
+                    onClick={() => setSubOpen(false)}
+                    aria-label="Resume match"
+                  >
+                    Resume
+                  </button>
+                </div>
               </div>
             </div>
           )}
