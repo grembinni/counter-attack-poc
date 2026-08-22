@@ -711,6 +711,17 @@
   max-width: none;
 }
 
+/* Gap-closure (42-12 Task 3A/gap item 5): mirrors .subConfirmButtonReady's shape
+   exactly, swapping the ready-green token pair for the app's existing
+   pending-orange token pair — no new colour literal. */
+.subConfirmButtonCancel {
+  background: var(--color-cta-pending-bg);
+}
+
+.subConfirmButtonCancel:hover {
+  background: var(--color-cta-pending-bg-hover);
+}
+
 .subConfirmButtonReady {
   background: var(--color-cta-ready-bg);
 }

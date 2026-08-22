@@ -1163,7 +1163,7 @@ export function LineupAssignmentScreen({
                   <div className={styles.subConfirmActions}>
                     <button
                       type="button"
-                      className={styles.subModeButton}
+                      className={`${styles.subModeButton} ${styles.subConfirmButtonCancel}`}
                       aria-label="Cancel substitution selection"
                       onClick={() => setPendingSub(null)}
                     >

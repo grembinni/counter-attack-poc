@@ -1348,6 +1348,20 @@ describe('Phase 42 — staged substitution with confirmation', () => {
     expect(screen.getByLabelText('Cancel substitution')).toBeDefined();
   });
 
+  it('5b. Gap-closure (42-12 Task 3C, gap item 5): both Cancel surfaces are orange — the popup Cancel carries subConfirmButtonCancel, and the mode-level Cancel carries rosterActionButtonCancel', () => {
+    renderMidmatch();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const popupCancel = screen.getByLabelText('Cancel substitution selection');
+    expect(popupCancel.className).toMatch(/subConfirmButtonCancel/);
+    fireEvent.click(popupCancel);
+    const modeCancel = screen.getByLabelText('Cancel substitution');
+    expect(modeCancel.className).toMatch(/rosterActionButtonCancel/);
+  });
+
   it('6. after cancelling the popup, a fresh bench-to-pitch drop stages again', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
