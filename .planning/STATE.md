@@ -19,9 +19,9 @@ progress:
 ## Current Position
 
 Phase: 42 (substitution-ux-overhaul) — EXECUTING
-Plan: 13 of 15 (wave 1 of gap-closure complete: 42-11, 42-12, 42-13)
-Status: Executing Phase 42 gap-closure — wave 1 done, wave 2 (42-14) next
-Last activity: 2026-08-22 -- Phase 42 wave 1 gap-closure plans merged; post-merge build+test gates passed
+Plan: 14 of 15 (wave 2 of gap-closure complete: 42-11..42-14)
+Status: Executing Phase 42 gap-closure — waves 1-2 done, wave 3 (42-15, human verification checkpoint) next
+Last activity: 2026-08-22 -- Phase 42 wave 2 gap-closure plan merged; post-merge build+test gates passed
 
 ## Project Reference
 

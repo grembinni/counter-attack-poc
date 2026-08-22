@@ -146,7 +146,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
-| 42    | 13/15                                       | In Progress |             |
+| 42    | 14/15                                       | In Progress |             |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
@@ -239,7 +239,7 @@ Plans:
 
 **Gap-closure Wave 2** _(blocked on Gap-closure Wave 1)_
 
-- [ ] 42-14-PLAN.md — reposition stacking guard: REPOSITION_SLOT_OCCUPIED + SENT OFF drop pre-gate (gap item 6)
+- [x] 42-14-PLAN.md — reposition stacking guard: REPOSITION_SLOT_OCCUPIED + SENT OFF drop pre-gate (gap item 6)
 
 **Gap-closure Wave 3** _(blocked on Gap-closure Wave 2)_
 
