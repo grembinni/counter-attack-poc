@@ -3882,8 +3882,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         | 'LONG_BALL'
         | 'FIRST_TIME_PASS';
       // Look up the receiver at targetHex for ballAfter tracking on pass/interception events.
+      // BUG-38 (D-09, Phase 42) sweep: a red-carded/benched piece keeps a live on-pitch
+      // `position` by design (D-08), so this and the sibling target-hex occupancy lookups
+      // below (ftpOccupant/occupant/teammate) must exclude it via `isActivePiece` rather
+      // than logging/delivering to a dismissed piece's frozen hex.
       const passTeammate = state.pieces.find(
         (p) =>
+          isActivePiece(p) &&
           p.teamId === carrier.teamId &&
           p.position.q === targetHex.q &&
           p.position.r === targetHex.r,
@@ -4095,7 +4100,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         // BUG-04 parity: find ANY piece at targetHex (any team) — defender-occupied hex
         // results in possession transfer, mirroring the STANDARD_PASS occupant-pickup path.
         const ftpOccupant = state.pieces.find(
-          (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+          (p) => isActivePiece(p) && p.position.q === targetHex.q && p.position.r === targetHex.r,
         );
         if (ftpOccupant) {
           const possessionChanges = ftpOccupant.teamId !== carrier.teamId;
@@ -4155,7 +4160,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // If that piece is on the opposing team, possession transfers to their team (D-09).
       if (newLastActionType !== 'HIGH_PASS') {
         const occupant = state.pieces.find(
-          (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+          (p) => isActivePiece(p) && p.position.q === targetHex.q && p.position.r === targetHex.r,
         );
         if (occupant) {
           const possessionChanges = occupant.teamId !== carrier.teamId;
@@ -4190,6 +4195,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // Find teammate at target (same teamId, matching q/r) — fallback for no-occupant path.
       const teammate = state.pieces.find(
         (p) =>
+          isActivePiece(p) &&
           p.teamId === carrier.teamId &&
           p.position.q === targetHex.q &&
           p.position.r === targetHex.r,
