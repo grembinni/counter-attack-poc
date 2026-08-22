@@ -3217,6 +3217,159 @@ export function applySubstitution(
   };
 }
 
+/** Discriminated rejection reasons for `applyRosterReposition` (SUB-08, Phase 42). */
+type RosterRepositionRejection =
+  | 'WRONG_PHASE'
+  | 'INVALID_REPOSITION'
+  | 'GK_SLOT_LOCKED'
+  | 'REPOSITION_BALL_CARRIER';
+
+export type ApplyRosterRepositionResult =
+  | { ok: true; state: GameState }
+  | { ok: false; reason: RosterRepositionRejection };
+
+/**
+ * Phase 42 (SUB-08): the sole pure-function authority for a formation-position swap
+ * between two of the caller's own on-field slots during a stoppage. Structurally
+ * mirrors `applySubstitution` immediately above: every guard validated BEFORE any
+ * mutation, then the new state is built as a single set of immutable spreads —
+ * `state` itself is never mutated.
+ *
+ * **Swap semantics (locked):** the swap moves the OCCUPANT between slots — `id`,
+ * `position` and `number` stay bound to the slot; everything else (identity, all nine
+ * numeric attributes, card/injury/on-pitch state) travels with the person. This model
+ * is required for three reasons, recorded here rather than at each call site:
+ *
+ * 1. It is byte-for-byte the SUB-03 inheritance contract (`buildSquadPieces`: `id` is
+ *    slot identity; `applySubstitution` above: the substitute inherits slot, jersey
+ *    number and position).
+ * 2. `applyRosterContinuity` (immediately below) overlays a rebuilt kick-off formation
+ *    by `id` and takes ONLY `position` from the reset array, keeping identity from the
+ *    live roster — so a swap expressed as identity-follows-slot survives every goal and
+ *    half-time reset, while a swap expressed as position-follows-player would be
+ *    silently undone at the next reset.
+ * 3. The mid-match roster grid groups cards by the slot index parsed from `piece.id`,
+ *    so identity-follows-slot is what makes the dragged card visibly move columns.
+ *
+ * On-pitch OBSERVABLE state is identical either way (the same person ends up standing
+ * on the same hex wearing the same slot's number) — the difference is purely which slot
+ * id holds whom, which is what resets and grouping depend on.
+ *
+ * **This function never touches `phase`, `activeTeam`, `movementSlot`, `subsUsed`,
+ * `addedTime` or `addedTimeBonus` or `bench`** — a reposition is free, uncapped,
+ * repeatable, and never advances the FSM or costs added time, unlike `applySubstitution`
+ * above which increments three counters.
+ */
+export function applyRosterReposition(
+  state: GameState,
+  team: 'home' | 'away',
+  pieceIdA: string,
+  pieceIdB: string,
+): ApplyRosterRepositionResult {
+  // 1. SUB-08 defence in depth — the handler (plan 42-06 Task 3) also checks
+  // isStoppagePhase, but the engine never trusts the caller to have done so.
+  if (!isStoppagePhase(state.phase)) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  // 2. A piece cannot be swapped with itself.
+  if (pieceIdA === pieceIdB) {
+    return { ok: false, reason: 'INVALID_REPOSITION' };
+  }
+
+  // 3. Resolve both pieces and re-validate ownership even though the handler also
+  // checks — an opponent's piece id, or an unknown id, can never be repositioned
+  // regardless of caller.
+  const pieceA = state.pieces.find((p) => p.id === pieceIdA);
+  const pieceB = state.pieces.find((p) => p.id === pieceIdB);
+  if (
+    pieceA === undefined ||
+    pieceB === undefined ||
+    pieceA.teamId !== team ||
+    pieceB.teamId !== team
+  ) {
+    return { ok: false, reason: 'INVALID_REPOSITION' };
+  }
+
+  // 4. GK-slot lock: reject on EITHER a live `role === 'GK'` OR a parsed slot index of
+  // 0 (matching the client's own `slotIndex === 0` parse in LineupAssignmentScreen.tsx)
+  // — a prior substitution can change `role` in a slot but never changes the id, so
+  // both conditions are required to always catch the GK slot regardless of who
+  // currently occupies it. Reuses the existing `GK_SLOT_LOCKED` string so the client's
+  // already-present rejection message ("Swap rejected — GK cannot be moved.") works
+  // with no client change.
+  const slotIndexOf = (id: string): number => {
+    const match = /-(\d+)$/.exec(id);
+    return match ? Number(match[1]) : -1;
+  };
+  if (
+    pieceA.role === 'GK' ||
+    pieceB.role === 'GK' ||
+    slotIndexOf(pieceA.id) === 0 ||
+    slotIndexOf(pieceB.id) === 0
+  ) {
+    return { ok: false, reason: 'GK_SLOT_LOCKED' };
+  }
+
+  // 5. A stoppage can have a designated carrier (goal-kick GK, corner taker, throw-in
+  // thrower) whose selection was made under restart-specific rules; swapping the
+  // occupant of the carrier's slot would silently hand the restart to a different
+  // player without re-running those rules.
+  if (state.ball.carrierId === pieceIdA || state.ball.carrierId === pieceIdB) {
+    return { ok: false, reason: 'REPOSITION_BALL_CARRIER' };
+  }
+
+  // 6. Deliberately NO red-card rejection here. D-05 explicitly requires the vacated
+  // slot of a sent-off player to remain a real, droppable slot so the manager can
+  // reshuffle shape around the numerical disadvantage. Do NOT "fix" this by adding
+  // isActivePiece — this is the one eligibility site in the codebase where a
+  // dismissed piece is a legitimate participant.
+
+  // --- All guards passed — build the new state immutably. ---
+
+  const newA: PlayerPiece = {
+    ...pieceB,
+    id: pieceA.id,
+    position: pieceA.position,
+    number: pieceA.number,
+  };
+  const newB: PlayerPiece = {
+    ...pieceA,
+    id: pieceB.id,
+    position: pieceB.position,
+    number: pieceB.number,
+  };
+  const newPieces = state.pieces.map((p) => {
+    if (p.id === pieceIdA) return newA;
+    if (p.id === pieceIdB) return newB;
+    return p;
+  });
+
+  const repositionEvent: ActionEvent = {
+    type: 'ROSTER_REPOSITION',
+    team,
+    pieceId: pieceIdA,
+    pieceIdB,
+    playerAName: `${pieceA.firstName} ${pieceA.lastName}`,
+    playerBName: `${pieceB.firstName} ${pieceB.lastName}`,
+    jerseyNumberA: pieceA.number,
+    jerseyNumberB: pieceB.number,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      pieces: newPieces,
+      eventLog: [...state.eventLog, repositionEvent],
+      // `phase`, `activeTeam`, `movementSlot`, `subsUsed`, `addedTime`,
+      // `addedTimeBonus` and `bench` are NOT changed — a reposition is free, uncapped,
+      // repeatable, and never advances the FSM or costs added time.
+    },
+  };
+}
+
 /**
  * Phase 40 (D-08 roster-continuity fix): overlays a freshly-rebuilt `resetPieces` array
  * (e.g. from `buildKickOffPieces`, which re-derives pieces from the DEFAULT squad order via
@@ -3332,7 +3485,11 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       // Phase 40 (40-01, RESEARCH.md Assumption A4): a SUBSTITUTION is a committed
       // roster change — Undo must never cross it, unconditionally (no phase guard),
       // exactly like TACKLE_ATTEMPT/STEAL_ATTEMPT/GK_DIVE_AT_FEET above.
-      evt.type === 'SUBSTITUTION';
+      evt.type === 'SUBSTITUTION' ||
+      // Phase 42 (SUB-08): a ROSTER_REPOSITION is a committed stoppage-time roster
+      // change that lives entirely outside the movement-slot undo model, so Undo must
+      // never cross it — identical reasoning to SUBSTITUTION immediately above.
+      evt.type === 'ROSTER_REPOSITION';
     return isBoundary ? idx : acc;
   }, -1);
 
@@ -9713,6 +9870,11 @@ export const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // from this set — a substitution moves no piece and changes no ball state, so it
   // produces no replay frame; it is visible in the match log only. This is an explicit
   // exclusion decision, not an omission — a future reader must not add it here.
+  // Phase 42 (SUB-08): ROSTER_REPOSITION is deliberately EXCLUDED from this set — it
+  // carries no `ballAfter` and moves no piece to a new hex (it swaps who occupies a
+  // hex), and `buildReplayFrames` reconstructs from the starting XI, where the swap has
+  // no meaning. This is a decided exclusion, not an omission — a future reader must not
+  // add it here, exactly like the SUBSTITUTION exclusion immediately above.
 ]);
 
 /**
