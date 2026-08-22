@@ -16,6 +16,7 @@ import {
   ELIGIBLE_NEXT_ACTIONS,
   isWithinCornerExclusionZone,
   computeGkDiveAtFeetTargetHexes,
+  isActivePiece,
 } from '@counter-attack/shared';
 import { mockMovementState } from '../mock/index.js';
 import { socket } from '../socket.js';
@@ -1287,9 +1288,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // happens via PenaltyKickSetupPanel's Confirm button (emitPenaltyKickTaker), not this
     // click. A prior version emitted directly from here with no confirmation step, so a
     // misclick committed the taker irreversibly (PENALTY_KICK_TAKER_PLACED is an Undo
-    // boundary) — 39-UAT gap 6. Also closes 39-REVIEW IN-02: the redCarded rejection below
-    // mirrors applyPenaltyKickTaker's TAKER_INVALID guard (gameEngine.ts) so a sent-off
-    // teammate is unselectable on the client, not merely rejected round-trip by the server.
+    // boundary) — 39-UAT gap 6. Also closes 39-REVIEW IN-02: the isActivePiece rejection
+    // below mirrors applyPenaltyKickTaker's TAKER_INVALID guard (gameEngine.ts) so a
+    // sent-off teammate is unselectable on the client, not merely rejected round-trip by
+    // the server. Phase 42 (BUG-38 residual audit, 42-10): converged onto the shared
+    // isActivePiece predicate — this site hand-wrote `redCarded === true` and was missed
+    // by the earlier client-side sweep (42-04, HexGrid.tsx's canSelectPenaltyKickTaker).
     if (gameState.phase === 'PENALTY_KICK_TAKER_SELECT') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
       // for full rationale); selectPiece's only real caller (HexGrid canSelectPenaltyKickTaker)
@@ -1303,7 +1307,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         piece.teamId !== myTeam ||
         piece.teamId !== gameState.penaltyKickTeam ||
         piece.role === 'GK' ||
-        piece.redCarded === true
+        !isActivePiece(piece)
       ) {
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;

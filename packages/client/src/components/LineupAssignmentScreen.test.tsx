@@ -1199,6 +1199,40 @@ describe('Phase 42 — midmatch positioning mode', () => {
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
+  /* Phase 42 Plan 10 (Task 1 side-by-side audit, GAP closure): the test above
+   * only asserts `onSubstitute` was never called — but since Plan 08 (42-08)
+   * rewrote substitution to a stage-then-confirm flow, `onSubstitute` is ONLY
+   * ever called from the popup's "Confirm Substitution" button, which this
+   * flow never reaches regardless of whether the drag was blocked. That makes
+   * the assertion above pass even if the bench-exclusion guard were removed
+   * entirely — it no longer proves the guard is reached (confirmed by a
+   * mutation check: deleting BenchCarousel's `unavailablePlayerIds?.includes`
+   * clause left the original test green). This test closes that gap by
+   * asserting no confirmation dialog is ever staged for EITHER a subbedOut
+   * (SUB-07) or redCarded (D-13) bench source — the property the original
+   * test intended to prove. */
+  it('SUB-07/D-13 gap-closure: dragging a subbedOut or redCarded bench card in substitution mode never stages a confirmation popup', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+
+    const outBadge = screen.getByTestId('bench-out-badge');
+    const subbedOutCard = outBadge.closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(subbedOutCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const targetOne = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(targetOne, { dataTransfer: { getData: () => '' } });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    const redBadge = screen.getByTestId('bench-red-card-badge');
+    const redCardedCard = redBadge.closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(redCardedCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const targetTwo = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(targetTwo, { dataTransfer: { getData: () => '' } });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
   it('readOnly guard: disables positioning-mode dragging and blocks entry into (and dragging within) substitution mode identically', () => {
     renderMidmatch({ readOnly: true });
     const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;

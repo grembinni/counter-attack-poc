@@ -12,8 +12,8 @@
  * roster, bench).
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, cleanup, act } from '@testing-library/react';
-import type { PlayerPiece, HexCoord } from '@counter-attack/shared';
+import { render, cleanup, act, fireEvent, screen, within } from '@testing-library/react';
+import type { PlayerPiece, HexCoord, BenchEntry } from '@counter-attack/shared';
 import { COLOR_SCHEME_REGISTRY } from '@counter-attack/shared';
 import { PieceOverlay } from './PieceOverlay.js';
 import { PlayerStatsPanel } from './PlayerStatsPanel.js';
@@ -345,5 +345,114 @@ describe('Card/injury iconography — ROADMAP Phase 41 Success Criterion 3: all 
     for (const result of allResults) {
       expect(result).toEqual(BOOKED_AND_INJURED);
     }
+  });
+});
+
+/**
+ * Phase 42 Plan 10 (Task 1 Part B) — D-07/SUB-18 bench regression check. D-07 states
+ * Phase 42 adds no new bench-side component; the obligation here is proving Phase 41's
+ * `CardInjuryBadge` (via BenchCarousel/DraftCardBody) still renders correctly on the
+ * bench once the reposition/substitution mode rework and the BUG-38 fixes have landed.
+ * Reading `LineupAssignmentScreen.tsx`'s mid-match branch shows `unavailablePlayerIds`/
+ * `redCardedPlayerIds`/`benchCardStatus` (the props that drive these badges) are all
+ * derived from `benchList` alone (~lines 1006-1011) — none reference `subMode`,
+ * `readOnly`, `actionPending`, or `pendingSub` — so badge rendering is provably
+ * independent of mode/gating state. These tests exercise that independence directly
+ * rather than relying on reading alone, since this is the single highest-regression-risk
+ * item in the milestone (research PITFALLS.md Pitfall 5).
+ */
+describe('Bench badge regression — Phase 42 rework (D-07/SUB-18)', () => {
+  /** Real PLAYER_POOL ids (p013 Fallou Fall / p014 Mamadou / p015 Timo / p016 Tomas)
+   * so PLAYER_MAP/resolveTieredCard lookups resolve — same convention as
+   * LineupAssignmentScreen.test.tsx's BENCH_WITH_STATUS fixture. */
+  const BENCH_REGRESSION_ENTRIES: BenchEntry[] = [
+    { playerId: 'p013', jerseyNumber: 13, status: 'available' },
+    { playerId: 'p014', jerseyNumber: 14, status: 'available', injuryCount: 1 },
+    { playerId: 'p015', jerseyNumber: 15, status: 'subbedOut' },
+    { playerId: 'p016', jerseyNumber: 16, status: 'redCarded' },
+  ];
+
+  const HOME_PIECES: PlayerPiece[] = [
+    { ...cleanPiece, id: 'home-0', role: 'GK', number: 1, firstName: 'Home', lastName: 'Keeper' },
+    { ...cleanPiece, id: 'home-1', role: 'DEF', number: 2, firstName: 'Home', lastName: 'DefOne' },
+    { ...cleanPiece, id: 'home-2', role: 'DEF', number: 3, firstName: 'Home', lastName: 'DefTwo' },
+  ];
+
+  /** Asserts all three bullets (redCarded glyph+badge, subbedOut OUT badge+dimming,
+   * injured glyph) hold, regardless of which mode/gating state the screen is in. */
+  function assertBenchBadges() {
+    const redBadge = screen.getByTestId('bench-red-card-badge');
+    expect(redBadge.textContent).toBe('RED CARD');
+    const redCard = redBadge.closest('[class*="cardUnavailable"]');
+    expect(redCard).not.toBeNull();
+    const redGlyph = within(redCard as HTMLElement)
+      .getAllByTestId('piece-card-badge')
+      .find((b) => b.getAttribute('data-card') === 'red');
+    expect(redGlyph).toBeDefined();
+
+    const outBadge = screen.getByTestId('bench-out-badge');
+    expect(outBadge.textContent).toBe('OUT');
+    const outCard = outBadge.closest('[class*="cardUnavailable"]');
+    expect(outCard).not.toBeNull();
+
+    const injuredCard = screen.getByText('#14').closest('[class*="cardBody"]') as HTMLElement;
+    expect(within(injuredCard).getByTestId('piece-injury-badge')).toBeDefined();
+  }
+
+  function renderRegression(
+    overrides: Partial<{ readOnly: boolean; actionPending: boolean }> = {},
+  ) {
+    return render(
+      <LineupAssignmentScreen
+        assignment={[]}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={noop}
+        onConfirm={noop}
+        lineupConfirmed={false}
+        mode="midmatch"
+        midmatchPieces={HOME_PIECES}
+        bench={BENCH_REGRESSION_ENTRIES}
+        subsUsed={0}
+        maxOnPitch={11}
+        onSubstitute={noop}
+        readOnly={overrides.readOnly ?? false}
+        onReposition={noop}
+        actionPending={overrides.actionPending ?? false}
+      />,
+    );
+  }
+
+  it('redCarded/subbedOut/injured bench badges render in positioning mode (the default)', () => {
+    renderRegression();
+    assertBenchBadges();
+  });
+
+  it('the same bench badges render unchanged after entering substitution mode', () => {
+    renderRegression();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    assertBenchBadges();
+  });
+
+  it('bench badges are unaffected by readOnly', () => {
+    renderRegression({ readOnly: true });
+    assertBenchBadges();
+  });
+
+  it('bench badges are unaffected by actionPending', () => {
+    renderRegression({ actionPending: true });
+    assertBenchBadges();
+  });
+
+  it('bench badges are unaffected by an open substitution-confirm popup', () => {
+    renderRegression();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(screen.getByRole('dialog')).toBeDefined();
+    assertBenchBadges();
   });
 });
