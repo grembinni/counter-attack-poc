@@ -736,13 +736,14 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  /* Phase 42 (SUB-08) UPDATED EXPECTATION: substitution mode is no longer the
-   * default — bench-drag substitution now requires entering substitution mode
-   * first via the mode-toggle button. Old expectation: the bench-drag gesture
-   * worked immediately on render. New expectation: the same drag+drop still
-   * calls onSubstitute once with the same args, but only after clicking
-   * "Substitute" to enter substitution mode. See 42-07-SUMMARY.md Deviations. */
-  it('SUB-02: dragging an available bench card and dropping it on an on-pitch card calls onSubstitute once with (outPieceId, inPlayerId)', () => {
+  /* Plan 08 (SUB-13/14/15) UPDATED EXPECTATION (2nd revision): a bench-to-pitch
+   * drop no longer calls onSubstitute immediately — it now stages a pending
+   * substitution behind a confirmation popup. Old expectation (set by 42-07):
+   * the drag+drop called onSubstitute directly once entering substitution
+   * mode. New expectation: the drag+drop stages the popup, and onSubstitute
+   * fires only after clicking "Confirm Substitution" — same args, same call
+   * count. See 42-08-SUMMARY.md Deviations. */
+  it('SUB-02: dragging an available bench card, dropping it on an on-pitch card, and confirming the popup calls onSubstitute once with (outPieceId, inPlayerId)', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
@@ -750,6 +751,8 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
     const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
     fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(onSubstitute).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText('Confirm substitution'));
     expect(onSubstitute).toHaveBeenCalledTimes(1);
     expect(onSubstitute).toHaveBeenCalledWith('home-1', 'p013');
   });
@@ -1203,5 +1206,149 @@ describe('Phase 42 — midmatch positioning mode', () => {
     expect(screen.getByLabelText('Enter substitution mode').hasAttribute('disabled')).toBe(true);
     const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
     expect(benchCard.getAttribute('draggable')).toBe('false');
+  });
+});
+
+/* ─── Plan 08 (42-08): staged substitution with confirmation ───────────────
+ * Covers SUB-13/14/15 — the fire-on-drop substitution flow (42-07) is
+ * replaced by a stage-then-confirm flow with a popup naming both players.
+ * See 42-08-PLAN.md Task 3. */
+describe('Phase 42 — staged substitution with confirmation', () => {
+  it('1. a bench-to-pitch drop stages a substitution and renders a confirmation dialog naming both players, without calling onSubstitute', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(onSubstitute).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
+  });
+
+  it('2. SUB-13: a second bench-to-pitch drop onto a different on-pitch card while the popup is open does not change its text or call onSubstitute', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target1 = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target1, { dataTransfer: { getData: () => '' } });
+    expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
+
+    // A second drop attempt while staged — belt-and-suspenders: the bench
+    // card's own onCardDragStart guard already gates on pendingSub, so this
+    // exercises the drop handler's own SUB-13 guard directly too.
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target2 = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target2, { dataTransfer: { getData: () => '' } });
+    expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('3. SUB-13: while the popup is open, bench cards and on-pitch cards remain non-draggable', () => {
+    renderMidmatch();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
+
+    const benchCardAfter = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    expect(benchCardAfter.getAttribute('draggable')).toBe('false');
+    const pitchCardAfter = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
+    expect(pitchCardAfter.getAttribute('draggable')).toBe('false');
+  });
+
+  it('4. SUB-15 confirm: clicking Confirm Substitution calls onSubstitute once, closes the popup, and returns to positioning mode', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(screen.getByLabelText('Confirm substitution'));
+    expect(onSubstitute).toHaveBeenCalledTimes(1);
+    expect(onSubstitute).toHaveBeenCalledWith('home-1', 'p013');
+    expect(screen.queryByText('Substitute Home DefOne for Fallou Fall?')).toBeNull();
+    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(screen.getByLabelText('Enter substitution mode')).toBeDefined();
+  });
+
+  it('5. SUB-15 cancel: clicking the popup Cancel closes it, calls neither callback, and stays in substitution mode', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(screen.getByLabelText('Cancel substitution selection'));
+    expect(onSubstitute).not.toHaveBeenCalled();
+    expect(screen.queryByText('Substitute Home DefOne for Fallou Fall?')).toBeNull();
+    expect(
+      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
+    ).toBeDefined();
+    expect(screen.getByLabelText('Cancel substitution')).toBeDefined();
+  });
+
+  it('6. after cancelling the popup, a fresh bench-to-pitch drop stages again', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(screen.getByLabelText('Cancel substitution selection'));
+
+    const benchCardAgain = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCardAgain, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const targetAgain = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(targetAgain, { dataTransfer: { getData: () => '' } });
+    expect(screen.getByText('Substitute Home DefTwo for Fallou Fall?')).toBeDefined();
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('7. clicking the mode-level Cancel while the popup is open clears it, applies nothing, and returns to positioning mode', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(screen.getByLabelText('Cancel substitution'));
+    expect(onSubstitute).not.toHaveBeenCalled();
+    expect(screen.queryByText('Substitute Home DefOne for Fallou Fall?')).toBeNull();
+    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(screen.getByLabelText('Enter substitution mode')).toBeDefined();
+  });
+
+  it('8. SUB-18: a red-carded on-pitch slot (SENT OFF placeholder) is still not a valid substitution target — no popup appears and onSubstitute is not called', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('9. readOnly prevents staging entirely — no popup renders and onSubstitute is never called', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ readOnly: true, onSubstitute });
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onSubstitute).not.toHaveBeenCalled();
   });
 });
