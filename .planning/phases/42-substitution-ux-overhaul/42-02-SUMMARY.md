@@ -126,6 +126,15 @@ None — no external service configuration required.
 - Downstream Phase 42 plans that touch client-side rendering (`HexGrid.tsx`'s existing render-skip) can rely on this server-side defense-in-depth being in place — a modified client attempting to move a red-carded piece through any of the five response-move phases now receives an explicit `RED_CARDED` rejection, not a silent state desync.
 - No blockers. Full server suite green (1454 tests), monorepo typecheck clean, eslint clean.
 
+## Self-Check: PASSED
+
+- FOUND: `packages/server/src/__tests__/gameHandlers.redCardExclusion.test.ts`
+- FOUND: `.planning/phases/42-substitution-ux-overhaul/42-02-SUMMARY.md`
+- FOUND commit `ea21ffd` (Task 1)
+- FOUND commit `4f06728` (Task 2)
+- FOUND commit `8e48a88` (Task 3)
+- FOUND commit `9e7af0c` (this SUMMARY)
+
 ---
 
 _Phase: 42-substitution-ux-overhaul_
