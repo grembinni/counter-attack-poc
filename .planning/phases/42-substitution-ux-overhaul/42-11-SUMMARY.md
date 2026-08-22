@@ -159,3 +159,13 @@ None - no external service configuration required.
 
 _Phase: 42-substitution-ux-overhaul_
 _Completed: 2026-08-22_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/DraftPackCarousel.tsx
+- FOUND: packages/client/src/components/BenchCarousel.test.tsx
+- FOUND: packages/client/src/components/CardInjuryBadge.crossSurface.test.tsx
+- FOUND: packages/client/src/components/LineupAssignmentScreen.test.tsx
+- FOUND commit: bfe869a
+- FOUND commit: d6d15b89
+- FOUND commit: 268c17c9
