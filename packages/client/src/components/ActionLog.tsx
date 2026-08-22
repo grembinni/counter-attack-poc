@@ -1273,6 +1273,16 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         content: ` #${event.jerseyNumber} ${event.offPlayerName} → ${event.onPlayerName} (${event.subsUsed}/3)`,
         isGoal: false,
       };
+    case 'ROSTER_REPOSITION':
+      // Phase 42 (SUB-08): after the swap, each slot id holds the OTHER player — a live
+      // `pieces` lookup would render the line backwards, so (mirroring SUBSTITUTION) both
+      // names are read from the event itself rather than resolved from `pieces`.
+      return {
+        prefix: '[SWAP]',
+        prefixColor: pieceColorOf(event.pieceId),
+        content: ` #${event.jerseyNumberA} ${event.playerAName} ↔ #${event.jerseyNumberB} ${event.playerBName}`,
+        isGoal: false,
+      };
   }
 }
 

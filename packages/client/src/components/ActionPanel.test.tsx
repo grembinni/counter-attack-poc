@@ -1642,6 +1642,49 @@ describe('ActionPanel — Phase 39 boundary mirror (39-17): GK_DIVE_AT_FEET unco
   });
 });
 
+// Phase 42 (42-09): ROSTER_REPOSITION is the eighth isBoundary term, added directly beside
+// SUBSTITUTION — unconditional, no phase guard, matching applyUndo's server-side reduce
+// (registered in 42-06). Missing this term would make the client offer an Undo the server
+// refuses — the exact defect class documented above SUBSTITUTION's own boundary mirror.
+describe('ActionPanel — Phase 42 boundary mirror (42-09): ROSTER_REPOSITION unconditional boundary', () => {
+  it('Undo button is disabled when the eventLog ends in a ROSTER_REPOSITION event', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'MOVE',
+        activeTeam: 'home',
+        lastDiceRoll: null,
+        paceUsedByPieceId: { 'home-9': 1 },
+        eventLog: [
+          {
+            type: 'MOVE',
+            pieceId: 'home-9',
+            from: { q: 14, r: 13 },
+            to: { q: 15, r: 13 },
+            slot: 'ATTACKER_4',
+            timestamp: 0,
+            ballAfter: { position: { q: 14, r: 13 }, carrierId: null },
+          },
+          {
+            type: 'ROSTER_REPOSITION',
+            team: 'home',
+            pieceId: 'home-3',
+            pieceIdB: 'home-9',
+            playerAName: 'Alpha Alonso',
+            playerBName: 'Bravo Baker',
+            jerseyNumberA: 3,
+            jerseyNumberB: 9,
+            timestamp: 1000,
+          },
+        ],
+      },
+    });
+    render(<ActionPanel />);
+    const undo = screen.getByRole('button', { name: /undo/i });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
 describe('ActionPanel — Phase 39 boundary mirror (39-17): phase-guarded terms never leak an Undo control', () => {
   it('FOUL_CHOICE: ActionPanel renders no Undo button (FoulChoicePanel owns this phase; term present for exhaustiveness)', () => {
     useGameStore.setState({

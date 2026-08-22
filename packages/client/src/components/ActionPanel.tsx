@@ -272,6 +272,12 @@ export function ActionPanel() {
   // Phase 40 (40-01): a seventh term was added — `evt.type === 'SUBSTITUTION'`
   // (unconditional, no phase guard) — a substitution is a committed roster change that
   // Undo must never cross, exactly like GK_DIVE_AT_FEET above.
+  // Phase 42 (42-09): an eighth term — `evt.type === 'ROSTER_REPOSITION'` (unconditional,
+  // directly beside SUBSTITUTION) — a roster reposition is a committed roster change
+  // reaching the server exactly like a substitution. This MUST stay in sync, term for
+  // term, with applyUndo's isBoundary reduce in gameEngine.ts (registered in 42-06);
+  // omitting it is the exact defect class that shipped twice already (BUG-30/31, BUG-37;
+  // see STATE.md Pitfalls) — it would make the client offer an Undo the server refuses.
   // FOUL_CHOICE, PENALTY_KICK_SETUP_ATTACKING/DEFENDING, PENALTY_KICK_TAKER_SELECT and
   // GK_BOX_ENTRY_MOVE are each rendered by their own dedicated GameBoard panel (FoulChoicePanel,
   // PenaltyKickSetupPanel, GkBoxEntryPromptPanel) rather than by ActionPanel, so those four
@@ -313,7 +319,10 @@ export function ActionPanel() {
         (phase === 'HALF_TIME' && evt.type === 'SECOND_HALF_CONFIRM') ||
         // Phase 40 (40-01): a substitution is a committed roster change — Undo must
         // never cross it, unconditionally, matching applyUndo's isBoundary reduce.
-        evt.type === 'SUBSTITUTION';
+        evt.type === 'SUBSTITUTION' ||
+        // Phase 42 (42-09): eighth term, beside SUBSTITUTION — must stay in sync with
+        // applyUndo's isBoundary reduce (gameEngine.ts, 42-06); the shipped-twice defect.
+        evt.type === 'ROSTER_REPOSITION';
       return isBoundary ? idx : acc;
     }, -1);
     // CR-01 (17.1-11): mirror applyUndo's phase-aware move-type mapping — gameHandlers.ts
