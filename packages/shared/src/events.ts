@@ -172,6 +172,14 @@ export const ClientEvents = {
    * in `applySubstitution` (T-40-01).
    */
   GAME_SUBSTITUTION: 'game:substitution',
+  /**
+   * SUB-08 (Phase 42): a manager-initiated swap of two of their own on-field players'
+   * formation positions during a stoppage (`isStoppagePhase`). Payload carries both
+   * on-pitch slot ids — see `RosterRepositionPayload` below. Applies instantly on drop
+   * with no confirm step (D-02), so server-side validation must be complete: runtime
+   * guards (phase, ownership, GK slot, ball carrier) happen in `applyRosterReposition`.
+   */
+  GAME_ROSTER_REPOSITION: 'game:roster-reposition',
 } as const;
 
 export const ServerEvents = {
@@ -224,6 +232,16 @@ export const ServerEvents = {
  * `PlayerPiece.id`, since a bench player has no slot until the swap resolves.
  */
 export type SubstitutionPayload = { outPieceId: string; inPlayerId: string };
+
+/**
+ * SUB-08 (Phase 42): payload for `GAME_ROSTER_REPOSITION`. `pieceIdA`/`pieceIdB` are
+ * both the caller's OWN on-pitch slot piece ids (`PlayerPiece.id`, e.g. `home-3`) whose
+ * occupants are to be swapped. This payload is untrusted client input — both ids are
+ * shape-validated (non-empty string) server-side before any `pieces` lookup, and
+ * ownership/GK-slot/ball-carrier/phase eligibility are re-checked independently inside
+ * `applyRosterReposition`.
+ */
+export type RosterRepositionPayload = { pieceIdA: string; pieceIdB: string };
 
 /**
  * Typed event map for client-to-server events.
@@ -386,6 +404,14 @@ export interface ClientToServerEvents {
    * See `SubstitutionPayload` above; runtime validation happens server-side.
    */
   [ClientEvents.GAME_SUBSTITUTION]: (payload: SubstitutionPayload) => void;
+  /**
+   * SUB-08 (Phase 42): a manager-initiated swap of two of their own on-field players'
+   * formation positions during a stoppage. See `RosterRepositionPayload` above; runtime
+   * validation happens server-side. No `ServerToClientEvents` counterpart is needed —
+   * the result is delivered by the existing full-snapshot broadcast, and rejections use
+   * the existing `GAME_ERROR` string channel.
+   */
+  [ClientEvents.GAME_ROSTER_REPOSITION]: (payload: RosterRepositionPayload) => void;
 }
 
 /**

@@ -95,6 +95,7 @@ import {
   applySecondHalfConfirm,
   applySubstitution,
   applyRosterContinuity,
+  applyRosterReposition,
 } from './gameEngine.js';
 import type { DefenderDeflectionInput } from './gameEngine.js';
 import { rollDice } from './diceUtils.js';
@@ -106,6 +107,7 @@ import type {
   LastActionType,
   PlayerPiece,
   SubstitutionPayload,
+  RosterRepositionPayload,
 } from '@counter-attack/shared';
 
 /** Typed Socket alias for the project's four generic parameters. */
@@ -1810,6 +1812,84 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       );
       // Every SubstitutionRejection reason, including D-13's CANNOT_SUB_IN_RED_CARDED,
       // must reach the client verbatim — never remap or catch-all this reason string.
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room);
+        return;
+      }
+      room.gameState = result.state;
+      broadcastState(io, room); // ARCH-04
+    } finally {
+      room.isProcessing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_ROSTER_REPOSITION — SUB-08: a manager-initiated swap of two of their own
+  // on-field players' formation positions during a stoppage. Mirrors
+  // GAME_SUBSTITUTION's mutex/phase-guard/team-guard/pure-function-delegate/broadcast
+  // shape exactly (immediately above).
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_ROSTER_REPOSITION, (payload: RosterRepositionPayload) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5
+
+    room.isProcessing = true;
+    try {
+      // T-42-22: untrusted payload shape — reject before any lookup, never throw.
+      const p = payload as unknown;
+      const isValidPayload =
+        typeof p === 'object' &&
+        p !== null &&
+        typeof (p as Record<string, unknown>).pieceIdA === 'string' &&
+        (p as Record<string, unknown>).pieceIdA !== '' &&
+        typeof (p as Record<string, unknown>).pieceIdB === 'string' &&
+        (p as Record<string, unknown>).pieceIdB !== '';
+      if (!isValidPayload) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_REPOSITION');
+        broadcastState(io, room);
+        return;
+      }
+
+      // T-42-21: gated on the shared stoppage-phase allow-list, never a locally
+      // re-declared array — same reasoning as GAME_SUBSTITUTION above.
+      if (room.gameState === null || !isStoppagePhase(room.gameState.phase)) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+
+      // SUB-08: deliberately socketTeam, NOT isActivePlayer — a reposition is roster
+      // admin during a stoppage, not a turn-bound action. Do not "fix" this into an
+      // isActivePlayer check.
+      const team = socketTeam(socket);
+
+      // T-42-19 (defence in depth — the engine re-checks ownership too): resolve both
+      // pieces and reject a missing id or an opponent-owned id before ever calling
+      // into the engine.
+      const pieceA = room.gameState.pieces.find((piece) => piece.id === payload.pieceIdA);
+      const pieceB = room.gameState.pieces.find((piece) => piece.id === payload.pieceIdB);
+      if (pieceA === undefined || pieceB === undefined) {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_REPOSITION');
+        broadcastState(io, room);
+        return;
+      }
+      if (pieceA.teamId !== team || pieceB.teamId !== team) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+
+      const result = applyRosterReposition(
+        room.gameState,
+        team,
+        payload.pieceIdA,
+        payload.pieceIdB,
+      );
+      // Every RosterRepositionRejection reason, including GK_SLOT_LOCKED, must reach
+      // the client verbatim — never remap or catch-all this reason string.
       if (!result.ok) {
         socket.emit(ServerEvents.GAME_ERROR, result.reason);
         broadcastState(io, room);

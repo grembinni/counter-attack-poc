@@ -30,6 +30,15 @@ describe('ClientEvents', () => {
   it('GAME_ROLL equals game:roll', () => {
     expect(ClientEvents.GAME_ROLL).toBe('game:roll');
   });
+
+  it('GAME_ROSTER_REPOSITION equals game:roster-reposition', () => {
+    expect(ClientEvents.GAME_ROSTER_REPOSITION).toBe('game:roster-reposition');
+  });
+
+  it('every ClientEvents value is unique (GAME_ROSTER_REPOSITION included)', () => {
+    const values = Object.values(ClientEvents);
+    expect(new Set(values).size).toBe(values.length);
+  });
 });
 
 describe('ServerEvents', () => {
