@@ -334,6 +334,11 @@ function buildSquadPieces(
   const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
   const defendingFwdQ = defendingTeam === 'home' ? 14 : 22; // home fwd at q:14; away mirror: 36-14=22
   const fwdDir = defendingTeam === 'home' ? 1 : -1;
+  // BUG-38 (Phase 42, D-09) audit: deliberately NOT filtered through `isActivePiece`.
+  // `pieces` here is the squad this function is still constructing from the player pool
+  // (via getSquadPlayers/confirmedHomeOrder/confirmedAwayOrder above) — it cannot contain
+  // a red-carded or benched piece; `applyRosterContinuity` overlays live match state
+  // (redCarded/onPitch) afterwards. Audited and skipped, not missed.
   const defendingFwdLine = pieces
     .filter((p) => p.teamId === defendingTeam && p.position.q === defendingFwdQ)
     .sort((a, b) => a.position.r - b.position.r);
@@ -523,8 +528,16 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
   // From LOOSE_BALL: ball.carrierId is null — leave as-is; pickup happens in applyMove.
   let newBall = state.ball;
   if (state.phase === 'KICK_OFF') {
+    // BUG-38 (D-09, Phase 42) sweep: a red-carded/benched piece keeps a live on-pitch
+    // `position` by design (D-08) — see the `onPitch` doc comment on `PlayerPiece` — so
+    // every pitch-occupancy predicate below this point in the file must exclude it via
+    // the shared `isActivePiece` predicate rather than treating a frozen dismissed-piece
+    // hex as occupied/blocking.
     const kicker = state.pieces.find(
-      (p) => p.position.q === state.ball.position.q && p.position.r === state.ball.position.r,
+      (p) =>
+        isActivePiece(p) &&
+        p.position.q === state.ball.position.q &&
+        p.position.r === state.ball.position.r,
     );
     if (kicker) newBall = { ...state.ball, carrierId: kicker.id };
   }
@@ -621,7 +634,9 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }
 
@@ -1877,7 +1892,8 @@ export function computeGkDiveDisplacement(
 
   const displaceOccupantsOf = (hex: HexCoord): void => {
     const occupants = workingPieces.filter(
-      (p) => p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r,
+      (p) =>
+        isActivePiece(p) && p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r,
     );
     const ballHere =
       workingBall.carrierId === null &&
@@ -1895,7 +1911,7 @@ export function computeGkDiveDisplacement(
     displaceOccupantsOf(dest);
 
     workingPieces = workingPieces.map((p) =>
-      p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r
+      isActivePiece(p) && p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r
         ? { ...p, position: dest }
         : p,
     );
@@ -2430,7 +2446,9 @@ export function applyBoxEntryMove(state: GameState, to: HexCoord): ApplyBoxEntry
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }
 
