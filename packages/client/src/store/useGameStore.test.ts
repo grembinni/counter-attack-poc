@@ -1326,6 +1326,26 @@ describe('useGameStore — selectPiece Penalty Kick / GK Box Entry / Foul Choice
     expect(useGameStore.getState().selectedPieceId).toBeNull();
   });
 
+  // Phase 42 (BUG-38 residual audit, 42-10): this guard was converged onto the shared
+  // isActivePiece predicate (was a hand-written `redCarded === true` check) — proves the
+  // two-clause predicate's onPitch:false-only branch is also honored here, not just redCarded.
+  it('PENALTY_KICK_TAKER_SELECT: clicking a benched (onPitch:false, not redCarded) teammate yields no selection', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      gameState: {
+        ...mockMovementState,
+        phase: 'PENALTY_KICK_TAKER_SELECT',
+        penaltyKickTeam: 'home',
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-7' ? { ...p, onPitch: false } : p,
+        ),
+      },
+    });
+    useGameStore.getState().selectPiece('home-7');
+    expect(emitMock).not.toHaveBeenCalled();
+    expect(useGameStore.getState().selectedPieceId).toBeNull();
+  });
+
   it('PENALTY_KICK_TAKER_SELECT: clicking an opponent piece yields no selection', () => {
     useGameStore.setState({
       playerSlot: 1,
