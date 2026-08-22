@@ -566,3 +566,28 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* ─── Phase 42 (SUB-18/D-05/D-06): SENT OFF vacated-slot placeholder ────────
+   composes: statCardBase preserves the 260px min-width / 6px 8px padding /
+   4px radius footprint so a mid-column red card does not reflow the
+   formation grid. */
+.statCardSentOff {
+  composes: statCardBase;
+  justify-content: center;
+  border: 1px dashed var(--color-card-red);
+  cursor: default;
+  user-select: none;
+}
+
+/* Copies .redCardBadge's declarations verbatim — no new colour, size, or
+   weight introduced. */
+.sentOffBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-inverse);
+  background: var(--color-card-red);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
