@@ -3222,7 +3222,8 @@ type RosterRepositionRejection =
   | 'WRONG_PHASE'
   | 'INVALID_REPOSITION'
   | 'GK_SLOT_LOCKED'
-  | 'REPOSITION_BALL_CARRIER';
+  | 'REPOSITION_BALL_CARRIER'
+  | 'REPOSITION_SLOT_OCCUPIED';
 
 export type ApplyRosterRepositionResult =
   | { ok: true; state: GameState }
@@ -3259,6 +3260,16 @@ export type ApplyRosterRepositionResult =
  * `addedTime` or `addedTimeBonus` or `bench`** — a reposition is free, uncapped,
  * repeatable, and never advances the FSM or costs added time, unlike `applySubstitution`
  * above which increments three counters.
+ *
+ * **Guards, in order:** (1) `isStoppagePhase` → `WRONG_PHASE`; (2) self-swap →
+ * `INVALID_REPOSITION`; (3) resolve/ownership → `INVALID_REPOSITION`; (4) GK-slot lock
+ * (`role === 'GK'` or parsed slot index 0) → `GK_SLOT_LOCKED`; (5) `ball.carrierId`
+ * participation → `REPOSITION_BALL_CARRIER`; (6) deliberately NO red-card rejection —
+ * see the comment above guard 6, below; (7) **`REPOSITION_SLOT_OCCUPIED`** — a
+ * destination-occupancy check (not a participant-eligibility check) preventing the
+ * swap's outcome from ever placing two active pieces on one hex, added in gap-closure
+ * plan 42-14 to close `42-10-SUMMARY.md` gap item 6 (see the guard's own comment for the
+ * full mechanism).
  */
 export function applyRosterReposition(
   state: GameState,
@@ -3324,6 +3335,33 @@ export function applyRosterReposition(
   // reshuffle shape around the numerical disadvantage. Do NOT "fix" this by adding
   // isActivePiece — this is the one eligibility site in the codebase where a
   // dismissed piece is a legitimate participant.
+
+  // 7. DESTINATION-OCCUPANCY guard (42-10-SUMMARY.md gap item 6) — this is NOT a
+  // red-card eligibility check on the participants; guard 6's comment above still
+  // stands verbatim. It is a check on the two destination HEXES the swap would
+  // produce. The guard is unreachable when both pieceA and pieceB are active: two
+  // active pieces never share a hex today, so neither destination can already hold a
+  // third active piece — D-05's ordinary swap path is untouched. It exists because
+  // BUG-38's fix (this phase) made a sent-off piece's frozen hex stop reporting as
+  // occupied, so an active piece can now legitimately be standing on that hex when the
+  // manager later repositions a different active player into the sent-off slot. Scans
+  // the WHOLE state.pieces array (not just `team`'s) — an opponent's active piece on
+  // the frozen hex produces the same stacking and is equally illegal.
+  const hexHeldByThirdActivePiece = (hex: { q: number; r: number }): boolean =>
+    state.pieces.some(
+      (p) =>
+        p.id !== pieceIdA &&
+        p.id !== pieceIdB &&
+        isActivePiece(p) &&
+        p.position.q === hex.q &&
+        p.position.r === hex.r,
+    );
+  if (
+    (isActivePiece(pieceB) && hexHeldByThirdActivePiece(pieceA.position)) ||
+    (isActivePiece(pieceA) && hexHeldByThirdActivePiece(pieceB.position))
+  ) {
+    return { ok: false, reason: 'REPOSITION_SLOT_OCCUPIED' };
+  }
 
   // --- All guards passed — build the new state immutably. ---
 

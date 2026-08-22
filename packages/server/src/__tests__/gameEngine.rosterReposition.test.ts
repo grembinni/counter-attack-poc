@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyRosterReposition, applyRosterContinuity, buildKickOffPieces } from '../gameEngine.js';
 import type { GameState, PlayerPiece } from '@counter-attack/shared';
-import { PITCH_REGIONS } from '@counter-attack/shared';
+import { PITCH_REGIONS, isActivePiece } from '@counter-attack/shared';
 
 const HOME_TEAM = 'city' as const;
 const AWAY_TEAM = 'crew' as const;
@@ -248,5 +248,90 @@ describe('applyRosterReposition', () => {
     expect(result.state.addedTimeBonus).toBe(state.addedTimeBonus);
     expect(result.state.phase).toBe(state.phase);
     expect(result.state.activeTeam).toBe(state.activeTeam);
+  });
+});
+
+describe('gap item 6: a reposition can never stack two active pieces on one hex', () => {
+  /** Asserts no two ACTIVE pieces in `pieces` share a hex (the post-swap invariant). */
+  function assertNoActivePieceStacking(pieces: readonly PlayerPiece[]): void {
+    const activePieces = pieces.filter(isActivePiece);
+    const keys = new Set(activePieces.map((p) => `${p.position.q},${p.position.r}`));
+    expect(keys.size).toBe(activePieces.length);
+  }
+
+  it('case 1: rejects with REPOSITION_SLOT_OCCUPIED when a THIRD own-team active piece already stands on the red-carded slot frozen hex', () => {
+    const [active, redCarded, third] = homeOutfielders();
+    const state = makeState({
+      pieces: BASE_PIECES.map((p) => {
+        if (p.id === redCarded!.id) return { ...p, redCarded: true, onPitch: false };
+        if (p.id === third!.id) return { ...p, position: redCarded!.position };
+        return p;
+      }),
+    });
+
+    const result = applyRosterReposition(state, 'home', active!.id, redCarded!.id);
+    expect(result).toEqual({ ok: false, reason: 'REPOSITION_SLOT_OCCUPIED' });
+    // No partial mutation — pieces array unchanged.
+    expect(state.pieces.find((p) => p.id === active!.id)!.position).toEqual(active!.position);
+    expect(state.pieces.find((p) => p.id === redCarded!.id)!.position).toEqual(redCarded!.position);
+  });
+
+  it('case 2: rejects with REPOSITION_SLOT_OCCUPIED when the third piece on the frozen hex belongs to the OPPONENT', () => {
+    const [active, redCarded] = homeOutfielders();
+    const [oppThird] = awayOutfielders();
+    const state = makeState({
+      pieces: BASE_PIECES.map((p) => {
+        if (p.id === redCarded!.id) return { ...p, redCarded: true, onPitch: false };
+        if (p.id === oppThird!.id) return { ...p, position: redCarded!.position };
+        return p;
+      }),
+    });
+
+    const result = applyRosterReposition(state, 'home', active!.id, redCarded!.id);
+    expect(result).toEqual({ ok: false, reason: 'REPOSITION_SLOT_OCCUPIED' });
+  });
+
+  it('case 3: an INACTIVE third piece (itself red-carded/off-pitch) on the frozen hex never blocks the swap', () => {
+    const [active, redCarded, third] = homeOutfielders();
+    const state = makeState({
+      pieces: BASE_PIECES.map((p) => {
+        if (p.id === redCarded!.id) return { ...p, redCarded: true, onPitch: false };
+        if (p.id === third!.id)
+          return { ...p, redCarded: true, onPitch: false, position: redCarded!.position };
+        return p;
+      }),
+    });
+
+    const result = applyRosterReposition(state, 'home', active!.id, redCarded!.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    assertNoActivePieceStacking(result.state.pieces);
+  });
+
+  it('case 4 (D-05 preserved): repositioning into a red-carded slot succeeds when its frozen hex is free', () => {
+    const [active, redCarded] = homeOutfielders();
+    const state = makeState({
+      pieces: BASE_PIECES.map((p) =>
+        p.id === redCarded!.id ? { ...p, redCarded: true, onPitch: false } : p,
+      ),
+    });
+
+    const result = applyRosterReposition(state, 'home', active!.id, redCarded!.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const newRedCardSlot = result.state.pieces.find((p) => p.id === redCarded!.id)!;
+    expect(newRedCardSlot.playerId).toBe(active!.playerId);
+    expect(newRedCardSlot.position).toEqual(redCarded!.position);
+    assertNoActivePieceStacking(result.state.pieces);
+  });
+
+  it('case 5: two ordinary active pieces swapped still succeeds — the new guard is unreachable for them', () => {
+    const [a, b] = homeOutfielders();
+    const state = makeState();
+
+    const result = applyRosterReposition(state, 'home', a!.id, b!.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    assertNoActivePieceStacking(result.state.pieces);
   });
 });
