@@ -146,7 +146,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
-| 42    | 4/10                                        | In Progress |             |
+| 42    | 5/10                                        | In Progress |             |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
@@ -212,7 +212,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 42-05-PLAN.md — gameEngine BUG-38 part 2: occupancy sweep (5103-9315) + D-10 audit closeout + engine regression tests
+- [x] 42-05-PLAN.md — gameEngine BUG-38 part 2: occupancy sweep (5103-9315) + D-10 audit closeout + engine regression tests
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
