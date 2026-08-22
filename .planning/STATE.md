@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: executing
-stopped_at: Phase 42 UI-SPEC approved
-last_updated: '2026-08-22T02:36:06.236Z'
-last_activity: 2026-08-22 -- Phase 42 execution started
+status: gaps_found
+stopped_at: Phase 42 human verification found gaps
+last_updated: '2026-08-22T13:30:39.000Z'
+last_activity: 2026-08-22 -- Phase 42 execution finished; 7 gap-closure items pending
 progress:
   total_phases: 6
   completed_phases: 1
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — EXECUTING
-Plan: 1 of 10
-Status: Executing Phase 42
-Last activity: 2026-08-22 -- Phase 42 execution started
+Phase: 42 (substitution-ux-overhaul) — GAPS FOUND
+Plan: 10 of 10 executed
+Status: All 10 plans executed; live human verification (plan 42-10 Task 3) found 7 gap-closure items — see 42-10-SUMMARY.md. Not yet marked complete.
+Last activity: 2026-08-22 -- Phase 42 execution finished; gap-closure round pending
 
 ## Project Reference
 
