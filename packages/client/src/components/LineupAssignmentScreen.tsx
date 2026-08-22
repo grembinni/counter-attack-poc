@@ -411,6 +411,8 @@ export function LineupAssignmentScreen({
       message = 'Swap rejected — invalid selection.';
     } else if (gameError === 'REPOSITION_BALL_CARRIER') {
       message = 'Swap rejected — that player has the ball.';
+    } else if (gameError === 'REPOSITION_SLOT_OCCUPIED') {
+      message = 'Swap rejected — another player is already in that position.';
     }
     // Phase 42 (Task 1 action H): 'GK_SLOT_LOCKED' and 'WRONG_PHASE' already have
     // entries above (pregame swap / substitution-mode respectively) — reused
@@ -571,6 +573,22 @@ export function LineupAssignmentScreen({
     setPendingSub({ outPieceId: targetPieceId, inPlayerId, outName, outNumber, inName });
   }
 
+  /** Phase 42 (gap item 6, Task 2 action B): best-effort UX pre-gate — hexes held by
+   * this caller's own ACTIVE pieces, keyed `${q},${r}` (mirrors gameEngine.ts's
+   * destination-occupancy `isActivePiece` convention in `applyRosterReposition`'s
+   * guard 7). `midmatchPieces` (`GameBoard.tsx`:
+   * `pieces.filter((p) => p.teamId === myTeam)`) only ever contains this caller's OWN
+   * team's pieces, so an OPPONENT's active piece standing on a dismissed teammate's
+   * frozen hex is invisible here — best-effort only. The server's
+   * server's destination-occupancy guard remains authoritative for that case. */
+  const ownActiveHexKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const piece of midmatchPieces ?? []) {
+      if (isActivePiece(piece)) keys.add(`${piece.position.q},${piece.position.r}`);
+    }
+    return keys;
+  }, [midmatchPieces]);
+
   /** Renders one mid-match on-pitch position column. Checkpoint gap-closure
    * (40-07 Task 2 human-verify feedback): originally grouped by `piece.role` (the
    * occupant's own playing specialism), which broke formation shape on a
@@ -600,6 +618,15 @@ export function LineupAssignmentScreen({
             // (not permanently locked, D-05) — the server accepts a
             // red-carded piece as a legal reposition participant (42-06).
             if (!isActivePiece(piece)) {
+              // Phase 42 gap item 6 (Task 2 action C): best-effort UX pre-gate — true
+              // when one of the caller's own active pieces is already standing on
+              // this dismissed piece's frozen hex, i.e. the server's
+              // server's destination-occupancy guard would refuse a reposition drop here.
+              // Own-team-only (see `ownActiveHexKeys`'s doc comment above); the
+              // server remains authoritative for an opponent piece on this hex.
+              const sentOffSlotHexTaken = ownActiveHexKeys.has(
+                `${piece.position.q},${piece.position.r}`,
+              );
               return (
                 <div
                   key={piece.id}
@@ -616,15 +643,27 @@ export function LineupAssignmentScreen({
                     if (
                       (subMode === 'reposition' &&
                         midmatchDrag?.source === 'pitch' &&
-                        midmatchDrag.pieceId !== piece.id) ||
+                        midmatchDrag.pieceId !== piece.id &&
+                        !sentOffSlotHexTaken) ||
                       subMode === 'substitute'
                     ) {
                       setMidmatchDropTargetPieceId(piece.id);
                     }
                   }}
                   onDragLeave={() => setMidmatchDropTargetPieceId(null)}
-                  onDrop={(e) =>
-                    subMode === 'reposition'
+                  onDrop={(e) => {
+                    if (subMode === 'reposition' && sentOffSlotHexTaken) {
+                      // Gap item 6: the server would reject this with
+                      // the server would refuse this — suppress the doomed emit inline
+                      // rather than inside handleMidmatchRepositionDrop, which is
+                      // also reached from ordinary active cards and must keep its
+                      // Pitfall-5 separation from handleMidmatchSubstituteDrop.
+                      e.preventDefault();
+                      setMidmatchDropTargetPieceId(null);
+                      setMidmatchDrag(null);
+                      return;
+                    }
+                    return subMode === 'reposition'
                       ? handleMidmatchRepositionDrop(e, piece.id)
                       : handleMidmatchSubstituteDrop(
                           e,
@@ -632,8 +671,8 @@ export function LineupAssignmentScreen({
                           isBlocked,
                           `${piece.firstName} ${piece.lastName}`,
                           piece.number,
-                        )
-                  }
+                        );
+                  }}
                 >
                   <span className={styles.sentOffBadge}>SENT OFF</span>
                 </div>
