@@ -84,6 +84,7 @@ import {
   isStoppagePhase,
   MAX_SUBS_PER_TEAM,
   PLAYER_POOL,
+  isActivePiece,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -333,6 +334,11 @@ function buildSquadPieces(
   const defendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
   const defendingFwdQ = defendingTeam === 'home' ? 14 : 22; // home fwd at q:14; away mirror: 36-14=22
   const fwdDir = defendingTeam === 'home' ? 1 : -1;
+  // BUG-38 (Phase 42, D-09) audit: deliberately NOT filtered through `isActivePiece`.
+  // `pieces` here is the squad this function is still constructing from the player pool
+  // (via getSquadPlayers/confirmedHomeOrder/confirmedAwayOrder above) — it cannot contain
+  // a red-carded or benched piece; `applyRosterContinuity` overlays live match state
+  // (redCarded/onPitch) afterwards. Audited and skipped, not missed.
   const defendingFwdLine = pieces
     .filter((p) => p.teamId === defendingTeam && p.position.q === defendingFwdQ)
     .sort((a, b) => a.position.r - b.position.r);
@@ -522,8 +528,16 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
   // From LOOSE_BALL: ball.carrierId is null — leave as-is; pickup happens in applyMove.
   let newBall = state.ball;
   if (state.phase === 'KICK_OFF') {
+    // BUG-38 (D-09, Phase 42) sweep: a red-carded/benched piece keeps a live on-pitch
+    // `position` by design (D-08) — see the `onPitch` doc comment on `PlayerPiece` — so
+    // every pitch-occupancy predicate below this point in the file must exclude it via
+    // the shared `isActivePiece` predicate rather than treating a frozen dismissed-piece
+    // hex as occupied/blocking.
     const kicker = state.pieces.find(
-      (p) => p.position.q === state.ball.position.q && p.position.r === state.ball.position.r,
+      (p) =>
+        isActivePiece(p) &&
+        p.position.q === state.ball.position.q &&
+        p.position.r === state.ball.position.r,
     );
     if (kicker) newBall = { ...state.ball, carrierId: kicker.id };
   }
@@ -620,7 +634,9 @@ function applyFreeMove(state: GameState, pieceId: string, to: HexCoord): ApplyMo
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }
 
@@ -1072,7 +1088,7 @@ export function applyMove(
   // 2.6. CARD-02/CARD-04 (Phase 39, 39-10): a red-carded piece is kept in state.pieces
   // (dismissal representation — see resolveFoulChain's comment) rather than spliced out,
   // so it must be actively rejected here instead of simply no longer existing.
-  if (piece.redCarded === true) {
+  if (!isActivePiece(piece)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'RED_CARDED' };
   }
 
@@ -1810,7 +1826,7 @@ export function computeGkDiveAtFeetOffer(
 
   const gkTeam: 'home' | 'away' = state.attackingTeam === 'home' ? 'away' : 'home';
   const gk = state.pieces.find((p) => p.teamId === gkTeam && p.role === 'GK');
-  if (gk === undefined || gk.redCarded === true) return null;
+  if (gk === undefined || !isActivePiece(gk)) return null;
 
   const distance = hexDistance(gk.position, carrier.position);
   if (distance > 3) return null;
@@ -1876,7 +1892,8 @@ export function computeGkDiveDisplacement(
 
   const displaceOccupantsOf = (hex: HexCoord): void => {
     const occupants = workingPieces.filter(
-      (p) => p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r,
+      (p) =>
+        isActivePiece(p) && p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r,
     );
     const ballHere =
       workingBall.carrierId === null &&
@@ -1894,7 +1911,7 @@ export function computeGkDiveDisplacement(
     displaceOccupantsOf(dest);
 
     workingPieces = workingPieces.map((p) =>
-      p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r
+      isActivePiece(p) && p.id !== excludeId && p.position.q === hex.q && p.position.r === hex.r
         ? { ...p, position: dest }
         : p,
     );
@@ -2306,7 +2323,7 @@ export function computeBoxEntryOffer(
   const team: 'home' | 'away' = region === 'homePenaltyArea' ? 'home' : 'away';
 
   const gk = state.pieces.find((p) => p.teamId === team && p.role === 'GK');
-  if (gk === undefined || gk.redCarded === true) return null;
+  if (gk === undefined || !isActivePiece(gk)) return null;
 
   // D-11: this cap is INDEPENDENT of gkDiveAtFeetUsedByTeam (D-09) — this function
   // never reads that field, and applyBoxEntryResponse/applyBoxEntryMove below never
@@ -2429,7 +2446,9 @@ export function applyBoxEntryMove(state: GameState, to: HexCoord): ApplyBoxEntry
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }
 
@@ -2895,11 +2914,11 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
  *   third — including a direct home↔away jump with no intervening middle action).
  * - D-34: eligible pieces are ALL pieces of both teams (GK included) in the OPPOSITE
  *   final third from the ball's new zone, split into attack/defense relative to
- *   `state.attackingTeam`. Debug red-card-bench-removal-scope (Part 1): `redCarded`
- *   pieces are excluded from eligibility, mirroring `computePenaltyKickEligibleIds`'s
- *   existing `redCarded !== true` filter — a sent-off piece keeps a live on-pitch
- *   `position` (see the `onPitch` doc comment on PlayerPiece) so without this filter it
- *   would otherwise pass the region check.
+ *   `state.attackingTeam`. Debug red-card-bench-removal-scope (Part 1) / BUG-38 (D-09,
+ *   Phase 42): `redCarded`/benched pieces are excluded from eligibility via the shared
+ *   `isActivePiece` predicate — a sent-off piece keeps a live on-pitch `position` (see
+ *   the `onPitch` doc comment on PlayerPiece) so without this filter it would otherwise
+ *   pass the region check.
  * - D-35/D-36: if both lists are non-empty, snapshots `{phase, activeTeam}` into
  *   freeMoveResume and overlays FREE_MOVE_ATTACK (or FREE_MOVE_DEFENSE if the attack
  *   list is empty) on top of whatever phase the triggering action already produced.
@@ -2931,7 +2950,7 @@ export function applyFreeMoveZoneCheck(state: GameState): GameState {
   // Fresh entry into a final third (D-33) — the opposite final third gets the free move.
   const oppositeThird = newZone === 'home' ? 'awayThird' : 'homeThird';
   const eligiblePieces = state.pieces.filter(
-    (p) => p.redCarded !== true && isInRegion(p.position, oppositeThird),
+    (p) => isActivePiece(p) && isInRegion(p.position, oppositeThird),
   );
   const attackIds = eligiblePieces.filter((p) => p.teamId === state.attackingTeam).map((p) => p.id);
   const defenseIds = eligiblePieces
@@ -3053,8 +3072,12 @@ export function applySubstitution(
   }
 
   // 4. SUB-06/D-09: the vacated slot of a sent-off player is permanently unfillable — no
-  // grace substitution is ever offered for the outgoing piece specifically.
-  if (outPiece.redCarded === true) {
+  // grace substitution is ever offered for the outgoing piece specifically. BUG-38
+  // (D-09, Phase 42): uses the shared `isActivePiece` predicate rather than a
+  // hand-written `redCarded` comparison, converging this site with every other
+  // red-card rejection in the file (a red-carded piece is always `onPitch: false` too,
+  // so this is behavior-identical to the prior check).
+  if (!isActivePiece(outPiece)) {
     return { ok: false, reason: 'CANNOT_SUB_RED_CARD' };
   }
 
@@ -3859,8 +3882,13 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         | 'LONG_BALL'
         | 'FIRST_TIME_PASS';
       // Look up the receiver at targetHex for ballAfter tracking on pass/interception events.
+      // BUG-38 (D-09, Phase 42) sweep: a red-carded/benched piece keeps a live on-pitch
+      // `position` by design (D-08), so this and the sibling target-hex occupancy lookups
+      // below (ftpOccupant/occupant/teammate) must exclude it via `isActivePiece` rather
+      // than logging/delivering to a dismissed piece's frozen hex.
       const passTeammate = state.pieces.find(
         (p) =>
+          isActivePiece(p) &&
           p.teamId === carrier.teamId &&
           p.position.q === targetHex.q &&
           p.position.r === targetHex.r,
@@ -4072,7 +4100,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
         // BUG-04 parity: find ANY piece at targetHex (any team) — defender-occupied hex
         // results in possession transfer, mirroring the STANDARD_PASS occupant-pickup path.
         const ftpOccupant = state.pieces.find(
-          (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+          (p) => isActivePiece(p) && p.position.q === targetHex.q && p.position.r === targetHex.r,
         );
         if (ftpOccupant) {
           const possessionChanges = ftpOccupant.teamId !== carrier.teamId;
@@ -4132,7 +4160,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // If that piece is on the opposing team, possession transfers to their team (D-09).
       if (newLastActionType !== 'HIGH_PASS') {
         const occupant = state.pieces.find(
-          (p) => p.position.q === targetHex.q && p.position.r === targetHex.r,
+          (p) => isActivePiece(p) && p.position.q === targetHex.q && p.position.r === targetHex.r,
         );
         if (occupant) {
           const possessionChanges = occupant.teamId !== carrier.teamId;
@@ -4167,6 +4195,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       // Find teammate at target (same teamId, matching q/r) — fallback for no-occupant path.
       const teammate = state.pieces.find(
         (p) =>
+          isActivePiece(p) &&
           p.teamId === carrier.teamId &&
           p.position.q === targetHex.q &&
           p.position.r === targetHex.r,
@@ -5735,8 +5764,8 @@ export function applyCornerKickTakerSelect(
  * alternating 6-hex window AND CORNER-06's pre-kick 3-hex window — the two windows reuse
  * the same eligible pools.
  *
- * Debug red-card-bench-removal-scope (Part 1): also excludes `redCarded` pieces, mirroring
- * `computePenaltyKickEligibleIds`'s existing `redCarded !== true` filter. A sent-off piece
+ * Debug red-card-bench-removal-scope (Part 1) / BUG-38 (D-09, Phase 42): also excludes
+ * `redCarded`/benched pieces via the shared `isActivePiece` predicate. A sent-off piece
  * keeps a live on-pitch `position` (see the `onPitch` doc comment on PlayerPiece) so without
  * this filter it would otherwise pass the role/taker checks.
  */
@@ -5746,7 +5775,7 @@ export function computeCornerKickEligibleIds(
   cornerKickTakerId: string | null,
 ): { attacking: readonly string[]; defending: readonly string[] } {
   const eligible = pieces.filter(
-    (p) => p.role !== 'GK' && p.id !== cornerKickTakerId && p.redCarded !== true,
+    (p) => p.role !== 'GK' && p.id !== cornerKickTakerId && isActivePiece(p),
   );
   return {
     attacking: eligible.filter((p) => p.teamId === cornerKickTeam).map((p) => p.id),
@@ -6320,8 +6349,8 @@ export function applyThrowInPlace(state: GameState, pieceId: string): ApplyThrow
  * 6-hex budget, and a piece that walks IN during the window does not gain
  * a fresh one.
  *
- * Debug red-card-bench-removal-scope (Part 1): excludes `redCarded` pieces from both
- * lists, mirroring `computePenaltyKickEligibleIds`'s existing `redCarded !== true` filter.
+ * Debug red-card-bench-removal-scope (Part 1) / BUG-38 (D-09, Phase 42): excludes
+ * `redCarded`/benched pieces from both lists via the shared `isActivePiece` predicate.
  * A sent-off piece keeps a live on-pitch `position` (see the `onPitch` doc comment on
  * PlayerPiece) so without this filter it would otherwise satisfy the region check.
  */
@@ -6331,7 +6360,7 @@ export function computeGoalKickEligibleIds(
 ): { gkTeam: readonly string[]; opponent: readonly string[] } {
   const eligible = pieces.filter(
     (p) =>
-      p.redCarded !== true &&
+      isActivePiece(p) &&
       (isInRegion(p.position, 'homeThird') || isInRegion(p.position, 'awayThird')),
   );
   return {
@@ -6950,7 +6979,8 @@ export function applyGoalKickMoveEnd(
  * piece of each team is eligible (contrast with `computeGoalKickEligibleIds`'s
  * homeThird/awayThird filter). Do not "fix" this to match the goal-kick sibling; the
  * absence of a region filter is PEN-02's explicit full-squad requirement, not an
- * oversight. `redCarded` pieces are excluded from both lists.
+ * oversight. `redCarded`/benched pieces are excluded from both lists via the shared
+ * `isActivePiece` predicate (BUG-38, D-09, Phase 42).
  *
  * 39-22 (gap closure, UAT gap 5): optional third `excludeIds` parameter (default empty)
  * filters BOTH lists. Called from `applyPenaltyKickTaker` once the taker is known, to
@@ -6964,7 +6994,7 @@ export function computePenaltyKickEligibleIds(
   kickingTeam: 'home' | 'away',
   excludeIds: readonly string[] = [],
 ): { attacking: readonly string[]; defending: readonly string[] } {
-  const eligible = pieces.filter((p) => p.redCarded !== true && !excludeIds.includes(p.id));
+  const eligible = pieces.filter((p) => isActivePiece(p) && !excludeIds.includes(p.id));
   return {
     attacking: eligible.filter((p) => p.teamId === kickingTeam).map((p) => p.id),
     defending: eligible.filter((p) => p.teamId !== kickingTeam).map((p) => p.id),
@@ -7403,7 +7433,7 @@ export function applyPenaltyKickTaker(
   if (piece.role === 'GK') {
     return { ok: false, reason: 'TAKER_INVALID' };
   }
-  if (piece.redCarded === true) {
+  if (!isActivePiece(piece)) {
     return { ok: false, reason: 'TAKER_INVALID' };
   }
   if (piece.teamId !== state.penaltyKickTeam) {
