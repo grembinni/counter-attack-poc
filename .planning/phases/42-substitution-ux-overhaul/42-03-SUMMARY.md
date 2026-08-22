@@ -127,6 +127,15 @@ None - no external service configuration required.
 - The remaining occupancy sweep from line ~5103 onward in `gameEngine.ts` is explicitly reserved for plan 42-05 — confirmed no overlap or collision in this plan's edits.
 - No blockers. Full server suite green (1444 tests), monorepo typecheck clean, eslint/prettier clean on the touched file, zero test files edited across all 3 tasks.
 
+## Self-Check: PASSED
+
+- FOUND: `packages/server/src/gameEngine.ts`
+- FOUND: `.planning/phases/42-substitution-ux-overhaul/42-03-SUMMARY.md`
+- FOUND commit: `5e8522e` (Task 1)
+- FOUND commit: `cc8379e` (Task 2)
+- FOUND commit: `0432770` (Task 3)
+- FOUND commit: `187c57d` (SUMMARY.md)
+
 ---
 
 _Phase: 42-substitution-ux-overhaul_
