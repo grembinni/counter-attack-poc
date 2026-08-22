@@ -36,6 +36,7 @@ import {
   freeKickStageTeam,
   hexDistance,
   hexLine,
+  isActivePiece,
   isInRegion,
   isPitchHex,
   isStoppagePhase,
@@ -1282,8 +1283,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         if (snapShooter && snapTarget) {
           const pathHexes = hexLine(snapShooter.position, snapTarget);
           const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
+          // BUG-38: a red-carded/off-pitch defender keeps a live on-pitch `position`
+          // by design (D-08) and must be excluded here by flag — it is never absent
+          // from state.pieces, so this filter cannot assume it away.
           for (const defender of baseSnapState.pieces.filter(
-            (p) => p.teamId === defendingTeam && p.role !== 'GK',
+            (p) => p.teamId === defendingTeam && p.role !== 'GK' && isActivePiece(p),
           )) {
             const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
             let nearPath = false;
@@ -2285,8 +2289,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const pathHexes = hexLine(shotShooter.position, shotPathTarget);
         const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
         const defTeam: 'home' | 'away' = declaredState.attackingTeam === 'home' ? 'away' : 'home';
+        // BUG-38: a red-carded/off-pitch defender keeps a live on-pitch `position`
+        // by design (D-08) and must be excluded here by flag — it is never absent
+        // from state.pieces, so this filter cannot assume it away.
         for (const defender of declaredState.pieces.filter(
-          (p) => p.teamId === defTeam && p.role !== 'GK',
+          (p) => p.teamId === defTeam && p.role !== 'GK' && isActivePiece(p),
         )) {
           const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
           let nearPath = false;
