@@ -36,6 +36,7 @@ import {
   freeKickStageTeam,
   hexDistance,
   hexLine,
+  isActivePiece,
   isInRegion,
   isPitchHex,
   isStoppagePhase,
@@ -292,6 +293,15 @@ function validateResponseMoveStep(
   if (!piece || piece.teamId !== config.actingTeam) {
     return fail('WRONG_TEAM');
   }
+  // BUG-38: defense-in-depth against a modified client. Today the only barrier is
+  // HexGrid.tsx's render-skip for a sent-off piece — a client bypassing that render
+  // gate could otherwise drive any of the five response-move phases sharing this
+  // guard (HIGH_PASS_MOVE, GK_KICK_MOVE, FIRST_TIME_PASS_MOVE, SNAPSHOT_DEFLECT,
+  // GOAL_KICK_MOVE). Checked AFTER ownership so an opponent's piece id still leaks
+  // WRONG_TEAM, never RED_CARDED.
+  if (!isActivePiece(piece)) {
+    return fail('RED_CARDED');
+  }
   // BUG-11 / FTP self-pass-reclaim guard: the original carrier/kicker may not reposition
   // their own piece. Only checked when the phase has a carrier-exclusion concept.
   if (config.carrierExclusionKey !== undefined && pieceId === state[config.carrierExclusionKey]) {
@@ -321,7 +331,9 @@ function validateResponseMoveStep(
     return fail('OFF_PITCH');
   }
   if (
-    state.pieces.some((p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r)
+    state.pieces.some(
+      (p) => p.id !== pieceId && isActivePiece(p) && p.position.q === to.q && p.position.r === to.r,
+    )
   ) {
     return fail('OCCUPIED');
   }
@@ -1079,6 +1091,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           // not be handed back to them.
           const occupant = ftpEndState.pieces.find(
             (p) =>
+              isActivePiece(p) &&
               p.position.q === targetHex.q &&
               p.position.r === targetHex.r &&
               p.id !== ftpEndState.firstTimePassCarrierId,
@@ -1158,6 +1171,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const receiver = accurate
             ? gkEndState.pieces.find(
                 (p) =>
+                  isActivePiece(p) &&
                   p.teamId === gkTeam &&
                   p.position.q === targetHex.q &&
                   p.position.r === targetHex.r,
@@ -1282,8 +1296,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         if (snapShooter && snapTarget) {
           const pathHexes = hexLine(snapShooter.position, snapTarget);
           const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
+          // BUG-38: a red-carded/off-pitch defender keeps a live on-pitch `position`
+          // by design (D-08) and must be excluded here by flag — it is never absent
+          // from state.pieces, so this filter cannot assume it away.
           for (const defender of baseSnapState.pieces.filter(
-            (p) => p.teamId === defendingTeam && p.role !== 'GK',
+            (p) => p.teamId === defendingTeam && p.role !== 'GK' && isActivePiece(p),
           )) {
             const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
             let nearPath = false;
@@ -2285,8 +2302,11 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const pathHexes = hexLine(shotShooter.position, shotPathTarget);
         const pathSet = new Set(pathHexes.map((h) => `${h.q},${h.r}`));
         const defTeam: 'home' | 'away' = declaredState.attackingTeam === 'home' ? 'away' : 'home';
+        // BUG-38: a red-carded/off-pitch defender keeps a live on-pitch `position`
+        // by design (D-08) and must be excluded here by flag — it is never absent
+        // from state.pieces, so this filter cannot assume it away.
         for (const defender of declaredState.pieces.filter(
-          (p) => p.teamId === defTeam && p.role !== 'GK',
+          (p) => p.teamId === defTeam && p.role !== 'GK' && isActivePiece(p),
         )) {
           const onPath = pathSet.has(`${defender.position.q},${defender.position.r}`);
           let nearPath = false;
@@ -2509,7 +2529,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Occupancy guard: reject if any other piece already occupies that hex
       if (
         room.gameState.pieces.some(
-          (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+          (p) =>
+            p.id !== pieceId && isActivePiece(p) && p.position.q === to.q && p.position.r === to.r,
         )
       ) {
         socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
@@ -2587,6 +2608,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         // the kick-off hex (e.g. due to a stale placement guard) cannot be assigned possession.
         const kicker = room.gameState.pieces.find(
           (p) =>
+            isActivePiece(p) &&
             p.teamId === room.gameState!.attackingTeam &&
             p.position.q === kickOffHex.q &&
             p.position.r === kickOffHex.r,
@@ -2684,7 +2706,8 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       // Occupancy guard: reject if any other piece already occupies that hex
       if (
         room.gameState.pieces.some(
-          (p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+          (p) =>
+            p.id !== pieceId && isActivePiece(p) && p.position.q === to.q && p.position.r === to.r,
         )
       ) {
         socket.emit(ServerEvents.GAME_ERROR, 'OCCUPIED');
