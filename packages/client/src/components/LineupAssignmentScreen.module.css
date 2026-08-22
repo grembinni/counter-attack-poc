@@ -591,3 +591,61 @@
   border-radius: 4px;
   flex-shrink: 0;
 }
+
+/* ─── Plan 08 (SUB-14/15): substitution confirmation popup ──────────────────
+   Copies ActionPanel.module.css's .confirmOverlay/.confirmCard/.confirmText/
+   .confirmActions/.ctaButtonReady declarations verbatim — no new colour
+   literal, font size, or font weight introduced by this phase. */
+
+/* z-index 22 (not .confirmOverlay's 20) is the one deliberate deviation: this
+   popup renders inside GameBoard.module.css's .substitutionOverlay
+   (z-index 20) alongside .substitutionModalClose (z-index 21), so it needs
+   to stack above both. */
+.subConfirmOverlay {
+  position: fixed;
+  z-index: 22;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-backdrop);
+}
+
+.subConfirmCard {
+  background: var(--color-bg-surface);
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 280px;
+  width: 100%;
+}
+
+.subConfirmText {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.subConfirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.subConfirmActions .subModeButton {
+  flex: 1;
+  max-width: none;
+}
+
+.subConfirmButtonReady {
+  background: var(--color-cta-ready-bg);
+}
+
+.subConfirmButtonReady:hover {
+  background: var(--color-cta-ready-bg-hover);
+}

@@ -131,6 +131,22 @@ type DragState =
  * purely to select WHICH handler runs, never to branch inside a shared one. */
 type MidmatchSubMode = 'reposition' | 'substitute';
 
+/** Phase 42 (SUB-13/14/15, Plan 08): a single staged substitution awaiting
+ * confirmation. A substitution consumes a capped, un-undoable resource (the
+ * 3-per-team cap, no undo per REQUIREMENTS.md), unlike a reposition — so it
+ * stages via this type and confirms through a popup rather than firing
+ * synchronously on drop like `handleMidmatchRepositionDrop`. `outName`/
+ * `outNumber`/`inName` are captured at stage time (not re-derived at confirm
+ * time) so the popup can render both players' identity even if a later
+ * server broadcast changes `pieces`/`bench` before the popup is resolved. */
+type PendingSubstitution = {
+  outPieceId: string;
+  inPlayerId: string;
+  outName: string;
+  outNumber: number;
+  inName: string;
+};
+
 /** Phase 42 (Task 1 action C): unifies the old single-purpose, bench-only drag
  * id state into one parent-owned union covering both drag sources — pitch
  * (positioning-mode swap) and bench (substitution), matching this file's
@@ -488,6 +504,13 @@ export function LineupAssignmentScreen({
   const [midmatchDrag, setMidmatchDrag] = useState<MidmatchDragState | null>(null);
   const [midmatchDropTargetPieceId, setMidmatchDropTargetPieceId] = useState<string | null>(null);
 
+  /** Plan 08 (SUB-13/14/15): the one substitution currently staged awaiting
+   * confirm/cancel. Deliberately NOT cleared by the container-level
+   * `onDragEnd` below — a staged substitution survives the end of the drag
+   * gesture that created it, since the confirmation popup (not the drag
+   * gesture) is what resolves it. */
+  const [pendingSub, setPendingSub] = useState<PendingSubstitution | null>(null);
+
   /** Phase 42 (Task 2 action A): pitch-sourced drag start for positioning mode.
    * Bench-sourced drags are started by `BenchCarousel`'s `onCardDragStart`
    * (Task 1 action F) — this handler is pitch-only. */
@@ -512,28 +535,33 @@ export function LineupAssignmentScreen({
     onReposition?.(drag.pieceId, targetPieceId);
   }
 
-  /** Phase 42 (Task 2 action A): byte-for-byte the pre-Phase-42 inline
-   * substitution drop logic, moved into a named function with NO behavior
-   * change — Pitfall 5 HARD CONSTRAINT: shares no guard body with
-   * `handleMidmatchRepositionDrop` above. */
+  /** Plan 08 (SUB-13/14/15): STAGES a substitution rather than applying it —
+   * the deliberate asymmetry with `handleMidmatchRepositionDrop` below. A
+   * substitution consumes a capped, un-undoable resource (the 3-per-team
+   * cap, no undo per REQUIREMENTS.md) so it stages and confirms via a popup;
+   * a reposition is free and reversible so it applies instantly (D-02). The
+   * two handlers still share no guard body (Pitfall 5 HARD CONSTRAINT).
+   * `onSubstitute` is NOT called anywhere in this handler — the confirmation
+   * popup's Confirm button (below) is the sole remaining call site. */
   function handleMidmatchSubstituteDrop(
     e: React.DragEvent<HTMLDivElement>,
     targetPieceId: string,
     isBlocked: boolean,
+    outName: string,
+    outNumber: number,
   ) {
     e.preventDefault();
     setMidmatchDropTargetPieceId(null);
     const drag = midmatchDrag;
     setMidmatchDrag(null);
     const inPlayerId = drag?.source === 'bench' ? drag.playerId : null;
-    // Checkpoint gap-closure (40-07): readOnly mirrors the server's
-    // WRONG_PHASE guard client-side — outside a stoppage the panel is
-    // viewable but a drop can never trigger a substitution. In practice
-    // nothing CAN be dragged here while readOnly (bench cards are
-    // non-draggable), but this guard is kept as a defensive second gate
-    // rather than relying on drag-source gating alone.
+    // readOnly mirrors the server's WRONG_PHASE guard client-side (40-07).
     if (!inPlayerId || isBlocked || readOnly === true) return;
-    onSubstitute?.(targetPieceId, inPlayerId);
+    if (pendingSub !== null) return; // SUB-13: only one staged sub at a time.
+    const inPlayer = PLAYER_MAP.get(inPlayerId);
+    if (!inPlayer) return; // don't stage a popup with a blank name
+    const inName = `${inPlayer.firstName} ${inPlayer.lastName}`;
+    setPendingSub({ outPieceId: targetPieceId, inPlayerId, outName, outNumber, inName });
   }
 
   /** Renders one mid-match on-pitch position column. Checkpoint gap-closure
@@ -591,7 +619,13 @@ export function LineupAssignmentScreen({
                   onDrop={(e) =>
                     subMode === 'reposition'
                       ? handleMidmatchRepositionDrop(e, piece.id)
-                      : handleMidmatchSubstituteDrop(e, piece.id, isBlocked)
+                      : handleMidmatchSubstituteDrop(
+                          e,
+                          piece.id,
+                          isBlocked,
+                          `${piece.firstName} ${piece.lastName}`,
+                          piece.number,
+                        )
                   }
                 >
                   <span className={styles.sentOffBadge}>SENT OFF</span>
@@ -609,13 +643,17 @@ export function LineupAssignmentScreen({
             // (`role === 'GK'` and slot index 0) mirror
             // `applyRosterReposition`'s GK_SLOT_LOCKED guard exactly, so a card
             // can never look draggable and then be server-rejected.
+            // Plan 08 (SUB-13, Task 2 action C): `pendingSub === null` makes a
+            // staged-but-unresolved substitution visible as inert drag
+            // sources everywhere — not just on the bench.
             const midmatchDraggable =
               subMode === 'reposition' &&
               readOnly !== true &&
               actionPending !== true &&
               isActivePiece(piece) &&
               slotIndexNum !== 0 &&
-              piece.role !== 'GK';
+              piece.role !== 'GK' &&
+              pendingSub === null;
             const isDragSource =
               subMode === 'reposition' &&
               midmatchDrag?.source === 'pitch' &&
@@ -662,7 +700,13 @@ export function LineupAssignmentScreen({
                 onDrop={(e) =>
                   subMode === 'reposition'
                     ? handleMidmatchRepositionDrop(e, piece.id)
-                    : handleMidmatchSubstituteDrop(e, piece.id, isBlocked)
+                    : handleMidmatchSubstituteDrop(
+                        e,
+                        piece.id,
+                        isBlocked,
+                        `${piece.firstName} ${piece.lastName}`,
+                        piece.number,
+                      )
                 }
                 onDragEnd={() => setMidmatchDrag(null)}
               />
@@ -1014,6 +1058,9 @@ export function LineupAssignmentScreen({
               setSubMode('substitute');
               setMidmatchDrag(null);
               setMidmatchDropTargetPieceId(null);
+              // Defensive: entering substitution mode should never carry over
+              // a stale pending selection from a prior mode session.
+              setPendingSub(null);
             }}
           >
             Substitute
@@ -1027,6 +1074,7 @@ export function LineupAssignmentScreen({
               setSubMode('reposition');
               setMidmatchDrag(null);
               setMidmatchDropTargetPieceId(null);
+              setPendingSub(null);
             }}
           >
             Cancel
@@ -1057,11 +1105,13 @@ export function LineupAssignmentScreen({
             unavailablePlayerIds={unavailablePlayerIds}
             redCardedPlayerIds={redCardedPlayerIds}
             benchCardStatus={benchCardStatus}
-            disabled={readOnly === true || subMode === 'reposition'}
+            disabled={readOnly === true || subMode === 'reposition' || pendingSub !== null}
             onCardDragStart={(benchIndex) => {
               // Phase 42 (SUB-10): bench cards are inert in positioning mode —
               // only substitution mode may start a bench-sourced drag.
-              if (readOnly === true || subMode !== 'substitute') return;
+              // Plan 08 (SUB-13): also inert while a substitution is staged —
+              // exactly one swap may be in flight at a time.
+              if (readOnly === true || subMode !== 'substitute' || pendingSub !== null) return;
               const card = midmatchBenchCards[benchIndex];
               if (card) setMidmatchDrag({ source: 'bench', playerId: card.id });
             }}
@@ -1071,6 +1121,46 @@ export function LineupAssignmentScreen({
             <p className={styles.cyclePickCounter}>No available substitutes on the bench.</p>
           )}
         </div>
+
+        {/* Plan 08 (SUB-13/14/15): confirmation popup — mirrors ActionPanel's
+            withEndTurnConfirm/confirmDialog pattern (`stagedSub` is captured
+            into a local const here so the confirm handler below can't read a
+            nulled value after `setPendingSub(null)`). */}
+        {pendingSub !== null &&
+          (() => {
+            const stagedSub = pendingSub;
+            return (
+              <div className={styles.subConfirmOverlay} role="dialog" aria-modal="true">
+                <div className={styles.subConfirmCard}>
+                  <p className={styles.subConfirmText}>
+                    Substitute {stagedSub.outName} for {stagedSub.inName}?
+                  </p>
+                  <div className={styles.subConfirmActions}>
+                    <button
+                      type="button"
+                      className={styles.subModeButton}
+                      aria-label="Cancel substitution selection"
+                      onClick={() => setPendingSub(null)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.subModeButton} ${styles.subConfirmButtonReady}`}
+                      aria-label="Confirm substitution"
+                      onClick={() => {
+                        onSubstitute?.(stagedSub.outPieceId, stagedSub.inPlayerId);
+                        setPendingSub(null);
+                        setSubMode('reposition');
+                      }}
+                    >
+                      Confirm Substitution
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
         {rejectionMessage !== null && <p className={styles.swapRejection}>{rejectionMessage}</p>}
       </div>
