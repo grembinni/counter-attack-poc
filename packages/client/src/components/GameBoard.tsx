@@ -212,7 +212,7 @@ function SubstitutionButton({ actionable, onOpen }: { actionable: boolean; onOpe
             : 'Viewing roster — substitutions are only available during a stoppage in play.'
         }
       >
-        <span className={styles.subButtonLabel}>SUB</span>
+        <span className={styles.subButtonLabel}>ROSTER</span>
       </button>
     </div>
   );

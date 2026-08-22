@@ -714,12 +714,30 @@ describe('Phase 42 — roster panel wiring and chrome', () => {
     const { unmount } = render(<GameBoard />);
     const activeButton = screen.getByRole('button', { name: 'Open substitutions' });
     expect(activeButton.parentElement?.className).toMatch(/subButtonStripActive/);
+    // Gap-closure (42-12 Task 1E): actionable state must also carry the inner
+    // .subButtonActive class (white label, no inner patch) alongside the outer strip class.
+    expect(activeButton.className).toMatch(/subButtonActive/);
     unmount();
 
     seedRosterState('MOVE');
     render(<GameBoard />);
     const inactiveButton = screen.getByRole('button', { name: 'View roster' });
     expect(inactiveButton.parentElement?.className).not.toMatch(/subButtonStripActive/);
+    // Gap-closure (42-12 Task 1E): non-actionable state must NOT carry .subButtonActive.
+    expect(inactiveButton.className).not.toMatch(/subButtonActive/);
+  });
+
+  it('2b. Gap-closure (42-12 Task 1): the persistent strip label reads ROSTER, in both the actionable and non-actionable states', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    const { unmount } = render(<GameBoard />);
+    const activeButton = screen.getByRole('button', { name: 'Open substitutions' });
+    expect(activeButton.textContent).toBe('ROSTER');
+    unmount();
+
+    seedRosterState('MOVE');
+    render(<GameBoard />);
+    const inactiveButton = screen.getByRole('button', { name: 'View roster' });
+    expect(inactiveButton.textContent).toBe('ROSTER');
   });
 
   it('3. SUB-08: with the panel open in a stoppage phase, dragging one on-field card onto another emits game:roster-reposition with {pieceIdA, pieceIdB}', () => {
