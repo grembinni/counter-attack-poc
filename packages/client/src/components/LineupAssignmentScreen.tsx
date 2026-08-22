@@ -113,6 +113,12 @@ type Props = {
    * (`GameBoard.tsx` already reads `selectedPieceId`); wiring the parent is a
    * later plan's job (42-09) — this plan only consumes the prop. */
   actionPending?: boolean;
+  /** Gap-closure (42-12 Task 2A): mid-match only. Supplied by `GameBoard.tsx` to dismiss
+   * the substitution modal. Rendered INSIDE this component (not by the parent) so the
+   * Resume button sits in the roster panel's own scrolling content flow directly under
+   * the bench, per gap item 4 — the previous bottom-of-`.substitutionModalCard`
+   * placement read as pinned to the viewport bottom in live verification. */
+  onResume?: () => void;
 };
 
 /** Phase 29 (DRAFT-06): a single parent-owned drag-state variable resolves every drop —
@@ -359,6 +365,7 @@ export function LineupAssignmentScreen({
   readOnly,
   onReposition,
   actionPending,
+  onResume,
 }: Props) {
   const currentPlayerLabel = playerSlot === 1 ? 'HOME' : 'VISITOR';
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
@@ -1044,43 +1051,6 @@ export function LineupAssignmentScreen({
           {subsUsedVal}/{MAX_SUBS_PER_TEAM} SUBS USED
         </span>
 
-        {/* Phase 42 (SUB-11/SUB-12): mode-toggle button. Entering substitution
-            mode clears any in-flight positioning-mode drag; Cancel returns to
-            positioning mode and never calls onSubstitute. */}
-        {subMode === 'reposition' ? (
-          <button
-            type="button"
-            className={styles.subModeButton}
-            aria-label="Enter substitution mode"
-            disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
-            aria-disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
-            onClick={() => {
-              setSubMode('substitute');
-              setMidmatchDrag(null);
-              setMidmatchDropTargetPieceId(null);
-              // Defensive: entering substitution mode should never carry over
-              // a stale pending selection from a prior mode session.
-              setPendingSub(null);
-            }}
-          >
-            Substitute
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={styles.subModeButton}
-            aria-label="Cancel substitution"
-            onClick={() => {
-              setSubMode('reposition');
-              setMidmatchDrag(null);
-              setMidmatchDropTargetPieceId(null);
-              setPendingSub(null);
-            }}
-          >
-            Cancel
-          </button>
-        )}
-
         {maxOnPitch !== undefined && maxOnPitch < 11 && (
           <p className={styles.slotCapNote}>
             {currentPlayerLabel} is down to {maxOnPitch} players after {redCardCount} red card
@@ -1119,6 +1089,61 @@ export function LineupAssignmentScreen({
           />
           {showEmptyBenchCopy && (
             <p className={styles.cyclePickCounter}>No available substitutes on the bench.</p>
+          )}
+        </div>
+
+        {/* Gap-closure (42-12 Task 2B, gap items 3/4): the Substitute/Cancel toggle and the
+            Resume button now render together in one standard-size action row directly beneath
+            the bench, inside this component's own scrolling `.screen` flow — not pinned to the
+            bottom of `.substitutionModalCard` (the previous placement read as viewport-pinned
+            in live verification). */}
+        <div className={styles.midmatchActionRow}>
+          {/* Phase 42 (SUB-11/SUB-12): mode-toggle button. Entering substitution
+              mode clears any in-flight positioning-mode drag; Cancel returns to
+              positioning mode and never calls onSubstitute. */}
+          {subMode === 'reposition' ? (
+            <button
+              type="button"
+              className={styles.rosterActionButton}
+              aria-label="Enter substitution mode"
+              disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
+              aria-disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
+              onClick={() => {
+                setSubMode('substitute');
+                setMidmatchDrag(null);
+                setMidmatchDropTargetPieceId(null);
+                // Defensive: entering substitution mode should never carry over
+                // a stale pending selection from a prior mode session.
+                setPendingSub(null);
+              }}
+            >
+              Substitute
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.rosterActionButton} ${styles.rosterActionButtonCancel}`}
+              aria-label="Cancel substitution"
+              onClick={() => {
+                setSubMode('reposition');
+                setMidmatchDrag(null);
+                setMidmatchDropTargetPieceId(null);
+                setPendingSub(null);
+              }}
+            >
+              Cancel
+            </button>
+          )}
+
+          {onResume !== undefined && (
+            <button
+              type="button"
+              className={styles.resumeButton}
+              aria-label="Resume match"
+              onClick={onResume}
+            >
+              Resume
+            </button>
           )}
         </div>
 

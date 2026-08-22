@@ -283,9 +283,15 @@
   flex-shrink: 0;
 }
 
-.statBadge[data-tier="high"] { background: var(--color-success); }
-.statBadge[data-tier="mid"]  { background: var(--color-stat-badge-medium); }
-.statBadge[data-tier="low"]  { background: var(--color-danger); }
+.statBadge[data-tier='high'] {
+  background: var(--color-success);
+}
+.statBadge[data-tier='mid'] {
+  background: var(--color-stat-badge-medium);
+}
+.statBadge[data-tier='low'] {
+  background: var(--color-danger);
+}
 
 /* ─── Bench section ─────────────────────────────────────────────────────── */
 
@@ -565,6 +571,69 @@
 .subModeButton:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* ─── Gap-closure (42-12 Task 2C, gap items 3/4): mid-match action row ──────
+   Substitute/Cancel and Resume render together, directly beneath the bench,
+   inside this component's own scrolling `.screen` flow. Mirrors
+   .confirmSection's width/max-width/padding so it lines up with the roster
+   columns above it; no border-top since .benchSection already draws the
+   divider immediately above this row. */
+.midmatchActionRow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 1260px;
+  padding: 8px 0 4px;
+}
+
+/* Standard CTA geometry, copied from .confirmButton — the app's existing
+   primary-button shape (20px/800, 14px 48px padding, 200px min-width) so
+   Substitute/Cancel/Resume read as full-weight buttons, not the compact
+   11px/700 .subModeButton treatment used by the confirmation popup. */
+.rosterActionButton {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-inverse);
+  background: var(--color-bg-surface-alt);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 6px;
+  padding: 14px 48px;
+  min-width: 200px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.rosterActionButton:hover {
+  background: var(--team-accent);
+}
+
+.rosterActionButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Gap-closure (42-12 Task 2C/gap item 5): Cancel is orange — the app's
+   existing pending/not-ready CTA token pair, not a new colour. */
+.rosterActionButtonCancel {
+  composes: rosterActionButton;
+  background: var(--color-cta-pending-bg);
+}
+
+.rosterActionButtonCancel:hover {
+  background: var(--color-cta-pending-bg-hover);
+}
+
+/* Resume — the app's existing solid-green primary-CTA token pair. */
+.resumeButton {
+  composes: rosterActionButton;
+  background: var(--color-cta-ready-bg);
+}
+
+.resumeButton:hover {
+  background: var(--color-cta-ready-bg-hover);
 }
 
 /* ─── Phase 42 (SUB-18/D-05/D-06): SENT OFF vacated-slot placeholder ────────

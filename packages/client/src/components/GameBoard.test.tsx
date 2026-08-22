@@ -709,6 +709,16 @@ describe('Phase 42 — roster panel wiring and chrome', () => {
     expect(screen.queryByText('Substitution')).toBeNull();
   });
 
+  it('1b. Gap-closure (42-12 Task 2E, gap item 3): Resume and the Substitute/Cancel toggle share a common .midmatchActionRow parent', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    const resumeButton = screen.getByRole('button', { name: 'Resume match' });
+    const substituteButton = screen.getByRole('button', { name: 'Enter substitution mode' });
+    expect(resumeButton.parentElement).toBe(substituteButton.parentElement);
+    expect(resumeButton.parentElement?.className).toMatch(/midmatchActionRow/);
+  });
+
   it('2. SUB-17: the SUB strip container carries the active class in a stoppage phase, and not outside one', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     const { unmount } = render(<GameBoard />);

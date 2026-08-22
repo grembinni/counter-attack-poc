@@ -651,37 +651,9 @@
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  /* SUB-16 (Phase 42): column flow so the Resume CTA row sits at the bottom of the panel's
-     content flow, after LineupAssignmentScreen. */
+  /* Gap-closure (42-12 Task 2D): kept as column flow so the child `.screen` (rendered by
+     LineupAssignmentScreen) fills the card — the panel no longer hosts a bottom CTA row of
+     its own; Resume now renders inside LineupAssignmentScreen's own content flow. */
   display: flex;
   flex-direction: column;
-}
-
-/* SUB-16/D-04 (Phase 42): full-width green Resume CTA row replacing the removed corner
-   close ("&times;") control — sits as the last child of .substitutionModalCard. */
-.resumeCtaRow {
-  display: flex;
-  justify-content: center;
-  padding: 16px 24px 24px;
-}
-
-/* Copies LineupAssignmentScreen.module.css's .confirmButtonReady declarations verbatim (the
-   app's existing primary-CTA convention, D-04) but replaces min-width:200px with a full-width
-   treatment so it reads as a bottom CTA rather than a fixed-width pill. */
-.resumeCta {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text-inverse);
-  background: var(--color-cta-ready-bg);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
-  padding: 14px 48px;
-  cursor: pointer;
-  width: 100%;
-  max-width: 480px;
-  transition: background 0.15s ease;
-}
-
-.resumeCta:hover {
-  background: var(--color-cta-ready-bg-hover);
 }
