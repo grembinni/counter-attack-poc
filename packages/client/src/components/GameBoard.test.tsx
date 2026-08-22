@@ -599,14 +599,17 @@ describe('substitution affordance (SUB-01/02)', () => {
     },
   );
 
+  /* Phase 42 (SUB-08) UPDATED EXPECTATION: the roster panel now defaults to
+   * positioning mode, not substitution mode — old expectation: the
+   * substitution-mode helper copy rendered immediately on open; new
+   * expectation: the positioning-mode helper copy renders by default. See
+   * 42-07-SUMMARY.md Deviations. */
   it('clicking during a stoppage renders the substitution modal in its actionable (draggable) presentation', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
-    expect(
-      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
-    ).toBeDefined();
+    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
   });
 
   it('clicking outside a stoppage now OPENS the modal (not disabled) in a read-only presentation', () => {
@@ -645,14 +648,15 @@ describe('substitution affordance (SUB-01/02)', () => {
     expect(screen.queryByText(`${awayPiece!.firstName} ${awayPiece!.lastName}`)).toBeNull();
   });
 
+  /* Phase 42 (SUB-08) UPDATED EXPECTATION: same as above — the panel opens in
+   * positioning mode by default, not substitution mode. See
+   * 42-07-SUMMARY.md Deviations. */
   it('stays open across a phase transition that leaves the stoppage set, and switches live to the read-only presentation', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     const { rerender } = render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
-    expect(
-      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
-    ).toBeDefined();
+    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
 
     // Server-driven phase change (not a user click) leaves the stoppage set — the panel must
     // remain open for viewing (40-07 gap-closure) but flip to its read-only copy.

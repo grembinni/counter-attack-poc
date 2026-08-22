@@ -15,6 +15,8 @@ import {
   classifyTier,
   DRAFT_ROUNDS,
   DRAFT_ROUND_COUNT,
+  MAX_SUBS_PER_TEAM,
+  isActivePiece,
 } from '@counter-attack/shared';
 import type {
   BenchEntry,
@@ -101,6 +103,16 @@ type Props = {
    * client-side so the panel reads as calmly read-only, not broken). Mid-match
    * mode only; every other mode ignores this prop. */
   readOnly?: boolean;
+  /** Phase 42 (SUB-08/D-02): mid-match only. Called when a positioning-mode drag
+   * lands on another on-pitch card — fires synchronously with no confirm popup.
+   * Gated server-side by `GAME_ROSTER_REPOSITION`. */
+  onReposition?: (pieceIdA: string, pieceIdB: string) => void;
+  /** Phase 42 (SUB-09): mid-match only. True when a game action is currently
+   * selected/pending on the pitch — disables positioning-mode dragging while
+   * true. The parent derives this from `useGameStore`'s `selectedPieceId !== null`
+   * (`GameBoard.tsx` already reads `selectedPieceId`); wiring the parent is a
+   * later plan's job (42-09) — this plan only consumes the prop. */
+  actionPending?: boolean;
 };
 
 /** Phase 29 (DRAFT-06): a single parent-owned drag-state variable resolves every drop —
@@ -110,6 +122,23 @@ type DragState =
   | { cardId: string; source: 'pack' }
   | { cardId: string; source: 'slot'; slotIndex: number }
   | { cardId: string; source: 'bench'; benchIndex: number };
+
+/** Phase 42 (SUB-08/SUB-11/SUB-12): the mid-match roster panel's two coexisting
+ * interaction modes — default positioning (on-field drag-to-swap) vs. an
+ * explicit substitution mode entered through the mode-toggle button. Pitfall 5
+ * (research PITFALLS.md): the two modes' drop handlers are kept as two
+ * structurally separate functions sharing no guard body — this type exists
+ * purely to select WHICH handler runs, never to branch inside a shared one. */
+type MidmatchSubMode = 'reposition' | 'substitute';
+
+/** Phase 42 (Task 1 action C): unifies the old single-purpose, bench-only drag
+ * id state into one parent-owned union covering both drag sources — pitch
+ * (positioning-mode swap) and bench (substitution), matching this file's
+ * established `DragState` convention above. Neither mid-match drop handler
+ * ever reads `e.dataTransfer.getData(...)`. */
+type MidmatchDragState =
+  | { source: 'pitch'; pieceId: string }
+  | { source: 'bench'; playerId: string };
 
 /* ─── LineupStatCard — flat format matching GameBoard/PlayerStatsPanel ────── */
 
@@ -162,6 +191,11 @@ type StatCardProps = {
   isSubTarget?: boolean;
   /** Phase 40 (SUB-06): true for a red-carded on-pitch card — never a valid sub target. */
   isSubBlocked?: boolean;
+  /** Phase 42 (SUB-08): PARENT-computed mid-match draggability — replaces the old
+   * hardcoded `isMidmatch ? false` branch below. Only meaningful when `mode ===
+   * 'midmatch'`; ignored otherwise. The card component stays dumb — it never
+   * re-derives eligibility itself. */
+  midmatchDraggable?: boolean;
 };
 
 function LineupStatCard({
@@ -184,14 +218,20 @@ function LineupStatCard({
   injuryCount,
   isSubTarget,
   isSubBlocked,
+  midmatchDraggable,
 }: StatCardProps) {
   const isMidmatch = mode === 'midmatch';
   const isGK = !isMidmatch && slotIndex === 0;
-  // Phase 40 (RESEARCH.md Pitfall 6): mid-match draggability is a structurally
-  // separate condition — bench->pitch is the only substitution gesture, so every
-  // on-pitch card is non-draggable regardless of the pregame GK-lock rule below.
+  // Phase 42 (SUB-08, research PITFALLS.md Pitfall 5): mid-match draggability is
+  // a structurally separate condition from pregame/draft — but it is no longer a
+  // single hardcoded `false`. It is now a three-way split: pregame (GK-lock rule),
+  // midmatch-reposition (parent-computed `midmatchDraggable`, true for on-field
+  // non-GK/non-slot-0 pieces when no other action is pending), and
+  // midmatch-substitute (bench->pitch is the only gesture; on-pitch cards stay
+  // non-draggable exactly as before Phase 42 — `midmatchDraggable` is false in
+  // that mode too, since only bench cards drag in substitution mode).
   const isDraggable = isMidmatch
-    ? false
+    ? midmatchDraggable === true
     : allowGKDrag
       ? !lineupConfirmed
       : !isGK && !lineupConfirmed;
@@ -301,6 +341,8 @@ export function LineupAssignmentScreen({
   maxOnPitch,
   onSubstitute,
   readOnly,
+  onReposition,
+  actionPending,
 }: Props) {
   const currentPlayerLabel = playerSlot === 1 ? 'HOME' : 'VISITOR';
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
@@ -342,7 +384,17 @@ export function LineupAssignmentScreen({
       message = 'Substitution rejected — a sent-off player cannot return.';
     } else if (gameError === 'INVALID_SUBSTITUTE') {
       message = 'Substitution rejected — invalid substitute.';
+    } else if (gameError === 'INVALID_REPOSITION') {
+      message = 'Swap rejected — invalid selection.';
+    } else if (gameError === 'REPOSITION_BALL_CARRIER') {
+      message = 'Swap rejected — that player has the ball.';
     }
+    // Phase 42 (Task 1 action H): 'GK_SLOT_LOCKED' and 'WRONG_PHASE' already have
+    // entries above (pregame swap / substitution-mode respectively) — reused
+    // verbatim for reposition rejections, not duplicated. 'WRONG_TEAM' is
+    // deliberately NOT mapped here: it is unreachable through this UI and a
+    // generic string shared by other flows, so mapping it would surface a
+    // spurious message.
     if (message === null) return;
     setRejectionMessage(message);
     const timer = setTimeout(() => setRejectionMessage(null), 2000);
@@ -424,12 +476,65 @@ export function LineupAssignmentScreen({
   }, [draftView, resolveTieredCard]);
 
   // ─── Phase 40 (SUB-02/03/06/07, D-12/D-13): mid-match substitution state ───
+  // ─── Phase 42 (SUB-08/09/10/11/12): mid-match positioning-mode state ───────
 
-  /** The bench card whose drag started this substitution gesture — set by
-   * BenchCarousel's onCardDragStart, mirroring the parent-owned drag-state
-   * pattern already used in draft mode (never read dataTransfer at drop time). */
-  const [midmatchDragPlayerId, setMidmatchDragPlayerId] = useState<string | null>(null);
+  /** Phase 42 (SUB-08): default 'reposition' (positioning mode). `GameBoard`
+   * conditionally renders this screen (`{subOpen && ...}`), so closing the
+   * panel unmounts it — the mode resets to positioning on reopen with no
+   * explicit cleanup needed. */
+  const [subMode, setSubMode] = useState<MidmatchSubMode>('reposition');
+
+  /** Phase 42 (Task 1 action C): see `MidmatchDragState` above (module scope). */
+  const [midmatchDrag, setMidmatchDrag] = useState<MidmatchDragState | null>(null);
   const [midmatchDropTargetPieceId, setMidmatchDropTargetPieceId] = useState<string | null>(null);
+
+  /** Phase 42 (Task 2 action A): pitch-sourced drag start for positioning mode.
+   * Bench-sourced drags are started by `BenchCarousel`'s `onCardDragStart`
+   * (Task 1 action F) — this handler is pitch-only. */
+  function handleMidmatchDragStart(e: React.DragEvent<HTMLDivElement>, pieceId: string) {
+    setMidmatchDrag({ source: 'pitch', pieceId });
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  /** Phase 42 (Task 2 action A, Pitfall 5 HARD CONSTRAINT): structurally
+   * separate from `handleMidmatchSubstituteDrop` below — shares no guard body.
+   * D-02: fires synchronously with no confirm popup/staging, the deliberate
+   * asymmetry with substitution (a reposition is free/reversible; a
+   * substitution consumes a capped resource). */
+  function handleMidmatchRepositionDrop(e: React.DragEvent<HTMLDivElement>, targetPieceId: string) {
+    e.preventDefault();
+    setMidmatchDropTargetPieceId(null);
+    const drag = midmatchDrag;
+    setMidmatchDrag(null);
+    if (!drag || drag.source !== 'pitch') return;
+    if (drag.pieceId === targetPieceId) return; // self-drop is a no-op
+    if (readOnly === true || actionPending === true) return;
+    onReposition?.(drag.pieceId, targetPieceId);
+  }
+
+  /** Phase 42 (Task 2 action A): byte-for-byte the pre-Phase-42 inline
+   * substitution drop logic, moved into a named function with NO behavior
+   * change — Pitfall 5 HARD CONSTRAINT: shares no guard body with
+   * `handleMidmatchRepositionDrop` above. */
+  function handleMidmatchSubstituteDrop(
+    e: React.DragEvent<HTMLDivElement>,
+    targetPieceId: string,
+    isBlocked: boolean,
+  ) {
+    e.preventDefault();
+    setMidmatchDropTargetPieceId(null);
+    const drag = midmatchDrag;
+    setMidmatchDrag(null);
+    const inPlayerId = drag?.source === 'bench' ? drag.playerId : null;
+    // Checkpoint gap-closure (40-07): readOnly mirrors the server's
+    // WRONG_PHASE guard client-side — outside a stoppage the panel is
+    // viewable but a drop can never trigger a substitution. In practice
+    // nothing CAN be dragged here while readOnly (bench cards are
+    // non-draggable), but this guard is kept as a defensive second gate
+    // rather than relying on drag-source gating alone.
+    if (!inPlayerId || isBlocked || readOnly === true) return;
+    onSubstitute?.(targetPieceId, inPlayerId);
+  }
 
   /** Renders one mid-match on-pitch position column. Checkpoint gap-closure
    * (40-07 Task 2 human-verify feedback): originally grouped by `piece.role` (the
@@ -451,42 +556,115 @@ export function LineupAssignmentScreen({
         <div className={styles.columnCards}>
           {pieces.map((piece, i) => {
             const isBlocked = piece.redCarded === true;
+            const isDropTargetHere = midmatchDropTargetPieceId === piece.id;
+
+            // Phase 42 (Task 2 action B, D-05/D-06/SUB-18): a dismissed piece
+            // is never rendered as a LineupStatCard — its slot renders the
+            // SENT OFF placeholder instead. The slot remains a valid drop
+            // target for another on-field player being repositioned into it
+            // (not permanently locked, D-05) — the server accepts a
+            // red-carded piece as a legal reposition participant (42-06).
+            if (!isActivePiece(piece)) {
+              return (
+                <div
+                  key={piece.id}
+                  className={
+                    isDropTargetHere
+                      ? `${styles.statCardSentOff} ${styles.statCardDropTarget}`
+                      : styles.statCardSentOff
+                  }
+                  aria-label="Sent off — slot empty"
+                  role="img"
+                  draggable={false}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (
+                      (subMode === 'reposition' &&
+                        midmatchDrag?.source === 'pitch' &&
+                        midmatchDrag.pieceId !== piece.id) ||
+                      subMode === 'substitute'
+                    ) {
+                      setMidmatchDropTargetPieceId(piece.id);
+                    }
+                  }}
+                  onDragLeave={() => setMidmatchDropTargetPieceId(null)}
+                  onDrop={(e) =>
+                    subMode === 'reposition'
+                      ? handleMidmatchRepositionDrop(e, piece.id)
+                      : handleMidmatchSubstituteDrop(e, piece.id, isBlocked)
+                  }
+                >
+                  <span className={styles.sentOffBadge}>SENT OFF</span>
+                </div>
+              );
+            }
+
+            // Reuse the same slot-index parse already established for column
+            // grouping above (`piece.id`'s `${team}-${slotIndex}` suffix) rather
+            // than adding a second parse implementation (Task 1 action D).
+            const parsedSlotIndex = /-(\d+)$/.exec(piece.id);
+            const slotIndexNum = parsedSlotIndex !== null ? Number(parsedSlotIndex[1]) : null;
+            // Phase 42 (SUB-08/09/10, Task 1 action D): parent-computed
+            // draggability for positioning mode. The two GK clauses
+            // (`role === 'GK'` and slot index 0) mirror
+            // `applyRosterReposition`'s GK_SLOT_LOCKED guard exactly, so a card
+            // can never look draggable and then be server-rejected.
+            const midmatchDraggable =
+              subMode === 'reposition' &&
+              readOnly !== true &&
+              actionPending !== true &&
+              isActivePiece(piece) &&
+              slotIndexNum !== 0 &&
+              piece.role !== 'GK';
+            const isDragSource =
+              subMode === 'reposition' &&
+              midmatchDrag?.source === 'pitch' &&
+              midmatchDrag.pieceId === piece.id;
             return (
               <LineupStatCard
                 key={piece.id}
                 player={piece}
                 slotIndex={i}
-                isDragSource={false}
-                isDropTarget={midmatchDropTargetPieceId === piece.id}
+                isDragSource={isDragSource}
+                isDropTarget={isDropTargetHere}
                 lineupConfirmed={false}
                 teamId={myTeamId}
                 mode="midmatch"
                 cardColor={cardColorFor(piece)}
                 injuryCount={piece.injuryCount ?? 0}
-                isSubTarget={midmatchDropTargetPieceId === piece.id}
+                isSubTarget={isDropTargetHere}
                 isSubBlocked={isBlocked}
-                onDragStart={() => {}}
+                midmatchDraggable={midmatchDraggable}
+                onDragStart={(e) => {
+                  // Phase 42 (Task 1/2): positioning-mode drag start only —
+                  // substitution mode's only drag source is the bench (below).
+                  if (subMode !== 'reposition' || midmatchDraggable !== true) return;
+                  handleMidmatchDragStart(e, piece.id);
+                }}
                 onDragOver={(e) => {
+                  // Phase 42 (Task 2 action A): only mark this card as the
+                  // hovered drop target when a drop here would actually be
+                  // legal in the current mode — prevents the gold
+                  // .statCardDropTarget ring from appearing on an illegal
+                  // target. Reposition mode: a pitch-sourced drag exists and
+                  // the target is not the source. Substitute mode: unchanged
+                  // from today (any hover while a bench drag is in flight).
                   e.preventDefault();
+                  if (subMode === 'reposition') {
+                    if (midmatchDrag?.source === 'pitch' && midmatchDrag.pieceId !== piece.id) {
+                      setMidmatchDropTargetPieceId(piece.id);
+                    }
+                    return;
+                  }
                   setMidmatchDropTargetPieceId(piece.id);
                 }}
                 onDragLeave={() => setMidmatchDropTargetPieceId(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setMidmatchDropTargetPieceId(null);
-                  const inPlayerId = midmatchDragPlayerId;
-                  setMidmatchDragPlayerId(null);
-                  // Checkpoint gap-closure (40-07): readOnly mirrors the server's
-                  // WRONG_PHASE guard client-side — outside a stoppage the panel is
-                  // viewable but a drop can never trigger a substitution. In
-                  // practice nothing CAN be dragged here while readOnly (bench
-                  // cards are non-draggable below), but this guard is kept as a
-                  // defensive second gate rather than relying on drag-source
-                  // gating alone.
-                  if (!inPlayerId || isBlocked || readOnly === true) return;
-                  onSubstitute?.(piece.id, inPlayerId);
-                }}
-                onDragEnd={() => {}}
+                onDrop={(e) =>
+                  subMode === 'reposition'
+                    ? handleMidmatchRepositionDrop(e, piece.id)
+                    : handleMidmatchSubstituteDrop(e, piece.id, isBlocked)
+                }
+                onDragEnd={() => setMidmatchDrag(null)}
               />
             );
           })}
@@ -791,23 +969,69 @@ export function LineupAssignmentScreen({
     const showEmptyBenchCopy = benchList.length === 0 || !hasAvailableBenchEntry;
 
     return (
-      <div className={styles.screen}>
+      // Phase 42 (Task 2 action A): a container-level onDragEnd guarantees
+      // midmatchDrag/midmatchDropTargetPieceId are cleared after ANY drag
+      // gesture completes — success, cancel, or drop on empty space —
+      // mirroring the draft branch's existing container-level cleanup so no
+      // drag state can wedge after a cancelled gesture (T-42-32).
+      <div
+        className={styles.screen}
+        onDragEnd={() => {
+          setMidmatchDrag(null);
+          setMidmatchDropTargetPieceId(null);
+        }}
+      >
         <h2 className={styles.matchSetupHeading}>Substitution</h2>
         <p className={styles.cyclePickCounter}>
           {readOnly === true
             ? 'Viewing roster — substitutions are only available during a stoppage in play.'
-            : 'Drag a bench card onto an on-pitch card to Substitute.'}
+            : subMode === 'reposition'
+              ? 'Drag a player onto another to swap positions.'
+              : 'Drag a bench card onto an on-pitch card to Substitute.'}
         </p>
 
         <span
           className={
-            subsUsedVal >= 3
+            subsUsedVal >= MAX_SUBS_PER_TEAM
               ? `${styles.subCounterChip} ${styles.subCounterChipCapped}`
               : styles.subCounterChip
           }
         >
-          {subsUsedVal}/3 SUBS USED
+          {subsUsedVal}/{MAX_SUBS_PER_TEAM} SUBS USED
         </span>
+
+        {/* Phase 42 (SUB-11/SUB-12): mode-toggle button. Entering substitution
+            mode clears any in-flight positioning-mode drag; Cancel returns to
+            positioning mode and never calls onSubstitute. */}
+        {subMode === 'reposition' ? (
+          <button
+            type="button"
+            className={styles.subModeButton}
+            aria-label="Enter substitution mode"
+            disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
+            aria-disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
+            onClick={() => {
+              setSubMode('substitute');
+              setMidmatchDrag(null);
+              setMidmatchDropTargetPieceId(null);
+            }}
+          >
+            Substitute
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.subModeButton}
+            aria-label="Cancel substitution"
+            onClick={() => {
+              setSubMode('reposition');
+              setMidmatchDrag(null);
+              setMidmatchDropTargetPieceId(null);
+            }}
+          >
+            Cancel
+          </button>
+        )}
 
         {maxOnPitch !== undefined && maxOnPitch < 11 && (
           <p className={styles.slotCapNote}>
@@ -833,13 +1057,15 @@ export function LineupAssignmentScreen({
             unavailablePlayerIds={unavailablePlayerIds}
             redCardedPlayerIds={redCardedPlayerIds}
             benchCardStatus={benchCardStatus}
-            disabled={readOnly === true}
+            disabled={readOnly === true || subMode === 'reposition'}
             onCardDragStart={(benchIndex) => {
-              if (readOnly === true) return;
+              // Phase 42 (SUB-10): bench cards are inert in positioning mode —
+              // only substitution mode may start a bench-sourced drag.
+              if (readOnly === true || subMode !== 'substitute') return;
               const card = midmatchBenchCards[benchIndex];
-              if (card) setMidmatchDragPlayerId(card.id);
+              if (card) setMidmatchDrag({ source: 'bench', playerId: card.id });
             }}
-            onDropToBench={() => setMidmatchDragPlayerId(null)}
+            onDropToBench={() => setMidmatchDrag(null)}
           />
           {showEmptyBenchCopy && (
             <p className={styles.cyclePickCounter}>No available substitutes on the bench.</p>
