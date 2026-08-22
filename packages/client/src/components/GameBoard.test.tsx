@@ -624,12 +624,17 @@ describe('substitution affordance (SUB-01/02)', () => {
     ).toBeDefined();
   });
 
-  it('the close control (aria-label="Close substitutions") dismisses the modal with no emit', () => {
+  /* Phase 42 (SUB-16) RETARGETED: old query located the removed corner "x"
+   * close control by its aria-label; new query — getByRole('button', {
+   * name: 'Resume match' }) — locates the full-width green Resume CTA that
+   * replaces it. Same intent/outcome preserved: dismisses the modal with no
+   * emit. */
+  it('the Resume button (aria-label="Resume match") dismisses the modal with no emit', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Close substitutions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Resume match' }));
     expect(screen.queryByText('Substitution')).toBeNull();
     expect(emitMock).not.toHaveBeenCalled();
   });
@@ -670,6 +675,88 @@ describe('substitution affordance (SUB-01/02)', () => {
         'Viewing roster — substitutions are only available during a stoppage in play.',
       ),
     ).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 42 (42-09): roster panel server wiring (SUB-08/09) and chrome (SUB-16/17).
+// ---------------------------------------------------------------------------
+describe('Phase 42 — roster panel wiring and chrome', () => {
+  const STOPPAGE_SAMPLE: GamePhase = 'HALF_TIME';
+
+  function seedRosterState(phase: GamePhase) {
+    useGameStore.setState({
+      playerSlot: 1,
+      selectedPieceId: null,
+      gameState: {
+        ...mockMovementState,
+        phase,
+        bench: { home: [], away: [] },
+        subsUsed: { home: 0, away: 0 },
+      },
+    });
+  }
+
+  it('1. SUB-16: opening the panel renders a Resume button (no Close-substitutions control), and clicking Resume closes it', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    expect(screen.getByText('Substitution')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+    const resumeButton = screen.getByRole('button', { name: 'Resume match' });
+    expect(resumeButton.textContent).toBe('Resume');
+    fireEvent.click(resumeButton);
+    expect(screen.queryByText('Substitution')).toBeNull();
+  });
+
+  it('2. SUB-17: the SUB strip container carries the active class in a stoppage phase, and not outside one', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    const { unmount } = render(<GameBoard />);
+    const activeButton = screen.getByRole('button', { name: 'Open substitutions' });
+    expect(activeButton.parentElement?.className).toMatch(/subButtonStripActive/);
+    unmount();
+
+    seedRosterState('MOVE');
+    render(<GameBoard />);
+    const inactiveButton = screen.getByRole('button', { name: 'View roster' });
+    expect(inactiveButton.parentElement?.className).not.toMatch(/subButtonStripActive/);
+  });
+
+  it('3. SUB-08: with the panel open in a stoppage phase, dragging one on-field card onto another emits game:roster-reposition with {pieceIdA, pieceIdB}', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    const source = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Mamadou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(emitMock).toHaveBeenCalledWith('game:roster-reposition', {
+      pieceIdA: 'home-1',
+      pieceIdB: 'home-2',
+    });
+  });
+
+  it('4. SUB-09: with selectedPieceId set (a game action pending), on-field cards are non-draggable and no emit occurs on drop', () => {
+    seedRosterState(STOPPAGE_SAMPLE);
+    useGameStore.setState({ selectedPieceId: 'home-9' });
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
+    const source = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    expect(source.getAttribute('draggable')).toBe('false');
+    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Mamadou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    expect(emitMock).not.toHaveBeenCalled();
+  });
+
+  it('5. the panel still opens outside a stoppage in read-only form (Phase 40 gap-closure behavior preserved), and Resume still closes it', () => {
+    seedRosterState('MOVE');
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'View roster' }));
+    expect(screen.getByText('Substitution')).toBeDefined();
+    const resumeButton = screen.getByRole('button', { name: 'Resume match' });
+    fireEvent.click(resumeButton);
+    expect(screen.queryByText('Substitution')).toBeNull();
   });
 });
 
