@@ -474,6 +474,16 @@ function makePiece(
  * never in the FWD column just because that's their own playing specialism. `home-10`
  * (the true FWD-central/ST slot) keeps `role: 'ST'` so the pre-existing "ST renders in
  * the FWD column" coverage is preserved (both role- and slot-based grouping agree here). */
+// Phase 42 gap item 6 (Task 2 action D): every piece below now carries an explicit,
+// distinct `position` (q incrementing by slot index, all on the r=10 row) rather than
+// relying on `makePiece`'s shared `{ q: 10, r: 10 }` default. Real game state never
+// places two ACTIVE pieces on one hex, so the fixture now mirrors that invariant —
+// the previous shared-default fixture accidentally colocated every piece (including
+// the red-carded `home-4`) on the same hex, which made the new own-team hex-occupancy
+// pre-gate (`ownActiveHexKeys`) spuriously report every active piece as standing on
+// the SENT OFF slot's frozen hex. `home-4`'s frozen hex (`{ q: 14, r: 10 }`) is free
+// by default, matching the pre-existing D-05 tests' expectation; the new gap-item-6
+// describe block below explicitly relocates a piece onto it to exercise the guard.
 const HOME_TEAM_PIECES: PlayerPiece[] = [
   makePiece({
     id: 'home-0',
@@ -482,6 +492,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 1,
     firstName: 'Home',
     lastName: 'Keeper',
+    position: { q: 10, r: 10 },
   }),
   makePiece({
     id: 'home-1',
@@ -490,6 +501,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 2,
     firstName: 'Home',
     lastName: 'DefOne',
+    position: { q: 11, r: 10 },
   }),
   makePiece({
     id: 'home-2',
@@ -498,6 +510,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 3,
     firstName: 'Home',
     lastName: 'DefTwo',
+    position: { q: 12, r: 10 },
   }),
   makePiece({
     id: 'home-3',
@@ -506,6 +519,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 4,
     firstName: 'Home',
     lastName: 'DefThree',
+    position: { q: 13, r: 10 },
   }),
   makePiece({
     id: 'home-4',
@@ -515,6 +529,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     firstName: 'Home',
     lastName: 'DefRedCarded',
     redCarded: true,
+    position: { q: 14, r: 10 },
   }),
   makePiece({
     id: 'home-5',
@@ -523,6 +538,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 6,
     firstName: 'Home',
     lastName: 'MidOne',
+    position: { q: 15, r: 10 },
   }),
   makePiece({
     id: 'home-6',
@@ -532,6 +548,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     firstName: 'Home',
     lastName: 'MidYellow',
     yellowCards: 1,
+    position: { q: 16, r: 10 },
   }),
   makePiece({
     id: 'home-7',
@@ -541,6 +558,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     firstName: 'Home',
     lastName: 'MidInjuredOnce',
     injuryCount: 1,
+    position: { q: 17, r: 10 },
   }),
   makePiece({
     id: 'home-8',
@@ -550,6 +568,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     firstName: 'Home',
     lastName: 'FwdInjuredTwice',
     injuryCount: 2,
+    position: { q: 18, r: 10 },
   }),
   makePiece({
     id: 'home-9',
@@ -558,6 +577,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 10,
     firstName: 'Home',
     lastName: 'FwdOne',
+    position: { q: 19, r: 10 },
   }),
   makePiece({
     id: 'home-10',
@@ -566,6 +586,7 @@ const HOME_TEAM_PIECES: PlayerPiece[] = [
     number: 11,
     firstName: 'Home',
     lastName: 'Striker',
+    position: { q: 20, r: 10 },
   }),
 ];
 
@@ -1263,6 +1284,69 @@ describe('Phase 42 — midmatch positioning mode', () => {
     expect(screen.getByLabelText('Enter substitution mode').hasAttribute('disabled')).toBe(true);
     const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
     expect(benchCard.getAttribute('draggable')).toBe('false');
+  });
+
+  describe('gap item 6: SENT OFF slot stacking', () => {
+    /** Fixture where `home-2` (an active own-team piece) already stands on
+     * red-carded `home-4`'s frozen hex — the exact BUG-38-interaction scenario
+     * this gap item closes (42-10-SUMMARY.md gap item 6). */
+    const COLLISION_PIECES: PlayerPiece[] = HOME_TEAM_PIECES.map((p) =>
+      p.id === 'home-2' ? { ...p, position: { q: 14, r: 10 } } : p,
+    );
+
+    afterEach(() => {
+      useGameStore.setState({ gameError: null });
+    });
+
+    it('1. with a third active own-team piece on the red-carded slot frozen hex, dropping onto SENT OFF does NOT call onReposition', () => {
+      const onReposition = vi.fn();
+      renderMidmatch({ midmatchPieces: COLLISION_PIECES, onReposition });
+      const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+      fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
+      fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+      expect(onReposition).not.toHaveBeenCalled();
+    });
+
+    it('2. the SENT OFF placeholder does not receive the drop-target ring on dragOver when its hex is taken', () => {
+      renderMidmatch({ midmatchPieces: COLLISION_PIECES });
+      const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+      fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
+      fireEvent.dragOver(placeholder, { dataTransfer: {} });
+      expect(placeholder.className).not.toMatch(/statCardDropTarget/);
+    });
+
+    it('3. when the red-carded slot frozen hex is free, the same drag still calls onReposition (D-05 preserved)', () => {
+      const onReposition = vi.fn();
+      renderMidmatch({ onReposition }); // default HOME_TEAM_PIECES: home-4's hex is free
+      const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+      fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
+      fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+      expect(onReposition).toHaveBeenCalledWith('home-1', 'home-4');
+    });
+
+    it('4. REPOSITION_SLOT_OCCUPIED renders the roster panel rejection message', () => {
+      renderMidmatch();
+      act(() => {
+        useGameStore.setState({ gameError: 'REPOSITION_SLOT_OCCUPIED' });
+      });
+      expect(
+        screen.getByText('Swap rejected — another player is already in that position.'),
+      ).toBeDefined();
+    });
+
+    it('5. substitution mode is unaffected by the pre-gate: dropping a bench card on the taken SENT OFF slot behaves as it does today', () => {
+      const onSubstitute = vi.fn();
+      renderMidmatch({ midmatchPieces: COLLISION_PIECES, onSubstitute });
+      fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+      const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+      fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
+      fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+      expect(onSubstitute).not.toHaveBeenCalled();
+    });
   });
 });
 
