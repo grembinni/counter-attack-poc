@@ -199,18 +199,36 @@ Plans:
 5. A red-carded player's vacated pitch hex no longer blocks movement, occupancy, targeting, Zone-of-Influence, or deflection eligibility anywhere in the game — including the previously confirmed live defects in `DEFLECT_ATTEMPT` defender-input building and the ZoI opponent list.
 
 **Plans**: 10 plans across 7 waves
-
 Plans:
+**Wave 1**
 
 - [ ] 42-01-PLAN.md — shared `isActivePiece` helper + red-card exclusion in moveValidator/passValidator/outOfBounds (BUG-38, Pitfall 7)
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 42-02-PLAN.md — gameHandlers BUG-38: both deflection defender-set builders, validateResponseMoveStep guard, occupancy sweep
 - [ ] 42-03-PLAN.md — gameEngine BUG-38 part 1: retrofit 8 inline redCarded filters + occupancy sweep (lines 337-4171)
 - [ ] 42-04-PLAN.md — HexGrid client defense-in-depth: render-skip + all 19 canSelect\* gates
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
 - [ ] 42-05-PLAN.md — gameEngine BUG-38 part 2: occupancy sweep (5103-9315) + D-10 audit closeout + engine regression tests
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
 - [ ] 42-06-PLAN.md — reposition contract + server action: ROSTER_REPOSITION event, applyRosterReposition, socket handler
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
 - [ ] 42-07-PLAN.md — positioning mode: mode toggle, 3-way draggability, reposition handlers, SENT OFF slot
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
 - [ ] 42-08-PLAN.md — staged substitution + confirmation popup (SUB-13/14/15)
 - [ ] 42-09-PLAN.md — client wiring + chrome: store emitter, [SWAP] log, Undo mirror, green strip, Resume CTA
+
+**Wave 7** _(blocked on Wave 6 completion)_
+
 - [ ] 42-10-PLAN.md — SUB-0X regression gate, bench-badge check, repo quality gate, live two-browser verification
 
 **UI hint**: yes
