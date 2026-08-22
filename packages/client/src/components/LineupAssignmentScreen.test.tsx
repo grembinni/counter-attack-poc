@@ -889,25 +889,30 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(screen.getByTestId('bench-red-card-badge')).toBeDefined();
   });
 
-  it('ICON-03: bench cards derive their glyph from BenchEntry — booked/injured subbedOut entry shows both glyphs, red-carded entry shows the red glyph, available entry shows none', () => {
+  it('ICON-03/gap item 1: bench cards derive their glyph from BenchEntry — booked/injured subbedOut entry shows both glyphs, red-carded entry shows only the RED CARD badge (duplicate glyph suppressed), available entry shows none', () => {
     renderMidmatch({ bench: BENCH_WITH_STATUS });
     const bench = screen.getByTestId('bench-carousel');
     const badges = within(bench).getAllByTestId('card-injury-badge');
-    expect(badges.length).toBe(2);
+    // Gap-closure (42-10 Section D / gap item 1): only the yellow-carded/injured card
+    // (p014) renders a card-injury-badge wrapper now — the red-carded card (p015) has
+    // injuryCount: 0, so once its card glyph is suppressed there is nothing left to draw.
+    expect(badges.length).toBe(1);
 
     const cardBadges = within(bench).getAllByTestId('piece-card-badge');
     const redBadge = cardBadges.find((b) => b.getAttribute('data-card') === 'red');
     const yellowBadge = cardBadges.find((b) => b.getAttribute('data-card') === 'yellow');
-    expect(redBadge).toBeDefined();
+    expect(redBadge).toBeUndefined();
     expect(yellowBadge).toBeDefined();
 
     // The yellow-carded card (p014) also carries an injury glyph in the same wrapper.
     const yellowWrapper = yellowBadge!.closest('[data-testid="card-injury-badge"]') as HTMLElement;
     expect(within(yellowWrapper).getByTestId('piece-injury-badge')).toBeDefined();
 
-    // The red-carded card (p015) has no injury glyph (injuryCount: 0).
-    const redWrapper = redBadge!.closest('[data-testid="card-injury-badge"]') as HTMLElement;
-    expect(within(redWrapper).queryByTestId('piece-injury-badge')).toBeNull();
+    // The red-carded card (p015) shows only the RED CARD text badge — the duplicate
+    // card glyph is suppressed (gap item 1).
+    const redCardEntry = screen.getByText('#15').closest('[class*="cardBody"]') as HTMLElement;
+    expect(within(redCardEntry).queryByTestId('card-injury-badge')).toBeNull();
+    expect(within(redCardEntry).getByTestId('bench-red-card-badge')).toBeDefined();
 
     // p013 (available, no card/injury state) shows no badge at all.
     const availableCard = screen.getByText('#13').closest('[class*="cardBody"]') as HTMLElement;

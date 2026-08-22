@@ -385,10 +385,12 @@ describe('Bench badge regression — Phase 42 rework (D-07/SUB-18)', () => {
     expect(redBadge.textContent).toBe('RED CARD');
     const redCard = redBadge.closest('[class*="cardUnavailable"]');
     expect(redCard).not.toBeNull();
-    const redGlyph = within(redCard as HTMLElement)
-      .getAllByTestId('piece-card-badge')
-      .find((b) => b.getAttribute('data-card') === 'red');
-    expect(redGlyph).toBeDefined();
+    // Gap-closure (42-10 Section D / gap item 1): the duplicate card glyph is now
+    // suppressed on a red-carded bench card — the RED CARD text badge above is the
+    // sole surviving indicator. This was inverted from "renders the red-card glyph"
+    // when the coexistence was reported as a defect.
+    const redGlyphs = within(redCard as HTMLElement).queryAllByTestId('piece-card-badge');
+    expect(redGlyphs.length).toBe(0);
 
     const outBadge = screen.getByTestId('bench-out-badge');
     expect(outBadge.textContent).toBe('OUT');
@@ -454,5 +456,18 @@ describe('Bench badge regression — Phase 42 rework (D-07/SUB-18)', () => {
     fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
     expect(screen.getByRole('dialog')).toBeDefined();
     assertBenchBadges();
+  });
+
+  it('gap item 1 (42-10 Section D): a red-carded bench entry renders exactly one card indicator — no duplicate glyph beside the RED CARD badge', () => {
+    renderRegression();
+    const redBadge = screen.getByTestId('bench-red-card-badge');
+    const card = redBadge.closest('[class*="cardUnavailable"]') as HTMLElement;
+    expect(card).not.toBeNull();
+
+    const cardGlyphs = within(card).queryAllByTestId('piece-card-badge');
+    const redCardBadges = within(card).queryAllByTestId('bench-red-card-badge');
+    expect(cardGlyphs.length).toBe(0);
+    expect(redCardBadges.length).toBe(1);
+    expect(cardGlyphs.length + redCardBadges.length).toBe(1);
   });
 });
