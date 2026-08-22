@@ -107,6 +107,15 @@ None - no external service configuration required.
 - No blockers. Full client suite (1062 tests), typecheck, and eslint all green on the touched files.
 - Scope boundary honored: no drag-and-drop, drop target, or reposition handler was added to the pitch view — this plan touched `HexGrid.tsx` solely for BUG-38 selection/render gating, per D-01.
 
+## Self-Check: PASSED
+
+- FOUND: `packages/client/src/components/HexGrid.tsx`
+- FOUND: `packages/client/src/components/HexGrid.test.tsx`
+- FOUND: `.planning/phases/42-substitution-ux-overhaul/42-04-SUMMARY.md`
+- FOUND: commit `d93edbf` (Task 1)
+- FOUND: commit `f13e5e1` (Task 2)
+- FOUND: commit `db64a14` (SUMMARY)
+
 ---
 
 _Phase: 42-substitution-ux-overhaul_
