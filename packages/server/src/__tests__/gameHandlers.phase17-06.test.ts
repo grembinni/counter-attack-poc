@@ -16,7 +16,7 @@ import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
 import { confirmDefaultRoomSettings } from './testHelpers.js';
 import type { ClientToServerEvents, GameState, ServerToClientEvents } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, hexDistance } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -444,7 +444,13 @@ describe('OFFSIDE-02 D-49/D-54/D-56: GAME_FREE_KICK_READY handler (stage-end, si
     expect(newState.movedPieceIds).toContain(kickerId);
   });
 
-  it('stage 1 (defending = home): rejects Ready with DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of the ball', async () => {
+  // Gap item 7 (42-10-SUMMARY.md, OFFSIDE-02): this test previously asserted
+  // reason === 'DEFENDER_TOO_CLOSE' — that rejection had no client-side message mapping
+  // anywhere in packages/client (grep-verified zero references), so it surfaced to the
+  // player as a Ready button that silently did nothing. Gap item 7 replaced the rejection
+  // with automatic relocation to the minimum legal wall distance; this test now proves the
+  // round trip succeeds instead of dead-ending.
+  it('gap item 7: stage 1 (defending = home) — a home piece within 2 hexes of the ball is auto-moved to the wall distance and Ready succeeds', async () => {
     const { clientA, clientB, roomCode } = await setupRoom();
     const { freeKickHex } = seedFreeKickSetup(roomCode, { kickerPlaced: true });
     const room = getRoom(roomCode);
@@ -465,10 +471,34 @@ describe('OFFSIDE-02 D-49/D-54/D-56: GAME_FREE_KICK_READY handler (stage-end, si
     clientB.emit(ClientEvents.GAME_FREE_KICK_READY);
     await stage1Promise;
 
-    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
+    let reason: string | undefined;
+    const errorListener = (err: string): void => {
+      reason = err;
+    };
+    clientA.on(ServerEvents.GAME_ERROR, errorListener);
+
+    const statePromise = oncePromise(clientA, ServerEvents.GAME_STATE);
     clientA.emit(ClientEvents.GAME_FREE_KICK_READY);
-    const [reason] = await errorPromise;
-    expect(reason).toBe('DEFENDER_TOO_CLOSE');
+    const [newState] = await statePromise;
+    clientA.off(ServerEvents.GAME_ERROR, errorListener);
+
+    // 1. No GAME_ERROR was emitted on the round trip.
+    expect(reason).toBeUndefined();
+    // 2. A GAME_STATE broadcast was received (already guaranteed by awaiting statePromise
+    //    above — asserted explicitly here for readability).
+    expect(newState).toBeDefined();
+    // 3. Stage advanced, and the previously-too-close home piece is now at the wall distance.
+    expect(newState.freeKickStageIndex).toBe(2);
+    const relocated = newState.pieces.find((p) => p.id === homeDefender.id);
+    expect(relocated).toBeDefined();
+    expect(hexDistance(relocated!.position, freeKickHex)).toBeGreaterThanOrEqual(3);
+    // 4. The kicking-team piece standing on freeKickHex is still standing on freeKickHex —
+    //    the sweep never touched the kicker.
+    const kicker = newState.pieces.find(
+      (p) => p.position.q === freeKickHex.q && p.position.r === freeKickHex.r,
+    );
+    expect(kicker).toBeDefined();
+    expect(kicker!.teamId).toBe('away');
   });
 
   // D-54 (supersedes D-51): KICKER_HEX_EMPTY no longer exists — the kicker is enforced
