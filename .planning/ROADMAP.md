@@ -146,7 +146,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
-| 42    | 6/10                                        | In Progress |             |
+| 42    | 7/10                                        | In Progress |             |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
@@ -220,7 +220,7 @@ Plans:
 
 **Wave 5** _(blocked on Wave 4 completion)_
 
-- [ ] 42-07-PLAN.md — positioning mode: mode toggle, 3-way draggability, reposition handlers, SENT OFF slot
+- [x] 42-07-PLAN.md — positioning mode: mode toggle, 3-way draggability, reposition handlers, SENT OFF slot
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
