@@ -146,7 +146,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
-| 42    | 7/10                                        | In Progress |             |
+| 42    | 9/10                                        | In Progress |             |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
@@ -224,8 +224,8 @@ Plans:
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
-- [ ] 42-08-PLAN.md — staged substitution + confirmation popup (SUB-13/14/15)
-- [ ] 42-09-PLAN.md — client wiring + chrome: store emitter, [SWAP] log, Undo mirror, green strip, Resume CTA
+- [x] 42-08-PLAN.md — staged substitution + confirmation popup (SUB-13/14/15)
+- [x] 42-09-PLAN.md — client wiring + chrome: store emitter, [SWAP] log, Undo mirror, green strip, Resume CTA
 
 **Wave 7** _(blocked on Wave 6 completion)_
 
