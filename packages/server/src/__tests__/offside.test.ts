@@ -1270,12 +1270,21 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49/D-54/D-56 staged rework)'
       }
     });
 
-    // D-30/D-50: defending stage (index 1) — continuous 2-hex exclusion check at stage-end.
-    it('stage 1 (defending): DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of freeKickHex', () => {
+    // Gap item 7 (42-10-SUMMARY.md, supersedes D-30/D-50): stage-end no longer rejects with
+    // the former too-close-to-freeKickHex reason — a home piece within 2 hexes of
+    // freeKickHex is auto-moved to the wall distance instead (this test previously asserted
+    // the rejection; the rejection had no client-side message mapping anywhere in
+    // packages/client, so it presented to a defending manager as a Ready button that
+    // silently did nothing).
+    it('stage 1 (defending): a defender within 2 hexes of freeKickHex is auto-moved to the wall distance instead of blocking Ready', () => {
       const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 23, r: 10 } }); // dist 2
       const state = freeKickState({ pieces: [defender], freeKickStageIndex: 1 });
       const result = applyFreeKickReady(state, 'home');
-      expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.freeKickStageIndex).toBe(2);
+      const relocated = result.state.pieces.find((p) => p.id === 'home-1')!;
+      expect(hexDistance(relocated.position, { q: 25, r: 10 })).toBeGreaterThanOrEqual(3);
     });
 
     it('stage 1 (defending): ok when all home pieces are more than 2 hexes from freeKickHex — advances to stage 2', () => {
@@ -1323,8 +1332,10 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49/D-54/D-56 staged rework)'
       }
     });
 
-    // D-30/D-50: defending stage (index 3) — same continuous 2-hex check as stage 1.
-    it('stage 3 (defending, last turn): DEFENDER_TOO_CLOSE when a home piece is within 2 hexes of freeKickHex', () => {
+    // Gap item 7 (42-10-SUMMARY.md, supersedes D-30/D-50): same auto-move behaviour as
+    // stage 1 applies to the LAST defending stage — the defender is relocated before the
+    // kick finalizes rather than blocking it (this test previously asserted the rejection).
+    it('stage 3 (defending, last turn): a defender within 2 hexes of freeKickHex is auto-moved to the wall distance before the kick finalizes', () => {
       const kicker = makePiece({ id: 'away-1', teamId: 'away', position: { q: 25, r: 10 } });
       const defender = makePiece({ id: 'home-1', teamId: 'home', position: { q: 24, r: 10 } }); // dist 1
       const state = freeKickState({
@@ -1333,7 +1344,11 @@ describe('applyFreeKickReady / applyFreeKickMove (D-49/D-54/D-56 staged rework)'
         movedPieceIds: ['away-1'],
       });
       const result = applyFreeKickReady(state, 'home');
-      expect(result).toEqual({ ok: false, reason: 'DEFENDER_TOO_CLOSE' });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.phase).toBe('PASS');
+      const relocated = result.state.pieces.find((p) => p.id === 'home-1')!;
+      expect(hexDistance(relocated.position, { q: 25, r: 10 })).toBeGreaterThanOrEqual(3);
     });
 
     // Full finalize behavior (stage 3 -> PASS).

@@ -7,7 +7,7 @@
  * cases 1/2/7/8/10 are expected GREEN against the unmodified engine (the award-time
  * sweep, `relocateTrappedFreeKickPieces`, already covers those); cases 3-6 are expected
  * RED — they characterise the gap this plan closes (auto-move at stage-entry/stage-end
- * boundaries, replacing the silent `DEFENDER_TOO_CLOSE` rejection).
+ * boundaries, replacing the silent too-close-to-freeKickHex rejection).
  *
  * Fixture conventions mirror offside.test.ts's `makePiece`/`makeState`/`freeKickState`
  * verbatim (per this plan's read_first) — reused here rather than inventing a new shape.
@@ -292,7 +292,7 @@ describe('gap item 7 (OFFSIDE-02): defensive wall distance invariant', () => {
   describe('non-regression coverage (must be GREEN before and after the fix)', () => {
     // Cases 7-9 deliberately exercise the stage 0 -> 1 ENTRY transition (Task 2 part B),
     // not a defending-stage END transition (Task 2 part A / cases 5-6) — ending a KICKING
-    // stage (stage 0) never triggered the old DEFENDER_TOO_CLOSE rejection regardless of
+    // stage (stage 0) never triggered the old too-close-to-freeKickHex rejection regardless of
     // which team is inside the bubble, so this transition already succeeds unmodified
     // (pre-fix: no entry sweep exists yet, pieces are simply left in place; post-fix: the
     // entry sweep introduced by this plan runs and must preserve every invariant below).

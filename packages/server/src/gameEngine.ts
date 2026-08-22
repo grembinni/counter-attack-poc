@@ -9463,7 +9463,12 @@ export type ApplyFreeKickReadyResult =
       // D-54 (supersedes D-51): KICKER_HEX_EMPTY removed — the kicker-placed requirement
       // is now enforced up front in applyFreeKickMove (KICKER_NOT_YET_PLACED), not at
       // stage-end.
-      reason: 'WRONG_PHASE' | 'NOT_YOUR_STAGE' | 'DEFENDER_TOO_CLOSE';
+      // Gap item 7 (supersedes D-30/D-50, 42-10-SUMMARY.md, this plan): the former
+      // too-close-to-freeKickHex rejection reason is removed — a defender within 2 hexes
+      // of freeKickHex is now auto-moved to the minimum legal distance rather than
+      // blocking the stage-end. See the "Automatic wall enforcement" paragraph in this
+      // function's JSDoc below.
+      reason: 'WRONG_PHASE' | 'NOT_YOUR_STAGE';
     }
   | { ok: true; state: GameState };
 
@@ -9479,9 +9484,6 @@ export type ApplyFreeKickReadyResult =
  *    `freeKickStageTeam`); an inactive team's stage-end attempt is rejected. This is the
  *    new reason literal replacing the dual-Ready handshake — only the active team's
  *    confirm is meaningful now.
- * 3. DEFENDER_TOO_CLOSE — when ending one of the DEFENDING team's stages (index 1 or 3),
- *    the team must have no piece within 2 hexes of `freeKickHex` (D-30/D-50 — authoritative,
- *    continuous check at the end of EACH defending stage, regardless of any move-time check).
  *
  * D-54 (supersedes D-51): the KICKER_HEX_EMPTY check formerly here (validated at the end
  * of the kicking team's LAST stage, index 2) is REMOVED — the kicker-on-freeKickHex
@@ -9489,6 +9491,24 @@ export type ApplyFreeKickReadyResult =
  * `applyFreeKickMove`'s KICKER_NOT_YET_PLACED guard. By the time a kicking-team stage can
  * ever end, a kicking-team piece is already permanently locked on `freeKickHex` (added to
  * `movedPieceIds` at placement time) — there is nothing left to validate here.
+ *
+ * Automatic wall enforcement (gap item 7, supersedes D-30/D-50's former
+ * too-close-to-freeKickHex rejection — 42-10-SUMMARY.md "Additional out-of-phase-scope
+ * bug"): the wall rule (every
+ * ACTIVE defending piece >= 3 hexes from `freeKickHex`) is now maintained by AUTO-MOVE, at
+ * TWO points, instead of being enforced by rejecting the stage-end:
+ *   (a) at the END of a DEFENDING stage (index 1 or 3) — before this stage-end is applied,
+ *       every trapped piece of the ending team is swept via `relocateTrappedFreeKickPieces`;
+ *   (b) at the ENTRY of the NEXT stage, when that next stage is a DEFENDING stage — the
+ *       incoming defending team is swept again before the advance is returned, so that
+ *       team's manager sees a legal wall the moment its stage becomes interactive, not only
+ *       when it tries to leave.
+ * Both sweeps reuse the exact ring-3 / own-goal-line-preference algorithm the free kick's
+ * own award-time sweep already uses, and are idempotent — sweeping an already-legal wall
+ * relocates nothing (the `<= 2` trap filter yields an empty set). The previous rejection
+ * reason had no client-side message mapping anywhere in `packages/client` (grep-verified
+ * zero references), so it presented to a defending manager as a Ready button that silently
+ * did nothing.
  *
  * On success:
  * - stageIndex < 3: advances to stageIndex + 1. D-56: merges the CURRENT stage's
@@ -9531,28 +9551,38 @@ export function applyFreeKickReady(
   }
 
   const stage = FREE_KICK_STAGES[stageIndex];
-  // BUG-38 (D-09, Phase 42): a red-carded/benched piece must never count toward the
-  // DEFENDER_TOO_CLOSE proximity check below.
-  const teamPieces = state.pieces.filter((p) => isActivePiece(p) && p.teamId === team);
 
-  if (stage.side === 'defending') {
-    // 3. DEFENDER_TOO_CLOSE: D-30/D-50 — checked continuously, at the end of EACH
-    //    defending stage (index 1 and 3), not just once.
-    for (const piece of teamPieces) {
-      if (hexDistance(piece.position, freeKickHex) <= 2) {
-        return { ok: false, reason: 'DEFENDER_TOO_CLOSE' };
-      }
-    }
-  }
+  // Gap item 7 (42-10-SUMMARY.md, this plan): D-30/D-50's wall rule is now maintained by
+  // AUTO-MOVE rather than by rejecting the stage-end. The previous too-close-to-freeKickHex
+  // rejection had no client-side message mapping anywhere in packages/client (grep-verified
+  // zero references), so it presented to the player as a Ready button that silently did
+  // nothing — the defect recorded as gap item 7 in 42-10-SUMMARY.md. The relocation reuses
+  // the same helper and the same ring-3 / own-goal-line-preference algorithm the free
+  // kick's own award-time sweep (relocateTrappedFreeKickPieces) uses, so a defender is
+  // always moved to the minimum legal distance in the direction of its own goal.
+  const base: GameState =
+    stage.side === 'defending' ? relocateTrappedFreeKickPieces(state, team) : state;
 
   // D-56: merge this stage's freeKickPlacedPieceIds into movedPieceIds — locks them in
   // as 'activated' for the rest of free-kick setup (the green "moved this stage" ring
   // naturally stops applying once freeKickPlacedPieceIds resets to [] below).
-  const stagePlacedIds = state.freeKickPlacedPieceIds ?? [];
-  const mergedMovedPieceIds = Array.from(new Set([...state.movedPieceIds, ...stagePlacedIds]));
+  const stagePlacedIds = base.freeKickPlacedPieceIds ?? [];
+  const mergedMovedPieceIds = Array.from(new Set([...base.movedPieceIds, ...stagePlacedIds]));
 
   // All checks passed for this stage — advance or finalize.
   if (stageIndex < 3) {
+    // Gap item 7 (part B — defending-stage ENTRY sweep): the manager entering the NEXT
+    // stage must see a legal wall immediately, not be silently corrected only when trying
+    // to leave it. When the next stage is a defending stage, sweep it now — idempotent with
+    // the stage-end sweep above (a second sweep over an already-legal wall relocates
+    // nothing, since the <= 2 trap filter yields an empty set).
+    const nextStageIndex = (stageIndex + 1) as 0 | 1 | 2 | 3;
+    const nextStage = FREE_KICK_STAGES[nextStageIndex];
+    const entrySwept: GameState =
+      nextStage.side === 'defending'
+        ? relocateTrappedFreeKickPieces(base, freeKickStageTeam(nextStageIndex, kickingTeam))
+        : base;
+
     // Plan 25-06: emit FK_STAGE_ADVANCE as a stage boundary event so applyUndo
     // cannot reach across stage boundaries (FK_STAGE_ADVANCE acts as a slot boundary).
     const stageAdvanceEvent: ActionEvent = {
@@ -9563,13 +9593,13 @@ export function applyFreeKickReady(
     return {
       ok: true,
       state: {
-        ...state,
-        freeKickStageIndex: (stageIndex + 1) as 0 | 1 | 2 | 3,
+        ...entrySwept,
+        freeKickStageIndex: nextStageIndex,
         // Plan 25-06: reset kicker-select flag for stage 2 (kicking team again) so the
         // client can detect we're back in "regular placement" mode.  The kicker is already
         // locked in movedPieceIds from stage 0, so the kicker-select sub-step does not
         // re-fire — freeKickKickerChosen stays true after stage 0.
-        eventLog: [...state.eventLog, stageAdvanceEvent],
+        eventLog: [...base.eventLog, stageAdvanceEvent],
         freeKickPlacedPieceIds: [],
         movedPieceIds: mergedMovedPieceIds,
       },
@@ -9579,7 +9609,7 @@ export function applyFreeKickReady(
   // stageIndex === 3: last stage — finalize the kick.
   // BUG-38 (D-09, Phase 42, whole-file audit find): a red-carded/benched piece's frozen
   // hex must never be treated as the live kicker taking possession at kick-off.
-  const kicker = state.pieces.find(
+  const kicker = base.pieces.find(
     (p) =>
       isActivePiece(p) &&
       p.teamId === kickingTeam &&
@@ -9589,7 +9619,7 @@ export function applyFreeKickReady(
   return {
     ok: true,
     state: {
-      ...state,
+      ...base,
       phase: 'PASS',
       ball: kicker
         ? {
@@ -9597,14 +9627,14 @@ export function applyFreeKickReady(
             carrierId: kicker.id,
             lastTouchedBy: { pieceId: kicker.id, teamId: kicker.teamId },
           }
-        : state.ball,
+        : base.ball,
       attackingTeam: kickingTeam,
       activeTeam: kickingTeam,
       lastActionType: 'FREE_KICK_RESTART',
       // 39-18 (UAT gap 9): the free kick is taken at this stageIndex===3 terminal return
       // (not the three stageIndex<3 stage-advance returns above) — charge the flat +1
       // minute clock cost that applyGoalKickMoveEnd's teardown already charges.
-      actionCount: state.actionCount + 1,
+      actionCount: base.actionCount + 1,
       freeKickHex: null,
       freeKickAttackingTeam: null,
       freeKickStageIndex: null,
