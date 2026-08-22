@@ -102,6 +102,10 @@ export function DraftCardBody({
   const className = isUnavailable
     ? `${TIER_CARD_CLASS[card.tier]} ${styles.cardUnavailable}`
     : TIER_CARD_CLASS[card.tier];
+  /** Gap-closure (42-10 Section D / gap item 1): suppress the glyph's CARD half when the
+   * RED CARD text badge below is already showing — see the doc comment on the
+   * CardInjuryBadge call for the full rationale. Never touches injuryCount. */
+  const glyphCardColor: CardColor = redCarded === true ? null : (cardColor ?? null);
 
   return (
     <div
@@ -124,12 +128,15 @@ export function DraftCardBody({
             {jerseyNumber !== undefined && <span className={styles.cardNum}>#{jerseyNumber}</span>}
             {/* Phase 41 (ICON-02/ICON-03/D-02): card/injury glyph — locked position
                 immediately after the jersey number, ahead of the RED CARD/OUT status
-                badge below. Coexists with that badge (UI-SPEC lock); never replaces it. */}
-            <CardInjuryBadge
-              cardColor={cardColor ?? null}
-              injuryCount={injuryCount ?? 0}
-              size={16}
-            />
+                badge below. Gap-closure (42-10 Section D / gap item 1): the glyph's
+                CARD half is suppressed when redCarded === true because the RED CARD
+                text badge immediately below already states the same fact — the live
+                human verifier reported the pair as a duplicate/overlapping card icon
+                and asked for a single indicator. The INJURY half is deliberately still
+                rendered (a red-carded AND injured player must still show the injury
+                cross). Yellow-card and OUT bench cards are unaffected because neither
+                has a competing card-text badge. */}
+            <CardInjuryBadge cardColor={glyphCardColor} injuryCount={injuryCount ?? 0} size={16} />
             {/* Phase 40 (SUB-07/D-13): redCarded takes precedence over unavailable —
                 a sent-off player is never mislabelled as merely substituted out. */}
             {redCarded === true ? (

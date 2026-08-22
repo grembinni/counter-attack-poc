@@ -294,7 +294,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
     expect(cardRight).toBeLessThanOrEqual(injuryLeft);
   });
 
-  it('UI-SPEC coexistence: a red-carded bench card shows BOTH the red glyph and the RED CARD text badge', () => {
+  it('gap item 1: a red-carded bench card shows ONLY the RED CARD text badge — the duplicate card glyph is suppressed', () => {
     const cards = [makeCard('b1', 'common')];
     const { container } = render(
       <BenchCarousel
@@ -306,9 +306,30 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         onDropToBench={() => {}}
       />,
     );
-    const cardBadge = container.querySelector('[data-testid="piece-card-badge"]');
-    expect(cardBadge?.getAttribute('data-card')).toBe('red');
-    expect(screen.getByTestId('bench-red-card-badge')).toBeDefined();
+    expect(container.querySelector('[data-testid="piece-card-badge"]')).toBeNull();
+    expect(container.querySelector('[data-testid="card-injury-badge"]')).toBeNull();
+    const badge = screen.getByTestId('bench-red-card-badge');
+    expect(badge).toBeDefined();
+    expect(badge.textContent).toBe('RED CARD');
+  });
+
+  it('gap item 1: a red-carded AND injured bench card still renders the injury glyph, with the card glyph still suppressed', () => {
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        redCardedPlayerIds={['b1']}
+        benchCardStatus={{ b1: { cardColor: 'red', injuryCount: 1 } }}
+        onCardDragStart={() => {}}
+        onDropToBench={() => {}}
+      />,
+    );
+    expect(container.querySelector('[data-testid="piece-injury-badge"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="piece-card-badge"]')).toBeNull();
+    const badge = screen.getByTestId('bench-red-card-badge');
+    expect(badge).toBeDefined();
+    expect(badge.textContent).toBe('RED CARD');
   });
 
   it('ICON-02/D-02: the bench glyph sits between the jersey number and the status badge', () => {
