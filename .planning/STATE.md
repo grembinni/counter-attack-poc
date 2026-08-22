@@ -4,12 +4,12 @@ milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: executing
 stopped_at: Phase 42 UI-SPEC approved
-last_updated: '2026-08-22T02:24:55.507Z'
-last_activity: 2026-08-21 — Phase 41 (Card & Injury Iconography) complete, all 6 plans merged and verified
+last_updated: '2026-08-22T02:36:06.236Z'
+last_activity: 2026-08-22 -- Phase 42 execution started
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 6
+  total_plans: 16
   completed_plans: 6
   percent: 17
 ---
@@ -18,17 +18,17 @@ progress:
 
 ## Current Position
 
-Phase: 42
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-08-21 — Phase 41 (Card & Injury Iconography) complete, all 6 plans merged and verified
+Phase: 42 (substitution-ux-overhaul) — EXECUTING
+Plan: 1 of 10
+Status: Executing Phase 42
+Last activity: 2026-08-22 -- Phase 42 execution started
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 41 — card-injury-iconography
+**Current focus:** Phase 42 — substitution-ux-overhaul
 
 ## Phase Status
 
