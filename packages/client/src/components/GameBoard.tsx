@@ -212,7 +212,7 @@ function SubstitutionButton({ actionable, onOpen }: { actionable: boolean; onOpe
             : 'Viewing roster — substitutions are only available during a stoppage in play.'
         }
       >
-        <span className={styles.subButtonLabel}>SUB</span>
+        <span className={styles.subButtonLabel}>ROSTER</span>
       </button>
     </div>
   );
@@ -634,19 +634,11 @@ export function GameBoard() {
                   // phase change (or simply opening the panel outside a stoppage) makes a
                   // substitution un-actionable — mirrors the server's own WRONG_PHASE guard.
                   readOnly={!isSubEligiblePhase}
+                  // Gap-closure (42-12 Task 2D, gap item 4): Resume now renders INSIDE
+                  // LineupAssignmentScreen's own content flow, directly under the bench,
+                  // instead of a bottom-pinned row on this modal card.
+                  onResume={() => setSubOpen(false)}
                 />
-                {/* SUB-16/D-04 (Phase 42): full-width green Resume CTA replaces the small
-                    corner close control — same visual weight as the app's existing primary-CTA
-                    convention (LineupAssignmentScreen's own .confirmButtonReady). */}
-                <div className={styles.resumeCtaRow}>
-                  <button
-                    className={styles.resumeCta}
-                    onClick={() => setSubOpen(false)}
-                    aria-label="Resume match"
-                  >
-                    Resume
-                  </button>
-                </div>
               </div>
             </div>
           )}

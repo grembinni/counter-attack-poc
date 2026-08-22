@@ -584,36 +584,45 @@
   background: var(--color-bg-surface);
 }
 
-/* Vertical "SUB" label — .sideLogChevron already supplies the unstyled button treatment
-   (no background, text-secondary, hover to text-primary); this only rotates the text. */
+/* Vertical "ROSTER" label — .sideLogChevron already supplies the unstyled button treatment
+   (no background, text-secondary, hover to text-primary); this only rotates the text.
+   Gap-closure (42-12 Task 1D): font-weight bumped 400->700. White-on-`--color-cta-ready-bg`
+   (the actionable strip fill below) measures below the 4.5:1 WCAG AA small-text threshold at
+   11px/400; this is the app's pre-existing primary-CTA colour pairing
+   (`.confirmButtonReady` already ships white-on-green at this weight) and 700 is
+   already a declared weight in 42-UI-SPEC.md's typography table — no new weight introduced. */
 .subButtonLabel {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 700;
   letter-spacing: 0.05em;
 }
 
 /* Active state — a stoppage is in progress, a substitution can be made right now.
-   Checkpoint gap-closure (40-07 Task 2 human-verify feedback, item 2d): the button is
-   ALWAYS clickable now (view-only roster otherwise), so this replaces the old disabled/
-   dimmed treatment with a green "actionable" signal instead. Reuses --color-success (text)
-   and --color-speed-standard-bg (strip tint — same green swatch, already used for the
-   game-speed picker's "standard" accent; see tokens.css) — no new colour literal. */
+   Gap-closure (42-12 Task 1C): background removed entirely — with no background declared
+   the inner button falls back to .sideLogChevron's `background: none`, so the small green
+   patch behind the label (the human-verifier's reported "small green patch") disappears and
+   the solid .subButtonStripActive fill below shows through instead. Label colour is now
+   --color-text-inverse (white) rather than --color-success (dark green), matching the
+   verifier's "green strip with white text" instruction. */
 .subButtonActive {
-  background: var(--color-speed-standard-bg);
-  color: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .subButtonActive:hover {
-  color: var(--color-success-hover);
+  color: var(--color-text-inverse);
 }
 
 /* SUB-17 (Phase 42/D-03): the whole strip's background (not just the inner button's text)
-   turns green while the roster is editable — reuses the exact two tokens already paired in
-   .subButtonActive above, no new colour literal. */
+   turns green while the roster is editable.
+   Gap-closure (42-12 Task 1B): swapped from the prior 15%-opacity green-tint token
+   (rgba(34, 197, 94, 0.15)) that let the parent background show through — the human
+   verifier's reported "white strip with a small green patch" — to --color-cta-ready-bg
+   (#27ae60, solid) — the app's existing solid green, the same token .confirmButtonReady
+   already paints with. No new colour literal or token introduced. */
 .subButtonStripActive {
-  background: var(--color-speed-standard-bg);
+  background: var(--color-cta-ready-bg);
 }
 
 /* Modal backdrop — copies .confirmOverlay (ActionPanel.module.css) verbatim. Still fixed/
@@ -642,37 +651,9 @@
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  /* SUB-16 (Phase 42): column flow so the Resume CTA row sits at the bottom of the panel's
-     content flow, after LineupAssignmentScreen. */
+  /* Gap-closure (42-12 Task 2D): kept as column flow so the child `.screen` (rendered by
+     LineupAssignmentScreen) fills the card — the panel no longer hosts a bottom CTA row of
+     its own; Resume now renders inside LineupAssignmentScreen's own content flow. */
   display: flex;
   flex-direction: column;
-}
-
-/* SUB-16/D-04 (Phase 42): full-width green Resume CTA row replacing the removed corner
-   close ("&times;") control — sits as the last child of .substitutionModalCard. */
-.resumeCtaRow {
-  display: flex;
-  justify-content: center;
-  padding: 16px 24px 24px;
-}
-
-/* Copies LineupAssignmentScreen.module.css's .confirmButtonReady declarations verbatim (the
-   app's existing primary-CTA convention, D-04) but replaces min-width:200px with a full-width
-   treatment so it reads as a bottom CTA rather than a fixed-width pill. */
-.resumeCta {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text-inverse);
-  background: var(--color-cta-ready-bg);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
-  padding: 14px 48px;
-  cursor: pointer;
-  width: 100%;
-  max-width: 480px;
-  transition: background 0.15s ease;
-}
-
-.resumeCta:hover {
-  background: var(--color-cta-ready-bg-hover);
 }

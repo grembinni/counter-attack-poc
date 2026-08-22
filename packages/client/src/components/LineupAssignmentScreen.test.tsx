@@ -604,6 +604,9 @@ type MidmatchOverrides = {
   /** Phase 42 (SUB-09): defaults to false/undefined so pre-existing calls are
    * unaffected. */
   actionPending?: boolean;
+  /** Gap-closure (42-12 Task 2E): defaults to undefined (omitted) so every
+   * pre-existing call renders exactly as before — no Resume button. */
+  onResume?: () => void;
 };
 
 function renderMidmatch(overrides: MidmatchOverrides = {}) {
@@ -625,6 +628,7 @@ function renderMidmatch(overrides: MidmatchOverrides = {}) {
       readOnly={overrides.readOnly ?? false}
       onReposition={overrides.onReposition ?? NOOP}
       actionPending={overrides.actionPending ?? false}
+      {...(overrides.onResume !== undefined ? { onResume: overrides.onResume } : {})}
     />,
   );
 }
@@ -1004,6 +1008,20 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
       expect(onSubstitute).not.toHaveBeenCalled();
     });
   });
+
+  it('Gap-closure (42-12 Task 2E): when onResume is NOT supplied, no button named "Resume match" renders — the prop is additive and cannot leak into callers that omit it (e.g. pre-match/draft screens)', () => {
+    renderMidmatch();
+    expect(screen.queryByRole('button', { name: 'Resume match' })).toBeNull();
+  });
+
+  it('Gap-closure (42-12 Task 2E): when onResume IS supplied, the Resume button renders and calls it on click', () => {
+    const onResume = vi.fn();
+    renderMidmatch({ onResume });
+    const resumeButton = screen.getByRole('button', { name: 'Resume match' });
+    expect(resumeButton.textContent).toBe('Resume');
+    fireEvent.click(resumeButton);
+    expect(onResume).toHaveBeenCalledTimes(1);
+  });
 });
 
 /* ─── Phase 42 (42-07): midmatch positioning mode ──────────────────────────
@@ -1333,6 +1351,20 @@ describe('Phase 42 — staged substitution with confirmation', () => {
       screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
     ).toBeDefined();
     expect(screen.getByLabelText('Cancel substitution')).toBeDefined();
+  });
+
+  it('5b. Gap-closure (42-12 Task 3C, gap item 5): both Cancel surfaces are orange — the popup Cancel carries subConfirmButtonCancel, and the mode-level Cancel carries rosterActionButtonCancel', () => {
+    renderMidmatch();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
+    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const popupCancel = screen.getByLabelText('Cancel substitution selection');
+    expect(popupCancel.className).toMatch(/subConfirmButtonCancel/);
+    fireEvent.click(popupCancel);
+    const modeCancel = screen.getByLabelText('Cancel substitution');
+    expect(modeCancel.className).toMatch(/rosterActionButtonCancel/);
   });
 
   it('6. after cancelling the popup, a fresh bench-to-pitch drop stages again', () => {
