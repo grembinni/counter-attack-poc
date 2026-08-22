@@ -138,3 +138,15 @@ None - no external service configuration required.
 
 _Phase: 42-substitution-ux-overhaul_
 _Completed: 2026-08-22_
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/GameBoard.tsx
+- FOUND: packages/client/src/components/GameBoard.module.css
+- FOUND: packages/client/src/components/GameBoard.test.tsx
+- FOUND: packages/client/src/components/LineupAssignmentScreen.tsx
+- FOUND: packages/client/src/components/LineupAssignmentScreen.module.css
+- FOUND: packages/client/src/components/LineupAssignmentScreen.test.tsx
+- FOUND: commit 5789390 (Task 1)
+- FOUND: commit 333285a (Task 2)
+- FOUND: commit eb6b196 (Task 3)
