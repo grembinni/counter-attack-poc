@@ -15,10 +15,11 @@
  * `classifyOutOfBounds` below).
  */
 
-import type { HexCoord } from './types.js';
+import type { HexCoord, PlayerPiece } from './types.js';
 import { isPitchHex, PITCH_HEXES, GOAL_R_VALUES } from './pitch.js';
 import { hexesInRange, hexDistance, hexLine } from './hex.js';
 import { looseBallDirectionQStep } from './scoreUtils.js';
+import { isActivePiece } from './stoppagePhases.js';
 
 /** Pitch bounds, single source of truth for this module (mirrors pitch.ts's 37x26 grid). */
 const MAX_Q = 36;
@@ -187,8 +188,16 @@ export function resolveThrowInHex(
   preferred: HexCoord,
   pieces: readonly { position: HexCoord }[],
 ): HexCoord {
+  // BUG-38: isActivePiece excludes a sent-off/benched piece from occupancy — its frozen hex
+  // no longer blocks throw-in/goal-kick/corner-kick placement. `pieces` here is typed as a
+  // minimal `{ position: HexCoord }` shape (this function's exported signature is unchanged
+  // per plan), but every real caller passes full `GameState.pieces` (PlayerPiece[]), so the
+  // cast below is safe; a test-fixture piece lacking the eligibility flags reads as active
+  // (isActivePiece treats undefined as not-excluded), matching pre-existing behavior.
   const isOccupied = (hex: HexCoord): boolean =>
-    pieces.some((p) => p.position.q === hex.q && p.position.r === hex.r);
+    pieces.some(
+      (p) => isActivePiece(p as PlayerPiece) && p.position.q === hex.q && p.position.r === hex.r,
+    );
 
   if (!isOccupied(preferred)) return preferred;
 

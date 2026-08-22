@@ -14,6 +14,7 @@
 
 import type { GameState, PlayerPiece, HexCoord } from './types.js';
 import { hexDistance, getZoIDefenders } from './hex.js';
+import { isActivePiece } from './stoppagePhases.js';
 
 /**
  * Discriminated union result for validateMove.
@@ -46,10 +47,12 @@ export type MoveResult =
  * Guard precedence (tests must verify this order):
  * 1. WRONG_SLOT — movementSlot must not be null
  * 2. OUT_OF_RANGE — destination must be exactly 1 hex away (D-10)
- * 3. OCCUPIED — destination must be unoccupied (MOVE-03)
+ * 3. OCCUPIED — destination must be unoccupied (MOVE-03); a red-carded/benched piece is
+ *    excluded via isActivePiece (BUG-38) — its frozen hex no longer blocks occupancy.
  * 4. ATTACKER_2 branch: ALREADY_MOVED_IN_ATTACKER4 before PACE_EXCEEDED (D-12 before D-11)
  * 5. ATTACKER_4/DEFENDER_5 branch: PACE_EXCEEDED against piece.pace (D-11)
- * 6. ZoI steal trigger for ball-carrier only (MOVE-04/MOVE-05, D-03)
+ * 6. ZoI steal trigger for ball-carrier only (MOVE-04/MOVE-05, D-03); the opponent list is
+ *    filtered through isActivePiece (BUG-38) — a red-carded opponent no longer projects ZoI.
  *
  * @param state - Current game state (includes D-08 movement-tracking fields)
  * @param piece - The piece being moved
@@ -62,8 +65,11 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // 2. OUT_OF_RANGE: single-step — must move exactly 1 adjacent hex per action (D-10)
   if (hexDistance(piece.position, to) !== 1) return { ok: false, reason: 'OUT_OF_RANGE' };
 
-  // 3. OCCUPIED: destination must be clear (MOVE-03)
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  // 3. OCCUPIED: destination must be clear (MOVE-03). BUG-38: a red-carded/benched piece is
+  // excluded by isActivePiece — its frozen hex no longer reports as occupied.
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'OCCUPIED' };
   }
 
@@ -92,7 +98,10 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // 6. ZoI steal trigger — only when the moving piece is the ball-carrier (D-03, MOVE-04/MOVE-05)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)
   if (state.ball.carrierId === piece.id) {
-    const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
+    // BUG-38: exclude red-carded/benched opponents via isActivePiece — a sent-off opponent no
+    // longer projects a Zone of Influence. Independent of the stealAttemptedByIds exclusion
+    // below; the two filters must not be merged.
+    const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId && isActivePiece(p));
     const allDefenders = getZoIDefenders(to, opponents);
     // D-02 (Phase 17.1): exclude defenders who have already attempted a steal this sequence.
     // A defender flagged in stealAttemptedByIds still projects TACKLE ZoI (cross-type exclusion).
@@ -106,6 +115,10 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // Only fires when: there is a carrier, the moving piece is NOT the carrier,
   // the carrier is on the opposing team, and the destination is adjacent to the carrier.
   // Note: STEAL_ATTEMPT and TACKLE_ATTEMPT are mutually exclusive (carrier vs non-carrier).
+  // BUG-38: no isActivePiece guard is added here for the moving `piece` itself — a red-carded
+  // piece can never be the carrier, and applyMove already rejects a red-carded mover by id
+  // (gameEngine.ts CARD-02/CARD-04 guard). Duplicating that rejection here is deliberately
+  // avoided.
   if (state.ball.carrierId !== null && state.ball.carrierId !== piece.id) {
     const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
     if (

@@ -17,6 +17,7 @@
 import type { GameState, PlayerPiece, HexCoord } from './types.js';
 import { hexDistance, hexLine, getZoIDefenders } from './hex.js';
 import { computeCombinedScore } from './scoreUtils.js';
+import { isActivePiece } from './stoppagePhases.js';
 
 /**
  * Discriminated union result for validatePass.
@@ -98,14 +99,21 @@ export function validatePass(
   // HIGH and LONG: only an opponent immediately adjacent to the kicker (on the path) blocks.
   // FIRST_TIME: no path blocking (short snap-pass).
   if (passType === 'STANDARD') {
-    const opponentPieces = state.pieces.filter((p) => p.teamId !== piece.teamId);
+    // BUG-38: isActivePiece applied at the array-construction site — the downstream
+    // .some() predicate at line ~104 is left untouched, opponentPieces is pre-filtered.
+    const opponentPieces = state.pieces.filter(
+      (p) => p.teamId !== piece.teamId && isActivePiece(p),
+    );
     const intermediateHexes = hexLine(from, to).slice(1, -1);
     const blocked = intermediateHexes.some((hex) =>
       opponentPieces.some((p) => p.position.q === hex.q && p.position.r === hex.r),
     );
     if (blocked) return { ok: false, reason: 'PATH_BLOCKED' };
   } else if (passType === 'HIGH' || passType === 'LONG') {
-    const opponentPieces = state.pieces.filter((p) => p.teamId !== piece.teamId);
+    // BUG-38: isActivePiece applied at the array-construction site (mirrors STANDARD above).
+    const opponentPieces = state.pieces.filter(
+      (p) => p.teamId !== piece.teamId && isActivePiece(p),
+    );
     const adjacentOnPath = hexLine(from, to)[1]; // hex directly next to kicker on the target line
     if (
       adjacentOnPath &&
@@ -140,10 +148,15 @@ export function validatePass(
   // Only applies to STANDARD pass (FIRST_TIME has no path blocking; HIGH/LONG skip interception).
   // Note: the case-2 PATH_BLOCKED guard above already returned for intermediate hexes, so if we
   // reach here for STANDARD, the destination is the first defender-occupied hex on the line.
+  // BUG-38: isActivePiece excludes a red-carded/benched opponent from destination occupancy.
   const destDefender =
     passType === 'STANDARD'
       ? (state.pieces.find(
-          (p) => p.teamId !== piece.teamId && p.position.q === to.q && p.position.r === to.r,
+          (p) =>
+            p.teamId !== piece.teamId &&
+            isActivePiece(p) &&
+            p.position.q === to.q &&
+            p.position.r === to.r,
         ) ?? null)
       : null;
 
@@ -153,7 +166,9 @@ export function validatePass(
   if (passType !== 'LONG' && passType !== 'HIGH') {
     // Travel path excluding passer's hex; slice(1, -1) excludes destination (handled by destDefender above)
     const travelPath = hexLine(from, to).slice(1, -1);
-    const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
+    // BUG-38: isActivePiece excludes a red-carded/benched piece from the ZoI interceptor list
+    // (rollIntercepts) — a sent-off opponent can no longer intercept via Zone of Influence.
+    const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId && isActivePiece(p));
     for (const hex of travelPath) {
       for (const defender of getZoIDefenders(hex, opponents)) {
         if (

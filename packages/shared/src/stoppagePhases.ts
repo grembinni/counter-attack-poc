@@ -76,3 +76,32 @@ export function maxOnPitchFor(pieces: readonly PlayerPiece[], teamId: 'home' | '
   const redCardCount = pieces.filter((p) => p.teamId === teamId && p.redCarded === true).length;
   return 11 - redCardCount;
 }
+
+/**
+ * BUG-38 (Phase 42, D-09): the single shared exclude-by-flag check for "is this piece
+ * eligible for gameplay computations" — eligibility/occupancy/ZoI/interceptor lists,
+ * anywhere in `packages/shared`, must be built through this predicate rather than a
+ * hand-written inline clause.
+ *
+ * D-08's constraint: a red-carded piece's `position` is never nulled and the piece is
+ * never spliced out of `state.pieces` (see `PlayerPiece.onPitch`'s own field comment in
+ * types.ts and gameEngine.ts's CARD-02/CARD-04 applyMove comment) — so every consumer
+ * that walks `state.pieces` must exclude a sent-off/benched piece by flag, not by
+ * absence from the array.
+ *
+ * Both `redCarded` and `onPitch` are checked, not either alone: gameEngine.ts's
+ * booking-resolution red-card branch sets `redCarded: true` and `onPitch: false`
+ * atomically in the same `pieces.map()` spread, so either clause alone is sufficient
+ * TODAY — but `onPitch` is documented as an independently-settable client-rendering
+ * signal, and checking both makes this predicate correct for any future caller that
+ * sets only one of the two. Do NOT collapse this to a single clause.
+ *
+ * Hand-writing `p.redCarded !== true` inline at a call site is the exact bug class
+ * BUG-38 exists to close — it happened at 3+ sites in the codebase and 2 were missed
+ * by the original red-card audit (the whole of `packages/shared` was structurally
+ * un-scanned, see PITFALLS.md Pitfall 7). New eligibility/occupancy/defender-list
+ * sites must call this helper rather than re-deriving the same check.
+ */
+export function isActivePiece(piece: PlayerPiece): boolean {
+  return piece.redCarded !== true && piece.onPitch !== false;
+}

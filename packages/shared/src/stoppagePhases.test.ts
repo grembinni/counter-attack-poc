@@ -4,6 +4,7 @@ import {
   isStoppagePhase,
   MAX_SUBS_PER_TEAM,
   maxOnPitchFor,
+  isActivePiece,
 } from './stoppagePhases.js';
 import type { GamePhase, PlayerPiece } from './types.js';
 
@@ -161,5 +162,54 @@ describe('maxOnPitchFor', () => {
     ];
     expect(maxOnPitchFor(pieces, 'home')).toBe(11);
     expect(maxOnPitchFor(pieces, 'away')).toBe(9);
+  });
+});
+
+describe('isActivePiece', () => {
+  function piece(overrides: Partial<PlayerPiece>): PlayerPiece {
+    return {
+      id: 'home-1',
+      teamId: 'home',
+      position: { q: 0, r: 0 },
+      pace: 1,
+      shooting: 1,
+      tackling: 1,
+      dribbling: 1,
+      saving: 1,
+      handling: 1,
+      resilience: 1,
+      aerialAbility: 1,
+      highPass: 1,
+      firstName: 'A',
+      lastName: 'B',
+      number: 1,
+      nationality: 'X',
+      role: 'DEF',
+      ...overrides,
+    };
+  }
+
+  it('returns true for a plain piece with no card/onPitch flags set', () => {
+    expect(isActivePiece(piece({}))).toBe(true);
+  });
+
+  it('returns false when redCarded is true', () => {
+    expect(isActivePiece(piece({ redCarded: true }))).toBe(false);
+  });
+
+  it('returns false when onPitch is false', () => {
+    expect(isActivePiece(piece({ onPitch: false }))).toBe(false);
+  });
+
+  it('returns false when both redCarded and onPitch are set', () => {
+    expect(isActivePiece(piece({ redCarded: true, onPitch: false }))).toBe(false);
+  });
+
+  it('returns true when explicitly redCarded: false and onPitch: true', () => {
+    expect(isActivePiece(piece({ redCarded: false, onPitch: true }))).toBe(true);
+  });
+
+  it('returns true for a booked-but-not-sent-off piece (yellowCards: 1)', () => {
+    expect(isActivePiece(piece({ yellowCards: 1 }))).toBe(true);
   });
 });

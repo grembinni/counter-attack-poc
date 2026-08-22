@@ -1,5 +1,6 @@
 import type { GameState, HexCoord, PlayerPiece } from './types.js';
 import { hexDistance, hexLine, hexNeighbors } from './hex.js';
+import { isActivePiece } from './stoppagePhases.js';
 
 /**
  * v1.6 (Phase 39): pure, side-effect-free foul/injury/booking/professional-foul rule
@@ -213,11 +214,14 @@ export function isProfessionalFoul(
   const candidates = state.pieces.filter((candidate) => {
     const isGoalSide =
       goalQ === 36 ? candidate.position.q > attackerHex.q : candidate.position.q < attackerHex.q;
+    // BUG-38 (Phase 42, D-09): use the shared isActivePiece predicate rather than a
+    // hand-written sent-off-flag clause — this also now excludes a benched
+    // (onPitch === false) piece, which the original inline check did not.
     return (
       candidate.teamId === defendingTeam &&
       candidate.id !== foulerId &&
       candidate.role !== 'GK' &&
-      candidate.redCarded !== true &&
+      isActivePiece(candidate) &&
       isGoalSide
     );
   });
