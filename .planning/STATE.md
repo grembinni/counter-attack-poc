@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: executing
-stopped_at: Phase 42 gap-closure plans (42-11..42-15) created and checker-verified
-last_updated: '2026-08-22T16:19:34.809Z'
-last_activity: 2026-08-22 -- Phase 42 gap-closure planning complete (5 plans); ready to execute
+stopped_at: Phase 42 gap-closure execution started (wave 1)
+last_updated: '2026-08-22T17:27:40.377Z'
+last_activity: 2026-08-22 -- Phase 42 execution started
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 16
-  completed_plans: 6
+  total_plans: 21
+  completed_plans: 16
   percent: 17
 ---
 
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — GAP-CLOSURE PLANNED
-Plan: 15 total (10 executed + 5 gap-closure: 42-11..42-15, checker-verified)
-Status: Gap-closure round planned and verified against the 7 items from 42-10-SUMMARY.md's live human verification. Ready to execute — run /gsd-execute-phase 42.
-Last activity: 2026-08-22 -- Phase 42 gap-closure planning complete (5 plans); ready to execute
+Phase: 42 (substitution-ux-overhaul) — EXECUTING
+Plan: 13 of 15 (wave 1 of gap-closure complete: 42-11, 42-12, 42-13)
+Status: Executing Phase 42 gap-closure — wave 1 done, wave 2 (42-14) next
+Last activity: 2026-08-22 -- Phase 42 wave 1 gap-closure plans merged; post-merge build+test gates passed
 
 ## Project Reference
 

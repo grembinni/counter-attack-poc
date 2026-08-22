@@ -143,14 +143,14 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 
 **Phase Order Rationale:** Card & Injury Iconography ships first as a small, self-contained shared-component extraction with no engine risk — and because Substitution UX's new bench red-card marker needs a real shared badge to render, rather than a fourth throwaway implementation. Substitution UX Overhaul follows immediately: it is the largest and highest-regression-risk phase in the milestone (a second interaction mode layered onto an already-tested roster screen), so it benefits from landing on a clean iconography base, and it absorbs BUG-38's red-card field-removal fix as prerequisite engine work within the same phase rather than as a separate phase — REQUIREMENTS.md already scopes the bug fix under this feature, and fixing the engine before building new positioning/substitution UI against it avoids testing atop a known-broken foundation. Tackle/Steal Prompt & Decline ships third as a fully independent new engine state machine (its own phase/panel/toggle) with no file overlap with the first two phases. Referee Leniency and Advanced Settings Drawer are combined into one phase and sequenced fourth, after Tackle/Steal, because the Advanced drawer must lay out the final settings-toggle count — the 4 existing match-rule toggles plus the new Referee Leniency and Tackle/Steal Decline toggles — so building it after both toggle-adding features avoids reworking the two-column layout twice. Game Summary Popup ships fifth because its stats (substitutions used, tackle/steal success, referee Leniency recap) are read from state the four preceding phases produce. Final Cleanup ships last as a whole-milestone audit and consolidation pass that depends on every other phase's surfaces (card layout, restart flows, movement patterns) already existing in order to unify them.
 
-| Phase | Name                                        | Plans      | Status      |
-| ----- | ------------------------------------------- | ---------- | ----------- |
-| 41    | 6/6                                         | Complete   | 2026-08-21  |
-| 42    | 10/10                                       | Gaps Found |             |
-| 43    | Tackle/Steal Prompt & Decline               | TBD        | Not started |
-| 44    | Referee Leniency & Advanced Settings Drawer | TBD        | Not started |
-| 45    | Game Summary Popup                          | TBD        | Not started |
-| 46    | Final Cleanup                               | TBD        | Not started |
+| Phase | Name                                        | Plans       | Status      |
+| ----- | ------------------------------------------- | ----------- | ----------- |
+| 41    | 6/6                                         | Complete    | 2026-08-21  |
+| 42    | 13/15                                       | In Progress |             |
+| 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
+| 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
+| 45    | Game Summary Popup                          | TBD         | Not started |
+| 46    | Final Cleanup                               | TBD         | Not started |
 
 ### Phase 41: Card & Injury Iconography
 
@@ -233,9 +233,9 @@ Plans:
 
 **Gap-closure Wave 1** _(from 42-10 human verification; 7 gap items recorded in 42-10-SUMMARY.md)_
 
-- [ ] 42-11-PLAN.md — bench red-card badge: suppress the duplicate card glyph, keep one indicator (gap item 1)
-- [ ] 42-12-PLAN.md — chrome: ROSTER label, solid-green strip with white text, action row under the roster, orange Cancel (gap items 2-5)
-- [ ] 42-13-PLAN.md — free-kick defensive wall: auto-move defenders to the minimum legal distance, remove the silent DEFENDER_TOO_CLOSE dead-end (gap item 7, out-of-phase-scope)
+- [x] 42-11-PLAN.md — bench red-card badge: suppress the duplicate card glyph, keep one indicator (gap item 1)
+- [x] 42-12-PLAN.md — chrome: ROSTER label, solid-green strip with white text, action row under the roster, orange Cancel (gap items 2-5)
+- [x] 42-13-PLAN.md — free-kick defensive wall: auto-move defenders to the minimum legal distance, remove the silent DEFENDER_TOO_CLOSE dead-end (gap item 7, out-of-phase-scope)
 
 **Gap-closure Wave 2** _(blocked on Gap-closure Wave 1)_
 
