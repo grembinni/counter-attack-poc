@@ -13,6 +13,7 @@ import {
   cornerKickStageTeam,
   CORNER_KICK_STAGES,
   TEAM_CONFIGS,
+  isActivePiece,
 } from '@counter-attack/shared';
 import type { HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
@@ -758,7 +759,10 @@ export function HexGrid() {
             // renderer (untouched) so PieceOverlay.test.tsx's direct-render card-badge
             // coverage keeps working; this early return is the only place a dismissed piece
             // stops appearing on the pitch.
-            if (piece.onPitch === false) return null;
+            // BUG-38 (Phase 42, 42-04): the skip now keys on the shared isActivePiece
+            // predicate rather than onPitch alone, so a redCarded piece is suppressed even if
+            // a future code path forgets to set onPitch: false — see stoppagePhases.ts.
+            if (!isActivePiece(piece)) return null;
 
             // During GK_DIVE, visually show the defending GK at their current dive position.
             // gk.position in state.pieces is the original position (used for cumulative distance check);
@@ -804,18 +808,29 @@ export function HexGrid() {
             const pieceAlreadyActivated = (paceUsedByPieceId[piece.id] ?? 0) > 0;
             const slotFull = activatedCount >= slotQuota && !pieceAlreadyActivated;
 
+            // BUG-38 (Phase 42, 42-04): every canSelect* gate below explicitly excludes a
+            // non-active (red-carded/benched) piece via isActivePiece, even though the
+            // render-skip above already removes such a piece from the DOM entirely. This
+            // redundancy is deliberate: it removes the mask so a future flag-setting change
+            // (e.g. a code path that forgets to set onPitch: false) cannot silently
+            // re-enable a dismissed piece's interactivity. "A piece must never look
+            // clickable and then be rejected" — this file's own pre-existing convention
+            // (see canSelectPenaltyKickTaker below), now applied uniformly.
             const canSelect =
               isActivePlayer &&
               phase === 'MOVE' &&
               piece.teamId === activeTeam &&
+              isActivePiece(piece) &&
               !movedPieceIds.includes(piece.id) && // already moved this phase
               !slotFull; // slot quota exhausted
             // KICK_OFF_SETUP: both teams reposition their own pieces; opponent pieces are no-ops (T-08-19)
-            const canSelectKickOff = isKickOffSetup && myTeam !== null && piece.teamId === myTeam;
+            const canSelectKickOff =
+              isKickOffSetup && myTeam !== null && piece.teamId === myTeam && isActivePiece(piece);
             // THROWIN-02: mirrors canSelectKickOff's "own pieces only, opponent is a no-op" shape,
             // except only the throwing team (isMyThrowIn) may select at all — placement itself is
             // confirmed via ThrowInSetupPanel's Confirm button, not a hex click.
-            const canSelectThrowIn = isMyThrowIn && myTeam !== null && piece.teamId === myTeam;
+            const canSelectThrowIn =
+              isMyThrowIn && myTeam !== null && piece.teamId === myTeam && isActivePiece(piece);
             // OFFSIDE-02 (D-49 staged rework): only the CURRENTLY-active stage's team may
             // select a piece — mirrors canSelectKickOff but additionally gated on
             // myFreeKickStageActive (the inactive team sees no selectable pieces at all,
@@ -826,6 +841,7 @@ export function HexGrid() {
               fkBudgetRemaining > 0 &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               !movedPieceIds.includes(piece.id) &&
               !(freeKickPlacedPieceIds ?? []).includes(piece.id);
             // HIGH_PASS_MOVE: active team selects 1 own piece to reposition up to 3 hexes
@@ -834,6 +850,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (highPassMovedPieceId === null || highPassMovedPieceId === piece.id);
             // SNAPSHOT_DEFLECT: defending team selects 1 own piece to move up to 2 hexes
             const snapDefendingTeam: 'home' | 'away' = attackingTeam === 'home' ? 'away' : 'home';
@@ -842,6 +859,7 @@ export function HexGrid() {
               myTeam !== null &&
               myTeam === snapDefendingTeam &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               piece.role !== 'GK' && // BUG-32: GK is never an eligible deflection responder
               (snapDeflectMovedPieceId === null || snapDeflectMovedPieceId === piece.id) &&
               (snapDeflectPaceUsed ?? 0) < 2; // RULE-04 D-09: suppress when pace exhausted
@@ -851,6 +869,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (gkKickMovedPieceId === null || gkKickMovedPieceId === piece.id);
             // GOAL_KICK_MOVE (GOALKICK-05): both teams reposition 1 own piece up to 3 hexes
             // while the goal kick travels — byte-for-byte the canSelectGKKickMove shape.
@@ -859,6 +878,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (goalKickMovedPieceId === null || goalKickMovedPieceId === piece.id);
             // FIRST_TIME_PASS_MOVE: active team selects 1 own piece to reposition up to 1 hex
             // (CR-01-new; mirrors canSelectHighPassMove)
@@ -867,6 +887,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (firstTimePassMovedPieceId === null || firstTimePassMovedPieceId === piece.id);
             // FREE_MOVE_ATTACK/DEFENSE (Phase 17 MOVE-06, client-wiring fix): any number of
             // precomputed-eligible pieces of the active sub-phase's side may each move up to
@@ -882,6 +903,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (freeMoveEligibleIds?.[freeMoveSide]?.includes(piece.id) ?? false) &&
               (freeMoveUsedPace?.[piece.id] ?? 0) < 6 &&
               !movedPieceIds.includes(piece.id); // already activated this sub-phase (UX-parity fix)
@@ -900,6 +922,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (goalKickEligibleIds?.[goalKickSetupSide]?.includes(piece.id) ?? false) &&
               (goalKickUsedPace?.[piece.id] ?? 0) < 6 &&
               !movedPieceIds.includes(piece.id);
@@ -919,6 +942,7 @@ export function HexGrid() {
               isActivePlayer &&
               myTeam !== null &&
               piece.teamId === myTeam &&
+              isActivePiece(piece) &&
               (penaltyKickEligibleIds?.[penaltyKickSetupSide]?.includes(piece.id) ?? false) &&
               !movedPieceIds.includes(piece.id);
 
@@ -926,9 +950,11 @@ export function HexGrid() {
             // non-goalkeeper, non-red-carded, on-pitch piece routes to selectPiece, which the
             // store's dedicated branch now SELECTS the piece (feeding the panel's Confirm
             // button) rather than resolving directly into emitPenaltyKickTaker — mirrors
-            // canSelectCornerKickTaker's shape exactly. The redCarded exclusion mirrors the
-            // store guard and the server's applyPenaltyKickTaker TAKER_INVALID rejection (this
-            // file's own convention: a piece must never look clickable and then be rejected).
+            // canSelectCornerKickTaker's shape exactly. The isActivePiece exclusion (BUG-38,
+            // Phase 42, 42-04: was a hand-written `piece.redCarded !== true` clause, now the
+            // shared predicate) mirrors the store guard and the server's applyPenaltyKickTaker
+            // TAKER_INVALID rejection (this file's own convention: a piece must never look
+            // clickable and then be rejected).
             const canSelectPenaltyKickTaker =
               phase === 'PENALTY_KICK_TAKER_SELECT' &&
               myTeam !== null &&
@@ -936,7 +962,7 @@ export function HexGrid() {
               myTeam === penaltyKickTeam &&
               piece.teamId === penaltyKickTeam &&
               piece.role !== 'GK' &&
-              piece.redCarded !== true;
+              isActivePiece(piece);
 
             // GK_BOX_ENTRY_MOVE (D-10): only the responding team's own goalkeeper is
             // selectable — mirrors useGameStore.ts's selectPiece guard exactly (no
@@ -947,7 +973,8 @@ export function HexGrid() {
               myTeam !== null &&
               myTeam === gkBoxEntryTeam &&
               piece.teamId === myTeam &&
-              piece.role === 'GK';
+              piece.role === 'GK' &&
+              isActivePiece(piece);
 
             // GK_DIVE_AT_FEET_TARGET (GKDIVE-02/GKDIVE-04, 39-UAT gap 3, Plan 39-21): only the
             // exact diving goalkeeper named by gkDiveAtFeetGkId is selectable — mirrors
@@ -959,7 +986,8 @@ export function HexGrid() {
               phase === 'GK_DIVE_AT_FEET_TARGET' &&
               myTeam !== null &&
               myTeam === gkDiveAtFeetTeam &&
-              piece.id === gkDiveAtFeetGkId;
+              piece.id === gkDiveAtFeetGkId &&
+              isActivePiece(piece);
 
             // CORNER_KICK_GK_SETUP_ATTACKING/_DEFENDING (CORNER-01): only the phase-derived
             // acting team's own GK is selectable — mirrors selectPiece's identical predicate
@@ -977,17 +1005,23 @@ export function HexGrid() {
               myTeam !== null &&
               myTeam === cornerKickGkActingTeam &&
               piece.teamId === cornerKickGkActingTeam &&
-              piece.role === 'GK';
+              piece.role === 'GK' &&
+              isActivePiece(piece);
 
             // CORNER_KICK_TAKER_SELECT (CORNER-02): mirrors canSelectThrowIn's shape — only
             // the kicking team's own on-pitch pieces are selectable; placement is confirmed
             // via CornerKickSetupPanel's Confirm button (38-07), not a hex click.
+            // BUG-38 (Phase 42, 42-04): despite the sibling canSelectPenaltyKickTaker comment
+            // describing this gate as already carrying an equivalent inline check, a read of
+            // this file at 42-04 execution time found no such clause here — isActivePiece is
+            // added as a plain new conjunct (not a replacement) accordingly.
             const canSelectCornerKickTaker =
               phase === 'CORNER_KICK_TAKER_SELECT' &&
               myTeam !== null &&
               cornerKickTeam != null &&
               myTeam === cornerKickTeam &&
-              piece.teamId === cornerKickTeam;
+              piece.teamId === cornerKickTeam &&
+              isActivePiece(piece);
 
             // CORNER_KICK_REPOSITION (CORNER-03): only the current stage's acting team's
             // eligible pieces are selectable — mirrors canSelectGoalKickSetup's shape,
@@ -1031,6 +1065,7 @@ export function HexGrid() {
               myTeam === cornerKickRepositionActingTeam &&
               piece.teamId === cornerKickRepositionActingTeam &&
               piece.id !== cornerKickTakerId &&
+              isActivePiece(piece) &&
               (cornerKickEligibleIds?.[cornerKickRepositionSide]?.includes(piece.id) ?? false) &&
               !cornerKickActivated &&
               !cornerKickStageFull;
@@ -1058,6 +1093,7 @@ export function HexGrid() {
               myTeam !== null &&
               myTeam === cornerKickFinalActingTeam &&
               piece.teamId === cornerKickFinalActingTeam &&
+              isActivePiece(piece) &&
               (cornerKickEligibleIds?.[cornerKickFinalSide]?.includes(piece.id) ?? false) &&
               (cornerKickMovedPieceId === null || cornerKickMovedPieceId === piece.id);
 

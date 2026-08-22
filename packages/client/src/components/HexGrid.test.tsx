@@ -2555,7 +2555,16 @@ describe('HexGrid — dismissed (onPitch: false) piece is not rendered on the pi
     expect(findBasePieceCircle(container, DISMISSED_POS.q, DISMISSED_POS.r)).toBeUndefined();
   });
 
-  it('still renders a redCarded piece that has no onPitch flag set (undefined defaults to on-pitch)', () => {
+  // BUG-38 (Phase 42, 42-04): this expectation was deliberately INVERTED from the original
+  // red-card-bench-removal-scope debug session's "still renders ... undefined defaults to
+  // on-pitch" assertion. That assertion encoded the pre-BUG-38 behavior, where onPitch was
+  // the sole render-skip signal and a redCarded piece with onPitch left unset stayed visible.
+  // BUG-38 requires a red-carded player to be removed from the field completely — the
+  // render-skip now keys on the shared isActivePiece(piece) predicate (checks BOTH
+  // redCarded and onPitch), so a redCarded piece no longer renders regardless of onPitch.
+  // Old expectation: `findBasePieceCircle(...)` was `toBeDefined()` (rendered).
+  // New expectation: `findBasePieceCircle(...)` is `toBeUndefined()` (does not render).
+  it('BUG-38: does not render a redCarded piece even when onPitch is left undefined', () => {
     const pieces = mockMovementState.pieces.map((p) =>
       p.id === DISMISSED_ID ? { ...p, redCarded: true } : p,
     );
@@ -2568,7 +2577,7 @@ describe('HexGrid — dismissed (onPitch: false) piece is not rendered on the pi
       tackleRiskHexes: [],
     });
     const { container } = render(<HexGrid />);
-    expect(findBasePieceCircle(container, DISMISSED_POS.q, DISMISSED_POS.r)).toBeDefined();
+    expect(findBasePieceCircle(container, DISMISSED_POS.q, DISMISSED_POS.r)).toBeUndefined();
   });
 
   it('still renders every other (healthy) piece normally when one piece has onPitch: false', () => {
@@ -2586,5 +2595,282 @@ describe('HexGrid — dismissed (onPitch: false) piece is not rendered on the pi
     });
     const { container } = render(<HexGrid />);
     expect(findBasePieceCircle(container, healthy.position.q, healthy.position.r)).toBeDefined();
+  });
+});
+
+// BUG-38 (Phase 42, 42-04): the five client-side mirrors of validateResponseMoveStep's new
+// server RED_CARDED guard (42-02) — canSelectHighPassMove, canSelectSnapDeflect,
+// canSelectGKKickMove, canSelectGoalKickMove, canSelectFirstTimePassMove — must each exclude a
+// redCarded own piece from rendering as selectable, and must restore selectability once the
+// flag is cleared. Uses hasSelectableRingAt (blue ring, matches the GOAL_KICK_MOVE/
+// SNAPSHOT_DEFLECT clickability harnesses above), not selectPiece/store assertions, since the
+// gate under test is HexGrid's own render-time canSelect* boolean, not useGameStore.
+describe('HexGrid — BUG-38: response-move canSelect* gates exclude red-carded pieces', () => {
+  function withPieceOverride(
+    pieces: typeof mockMovementState.pieces,
+    id: string,
+    overrides: Partial<(typeof mockMovementState.pieces)[number]>,
+  ) {
+    return pieces.map((p) => (p.id === id ? { ...p, ...overrides } : p));
+  }
+
+  const HIGH_PASS_MOVE_ID = 'home-8'; // home FWD 1 — own team, not GK, not carrier
+
+  function highPassMoveState(overrides: { redCarded?: boolean } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'HIGH_PASS_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      highPassMovedPieceId: null,
+      pieces:
+        overrides.redCarded === undefined
+          ? mockMovementState.pieces
+          : withPieceOverride(mockMovementState.pieces, HIGH_PASS_MOVE_ID, {
+              redCarded: overrides.redCarded,
+            }),
+    };
+  }
+
+  it('HIGH_PASS_MOVE: does NOT render a redCarded own piece as selectable', () => {
+    const state = highPassMoveState({ redCarded: true });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1, // home — isActivePlayer requires myTeam === activeTeam
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === HIGH_PASS_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('HIGH_PASS_MOVE: DOES render the same piece as selectable once redCarded is cleared', () => {
+    const state = highPassMoveState({ redCarded: false });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === HIGH_PASS_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  const SNAP_DEFLECT_ID = 'away-1'; // away DEF 1 — defending team, not GK
+
+  function snapDeflectRedCardState(overrides: { redCarded?: boolean } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'SNAPSHOT_DEFLECT' as const,
+      attackingTeam: 'home' as const, // defending team is 'away'
+      activeTeam: 'away' as const,
+      snapDeflectMovedPieceId: null,
+      snapDeflectPaceUsed: 0,
+      pieces:
+        overrides.redCarded === undefined
+          ? mockMovementState.pieces
+          : withPieceOverride(mockMovementState.pieces, SNAP_DEFLECT_ID, {
+              redCarded: overrides.redCarded,
+            }),
+    };
+  }
+
+  it('SNAPSHOT_DEFLECT: does NOT render a redCarded defending piece as selectable', () => {
+    const state = snapDeflectRedCardState({ redCarded: true });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2, // away — the defending team
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === SNAP_DEFLECT_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('SNAPSHOT_DEFLECT: DOES render the same piece as selectable once redCarded is cleared', () => {
+    const state = snapDeflectRedCardState({ redCarded: false });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === SNAP_DEFLECT_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  const GK_KICK_MOVE_ID = 'home-8';
+
+  function gkKickMoveRedCardState(overrides: { redCarded?: boolean } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'GK_KICK_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      gkKickMovedPieceId: null,
+      pieces:
+        overrides.redCarded === undefined
+          ? mockMovementState.pieces
+          : withPieceOverride(mockMovementState.pieces, GK_KICK_MOVE_ID, {
+              redCarded: overrides.redCarded,
+            }),
+    };
+  }
+
+  it('GK_KICK_MOVE: does NOT render a redCarded own piece as selectable', () => {
+    const state = gkKickMoveRedCardState({ redCarded: true });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === GK_KICK_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('GK_KICK_MOVE: DOES render the same piece as selectable once redCarded is cleared', () => {
+    const state = gkKickMoveRedCardState({ redCarded: false });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === GK_KICK_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  const GOAL_KICK_MOVE_RED_CARD_ID = 'home-8';
+
+  function goalKickMoveRedCardState(overrides: { redCarded?: boolean } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'GOAL_KICK_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      goalKickTeam: 'home' as const,
+      goalKickMoveSlot: 'KICKER' as const,
+      goalKickMovedPieceId: null,
+      goalKickPaceUsed: 0,
+      pieces:
+        overrides.redCarded === undefined
+          ? mockMovementState.pieces
+          : withPieceOverride(mockMovementState.pieces, GOAL_KICK_MOVE_RED_CARD_ID, {
+              redCarded: overrides.redCarded,
+            }),
+    };
+  }
+
+  it('GOAL_KICK_MOVE: does NOT render a redCarded own piece as selectable', () => {
+    const state = goalKickMoveRedCardState({ redCarded: true });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === GOAL_KICK_MOVE_RED_CARD_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('GOAL_KICK_MOVE: DOES render the same piece as selectable once redCarded is cleared', () => {
+    const state = goalKickMoveRedCardState({ redCarded: false });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === GOAL_KICK_MOVE_RED_CARD_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  const FTP_MOVE_RED_CARD_ID = 'home-8';
+
+  function firstTimePassMoveRedCardState(overrides: { redCarded?: boolean } = {}) {
+    return {
+      ...mockMovementState,
+      phase: 'FIRST_TIME_PASS_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      firstTimePassMovedPieceId: null,
+      pieces:
+        overrides.redCarded === undefined
+          ? mockMovementState.pieces
+          : withPieceOverride(mockMovementState.pieces, FTP_MOVE_RED_CARD_ID, {
+              redCarded: overrides.redCarded,
+            }),
+    };
+  }
+
+  it('FIRST_TIME_PASS_MOVE: does NOT render a redCarded own piece as selectable', () => {
+    const state = firstTimePassMoveRedCardState({ redCarded: true });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === FTP_MOVE_RED_CARD_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
+  });
+
+  it('FIRST_TIME_PASS_MOVE: DOES render the same piece as selectable once redCarded is cleared', () => {
+    const state = firstTimePassMoveRedCardState({ redCarded: false });
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === FTP_MOVE_RED_CARD_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(true);
+  });
+
+  // Proves the two-clause predicate (item 4, Plan 42-04 Task 2): a piece with onPitch: false
+  // and redCarded left unset (the "benched, not sent off" case) is excluded from a selection
+  // gate too — isActivePiece checks BOTH clauses, not just redCarded.
+  it('HIGH_PASS_MOVE: does NOT render an onPitch:false (redCarded unset) own piece as selectable', () => {
+    const state = {
+      ...mockMovementState,
+      phase: 'HIGH_PASS_MOVE' as const,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+      highPassMovedPieceId: null,
+      pieces: withPieceOverride(mockMovementState.pieces, HIGH_PASS_MOVE_ID, {
+        onPitch: false,
+      }),
+    };
+    useGameStore.setState({
+      gameState: state,
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      tackleRiskHexes: [],
+    });
+    const piece = state.pieces.find((p) => p.id === HIGH_PASS_MOVE_ID)!;
+    const { container } = render(<HexGrid />);
+    expect(hasSelectableRingAt(container, piece.position.q, piece.position.r)).toBe(false);
   });
 });
