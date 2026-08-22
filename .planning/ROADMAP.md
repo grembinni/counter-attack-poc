@@ -146,7 +146,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
-| 42    | 5/10                                        | In Progress |             |
+| 42    | 6/10                                        | In Progress |             |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
@@ -216,7 +216,7 @@ Plans:
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
-- [ ] 42-06-PLAN.md — reposition contract + server action: ROSTER_REPOSITION event, applyRosterReposition, socket handler
+- [x] 42-06-PLAN.md — reposition contract + server action: ROSTER_REPOSITION event, applyRosterReposition, socket handler
 
 **Wave 5** _(blocked on Wave 4 completion)_
 
