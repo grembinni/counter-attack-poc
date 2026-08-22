@@ -5117,9 +5117,11 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       }
 
       // OOB-05 preserved path: everything from here to the end of this case is the
-      // pre-Phase-37 clamp/trajectory/landing logic, byte-for-byte unchanged. Do not edit
-      // this block in a later plan — it is the OOB-05 "disabled path stays identical"
-      // guarantee.
+      // pre-Phase-37 clamp/trajectory/landing logic, byte-for-byte unchanged with respect
+      // to the OOB toggle — do not gate any of it on outOfBoundsEnabled in a later plan.
+      // BUG-38 (D-09, Phase 42) is an orthogonal correctness fix (excludes a red-carded/
+      // benched piece's frozen hex from the occupant lookup below) applied uniformly across
+      // this file regardless of the OOB toggle; it does not touch the OOB-05 guarantee.
       // D-23/D-24: walk from ball position toward clamped landing, stopping at first occupied hex.
       // hexLine returns [start, ..., end]; slice(1) drops the start (ball is there, no carrier).
       const trajectory = hexLine(state.ball.position, clampedPos).slice(1);
@@ -5129,7 +5131,9 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
 
       for (const hex of trajectory) {
         finalPosition = hex;
-        const occupant = state.pieces.find((p) => p.position.q === hex.q && p.position.r === hex.r);
+        const occupant = state.pieces.find(
+          (p) => isActivePiece(p) && p.position.q === hex.q && p.position.r === hex.r,
+        );
         if (occupant) {
           finalCarrierId = occupant.id;
           break;
@@ -5553,8 +5557,12 @@ export function applyCornerKickGkPlace(
   // turns out to cap it, add `hexDistance(piece.position, to) > CAP` alongside the
   // isPitchHex check below.
   if (!isPitchHex(to)) return { ok: false, reason: 'INVALID_TARGET' };
+  // BUG-38 (D-09, Phase 42): a red-carded/benched piece's frozen hex must never block
+  // this placement (see the shared isActivePiece doc comment for rationale).
   if (
-    state.pieces.some((p) => p.id !== pieceId && p.position.q === to.q && p.position.r === to.r)
+    state.pieces.some(
+      (p) => isActivePiece(p) && p.id !== pieceId && p.position.q === to.q && p.position.r === to.r,
+    )
   ) {
     return { ok: false, reason: 'INVALID_TARGET' };
   }
@@ -5869,7 +5877,11 @@ export function applyCornerKickReposition(
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'INVALID_TARGET' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  // BUG-38 (D-09, Phase 42): a red-carded/benched piece's frozen hex must never block
+  // this reposition.
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'INVALID_TARGET' };
   }
 
@@ -6103,7 +6115,11 @@ export function applyCornerKickFinalMove(
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'INVALID_TARGET' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  // BUG-38 (D-09, Phase 42): a red-carded/benched piece's frozen hex must never block
+  // this reposition.
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'INVALID_TARGET' };
   }
 
@@ -6441,7 +6457,11 @@ export function applyGoalKickReposition(
   if (!isPitchHex(to)) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OFF_PITCH' };
   }
-  if (state.pieces.some((p) => p.position.q === to.q && p.position.r === to.r)) {
+  // BUG-38 (D-09, Phase 42): a red-carded/benched piece's frozen hex must never block
+  // this reposition.
+  if (
+    state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && p.position.r === to.r)
+  ) {
     return { ok: false, reason: 'MOVE_INVALID', detail: 'OCCUPIED' };
   }
 
@@ -6753,8 +6773,11 @@ export function applyGoalKickTarget(
 
   // GOALKICK-05: "the Kick targets a teammate's head" — reject anything that is not
   // an outfield teammate of the goalkeeper standing exactly on the target hex.
+  // BUG-38 (D-09, Phase 42): a red-carded/benched piece's frozen hex must never be
+  // treated as a valid header receiver.
   const receiver = state.pieces.find(
     (p) =>
+      isActivePiece(p) &&
       p.teamId === state.goalKickTeam &&
       p.id !== gk.id &&
       p.position.q === targetHex.q &&
