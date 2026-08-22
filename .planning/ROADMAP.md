@@ -146,7 +146,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | Phase | Name                                        | Plans       | Status      |
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
-| 42    | 1/10                                        | In Progress |             |
+| 42    | 4/10                                        | In Progress |             |
 | 43    | Tackle/Steal Prompt & Decline               | TBD         | Not started |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
@@ -206,9 +206,9 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 42-02-PLAN.md — gameHandlers BUG-38: both deflection defender-set builders, validateResponseMoveStep guard, occupancy sweep
-- [ ] 42-03-PLAN.md — gameEngine BUG-38 part 1: retrofit 8 inline redCarded filters + occupancy sweep (lines 337-4171)
-- [ ] 42-04-PLAN.md — HexGrid client defense-in-depth: render-skip + all 19 canSelect\* gates
+- [x] 42-02-PLAN.md — gameHandlers BUG-38: both deflection defender-set builders, validateResponseMoveStep guard, occupancy sweep
+- [x] 42-03-PLAN.md — gameEngine BUG-38 part 1: retrofit 8 inline redCarded filters + occupancy sweep (lines 337-4171)
+- [x] 42-04-PLAN.md — HexGrid client defense-in-depth: render-skip + all 19 canSelect\* gates
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
