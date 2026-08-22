@@ -314,4 +314,98 @@ describe('validateMove', () => {
       expect('effect' in result).toBe(false);
     }
   });
+
+  // BUG-38 (Phase 42): isActivePiece exclusion at the OCCUPIED guard and the ZoI opponent list.
+  describe('BUG-38: red-carded/benched opponent exclusion', () => {
+    it('does NOT return OCCUPIED when a red-carded opponent sits on the destination hex', () => {
+      const redCarded: PlayerPiece = {
+        ...basePiece,
+        id: 'redCarded1',
+        teamId: 'away',
+        position: { q: 6, r: 5 },
+        redCarded: true,
+      };
+      const state: GameState = { ...baseState, pieces: [basePiece, redCarded] };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+    });
+
+    it('still returns OCCUPIED when a live (non-red-carded) opponent sits on the destination hex (guard narrowed, not removed)', () => {
+      const live: PlayerPiece = {
+        ...basePiece,
+        id: 'live1',
+        teamId: 'away',
+        position: { q: 6, r: 5 },
+      };
+      const state: GameState = { ...baseState, pieces: [basePiece, live] };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('OCCUPIED');
+    });
+
+    it('produces NO STEAL_ATTEMPT effect when the only adjacent opponent is red-carded', () => {
+      const redCarded: PlayerPiece = {
+        ...basePiece,
+        id: 'redCarded2',
+        teamId: 'away',
+        position: { q: 7, r: 5 }, // adjacent to destination {q:6,r:5}
+        redCarded: true,
+      };
+      const state: GameState = {
+        ...baseState,
+        pieces: [basePiece, redCarded],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+      };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) expect('effect' in result).toBe(false);
+    });
+
+    it('still produces STEAL_ATTEMPT with the defender listed when the adjacent opponent is live (guard narrowed, not removed)', () => {
+      const live: PlayerPiece = {
+        ...basePiece,
+        id: 'live2',
+        teamId: 'away',
+        position: { q: 7, r: 5 },
+      };
+      const state: GameState = {
+        ...baseState,
+        pieces: [basePiece, live],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+      };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect('effect' in result).toBe(true);
+        if ('effect' in result) {
+          expect(result.effect.type).toBe('STEAL_ATTEMPT');
+          expect(result.effect.defenders).toHaveLength(1);
+          expect(result.effect.defenders[0]?.id).toBe('live2');
+        }
+      }
+    });
+
+    it('excludes an opponent with onPitch: false (without redCarded) from both OCCUPIED and STEAL_ATTEMPT (proves the two-clause predicate)', () => {
+      const benched: PlayerPiece = {
+        ...basePiece,
+        id: 'benched1',
+        teamId: 'away',
+        position: { q: 6, r: 5 },
+        onPitch: false,
+      };
+      const occupiedState: GameState = { ...baseState, pieces: [basePiece, benched] };
+      const occupiedResult = validateMove(occupiedState, basePiece, { q: 6, r: 5 });
+      expect(occupiedResult.ok).toBe(true);
+
+      const benchedAdjacent: PlayerPiece = { ...benched, position: { q: 7, r: 5 } };
+      const stealState: GameState = {
+        ...baseState,
+        pieces: [basePiece, benchedAdjacent],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+      };
+      const stealResult = validateMove(stealState, basePiece, { q: 6, r: 5 });
+      expect(stealResult.ok).toBe(true);
+      if (stealResult.ok) expect('effect' in stealResult).toBe(false);
+    });
+  });
 });
