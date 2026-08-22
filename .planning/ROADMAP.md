@@ -198,7 +198,7 @@ Plans:
 4. A red-carded player appears on the bench as a red-card marker — their formation slot can still be repositioned, but they are never rendered on the pitch and can never be a substitution target.
 5. A red-carded player's vacated pitch hex no longer blocks movement, occupancy, targeting, Zone-of-Influence, or deflection eligibility anywhere in the game — including the previously confirmed live defects in `DEFLECT_ATTEMPT` defender-input building and the ZoI opponent list.
 
-**Plans**: 10 plans across 7 waves
+**Plans**: 15 plans across 10 waves (10 original + 5 gap-closure)
 Plans:
 **Wave 1**
 
@@ -230,6 +230,20 @@ Plans:
 **Wave 7** _(blocked on Wave 6 completion)_
 
 - [x] 42-10-PLAN.md — SUB-0X regression gate, bench-badge check, repo quality gate, live two-browser verification
+
+**Gap-closure Wave 1** _(from 42-10 human verification; 7 gap items recorded in 42-10-SUMMARY.md)_
+
+- [ ] 42-11-PLAN.md — bench red-card badge: suppress the duplicate card glyph, keep one indicator (gap item 1)
+- [ ] 42-12-PLAN.md — chrome: ROSTER label, solid-green strip with white text, action row under the roster, orange Cancel (gap items 2-5)
+- [ ] 42-13-PLAN.md — free-kick defensive wall: auto-move defenders to the minimum legal distance, remove the silent DEFENDER_TOO_CLOSE dead-end (gap item 7, out-of-phase-scope)
+
+**Gap-closure Wave 2** _(blocked on Gap-closure Wave 1)_
+
+- [ ] 42-14-PLAN.md — reposition stacking guard: REPOSITION_SLOT_OCCUPIED + SENT OFF drop pre-gate (gap item 6)
+
+**Gap-closure Wave 3** _(blocked on Gap-closure Wave 2)_
+
+- [ ] 42-15-PLAN.md — whole-repo quality gate + live two-browser re-verification of all 7 gap items
 
 **UI hint**: yes
 
