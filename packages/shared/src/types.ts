@@ -254,7 +254,12 @@ export type ActionEventType =
   // v1.6 pitfall) and carries no `ballAfter` (the ball does not move). Every
   // substitution is manager-initiated — this phase creates no automatic/forced
   // substitution path, so the event carries no origin discriminator.
-  | 'SUBSTITUTION';
+  | 'SUBSTITUTION'
+  // Phase 42 (42-06 / SUB-08): a formation-position swap between two of the caller's own
+  // on-field slots during a stoppage. Deliberately its own type — never DICE_ROLL, and never
+  // reused as SUBSTITUTION — because a reposition consumes none of the capped 3-per-team
+  // substitution resource; it is free, uncapped, and repeatable.
+  | 'ROSTER_REPOSITION';
 
 /**
  * Discriminated union of all recordable game actions. D-07, D-08.
@@ -841,6 +846,26 @@ export type ActionEvent =
       onPlayerName: string;
       jerseyNumber: number;
       subsUsed: number;
+      timestamp: number;
+    }
+  | {
+      /**
+       * Phase 42 (SUB-08): a completed formation-position swap between two of the
+       * caller's own on-field slots. Both names/jersey numbers are denormalised into
+       * the event (mirroring `SUBSTITUTION`) because after the swap each slot id holds
+       * the OTHER player — a post-hoc `pieces` lookup by `pieceId`/`pieceIdB` would
+       * render the log line backwards. `pieceId` (not `pieceIdA`) is deliberately named
+       * to match `SUBSTITUTION`'s convention so `ActionLog.tsx`'s existing
+       * `pieceColorOf(event.pieceId)` helper works without a special case.
+       */
+      type: 'ROSTER_REPOSITION';
+      team: 'home' | 'away';
+      pieceId: string;
+      pieceIdB: string;
+      playerAName: string;
+      playerBName: string;
+      jerseyNumberA: number;
+      jerseyNumberB: number;
       timestamp: number;
     };
 
