@@ -215,6 +215,13 @@ export type GameStore = {
    * full-snapshot broadcast is the only source of truth for roster state.
    */
   emitSubstitution: (outPieceId: string, inPlayerId: string) => void;
+  /**
+   * SUB-08 (Phase 42): manager's mid-match roster reposition intent (swap two on-pitch
+   * pieces' slots). Fire-and-forget: no optimistic mutation of gameState, mirroring SUB-02 —
+   * a reposition happens inside a modal and must not disturb pitch selection state
+   * (selectedPieceId/validMoveHexes are deliberately left untouched).
+   */
+  emitRosterReposition: (pieceIdA: string, pieceIdB: string) => void;
 };
 
 /**
@@ -1868,5 +1875,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // modal and must not disturb pitch selection state (selectedPieceId/validMoveHexes untouched).
   emitSubstitution: (outPieceId, inPlayerId) => {
     socket.emit(ClientEvents.GAME_SUBSTITUTION, { outPieceId, inPlayerId });
+  },
+
+  // SUB-08: fire-and-forget, no optimistic state mutation — mirrors SUB-02's emitSubstitution;
+  // a reposition happens inside a modal and must not disturb pitch selection state
+  // (selectedPieceId/validMoveHexes untouched).
+  emitRosterReposition: (pieceIdA, pieceIdB) => {
+    socket.emit(ClientEvents.GAME_ROSTER_REPOSITION, { pieceIdA, pieceIdB });
   },
 }));

@@ -1450,3 +1450,27 @@ describe('ActionLog — Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks
     expect(container.textContent).toMatch(/starting 2nd half/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 42 (SUB-08/42-09): ROSTER_REPOSITION renders the [SWAP] match-log line.
+// ---------------------------------------------------------------------------
+describe('ActionLog — Phase 42: ROSTER_REPOSITION', () => {
+  it('a ROSTER_REPOSITION event renders the [SWAP] prefix and both jersey numbers/names in A-then-B order', () => {
+    setEventLog([
+      {
+        type: 'ROSTER_REPOSITION',
+        team: 'home',
+        pieceId: 'home-3',
+        pieceIdB: 'home-9',
+        playerAName: 'Alpha Alonso',
+        playerBName: 'Bravo Baker',
+        jerseyNumberA: 3,
+        jerseyNumberB: 9,
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[SWAP\]/);
+    expect(container.textContent).toMatch(/#3 Alpha Alonso ↔ #9 Bravo Baker/);
+  });
+});
