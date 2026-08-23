@@ -147,7 +147,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
 | 42    | 17/17                                       | Complete    | 2026-08-23  |
-| 43    | 2/6                                         | In Progress |             |
+| 43    | 3/6                                         | In Progress |             |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
 | 46    | Final Cleanup                               | TBD         | Not started |
@@ -278,7 +278,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 43-03-PLAN.md — TACKLE-01 toggle wired end to end: settings checkbox (default on) → validation → Room → buildInitialGameState (default off)
+- [x] 43-03-PLAN.md — TACKLE-01 toggle wired end to end: settings checkbox (default on) → validation → Room → buildInitialGameState (default off)
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
