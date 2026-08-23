@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: verifying
+status: idle
 stopped_at: Phase 43 context gathered
 last_updated: '2026-08-23T13:28:51.330Z'
-last_activity: '2026-08-23 - Completed quick task 260823-akw: Narrow the random Referee Leniency roll from 1-6 to 2-5 at match start'
+last_activity: 2026-08-23 -- Phase 43 context gathered (CONTEXT.md written); ready for /gsd-plan-phase 43
 progress:
   total_phases: 6
   completed_phases: 2
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 43 (tackle-steal-prompt-and-decline) — NOT STARTED
+Phase: 43 (tackle-steal-prompt-and-decline) — CONTEXT GATHERED
 Plan: N/A — no plans created yet
-Status: Phase 42 complete and independently verified (17/17 plans executed, VERIFICATION.md scored 5/5 success criteria, all 12 requirement IDs SUB-08..SUB-18/BUG-38 satisfied). Gap-closure plans 42-16/42-17 closed BUG-38's final 2 residual unfiltered-piece-list sites (passValidator.ts LONG-pass landing, offside.ts opponent counting/flag evaluation). Next: plan Phase 43 (Tackle/Steal Prompt & Decline).
-Last activity: 2026-08-23 - Completed quick task 260823-akw: Narrow the random Referee Leniency roll from 1-6 to 2-5 at match start
+Status: Phase 43 context gathered (43-CONTEXT.md, 43-DISCUSSION-LOG.md committed). Key decisions: sequential per-defender decline prompts ordered by tackling stat, sequence continues through failed attempts and only ends on possession change or foul-stoppage; declined-but-live ring reuses the existing amber risk ring (no new visual state); prompt copy left to planner discretion. Next: `/gsd-plan-phase 43`.
+Last activity: 2026-08-23 -- Phase 43 context gathered; ready for planning
 
 ## Project Reference
 
@@ -374,7 +374,7 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 Last session: 2026-08-23T13:28:51.321Z
 Stopped at: Phase 43 context gathered
 Resume file: .planning/phases/43-tackle-steal-prompt-decline/43-CONTEXT.md
-Resume: Run `/gsd-plan-phase 42` to begin planning Phase 42 (Substitution UX Overhaul).
+Resume: Run `/gsd-plan-phase 43` to begin planning Phase 43 (Tackle/Steal Prompt & Decline).
 
 ## Performance Metrics
 
