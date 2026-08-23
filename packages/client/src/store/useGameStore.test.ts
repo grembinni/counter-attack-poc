@@ -68,6 +68,66 @@ describe('useGameStore — selectPiece', () => {
   });
 });
 
+// TACKLE-03 (Phase 43, plan 06): declined-but-live risk ring persists with no new persistent
+// field. tackleRiskHexes is populated by selectPiece's plain-MOVEMENT fallback
+// (computeMovementValidHexes -> validateMove per candidate hex), which already omits the
+// TACKLE_ATTEMPT effect for a piece flagged in tackleAttemptedByIds (moveValidator.ts) while
+// still allowing the move itself. WHY this test exists: without it, a future refactor that
+// records a decline in tackleAttemptedByIds would silently break TACKLE-03's ring-persistence
+// requirement with no failing test anywhere in the suite.
+describe('useGameStore — TACKLE-03: selectPiece tackleRiskHexes persists across a decline resume', () => {
+  const CARRIER_ID = 'home-9';
+  const CARRIER_POS = { q: 14, r: 13 };
+  const DEFENDER_ID = 'away-9';
+  // hexDistance 2 from the carrier — the defender is not currently adjacent, but one of its
+  // one-hex-pace candidate moves (CANDIDATE_HEX below) lands adjacent to the carrier.
+  const DEFENDER_POS = { q: 16, r: 13 };
+  const CANDIDATE_HEX = { q: 15, r: 13 }; // hexDistance===1 from both CARRIER_POS and DEFENDER_POS
+
+  function tackleRiskFixture(tackleAttemptedByIds: string[] = []) {
+    const pieces = mockMovementState.pieces.map((p) => {
+      if (p.id === CARRIER_ID) return { ...p, position: CARRIER_POS };
+      if (p.id === DEFENDER_ID) return { ...p, position: DEFENDER_POS };
+      return p;
+    });
+    return {
+      ...mockMovementState,
+      pieces,
+      ball: { position: CARRIER_POS, carrierId: CARRIER_ID, lastTouchedBy: null },
+      tackleAttemptedByIds,
+    };
+  }
+
+  it('TACKLE-03: selectPiece on a non-carrier defender within pace of an opposing carrier yields a non-empty tackleRiskHexes (unattempted baseline)', () => {
+    useGameStore.setState({ gameState: tackleRiskFixture([]) });
+    useGameStore.getState().selectPiece(DEFENDER_ID);
+    const state = useGameStore.getState();
+    expect(state.validMoveHexes).toContainEqual(CANDIDATE_HEX);
+    expect(state.tackleRiskHexes.length).toBeGreaterThan(0);
+  });
+
+  it('TACKLE-03: yields an empty tackleRiskHexes once the defender id is present in tackleAttemptedByIds (attempted)', () => {
+    useGameStore.setState({ gameState: tackleRiskFixture([DEFENDER_ID]) });
+    useGameStore.getState().selectPiece(DEFENDER_ID);
+    expect(useGameStore.getState().tackleRiskHexes).toHaveLength(0);
+  });
+
+  it('TACKLE-03: yields a non-empty tackleRiskHexes again on the move step immediately after a decline resume (defender id absent, tackleStealPrompt* cluster cleared)', () => {
+    const state = {
+      ...tackleRiskFixture([]),
+      tackleStealPromptTeam: null,
+      tackleStealPromptKind: null,
+      tackleStealPromptDefenderId: null,
+      tackleStealPromptCarrierId: null,
+      tackleStealPromptQueue: [],
+      tackleStealPromptResume: null,
+    };
+    useGameStore.setState({ gameState: state });
+    useGameStore.getState().selectPiece(DEFENDER_ID);
+    expect(useGameStore.getState().tackleRiskHexes.length).toBeGreaterThan(0);
+  });
+});
+
 describe('useGameStore — selectPiece FIRST_TIME_PASS_MOVE (CR-01, 17.1-16 self-pass-reclaim fix)', () => {
   beforeEach(() => {
     // Seed FTP ATTACKER slot, home team active, playerSlot=1 (home).

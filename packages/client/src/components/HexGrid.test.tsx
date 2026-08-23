@@ -240,6 +240,93 @@ describe('HexGrid — D-02 gap closure: zoiRiskSet excludes stealAttemptedByIds 
   });
 });
 
+// TACKLE-03 (Phase 43, plan 06): declined-but-live risk ring persists on the client with no new
+// visual state (D-04). The claim from 43-RESEARCH.md is that a declined defender's amber risk
+// ring survives to the next move step for free — because a decline never appends the defender's
+// id to stealAttemptedByIds — and the ring genuinely expires once the carrier leaves ZoI range.
+// WHY these tests exist: ring persistence is delivered implicitly by never recording a decline
+// in stealAttemptedByIds/tackleAttemptedByIds. Without this describe block, a future refactor
+// that "helpfully" records declines in those arrays would silently break TACKLE-03 with no
+// failing test anywhere in the suite.
+describe('HexGrid — TACKLE-03: declined-but-live risk ring persists across move steps (D-04)', () => {
+  it('TACKLE-03: shows the risk ring for a ZoI defender who has not attempted (unattempted baseline)', () => {
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, []);
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBeGreaterThan(0);
+  });
+
+  it('TACKLE-03: hides the risk ring once the defender id is present in stealAttemptedByIds (attempted)', () => {
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, [defenderId]);
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBe(0);
+  });
+
+  it('TACKLE-03: shows the risk ring again on the move step immediately after a decline resume (defender absent from stealAttemptedByIds, tackleStealPrompt* cluster cleared)', () => {
+    const defenderId = 'away-9';
+    // Mirrors the exact state shape after applyTackleStealChoice(false) resolves a decline and
+    // TACKLE_STEAL_PROMPT exits back to MOVE: the whole prompt-cluster is null/empty and the
+    // defender was deliberately never appended to stealAttemptedByIds (D-04/D-02).
+    const state = {
+      ...baseStateWithDefender(defenderId, []),
+      tackleStealPromptTeam: null,
+      tackleStealPromptKind: null,
+      tackleStealPromptDefenderId: null,
+      tackleStealPromptCarrierId: null,
+      tackleStealPromptQueue: [],
+      tackleStealPromptResume: null,
+    };
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBeGreaterThan(0);
+  });
+
+  it('TACKLE-03: the ring genuinely expires once the carrier moves out of ZoI range of every candidate hex', () => {
+    const defenderId = 'away-9';
+    // Carrier relocated far from the defender — no candidate destination hex is within ZoI
+    // range of any defender, so the opportunity has genuinely expired (not merely suppressed).
+    const FAR_CARRIER_POS = { q: 5, r: 13 };
+    const FAR_CANDIDATE_HEX = { q: 6, r: 13 };
+    const pieces = mockMovementState.pieces.map((p) => {
+      if (p.id === CARRIER_ID) return { ...p, position: FAR_CARRIER_POS };
+      if (p.id === defenderId) return { ...p, position: DEFENDER_POS };
+      return p;
+    });
+    const state = {
+      ...mockMovementState,
+      pieces,
+      ball: { position: FAR_CARRIER_POS, carrierId: CARRIER_ID, lastTouchedBy: null },
+      stealAttemptedByIds: [],
+    };
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [FAR_CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBe(0);
+  });
+});
+
 // BUG-08 re-verification (render-level): tackleRiskSet (HexGrid.tsx) reads directly from the
 // store's tackleRiskHexes slice (no separate client-side filter, unlike zoiRiskSet which derives
 // from getZoIDefenders + an inline stealAttemptedByIds filter). tackleRiskHexes is populated by
