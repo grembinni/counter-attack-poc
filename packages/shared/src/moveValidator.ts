@@ -105,7 +105,16 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
     const allDefenders = getZoIDefenders(to, opponents);
     // D-02 (Phase 17.1): exclude defenders who have already attempted a steal this sequence.
     // A defender flagged in stealAttemptedByIds still projects TACKLE ZoI (cross-type exclusion).
-    const defenders = allDefenders.filter((d) => !(state.stealAttemptedByIds ?? []).includes(d.id));
+    const eligibleDefenders = allDefenders.filter(
+      (d) => !(state.stealAttemptedByIds ?? []).includes(d.id),
+    );
+    // D-02 (Phase 43/TACKLE-01): order defenders by tackling descending so the prompt-and-decline
+    // sequence offers the strongest tackler first. Sort a copy — never mutate the array returned
+    // by .filter — with comparator (a, b) => b.tackling - a.tackling. Array.prototype.sort is
+    // stable in Node 12+/all supported browsers, so defenders with equal tackling retain their
+    // getZoIDefenders order (itself derived from state.pieces order) — this is the intentional,
+    // documented tie-break, not an accident (43-RESEARCH.md Pitfall 2).
+    const defenders = [...eligibleDefenders].sort((a, b) => b.tackling - a.tackling);
     if (defenders.length > 0) {
       return { ok: true, effect: { type: 'STEAL_ATTEMPT', defenders } };
     }

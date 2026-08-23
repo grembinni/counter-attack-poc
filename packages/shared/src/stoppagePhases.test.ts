@@ -8,9 +8,9 @@ import {
 } from './stoppagePhases.js';
 import type { GamePhase, PlayerPiece } from './types.js';
 
-// Full-GamePhase-union coverage (Phase 40 / SUB-01): every one of the 44 GamePhase
-// values must be explicitly classified as stoppage (true) or not (false). This is a
-// regression guard — a future phase adding a GamePhase must consciously classify it
+// Full-GamePhase-union coverage (Phase 40 / SUB-01, extended Phase 43): every one of the
+// 45 GamePhase values must be explicitly classified as stoppage (true) or not (false). This
+// is a regression guard — a future phase adding a GamePhase must consciously classify it
 // here, not silently inherit `false` from `.includes()`.
 
 const STOPPAGE_VALUES: GamePhase[] = [
@@ -58,6 +58,7 @@ const NON_STOPPAGE_VALUES: GamePhase[] = [
   'GK_DIVE_AT_FEET_TARGET',
   'GK_BOX_ENTRY_PROMPT',
   'GK_BOX_ENTRY_MOVE',
+  'TACKLE_STEAL_PROMPT',
   'PENALTY_KICK',
   'FULL_TIME',
   'REPLAY',
@@ -68,8 +69,8 @@ describe('STOPPAGE_PHASES', () => {
     expect(STOPPAGE_PHASES.length).toBe(15);
   });
 
-  it('covers exactly 44 GamePhase values combined with the non-stoppage set', () => {
-    expect(STOPPAGE_VALUES.length + NON_STOPPAGE_VALUES.length).toBe(44);
+  it('covers exactly 45 GamePhase values combined with the non-stoppage set', () => {
+    expect(STOPPAGE_VALUES.length + NON_STOPPAGE_VALUES.length).toBe(45);
   });
 });
 
@@ -96,6 +97,14 @@ describe('isStoppagePhase', () => {
 
   it('returns false for MOVE', () => {
     expect(isStoppagePhase('MOVE')).toBe(false);
+  });
+
+  it('returns false for TACKLE_STEAL_PROMPT (Phase 43: mid-duel decision prompt, not a stoppage)', () => {
+    expect(isStoppagePhase('TACKLE_STEAL_PROMPT')).toBe(false);
+  });
+
+  it('STOPPAGE_PHASES still has exactly 15 members after Phase 43', () => {
+    expect(STOPPAGE_PHASES.length).toBe(15);
   });
 });
 

@@ -22,7 +22,8 @@ import type { GamePhase, PlayerPiece } from './types.js';
  * i.e. the setup/reposition/taker-select stages of each of SUB-01's seven named
  * restarts (kick-off, half-time, free kick, throw-in, goal kick, corner kick,
  * penalty kick). Exactly 15 values; do not add or remove entries without
- * re-confirming against RESEARCH.md Open Question 1 / Assumption A1.
+ * re-confirming against RESEARCH.md Open Question 1 / Assumption A1. TACKLE_STEAL_PROMPT
+ * (Phase 43) is deliberately NOT one of these 15 — see the exclusion list below.
  */
 export const STOPPAGE_PHASES: readonly GamePhase[] = [
   'KICK_OFF_SETUP',
@@ -51,8 +52,9 @@ export const STOPPAGE_PHASES: readonly GamePhase[] = [
 //    catch/save restart is not one of SUB-01's seven named stoppages; GOALKICK-01
 //    already established this chain as structurally separate from Goal Kick.
 //  - 'FOUL_CHOICE' / 'GK_DIVE_AT_FEET_PROMPT' / 'GK_DIVE_AT_FEET_TARGET' /
-//    'GK_BOX_ENTRY_PROMPT' / 'GK_BOX_ENTRY_MOVE' — mid-duel decision prompts, not
-//    restarts.
+//    'GK_BOX_ENTRY_PROMPT' / 'GK_BOX_ENTRY_MOVE' / 'TACKLE_STEAL_PROMPT' (Phase 43) —
+//    mid-duel decision prompts, not restarts. A substitution can never be started
+//    mid-prompt.
 //  - 'LOBBY' / 'FULL_TIME' / 'REPLAY' — no live match in progress.
 
 /** SUB-01: returns true iff `phase` is one of the 15 allow-listed stoppage phases. */

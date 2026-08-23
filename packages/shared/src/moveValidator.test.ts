@@ -137,6 +137,163 @@ describe('validateMove', () => {
     }
   });
 
+  // D-02 (Phase 43/TACKLE-01): STEAL_ATTEMPT defenders ordered by tackling descending.
+  describe('D-02: STEAL_ATTEMPT defender ordering by tackling', () => {
+    it('orders three active ZoI defenders by tackling descending (3, 7, 5 -> 7, 5, 3)', () => {
+      const defLow: PlayerPiece = {
+        ...basePiece,
+        id: 'defLow',
+        teamId: 'away',
+        position: { q: 7, r: 5 }, // adjacent to destination {q:6,r:5}
+        tackling: 3,
+      };
+      const defHigh: PlayerPiece = {
+        ...basePiece,
+        id: 'defHigh',
+        teamId: 'away',
+        position: { q: 6, r: 6 }, // also adjacent to {q:6,r:5}
+        tackling: 7,
+      };
+      const defMid: PlayerPiece = {
+        ...basePiece,
+        id: 'defMid',
+        teamId: 'away',
+        position: { q: 5, r: 4 }, // also adjacent to {q:6,r:5}
+        tackling: 5,
+      };
+      const state: GameState = {
+        ...baseState,
+        pieces: [basePiece, defLow, defHigh, defMid],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+      };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect('effect' in result).toBe(true);
+        if ('effect' in result) {
+          expect(result.effect.type).toBe('STEAL_ATTEMPT');
+          if (result.effect.type === 'STEAL_ATTEMPT') {
+            expect(result.effect.defenders.map((d) => d.id)).toEqual([
+              'defHigh',
+              'defMid',
+              'defLow',
+            ]);
+          }
+        }
+      }
+    });
+
+    it('preserves state.pieces relative order as a stable tie-break for equal tackling', () => {
+      const defA: PlayerPiece = {
+        ...basePiece,
+        id: 'defA',
+        teamId: 'away',
+        position: { q: 7, r: 5 },
+        tackling: 5,
+      };
+      const defB: PlayerPiece = {
+        ...basePiece,
+        id: 'defB',
+        teamId: 'away',
+        position: { q: 6, r: 6 },
+        tackling: 5,
+      };
+      // defB appears before defA in state.pieces despite matching id-alpha order reversed —
+      // proves the tie-break follows state.pieces order, not id or insertion-into-defenders order.
+      const state: GameState = {
+        ...baseState,
+        pieces: [basePiece, defB, defA],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+      };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect('effect' in result).toBe(true);
+        if ('effect' in result) {
+          expect(result.effect.type).toBe('STEAL_ATTEMPT');
+          if (result.effect.type === 'STEAL_ATTEMPT') {
+            expect(result.effect.defenders.map((d) => d.id)).toEqual(['defB', 'defA']);
+          }
+        }
+      }
+    });
+
+    it('excludes a defender already listed in stealAttemptedByIds even after the sort', () => {
+      const defHigh: PlayerPiece = {
+        ...basePiece,
+        id: 'defHigh',
+        teamId: 'away',
+        position: { q: 7, r: 5 },
+        tackling: 9,
+      };
+      const defLow: PlayerPiece = {
+        ...basePiece,
+        id: 'defLow',
+        teamId: 'away',
+        position: { q: 6, r: 6 },
+        tackling: 2,
+      };
+      const state: GameState = {
+        ...baseState,
+        pieces: [basePiece, defHigh, defLow],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+        stealAttemptedByIds: ['defHigh'],
+      };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect('effect' in result).toBe(true);
+        if ('effect' in result) {
+          expect(result.effect.type).toBe('STEAL_ATTEMPT');
+          if (result.effect.type === 'STEAL_ATTEMPT') {
+            expect(result.effect.defenders.map((d) => d.id)).toEqual(['defLow']);
+          }
+        }
+      }
+    });
+
+    it('excludes a red-carded opponent from a 2-active-defender defenders array (BUG-38 regression)', () => {
+      const defActive1: PlayerPiece = {
+        ...basePiece,
+        id: 'defActive1',
+        teamId: 'away',
+        position: { q: 7, r: 5 },
+        tackling: 4,
+      };
+      const defActive2: PlayerPiece = {
+        ...basePiece,
+        id: 'defActive2',
+        teamId: 'away',
+        position: { q: 6, r: 6 },
+        tackling: 6,
+      };
+      const defRedCarded: PlayerPiece = {
+        ...basePiece,
+        id: 'defRedCarded',
+        teamId: 'away',
+        position: { q: 5, r: 4 },
+        tackling: 9,
+        redCarded: true,
+      };
+      const state: GameState = {
+        ...baseState,
+        pieces: [basePiece, defActive1, defActive2, defRedCarded],
+        ball: { position: { q: 5, r: 5 }, carrierId: 'p1', lastTouchedBy: null },
+      };
+      const result = validateMove(state, basePiece, { q: 6, r: 5 });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect('effect' in result).toBe(true);
+        if ('effect' in result) {
+          expect(result.effect.type).toBe('STEAL_ATTEMPT');
+          if (result.effect.type === 'STEAL_ATTEMPT') {
+            expect(result.effect.defenders.map((d) => d.id)).toEqual(['defActive2', 'defActive1']);
+          }
+        }
+      }
+    });
+  });
+
   it('does NOT return STEAL_ATTEMPT when a non-ball-carrier moves adjacent to opponents', () => {
     const opponent: PlayerPiece = {
       ...basePiece,
