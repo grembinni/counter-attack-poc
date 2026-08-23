@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: executing
-stopped_at: Phase 42 gap-closure execution started (wave 1)
-last_updated: '2026-08-22T17:27:40.377Z'
-last_activity: 2026-08-22 -- Phase 42 execution started
+status: gaps_found
+stopped_at: Phase 42 goal verification found 2 residual BUG-38 gaps
+last_updated: '2026-08-23T04:00:57.000Z'
+last_activity: 2026-08-22 -- Phase 42 gap-closure round (42-11..42-15) complete and human-verified, but phase-goal verifier found 2 new residual BUG-38 sites (passValidator.ts, offside.ts)
 progress:
   total_phases: 6
   completed_phases: 1
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — EXECUTING
-Plan: 14 of 15 (wave 2 of gap-closure complete: 42-11..42-14)
-Status: Executing Phase 42 gap-closure — waves 1-2 done, wave 3 (42-15, human verification checkpoint) next
-Last activity: 2026-08-22 -- Phase 42 wave 2 gap-closure plan merged; post-merge build+test gates passed
+Phase: 42 (substitution-ux-overhaul) — GAPS FOUND
+Plan: 15 of 15 executed; phase-goal verification scored 4/5 must-haves
+Status: All 15 plans complete and their own gap-closure round human-verified, but /gsd-verify-phase's independent code check found BUG-38 (Success Criterion 5) still has 2 unfiltered sites: passValidator.ts's LONG-pass landing restriction and offside.ts's opposingPiecesEqualOrAhead. Run `/gsd-plan-phase 42 --gaps` to plan a fix.
+Last activity: 2026-08-22 -- Phase 42 goal verification: gaps_found (see 42-VERIFICATION.md)
 
 ## Project Reference
 
