@@ -198,7 +198,7 @@ Plans:
 4. A red-carded player appears on the bench as a red-card marker — their formation slot can still be repositioned, but they are never rendered on the pitch and can never be a substitution target.
 5. A red-carded player's vacated pitch hex no longer blocks movement, occupancy, targeting, Zone-of-Influence, or deflection eligibility anywhere in the game — including the previously confirmed live defects in `DEFLECT_ATTEMPT` defender-input building and the ZoI opponent list.
 
-**Plans**: 15 plans across 10 waves (10 original + 5 gap-closure)
+**Plans**: 17 plans across 12 waves (10 original + 7 gap-closure)
 Plans:
 **Wave 1**
 
@@ -244,6 +244,14 @@ Plans:
 **Gap-closure Wave 3** _(blocked on Gap-closure Wave 2)_
 
 - [x] 42-15-PLAN.md — whole-repo quality gate + live two-browser re-verification of all 7 gap items
+
+**Gap-closure Wave 4** _(from 42-VERIFICATION.md; 2 residual BUG-38 sites in packages/shared)_
+
+- [ ] 42-16-PLAN.md — apply isActivePiece to passValidator LONG landing restriction (WR-01) and offside opponent counting/flag evaluation, with regression tests
+
+**Gap-closure Wave 5** _(blocked on Gap-closure Wave 4)_
+
+- [ ] 42-17-PLAN.md — exhaustive packages/shared piece-list audit (D-10 item 4 closeout incl. offside.ts) + whole-repo quality gate
 
 **UI hint**: yes
 
