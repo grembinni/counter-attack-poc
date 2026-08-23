@@ -585,6 +585,11 @@ export function applyStartMovement(state: GameState): ApplyStartMovementResult {
       contestedPieceIds: [],
       stealAttemptedByIds: [], // D-29: reset per-phase steal tracking at Movement Phase start
       tackleAttemptedByIds: [], // D-29: reset per-phase tackle tracking at Movement Phase start
+      // TACKLE-02 (Phase 43, 43-04): defense in depth — a fresh 4-5-2 movement cycle can
+      // never legitimately begin mid-prompt-sequence, but clear the cluster anyway so a
+      // stray state (test-constructed or reached via an unexpected transition) can't leak
+      // a stale prompt into the new cycle.
+      ...TACKLE_STEAL_PROMPT_CLEARED,
       // BUG-18 (Phase 18.3): clear lastDiceRoll so canUndo's guard (`if (lastDiceRoll) return
       // false`) does not block Undo in the MOVE phase. applyStartMovement is the dominant entry
       // point into MOVE (from PASS/KICK_OFF/LOOSE_BALL). Mirror the existing GK_RESTART
@@ -769,6 +774,25 @@ const CORNER_KICK_TEARDOWN = {
   // 38-23 (T-38-77): a resolved corner must not leave a stale spill marker behind for a
   // later, unrelated loose ball to mis-read as a direction-only corner award.
   gkSpillKeeperId: null,
+} as const;
+
+// TACKLE-02/D-03 (Phase 43, 43-04): at-rest shape for the six-field ephemeral
+// tackle/steal decline-prompt cluster (`applyGkDiveAtFeetResponse`'s `clearedFields`
+// precedent — mirrors its literal, not its scope). Spread at exactly three kinds of
+// site: every prompt-sequence exit inside `applyTackleStealChoice` (via
+// `advanceOrResume`), `applyFoulChoice`'s restart paths, and `applyStartMovement` (defense
+// in depth for a fresh 4-5-2 movement cycle). Deliberately does NOT join the
+// `stealAttemptedByIds`/`tackleAttemptedByIds` ~26-site reset table (types.ts's doc
+// comment on `tackleStealPromptTeam` and 43-RESEARCH.md "Do We Actually Need
+// stealDeclinedByIds/tackleDeclinedByIds?") — this cluster is ephemeral to a single
+// active prompt sequence, not a cross-move-step persistent record.
+const TACKLE_STEAL_PROMPT_CLEARED = {
+  tackleStealPromptTeam: null,
+  tackleStealPromptKind: null,
+  tackleStealPromptDefenderId: null,
+  tackleStealPromptCarrierId: null,
+  tackleStealPromptQueue: [],
+  tackleStealPromptResume: null,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1253,6 +1277,47 @@ export function applyMove(
   let stealSuccess = false;
   let stealDefenderId: string | undefined;
   if ('effect' in result && result.effect.type === 'STEAL_ATTEMPT') {
+    // TACKLE-01..04 (43-04): toggle gate FIRST, before any dice read/event construction
+    // (43-RESEARCH.md Pitfall 3). Explicit `=== true`, never truthiness.
+    if (state.tackleStealDeclineEnabled === true) {
+      // D-01/D-02: result.effect.defenders is already tackling-descending sorted by
+      // moveValidator.ts — take the first as the current prompt, queue the rest.
+      const [firstDefender, ...restDefenders] = result.effect.defenders;
+      if (newStealAttemptedByIds.includes(firstDefender!.id)) {
+        return { ok: false, reason: 'MOVE_INVALID', detail: 'ALREADY_ATTEMPTED' };
+      }
+      return {
+        ok: true,
+        state: {
+          ...state,
+          pieces: newPieces,
+          movedPieceIds: computeMovedPieceIds(),
+          paceUsedByPieceId: {
+            ...state.paceUsedByPieceId,
+            [pieceId]: newPaceForPiece,
+          },
+          ball: newBall,
+          eventLog: newEventLog,
+          stealAttemptedByIds: newStealAttemptedByIds,
+          tackleAttemptedByIds: newTackleAttemptedByIds,
+          phase: 'TACKLE_STEAL_PROMPT',
+          activeTeam: firstDefender!.teamId,
+          movementSlot: state.movementSlot,
+          tackleStealPromptTeam: firstDefender!.teamId,
+          tackleStealPromptKind: 'STEAL',
+          tackleStealPromptDefenderId: firstDefender!.id,
+          // In a STEAL_ATTEMPT the MOVER is the ball carrier (moveValidator's
+          // `state.ball.carrierId === piece.id` guard).
+          tackleStealPromptCarrierId: pieceId,
+          tackleStealPromptQueue: restDefenders.map((d) => d.id),
+          tackleStealPromptResume: {
+            phase: state.phase,
+            activeTeam: state.activeTeam,
+            movementSlot: state.movementSlot,
+          },
+        },
+      };
+    }
     // Resolve defender first so we can use their ID for all tracking (not the carrier's).
     const die = dice?.stealDie ?? 3;
     const defender = result.effect.defenders[0];
@@ -1317,6 +1382,45 @@ export function applyMove(
   // Fires when a defender (different team than carrier) moves adjacent to the carrier.
   let tackleSuccess = false;
   if ('effect' in result && result.effect.type === 'TACKLE_ATTEMPT') {
+    // TACKLE-01..04 (43-04): toggle gate FIRST, before any dice read/event construction
+    // (43-RESEARCH.md Pitfall 3). Explicit `=== true`, never truthiness.
+    if (state.tackleStealDeclineEnabled === true) {
+      if (newTackleAttemptedByIds.includes(pieceId)) {
+        return { ok: false, reason: 'MOVE_INVALID', detail: 'ALREADY_ATTEMPTED' };
+      }
+      return {
+        ok: true,
+        state: {
+          ...state,
+          pieces: newPieces,
+          movedPieceIds: computeMovedPieceIds(),
+          paceUsedByPieceId: {
+            ...state.paceUsedByPieceId,
+            [pieceId]: newPaceForPiece,
+          },
+          ball: newBall,
+          eventLog: newEventLog,
+          stealAttemptedByIds: newStealAttemptedByIds,
+          tackleAttemptedByIds: newTackleAttemptedByIds,
+          phase: 'TACKLE_STEAL_PROMPT',
+          activeTeam: piece.teamId,
+          movementSlot: state.movementSlot,
+          tackleStealPromptTeam: piece.teamId,
+          tackleStealPromptKind: 'TACKLE',
+          // The mover is the sole possible challenger in a TACKLE_ATTEMPT.
+          tackleStealPromptDefenderId: pieceId,
+          tackleStealPromptCarrierId: result.effect.carrierId,
+          // D-01/D-02 apply to STEAL only: TACKLE_ATTEMPT's effect carries a single
+          // carrierId, so the queue is always empty here.
+          tackleStealPromptQueue: [],
+          tackleStealPromptResume: {
+            phase: state.phase,
+            activeTeam: state.activeTeam,
+            movementSlot: state.movementSlot,
+          },
+        },
+      };
+    }
     // D-29: reject if this piece already attempted a tackle this movement phase
     if (newTackleAttemptedByIds.includes(pieceId)) {
       return { ok: false, reason: 'MOVE_INVALID', detail: 'ALREADY_ATTEMPTED' };
