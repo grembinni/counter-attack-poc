@@ -20,6 +20,7 @@ import { CornerKickSetupPanel } from './CornerKickSetupPanel.js';
 import { FoulChoicePanel } from './FoulChoicePanel.js';
 import { GkDiveAtFeetPromptPanel } from './GkDiveAtFeetPromptPanel.js';
 import { GkBoxEntryPromptPanel } from './GkBoxEntryPromptPanel.js';
+import { TackleStealPromptPanel } from './TackleStealPromptPanel.js';
 import { PenaltyKickSetupPanel } from './PenaltyKickSetupPanel.js';
 import { ReplayPanel } from './ReplayPanel.js';
 import { TeamBadge } from './TeamBadge.js';
@@ -483,6 +484,8 @@ export function GameBoard() {
             <GkDiveAtFeetPromptPanel />
           ) : phase === 'GK_BOX_ENTRY_PROMPT' || phase === 'GK_BOX_ENTRY_MOVE' ? (
             <GkBoxEntryPromptPanel />
+          ) : phase === 'TACKLE_STEAL_PROMPT' ? (
+            <TackleStealPromptPanel />
           ) : phase === 'PENALTY_KICK_SETUP_ATTACKING' ||
             phase === 'PENALTY_KICK_SETUP_DEFENDING' ||
             phase === 'PENALTY_KICK_TAKER_SELECT' ||

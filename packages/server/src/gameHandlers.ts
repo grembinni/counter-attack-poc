@@ -89,6 +89,7 @@ import {
   resolveHeaderWinnerPiece,
   applyGkDiveAtFeetResponse,
   applyGkDiveAtFeetTarget,
+  applyTackleStealChoice,
   enterGkDiveOrSkip,
   applyBoxEntryResponse,
   applyBoxEntryMove,
@@ -3293,6 +3294,91 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
       room.gameState = result.state;
       broadcastState(io, room); // ARCH-04
       if (result.state.phase === 'FULL_TIME') {
+        startReplayStream(io, room);
+      }
+    } finally {
+      room.isProcessing = false; // MUST be in finally — Pitfall 5
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GAME_TACKLE_STEAL_CHOICE — TACKLE-02 (Plan 43-05): the defending manager's
+  // Attempt/Decline response to a TACKLE_STEAL_PROMPT entered by applyMove's
+  // toggle-on interception (Plan 43-04).
+  //
+  // T-43-16: team guard compares socketTeam(socket) against the EXPLICIT
+  // tackleStealPromptTeam field, NEVER a derived helper such as controlsGKTeam or
+  // isActivePlayer — in a STEAL the deciding team is deliberately NOT the active
+  // team, so any derived-from-attackingTeam helper would reject the correct manager.
+  // T-43-17: typeof accept !== 'boolean' -> INVALID_TARGET before any mutation.
+  // T-43-18: all five duel dice are generated HERE, unconditionally, on every
+  // submission (including a decline, which the engine ignores) — D-03 lets several
+  // attempts stack on one move step, and each attempt must get its own fresh roll.
+  // Never read a die from the client payload.
+  // T-43-19/SC-5: isProcessing mutex (reset in finally) drops a concurrent second
+  // submission silently; the phase guard re-checks on every submission.
+  // -------------------------------------------------------------------------
+  socket.on(ClientEvents.GAME_TACKLE_STEAL_CHOICE, (accept: boolean) => {
+    const { roomCode } = socket.data;
+    if (roomCode === undefined) return;
+    const room = getRoom(roomCode);
+    if (!room || room.isProcessing) return; // SC-5: drop duplicate silently
+
+    room.isProcessing = true;
+    try {
+      // 1. Null-state guard
+      if (room.gameState === null) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 2. Phase guard
+      if (room.gameState.phase !== 'TACKLE_STEAL_PROMPT') {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_PHASE');
+        broadcastState(io, room);
+        return;
+      }
+      // 3. Payload validation (ASVS V5)
+      if (typeof accept !== 'boolean') {
+        socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TARGET');
+        broadcastState(io, room);
+        return;
+      }
+      // 4. Team guard: only the deciding manager may respond (T-43-16). Compares
+      // against the explicit tackleStealPromptTeam field — see the handler-level
+      // comment above for why controlsGKTeam/isActivePlayer are deliberately NOT
+      // reused here (a STEAL's decider is not the active team).
+      if (socketTeam(socket) !== room.gameState.tackleStealPromptTeam) {
+        socket.emit(ServerEvents.GAME_ERROR, 'WRONG_TEAM');
+        broadcastState(io, room);
+        return;
+      }
+      // 5. Roll all five duel dice server-side unconditionally (T-43-18) — even on a
+      // decline, matching this codebase's existing unconditional-roll convention.
+      const stealDie = rollDice();
+      const tackleDie = rollDice();
+      const carrierDie = rollDice();
+      const injuryDie = rollDice();
+      const bookingDie = rollDice();
+      // 6. Engine call.
+      const result = applyTackleStealChoice(room.gameState, accept, {
+        stealDie,
+        tackleDie,
+        carrierDie,
+        injuryDie,
+        bookingDie,
+      });
+      if (!result.ok) {
+        socket.emit(ServerEvents.GAME_ERROR, result.reason);
+        broadcastState(io, room); // snap-back
+        return;
+      }
+      room.gameState = result.state;
+      // A successful steal/tackle transfers possession and can leave the new
+      // carrier offside — same post-step GAME_MOVE uses (D-53).
+      room.gameState = applyOffsideFoulWithRelocation(room.gameState);
+      broadcastState(io, room); // ARCH-04
+      if (room.gameState.phase === 'FULL_TIME') {
         startReplayStream(io, room);
       }
     } finally {
