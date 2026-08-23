@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: Ready to execute
-stopped_at: Phase 42 gap-closure plans 42-16/42-17 created and verified
-last_updated: '2026-08-23T11:36:59.538Z'
-last_activity: '2026-08-23 -- Phase 42 gap-closure planning (--gaps): plans 42-16/42-17 created and passed plan-checker verification, closing the 2 residual BUG-38 sites (passValidator.ts, offside.ts). Ready to execute.'
+status: executing
+stopped_at: Phase 42 gap-closure plan 42-16 executed, 42-17 remaining
+last_updated: '2026-08-23T11:42:00.026Z'
+last_activity: 2026-08-23 -- Phase 42 gap-closure plan 42-16 executed (BUG-38 residual sites closed); 42-17 remaining
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 23
-  completed_plans: 16
-  percent: 17
+  completed_plans: 22
+  percent: 96
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — GAP-CLOSURE PLANNED
-Plan: 15 of 17 executed; 2 new gap-closure plans (42-16, 42-17) created and plan-checker verified, not yet executed
-Status: Phase-goal verification found BUG-38 (Success Criterion 5) still had 2 unfiltered sites: passValidator.ts's LONG-pass landing restriction and offside.ts's opposingPiecesEqualOrAhead (plus related evaluateOffside call sites). `/gsd-plan-phase 42 --gaps` planned Gap-closure Wave 4 (42-16: apply isActivePiece fixes + regression tests) and Wave 5 (42-17: re-audit packages/shared + repo quality gate), both plan-checker-verified with no blockers. Run `/gsd-execute-phase 42` to execute them.
-Last activity: 2026-08-23 -- Phase 42 gap-closure plans 42-16/42-17 planned and verified; ready to execute
+Phase: 42 (substitution-ux-overhaul) — EXECUTING GAP-CLOSURE
+Plan: 16 of 17 executed; 42-17 remaining
+Status: Gap-closure plan 42-16 executed (BUG-38 residual sites closed via isActivePiece); 42-17 (re-audit + quality gate) remaining
+Last activity: 2026-08-23 -- Phase 42 gap-closure plan 42-16 executed
 
 ## Project Reference
 
