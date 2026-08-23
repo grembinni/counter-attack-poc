@@ -1882,15 +1882,24 @@ export function applyFoulChoice(
   }
 
   // 'restart'
+  // TACKLE-02/D-03 (Phase 43, 43-04, 43-RESEARCH.md Pitfall 4): a restart is one of D-03's
+  // two sequence-terminating events (the fouled manager actually takes the kick) — spread
+  // TACKLE_STEAL_PROMPT_CLEARED so a live prompt cluster can never leak into
+  // FREE_KICK_SETUP/PENALTY_KICK_*. The 'continue' branch above deliberately does NOT do
+  // this — it must be able to restore a TACKLE_STEAL_PROMPT phase from foulResume.
+  const restartClearedState: GameState = { ...clearedState, ...TACKLE_STEAL_PROMPT_CLEARED };
   if (isPenaltyRestart) {
-    return { ok: true, state: triggerPenaltyKick(clearedState, clearedState.attackingTeam) };
+    return {
+      ok: true,
+      state: triggerPenaltyKick(restartClearedState, restartClearedState.attackingTeam),
+    };
   }
   // T-39-13: a TACKLE-sourced foul's fouling defender always ends up standing exactly on
   // foulHex/freeKickHex (applyMove moves the mover to `to` unconditionally, win or lose
   // the duel) — relocateTrappedFreeKickPieces (shared with applyOffsideFoulWithRelocation,
   // D-59) clears every conceding-team piece within 2 hexes so the kicking team's mandatory
   // kicker-first placement is never permanently blocked with OCCUPIED.
-  const afterFoul = triggerFoulFreeKick(clearedState, state.foulDefenderId!, state.foulHex!);
+  const afterFoul = triggerFoulFreeKick(restartClearedState, state.foulDefenderId!, state.foulHex!);
   const afterConcedingRelocation = relocateTrappedFreeKickPieces(afterFoul);
   // debug fix free-kick-kicker-select-stuck: Plan 39-18 made freeKickHex the fouled
   // carrier's OWN hex for TACKLE/STEAL-sourced fouls, so the carrier — a KICKING-team

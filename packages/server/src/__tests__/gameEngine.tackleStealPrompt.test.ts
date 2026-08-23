@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyMove, applyTackleStealChoice } from '../gameEngine.js';
+import { applyMove, applyTackleStealChoice, applyFoulChoice } from '../gameEngine.js';
 import type { GameState, PlayerPiece, HexCoord } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
@@ -7,8 +7,9 @@ import type { GameState, PlayerPiece, HexCoord } from '@counter-attack/shared';
 //
 // Task 1: applyMove's toggle-on interception into TACKLE_STEAL_PROMPT.
 // Task 2: applyTackleStealChoice's decline/attempt/sequential-queue resolution
-// (D-01/D-02/D-03). Task 3 (foul interaction) extends this file in its own
-// commit.
+// (D-01/D-02/D-03).
+// Task 3: the foul interaction — continue returns to the next queued prompt,
+// restart clears the prompt cluster (D-03, 43-RESEARCH.md Pitfall 4).
 //
 // Fixture style mirrors gameEngine.fouls.test.ts's compact `piece`/`baseState`
 // factories — every hex literal below is a real, verified-adjacent coordinate
@@ -504,5 +505,107 @@ describe('applyTackleStealChoice — decline/attempt/queue (Task 2)', () => {
     expect(fnBody).not.toMatch(/crypto/);
     expect(fnBody).not.toMatch(/randomInt/);
     expect(fnBody).not.toMatch(/rollDice/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3: Foul interaction
+// ---------------------------------------------------------------------------
+
+describe('applyTackleStealChoice / applyFoulChoice — foul interaction (Task 3)', () => {
+  function promptStateStealForFoul(
+    defenders: PlayerPiece[],
+    over: Partial<GameState> = {},
+  ): GameState {
+    const [head, ...rest] = defenders;
+    return stealState(defenders, {
+      phase: 'TACKLE_STEAL_PROMPT',
+      activeTeam: 'away',
+      tackleStealDeclineEnabled: true,
+      foulsEnabled: true,
+      tackleStealPromptTeam: 'away',
+      tackleStealPromptKind: 'STEAL',
+      tackleStealPromptDefenderId: head!.id,
+      tackleStealPromptCarrierId: 'carrier',
+      tackleStealPromptQueue: rest.map((d) => d.id),
+      tackleStealPromptResume: { phase: 'MOVE', activeTeam: 'home', movementSlot: 'ATTACKER_4' },
+      eventLog: [],
+      ...over,
+    });
+  }
+
+  it('foul-fail-with-queue routes to FOUL_CHOICE with foulResume.phase === TACKLE_STEAL_PROMPT (already advanced to B)', () => {
+    const dA = piece('defA', 'away', { q: 12, r: 7 }, { tackling: 1 });
+    const dB = piece('defB', 'away', { q: 12, r: 8 }, { tackling: 1 });
+    const state = promptStateStealForFoul([dA, dB]);
+    // stealDie: 1 → FAIL (tackling 1 + die 1 = 2 < 10) AND triggers a foul (die===1===FOUL_TRIGGER_DIE).
+    const result = applyTackleStealChoice(state, true, { ...NEUTRAL_DICE, stealDie: 1 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FOUL_CHOICE');
+    expect(result.state.foulDuelSucceeded).toBe(false);
+    expect(result.state.foulResume?.phase).toBe('TACKLE_STEAL_PROMPT');
+    expect(result.state.tackleStealPromptDefenderId).toBe('defB');
+    expect(result.state.tackleStealPromptQueue).toEqual([]);
+  });
+
+  it('continue-resumes-next-prompt: applyFoulChoice(state, "continue") returns to TACKLE_STEAL_PROMPT for B', () => {
+    const dA = piece('defA', 'away', { q: 12, r: 7 }, { tackling: 1 });
+    const dB = piece('defB', 'away', { q: 12, r: 8 }, { tackling: 1 });
+    const state = promptStateStealForFoul([dA, dB]);
+    const foulResult = applyTackleStealChoice(state, true, { ...NEUTRAL_DICE, stealDie: 1 });
+    expect(foulResult.ok).toBe(true);
+    if (!foulResult.ok) return;
+    const continueResult = applyFoulChoice(foulResult.state, 'continue');
+    expect(continueResult.ok).toBe(true);
+    if (!continueResult.ok) return;
+    expect(continueResult.state.phase).toBe('TACKLE_STEAL_PROMPT');
+    expect(continueResult.state.tackleStealPromptDefenderId).toBe('defB');
+  });
+
+  it('restart-clears-cluster: applyFoulChoice(state, "restart") clears all six tackleStealPrompt* fields', () => {
+    const dA = piece('defA', 'away', { q: 12, r: 7 }, { tackling: 1 });
+    const dB = piece('defB', 'away', { q: 12, r: 8 }, { tackling: 1 });
+    const state = promptStateStealForFoul([dA, dB]);
+    const foulResult = applyTackleStealChoice(state, true, { ...NEUTRAL_DICE, stealDie: 1 });
+    expect(foulResult.ok).toBe(true);
+    if (!foulResult.ok) return;
+    const restartResult = applyFoulChoice(foulResult.state, 'restart');
+    expect(restartResult.ok).toBe(true);
+    if (!restartResult.ok) return;
+    expect(restartResult.state.tackleStealPromptTeam).toBeNull();
+    expect(restartResult.state.tackleStealPromptKind).toBeNull();
+    expect(restartResult.state.tackleStealPromptDefenderId).toBeNull();
+    expect(restartResult.state.tackleStealPromptCarrierId).toBeNull();
+    expect(restartResult.state.tackleStealPromptQueue).toEqual([]);
+    expect(restartResult.state.tackleStealPromptResume).toBeNull();
+  });
+
+  it('foul-success rejects continue: SUCCESS duel that also fouls sets foulDuelSucceeded true; continue is rejected', () => {
+    // High tackling + low die → SUCCESS (tackling 9 + die 1 = combined 10 >= 10), and
+    // die===1 triggers the foul simultaneously (FOUL_TRIGGER_DIE===1).
+    const dA = piece('defA', 'away', { q: 12, r: 7 }, { tackling: 9 });
+    const state = promptStateStealForFoul([dA]);
+    const result = applyTackleStealChoice(state, true, { ...NEUTRAL_DICE, stealDie: 1 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FOUL_CHOICE');
+    expect(result.state.foulDuelSucceeded).toBe(true);
+    const continueResult = applyFoulChoice(result.state, 'continue');
+    expect(continueResult).toEqual({ ok: false, reason: 'CONTINUE_NOT_ALLOWED' });
+  });
+
+  it('foul-fail-empty-queue resumes to MOVE on continue', () => {
+    const dA = piece('defA', 'away', { q: 12, r: 7 }, { tackling: 1 });
+    const state = promptStateStealForFoul([dA]);
+    const result = applyTackleStealChoice(state, true, { ...NEUTRAL_DICE, stealDie: 1 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.phase).toBe('FOUL_CHOICE');
+    expect(result.state.foulResume?.phase).toBe('MOVE');
+    const continueResult = applyFoulChoice(result.state, 'continue');
+    expect(continueResult.ok).toBe(true);
+    if (!continueResult.ok) return;
+    expect(continueResult.state.phase).toBe('MOVE');
   });
 });
