@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: idle
-stopped_at: Phase 43 complete (all 6 plans) — ready to plan Phase 44
-last_updated: '2026-08-23T22:44:52.978Z'
-last_activity: 2026-08-23 -- Phase 43 Plan 06 complete; Task 4 approved via live two-browser verification; Phase 43 closed out
+status: planning
+stopped_at: Phase 43 complete (all 6 plans) — Task 4 approved via live two-browser verification
+last_updated: '2026-08-23T23:04:07.976Z'
+last_activity: 2026-08-23
 progress:
   total_phases: 6
   completed_phases: 3
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 43 (tackle-steal-prompt-decline) — COMPLETE
-Plan: 6 of 6 (all plans complete; Task 4 approved via live two-browser verification)
+Phase: 44
+Plan: Not started
 Status: Ready to plan Phase 44 (Referee Leniency & Advanced Settings Drawer)
-Last activity: 2026-08-23 -- Phase 43 Plan 06 complete; Task 4 approved via live two-browser verification; Phase 43 closed out
+Last activity: 2026-08-23
 
 ## Project Reference
 
