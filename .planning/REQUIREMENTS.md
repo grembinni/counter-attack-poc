@@ -11,7 +11,7 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 - [ ] **REFEREE-01**: Host can toggle a manual Referee Leniency override at game creation, default off
 - [ ] **REFEREE-02**: When enabled, host selects a Leniency value in range 2–5 via an up/down stepper, defaulting to a mid value
-- [ ] **REFEREE-03**: When the override is off (default), Leniency is randomly assigned 1–6 at match start, unchanged from today
+- [ ] **REFEREE-03**: When the override is off (default), Leniency is randomly assigned 2–5 at match start (narrowed from the previous 1–6 roll)
 - [ ] **REFEREE-04**: The manual override value drives both the booking threshold and the added-time calculation identically to the existing random roll (kept coupled per explicit decision); UI copy notes that a stricter Leniency setting also affects added time
 
 ### Card & Injury Iconography

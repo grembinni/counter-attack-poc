@@ -122,12 +122,14 @@ describe('buildInitialGameState', () => {
     expect(state.eventLog).toHaveLength(0);
   });
 
-  it('refereeCard.leniency is an integer in 1..6 (TEAM-03)', () => {
-    const state = buildInitialGameState('ROOM5', DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
-    const { leniency } = state.refereeCard;
-    expect(Number.isInteger(leniency)).toBe(true);
-    expect(leniency).toBeGreaterThanOrEqual(1);
-    expect(leniency).toBeLessThanOrEqual(6);
+  it('refereeCard.leniency is an integer in 2..5 (TEAM-03)', () => {
+    for (let i = 0; i < 50; i++) {
+      const state = buildInitialGameState(`ROOM5-${i}`, DEFAULT_TEAMS, 'standard', DEFAULT_STYLES);
+      const { leniency } = state.refereeCard;
+      expect(Number.isInteger(leniency)).toBe(true);
+      expect(leniency).toBeGreaterThanOrEqual(2);
+      expect(leniency).toBeLessThanOrEqual(5);
+    }
   });
 
   it('refereeCard.leniency is random — at least 2 distinct values across 10 builds (TEAM-03)', () => {

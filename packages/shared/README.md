@@ -47,7 +47,7 @@ The core domain model for a Counter Attack match.
 | `LastActionType`     | Tracks the most recent completed action for next-action eligibility checks                                                                        |
 | `GameSpeed`          | `'slow'                                                                                                                                           | 'standard'   | 'fast'` — controls match-clock minutes per MOVE action |
 | `GAME_SPEED_MINUTES` | Record mapping each `GameSpeed` to its per-MOVE clock increment (1, 2, or 3 minutes)                                                              |
-| `RefereeCard`        | Referee leniency attribute (range 1–6) drawn at match start                                                                                       |
+| `RefereeCard`        | Referee leniency attribute (range 2–5) drawn at match start                                                                                       |
 
 ### Socket.io Events (`events.ts`)
 

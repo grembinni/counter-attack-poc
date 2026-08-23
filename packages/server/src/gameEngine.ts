@@ -9,7 +9,7 @@
  * D-12: buildInitialGameState called from roomHandlers after both teams picked (Phase 16).
  * D-13: attackingTeam assigned via coin flip using crypto.randomInt (never client-supplied).
  * D-14: FSM starts at KICK_OFF; applyStartMovement transitions to MOVEMENT.
- * TEAM-03: refereeCard assigned randomly at match start via crypto.randomInt(1, 7).
+ * TEAM-03: refereeCard assigned randomly at match start via crypto.randomInt(2, 6).
  */
 
 import { randomInt } from 'crypto';
@@ -262,7 +262,7 @@ export function computeAutoAssignment(
  * D-15: selectedTeams embedded in every subsequent snapshot.
  * D-16: away pieces mirrored via q_away = 36 - q_home; ids re-prefixed home- → away-.
  * TEAM-01: all 22 players (11 home + 11 away) placed at starting positions.
- * TEAM-03: refereeCard.leniency is randomly assigned in range 1–6 at match start.
+ * TEAM-03: refereeCard.leniency is randomly assigned in range 2–5 at match start (narrowed from 1–6).
  */
 /**
  * Builds a full 22-piece array for both squads at their formation start positions,
@@ -425,7 +425,7 @@ export function buildInitialGameState(
     actionCount: 0,
     half: 1,
     eventLog: [],
-    refereeCard: { leniency: randomInt(1, 7) }, // TEAM-03: random 1–6
+    refereeCard: { leniency: randomInt(2, 6) }, // TEAM-03: random 2–5 (randomInt is max-exclusive, so (2, 6) yields 2..5)
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
