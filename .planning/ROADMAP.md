@@ -147,7 +147,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
 | 42    | 17/17                                       | Complete    | 2026-08-23  |
-| 43    | 1/6                                         | In Progress |             |
+| 43    | 2/6                                         | In Progress |             |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
 | 46    | Final Cleanup                               | TBD         | Not started |
@@ -274,7 +274,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 43-02-PLAN.md — phase/event registration checklist across server and client, incl. the goalkeeper-offer edge-trigger fix and its regression suite
+- [x] 43-02-PLAN.md — phase/event registration checklist across server and client, incl. the goalkeeper-offer edge-trigger fix and its regression suite
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
