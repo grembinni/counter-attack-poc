@@ -129,11 +129,16 @@ export function validatePass(
   // Own-piece exclusion: cannot land within 5 hexes of any teammate (excluding the passer)
   // Opponent adjacency exclusion: cannot land adjacent (≤1 hex) to any opponent
   if (passType === 'LONG') {
-    const ownTeammates = state.pieces.filter((p) => p.teamId === piece.teamId && p.id !== piece.id);
+    // BUG-38: isActivePiece applied at the array-construction site for both landing-
+    // restriction lists — a sent-off/benched piece's frozen hex no longer restricts a
+    // Long Ball landing spot.
+    const ownTeammates = state.pieces.filter(
+      (p) => isActivePiece(p) && p.teamId === piece.teamId && p.id !== piece.id,
+    );
     if (ownTeammates.some((p) => hexDistance(to, p.position) <= 5)) {
       return { ok: false, reason: 'LANDING_RESTRICTED' };
     }
-    const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
+    const opponents = state.pieces.filter((p) => isActivePiece(p) && p.teamId !== piece.teamId);
     if (opponents.some((p) => hexDistance(to, p.position) <= 1)) {
       return { ok: false, reason: 'LANDING_RESTRICTED' };
     }

@@ -324,6 +324,49 @@ describe('validatePass', () => {
       const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'STANDARD');
       expect(result.ok).toBe(true);
     });
+
+    it('LONG pass does NOT return LANDING_RESTRICTED for a redCarded teammate within 5 hexes of target', () => {
+      const teammate: PlayerPiece = {
+        ...makeTeammate('longTeammateRedCarded', 6, 5),
+        redCarded: true,
+      };
+      const state: GameState = { ...baseState, pieces: [basePiece, teammate] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 5 }, 'LONG');
+      expect(result.ok).toBe(true);
+    });
+
+    it('LONG pass does NOT return LANDING_RESTRICTED for an onPitch: false teammate within 5 hexes of target', () => {
+      const teammate: PlayerPiece = {
+        ...makeTeammate('longTeammateBenched', 6, 5),
+        onPitch: false,
+      };
+      const state: GameState = { ...baseState, pieces: [basePiece, teammate] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 5 }, 'LONG');
+      expect(result.ok).toBe(true);
+    });
+
+    it('LONG pass does NOT return LANDING_RESTRICTED for a redCarded opponent adjacent to target', () => {
+      const opp: PlayerPiece = { ...makeOpponent('longOppRedCarded', 11, 5), redCarded: true };
+      const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 5 }, 'LONG');
+      expect(result.ok).toBe(true);
+    });
+
+    it('LONG pass does NOT return LANDING_RESTRICTED for an onPitch: false opponent adjacent to target', () => {
+      const opp: PlayerPiece = { ...makeOpponent('longOppBenched', 11, 5), onPitch: false };
+      const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 5 }, 'LONG');
+      expect(result.ok).toBe(true);
+    });
+
+    it('LONG pass still returns LANDING_RESTRICTED when an active teammate AND a redCarded opponent are both present (fix does not disable the restriction wholesale)', () => {
+      const teammate = makeTeammate('longTeammateActive', 6, 5);
+      const opp: PlayerPiece = { ...makeOpponent('longOppRedCardedMixed', 11, 5), redCarded: true };
+      const state: GameState = { ...baseState, pieces: [basePiece, teammate, opp] };
+      const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 5 }, 'LONG');
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('LANDING_RESTRICTED');
+    });
   });
 });
 
