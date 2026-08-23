@@ -267,14 +267,29 @@ Plans:
 3. With the toggle off, tackle/steal duels resolve immediately with no decline prompt, exactly as they did before this milestone.
 
 **Plans**: 6 plans
-
 Plans:
+**Wave 1**
 
 - [ ] 43-01-PLAN.md — shared type surface (TACKLE_STEAL_PROMPT phase, TACKLE_STEAL_DECLINED event, prompt-cluster GameState fields) + tackling-descending defender ordering
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
 - [ ] 43-02-PLAN.md — phase/event registration checklist across server and client, incl. the goalkeeper-offer edge-trigger fix and its regression suite
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
 - [ ] 43-03-PLAN.md — TACKLE-01 toggle wired end to end: settings checkbox (default on) → validation → Room → buildInitialGameState (default off)
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
 - [ ] 43-04-PLAN.md — engine core: applyMove prompt interception, applyTackleStealChoice sequential queue (D-01/D-02/D-03), foul-chain interaction
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
 - [ ] 43-05-PLAN.md — GAME_TACKLE_STEAL_CHOICE handler, emitTackleStealChoice, TackleStealPromptPanel + GameBoard routing
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
 - [ ] 43-06-PLAN.md — TACKLE-03 ring-persistence tests, socket integration for the full sequence, whole-repo gate + live two-browser verification
 
 **UI hint**: yes
