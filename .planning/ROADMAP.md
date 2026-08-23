@@ -266,7 +266,18 @@ Plans:
 2. A declined opportunity's risk ring stays active, so the same defender can be prompted again on a later move step, until the ball carrier moves out of range or the movement phase ends.
 3. With the toggle off, tackle/steal duels resolve immediately with no decline prompt, exactly as they did before this milestone.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+
+- [ ] 43-01-PLAN.md — shared type surface (TACKLE_STEAL_PROMPT phase, TACKLE_STEAL_DECLINED event, prompt-cluster GameState fields) + tackling-descending defender ordering
+- [ ] 43-02-PLAN.md — phase/event registration checklist across server and client, incl. the goalkeeper-offer edge-trigger fix and its regression suite
+- [ ] 43-03-PLAN.md — TACKLE-01 toggle wired end to end: settings checkbox (default on) → validation → Room → buildInitialGameState (default off)
+- [ ] 43-04-PLAN.md — engine core: applyMove prompt interception, applyTackleStealChoice sequential queue (D-01/D-02/D-03), foul-chain interaction
+- [ ] 43-05-PLAN.md — GAME_TACKLE_STEAL_CHOICE handler, emitTackleStealChoice, TackleStealPromptPanel + GameBoard routing
+- [ ] 43-06-PLAN.md — TACKLE-03 ring-persistence tests, socket integration for the full sequence, whole-repo gate + live two-browser verification
+
+**UI hint**: yes
 
 ### Phase 44: Referee Leniency & Advanced Settings Drawer
 
