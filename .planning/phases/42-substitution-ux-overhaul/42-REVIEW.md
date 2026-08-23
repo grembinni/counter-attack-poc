@@ -2,13 +2,15 @@
 phase: 42-substitution-ux-overhaul
 reviewed: 2026-08-22T00:00:00Z
 depth: standard
-files_reviewed: 33
+files_reviewed: 37
 files_reviewed_list:
   - packages/client/src/components/ActionLog.test.tsx
   - packages/client/src/components/ActionLog.tsx
   - packages/client/src/components/ActionPanel.test.tsx
   - packages/client/src/components/ActionPanel.tsx
+  - packages/client/src/components/BenchCarousel.test.tsx
   - packages/client/src/components/CardInjuryBadge.crossSurface.test.tsx
+  - packages/client/src/components/DraftPackCarousel.tsx
   - packages/client/src/components/GameBoard.module.css
   - packages/client/src/components/GameBoard.test.tsx
   - packages/client/src/components/GameBoard.tsx
@@ -19,250 +21,195 @@ files_reviewed_list:
   - packages/client/src/components/LineupAssignmentScreen.tsx
   - packages/client/src/store/useGameStore.test.ts
   - packages/client/src/store/useGameStore.ts
+  - packages/server/src/__tests__/gameEngine.freeKickWallDistance.test.ts
   - packages/server/src/__tests__/gameEngine.redCardExclusion.test.ts
   - packages/server/src/__tests__/gameEngine.rosterReposition.test.ts
+  - packages/server/src/__tests__/gameHandlers.phase17-06.test.ts
   - packages/server/src/__tests__/gameHandlers.redCardExclusion.test.ts
   - packages/server/src/__tests__/gameHandlers.rosterReposition.test.ts
+  - packages/server/src/__tests__/offside.test.ts
   - packages/server/src/gameEngine.ts
   - packages/server/src/gameHandlers.ts
   - packages/shared/src/events.test.ts
   - packages/shared/src/events.ts
   - packages/shared/src/fouls.test.ts
   - packages/shared/src/fouls.ts
-  - packages/shared/src/moveValidator.ts
   - packages/shared/src/moveValidator.test.ts
-  - packages/shared/src/outOfBounds.ts
+  - packages/shared/src/moveValidator.ts
   - packages/shared/src/outOfBounds.test.ts
-  - packages/shared/src/passValidator.ts
+  - packages/shared/src/outOfBounds.ts
   - packages/shared/src/passValidator.test.ts
-  - packages/shared/src/stoppagePhases.ts
+  - packages/shared/src/passValidator.ts
   - packages/shared/src/stoppagePhases.test.ts
+  - packages/shared/src/stoppagePhases.ts
   - packages/shared/src/types.ts
 findings:
-  critical: 1
-  warning: 3
-  info: 2
-  total: 6
+  critical: 0
+  warning: 2
+  info: 1
+  total: 3
 status: issues_found
 ---
 
 # Phase 42: Code Review Report
 
-**Reviewed:** 2026-08-22
+**Reviewed:** 2026-08-22T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 33
+**Files Reviewed:** 37 (plus types.ts read for shared-type context)
 **Status:** issues_found
 
 ## Summary
 
-This phase reworks the mid-match substitution/roster panel: a new positioning-mode
-drag-swap (`applyRosterReposition` / `GAME_ROSTER_REPOSITION`), a substitution-mode
-bench-drag flow with a confirm popup, and the BUG-38 sweep that converged every
-occupancy/eligibility/ZoI check in `packages/shared` onto the shared `isActivePiece`
-predicate. The bulk of the code is careful, heavily commented, and internally
-consistent — most of the human-verify "gap closure" items visible in this diff
-(the sidebar-strip green background, the always-clickable SUB button) read as
-already fixed in the current CSS/TSX.
+This phase adds the SUB-08 "roster reposition" (formation-position swap) feature, its
+`ROSTER_REPOSITION` event/undo-boundary plumbing, and a large `BUG-38` sweep that converts
+ad-hoc `redCarded`/`onPitch` checks across `packages/shared` and `packages/server` into the
+single shared `isActivePiece` predicate. The new `applyRosterReposition` engine function,
+its socket handler, and the client drag/drop UI in `LineupAssignmentScreen.tsx` are
+extensively documented, guard-ordered defensively (client UX gate + handler-level ownership
+check + engine-level re-validation, in that order), and backed by a thorough dedicated test
+suite (`gameEngine.rosterReposition.test.ts`, `gameHandlers.rosterReposition.test.ts`) that
+exercises every rejection path including the destination-occupancy edge case (gap item 6).
+No BLOCKER-level defects (security, data loss, crash) were found in the reviewed scope.
 
-The investigation task asked for an independent root-cause trace of the reported
-"player-swap stacking" bug. That trace succeeded: `applyRosterReposition` has a real,
-unfixed occupancy gap (CR-01 below) that can place two active pieces on the same pitch
-hex. This is a genuine correctness bug, not a cosmetic one, and is classified as a
-BLOCKER. Three further WARNING-level robustness/consistency gaps and two INFO-level
-items are also reported below.
-
-## Structural Findings (fallow)
-
-None provided for this review (no `<structural_findings>` block was supplied).
-
-## Narrative Findings (AI reviewer)
-
-## Critical Issues
-
-### CR-01: `applyRosterReposition` can stack two active pieces on the same pitch hex
-
-**File:** `packages/server/src/gameEngine.ts:3263-3371` (see also
-`packages/shared/src/stoppagePhases.ts:105-107` and
-`packages/shared/src/moveValidator.ts:68-74`)
-
-**Issue:**
-
-`applyRosterReposition` is explicitly designed (by D-05) to allow swapping an active
-on-pitch piece with a red-carded piece's slot, because a red-carded piece's `position`
-field is deliberately never cleared (`types.ts:64-76`, `gameEngine.ts:1088-1093`) — it
-stays a stale, frozen `HexCoord` that the piece "occupied" at the moment of dismissal.
-
-Separately, and by design (BUG-38, Phase 42), every occupancy check elsewhere in the
-codebase — critically `moveValidator.ts`'s `OCCUPIED` check
-(`state.pieces.some((p) => isActivePiece(p) && p.position.q === to.q && ...)`) —
-deliberately _excludes_ a red-carded piece from blocking movement onto its frozen hex
-("its frozen hex no longer blocks occupancy", `moveValidator.ts:69`). This means that,
-over the course of ordinary play after a red card, some OTHER active piece can and
-legitimately will move onto the exact hex the sent-off player is frozen at — the game
-does not treat that hex as reserved.
-
-`applyRosterReposition`'s swap (`gameEngine.ts:3330-3341`) then does this:
-
-```ts
-const newA: PlayerPiece = {
-  ...pieceB,
-  id: pieceA.id,
-  position: pieceA.position,
-  number: pieceA.number,
-};
-const newB: PlayerPiece = {
-  ...pieceA,
-  id: pieceB.id,
-  position: pieceB.position, // <-- inherits the red-carded slot's STALE frozen hex
-  number: pieceB.number,
-};
-```
-
-If `pieceB` is the red-carded slot, `newB` (the previously-active player now occupying
-that slot) is teleported to `pieceB.position` — the stale, frozen hex — with **no check
-that this hex is currently free**. Because a third active piece may already be legally
-standing there (per the paragraph above), the reposition can silently place two active
-pieces on the same hex: the pre-existing occupant, and the newly repositioned player.
-Nothing in `applyRosterReposition` (guards 1–6, `gameEngine.ts:3269-3327`) validates
-target-hex occupancy — unlike every movement-adjacent function in this codebase, which
-routes through `isActivePiece`-based occupancy checks. This is exactly the human
-tester's reported "player-swap stacking" bug: "swapping into a red-carded player's slot
-when an active player is also present there can leave two active players in one slot
-instead of a clean swap."
-
-This is confirmed by the existing test suite: `gameEngine.rosterReposition.test.ts`'s
-D-05 test (`applyRosterReposition` swap with a red-carded piece, lines 173-200) only
-asserts identity/card-state transfer — it never seeds a third piece standing at the
-red-carded slot's frozen position, so this gap is untested and unguarded by CI.
-
-**Fix:** Add an occupancy guard to `applyRosterReposition` mirroring
-`moveValidator.ts`'s pattern, checked before the swap is built:
-
-```ts
-// 6.5. A reposition must never place an active piece onto a hex another active piece
-// currently occupies (a red-carded slot's position is frozen and may have been legally
-// vacated-into by another piece per BUG-38's isActivePiece occupancy exclusion).
-const destinationOccupied = (destPos: HexCoord, movingId: string): boolean =>
-  state.pieces.some(
-    (p) =>
-      p.id !== pieceIdA &&
-      p.id !== pieceIdB &&
-      isActivePiece(p) &&
-      p.position.q === destPos.q &&
-      p.position.r === destPos.r,
-  );
-if (
-  destinationOccupied(pieceB.position, pieceA.id) ||
-  destinationOccupied(pieceA.position, pieceB.id)
-) {
-  return { ok: false, reason: 'REPOSITION_TARGET_OCCUPIED' };
-}
-```
-
-(New rejection reason added to `RosterRepositionRejection`; client message mapping
-added alongside the existing `INVALID_REPOSITION`/`GK_SLOT_LOCKED` entries in
-`LineupAssignmentScreen.tsx`.) A regression test seeding a third active piece at the
-red-carded slot's frozen hex, then asserting the swap is rejected (or, if silent
-auto-resolution is preferred, that the destination is safely reassigned), should be
-added to `gameEngine.rosterReposition.test.ts`.
+Two WARNING-level correctness gaps were found, both in areas the codebase's own `BUG-38`
+audit explicitly targeted but did not fully close: `passValidator.ts`'s Long Ball landing
+restriction still uses raw (non-`isActivePiece`-filtered) piece lists, and
+`applyQuickThrow`'s known TODO (opponent-occupied target hex should transfer possession) is
+still open. One INFO-level cleanup item was found in `DraftPackCarousel.tsx`.
 
 ## Warnings
 
-### WR-01: `applyRosterReposition` has no ZoI/no-op consistency check with the rest of the reposition-eligibility model, silently permitting a swap that strands a piece off-pitch conceptually
+### WR-01: Long Ball landing restriction is not filtered through `isActivePiece`, unlike every other check in the same function
 
-**File:** `packages/server/src/gameEngine.ts:3263-3327`
+**File:** `packages/shared/src/passValidator.ts:131-140`
 
-**Issue:** Guard 6 explicitly documents that red-carded participation is allowed by
-design, but there is no defensive check preventing a reposition between two pieces
-where BOTH are red-carded (e.g. two sent-off slots swapped with each other). This is
-harmless today (nothing observable changes — two inactive slots trade inert identities)
-but is unreachable-by-design UI (the client's drag source guard,
-`LineupAssignmentScreen.tsx:649-656`, requires `isActivePiece(piece)` for the drag
-_source_, so a red-carded piece can never be dragged — only ever a drop _target_).
-Since the client can never produce this payload, it is only reachable via a
-hand-crafted socket event (tampering). It is not a security hole (no state corruption
-results), but it is untested and the engine comment doesn't call out this
-degenerate case.
+**Issue:** `validatePass`'s `LONG` branch computes `ownTeammates` and `opponents` directly
+from `state.pieces` with no `isActivePiece` filter:
 
-**Fix:** Either explicitly test/document that a double-red-card swap is an inert no-op
-(cheap, low-risk), or add a defence-in-depth guard requiring at least one of the two
-pieces to be active, matching the "one side must be a legitimate participant" spirit of
-the rest of the guard set.
+```ts
+if (passType === 'LONG') {
+  const ownTeammates = state.pieces.filter((p) => p.teamId === piece.teamId && p.id !== piece.id);
+  if (ownTeammates.some((p) => hexDistance(to, p.position) <= 5)) {
+    return { ok: false, reason: 'LANDING_RESTRICTED' };
+  }
+  const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
+  if (opponents.some((p) => hexDistance(to, p.position) <= 1)) {
+    return { ok: false, reason: 'LANDING_RESTRICTED' };
+  }
+}
+```
 
-### WR-02: `RosterRepositionRejection`'s `WRONG_TEAM` reason from the handler is never mapped to a client-facing message
+Every other occupancy/eligibility computation in this same file (the `STANDARD` path-block
+`opponentPieces`, the `HIGH`/`LONG` adjacent-blocker `opponentPieces`, the `destDefender`
+auto-intercept lookup, and the `rollIntercepts` ZoI `opponents` list) was explicitly updated
+by the `BUG-38` sweep (see the inline `BUG-38` comments at lines 102-106, 113-116, and
+151-158) to exclude red-carded/benched pieces via `isActivePiece`, because
+`stoppagePhases.ts`'s own doc comment states this predicate must be used for "eligibility/
+occupancy/ZoI/interceptor lists, anywhere in `packages/shared`". These two `LONG`-only
+landing-restriction lists were missed by that sweep. A red-carded or subbed-off piece keeps
+a live, frozen `position` in `state.pieces` (by design — see `PlayerPiece.onPitch`'s doc
+comment in `types.ts`), so today a Long Ball can be wrongly rejected with
+`LANDING_RESTRICTED` because of a teammate who was sent off five minutes ago and is sitting
+motionless on a frozen hex, or because of an opponent's frozen red-card hex sitting next to
+the intended landing spot. `passValidator.test.ts` has dedicated `BUG-38` coverage for the
+`STANDARD`/`HIGH`/`LONG` path-blocking branches (lines 265-337: `redCarded`/`onPitch: false`
+opponents excluded) but no equivalent test for the `LONG` landing-restriction branch,
+confirming this is an untested gap rather than a deliberate exclusion.
 
-**File:** `packages/client/src/components/LineupAssignmentScreen.tsx:403-413`,
-`packages/server/src/gameHandlers.ts:1879-1883`
+**Fix:**
 
-**Issue:** The handler can emit `GAME_ERROR` with reason `'WRONG_TEAM'` (line 1880) for
-an opponent-owned piece id, but `LineupAssignmentScreen.tsx`'s `gameError` → message
-`useEffect` (lines 374-417) has no branch for `'WRONG_TEAM'` — this is called out
-explicitly in the comment at lines 408-413 ("'WRONG_TEAM' is deliberately NOT mapped
-here: it is unreachable through this UI"). That reasoning holds for the normal
-sanctioned client, but a modified/tampered client (or a race where the UI briefly shows
-a stale piece list) that manages to emit an opponent's id will show no rejection
-message at all — the drag silently fails with no feedback, which is a worse UX
-regression than reusing a generic message. This is low-severity (defence-in-depth path
-only) but is a real, if narrow, silent-failure gap.
+```ts
+if (passType === 'LONG') {
+  const ownTeammates = state.pieces.filter(
+    (p) => p.teamId === piece.teamId && p.id !== piece.id && isActivePiece(p),
+  );
+  if (ownTeammates.some((p) => hexDistance(to, p.position) <= 5)) {
+    return { ok: false, reason: 'LANDING_RESTRICTED' };
+  }
+  const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId && isActivePiece(p));
+  if (opponents.some((p) => hexDistance(to, p.position) <= 1)) {
+    return { ok: false, reason: 'LANDING_RESTRICTED' };
+  }
+}
+```
 
-**Fix:** Map `'WRONG_TEAM'` to a generic rejection message (e.g. reusing
-`'Swap rejected — invalid selection.'`, the same string used for `INVALID_REPOSITION`)
-so no rejection reason is ever silently swallowed by the UI, regardless of how it was
-triggered.
+(`isActivePiece` is already imported in this file at line 20.)
 
-### WR-03: `SubstitutionRejection`'s `NON_GK_SLOT_REJECTS_GK`/`GK_SLOT_REQUIRES_GK` reuse pregame copy that doesn't mention "substitution"
+### WR-02: `applyQuickThrow` never hands possession to an opponent standing on the throw target hex
 
-**File:** `packages/client/src/components/LineupAssignmentScreen.tsx:378-382`
+**File:** `packages/server/src/gameEngine.ts:8143-8168`
 
-**Issue:** The rejection messages for `GK_SLOT_REQUIRES_GK`/`NON_GK_SLOT_REJECTS_GK`
-("Swap rejected — goalkeeper slot requires a GK card." / "...only a goalkeeper card can
-be placed here.") are shared verbatim between the pregame lineup-swap flow and the
-mid-match substitution flow. In mid-match mode there is no "swap" happening from the
-user's point of view — it's a substitution — so the word "Swap" in the toast is
-slightly misleading in that context (a cosmetic/UX nit, not a functional bug, but noted
-since gameError messaging is the observable contract with the reported CSS/UX gap
--closure work in this same phase).
+**Issue:** `applyQuickThrow` resolves the GK's unblockable/uninterceptable quick throw by
+looking only for a teammate at `targetHex` to become the new carrier:
 
-**Fix:** Consider parameterizing the message by `mode` if this surfaces again in
-manual testing; low priority.
+```ts
+// Find a teammate at the target hex to become the new carrier.
+// TODO: if an OPPOSING player occupies targetHex, they should immediately gain possession
+// (change of possession; ball.carrierId = opponent piece, attackingTeam flips). Currently
+// the ball lands as a loose ball (carrierId: null) and the opponent never gets possession.
+// Fix: also search for an opponent piece at targetHex; if found, set carrierId to that piece
+// and flip attackingTeam/activeTeam to the opponent's team before transitioning to PASS.
+const receiver = state.pieces.find(
+  (p) =>
+    isActivePiece(p) &&
+    p.teamId === gk.teamId &&
+    p.position.q === targetHex.q &&
+    p.position.r === targetHex.r,
+);
+```
+
+This is a live, self-documented TODO (not new to this phase, but present in a file under
+review) describing incorrect game behavior: if the GK's manager throws to a hex an opponent
+is standing on, the ball becomes a carrier-less loose ball at that hex instead of the
+opponent immediately gaining possession, which both misrepresents what "quick throw" means
+in the rulebook and denies the defending side the possession change they are entitled to.
+
+**Fix:** As the TODO itself proposes — also search for an opposing piece at `targetHex`; if
+found, set `ball.carrierId` to that piece's id and flip `attackingTeam`/`activeTeam` to the
+opponent's team before transitioning to `PASS`, mirroring how other restart resolution
+functions in this file (e.g. auto-interception paths) already perform a possession flip.
 
 ## Info
 
-### IN-01: `applyRosterReposition`'s new `REPOSITION_BALL_CARRIER` guard only checks the ball's `carrierId`, not a loose ball's `position`
+### IN-01: `DraftPackCarousel`'s post-scroll `setTimeout` is not cleared on unmount
 
-**File:** `packages/server/src/gameEngine.ts:3314-3320`
+**File:** `packages/client/src/components/DraftPackCarousel.tsx:223-229`
 
-**Issue:** Guard 5 rejects a reposition when either piece is the current ball
-_carrier_. During a stoppage (the only phase this function runs in) the ball is
-typically placed at a fixed restart hex rather than carried, so `carrierId` is often
-`null` — meaning this guard is frequently a no-op in practice. This appears intentional
-(a stoppage's dead ball has no "carrier" to protect), but it's worth flagging that a
-piece standing exactly on the ball's resting hex (not carrying it) can still be
-repositioned away, which could, in edge cases, need to be reconciled with restart-hex
-occupancy elsewhere. No evidence of an actual defect was found; flagged for
-awareness only.
+**Issue:**
 
-**Fix:** None required; documentation-only observation for the next contributor.
+```ts
+function scrollByCard(direction: 1 | -1) {
+  const el = trackRef.current;
+  if (!el) return;
+  el.scrollBy({ left: direction * SCROLL_STEP_PX, behavior: 'smooth' });
+  // Smooth scroll settles asynchronously — re-check disabled state shortly after.
+  setTimeout(updateScrollState, 300);
+}
+```
 
-### IN-02: `CardInjuryBadge.tsx` / `BenchCarousel.tsx` (the components most likely to own the reported "duplicate/overlapping bench card icon" bug) are not part of this phase's file set
+If the user clicks the carousel-nav arrow and the component unmounts within the 300ms window
+(e.g. the draft/roster panel is closed immediately after), this timer still fires and calls
+`setCanScrollLeft`/`setCanScrollRight` on an unmounted component. React 18 treats this as a
+silent no-op rather than a hard error, but it is a lingering-timer code smell that can produce
+noisy warnings under React's strict/test double-invoke mode and is worth cleaning up.
 
-**File:** N/A (out of review scope)
+**Fix:** Store the timer id in a ref and clear it in a `useEffect` cleanup, or clear/replace
+it on each call:
 
-**Issue:** The task description asks about a "bench card icon rendering bug
-(duplicate/overlapping card icons for red-carded players)." Tracing
-`LineupAssignmentScreen.tsx`'s bench-status derivation (`benchCardStatus`,
-`unavailablePlayerIds`, `redCardedPlayerIds`, lines 999-1011) shows correct,
-non-duplicating data construction — one status object per bench entry, no
-double-counting. The actual glyph-rendering logic lives in `CardInjuryBadge.tsx` and
-`BenchCarousel.tsx`, neither of which is in this phase's reviewed file list, so the
-root cause of that specific reported bug could not be independently confirmed within
-this review's scope. Recommend including those two files in a follow-up review pass
-if the bug is still reproducible.
-
-**Fix:** N/A — scope note only.
+```ts
+const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+function scrollByCard(direction: 1 | -1) {
+  const el = trackRef.current;
+  if (!el) return;
+  el.scrollBy({ left: direction * SCROLL_STEP_PX, behavior: 'smooth' });
+  clearTimeout(scrollTimeoutRef.current);
+  scrollTimeoutRef.current = setTimeout(updateScrollState, 300);
+}
+useEffect(() => () => clearTimeout(scrollTimeoutRef.current), []);
+```
 
 ---
 
-_Reviewed: 2026-08-22_
+_Reviewed: 2026-08-22T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
