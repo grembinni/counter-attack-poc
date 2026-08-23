@@ -243,6 +243,9 @@ export function registerRoomHandlers(
           joinedRoom.foulsEnabled ?? false,
           joinedRoom.bookingEnabled ?? false,
           joinedRoom.injuryEnabled ?? false,
+          // TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. undefined (not yet
+          // confirmed) is treated as false (disabled), mirroring the toggles above.
+          joinedRoom.tackleStealDeclineEnabled ?? false,
         );
         // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
         // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
@@ -417,6 +420,7 @@ export function registerRoomHandlers(
         fouls,
         booking,
         injury,
+        tackleStealDecline,
       }: {
         speed: GameSpeed;
         teamType: TeamType;
@@ -428,6 +432,8 @@ export function registerRoomHandlers(
         booking: boolean;
         /** SETTINGS-03 (Phase 39): Injury system game-creation toggle. */
         injury: boolean;
+        /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt game-creation toggle. */
+        tackleStealDecline: boolean;
       }) => {
         const roomCode = socket.data.roomCode;
         if (roomCode === undefined) return;
@@ -485,6 +491,13 @@ export function registerRoomHandlers(
         }
         if (typeof injury !== 'boolean') {
           socket.emit(ServerEvents.GAME_ERROR, 'INVALID_INJURY');
+          return;
+        }
+
+        // T-43-07 (Phase 43): ASVS V5 allow-list guard — reject a forged non-boolean
+        // tackleStealDecline payload before any room mutation, mirroring the guards above.
+        if (typeof tackleStealDecline !== 'boolean') {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TACKLE_STEAL_DECLINE');
           return;
         }
 
@@ -554,6 +567,8 @@ export function registerRoomHandlers(
         // fouls:false, booking:true must still land bookingEnabled:false here.
         room.bookingEnabled = fouls && booking;
         room.injuryEnabled = fouls && injury;
+        // TACKLE-01: no parent-toggle dependency (unlike Booking/Injury above) — stored as-is.
+        room.tackleStealDeclineEnabled = tackleStealDecline;
         room.settingsConfirmed = true;
         if (draftSession !== undefined) {
           room.draftSession = draftSession;
@@ -568,6 +583,7 @@ export function registerRoomHandlers(
           room.foulsEnabled,
           room.bookingEnabled,
           room.injuryEnabled,
+          room.tackleStealDeclineEnabled,
         );
 
         // T-27-05/Pitfall 1: both-conditions gate — only fire TEAM_SELECTION_START once
@@ -952,6 +968,7 @@ export function registerRoomHandlers(
             room.foulsEnabled ?? false,
             room.bookingEnabled ?? false,
             room.injuryEnabled ?? false,
+            room.tackleStealDeclineEnabled ?? false,
             confirmedHomeBench,
             confirmedAwayBench,
           );

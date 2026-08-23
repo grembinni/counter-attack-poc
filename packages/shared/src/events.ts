@@ -278,6 +278,8 @@ export interface ClientToServerEvents {
     booking: boolean;
     /** SETTINGS-03 (Phase 39): Injury system game-creation toggle. */
     injury: boolean;
+    /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt game-creation toggle. */
+    tackleStealDecline: boolean;
   }) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
@@ -457,6 +459,8 @@ export interface ServerToClientEvents {
     booking: boolean,
     /** SETTINGS-03 (Phase 39): Injury system game-creation toggle. */
     injury: boolean,
+    /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt game-creation toggle. */
+    tackleStealDecline: boolean,
   ) => void;
   /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
   [ServerEvents.UNIFORM_SELECTION_START]: () => void;

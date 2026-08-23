@@ -120,6 +120,12 @@ export type Room = {
    */
   injuryEnabled?: boolean;
   /**
+   * TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle confirmed on the settings
+   * pre-step. `undefined` = not yet confirmed and is treated as `false` (disabled) when
+   * building game state. Independent of Fouls/Booking/Injury/Out-of-Bounds toggles.
+   */
+  tackleStealDeclineEnabled?: boolean;
+  /**
    * DRAFT-01/D-03 (Phase 27): true once host has confirmed settings — gates TEAM_SELECTION_START
    * alongside "slot 2 has joined" (see roomHandlers.ts ROOM_SETTINGS_CONFIRM / ROOM_JOIN).
    */
