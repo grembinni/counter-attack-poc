@@ -21,7 +21,7 @@ progress:
 Phase: 43 (tackle-steal-prompt-and-decline) — NOT STARTED
 Plan: N/A — no plans created yet
 Status: Phase 42 complete and independently verified (17/17 plans executed, VERIFICATION.md scored 5/5 success criteria, all 12 requirement IDs SUB-08..SUB-18/BUG-38 satisfied). Gap-closure plans 42-16/42-17 closed BUG-38's final 2 residual unfiltered-piece-list sites (passValidator.ts LONG-pass landing, offside.ts opponent counting/flag evaluation). Next: plan Phase 43 (Tackle/Steal Prompt & Decline).
-Last activity: 2026-08-23 -- Phase 42 verified complete
+Last activity: 2026-08-23 - Completed quick task 260823-akw: Narrow the random Referee Leniency roll from 1-6 to 2-5 at match start
 
 ## Project Reference
 
@@ -276,6 +276,7 @@ See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 | 260727-9f1             | 2026-07-27 | Fixed v1.5 milestone-audit doc drift: ROADMAP.md malformed Phase 34 row + stale Progress table, REQUIREMENTS.md THEME-01/04 checkboxes, 34-VERIFICATION.md stale status, HIGHLIGHT-REFERENCE.md opacity values |
 | 260727-o85             | 2026-07-27 | Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)                                                                                          |
 | 260816-bn5             | 2026-08-16 | Fix two knip findings: dropped unused `export` from `triggerFoulFreeKick` (self-file usage only); pruned 6 redundant `entry` patterns from root `knip.json` — `pnpm knip` now exits clean                      |
+| 260823-akw             | 2026-08-23 | Narrow random Referee Leniency roll from 1-6 to 2-5 at match start (ahead of Phase 44); corrected stale 1-6 range docs in gameEngine.ts, shared types, README, and REFEREE-03                                  |
 
 ## Deferred Items (acknowledged at milestone close 2026-08-17, v1.6)
 
