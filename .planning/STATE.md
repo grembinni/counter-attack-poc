@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: gaps_found
-stopped_at: Phase 42 goal verification found 2 residual BUG-38 gaps
-last_updated: '2026-08-23T04:00:57.000Z'
-last_activity: 2026-08-22 -- Phase 42 gap-closure round (42-11..42-15) complete and human-verified, but phase-goal verifier found 2 new residual BUG-38 sites (passValidator.ts, offside.ts)
+status: Ready to execute
+stopped_at: Phase 42 gap-closure plans 42-16/42-17 created and verified
+last_updated: '2026-08-23T11:36:59.538Z'
+last_activity: '2026-08-23 -- Phase 42 gap-closure planning (--gaps): plans 42-16/42-17 created and passed plan-checker verification, closing the 2 residual BUG-38 sites (passValidator.ts, offside.ts). Ready to execute.'
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 21
+  total_plans: 23
   completed_plans: 16
   percent: 17
 ---
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — GAPS FOUND
-Plan: 15 of 15 executed; phase-goal verification scored 4/5 must-haves
-Status: All 15 plans complete and their own gap-closure round human-verified, but /gsd-verify-phase's independent code check found BUG-38 (Success Criterion 5) still has 2 unfiltered sites: passValidator.ts's LONG-pass landing restriction and offside.ts's opposingPiecesEqualOrAhead. Run `/gsd-plan-phase 42 --gaps` to plan a fix.
-Last activity: 2026-08-22 -- Phase 42 goal verification: gaps_found (see 42-VERIFICATION.md)
+Phase: 42 (substitution-ux-overhaul) — GAP-CLOSURE PLANNED
+Plan: 15 of 17 executed; 2 new gap-closure plans (42-16, 42-17) created and plan-checker verified, not yet executed
+Status: Phase-goal verification found BUG-38 (Success Criterion 5) still had 2 unfiltered sites: passValidator.ts's LONG-pass landing restriction and offside.ts's opposingPiecesEqualOrAhead (plus related evaluateOffside call sites). `/gsd-plan-phase 42 --gaps` planned Gap-closure Wave 4 (42-16: apply isActivePiece fixes + regression tests) and Wave 5 (42-17: re-audit packages/shared + repo quality gate), both plan-checker-verified with no blockers. Run `/gsd-execute-phase 42` to execute them.
+Last activity: 2026-08-23 -- Phase 42 gap-closure plans 42-16/42-17 planned and verified; ready to execute
 
 ## Project Reference
 
