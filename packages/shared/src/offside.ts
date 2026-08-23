@@ -1,5 +1,6 @@
 import type { GameState, PlayerPiece } from './types.js';
 import { PITCH_REGIONS } from './pitch.js';
+import { isActivePiece } from './stoppagePhases.js';
 
 /**
  * OFFSIDE-01 (D-21..D-24): pure, team-relative offside geometry helpers.
@@ -130,10 +131,17 @@ export function isAheadOf(aheadQ: number, refQ: number, team: 'home' | 'away'): 
  * equal-to-or-ahead of `piece` in `piece`'s own team's attacking direction.
  * "Equal-or-ahead" is the logical negation of "strictly behind" — i.e. NOT
  * isAheadOf(piece.q, opp.q, team) when checked from the opponent's q relative to piece's q.
+ *
+ * BUG-38 (D-09): a red-carded/benched opponent is excluded via `isActivePiece` — a
+ * dismissed/benched player cannot cover an attacker onside. Excluding a dismissed
+ * opponent LOWERS this count, which makes offside FIRE more readily (D-21 condition 3)
+ * and makes an existing flag CLEAR less readily (D-22 condition b). This direction is
+ * intended — a sent-off player cannot play an attacker onside.
  */
 export function opposingPiecesEqualOrAhead(state: GameState, piece: PlayerPiece): number {
   const dir = attackingDirection(piece.teamId);
   return state.pieces.filter((opp) => {
+    if (!isActivePiece(opp)) return false;
     if (opp.teamId === piece.teamId) return false;
     // Equal-or-ahead in piece's attacking direction: (opp.q - piece.q) * dir >= 0
     return (opp.position.q - piece.position.q) * dir >= 0;
@@ -185,16 +193,21 @@ export function isClearedNow(state: GameState, piece: PlayerPiece): boolean {
  */
 export function evaluateOffside(state: GameState): readonly string[] {
   const priorFlagged = state.offsidePieceIds ?? [];
+  // BUG-38 audit (D-09/plan 42-16): CONSTRUCTION-class by-id lookup, not an
+  // eligibility/occupancy/ZoI/interceptor list — left unfiltered deliberately.
   const piecesById = new Map(state.pieces.map((p) => [p.id, p] as const));
 
   const stillFlagged = priorFlagged.filter((id) => {
     const piece = piecesById.get(id);
     if (!piece) return false; // defensive: piece no longer exists
+    // BUG-38: a dismissed/benched piece never retains a sticky offside flag.
+    if (!isActivePiece(piece)) return false;
     return !isClearedNow(state, piece);
   });
 
+  // BUG-38: a dismissed/benched piece is never newly flagged offside.
   const newlyFlagged = state.pieces
-    .filter((p) => !stillFlagged.includes(p.id) && isOffsideNow(state, p))
+    .filter((p) => isActivePiece(p) && !stillFlagged.includes(p.id) && isOffsideNow(state, p))
     .map((p) => p.id);
 
   return [...stillFlagged, ...newlyFlagged];
@@ -245,6 +258,8 @@ export function triggerOffsideFoul(state: GameState, explicitOffenderId?: string
     return state;
   }
 
+  // BUG-38 audit (D-09/plan 42-16): CONSTRUCTION-class by-id lookup, not an
+  // eligibility/occupancy/ZoI/interceptor list — left unfiltered deliberately.
   const offender = state.pieces.find((p) => p.id === offenderId);
   if (!offender) {
     return state;
