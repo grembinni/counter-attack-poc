@@ -206,6 +206,8 @@ export type GameStore = {
   emitGkDiveAtFeetTarget: (to: HexCoord) => void;
   /** D-10 (Phase 39): defending manager's accept/decline response to a box-entry GK reposition prompt. */
   emitGkBoxEntryResponse: (accept: boolean) => void;
+  /** TACKLE-02 (Phase 43): defending manager's Attempt/Decline response to a TACKLE_STEAL_PROMPT. */
+  emitTackleStealChoice: (accept: boolean) => void;
   /** D-10 (Phase 39): GK's one-hex destination during GK_BOX_ENTRY_MOVE. */
   emitGkBoxEntryMove: (to: HexCoord) => void;
   /** PEN-02 (Phase 39): attacking manager's penalty-taker selection during PENALTY_KICK_TAKER_SELECT. */
@@ -1865,6 +1867,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   // D-10: fire-and-forget, no optimistic state mutation.
   emitGkBoxEntryResponse: (accept) => {
     socket.emit(ClientEvents.GAME_GK_BOX_ENTRY_RESPONSE, accept);
+  },
+
+  // TACKLE-02: fire-and-forget, no optimistic state mutation — the authoritative
+  // GAME_STATE broadcast is the only writer.
+  emitTackleStealChoice: (accept) => {
+    socket.emit(ClientEvents.GAME_TACKLE_STEAL_CHOICE, accept);
   },
 
   // D-10: fire-and-forget, no optimistic state mutation.
