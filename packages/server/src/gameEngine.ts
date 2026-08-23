@@ -2354,6 +2354,386 @@ export function applyGkDiveAtFeetTarget(
 }
 
 // ---------------------------------------------------------------------------
+// applyTackleStealChoice
+// ---------------------------------------------------------------------------
+
+/** Discriminated union result for applyTackleStealChoice. */
+export type ApplyTackleStealChoiceResult =
+  | { ok: false; reason: 'WRONG_PHASE' }
+  | { ok: true; state: GameState };
+
+/**
+ * TACKLE-02/TACKLE-03 (Phase 43, 43-04): resolves the defending manager's
+ * Attempt/Decline response to a TACKLE_STEAL_PROMPT (D-01/D-02/D-03).
+ *
+ * Dice are read from the caller-supplied argument only — this function never
+ * generates dice itself, matching the project-wide rule that dice are rolled
+ * in the I/O layer so the pure engine stays deterministic for tests (T-43-11).
+ *
+ * Decline (`accept === false`): appends a TACKLE_STEAL_DECLINED event and
+ * advances/resumes via `advanceOrResume` WITHOUT ever adding the defender to
+ * `stealAttemptedByIds`/`tackleAttemptedByIds` — that omission IS the whole
+ * TACKLE-02/TACKLE-03 mechanism (a declined defender stays eligible and its
+ * risk ring stays live because `validateMove`/the client's live recompute
+ * both key exclusively off those two arrays).
+ *
+ * Attempt (`accept === true`): reproduces applyMove's existing STEAL_ATTEMPT/
+ * TACKLE_ATTEMPT duel arithmetic and resolveFoulChain call verbatim. SUCCESS
+ * ends the sequence immediately (D-03) via the same possession-change shape
+ * applyMove's toggle-off path already returns. FAIL advances/resumes via
+ * `advanceOrResume` — D-03's "a failed attempt does not end the sequence".
+ */
+export function applyTackleStealChoice(
+  state: GameState,
+  accept: boolean,
+  dice: {
+    stealDie: number;
+    tackleDie: number;
+    carrierDie: number;
+    injuryDie: number;
+    bookingDie: number;
+  },
+): ApplyTackleStealChoiceResult {
+  if (state.phase !== 'TACKLE_STEAL_PROMPT') {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const team = state.tackleStealPromptTeam;
+  const kind = state.tackleStealPromptKind;
+  const defenderId = state.tackleStealPromptDefenderId;
+  const carrierId = state.tackleStealPromptCarrierId;
+  const resume = state.tackleStealPromptResume;
+  if (
+    team === null ||
+    team === undefined ||
+    kind === null ||
+    kind === undefined ||
+    defenderId === null ||
+    defenderId === undefined ||
+    carrierId === null ||
+    carrierId === undefined
+  ) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  const defender = state.pieces.find((p) => p.id === defenderId);
+  const carrier = state.pieces.find((p) => p.id === carrierId);
+  if (defender === undefined || carrier === undefined) {
+    return { ok: false, reason: 'WRONG_PHASE' };
+  }
+
+  /**
+   * D-03: the single implementation of "keep prompting until the list is
+   * exhausted". When the queue is non-empty, stays in TACKLE_STEAL_PROMPT with
+   * the next defender current. When empty, clears the whole prompt cluster and
+   * restores play from the resume snapshot (falling back to the current
+   * phase/activeTeam/movementSlot when the snapshot is somehow null, mirroring
+   * applyGkDiveAtFeetResponse's decline branch).
+   */
+  const advanceOrResume = (next: GameState): GameState => {
+    if (next.tackleStealPromptQueue && next.tackleStealPromptQueue.length > 0) {
+      const nextDefenderId: string = next.tackleStealPromptQueue[0]!;
+      const rest = next.tackleStealPromptQueue.slice(1);
+      return {
+        ...next,
+        phase: 'TACKLE_STEAL_PROMPT',
+        tackleStealPromptDefenderId: nextDefenderId,
+        tackleStealPromptQueue: rest,
+      };
+    }
+    return {
+      ...next,
+      ...TACKLE_STEAL_PROMPT_CLEARED,
+      phase: resume?.phase ?? next.phase,
+      activeTeam: resume?.activeTeam ?? next.activeTeam,
+      movementSlot: resume?.movementSlot ?? next.movementSlot,
+    };
+  };
+
+  if (!accept) {
+    const declineEvent: ActionEvent = {
+      type: 'TACKLE_STEAL_DECLINED',
+      kind,
+      defenderId,
+      carrierId,
+      timestamp: Date.now(),
+    };
+    return {
+      ok: true,
+      state: advanceOrResume({
+        ...state,
+        eventLog: [...state.eventLog, declineEvent],
+      }),
+    };
+  }
+
+  // Attempt branch — reproduce the existing duel arithmetic verbatim.
+  if (kind === 'STEAL') {
+    const die = dice.stealDie;
+    const combined = computeCombinedScore(defender.tackling, die, []);
+    const stealResult: 'SUCCESS' | 'FAIL' = die === 6 || combined >= 10 ? 'SUCCESS' : 'FAIL';
+    const stealSuccess = stealResult === 'SUCCESS';
+    const stealEvent: ActionEvent = {
+      type: 'STEAL_ATTEMPT',
+      defenderId,
+      result: stealResult,
+      defenderDie: die,
+      defenderCombined: combined,
+      timestamp: Date.now(),
+      ballAfter: stealSuccess
+        ? { position: carrier.position, carrierId: defenderId }
+        : { position: carrier.position, carrierId },
+    };
+    let eventLog: readonly ActionEvent[] = [...state.eventLog, stealEvent];
+    const newStealAttemptedByIds = [...(state.stealAttemptedByIds ?? []), defenderId];
+
+    const stealFoulChain = resolveFoulChain({
+      state,
+      pieces: state.pieces,
+      eventLog,
+      defenderId,
+      victimId: carrierId,
+      foulHex: carrier.position,
+      source: 'STEAL',
+      defenderDie: die,
+      injuryDie: dice.injuryDie,
+      bookingDie: dice.bookingDie,
+    });
+    const pieces = stealFoulChain.pieces;
+    eventLog = stealFoulChain.eventLog;
+
+    if (stealSuccess) {
+      const newOwnerTeam = pieces.find((p) => p.id === defenderId)?.teamId ?? team;
+      const stealSuccessBall: BallState = {
+        ...state.ball,
+        position: carrier.position,
+        carrierId: defenderId,
+        lastTouchedBy: { pieceId: defenderId, teamId: newOwnerTeam },
+      };
+      const correctedEventLog = eventLog.map((e) =>
+        e.type === 'MOVE' && e.pieceId === carrierId
+          ? {
+              ...e,
+              ballAfter: {
+                position: stealSuccessBall.position,
+                carrierId: stealSuccessBall.carrierId,
+              },
+            }
+          : e,
+      );
+      const stealNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
+      const stealEndPhase = checkHalfEndOnTackle(state, stealNewActionCount);
+      const stealSuccessWouldBeState: GameState = {
+        ...state,
+        ...TACKLE_STEAL_PROMPT_CLEARED,
+        phase: stealEndPhase ?? 'PASS',
+        pieces,
+        attackingTeam: newOwnerTeam,
+        activeTeam: newOwnerTeam,
+        movementSlot: null,
+        movedPieceIds: [],
+        paceUsedByPieceId: {},
+        ball: stealSuccessBall,
+        eventLog: correctedEventLog,
+        lastActionType: 'SUCCESSFUL_TACKLE',
+        actionCount: stealNewActionCount,
+        stealAttemptedByIds: [],
+        tackleAttemptedByIds: [],
+        offsidePieceIds: evaluateOffside({ ...state, pieces, ball: stealSuccessBall }),
+        ...THROW_IN_TEARDOWN,
+      };
+      if (stealFoulChain.fouled) {
+        return {
+          ok: true,
+          state: {
+            ...stealSuccessWouldBeState,
+            phase: 'FOUL_CHOICE',
+            attackingTeam: carrier.teamId,
+            activeTeam: carrier.teamId,
+            ...stealFoulChain.foulFields,
+            foulDuelSucceeded: true,
+            foulResume: {
+              phase: stealSuccessWouldBeState.phase,
+              activeTeam: stealSuccessWouldBeState.activeTeam,
+              attackingTeam: stealSuccessWouldBeState.attackingTeam,
+              movementSlot: stealSuccessWouldBeState.movementSlot,
+              lastActionType: stealSuccessWouldBeState.lastActionType,
+            },
+          },
+        };
+      }
+      return { ok: true, state: stealSuccessWouldBeState };
+    }
+
+    // FAIL — D-03: does not end the sequence.
+    const stealFailWouldBeState: GameState = {
+      ...state,
+      pieces,
+      eventLog,
+      stealAttemptedByIds: newStealAttemptedByIds,
+    };
+    if (stealFoulChain.fouled) {
+      const stealResumed = advanceOrResume(stealFailWouldBeState);
+      return {
+        ok: true,
+        state: {
+          ...stealResumed,
+          phase: 'FOUL_CHOICE',
+          attackingTeam: carrier.teamId,
+          activeTeam: carrier.teamId,
+          ...stealFoulChain.foulFields,
+          foulDuelSucceeded: false,
+          foulResume: {
+            phase: stealResumed.phase,
+            activeTeam: stealResumed.activeTeam,
+            attackingTeam: stealFailWouldBeState.attackingTeam,
+            movementSlot: stealResumed.movementSlot,
+            lastActionType: stealFailWouldBeState.lastActionType,
+          },
+        },
+      };
+    }
+    return { ok: true, state: advanceOrResume(stealFailWouldBeState) };
+  }
+
+  // kind === 'TACKLE'
+  const defDie = dice.tackleDie;
+  const carDie = dice.carrierDie;
+  const defCombined = computeCombinedScore(defender.tackling, defDie, []);
+  const carCombined = computeCombinedScore(carrier.dribbling, carDie, []);
+  const tackleResult: 'SUCCESS' | 'FAIL' = defCombined >= carCombined ? 'SUCCESS' : 'FAIL';
+  const tackleSuccess = tackleResult === 'SUCCESS';
+  const tackleBallAfter = tackleSuccess
+    ? { position: defender.position, carrierId: defenderId }
+    : { position: state.ball.position, carrierId: state.ball.carrierId };
+  const tackleEvent: ActionEvent = {
+    type: 'TACKLE_ATTEMPT',
+    defenderId,
+    carrierId,
+    defenderDie: defDie,
+    carrierDie: carDie,
+    defenderCombined: defCombined,
+    carrierCombined: carCombined,
+    result: tackleResult,
+    timestamp: Date.now(),
+    ballAfter: tackleBallAfter,
+  };
+  let tackleEventLog: readonly ActionEvent[] = [...state.eventLog, tackleEvent];
+  const newTackleAttemptedByIds = [...(state.tackleAttemptedByIds ?? []), defenderId];
+
+  const tackleFromBehind = isTackleFromBehind(carrier.position, defender.position, carrier.teamId);
+  const tackleFoulChain = resolveFoulChain({
+    state,
+    pieces: state.pieces,
+    eventLog: tackleEventLog,
+    defenderId,
+    victimId: carrierId,
+    foulHex: carrier.position,
+    source: 'TACKLE',
+    defenderDie: defDie,
+    injuryDie: dice.injuryDie,
+    bookingDie: dice.bookingDie,
+    triggerThreshold: foulTriggerThreshold(tackleFromBehind),
+    fromBehind: tackleFromBehind,
+  });
+  const tacklePieces = tackleFoulChain.pieces;
+  tackleEventLog = tackleFoulChain.eventLog;
+
+  if (tackleSuccess) {
+    const tackleSuccessBall: BallState = {
+      ...state.ball,
+      position: defender.position,
+      carrierId: defenderId,
+      lastTouchedBy: { pieceId: defenderId, teamId: defender.teamId },
+    };
+    const correctedEventLog = tackleEventLog.map((e) =>
+      e.type === 'MOVE' && e.pieceId === defenderId
+        ? {
+            ...e,
+            ballAfter: {
+              position: tackleSuccessBall.position,
+              carrierId: tackleSuccessBall.carrierId,
+            },
+          }
+        : e,
+    );
+    const tackleNewActionCount = state.actionCount + GAME_SPEED_MINUTES[state.gameSpeed];
+    const tackleEndPhase = checkHalfEndOnTackle(state, tackleNewActionCount);
+    const tackleSuccessWouldBeState: GameState = {
+      ...state,
+      ...TACKLE_STEAL_PROMPT_CLEARED,
+      phase: tackleEndPhase ?? 'PASS',
+      pieces: tacklePieces,
+      attackingTeam: defender.teamId,
+      activeTeam: defender.teamId,
+      movementSlot: null,
+      movedPieceIds: [],
+      paceUsedByPieceId: {},
+      ball: tackleSuccessBall,
+      eventLog: correctedEventLog,
+      lastActionType: 'SUCCESSFUL_TACKLE',
+      actionCount: tackleNewActionCount,
+      stealAttemptedByIds: [],
+      tackleAttemptedByIds: [],
+      offsidePieceIds: evaluateOffside({ ...state, pieces: tacklePieces, ball: tackleSuccessBall }),
+      ...THROW_IN_TEARDOWN,
+    };
+    if (tackleFoulChain.fouled) {
+      return {
+        ok: true,
+        state: {
+          ...tackleSuccessWouldBeState,
+          phase: 'FOUL_CHOICE',
+          attackingTeam: carrier.teamId,
+          activeTeam: carrier.teamId,
+          ...tackleFoulChain.foulFields,
+          foulDuelSucceeded: true,
+          foulResume: {
+            phase: tackleSuccessWouldBeState.phase,
+            activeTeam: tackleSuccessWouldBeState.activeTeam,
+            attackingTeam: tackleSuccessWouldBeState.attackingTeam,
+            movementSlot: tackleSuccessWouldBeState.movementSlot,
+            lastActionType: tackleSuccessWouldBeState.lastActionType,
+          },
+        },
+      };
+    }
+    return { ok: true, state: tackleSuccessWouldBeState };
+  }
+
+  // FAIL — D-03: does not end the sequence.
+  const tackleFailWouldBeState: GameState = {
+    ...state,
+    pieces: tacklePieces,
+    eventLog: tackleEventLog,
+    ball: state.ball,
+    tackleAttemptedByIds: newTackleAttemptedByIds,
+  };
+  if (tackleFoulChain.fouled) {
+    const resumed = advanceOrResume(tackleFailWouldBeState);
+    return {
+      ok: true,
+      state: {
+        ...resumed,
+        phase: 'FOUL_CHOICE',
+        attackingTeam: carrier.teamId,
+        activeTeam: carrier.teamId,
+        ...tackleFoulChain.foulFields,
+        foulDuelSucceeded: false,
+        foulResume: {
+          phase: resumed.phase,
+          activeTeam: resumed.activeTeam,
+          attackingTeam: tackleFailWouldBeState.attackingTeam,
+          movementSlot: resumed.movementSlot,
+          lastActionType: tackleFailWouldBeState.lastActionType,
+        },
+      },
+    };
+  }
+  return { ok: true, state: advanceOrResume(tackleFailWouldBeState) };
+}
+
+// ---------------------------------------------------------------------------
 // enterGkDiveOrSkip
 // ---------------------------------------------------------------------------
 
