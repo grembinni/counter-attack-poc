@@ -71,6 +71,10 @@ export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   'PENALTY_KICK_SETUP_DEFENDING',
   'PENALTY_KICK_TAKER_SELECT',
   'PENALTY_KICK',
+  // TACKLE-02 (Phase 43, 43-02): the ball sits with the carrier and does not move while
+  // the defending manager decides whether to challenge — exactly like
+  // GK_DIVE_AT_FEET_PROMPT above.
+  'TACKLE_STEAL_PROMPT',
 ]);
 
 /**

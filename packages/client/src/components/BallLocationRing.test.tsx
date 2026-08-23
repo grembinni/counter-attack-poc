@@ -72,9 +72,10 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
   // claim. Grew from 17 (11 original + 6 Phase-37 restart phases) to 22 with Plan 38-07's five
   // Corner Kick phases, briefly to 23 with Plan 38-22's CORNER_KICK_CLEAR_OUT addition (38-15
   // defect 3), then back to 22 with Plan 38-28's removal of the clear-out phase entirely.
-  // Grew to 31 with Plan 39-21's GK_DIVE_AT_FEET_TARGET addition (39-UAT gap 3).
-  it('BALL_MARKER_PHASES has 31 members (22 + 8 Phase-39 foul/GK-interrupt/penalty-kick phases + 1 Plan 39-21 addition)', () => {
-    expect(BALL_MARKER_PHASES.size).toBe(31);
+  // Grew to 31 with Plan 39-21's GK_DIVE_AT_FEET_TARGET addition (39-UAT gap 3), then to
+  // 32 with Plan 43-02's TACKLE_STEAL_PROMPT addition (TACKLE-02).
+  it('BALL_MARKER_PHASES has 32 members (22 + 8 Phase-39 foul/GK-interrupt/penalty-kick phases + 1 Plan 39-21 addition + 1 Plan 43-02 addition)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(32);
   });
 
   it("renders the marker during phase='CORNER_KICK_GK_SETUP_ATTACKING' (Phase 38 corner-kick phase)", () => {
@@ -163,6 +164,13 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
 
   it("renders the marker during phase='PENALTY_KICK' (Phase 39 penalty-kick phase)", () => {
     const { container } = renderMarker('PENALTY_KICK');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='TACKLE_STEAL_PROMPT' (Phase 43, TACKLE-02 — the ball has not moved while the defending manager decides whether to challenge)", () => {
+    const { container } = renderMarker('TACKLE_STEAL_PROMPT');
     const polygons = Array.from(container.querySelectorAll('polygon'));
     expect(polygons).toHaveLength(1);
     expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);

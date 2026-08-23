@@ -1167,15 +1167,16 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         isGoal: false,
       };
     case 'TACKLE_STEAL_DECLINED':
-      // TACKLE-02/D-03 (Phase 43): mirrors GK_DIVE_AT_FEET_DECLINED's declined-offer format.
+      // TACKLE-02 (Phase 43, 43-02): mirrors GK_DIVE_AT_FEET_DECLINED's declined-offer
+      // format. Declines ARE logged to both managers — established precedent, not a new
+      // decision (43-CONTEXT.md discretion section).
       return {
-        prefix: event.kind === 'STEAL' ? '[STEAL]' : '[TACKLE]',
+        prefix: event.kind === 'TACKLE' ? '[TACKLE]' : '[STEAL]',
         prefixColor: pieceColorOf(event.defenderId),
         content: (
           <>
             {' '}
-            <PNamed pieceId={event.defenderId} /> declined to{' '}
-            {event.kind === 'STEAL' ? 'steal' : 'tackle'}
+            <PNamed pieceId={event.defenderId} /> declined to challenge
           </>
         ),
         isGoal: false,

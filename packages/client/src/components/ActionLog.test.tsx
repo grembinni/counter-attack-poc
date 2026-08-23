@@ -1330,6 +1330,38 @@ describe('ActionLog — Phase 39 (39-01): Fouls, Cards, Injuries & Penalty Kicks
     expect(container.textContent).toMatch(/declined to dive/);
   });
 
+  // TACKLE-02 (Phase 43, 43-02): a TACKLE_STEAL_DECLINED event names the declining
+  // defender and uses the kind-derived [STEAL]/[TACKLE] prefix vocabulary.
+  it('a TACKLE_STEAL_DECLINED event with kind STEAL uses the [STEAL] prefix and names the declining defender', () => {
+    setEventLog([
+      {
+        type: 'TACKLE_STEAL_DECLINED',
+        kind: 'STEAL',
+        defenderId: 'away-0',
+        carrierId: 'home-9',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[STEAL\]/);
+    expect(container.textContent).toMatch(/declined to challenge/);
+  });
+
+  it('a TACKLE_STEAL_DECLINED event with kind TACKLE uses the [TACKLE] prefix and names the declining defender', () => {
+    setEventLog([
+      {
+        type: 'TACKLE_STEAL_DECLINED',
+        kind: 'TACKLE',
+        defenderId: 'away-0',
+        carrierId: 'home-9',
+        timestamp: 0,
+      },
+    ]);
+    const { container } = render(<ActionLog />);
+    expect(container.textContent).toMatch(/\[TACKLE\]/);
+    expect(container.textContent).toMatch(/declined to challenge/);
+  });
+
   it('a GK_BOX_ENTRY_MOVE event shows the GK name and from/to coordinates', () => {
     setEventLog([
       {
