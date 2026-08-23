@@ -162,7 +162,7 @@ export type MovementSlot = 'ATTACKER_4' | 'DEFENDER_5' | 'ATTACKER_2';
 
 /**
  * Referee card leniency attribute. Assigned randomly at match start.
- * Range 1–6 (matches dice face range per MATCH-02). TEAM-03.
+ * Range 2–5. TEAM-03.
  */
 export type RefereeCard = {
   leniency: number;
@@ -1212,7 +1212,7 @@ export type GameState = {
   half: 1 | 2;
   /** D-08: Typed action event log. Replaces readonly unknown[] placeholder. */
   eventLog: readonly ActionEvent[];
-  /** TEAM-03: Referee card drawn at match start. leniency range 1–6. */
+  /** TEAM-03: Referee card drawn at match start. leniency range 2–5. */
   refereeCard: RefereeCard;
   /** A1: Team currently in possession / attacking. Set at KICK_OFF, constant through Movement Phase. */
   attackingTeam: 'home' | 'away';
