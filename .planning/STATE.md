@@ -2,33 +2,33 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: executing
-stopped_at: Phase 42 gap-closure plan 42-16 executed, 42-17 remaining
+status: ready to execute
+stopped_at: Phase 42 complete (17/17 plans); ready to plan Phase 43
 last_updated: '2026-08-23T11:42:00.026Z'
-last_activity: 2026-08-23 -- Phase 42 gap-closure plan 42-16 executed (BUG-38 residual sites closed); 42-17 remaining
+last_activity: 2026-08-23 -- Phase 42 gap-closure plan 42-17 executed (final BUG-38 shared-package audit + whole-repo quality gate all green); phase 42 complete
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 23
-  completed_plans: 22
-  percent: 96
+  completed_plans: 23
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — EXECUTING GAP-CLOSURE
-Plan: 16 of 17 executed; 42-17 remaining
-Status: Gap-closure plan 42-16 executed (BUG-38 residual sites closed via isActivePiece); 42-17 (re-audit + quality gate) remaining
-Last activity: 2026-08-23 -- Phase 42 gap-closure plan 42-16 executed
+Phase: 42 (substitution-ux-overhaul) — COMPLETE (17/17 plans)
+Plan: N/A — phase complete
+Status: Gap-closure plans 42-16 and 42-17 both executed. BUG-38's 2 residual unfiltered-piece-list sites (passValidator.ts LONG-pass landing, offside.ts opponent counting/flag evaluation) closed via isActivePiece; re-audit of packages/shared (offside.ts explicitly in scope) found zero new findings; whole-repo quality gate (typecheck, build, all 3 test suites: shared 879, server 1505, client 1116) all green. Next: plan Phase 43 (Tackle/Steal Prompt & Decline).
+Last activity: 2026-08-23 -- Phase 42 gap-closure plan 42-17 executed; phase complete
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 42 — substitution-ux-overhaul
+**Current focus:** Phase 43 — Tackle/Steal Prompt & Decline
 
 ## Phase Status
 
@@ -82,8 +82,8 @@ See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 | 38    | Corner Kick                                   | Complete    | 2026-08-09 |
 | 39    | Fouls, Cards, Injuries & Penalty Kicks        | Complete    | 2026-08-15 |
 | 40    | Substitutions                                 | Complete    | 2026-08-17 |
-| 41    | Card & Injury Iconography                     | Not started | -          |
-| 42    | Substitution UX Overhaul                      | Not started | -          |
+| 41    | Card & Injury Iconography                     | Complete    | 2026-08-21 |
+| 42    | Substitution UX Overhaul                      | Complete    | 2026-08-23 |
 | 43    | Tackle/Steal Prompt & Decline                 | Not started | -          |
 | 44    | Referee Leniency & Advanced Settings Drawer   | Not started | -          |
 | 45    | Game Summary Popup                            | Not started | -          |
