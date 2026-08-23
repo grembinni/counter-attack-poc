@@ -1228,16 +1228,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // FOUL_CHOICE / GK_DIVE_AT_FEET_PROMPT / GK_BOX_ENTRY_PROMPT (Phase 39): pure two-button
-    // panels with no board interaction — no piece is ever selectable during these phases.
-    // Defense-in-depth guard (mirrors every other phase's explicit no-op branch above);
-    // setGameState's phaseChanged clear already zeroes selectedPieceId on entry to any of
-    // these, this branch additionally prevents a stray selectPiece call from re-selecting
-    // anything while one of these phases is active.
+    // FOUL_CHOICE / GK_DIVE_AT_FEET_PROMPT / GK_BOX_ENTRY_PROMPT / TACKLE_STEAL_PROMPT
+    // (Phase 39; TACKLE_STEAL_PROMPT added Phase 43, 43-02): pure two-button panels with no
+    // board interaction — no piece is ever selectable during these phases. Defense-in-depth
+    // guard (mirrors every other phase's explicit no-op branch above); setGameState's
+    // phaseChanged clear already zeroes selectedPieceId on entry to any of these, this
+    // branch additionally prevents a stray selectPiece call from re-selecting anything
+    // while one of these phases is active.
     if (
       gameState.phase === 'FOUL_CHOICE' ||
       gameState.phase === 'GK_DIVE_AT_FEET_PROMPT' ||
-      gameState.phase === 'GK_BOX_ENTRY_PROMPT'
+      gameState.phase === 'GK_BOX_ENTRY_PROMPT' ||
+      gameState.phase === 'TACKLE_STEAL_PROMPT'
     ) {
       set({ selectedPieceId: null, validMoveHexes: [] });
       return;

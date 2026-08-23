@@ -286,6 +286,12 @@ export function ActionPanel() {
   // still reproduced verbatim so the mirror is exhaustive and does not silently drift if
   // ActionPanel is ever extended to those phases. HALF_TIME does fall through to ActionPanel's
   // final `return null` — reachable, but currently renders no Undo affordance either.
+  // TACKLE-02 (Phase 43, 43-02): this mirror needs NO new term for TACKLE_STEAL_DECLINED —
+  // it is deliberately omitted here because it is omitted from applyUndo's isBoundary
+  // reduce (gameEngine.ts, 43-02 Task 1): a decline commits no dice outcome and must
+  // remain crossable by Undo. TACKLE_STEAL_PROMPT itself is rendered by its own dedicated
+  // panel rather than by ActionPanel, so no Undo affordance is ever offered during the
+  // prompt — same reasoning as the four phases named above.
   const canUndo = (() => {
     if (lastDiceRoll) return false;
     // Bug-C (Phase 25 gap 25-07): canUndo must be false at the start of a MOVE slot when
