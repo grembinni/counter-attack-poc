@@ -1166,6 +1166,20 @@ function formatEvent(event: ActionEvent, subKind?: 'duel' | 'handling'): Formatt
         ),
         isGoal: false,
       };
+    case 'TACKLE_STEAL_DECLINED':
+      // TACKLE-02/D-03 (Phase 43): mirrors GK_DIVE_AT_FEET_DECLINED's declined-offer format.
+      return {
+        prefix: event.kind === 'STEAL' ? '[STEAL]' : '[TACKLE]',
+        prefixColor: pieceColorOf(event.defenderId),
+        content: (
+          <>
+            {' '}
+            <PNamed pieceId={event.defenderId} /> declined to{' '}
+            {event.kind === 'STEAL' ? 'steal' : 'tackle'}
+          </>
+        ),
+        isGoal: false,
+      };
     case 'GK_BOX_ENTRY_MOVE':
       return {
         prefix: '[KEEPER RESPONSE]',

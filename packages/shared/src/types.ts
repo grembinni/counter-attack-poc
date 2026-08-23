@@ -240,6 +240,7 @@ export type ActionEventType =
   | 'FOUL_CHOICE_MADE' // FOUL-03: fouled attacker's continue-play vs. restart choice
   | 'GK_DIVE_AT_FEET' // GKDIVE-01..05: GK-dive-at-feet duel resolution
   | 'GK_DIVE_AT_FEET_DECLINED' // GKDIVE-02/D-07: GK's team declined the dive-at-feet offer
+  | 'TACKLE_STEAL_DECLINED' // TACKLE-02/D-03 (Phase 43): defender declined a tackle/steal duel offer
   | 'GK_BOX_ENTRY_MOVE' // D-10: GK's repositioning move during GK_BOX_ENTRY_MOVE
   | 'PENALTY_KICK_WINDOW_ADVANCE' // PEN-02/D-08: attacking->defending reposition window boundary
   | 'PENALTY_KICK_TAKER_PLACED' // PEN-02: penalty-taker placed at the penalty spot
@@ -776,6 +777,19 @@ export type ActionEvent =
       timestamp: number;
     }
   | {
+      /**
+       * TACKLE-02/D-03 (Phase 43): a defender declined a tackle/steal duel offer. Deliberately
+       * carries NO `ballAfter` field — a decline moves no ball, mirroring
+       * `GK_DIVE_AT_FEET_DECLINED`'s deliberate omission (43-02 depends on this for the
+       * REPLAY_ELIGIBLE_TYPES exclusion).
+       */
+      type: 'TACKLE_STEAL_DECLINED';
+      kind: 'STEAL' | 'TACKLE';
+      defenderId: string;
+      carrierId: string;
+      timestamp: number;
+    }
+  | {
       /** D-10: GK's repositioning move during GK_BOX_ENTRY_MOVE. */
       type: 'GK_BOX_ENTRY_MOVE';
       gkId: string;
@@ -921,6 +935,10 @@ export type GamePhase =
   | 'GK_DIVE_AT_FEET_TARGET' // 39-UAT gap 3: destination-hex step the GK manager takes after accepting the dive
   | 'GK_BOX_ENTRY_PROMPT' // D-10: GK's team offered the box-entry response
   | 'GK_BOX_ENTRY_MOVE' // D-10: GK moves in response to a box-entry attacker
+  // TACKLE-01/TACKLE-02 (Phase 43): a mid-duel decision prompt inserted before a tackle/steal
+  // duel resolves — NOT a stoppage phase (deliberately excluded from STOPPAGE_PHASES so a
+  // substitution can never be started mid-prompt).
+  | 'TACKLE_STEAL_PROMPT'
   | 'PENALTY_KICK_SETUP_ATTACKING' // PEN-02/D-08: attacking team repositions before the penalty
   | 'PENALTY_KICK_SETUP_DEFENDING' // PEN-02/D-08: defending team repositions before the penalty
   | 'PENALTY_KICK_TAKER_SELECT' // PEN-02: attacking manager selects the penalty-taker
@@ -1532,6 +1550,14 @@ export type GameState = {
    * undefined value.
    */
   outOfBoundsEnabled?: boolean;
+  /**
+   * TACKLE-01 (Phase 43): game-creation toggle for the tackle/steal prompt-and-decline flow.
+   * Absent or `false` means the toggle is OFF and a tackle/steal duel resolves immediately with
+   * no decline prompt, byte-for-byte unchanged from pre-Phase-43 behaviour. Every read site must
+   * test `state.tackleStealDeclineEnabled === true`, never truthiness of a possibly-undefined
+   * value.
+   */
+  tackleStealDeclineEnabled?: boolean;
   /** THROWIN-01/02 (Phase 37): the exit hex where the throw-in is taken. null outside THROW_IN_SETUP/movement. */
   throwInHex?: HexCoord | null;
   /** THROWIN-01 (Phase 37): the team awarded the throw-in. null outside the throw-in sequence. */
@@ -1738,6 +1764,39 @@ export type GameState = {
    * box-entry response resolves or is declined. null outside the sequence.
    */
   gkBoxEntryResume?: {
+    phase: GamePhase;
+    activeTeam: 'home' | 'away';
+    movementSlot: MovementSlot | null;
+  } | null;
+  /**
+   * TACKLE-01..04 (Phase 43): the tackle/steal decline-prompt EPHEMERAL field cluster. These
+   * six fields track a single in-progress prompt sequence and are cleared wherever
+   * TACKLE_STEAL_PROMPT exits. They are deliberately NOT siblings of `stealAttemptedByIds`/
+   * `tackleAttemptedByIds` and therefore do NOT participate in that pair's ~26-site reset
+   * table (43-RESEARCH.md "Do We Actually Need stealDeclinedByIds/tackleDeclinedByIds?"). No
+   * persistent `stealDeclinedByIds`/`tackleDeclinedByIds` array is introduced anywhere in this
+   * phase: TACKLE-03's ring-persistence requirement is delivered by simply never appending a
+   * declined defender to `stealAttemptedByIds`/`tackleAttemptedByIds`.
+   */
+  /** TACKLE-02 (Phase 43): the DEFENDING team — the manager who decides accept/decline. null outside the prompt sequence. */
+  tackleStealPromptTeam?: 'home' | 'away' | null;
+  /** TACKLE-02 (Phase 43): whether this prompt is for a STEAL_ATTEMPT or a TACKLE_ATTEMPT duel. null outside the prompt sequence. */
+  tackleStealPromptKind?: 'STEAL' | 'TACKLE' | null;
+  /** TACKLE-02 (Phase 43): the defender piece ID currently being asked to accept/decline. null outside the prompt sequence. */
+  tackleStealPromptDefenderId?: string | null;
+  /** TACKLE-02 (Phase 43): the ball-carrying piece ID involved in the duel. null outside the prompt sequence. */
+  tackleStealPromptCarrierId?: string | null;
+  /**
+   * D-01 (Phase 43): remaining defender IDs for the multi-defender STEAL sequence, already
+   * sorted by tackling descending (D-02), with the current defender already shifted off.
+   */
+  tackleStealPromptQueue?: readonly string[];
+  /**
+   * TACKLE-02 (Phase 43): snapshots phase/activeTeam/movementSlot to resume play after the
+   * tackle/steal prompt resolves or is declined. The resume trio is exactly these three keys,
+   * byte-identical to `gkDiveAtFeetResume` — do not add a fourth key.
+   */
+  tackleStealPromptResume?: {
     phase: GamePhase;
     activeTeam: 'home' | 'away';
     movementSlot: MovementSlot | null;
