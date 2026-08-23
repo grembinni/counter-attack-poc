@@ -31,6 +31,8 @@ type Props = {
     booking: boolean;
     /** SETTINGS-03 (Phase 39): injury toggle — normalised to `fouls && injury` at confirm time. */
     injury: boolean;
+    /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. */
+    tackleStealDecline: boolean;
   }) => void;
   /**
    * BUG-33 (Phase 36) / D-01..D-05: called when the host clicks Back. Returns the host
@@ -54,6 +56,9 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   // superseding the prior "safe default" comment. The SERVER-side default in
   // buildInitialGameState deliberately stays `false` — this is a client-only UX default.
   const [outOfBounds, setOutOfBounds] = useState<boolean>(true);
+  // TACKLE-01 (Phase 43): client-only UX default ON, mirroring outOfBounds above. The
+  // SERVER-side default in buildInitialGameState deliberately stays `false`.
+  const [tackleStealDecline, setTackleStealDecline] = useState<boolean>(true);
   // WR-03 (Phase 27 review): guard against a rapid double-click firing
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
@@ -113,6 +118,7 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
       // at the source so a downstream consumer never has to re-derive it.
       booking: fouls && booking,
       injury: fouls && injury,
+      tackleStealDecline,
     });
   }
 
@@ -190,6 +196,15 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
               onChange={() => setOutOfBounds((v) => !v)}
             />
             Out-of-Bounds / Restarts
+          </label>
+          {/* TACKLE-01 (Phase 43): tackleStealDecline checkbox, checked by default. */}
+          <label className={styles.poolRow}>
+            <input
+              type="checkbox"
+              checked={tackleStealDecline}
+              onChange={() => setTackleStealDecline((v) => !v)}
+            />
+            Tackle/Steal Decline Prompt
           </label>
         </div>
 

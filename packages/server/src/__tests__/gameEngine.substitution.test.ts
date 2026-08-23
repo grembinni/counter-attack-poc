@@ -583,6 +583,7 @@ describe('buildInitialGameState: playerId stamping + bench/subsUsed/addedTimeBon
       false,
       false,
       false,
+      false,
       homeBenchBase,
       awayBenchBase,
     );
@@ -604,6 +605,7 @@ describe('buildInitialGameState: playerId stamping + bench/subsUsed/addedTimeBon
       { home: 'home', away: 'away' },
       undefined,
       undefined,
+      false,
       false,
       false,
       false,

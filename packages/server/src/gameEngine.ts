@@ -392,6 +392,15 @@ export function buildInitialGameState(
    */
   injuryEnabled: boolean = false,
   /**
+   * TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle baked into GameState at match
+   * start from Room.tackleStealDeclineEnabled. Defaults to `false` — the disabled path is
+   * the safe default even if a caller forgets to pass it, matching `outOfBoundsEnabled`'s
+   * fail-closed default. This server-side default deliberately differs from the client
+   * settings checkbox's default-ON state (GameSettingsScreen.tsx) — the client UX default
+   * and the engine's fail-closed default are intentionally split, same as every other toggle.
+   */
+  tackleStealDeclineEnabled: boolean = false,
+  /**
    * SUB-02/07 (Phase 40, D-01/D-02): the home team's pre-match bench, exactly as computed
    * by the LINEUP_CONFIRM handler (roster minus starting 11). Defaults to an empty array so
    * every pre-Phase-40 caller keeps compiling and behaving identically. Stored VERBATIM —
@@ -446,6 +455,7 @@ export function buildInitialGameState(
     foulsEnabled, // SETTINGS-01/FOUL-05 (Phase 39): Fouls system toggle
     bookingEnabled, // SETTINGS-02/CARD-04 (Phase 39): Booking (cards) toggle
     injuryEnabled, // SETTINGS-03/INJURY-04 (Phase 39): Injury system toggle
+    tackleStealDeclineEnabled, // TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle
     secondHalfConfirmed: null,
     gkDiveAtFeetUsedByTeam: null,
     gkBoxEntryUsedByTeam: null,
@@ -10026,6 +10036,9 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     selectedUniformStyles: finalState.selectedUniformStyles, // Phase 22 D-17: carry uniform styles into replay frames
     gameSpeed: finalState.gameSpeed, // UX-07 (Phase 18.4): carry speed into replay frames
     outOfBoundsEnabled: finalState.outOfBoundsEnabled ?? false, // GOALKICK-06 / OOB-05 (Phase 37): carry the toggle into replay frames
+    // TACKLE-01 (Phase 43): tackleStealDeclineEnabled is deliberately NOT carried into replay
+    // frames — replay reconstructs purely from ballAfter and never re-enters
+    // TACKLE_STEAL_PROMPT, so threading the toggle here would be dead state.
   };
 
   // REPLAY-05: accumulate consecutive MOVE events per pieceId so an entire movement phase

@@ -149,6 +149,13 @@ export function App() {
       _confirmedFouls: boolean,
       _confirmedBooking: boolean,
       _confirmedInjury: boolean,
+      // TACKLE-01 (Phase 43): trailing tackleStealDecline boolean added to
+      // ROOM_SETTINGS_CONFIRMED in Plan 43-03. Accepted here to match the extended event
+      // signature; no local consumer yet in this plan's scope (the settings-summary line
+      // for it, if any, belongs to Phase 44's Advanced drawer), so deliberately discarded
+      // rather than stored — the value still flows end to end through the socket
+      // payload and Room storage, which is what TACKLE-01 requires.
+      _confirmedTackleStealDecline: boolean,
     ) {
       setSelectedSpeed(speed);
       setTeamType(confirmedTeamType);
@@ -267,6 +274,8 @@ export function App() {
     booking: boolean;
     /** SETTINGS-03 (Phase 39): injury toggle. */
     injury: boolean;
+    /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. */
+    tackleStealDecline: boolean;
   }) {
     setSelectedSpeed(settings.speed);
     setTeamType(settings.teamType);

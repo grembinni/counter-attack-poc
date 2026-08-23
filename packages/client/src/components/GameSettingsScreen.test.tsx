@@ -127,6 +127,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 
@@ -146,6 +147,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 
@@ -171,6 +173,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 
@@ -189,6 +192,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 });
@@ -218,6 +222,7 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 
@@ -235,6 +240,37 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
+    });
+  });
+});
+
+describe('GameSettingsScreen — Tackle/Steal Decline Prompt toggle (TACKLE-01, Phase 43)', () => {
+  it('renders the "Tackle/Steal Decline Prompt" row with a checked checkbox by default', () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    const checkbox = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: 'Tackle/Steal Decline Prompt',
+    });
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it('unchecking the toggle then Confirm Settings calls onConfirm with tackleStealDecline: false', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Tackle/Steal Decline Prompt' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+      tackleStealDecline: false,
     });
   });
 });
@@ -307,6 +343,7 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 
@@ -326,6 +363,7 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: true,
     });
   });
 });
