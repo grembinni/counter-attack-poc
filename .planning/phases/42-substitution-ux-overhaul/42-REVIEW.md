@@ -1,215 +1,169 @@
 ---
 phase: 42-substitution-ux-overhaul
-reviewed: 2026-08-22T00:00:00Z
+reviewed: 2026-08-23T00:00:00Z
 depth: standard
-files_reviewed: 37
+files_reviewed: 4
 files_reviewed_list:
-  - packages/client/src/components/ActionLog.test.tsx
-  - packages/client/src/components/ActionLog.tsx
-  - packages/client/src/components/ActionPanel.test.tsx
-  - packages/client/src/components/ActionPanel.tsx
-  - packages/client/src/components/BenchCarousel.test.tsx
-  - packages/client/src/components/CardInjuryBadge.crossSurface.test.tsx
-  - packages/client/src/components/DraftPackCarousel.tsx
-  - packages/client/src/components/GameBoard.module.css
-  - packages/client/src/components/GameBoard.test.tsx
-  - packages/client/src/components/GameBoard.tsx
-  - packages/client/src/components/HexGrid.test.tsx
-  - packages/client/src/components/HexGrid.tsx
-  - packages/client/src/components/LineupAssignmentScreen.module.css
-  - packages/client/src/components/LineupAssignmentScreen.test.tsx
-  - packages/client/src/components/LineupAssignmentScreen.tsx
-  - packages/client/src/store/useGameStore.test.ts
-  - packages/client/src/store/useGameStore.ts
-  - packages/server/src/__tests__/gameEngine.freeKickWallDistance.test.ts
-  - packages/server/src/__tests__/gameEngine.redCardExclusion.test.ts
-  - packages/server/src/__tests__/gameEngine.rosterReposition.test.ts
-  - packages/server/src/__tests__/gameHandlers.phase17-06.test.ts
-  - packages/server/src/__tests__/gameHandlers.redCardExclusion.test.ts
-  - packages/server/src/__tests__/gameHandlers.rosterReposition.test.ts
-  - packages/server/src/__tests__/offside.test.ts
-  - packages/server/src/gameEngine.ts
-  - packages/server/src/gameHandlers.ts
-  - packages/shared/src/events.test.ts
-  - packages/shared/src/events.ts
-  - packages/shared/src/fouls.test.ts
-  - packages/shared/src/fouls.ts
-  - packages/shared/src/moveValidator.test.ts
-  - packages/shared/src/moveValidator.ts
-  - packages/shared/src/outOfBounds.test.ts
-  - packages/shared/src/outOfBounds.ts
-  - packages/shared/src/passValidator.test.ts
+  - packages/shared/src/offside.ts
+  - packages/shared/src/offside.test.ts
   - packages/shared/src/passValidator.ts
-  - packages/shared/src/stoppagePhases.test.ts
-  - packages/shared/src/stoppagePhases.ts
-  - packages/shared/src/types.ts
+  - packages/shared/src/passValidator.test.ts
 findings:
   critical: 0
-  warning: 2
-  info: 1
+  warning: 1
+  info: 2
   total: 3
 status: issues_found
 ---
 
 # Phase 42: Code Review Report
 
-**Reviewed:** 2026-08-22T00:00:00Z
+**Reviewed:** 2026-08-23T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 37 (plus types.ts read for shared-type context)
+**Files Reviewed:** 4
 **Status:** issues_found
 
 ## Summary
 
-This phase adds the SUB-08 "roster reposition" (formation-position swap) feature, its
-`ROSTER_REPOSITION` event/undo-boundary plumbing, and a large `BUG-38` sweep that converts
-ad-hoc `redCarded`/`onPitch` checks across `packages/shared` and `packages/server` into the
-single shared `isActivePiece` predicate. The new `applyRosterReposition` engine function,
-its socket handler, and the client drag/drop UI in `LineupAssignmentScreen.tsx` are
-extensively documented, guard-ordered defensively (client UX gate + handler-level ownership
-check + engine-level re-validation, in that order), and backed by a thorough dedicated test
-suite (`gameEngine.rosterReposition.test.ts`, `gameHandlers.rosterReposition.test.ts`) that
-exercises every rejection path including the destination-occupancy edge case (gap item 6).
-No BLOCKER-level defects (security, data loss, crash) were found in the reviewed scope.
+This is a scoped re-review of plans 42-16 and 42-17 — a gap-closure round that filtered
+red-carded/benched pieces out of the two remaining unfiltered piece-list sites identified in
+the phase's earlier review round: `passValidator.ts`'s LONG-pass landing restriction
+(`ownTeammates`/`opponents` lists, lines 135-141) and `offside.ts`'s opponent-counting
+(`opposingPiecesEqualOrAhead`) and sticky-flag evaluation (`evaluateOffside`'s `stillFlagged`/
+`newlyFlagged`). 42-17 made no source changes (audit-only).
 
-Two WARNING-level correctness gaps were found, both in areas the codebase's own `BUG-38`
-audit explicitly targeted but did not fully close: `passValidator.ts`'s Long Ball landing
-restriction still uses raw (non-`isActivePiece`-filtered) piece lists, and
-`applyQuickThrow`'s known TODO (opponent-occupied target hex should transfer possession) is
-still open. One INFO-level cleanup item was found in `DraftPackCarousel.tsx`.
+I traced every `state.pieces` construction site in both source files (`Grep` confirms there
+are no other unfiltered sites left) and confirmed each fix applies `isActivePiece` at the
+correct point, with the correct polarity (exclusion lowers opposing counts, which is the
+rules-correct direction per the inline BUG-38 commentary), and does not disturb the two
+deliberately-unfiltered "construction-class" by-id lookups (`offside.ts`'s `piecesById` map
+and `triggerOffsideFoul`'s `offender` lookup, both of which filter downstream instead). I
+manually re-derived the arithmetic for every new/changed test case in both `.test.ts` files
+(hex-distance/attacking-direction math, `isActivePiece`'s two-clause `redCarded`/`onPitch`
+semantics per `types.ts`) and found no incorrect assertions. No BLOCKER-level defects
+(incorrect behavior, security, data loss) were found in this round's changes.
+
+One WARNING was found: the pre-existing (not introduced this round) HIGH/LONG
+"opponent-adjacent-to-kicker blocks the pass" branch in `passValidator.ts` has zero test
+coverage at all — including for this round's own `isActivePiece` exclusion applied at that
+exact site — unlike every sibling BUG-38 fix site, which all received dedicated
+redCarded/onPitch/live-control test triads. Two INFO items (stale top-of-function doc
+comments in `passValidator.ts`; an untested opponent-count-reaches-zero boundary in
+`offside.ts`) are also noted.
 
 ## Warnings
 
-### WR-01: Long Ball landing restriction is not filtered through `isActivePiece`, unlike every other check in the same function
+### WR-01: HIGH/LONG "adjacent-to-kicker" PATH_BLOCKED branch has no test coverage, including for this round's own `isActivePiece` fix at that site
 
-**File:** `packages/shared/src/passValidator.ts:131-140`
+**File:** `packages/shared/src/passValidator.ts:112-126`
 
-**Issue:** `validatePass`'s `LONG` branch computes `ownTeammates` and `opponents` directly
-from `state.pieces` with no `isActivePiece` filter:
-
-```ts
-if (passType === 'LONG') {
-  const ownTeammates = state.pieces.filter((p) => p.teamId === piece.teamId && p.id !== piece.id);
-  if (ownTeammates.some((p) => hexDistance(to, p.position) <= 5)) {
-    return { ok: false, reason: 'LANDING_RESTRICTED' };
-  }
-  const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId);
-  if (opponents.some((p) => hexDistance(to, p.position) <= 1)) {
-    return { ok: false, reason: 'LANDING_RESTRICTED' };
-  }
-}
-```
-
-Every other occupancy/eligibility computation in this same file (the `STANDARD` path-block
-`opponentPieces`, the `HIGH`/`LONG` adjacent-blocker `opponentPieces`, the `destDefender`
-auto-intercept lookup, and the `rollIntercepts` ZoI `opponents` list) was explicitly updated
-by the `BUG-38` sweep (see the inline `BUG-38` comments at lines 102-106, 113-116, and
-151-158) to exclude red-carded/benched pieces via `isActivePiece`, because
-`stoppagePhases.ts`'s own doc comment states this predicate must be used for "eligibility/
-occupancy/ZoI/interceptor lists, anywhere in `packages/shared`". These two `LONG`-only
-landing-restriction lists were missed by that sweep. A red-carded or subbed-off piece keeps
-a live, frozen `position` in `state.pieces` (by design — see `PlayerPiece.onPitch`'s doc
-comment in `types.ts`), so today a Long Ball can be wrongly rejected with
-`LANDING_RESTRICTED` because of a teammate who was sent off five minutes ago and is sitting
-motionless on a frozen hex, or because of an opponent's frozen red-card hex sitting next to
-the intended landing spot. `passValidator.test.ts` has dedicated `BUG-38` coverage for the
-`STANDARD`/`HIGH`/`LONG` path-blocking branches (lines 265-337: `redCarded`/`onPitch: false`
-opponents excluded) but no equivalent test for the `LONG` landing-restriction branch,
-confirming this is an untested gap rather than a deliberate exclusion.
-
-**Fix:**
+**Issue:** The HIGH/LONG path-blocking branch —
 
 ```ts
-if (passType === 'LONG') {
-  const ownTeammates = state.pieces.filter(
-    (p) => p.teamId === piece.teamId && p.id !== piece.id && isActivePiece(p),
+} else if (passType === 'HIGH' || passType === 'LONG') {
+  // BUG-38: isActivePiece applied at the array-construction site (mirrors STANDARD above).
+  const opponentPieces = state.pieces.filter(
+    (p) => p.teamId !== piece.teamId && isActivePiece(p),
   );
-  if (ownTeammates.some((p) => hexDistance(to, p.position) <= 5)) {
-    return { ok: false, reason: 'LANDING_RESTRICTED' };
-  }
-  const opponents = state.pieces.filter((p) => p.teamId !== piece.teamId && isActivePiece(p));
-  if (opponents.some((p) => hexDistance(to, p.position) <= 1)) {
-    return { ok: false, reason: 'LANDING_RESTRICTED' };
+  const adjacentOnPath = hexLine(from, to)[1]; // hex directly next to kicker on the target line
+  if (
+    adjacentOnPath &&
+    opponentPieces.some(
+      (p) => p.position.q === adjacentOnPath.q && p.position.r === adjacentOnPath.r,
+    )
+  ) {
+    return { ok: false, reason: 'PATH_BLOCKED' };
   }
 }
 ```
 
-(`isActivePiece` is already imported in this file at line 20.)
+is exercised by **no test in `passValidator.test.ts`** — neither a baseline "live opponent
+immediately adjacent to the kicker blocks a HIGH/LONG pass" control test, nor a BUG-38
+"redCarded/onPitch:false opponent at that hex does NOT block it" test. Every other BUG-38 fix
+site in this file (STANDARD path blocking, STANDARD destination auto-intercept, STANDARD ZoI
+rollIntercepts, LONG landing restriction) received a matched pair of tests: one proving the
+dismissed piece is excluded, one "control" test proving a live piece at the same spot still
+triggers the original behavior (see e.g. lines 264-277, 279-298, 300-319 for the STANDARD
+triads). This branch has neither — it isn't even covered by a pre-existing (pre-BUG-38) test:
+the closest existing test, `'does NOT block a HIGH pass over an opponent in the travel path'`
+(line 128), places its blocker at `{5,0}` on a `{0,0}→{10,0}` line, which is not
+`hexLine(from,to)[1]` (the adjacent-to-kicker hex this branch actually checks), so it never
+enters this code path at all. The branch is currently unverified in either direction: whether
+a live opponent adjacent to the kicker correctly blocks a HIGH/LONG pass, and whether this
+round's `isActivePiece` filter correctly un-blocks it for a dismissed opponent, are both
+unproven by the test suite.
 
-### WR-02: `applyQuickThrow` never hands possession to an opponent standing on the throw target hex
-
-**File:** `packages/server/src/gameEngine.ts:8143-8168`
-
-**Issue:** `applyQuickThrow` resolves the GK's unblockable/uninterceptable quick throw by
-looking only for a teammate at `targetHex` to become the new carrier:
+**Fix:** Add a control/BUG-38 pair mirroring the STANDARD triads already present, e.g.:
 
 ```ts
-// Find a teammate at the target hex to become the new carrier.
-// TODO: if an OPPOSING player occupies targetHex, they should immediately gain possession
-// (change of possession; ball.carrierId = opponent piece, attackingTeam flips). Currently
-// the ball lands as a loose ball (carrierId: null) and the opponent never gets possession.
-// Fix: also search for an opponent piece at targetHex; if found, set carrierId to that piece
-// and flip attackingTeam/activeTeam to the opponent's team before transitioning to PASS.
-const receiver = state.pieces.find(
-  (p) =>
-    isActivePiece(p) &&
-    p.teamId === gk.teamId &&
-    p.position.q === targetHex.q &&
-    p.position.r === targetHex.r,
-);
+it('blocks a HIGH pass when a live opponent is immediately adjacent to the kicker on the path', () => {
+  const opp = makeOpponent('live4', 1, 0); // hexLine({0,0},{10,0})[1]
+  const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+  const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'HIGH');
+  expect(result.ok).toBe(false);
+  if (!result.ok) expect(result.reason).toBe('PATH_BLOCKED');
+});
+
+it('BUG-38: does NOT block a HIGH pass when the adjacent-to-kicker opponent is red-carded', () => {
+  const opp: PlayerPiece = { ...makeOpponent('redCarded4', 1, 0), redCarded: true };
+  const state: GameState = { ...baseState, pieces: [basePiece, opp] };
+  const result = validatePass(state, basePiece, { q: 0, r: 0 }, { q: 10, r: 0 }, 'HIGH');
+  expect(result.ok).toBe(true);
+});
 ```
 
-This is a live, self-documented TODO (not new to this phase, but present in a file under
-review) describing incorrect game behavior: if the GK's manager throws to a hex an opponent
-is standing on, the ball becomes a carrier-less loose ball at that hex instead of the
-opponent immediately gaining possession, which both misrepresents what "quick throw" means
-in the rulebook and denies the defending side the possession change they are entitled to.
-
-**Fix:** As the TODO itself proposes — also search for an opposing piece at `targetHex`; if
-found, set `ball.carrierId` to that piece's id and flip `attackingTeam`/`activeTeam` to the
-opponent's team before transitioning to `PASS`, mirroring how other restart resolution
-functions in this file (e.g. auto-interception paths) already perform a possession flip.
+(Repeat for `LONG`, or parametrize over both — the branch is shared.)
 
 ## Info
 
-### IN-01: `DraftPackCarousel`'s post-scroll `setTimeout` is not cleared on unmount
+### IN-01: `validatePass`'s top-of-function doc comments misstate which pass types can return `PATH_BLOCKED` and which are excluded from interception
 
-**File:** `packages/client/src/components/DraftPackCarousel.tsx:223-229`
+**File:** `packages/shared/src/passValidator.ts:25`, `:58`
 
-**Issue:**
+**Issue:** Line 25's type-level summary reads:
 
-```ts
-function scrollByCard(direction: 1 | -1) {
-  const el = trackRef.current;
-  if (!el) return;
-  el.scrollBy({ left: direction * SCROLL_STEP_PX, behavior: 'smooth' });
-  // Smooth scroll settles asynchronously — re-check disabled state shortly after.
-  setTimeout(updateScrollState, 300);
-}
-```
+> `Reject: RANGE_EXCEEDED (distance cap or zero), PATH_BLOCKED (Standard only — intermediate hex), LANDING_RESTRICTED (LONG only).`
 
-If the user clicks the carousel-nav arrow and the component unmounts within the 300ms window
-(e.g. the draft/roster panel is closed immediately after), this timer still fires and calls
-`setCanScrollLeft`/`setCanScrollRight` on an unmounted component. React 18 treats this as a
-silent no-op rather than a hard error, but it is a lingering-timer code smell that can produce
-noisy warnings under React's strict/test double-invoke mode and is worth cleaning up.
+and the function-level guard-precedence comment (line 58) reads:
 
-**Fix:** Store the timer id in a ref and clear it in a `useEffect` cleanup, or clear/replace
-it on each call:
+> `5. Interception list collection (all except LONG)`
 
-```ts
-const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-function scrollByCard(direction: 1 | -1) {
-  const el = trackRef.current;
-  if (!el) return;
-  el.scrollBy({ left: direction * SCROLL_STEP_PX, behavior: 'smooth' });
-  clearTimeout(scrollTimeoutRef.current);
-  scrollTimeoutRef.current = setTimeout(updateScrollState, 300);
-}
-useEffect(() => () => clearTimeout(scrollTimeoutRef.current), []);
-```
+Both are inaccurate against the function body: `PATH_BLOCKED` is **not** Standard-only — the
+`HIGH`/`LONG` branch at lines 112-126 (the subject of WR-01 above) also returns
+`PATH_BLOCKED` via its narrower "adjacent-to-kicker" check. And interception-list collection
+(step 5, lines 171-196) is skipped for **both** `HIGH` and `LONG` (`if (passType !== 'LONG' &&
+passType !== 'HIGH')`), not just `LONG` — this actually contradicts the _correct_ statement
+made two lines below at line 150 ("HIGH and LONG passes skip interception (fly over
+defenders)") in the same file. A maintainer skimming only the top-level overview (rather than
+the accurate inline comments deeper in the function) would be misled into thinking a HIGH pass
+can never be `PATH_BLOCKED` and always collects interceptors — both wrong.
+
+**Fix:** Reword line 25 to `PATH_BLOCKED (STANDARD: any intermediate hex; HIGH/LONG: only the
+hex immediately adjacent to the kicker)`, and line 58 to `Interception list collection
+(STANDARD and FIRST_TIME only — HIGH/LONG fly over defenders, see step 6 note)` to match the
+already-correct inline comment at line 150.
+
+### IN-02: `opposingPiecesEqualOrAhead` reaching 0 (all opposing pieces dismissed) is untested
+
+**File:** `packages/shared/src/offside.ts:141-149`, `packages/shared/src/offside.test.ts`
+
+**Issue:** The BUG-38 test suite in `offside.test.ts` exercises the count dropping from 2 to 1
+(one of two opposing pieces dismissed), but never the count dropping to 0 (e.g. both opposing
+pieces on the field are simultaneously red-carded/benched, or only one opposing outfield piece
+plus GK exist and both are dismissed). `isOffsideNow`'s condition 3 (`opposingCount <= 1`)
+and `isClearedNow`'s condition (`opposingCount >= 2`) both behave correctly by direct extension
+of the tested `count === 1` case (0 also satisfies `<= 1` and fails `>= 2`), so this is very
+unlikely to hide an actual defect — but it is the one boundary value in the affected range
+that the new test suite doesn't pin down, and a future refactor of the `<=1`/`>=2` comparisons
+(e.g. an accidental `<` vs `<=` typo) would not be caught by the current tests at that specific
+value.
+
+**Fix:** Add one `opposingPiecesEqualOrAhead(state, homeFwd)).toBe(0)` case (both away pieces
+dismissed) alongside the existing count-1 and count-2 cases, and a corresponding
+`isOffsideNow`/`evaluateOffside` assertion, for completeness.
 
 ---
 
-_Reviewed: 2026-08-22T00:00:00Z_
+_Reviewed: 2026-08-23T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
