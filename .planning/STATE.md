@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: ready to execute
-stopped_at: Phase 42 complete (17/17 plans); ready to plan Phase 43
-last_updated: '2026-08-23T11:42:00.026Z'
-last_activity: 2026-08-23 -- Phase 42 gap-closure plan 42-17 executed (final BUG-38 shared-package audit + whole-repo quality gate all green); phase 42 complete
+status: idle
+stopped_at: Phase 42 complete and verified (17/17 plans, 5/5 success criteria); Phase 43 not yet planned
+last_updated: '2026-08-23T12:26:49.938Z'
+last_activity: 2026-08-23 -- Phase 42 verified passed (5/5 success criteria); phase marked complete
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 23
   completed_plans: 23
-  percent: 100
+  percent: 33
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 42 (substitution-ux-overhaul) — COMPLETE (17/17 plans)
-Plan: N/A — phase complete
-Status: Gap-closure plans 42-16 and 42-17 both executed. BUG-38's 2 residual unfiltered-piece-list sites (passValidator.ts LONG-pass landing, offside.ts opponent counting/flag evaluation) closed via isActivePiece; re-audit of packages/shared (offside.ts explicitly in scope) found zero new findings; whole-repo quality gate (typecheck, build, all 3 test suites: shared 879, server 1505, client 1116) all green. Next: plan Phase 43 (Tackle/Steal Prompt & Decline).
-Last activity: 2026-08-23 -- Phase 42 gap-closure plan 42-17 executed; phase complete
+Phase: 43 (tackle-steal-prompt-and-decline) — NOT STARTED
+Plan: N/A — no plans created yet
+Status: Phase 42 complete and independently verified (17/17 plans executed, VERIFICATION.md scored 5/5 success criteria, all 12 requirement IDs SUB-08..SUB-18/BUG-38 satisfied). Gap-closure plans 42-16/42-17 closed BUG-38's final 2 residual unfiltered-piece-list sites (passValidator.ts LONG-pass landing, offside.ts opponent counting/flag evaluation). Next: plan Phase 43 (Tackle/Steal Prompt & Decline).
+Last activity: 2026-08-23 -- Phase 42 verified complete
 
 ## Project Reference
 

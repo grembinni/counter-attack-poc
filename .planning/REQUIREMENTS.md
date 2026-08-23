@@ -28,18 +28,18 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 ### Substitution UX Overhaul
 
-- [ ] **SUB-08**: The mid-match roster screen defaults to a player-positioning mode — on-field players can be dragged to swap formation positions with each other
-- [ ] **SUB-09**: Position-swap dragging is disabled while any other game action is selected/pending
-- [ ] **SUB-10**: Bench players are not selectable or draggable in positioning mode
-- [ ] **SUB-11**: A substitution action button enters substitution mode; it is disabled once a team has used all 3 substitutions
-- [ ] **SUB-12**: In substitution mode, the action button is replaced with a Cancel button that reverts to default positioning mode without applying a substitution
-- [ ] **SUB-13**: Only one substitution can be staged per action — dragging a field or bench player onto a target player stages exactly one swap
-- [ ] **SUB-14**: Staging a substitution shows a confirmation popup naming the player coming off and the player coming on (mirroring the existing early-movement-end confirmation pattern)
-- [ ] **SUB-15**: Confirming the popup applies the substitution and returns to default positioning mode; cancelling the popup stays in substitution mode with the pending selection reset
-- [ ] **SUB-16**: A green Resume button replaces the small close (X) control used to return to the game from the roster screen
-- [ ] **SUB-17**: The side banner background — not just its text — turns green when that team's roster screen is in an editable state
-- [ ] **SUB-18**: A red-carded player displays on the bench as a red-card marker; their formation slot can still be repositioned but is never rendered with a player on the pitch, and can never be the target of a substitution
-- [ ] **BUG-38**: A red-carded player is removed from the field completely, not merely hidden or excluded interaction-by-interaction — their frozen position must stop blocking movement/occupancy and stop appearing in any gameplay computation (targeting, ZoI, movement-path blocking, deflection eligibility, or any other pitch-occupancy check), matching the confirmed live defects where a red-carded piece remains eligible in `DEFLECT_ATTEMPT` defender-input building (`gameHandlers.ts`) and the Zone-of-Influence opponent list (`moveValidator.ts`), plus any other site an audit finds still treating them as on-pitch
+- [x] **SUB-08**: The mid-match roster screen defaults to a player-positioning mode — on-field players can be dragged to swap formation positions with each other
+- [x] **SUB-09**: Position-swap dragging is disabled while any other game action is selected/pending
+- [x] **SUB-10**: Bench players are not selectable or draggable in positioning mode
+- [x] **SUB-11**: A substitution action button enters substitution mode; it is disabled once a team has used all 3 substitutions
+- [x] **SUB-12**: In substitution mode, the action button is replaced with a Cancel button that reverts to default positioning mode without applying a substitution
+- [x] **SUB-13**: Only one substitution can be staged per action — dragging a field or bench player onto a target player stages exactly one swap
+- [x] **SUB-14**: Staging a substitution shows a confirmation popup naming the player coming off and the player coming on (mirroring the existing early-movement-end confirmation pattern)
+- [x] **SUB-15**: Confirming the popup applies the substitution and returns to default positioning mode; cancelling the popup stays in substitution mode with the pending selection reset
+- [x] **SUB-16**: A green Resume button replaces the small close (X) control used to return to the game from the roster screen
+- [x] **SUB-17**: The side banner background — not just its text — turns green when that team's roster screen is in an editable state
+- [x] **SUB-18**: A red-carded player displays on the bench as a red-card marker; their formation slot can still be repositioned but is never rendered with a player on the pitch, and can never be the target of a substitution
+- [x] **BUG-38**: A red-carded player is removed from the field completely, not merely hidden or excluded interaction-by-interaction — their frozen position must stop blocking movement/occupancy and stop appearing in any gameplay computation (targeting, ZoI, movement-path blocking, deflection eligibility, or any other pitch-occupancy check), matching the confirmed live defects where a red-carded piece remains eligible in `DEFLECT_ATTEMPT` defender-input building (`gameHandlers.ts`) and the Zone-of-Influence opponent list (`moveValidator.ts`), plus any other site an audit finds still treating them as on-pitch
 
 ### Tackle/Steal Prompt & Decline
 
@@ -105,8 +105,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement     | Phase    | Status   |
 | --------------- | -------- | -------- |
 | ICON-01..03     | Phase 41 | Complete |
-| SUB-08..18      | Phase 42 | Pending  |
-| BUG-38          | Phase 42 | Pending  |
+| SUB-08..18      | Phase 42 | Complete |
+| BUG-38          | Phase 42 | Complete |
 | TACKLE-01..04   | Phase 43 | Pending  |
 | REFEREE-01..04  | Phase 44 | Pending  |
 | SETTINGS-05..07 | Phase 44 | Pending  |
