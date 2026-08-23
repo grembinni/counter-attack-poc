@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: executing
+status: idle
 stopped_at: Phase 43 complete (all 6 plans) — ready to plan Phase 44
 last_updated: '2026-08-23T22:44:52.978Z'
 last_activity: 2026-08-23 -- Phase 43 Plan 06 complete; Task 4 approved via live two-browser verification; Phase 43 closed out
