@@ -51,6 +51,14 @@ vi.mock('./PenaltyKickSetupPanel.js', () => ({
     <div data-testid="mock-penalty-kick-setup-panel">MockPenaltyKickSetupPanel</div>
   ),
 }));
+// Phase 43 (43-05 Task 3): same routing-only-mock convention as the panels above — this
+// file's job is which panel GameBoard's ternary routes to, not TackleStealPromptPanel's own
+// guard/copy logic (already covered by TackleStealPromptPanel.test.tsx).
+vi.mock('./TackleStealPromptPanel.js', () => ({
+  TackleStealPromptPanel: () => (
+    <div data-testid="mock-tackle-steal-prompt-panel">MockTackleStealPromptPanel</div>
+  ),
+}));
 
 afterEach(() => cleanup());
 
@@ -519,6 +527,29 @@ describe('GameBoard — Phase 39 (39-16): new phase dispatch', () => {
       expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
     },
   );
+});
+
+// ---------------------------------------------------------------------------
+// Phase 43 (43-05 Task 3): TACKLE_STEAL_PROMPT routes to TackleStealPromptPanel, never
+// ActionPanel, and the centre phase label reads "TACKLE / STEAL".
+// ---------------------------------------------------------------------------
+describe('GameBoard — Phase 43 (43-05): TACKLE_STEAL_PROMPT dispatch', () => {
+  it('renders TackleStealPromptPanel (not ActionPanel) during TACKLE_STEAL_PROMPT', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'TACKLE_STEAL_PROMPT' },
+    });
+    render(<GameBoard />);
+    expect(screen.getByTestId('mock-tackle-steal-prompt-panel')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
+  });
+
+  it('the centre phase label reads "TACKLE / STEAL" during TACKLE_STEAL_PROMPT', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'TACKLE_STEAL_PROMPT' },
+    });
+    render(<GameBoard />);
+    expect(screen.getByText(/TACKLE \/ STEAL/)).toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
