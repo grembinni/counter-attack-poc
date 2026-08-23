@@ -147,7 +147,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
 | 42    | 17/17                                       | Complete    | 2026-08-23  |
-| 43    | 3/6                                         | In Progress |             |
+| 43    | 4/6                                         | In Progress |             |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
 | 46    | Final Cleanup                               | TBD         | Not started |
@@ -282,7 +282,7 @@ Plans:
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
-- [ ] 43-04-PLAN.md — engine core: applyMove prompt interception, applyTackleStealChoice sequential queue (D-01/D-02/D-03), foul-chain interaction
+- [x] 43-04-PLAN.md — engine core: applyMove prompt interception, applyTackleStealChoice sequential queue (D-01/D-02/D-03), foul-chain interaction
 
 **Wave 5** _(blocked on Wave 4 completion)_
 
