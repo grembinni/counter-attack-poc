@@ -147,7 +147,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | ----- | ------------------------------------------- | ----------- | ----------- |
 | 41    | 6/6                                         | Complete    | 2026-08-21  |
 | 42    | 17/17                                       | Complete    | 2026-08-23  |
-| 43    | 4/6                                         | In Progress |             |
+| 43    | 5/6                                         | In Progress |             |
 | 44    | Referee Leniency & Advanced Settings Drawer | TBD         | Not started |
 | 45    | Game Summary Popup                          | TBD         | Not started |
 | 46    | Final Cleanup                               | TBD         | Not started |
@@ -286,7 +286,7 @@ Plans:
 
 **Wave 5** _(blocked on Wave 4 completion)_
 
-- [ ] 43-05-PLAN.md — GAME_TACKLE_STEAL_CHOICE handler, emitTackleStealChoice, TackleStealPromptPanel + GameBoard routing
+- [x] 43-05-PLAN.md — GAME_TACKLE_STEAL_CHOICE handler, emitTackleStealChoice, TackleStealPromptPanel + GameBoard routing
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
