@@ -378,7 +378,10 @@ export function findPlayerByToken(sessionToken: string): { room: Room; slot: 1 |
  * every other phase already has its own dedicated GK-interaction mechanic (GK_DIVE for
  * shots/headers, GK_RESTART for catches, the restart-setup chains for kick-off/
  * throw-in/goal-kick/corner-kick/free-kick/penalty-kick, and the Phase 39 prompt phases
- * themselves) that must not be double-interrupted.
+ * themselves) that must not be double-interrupted. TACKLE_STEAL_PROMPT (Phase 43,
+ * 43-02) joins that list of prompt phases that must not be double-interrupted — the
+ * ball has not moved while the defending manager decides whether to challenge, so it is
+ * deliberately NOT added to this whitelist.
  */
 const GK_BOX_ENTRY_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   'MOVE',
@@ -485,7 +488,16 @@ export function broadcastState(io: Server, room: Room): void {
     }
   }
 
-  room.lastBroadcastBallPosition = room.gameState.ball.position;
+  // TACKLE-02 (Phase 43, 43-02): do NOT advance the edge-trigger baseline while a
+  // tackle/steal prompt is open. A TACKLE_STEAL_PROMPT broadcast happens with the ball
+  // already at its post-move hex but with both goalkeeper offers skipped (box entry
+  // because TACKLE_STEAL_PROMPT is not in GK_BOX_ENTRY_PHASES, dive-at-feet because its
+  // guard requires phase === 'MOVE'). Advancing the baseline here would make
+  // `ballPositionChanged` false on the resume broadcast, permanently swallowing a
+  // goalkeeper offer that would have fired without the toggle.
+  if (room.gameState.phase !== 'TACKLE_STEAL_PROMPT') {
+    room.lastBroadcastBallPosition = room.gameState.ball.position;
+  }
   io.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
 }
 

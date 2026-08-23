@@ -2893,6 +2893,12 @@ const ZONE_CHECK_EXEMPT_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   // reposition move itself — same rationale as GK_DIVE_AT_FEET_PROMPT above.
   'GK_BOX_ENTRY_PROMPT',
   'GK_BOX_ENTRY_MOVE',
+  // TACKLE-02 (Phase 43, 43-02): the ball has not moved while the defending manager
+  // decides whether to challenge a tackle/steal — same rationale as the adjacent
+  // FOUL_CHOICE/GK_DIVE_AT_FEET_PROMPT entries. `freeMoveResume` has no way to correctly
+  // restore an interrupt phase, so this check must not overlay
+  // FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE on top of the prompt.
+  'TACKLE_STEAL_PROMPT',
 ]);
 
 /**
@@ -3513,6 +3519,13 @@ export function applyUndo(state: GameState): ApplyUndoResult {
       // 39-20: this term is UNCONDITIONAL (not phase-scoped), so it already covers a duel
       // resolved via the two-step accept-then-GK_DIVE_AT_FEET_TARGET flow — no separate
       // phase-scoped duplicate for GK_DIVE_AT_FEET_TARGET is needed here.
+      // TACKLE-02 (Phase 43, 43-02): TACKLE_STEAL_DECLINED is deliberately NOT added as a
+      // boundary term here — a decline commits no dice outcome and must remain crossable
+      // by Undo, matching GK_DIVE_AT_FEET_DECLINED's existing absence from this
+      // disjunction. The resolved TACKLE_ATTEMPT/STEAL_ATTEMPT terms already present
+      // unconditionally at the top of this disjunction already cover every duel resolved
+      // through the new prompt flow, so no new boundary term is needed for the attempt
+      // path either.
       evt.type === 'GK_DIVE_AT_FEET' ||
       // D-10 (Phase 39, 39-14): a completed box-entry GK reposition cannot be undone
       // back across the offer that produced it.
@@ -9929,6 +9942,10 @@ export const REPLAY_ELIGIBLE_TYPES = new Set<string>([
   // GKDIVE-01..05 (Phase 39, 39-12): GK_DIVE_AT_FEET carries ballAfter on both SUCCESS
   // and FAIL. GK_DIVE_AT_FEET_DECLINED is deliberately excluded — it carries no
   // ballAfter, matching the FOUL_CHOICE_MADE exclusion immediately above.
+  // TACKLE-02 (Phase 43, 43-02): TACKLE_STEAL_DECLINED is deliberately excluded from
+  // this set for the identical reason as GK_DIVE_AT_FEET_DECLINED immediately above —
+  // it carries no `ballAfter`. This is a confirmed decision, not an oversight — a future
+  // reader must not add it here.
   'GK_DIVE_AT_FEET',
   // D-10/D-16 (Phase 39, 39-14): GK_BOX_ENTRY_MOVE and SECOND_HALF_CONFIRM are
   // deliberately EXCLUDED from this set — neither carries a `ballAfter` field, matching
