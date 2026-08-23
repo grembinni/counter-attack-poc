@@ -168,4 +168,11 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
     expect(polygons).toHaveLength(1);
     expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
   });
+
+  it("renders the marker during phase='TACKLE_STEAL_PROMPT' (Phase 43, TACKLE-02 — the ball has not moved while the defending manager decides whether to challenge)", () => {
+    const { container } = renderMarker('TACKLE_STEAL_PROMPT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
 });
