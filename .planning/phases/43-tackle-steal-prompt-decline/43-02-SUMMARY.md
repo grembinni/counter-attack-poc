@@ -128,3 +128,19 @@ _Note: Task 3 is tagged `tdd="true"` in the plan; because the target case (`TACK
 
 _Phase: 43-tackle-steal-prompt-decline_
 _Completed: 2026-08-23_
+
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/server/src/roomStore.ts
+- FOUND: packages/client/src/components/ActionLog.tsx
+- FOUND: packages/client/src/components/ActionLog.test.tsx
+- FOUND: packages/client/src/components/BallLocationRing.tsx
+- FOUND: packages/client/src/components/BallLocationRing.test.tsx
+- FOUND: packages/client/src/components/ActionPanel.tsx
+- FOUND: packages/client/src/store/useGameStore.ts
+- FOUND: packages/server/src/**tests**/gameEngine.undoReplay43.test.ts
+- FOUND commit f4d0b37f in git log
+- FOUND commit 0045f618 in git log
+- FOUND commit 7a7aea92 in git log
+- FOUND commit a34d3845 in git log
