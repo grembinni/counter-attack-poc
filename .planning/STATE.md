@@ -3,32 +3,32 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: executing
-stopped_at: Phase 43 Plan 06 — paused at Task 4 (blocking human-verify checkpoint, live two-browser verification required)
-last_updated: '2026-08-23T22:23:23.503Z'
-last_activity: 2026-08-23 -- Phase 43 Plan 06 Tasks 1-3 complete; paused at Task 4 checkpoint
+stopped_at: Phase 43 complete (all 6 plans) — ready to plan Phase 44
+last_updated: '2026-08-23T22:44:52.978Z'
+last_activity: 2026-08-23 -- Phase 43 Plan 06 complete; Task 4 approved via live two-browser verification; Phase 43 closed out
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 29
-  completed_plans: 28
-  percent: 33
+  completed_plans: 29
+  percent: 50
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 43 (tackle-steal-prompt-decline) — EXECUTING
-Plan: 6 of 6 (final plan — Tasks 1-3 complete, paused at Task 4 checkpoint)
-Status: Paused for live two-browser human verification (43-06 Task 4, gate="blocking")
-Last activity: 2026-08-23 -- Phase 43 Plan 06 Tasks 1-3 complete; paused at Task 4 checkpoint
+Phase: 43 (tackle-steal-prompt-decline) — COMPLETE
+Plan: 6 of 6 (all plans complete; Task 4 approved via live two-browser verification)
+Status: Ready to plan Phase 44 (Referee Leniency & Advanced Settings Drawer)
+Last activity: 2026-08-23 -- Phase 43 Plan 06 complete; Task 4 approved via live two-browser verification; Phase 43 closed out
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 43 — tackle-steal-prompt-decline
+**Current focus:** Phase 44 — Referee Leniency & Advanced Settings Drawer
 
 ## Phase Status
 
@@ -84,7 +84,7 @@ See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 | 40    | Substitutions                                 | Complete    | 2026-08-17 |
 | 41    | Card & Injury Iconography                     | Complete    | 2026-08-21 |
 | 42    | Substitution UX Overhaul                      | Complete    | 2026-08-23 |
-| 43    | Tackle/Steal Prompt & Decline                 | Planned     | -          |
+| 43    | Tackle/Steal Prompt & Decline                 | Complete    | 2026-08-23 |
 | 44    | Referee Leniency & Advanced Settings Drawer   | Not started | -          |
 | 45    | Game Summary Popup                            | Not started | -          |
 | 46    | Final Cleanup                                 | Not started | -          |
@@ -252,7 +252,7 @@ See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 
 ### Pending Todos
 
-4 pending todos in `.planning/todos/pending/` (as of 2026-08-16): a KICK_OFF_SETUP shot-path shading rendering bug, a low-priority CSV-consolidation idea, an offside-ring-after-goal rendering bug, and a SUB-06 permanent-slot-cap note scoped to Phase 40 (`resolves_phase: 40`, auto-closes when that phase completes).
+3 pending todos in `.planning/todos/pending/` (as of 2026-08-23): a KICK_OFF_SETUP shot-path shading rendering bug, an offside-ring-after-goal rendering bug, and a newly-filed UX gap — moved piece not auto-reselected with its movement ring after an interrupt-style prompt (GK dive-at-feet, GK box entry, foul choice, tackle/steal) resumes to MOVE, scoped to Phase 46 (`resolves_phase: 46`, filed during 43-06 live verification, commit `97d46c3f`).
 
 ## Quick Tasks Completed
 
@@ -371,10 +371,10 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-23T22:23:23.494Z
-Stopped at: Phase 43 Plan 06, Task 4 — blocking human-verify checkpoint (live two-browser walkthrough of the decline flow)
-Resume file: .planning/phases/43-tackle-steal-prompt-decline/43-06-PLAN.md
-Resume: Perform the live two-browser verification described in 43-06-PLAN.md Task 4's `<how-to-verify>` steps, then respond "approved" (or describe issues by step number) so the executor can finalize 43-06-SUMMARY.md and close out Phase 43.
+Last session: 2026-08-23T22:44:52.978Z
+Stopped at: Phase 43 complete (all 6 plans) — Task 4 approved via live two-browser verification
+Resume file: none — ready to run `/gsd-plan-phase 44` for Referee Leniency & Advanced Settings Drawer
+Resume: Phase 43 (Tackle/Steal Prompt & Decline) is closed out with all four TACKLE-01..04 requirements satisfied. One out-of-scope UX observation from the live verification was filed as a backlog todo (resolves_phase: 46), not actioned in this phase. Next step is to plan Phase 44.
 
 ## Performance Metrics
 
@@ -427,6 +427,7 @@ Resume: Perform the live two-browser verification described in 43-06-PLAN.md Tas
 | Phase 24-auto-assignment-lineup P02       | 8min   | 3 tasks  | 2 files  |
 | Phase 24-auto-assignment-lineup P03       | 180    | 3 tasks  | 13 files |
 | Phase 29 P11                              | 6min   | 3 tasks  | 4 files  |
+| Phase 43-tackle-steal-prompt-decline P06  | ~2h    | 4 tasks  | 5 files  |
 
 ## Decisions
 
@@ -516,7 +517,10 @@ Resume: Perform the live two-browser verification described in 43-06-PLAN.md Tas
 - [Phase 29]: CR-02 guard mirrors DRAFT_REARRANGE exactly, reusing the existing LINEUP_ALREADY_CONFIRMED literal instead of a new error code
 - [Phase 29]: CR-03 gates reconnect draft re-sync on room.gameState === null (superset of prior !draftComplete condition), closing the post-complete/pre-confirm reconnect dead-window
 - [Phase 29-12]: benchCards hoisted into useMemo([draftView?.benchIds, cardCache]) in LineupAssignmentScreen.tsx; BenchCarousel scroll-reset useEffect re-keyed from [cards] identity to content-derived [benchKey] (cards.map(id).join('|')) — closes DRAFT-09 mid-drag scroll snap-back
+- [Phase 43-06]: TACKLE-03 ring persistence enforced by tests alone (no new GameState field); stealAttemptedByIds/tackleAttemptedByIds remain single source of truth
+- [Phase 43-06]: Pre-existing root pnpm lint OOM confirmed unrelated Phase 32/33 tech debt, logged to deferred-items.md rather than fixed
+- [Phase 43-06]: No-auto-reselect-after-interrupt-prompt-resume UX gap confirmed pre-existing/cross-cutting (affects GK dive-at-feet, GK box entry, foul choice too), filed as backlog todo resolves_phase:46 rather than fixed in this plan
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 41` to begin planning Phase 41 (Card & Injury Iconography), the first phase of v1.7.
+- Run `/gsd-plan-phase 44` to begin planning Phase 44 (Referee Leniency & Advanced Settings Drawer), now that Phase 43 (Tackle/Steal Prompt & Decline) is complete.

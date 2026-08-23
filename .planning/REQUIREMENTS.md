@@ -43,10 +43,10 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 ### Tackle/Steal Prompt & Decline
 
-- [ ] **TACKLE-01**: A new game-creation toggle prompts the defender before a tackle/steal attempt, default on
-- [ ] **TACKLE-02**: When enabled and a tackle/steal opportunity arises, the defending manager can decline it without it counting as an attempt
-- [ ] **TACKLE-03**: A declined opportunity keeps its risk ring active so the same defender can be prompted again on a later move step, until the opportunity genuinely expires (ball carrier moves out of range, or the movement phase ends)
-- [ ] **TACKLE-04**: When the toggle is off, tackle/steal duels resolve immediately as they do today, with no decline prompt
+- [x] **TACKLE-01**: A new game-creation toggle prompts the defender before a tackle/steal attempt, default on
+- [x] **TACKLE-02**: When enabled and a tackle/steal opportunity arises, the defending manager can decline it without it counting as an attempt
+- [x] **TACKLE-03**: A declined opportunity keeps its risk ring active so the same defender can be prompted again on a later move step, until the opportunity genuinely expires (ball carrier moves out of range, or the movement phase ends)
+- [x] **TACKLE-04**: When the toggle is off, tackle/steal duels resolve immediately as they do today, with no decline prompt
 
 ### Game Summary Popup
 
@@ -107,7 +107,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ICON-01..03     | Phase 41 | Complete |
 | SUB-08..18      | Phase 42 | Complete |
 | BUG-38          | Phase 42 | Complete |
-| TACKLE-01..04   | Phase 43 | Pending  |
+| TACKLE-01..04   | Phase 43 | Complete |
 | REFEREE-01..04  | Phase 44 | Pending  |
 | SETTINGS-05..07 | Phase 44 | Pending  |
 | STATS-01..09    | Phase 45 | Pending  |
