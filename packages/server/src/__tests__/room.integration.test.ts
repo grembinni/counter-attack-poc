@@ -21,9 +21,23 @@ import { io as ioClient } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { buildServer } from '../createServer.js';
 import { clearAllRooms, getRoom } from '../roomStore.js';
-import type { ClientToServerEvents, ServerToClientEvents } from '@counter-attack/shared';
+import { buildInitialGameState } from '../gameEngine.js';
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  UniformStyleId,
+} from '@counter-attack/shared';
 import { ClientEvents, ServerEvents } from '@counter-attack/shared';
 import http from 'http';
+
+// TACKLE-01 (Phase 43): minimal fixtures for the direct buildInitialGameState
+// default/explicit tackleStealDeclineEnabled unit tests below (mirrors gameEngine.test.ts's
+// DEFAULT_TEAMS/DEFAULT_STYLES fixtures).
+const T43_DEFAULT_TEAMS = { home: 'city', away: 'crew' } as const;
+const T43_DEFAULT_STYLES: { home: UniformStyleId; away: UniformStyleId } = {
+  home: 'pinstripes-vertical',
+  away: 'bar-diagonal',
+};
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -216,6 +230,7 @@ describe('Room integration tests', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     await settingsConfirmedPromise;
 
@@ -338,6 +353,7 @@ describe('Room integration tests', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     await settingsConfirmedPromise;
 
@@ -424,6 +440,7 @@ describe('UNIFORM_CONFIRM — guard: away before home', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     await settingsConfirmedPromise;
 
@@ -470,6 +487,7 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     await settingsConfirmedPromise;
 
@@ -551,6 +569,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_TURN');
@@ -574,6 +593,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('DRAFT_POOL_REQUIRED');
@@ -596,6 +616,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [speed, teamType, draftPools] = await confirmedPromise;
     expect(speed).toBe('standard');
@@ -614,6 +635,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
@@ -637,6 +659,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_OUT_OF_BOUNDS');
@@ -662,6 +685,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: 'yes' as any,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_FOULS');
@@ -686,6 +710,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid booking
       booking: 'yes' as any,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_BOOKING');
@@ -710,9 +735,35 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid injury
       injury: 'yes' as any,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_INJURY');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('a forged non-boolean tackleStealDecline payload is rejected with INVALID_TACKLE_STEAL_DECLINE before any room mutation (T-43-07)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid toggle value
+      tackleStealDecline: 'yes' as any,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_TACKLE_STEAL_DECLINE');
     expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
   }, 5000);
 
@@ -733,6 +784,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: true,
       injury: true,
+      tackleStealDecline: false,
     });
     const [, , , , foulsEnabled, bookingEnabled, injuryEnabled] = await confirmedPromise;
     expect(foulsEnabled).toBe(false);
@@ -761,6 +813,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: false,
     });
     const [, , , outOfBoundsEnabled, foulsEnabled, bookingEnabled, injuryEnabled] =
       await confirmedPromise;
@@ -790,6 +843,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [, , draftPools] = await confirmedPromise;
     expect(draftPools).toEqual(['legends']);
@@ -813,6 +867,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');
@@ -837,6 +892,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     await confirmedPromiseA;
     // Host must NOT prematurely receive TEAM_SELECTION_START before a joiner exists (D-01).
@@ -889,6 +945,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     // Host confirm is the "second" condition here — must fire TEAM_SELECTION_START for both.
     await selectionStartCPromise;
@@ -913,6 +970,7 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: false,
     });
     await settingsConfirmedPromise;
 
@@ -946,6 +1004,37 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     expect(state.bookingEnabled).toBe(true);
     expect(state.injuryEnabled).toBe(true);
   }, 5000);
+});
+
+describe('buildInitialGameState — tackleStealDeclineEnabled default/explicit (TACKLE-01)', () => {
+  it('called without the new argument yields tackleStealDeclineEnabled === false', () => {
+    const state = buildInitialGameState(
+      'ROOM-T43-01',
+      T43_DEFAULT_TEAMS,
+      'standard',
+      T43_DEFAULT_STYLES,
+    );
+    expect(state.tackleStealDeclineEnabled).toBe(false);
+  });
+
+  it('called with true yields tackleStealDeclineEnabled === true', () => {
+    const state = buildInitialGameState(
+      'ROOM-T43-02',
+      T43_DEFAULT_TEAMS,
+      'standard',
+      T43_DEFAULT_STYLES,
+      { home: '4-4-2', away: '4-4-2' },
+      { home: 'home', away: 'away' },
+      undefined,
+      undefined,
+      false,
+      false,
+      false,
+      false,
+      true,
+    );
+    expect(state.tackleStealDeclineEnabled).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

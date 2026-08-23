@@ -180,8 +180,20 @@ function waitForConnect(
 // driveDraftToCompletionFillingLineups verbatim — self-contained per file)
 // ---------------------------------------------------------------------------
 
-type Toggles = { outOfBounds: boolean; fouls: boolean; booking: boolean; injury: boolean };
-const TOGGLES_OFF: Toggles = { outOfBounds: false, fouls: false, booking: false, injury: false };
+type Toggles = {
+  outOfBounds: boolean;
+  fouls: boolean;
+  booking: boolean;
+  injury: boolean;
+  tackleStealDecline: boolean;
+};
+const TOGGLES_OFF: Toggles = {
+  outOfBounds: false,
+  fouls: false,
+  booking: false,
+  injury: false,
+  tackleStealDecline: false,
+};
 
 function confirmDraftRoomSettings(
   clientA: Socket<ServerToClientEvents, ClientToServerEvents>,
@@ -204,6 +216,7 @@ function confirmDraftRoomSettings(
       fouls: toggles.fouls,
       booking: toggles.booking,
       injury: toggles.injury,
+      tackleStealDecline: toggles.tackleStealDecline,
     });
   });
 }
@@ -921,6 +934,7 @@ describe('SETTINGS-04: substitution succeeds regardless of the four v1.6 toggle 
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     expect(stateA.foulsEnabled).toBe(false);
     expect(stateA.bookingEnabled).toBe(false);
@@ -944,6 +958,7 @@ describe('SETTINGS-04: substitution succeeds regardless of the four v1.6 toggle 
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: false,
     });
     expect(stateA.foulsEnabled).toBe(true);
     expect(stateA.bookingEnabled).toBe(true);

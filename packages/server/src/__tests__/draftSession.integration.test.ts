@@ -151,6 +151,7 @@ function confirmDraftRoomSettings(
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
   });
 }
@@ -294,6 +295,7 @@ describe('Draft-mode UNIFORM_CONFIRM bootstrap', () => {
         fouls: false,
         booking: false,
         injury: false,
+        tackleStealDecline: false,
       });
     });
     await settingsPromise;
@@ -352,6 +354,7 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const draftPools = await confirmedPromise;
     expect(draftPools).toEqual(['legends']);
@@ -379,6 +382,7 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const draftPools = await confirmedPromise;
     expect(draftPools).toEqual(['icons']);
@@ -407,6 +411,7 @@ describe('ROOM_SETTINGS_CONFIRM draft-pool allow-list (Phase 30 D-08/T-30-01)', 
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
     const reason = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');

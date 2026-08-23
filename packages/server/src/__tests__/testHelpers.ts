@@ -43,6 +43,7 @@ export function confirmDefaultRoomSettings(
       fouls: false,
       booking: false,
       injury: false,
+      tackleStealDecline: false,
     });
   });
 }

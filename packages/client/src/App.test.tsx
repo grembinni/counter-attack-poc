@@ -95,6 +95,7 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
 
     // D-14 (Phase 39): all four Match Rules toggles default ON in GameSettingsScreen —
     // confirming without touching any toggle now forwards true for all four.
+    // TACKLE-01 (Phase 43): tackleStealDecline also defaults ON in the checkbox.
     expect(emitMock).toHaveBeenCalledWith(ClientEvents.ROOM_SETTINGS_CONFIRM, {
       speed: 'standard',
       teamType: 'standard',
@@ -103,6 +104,7 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
       fouls: true,
       booking: true,
       injury: true,
+      tackleStealDecline: true,
     });
   });
 
