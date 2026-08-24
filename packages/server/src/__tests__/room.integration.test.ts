@@ -231,6 +231,8 @@ describe('Room integration tests', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -354,6 +356,8 @@ describe('Room integration tests', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -441,6 +445,8 @@ describe('UNIFORM_CONFIRM — guard: away before home', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -488,6 +494,8 @@ describe('UNIFORM_CONFIRM — guard: invalid inputs', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -570,6 +578,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('WRONG_TURN');
@@ -594,6 +604,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('DRAFT_POOL_REQUIRED');
@@ -617,6 +629,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [speed, teamType, draftPools] = await confirmedPromise;
     expect(speed).toBe('standard');
@@ -636,6 +650,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('SETTINGS_ALREADY_CONFIRMED');
@@ -660,6 +676,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_OUT_OF_BOUNDS');
@@ -686,6 +704,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_FOULS');
@@ -711,6 +731,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: 'yes' as any,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_BOOKING');
@@ -736,6 +758,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid injury
       injury: 'yes' as any,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_INJURY');
@@ -761,6 +785,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       injury: false,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid toggle value
       tackleStealDecline: 'yes' as any,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_TACKLE_STEAL_DECLINE');
@@ -785,6 +811,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: true,
       injury: true,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [, , , , foulsEnabled, bookingEnabled, injuryEnabled] = await confirmedPromise;
     expect(foulsEnabled).toBe(false);
@@ -814,6 +842,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: true,
       injury: true,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [, , , outOfBoundsEnabled, foulsEnabled, bookingEnabled, injuryEnabled] =
       await confirmedPromise;
@@ -844,6 +874,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [, , draftPools] = await confirmedPromise;
     expect(draftPools).toEqual(['legends']);
@@ -868,6 +900,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     const [reason] = await errorPromise;
     expect(reason).toBe('INVALID_DRAFT_POOL');
@@ -893,6 +927,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await confirmedPromiseA;
     // Host must NOT prematurely receive TEAM_SELECTION_START before a joiner exists (D-01).
@@ -946,6 +982,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     // Host confirm is the "second" condition here — must fire TEAM_SELECTION_START for both.
     await selectionStartCPromise;
@@ -971,6 +1009,8 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
       booking: true,
       injury: true,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -1003,6 +1043,196 @@ describe('ROOM_SETTINGS_CONFIRM', () => {
     expect(state.foulsEnabled).toBe(true);
     expect(state.bookingEnabled).toBe(true);
     expect(state.injuryEnabled).toBe(true);
+  }, 5000);
+});
+
+describe('Referee Leniency override validation (REFEREE-01/02, T-44-04/T-44-05)', () => {
+  it('a forged non-boolean refereeLeniencyOverride payload is rejected with INVALID_REFEREE_LENIENCY_OVERRIDE before any room mutation', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid toggle value
+      refereeLeniencyOverride: 'yes' as any,
+      refereeLeniencyValue: 4,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_REFEREE_LENIENCY_OVERRIDE');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('refereeLeniencyValue: 6 (above range) is rejected with INVALID_REFEREE_LENIENCY_VALUE', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 6,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_REFEREE_LENIENCY_VALUE');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('refereeLeniencyValue: 1 (below range) is rejected with INVALID_REFEREE_LENIENCY_VALUE', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 1,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_REFEREE_LENIENCY_VALUE');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('refereeLeniencyValue: 3.5 (non-integer) is rejected with INVALID_REFEREE_LENIENCY_VALUE', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 3.5,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_REFEREE_LENIENCY_VALUE');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it("refereeLeniencyValue: '4' (string) is rejected with INVALID_REFEREE_LENIENCY_VALUE", async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      refereeLeniencyOverride: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately invalid toggle value
+      refereeLeniencyValue: '4' as any,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_REFEREE_LENIENCY_VALUE');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('an out-of-range refereeLeniencyValue is still rejected with INVALID_REFEREE_LENIENCY_VALUE even when refereeLeniencyOverride is false (pins the unconditional-validation decision)', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 99,
+    });
+    const [reason] = await errorPromise;
+    expect(reason).toBe('INVALID_REFEREE_LENIENCY_VALUE');
+    expect(getRoom(roomCode)!.settingsConfirmed).toBeFalsy();
+  }, 5000);
+
+  it('a happy-path confirm with refereeLeniencyOverride:true, refereeLeniencyValue:3 stores and broadcasts both values', async () => {
+    const clientA = createClient();
+    await waitForConnect(clientA);
+
+    const createJoinedPromise = oncePromise(clientA, ServerEvents.ROOM_JOINED);
+    clientA.emit(ClientEvents.ROOM_CREATE);
+    const [roomCode] = await createJoinedPromise;
+
+    const confirmedPromise = oncePromise(clientA, ServerEvents.ROOM_SETTINGS_CONFIRMED, 2000);
+    clientA.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, {
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: false,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: false,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 3,
+    });
+    const [, , , , , , , , confirmedRefereeLeniencyOverride, confirmedRefereeLeniencyValue] =
+      await confirmedPromise;
+    expect(confirmedRefereeLeniencyOverride).toBe(true);
+    expect(confirmedRefereeLeniencyValue).toBe(3);
+    const room = getRoom(roomCode)!;
+    expect(room.refereeLeniencyOverrideEnabled).toBe(true);
+    expect(room.refereeLeniencyValue).toBe(3);
   }, 5000);
 });
 

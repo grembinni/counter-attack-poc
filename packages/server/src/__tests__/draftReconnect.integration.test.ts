@@ -131,6 +131,8 @@ describe('Mid-draft reconnect resends DRAFT_STATE_UPDATED', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -225,6 +227,8 @@ describe('Mid-draft reconnect resends DRAFT_STATE_UPDATED', () => {
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 
@@ -299,6 +303,8 @@ describe('Phase 29 Plan 11 — CR-03 reconnect re-sync in post-complete window',
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await settingsConfirmedPromise;
 

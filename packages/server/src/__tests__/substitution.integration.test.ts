@@ -217,6 +217,8 @@ function confirmDraftRoomSettings(
       booking: toggles.booking,
       injury: toggles.injury,
       tackleStealDecline: toggles.tackleStealDecline,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 }

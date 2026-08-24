@@ -44,6 +44,8 @@ export function confirmDefaultRoomSettings(
       booking: false,
       injury: false,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 }
