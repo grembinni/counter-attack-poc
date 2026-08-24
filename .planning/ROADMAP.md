@@ -148,7 +148,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 41    | 6/6                                         | Complete | 2026-08-21  |
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
-| 44    | 2/5 | In Progress|  |
+| 44    | 3/5 | In Progress|  |
 | 45    | Game Summary Popup                          | TBD      | Not started |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
@@ -315,7 +315,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 44-03-PLAN.md — Referee Leniency override row, 2-5 stepper, added-time note, onConfirm extension (REFEREE-01/02/04)
+- [x] 44-03-PLAN.md — Referee Leniency override row, 2-5 stepper, added-time note, onConfirm extension (REFEREE-01/02/04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
