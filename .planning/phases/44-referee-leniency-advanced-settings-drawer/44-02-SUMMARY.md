@@ -134,3 +134,14 @@ None - no external service configuration required.
 ---
 *Phase: 44-referee-leniency-advanced-settings-drawer*
 *Completed: 2026-08-23*
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/GameSettingsScreen.tsx
+- FOUND: packages/client/src/components/GameSettingsScreen.module.css
+- FOUND: packages/client/src/components/GameSettingsScreen.test.tsx
+- FOUND: .planning/phases/44-referee-leniency-advanced-settings-drawer/44-02-SUMMARY.md
+- FOUND commit: 3fbec4e2 (Task 1)
+- FOUND commit: 80be811b (Task 2)
+- FOUND commit: 4ff99714 (Task 3)
+- FOUND commit: 1aafe1e7 (docs: SUMMARY)
