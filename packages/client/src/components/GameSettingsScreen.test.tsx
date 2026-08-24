@@ -2,7 +2,7 @@
  * Phase 27 — GameSettingsScreen behavior tests (DRAFT-01, D-04/D-05/D-06).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, within, cleanup } from '@testing-library/react';
+import { render, screen, within, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GameSettingsScreen } from './GameSettingsScreen.js';
 import styles from './GameSettingsScreen.module.css';
@@ -136,6 +136,8 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
@@ -156,6 +158,8 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
@@ -182,6 +186,8 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
@@ -201,6 +207,8 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 });
@@ -233,6 +241,8 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
@@ -251,6 +261,8 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 });
@@ -283,6 +295,8 @@ describe('GameSettingsScreen — Tackle/Steal Decline Prompt toggle (TACKLE-01, 
       booking: true,
       injury: true,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 });
@@ -360,6 +374,8 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
@@ -381,6 +397,8 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
       booking: false,
       injury: false,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 });
@@ -493,9 +511,18 @@ describe('GameSettingsScreen — Fouls dependency shared derivation (SETTINGS-07
     await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
 
-    expect(onConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({ fouls: false, booking: false, injury: false }),
-    );
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
+    });
   });
 
   it('cross-site: with the drawer never opened, onConfirm receives the unchanged default payload', async () => {
@@ -513,6 +540,8 @@ describe('GameSettingsScreen — Fouls dependency shared derivation (SETTINGS-07
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
@@ -529,8 +558,187 @@ describe('GameSettingsScreen — Fouls dependency shared derivation (SETTINGS-07
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
 
-    expect(onConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({ fouls: false, booking: false, injury: false }),
-    );
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: false,
+      booking: false,
+      injury: false,
+      tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
+    });
+  });
+});
+
+describe('GameSettingsScreen — Referee Leniency override (REFEREE-01/02/04, Phase 44)', () => {
+  it('REFEREE-01: the "Referee Leniency" checkbox is present and unchecked on first render', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    const checkbox = screen.getByRole<HTMLInputElement>('checkbox', { name: 'Referee Leniency' });
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('REFEREE-01/D-04: the stepper is present and disabled on first render (always mounted, never conditionally rendered)', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    const stepper = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Referee Leniency value',
+    });
+    expect(stepper).toBeTruthy();
+    expect(stepper.disabled).toBe(true);
+  });
+
+  it('REFEREE-02/D-01: the stepper shows 4 and becomes enabled after clicking the override checkbox', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    const stepper = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Referee Leniency value',
+    });
+    expect(stepper.value).toBe('4');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Referee Leniency' }));
+
+    expect(stepper.disabled).toBe(false);
+  });
+
+  it('REFEREE-02/D-02/D-03: the stepper min is 2 and max is 5', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    const stepper = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Referee Leniency value',
+    });
+    expect(stepper.min).toBe('2');
+    expect(stepper.max).toBe('5');
+  });
+
+  it('REFEREE-02 clamp: typing 9 leaves the confirmed payload at 5', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Referee Leniency' }));
+    const stepper = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Referee Leniency value',
+    });
+    // fireEvent.change (not userEvent.clear+type) sets the exact typed value in one
+    // event — matches this codebase's established pattern for numeric input value
+    // changes (LobbyScreen.test.tsx) and avoids a controlled-number-input quirk where
+    // userEvent.clear() doesn't force a DOM sync when the change handler bails on NaN
+    // without calling the setter (see handleRefereeLeniencyValueChange).
+    fireEvent.change(stepper, { target: { value: '9' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+      tackleStealDecline: true,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 5,
+    });
+  });
+
+  it('REFEREE-02 clamp: typing 1 leaves the confirmed payload at 2', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Referee Leniency' }));
+    const stepper = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Referee Leniency value',
+    });
+    fireEvent.change(stepper, { target: { value: '1' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+      tackleStealDecline: true,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 2,
+    });
+  });
+
+  it('REFEREE-04: renders the "(also affects added time)" coupling note', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    expect(screen.getByText('(also affects added time)')).toBeTruthy();
+  });
+
+  it('confirm pass-through, override off: onConfirm receives refereeLeniencyOverride: false, refereeLeniencyValue: 4', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+      tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
+    });
+  });
+
+  it('confirm pass-through, override on with a changed value: onConfirm receives refereeLeniencyOverride: true and the selected value', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Referee Leniency' }));
+    const stepper = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Referee Leniency value',
+    });
+    fireEvent.change(stepper, { target: { value: '3' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+      tackleStealDecline: true,
+      refereeLeniencyOverride: true,
+      refereeLeniencyValue: 3,
+    });
+  });
+
+  it('independence: unchecking Fouls does not disable or alter the Referee Leniency row (not routed through deriveFoulDependents)', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+
+    const leniencyCheckbox = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: 'Referee Leniency',
+    });
+    expect(leniencyCheckbox.disabled).toBe(false);
+    // Booking and Injury only — the Leniency row must never render this helper text.
+    expect(screen.getAllByText('(requires Fouls)')).toHaveLength(2);
   });
 });

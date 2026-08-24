@@ -201,6 +201,37 @@
   gap: 8px;
 }
 
+/* REFEREE-01/02 (Phase 44): Referee Leniency row — stacks the checkbox/stepper control
+   line above the coupling note, keeping the row readable inside a ~208px grid column. */
+.leniencyRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leniencyControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leniencyInput {
+  width: 48px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+/* :disabled pseudo-class (not a conditional className) so the disabled visual can never
+   drift out of sync with the actual disabled attribute — matches .ctaButton:disabled. */
+.leniencyInput:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Primary CTA — reuses LobbyScreen's .ctaButton color/hover/disabled treatment. */
 .ctaButton {
   background: var(--color-bg-surface-alt);

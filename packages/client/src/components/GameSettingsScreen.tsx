@@ -56,6 +56,13 @@ type Props = {
     injury: boolean;
     /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. */
     tackleStealDecline: boolean;
+    /** REFEREE-01 (Phase 44): manual Referee Leniency override toggle — default off; when
+     * false the engine keeps the random 2-5 roll (REFEREE-03). */
+    refereeLeniencyOverride: boolean;
+    /** REFEREE-02 (Phase 44): host-selected Leniency value, integer 2-5. Always sent (the
+     * stepper never unmounts, D-04); only consulted server-side when
+     * refereeLeniencyOverride is true. */
+    refereeLeniencyValue: number;
   }) => void;
   /**
    * BUG-33 (Phase 36) / D-01..D-05: called when the host clicks Back. Returns the host
@@ -82,6 +89,17 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   // TACKLE-01 (Phase 43): client-only UX default ON, mirroring outOfBounds above. The
   // SERVER-side default in buildInitialGameState deliberately stays `false`.
   const [tackleStealDecline, setTackleStealDecline] = useState<boolean>(true);
+  // REFEREE-01 (Phase 44): manual Referee Leniency override toggle — default OFF. This
+  // deliberately breaks the default-ON convention of the other five toggles because
+  // REFEREE-01 specifies "default off"; the random 2-5 roll (REFEREE-03) stays the
+  // out-of-box behaviour.
+  const [refereeLeniencyOverride, setRefereeLeniencyOverride] = useState<boolean>(false);
+  // REFEREE-02 (Phase 44) / D-01: 4, explicitly chosen over the arithmetic midpoint floor
+  // of 3. The row never unmounts (D-04), so this initial 4 is what the host sees the
+  // first time they switch the override on. Toggling the override off and back on
+  // deliberately does NOT reset the value — preserving the host's last choice is less
+  // surprising, and D-01 only constrains the first switch-on.
+  const [refereeLeniencyValue, setRefereeLeniencyValue] = useState<number>(4);
   // WR-03 (Phase 27 review): guard against a rapid double-click firing
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
@@ -134,6 +152,17 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
     setInjury((v) => !v);
   }
 
+  // REFEREE-02 (Phase 44) / D-02/D-03: the `min`/`max` attributes handle native spinner
+  // clamping, but this JS clamp covers typed and pasted input. A cleared or non-numeric
+  // input snaps back to the last valid value (T-44-10) rather than propagating NaN.
+  // Neither this clamp nor the native min/max is a security control — roomHandlers.ts
+  // re-validates the range server-side (plan 44-04).
+  function handleRefereeLeniencyValueChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const parsed = Number.parseInt(e.target.value, 10);
+    if (Number.isNaN(parsed)) return;
+    setRefereeLeniencyValue(Math.min(5, Math.max(2, parsed)));
+  }
+
   // D-06: Confirm is disabled whenever zero of the three enabled pools are checked.
   const confirmDisabled = teamType === 'draft' && draftPools.length === 0;
 
@@ -150,6 +179,12 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
       booking: foulDependents.booking,
       injury: foulDependents.injury,
       tackleStealDecline,
+      // REFEREE-01/02: unlike booking/injury, these are raw pass-throughs with no
+      // parent-toggle normalisation — Referee Leniency has no Fouls-style dependency, and
+      // the value is intentionally always sent (even when the override is off) so the
+      // server never has to reason about a missing field.
+      refereeLeniencyOverride,
+      refereeLeniencyValue,
     });
   }
 
@@ -261,7 +296,38 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
                   />
                   Out-of-Bounds / Restarts
                 </label>
-                {/* 44-03 inserts the Referee Leniency row here (D-07) */}
+                {/* REFEREE-01/02/04 (Phase 44): Referee Leniency row (D-05/D-07 order:
+                    Out-of-Bounds, Referee Leniency, Tackle/Steal Decline). The override
+                    checkbox stays fully interactive at all times (D-04) — only the
+                    stepper greys out, so this row intentionally never applies the
+                    row-level "disabled" style class used by Booking/Injury/draft-pool. */}
+                <div className={styles.leniencyRow}>
+                  <div className={styles.leniencyControls}>
+                    <label className={styles.poolRow}>
+                      <input
+                        type="checkbox"
+                        checked={refereeLeniencyOverride}
+                        onChange={() => setRefereeLeniencyOverride((v) => !v)}
+                      />
+                      Referee Leniency
+                    </label>
+                    <input
+                      type="number"
+                      className={styles.leniencyInput}
+                      aria-label="Referee Leniency value"
+                      min={2}
+                      max={5}
+                      step={1}
+                      value={refereeLeniencyValue}
+                      disabled={!refereeLeniencyOverride}
+                      onChange={handleRefereeLeniencyValueChange}
+                    />
+                  </div>
+                  {/* REFEREE-04 (Phase 44) / D-08: rendered unconditionally — describes
+                      what Leniency does, not why a control is unavailable. */}
+                  <span className={styles.comingSoon}>(also affects added time)</span>
+                </div>
+
                 {/* TACKLE-01 (Phase 43): tackleStealDecline checkbox, checked by default. */}
                 <label className={styles.poolRow}>
                   <input
