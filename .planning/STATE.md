@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
 status: planning
-stopped_at: Phase 43 complete (all 6 plans) — Task 4 approved via live two-browser verification
-last_updated: '2026-08-23T23:04:07.976Z'
+stopped_at: Phase 44 context gathered
+last_updated: '2026-08-24T00:02:06.637Z'
 last_activity: 2026-08-23
 progress:
   total_phases: 6
@@ -371,9 +371,9 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-23T22:44:52.978Z
-Stopped at: Phase 43 complete (all 6 plans) — Task 4 approved via live two-browser verification
-Resume file: none — ready to run `/gsd-plan-phase 44` for Referee Leniency & Advanced Settings Drawer
+Last session: 2026-08-24T00:02:06.628Z
+Stopped at: Phase 44 context gathered
+Resume file: .planning/phases/44-referee-leniency-advanced-settings-drawer/44-CONTEXT.md
 Resume: Phase 43 (Tackle/Steal Prompt & Decline) is closed out with all four TACKLE-01..04 requirements satisfied. One out-of-scope UX observation from the live verification was filed as a backlog todo (resolves_phase: 46), not actioned in this phase. Next step is to plan Phase 44.
 
 ## Performance Metrics
