@@ -107,3 +107,12 @@ None - no external service configuration required.
 
 *Phase: 44-referee-leniency-advanced-settings-drawer*
 *Completed: 2026-08-23*
+
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/server/src/__tests__/gameEngine.refereeLeniency.test.ts
+- FOUND: .planning/phases/44-referee-leniency-advanced-settings-drawer/44-01-SUMMARY.md
+- FOUND: commit e81177b6
+- FOUND: commit 49882973
+- FOUND: commit 002565bc
