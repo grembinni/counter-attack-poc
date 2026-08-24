@@ -86,6 +86,10 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
   const [hasConfirmed, setHasConfirmed] = useState(false);
+  // SETTINGS-05 (Phase 44): the Advanced match-rule toggles are collapsed by default.
+  // Collapsing changes visibility only, never any toggle's default value — a host who
+  // never opens this section confirms exactly the pre-Phase-44 payload.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // CR-03 (Phase 36 review): a server-side confirm rejection (e.g. DRAFT_SUPPLY_EXHAUSTED)
   // never emits ROOM_SETTINGS_CONFIRMED, so hasConfirmed being set unconditionally in
@@ -201,52 +205,75 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
         </div>
 
         <div className={styles.section}>
-          <span className={styles.sectionLabel}>Match Rules</span>
-          <label className={styles.poolRow}>
-            <input type="checkbox" checked={fouls} onChange={() => setFouls((v) => !v)} />
-            Fouls
-          </label>
-          <label className={foulDependents.disabled ? styles.poolRowDisabled : styles.poolRow}>
-            <input
-              type="checkbox"
-              checked={booking}
-              disabled={foulDependents.disabled}
-              onChange={toggleBooking}
-            />
-            Booking
-            {foulDependents.disabled && (
-              <span className={styles.comingSoon}> (requires Fouls)</span>
-            )}
-          </label>
-          <label className={foulDependents.disabled ? styles.poolRowDisabled : styles.poolRow}>
-            <input
-              type="checkbox"
-              checked={injury}
-              disabled={foulDependents.disabled}
-              onChange={toggleInjury}
-            />
-            Injury
-            {foulDependents.disabled && (
-              <span className={styles.comingSoon}> (requires Fouls)</span>
-            )}
-          </label>
-          <label className={styles.poolRow}>
-            <input
-              type="checkbox"
-              checked={outOfBounds}
-              onChange={() => setOutOfBounds((v) => !v)}
-            />
-            Out-of-Bounds / Restarts
-          </label>
-          {/* TACKLE-01 (Phase 43): tackleStealDecline checkbox, checked by default. */}
-          <label className={styles.poolRow}>
-            <input
-              type="checkbox"
-              checked={tackleStealDecline}
-              onChange={() => setTackleStealDecline((v) => !v)}
-            />
-            Tackle/Steal Decline Prompt
-          </label>
+          {/* SETTINGS-05/D-06 (Phase 44): collapsed-by-default disclosure trigger, styled
+              like the existing Back link. aria-expanded is the accessible disclosure
+              contract and the stable test hook. */}
+          <button
+            type="button"
+            className={styles.subLink}
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((v) => !v)}
+          >
+            {advancedOpen ? 'Advanced ▾' : 'Advanced ▸'}
+          </button>
+          {advancedOpen && (
+            <div className={styles.advancedGrid}>
+              <div className={styles.advancedColumn}>
+                <label className={styles.poolRow}>
+                  <input type="checkbox" checked={fouls} onChange={() => setFouls((v) => !v)} />
+                  Fouls
+                </label>
+                <label
+                  className={foulDependents.disabled ? styles.poolRowDisabled : styles.poolRow}
+                >
+                  <input
+                    type="checkbox"
+                    checked={booking}
+                    disabled={foulDependents.disabled}
+                    onChange={toggleBooking}
+                  />
+                  Booking
+                  {foulDependents.disabled && (
+                    <span className={styles.comingSoon}> (requires Fouls)</span>
+                  )}
+                </label>
+                <label
+                  className={foulDependents.disabled ? styles.poolRowDisabled : styles.poolRow}
+                >
+                  <input
+                    type="checkbox"
+                    checked={injury}
+                    disabled={foulDependents.disabled}
+                    onChange={toggleInjury}
+                  />
+                  Injury
+                  {foulDependents.disabled && (
+                    <span className={styles.comingSoon}> (requires Fouls)</span>
+                  )}
+                </label>
+              </div>
+              <div className={styles.advancedColumn}>
+                <label className={styles.poolRow}>
+                  <input
+                    type="checkbox"
+                    checked={outOfBounds}
+                    onChange={() => setOutOfBounds((v) => !v)}
+                  />
+                  Out-of-Bounds / Restarts
+                </label>
+                {/* 44-03 inserts the Referee Leniency row here (D-07) */}
+                {/* TACKLE-01 (Phase 43): tackleStealDecline checkbox, checked by default. */}
+                <label className={styles.poolRow}>
+                  <input
+                    type="checkbox"
+                    checked={tackleStealDecline}
+                    onChange={() => setTackleStealDecline((v) => !v)}
+                  />
+                  Tackle/Steal Decline Prompt
+                </label>
+              </div>
+            </div>
+          )}
         </div>
 
         {teamType === 'draft' && (
