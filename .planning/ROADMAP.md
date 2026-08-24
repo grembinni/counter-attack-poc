@@ -148,7 +148,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 41    | 6/6                                         | Complete | 2026-08-21  |
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
-| 44    | 3/5 | In Progress|  |
+| 44    | 4/5 | In Progress|  |
 | 45    | Game Summary Popup                          | TBD      | Not started |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
@@ -319,7 +319,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 44-04-PLAN.md — Wire contract, Room fields, ASVS allow-list guards, broadcast + engine wiring, fixture repair (REFEREE-01/02/04)
+- [x] 44-04-PLAN.md — Wire contract, Room fields, ASVS allow-list guards, broadcast + engine wiring, fixture repair (REFEREE-01/02/04)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
