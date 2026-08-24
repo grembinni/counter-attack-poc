@@ -262,7 +262,8 @@ export function computeAutoAssignment(
  * D-15: selectedTeams embedded in every subsequent snapshot.
  * D-16: away pieces mirrored via q_away = 36 - q_home; ids re-prefixed home- → away-.
  * TEAM-01: all 22 players (11 home + 11 away) placed at starting positions.
- * TEAM-03: refereeCard.leniency is randomly assigned in range 2–5 at match start (narrowed from 1–6).
+ * TEAM-03: refereeCard.leniency is randomly assigned in range 2–5 at match start (narrowed from 1–6),
+ * unless a host override is supplied via refereeLeniencyOverrideEnabled/refereeLeniencyValue (REFEREE-01/02).
  */
 /**
  * Builds a full 22-piece array for both squads at their formation start positions,
@@ -412,6 +413,24 @@ export function buildInitialGameState(
   homeBench: readonly BenchEntry[] = [],
   /** SUB-02/07 (Phase 40, D-01/D-02): the away team's pre-match bench. See `homeBench` above. */
   awayBench: readonly BenchEntry[] = [],
+  /**
+   * REFEREE-01/02 (Phase 44): manual override for the random 2–5 Leniency roll (REFEREE-03,
+   * already shipped by quick task 260823-akw, commit 390bd271) baked in from
+   * `Room.refereeLeniencyOverrideEnabled`. Defaults to `false` — the disabled path is the
+   * safe default even if a caller forgets to pass it, matching every other toggle's
+   * fail-closed default (`outOfBoundsEnabled`, `tackleStealDeclineEnabled`, etc).
+   */
+  refereeLeniencyOverrideEnabled: boolean = false,
+  /**
+   * REFEREE-02 (Phase 44): the host-selected 2–5 Leniency value, only consulted when
+   * `refereeLeniencyOverrideEnabled` is `true`. `undefined` means "not supplied" and falls
+   * back to the random roll. Range/type validation lives in `roomHandlers.ts` (plan 44-04) —
+   * this parameter is deliberately NOT re-validated here; the engine is not a trust boundary,
+   * `roomHandlers.ts` is. Declared `?: number` (not `: number | undefined`) because
+   * `exactOptionalPropertyTypes: true` is on repo-wide and the roomHandlers call site passes
+   * a possibly-`undefined` room field.
+   */
+  refereeLeniencyValue?: number,
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -434,7 +453,15 @@ export function buildInitialGameState(
     actionCount: 0,
     half: 1,
     eventLog: [],
-    refereeCard: { leniency: randomInt(2, 6) }, // TEAM-03: random 2–5 (randomInt is max-exclusive, so (2, 6) yields 2..5)
+    refereeCard: {
+      // TEAM-03: random 2–5 (randomInt is max-exclusive, so (2, 6) yields 2..5) — REFEREE-03,
+      // already shipped by quick task 260823-akw (commit 390bd271); the random branch is only
+      // bypassed by a host override below, never removed.
+      leniency:
+        refereeLeniencyOverrideEnabled && refereeLeniencyValue !== undefined
+          ? refereeLeniencyValue
+          : randomInt(2, 6),
+    },
     movedPieceIds: [],
     paceUsedByPieceId: {},
     movementSlot: null,
