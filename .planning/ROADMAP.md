@@ -148,7 +148,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 41    | 6/6                                         | Complete | 2026-08-21  |
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
-| 44    | Referee Leniency & Advanced Settings Drawer | 5 plans  | Not started |
+| 44    | 2/5 | In Progress|  |
 | 45    | Game Summary Popup                          | TBD      | Not started |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
@@ -310,8 +310,8 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 44-01-PLAN.md — Engine-level Leniency override params + conditional refereeCard.leniency (REFEREE-02/03/04)
-- [ ] 44-02-PLAN.md — Collapsed-by-default Advanced disclosure, two-column grid, shared Fouls derivation (SETTINGS-05/06/07)
+- [x] 44-01-PLAN.md — Engine-level Leniency override params + conditional refereeCard.leniency (REFEREE-02/03/04)
+- [x] 44-02-PLAN.md — Collapsed-by-default Advanced disclosure, two-column grid, shared Fouls derivation (SETTINGS-05/06/07)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
