@@ -131,3 +131,7 @@ None - no external service configuration required.
 
 - `GameSettingsScreen`'s `onConfirm` contract now declares and sends `refereeLeniencyOverride`/`refereeLeniencyValue` alongside the six pre-existing fields; `App.tsx`, `events.ts`, `roomStore.ts`, `roomHandlers.ts`, and `gameEngine.ts` remain completely unmodified and ready for plan 44-04 to widen `App.tsx`'s param type, the wire contract, `Room` fields, and server-side allow-list validation (per the six-hop chain documented in `44-PATTERNS.md`).
 - No blockers. The client package is fully typecheck/test/stylelint green; the server package typechecks green with zero changes.
+
+## Self-Check: PASSED
+
+All 4 claimed files found on disk (`GameSettingsScreen.tsx`, `GameSettingsScreen.module.css`, `GameSettingsScreen.test.tsx`, this SUMMARY.md). All 4 commit hashes (`bde770e3`, `3d6b923c`, `772baffa`, `b5f0f0f0`) confirmed present in `git log`.
