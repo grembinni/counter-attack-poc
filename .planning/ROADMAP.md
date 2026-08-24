@@ -148,7 +148,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 41    | 6/6                                         | Complete | 2026-08-21  |
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
-| 44    | Referee Leniency & Advanced Settings Drawer | TBD      | Not started |
+| 44    | Referee Leniency & Advanced Settings Drawer | 5 plans  | Not started |
 | 45    | Game Summary Popup                          | TBD      | Not started |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
@@ -306,7 +306,16 @@ Plans:
 3. All match-rule toggles — Fouls, Booking, Injury, Out-of-Bounds, Referee Leniency, and Tackle/Steal Decline — live under a collapsed-by-default Advanced section on the settings screen, laid out in a two-column layout instead of a single vertical stack.
 4. Booking and Injury still visibly grey out whenever Fouls is off, inside the new layout, whether checked at render time or at confirm time, driven by one shared derivation.
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+
+- [ ] 44-01-PLAN.md — Engine-level Leniency override params + conditional refereeCard.leniency (REFEREE-02/03/04)
+- [ ] 44-02-PLAN.md — Collapsed-by-default Advanced disclosure, two-column grid, shared Fouls derivation (SETTINGS-05/06/07)
+- [ ] 44-03-PLAN.md — Referee Leniency override row, 2-5 stepper, added-time note, onConfirm extension (REFEREE-01/02/04)
+- [ ] 44-04-PLAN.md — Wire contract, Room fields, ASVS allow-list guards, broadcast + engine wiring, fixture repair (REFEREE-01/02/04)
+- [ ] 44-05-PLAN.md — End-to-end socket integration test + human verification checkpoint (all 7 requirements)
+
 **UI hint**: yes
 
 ### Phase 45: Game Summary Popup
@@ -397,6 +406,6 @@ Plans:
 | 41. Card & Injury Iconography            | v1.7      | 0/TBD          | Not started | -          |
 | 42. Substitution UX Overhaul             | v1.7      | 0/TBD          | Not started | -          |
 | 43. Tackle/Steal Prompt & Decline        | v1.7      | 6/6            | Complete    | 2026-08-23 |
-| 44. Referee Leniency & Advanced Settings | v1.7      | 0/TBD          | Not started | -          |
+| 44. Referee Leniency & Advanced Settings | v1.7      | 0/5            | Not started | -          |
 | 45. Game Summary Popup                   | v1.7      | 0/TBD          | Not started | -          |
 | 46. Final Cleanup                        | v1.7      | 0/TBD          | Not started | -          |
