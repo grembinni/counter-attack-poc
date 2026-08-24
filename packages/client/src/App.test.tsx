@@ -96,6 +96,10 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
     // D-14 (Phase 39): all four Match Rules toggles default ON in GameSettingsScreen —
     // confirming without touching any toggle now forwards true for all four.
     // TACKLE-01 (Phase 43): tackleStealDecline also defaults ON in the checkbox.
+    // REFEREE-01/02 (Phase 44): handleSettingsConfirm forwards the settings object
+    // wholesale (App.tsx is intentionally untouched by plan 44-03 — see 44-03-PLAN.md
+    // Task 2), so the two new Leniency fields ride along automatically once
+    // GameSettingsScreen's onConfirm contract widens.
     expect(emitMock).toHaveBeenCalledWith(ClientEvents.ROOM_SETTINGS_CONFIRM, {
       speed: 'standard',
       teamType: 'standard',
@@ -105,6 +109,8 @@ describe('App — Phase 27 GAME_SETTINGS routing (DRAFT-01)', () => {
       booking: true,
       injury: true,
       tackleStealDecline: true,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 
