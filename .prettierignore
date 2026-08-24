@@ -3,3 +3,11 @@ dist
 pnpm-lock.yaml
 .husky
 coverage
+
+# GSD planning artifacts (PLAN/CONTEXT/PATTERNS/SUMMARY .md files) are structured
+# prompts containing XML-ish tags and bare code identifiers, not prose. Prettier's
+# markdown formatter parses `__tests__` as bold and `<read_first>` as emphasis,
+# silently rewriting them to `**tests**` and `<read*first>` — which corrupts file
+# paths and tag names that downstream GSD tooling and executors read literally.
+# Observed corrupting Phase 44 plans on 2026-08-23.
+.planning
