@@ -129,3 +129,7 @@ None - no external service configuration required.
 ---
 *Phase: 44-referee-leniency-advanced-settings-drawer*
 *Completed: 2026-08-24*
+
+## Self-Check: PASSED
+
+All 4 task/summary commits verified present in git history (`53d2f21a`, `bc8c8274`, `3c588af2`, `8b5587c8`). All modified files verified present on disk.
