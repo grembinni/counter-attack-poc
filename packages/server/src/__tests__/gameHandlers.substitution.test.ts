@@ -201,6 +201,8 @@ async function setupRoom(opts?: { toggles?: 'off' | 'on' }): Promise<{
       booking: true,
       injury: true,
       tackleStealDecline: false,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
     await confirmedPromise;
   } else {

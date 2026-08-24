@@ -160,6 +160,8 @@ function confirmRoomSettings(
       booking: false,
       injury: false,
       tackleStealDecline,
+      refereeLeniencyOverride: false,
+      refereeLeniencyValue: 4,
     });
   });
 }

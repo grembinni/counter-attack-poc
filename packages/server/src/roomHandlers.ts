@@ -246,6 +246,10 @@ export function registerRoomHandlers(
           // TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. undefined (not yet
           // confirmed) is treated as false (disabled), mirroring the toggles above.
           joinedRoom.tackleStealDeclineEnabled ?? false,
+          // REFEREE-01/02 (Phase 44): Referee Leniency override flag/value. undefined (not
+          // yet confirmed) is treated as false/4, mirroring the toggles above (T-44-14).
+          joinedRoom.refereeLeniencyOverrideEnabled ?? false,
+          joinedRoom.refereeLeniencyValue ?? 4,
         );
         // CONN-03 (Phase 16 D-10): emit TEAM_SELECTION_START to all room members.
         // GameState is NOT built yet — it is created only after both teams are picked via TEAM_PICK.
@@ -421,6 +425,8 @@ export function registerRoomHandlers(
         booking,
         injury,
         tackleStealDecline,
+        refereeLeniencyOverride,
+        refereeLeniencyValue,
       }: {
         speed: GameSpeed;
         teamType: TeamType;
@@ -434,6 +440,10 @@ export function registerRoomHandlers(
         injury: boolean;
         /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt game-creation toggle. */
         tackleStealDecline: boolean;
+        /** REFEREE-01 (Phase 44): manual Referee Leniency override game-creation toggle. */
+        refereeLeniencyOverride: boolean;
+        /** REFEREE-02 (Phase 44): host-selected Leniency value, integer 2-5. */
+        refereeLeniencyValue: number;
       }) => {
         const roomCode = socket.data.roomCode;
         if (roomCode === undefined) return;
@@ -498,6 +508,31 @@ export function registerRoomHandlers(
         // tackleStealDecline payload before any room mutation, mirroring the guards above.
         if (typeof tackleStealDecline !== 'boolean') {
           socket.emit(ServerEvents.GAME_ERROR, 'INVALID_TACKLE_STEAL_DECLINE');
+          return;
+        }
+
+        // T-44-04 (Phase 44): ASVS V5 allow-list guard — reject a forged non-boolean
+        // refereeLeniencyOverride payload before any room mutation, mirroring the guards above.
+        if (typeof refereeLeniencyOverride !== 'boolean') {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_REFEREE_LENIENCY_OVERRIDE');
+          return;
+        }
+
+        // T-44-05 (Phase 44): ASVS V5 allow-list guard — reject a forged out-of-range,
+        // non-integer, or non-numeric refereeLeniencyValue. Number.isInteger already
+        // returns false for non-numbers, NaN, and Infinity, so it subsumes a separate
+        // typeof check. Validated UNCONDITIONALLY — not only when refereeLeniencyOverride
+        // is true — deliberately diverging from the conditional shape sketched in
+        // PATTERNS.md: the client always sends a value (the stepper never unmounts, D-04),
+        // so no legitimate client can trip an unconditional guard, while a conditional
+        // guard would let a forged payload persist an arbitrary number on the Room that a
+        // later code path could activate.
+        if (
+          !Number.isInteger(refereeLeniencyValue) ||
+          refereeLeniencyValue < 2 ||
+          refereeLeniencyValue > 5
+        ) {
+          socket.emit(ServerEvents.GAME_ERROR, 'INVALID_REFEREE_LENIENCY_VALUE');
           return;
         }
 
@@ -569,6 +604,10 @@ export function registerRoomHandlers(
         room.injuryEnabled = fouls && injury;
         // TACKLE-01: no parent-toggle dependency (unlike Booking/Injury above) — stored as-is.
         room.tackleStealDeclineEnabled = tackleStealDecline;
+        // REFEREE-01/02: unlike Booking/Injury, Referee Leniency has no dependency on any
+        // other toggle — no parent-toggle normalisation applies; both are stored as validated.
+        room.refereeLeniencyOverrideEnabled = refereeLeniencyOverride;
+        room.refereeLeniencyValue = refereeLeniencyValue;
         room.settingsConfirmed = true;
         if (draftSession !== undefined) {
           room.draftSession = draftSession;
@@ -584,6 +623,11 @@ export function registerRoomHandlers(
           room.bookingEnabled,
           room.injuryEnabled,
           room.tackleStealDeclineEnabled,
+          room.refereeLeniencyOverrideEnabled,
+          // ?? 4 satisfies the required `number` positional type; only reachable if the
+          // field were somehow unset, in which case the flag is also false and the value
+          // is inert.
+          room.refereeLeniencyValue ?? 4,
         );
 
         // T-27-05/Pitfall 1: both-conditions gate — only fire TEAM_SELECTION_START once
@@ -971,6 +1015,10 @@ export function registerRoomHandlers(
             room.tackleStealDeclineEnabled ?? false,
             confirmedHomeBench,
             confirmedAwayBench,
+            room.refereeLeniencyOverrideEnabled ?? false,
+            // Passed raw (no `??`): the engine param is `?: number` and treats `undefined`
+            // as "no override", which is the correct fail-closed meaning.
+            room.refereeLeniencyValue,
           );
         } catch (err) {
           console.error('buildInitialGameState failed in LINEUP_CONFIRM:', err);
