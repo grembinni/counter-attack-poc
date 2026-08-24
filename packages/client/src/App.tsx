@@ -156,6 +156,13 @@ export function App() {
       // rather than stored — the value still flows end to end through the socket
       // payload and Room storage, which is what TACKLE-01 requires.
       _confirmedTackleStealDecline: boolean,
+      // REFEREE-01/02 (Phase 44): trailing referee-leniency override flag/value added to
+      // ROOM_SETTINGS_CONFIRMED in this plan. Accepted here to match the extended event
+      // signature; no local consumer yet — the settings-summary surface for Leniency
+      // belongs to Phase 45's match-summary modal (STATS-02 recaps referee Leniency), not
+      // here. Deliberately discarded rather than stored.
+      _confirmedRefereeLeniencyOverride: boolean,
+      _confirmedRefereeLeniencyValue: number,
     ) {
       setSelectedSpeed(speed);
       setTeamType(confirmedTeamType);
@@ -276,13 +283,18 @@ export function App() {
     injury: boolean;
     /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. */
     tackleStealDecline: boolean;
+    /** REFEREE-01 (Phase 44): manual Referee Leniency override toggle. */
+    refereeLeniencyOverride: boolean;
+    /** REFEREE-02 (Phase 44): host-selected Leniency value, integer 2-5. */
+    refereeLeniencyValue: number;
   }) {
     setSelectedSpeed(settings.speed);
     setTeamType(settings.teamType);
     setDraftPools(settings.draftPools);
     setOutOfBounds(settings.outOfBounds);
-    // SETTINGS-01/02/03: fouls/booking/injury are forwarded wholesale via `settings`
-    // below — no local state to set (see the outOfBounds state declaration comment above).
+    // SETTINGS-01/02/03/REFEREE-01/02: fouls/booking/injury/refereeLeniency are forwarded
+    // wholesale via `settings` below — no local state to set (see the outOfBounds state
+    // declaration comment above).
     socket.emit(ClientEvents.ROOM_SETTINGS_CONFIRM, settings);
   }
 

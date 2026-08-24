@@ -126,6 +126,18 @@ export type Room = {
    */
   tackleStealDeclineEnabled?: boolean;
   /**
+   * REFEREE-01 (Phase 44): manual Referee Leniency override toggle confirmed on the settings
+   * pre-step. `undefined` = not yet confirmed and is treated as `false` (i.e. keep the random
+   * roll) when building game state. Independent of every other toggle.
+   */
+  refereeLeniencyOverrideEnabled?: boolean;
+  /**
+   * REFEREE-02 (Phase 44): the host-selected 2-5 Leniency value, already range-validated by
+   * the ROOM_SETTINGS_CONFIRM handler before it is stored. `undefined` means no override was
+   * confirmed.
+   */
+  refereeLeniencyValue?: number;
+  /**
    * DRAFT-01/D-03 (Phase 27): true once host has confirmed settings — gates TEAM_SELECTION_START
    * alongside "slot 2 has joined" (see roomHandlers.ts ROOM_SETTINGS_CONFIRM / ROOM_JOIN).
    */

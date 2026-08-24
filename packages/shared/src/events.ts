@@ -280,6 +280,10 @@ export interface ClientToServerEvents {
     injury: boolean;
     /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt game-creation toggle. */
     tackleStealDecline: boolean;
+    /** REFEREE-01 (Phase 44): manual Referee Leniency override game-creation toggle. */
+    refereeLeniencyOverride: boolean;
+    /** REFEREE-02 (Phase 44): host-selected Leniency value, integer 2-5. Always sent; only consulted when refereeLeniencyOverride is true. Untrusted — range-validated server-side. */
+    refereeLeniencyValue: number;
   }) => void;
   /** RESEARCH OQ-1: pieceId removes adjacency ambiguity vs. from-coord approach. */
   [ClientEvents.GAME_MOVE]: (pieceId: string, to: HexCoord) => void;
@@ -461,6 +465,10 @@ export interface ServerToClientEvents {
     injury: boolean,
     /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt game-creation toggle. */
     tackleStealDecline: boolean,
+    /** REFEREE-01 (Phase 44): manual Referee Leniency override game-creation toggle. */
+    refereeLeniencyOverride: boolean,
+    /** REFEREE-02 (Phase 44): host-selected Leniency value, integer 2-5. */
+    refereeLeniencyValue: number,
   ) => void;
   /** Phase 22 D-13: signals both players that uniform selection phase has begun. */
   [ServerEvents.UNIFORM_SELECTION_START]: () => void;
