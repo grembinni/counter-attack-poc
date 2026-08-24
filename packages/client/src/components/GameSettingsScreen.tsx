@@ -56,6 +56,13 @@ type Props = {
     injury: boolean;
     /** TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle. */
     tackleStealDecline: boolean;
+    /** REFEREE-01 (Phase 44): manual Referee Leniency override toggle — default off; when
+     * false the engine keeps the random 2-5 roll (REFEREE-03). */
+    refereeLeniencyOverride: boolean;
+    /** REFEREE-02 (Phase 44): host-selected Leniency value, integer 2-5. Always sent (the
+     * stepper never unmounts, D-04); only consulted server-side when
+     * refereeLeniencyOverride is true. */
+    refereeLeniencyValue: number;
   }) => void;
   /**
    * BUG-33 (Phase 36) / D-01..D-05: called when the host clicks Back. Returns the host
@@ -172,6 +179,12 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
       booking: foulDependents.booking,
       injury: foulDependents.injury,
       tackleStealDecline,
+      // REFEREE-01/02: unlike booking/injury, these are raw pass-throughs with no
+      // parent-toggle normalisation — Referee Leniency has no Fouls-style dependency, and
+      // the value is intentionally always sent (even when the override is off) so the
+      // server never has to reason about a missing field.
+      refereeLeniencyOverride,
+      refereeLeniencyValue,
     });
   }
 
