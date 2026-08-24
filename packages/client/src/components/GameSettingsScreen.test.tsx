@@ -2,11 +2,19 @@
  * Phase 27 — GameSettingsScreen behavior tests (DRAFT-01, D-04/D-05/D-06).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, within, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GameSettingsScreen } from './GameSettingsScreen.js';
+import styles from './GameSettingsScreen.module.css';
 
 afterEach(() => cleanup());
+
+// SETTINGS-05/06 (Phase 44): the Advanced disclosure is collapsed by default — every
+// test that needs to query a match-rule checkbox must open it first. Uses a /advanced/i
+// regex, not an exact string, since the accessible name includes the chevron glyph.
+async function openAdvanced() {
+  await userEvent.click(screen.getByRole('button', { name: /advanced/i }));
+}
 
 describe('GameSettingsScreen — renders controls', () => {
   it('renders the heading, Match Speed picker, Team Type toggle, and Confirm CTA', () => {
@@ -198,8 +206,9 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
 });
 
 describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OOB-05, Phase 37; default flipped ON by D-14, Phase 39)', () => {
-  it('renders the "Out-of-Bounds / Restarts" row with a checked checkbox by default (D-14)', () => {
+  it('renders the "Out-of-Bounds / Restarts" row with a checked checkbox by default (D-14)', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
 
     const checkbox = screen.getByRole<HTMLInputElement>('checkbox', {
       name: 'Out-of-Bounds / Restarts',
@@ -210,6 +219,7 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
   it('unchecking the toggle then Confirm Settings calls onConfirm with outOfBounds: false', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Out-of-Bounds / Restarts' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
@@ -246,8 +256,9 @@ describe('GameSettingsScreen — Out-of-Bounds / Restarts toggle (GOALKICK-06/OO
 });
 
 describe('GameSettingsScreen — Tackle/Steal Decline Prompt toggle (TACKLE-01, Phase 43)', () => {
-  it('renders the "Tackle/Steal Decline Prompt" row with a checked checkbox by default', () => {
+  it('renders the "Tackle/Steal Decline Prompt" row with a checked checkbox by default', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
 
     const checkbox = screen.getByRole<HTMLInputElement>('checkbox', {
       name: 'Tackle/Steal Decline Prompt',
@@ -258,6 +269,7 @@ describe('GameSettingsScreen — Tackle/Steal Decline Prompt toggle (TACKLE-01, 
   it('unchecking the toggle then Confirm Settings calls onConfirm with tackleStealDecline: false', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Tackle/Steal Decline Prompt' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
@@ -276,8 +288,9 @@ describe('GameSettingsScreen — Tackle/Steal Decline Prompt toggle (TACKLE-01, 
 });
 
 describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12/D-13/D-14, Phase 39)', () => {
-  it('all four checkboxes are checked on first render', () => {
+  it('all four checkboxes are checked on first render', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
 
     expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Fouls' }).checked).toBe(true);
     expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Booking' }).checked).toBe(true);
@@ -289,6 +302,7 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
 
   it('unchecking Fouls disables Booking/Injury and renders "(requires Fouls)" twice', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
 
@@ -302,6 +316,7 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
 
   it('clicking a disabled Booking checkbox does not change its checked state', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
     // Accessible name includes the trailing "(requires Fouls)" helper text once disabled.
@@ -315,6 +330,7 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
 
   it('re-checking Fouls re-enables Booking/Injury and removes the helper text', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
 
     const fouls = screen.getByRole('checkbox', { name: 'Fouls' });
     await userEvent.click(fouls);
@@ -350,6 +366,7 @@ describe('GameSettingsScreen — Match Rules: Fouls/Booking/Injury toggles (D-12
   it('confirming with Fouls unchecked calls onConfirm with fouls/booking/injury all false regardless of prior Booking/Injury state', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
 
     // Fouls off — Booking/Injury remain checked in local state but are inert (D-13).
     await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
@@ -394,5 +411,126 @@ describe('GameSettingsScreen — Back control (BUG-33, Phase 36)', () => {
 
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+});
+
+describe('GameSettingsScreen — Advanced disclosure (SETTINGS-05/06, Phase 44)', () => {
+  it('the Fouls checkbox is not rendered on first render, and the Advanced trigger reads collapsed', () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    expect(screen.queryByRole('checkbox', { name: 'Fouls' })).toBeNull();
+    expect(screen.getByRole('button', { name: /advanced/i }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+  });
+
+  it('clicking Advanced reveals all five match-rule checkboxes and sets aria-expanded true; clicking again hides them', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    const trigger = screen.getByRole('button', { name: /advanced/i });
+
+    await userEvent.click(trigger);
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('checkbox', { name: 'Fouls' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: /^Booking/ })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: /^Injury/ })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Out-of-Bounds / Restarts' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Tackle/Steal Decline Prompt' })).toBeTruthy();
+
+    await userEvent.click(trigger);
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('checkbox', { name: 'Fouls' })).toBeNull();
+  });
+
+  it('lays the revealed toggles out in exactly two columns: Fouls/Booking/Injury left, Out-of-Bounds/Tackle-Steal-Decline right (SETTINGS-06)', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    // Structural assertion of the CSS-module grid container is the documented technique
+    // for this check; the module's class identifiers are stable (identity-mapped) under
+    // the vitest config.
+    const grid = document.querySelector(`.${styles.advancedGrid}`);
+    expect(grid).toBeTruthy();
+    expect(grid?.children).toHaveLength(2);
+
+    const columns = Array.from(grid?.children ?? []) as HTMLElement[];
+    const leftColumn = columns[0]!;
+    const rightColumn = columns[1]!;
+
+    expect(within(leftColumn).getByRole('checkbox', { name: 'Fouls' })).toBeTruthy();
+    expect(within(leftColumn).getByRole('checkbox', { name: /^Booking/ })).toBeTruthy();
+    expect(within(leftColumn).getByRole('checkbox', { name: /^Injury/ })).toBeTruthy();
+
+    expect(
+      within(rightColumn).getByRole('checkbox', { name: 'Out-of-Bounds / Restarts' }),
+    ).toBeTruthy();
+    expect(
+      within(rightColumn).getByRole('checkbox', { name: 'Tackle/Steal Decline Prompt' }),
+    ).toBeTruthy();
+  });
+});
+
+describe('GameSettingsScreen — Fouls dependency shared derivation (SETTINGS-07, Phase 44)', () => {
+  it('render time: with the drawer open, unchecking Fouls disables Booking/Injury and shows "(requires Fouls)" twice', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Booking/ }).disabled).toBe(
+      true,
+    );
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Injury/ }).disabled).toBe(true);
+    expect(screen.getAllByText('(requires Fouls)')).toHaveLength(2);
+  });
+
+  it('confirm time: with Fouls unchecked, onConfirm receives booking: false, injury: false', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ fouls: false, booking: false, injury: false }),
+    );
+  });
+
+  it('cross-site: with the drawer never opened, onConfirm receives the unchanged default payload', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      speed: 'standard',
+      teamType: 'standard',
+      draftPools: [],
+      outOfBounds: true,
+      fouls: true,
+      booking: true,
+      injury: true,
+      tackleStealDecline: true,
+    });
+  });
+
+  it('confirm-with-drawer-closed-after-editing: opening, unchecking Fouls, then re-closing the drawer preserves fouls/booking/injury: false at confirm time', async () => {
+    const onConfirm = vi.fn();
+    render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+
+    const trigger = screen.getByRole('button', { name: /advanced/i });
+    await userEvent.click(trigger);
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Fouls' }));
+    await userEvent.click(trigger);
+
+    expect(screen.queryByRole('checkbox', { name: 'Fouls' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ fouls: false, booking: false, injury: false }),
+    );
   });
 });
