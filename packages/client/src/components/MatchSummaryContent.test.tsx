@@ -32,7 +32,7 @@ describe('MatchSummaryContent — settings recap', () => {
   it('renders a SETTINGS section label above the recap row', () => {
     seed();
     render(<MatchSummaryContent />);
-    expect(screen.getByText('SETTINGS')).toBeInTheDocument();
+    expect(screen.getByText('SETTINGS')).toBeDefined();
   });
 
   it('renders (Fouls: Off) when foulsEnabled is false, and (Booking: Active)/(Injury: Active)/(Out-of-Bounds: Active) when those three are true', () => {
@@ -43,65 +43,63 @@ describe('MatchSummaryContent — settings recap', () => {
       outOfBoundsEnabled: true,
     });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Fouls: Off)')).toBeInTheDocument();
-    expect(screen.getByText('(Booking: Active)')).toBeInTheDocument();
-    expect(screen.getByText('(Injury: Active)')).toBeInTheDocument();
-    expect(screen.getByText('(Out-of-Bounds: Active)')).toBeInTheDocument();
+    expect(screen.getByText('(Fouls: Off)')).toBeDefined();
+    expect(screen.getByText('(Booking: Active)')).toBeDefined();
+    expect(screen.getByText('(Injury: Active)')).toBeDefined();
+    expect(screen.getByText('(Out-of-Bounds: Active)')).toBeDefined();
   });
 
   it('renders (Tackle/Steal Decline: On) when tackleStealDeclineEnabled is true', () => {
     seed({ tackleStealDeclineEnabled: true });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Tackle/Steal Decline: On)')).toBeInTheDocument();
+    expect(screen.getByText('(Tackle/Steal Decline: On)')).toBeDefined();
   });
 
   it('renders (Tackle/Steal Decline: Off) when tackleStealDeclineEnabled is false', () => {
     seed({ tackleStealDeclineEnabled: false });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Tackle/Steal Decline: Off)')).toBeInTheDocument();
+    expect(screen.getByText('(Tackle/Steal Decline: Off)')).toBeDefined();
   });
 
   it('renders (Referee Leniency: Manual — 4) when refereeCard.wasManualOverride is true (STATS-03)', () => {
     seed({ refereeCard: { leniency: 4, wasManualOverride: true } });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Referee Leniency: Manual — 4)')).toBeInTheDocument();
+    expect(screen.getByText('(Referee Leniency: Manual — 4)')).toBeDefined();
   });
 
   it('renders (Referee Leniency: Auto — 4) when refereeCard.wasManualOverride is false (STATS-03)', () => {
     seed({ refereeCard: { leniency: 4, wasManualOverride: false } });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Referee Leniency: Auto — 4)')).toBeInTheDocument();
+    expect(screen.getByText('(Referee Leniency: Auto — 4)')).toBeDefined();
   });
 
   it('renders (Referee Leniency: Auto — 4) when refereeCard.wasManualOverride is absent (undefined)', () => {
     seed({ refereeCard: { leniency: 4 } });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Referee Leniency: Auto — 4)')).toBeInTheDocument();
+    expect(screen.getByText('(Referee Leniency: Auto — 4)')).toBeDefined();
   });
 
   it('renders the Off/disabled word for an undefined toggle, never a blank or the string "undefined"', () => {
-    seed({
-      foulsEnabled: undefined,
-      bookingEnabled: undefined,
-      injuryEnabled: undefined,
-      outOfBoundsEnabled: undefined,
-      tackleStealDeclineEnabled: undefined,
-    });
+    // mockMovementState does not set any of these five toggle fields, so they
+    // are already undefined by default — no override needed to exercise the
+    // undefined branch (exactOptionalPropertyTypes forbids passing `undefined`
+    // explicitly for a non-`| undefined`-typed optional field).
+    seed();
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Fouls: Off)')).toBeInTheDocument();
-    expect(screen.getByText('(Booking: Off)')).toBeInTheDocument();
-    expect(screen.getByText('(Injury: Off)')).toBeInTheDocument();
-    expect(screen.getByText('(Out-of-Bounds: Off)')).toBeInTheDocument();
-    expect(screen.getByText('(Tackle/Steal Decline: Off)')).toBeInTheDocument();
-    expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+    expect(screen.getByText('(Fouls: Off)')).toBeDefined();
+    expect(screen.getByText('(Booking: Off)')).toBeDefined();
+    expect(screen.getByText('(Injury: Off)')).toBeDefined();
+    expect(screen.getByText('(Out-of-Bounds: Off)')).toBeDefined();
+    expect(screen.getByText('(Tackle/Steal Decline: Off)')).toBeDefined();
+    expect(screen.queryByText(/undefined/i)).toBeNull();
   });
 
   it('does NOT include Game Speed or team/formation/uniform selections in the recap (D-13 scope boundary)', () => {
     seed();
     render(<MatchSummaryContent />);
-    expect(screen.queryByText(/game speed/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/formation/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/uniform/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/game speed/i)).toBeNull();
+    expect(screen.queryByText(/formation/i)).toBeNull();
+    expect(screen.queryByText(/uniform/i)).toBeNull();
   });
 });
 
@@ -126,7 +124,9 @@ describe('MatchSummaryContent — diverging stat rows', () => {
       return all.indexOf(el);
     });
     for (let i = 1; i < positions.length; i++) {
-      expect(positions[i]).toBeGreaterThan(positions[i - 1]);
+      // noUncheckedIndexedAccess types array indexing as possibly-undefined;
+      // both indices are always in bounds here (fixed-length `positions`).
+      expect(positions[i] as number).toBeGreaterThan(positions[i - 1] as number);
     }
   });
 
@@ -146,12 +146,15 @@ describe('MatchSummaryContent — diverging stat rows', () => {
       },
     });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('12')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeDefined();
+    expect(screen.getByText('7')).toBeDefined();
   });
 
   it('renders 0 on both sides and a flat unfilled track for every diverging row, and throws nothing, when matchStats is entirely undefined', () => {
-    seed({ matchStats: undefined });
+    // mockMovementState does not set matchStats, so it is already undefined by
+    // default — no override needed (exactOptionalPropertyTypes forbids passing
+    // `undefined` explicitly for a non-`| undefined`-typed optional field).
+    seed();
     const { container } = render(<MatchSummaryContent />);
     const zeros = screen.getAllByText('0');
     expect(zeros.length).toBeGreaterThan(0);
@@ -221,8 +224,8 @@ describe('MatchSummaryContent — diverging stat rows', () => {
       },
     });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('6 (60%)')).toBeInTheDocument();
-    expect(screen.getByText('0 (0%)')).toBeInTheDocument();
+    expect(screen.getByText('6 (60%)')).toBeDefined();
+    expect(screen.getByText('0 (0%)')).toBeDefined();
   });
 
   it('drives the Tackles & Steals bar from the raw success counts, not the percentages', () => {
