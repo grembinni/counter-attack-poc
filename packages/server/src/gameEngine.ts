@@ -85,6 +85,7 @@ import {
   MAX_SUBS_PER_TEAM,
   PLAYER_POOL,
   isActivePiece,
+  EMPTY_MATCH_STATS,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -461,6 +462,12 @@ export function buildInitialGameState(
         refereeLeniencyOverrideEnabled && refereeLeniencyValue !== undefined
           ? refereeLeniencyValue
           : randomInt(2, 6),
+      // STATS-03 (Phase 45, D-13): records whether Leniency came from a manual host override
+      // or the random roll above, so the settings recap can render "(Referee Leniency:
+      // Manual — 4)" vs "(Referee Leniency: Auto — 4)" — `refereeCard.leniency` alone cannot
+      // express that distinction because both paths produce the same plain 2-5 integer
+      // (45-RESEARCH.md Pitfall 3). Written once here at match start and never mutated again.
+      wasManualOverride: refereeLeniencyOverrideEnabled,
     },
     movedPieceIds: [],
     paceUsedByPieceId: {},
@@ -489,6 +496,7 @@ export function buildInitialGameState(
     bench: { home: homeBench, away: awayBench }, // SUB-02/07: seeded verbatim, never generated (D-12)
     subsUsed: { home: 0, away: 0 }, // SUB-04: whole-match cap counter, starts at zero
     addedTimeBonus: 0, // SUB-05: per-half accumulator, starts at zero
+    matchStats: EMPTY_MATCH_STATS, // STATS-04..09 (Phase 45): whole-match stat counters, seeded all-zero
   };
 }
 
@@ -10556,9 +10564,25 @@ export function buildReplayFrames(finalState: GameState): GameState[] {
     selectedUniformStyles: finalState.selectedUniformStyles, // Phase 22 D-17: carry uniform styles into replay frames
     gameSpeed: finalState.gameSpeed, // UX-07 (Phase 18.4): carry speed into replay frames
     outOfBoundsEnabled: finalState.outOfBoundsEnabled ?? false, // GOALKICK-06 / OOB-05 (Phase 37): carry the toggle into replay frames
-    // TACKLE-01 (Phase 43): tackleStealDeclineEnabled is deliberately NOT carried into replay
-    // frames — replay reconstructs purely from ballAfter and never re-enters
-    // TACKLE_STEAL_PROMPT, so threading the toggle here would be dead state.
+    // STATS-02/03 (Phase 45, D-09/D-11): the (i) icon is clickable in every phase including
+    // REPLAY, and replay frames are rebuilt from this fresh seed rather than spread from
+    // finalState, so without carrying these five fields verbatim the match summary would
+    // silently show all-zero statistics and a wrong settings recap for the entire
+    // post-full-time replay — exactly when a player is most likely to open it.
+    // `?? false`/`?? EMPTY_MATCH_STATS` mirror `outOfBoundsEnabled`'s existing fallback
+    // pattern above — required by exactOptionalPropertyTypes since each source field is
+    // optional on GameState (finalState is always fully seeded in practice, but the type
+    // itself is `T | undefined`).
+    matchStats: finalState.matchStats ?? EMPTY_MATCH_STATS,
+    foulsEnabled: finalState.foulsEnabled ?? false,
+    bookingEnabled: finalState.bookingEnabled ?? false,
+    injuryEnabled: finalState.injuryEnabled ?? false,
+    // TACKLE-01 (Phase 43) originally left tackleStealDeclineEnabled deliberately uncarried
+    // here, reasoning that replay reconstructs purely from ballAfter and never re-enters
+    // TACKLE_STEAL_PROMPT so the toggle would be dead state. That reasoning is superseded by
+    // Phase 45 STATS-03: the settings recap reads this field and renders during REPLAY, so it
+    // must now be carried like every other toggle.
+    tackleStealDeclineEnabled: finalState.tackleStealDeclineEnabled ?? false,
   };
 
   // REPLAY-05: accumulate consecutive MOVE events per pieceId so an entire movement phase
