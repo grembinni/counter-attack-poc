@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: completed
+status: executing
 stopped_at: Phase 45 context gathered
 last_updated: "2026-08-28T14:49:01.828Z"
-last_activity: 2026-08-28 -- Phase 44 verified (9/9 must-haves) and marked complete
+last_activity: 2026-08-28 -- Phase 45 context gathered, ready for planning
 progress:
   total_phases: 6
   completed_phases: 4
@@ -20,8 +20,8 @@ progress:
 
 Phase: 45
 Plan: Not started
-Status: Phase 44 complete — awaiting Phase 45
-Last activity: 2026-08-28 -- Phase 44 verified (9/9 must-haves) and marked complete
+Status: Phase 45 context gathered — ready for planning
+Last activity: 2026-08-28 -- Phase 45 (Game Summary Popup) context discussion complete
 
 ## Project Reference
 
@@ -374,7 +374,7 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 Last session: 2026-08-28T14:49:01.817Z
 Stopped at: Phase 45 context gathered
 Resume file: .planning/phases/45-game-summary-popup/45-CONTEXT.md
-Resume: Phase 43 (Tackle/Steal Prompt & Decline) is closed out with all four TACKLE-01..04 requirements satisfied. One out-of-scope UX observation from the live verification was filed as a backlog todo (resolves_phase: 46), not actioned in this phase. Next step is to plan Phase 44.
+Resume: Phase 44 (Referee Leniency & Advanced Settings Drawer) is closed out, verified 9/9 must-haves. Phase 45 (Game Summary Popup) context discussion is complete — xG formula, coordinate mapping, possession/stat accumulator pattern, tackle/steal decline exclusion, icon placement, and HALF_TIME/FULL_TIME layout are all locked in 45-CONTEXT.md. Next step is to plan Phase 45.
 
 ## Performance Metrics
 
