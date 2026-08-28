@@ -361,8 +361,8 @@ describe('foldMatchStats', () => {
       defenderId: 'away-1',
       carrierId: 'home-1',
       timestamp: 1,
-      kind: 'TACKLE_ATTEMPT',
-    } as ActionEvent;
+      kind: 'TACKLE',
+    };
     const result = foldMatchStats(undefined, [event], PIECES, {
       team: 'home',
       actionCountDelta: 0,
@@ -471,11 +471,11 @@ describe('foldMatchStats', () => {
         pieceId: 'home-1',
         from: { q: 0, r: 0 },
         to: { q: 1, r: 0 },
-        slot: 'ATTACKER_1',
+        slot: 'ATTACKER_4',
         timestamp: 1,
         ballAfter: BALL_AFTER,
       },
-      { type: 'SLOT_ADVANCE', from: 'ATTACKER_1', to: 'ATTACKER_2', timestamp: 2 },
+      { type: 'SLOT_ADVANCE', from: 'ATTACKER_4', to: 'ATTACKER_2', timestamp: 2 },
       { type: 'DICE_ROLL', result: 4, timestamp: 3, ballAfter: BALL_AFTER },
       {
         type: 'GOAL',
