@@ -86,6 +86,8 @@ import {
   PLAYER_POOL,
   isActivePiece,
   EMPTY_MATCH_STATS,
+  computeShotXg,
+  recordShotInStats,
 } from '@counter-attack/shared';
 import { ELIGIBLE_NEXT_ACTIONS } from '@counter-attack/shared';
 // Note: HOME_SQUAD / AWAY_SQUAD are no longer used — replaced by getSquadPlayers runtime lookup (Phase 19).
@@ -5057,6 +5059,19 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
       const gk = state.pieces.find((p) => p.teamId === opposingTeam && p.role === 'GK');
       if (!gk) return { ok: false, reason: 'WRONG_PHASE' };
 
+      // STATS-07/08 (Phase 45, S1): xG MUST be computed here, above every branch below, using
+      // the PRE-shot `state.pieces` — see 45-RESEARCH.md Pitfall 2. Every GOAL branch in this
+      // case assigns `pieces: resetPieces` (a fresh kickoff formation) in the same return
+      // object that builds the goal event, so reading defender positions after any of these
+      // returns is guaranteed to read the wrong (post-reset) layout. `computeShotXg` applies
+      // the `isActivePiece` filter internally — pass the raw defending-team slice.
+      const shotXg = computeShotXg(
+        shooter.position,
+        state.attackingTeam,
+        state.pieces.filter((p) => p.teamId === opposingTeam),
+      );
+      const shotMatchStats = recordShotInStats(state.matchStats, state.attackingTeam, shotXg);
+
       // Pre-generate all dice upfront (Pitfall 4): shooterDice, gkDice, handlingDice
       const shooterDice = d1;
       const gkDice = d2;
@@ -5135,6 +5150,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             // BUG-06 / D-47: a goal is a major dead-ball restart — clear ALL offside flags
             // so pieces are not shown as offside during the kick-off setup phase.
             offsidePieceIds: [],
+            matchStats: shotMatchStats,
             eventLog: [
               ...state.eventLog,
               shotAttemptGoal,
@@ -5231,6 +5247,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             // BUG-06 / D-47: a goal is a major dead-ball restart — clear ALL offside flags
             // so pieces are not shown as offside during the kick-off setup phase.
             offsidePieceIds: [],
+            matchStats: shotMatchStats,
             eventLog: [
               ...state.eventLog,
               shotAttemptGoal,
@@ -5285,6 +5302,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             lastActionType: 'DEFLECTION',
             lastShotPath: null, // RULE-03: clear stale shot path on LOOSE_BALL (tie)
             snapshotGkPenalty: null,
+            matchStats: shotMatchStats,
             eventLog: [...state.eventLog, shotAttempt],
           },
         };
@@ -5330,6 +5348,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               lastDiceRoll: shotDiceRoll,
               lastShotPath: null, // clear path — save resolved, GK has the ball
               snapshotGkPenalty: null,
+              matchStats: shotMatchStats,
               eventLog: [...state.eventLog, shotAttempt],
             },
           };
@@ -5360,6 +5379,7 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
               lastActionType: 'DEFLECTION',
               lastShotPath: null, // clear path — ball is loose
               snapshotGkPenalty: null,
+              matchStats: shotMatchStats,
               eventLog: [...state.eventLog, shotAttempt],
             },
           };
@@ -8321,6 +8341,18 @@ export function applyPenaltyKickDuel(
   const gk = state.pieces.find((p) => p.teamId === defendingTeam && p.role === 'GK');
   if (!gk) return { ok: false, reason: 'PIECE_NOT_FOUND' };
 
+  // STATS-07/08 (Phase 45, S2): identical hoist pattern to applyRoll's `case 'SHOT'` — see
+  // 45-RESEARCH.md Pitfall 2. `taker.position` is the shot hex (PD-01; the taker stands at
+  // PENALTY_SPOT by this point). This one hoist covers both the ordinary penalty and D-03's
+  // "GK-dive-at-feet penalty" (PD-07) — a foul awarded via the GK-dive-at-feet source reaches
+  // this same function through the existing foul chain, so no separate xG site is needed here.
+  const penaltyXg = computeShotXg(
+    taker.position,
+    taker.teamId,
+    state.pieces.filter((p) => p.teamId === defendingTeam),
+  );
+  const penaltyMatchStats = recordShotInStats(state.matchStats, taker.teamId, penaltyXg);
+
   const takerCombined = computeCombinedScore(taker.shooting, takerDie, []);
   // PEN-01: flat -2 GK dice penalty. RESEARCH.md's clamp-interaction note: because
   // computeCombinedScore clamps the SUMMED penalty at -2 (Math.max(total, -2)), an
@@ -8385,6 +8417,7 @@ export function applyPenaltyKickDuel(
         lastActionType: null,
         lastShotPath: null,
         offsidePieceIds: [],
+        matchStats: penaltyMatchStats,
         eventLog: [
           ...state.eventLog,
           penEvent,
@@ -8432,6 +8465,7 @@ export function applyPenaltyKickDuel(
         // 39-18 (UAT gap 9): the penalty kick costs 1 minute regardless of outcome.
         actionCount: state.actionCount + 1,
         lastDiceRoll: { rolls: [takerDie, gkDie], context: 'PENALTY_KICK' },
+        matchStats: penaltyMatchStats,
         eventLog: [...state.eventLog, penEvent],
       },
     };
@@ -8467,6 +8501,7 @@ export function applyPenaltyKickDuel(
       // 39-18 (UAT gap 9): the penalty kick costs 1 minute regardless of outcome.
       actionCount: state.actionCount + 1,
       lastDiceRoll: null,
+      matchStats: penaltyMatchStats,
       eventLog: [...state.eventLog, penEvent],
     },
   };
