@@ -1,0 +1,235 @@
+/* MatchSummaryContent — Phase 45 (Game Summary Popup): the single shared stats
+   block consumed by both the standalone on-demand modal (plan 45-05) and the
+   HALF_TIME/FULL_TIME overlay appended block (D-11). Every dimension, color
+   role and typography value below comes from 45-UI-SPEC.md — nothing here is
+   invented. Spacing uses only the project's frozen 4/8/16/24 subset, except
+   the documented graphic-dimension exceptions (6px bar height, 2px centre
+   seam, 3px border radius, 16px icon diameter). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── Settings recap section (D-12/D-13) ────────────────────────────────── */
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+/* D-12: inline row of parenthetical toggle:state pairs — never a table, list
+   or settings-panel layout. */
+.recapRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+/* ─── Divider between settings and stat rows ────────────────────────────── */
+
+.divider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ─── Stat-rows container ────────────────────────────────────────────────── */
+
+.statRows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── Standard diverging stat row (7 of the 8 rows) ─────────────────────── */
+
+.statRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statRowText {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statRowValue {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Team-accent value modifiers — applied to every row's numerals except the
+   Yellow Cards / Red Cards documented exception below. */
+.valueHome {
+  color: var(--home-accent);
+}
+
+.valueAway {
+  color: var(--away-accent);
+}
+
+/* Card-colour value modifiers (documented exception): Yellow Cards / Red
+   Cards numerals use the fixed semantic card colour instead of the team
+   accent, since card colour is never team-tinted anywhere else in the app.
+   The bar beneath these two rows still uses the team-accent segments. */
+.valueCardYellow {
+  color: var(--color-card-yellow);
+}
+
+.valueCardRed {
+  color: var(--color-card-red);
+}
+
+.statRowLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+/* Diverging bar: two half-tracks separated by a 2px centre seam. Each half's
+   fill segment grows OUTWARD from the centre toward its own edge — this is
+   NOT a continuous single fill (see .possessionBar below for the one row
+   that is). */
+.barTrack {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+
+.barHalf {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-surface-alt);
+}
+
+.barHalfLeft {
+  justify-content: flex-end;
+  border-radius: 3px 0 0 3px;
+}
+
+.barHalfRight {
+  justify-content: flex-start;
+  border-radius: 0 3px 3px 0;
+}
+
+.barSegmentHome {
+  height: 100%;
+  background: var(--home-accent);
+}
+
+.barSegmentAway {
+  height: 100%;
+  background: var(--away-accent);
+}
+
+/* No-data modifier: a flat, fully unfilled track — used instead of the
+   two-half structure above when home + away === 0, so no fabricated 50/50
+   split is ever rendered. */
+.barTrackNoData {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg-surface-alt);
+}
+
+/* ─── Possession row (special case — continuous bar, not diverging) ─────── */
+
+.possessionPills {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-inverse);
+}
+
+.pillHome {
+  background: var(--home-accent);
+}
+
+.pillAway {
+  background: var(--away-accent);
+}
+
+/* Continuous, edge-to-edge bar with no centre gap — home segment, then away
+   segment, then a neutral remainder segment for unattributed match time. */
+.possessionBar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.possessionSegmentHome {
+  height: 100%;
+  background: var(--home-accent);
+}
+
+.possessionSegmentAway {
+  height: 100%;
+  background: var(--away-accent);
+}
+
+.possessionSegmentRemainder {
+  height: 100%;
+  background: var(--color-bg-surface-alt);
+}
+
+/* ─── Info icon + accordion explainer (xG row) ──────────────────────────── */
+
+/* Reuses the existing 16px .statBubble circle-diameter convention verbatim
+   (GameBoard.module.css) — a neutral, non-accent affordance so it never
+   competes with the team-accent comparison language of the bars. */
+.infoIconButton {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--color-bg-surface-alt);
+  border: 1px solid var(--color-border-muted);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.explainer {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
