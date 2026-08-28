@@ -9,10 +9,10 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 ### Referee Leniency
 
-- [ ] **REFEREE-01**: Host can toggle a manual Referee Leniency override at game creation, default off
-- [ ] **REFEREE-02**: When enabled, host selects a Leniency value in range 2–5 via an up/down stepper, defaulting to a mid value
-- [ ] **REFEREE-03**: When the override is off (default), Leniency is randomly assigned 2–5 at match start (narrowed from the previous 1–6 roll)
-- [ ] **REFEREE-04**: The manual override value drives both the booking threshold and the added-time calculation identically to the existing random roll (kept coupled per explicit decision); UI copy notes that a stricter Leniency setting also affects added time
+- [x] **REFEREE-01**: Host can toggle a manual Referee Leniency override at game creation, default off
+- [x] **REFEREE-02**: When enabled, host selects a Leniency value in range 2–5 via an up/down stepper, defaulting to a mid value
+- [x] **REFEREE-03**: When the override is off (default), Leniency is randomly assigned 2–5 at match start (narrowed from the previous 1–6 roll)
+- [x] **REFEREE-04**: The manual override value drives both the booking threshold and the added-time calculation identically to the existing random roll (kept coupled per explicit decision); UI copy notes that a stricter Leniency setting also affects added time
 
 ### Card & Injury Iconography
 
@@ -22,9 +22,9 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 ### Advanced Settings Drawer
 
-- [ ] **SETTINGS-05**: Game-creation match-rule toggles are grouped under a collapsed-by-default "Advanced" section
-- [ ] **SETTINGS-06**: Within the Advanced section, toggles are laid out in a two-column (left/right) grid rather than a single vertical stack
-- [ ] **SETTINGS-07**: The existing Fouls-dependency grey-out behavior (Booking/Injury disabled when Fouls is off) continues to work correctly inside the new layout, driven by one shared derivation used at both render time and confirm time
+- [x] **SETTINGS-05**: Game-creation match-rule toggles are grouped under a collapsed-by-default "Advanced" section
+- [x] **SETTINGS-06**: Within the Advanced section, toggles are laid out in a two-column (left/right) grid rather than a single vertical stack
+- [x] **SETTINGS-07**: The existing Fouls-dependency grey-out behavior (Booking/Injury disabled when Fouls is off) continues to work correctly inside the new layout, driven by one shared derivation used at both render time and confirm time
 
 ### Substitution UX Overhaul
 
@@ -108,8 +108,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SUB-08..18      | Phase 42 | Complete |
 | BUG-38          | Phase 42 | Complete |
 | TACKLE-01..04   | Phase 43 | Complete |
-| REFEREE-01..04  | Phase 44 | Pending  |
-| SETTINGS-05..07 | Phase 44 | Pending  |
+| REFEREE-01..04  | Phase 44 | Complete |
+| SETTINGS-05..07 | Phase 44 | Complete |
 | STATS-01..09    | Phase 45 | Pending  |
 | CLEANUP-05..13  | Phase 46 | Pending  |
 

@@ -148,7 +148,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 41    | 6/6                                         | Complete | 2026-08-21  |
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
-| 44    | 5/5 | Complete   | 2026-08-24 |
+| 44    | 5/5 | Complete    | 2026-08-28 |
 | 45    | Game Summary Popup                          | TBD      | Not started |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
@@ -415,6 +415,6 @@ Plans:
 | 41. Card & Injury Iconography            | v1.7      | 0/TBD          | Not started | -          |
 | 42. Substitution UX Overhaul             | v1.7      | 0/TBD          | Not started | -          |
 | 43. Tackle/Steal Prompt & Decline        | v1.7      | 6/6            | Complete    | 2026-08-23 |
-| 44. Referee Leniency & Advanced Settings | v1.7      | 0/5            | Not started | -          |
+| 44. Referee Leniency & Advanced Settings | v1.7      | 5/5            | Complete    | 2026-08-28 |
 | 45. Game Summary Popup                   | v1.7      | 0/TBD          | Not started | -          |
 | 46. Final Cleanup                        | v1.7      | 0/TBD          | Not started | -          |
