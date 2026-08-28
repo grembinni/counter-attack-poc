@@ -41,10 +41,16 @@
 
 /* ─── Header row — pinned outside the scroll region ─────────────────────── */
 
+/* Checkpoint 45-05-04 fix: the corner `×` icon-button (and its
+   `.closeIconButton` class) was removed per developer request — the
+   footer `.footerButton` below is now the sole dismiss control. `.header`
+   keeps `justify-content: center` (was `space-between`, needed only to
+   balance the removed right-pinned `×`) since it now hosts a single
+   centered child. */
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   flex-shrink: 0;
 }
 
@@ -52,32 +58,41 @@
    GameSettingsScreen.module.css's `.heading` size verbatim. Centered within
    the header row per all 3 reference images' centered-title convention. */
 .title {
-  flex: 1;
   text-align: center;
   font-size: 20px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
-/* Small `×` icon-button, top-right — quick dismiss alongside the footer
-   Close button below. Deliberately neutral, no accent color. */
-.closeIconButton {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+/* ─── Scoreboard row (checkpoint 45-05-04 fix) ───────────────────────────── */
+
+/* "info popup is not the same as halftime as specified - include
+   scoreboard in both" (developer, verbatim) — a compact score row so the
+   standalone modal shows live score info the same way the HALF_TIME/
+   FULL_TIME overlay's own untouched header already does (D-10), since this
+   modal's fixed full-viewport backdrop otherwise hides GameBoard's
+   persistent top-band scoreboard behind it. */
+.scoreboardRow {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--color-text-secondary);
-  cursor: pointer;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-.closeIconButton:hover {
-  color: var(--color-text-primary);
+.scoreNumeral {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.accentHome {
+  color: var(--home-accent);
+}
+
+.accentAway {
+  color: var(--away-accent);
 }
 
 /* ─── Scrollable body ─────────────────────────────────────────────────────── */
@@ -98,11 +113,22 @@
   flex-shrink: 0;
 }
 
-/* Reuses GameBoard.module.css's `.overlayCtaButton` exact visual treatment
-   verbatim (token-for-token) rather than inventing a different button
-   style, per the plan's explicit instruction. */
+/* Checkpoint 45-05-04 fix (deviation, "close needs to be a standard button
+   color instead of black"): the original `.overlayCtaButton`-copy defaulted
+   to `--color-bg-surface-alt` (#262626, a near-black neutral shared by
+   EVERY CTA in the app at rest, including Start 2nd Half/Confirm/Cancel —
+   the "standard" convention the developer was reacting against). Recolored
+   to the app's other existing standard-button pattern instead:
+   `--color-cta-ready-bg`/`--color-cta-ready-bg-hover`, the same solid-green
+   pair `LineupAssignmentScreen.module.css`'s `.resumeButton` already uses
+   for its own dismiss-and-return-to-the-match action (the milestone's
+   documented "green Resume button replaces the small close (X)" pattern —
+   PROJECT.md v1.7 Substitution UX Overhaul). Sizing/padding/font stay this
+   modal's own compact footprint (not the larger `.rosterActionButton`
+   scale), since that pattern was designed for a full-screen panel, not a
+   760px-max-width modal. */
 .footerButton {
-  background: var(--color-bg-surface-alt);
+  background: var(--color-cta-ready-bg);
   color: var(--color-text-inverse);
   border: 1px solid var(--color-border-muted);
   border-radius: 4px;
@@ -113,5 +139,5 @@
 }
 
 .footerButton:hover {
-  background: var(--team-accent);
+  background: var(--color-cta-ready-bg-hover);
 }

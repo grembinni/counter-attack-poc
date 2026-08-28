@@ -87,12 +87,32 @@ describe('GameBoard — 45-05-02: scoreboard (i) icon and modal mount', () => {
     expect(screen.queryByText('MATCH SUMMARY')).toBeNull();
   });
 
-  it('closes the modal when the × control is clicked', () => {
+  // Checkpoint 45-05-04 fix (deviation, "popup has x in corner remove"):
+  // the corner × dismiss control was removed per developer request during
+  // live verification — the footer Close button (covered above) is now the
+  // sole dismiss control.
+  it('does NOT render a corner × dismiss control — footer Close is the sole dismiss control', () => {
     render(<GameBoard />);
     fireEvent.click(screen.getByTitle('View match summary'));
     expect(screen.getByText('MATCH SUMMARY')).toBeDefined();
-    fireEvent.click(screen.getByLabelText('Close match summary'));
-    expect(screen.queryByText('MATCH SUMMARY')).toBeNull();
+    expect(screen.queryByLabelText('Close match summary')).toBeNull();
+    expect(screen.queryByText('×')).toBeNull();
+  });
+
+  // Checkpoint 45-05-04 fix (deviation, "info popup is not the same as
+  // halftime as specified - include scoreboard in both"): the standalone
+  // modal now shows a compact score row, matching the HALF_TIME/FULL_TIME
+  // overlay's own untouched score header.
+  it('shows the live score inside the standalone modal (scoreboard-in-both fix)', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, score: { home: 3, away: 1 } },
+    });
+    render(<GameBoard />);
+    fireEvent.click(screen.getByTitle('View match summary'));
+    // The persistent top-band scoreboard already renders "3"/"1" — the
+    // modal's own score row adds at least one more occurrence of each.
+    expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(2);
   });
 
   it('emits no socket event when the icon is clicked (T-45-17)', () => {
