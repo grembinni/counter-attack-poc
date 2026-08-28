@@ -339,7 +339,28 @@ Plans:
 3. The modal shows accumulated xG per team, computed from the specified formula (defenders in the goal box, defenders in the penalty box, shot-hex distance from goal center) and captured across every shot-resolution type — standard shot, snapshot/deflection, headed shot, penalty, and GK-dive-at-feet penalty.
 4. All match-summary stats reflect the true whole-match total and are never reset at half-time, mirroring the existing subsUsed persistence pattern.
 
-**Plans**: TBD
+**Plans**: 6 plans in 4 waves
+
+Plans:
+
+**Wave 1**
+
+- [ ] 45-01-PLAN.md — Shared `MatchStats` contract on GameState/RefereeCard + pure D-01 xG formula module (STATS-03..09)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 45-02-PLAN.md — Server: seed/replay-carry matchStats, inline shot + xG capture at all 7 shot-resolution sites (STATS-03/07/08)
+- [ ] 45-03-PLAN.md — Server: broadcastState fold reducer for possession, passes, tackles/steals, fouls and cards (STATS-04/05/06/09)
+- [ ] 45-04-PLAN.md — Client: shared `MatchSummaryContent` block — settings recap, 8 stat rows, xG explainer (STATS-03..09)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 45-05-PLAN.md — Client: scoreboard (i) icon, standalone modal, HALF_TIME/FULL_TIME embedding + human verification (STATS-01/02)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 45-06-PLAN.md — End-to-end socket integration suite + validation contract refresh (all 9 requirements)
+
 **UI hint**: yes
 
 ### Phase 46: Final Cleanup
