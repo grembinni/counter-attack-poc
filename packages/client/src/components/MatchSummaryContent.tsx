@@ -1,7 +1,31 @@
 import { useState } from 'react';
-import type { MatchStats } from '@counter-attack/shared';
+import type { GameSpeed, MatchStats } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import styles from './MatchSummaryContent.module.css';
+
+/**
+ * Checkpoint 45-05-04 fix (deviation — outside plan 45-05's original scope,
+ * this file belongs to plan 45-04): bubble color variant for the settings
+ * recap, requested verbatim by the developer during live checkpoint
+ * verification ("use bubbles like for speed - red for disabled, green for
+ * enabled. leniency green if overridden"). The five boolean toggles use a
+ * strict red/green binary; Speed is not a toggle, so it reuses its own
+ * established per-speed hue from GameSettingsScreen.module.css/tokens.css
+ * rather than being forced into red/green.
+ */
+type SettingsBubbleVariant = 'green' | 'red' | 'speedSlow' | 'speedStandard' | 'speedFast';
+
+const SPEED_LABEL: Record<GameSpeed, string> = {
+  slow: 'Slow',
+  standard: 'Standard',
+  fast: 'Fast',
+};
+
+const SPEED_VARIANT: Record<GameSpeed, SettingsBubbleVariant> = {
+  slow: 'speedSlow',
+  standard: 'speedStandard',
+  fast: 'speedFast',
+};
 
 /** Copywriting Contract (45-UI-SPEC.md): static xG explainer copy, verbatim. */
 const XG_EXPLAINER_TEXT =
@@ -147,34 +171,71 @@ export function MatchSummaryContent() {
   const outOfBoundsEnabled = useGameStore((s) => s.gameState.outOfBoundsEnabled);
   const tackleStealDeclineEnabled = useGameStore((s) => s.gameState.tackleStealDeclineEnabled);
   const refereeCard = useGameStore((s) => s.gameState.refereeCard);
+  // Checkpoint 45-05-04 fix: D-13 originally scoped Game Speed OUT of this
+  // recap ("not requested; treat as out of scope for STATS-03 unless
+  // trivial to include without disrupting the inline format"). The
+  // developer explicitly requested it be added during live verification
+  // ("setting info is missing speed") — this is a deliberate, developer-
+  // directed override of D-13, documented here and in SUMMARY.md rather
+  // than silently expanding scope.
+  const gameSpeed = useGameStore((s) => s.gameState.gameSpeed);
 
   // Local accordion open/closed state (plain conditional render, mirrors the
   // existing Advanced-drawer disclosure pattern in GameSettingsScreen.tsx —
   // no portal, no tooltip library, works identically on mouse and touch.
   const [xgExplainerOpen, setXgExplainerOpen] = useState(false);
 
-  // D-12/D-13/PD-17: six parenthetical toggle:state pairs, declared once as a
-  // local array rather than hand-written six times. Every optional boolean is
-  // read with `=== true`, never bare truthiness (existing codebase convention
-  // documented on each field's own doc comment in types.ts).
+  // D-12/D-13/PD-17 as amended by the checkpoint 45-05-04 fix: seven colored-
+  // bubble toggle:state pairs (Speed added, see gameSpeed comment above;
+  // parenthetical-text rendering replaced with bubbles per the developer's
+  // explicit request), declared once as a local array rather than hand-
+  // written seven times. Every optional boolean is read with `=== true`,
+  // never bare truthiness (existing codebase convention documented on each
+  // field's own doc comment in types.ts).
   const refereeMode = refereeCard.wasManualOverride === true ? 'Manual' : 'Auto';
-  const recapItems: { key: string; text: string }[] = [
-    { key: 'fouls', text: `(Fouls: ${foulsEnabled === true ? 'Active' : 'Off'})` },
-    { key: 'booking', text: `(Booking: ${bookingEnabled === true ? 'Active' : 'Off'})` },
-    { key: 'injury', text: `(Injury: ${injuryEnabled === true ? 'Active' : 'Off'})` },
+  const recapItems: { key: string; text: string; variant: SettingsBubbleVariant }[] = [
+    { key: 'speed', text: `Speed: ${SPEED_LABEL[gameSpeed]}`, variant: SPEED_VARIANT[gameSpeed] },
+    {
+      key: 'fouls',
+      text: `Fouls: ${foulsEnabled === true ? 'Active' : 'Off'}`,
+      variant: foulsEnabled === true ? 'green' : 'red',
+    },
+    {
+      key: 'booking',
+      text: `Booking: ${bookingEnabled === true ? 'Active' : 'Off'}`,
+      variant: bookingEnabled === true ? 'green' : 'red',
+    },
+    {
+      key: 'injury',
+      text: `Injury: ${injuryEnabled === true ? 'Active' : 'Off'}`,
+      variant: injuryEnabled === true ? 'green' : 'red',
+    },
     {
       key: 'outOfBounds',
-      text: `(Out-of-Bounds: ${outOfBoundsEnabled === true ? 'Active' : 'Off'})`,
+      text: `Out-of-Bounds: ${outOfBoundsEnabled === true ? 'Active' : 'Off'}`,
+      variant: outOfBoundsEnabled === true ? 'green' : 'red',
     },
     {
       key: 'refereeLeniency',
-      text: `(Referee Leniency: ${refereeMode} — ${refereeCard.leniency})`,
+      text: `Referee Leniency: ${refereeMode} — ${refereeCard.leniency}`,
+      // "leniency green if overridden" (developer, verbatim) — green only
+      // when a manual override is in effect, red for the Auto default.
+      variant: refereeCard.wasManualOverride === true ? 'green' : 'red',
     },
     {
       key: 'tackleStealDecline',
-      text: `(Tackle/Steal Decline: ${tackleStealDeclineEnabled === true ? 'On' : 'Off'})`,
+      text: `Tackle/Steal Decline: ${tackleStealDeclineEnabled === true ? 'On' : 'Off'}`,
+      variant: tackleStealDeclineEnabled === true ? 'green' : 'red',
     },
   ];
+
+  const BUBBLE_VARIANT_CLASS: Record<SettingsBubbleVariant, string | undefined> = {
+    green: styles.settingsBubbleGreen,
+    red: styles.settingsBubbleRed,
+    speedSlow: styles.settingsBubbleSpeedSlow,
+    speedStandard: styles.settingsBubbleSpeedStandard,
+    speedFast: styles.settingsBubbleSpeedFast,
+  };
 
   const possessionActionCount = readPair(matchStats, 'possessionActionCount');
   const passesCompleted = readPair(matchStats, 'passesCompleted');
@@ -192,7 +253,12 @@ export function MatchSummaryContent() {
         <div className={styles.sectionLabel}>SETTINGS</div>
         <div className={styles.recapRow}>
           {recapItems.map((item) => (
-            <span key={item.key}>{item.text}</span>
+            <span
+              key={item.key}
+              className={`${styles.settingsBubble} ${BUBBLE_VARIANT_CLASS[item.variant] ?? ''}`}
+            >
+              {item.text}
+            </span>
           ))}
         </div>
       </div>

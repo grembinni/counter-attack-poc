@@ -28,15 +28,51 @@
   color: var(--color-text-secondary);
 }
 
-/* D-12: inline row of parenthetical toggle:state pairs — never a table, list
-   or settings-panel layout. */
+/* D-12 as amended by the checkpoint 45-05-04 fix: inline row of colored
+   toggle:state bubbles — never a table, list or settings-panel layout. */
 .recapRow {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--color-text-primary);
+}
+
+/* Checkpoint 45-05-04 fix (deviation, developer-requested during live
+   verification): "use bubbles like for speed - red for disabled, green for
+   enabled. leniency green if overridden." Modeled on this file's own
+   `.pill` shape (rounded-rect, solid background, inverse text) but sized
+   for inline settings text rather than a large stat-row numeral. */
+.settingsBubble {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-inverse);
+}
+
+.settingsBubbleGreen {
+  background: var(--color-success);
+}
+
+.settingsBubbleRed {
+  background: var(--color-danger);
+}
+
+/* Speed is not a boolean toggle, so it is deliberately excluded from the
+   red/green binary above — reuses its own established per-speed hue
+   (GameSettingsScreen.module.css / tokens.css), the existing "speed
+   bubble" pattern the developer pointed to. */
+.settingsBubbleSpeedSlow {
+  background: var(--color-speed-slow);
+}
+
+.settingsBubbleSpeedStandard {
+  background: var(--color-speed-standard);
+}
+
+.settingsBubbleSpeedFast {
+  background: var(--color-speed-fast);
 }
 
 /* ─── Divider between settings and stat rows ────────────────────────────── */

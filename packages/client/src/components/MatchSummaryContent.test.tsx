@@ -35,7 +35,14 @@ describe('MatchSummaryContent — settings recap', () => {
     expect(screen.getByText('SETTINGS')).toBeDefined();
   });
 
-  it('renders (Fouls: Off) when foulsEnabled is false, and (Booking: Active)/(Injury: Active)/(Out-of-Bounds: Active) when those three are true', () => {
+  // Checkpoint 45-05-04 fix (deviation, developer-requested during live
+  // verification): the recap now renders as colored bubbles ("Fouls: Off",
+  // no surrounding parens) rather than parenthetical text. Bubble color is
+  // a pure-CSS visual treatment not asserted here (no test in this codebase
+  // asserts CSS-module hashed class names — see FreeKickSetupPanel.test.tsx
+  // etc. for the established convention of testing rendered text/roles
+  // only); colors are covered by the 45-05-04 human-verify checkpoint.
+  it('renders "Fouls: Off" when foulsEnabled is false, and "Booking: Active"/"Injury: Active"/"Out-of-Bounds: Active" when those three are true', () => {
     seed({
       foulsEnabled: false,
       bookingEnabled: true,
@@ -43,40 +50,40 @@ describe('MatchSummaryContent — settings recap', () => {
       outOfBoundsEnabled: true,
     });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Fouls: Off)')).toBeDefined();
-    expect(screen.getByText('(Booking: Active)')).toBeDefined();
-    expect(screen.getByText('(Injury: Active)')).toBeDefined();
-    expect(screen.getByText('(Out-of-Bounds: Active)')).toBeDefined();
+    expect(screen.getByText('Fouls: Off')).toBeDefined();
+    expect(screen.getByText('Booking: Active')).toBeDefined();
+    expect(screen.getByText('Injury: Active')).toBeDefined();
+    expect(screen.getByText('Out-of-Bounds: Active')).toBeDefined();
   });
 
-  it('renders (Tackle/Steal Decline: On) when tackleStealDeclineEnabled is true', () => {
+  it('renders "Tackle/Steal Decline: On" when tackleStealDeclineEnabled is true', () => {
     seed({ tackleStealDeclineEnabled: true });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Tackle/Steal Decline: On)')).toBeDefined();
+    expect(screen.getByText('Tackle/Steal Decline: On')).toBeDefined();
   });
 
-  it('renders (Tackle/Steal Decline: Off) when tackleStealDeclineEnabled is false', () => {
+  it('renders "Tackle/Steal Decline: Off" when tackleStealDeclineEnabled is false', () => {
     seed({ tackleStealDeclineEnabled: false });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Tackle/Steal Decline: Off)')).toBeDefined();
+    expect(screen.getByText('Tackle/Steal Decline: Off')).toBeDefined();
   });
 
-  it('renders (Referee Leniency: Manual — 4) when refereeCard.wasManualOverride is true (STATS-03)', () => {
+  it('renders "Referee Leniency: Manual — 4" when refereeCard.wasManualOverride is true (STATS-03)', () => {
     seed({ refereeCard: { leniency: 4, wasManualOverride: true } });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Referee Leniency: Manual — 4)')).toBeDefined();
+    expect(screen.getByText('Referee Leniency: Manual — 4')).toBeDefined();
   });
 
-  it('renders (Referee Leniency: Auto — 4) when refereeCard.wasManualOverride is false (STATS-03)', () => {
+  it('renders "Referee Leniency: Auto — 4" when refereeCard.wasManualOverride is false (STATS-03)', () => {
     seed({ refereeCard: { leniency: 4, wasManualOverride: false } });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Referee Leniency: Auto — 4)')).toBeDefined();
+    expect(screen.getByText('Referee Leniency: Auto — 4')).toBeDefined();
   });
 
-  it('renders (Referee Leniency: Auto — 4) when refereeCard.wasManualOverride is absent (undefined)', () => {
+  it('renders "Referee Leniency: Auto — 4" when refereeCard.wasManualOverride is absent (undefined)', () => {
     seed({ refereeCard: { leniency: 4 } });
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Referee Leniency: Auto — 4)')).toBeDefined();
+    expect(screen.getByText('Referee Leniency: Auto — 4')).toBeDefined();
   });
 
   it('renders the Off/disabled word for an undefined toggle, never a blank or the string "undefined"', () => {
@@ -86,20 +93,39 @@ describe('MatchSummaryContent — settings recap', () => {
     // explicitly for a non-`| undefined`-typed optional field).
     seed();
     render(<MatchSummaryContent />);
-    expect(screen.getByText('(Fouls: Off)')).toBeDefined();
-    expect(screen.getByText('(Booking: Off)')).toBeDefined();
-    expect(screen.getByText('(Injury: Off)')).toBeDefined();
-    expect(screen.getByText('(Out-of-Bounds: Off)')).toBeDefined();
-    expect(screen.getByText('(Tackle/Steal Decline: Off)')).toBeDefined();
+    expect(screen.getByText('Fouls: Off')).toBeDefined();
+    expect(screen.getByText('Booking: Off')).toBeDefined();
+    expect(screen.getByText('Injury: Off')).toBeDefined();
+    expect(screen.getByText('Out-of-Bounds: Off')).toBeDefined();
+    expect(screen.getByText('Tackle/Steal Decline: Off')).toBeDefined();
     expect(screen.queryByText(/undefined/i)).toBeNull();
   });
 
-  it('does NOT include Game Speed or team/formation/uniform selections in the recap (D-13 scope boundary)', () => {
-    seed();
+  // Checkpoint 45-05-04 fix (deviation, developer-requested): D-13 originally
+  // scoped Game Speed OUT of this recap. The developer explicitly asked for
+  // it during live verification ("setting info is missing speed") — this is
+  // a deliberate override of D-13, not a silent scope expansion. Formation
+  // and uniform selections remain out of scope (never requested).
+  it('DOES include Speed in the recap (developer override of D-13), but still excludes formation/uniform selections', () => {
+    seed({ gameSpeed: 'fast' });
     render(<MatchSummaryContent />);
-    expect(screen.queryByText(/game speed/i)).toBeNull();
+    expect(screen.getByText('Speed: Fast')).toBeDefined();
     expect(screen.queryByText(/formation/i)).toBeNull();
     expect(screen.queryByText(/uniform/i)).toBeNull();
+  });
+
+  it('renders the correct Speed label for each GameSpeed value', () => {
+    seed({ gameSpeed: 'slow' });
+    const { rerender } = render(<MatchSummaryContent />);
+    expect(screen.getByText('Speed: Slow')).toBeDefined();
+
+    seed({ gameSpeed: 'standard' });
+    rerender(<MatchSummaryContent />);
+    expect(screen.getByText('Speed: Standard')).toBeDefined();
+
+    seed({ gameSpeed: 'fast' });
+    rerender(<MatchSummaryContent />);
+    expect(screen.getByText('Speed: Fast')).toBeDefined();
   });
 });
 
