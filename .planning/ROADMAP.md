@@ -149,7 +149,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
-| 45    | 1/6 | In Progress|  |
+| 45    | 4/6 | In Progress|  |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
 ### Phase 41: Card & Injury Iconography
@@ -349,9 +349,9 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 45-02-PLAN.md — Server: seed/replay-carry matchStats, inline shot + xG capture at all 7 shot-resolution sites (STATS-03/07/08)
-- [ ] 45-03-PLAN.md — Server: broadcastState fold reducer for possession, passes, tackles/steals, fouls and cards (STATS-04/05/06/09)
-- [ ] 45-04-PLAN.md — Client: shared `MatchSummaryContent` block — settings recap, 8 stat rows, xG explainer (STATS-03..09)
+- [x] 45-02-PLAN.md — Server: seed/replay-carry matchStats, inline shot + xG capture at all 7 shot-resolution sites (STATS-03/07/08)
+- [x] 45-03-PLAN.md — Server: broadcastState fold reducer for possession, passes, tackles/steals, fouls and cards (STATS-04/05/06/09)
+- [x] 45-04-PLAN.md — Client: shared `MatchSummaryContent` block — settings recap, 8 stat rows, xG explainer (STATS-03..09)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
