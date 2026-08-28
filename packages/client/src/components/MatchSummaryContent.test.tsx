@@ -330,7 +330,7 @@ describe('MatchSummaryContent — possession row', () => {
       },
     });
     const { container } = render(<MatchSummaryContent />);
-    expect(screen.getByText('40%')).toBeDefined();
+    expect(screen.getAllByText('40%').length).toBe(2);
     const remainder = container.querySelector(
       '[class*="possessionSegmentRemainder"]',
     ) as HTMLElement;
