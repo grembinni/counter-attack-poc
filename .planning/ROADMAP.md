@@ -439,3 +439,14 @@ Plans:
 | 44. Referee Leniency & Advanced Settings | v1.7      | 5/5            | Complete    | 2026-08-28 |
 | 45. Game Summary Popup                   | v1.7      | 0/TBD          | Not started | -          |
 | 46. Final Cleanup                        | v1.7      | 0/TBD          | Not started | -          |
+
+## Backlog
+
+### Phase 999.1: Shot-from-out-of-box does not trigger expected goalie response move (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
