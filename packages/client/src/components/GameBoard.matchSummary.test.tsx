@@ -99,10 +99,10 @@ describe('GameBoard — 45-05-02: scoreboard (i) icon and modal mount', () => {
     expect(screen.queryByText('×')).toBeNull();
   });
 
-  // Checkpoint 45-05-04 fix (deviation, "info popup is not the same as
-  // halftime as specified - include scoreboard in both"): the standalone
-  // modal now shows a compact score row, matching the HALF_TIME/FULL_TIME
-  // overlay's own untouched score header.
+  // Checkpoint 45-05-04 fix, round 1 (deviation, "info popup is not the
+  // same as halftime as specified - include scoreboard in both"): the
+  // standalone modal shows the live score, matching the HALF_TIME/
+  // FULL_TIME overlay's own untouched score header.
   it('shows the live score inside the standalone modal (scoreboard-in-both fix)', () => {
     useGameStore.setState({
       gameState: { ...mockMovementState, score: { home: 3, away: 1 } },
@@ -110,9 +110,29 @@ describe('GameBoard — 45-05-02: scoreboard (i) icon and modal mount', () => {
     render(<GameBoard />);
     fireEvent.click(screen.getByTitle('View match summary'));
     // The persistent top-band scoreboard already renders "3"/"1" — the
-    // modal's own score row adds at least one more occurrence of each.
+    // modal's own score row (via the shared MatchScoreRow, round 2 below)
+    // adds at least one more occurrence of each.
     expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(2);
+  });
+
+  // Checkpoint 45-05-04 fix, round 2 (deviation, developer feedback
+  // verbatim: "use the original size and display of the half time score on
+  // the realtime pop... why are they 2 different elements"). The standalone
+  // modal now renders the SAME shared MatchScoreRow component the
+  // HALF_TIME/FULL_TIME overlay uses (same 150px badges, same 120px
+  // numerals) — not a smaller improvised variant. Its centre content is the
+  // live match clock (CLOCK-01 MM:00 format), since the modal can open at
+  // any point mid-match, not just at a phase boundary.
+  it('shows the live match clock (MM:00) as the modal score row centre content', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, actionCount: 23 },
+    });
+    render(<GameBoard />);
+    fireEvent.click(screen.getByTitle('View match summary'));
+    // The persistent scoreboard already renders "23:00" — the modal's own
+    // MatchScoreRow centre-content clock adds a second occurrence.
+    expect(screen.getAllByText('23:00').length).toBeGreaterThanOrEqual(2);
   });
 
   it('emits no socket event when the icon is clicked (T-45-17)', () => {

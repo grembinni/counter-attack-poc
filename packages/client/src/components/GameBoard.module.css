@@ -531,31 +531,14 @@
 
 /* ─── Half-time / Full-time scoreboard overlay layout ─────────────────────── */
 
-/* Flex row: score | badge | [clock/+time centre] | badge | score
-   gap matches card padding so edge-to-score == score-to-badge == badge-to-clock */
-.halfTimeScoreRow {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-/* Large score numeral — 120px (25% up from 96px), Courier to match .scoreNumeral */
-.halfTimeScore {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 120px;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-}
-
-/* Centre column: stretches to badge height, three vertical sections */
-.halfTimeCenter {
-  flex: 1;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+/* Checkpoint 45-05-04 fix (round 2): the score-row shell (`.halfTimeScoreRow`/
+   `.halfTimeScore`/`.halfTimeCenter`) that used to live here has been extracted
+   verbatim into the shared `MatchScoreRow`/`MatchScoreRow.module.css` component
+   so the standalone MatchSummaryModal renders the identical score row rather
+   than a smaller improvised variant. The classes below remain — they style
+   the HALF_TIME/FULL_TIME-specific CENTRE CONTENT passed into that shared
+   shell's `center` prop, which is unique to this overlay (D-10) and was never
+   part of the extraction. */
 
 /* Middle section: clock + extra time, fills remaining space and centres content */
 .halfTimeCenterMiddle {

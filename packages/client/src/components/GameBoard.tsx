@@ -28,6 +28,7 @@ import { NationFlag } from './NationFlag.js';
 import { CardInjuryBadge, cardColorFor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { LineupAssignmentScreen } from './LineupAssignmentScreen.js';
+import { MatchScoreRow } from './MatchScoreRow.js';
 import { MatchSummaryContent } from './MatchSummaryContent.js';
 import { MatchSummaryModal } from './MatchSummaryModal.js';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
@@ -541,37 +542,32 @@ export function GameBoard() {
           {phase === 'HALF_TIME' && (
             <div className={styles.overlay}>
               <div className={styles.overlayCard}>
-                {/* Score row: score | badge | [HALF TIME / 45:00 / KICK OFF] | badge | score */}
-                <div className={styles.halfTimeScoreRow}>
-                  <span className={`${styles.halfTimeScore} ${styles.accentHome}`}>
-                    {score.home}
-                  </span>
-                  <TeamBadge teamId={selectedTeams['home']} size={150} full />
-
-                  {/* Centre column: HALF TIME (top) | clock (mid) | kick-off + team (bottom) */}
-                  <div className={styles.halfTimeCenter}>
-                    <span className={styles.halfTimeKickOff}>HALF TIME</span>
-                    <div className={styles.halfTimeCenterMiddle}>
-                      <span className={styles.halfTimeClock}>45:00</span>
-                      {addedTime !== null && addedTime > 0 && (
-                        <span className={styles.halfTimeAddedTime}>+{addedTime}&prime;</span>
-                      )}
-                    </div>
-                    <div className={styles.halfTimeCenterBottom}>
-                      <span className={styles.halfTimeKickOff}>2ND HALF KICK OFF</span>
-                      <span
-                        className={`${styles.halfTimeKickOff} ${secondHalfKickOffTeam === 'home' ? styles.accentHome : styles.accentAway}`}
-                      >
-                        {secondHalfTeamName.toUpperCase()} TEAM
-                      </span>
-                    </div>
-                  </div>
-
-                  <TeamBadge teamId={selectedTeams['away']} size={150} full />
-                  <span className={`${styles.halfTimeScore} ${styles.accentAway}`}>
-                    {score.away}
-                  </span>
-                </div>
+                {/* Checkpoint 45-05-04 fix (round 2): score row extracted into the
+                    shared MatchScoreRow component (same 120px numerals, same 150px
+                    badges as before — see MatchScoreRow.tsx for rationale). Only the
+                    centre content (HALF TIME / clock / kick-off) stays authored here,
+                    unchanged, since it is unique to this overlay (D-10). */}
+                <MatchScoreRow
+                  center={
+                    <>
+                      <span className={styles.halfTimeKickOff}>HALF TIME</span>
+                      <div className={styles.halfTimeCenterMiddle}>
+                        <span className={styles.halfTimeClock}>45:00</span>
+                        {addedTime !== null && addedTime > 0 && (
+                          <span className={styles.halfTimeAddedTime}>+{addedTime}&prime;</span>
+                        )}
+                      </div>
+                      <div className={styles.halfTimeCenterBottom}>
+                        <span className={styles.halfTimeKickOff}>2ND HALF KICK OFF</span>
+                        <span
+                          className={`${styles.halfTimeKickOff} ${secondHalfKickOffTeam === 'home' ? styles.accentHome : styles.accentAway}`}
+                        >
+                          {secondHalfTeamName.toUpperCase()} TEAM
+                        </span>
+                      </div>
+                    </>
+                  }
+                />
 
                 {/* STATS-02/D-10/D-11 (Phase 45, plan 45-05): the shared stats
                     block appended below the untouched score header and above
@@ -607,25 +603,18 @@ export function GameBoard() {
           {phase === 'FULL_TIME' && (
             <div className={styles.overlay}>
               <div className={styles.overlayCard}>
-                {/* Score row: home score | home badge | [90:00 / result] | away badge | away score */}
-                <div className={styles.halfTimeScoreRow}>
-                  <span className={`${styles.halfTimeScore} ${styles.accentHome}`}>
-                    {score.home}
-                  </span>
-                  <TeamBadge teamId={selectedTeams['home']} size={150} full />
-                  <div className={styles.halfTimeCenter}>
+                {/* Checkpoint 45-05-04 fix (round 2): same shared MatchScoreRow shell as
+                    the HALF_TIME overlay above — only the centre content differs. */}
+                <MatchScoreRow
+                  center={
                     <div className={styles.halfTimeCenterMiddle}>
                       <span className={styles.halfTimeClock}>90:00</span>
                       <span className={styles.halfTimeAddedTime} style={{ color: resultColor }}>
                         {resultText}
                       </span>
                     </div>
-                  </div>
-                  <TeamBadge teamId={selectedTeams['away']} size={150} full />
-                  <span className={`${styles.halfTimeScore} ${styles.accentAway}`}>
-                    {score.away}
-                  </span>
-                </div>
+                  }
+                />
 
                 {/* STATS-02/D-10/D-11 (Phase 45, plan 45-05): same block as the
                     HALF_TIME overlay above — no forked rendering logic. */}

@@ -1,5 +1,5 @@
 import { useGameStore } from '../store/useGameStore.js';
-import { TeamBadge } from './TeamBadge.js';
+import { MatchScoreRow } from './MatchScoreRow.js';
 import { MatchSummaryContent } from './MatchSummaryContent.js';
 import styles from './MatchSummaryModal.module.css';
 
@@ -35,21 +35,42 @@ import styles from './MatchSummaryModal.module.css';
  * on the backdrop during a live match should not silently close a panel
  * the player may still be reading.
  *
- * Checkpoint 45-05-04 fix (deviation, "info popup is not the same as
- * halftime as specified - include scoreboard in both"): this modal's fixed,
- * full-viewport backdrop (`.matchSummaryOverlay`, `position: fixed; inset:
- * 0;`) covers `GameBoard.tsx`'s persistent top-band scoreboard, unlike the
- * HALF_TIME/FULL_TIME overlay (`position: absolute` scoped to
+ * Checkpoint 45-05-04 fix, round 1 (deviation, "info popup is not the same
+ * as halftime as specified - include scoreboard in both"): this modal's
+ * fixed, full-viewport backdrop (`.matchSummaryOverlay`, `position: fixed;
+ * inset: 0;`) covers `GameBoard.tsx`'s persistent top-band scoreboard,
+ * unlike the HALF_TIME/FULL_TIME overlay (`position: absolute` scoped to
  * `.pitchContainer` only, D-13 in 45-CONTEXT.md), which leaves it visible.
- * A compact score row (team badges + score numerals) is added directly
- * below the title so both surfaces show live score info — matching the
- * HALF_TIME/FULL_TIME overlay's own untouched score-row header (D-10),
- * without touching `MatchSummaryContent` (which stays D-11's single shared
- * stats-only block, consumed identically by both surfaces).
+ * A score row is added directly below the title so both surfaces show live
+ * score info — matching the HALF_TIME/FULL_TIME overlay's own untouched
+ * score-row header (D-10), without touching `MatchSummaryContent` (which
+ * stays D-11's single shared stats-only block, consumed identically by
+ * both surfaces).
+ *
+ * Checkpoint 45-05-04 fix, round 2 (deviation, developer feedback verbatim:
+ * "use the original size and display of the half time score on the
+ * realtime pop - why are they 2 different elements... let me know if there
+ * is a reason these are different despite the design push to use the same
+ * element"): round 1 shipped a smaller, improvised score row (40px badges,
+ * a locally-scoped 32px numeral) instead of reusing the HALF_TIME/FULL_TIME
+ * overlay's own big score row (150px badges, 120px numerals). There was no
+ * spec or technical constraint forcing that difference — 45-CONTEXT.md's
+ * D-10 only constrains the HALF_TIME/FULL_TIME overlay's own header, never
+ * the standalone modal's; it was an unstated judgment call. Both surfaces
+ * now render the identical `MatchScoreRow` shell (see MatchScoreRow.tsx).
+ * This modal's centre content is the live match clock (`actionCount`
+ * formatted the same "MM:00" way GameBoard.tsx's own persistent `.clockRow`
+ * already does, CLOCK-01) — the most natural choice per the coordinator's
+ * guidance, since this modal can open at any point mid-match (not just at
+ * a phase boundary like HALF_TIME/FULL_TIME) and the fixed backdrop hides
+ * that persistent clock while the modal is open.
  */
 export function MatchSummaryModal({ onClose }: { onClose: () => void }) {
-  const score = useGameStore((s) => s.gameState.score);
-  const selectedTeams = useGameStore((s) => s.gameState.selectedTeams);
+  const actionCount = useGameStore((s) => s.gameState.actionCount);
+  // CLOCK-01 (D-08/D-09, Phase 13): MM:00 format from actionCount — mirrors
+  // GameBoard.tsx's own `clockDisplay` derivation verbatim (event-driven,
+  // no client-side timer).
+  const clockDisplay = String(actionCount).padStart(2, '0') + ':00';
 
   return (
     <div className={styles.matchSummaryOverlay}>
@@ -58,12 +79,7 @@ export function MatchSummaryModal({ onClose }: { onClose: () => void }) {
           <span className={styles.title}>MATCH SUMMARY</span>
         </div>
 
-        <div className={styles.scoreboardRow}>
-          <span className={`${styles.scoreNumeral} ${styles.accentHome}`}>{score.home}</span>
-          <TeamBadge teamId={selectedTeams['home']} size={40} />
-          <TeamBadge teamId={selectedTeams['away']} size={40} />
-          <span className={`${styles.scoreNumeral} ${styles.accentAway}`}>{score.away}</span>
-        </div>
+        <MatchScoreRow center={<span className={styles.clockText}>{clockDisplay}</span>} />
 
         <div className={styles.scrollBody}>
           <MatchSummaryContent />

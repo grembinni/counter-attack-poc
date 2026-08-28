@@ -64,35 +64,21 @@
   color: var(--color-text-primary);
 }
 
-/* ─── Scoreboard row (checkpoint 45-05-04 fix) ───────────────────────────── */
+/* ─── Score row centre content (checkpoint 45-05-04 fix, round 2) ────────── */
 
-/* "info popup is not the same as halftime as specified - include
-   scoreboard in both" (developer, verbatim) — a compact score row so the
-   standalone modal shows live score info the same way the HALF_TIME/
-   FULL_TIME overlay's own untouched header already does (D-10), since this
-   modal's fixed full-viewport backdrop otherwise hides GameBoard's
-   persistent top-band scoreboard behind it. */
-.scoreboardRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  flex-shrink: 0;
-}
-
-.scoreNumeral {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 32px;
+/* Round 1 defined its own `.scoreboardRow`/`.scoreNumeral`/`.accentHome`/
+   `.accentAway` here for a smaller, improvised score row. Round 2 replaced
+   that with the shared `MatchScoreRow` component (see MatchScoreRow.tsx) —
+   same 150px badges / 120px numerals as the HALF_TIME/FULL_TIME overlay,
+   never a second smaller variant. Only this modal's CENTRE content (the
+   live clock) is still styled locally, since it is unique to this call
+   site — matches `.clockDisplay` (GameBoard.module.css) verbatim: 36px
+   gold bold, no font-family override. */
+.clockText {
+  font-size: 36px;
   font-weight: 700;
+  color: var(--color-accent-gold);
   line-height: 1;
-}
-
-.accentHome {
-  color: var(--home-accent);
-}
-
-.accentAway {
-  color: var(--away-accent);
 }
 
 /* ─── Scrollable body ─────────────────────────────────────────────────────── */
