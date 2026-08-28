@@ -28,6 +28,7 @@ import { NationFlag } from './NationFlag.js';
 import { CardInjuryBadge, cardColorFor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { LineupAssignmentScreen } from './LineupAssignmentScreen.js';
+import { MatchSummaryModal } from './MatchSummaryModal.js';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
 import styles from './GameBoard.module.css';
 
@@ -336,6 +337,9 @@ export function GameBoard() {
   const emitRosterReposition = useGameStore((s) => s.emitRosterReposition);
   // D-19/Pitfall 7: drag/modal-open state is local, never Zustand.
   const [subOpen, setSubOpen] = useState(false);
+  // STATS-01/D-08/D-09 (Phase 45, plan 45-05): standalone match-summary modal
+  // open/closed state. Local, never Zustand — mirrors subOpen immediately above.
+  const [matchSummaryOpen, setMatchSummaryOpen] = useState(false);
   const isSubEligiblePhase = isStoppagePhase(phase);
   // Checkpoint gap-closure (40-07 Task 2 human-verify feedback): T-40-20's original
   // force-close-on-phase-transition useEffect is REMOVED — the panel is now always
@@ -416,6 +420,23 @@ export function GameBoard() {
 
             {/* Centre cell: badges flank clock, then phase summary */}
             <div className={styles.scoreboardCentreCell}>
+              {/* STATS-01/D-08/D-09: always-clickable (i) icon, a real sibling
+                  element positioned above the clock row — .scoreboardCentreCell
+                  is a content-sized centred column, not a cell with pre-reserved
+                  empty space, so this cannot be absolutely positioned into an
+                  assumed gap. No `disabled` prop and no phase condition
+                  anywhere on this control (D-09) — it opens the read-only
+                  summary in every phase, including mid-duel/prompt interrupts. */}
+              <div className={styles.matchSummaryIconRow}>
+                <button
+                  type="button"
+                  className={styles.matchSummaryIconButton}
+                  title="View match summary"
+                  onClick={() => setMatchSummaryOpen(true)}
+                >
+                  i
+                </button>
+              </div>
               <div className={styles.clockRow}>
                 <TeamBadge teamId={selectedTeams['home']} size={28} />
                 <div
@@ -647,6 +668,14 @@ export function GameBoard() {
               </div>
             </div>
           )}
+
+          {/* STATS-01/D-08/D-09 (Phase 45, plan 45-05): standalone match-summary
+              modal, rendered adjacent to the substitution overlay block above,
+              inside .pitchContainer's DOM subtree (NOT a portal) so the
+              --home-accent/--away-accent/--team-accent custom properties
+              injected on this component's root (rootStyle above) inherit
+              correctly. */}
+          {matchSummaryOpen && <MatchSummaryModal onClose={() => setMatchSummaryOpen(false)} />}
         </div>
 
         {/* SUB-01/D-03: persistent roster affordance, mirrored to the opposite edge from

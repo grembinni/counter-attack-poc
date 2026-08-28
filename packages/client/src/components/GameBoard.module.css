@@ -91,6 +91,34 @@
   border-right: 1px solid var(--color-divider-subtle);
 }
 
+/* ─── Scoreboard (i) icon row (STATS-01/D-08/D-09, Phase 45 plan 45-05) ──── */
+
+.matchSummaryIconRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Reuses the existing 16px `.statBubble` circle-diameter convention verbatim.
+   Deliberately NEUTRAL — no gold accent token used here — so it stays out of
+   competition with the team-accent stat language it opens and the gold
+   clock it sits directly above. */
+.matchSummaryIconButton {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--color-bg-surface-alt);
+  border: 1px solid var(--color-border-muted);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
 /* ─── Score numerals ──────────────────────────────────────────────────────── */
 
 .scoreNumeral {
