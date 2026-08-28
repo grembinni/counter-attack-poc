@@ -21,3 +21,4 @@ export * from './draftEngine.js'; // Phase 28: pool derivation + tier classifica
 export * from './outOfBounds.js'; // Phase 37 OOB-01/OOB-02/OOB-04: sideline/byline classification + restart-type geometry
 export * from './fouls.js'; // Phase 39 FOUL-01..04/CARD-01..03/INJURY-01..02: pure foul, injury, booking and professional-foul helpers
 export * from './stoppagePhases.js'; // Phase 40 SUB-01/04/06: stoppage-phase allow-list, isStoppagePhase, substitution/red-card caps
+export * from './matchStats.js'; // Phase 45 STATS-07/STATS-08: computeShotXg + EMPTY_MATCH_STATS + recordShotInStats

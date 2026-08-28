@@ -166,6 +166,19 @@ export type MovementSlot = 'ATTACKER_4' | 'DEFENDER_5' | 'ATTACKER_2';
  */
 export type RefereeCard = {
   leniency: number;
+  /**
+   * STATS-03 (Phase 45, PD-06): true when `leniency` was set from a manual host override
+   * (the `refereeLeniencyOverrideEnabled` game-creation toggle) rather than the random
+   * 1–6 roll narrowed to 2–5. Set once in `buildInitialGameState` from that toggle
+   * parameter and never mutated after kickoff. Consumed only by STATS-03's settings
+   * recap to distinguish `(Referee Leniency: Manual — 4)` from `(Referee Leniency:
+   * Auto — 4)` — a distinction impossible from `leniency` alone, since both paths
+   * produce a plain 2–5 integer. Optional so no existing `RefereeCard` construction
+   * site breaks; every read site uses `=== true`, never bare truthiness, matching the
+   * existing convention documented on `outOfBoundsEnabled` and
+   * `tackleStealDeclineEnabled`.
+   */
+  wasManualOverride?: boolean;
 };
 
 /** Discriminant string literals for ActionEvent union. D-07. */
@@ -1219,6 +1232,40 @@ export type DraftClientView = {
   draftComplete: boolean;
 };
 
+/**
+ * STATS-04..09 (Phase 45): whole-match statistics accumulated for both teams, shown in
+ * the on-demand Game Summary popup. Every one of the nine members is a per-team pair
+ * shaped exactly like `subsUsed` below — a required `{ home: number; away: number }`
+ * pair inside an optional parent field on `GameState` — and follows the SAME
+ * never-reset-at-half-time lifecycle as `subsUsed`, NOT the per-half-reset lifecycle of
+ * `addedTimeBonus`.
+ *
+ * - `possessionActionCount` (STATS-04, D-05): raw elapsed `actionCount` ticks credited
+ *   to each team while it holds the ball. A raw count, never a pre-computed percentage
+ *   — percentage is a pure display-only ratio computed client-side from these two counts.
+ * - `passesCompleted` (STATS-05): completed passes of any type, per team.
+ * - `tackleStealAttempts` (STATS-06 denominator): tackle/steal attempts made, per team.
+ * - `tackleStealSuccesses` (STATS-06 numerator): tackle/steal attempts that won the ball.
+ * - `shots` (STATS-07): shots taken (including snapshots, headers-at-goal, and
+ *   penalties), per team.
+ * - `xg` (STATS-08, PD-04): raw unrounded running float of `computeShotXg` results
+ *   summed across every shot. All rounding/formatting is display-only, client-side.
+ * - `fouls` (STATS-09): fouls committed, per team.
+ * - `yellowCards` (STATS-09): yellow cards shown, per team.
+ * - `redCards` (STATS-09): red cards shown, per team.
+ */
+export type MatchStats = {
+  possessionActionCount: { home: number; away: number };
+  passesCompleted: { home: number; away: number };
+  tackleStealAttempts: { home: number; away: number };
+  tackleStealSuccesses: { home: number; away: number };
+  shots: { home: number; away: number };
+  xg: { home: number; away: number };
+  fouls: { home: number; away: number };
+  yellowCards: { home: number; away: number };
+  redCards: { home: number; away: number };
+};
+
 export type GameState = {
   roomCode: string;
   phase: GamePhase;
@@ -1832,6 +1879,15 @@ export type GameState = {
    * `GameState` construction site breaks; every read site uses `?? 0` defaults.
    */
   subsUsed?: { home: number; away: number };
+  /**
+   * STATS-04..09 (Phase 45): whole-match Game Summary counters (possession ticks, passes,
+   * tackle/steal attempts+successes, shots, xg, fouls, yellows, reds) — see `MatchStats`'s
+   * own doc comment for per-member detail. NEVER reset at half-time — contrasts with
+   * `addedTimeBonus` immediately below, which IS reset per-half. Optional so no existing
+   * `GameState` construction site breaks; every read site uses `?? 0` defaults on the
+   * individual counters it needs (or falls back to `EMPTY_MATCH_STATS` wholesale).
+   */
+  matchStats?: MatchStats;
   /**
    * SUB-05/D-06/D-07 (Phase 40): per-half running accumulator, incremented by 1 on every
    * completed substitution for either team, folded into the `addedTime` roll at minute
