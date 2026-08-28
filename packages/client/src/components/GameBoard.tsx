@@ -28,6 +28,7 @@ import { NationFlag } from './NationFlag.js';
 import { CardInjuryBadge, cardColorFor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { LineupAssignmentScreen } from './LineupAssignmentScreen.js';
+import { MatchSummaryContent } from './MatchSummaryContent.js';
 import { MatchSummaryModal } from './MatchSummaryModal.js';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
 import styles from './GameBoard.module.css';
@@ -572,6 +573,16 @@ export function GameBoard() {
                   </span>
                 </div>
 
+                {/* STATS-02/D-10/D-11 (Phase 45, plan 45-05): the shared stats
+                    block appended below the untouched score header and above
+                    the untouched proceed control. No standalone title here —
+                    the HALF TIME header above already serves that role
+                    (45-UI-SPEC.md). */}
+                <hr className={styles.embeddedSummaryDivider} />
+                <div className={styles.embeddedSummaryWrapper}>
+                  <MatchSummaryContent />
+                </div>
+
                 {/* Start 2nd Half — D-16 mutual-confirm gate replaces the D-28 single-team
                     kick-off-team-only gate. Both managers see an actionable button before
                     THEIR OWN confirm; each switches to a waiting message once they have
@@ -614,6 +625,13 @@ export function GameBoard() {
                   <span className={`${styles.halfTimeScore} ${styles.accentAway}`}>
                     {score.away}
                   </span>
+                </div>
+
+                {/* STATS-02/D-10/D-11 (Phase 45, plan 45-05): same block as the
+                    HALF_TIME overlay above — no forked rendering logic. */}
+                <hr className={styles.embeddedSummaryDivider} />
+                <div className={styles.embeddedSummaryWrapper}>
+                  <MatchSummaryContent />
                 </div>
 
                 {/* Transition notice */}

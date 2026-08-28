@@ -511,6 +511,24 @@
   cursor: default;
 }
 
+/* ─── Embedded match-summary block (STATS-02/D-10, Phase 45 plan 45-05) ──── */
+
+/* Divider between the untouched score-row header and the appended stats
+   block below it — same 1px token/weight used elsewhere in this file. */
+.embeddedSummaryDivider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
+}
+
+/* Deliberately tighter than the standalone modal's 50vh scroll cap — the
+   150px-badge score row above it is already tall. */
+.embeddedSummaryWrapper {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
 /* ─── Half-time / Full-time scoreboard overlay layout ─────────────────────── */
 
 /* Flex row: score | badge | [clock/+time centre] | badge | score

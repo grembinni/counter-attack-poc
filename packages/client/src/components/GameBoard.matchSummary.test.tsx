@@ -115,3 +115,94 @@ describe('GameBoard — 45-05-02: scoreboard (i) icon and modal mount', () => {
     expect(screen.getByText(/7:00/)).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// 45-05-03: MatchSummaryContent appended inside the HALF_TIME/FULL_TIME
+// overlays, between their untouched headers and their untouched proceed
+// controls (D-10/D-11).
+// ---------------------------------------------------------------------------
+describe('GameBoard — 45-05-03: HALF_TIME/FULL_TIME embedded summary', () => {
+  it('renders the appended stats block in HALF_TIME, below the score header and above Start 2nd Half', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'HALF_TIME' },
+    });
+    render(<GameBoard />);
+    // Regression: the HALF_TIME header content is still present, unmodified.
+    expect(screen.getByText('HALF TIME')).toBeDefined();
+    // The embedded block itself — no standalone MATCH SUMMARY title repeated.
+    expect(screen.getByText('POSSESSION')).toBeDefined();
+    expect(screen.queryByText('MATCH SUMMARY')).toBeNull();
+    // The proceed control is still present and still below the appended block
+    // in document order.
+    const summaryLabel = screen.getByText('POSSESSION');
+    const startButton = screen.getByRole('button', { name: 'Start 2nd Half' });
+    expect(
+      summaryLabel.compareDocumentPosition(startButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('the Start 2nd Half button still invokes the store emitter from its new position', () => {
+    const emitHalfTimeStart = vi.fn();
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'HALF_TIME' },
+      emitHalfTimeStart,
+    });
+    render(<GameBoard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start 2nd Half' }));
+    expect(emitHalfTimeStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the appended stats block in FULL_TIME, below the score header and above the replay notice', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'FULL_TIME' },
+    });
+    render(<GameBoard />);
+    expect(screen.getByText(/Replay starting/)).toBeDefined();
+    expect(screen.getByText('POSSESSION')).toBeDefined();
+    expect(screen.queryByText('MATCH SUMMARY')).toBeNull();
+    const summaryLabel = screen.getByText('POSSESSION');
+    const replayNotice = screen.getByText(/Replay starting/);
+    expect(
+      summaryLabel.compareDocumentPosition(replayNotice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('the same statistic values appear in the embedded HALF_TIME instance and the standalone modal', () => {
+    useGameStore.setState({
+      gameState: {
+        ...mockMovementState,
+        phase: 'HALF_TIME',
+        matchStats: {
+          possessionActionCount: { home: 0, away: 0 },
+          passesCompleted: { home: 0, away: 0 },
+          tackleStealAttempts: { home: 0, away: 0 },
+          tackleStealSuccesses: { home: 0, away: 0 },
+          shots: { home: 4, away: 2 },
+          xg: { home: 0, away: 0 },
+          fouls: { home: 0, away: 0 },
+          yellowCards: { home: 0, away: 0 },
+          redCards: { home: 0, away: 0 },
+        },
+      },
+    });
+    render(<GameBoard />);
+    // The embedded instance already shows the SHOTS row.
+    expect(screen.getAllByText('SHOTS').length).toBeGreaterThanOrEqual(1);
+    // Opening the standalone modal on top of it renders a second SHOTS row
+    // with the same underlying data source (MatchSummaryContent, D-11).
+    fireEvent.click(screen.getByTitle('View match summary'));
+    expect(screen.getAllByText('SHOTS').length).toBe(2);
+  });
+
+  it('the standalone modal can open on top of a HALF_TIME overlay, both present in the document', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'HALF_TIME' },
+    });
+    render(<GameBoard />);
+    fireEvent.click(screen.getByTitle('View match summary'));
+    // Overlay still present (HALF TIME header).
+    expect(screen.getByText('HALF TIME')).toBeDefined();
+    // Standalone modal also present (its own title).
+    expect(screen.getByText('MATCH SUMMARY')).toBeDefined();
+  });
+});
