@@ -149,7 +149,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
-| 45    | Game Summary Popup                          | TBD      | Not started |
+| 45    | 1/6 | In Progress|  |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
 ### Phase 41: Card & Injury Iconography
@@ -345,7 +345,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 45-01-PLAN.md — Shared `MatchStats` contract on GameState/RefereeCard + pure D-01 xG formula module (STATS-03..09)
+- [x] 45-01-PLAN.md — Shared `MatchStats` contract on GameState/RefereeCard + pure D-01 xG formula module (STATS-03..09)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
