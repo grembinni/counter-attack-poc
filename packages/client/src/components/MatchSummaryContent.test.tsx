@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { MatchSummaryContent } from './MatchSummaryContent.js';
@@ -277,5 +277,202 @@ describe('MatchSummaryContent — diverging stat rows', () => {
     const awaySegments = container.querySelectorAll('[class*="barSegmentAway"]');
     expect(homeSegments.length).toBeGreaterThan(0);
     expect(awaySegments.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── Possession row (special case) ─────────────────────────────────────────
+
+describe('MatchSummaryContent — possession row', () => {
+  it('renders the possession row first, above PASSES COMPLETED', () => {
+    seed();
+    render(<MatchSummaryContent />);
+    const all = Array.from(document.querySelectorAll('body *'));
+    const possessionEl = screen.getByText('POSSESSION');
+    const passesEl = screen.getByText('PASSES COMPLETED');
+    expect(all.indexOf(possessionEl)).toBeLessThan(all.indexOf(passesEl));
+  });
+
+  it('computes home/away possession percentages as possessionActionCount[team] / actionCount, rounded (58/42 with actionCount 100)', () => {
+    seed({
+      actionCount: 100,
+      matchStats: {
+        ...mockMovementState.matchStats,
+        possessionActionCount: { home: 58, away: 42 },
+        passesCompleted: { home: 0, away: 0 },
+        tackleStealAttempts: { home: 0, away: 0 },
+        tackleStealSuccesses: { home: 0, away: 0 },
+        shots: { home: 0, away: 0 },
+        xg: { home: 0, away: 0 },
+        fouls: { home: 0, away: 0 },
+        yellowCards: { home: 0, away: 0 },
+        redCards: { home: 0, away: 0 },
+      },
+    });
+    render(<MatchSummaryContent />);
+    expect(screen.getByText('58%')).toBeDefined();
+    expect(screen.getByText('42%')).toBeDefined();
+  });
+
+  it('shows a 20% neutral remainder segment when possession is 40/40 with actionCount 100', () => {
+    seed({
+      actionCount: 100,
+      matchStats: {
+        ...mockMovementState.matchStats,
+        possessionActionCount: { home: 40, away: 40 },
+        passesCompleted: { home: 0, away: 0 },
+        tackleStealAttempts: { home: 0, away: 0 },
+        tackleStealSuccesses: { home: 0, away: 0 },
+        shots: { home: 0, away: 0 },
+        xg: { home: 0, away: 0 },
+        fouls: { home: 0, away: 0 },
+        yellowCards: { home: 0, away: 0 },
+        redCards: { home: 0, away: 0 },
+      },
+    });
+    const { container } = render(<MatchSummaryContent />);
+    expect(screen.getByText('40%')).toBeDefined();
+    const remainder = container.querySelector(
+      '[class*="possessionSegmentRemainder"]',
+    ) as HTMLElement;
+    expect(remainder.style.width).toBe('20%');
+  });
+
+  it('renders 0% pills and a fully neutral track with actionCount 0, never dividing by zero or rendering NaN', () => {
+    seed({
+      actionCount: 0,
+      matchStats: {
+        ...mockMovementState.matchStats,
+        possessionActionCount: { home: 0, away: 0 },
+        passesCompleted: { home: 0, away: 0 },
+        tackleStealAttempts: { home: 0, away: 0 },
+        tackleStealSuccesses: { home: 0, away: 0 },
+        shots: { home: 0, away: 0 },
+        xg: { home: 0, away: 0 },
+        fouls: { home: 0, away: 0 },
+        yellowCards: { home: 0, away: 0 },
+        redCards: { home: 0, away: 0 },
+      },
+    });
+    const { container } = render(<MatchSummaryContent />);
+    const zeroPercentPills = screen.getAllByText('0%');
+    expect(zeroPercentPills.length).toBeGreaterThanOrEqual(2);
+    const remainder = container.querySelector(
+      '[class*="possessionSegmentRemainder"]',
+    ) as HTMLElement;
+    expect(remainder.style.width).toBe('100%');
+    expect(container.textContent?.includes('NaN')).toBe(false);
+  });
+
+  it('renders the possession bar as a single continuous bar, not the diverging two-half structure', () => {
+    seed();
+    const { container } = render(<MatchSummaryContent />);
+    const possessionBar = container.querySelector('[class*="possessionBar"]');
+    expect(possessionBar).not.toBeNull();
+    // The continuous possession bar must not itself carry the diverging bar's
+    // two-half-track classes.
+    expect(possessionBar?.className.includes('barHalf')).toBe(false);
+  });
+});
+
+// ─── xG explainer accordion ─────────────────────────────────────────────────
+
+describe('MatchSummaryContent — xG explainer accordion', () => {
+  it('formats the xG numerals with exactly two decimal places (1.2345 → 1.23)', () => {
+    seed({
+      matchStats: {
+        ...mockMovementState.matchStats,
+        possessionActionCount: { home: 0, away: 0 },
+        passesCompleted: { home: 0, away: 0 },
+        tackleStealAttempts: { home: 0, away: 0 },
+        tackleStealSuccesses: { home: 0, away: 0 },
+        shots: { home: 0, away: 0 },
+        xg: { home: 1.2345, away: 0 },
+        fouls: { home: 0, away: 0 },
+        yellowCards: { home: 0, away: 0 },
+        redCards: { home: 0, away: 0 },
+      },
+    });
+    render(<MatchSummaryContent />);
+    expect(screen.getByText('1.23')).toBeDefined();
+  });
+
+  it('computes the xG bar from the unrounded stored values, so the bar and numerals never disagree by a rounding step', () => {
+    seed({
+      matchStats: {
+        ...mockMovementState.matchStats,
+        possessionActionCount: { home: 0, away: 0 },
+        passesCompleted: { home: 0, away: 0 },
+        tackleStealAttempts: { home: 0, away: 0 },
+        tackleStealSuccesses: { home: 0, away: 0 },
+        shots: { home: 0, away: 0 },
+        xg: { home: 1, away: 2 },
+        fouls: { home: 0, away: 0 },
+        yellowCards: { home: 0, away: 0 },
+        redCards: { home: 0, away: 0 },
+      },
+    });
+    const { container } = render(<MatchSummaryContent />);
+    // Numerals round to "1.00"/"2.00", but the bar's home share is the exact
+    // unrounded 1/3 — not derived from the rounded display strings.
+    expect(screen.getByText('1.00')).toBeDefined();
+    expect(screen.getByText('2.00')).toBeDefined();
+    const homeSegment = container.querySelector('[class*="barSegmentHome"]') as HTMLElement;
+    expect(homeSegment.style.width).toBe(`${(1 / 3) * 100}%`);
+  });
+
+  it('renders an info-icon button immediately after the EXPECTED GOALS (XG) label with the correct aria-label', () => {
+    seed();
+    render(<MatchSummaryContent />);
+    const button = screen.getByLabelText('About Expected Goals (xG)');
+    expect(button).toBeDefined();
+    expect(button.tagName).toBe('BUTTON');
+  });
+
+  it('hides the explainer text initially and reveals it on click, then hides it again on a second click', () => {
+    seed();
+    render(<MatchSummaryContent />);
+    expect(
+      screen.queryByText(/Expected Goals \(xG\) estimates how likely each shot was to score/),
+    ).toBeNull();
+
+    const button = screen.getByLabelText('About Expected Goals (xG)');
+    fireEvent.click(button);
+    expect(
+      screen.getByText(/Expected Goals \(xG\) estimates how likely each shot was to score/),
+    ).toBeDefined();
+
+    fireEvent.click(button);
+    expect(
+      screen.queryByText(/Expected Goals \(xG\) estimates how likely each shot was to score/),
+    ).toBeNull();
+  });
+
+  it('renders the exact static explainer copy from the Copywriting Contract, with no per-shot breakdown', () => {
+    seed();
+    render(<MatchSummaryContent />);
+    const button = screen.getByLabelText('About Expected Goals (xG)');
+    fireEvent.click(button);
+    expect(
+      screen.getByText(
+        'Expected Goals (xG) estimates how likely each shot was to score, based on: defenders in the goal box, defenders in the penalty box, and shot distance from goal.',
+      ),
+    ).toBeDefined();
+  });
+
+  it('renders exactly one info-icon button in this component', () => {
+    seed();
+    const { container } = render(<MatchSummaryContent />);
+    const infoButtons = container.querySelectorAll('[class*="infoIconButton"]');
+    expect(infoButtons.length).toBe(1);
+  });
+
+  it('opens the accordion via click (fireEvent.click), not a hover-only interaction', () => {
+    seed();
+    render(<MatchSummaryContent />);
+    const button = screen.getByLabelText('About Expected Goals (xG)');
+    fireEvent.click(button);
+    expect(
+      screen.getByText(/Expected Goals \(xG\) estimates how likely each shot was to score/),
+    ).toBeDefined();
   });
 });
