@@ -41,6 +41,9 @@ import {
   isPitchHex,
   isStoppagePhase,
   validatePass,
+  computeShotXg,
+  recordShotInStats,
+  EMPTY_MATCH_STATS,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { broadcastState, getRoom } from './roomStore.js';
@@ -1351,6 +1354,24 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const deflectorPiece = baseSnapState.pieces.find(
             (p) => p.id === snapDeflectResult.deflectorId,
           );
+          // STATS-07/08 (Phase 45, S3): a blocked snapshot never produces a SHOT_ATTEMPT
+          // event, so this single per-shot state write is the only place this shot is
+          // visible to the stats at all — do NOT attach anything to the DEFLECT_ATTEMPT
+          // events themselves (one blocked shot can produce several of those). If the
+          // shooter lookup came back undefined (an already-unreachable defensive case
+          // elsewhere in this file), skip the capture rather than recording a shot from a
+          // fabricated hex.
+          const snapDeflectMatchStats = snapShooter
+            ? recordShotInStats(
+                baseSnapState.matchStats,
+                baseSnapState.attackingTeam,
+                computeShotXg(
+                  snapShooter.position,
+                  baseSnapState.attackingTeam,
+                  baseSnapState.pieces.filter((p) => p.teamId === defendingTeam),
+                ),
+              )
+            : (baseSnapState.matchStats ?? EMPTY_MATCH_STATS);
           room.gameState = {
             ...baseSnapState,
             phase: 'LOOSE_BALL',
@@ -1366,6 +1387,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             gkDivePosition: null,
             lastShotPath: null,
             snapshotGkPenalty: null,
+            matchStats: snapDeflectMatchStats,
             eventLog: [...baseSnapState.eventLog, ...deflectEvents],
           };
           // OFFSIDE-02 D-41: the ball is deliberately left loose (carrierId: null) here, so
@@ -1396,6 +1418,21 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const newKickOffTeam = defendingTeam;
           const outDie1 = rollDice();
           const outDie2 = rollDice();
+          // STATS-07/08 (Phase 45, S4): computed from baseSnapState.pieces (pre-reset) —
+          // resetPieces below is a separately-derived value, so this read is unaffected by
+          // the reset even though it's evaluated after this point in the branch. Same
+          // undefined-shooter guard as S3.
+          const snapAutoGoalMatchStats = snapShooter
+            ? recordShotInStats(
+                baseSnapState.matchStats,
+                scoringTeam,
+                computeShotXg(
+                  snapShooter.position,
+                  scoringTeam,
+                  baseSnapState.pieces.filter((p) => p.teamId === defendingTeam),
+                ),
+              )
+            : (baseSnapState.matchStats ?? EMPTY_MATCH_STATS);
           const outOfRangeEvent: ActionEvent = {
             type: 'SHOT_ATTEMPT',
             shooterId: baseSnapState.ball.carrierId ?? '',
@@ -1446,6 +1483,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             gkDivePosition: null,
             shotTargetHex: null,
             snapshotGkPenalty: null,
+            matchStats: snapAutoGoalMatchStats,
             eventLog: [
               ...baseSnapState.eventLog,
               ...deflectEvents,
@@ -2435,6 +2473,24 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const shotDeflectorPiece = declaredState.pieces.find(
           (p) => p.id === shotDeflectionResult.deflectorId,
         );
+        // STATS-07/08 (Phase 45, S5): mirrors S3 — a blocked declared shot never produces a
+        // SHOT_ATTEMPT event, so this single state write is the only capture point. Skip if
+        // the shooter lookup is undefined (already-unreachable defensive case). `defTeam` is
+        // scoped inside the `if (shotShooter && shotPathTarget)` block above and not visible
+        // here, so the defending team is recomputed inline (identical derivation).
+        const shotDeflectDefTeam: 'home' | 'away' =
+          declaredState.attackingTeam === 'home' ? 'away' : 'home';
+        const shotDeflectMatchStats = shotShooter
+          ? recordShotInStats(
+              declaredState.matchStats,
+              declaredState.attackingTeam,
+              computeShotXg(
+                shotShooter.position,
+                declaredState.attackingTeam,
+                declaredState.pieces.filter((p) => p.teamId === shotDeflectDefTeam),
+              ),
+            )
+          : (declaredState.matchStats ?? EMPTY_MATCH_STATS);
         room.gameState = {
           ...declaredState,
           phase: 'LOOSE_BALL',
@@ -2449,8 +2505,10 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           shotTargetHex: null,
           gkDivePosition: null,
           lastShotPath: null,
+          matchStats: shotDeflectMatchStats,
           eventLog: [...declaredState.eventLog, ...deflectEventsShot],
         };
+
         // OFFSIDE-02 D-41: ball is deliberately left loose (carrierId: null) — pass the
         // deflecting defender's id explicitly so the foul fires using their identity even
         // though they never gain clean possession (mirrors the SNAPSHOT_DEFLECT site above).
@@ -2479,6 +2537,19 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
         const newKickOffTeam = shotDefTeam;
         const outDie1 = rollDice();
         const outDie2 = rollDice();
+        // STATS-07/08 (Phase 45, S6): declaredState.pieces here is still pre-reset —
+        // resetPieces below is a separately-derived value, so this read is unaffected.
+        const shotAutoGoalMatchStats = shotShooter
+          ? recordShotInStats(
+              declaredState.matchStats,
+              scoringTeam,
+              computeShotXg(
+                shotShooter.position,
+                scoringTeam,
+                declaredState.pieces.filter((p) => p.teamId === shotDefTeam),
+              ),
+            )
+          : (declaredState.matchStats ?? EMPTY_MATCH_STATS);
         const outOfRangeEvent: ActionEvent = {
           type: 'SHOT_ATTEMPT',
           shooterId: declaredState.ball.carrierId ?? '',
@@ -2527,6 +2598,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           gkDivePosition: null,
           shotTargetHex: null,
           snapshotGkPenalty: null,
+          matchStats: shotAutoGoalMatchStats,
           eventLog: [
             ...declaredState.eventLog,
             ...deflectEventsShot,
@@ -4026,6 +4098,20 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
           const newKickOffTeam = headerDefTeam;
           const outDie1 = rollDice();
           const outDie2 = rollDice();
+          // STATS-07/08 (Phase 45, S7): headerTargetState.pieces here is still pre-reset —
+          // resetPieces below is a separately-derived value, so this read is unaffected.
+          // Same undefined-shooter guard as the other four handler-level sites.
+          const headerAutoGoalMatchStats = headerShooter
+            ? recordShotInStats(
+                headerTargetState.matchStats,
+                scoringTeam,
+                computeShotXg(
+                  headerShooter.position,
+                  scoringTeam,
+                  headerTargetState.pieces.filter((p) => p.teamId === headerDefTeam),
+                ),
+              )
+            : (headerTargetState.matchStats ?? EMPTY_MATCH_STATS);
           const outOfRangeEvent: ActionEvent = {
             type: 'SHOT_ATTEMPT',
             shooterId: headerTargetState.ball.carrierId ?? '',
@@ -4074,6 +4160,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket): void {
             gkDivePosition: null,
             shotTargetHex: null,
             snapshotGkPenalty: null,
+            matchStats: headerAutoGoalMatchStats,
             eventLog: [
               ...headerTargetState.eventLog,
               outOfRangeEvent,
