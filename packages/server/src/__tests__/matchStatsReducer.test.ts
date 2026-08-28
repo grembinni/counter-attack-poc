@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { foldMatchStats } from '../matchStatsReducer.js';
+import { foldMatchStats, COUNTED_ACCURATE_PASS_TYPES } from '../matchStatsReducer.js';
 import type { ActionEvent, MatchStats, PlayerPiece } from '@counter-attack/shared';
 import { EMPTY_MATCH_STATS } from '@counter-attack/shared';
 
@@ -41,6 +41,12 @@ const AWAY = makePiece({ id: 'away-1', teamId: 'away' });
 const PIECES: readonly PlayerPiece[] = [HOME, AWAY];
 
 const BALL_AFTER = { position: { q: 18, r: 13 }, carrierId: null };
+
+describe('COUNTED_ACCURATE_PASS_TYPES', () => {
+  it('PD-08: lists exactly the accurate-flag pass types the reducer treats as completed-pass candidates', () => {
+    expect(COUNTED_ACCURATE_PASS_TYPES).toEqual(['STANDARD_PASS', 'FIRST_TIME_PASS', 'LONG_BALL']);
+  });
+});
 
 describe('foldMatchStats', () => {
   it('returns a new MatchStats and never mutates its input; undefined current seeds from EMPTY_MATCH_STATS', () => {

@@ -10,7 +10,7 @@ import {
   type Room,
 } from '../roomStore.js';
 import { buildInitialGameState } from '../gameEngine.js';
-import type { GameState, PlayerPiece } from '@counter-attack/shared';
+import type { ActionEvent, GameState, PlayerPiece } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
 import type { Server } from 'socket.io';
 
@@ -335,5 +335,124 @@ describe('broadcastState (MOVE-06 corrected design)', () => {
     const [, emittedState] = emit.mock.calls[0] as [string, GameState];
     expect(emittedState.phase).toBe('FREE_MOVE_ATTACK');
     expect(emittedState.ballZone).toBe('away');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 45 Plan 03 (STATS-04/05/06/09): broadcastState folds newly-appended eventLog
+// events + one possession delta into matchStats, exactly once per broadcast.
+// ---------------------------------------------------------------------------
+
+describe('broadcastState — match-stats fold (Phase 45 Plan 03)', () => {
+  const PASS_EVENT: ActionEvent = {
+    type: 'STANDARD_PASS',
+    passerId: 'home-1',
+    from: { q: 5, r: 7 },
+    to: { q: 6, r: 7 },
+    accurate: true,
+    timestamp: 1,
+    ballAfter: { position: { q: 6, r: 7 }, carrierId: 'home-1' },
+  };
+
+  const STEAL_EVENT: ActionEvent = {
+    type: 'STEAL_ATTEMPT',
+    defenderId: 'away-1',
+    result: 'SUCCESS',
+    defenderDie: 6,
+    defenderCombined: 11,
+    timestamp: 2,
+    ballAfter: { position: { q: 6, r: 7 }, carrierId: 'away-1' },
+  };
+
+  it('a first broadcast folds nothing', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(makeGameState());
+
+    broadcastState(io, room);
+
+    expect(room.gameState?.matchStats).toBeUndefined();
+  });
+
+  it('a second broadcast after one appended pass event folds exactly one pass', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(makeGameState());
+
+    broadcastState(io, room); // establishes baselines; nothing to fold yet
+
+    room.gameState = {
+      ...(room.gameState as GameState),
+      eventLog: [PASS_EVENT],
+    };
+    broadcastState(io, room);
+
+    expect(room.gameState?.matchStats?.passesCompleted).toEqual({ home: 1, away: 0 });
+  });
+
+  it('calling broadcastState twice in a row without any state change leaves the counters unchanged (idempotency)', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(makeGameState());
+
+    broadcastState(io, room); // baseline call
+
+    room.gameState = {
+      ...(room.gameState as GameState),
+      eventLog: [PASS_EVENT],
+    };
+    broadcastState(io, room); // folds the pass event
+    const afterFold = room.gameState?.matchStats;
+
+    broadcastState(io, room); // no state change since the previous broadcast
+
+    expect(room.gameState?.matchStats).toEqual(afterFold);
+  });
+
+  it('a broadcast in TACKLE_STEAL_PROMPT followed by a resume broadcast folds each event exactly once (PD-12)', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(makeGameState());
+
+    broadcastState(io, room); // baseline call
+
+    room.gameState = {
+      ...(room.gameState as GameState),
+      phase: 'TACKLE_STEAL_PROMPT',
+      eventLog: [STEAL_EVENT],
+    };
+    broadcastState(io, room); // fold fires here even though phase !== 'MOVE'
+
+    expect(room.gameState?.matchStats?.tackleStealAttempts).toEqual({ home: 0, away: 1 });
+    expect(room.gameState?.matchStats?.tackleStealSuccesses).toEqual({ home: 0, away: 1 });
+
+    // Resume broadcast: phase returns to MOVE; eventLog unchanged (no new events since
+    // the prompt broadcast already folded it).
+    room.gameState = {
+      ...room.gameState,
+      phase: 'MOVE',
+    };
+    broadcastState(io, room);
+
+    expect(room.gameState?.matchStats?.tackleStealAttempts).toEqual({ home: 0, away: 1 });
+    expect(room.gameState?.matchStats?.tackleStealSuccesses).toEqual({ home: 0, away: 1 });
+  });
+
+  it('a broadcast whose eventLog has shrunk since the last one (simulating an undo) neither throws nor double-counts (PD-13)', () => {
+    const io = makeFakeServer();
+    const room = makeRoom(makeGameState());
+
+    broadcastState(io, room); // baseline call, eventLog length 0
+
+    room.gameState = {
+      ...(room.gameState as GameState),
+      eventLog: [PASS_EVENT],
+    };
+    broadcastState(io, room); // folds one pass; baseline eventLog length becomes 1
+
+    // Simulate applyUndo shrinking eventLog back to empty.
+    room.gameState = {
+      ...room.gameState,
+      eventLog: [],
+    };
+
+    expect(() => broadcastState(io, room)).not.toThrow();
+    expect(room.gameState?.matchStats?.passesCompleted).toEqual({ home: 1, away: 0 });
   });
 });
