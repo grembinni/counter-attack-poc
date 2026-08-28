@@ -252,6 +252,33 @@ describe('FreeKickSetupPanel — D-50 defender-zone constraint (defending stages
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/defending zone: 1 player/i)).toBeDefined();
   });
+
+  // Deviation (checkpoint 45-05-04 fix, developer-reported blocking bug): a
+  // red-carded/sent-off piece keeps a live on-pitch `position` — the shared
+  // BUG-38 `isActivePiece` predicate must exclude it from this client-side
+  // "too close" recount the same way gameEngine.ts's server-authoritative
+  // check already does, or the Confirm button gets falsely disabled and
+  // blocks the free-kick setup flow entirely.
+  it('stage 1: a RED-CARDED defending-team piece within 2 hexes is excluded — Confirm stays enabled, no false "too close" error', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(1, {
+        pieces: mockMovementState.pieces.map((p) =>
+          p.id === 'home-9'
+            ? {
+                ...p,
+                position: { q: FREE_KICK_HEX.q - 1, r: FREE_KICK_HEX.r },
+                redCarded: true,
+                onPitch: false,
+              }
+            : p,
+        ),
+      }),
+    });
+    render(<FreeKickSetupPanel />);
+    const endTurn = screen.getByRole('button', { name: /^confirm$/i });
+    expect((endTurn as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/defending zone/i)).toBeNull();
+  });
 });
 
 describe('FreeKickSetupPanel — next-action preview text', () => {
