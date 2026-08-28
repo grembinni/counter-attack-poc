@@ -27,6 +27,7 @@ import {
   computeBoxEntryOffer,
   computeGkDiveAtFeetOffer,
 } from './gameEngine.js';
+import { foldMatchStats } from './matchStatsReducer.js';
 
 // Crockford-ish alphabet — excludes 0/O and 1/I to reduce transcription errors.
 // RESEARCH.md Pattern 2: customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 5)
@@ -223,6 +224,20 @@ export type Room = {
    * `gameState` is non-null.
    */
   lastBroadcastBallPosition?: HexCoord | null;
+  /**
+   * Phase 45 Plan 03 (STATS-04/05/06/09): the previous broadcast's `eventLog` length,
+   * `actionCount`, and `attackingTeam` — the three baselines `foldMatchStats` needs to
+   * see exactly what changed since the last broadcast without a retroactive `eventLog`
+   * scan (forbidden by D-05, mirroring `lastBroadcastBallPosition`'s own reasoning).
+   * `lastBroadcastAttackingTeam` specifically exists because the possession delta must
+   * be credited to the PRE-action attacking team, not whatever team is attacking after
+   * the action resolves (45-RESEARCH.md Pitfall 5) — a turnover mid-broadcast would
+   * otherwise silently credit the wrong team's clock. `undefined`/`null` before the
+   * first broadcast of a match, exactly like `lastBroadcastBallPosition`.
+   */
+  lastBroadcastEventLogLength?: number;
+  lastBroadcastActionCount?: number;
+  lastBroadcastAttackingTeam?: 'home' | 'away';
 };
 
 /**
@@ -437,6 +452,40 @@ export function broadcastState(io: Server, room: Room): void {
   if (room.gameState === null) return;
   room.gameState = applyFreeMoveZoneCheck(room.gameState);
 
+  // Phase 45 Plan 03 (STATS-04/05/06/09, PD-11): fold newly-appended eventLog events
+  // plus the possession delta into matchStats BEFORE the `state` capture below, so
+  // every downstream spread later in this function (the GK_BOX_ENTRY_PROMPT and
+  // GK_DIVE_AT_FEET_PROMPT phase substitutions) carries the folded matchStats forward
+  // automatically — inserting this after those hooks would require auditing each
+  // hook's spread for field preservation instead.
+  {
+    const preFoldState = room.gameState;
+    const prevEventLogLength = room.lastBroadcastEventLogLength ?? preFoldState.eventLog.length;
+    const prevActionCount = room.lastBroadcastActionCount ?? preFoldState.actionCount;
+    const prevAttackingTeam = room.lastBroadcastAttackingTeam ?? preFoldState.attackingTeam;
+
+    // PD-13: applyUndo can shrink eventLog by one since the previous broadcast (it
+    // never touches actionCount). Clamp the previous length down to the CURRENT
+    // length before slicing so a shrunken log can never produce an out-of-range
+    // (negative-start) slice.
+    const clampedPrevLength = Math.min(prevEventLogLength, preFoldState.eventLog.length);
+    const newEvents = preFoldState.eventLog.slice(clampedPrevLength);
+    const actionCountDelta = preFoldState.actionCount - prevActionCount;
+
+    // Only fold when there is something to fold — a non-empty slice or a non-zero
+    // action-count delta — so a broadcast that changes neither (e.g. an immediate
+    // repeat call) leaves matchStats referentially untouched.
+    if (newEvents.length > 0 || actionCountDelta !== 0) {
+      room.gameState = {
+        ...preFoldState,
+        matchStats: foldMatchStats(preFoldState.matchStats, newEvents, preFoldState.pieces, {
+          team: prevAttackingTeam,
+          actionCountDelta,
+        }),
+      };
+    }
+  }
+
   const state = room.gameState;
   const prevBallPosition = room.lastBroadcastBallPosition ?? state.ball.position;
 
@@ -516,6 +565,19 @@ export function broadcastState(io: Server, room: Room): void {
   if (room.gameState.phase !== 'TACKLE_STEAL_PROMPT') {
     room.lastBroadcastBallPosition = room.gameState.ball.position;
   }
+
+  // Phase 45 Plan 03 (PD-12): these three match-stats baselines advance
+  // UNCONDITIONALLY, placed OUTSIDE the TACKLE_STEAL_PROMPT guard above. That guard
+  // exists to protect a DIFFERENT, Phase-43-specific goalkeeper edge trigger (it
+  // needs `ballPositionChanged` to stay true across the prompt so a suppressed offer
+  // isn't permanently swallowed) — it does not apply here. Suppressing these
+  // baselines during a tackle/steal prompt would instead make the SAME
+  // already-folded event slice look "new" again on the resume broadcast, double-
+  // counting every statistic produced during the prompt.
+  room.lastBroadcastEventLogLength = room.gameState.eventLog.length;
+  room.lastBroadcastActionCount = room.gameState.actionCount;
+  room.lastBroadcastAttackingTeam = room.gameState.attackingTeam;
+
   io.to(room.roomCode).emit(ServerEvents.GAME_STATE, room.gameState);
 }
 
