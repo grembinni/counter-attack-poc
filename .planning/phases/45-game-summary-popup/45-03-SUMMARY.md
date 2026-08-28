@@ -142,3 +142,13 @@ _TDD task 45-03-01 has two commits (test → feat) per the RED/GREEN protocol; n
 ---
 *Phase: 45-game-summary-popup*
 *Completed: 2026-08-28*
+
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/matchStatsReducer.ts
+- FOUND: packages/server/src/__tests__/matchStatsReducer.test.ts
+- FOUND: .planning/phases/45-game-summary-popup/45-03-SUMMARY.md
+- FOUND commit: fd6b339c (test RED)
+- FOUND commit: 03679afa (feat GREEN)
+- FOUND commit: 94689052 (feat wiring)
+- FOUND commit: 0d33eb6d (docs summary)
