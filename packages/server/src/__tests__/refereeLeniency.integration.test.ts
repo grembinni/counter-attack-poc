@@ -274,9 +274,15 @@ describe('Referee Leniency end-to-end socket integration (REFEREE-01/02/03/04, T
     const topLevelKeys = Object.keys(state);
     const strayLeniencyKeys = topLevelKeys.filter((key) => /^refereeLeniency/i.test(key));
     expect(strayLeniencyKeys).toEqual([]);
-    // Also confirm no sibling key was smuggled onto refereeCard itself.
+    // Phase 45 (STATS-03, 45-RESEARCH.md Pitfall 3) deliberately added `wasManualOverride`
+    // to `refereeCard` -- exactly the fix that pitfall recommended -- so the settings recap
+    // can distinguish "(Referee Leniency: Manual -- 4)" from "(Referee Leniency: Auto -- 4)",
+    // which `leniency` alone cannot express (both paths produce the same plain 2-5 integer).
+    // This is a second INTENTIONAL field, not a smuggled duplicate of `leniency` itself --
+    // update this allow-list if `refereeCard` gains further fields.
     const refereeCardKeys = Object.keys(state.refereeCard);
-    expect(refereeCardKeys).toEqual(['leniency']);
+    expect(refereeCardKeys.sort()).toEqual(['leniency', 'wasManualOverride'].sort());
+    expect(state.refereeCard.wasManualOverride).toBe(true);
     clientA.disconnect();
     clientB.disconnect();
   }, 5000);
