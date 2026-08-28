@@ -108,3 +108,12 @@ None - no external service configuration required.
 ---
 *Phase: 45-game-summary-popup*
 *Completed: 2026-08-28*
+
+## Self-Check: PASSED
+
+- FOUND: packages/shared/src/matchStats.ts
+- FOUND: packages/shared/src/matchStats.test.ts
+- FOUND: .planning/phases/45-game-summary-popup/45-01-SUMMARY.md
+- FOUND: 95f94700 (Task 1 commit)
+- FOUND: d08ef4aa (Task 2 commit)
+- FOUND: 779182cc (SUMMARY.md commit)
