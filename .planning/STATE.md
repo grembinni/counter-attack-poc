@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: executing
-stopped_at: Phase 45 context gathered
-last_updated: "2026-08-28T14:49:01.828Z"
-last_activity: 2026-08-28 -- Phase 45 context gathered, ready for planning
+status: planning
+stopped_at: Phase 45 UI-SPEC approved
+last_updated: "2026-08-28T15:08:14.886Z"
+last_activity: 2026-08-28 -- Phase 45 (Game Summary Popup) UI-SPEC approved, ready for planning
 progress:
   total_phases: 6
   completed_phases: 4
@@ -371,10 +371,10 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-28T14:49:01.817Z
-Stopped at: Phase 45 context gathered
-Resume file: .planning/phases/45-game-summary-popup/45-CONTEXT.md
-Resume: Phase 44 (Referee Leniency & Advanced Settings Drawer) is closed out, verified 9/9 must-haves. Phase 45 (Game Summary Popup) context discussion is complete — xG formula, coordinate mapping, possession/stat accumulator pattern, tackle/steal decline exclusion, icon placement, and HALF_TIME/FULL_TIME layout are all locked in 45-CONTEXT.md. Next step is to plan Phase 45.
+Last session: 2026-08-28T15:08:14.877Z
+Stopped at: Phase 45 UI-SPEC approved
+Resume file: .planning/phases/45-game-summary-popup/45-UI-SPEC.md
+Resume: Phase 44 (Referee Leniency & Advanced Settings Drawer) is closed out, verified 9/9 must-haves. Phase 45 (Game Summary Popup) context discussion is complete — xG formula, coordinate mapping, possession/stat accumulator pattern, tackle/steal decline exclusion, icon placement, and HALF_TIME/FULL_TIME layout are all locked in 45-CONTEXT.md. UI-SPEC.md is now approved (6/6 dimensions, diverging-bar stat comparison layout locked from user-provided reference images). Next step is to plan Phase 45.
 
 ## Performance Metrics
 
