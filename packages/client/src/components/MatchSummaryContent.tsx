@@ -8,10 +8,12 @@ import styles from './MatchSummaryContent.module.css';
  * this file belongs to plan 45-04): bubble color variant for the settings
  * recap, requested verbatim by the developer during live checkpoint
  * verification ("use bubbles like for speed - red for disabled, green for
- * enabled. leniency green if overridden"). The five boolean toggles use a
- * strict red/green binary; Speed is not a toggle, so it reuses its own
- * established per-speed hue from GameSettingsScreen.module.css/tokens.css
- * rather than being forced into red/green.
+ * enabled"). The five boolean toggles use a strict red/green binary; Speed
+ * is not a toggle, so it reuses its own established per-speed hue from
+ * GameSettingsScreen.module.css/tokens.css rather than being forced into
+ * red/green. Referee Leniency's rule was corrected in round 4 (see the
+ * `refereeLeniency` recap item below) — green for the DEFAULT (Auto)
+ * setting, red when manually overridden.
  */
 type SettingsBubbleVariant = 'green' | 'red' | 'speedSlow' | 'speedStandard' | 'speedFast';
 
@@ -242,9 +244,15 @@ export function MatchSummaryContent() {
     {
       key: 'refereeLeniency',
       text: `Referee Leniency: ${refereeMode} — ${refereeCard.leniency}`,
-      // "leniency green if overridden" (developer, verbatim) — green only
-      // when a manual override is in effect, red for the Auto default.
-      variant: refereeCard.wasManualOverride === true ? 'green' : 'red',
+      // Checkpoint 45-05-04 fix, round 4 (developer feedback verbatim:
+      // "swap the red/green rule for ref leniency show it shows green if
+      // its teh default setting (auto)"). Round 1 shipped the opposite
+      // direction (green only when manually overridden). Flipped: green
+      // for the DEFAULT (Auto, wasManualOverride !== true), red for the
+      // non-default/overridden state — matching this recap's existing
+      // "green = at rest/on, red = touched/off" reading applied to
+      // "is this at its default" rather than "was it touched."
+      variant: refereeCard.wasManualOverride === true ? 'red' : 'green',
     },
     {
       key: 'tackleStealDecline',

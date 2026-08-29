@@ -524,7 +524,14 @@
 
 /* Deliberately tighter than the standalone modal's 50vh scroll cap — the
    150px-badge score row above it is already tall. */
+/* Checkpoint 45-05-04 fix, round 4: explicit `width: 100%` added — this is
+   the first ancestor of `MatchSummaryContent`'s `.root` inside the
+   HALF_TIME/FULL_TIME overlay card, so an explicit width here guarantees
+   the settings recap rows center against the overlay's actual content
+   width (same fix applied to MatchSummaryModal's `.scrollBody`, since both
+   surfaces consume this identical component, D-11). */
 .embeddedSummaryWrapper {
+  width: 100%;
   max-height: 40vh;
   overflow-y: auto;
 }

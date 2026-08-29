@@ -85,8 +85,13 @@
 
 /* `MatchSummaryContent` itself gets this max-height so the header title and
    the footer Close button stay pinned/visible even when the stat list
-   needs to scroll. */
+   needs to scroll. Checkpoint 45-05-04 fix, round 4: explicit `width: 100%`
+   added — this is the first ancestor of `MatchSummaryContent`'s `.root`
+   inside the modal, so an explicit width here guarantees the settings
+   recap rows (round 4) center against the popup's actual content width
+   rather than an implicitly-sized box. */
 .scrollBody {
+  width: 100%;
   max-height: 50vh;
   overflow-y: auto;
 }

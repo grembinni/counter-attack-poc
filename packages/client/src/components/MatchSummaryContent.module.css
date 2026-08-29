@@ -6,10 +6,22 @@
    the documented graphic-dimension exceptions (6px bar height, 2px centre
    seam, 3px border radius, 16px icon diameter). */
 
+/* Checkpoint 45-05-04 fix, round 4 (developer feedback verbatim: "center
+   seetngs on the popup" — the recap rows were only centering themselves
+   relative to whatever box they happened to occupy, which was not
+   reliably the popup's FULL content width). `width: 100%` is added
+   explicitly at every level from `.root` down through `.recapRow` below,
+   rather than relying on implicit block/flex-stretch default sizing —
+   this removes any ambiguity about how each ancestor computes width
+   regardless of whether its own parent is a flex container (ancestors:
+   MatchSummaryModal's `.scrollBody`, or GameBoard's
+   `.embeddedSummaryWrapper` for the HALF_TIME/FULL_TIME overlay — both
+   consume this same component, D-11). */
 .root {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
 }
 
 /* ─── Settings recap section (D-12/D-13) ────────────────────────────────── */
@@ -18,6 +30,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .sectionLabel {
@@ -43,6 +56,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .recapRow {
@@ -50,6 +64,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  width: 100%;
 }
 
 /* Checkpoint 45-05-04 fix (deviation, developer-requested during live

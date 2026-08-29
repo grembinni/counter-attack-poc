@@ -86,6 +86,29 @@ describe('MatchSummaryContent — settings recap', () => {
     expect(screen.getByText('Referee Leniency: Auto — 4')).toBeDefined();
   });
 
+  // Checkpoint 45-05-04 fix, round 4 (developer feedback verbatim: "swap
+  // the red/green rule for ref leniency show it shows green if its teh
+  // default setting (auto)"). Round 1 shipped the opposite direction
+  // (green only when manually overridden) — flipped here. Verified via the
+  // rendered className, which — unlike a fully opaque hash — DOES embed
+  // the literal CSS-module class name as a readable prefix under this
+  // project's Vite/vitest CSS Modules config (confirmed:
+  // `_settingsBubbleRed_<hash>`), making this a legitimate structural
+  // assertion rather than a brittle guess at an opaque string.
+  it('colors the Referee Leniency bubble GREEN for the Auto default, RED when manually overridden', () => {
+    seed({ refereeCard: { leniency: 4, wasManualOverride: false } });
+    const { rerender } = render(<MatchSummaryContent />);
+    expect(screen.getByText('Referee Leniency: Auto — 4').className).toContain(
+      'settingsBubbleGreen',
+    );
+
+    seed({ refereeCard: { leniency: 4, wasManualOverride: true } });
+    rerender(<MatchSummaryContent />);
+    expect(screen.getByText('Referee Leniency: Manual — 4').className).toContain(
+      'settingsBubbleRed',
+    );
+  });
+
   it('renders the Off/disabled word for an undefined toggle, never a blank or the string "undefined"', () => {
     // mockMovementState does not set any of these five toggle fields, so they
     // are already undefined by default — no override needed to exercise the
