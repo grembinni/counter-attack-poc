@@ -111,7 +111,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REFEREE-01..04  | Phase 44 | Complete |
 | SETTINGS-05..07 | Phase 44 | Complete |
 | STATS-01..09    | Phase 45 | Complete |
-| CLEANUP-05..13  | Phase 46 | Pending  |
+| CLEANUP-05..13  | Phase 46 | Complete |
 
 **Coverage:**
 

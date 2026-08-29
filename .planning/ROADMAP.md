@@ -150,7 +150,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
 | 45    | 6/6 | Complete    | 2026-08-29 |
-| 46    | 5/7 | In Progress|  |
+| 46    | 6/7 | In Progress|  |
 
 ### Phase 41: Card & Injury Iconography
 
@@ -391,7 +391,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 46-06-PLAN.md — Full monorepo green gate, dead-code residue sweep, validation-contract backfill (CLEANUP-13)
+- [x] 46-06-PLAN.md — Full monorepo green gate, dead-code residue sweep, validation-contract backfill (CLEANUP-13)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -466,7 +466,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 
