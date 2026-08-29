@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, HexCoord } from '@counter-attack/shared';
+import type { GameState, GamePhase, HexCoord } from '@counter-attack/shared';
 import {
   validateMove,
   hexesInRange,
@@ -283,61 +283,74 @@ type ResponseMoveValidHexConfig = {
 };
 
 /**
- * Named per-phase configs for {@link computeResponseMoveValidHexes} (SELECTOR-REVIEW.md
- * fix #2, Phase 32-05 CLEANUP-03/D-06). Previously each selectPiece branch (and the
- * SNAPSHOT_DEFLECT sticky block) constructed an equivalent object literal inline at its own
- * call site — hoisting them to named constants lets setGameState's sticky-selection block
- * reuse the exact same config selectPiece uses per phase, eliminating the need to hand-roll
- * an equivalent computation a second time (see fix #2's inline duplication finding).
+ * Single phase-keyed source of truth for {@link computeResponseMoveValidHexes} configs
+ * (CLEANUP-09, Phase 46 Plan 02). Previously each of the six configs below was a standalone
+ * named `const *_CONFIG` binding, and the phase->config selection was written a SECOND time as
+ * a five-level nested ternary inside setGameState's sticky block (below) — the exact
+ * two-tree-drift shape BUG-09 was caused by. Both selectPiece's per-phase branches and
+ * setGameState's sticky block now do a single `RESPONSE_MOVE_CONFIG_BY_PHASE[phase]` lookup
+ * against this one table, so the two selection trees can never drift apart again.
  */
-const HIGH_PASS_MOVE_CONFIG: ResponseMoveValidHexConfig = {
-  lockedPieceIdField: 'highPassMovedPieceId',
-  paceUsedField: 'highPassPaceUsed',
-  paceCap: 3,
-  clickDistanceMode: 'strict-1',
-};
-const GK_KICK_MOVE_CONFIG: ResponseMoveValidHexConfig = {
-  lockedPieceIdField: 'gkKickMovedPieceId',
-  paceUsedField: 'gkKickPaceUsed',
-  paceCap: 3,
-  clickDistanceMode: 'strict-1',
-};
-const FIRST_TIME_PASS_MOVE_CONFIG: ResponseMoveValidHexConfig = {
-  lockedPieceIdField: 'firstTimePassMovedPieceId',
-  paceUsedField: 'firstTimePassPaceUsed',
-  paceCap: 1,
-  clickDistanceMode: 'strict-1',
-};
-const SNAPSHOT_DEFLECT_CONFIG: ResponseMoveValidHexConfig = {
-  lockedPieceIdField: 'snapDeflectMovedPieceId',
-  paceUsedField: 'snapDeflectPaceUsed',
-  paceCap: 2,
-  clickDistanceMode: 'range',
-};
+export const RESPONSE_MOVE_CONFIG_BY_PHASE: Partial<Record<GamePhase, ResponseMoveValidHexConfig>> =
+  {
+    HIGH_PASS_MOVE: {
+      lockedPieceIdField: 'highPassMovedPieceId',
+      paceUsedField: 'highPassPaceUsed',
+      paceCap: 3,
+      clickDistanceMode: 'strict-1',
+    },
+    GK_KICK_MOVE: {
+      lockedPieceIdField: 'gkKickMovedPieceId',
+      paceUsedField: 'gkKickPaceUsed',
+      paceCap: 3,
+      clickDistanceMode: 'strict-1',
+    },
+    FIRST_TIME_PASS_MOVE: {
+      lockedPieceIdField: 'firstTimePassMovedPieceId',
+      paceUsedField: 'firstTimePassPaceUsed',
+      paceCap: 1,
+      clickDistanceMode: 'strict-1',
+    },
+    SNAPSHOT_DEFLECT: {
+      lockedPieceIdField: 'snapDeflectMovedPieceId',
+      paceUsedField: 'snapDeflectPaceUsed',
+      paceCap: 2,
+      clickDistanceMode: 'range',
+    },
+    // GOALKICK-05 (Phase 37): the 3-hex travel window while the goal kick is in the air —
+    // byte-for-byte the GK_KICK_MOVE shape above with the goal-kick field names, matching the
+    // server's validateResponseMoveStep config from Plan 37-09 so client highlights and server
+    // legality cannot drift.
+    GOAL_KICK_MOVE: {
+      lockedPieceIdField: 'goalKickMovedPieceId',
+      paceUsedField: 'goalKickPaceUsed',
+      paceCap: 3,
+      clickDistanceMode: 'strict-1',
+    },
+    // CORNER-06 (Phase 38): the 3-hex pre-kick travel window while the corner kick is being
+    // taken — byte-for-byte the GOAL_KICK_MOVE shape above with the corner-kick field names,
+    // mirroring the server's CORNER_KICK_FINAL_PACE_CAP so client highlights and server
+    // legality cannot drift.
+    CORNER_KICK_FINAL_SETUP: {
+      lockedPieceIdField: 'cornerKickMovedPieceId',
+      paceUsedField: 'cornerKickPaceUsed',
+      paceCap: 3,
+      clickDistanceMode: 'strict-1',
+    },
+  };
+
 /**
- * GOALKICK-05 (Phase 37): the 3-hex travel window while the goal kick is in the air —
- * byte-for-byte the GK_KICK_MOVE_CONFIG shape with the goal-kick field names, matching
- * the server's validateResponseMoveStep config from Plan 37-09 so client highlights and
- * server legality cannot drift.
+ * The five phases handled by setGameState's shared response-move sticky block (below).
+ * SNAPSHOT_DEFLECT is deliberately absent — it has its own separate sticky block with a
+ * different lock rule (WR-01 caveat) and must not be merged into this one.
  */
-const GOAL_KICK_MOVE_CONFIG: ResponseMoveValidHexConfig = {
-  lockedPieceIdField: 'goalKickMovedPieceId',
-  paceUsedField: 'goalKickPaceUsed',
-  paceCap: 3,
-  clickDistanceMode: 'strict-1',
-};
-/**
- * CORNER-06 (Phase 38): the 3-hex pre-kick travel window while the corner kick is being
- * taken — byte-for-byte the GOAL_KICK_MOVE_CONFIG shape with the corner-kick field names,
- * mirroring the server's CORNER_KICK_FINAL_PACE_CAP so client highlights and server
- * legality cannot drift.
- */
-const CORNER_KICK_FINAL_SETUP_CONFIG: ResponseMoveValidHexConfig = {
-  lockedPieceIdField: 'cornerKickMovedPieceId',
-  paceUsedField: 'cornerKickPaceUsed',
-  paceCap: 3,
-  clickDistanceMode: 'strict-1',
-};
+export const RESPONSE_MOVE_STICKY_PHASES: readonly GamePhase[] = [
+  'HIGH_PASS_MOVE',
+  'GK_KICK_MOVE',
+  'FIRST_TIME_PASS_MOVE',
+  'GOAL_KICK_MOVE',
+  'CORNER_KICK_FINAL_SETUP',
+];
 
 /**
  * Shared valid-hex computation for the 4 response-move selectPiece branches (Cluster 3,
@@ -591,6 +604,20 @@ function computeAutoSelectablePassType(state: GameState): PassType | null {
   }
   return null;
 }
+
+/**
+ * Phase 46 / CLEANUP-05 (folded todo
+ * 2026-08-23-ux-no-auto-reselect-after-interrupt-prompt-resumes.md): the four interrupt/prompt
+ * phases whose resolution back to MOVE must preserve the mid-move piece's selection rather than
+ * wipe it like every other phase transition. Resuming from any of these into MOVE with a piece
+ * that still has pace remaining should leave that piece selected with its movement ring intact.
+ */
+const INTERRUPT_RESUME_PHASES: readonly GamePhase[] = [
+  'TACKLE_STEAL_PROMPT',
+  'GK_DIVE_AT_FEET_PROMPT',
+  'GK_BOX_ENTRY_PROMPT',
+  'FOUL_CHOICE',
+];
 
 /**
  * Zustand 4.x store using curried TypeScript form: create<T>()((set, get) => ...).
@@ -853,7 +880,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, HIGH_PASS_MOVE_CONFIG);
+      const valid = computeResponseMoveValidHexes(
+        id,
+        piece,
+        gameState,
+        RESPONSE_MOVE_CONFIG_BY_PHASE.HIGH_PASS_MOVE!,
+      );
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -964,11 +996,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
+      // Non-null assertion: FIRST_TIME_PASS_MOVE is one of the six statically-defined keys in
+      // RESPONSE_MOVE_CONFIG_BY_PHASE (CLEANUP-09) — the Partial<Record<...>> type is only
+      // optional because GamePhase has many more members than the table defines configs for.
       const valid = computeResponseMoveValidHexes(
         id,
         piece,
         gameState,
-        FIRST_TIME_PASS_MOVE_CONFIG,
+        RESPONSE_MOVE_CONFIG_BY_PHASE.FIRST_TIME_PASS_MOVE!,
       );
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
@@ -993,7 +1028,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, GK_KICK_MOVE_CONFIG);
+      const valid = computeResponseMoveValidHexes(
+        id,
+        piece,
+        gameState,
+        RESPONSE_MOVE_CONFIG_BY_PHASE.GK_KICK_MOVE!,
+      );
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -1018,7 +1058,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         set({ selectedPieceId: null, validMoveHexes: [] });
         return;
       }
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, GOAL_KICK_MOVE_CONFIG);
+      const valid = computeResponseMoveValidHexes(
+        id,
+        piece,
+        gameState,
+        RESPONSE_MOVE_CONFIG_BY_PHASE.GOAL_KICK_MOVE!,
+      );
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -1149,8 +1194,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     }
 
     // CORNER_KICK_FINAL_SETUP (CORNER-06): 1-player-per-team pre-kick reposition window,
-    // modelled on the GOAL_KICK_MOVE branch above via CORNER_KICK_FINAL_SETUP_CONFIG. The
-    // acting team derives from cornerKickMoveSlot; goalkeepers and the corner-taker are
+    // modelled on the GOAL_KICK_MOVE branch above via RESPONSE_MOVE_CONFIG_BY_PHASE.CORNER_KICK_FINAL_SETUP.
+    // The acting team derives from cornerKickMoveSlot; goalkeepers and the corner-taker are
     // excluded server-side via cornerKickEligibleIds, so the client must not offer them.
     if (gameState.phase === 'CORNER_KICK_FINAL_SETUP') {
       // D-04/Pitfall 4: null playerSlot -> explicit no-op (see KICK_OFF_SETUP guard above
@@ -1187,7 +1232,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         id,
         piece,
         gameState,
-        CORNER_KICK_FINAL_SETUP_CONFIG,
+        RESPONSE_MOVE_CONFIG_BY_PHASE.CORNER_KICK_FINAL_SETUP!,
       );
       // T-38-74/permanent exclusion zone (38-20): the defending side may never be offered a
       // destination inside the 3-hex zone at any point in the corner sequence — filtered here
@@ -1225,7 +1270,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       // targeting — any hex within the remaining 2-hex budget is a valid one-click destination,
       // matching GK_DIVE's "click a spot directly" UX for regular/headed shots. clickDistanceMode:
       // 'range' in computeResponseMoveValidHexes preserves this semantic.
-      const valid = computeResponseMoveValidHexes(id, piece, gameState, SNAPSHOT_DEFLECT_CONFIG);
+      const valid = computeResponseMoveValidHexes(
+        id,
+        piece,
+        gameState,
+        RESPONSE_MOVE_CONFIG_BY_PHASE.SNAPSHOT_DEFLECT!,
+      );
       set({ selectedPieceId: id, validMoveHexes: valid });
       return;
     }
@@ -1429,13 +1479,34 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const activationComplete =
       prevSelectedId !== null && newState.movedPieceIds.includes(prevSelectedId);
 
+    // Phase 46 / CLEANUP-05 (folded todo
+    // 2026-08-23-ux-no-auto-reselect-after-interrupt-prompt-resumes.md): none of the resume
+    // snapshots (gkDiveAtFeetResume / gkBoxEntryResume / tackleStealPromptResume) carry the
+    // mid-move piece's id, so it cannot be read off those fields — it must instead be derived
+    // pace-based: the active team's own still-on-pitch piece that has pace used this movement
+    // slot but hasn't finished its activation (not yet in movedPieceIds).
+    const resumingFromInterrupt =
+      phaseChanged &&
+      newState.phase === 'MOVE' &&
+      INTERRUPT_RESUME_PHASES.includes(prevState.phase);
+    const midMovePieceId = resumingFromInterrupt
+      ? (newState.pieces.find(
+          (p) =>
+            p.teamId === newState.activeTeam &&
+            isActivePiece(p) &&
+            (newState.paceUsedByPieceId[p.id] ?? 0) > 0 &&
+            !newState.movedPieceIds.includes(p.id),
+        )?.id ?? null)
+      : null;
+
     if (
-      responseMoveStateChanged ||
-      responseMovePaceExhausted ||
-      phaseChanged ||
-      !pieceStillExists ||
-      prevSelectedId === null ||
-      activationComplete
+      (responseMoveStateChanged ||
+        responseMovePaceExhausted ||
+        phaseChanged ||
+        !pieceStillExists ||
+        prevSelectedId === null ||
+        activationComplete) &&
+      !(resumingFromInterrupt && midMovePieceId !== null)
     ) {
       // Clear selection on phase/slot transitions or missing piece (D-18)
       set({
@@ -1477,6 +1548,47 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         // the only code path that computes validPassTargetHexes/interceptionRiskHexes.
         get().setSelectedPassType(autoPassType);
       }
+      return;
+    }
+
+    // Phase 46 / CLEANUP-05: an interrupt prompt (TACKLE_STEAL_PROMPT / GK_DIVE_AT_FEET_PROMPT /
+    // GK_BOX_ENTRY_PROMPT / FOUL_CHOICE) has resolved back to MOVE with a mid-move piece still
+    // holding pace — the clearing `if` above was gated off for this exact case. Re-select that
+    // piece the same way the generic-MOVE sticky-selection fallback below already does (reusing
+    // the same shared valid-hex helper, not a second copy of the same computation), but ONLY for
+    // the client that owns it (T-46-02-I): deriveMyTeam(prev.playerSlot) must match the piece's
+    // team. A null playerSlot (spectator/unassigned) or a team mismatch (this broadcast's
+    // mid-move piece belongs to the OTHER client) falls through to the ordinary clearing
+    // behaviour instead — never coerce a null slot to a team, never auto-select for the wrong client.
+    if (resumingFromInterrupt && midMovePieceId !== null) {
+      const midMovePiece = newState.pieces.find((p) => p.id === midMovePieceId)!;
+      const actingTeam = deriveMyTeam(prev.playerSlot);
+      const canResume = actingTeam !== null && actingTeam === midMovePiece.teamId;
+      const resumedValidMoveHexes = canResume
+        ? computeMovementValidHexes(midMovePiece, newState).validMoveHexes
+        : [];
+      set({
+        gameState: newState,
+        selectedPieceId: canResume ? midMovePieceId : null,
+        validMoveHexes: resumedValidMoveHexes,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+        selectedPassType: null,
+        validPassTargetHexes: [],
+        interceptionRiskHexes: [],
+        passTargetHex: null,
+        headerContestantIds: [],
+        shootingMode: false,
+        gameError: null,
+      });
+      return;
+    }
+
+    // Unreachable in practice: the clearing `if` above already covers `prevSelectedId === null`
+    // as one of its OR'd clauses, and the only way past it without clearing is the interrupt-
+    // resume branch just above (which always returns). Restores static narrowing for TypeScript,
+    // which can no longer prove this by itself once that branch's `&&`/negation was introduced.
+    if (prevSelectedId === null) {
       return;
     }
 
@@ -1534,28 +1646,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       return;
     }
 
-    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE / GOAL_KICK_MOVE: re-run phase-specific
-    // valid move logic via the same named config + computeResponseMoveValidHexes helper
-    // selectPiece's matching branches use (SELECTOR-REVIEW.md fix #2, Phase 32-05 D-06) —
-    // previously this block hand-rolled an equivalent computation inline instead of reusing the
-    // helper. GOAL_KICK_MOVE (GOALKICK-05, Plan 37-10) added alongside its GK_KICK_MOVE analog.
-    if (
-      newState.phase === 'HIGH_PASS_MOVE' ||
-      newState.phase === 'GK_KICK_MOVE' ||
-      newState.phase === 'FIRST_TIME_PASS_MOVE' ||
-      newState.phase === 'GOAL_KICK_MOVE' ||
-      newState.phase === 'CORNER_KICK_FINAL_SETUP'
-    ) {
-      const config =
-        newState.phase === 'GK_KICK_MOVE'
-          ? GK_KICK_MOVE_CONFIG
-          : newState.phase === 'FIRST_TIME_PASS_MOVE'
-            ? FIRST_TIME_PASS_MOVE_CONFIG
-            : newState.phase === 'GOAL_KICK_MOVE'
-              ? GOAL_KICK_MOVE_CONFIG
-              : newState.phase === 'CORNER_KICK_FINAL_SETUP'
-                ? CORNER_KICK_FINAL_SETUP_CONFIG
-                : HIGH_PASS_MOVE_CONFIG;
+    // HIGH_PASS_MOVE / GK_KICK_MOVE / FIRST_TIME_PASS_MOVE / GOAL_KICK_MOVE / CORNER_KICK_FINAL_SETUP:
+    // re-run phase-specific valid move logic via the same RESPONSE_MOVE_CONFIG_BY_PHASE table +
+    // computeResponseMoveValidHexes helper selectPiece's matching branches use (CLEANUP-09,
+    // Phase 46 Plan 02) — previously this block re-derived the phase->config mapping a SECOND
+    // time as a five-level nested ternary instead of doing the same single table lookup
+    // selectPiece's branches use; RESPONSE_MOVE_STICKY_PHASES is the guard membership list.
+    if (RESPONSE_MOVE_STICKY_PHASES.includes(newState.phase)) {
+      // Non-null assertion: RESPONSE_MOVE_STICKY_PHASES is defined as exactly the subset of
+      // GamePhase keys that have a RESPONSE_MOVE_CONFIG_BY_PHASE entry — the mechanical
+      // coverage test below pins this invariant, so this lookup can never be undefined here.
+      const config = RESPONSE_MOVE_CONFIG_BY_PHASE[newState.phase]!;
       const lockedId = newState[config.lockedPieceIdField] ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       let stickyValid = locked
@@ -1593,15 +1694,20 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // fallthrough below, which validateMove's WRONG_SLOT guard always rejects for this phase
     // (SNAPSHOT_DEFLECT never sets movementSlot) — forcing validMoveHexes to [] even when the
     // defender has pace remaining. This branch routes through the same computeResponseMoveValidHexes
-    // helper selectPiece's SNAPSHOT_DEFLECT branch uses, keyed by SNAPSHOT_DEFLECT_CONFIG. The lock
-    // check (WR-01 caveat) is done here by the caller — computeResponseMoveValidHexes does not
-    // enforce lockedPieceIdField itself.
+    // helper selectPiece's SNAPSHOT_DEFLECT branch uses, keyed by
+    // RESPONSE_MOVE_CONFIG_BY_PHASE.SNAPSHOT_DEFLECT. The lock check (WR-01 caveat) is done here
+    // by the caller — computeResponseMoveValidHexes does not enforce lockedPieceIdField itself.
     if (newState.phase === 'SNAPSHOT_DEFLECT') {
       const lockedId = newState.snapDeflectMovedPieceId ?? null;
       const locked = lockedId !== null && lockedId !== prevSelectedId;
       const stickyValid = locked
         ? []
-        : computeResponseMoveValidHexes(prevSelectedId, piece, newState, SNAPSHOT_DEFLECT_CONFIG);
+        : computeResponseMoveValidHexes(
+            prevSelectedId,
+            piece,
+            newState,
+            RESPONSE_MOVE_CONFIG_BY_PHASE.SNAPSHOT_DEFLECT!,
+          );
       set({
         gameState: newState,
         selectedPieceId: prevSelectedId,
