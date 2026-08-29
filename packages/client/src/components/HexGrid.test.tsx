@@ -3,7 +3,7 @@ import { render, cleanup, fireEvent } from '@testing-library/react';
 import { useGameStore } from '../store/useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import { axialToPixel } from '../utils/hexToPixel.js';
-import { HexGrid } from './HexGrid.js';
+import { HexGrid, VALID_MOVE_TINT_EXCEPTION_PHASES } from './HexGrid.js';
 import { HIGHLIGHT_STYLES, RING_STYLES } from './HexCell.js';
 import { BALL_MARKER_STROKE } from './BallLocationRing.js';
 import { HEADER_TARGET_STROKE } from './HeaderTargetRing.js';
@@ -835,6 +835,60 @@ describe('HexGrid — D-48: FREE_KICK_SETUP persistent geometric placement-zone 
     const { container } = render(<HexGrid />);
     expect(hasFillAtHex(container, KICKOFF_FILL, 25, 13)).toBe(false);
     expect(hasFillAtHex(container, KICKOFF_FILL, 30, 13)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 46 / CLEANUP-06 / CLEANUP-09 (D-02): VALID_MOVE_TINT_EXCEPTION_PHASES — the
+// enumerated, exported exception set replacing the inline `phase !== 'GK_DIVE' &&
+// phase !== 'SNAPSHOT_DEFLECT'` literals in isHighlighted. Pins the set's exact
+// membership plus one shared-tint-majority rendering assertion and one exception-phase
+// rendering assertion, per the plan's acceptance criteria.
+// ---------------------------------------------------------------------------
+describe('HexGrid — Phase 46 CLEANUP-06/D-02: VALID_MOVE_TINT_EXCEPTION_PHASES', () => {
+  it('contains exactly the 4 documented exception phases (GK_DIVE, SNAPSHOT_DEFLECT, KICK_OFF_SETUP, FREE_KICK_SETUP)', () => {
+    expect(VALID_MOVE_TINT_EXCEPTION_PHASES.size).toBe(4);
+    expect(VALID_MOVE_TINT_EXCEPTION_PHASES.has('GK_DIVE')).toBe(true);
+    expect(VALID_MOVE_TINT_EXCEPTION_PHASES.has('SNAPSHOT_DEFLECT')).toBe(true);
+    expect(VALID_MOVE_TINT_EXCEPTION_PHASES.has('KICK_OFF_SETUP')).toBe(true);
+    expect(VALID_MOVE_TINT_EXCEPTION_PHASES.has('FREE_KICK_SETUP')).toBe(true);
+  });
+
+  it('MOVE (shared-tint majority): a valid-move hex renders the shared safe fill', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'MOVE' },
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasFillAtHex(container, SAFE_FILL, CANDIDATE_HEX.q, CANDIDATE_HEX.r)).toBe(true);
+  });
+
+  it('GK_DIVE (exception, suppressed): a hex present in validMoveHexes does NOT render the shared safe fill', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'GK_DIVE' },
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasFillAtHex(container, SAFE_FILL, CANDIDATE_HEX.q, CANDIDATE_HEX.r)).toBe(false);
+  });
+
+  it('KICK_OFF_SETUP (exception, kickoff tint): a valid-move hex inside the placement zone renders the kickoff fill, not the shared safe fill', () => {
+    const zoneHex = { q: 10, r: 13 };
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'KICK_OFF_SETUP' },
+      screen: 'GAME_BOARD',
+      playerSlot: 1,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [zoneHex],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(hasFillAtHex(container, KICKOFF_FILL, zoneHex.q, zoneHex.r)).toBe(true);
+    expect(hasFillAtHex(container, SAFE_FILL, zoneHex.q, zoneHex.r)).toBe(false);
   });
 });
 

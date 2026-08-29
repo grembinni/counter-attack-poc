@@ -223,6 +223,61 @@ Cross-reference: `packages/client/src/components/HeaderTargetRing.tsx`
 
 ---
 
+## 4. Valid-Move Tint Consistency
+
+**The rule:** every `GamePhase` that populates `useGameStore`'s `validMoveHexes` (via one
+of the `compute*ValidHexes` helpers in `useGameStore.ts`) tints those hexes with the shared
+🟢 `safe` style from `HIGHLIGHT_STYLES` — the same green used for ordinary step-by-step
+movement — unless the phase is an enumerated, documented member of
+`VALID_MOVE_TINT_EXCEPTION_PHASES` (`packages/client/src/components/HexGrid.tsx`). This is
+the D-02 rule (Phase 46, CLEANUP-06/CLEANUP-09): one visual language for "you may move a
+piece here," consistent across every movement-pattern phase, with only named, reasoned
+exceptions.
+
+**Phases that take the shared `safe` tint** (traced from `useGameStore.ts`'s
+`compute*ValidHexes` call sites):
+
+`MOVE` (ordinary movement, `computeMovementValidHexes`), `HIGH_PASS_MOVE`, `GK_KICK_MOVE`,
+`FIRST_TIME_PASS_MOVE`, `GOAL_KICK_MOVE`, `CORNER_KICK_FINAL_SETUP` (all six via
+`computeResponseMoveValidHexes`), `FREE_MOVE_ATTACK`, `FREE_MOVE_DEFENSE`,
+`GOAL_KICK_SETUP_GK`, `GOAL_KICK_SETUP_OPPONENT`, `GK_BOX_ENTRY_MOVE` (all via
+`computeFreeMoveValidHexes`), `CORNER_KICK_GK_SETUP_ATTACKING`,
+`CORNER_KICK_GK_SETUP_DEFENDING` (bespoke uncapped-placement filters, structurally identical
+to `computeFreeMoveValidHexes`'s occupancy-only shape), `CORNER_KICK_REPOSITION`
+(`computeCornerRepositionValidHexes`), `PENALTY_KICK_SETUP_ATTACKING`,
+`PENALTY_KICK_SETUP_DEFENDING` (`computePenaltyKickValidHexes`), and
+`GK_DIVE_AT_FEET_TARGET` (`computeGkDiveAtFeetTargetHexes`, shared package).
+
+Two of these phases (`HIGH_PASS_MOVE`, `GOAL_KICK_MOVE`) additionally render a _subset_ of
+their `safe`-tinted valid-move hexes as `shot-path-action` where that hex also falls inside
+the header-contest-zone radius — this is the existing, separately documented
+header-contest-zone preview (see section 1's Notes list above), not a phase-level exception:
+the phase's valid-move hexes are still `safe` by default, with that one radius upgraded to a
+different informational tint for the header-contest UX. `MOVE`'s valid-move hexes are
+likewise still `safe` by default even though a _sub-hex_ may separately render `risk` /
+`tackle-risk` when it also carries ZoI-steal or tackle danger — that per-hex risk/safe split
+is the foundational, long-established purpose of the `risk` tint (section 1 above), not a
+phase-level tint exception either.
+
+**The exception set** (`VALID_MOVE_TINT_EXCEPTION_PHASES`, `HexGrid.tsx`) — phases whose
+valid-move hexes deliberately do NOT take `safe`:
+
+| Phase              | Resolved tint instead  | Reason                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GK_DIVE`          | (suppressed — no tint) | Dive-target hexes render via the separate `gkDiveTargetSet` mechanism, never through `validMoveHexes`; `validMoveHexes` is already empty entering this phase (D-28) since no `selectPiece` branch exists for it — the exclusion is defense-in-depth against a stale selection leaking `safe` onto dive-target hexes. Predates Phase 46 (Bug 2 fix).                                   |
+| `SNAPSHOT_DEFLECT` | ⚪ `shot-path` (white) | The defending piece's valid-move hexes intentionally keep the white shot-path tint instead of green — moving to intercept a snapshot is a different UX context than ordinary movement. Predates Phase 46 (Bug 2 fix, snapshot-shot-flow-mismatch BUGFIX).                                                                                                                             |
+| `KICK_OFF_SETUP`   | 🔵 `kickoff` (blue)    | Valid-move hexes fall entirely inside the team's kick-off placement zone, which already renders the dedicated blue `kickoff` zone-info tint (`isKickoffTint`) at higher ternary priority than `safe` — a pre-existing, documented zone-placement affordance (see the `kickoff` row in section 1), not a movement-pattern tint.                                                        |
+| `FREE_KICK_SETUP`  | 🔵 `kickoff` (blue)    | Valid-move hexes fall inside the team's free-kick placement zone, which renders the same dedicated blue `kickoff` tint (`isInMyFreeKickZone`, D-48) at higher ternary priority than `safe` — mirrors the `KICK_OFF_SETUP` placement-zone precedent; independently confirmed by the existing `HexGrid.test.tsx` D-48 suite ("does NOT render the generic safe (green) fill anywhere"). |
+
+**Adding a new movement-pattern phase:** if a future phase populates `validMoveHexes` for a
+new movement pattern, it must either (a) render with the shared `safe` tint by doing nothing
+special — this is the default and requires no changes here — or (b) be added to
+`VALID_MOVE_TINT_EXCEPTION_PHASES` in `HexGrid.tsx` with a one-line reason comment, and this
+table updated to match. Never leave a new phase silently resolving to neither `safe` nor an
+enumerated exception — that is exactly the ad hoc, undocumented drift D-02 exists to prevent.
+
+---
+
 ## Adding a New Highlight
 
 When a future change needs a new hex tint, ring, or overlay color:
