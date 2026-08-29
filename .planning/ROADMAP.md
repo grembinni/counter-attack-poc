@@ -376,7 +376,27 @@ Plans:
 4. Pitch card, roster card, and bench card layout are visually aligned, and any redundant multi-step flow that only ever takes one action is collapsed to a single step.
 5. Dead code identified during the milestone is removed, and the full monorepo build/typecheck/test suite stays green.
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+**Wave 1**
+
+- [ ] 46-01-PLAN.md — Ball-location ring on FREE_KICK_SETUP/FREE_MOVE_* + Free Move trigger heading + highlight-doc resync (CLEANUP-06/08/13)
+- [ ] 46-02-PLAN.md — Store: auto-reselect after interrupt resume + response-move config table consolidation (CLEANUP-05/09/13)
+- [ ] 46-03-PLAN.md — Match Speed into Advanced drawer, Free Kick kicker copy alignment, help-text & redundant-flow audit (CLEANUP-05/07/10/12)
+- [ ] 46-04-PLAN.md — Generic placeholder bench for standard rooms via the CSV seed pipeline (CLEANUP-05/13, D-05..D-09)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 46-05-PLAN.md — Valid-move hex tint consistency set + pitch/roster/bench card alignment (CLEANUP-06/09/11/13, D-02/D-04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 46-06-PLAN.md — Full monorepo green gate, dead-code residue sweep, validation-contract backfill (CLEANUP-13)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 46-07-PLAN.md — Live two-browser verification checkpoint + outcome record (CLEANUP-05/06/10/11)
+
 **UI hint**: yes
 
 ---
