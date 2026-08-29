@@ -983,36 +983,72 @@ describe('SETTINGS-04: substitution succeeds regardless of the four v1.6 toggle 
 // Case 11 (D-12): a STANDARD room reaches a live match with an EMPTY bench
 // ---------------------------------------------------------------------------
 
-describe('D-12: a Standard-mode room reaches a live match with an EMPTY bench', () => {
-  it('D-12: bench.home/away are empty, the broadcast state is otherwise fully valid, and GAME_SUBSTITUTION is rejected INVALID_SUBSTITUTE without erroring the room', async () => {
+describe('Phase 46 D-05..D-09: a Standard-mode room reaches a live match with a generic placeholder bench', () => {
+  it('Phase 46: bench.home/away each carry the 5-player generic placeholder roster (numbers 12-16, one per role), the broadcast state is otherwise fully valid, and a generic bench outfielder substitutes onto the pitch end to end', async () => {
     const { clientA, roomCode, state } = await setupStandardMatch();
 
-    expect(state.bench?.home).toEqual([]);
-    expect(state.bench?.away).toEqual([]);
+    const homeBench = state.bench?.home ?? [];
+    const awayBench = state.bench?.away ?? [];
+    expect(homeBench).toHaveLength(5);
+    expect(awayBench).toHaveLength(5);
     expect(state.subsUsed).toEqual({ home: 0, away: 0 });
     expect(state.addedTimeBonus).toBe(0);
     for (const piece of state.pieces) {
       expect(piece.playerId).toBeDefined();
     }
 
+    for (const entry of [...homeBench, ...awayBench]) {
+      expect(entry.status).toBe('available');
+      expect(entry.jerseyNumber).toBeGreaterThanOrEqual(12);
+      expect(entry.jerseyNumber).toBeLessThanOrEqual(16);
+    }
+    const homeRoles = new Set(
+      homeBench.map((e) => PLAYER_POOL.find((p) => p.id === e.playerId)?.role),
+    );
+    expect(homeRoles.size).toBe(5);
+
+    // Sub a generic bench outfielder in for a home outfield starter during KICK_OFF_SETUP
+    // (first entry of STOPPAGE_PHASES) — proves substitution works end to end through the
+    // unchanged applySubstitution guards, with no generic-player special case (D-09).
+    expect(state.phase).toBe('KICK_OFF_SETUP');
     const outfield = state.pieces.find((p) => p.teamId === 'home' && p.role !== 'GK')!;
-    const before = getRoom(roomCode)!.gameState!;
-    const beforePieces = before.pieces;
-    const beforeBench = before.bench;
-    const beforeSubsUsed = before.subsUsed;
+    const incoming = findBenchEntryByRole(homeBench, 'outfield');
+    const incomingPoolPlayer = PLAYER_POOL.find((p) => p.id === incoming.playerId)!;
+    expect(incomingPoolPlayer.sourceTeamId).toBe('generic-bench-home');
+
+    const stateAPromise = oncePromise(clientA, ServerEvents.GAME_STATE);
+    clientA.emit(ClientEvents.GAME_SUBSTITUTION, {
+      outPieceId: outfield.id,
+      inPlayerId: incoming.playerId,
+    });
+    const [afterSub] = await stateAPromise;
+
+    const slot = afterSub.pieces.find((p) => p.id === outfield.id)!;
+    expect(slot.id).toBe(outfield.id);
+    expect(slot.position).toEqual(outfield.position);
+    expect(slot.playerId).toBe(incomingPoolPlayer.id);
+    expect(slot.firstName).toBe(incomingPoolPlayer.firstName);
+    expect(slot.lastName).toBe(incomingPoolPlayer.lastName);
+    expect(slot.pace).toBe(incomingPoolPlayer.pace);
+    expect(afterSub.subsUsed).toEqual({ home: 1, away: 0 });
+
+    // GK parity (RESEARCH.md Pitfall 6, applySubstitution guard 9, unchanged): the generic
+    // bench GK still cannot be subbed into an outfield slot.
+    const anotherOutfield = afterSub.pieces.find(
+      (p) => p.teamId === 'home' && p.role !== 'GK' && p.id !== outfield.id,
+    )!;
+    const genericGk = findBenchEntryByRole(afterSub.bench!.home, 'GK');
+    const genericGkPoolPlayer = PLAYER_POOL.find((p) => p.id === genericGk.playerId)!;
+    expect(genericGkPoolPlayer.sourceTeamId).toBe('generic-bench-home');
 
     const errorPromise = oncePromise(clientA, ServerEvents.GAME_ERROR);
     clientA.emit(ClientEvents.GAME_SUBSTITUTION, {
-      outPieceId: outfield.id,
-      inPlayerId: PLAYER_POOL[0]!.id,
+      outPieceId: anotherOutfield.id,
+      inPlayerId: genericGk.playerId,
     });
     const [reason] = await errorPromise;
-
-    expect(reason).toBe('INVALID_SUBSTITUTE');
-    expect(getRoom(roomCode)!.gameState!.pieces).toEqual(beforePieces);
-    expect(getRoom(roomCode)!.gameState!.bench).toEqual(beforeBench);
-    expect(getRoom(roomCode)!.gameState!.subsUsed).toEqual(beforeSubsUsed);
-    // A calm empty-bench rejection — the room must not error out or disconnect.
+    expect(reason).toBe('NON_GK_SLOT_REJECTS_GK');
+    expect(getRoom(roomCode)!.gameState!.subsUsed).toEqual({ home: 1, away: 0 });
     expect(clientA.connected).toBe(true);
   }, 30000);
 });

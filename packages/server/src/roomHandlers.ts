@@ -46,6 +46,7 @@ import {
   PLAYER_POOL,
   SELECTABLE_DRAFT_POOLS,
   getSquadPlayers,
+  getGenericBenchPlayers,
 } from '@counter-attack/shared';
 import type { Server, Socket } from 'socket.io';
 import { randomInt } from 'crypto';
@@ -977,19 +978,43 @@ export function registerRoomHandlers(
             status: 'available' as const,
           }));
         } else {
-          // Every non-draft squad in PLAYER_POOL holds exactly 11 players today, so this list
-          // comes out EMPTY for standard rooms. Per D-12 the empty case is deliberately NOT
-          // special-cased anywhere: no pool is consulted, no substitute is generated — the
-          // substitution screen simply shows "no available substitutes" until a future phase
-          // expands rosters. This is expected behavior, not a gap.
+          // Phase 46 (CONTEXT.md D-05..D-09, superseding the prior D-12 stance): every
+          // non-draft squad in PLAYER_POOL holds exactly 11 players today, so the squad-
+          // remainder computation below comes out EMPTY for standard rooms as-is. D-06
+          // identified this phase as the one that supersedes D-12's "expected behavior,
+          // not a gap" position. Rather than leave the bench empty, each side
+          // independently falls back to one of two deliberately generic 5-player
+          // placeholder bench rosters (D-07) — NOT per-team authored data; real per-team
+          // roster depth is an explicit later-milestone concern (D-09). The squad-
+          // remainder path itself is kept (not deleted): it stays live for a future
+          // milestone that authors squads deeper than 11, per D-09's follow-on note.
+          // D-08: injected at exactly this site — the same place confirmedHomeBench/
+          // confirmedAwayBench were already built for standard rooms — per side, only
+          // firing when that side's squad remainder is empty. The bench remains
+          // server-authoritative and is never sourced from the client's confirmedOrder
+          // payload (T-40-11) — that stance is unchanged.
           const homeAssignedIds = new Set(room.homeAssignment ?? []);
           const awayAssignedIds = new Set(room.awayAssignment ?? []);
-          confirmedHomeBench = getSquadPlayers(room.homePickedTeam!)
-            .filter((p) => !homeAssignedIds.has(p.id))
-            .map((p) => ({ playerId: p.id, jerseyNumber: p.number, status: 'available' as const }));
-          confirmedAwayBench = getSquadPlayers(room.awayPickedTeam!)
-            .filter((p) => !awayAssignedIds.has(p.id))
-            .map((p) => ({ playerId: p.id, jerseyNumber: p.number, status: 'available' as const }));
+          const homeSquadRemainder = getSquadPlayers(room.homePickedTeam!).filter(
+            (p) => !homeAssignedIds.has(p.id),
+          );
+          const awaySquadRemainder = getSquadPlayers(room.awayPickedTeam!).filter(
+            (p) => !awayAssignedIds.has(p.id),
+          );
+          const homeBenchPlayers =
+            homeSquadRemainder.length > 0 ? homeSquadRemainder : getGenericBenchPlayers('home');
+          const awayBenchPlayers =
+            awaySquadRemainder.length > 0 ? awaySquadRemainder : getGenericBenchPlayers('away');
+          confirmedHomeBench = homeBenchPlayers.map((p) => ({
+            playerId: p.id,
+            jerseyNumber: p.number,
+            status: 'available' as const,
+          }));
+          confirmedAwayBench = awayBenchPlayers.map((p) => ({
+            playerId: p.id,
+            jerseyNumber: p.number,
+            status: 'available' as const,
+          }));
         }
 
         // D-11: build game state from the confirmed player orderings.
