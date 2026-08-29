@@ -194,28 +194,6 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
         <h2 className={styles.heading}>Game Settings</h2>
 
         <div className={styles.section}>
-          <span className={styles.sectionLabel}>Match Speed</span>
-          <div className={styles.speedOptions}>
-            {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
-              <button
-                key={value}
-                type="button"
-                className={
-                  value === speed
-                    ? `${styles.speedOptionActive} ${styles[colorClass]}`
-                    : `${styles.speedOption} ${styles[colorClass]}`
-                }
-                onClick={() => setSpeed(value)}
-                aria-pressed={value === speed}
-              >
-                <span className={styles.speedIcon}>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.section}>
           <span className={styles.sectionLabel}>Team Type</span>
           <div role="tablist" className={styles.tabs}>
             <button
@@ -286,6 +264,33 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
                     <span className={styles.comingSoon}> (requires Fouls)</span>
                   )}
                 </label>
+                {/* CLEANUP-05 (Phase 46): the speed picker relocated here from its own
+                    top-level section, per the folded "move speed to advanced settings"
+                    todo. Widget, colors, labels, aria contract, and confirmed-payload
+                    behaviour are unchanged — only its location moved. Wrapper reuses
+                    the existing .section class (same spacing this content already had
+                    before the move) rather than introducing a new CSS rule. */}
+                <div className={styles.section}>
+                  <span className={styles.sectionLabel}>Match Speed</span>
+                  <div className={styles.speedOptions}>
+                    {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={
+                          value === speed
+                            ? `${styles.speedOptionActive} ${styles[colorClass]}`
+                            : `${styles.speedOption} ${styles[colorClass]}`
+                        }
+                        onClick={() => setSpeed(value)}
+                        aria-pressed={value === speed}
+                      >
+                        <span className={styles.speedIcon}>{icon}</span>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className={styles.advancedColumn}>
                 <label className={styles.poolRow}>

@@ -17,14 +17,10 @@ async function openAdvanced() {
 }
 
 describe('GameSettingsScreen — renders controls', () => {
-  it('renders the heading, Match Speed picker, Team Type toggle, and Confirm CTA', () => {
+  it('renders the heading, Team Type toggle, and Confirm CTA', () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByText('Game Settings')).toBeTruthy();
-    expect(screen.getByText('Match Speed')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /slow/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /standard/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /fast/i })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Standard' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Draft' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Confirm Settings' })).toBeTruthy();
@@ -194,6 +190,7 @@ describe('GameSettingsScreen — onConfirm payload shape', () => {
   it('speed selection is reflected in the confirmed payload', async () => {
     const onConfirm = vi.fn();
     render(<GameSettingsScreen onConfirm={onConfirm} onBack={vi.fn()} />);
+    await openAdvanced();
 
     await userEvent.click(screen.getByRole('button', { name: /fast/i }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirm Settings' }));
@@ -442,6 +439,20 @@ describe('GameSettingsScreen — Advanced disclosure (SETTINGS-05/06, Phase 44)'
     );
   });
 
+  it('CLEANUP-05 (Phase 46): Match Speed is not rendered on first render, and appears after opening Advanced', async () => {
+    render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    expect(screen.queryByText('Match Speed')).toBeNull();
+    expect(screen.queryByRole('button', { name: /slow/i })).toBeNull();
+
+    await openAdvanced();
+
+    expect(screen.getByText('Match Speed')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /slow/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /standard/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /fast/i })).toBeTruthy();
+  });
+
   it('clicking Advanced reveals all five match-rule checkboxes and sets aria-expanded true; clicking again hides them', async () => {
     render(<GameSettingsScreen onConfirm={vi.fn()} onBack={vi.fn()} />);
     const trigger = screen.getByRole('button', { name: /advanced/i });
@@ -479,6 +490,9 @@ describe('GameSettingsScreen — Advanced disclosure (SETTINGS-05/06, Phase 44)'
     expect(within(leftColumn).getByRole('checkbox', { name: 'Fouls' })).toBeTruthy();
     expect(within(leftColumn).getByRole('checkbox', { name: /^Booking/ })).toBeTruthy();
     expect(within(leftColumn).getByRole('checkbox', { name: /^Injury/ })).toBeTruthy();
+    // CLEANUP-05 (Phase 46): Match Speed relocated here as the left column's 4th row.
+    expect(within(leftColumn).getByText('Match Speed')).toBeTruthy();
+    expect(within(leftColumn).getByRole('button', { name: /slow/i })).toBeTruthy();
 
     expect(
       within(rightColumn).getByRole('checkbox', { name: 'Out-of-Bounds / Restarts' }),
