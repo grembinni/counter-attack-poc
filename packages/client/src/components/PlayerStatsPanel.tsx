@@ -109,12 +109,17 @@ function MiniTokenBadge({ piece }: { piece: PlayerPiece }) {
 /**
  * Flat player card:
  *
- * [TeamBadge 56px] │ [token] Name Surname  [🏳] [ROLE]
- *                  │ [PAC●][SHO●][TAC●][DRI●][SAV●]
- *                  │ [HND●][RES●][AER●][PAS●]
+ * [TeamBadge 48px] │ [token] Name Surname  [🏳] [ROLE]
+ *                  │ [PAC●][SHO●][TAC●]
+ *                  │ [DRI●][AER●][PAS●]
  *
  * Stat badges: green ≥7 / orange 4-6 / red ≤3 (via data-tier CSS attribute selector).
  * Abbreviated labels show full name on hover via `title`.
+ * Phase 46 / CLEANUP-11 + CLEANUP-13: badge size corrected 56px -> 48px to match the
+ * roster/bench card family (LineupAssignmentScreen's LineupStatCard, DraftPackCarousel's
+ * DraftCardBody); stat grid corrected to describe the real 3-column grid of 6 role-filtered
+ * stats (`resilience` always dropped, plus 2 more by role) — CSS (.statGrid) was already
+ * correct, only this comment had drifted.
  */
 export function PlayerStatsPanel() {
   const selectedPieceId = useGameStore((s) => s.selectedPieceId);
@@ -130,7 +135,7 @@ export function PlayerStatsPanel() {
   return (
     <div className={styles.panel}>
       {/* Left column: large team badge */}
-      <TeamBadge teamId={teamId} size={56} full />
+      <TeamBadge teamId={teamId} size={48} full />
 
       {/* Right column: header + 2-row stat grid */}
       <div className={styles.cardBody}>
@@ -155,7 +160,7 @@ export function PlayerStatsPanel() {
           </div>
         </div>
 
-        {/* 4-column stat grid → 2 rows of 4+3 (7 role-filtered stats) */}
+        {/* 3-column stat grid → 2 rows of 3 (6 role-filtered stats; CLEANUP-11/CLEANUP-13) */}
         <div className={styles.statGrid}>
           {STAT_LABELS.filter(([attr]) => {
             if (attr === 'resilience') return false;
