@@ -28,6 +28,9 @@ import { NationFlag } from './NationFlag.js';
 import { CardInjuryBadge, cardColorFor } from './CardInjuryBadge.js';
 import { STAT_LABELS } from './PlayerStatsPanel.js';
 import { LineupAssignmentScreen } from './LineupAssignmentScreen.js';
+import { MatchScoreRow } from './MatchScoreRow.js';
+import { MatchSummaryContent } from './MatchSummaryContent.js';
+import { MatchSummaryModal } from './MatchSummaryModal.js';
 import { SPEED_OPTIONS } from '../constants/speedOptions.js';
 import styles from './GameBoard.module.css';
 
@@ -336,6 +339,9 @@ export function GameBoard() {
   const emitRosterReposition = useGameStore((s) => s.emitRosterReposition);
   // D-19/Pitfall 7: drag/modal-open state is local, never Zustand.
   const [subOpen, setSubOpen] = useState(false);
+  // STATS-01/D-08/D-09 (Phase 45, plan 45-05): standalone match-summary modal
+  // open/closed state. Local, never Zustand — mirrors subOpen immediately above.
+  const [matchSummaryOpen, setMatchSummaryOpen] = useState(false);
   const isSubEligiblePhase = isStoppagePhase(phase);
   // Checkpoint gap-closure (40-07 Task 2 human-verify feedback): T-40-20's original
   // force-close-on-phase-transition useEffect is REMOVED — the panel is now always
@@ -416,6 +422,23 @@ export function GameBoard() {
 
             {/* Centre cell: badges flank clock, then phase summary */}
             <div className={styles.scoreboardCentreCell}>
+              {/* STATS-01/D-08/D-09: always-clickable (i) icon, a real sibling
+                  element positioned above the clock row — .scoreboardCentreCell
+                  is a content-sized centred column, not a cell with pre-reserved
+                  empty space, so this cannot be absolutely positioned into an
+                  assumed gap. No `disabled` prop and no phase condition
+                  anywhere on this control (D-09) — it opens the read-only
+                  summary in every phase, including mid-duel/prompt interrupts. */}
+              <div className={styles.matchSummaryIconRow}>
+                <button
+                  type="button"
+                  className={styles.matchSummaryIconButton}
+                  title="View match summary"
+                  onClick={() => setMatchSummaryOpen(true)}
+                >
+                  i
+                </button>
+              </div>
               <div className={styles.clockRow}>
                 <TeamBadge teamId={selectedTeams['home']} size={28} />
                 <div
@@ -519,36 +542,41 @@ export function GameBoard() {
           {phase === 'HALF_TIME' && (
             <div className={styles.overlay}>
               <div className={styles.overlayCard}>
-                {/* Score row: score | badge | [HALF TIME / 45:00 / KICK OFF] | badge | score */}
-                <div className={styles.halfTimeScoreRow}>
-                  <span className={`${styles.halfTimeScore} ${styles.accentHome}`}>
-                    {score.home}
-                  </span>
-                  <TeamBadge teamId={selectedTeams['home']} size={150} full />
+                {/* Checkpoint 45-05-04 fix (round 2): score row extracted into the
+                    shared MatchScoreRow component (same 120px numerals, same 150px
+                    badges as before — see MatchScoreRow.tsx for rationale). Only the
+                    centre content (HALF TIME / clock / kick-off) stays authored here,
+                    unchanged, since it is unique to this overlay (D-10). */}
+                <MatchScoreRow
+                  center={
+                    <>
+                      <span className={styles.halfTimeKickOff}>HALF TIME</span>
+                      <div className={styles.halfTimeCenterMiddle}>
+                        <span className={styles.halfTimeClock}>45:00</span>
+                        {addedTime !== null && addedTime > 0 && (
+                          <span className={styles.halfTimeAddedTime}>+{addedTime}&prime;</span>
+                        )}
+                      </div>
+                      <div className={styles.halfTimeCenterBottom}>
+                        <span className={styles.halfTimeKickOff}>2ND HALF KICK OFF</span>
+                        <span
+                          className={`${styles.halfTimeKickOff} ${secondHalfKickOffTeam === 'home' ? styles.accentHome : styles.accentAway}`}
+                        >
+                          {secondHalfTeamName.toUpperCase()} TEAM
+                        </span>
+                      </div>
+                    </>
+                  }
+                />
 
-                  {/* Centre column: HALF TIME (top) | clock (mid) | kick-off + team (bottom) */}
-                  <div className={styles.halfTimeCenter}>
-                    <span className={styles.halfTimeKickOff}>HALF TIME</span>
-                    <div className={styles.halfTimeCenterMiddle}>
-                      <span className={styles.halfTimeClock}>45:00</span>
-                      {addedTime !== null && addedTime > 0 && (
-                        <span className={styles.halfTimeAddedTime}>+{addedTime}&prime;</span>
-                      )}
-                    </div>
-                    <div className={styles.halfTimeCenterBottom}>
-                      <span className={styles.halfTimeKickOff}>2ND HALF KICK OFF</span>
-                      <span
-                        className={`${styles.halfTimeKickOff} ${secondHalfKickOffTeam === 'home' ? styles.accentHome : styles.accentAway}`}
-                      >
-                        {secondHalfTeamName.toUpperCase()} TEAM
-                      </span>
-                    </div>
-                  </div>
-
-                  <TeamBadge teamId={selectedTeams['away']} size={150} full />
-                  <span className={`${styles.halfTimeScore} ${styles.accentAway}`}>
-                    {score.away}
-                  </span>
+                {/* STATS-02/D-10/D-11 (Phase 45, plan 45-05): the shared stats
+                    block appended below the untouched score header and above
+                    the untouched proceed control. No standalone title here —
+                    the HALF TIME header above already serves that role
+                    (45-UI-SPEC.md). */}
+                <hr className={styles.embeddedSummaryDivider} />
+                <div className={styles.embeddedSummaryWrapper}>
+                  <MatchSummaryContent />
                 </div>
 
                 {/* Start 2nd Half — D-16 mutual-confirm gate replaces the D-28 single-team
@@ -575,24 +603,24 @@ export function GameBoard() {
           {phase === 'FULL_TIME' && (
             <div className={styles.overlay}>
               <div className={styles.overlayCard}>
-                {/* Score row: home score | home badge | [90:00 / result] | away badge | away score */}
-                <div className={styles.halfTimeScoreRow}>
-                  <span className={`${styles.halfTimeScore} ${styles.accentHome}`}>
-                    {score.home}
-                  </span>
-                  <TeamBadge teamId={selectedTeams['home']} size={150} full />
-                  <div className={styles.halfTimeCenter}>
+                {/* Checkpoint 45-05-04 fix (round 2): same shared MatchScoreRow shell as
+                    the HALF_TIME overlay above — only the centre content differs. */}
+                <MatchScoreRow
+                  center={
                     <div className={styles.halfTimeCenterMiddle}>
                       <span className={styles.halfTimeClock}>90:00</span>
                       <span className={styles.halfTimeAddedTime} style={{ color: resultColor }}>
                         {resultText}
                       </span>
                     </div>
-                  </div>
-                  <TeamBadge teamId={selectedTeams['away']} size={150} full />
-                  <span className={`${styles.halfTimeScore} ${styles.accentAway}`}>
-                    {score.away}
-                  </span>
+                  }
+                />
+
+                {/* STATS-02/D-10/D-11 (Phase 45, plan 45-05): same block as the
+                    HALF_TIME overlay above — no forked rendering logic. */}
+                <hr className={styles.embeddedSummaryDivider} />
+                <div className={styles.embeddedSummaryWrapper}>
+                  <MatchSummaryContent />
                 </div>
 
                 {/* Transition notice */}
@@ -647,6 +675,14 @@ export function GameBoard() {
               </div>
             </div>
           )}
+
+          {/* STATS-01/D-08/D-09 (Phase 45, plan 45-05): standalone match-summary
+              modal, rendered adjacent to the substitution overlay block above,
+              inside .pitchContainer's DOM subtree (NOT a portal) so the
+              --home-accent/--away-accent/--team-accent custom properties
+              injected on this component's root (rootStyle above) inherit
+              correctly. */}
+          {matchSummaryOpen && <MatchSummaryModal onClose={() => setMatchSummaryOpen(false)} />}
         </div>
 
         {/* SUB-01/D-03: persistent roster affordance, mirrored to the opposite edge from

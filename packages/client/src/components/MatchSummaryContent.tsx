@@ -1,7 +1,57 @@
 import { useState } from 'react';
-import type { MatchStats } from '@counter-attack/shared';
+import type { GameSpeed, MatchStats } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import styles from './MatchSummaryContent.module.css';
+
+/**
+ * Checkpoint 45-05-04 fix (deviation — outside plan 45-05's original scope,
+ * this file belongs to plan 45-04): bubble color variant for the settings
+ * recap, requested verbatim by the developer during live checkpoint
+ * verification ("use bubbles like for speed - red for disabled, green for
+ * enabled"). The five boolean toggles use a strict red/green binary; Speed
+ * is not a toggle, so it reuses its own established per-speed hue from
+ * GameSettingsScreen.module.css/tokens.css rather than being forced into
+ * red/green. Referee Leniency's rule was corrected in round 4 (see the
+ * `refereeLeniency` recap item below) — green for the DEFAULT (Auto)
+ * setting, red when manually overridden.
+ */
+type SettingsBubbleVariant = 'green' | 'red' | 'speedSlow' | 'speedStandard' | 'speedFast';
+
+const SPEED_LABEL: Record<GameSpeed, string> = {
+  slow: 'Slow',
+  standard: 'Standard',
+  fast: 'Fast',
+};
+
+const SPEED_VARIANT: Record<GameSpeed, SettingsBubbleVariant> = {
+  slow: 'speedSlow',
+  standard: 'speedStandard',
+  fast: 'speedFast',
+};
+
+/**
+ * Checkpoint 45-05-04 fix (round 3 — developer feedback verbatim: "on game
+ * stats popup display the same number of settings per row and center
+ * settings instead of left aligning them"): the recap's 7 current bubbles
+ * (Speed + 5 boolean toggles + Referee Leniency) previously flowed as a
+ * single left-aligned `flex-wrap` row, wrapping at a width-dependent,
+ * unpredictable point (a "ragged" split, e.g. 6+1 on some widths). Chunking
+ * into fixed-size rows of `RECAP_COLUMNS` gives a deterministic, even split
+ * (4+3 for the current 7 items, matching the developer's own example)
+ * instead of a width-dependent one, and each row is centered independently
+ * via `justify-content: center` on its own flex line (see `.recapRow` in
+ * MatchSummaryContent.module.css).
+ */
+const RECAP_COLUMNS = 4;
+
+/** Splits `items` into fixed-size chunks of `size` (last chunk may be shorter). */
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
 
 /** Copywriting Contract (45-UI-SPEC.md): static xG explainer copy, verbatim. */
 const XG_EXPLAINER_TEXT =
@@ -147,34 +197,77 @@ export function MatchSummaryContent() {
   const outOfBoundsEnabled = useGameStore((s) => s.gameState.outOfBoundsEnabled);
   const tackleStealDeclineEnabled = useGameStore((s) => s.gameState.tackleStealDeclineEnabled);
   const refereeCard = useGameStore((s) => s.gameState.refereeCard);
+  // Checkpoint 45-05-04 fix: D-13 originally scoped Game Speed OUT of this
+  // recap ("not requested; treat as out of scope for STATS-03 unless
+  // trivial to include without disrupting the inline format"). The
+  // developer explicitly requested it be added during live verification
+  // ("setting info is missing speed") — this is a deliberate, developer-
+  // directed override of D-13, documented here and in SUMMARY.md rather
+  // than silently expanding scope.
+  const gameSpeed = useGameStore((s) => s.gameState.gameSpeed);
 
   // Local accordion open/closed state (plain conditional render, mirrors the
   // existing Advanced-drawer disclosure pattern in GameSettingsScreen.tsx —
   // no portal, no tooltip library, works identically on mouse and touch.
   const [xgExplainerOpen, setXgExplainerOpen] = useState(false);
 
-  // D-12/D-13/PD-17: six parenthetical toggle:state pairs, declared once as a
-  // local array rather than hand-written six times. Every optional boolean is
-  // read with `=== true`, never bare truthiness (existing codebase convention
-  // documented on each field's own doc comment in types.ts).
+  // D-12/D-13/PD-17 as amended by the checkpoint 45-05-04 fix: seven colored-
+  // bubble toggle:state pairs (Speed added, see gameSpeed comment above;
+  // parenthetical-text rendering replaced with bubbles per the developer's
+  // explicit request), declared once as a local array rather than hand-
+  // written seven times. Every optional boolean is read with `=== true`,
+  // never bare truthiness (existing codebase convention documented on each
+  // field's own doc comment in types.ts).
   const refereeMode = refereeCard.wasManualOverride === true ? 'Manual' : 'Auto';
-  const recapItems: { key: string; text: string }[] = [
-    { key: 'fouls', text: `(Fouls: ${foulsEnabled === true ? 'Active' : 'Off'})` },
-    { key: 'booking', text: `(Booking: ${bookingEnabled === true ? 'Active' : 'Off'})` },
-    { key: 'injury', text: `(Injury: ${injuryEnabled === true ? 'Active' : 'Off'})` },
+  const recapItems: { key: string; text: string; variant: SettingsBubbleVariant }[] = [
+    { key: 'speed', text: `Speed: ${SPEED_LABEL[gameSpeed]}`, variant: SPEED_VARIANT[gameSpeed] },
+    {
+      key: 'fouls',
+      text: `Fouls: ${foulsEnabled === true ? 'Active' : 'Off'}`,
+      variant: foulsEnabled === true ? 'green' : 'red',
+    },
+    {
+      key: 'booking',
+      text: `Booking: ${bookingEnabled === true ? 'Active' : 'Off'}`,
+      variant: bookingEnabled === true ? 'green' : 'red',
+    },
+    {
+      key: 'injury',
+      text: `Injury: ${injuryEnabled === true ? 'Active' : 'Off'}`,
+      variant: injuryEnabled === true ? 'green' : 'red',
+    },
     {
       key: 'outOfBounds',
-      text: `(Out-of-Bounds: ${outOfBoundsEnabled === true ? 'Active' : 'Off'})`,
+      text: `Out-of-Bounds: ${outOfBoundsEnabled === true ? 'Active' : 'Off'}`,
+      variant: outOfBoundsEnabled === true ? 'green' : 'red',
     },
     {
       key: 'refereeLeniency',
-      text: `(Referee Leniency: ${refereeMode} — ${refereeCard.leniency})`,
+      text: `Referee Leniency: ${refereeMode} — ${refereeCard.leniency}`,
+      // Checkpoint 45-05-04 fix, round 4 (developer feedback verbatim:
+      // "swap the red/green rule for ref leniency show it shows green if
+      // its teh default setting (auto)"). Round 1 shipped the opposite
+      // direction (green only when manually overridden). Flipped: green
+      // for the DEFAULT (Auto, wasManualOverride !== true), red for the
+      // non-default/overridden state — matching this recap's existing
+      // "green = at rest/on, red = touched/off" reading applied to
+      // "is this at its default" rather than "was it touched."
+      variant: refereeCard.wasManualOverride === true ? 'red' : 'green',
     },
     {
       key: 'tackleStealDecline',
-      text: `(Tackle/Steal Decline: ${tackleStealDeclineEnabled === true ? 'On' : 'Off'})`,
+      text: `Tackle/Steal Decline: ${tackleStealDeclineEnabled === true ? 'On' : 'Off'}`,
+      variant: tackleStealDeclineEnabled === true ? 'green' : 'red',
     },
   ];
+
+  const BUBBLE_VARIANT_CLASS: Record<SettingsBubbleVariant, string | undefined> = {
+    green: styles.settingsBubbleGreen,
+    red: styles.settingsBubbleRed,
+    speedSlow: styles.settingsBubbleSpeedSlow,
+    speedStandard: styles.settingsBubbleSpeedStandard,
+    speedFast: styles.settingsBubbleSpeedFast,
+  };
 
   const possessionActionCount = readPair(matchStats, 'possessionActionCount');
   const passesCompleted = readPair(matchStats, 'passesCompleted');
@@ -190,9 +283,18 @@ export function MatchSummaryContent() {
     <div className={styles.root}>
       <div className={styles.settingsSection}>
         <div className={styles.sectionLabel}>SETTINGS</div>
-        <div className={styles.recapRow}>
-          {recapItems.map((item) => (
-            <span key={item.key}>{item.text}</span>
+        <div className={styles.recapGrid}>
+          {chunk(recapItems, RECAP_COLUMNS).map((row) => (
+            <div key={row[0]?.key ?? 'empty-row'} className={styles.recapRow}>
+              {row.map((item) => (
+                <span
+                  key={item.key}
+                  className={`${styles.settingsBubble} ${BUBBLE_VARIANT_CLASS[item.variant] ?? ''}`}
+                >
+                  {item.text}
+                </span>
+              ))}
+            </div>
           ))}
         </div>
       </div>

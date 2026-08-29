@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore.js';
-import { hexDistance, FREE_KICK_STAGES, freeKickStageTeam } from '@counter-attack/shared';
+import {
+  hexDistance,
+  FREE_KICK_STAGES,
+  freeKickStageTeam,
+  isActivePiece,
+} from '@counter-attack/shared';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { ctaColorClass } from '../utils/ctaColorClass.js';
 import { restartErrorMessage } from '../utils/restartErrorMessage.js';
@@ -91,7 +96,15 @@ export function FreeKickSetupPanel() {
   }
 
   // My pieces — used for the D-50/D-54 constraint preview rows.
-  const myPieces = pieces.filter((p) => p.teamId === myTeam);
+  // Deviation (checkpoint 45-05-04 fix, developer-reported blocking bug): filtered
+  // through the shared BUG-38 `isActivePiece` predicate — a red-carded/sent-off
+  // piece keeps a live on-pitch `position` (server-authoritative-correct check at
+  // gameEngine.ts already excludes it via isActivePiece), but this client-side
+  // panel independently recomputed the same "too close" constraint from raw
+  // `pieces` without the same exclusion, producing a false-positive
+  // "Defending zone: N player(s) too close" block that disabled Confirm even
+  // when the server would have accepted ending the turn.
+  const myPieces = pieces.filter((p) => p.teamId === myTeam && isActivePiece(p));
 
   // D-54 (supersedes D-51): mandatory kicker-first placement — checked on EVERY kicking
   // stage (0 and 2), not just the old stage-2-only D-51 end-of-stage check. The kicker is

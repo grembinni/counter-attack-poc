@@ -1,0 +1,50 @@
+/* MatchScoreRow — Phase 45 (Game Summary Popup, plan 45-05), checkpoint
+   45-05-04 round-2 fix: the single shared big score-row shell (score
+   numeral + 150px TeamBadge + caller-supplied centre content + 150px
+   TeamBadge + score numeral). Extracted VERBATIM from
+   GameBoard.module.css's `.halfTimeScoreRow`/`.halfTimeScore`/
+   `.halfTimeCenter` (same values, same sizes) so the HALF_TIME/FULL_TIME
+   overlay and the standalone MatchSummaryModal render the IDENTICAL visual
+   treatment — never a second, smaller, invented variant (developer
+   feedback: "use the original size and display of the half time score on
+   the realtime pop... why are they 2 different elements"). */
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Large score numeral — 120px, Courier — unchanged value from the prior
+   GameBoard.module.css `.halfTimeScore`. */
+.scoreNumeral {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 120px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.accentHome {
+  color: var(--home-accent);
+}
+
+.accentAway {
+  color: var(--away-accent);
+}
+
+/* Centre column: stretches to badge height, holds caller-supplied content
+   (HALF_TIME/FULL_TIME's own three-section HALF TIME/clock/kick-off
+   layout, or the standalone modal's live clock). `justify-content: center`
+   is a no-op for the HALF_TIME/FULL_TIME case (their own middle section
+   already carries `flex: 1` and consumes all free space before
+   justify-content has anything left to distribute) but vertically centers
+   simpler single-element centre content, such as the modal's clock. */
+.centerColumn {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

@@ -408,28 +408,31 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     freeMoveEligibleIds: { attack: [], defense: ['away-0'] },
   };
 
-  it('active player sees the Position for Kick helper text (attacking team) and a Confirm button', () => {
+  it('active player sees the Free Move helper text (attacking team) and a Confirm button', () => {
     useGameStore.setState({
       gameState: freeMoveAttackBaseState,
       playerSlot: 1,
     });
     render(<ActionPanel />);
-    // PANEL-01: line-1 is a short title; line-2 explains the mechanic + eligible-player count
-    expect(screen.getByText('Position for Kick!')).toBeDefined();
+    // PANEL-01: line-1 is a short title; line-2 explains the mechanic + eligible-player count.
+    // Checkpoint 45-05-04 fix: was "Position for Kick!", which combined with the
+    // "Actions" PanelShell heading to read as the mangled "Actions Position for
+    // Kick!" and had nothing to do with a kick (this is a final-third free move).
+    expect(screen.getByText('Free Move!')).toBeDefined();
     expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
   });
 
-  it('active player sees the Position for Kick helper text (defending team) during FREE_MOVE_DEFENSE', () => {
+  it('active player sees the Free Move helper text (defending team) during FREE_MOVE_DEFENSE', () => {
     useGameStore.setState({
       gameState: freeMoveDefenseBaseState,
       playerSlot: 2, // away is active during FREE_MOVE_DEFENSE here
     });
     render(<ActionPanel />);
     // PANEL-01: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
-    expect(screen.getByText('Position for Kick!')).toBeDefined();
+    expect(screen.getByText('Free Move!')).toBeDefined();
     expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();

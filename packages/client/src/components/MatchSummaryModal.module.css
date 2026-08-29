@@ -1,0 +1,134 @@
+/* MatchSummaryModal — Phase 45 (Game Summary Popup, plan 45-05): standalone
+   on-demand modal chrome hosting the shared `MatchSummaryContent` block
+   (D-11). Modeled directly on existing precedent per 45-UI-SPEC.md's
+   "Modal chrome — standalone on-demand popup" section — no new visual
+   pattern is invented here.
+
+   z-index: 30, deliberately HIGHER than `.substitutionOverlay`'s z-index: 20
+   in GameBoard.module.css — D-09 requires this popup to open in every phase
+   including mid-duel interrupt prompts, so it must never be occluded by any
+   other overlay currently in the app. */
+
+/* ─── Backdrop ────────────────────────────────────────────────────────────── */
+
+.matchSummaryOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-backdrop);
+  z-index: 30;
+}
+
+/* ─── Card ────────────────────────────────────────────────────────────────── */
+
+/* Modeled on GameBoard.module.css's `.overlayCard` verbatim (max-width,
+   background, border, radius, padding, gap), plus `max-height: 85vh` so the
+   card never exceeds the viewport regardless of stat-list length. */
+.matchSummaryCard {
+  width: 100%;
+  max-width: 760px;
+  max-height: 85vh;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── Header row — pinned outside the scroll region ─────────────────────── */
+
+/* Checkpoint 45-05-04 fix: the corner `×` icon-button (and its
+   `.closeIconButton` class) was removed per developer request — the
+   footer `.footerButton` below is now the sole dismiss control. `.header`
+   keeps `justify-content: center` (was `space-between`, needed only to
+   balance the removed right-pinned `×`) since it now hosts a single
+   centered child. */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Display style (20/700) per 45-UI-SPEC.md's Typography contract — reuses
+   GameSettingsScreen.module.css's `.heading` size verbatim. Centered within
+   the header row per all 3 reference images' centered-title convention. */
+.title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ─── Score row centre content (checkpoint 45-05-04 fix, round 2) ────────── */
+
+/* Round 1 defined its own `.scoreboardRow`/`.scoreNumeral`/`.accentHome`/
+   `.accentAway` here for a smaller, improvised score row. Round 2 replaced
+   that with the shared `MatchScoreRow` component (see MatchScoreRow.tsx) —
+   same 150px badges / 120px numerals as the HALF_TIME/FULL_TIME overlay,
+   never a second smaller variant. Only this modal's CENTRE content (the
+   live clock) is still styled locally, since it is unique to this call
+   site — matches `.clockDisplay` (GameBoard.module.css) verbatim: 36px
+   gold bold, no font-family override. */
+.clockText {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-accent-gold);
+  line-height: 1;
+}
+
+/* ─── Scrollable body ─────────────────────────────────────────────────────── */
+
+/* `MatchSummaryContent` itself gets this max-height so the header title and
+   the footer Close button stay pinned/visible even when the stat list
+   needs to scroll. Checkpoint 45-05-04 fix, round 4: explicit `width: 100%`
+   added — this is the first ancestor of `MatchSummaryContent`'s `.root`
+   inside the modal, so an explicit width here guarantees the settings
+   recap rows (round 4) center against the popup's actual content width
+   rather than an implicitly-sized box. */
+.scrollBody {
+  width: 100%;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* ─── Footer — pinned outside the scroll region ──────────────────────────── */
+
+.footer {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Checkpoint 45-05-04 fix (deviation, "close needs to be a standard button
+   color instead of black"): the original `.overlayCtaButton`-copy defaulted
+   to `--color-bg-surface-alt` (#262626, a near-black neutral shared by
+   EVERY CTA in the app at rest, including Start 2nd Half/Confirm/Cancel —
+   the "standard" convention the developer was reacting against). Recolored
+   to the app's other existing standard-button pattern instead:
+   `--color-cta-ready-bg`/`--color-cta-ready-bg-hover`, the same solid-green
+   pair `LineupAssignmentScreen.module.css`'s `.resumeButton` already uses
+   for its own dismiss-and-return-to-the-match action (the milestone's
+   documented "green Resume button replaces the small close (X)" pattern —
+   PROJECT.md v1.7 Substitution UX Overhaul). Sizing/padding/font stay this
+   modal's own compact footprint (not the larger `.rosterActionButton`
+   scale), since that pattern was designed for a full-screen panel, not a
+   760px-max-width modal. */
+.footerButton {
+  background: var(--color-cta-ready-bg);
+  color: var(--color-text-inverse);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 4px;
+  padding: 10px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.footerButton:hover {
+  background: var(--color-cta-ready-bg-hover);
+}

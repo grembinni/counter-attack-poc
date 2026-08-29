@@ -716,7 +716,16 @@ export function ActionPanel() {
     return (
       <PanelShell>
         <div className={styles.helperBlock}>
-          <span className={styles.helperLine1}>Position for Kick!</span>
+          {/* Deviation (checkpoint 45-05-04 fix, developer-reported bug): the
+              prior "Position for Kick!" text combined with the "Actions"
+              PanelShell heading directly above it to read as the mangled
+              phrase "Actions Position for Kick!" — it also had nothing to
+              do with a kick at all (this is the final-third free-move
+              phase, not a restart). Renamed to match this file's existing
+              short-noun-phrase-plus-exclamation convention (Move!, Loose
+              Ball!, Quick Throw!, …) and GameBoard.tsx's own "FREE MOVE"
+              phase-label wording. */}
+          <span className={styles.helperLine1}>Free Move!</span>
           <span className={styles.helperLine2}>
             {`${remaining} players still eligible to move — up to 6 hexes each, regardless of remaining pace.`}
           </span>
