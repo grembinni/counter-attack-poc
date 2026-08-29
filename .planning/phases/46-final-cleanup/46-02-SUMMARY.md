@@ -110,3 +110,12 @@ None - no external service configuration required.
 ---
 *Phase: 46-final-cleanup*
 *Completed: 2026-08-29*
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/46-final-cleanup/46-02-SUMMARY.md`
+- FOUND: `packages/client/src/store/useGameStore.ts`
+- FOUND: `packages/client/src/store/useGameStore.test.ts`
+- FOUND: commit `54a60730` (feat(46-02): preserve mid-move selection on interrupt-prompt resume)
+- FOUND: commit `1df461d5` (refactor(46-02): collapse response-move phase-config dispatch into one table)
+- FOUND: commit `1ac09b5e` (docs(46-02): complete plan)
