@@ -728,10 +728,9 @@ export function ActionPanel() {
               Phase 46 / CLEANUP-08: the resulting "Free Move!" heading still
               gave the player no indication of what triggered this phase,
               unlike every restart panel whose heading names the restart by
-              definition (e.g. "Goal Kick", "Corner Kick"). Renamed again to
-              "Final-Third Movement!" to name the actual trigger — the ball
-              entering a final third — per 46-UI-SPEC.md's Copywriting
-              Contract. */}
+              definition (e.g. "Goal Kick", "Corner Kick"). Renamed again below
+              to name the actual trigger — the ball entering a final third —
+              per 46-UI-SPEC.md's Copywriting Contract. */}
           <span className={styles.helperLine1}>Final-Third Movement!</span>
           <span className={styles.helperLine2}>
             {`${remaining} players still eligible to move — up to 6 hexes each, regardless of remaining pace.`}
