@@ -112,8 +112,14 @@ export function FreeKickSetupPanel() {
   // applyFreeKickMove), so "kicker placed" is simply "any of my pieces is already locked."
   // Once locked, this constraint stays satisfied for the rest of free-kick setup — it is
   // never re-checked against current piece position, since the kicker can never move again.
-  const kickerLocked = isKicking && myPieces.some((p) => movedPieceIds.includes(p.id));
+  // CLEANUP-10 (Phase 46): resolved to the piece itself (not just a boolean) so the
+  // locked-kicker row below can name them, matching ThrowInSetupPanel's "Thrower: #N Name"
+  // shape without a second, separate lookup.
   const checksKickerPlacement = isKicking;
+  const kickerPiece = checksKickerPlacement
+    ? (myPieces.find((p) => movedPieceIds.includes(p.id)) ?? null)
+    : null;
+  const kickerLocked = kickerPiece !== null;
   const kickerConstraintValid = checksKickerPlacement ? kickerLocked : true;
 
   // D-50 (defending team's stages — index 1 and 3): no piece within 2 hexes of freeKickHex.
@@ -209,9 +215,37 @@ export function FreeKickSetupPanel() {
         </span>
       )}
 
-      {checksKickerPlacement && !kickerLocked && (
+      {/* CLEANUP-10 (Phase 46): kicker-selection language brought into the same
+          "select then this becomes locked" family PenaltyKickSetupPanel/CornerKickSetupPanel/
+          ThrowInSetupPanel already use — the constraint mechanism is now stated explicitly
+          (46-UI-SPEC.md Copywriting Contract), rather than only implied by the red error row
+          below. This alignment is language-only; FREE_KICK_STAGES/freeKickStageTeam mechanics
+          are deliberately unchanged (per CONTEXT.md D-03 / RESEARCH.md CLEANUP-10 minimum-scope
+          guidance). Neutral treatment (not red) — this is an instruction, not an error. Shown
+          only during the explicit kicker-selection sub-step so it never renders alongside the
+          reworded red row below (which restates the same requirement for every OTHER
+          not-yet-locked case, e.g. freeKickKickerChosen still null). */}
+      {isKickerSelectionPhase && (
+        <span className={styles.constraintRow}>
+          Move a player onto the kick spot to become the kicker.
+        </span>
+      )}
+
+      {/* CLEANUP-10 (Phase 46): once locked, name the kicker in the same
+          "Thrower: #N Name" shape ThrowInSetupPanel already uses. */}
+      {checksKickerPlacement && kickerLocked && kickerPiece && (
+        <span className={styles.constraintRow}>
+          {`Kicker: #${kickerPiece.number} ${kickerPiece.firstName} ${kickerPiece.lastName}`}
+        </span>
+      )}
+
+      {/* Reworded (CLEANUP-10, Phase 46): restates the blocking constraint rather than
+          repeating the how-to already covered by the instruction row above — guarded off
+          whenever isKickerSelectionPhase is showing that row, so the panel never renders
+          two rows describing the same requirement at once. */}
+      {checksKickerPlacement && !kickerLocked && !isKickerSelectionPhase && (
         <span className={styles.constraintRow} style={{ color: 'var(--color-danger)' }}>
-          Kicker: move a player onto the free-kick hex first — required before any other move
+          Kicker required before any other move.
         </span>
       )}
 
