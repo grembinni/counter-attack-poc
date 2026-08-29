@@ -25,6 +25,8 @@
  *   seattle    → p156–p166
  *   spain      → p167–p177
  *   usmnt      → p178–p188
+ *   generic-bench-home → p189–p193 (Phase 46 D-07: placeholder bench, see below)
+ *   generic-bench-away → p194–p198 (Phase 46 D-07: placeholder bench, see below)
  */
 
 import { createReadStream, writeFileSync } from 'fs';
@@ -53,6 +55,12 @@ const ROLE_MAP: Record<string, 'GK' | 'DEF' | 'MID' | 'FWD' | 'ST'> = {
 
 // ROLE_ORDER: for jersey number assignment (D-04, Pattern 2)
 const ROLE_ORDER = ['GK', 'DEF', 'MID', 'FWD', 'ST'] as const;
+
+// Phase 46 / CONTEXT.md D-07: the two generic placeholder bench groups. These slugs get
+// jersey numbers offset above the starting XI's 1-11 range (46-RESEARCH.md Pitfall 3:
+// bench numbers must never collide with the starting XI).
+const GENERIC_BENCH_SLUGS: Set<string> = new Set(['generic-bench-home', 'generic-bench-away']);
+const GENERIC_BENCH_NUMBER_OFFSET = 11;
 
 // Formation positions (home-side only; away mirrored at runtime via q = 36 - q_home)
 type HexCoord = { q: number; r: number };
@@ -221,6 +229,7 @@ interface PlayerEntry {
 function buildSquadEntries(
   rawPlayers: RawPlayer[],
   sourceTeamId: string,
+  numberOffset: number = 0,
 ): Omit<PlayerEntry, 'id'>[] {
   // Sort by ROLE_ORDER to assign numbers GK=1 first (D-04, Pattern 2)
   const sorted = [...rawPlayers].sort((a, b) => {
@@ -233,7 +242,7 @@ function buildSquadEntries(
   const roleCount: Record<string, number> = {};
 
   return sorted.map((p, i) => {
-    const number = i + 1;
+    const number = i + 1 + numberOffset;
     const roleIdx = roleCount[p.role] ?? 0;
     roleCount[p.role] = roleIdx + 1;
 
@@ -359,7 +368,8 @@ async function main() {
         });
       }
     } else {
-      const entries = buildSquadEntries(rawPlayers, slug);
+      const numberOffset = GENERIC_BENCH_SLUGS.has(slug) ? GENERIC_BENCH_NUMBER_OFFSET : 0;
+      const entries = buildSquadEntries(rawPlayers, slug, numberOffset);
       for (const e of entries) {
         allEntries.push({ id: `p${String(counter++).padStart(3, '0')}`, ...e });
       }
@@ -367,7 +377,8 @@ async function main() {
   }
 
   // WR-07: Fail-fast count assertion before writing output
-  const EXPECTED_TOTAL = 188;
+  // Phase 46 D-07: 188 existing players + 10 generic bench placeholders (5 home, 5 away)
+  const EXPECTED_TOTAL = 198;
   if (allEntries.length !== EXPECTED_TOTAL) {
     throw new Error(
       `Expected ${EXPECTED_TOTAL} players, got ${allEntries.length}. Check player-pool.csv.`,

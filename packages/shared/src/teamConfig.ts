@@ -408,3 +408,17 @@ export const TEAM_CONFIGS: Record<TeamId, TeamConfig> = {
 export function getSquadPlayers(teamId: TeamId): PoolPlayer[] {
   return PLAYER_POOL.filter((p) => p.sourceTeamId === teamId);
 }
+
+/** Phase 46 D-07: generic placeholder-bench sourceTeamId values. Deliberately absent from
+ * TEAM_CONFIGS (not free-agent, no poolTag) so they never leak into any DraftPoolId — see
+ * `resolvePoolPlayers` leakage test in teams.test.ts. */
+export const GENERIC_BENCH_HOME_TEAM_ID = 'generic-bench-home';
+export const GENERIC_BENCH_AWAY_TEAM_ID = 'generic-bench-away';
+
+/** Phase 46 D-05..D-09: Mirrors getSquadPlayers for the two generic placeholder benches —
+ * gives standard (non-Draft) rooms a usable 5-player bench per side. Deliberately minimal:
+ * two constants and one filter, not a per-team bench-composition system (D-09). */
+export function getGenericBenchPlayers(side: 'home' | 'away'): PoolPlayer[] {
+  const sourceTeamId = side === 'home' ? GENERIC_BENCH_HOME_TEAM_ID : GENERIC_BENCH_AWAY_TEAM_ID;
+  return PLAYER_POOL.filter((p) => p.sourceTeamId === sourceTeamId);
+}
