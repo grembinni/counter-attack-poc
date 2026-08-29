@@ -262,22 +262,25 @@ const midMovePieceId = resumingFromInterrupt
 
 **If this table is empty:** N/A — see entries above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE` also be added to `BALL_MARKER_PHASES`?**
    - What we know: they are currently excluded, alongside ordinary `MOVE`/`PASS`, described as "standard-turn phases where ball position is already legible."
    - What's unclear: whether the ball is genuinely "live" (in normal open play, just paused for repositioning) during these phases, in which case exclusion is correct, or whether it's functionally a dead-ball moment like every other restart, in which case it's a second instance of the `FREE_KICK_SETUP` bug.
    - Recommendation: confirm against the rulebook/existing game-flow understanding during planning; low-risk either way (one-line fix if needed).
+   - **RESOLVED (planning, Plan 46-01):** Both phases ARE added to `BALL_MARKER_PHASES`. `packages/server/src/gameEngine.ts`'s `applyFreeMove` never writes `state.ball` (own event comment: "Ball unchanged during FREE_MOVE") — confirming the ball is dead during this window, the same as every other restart. Set size goes 32 → 35. Flagged as the sceptical live-verification check in Plan 46-07 with a documented one-line revert path if the live behavior disagrees.
 
 2. **How much of CLEANUP-07's "every step of a multi-step phase has help text" should be re-verified beyond the v1.6/v1.7-era surfaces this research spot-checked?**
    - What we know: every phase this research read (all 6 restart panels, all 4 interrupt panels, all response-move branches in `ActionPanel.tsx`) already has adequate help text.
    - What's unclear: whether older, pre-v1.6 UI (e.g. very early `MOVE`/`SHOT`/`HEADER` flows not re-touched since Phase 8-18) has any gaps, since this research's time budget concentrated on the newer, most-likely-to-be-incomplete surfaces.
    - Recommendation: treat as low-priority/best-effort during execution rather than blocking the phase — no gap was found in what was checked, and CONTEXT.md D-01 already frames this whole audit as open-ended.
+   - **RESOLVED (planning, Plan 46-03 Task 3):** Full `GamePhase`-union audit performed, covering pre-v1.6 surfaces this research pass did not reach, closing the open-endedness with a bounded, executor-verifiable task rather than leaving it best-effort.
 
 3. **Exact CSV data-pipeline mechanics for the bench patch (Pitfall 2)** were not directly inspected (`packages/shared/scripts/seed-rosters.ts` and `packages/shared/src/data/*.csv` were not read in this research pass, only referenced from `teams.ts`'s header comment).
    - What we know: a `pnpm run seed:rosters` script exists and regenerates `teams.ts` from CSV.
    - What's unclear: how much friction adding 10 rows to a new or existing CSV file actually involves versus a direct hand-edit.
    - Recommendation: planner/executor should open `packages/shared/scripts/seed-rosters.ts` and the `data/` directory directly at implementation time to make this call — this is a 5-minute look, deliberately deferred rather than spent here given the exhaustive scope of the rest of this phase's audit.
+   - **RESOLVED (planning, Plan 46-04 Task 1):** CSV route chosen over hand-editing the auto-generated `teams.ts`. The 10 new placeholder `PoolPlayer` rows are appended to the CSV source and regenerated via `pnpm run seed:rosters`, keeping `teams.ts` genuinely generated and avoiding the drift risk Pitfall 2 warned about.
 
 ## Environment Availability
 
