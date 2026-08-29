@@ -24,7 +24,7 @@ import { buildServer } from '../createServer.js';
 import { clearAllRooms } from '../roomStore.js';
 import { confirmDefaultRoomSettings } from './testHelpers.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '@counter-attack/shared';
-import { ClientEvents, ServerEvents } from '@counter-attack/shared';
+import { ClientEvents, ServerEvents, PLAYER_POOL } from '@counter-attack/shared';
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -385,7 +385,7 @@ describe('Phase 24 — ASSIGN-05: LINEUP_CONFIRM both-confirm gate', () => {
     expect(stateA.roomCode).toBe(stateB.roomCode);
   }, 8000);
 
-  it("Phase 40 D-12: a STANDARD room's first broadcast GameState has an EMPTY bench for both teams — nothing generated", async () => {
+  it("Phase 46 D-05..D-09: a STANDARD room's first broadcast GameState has a 5-player generic placeholder bench per team", async () => {
     const { clientA, clientB } = await setupThroughUniformConfirm();
 
     const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
@@ -398,8 +398,26 @@ describe('Phase 24 — ASSIGN-05: LINEUP_CONFIRM both-confirm gate', () => {
     clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: awayAssignment });
     const [stateA] = await gameStateAPromise;
 
-    expect(stateA.bench?.home).toHaveLength(0);
-    expect(stateA.bench?.away).toHaveLength(0);
+    const homeBench = stateA.bench?.home ?? [];
+    const awayBench = stateA.bench?.away ?? [];
+    expect(homeBench).toHaveLength(5);
+    expect(awayBench).toHaveLength(5);
+
+    for (const entry of [...homeBench, ...awayBench]) {
+      expect(entry.status).toBe('available');
+      expect(entry.jerseyNumber).toBeGreaterThanOrEqual(12);
+      expect(entry.jerseyNumber).toBeLessThanOrEqual(16);
+    }
+
+    const homeRoles = new Set(
+      homeBench.map((e) => PLAYER_POOL.find((p) => p.id === e.playerId)?.role),
+    );
+    const awayRoles = new Set(
+      awayBench.map((e) => PLAYER_POOL.find((p) => p.id === e.playerId)?.role),
+    );
+    expect(homeRoles.size).toBe(5);
+    expect(awayRoles.size).toBe(5);
+
     expect(stateA.subsUsed).toEqual({ home: 0, away: 0 });
     expect(stateA.addedTimeBonus).toBe(0);
   }, 8000);

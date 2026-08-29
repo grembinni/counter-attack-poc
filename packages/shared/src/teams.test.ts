@@ -4,7 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { PLAYER_POOL } from './teams.js';
-import { getSquadPlayers } from './teamConfig.js';
+import { getSquadPlayers, getGenericBenchPlayers } from './teamConfig.js';
+import { computeTotalStat, classifyTier, resolvePoolPlayers } from './draftEngine.js';
 
 const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD', 'ST'] as const;
 
@@ -13,10 +14,10 @@ const VALID_ROLES = ['GK', 'DEF', 'MID', 'FWD', 'ST'] as const;
 // ---------------------------------------------------------------------------
 
 describe('PLAYER_POOL — DATA-01: unified flat player pool', () => {
-  it('has the expected total player count (4 MLS + 8 national squads + FA)', () => {
-    // 4 MLS teams × 11 = 44; 8 national × 11 = 88; 56 free agents
-    // Total = 44 + 88 + 56 = 188
-    expect(PLAYER_POOL).toHaveLength(188);
+  it('has the expected total player count (4 MLS + 8 national squads + FA + generic bench)', () => {
+    // 4 MLS teams × 11 = 44; 8 national × 11 = 88; 56 free agents; 188 total
+    // Phase 46 D-07: + 2 generic placeholder benches × 5 = 10 → 198 total
+    expect(PLAYER_POOL).toHaveLength(198);
   });
 
   it('all player IDs are unique', () => {
@@ -33,7 +34,7 @@ describe('PLAYER_POOL — DATA-01: unified flat player pool', () => {
 
   it('IDs are assigned sequentially starting at p001', () => {
     expect(PLAYER_POOL[0].id).toBe('p001');
-    expect(PLAYER_POOL[PLAYER_POOL.length - 1].id).toBe('p188');
+    expect(PLAYER_POOL[PLAYER_POOL.length - 1].id).toBe('p198');
   });
 
   it('every PoolPlayer has a sourceTeamId string', () => {
@@ -245,5 +246,56 @@ describe('PoolPlayer poolTag — DRAFT-04 / D-01 / D-02 / D-03: reserved Legends
     const original = PLAYER_POOL.filter((p) => p.sourceTeamId === 'free-agent' && !p.poolTag);
     expect(original).toHaveLength(38);
     expect(original.filter((p) => p.role === 'GK')).toHaveLength(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getGenericBenchPlayers — Phase 46 D-05..D-09: generic placeholder bench
+// ---------------------------------------------------------------------------
+
+describe('getGenericBenchPlayers — Phase 46: generic placeholder bench rosters', () => {
+  const VALID_ROLE_SET = new Set(VALID_ROLES);
+
+  it("getGenericBenchPlayers('home') returns exactly 5 players, one per role", () => {
+    const players = getGenericBenchPlayers('home');
+    expect(players).toHaveLength(5);
+    const roles = new Set(players.map((p) => p.role));
+    expect(roles.size).toBe(5);
+    for (const role of roles) {
+      expect(VALID_ROLE_SET.has(role)).toBe(true);
+    }
+  });
+
+  it("getGenericBenchPlayers('away') returns exactly 5 players, one per role", () => {
+    const players = getGenericBenchPlayers('away');
+    expect(players).toHaveLength(5);
+    const roles = new Set(players.map((p) => p.role));
+    expect(roles.size).toBe(5);
+    for (const role of roles) {
+      expect(VALID_ROLE_SET.has(role)).toBe(true);
+    }
+  });
+
+  it('every generic bench player has a number in 12-16 inclusive', () => {
+    const players = [...getGenericBenchPlayers('home'), ...getGenericBenchPlayers('away')];
+    expect(players).toHaveLength(10);
+    for (const p of players) {
+      expect(p.number).toBeGreaterThanOrEqual(12);
+      expect(p.number).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it('every generic bench player classifies to common or uncommon (never rare or chase)', () => {
+    const players = [...getGenericBenchPlayers('home'), ...getGenericBenchPlayers('away')];
+    for (const p of players) {
+      const tier = classifyTier(computeTotalStat(p));
+      expect(['common', 'uncommon']).toContain(tier);
+    }
+  });
+
+  it('no generic bench player is reachable through any DraftPoolId', () => {
+    const draftable = resolvePoolPlayers(['original', 'mls', 'international', 'legends', 'icons']);
+    const leaked = draftable.filter((p) => p.sourceTeamId.startsWith('generic-bench'));
+    expect(leaked).toHaveLength(0);
   });
 });
