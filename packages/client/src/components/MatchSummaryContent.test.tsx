@@ -127,6 +127,40 @@ describe('MatchSummaryContent — settings recap', () => {
     rerender(<MatchSummaryContent />);
     expect(screen.getByText('Speed: Fast')).toBeDefined();
   });
+
+  // Checkpoint 45-05-04 fix, round 3 (developer feedback verbatim: "display
+  // the same number of settings per row and center settings instead of
+  // left aligning them"). Verified structurally via DOM parent-element
+  // grouping rather than a CSS-module hashed class name (no test in this
+  // codebase asserts hashed class names — colour/centering itself is a
+  // pure-CSS visual treatment covered by the 45-05-04 human-verify
+  // checkpoint; this test locks in the deterministic 4+3 row split, which
+  // IS structurally testable).
+  it('groups the 7 settings bubbles into fixed-size rows — a deterministic 4+3 split, not a width-dependent wrap', () => {
+    seed();
+    render(<MatchSummaryContent />);
+    const bubbleTexts = [
+      'Speed: Standard',
+      'Fouls: Off',
+      'Booking: Off',
+      'Injury: Off',
+      'Out-of-Bounds: Off',
+      'Referee Leniency: Auto — 4',
+      'Tackle/Steal Decline: Off',
+    ];
+    const parents = bubbleTexts.map((text) => screen.getByText(text).parentElement);
+    parents.forEach((p) => expect(p).not.toBeNull());
+
+    const firstRowParent = parents[0];
+    const secondRowParent = parents[4];
+    expect(firstRowParent).not.toBe(secondRowParent);
+    // First 4 bubbles share one row container...
+    expect(parents.slice(0, 4).every((p) => p === firstRowParent)).toBe(true);
+    // ...and the last 3 share a different row container.
+    expect(parents.slice(4).every((p) => p === secondRowParent)).toBe(true);
+    // Exactly two row containers total for 7 items at RECAP_COLUMNS = 4.
+    expect(new Set(parents).size).toBe(2);
+  });
 });
 
 // ─── Seven diverging stat rows ─────────────────────────────────────────────

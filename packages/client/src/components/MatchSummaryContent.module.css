@@ -28,11 +28,27 @@
   color: var(--color-text-secondary);
 }
 
-/* D-12 as amended by the checkpoint 45-05-04 fix: inline row of colored
-   toggle:state bubbles — never a table, list or settings-panel layout. */
+/* D-12 as amended by the checkpoint 45-05-04 fix: colored toggle:state
+   bubbles — never a table, list or settings-panel layout.
+   Checkpoint 45-05-04 fix, round 3 (developer feedback verbatim: "display
+   the same number of settings per row and center settings instead of left
+   aligning them"): `.recapRow` used to be a single left-aligned
+   `flex-wrap` line holding all 7 bubbles, wrapping at a width-dependent
+   point. Now `.recapGrid` stacks a fixed number of PRE-CHUNKED `.recapRow`
+   rows (chunked in MatchSummaryContent.tsx, RECAP_COLUMNS = 4, giving a
+   deterministic 4+3 split for the current 7 items) and each row centers
+   its own bubbles independently via `justify-content: center` on that
+   row's own flex line. */
+.recapGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .recapRow {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
 }
 

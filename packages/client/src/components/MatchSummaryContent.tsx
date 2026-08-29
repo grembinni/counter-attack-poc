@@ -27,6 +27,30 @@ const SPEED_VARIANT: Record<GameSpeed, SettingsBubbleVariant> = {
   fast: 'speedFast',
 };
 
+/**
+ * Checkpoint 45-05-04 fix (round 3 — developer feedback verbatim: "on game
+ * stats popup display the same number of settings per row and center
+ * settings instead of left aligning them"): the recap's 7 current bubbles
+ * (Speed + 5 boolean toggles + Referee Leniency) previously flowed as a
+ * single left-aligned `flex-wrap` row, wrapping at a width-dependent,
+ * unpredictable point (a "ragged" split, e.g. 6+1 on some widths). Chunking
+ * into fixed-size rows of `RECAP_COLUMNS` gives a deterministic, even split
+ * (4+3 for the current 7 items, matching the developer's own example)
+ * instead of a width-dependent one, and each row is centered independently
+ * via `justify-content: center` on its own flex line (see `.recapRow` in
+ * MatchSummaryContent.module.css).
+ */
+const RECAP_COLUMNS = 4;
+
+/** Splits `items` into fixed-size chunks of `size` (last chunk may be shorter). */
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
+
 /** Copywriting Contract (45-UI-SPEC.md): static xG explainer copy, verbatim. */
 const XG_EXPLAINER_TEXT =
   'Expected Goals (xG) estimates how likely each shot was to score, based on: defenders in the goal box, defenders in the penalty box, and shot distance from goal.';
@@ -251,14 +275,18 @@ export function MatchSummaryContent() {
     <div className={styles.root}>
       <div className={styles.settingsSection}>
         <div className={styles.sectionLabel}>SETTINGS</div>
-        <div className={styles.recapRow}>
-          {recapItems.map((item) => (
-            <span
-              key={item.key}
-              className={`${styles.settingsBubble} ${BUBBLE_VARIANT_CLASS[item.variant] ?? ''}`}
-            >
-              {item.text}
-            </span>
+        <div className={styles.recapGrid}>
+          {chunk(recapItems, RECAP_COLUMNS).map((row) => (
+            <div key={row[0]?.key ?? 'empty-row'} className={styles.recapRow}>
+              {row.map((item) => (
+                <span
+                  key={item.key}
+                  className={`${styles.settingsBubble} ${BUBBLE_VARIANT_CLASS[item.variant] ?? ''}`}
+                >
+                  {item.text}
+                </span>
+              ))}
+            </div>
           ))}
         </div>
       </div>
