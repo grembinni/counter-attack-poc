@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: completed
+status: executing
 stopped_at: Phase 46 context gathered
 last_updated: "2026-08-29T01:59:18.936Z"
-last_activity: 2026-08-29 -- Phase 45 (game-summary-popup) execution complete, verified 9/9
+last_activity: 2026-08-29
 progress:
   total_phases: 7
   completed_phases: 5
@@ -374,7 +374,7 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 Last session: 2026-08-29T01:59:18.926Z
 Stopped at: Phase 46 context gathered
 Resume file: .planning/phases/46-final-cleanup/46-CONTEXT.md
-Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves — the (i) icon, standalone modal, and HALF_TIME/FULL_TIME embedding all shipped, with checkpoint 45-05-04 going through 4 rounds of live two-browser developer verification (red-card zone bug, phase-label text, modal chrome/color, a shared MatchScoreRow component, centered settings-bubble grid, and a corrected Referee Leniency color rule — all fixed and re-verified). Phase 46 (Final Cleanup) has not started. Next step is to plan Phase 46.
+Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves — the (i) icon, standalone modal, and HALF_TIME/FULL_TIME embedding all shipped, with checkpoint 45-05-04 going through 4 rounds of live two-browser developer verification (red-card zone bug, phase-label text, modal chrome/color, a shared MatchScoreRow component, centered settings-bubble grid, and a corrected Referee Leniency color rule — all fixed and re-verified). Phase 46 (Final Cleanup) context has been gathered (`.planning/phases/46-final-cleanup/46-CONTEXT.md`) — 3 todos folded in (auto-reselect fix, PK/FK kicker pattern, speed-setting relocation), a new hardcoded-placeholder-bench patch added by explicit user scope override, 2 rendering-bug todos reviewed and declined. Next step is to plan Phase 46 (`/gsd-plan-phase 46`).
 
 ## Performance Metrics
 
