@@ -149,7 +149,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
-| 45    | 5/6 | In Progress|  |
+| 45    | 6/6 | Complete   | 2026-08-29 |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
 ### Phase 41: Card & Injury Iconography
@@ -359,7 +359,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 45-06-PLAN.md — End-to-end socket integration suite + validation contract refresh (all 9 requirements)
+- [x] 45-06-PLAN.md — End-to-end socket integration suite + validation contract refresh (all 9 requirements)
 
 **UI hint**: yes
 
@@ -446,7 +446,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 
