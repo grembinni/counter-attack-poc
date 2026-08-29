@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, HexCoord } from '@counter-attack/shared';
+import type { GameState, GamePhase, HexCoord } from '@counter-attack/shared';
 import {
   validateMove,
   hexesInRange,
@@ -591,6 +591,20 @@ function computeAutoSelectablePassType(state: GameState): PassType | null {
   }
   return null;
 }
+
+/**
+ * Phase 46 / CLEANUP-05 (folded todo
+ * 2026-08-23-ux-no-auto-reselect-after-interrupt-prompt-resumes.md): the four interrupt/prompt
+ * phases whose resolution back to MOVE must preserve the mid-move piece's selection rather than
+ * wipe it like every other phase transition. Resuming from any of these into MOVE with a piece
+ * that still has pace remaining should leave that piece selected with its movement ring intact.
+ */
+const INTERRUPT_RESUME_PHASES: readonly GamePhase[] = [
+  'TACKLE_STEAL_PROMPT',
+  'GK_DIVE_AT_FEET_PROMPT',
+  'GK_BOX_ENTRY_PROMPT',
+  'FOUL_CHOICE',
+];
 
 /**
  * Zustand 4.x store using curried TypeScript form: create<T>()((set, get) => ...).
@@ -1429,13 +1443,34 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const activationComplete =
       prevSelectedId !== null && newState.movedPieceIds.includes(prevSelectedId);
 
+    // Phase 46 / CLEANUP-05 (folded todo
+    // 2026-08-23-ux-no-auto-reselect-after-interrupt-prompt-resumes.md): none of the resume
+    // snapshots (gkDiveAtFeetResume / gkBoxEntryResume / tackleStealPromptResume) carry the
+    // mid-move piece's id, so it cannot be read off those fields — it must instead be derived
+    // pace-based: the active team's own still-on-pitch piece that has pace used this movement
+    // slot but hasn't finished its activation (not yet in movedPieceIds).
+    const resumingFromInterrupt =
+      phaseChanged &&
+      newState.phase === 'MOVE' &&
+      INTERRUPT_RESUME_PHASES.includes(prevState.phase);
+    const midMovePieceId = resumingFromInterrupt
+      ? (newState.pieces.find(
+          (p) =>
+            p.teamId === newState.activeTeam &&
+            isActivePiece(p) &&
+            (newState.paceUsedByPieceId[p.id] ?? 0) > 0 &&
+            !newState.movedPieceIds.includes(p.id),
+        )?.id ?? null)
+      : null;
+
     if (
-      responseMoveStateChanged ||
-      responseMovePaceExhausted ||
-      phaseChanged ||
-      !pieceStillExists ||
-      prevSelectedId === null ||
-      activationComplete
+      (responseMoveStateChanged ||
+        responseMovePaceExhausted ||
+        phaseChanged ||
+        !pieceStillExists ||
+        prevSelectedId === null ||
+        activationComplete) &&
+      !(resumingFromInterrupt && midMovePieceId !== null)
     ) {
       // Clear selection on phase/slot transitions or missing piece (D-18)
       set({
@@ -1477,6 +1512,47 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         // the only code path that computes validPassTargetHexes/interceptionRiskHexes.
         get().setSelectedPassType(autoPassType);
       }
+      return;
+    }
+
+    // Phase 46 / CLEANUP-05: an interrupt prompt (TACKLE_STEAL_PROMPT / GK_DIVE_AT_FEET_PROMPT /
+    // GK_BOX_ENTRY_PROMPT / FOUL_CHOICE) has resolved back to MOVE with a mid-move piece still
+    // holding pace — the clearing `if` above was gated off for this exact case. Re-select that
+    // piece the same way the generic-MOVE sticky-selection fallback below already does (reusing
+    // the same shared valid-hex helper, not a second copy of the same computation), but ONLY for
+    // the client that owns it (T-46-02-I): deriveMyTeam(prev.playerSlot) must match the piece's
+    // team. A null playerSlot (spectator/unassigned) or a team mismatch (this broadcast's
+    // mid-move piece belongs to the OTHER client) falls through to the ordinary clearing
+    // behaviour instead — never coerce a null slot to a team, never auto-select for the wrong client.
+    if (resumingFromInterrupt && midMovePieceId !== null) {
+      const midMovePiece = newState.pieces.find((p) => p.id === midMovePieceId)!;
+      const actingTeam = deriveMyTeam(prev.playerSlot);
+      const canResume = actingTeam !== null && actingTeam === midMovePiece.teamId;
+      const resumedValidMoveHexes = canResume
+        ? computeMovementValidHexes(midMovePiece, newState).validMoveHexes
+        : [];
+      set({
+        gameState: newState,
+        selectedPieceId: canResume ? midMovePieceId : null,
+        validMoveHexes: resumedValidMoveHexes,
+        tackleRiskHexes: [],
+        lastMovedPieceId: null,
+        selectedPassType: null,
+        validPassTargetHexes: [],
+        interceptionRiskHexes: [],
+        passTargetHex: null,
+        headerContestantIds: [],
+        shootingMode: false,
+        gameError: null,
+      });
+      return;
+    }
+
+    // Unreachable in practice: the clearing `if` above already covers `prevSelectedId === null`
+    // as one of its OR'd clauses, and the only way past it without clearing is the interrupt-
+    // resume branch just above (which always returns). Restores static narrowing for TypeScript,
+    // which can no longer prove this by itself once that branch's `&&`/negation was introduced.
+    if (prevSelectedId === null) {
       return;
     }
 

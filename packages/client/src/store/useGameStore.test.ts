@@ -10,6 +10,7 @@ import {
   hexDistance,
   isPitchHex,
   isInRegion,
+  type GamePhase,
 } from '@counter-attack/shared';
 
 vi.mock('../socket.js', () => ({
@@ -2066,5 +2067,175 @@ describe('useGameStore — setGameState singleton pass-type auto-selection (GOAL
     expect(autoTargets).toEqual(explicitState.validPassTargetHexes);
     expect(autoRisk).toEqual(explicitState.interceptionRiskHexes);
     expect(autoPassTargetHex).toBe(explicitState.passTargetHex);
+  });
+});
+
+// Phase 46 / CLEANUP-05 (folded todo 2026-08-23-ux-no-auto-reselect-after-interrupt-prompt-resumes.md):
+// resuming from any of the four interrupt/prompt phases back into MOVE must re-select the
+// mid-move piece (still holding pace, not yet in movedPieceIds) and restore its movement ring,
+// gated to the owning client only. Every other phase transition must keep clearing exactly as
+// before (negative control).
+describe('useGameStore — setGameState interrupt-resume auto-reselect (Phase 46 / CLEANUP-05)', () => {
+  const INTERRUPT_PHASES: GamePhase[] = [
+    'TACKLE_STEAL_PROMPT',
+    'GK_DIVE_AT_FEET_PROMPT',
+    'GK_BOX_ENTRY_PROMPT',
+    'FOUL_CHOICE',
+  ];
+  const MID_MOVE_PIECE_ID = 'home-8';
+
+  /** Prior state: mid-duel/prompt phase, home team active/attacking. */
+  function priorInterruptState(phase: GamePhase) {
+    return {
+      ...mockMovementState,
+      phase,
+      activeTeam: 'home' as const,
+      attackingTeam: 'home' as const,
+    };
+  }
+
+  /** Resumed MOVE broadcast — home-8's pace bumped to 6 so a 2-hex partial move still leaves it selectable. */
+  function resumedMoveState(overrides: {
+    paceUsedByPieceId?: Record<string, number>;
+    movedPieceIds?: string[];
+    activeTeam?: 'home' | 'away';
+  }) {
+    const pieces = mockMovementState.pieces.map((p) =>
+      p.id === MID_MOVE_PIECE_ID ? { ...p, pace: 6 } : p,
+    );
+    return {
+      ...mockMovementState,
+      pieces,
+      phase: 'MOVE' as const,
+      activeTeam: overrides.activeTeam ?? ('home' as const),
+      attackingTeam: 'home' as const,
+      movementSlot: 'ATTACKER_4' as const,
+      paceUsedByPieceId: overrides.paceUsedByPieceId ?? { [MID_MOVE_PIECE_ID]: 2 },
+      movedPieceIds: overrides.movedPieceIds ?? [],
+    };
+  }
+
+  describe.each(INTERRUPT_PHASES)(
+    'Test 1/2: resuming from %s back into MOVE with a mid-move piece holding pace',
+    (prevPhase) => {
+      it('re-selects the mid-move piece and restores its movement ring', () => {
+        useGameStore.setState({
+          playerSlot: 1,
+          selectedPieceId: null,
+          validMoveHexes: [],
+          gameState: priorInterruptState(prevPhase),
+        });
+        useGameStore.getState().setGameState(resumedMoveState({}));
+        const state = useGameStore.getState();
+        expect(state.selectedPieceId).toBe(MID_MOVE_PIECE_ID);
+        expect(state.validMoveHexes.length).toBeGreaterThan(0);
+      });
+    },
+  );
+
+  it('Test 3: no piece mid-move (paceUsedByPieceId empty) leaves selection cleared — nothing to resume', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      gameState: priorInterruptState('TACKLE_STEAL_PROMPT'),
+    });
+    useGameStore.getState().setGameState(resumedMoveState({ paceUsedByPieceId: {} }));
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('Test 4: a piece whose activation already finished (in movedPieceIds) is not re-selected', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      gameState: priorInterruptState('TACKLE_STEAL_PROMPT'),
+    });
+    useGameStore.getState().setGameState(
+      resumedMoveState({
+        paceUsedByPieceId: { [MID_MOVE_PIECE_ID]: 2 },
+        movedPieceIds: [MID_MOVE_PIECE_ID],
+      }),
+    );
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+  });
+
+  it('Test 5 (negative control): an ordinary non-interrupt phase change (MOVE -> PASS) still clears selection exactly as before', () => {
+    useGameStore.setState({
+      playerSlot: 1,
+      selectedPieceId: MID_MOVE_PIECE_ID,
+      validMoveHexes: [{ q: 1, r: 1 }],
+      tackleRiskHexes: [{ q: 1, r: 1 }],
+      lastMovedPieceId: MID_MOVE_PIECE_ID,
+      selectedPassType: 'STANDARD_PASS',
+      passTargetHex: { q: 2, r: 2 },
+      shootingMode: true,
+      gameState: { ...mockMovementState, phase: 'MOVE', activeTeam: 'home', attackingTeam: 'home' },
+    });
+    useGameStore.getState().setGameState({
+      ...mockMovementState,
+      phase: 'PASS',
+      activeTeam: 'home',
+      attackingTeam: 'home',
+    });
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+    expect(state.tackleRiskHexes).toEqual([]);
+    expect(state.lastMovedPieceId).toBeNull();
+    expect(state.selectedPassType).toBeNull();
+    expect(state.passTargetHex).toBeNull();
+    expect(state.shootingMode).toBe(false);
+  });
+
+  it('Test 6: the re-selected piece must belong to newState.activeTeam — a mid-move opponent piece is never auto-selected', () => {
+    useGameStore.setState({
+      // playerSlot 2 (away) would make deriveMyTeam match the opponent piece's team below if the
+      // derivation incorrectly keyed off the acting client's team instead of newState.activeTeam.
+      playerSlot: 2,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      gameState: priorInterruptState('TACKLE_STEAL_PROMPT'),
+    });
+    // activeTeam is 'home', but the only piece with pace used is an AWAY piece — no HOME piece
+    // qualifies, so nothing should be re-selected regardless of which client is watching.
+    useGameStore.getState().setGameState(
+      resumedMoveState({
+        paceUsedByPieceId: { 'away-8': 2 },
+        activeTeam: 'home',
+      }),
+    );
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('a client whose own team differs from the mid-move piece never gets it auto-selected (T-46-02-I)', () => {
+    useGameStore.setState({
+      playerSlot: 2, // away client, but the mid-move piece (home-8) belongs to home
+      selectedPieceId: null,
+      validMoveHexes: [],
+      gameState: priorInterruptState('TACKLE_STEAL_PROMPT'),
+    });
+    useGameStore.getState().setGameState(resumedMoveState({}));
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
+  });
+
+  it('a null playerSlot (spectator/unassigned) falls through to the ordinary clearing behaviour', () => {
+    useGameStore.setState({
+      playerSlot: null,
+      selectedPieceId: null,
+      validMoveHexes: [],
+      gameState: priorInterruptState('TACKLE_STEAL_PROMPT'),
+    });
+    useGameStore.getState().setGameState(resumedMoveState({}));
+    const state = useGameStore.getState();
+    expect(state.selectedPieceId).toBeNull();
+    expect(state.validMoveHexes).toEqual([]);
   });
 });
