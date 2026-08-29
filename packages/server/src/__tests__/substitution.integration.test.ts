@@ -14,14 +14,18 @@
  * draftSession.integration.test.ts (drive a DRAFT room to a live match — the draft
  * room is the only room type with a non-empty, substitutable bench today).
  *
- * VERIFIED FACT (recorded here per this plan's action item): a STANDARD-mode room's
- * squads hold exactly 11 players today (packages/shared/src/teams.ts), so D-02/D-12's
- * derivation (bench = roster minus the starting 11) yields an EMPTY bench for a
- * Standard room. Phase 40 deliberately does NOT generate or seed a Standard-room
- * bench (D-10's pool-based auto-fill design was explicitly retracted by the user
- * during requirements definition). The D-12 test below therefore asserts an EMPTY
- * bench and a rejected substitution attempt — this is WORKING AS INTENDED, not a
- * gap, and must never be "fixed" by adding bench generation here or anywhere else.
+ * HISTORICAL NOTE (superseded by Phase 46, CONTEXT.md D-05..D-09 — kept for context,
+ * not current behavior): a STANDARD-mode room's squads hold exactly 11 players
+ * (packages/shared/src/teams.ts), so D-02/D-12's original derivation (bench = roster
+ * minus the starting 11) yielded an EMPTY bench for a Standard room. Phase 40
+ * deliberately did NOT generate or seed a Standard-room bench (D-10's pool-based
+ * auto-fill design was explicitly retracted by the user during Phase 40's
+ * requirements definition), and the D-12 test below asserted an EMPTY bench and a
+ * rejected substitution attempt as WORKING AS INTENDED. Phase 46 (D-06) revisited
+ * that stance and superseded it: standard rooms now fall back to a generic 5-player
+ * placeholder bench per side (`getGenericBenchPlayers`, `roomHandlers.ts`) so
+ * substitution works end to end outside Draft mode too — see the "Phase 46
+ * D-05..D-09" describe block below, which replaces the old empty-bench test.
  *
  * Coverage (numbered to match 40-07-PLAN.md's Task 1 action list):
  * 1. SUB-02/SUB-03: post-LINEUP_CONFIRM broadcast bench/subsUsed/addedTimeBonus/playerId shape.
@@ -41,8 +45,9 @@
  *    departed player never reappears; the bench (including an unrelated pre-existing
  *    D-13 entry) is unchanged.
  * 10. SETTINGS-04: the basic success case with all four v1.6 toggles off and again on.
- * 11. D-12: a STANDARD room reaches a live match with an EMPTY bench and a calm
- *     INVALID_SUBSTITUTE rejection — no auto-fill, no error, no disconnect.
+ * 11. Phase 46 D-05..D-09 (supersedes the old D-12 empty-bench case): a STANDARD
+ *     room reaches a live match with a 5-player generic placeholder bench per side,
+ *     and a generic bench outfielder substitutes onto the pitch end to end.
  *
  * Also closes the threat register (T-40-22): a cross-team substitution attempt is
  * rejected WRONG_TEAM without mutating either team's subsUsed.
@@ -398,7 +403,7 @@ async function setupLiveDraftMatch(toggles: Toggles = TOGGLES_OFF): Promise<{
 
 // ---------------------------------------------------------------------------
 // Standard-mode setup (mirrors goalKick.integration.test.ts's setupRoom() verbatim)
-// — the STANDARD path for the D-12 empty-bench case (case 11).
+// — the STANDARD path for the Phase 46 generic-placeholder-bench case (case 11).
 // ---------------------------------------------------------------------------
 
 async function setupStandardMatch(): Promise<{
@@ -980,7 +985,8 @@ describe('SETTINGS-04: substitution succeeds regardless of the four v1.6 toggle 
 });
 
 // ---------------------------------------------------------------------------
-// Case 11 (D-12): a STANDARD room reaches a live match with an EMPTY bench
+// Case 11 (Phase 46 D-05..D-09, supersedes the old D-12 empty-bench case): a
+// STANDARD room reaches a live match with a 5-player generic placeholder bench
 // ---------------------------------------------------------------------------
 
 describe('Phase 46 D-05..D-09: a Standard-mode room reaches a live match with a generic placeholder bench', () => {
