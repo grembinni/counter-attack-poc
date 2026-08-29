@@ -150,7 +150,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
 | 45    | 6/6 | Complete    | 2026-08-29 |
-| 46    | 4/7 | In Progress|  |
+| 46    | 5/7 | In Progress|  |
 
 ### Phase 41: Card & Injury Iconography
 
@@ -387,7 +387,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 46-05-PLAN.md — Valid-move hex tint consistency set + pitch/roster/bench card alignment (CLEANUP-06/09/11/13, D-02/D-04)
+- [x] 46-05-PLAN.md — Valid-move hex tint consistency set + pitch/roster/bench card alignment (CLEANUP-06/09/11/13, D-02/D-04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -466,7 +466,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 

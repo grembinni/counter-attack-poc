@@ -63,12 +63,12 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 ### Final Cleanup
 
 - [x] **CLEANUP-05**: A gameplay consistency audit closes identified gaps in expected functions
-- [ ] **CLEANUP-06**: When the ball is dead and players are being selected/moved, the ball's hex is consistently highlighted across every such phase
+- [x] **CLEANUP-06**: When the ball is dead and players are being selected/moved, the ball's hex is consistently highlighted across every such phase
 - [x] **CLEANUP-07**: Phase help/info text is reviewed so every step of a multi-step phase is described
 - [x] **CLEANUP-08**: Response-move trigger language is clarified (e.g., naming what triggered a final-third movement)
-- [ ] **CLEANUP-09**: Duplicate movement-pattern logic is consolidated
+- [x] **CLEANUP-09**: Duplicate movement-pattern logic is consolidated
 - [x] **CLEANUP-10**: Kicker/thrower selection interaction is aligned across all restart types
-- [ ] **CLEANUP-11**: Pitch card, roster card, and bench card layout/design is aligned
+- [x] **CLEANUP-11**: Pitch card, roster card, and bench card layout/design is aligned
 - [x] **CLEANUP-12**: Redundant multi-step flows are collapsed to a single step where only one action is ever taken
 - [x] **CLEANUP-13**: Dead code identified during this milestone is removed
 
