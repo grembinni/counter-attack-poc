@@ -150,7 +150,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
 | 45    | 6/6 | Complete    | 2026-08-29 |
-| 46    | Final Cleanup                               | TBD      | Not started |
+| 46    | 4/7 | In Progress|  |
 
 ### Phase 41: Card & Injury Iconography
 
@@ -380,10 +380,10 @@ Plans:
 
 **Wave 1**
 
-- [ ] 46-01-PLAN.md — Ball-location ring on FREE_KICK_SETUP/FREE_MOVE_* + Free Move trigger heading + highlight-doc resync (CLEANUP-06/08/13)
-- [ ] 46-02-PLAN.md — Store: auto-reselect after interrupt resume + response-move config table consolidation (CLEANUP-05/09/13)
-- [ ] 46-03-PLAN.md — Match Speed into Advanced drawer, Free Kick kicker copy alignment, help-text & redundant-flow audit (CLEANUP-05/07/10/12)
-- [ ] 46-04-PLAN.md — Generic placeholder bench for standard rooms via the CSV seed pipeline (CLEANUP-05/13, D-05..D-09)
+- [x] 46-01-PLAN.md — Ball-location ring on FREE_KICK_SETUP/FREE_MOVE_* + Free Move trigger heading + highlight-doc resync (CLEANUP-06/08/13)
+- [x] 46-02-PLAN.md — Store: auto-reselect after interrupt resume + response-move config table consolidation (CLEANUP-05/09/13)
+- [x] 46-03-PLAN.md — Match Speed into Advanced drawer, Free Kick kicker copy alignment, help-text & redundant-flow audit (CLEANUP-05/07/10/12)
+- [x] 46-04-PLAN.md — Generic placeholder bench for standard rooms via the CSV seed pipeline (CLEANUP-05/13, D-05..D-09)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -466,7 +466,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 6/6 plans complete
+**Plans:** 4/7 plans executed
 
 Plans:
 
