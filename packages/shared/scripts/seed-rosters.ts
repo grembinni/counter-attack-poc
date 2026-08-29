@@ -33,6 +33,7 @@ import { createReadStream, writeFileSync } from 'fs';
 import { createInterface } from 'readline';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { format, resolveConfig } from 'prettier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -445,7 +446,14 @@ ${playersStr}
 ];
 `;
 
-  writeFileSync(OUTPUT_PATH, out, 'utf-8');
+  // Phase 46: format through the repo's own .prettierrc before writing so the raw
+  // generator output is byte-for-byte identical to what the pre-commit hook (eslint --fix
+  // + prettier --write) would otherwise silently rewrite the committed file to. Without
+  // this, re-running `pnpm run seed:rosters` after a commit falsely reports a diff.
+  const prettierConfig = await resolveConfig(OUTPUT_PATH);
+  const formatted = await format(out, { ...prettierConfig, filepath: OUTPUT_PATH });
+
+  writeFileSync(OUTPUT_PATH, formatted, 'utf-8');
   console.log(`Wrote ${OUTPUT_PATH}`);
   console.log(`  Total players: ${allEntries.length}`);
   for (const [src, count] of sourceCounts) {
