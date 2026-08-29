@@ -149,7 +149,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 42    | 17/17                                       | Complete | 2026-08-23  |
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
-| 45    | 4/6 | In Progress|  |
+| 45    | 5/6 | In Progress|  |
 | 46    | Final Cleanup                               | TBD      | Not started |
 
 ### Phase 41: Card & Injury Iconography
@@ -355,7 +355,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 45-05-PLAN.md — Client: scoreboard (i) icon, standalone modal, HALF_TIME/FULL_TIME embedding + human verification (STATS-01/02)
+- [x] 45-05-PLAN.md — Client: scoreboard (i) icon, standalone modal, HALF_TIME/FULL_TIME embedding + human verification (STATS-01/02)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -446,7 +446,8 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** 5/6 plans executed
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
