@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import { useGameStore } from './useGameStore.js';
+import {
+  useGameStore,
+  RESPONSE_MOVE_CONFIG_BY_PHASE,
+  RESPONSE_MOVE_STICKY_PHASES,
+} from './useGameStore.js';
 import { mockMovementState } from '../mock/index.js';
 import {
   CORNER_KICK_HEX,
@@ -2237,5 +2241,34 @@ describe('useGameStore — setGameState interrupt-resume auto-reselect (Phase 46
     const state = useGameStore.getState();
     expect(state.selectedPieceId).toBeNull();
     expect(state.validMoveHexes).toEqual([]);
+  });
+});
+
+// CLEANUP-09 (Phase 46 Plan 02): mechanical guard against the exact two-tree-drift shape that
+// caused BUG-09 — selectPiece's per-phase branches and setGameState's sticky block must both
+// resolve to a table entry for every phase they claim to handle.
+describe('useGameStore — RESPONSE_MOVE_CONFIG_BY_PHASE / RESPONSE_MOVE_STICKY_PHASES shape (CLEANUP-09)', () => {
+  it('RESPONSE_MOVE_CONFIG_BY_PHASE has exactly six keys', () => {
+    expect(Object.keys(RESPONSE_MOVE_CONFIG_BY_PHASE).sort()).toEqual(
+      [
+        'CORNER_KICK_FINAL_SETUP',
+        'FIRST_TIME_PASS_MOVE',
+        'GK_KICK_MOVE',
+        'GOAL_KICK_MOVE',
+        'HIGH_PASS_MOVE',
+        'SNAPSHOT_DEFLECT',
+      ].sort(),
+    );
+  });
+
+  it('RESPONSE_MOVE_STICKY_PHASES has exactly five members and does not contain SNAPSHOT_DEFLECT', () => {
+    expect(RESPONSE_MOVE_STICKY_PHASES).toHaveLength(5);
+    expect(RESPONSE_MOVE_STICKY_PHASES).not.toContain('SNAPSHOT_DEFLECT');
+  });
+
+  it('every phase in RESPONSE_MOVE_STICKY_PHASES resolves to a defined config in the table', () => {
+    for (const phase of RESPONSE_MOVE_STICKY_PHASES) {
+      expect(RESPONSE_MOVE_CONFIG_BY_PHASE[phase]).toBeDefined();
+    }
   });
 });
