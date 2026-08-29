@@ -75,6 +75,16 @@ export const BALL_MARKER_PHASES: ReadonlySet<GamePhase> = new Set([
   // the defending manager decides whether to challenge — exactly like
   // GK_DIVE_AT_FEET_PROMPT above.
   'TACKLE_STEAL_PROMPT',
+  // Phase 46, CLEANUP-06: FREE_KICK_SETUP was the only restart-setup family missing the
+  // marker — the ball sits fixed at `freeKickHex` throughout every stage, exactly like the
+  // other restart-setup phases already in this set (THROW_IN_SETUP, GOAL_KICK_SETUP_GK,
+  // CORNER_KICK_GK_SETUP_ATTACKING, PENALTY_KICK_SETUP_ATTACKING, etc). FREE_MOVE_ATTACK and
+  // FREE_MOVE_DEFENSE also qualify: `applyFreeMove` (gameEngine.ts) never writes
+  // `state.ball` — its own emitted MOVE event comment reads "Ball unchanged during
+  // FREE_MOVE" — so the ball is provably stationary throughout both phases too.
+  'FREE_KICK_SETUP',
+  'FREE_MOVE_ATTACK',
+  'FREE_MOVE_DEFENSE',
 ]);
 
 /**

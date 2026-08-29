@@ -418,7 +418,9 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     // Checkpoint 45-05-04 fix: was "Position for Kick!", which combined with the
     // "Actions" PanelShell heading to read as the mangled "Actions Position for
     // Kick!" and had nothing to do with a kick (this is a final-third free move).
-    expect(screen.getByText('Free Move!')).toBeDefined();
+    // Phase 46 / CLEANUP-08: renamed again from "Free Move!" to "Final-Third
+    // Movement!" to name the phase's actual trigger.
+    expect(screen.getByText('Final-Third Movement!')).toBeDefined();
     expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();
@@ -432,7 +434,7 @@ describe('ActionPanel — FREE_MOVE_ATTACK/FREE_MOVE_DEFENSE panels (Phase 17 MO
     });
     render(<ActionPanel />);
     // PANEL-01: same mechanic explanation for both FREE_MOVE_ATTACK and FREE_MOVE_DEFENSE
-    expect(screen.getByText('Free Move!')).toBeDefined();
+    expect(screen.getByText('Final-Third Movement!')).toBeDefined();
     expect(screen.getByText(/up to 6 hexes each, regardless of remaining pace/i)).toBeDefined();
     expect(screen.getByText(/players still eligible to move/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDefined();

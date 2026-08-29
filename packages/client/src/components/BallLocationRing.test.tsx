@@ -73,9 +73,10 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
   // Corner Kick phases, briefly to 23 with Plan 38-22's CORNER_KICK_CLEAR_OUT addition (38-15
   // defect 3), then back to 22 with Plan 38-28's removal of the clear-out phase entirely.
   // Grew to 31 with Plan 39-21's GK_DIVE_AT_FEET_TARGET addition (39-UAT gap 3), then to
-  // 32 with Plan 43-02's TACKLE_STEAL_PROMPT addition (TACKLE-02).
-  it('BALL_MARKER_PHASES has 32 members (22 + 8 Phase-39 foul/GK-interrupt/penalty-kick phases + 1 Plan 39-21 addition + 1 Plan 43-02 addition)', () => {
-    expect(BALL_MARKER_PHASES.size).toBe(32);
+  // 32 with Plan 43-02's TACKLE_STEAL_PROMPT addition (TACKLE-02). Grew to 35 with Plan
+  // 46-01's CLEANUP-06 addition of FREE_KICK_SETUP, FREE_MOVE_ATTACK, FREE_MOVE_DEFENSE.
+  it('BALL_MARKER_PHASES has 35 members (32 + 3 Phase 46 CLEANUP-06 dead-ball repositioning phases)', () => {
+    expect(BALL_MARKER_PHASES.size).toBe(35);
   });
 
   it("renders the marker during phase='CORNER_KICK_GK_SETUP_ATTACKING' (Phase 38 corner-kick phase)", () => {
@@ -171,6 +172,27 @@ describe('BallLocationRing — HILITE-04: standalone always-on-top ball-location
 
   it("renders the marker during phase='TACKLE_STEAL_PROMPT' (Phase 43, TACKLE-02 — the ball has not moved while the defending manager decides whether to challenge)", () => {
     const { container } = renderMarker('TACKLE_STEAL_PROMPT');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='FREE_KICK_SETUP' (Phase 46, CLEANUP-06 — the ball is fixed at freeKickHex throughout every stage)", () => {
+    const { container } = renderMarker('FREE_KICK_SETUP');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='FREE_MOVE_ATTACK' (Phase 46, CLEANUP-06 — applyFreeMove never writes state.ball)", () => {
+    const { container } = renderMarker('FREE_MOVE_ATTACK');
+    const polygons = Array.from(container.querySelectorAll('polygon'));
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);
+  });
+
+  it("renders the marker during phase='FREE_MOVE_DEFENSE' (Phase 46, CLEANUP-06 — applyFreeMove never writes state.ball)", () => {
+    const { container } = renderMarker('FREE_MOVE_DEFENSE');
     const polygons = Array.from(container.querySelectorAll('polygon'));
     expect(polygons).toHaveLength(1);
     expect(polygons[0]?.getAttribute('stroke')).toBe(BALL_MARKER_STROKE);

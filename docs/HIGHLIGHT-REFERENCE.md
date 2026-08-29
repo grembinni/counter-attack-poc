@@ -135,7 +135,7 @@ by any hex tint or ring. The two can render simultaneously on the same hex
 | Ball-location marker         | ⚪ Hex containing the ball, during response phases                           | White hex-edge outline: `stroke: '#ffffff'` (`BALL_MARKER_STROKE`), `strokeWidth: 2.5` (same thickness as the `PieceOverlay` ring family), `fill: none`                                                                         |
 | Header-target contest marker | 🟨 Goal-kick header contest point, during the `GOAL_KICK_MOVE` travel window | Two concentric gold hex outlines: `stroke: '#f5c518'` (`HEADER_TARGET_STROKE`, shared with `RING_STYLES.confirmed`), outer at `hexSize + 3` / `strokeWidth: 3`, inner at `hexSize * 0.55` / `strokeWidth: 2`, both `fill: none` |
 
-**`BallLocationRing.tsx` visibility gate — 17-phase list** (`BALL_MARKER_PHASES`
+**`BallLocationRing.tsx` visibility gate — 35-phase list** (`BALL_MARKER_PHASES`
 in `BallLocationRing.tsx`): the marker renders only when `GameState.phase` is
 one of:
 
@@ -143,13 +143,20 @@ one of:
 `GK_RESTART`, `GK_QUICK_THROW`, `GK_KICK_TARGET`, `GK_KICK_MOVE`,
 `KICK_OFF_SETUP`, `THROW_IN_SETUP`, `GOAL_KICK_SETUP_GK`,
 `GOAL_KICK_SETUP_OPPONENT`, `GOAL_KICK_CHOICE`, `GOAL_KICK_TARGET`,
-`GOAL_KICK_MOVE`.
+`GOAL_KICK_MOVE`, `CORNER_KICK_GK_SETUP_ATTACKING`,
+`CORNER_KICK_GK_SETUP_DEFENDING`, `CORNER_KICK_TAKER_SELECT`,
+`CORNER_KICK_REPOSITION`, `CORNER_KICK_FINAL_SETUP`, `FOUL_CHOICE`,
+`GK_DIVE_AT_FEET_PROMPT`, `GK_DIVE_AT_FEET_TARGET`, `GK_BOX_ENTRY_PROMPT`,
+`GK_BOX_ENTRY_MOVE`, `PENALTY_KICK_SETUP_ATTACKING`,
+`PENALTY_KICK_SETUP_DEFENDING`, `PENALTY_KICK_TAKER_SELECT`, `PENALTY_KICK`,
+`TACKLE_STEAL_PROMPT`, `FREE_KICK_SETUP`, `FREE_MOVE_ATTACK`,
+`FREE_MOVE_DEFENSE`.
 
 It does not render during ordinary `MOVE` / `PASS` / `KICK_OFF` /
-`FREE_KICK_SETUP` / `FREE_MOVE_*` / `LOOSE_BALL` / `HIGH_PASS_MOVE` /
-`FIRST_TIME_PASS_MOVE` / `HALF_TIME` / `FULL_TIME` / `REPLAY` — those are
-standard-turn phases where the ball position is already legible from the ball
-sprite (`BallMarker.tsx`) and piece positions without an extra marker.
+`LOOSE_BALL` / `HIGH_PASS_MOVE` / `FIRST_TIME_PASS_MOVE` / `HALF_TIME` /
+`FULL_TIME` / `REPLAY` — those are standard-turn phases where the ball
+position is already legible from the ball sprite (`BallMarker.tsx`) and piece
+positions without an extra marker.
 
 **`KICK_OFF_SETUP` addition (Plan 33-07 Task 3 human-verify feedback):**
 `KICK_OFF_SETUP` was originally excluded from the gate (a 10-phase list) — during
@@ -162,6 +169,18 @@ white marker during kickoff setup too. This is additive, not a replacement: the
 gold required-ring is a distinct concept ("place the kicker here") and continues
 to render unchanged, simultaneously with the white ball marker, on the same hex
 during `KICK_OFF_SETUP`.
+
+**Phase 46 CLEANUP-06 addition (Plan 46-01):** `FREE_KICK_SETUP` was the only
+restart-setup family missing the marker — every other restart-setup phase
+(kick-off, throw-in, goal kick, corner kick, penalty kick) already showed the
+white ball-location ring at its fixed restart hex, but free kick's own
+staged-repositioning flow had been left out. `FREE_MOVE_ATTACK` and
+`FREE_MOVE_DEFENSE` were added alongside it because the engine provably leaves
+`ball.position` untouched throughout both phases — `applyFreeMove`
+(`gameEngine.ts`) never writes `state.ball`, and its own emitted `MOVE` event
+carries the inline comment "Ball unchanged during FREE_MOVE." All three joins
+follow this gate's existing precedent: the generic white marker is reused,
+no new tint type or color literal was introduced.
 
 **Phase 37 additions (Plan 37-02):** `THROW_IN_SETUP`, `GOAL_KICK_SETUP_GK`,
 `GOAL_KICK_SETUP_OPPONENT`, `GOAL_KICK_CHOICE`, `GOAL_KICK_TARGET` and
