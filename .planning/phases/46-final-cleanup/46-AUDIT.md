@@ -203,3 +203,127 @@ Section 1's phase enumeration) — all 6 disposed `keep`, each with a specific r
 defect-prevention split). No flow in this codebase was found to present 2+ UI steps for a
 game-logic action that only ever needs exactly one — the default per CONTEXT.md D-03 (no
 speculative refactor) applies: document the audit, do not manufacture a collapse.
+
+---
+
+## CLEANUP-13 — Dead-Code Sweep
+
+**Audited:** 2026-08-29 (Plan 46-06, Task 1)
+**Purpose:** run the whole-monorepo green gate that is CLEANUP-13's own success criterion, and
+sweep every file Plans 46-01 through 46-05 touched for the five residue classes `knip`/`tsc`
+provably do not catch (stale imports, unreferenced locals/CSS, comments describing removed code,
+doc counts that drifted from the code they describe, superseded planning-doc claims).
+
+### File list (union of all `key-files: modified/created` across 46-01..46-05)
+
+24 unique files (`docs/HIGHLIGHT-REFERENCE.md` and `ActionPanel.tsx`/`.test.tsx` are each touched
+by two plans and counted once).
+
+| # | File | Residue classes checked | Finding | Disposition |
+|---|------|--------------------------|---------|--------------|
+| 1 | `packages/client/src/components/BallLocationRing.tsx` | 1 (imports), 3 (stale comments), 4 (doc count vs code) | none — `BALL_MARKER_PHASES` Set literal (35 members) transcribed verbatim into `docs/HIGHLIGHT-REFERENCE.md`'s 35-phase list; member-for-member and order-for-order match confirmed by direct read of both files | n/a |
+| 2 | `packages/client/src/components/BallLocationRing.test.tsx` | 1, 2 | none — `BALL_MARKER_PHASES.size` assertion reads `35`, matching the Set | n/a |
+| 3 | `packages/client/src/components/ActionPanel.tsx` | 1, 3 (`Free Move!` literal) | `grep -rn "Free Move!" --include=*.tsx` matches one in-code historical comment (line 752, "the resulting 'Free Move!' heading still gave the player no indication...") documenting the pre-this-phase name, not a JSX text node — the actual rendered heading is `Final-Third Movement!` (confirmed). Not residue: past-tense, explicitly describes prior naming, not current state. | n/a |
+| 4 | `packages/client/src/components/ActionPanel.test.tsx` | 1, 3 | same class as #3 (one historical comment, line 421, not a live assertion) — the live assertion at line 423 checks `'Final-Third Movement!'` | n/a |
+| 5 | `docs/HIGHLIGHT-REFERENCE.md` | 4 (ball-marker phase list, valid-move exception list) | none — both lists verified against their code constants directly (see #1 and #21below); `17-phase` stale-count string (`grep -c` = 0) does not appear anywhere in the file | n/a |
+| 6 | `packages/client/src/store/useGameStore.ts` | 1, 2, 3 (six deleted `*_CONFIG` binding names) | none — `grep -n "^const [A-Z_]*_CONFIG\|^export const [A-Z_]*_CONFIG ="` returns zero matches; `CORNER_KICK_FINAL_SETUP_CONFIG` string no longer appears anywhere in the file; the one historical comment referencing "a standalone named `const *_CONFIG` binding" (line 287-288) is explicitly past tense ("Previously... was") describing the pre-consolidation shape, not a live claim | n/a |
+| 7 | `packages/client/src/store/useGameStore.test.ts` | 1, 2 | none — knip-clean, lint-clean (unused-vars is an error-level rule) | n/a |
+| 8 | `packages/client/src/components/GameSettingsScreen.tsx` | 2 (`.section` CSS class) | none — `.section` still has 4 live consumers in the file (`styles.section` at lines 196, 220, 273, 351), including the relocated Match Speed block | n/a |
+| 9 | `packages/client/src/components/GameSettingsScreen.test.tsx` | 1, 3 | none — Match Speed relocation assertions (lines 442-494) consistently describe the current left-column-4th-row position | n/a |
+| 10 | `packages/client/src/components/FreeKickSetupPanel.tsx` | 1, 2, 3 | none — `freeKickKickerChosen`/`kickerLocked`/`isKickerSelectionPhase` all have live consumers; no orphaned branch found | n/a |
+| 11 | `packages/client/src/components/FreeKickSetupPanel.test.tsx` | 1, 2 | none — knip/lint clean | n/a |
+| 12 | `.planning/phases/46-final-cleanup/46-AUDIT.md` | n/a (this document; not source code) | n/a — this file is itself the sweep's output artifact, not a sweep target | n/a |
+| 13 | `packages/shared/src/data/player-pool.csv` | 4 (row count vs generated total) | none — 10 new rows (5 `generic-bench-home` + 5 `generic-bench-away`) appended last, matching `seed-rosters.ts`'s `EXPECTED_TOTAL = 198` guard and the actual 198-entry `PLAYER_POOL` | n/a |
+| 14 | `packages/shared/scripts/seed-rosters.ts` | 3, 4 (p-ID range header comment) | none — header comment's CSV processing-order block (lines 14-30) already lists `generic-bench-home → p189–p193` / `generic-bench-away → p194–p198` accurately, with the prior `usmnt → p178–p188` entry correctly left unchanged since it precedes the new rows | n/a |
+| 15 | `packages/shared/src/teams.ts` | 4 (header player count vs `PLAYER_POOL.length`) | **found, out of scope** — the leading total (`198 total players`) correctly matches `PLAYER_POOL.length` (198, per the plan's own acceptance criterion). The parenthetical breakdown (`4 legacy squads (44) + free agents (24) + MLS (44) + national (66)` = 178, not 198) has been stale since before Phase 46 — confirmed via `git log -p`: the breakdown text is byte-identical across all three total bumps (178→188→198 over three separate milestones), i.e. pre-existing drift Phase 46 did not introduce and only mechanically continued the existing bump-the-leading-number-only pattern. Logged to `.planning/phases/46-final-cleanup/deferred-items.md` per the Scope Boundary rule; not fixed in this task. | n/a (deferred, documented) |
+| 16 | `packages/shared/src/teams.test.ts` | 1, 2, 4 (count assertions) | none — count/last-id assertions read 198/`p198`, matching the array | n/a |
+| 17 | `packages/shared/src/teamConfig.ts` | 1, 2 | none — `GENERIC_BENCH_HOME_TEAM_ID`/`GENERIC_BENCH_AWAY_TEAM_ID`/`getGenericBenchPlayers` all have live consumers (`roomHandlers.ts`); knip-clean | n/a |
+| 18 | `packages/server/src/roomHandlers.ts` | 5 (D-12 "expected behavior, not a gap" claim) | none — the D-12 stance is explicitly superseded in place by a Phase 46 comment (lines 981-995) citing D-05 through D-09; no stale unqualified D-12 claim remains at this site | n/a |
+| 19 | `packages/server/src/__tests__/lineupAssignment.integration.test.ts` | 3, 5 | none — fully rewritten per 46-04; `grep -n "D-12\|empty bench\|WORKING AS INTENDED"` returns zero matches | n/a |
+| 20 | `packages/server/src/__tests__/substitution.integration.test.ts` | 3, 5 (superseded D-12 claim) | **found, fixed** — see below | fixed |
+| 21 | `packages/client/src/components/HexGrid.tsx` | 3 (inline `GK_DIVE`/`SNAPSHOT_DEFLECT` tint exclusions) | none — the historical comment at lines 47-51 describing the prior two-literal inline form is explicitly past tense ("Previously these four exclusions were... inline... this makes the full rule an enumerated... constant instead"); the live `isHighlighted` derivation (line 529) correctly uses `!VALID_MOVE_TINT_EXCEPTION_PHASES.has(phase)`, confirmed by direct read | n/a |
+| 22 | `packages/client/src/components/HexGrid.test.tsx` | 1, 2 | none — knip/lint clean | n/a |
+| 23 | `packages/client/src/components/PlayerStatsPanel.tsx` | 3 (`size={56}`, "4-column"/"7-stat" grid comment) | none — `grep -c "size={56}"` = 0; no "4-column"/"7-stat" string remains; the corrected `3-column stat grid → 2 rows of 3 (6 role-filtered stats)` comment matches `PlayerStatsPanel.module.css`'s actual `repeat(3, 1fr)` | n/a |
+| 24 | `packages/client/src/components/PlayerStatsPanel.test.tsx` | 1, 2 | none — knip/lint clean; badge-size (48) and stat-chip-count (6) assertions match the corrected component | n/a |
+
+### Row #20 finding detail — stale D-12 "must never be fixed" claim in `substitution.integration.test.ts`
+
+**Finding:** this file's header doc comment (lines 17-24, pre-fix) and its item-11 coverage-list
+entry (lines 44-45, pre-fix) stated, verbatim: *"a STANDARD-mode room's squads hold exactly 11
+players today... so D-02/D-12's derivation... yields an EMPTY bench for a Standard room... The
+D-12 test below therefore asserts an EMPTY bench and a rejected substitution attempt — this is
+WORKING AS INTENDED, not a gap, and **must never be 'fixed' by adding bench generation here or
+anywhere else**."* Plan 46-04 did exactly that — added `getGenericBenchPlayers` bench-generation
+fallback for standard rooms — and rewrote this file's test body accordingly (confirmed: the
+`describe`/`it` block immediately below the old "Case 11 (D-12)" section divider now asserts a
+5-entry generic bench per side and a successful substitution, not an empty bench). The
+surrounding doc comments were left describing the old, now-superseded behavior as if it were
+still both true and permanently mandated — residue class 3 (comments describing values no longer
+true) combined with class 5 (a planning-doc-style claim this phase superseded).
+
+**Fix:** reworded the file-header comment to a "HISTORICAL NOTE (superseded by Phase 46...)"
+framing that states the old D-12 stance accurately as history, then explains Phase 46's D-06
+supersession and points at the current describe block; updated the item-11 coverage-list entry
+and both section-divider comments (`// Case 11 (D-12): ...` and `// — the STANDARD path for the
+D-12 empty-bench case ...`) to name the Phase 46 D-05..D-09 supersession instead of restating the
+old, now-false claim. Zero test logic, assertions, or `it()` bodies were touched — confirmed via
+`git diff` showing a comment-only diff (30 insertions / 12 deletions, all inside `/** */` or `//`
+regions) — and the full `substitution.integration.test.ts` suite (12/12 tests) re-run green
+after the edit.
+
+**Files modified:** `packages/server/src/__tests__/substitution.integration.test.ts`
+**Verification:** `pnpm --filter @counter-attack/server test -- substitution.integration` — 12/12
+pass; full monorepo suite re-run green after the fix (see gate results below).
+
+**Note:** three other files (`gameEngine.ts`, `gameEngine.substitution.test.ts`,
+`gameHandlers.substitution.test.ts`, `LineupAssignmentScreen.test.tsx`) also contain `D-12`/
+"empty bench" references, but none of these four files are in Plans 46-01..46-05's touched-file
+list and their claims describe a still-true, more general engine behavior (`applySubstitution`
+still correctly rejects `INVALID_SUBSTITUTE` when a bench is genuinely empty, e.g. every bench
+player already subbed in — a real, unchanged case, not specific to "standard rooms always have
+an empty bench"). Left unchanged: out of this sweep's bounded scope (touched-files-only per
+46-RESEARCH.md Pitfall 6) and not actually false.
+
+### `eslint.config.js` — pre-existing blocking issue found and fixed (not itself a Plan 46-01..46-05 file, but required to satisfy this task's own `pnpm -w lint` exit-0 requirement)
+
+**Finding:** `pnpm -w lint` failed with `error Parsing error: Too many files (>8) have matched
+the default project` across 3 files in `packages/shared` (`stoppagePhases.test.ts`,
+`teamConfig.test.ts`, `teams.test.ts`) — a pre-existing, previously-deferred typescript-eslint
+default-project file-match cap issue (see `32/33/34-code-cleanup`'s and `43-06`'s own
+`deferred-items.md` entries: "the whole-workspace `pnpm lint` OOMs / errors on a pre-existing
+`packages/shared` typescript-eslint file-count-cap config issue"). The existing
+`allowDefaultProject` glob list (`packages/shared/src/*.test.ts` + `packages/shared/scripts/*.ts`)
+deliberately allow-lists 19 files, exceeding typescript-eslint's default 8-file cap — the tool's
+own "Too many files" error message names the exact documented fix:
+`parserOptions.projectService.maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING`.
+
+**Why this is in scope (not deferred a fourth time):** unlike the prior three phases where a
+clean `pnpm -w lint` run was not those phases' own success criterion, Plan 46-06's task text is
+explicit: *"All four [gate commands] must exit 0... If a failure genuinely requires a design
+decision rather than a mechanical fix, stop and report it instead of guessing"* — but raising a
+config cap the tool itself instructs you to raise, for files that are already deliberately
+allow-listed (not accidentally caught), is a mechanical fix, not a design decision, an
+eslint-disable, a knip suppression, a scope-narrowing, or a weakened assertion. None of the
+plan's explicit fix-forward prohibitions apply to this change.
+
+**Fix:** added `maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 30` alongside
+the existing `allowDefaultProject` list in `eslint.config.js`, with a comment explaining the
+19-file count, the headroom to 30, and a citation of the prior three phases' deferred-items.md
+entries this supersedes.
+
+**Files modified:** `eslint.config.js`
+**Verification:** `pnpm -w lint` now exits 0 in ~35s (see gate results below) — well under the
+100-170s budget 46-RESEARCH.md's Environment Availability table flagged, since the prior attempts
+in that research session were hitting the OOM/parse-error failure mode rather than completing.
+
+### Gate results (final re-run, after all fixes above)
+
+| Command | Exit code | Notes |
+|---|---|---|
+| `pnpm -w typecheck` | 0 | clean across shared/server/client, no findings |
+| `pnpm -w lint` | 0 | **measured wall-clock: ~35s** (`date +%s` before/after: 1788022944 → 1788022979). Previously blocked by the `eslint.config.js` fix above; no watcher flake observed. |
+| `pnpm -w test` | 0 | shared 907 passed (18 files) / server 1635 passed + 1 skipped + 1 todo (70 files) / client 1239 passed (40 files) — 3,781 total tests, all green. No vitest worker-crash flake observed on this run (the documented Windows `--pool=forks` workaround was not needed this time — noted per plan instruction in case a future rerun needs it). |
+| `pnpm knip` | 0 | zero findings; `git diff knip.json` is empty (no suppression) |
+
+`git diff` confirms zero `eslint-disable` comments added anywhere in this phase, and the only
+test-file diff (`substitution.integration.test.ts`) is comment-only with no assertion changes.

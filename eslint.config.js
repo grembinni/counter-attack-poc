@@ -19,6 +19,18 @@ export default tseslint.config(
             // type-aware resolution for cross-package imports in check-contrast.ts).
             'packages/shared/scripts/*.ts',
           ],
+          // Phase 46 / CLEANUP-13: the two globs above legitimately match 19 files
+          // (18 packages/shared/src/*.test.ts + 1 packages/shared/scripts/*.ts as of
+          // this count) — over typescript-eslint's default 8-file default-project cap.
+          // This is the tool's own documented escape hatch (see the "Too many files"
+          // parsing-error message), not a suppression: every one of these 19 files is
+          // deliberately allow-listed above, not accidentally caught. Raising the cap
+          // to 30 gives headroom for near-term new *.test.ts files in packages/shared
+          // without needing another edit here. This was a pre-existing, previously
+          // deferred issue (see 32/33/34/43-06 deferred-items.md) blocking a clean
+          // whole-workspace `pnpm -w lint` run — CLEANUP-13 requires that command to
+          // exit 0, so it is fixed here rather than deferred again.
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 30,
         },
       },
     },
