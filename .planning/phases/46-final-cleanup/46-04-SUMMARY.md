@@ -143,6 +143,10 @@ None - no external service configuration required.
 - Remaining Phase 46 requirements (CLEANUP-06 through CLEANUP-12: gameplay consistency audit, dead-ball hex highlighting, phase help-text clarity, kicker/thrower selection alignment, card/pitch/roster/bench layout alignment, duplicate-behavior consolidation) are out of this plan's scope and untouched by this work.
 - No blockers for subsequent 46-0N plans. The two new `teamConfig.ts` exports (`GENERIC_BENCH_HOME_TEAM_ID`, `GENERIC_BENCH_AWAY_TEAM_ID`) are currently unconsumed outside `getGenericBenchPlayers` itself — `pnpm knip` reports them clean today, but if a future plan removes the only call site of `getGenericBenchPlayers`, revisit whether the two ID constants should be inlined per the original plan's own instruction ("if the two ID constants end up unconsumed, inline them rather than leaving dead exports").
 
+## Self-Check: PASSED
+
+All claimed files verified present on disk; all three task/deviation commit hashes (`72feff4b`, `1ce4ca54`, `1acdfadc`) verified present in `git log --oneline --all`.
+
 ---
 *Phase: 46-final-cleanup*
 *Completed: 2026-08-29*
