@@ -15,7 +15,7 @@ import {
   TEAM_CONFIGS,
   isActivePiece,
 } from '@counter-attack/shared';
-import type { HexCoord } from '@counter-attack/shared';
+import type { GamePhase, HexCoord } from '@counter-attack/shared';
 import { useGameStore } from '../store/useGameStore.js';
 import { useMyTeam } from '../hooks/useMyTeam.js';
 import { socket } from '../socket.js';
@@ -43,6 +43,46 @@ const CLIP_RIGHT = HEX_SIZE * 1.5 * 36 + HEX_SIZE / 2; // 1090 — local x of 60
 const CLIP_Y = HEX_SIZE * SQRT3 * 0.5;
 const CLIP_W = CLIP_RIGHT - CLIP_X; // 1100
 const CLIP_H = HEX_SIZE * SQRT3 * 25; // clips at even-q r=25 centre — mirrors top
+
+/**
+ * Phase 46 / CLEANUP-06 / D-02: the enumerated set of phases whose valid-move hexes
+ * deliberately do NOT take the shared green `safe` tint that every other movement-pattern
+ * phase uses. Previously these four exclusions were two negated phase literals inline inside
+ * the `isHighlighted` derivation below (`phase !== 'GK_DIVE' && phase !== 'SNAPSHOT_DEFLECT'`)
+ * with no equivalent for the other two members — this makes the full rule an enumerated,
+ * commented, exported constant instead, mirroring the `BALL_MARKER_PHASES` pattern
+ * (`BallLocationRing.tsx`). Documented in full in `docs/HIGHLIGHT-REFERENCE.md`'s
+ * "Valid-Move Tint Consistency" section. Every other phase that populates `validMoveHexes`
+ * (traced via the `compute*ValidHexes` call sites in `useGameStore.ts`) resolves to `safe`.
+ *
+ * - `GK_DIVE`: dive-target hexes are rendered via the separate `gkDiveTargetSet` mechanism
+ *   below (`isGKDiveTarget`), never through `validMoveHexes`. `validMoveHexes` is already
+ *   cleared entering this phase (D-28) since no `selectPiece` branch exists for `GK_DIVE`,
+ *   but the phase stays excluded here too as defense-in-depth against any stale selection
+ *   leaking the shared `safe` tint onto dive-target hexes. Predates Phase 46 (Bug 2 fix).
+ * - `SNAPSHOT_DEFLECT`: the defending piece's valid-move hexes intentionally keep the white
+ *   `shot-path` tint instead of `safe` — moving to intercept a snapshot is a different UX
+ *   context than ordinary movement. Predates Phase 46 (Bug 2 fix, snapshot-shot-flow-mismatch
+ *   BUGFIX).
+ * - `KICK_OFF_SETUP`: valid-move hexes fall entirely inside the team's kick-off placement
+ *   zone, which already renders the dedicated blue `kickoff` zone-info tint (`isKickoffTint`,
+ *   fed by `inMyZone`) at higher priority than `safe` in the `highlightType` ternary below —
+ *   a deliberate, pre-existing, documented zone-placement affordance (see `kickoff` row,
+ *   `docs/HIGHLIGHT-REFERENCE.md`), not a movement-pattern tint. Listed here so the code and
+ *   the exception-set documentation agree explicitly rather than only being true by ternary
+ *   priority accident.
+ * - `FREE_KICK_SETUP`: valid-move hexes fall inside the team's free-kick placement zone,
+ *   which renders the same dedicated blue `kickoff` tint (`isInMyFreeKickZone`, D-48) at
+ *   higher priority than `safe` — mirrors the `KICK_OFF_SETUP` placement-zone precedent
+ *   directly above; confirmed by the existing D-48 test suite ("does NOT render the generic
+ *   safe (green) fill anywhere").
+ */
+export const VALID_MOVE_TINT_EXCEPTION_PHASES: ReadonlySet<GamePhase> = new Set([
+  'GK_DIVE',
+  'SNAPSHOT_DEFLECT',
+  'KICK_OFF_SETUP',
+  'FREE_KICK_SETUP',
+]);
 
 /**
  * SVG root element for the Counter Attack pitch.
@@ -475,18 +515,18 @@ export function HexGrid() {
               headerTargetStep && !goalLineHexSet.has(hexId) && headerDist <= 6;
 
             // Bug 2 fix: HIGH_PASS_MOVE and GK_KICK_MOVE valid move hexes now use yellow
-            // (safe) tint, same as normal movement. SNAPSHOT_DEFLECT keeps the white shot-path tint
-            // (defender moving to intercept a snapshot = different UX context).
-            // D-28: GK_DIVE highlights already cleared by setGameState — still suppressed here.
+            // (safe) tint, same as normal movement. Phase 46 / CLEANUP-06 / D-02: the
+            // exclusion is now a single membership test against the enumerated, documented
+            // VALID_MOVE_TINT_EXCEPTION_PHASES constant (module scope, above) instead of two
+            // inline negated phase literals — see that constant's comment for the full
+            // rationale of all four members (GK_DIVE, SNAPSHOT_DEFLECT, KICK_OFF_SETUP,
+            // FREE_KICK_SETUP).
             // headerTargetStep excluded: white action overlay in HexGrid handles header pass tinting.
             const isHighlighted =
               isShootingModeGoalHex ||
               isHeaderTargetGoalHex ||
               isHeaderNonGoalTarget ||
-              (phase !== 'GK_DIVE' &&
-                phase !== 'SNAPSHOT_DEFLECT' &&
-                !headerTargetStep &&
-                isValidMove) ||
+              (!VALID_MOVE_TINT_EXCEPTION_PHASES.has(phase) && !headerTargetStep && isValidMove) ||
               isGoalHex ||
               isShotTarget;
             const isHpMoveTarget =

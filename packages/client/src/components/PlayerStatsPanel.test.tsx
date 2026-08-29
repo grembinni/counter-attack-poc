@@ -117,6 +117,27 @@ describe('PlayerStatsPanel — PLAY-02 / D-09: player card header renders firstN
     const statValues = screen.getAllByText('5');
     expect(statValues.length).toBeGreaterThanOrEqual(2);
   });
+
+  // Phase 46 / CLEANUP-11 + CLEANUP-13: badge size aligned to the roster/bench card family
+  // (48px, was 56px) and the stat-grid comment corrected to describe the real 3-column/
+  // 6-stat grid. These pin both facts so a future regression is caught.
+  it('CLEANUP-11: renders the team badge at 48px, matching the roster/bench card family', () => {
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    const { container } = render(<PlayerStatsPanel />);
+    // selectedTeams.home = 'city' (test setup above) — TeamBadge full=true renders an
+    // <img alt="{teamId} badge"> with width/height set from the size prop.
+    const badgeImg = container.querySelector('img[alt="city badge"]');
+    expect(badgeImg).not.toBeNull();
+    expect(badgeImg!.getAttribute('width')).toBe('48');
+    expect(badgeImg!.getAttribute('height')).toBe('48');
+  });
+
+  it('CLEANUP-13: renders exactly 6 stat chips for a representative outfield role', () => {
+    useGameStore.setState({ selectedPieceId: 'home-1' });
+    const { container } = render(<PlayerStatsPanel />);
+    const statChips = container.querySelectorAll('[class*="statChip"]');
+    expect(statChips.length).toBe(6);
+  });
 });
 
 describe('PlayerStatsPanel — ICON-01/ICON-02/D-04: roster-panel card/injury glyphs (shared badge)', () => {
