@@ -356,6 +356,30 @@ export function ActionPanel() {
   })();
 
   // -------------------------------------------------------------------------
+  // LOOSE_BALL phase (CLEANUP-07, Phase 46 audit): the scatter roll auto-fires via the
+  // useEffect above — no player interaction is possible here. Before this fix, neither
+  // client saw any heading or description while the phase was briefly broadcast (the
+  // active-team client fell through every branch below to the final `return null`,
+  // since no phase check matched 'LOOSE_BALL' and it renders before the isActivePlayer
+  // guard is even reached in every other branch). Reuses the exact "Loose Ball!" heading
+  // already used by the PASS-phase loose-ball sub-case below, for both clients — neither
+  // can act, so there is no active/inactive distinction to make (mirrors the HEADER
+  // accuracy auto-advance convention: both players see the same "resolving" message).
+  // Must be before the isActivePlayer guard — both teams see this phase.
+  // -------------------------------------------------------------------------
+  if (phase === 'LOOSE_BALL') {
+    if (myTeam === null) return null;
+    return (
+      <PanelShell>
+        <div className={styles.helperBlock}>
+          <span className={styles.helperLine1}>Loose Ball!</span>
+          <span className={styles.helperLine2}>Resolving automatically…</span>
+        </div>
+      </PanelShell>
+    );
+  }
+
+  // -------------------------------------------------------------------------
   // HIGH_PASS_MOVE phase: both teams reposition 1 player up to 3 hexes before accuracy roll.
   // Must be before the isActivePlayer guard — both teams act in this phase.
   // -------------------------------------------------------------------------

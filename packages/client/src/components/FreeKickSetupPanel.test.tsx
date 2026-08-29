@@ -133,16 +133,32 @@ describe('FreeKickSetupPanel — placements counter display', () => {
 });
 
 describe('FreeKickSetupPanel — kicker selection sub-step (freeKickKickerChosen === false)', () => {
-  it('shows only heading and kicker instruction — no count row, no Confirm button', () => {
+  it('shows only heading and the kicker-selection instruction — no count row, no Confirm button', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(0, { freeKickKickerChosen: false, movedPieceIds: [] }),
       playerSlot: 2,
     });
     render(<FreeKickSetupPanel />);
     expect(screen.getByText(/^free kick$/i)).toBeDefined();
-    expect(screen.getByText(/kicker: move a player onto the free-kick hex first/i)).toBeDefined();
+    expect(
+      screen.getByText(/move a player onto the kick spot to become the kicker/i),
+    ).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByText(/of \d+ placed/i)).toBeNull();
+  });
+
+  // CLEANUP-10 (Phase 46): the panel must never show two rows describing the same
+  // "how do I choose the kicker" requirement at once.
+  it('renders the kicker-selection instruction row exactly once, and no reworded red row alongside it', () => {
+    useGameStore.setState({
+      gameState: freeKickSetupState(0, { freeKickKickerChosen: false, movedPieceIds: [] }),
+      playerSlot: 2,
+    });
+    render(<FreeKickSetupPanel />);
+    expect(
+      screen.getAllByText(/move a player onto the kick spot to become the kicker/i),
+    ).toHaveLength(1);
+    expect(screen.queryByText(/kicker required before any other move/i)).toBeNull();
   });
 });
 
@@ -156,27 +172,36 @@ describe('FreeKickSetupPanel — D-54 mandatory kicker-first placement (supersed
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/kicker: move a player onto the free-kick hex first/i)).toBeDefined();
+    expect(screen.getByText(/kicker required before any other move/i)).toBeDefined();
   });
 
-  it('stage 0: Confirm is ENABLED once a kicking-team piece is locked into movedPieceIds (kicker placed)', () => {
+  it('stage 0: Confirm is ENABLED once a kicking-team piece is locked into movedPieceIds (kicker placed), and the locked-kicker row names them', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(0, { movedPieceIds: ['away-9'] }),
     });
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByText(/kicker/i)).toBeNull();
+    expect(screen.queryByText(/kicker required before any other move/i)).toBeNull();
+    expect(screen.queryByText(/move a player onto the kick spot to become the kicker/i)).toBeNull();
+    const piece = mockMovementState.pieces.find((p) => p.id === 'away-9')!;
+    expect(
+      screen.getByText(`Kicker: #${piece.number} ${piece.firstName} ${piece.lastName}`),
+    ).toBeDefined();
   });
 
-  it('stage 2 (kicking, second kicking turn): Confirm is ENABLED when the kicker was already locked at stage 0 (carries forward in movedPieceIds)', () => {
+  it('stage 2 (kicking, second kicking turn): Confirm is ENABLED when the kicker was already locked at stage 0 (carries forward in movedPieceIds), and the locked-kicker row still names them', () => {
     useGameStore.setState({
       gameState: freeKickSetupState(2, { movedPieceIds: ['away-9'] }),
     });
     render(<FreeKickSetupPanel />);
     const endTurn = screen.getByRole('button', { name: /^confirm$/i });
     expect((endTurn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByText(/kicker/i)).toBeNull();
+    expect(screen.queryByText(/kicker required before any other move/i)).toBeNull();
+    const piece = mockMovementState.pieces.find((p) => p.id === 'away-9')!;
+    expect(
+      screen.getByText(`Kicker: #${piece.number} ${piece.firstName} ${piece.lastName}`),
+    ).toBeDefined();
   });
 
   it('stage 2: Confirm is DISABLED in the (abnormal) case where movedPieceIds has no kicking-team piece locked', () => {

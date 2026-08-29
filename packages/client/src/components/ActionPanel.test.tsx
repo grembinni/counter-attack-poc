@@ -883,6 +883,32 @@ describe('ActionPanel — PANEL-01: uniform two-line helper blocks', () => {
     expect(screen.getByText('Snapshot — Deflection Attempt!')).toBeDefined();
     expect(screen.queryByText(/Snapshot - Deflection/)).toBeNull();
   });
+
+  // CLEANUP-07 (Phase 46 audit): before this fix, the active-team client fell through
+  // every phase branch to the final `return null` while LOOSE_BALL's scatter roll
+  // auto-resolved (no phase check matched 'LOOSE_BALL'), rendering a blank panel with
+  // no heading or description. Reuses the "Loose Ball!" heading already used by the
+  // PASS-phase loose-ball sub-case, for both the active and non-active client — neither
+  // can act during this auto-resolving phase.
+  it('LOOSE_BALL renders "Loose Ball!" and "Resolving automatically…" for the active player', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'LOOSE_BALL', activeTeam: 'home' },
+      playerSlot: 1,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Loose Ball!')).toBeDefined();
+    expect(screen.getByText('Resolving automatically…')).toBeDefined();
+  });
+
+  it('LOOSE_BALL renders the same heading and description for the non-active player', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'LOOSE_BALL', activeTeam: 'home' },
+      playerSlot: 2, // away — home is active
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Loose Ball!')).toBeDefined();
+    expect(screen.getByText('Resolving automatically…')).toBeDefined();
+  });
 });
 
 // BUG-25: MOVE Confirm button color must use ctaButtonClass(remaining) —
@@ -1246,6 +1272,15 @@ describe('ActionPanel — D-07: every phase state renders the panel heading', ()
       gameState: { ...mockMovementState, phase: 'PASS', activeTeam: 'home' },
       selectedPassType: 'STANDARD_PASS',
       passTargetHex: null,
+    });
+    render(<ActionPanel />);
+    expect(screen.getByText('Actions')).toBeDefined();
+  });
+
+  it('CLEANUP-07 (Phase 46): LOOSE_BALL phase shows the Actions heading (previously blank for the active player)', () => {
+    useGameStore.setState({
+      gameState: { ...mockMovementState, phase: 'LOOSE_BALL', activeTeam: 'home' },
+      playerSlot: 1,
     });
     render(<ActionPanel />);
     expect(screen.getByText('Actions')).toBeDefined();
