@@ -50,15 +50,15 @@ Requirements for the "UI Consistency, Substitution Rework & Match Summary" miles
 
 ### Game Summary Popup
 
-- [ ] **STATS-01**: An (i) icon on the scoreboard opens a match summary popup at any time during the match
-- [ ] **STATS-02**: The popup remains reachable at half-time and full-time in addition to the existing half-time/full-time display
-- [ ] **STATS-03**: The popup shows a settings/toggle recap, including the referee Leniency setting
-- [ ] **STATS-04**: The popup shows possession as a percentage of elapsed match minutes, per team
-- [ ] **STATS-05**: The popup shows total completed passes per team
-- [ ] **STATS-06**: The popup shows successful tackles + steals per team, and tackle/steal success percentage
-- [ ] **STATS-07**: The popup shows total shots per team
-- [ ] **STATS-08**: The popup shows accumulated xG per team, computed per shot via the specified formula (inputs: defenders in the goal box, defenders in the penalty box, shot-hex X/Y distance from goal center)
-- [ ] **STATS-09**: The popup shows fouls, yellow cards, and red cards per team
+- [x] **STATS-01**: An (i) icon on the scoreboard opens a match summary popup at any time during the match
+- [x] **STATS-02**: The popup remains reachable at half-time and full-time in addition to the existing half-time/full-time display
+- [x] **STATS-03**: The popup shows a settings/toggle recap, including the referee Leniency setting
+- [x] **STATS-04**: The popup shows possession as a percentage of elapsed match minutes, per team
+- [x] **STATS-05**: The popup shows total completed passes per team
+- [x] **STATS-06**: The popup shows successful tackles + steals per team, and tackle/steal success percentage
+- [x] **STATS-07**: The popup shows total shots per team
+- [x] **STATS-08**: The popup shows accumulated xG per team, computed per shot via the specified formula (inputs: defenders in the goal box, defenders in the penalty box, shot-hex X/Y distance from goal center)
+- [x] **STATS-09**: The popup shows fouls, yellow cards, and red cards per team
 
 ### Final Cleanup
 
@@ -110,7 +110,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TACKLE-01..04   | Phase 43 | Complete |
 | REFEREE-01..04  | Phase 44 | Complete |
 | SETTINGS-05..07 | Phase 44 | Complete |
-| STATS-01..09    | Phase 45 | Pending  |
+| STATS-01..09    | Phase 45 | Complete |
 | CLEANUP-05..13  | Phase 46 | Pending  |
 
 **Coverage:**
