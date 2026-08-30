@@ -1,5 +1,30 @@
 # Milestones
 
+## v1.7 UI Consistency, Substitution Rework & Match Summary (Shipped: 2026-08-30)
+
+**Phases:** 41–46 (6 phases) | **Plans:** 47 | **Timeline:** 2026-08-21 → 2026-08-30 (9 days)
+**Commits:** 365 | **Files changed:** 103 | **Insertions:** 17,915 | **Deletions:** 960
+**Requirements:** 44/44 complete
+**Test suite:** shared 907 / server 1635 (1 skipped, 1 todo) / client 1239 = 3,781 tests, all green
+
+**Delivered:**
+Unified card/injury iconography across pitch, player-stats, roster, and bench cards behind one shared component (the bench's first-ever card/injury display); overhauled the mid-match roster screen into a default drag-and-drop positioning mode plus an explicit stage-and-confirm substitution mode capped at 3 per team, alongside a bug fix (BUG-38) that fully removes a red-carded player from every gameplay computation, not just the pitch display; added a Tackle/Steal decline mechanic that keeps a defender's risk ring live across a declined attempt; added a manual Referee Leniency override (2–5, default off) and consolidated all match-rule toggles into a collapsed-by-default, two-column Advanced Settings drawer; built an on-demand Game Summary popup with live soccer-style stats (possession, passes, tackles/steals, shots, xG per the specified formula, fouls/cards) reachable at any point in the match; and closed the milestone with a consistency/dead-code audit spanning dead-ball hex highlighting, phase help text, duplicate movement logic, and pitch/roster/bench card alignment.
+
+**Key Accomplishments:**
+
+1. Card & Injury Iconography (Phase 41) — single shared `CardInjuryBadge` component replaced 3 duplicated implementations and gave the bench card/injury display for the first time, closed by a permanent source-scanning audit test and a four-surface consistency test
+2. Substitution UX Overhaul (Phase 42) — largest and highest-regression-risk phase of the milestone: a coexisting drag-and-drop positioning mode and stage-and-confirm substitution mode on one screen, plus BUG-38's shared `isActivePiece` predicate applied across every occupancy/ZoI/interceptor site in `packages/shared`, `gameEngine.ts`, and `gameHandlers.ts` — 17 plans across 12 waves, including 5 gap-closure rounds from live two-browser verification
+3. Tackle/Steal Prompt & Decline (Phase 43) — server-authoritative decline mechanic with sequential multi-defender prompting and a persistent risk ring, verified with zero pre-existing tackle/steal/foul test files touched (strongest evidence for the toggle-off regression requirement)
+4. Referee Leniency & Advanced Settings Drawer (Phase 44) — manual 2–5 Leniency override coupled to both booking threshold and added time by explicit design decision, plus a collapsed two-column Advanced drawer for all 6 match-rule toggles
+5. Game Summary Popup (Phase 45) — on-demand match-stats modal with a pure, unit-tested xG formula instrumented at all 7 independent shot-resolution call sites, all 9 stat counters proven to persist across half-time by a real two-client socket integration suite
+6. Final Cleanup (Phase 46) — milestone-closing consistency audit: dead-ball hex highlighting extended to 3 more phases, response-move trigger language clarified, movement-pattern/kicker-selection duplication consolidated, pitch/roster/bench card layout aligned, and a 3-phase-deferred `pnpm -w lint` config cap finally fixed
+
+**Known deferred items at close:** 3 (see STATE.md Deferred Items) — a foul→injury→booking EventBanner sequencing bug (root cause still unconfirmed, investigation paused by the user since v1.6 close); a knip-fix quick task with a metadata-only status gap (work itself independently verified complete, backfilled during this close); a resolved Advanced-Settings-drawer todo not auto-closed due to a missing frontmatter field (moved to completed/ during this close). RESP-01..09 (response-move activation model) remains deferred, now across five consecutive milestones (v1.4–v1.7 plus whatever comes next).
+
+Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requirements](milestones/v1.7-REQUIREMENTS.md)
+
+---
+
 ## v1.6 Fouls, Cards & Restarts (Shipped: 2026-08-17)
 
 **Phases completed:** 4 phases, 83 plans, 206 tasks

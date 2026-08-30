@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 46 complete (Plan 46-07, live verification recorded)
-last_updated: "2026-08-30T13:49:08.122Z"
-last_activity: 2026-08-30
+last_updated: "2026-08-30T14:05:50.267Z"
+last_activity: 2026-08-30 — Milestone v1.7 completed and archived
 progress:
   total_phases: 7
   completed_phases: 6
@@ -18,10 +18,10 @@ progress:
 
 ## Current Position
 
-Phase: 999.1
-Plan: Not started
-Status: Phase 46 complete — all 7 plans executed, all 9 CLEANUP requirements evidenced
-Last activity: 2026-08-30
+Phase: Milestone v1.7 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-30 — Milestone v1.7 completed and archived
 
 ## Project Reference
 
@@ -278,6 +278,18 @@ See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 | 260816-bn5             | 2026-08-16 | Fix two knip findings: dropped unused `export` from `triggerFoulFreeKick` (self-file usage only); pruned 6 redundant `entry` patterns from root `knip.json` — `pnpm knip` now exits clean                      |
 | 260823-akw             | 2026-08-23 | Narrow random Referee Leniency roll from 1-6 to 2-5 at match start (ahead of Phase 44); corrected stale 1-6 range docs in gameEngine.ts, shared types, README, and REFEREE-03                                  |
 
+## Deferred Items (acknowledged at milestone close 2026-08-30, v1.7)
+
+Items acknowledged and deferred at v1.7 milestone close on 2026-08-30 (pre-close artifact audit found 3 open items):
+
+| Category   | Item                                                              | Status                                                                                                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| debug      | foul-banner-sequence-not-pausing                                    | investigating — still unresolved; explicitly paused by user since 2026-08-16 ("defer to after 40 and let's close out this phase"); root cause of the live-reported symptom remains unconfirmed despite a real race-condition fix already shipped (commit `0664573`) |
+| quick_task | 260816-bn5-fix-two-knip-findings-remove-unnecessary                 | resolved during this close — metadata gap only (`status: complete` was missing from SUMMARY.md frontmatter); work itself (dropped unused export, pruned `knip.json` entries) was already independently verified complete by a clean `pnpm knip` run |
+| todo       | 2026-08-28-debt-move-speed-setting-to-advanced-settings             | resolved during this close — Phase 46 plan 46-03 relocated Match Speed into the Advanced Settings drawer; the todo file itself was never auto-closed because it lacked a `resolves_phase` frontmatter field at creation time; moved to `.planning/todos/completed/` with a resolution note |
+
+Known deferred items at close: 3 (1 genuinely open — the foul-banner debug session; 2 resolved-but-not-auto-closed, fixed as part of this close).
+
 ## Deferred Items (acknowledged at milestone close 2026-08-17, v1.6)
 
 Items acknowledged and deferred at v1.6 milestone close on 2026-08-17 (see [.planning/milestones/v1.6-MILESTONE-AUDIT.md](milestones/v1.6-MILESTONE-AUDIT.md) for full detail):
@@ -525,4 +537,4 @@ Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves —
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 44` to begin planning Phase 44 (Referee Leniency & Advanced Settings Drawer), now that Phase 43 (Tackle/Steal Prompt & Decline) is complete.
+- Start the next milestone with /gsd-new-milestone
