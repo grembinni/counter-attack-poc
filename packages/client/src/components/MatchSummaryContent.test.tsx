@@ -68,6 +68,31 @@ describe('MatchSummaryContent — settings recap', () => {
     expect(screen.getByText('Tackle/Steal Decline: Off')).toBeDefined();
   });
 
+  // CLEANUP (live-playtest gap-closure): team mode (Standard/Draft) recap bubble —
+  // no draft-pool selection detail is included, matching the request that draft pool
+  // stay out of this summary entirely.
+  it('renders "Team Mode: Standard" when teamType is "standard"', () => {
+    seed({ teamType: 'standard' });
+    render(<MatchSummaryContent />);
+    expect(screen.getByText('Team Mode: Standard')).toBeDefined();
+    expect(screen.queryByText(/draft pool/i)).toBeNull();
+  });
+
+  it('renders "Team Mode: Draft" when teamType is "draft", still without draft-pool detail', () => {
+    seed({ teamType: 'draft' });
+    render(<MatchSummaryContent />);
+    expect(screen.getByText('Team Mode: Draft')).toBeDefined();
+    expect(screen.queryByText(/draft pool/i)).toBeNull();
+  });
+
+  it('defaults to "Team Mode: Standard" when teamType is absent (pre-CLEANUP GameState snapshot)', () => {
+    // mockMovementState has no teamType field at all (pre-CLEANUP fixture) — seed()
+    // with no override exercises the `?? 'standard'` fallback directly.
+    seed();
+    render(<MatchSummaryContent />);
+    expect(screen.getByText('Team Mode: Standard')).toBeDefined();
+  });
+
   it('renders "Referee Leniency: Manual — 4" when refereeCard.wasManualOverride is true (STATS-03)', () => {
     seed({ refereeCard: { leniency: 4, wasManualOverride: true } });
     render(<MatchSummaryContent />);
@@ -159,9 +184,12 @@ describe('MatchSummaryContent — settings recap', () => {
   // pure-CSS visual treatment covered by the 45-05-04 human-verify
   // checkpoint; this test locks in the deterministic 4+3 row split, which
   // IS structurally testable).
-  it('groups the 7 settings bubbles into fixed-size rows — a deterministic 4+3 split, not a width-dependent wrap', () => {
+  it('groups the 8 settings bubbles into fixed-size rows — a deterministic 4+4 split, not a width-dependent wrap', () => {
     seed();
     render(<MatchSummaryContent />);
+    // CLEANUP (live-playtest gap-closure): 'Team Mode: Standard' is the 8th bubble,
+    // shifting the split from the original checkpoint's 4+3 (7 items) to 4+4 (8 items) —
+    // still deterministic, still RECAP_COLUMNS = 4 per row.
     const bubbleTexts = [
       'Speed: Standard',
       'Fouls: Off',
@@ -170,6 +198,7 @@ describe('MatchSummaryContent — settings recap', () => {
       'Out-of-Bounds: Off',
       'Referee Leniency: Auto — 4',
       'Tackle/Steal Decline: Off',
+      'Team Mode: Standard',
     ];
     const parents = bubbleTexts.map((text) => screen.getByText(text).parentElement);
     parents.forEach((p) => expect(p).not.toBeNull());
@@ -179,9 +208,9 @@ describe('MatchSummaryContent — settings recap', () => {
     expect(firstRowParent).not.toBe(secondRowParent);
     // First 4 bubbles share one row container...
     expect(parents.slice(0, 4).every((p) => p === firstRowParent)).toBe(true);
-    // ...and the last 3 share a different row container.
+    // ...and the last 4 share a different row container.
     expect(parents.slice(4).every((p) => p === secondRowParent)).toBe(true);
-    // Exactly two row containers total for 7 items at RECAP_COLUMNS = 4.
+    // Exactly two row containers total for 8 items at RECAP_COLUMNS = 4.
     expect(new Set(parents).size).toBe(2);
   });
 });

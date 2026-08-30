@@ -39,6 +39,10 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-secondary);
+  /* CLEANUP (live-playtest gap-closure): the SETTINGS section header was the only
+     left-aligned header-like element in this view — center it to match the
+     already-centered "MATCH SUMMARY" modal title. */
+  text-align: center;
 }
 
 /* D-12 as amended by the checkpoint 45-05-04 fix: colored toggle:state

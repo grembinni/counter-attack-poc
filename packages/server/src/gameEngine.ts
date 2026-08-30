@@ -31,6 +31,7 @@ import type {
 import type { TeamId } from '@counter-attack/shared';
 import type { UniformStyleId } from '@counter-attack/shared';
 import type { FormationId } from '@counter-attack/shared';
+import type { TeamType } from '@counter-attack/shared';
 import {
   FORMATIONS,
   GAME_SPEED_MINUTES,
@@ -434,6 +435,14 @@ export function buildInitialGameState(
    * a possibly-`undefined` room field.
    */
   refereeLeniencyValue?: number,
+  /**
+   * CLEANUP (live-playtest gap-closure): the room's Standard/Draft team-mode choice,
+   * baked into GameState at match start from `Room.teamType` — mirrors every other
+   * settings-toggle parameter above. Defaults to `'standard'` so every pre-existing
+   * caller keeps compiling and behaving identically. Purely informational (rendered
+   * in the in-match settings recap); never branched on by engine logic.
+   */
+  teamType: TeamType = 'standard',
 ): GameState {
   const attackingTeam: 'home' | 'away' = randomInt(0, 2) === 0 ? 'home' : 'away'; // D-13 coin flip
 
@@ -492,6 +501,7 @@ export function buildInitialGameState(
     bookingEnabled, // SETTINGS-02/CARD-04 (Phase 39): Booking (cards) toggle
     injuryEnabled, // SETTINGS-03/INJURY-04 (Phase 39): Injury system toggle
     tackleStealDeclineEnabled, // TACKLE-01 (Phase 43): Tackle/Steal decline-prompt toggle
+    teamType, // CLEANUP: Standard/Draft team-mode choice, embedded in every subsequent snapshot
     secondHalfConfirmed: null,
     gkDiveAtFeetUsedByTeam: null,
     gkBoxEntryUsedByTeam: null,

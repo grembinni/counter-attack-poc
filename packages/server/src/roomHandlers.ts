@@ -1044,6 +1044,7 @@ export function registerRoomHandlers(
             // Passed raw (no `??`): the engine param is `?: number` and treats `undefined`
             // as "no override", which is the correct fail-closed meaning.
             room.refereeLeniencyValue,
+            room.teamType ?? 'standard',
           );
         } catch (err) {
           console.error('buildInitialGameState failed in LINEUP_CONFIRM:', err);

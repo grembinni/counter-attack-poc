@@ -1605,6 +1605,14 @@ export type GameState = {
    * value.
    */
   tackleStealDeclineEnabled?: boolean;
+  /**
+   * CLEANUP (live-playtest gap-closure): the room's Standard/Draft team-mode choice,
+   * baked into GameState at match start (buildInitialGameState) so the in-match
+   * settings recap (MatchSummaryContent) can show it without a separate lookup.
+   * Purely informational — never branched on by engine logic. Optional so every
+   * pre-existing GameState fixture/test that predates this field keeps compiling.
+   */
+  teamType?: TeamType;
   /** THROWIN-01/02 (Phase 37): the exit hex where the throw-in is taken. null outside THROW_IN_SETUP/movement. */
   throwInHex?: HexCoord | null;
   /** THROWIN-01 (Phase 37): the team awarded the throw-in. null outside the throw-in sequence. */

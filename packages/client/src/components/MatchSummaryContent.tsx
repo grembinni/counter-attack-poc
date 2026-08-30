@@ -205,6 +205,14 @@ export function MatchSummaryContent() {
   // directed override of D-13, documented here and in SUMMARY.md rather
   // than silently expanding scope.
   const gameSpeed = useGameStore((s) => s.gameState.gameSpeed);
+  // CLEANUP (live-playtest gap-closure): team mode (Standard/Draft) added to the recap
+  // per the same developer-requested pattern gameSpeed followed above — Standard reads
+  // green (default), Draft reads red, matching this recap's existing "green = default/
+  // on, red = non-default/off" convention. Deliberately does NOT include draft-pool
+  // selection detail — the recap stays a one-word-per-bubble summary, not a settings
+  // dump. `teamType` is optional on GameState (older snapshots predate this field), so
+  // this defaults to 'standard' rather than rendering "undefined".
+  const teamType = useGameStore((s) => s.gameState.teamType ?? 'standard');
 
   // Local accordion open/closed state (plain conditional render, mirrors the
   // existing Advanced-drawer disclosure pattern in GameSettingsScreen.tsx —
@@ -258,6 +266,11 @@ export function MatchSummaryContent() {
       key: 'tackleStealDecline',
       text: `Tackle/Steal Decline: ${tackleStealDeclineEnabled === true ? 'On' : 'Off'}`,
       variant: tackleStealDeclineEnabled === true ? 'green' : 'red',
+    },
+    {
+      key: 'teamType',
+      text: `Team Mode: ${teamType === 'draft' ? 'Draft' : 'Standard'}`,
+      variant: teamType === 'draft' ? 'red' : 'green',
     },
   ];
 
