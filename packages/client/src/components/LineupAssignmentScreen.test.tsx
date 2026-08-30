@@ -436,6 +436,54 @@ describe('LineupAssignmentScreen — Standard-mode non-regression', () => {
 
     expect(container.querySelector('[data-testid="card-injury-badge"]')).toBeNull();
   });
+
+  /* CLEANUP bug fix: the Step 3 bench section previously rendered 5 inert placeholder
+   * divs with no data (D-17: "structural only in v1.3"). Standard-mode teams always have
+   * exactly 11 players (no squad remainder), so the bench is now wired to the Phase 46
+   * generic placeholder bench for the player's own side, client-side, before confirm. */
+  it("CLEANUP: Step 3's bench section shows the 5 generic placeholder bench players for the player's side", () => {
+    const assignment = [
+      'p001',
+      'p002',
+      'p003',
+      'p004',
+      'p005',
+      'p006',
+      'p007',
+      'p008',
+      'p009',
+      'p010',
+      'p011',
+    ];
+
+    const { container: homeContainer } = render(
+      <LineupAssignmentScreen
+        assignment={assignment}
+        formationId="4-4-2"
+        playerSlot={1}
+        myTeamId="city"
+        onSwap={NOOP}
+        onConfirm={NOOP}
+        lineupConfirmed={false}
+      />,
+    );
+    expect(homeContainer.textContent).toContain('Jack Sullivan');
+    expect(homeContainer.textContent).not.toContain('Tomas Novak');
+
+    const { container: awayContainer } = render(
+      <LineupAssignmentScreen
+        assignment={assignment}
+        formationId="4-4-2"
+        playerSlot={2}
+        myTeamId="crew"
+        onSwap={NOOP}
+        onConfirm={NOOP}
+        lineupConfirmed={false}
+      />,
+    );
+    expect(awayContainer.textContent).toContain('Tomas Novak');
+    expect(awayContainer.textContent).not.toContain('Jack Sullivan');
+  });
 });
 
 /* ─── Phase 40 (40-03): mid-match substitution mode (SUB-02/03/06/07, D-12/D-13) ──────── */

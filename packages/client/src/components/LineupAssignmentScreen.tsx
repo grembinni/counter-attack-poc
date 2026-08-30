@@ -17,6 +17,7 @@ import {
   DRAFT_ROUND_COUNT,
   MAX_SUBS_PER_TEAM,
   isActivePiece,
+  getGenericBenchPlayers,
 } from '@counter-attack/shared';
 import type {
   BenchEntry,
@@ -1346,6 +1347,22 @@ export function LineupAssignmentScreen({
     );
   }
 
+  // CLEANUP bug fix: standard-mode teams have exactly 11 players each (see teams.ts —
+  // every named team's sourceTeamId maps to precisely 11 pool entries), so there is
+  // never a real squad remainder to bench. A standard room's bench is therefore always
+  // the Phase 46 generic placeholder bench for this player's side — the same
+  // getGenericBenchPlayers fallback roomHandlers.ts's LINEUP_CONFIRM uses server-side
+  // once the match starts, computed here client-side from the shared PLAYER_POOL so it
+  // renders during Step 3 instead of only after confirm. This section was previously
+  // "structural only" (D-17): five inert placeholder divs with no data.
+  const pregameBenchSide: 'home' | 'away' = playerSlot === 1 ? 'home' : 'away';
+  const pregameGenericBench = getGenericBenchPlayers(pregameBenchSide);
+  const pregameBenchCards: TieredPoolPlayer[] = pregameGenericBench
+    .map((p) => resolveTieredCard(p.id))
+    .filter((c): c is TieredPoolPlayer => c !== null);
+  const pregameBenchNumbers: Record<string, number> = {};
+  for (const p of pregameGenericBench) pregameBenchNumbers[p.id] = p.number;
+
   return (
     <div className={styles.screen}>
       <h2 className={styles.matchSetupHeading}>
@@ -1366,14 +1383,16 @@ export function LineupAssignmentScreen({
         {renderColumn('FWD', fwdColumn)}
       </div>
 
-      {/* D-17: bench section — structural only in v1.3 */}
       <div className={styles.benchSection}>
         <span className={styles.benchLabel}>BENCH</span>
-        <div className={styles.benchPlaceholders}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className={styles.benchSlot} data-bench-index={i} />
-          ))}
-        </div>
+        <BenchCarousel
+          cards={pregameBenchCards}
+          teamId={myTeamId}
+          benchNumbers={pregameBenchNumbers}
+          disabled
+          onCardDragStart={() => {}}
+          onDropToBench={() => {}}
+        />
       </div>
 
       {rejectionMessage !== null && <p className={styles.swapRejection}>{rejectionMessage}</p>}
