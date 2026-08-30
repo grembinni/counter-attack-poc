@@ -16,6 +16,8 @@ import { PLAYER_POOL, computeTotalStat, MAX_SUBS_PER_TEAM } from '@counter-attac
 import type {
   BenchEntry,
   DraftClientView,
+  DraftDestination,
+  DraftSlotRef,
   DraftTier,
   PlayerPiece,
   PoolPlayer,
@@ -97,8 +99,8 @@ describe('LineupAssignmentScreen — DRAFT-06: draft-mode carousel layout', () =
   });
 });
 
-describe('LineupAssignmentScreen — DRAFT-06/D-05: drag-to-pick', () => {
-  it('dropping a pack-sourced card onto an empty lineup slot calls onDraftPick with a slot destination', () => {
+describe('LineupAssignmentScreen — DRAFT-06/D-05/ROSTER-08: click-to-pick', () => {
+  it('clicking a pack-sourced card then an empty lineup slot calls onDraftPick with a slot destination', () => {
     const onDraftPick = vi.fn();
     const { container } = render(
       <LineupAssignmentScreen
@@ -119,15 +121,13 @@ describe('LineupAssignmentScreen — DRAFT-06/D-05: drag-to-pick', () => {
     const packCardEl = container.querySelector(`.${TIER_CARD_CLASS.chase}`);
     expect(packCardEl).not.toBeNull();
 
-    fireEvent.dragStart(packCardEl!, {
-      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
-    });
+    fireEvent.click(packCardEl!);
 
     // slotIndex 2 is a null (empty) DEF slot per makeDraftView's lineupSlots fixture.
     const emptySlot = container.querySelector('[data-slot-index="2"]');
     expect(emptySlot).not.toBeNull();
 
-    fireEvent.drop(emptySlot!, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(emptySlot!);
 
     expect(onDraftPick).toHaveBeenCalledWith('p013', { type: 'slot', slotIndex: 2 });
   });
@@ -293,8 +293,8 @@ describe('LineupAssignmentScreen — DRAFT-09 gap-closure: Confirm gated on a co
   });
 });
 
-describe('LineupAssignmentScreen — DRAFT-09 gap-closure: drag-state never wedges', () => {
-  it('after a pack-sourced drag ends without a commit, a subsequent drag+drop still emits onDraftPick', () => {
+describe('LineupAssignmentScreen — DRAFT-09 gap-closure: selection clears after a completed pick (no wedge)', () => {
+  it('after a pack-sourced pick completes, a subsequent lone click on a different empty slot does not call onDraftPick again, and a fresh pick still completes normally', () => {
     const onDraftPick = vi.fn();
     const { container } = render(
       <LineupAssignmentScreen
@@ -315,23 +315,28 @@ describe('LineupAssignmentScreen — DRAFT-09 gap-closure: drag-state never wedg
     const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
     expect(packCard).not.toBeNull();
 
-    // Drag starts (dragState set to the pack card) then ends WITHOUT a drop —
-    // the container-level onDragEnd must reset dragState so it never wedges.
-    fireEvent.dragStart(packCard, {
-      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
-    });
-    fireEvent.dragEnd(packCard, { dataTransfer: {} });
-
-    // A fresh drag+drop on the same card completes normally — proves no stale
-    // dragState from the cancelled drag blocked this rearrangement.
-    fireEvent.dragStart(packCard, {
-      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
-    });
-    const emptySlot = container.querySelector('[data-slot-index="2"]');
+    fireEvent.click(packCard);
+    const emptySlot = container.querySelector('[data-slot-index="2"]') as HTMLElement;
     expect(emptySlot).not.toBeNull();
-    fireEvent.drop(emptySlot!, { dataTransfer: { getData: () => '' } });
-
+    fireEvent.click(emptySlot);
+    expect(onDraftPick).toHaveBeenCalledTimes(1);
     expect(onDraftPick).toHaveBeenCalledWith('p013', { type: 'slot', slotIndex: 2 });
+
+    // The completed pick must clear the selection — a lone click on a different
+    // empty slot (nothing selected anymore) must NOT call onDraftPick again.
+    // This replaces the old dragEnd-based wedge test with the click-model
+    // equivalent invariant: no stale selection state blocks future actions.
+    const anotherEmptySlot = container.querySelector('[data-slot-index="3"]') as HTMLElement;
+    fireEvent.click(anotherEmptySlot);
+    expect(onDraftPick).toHaveBeenCalledTimes(1);
+
+    // A fresh select-then-complete cycle on a different card/slot still works —
+    // proves no stale state from the first pick ever wedged the interaction.
+    const packCard2 = container.querySelector(`.${TIER_CARD_CLASS.rare}`) as HTMLElement;
+    fireEvent.click(packCard2);
+    fireEvent.click(anotherEmptySlot);
+    expect(onDraftPick).toHaveBeenCalledTimes(2);
+    expect(onDraftPick).toHaveBeenLastCalledWith('p014', { type: 'slot', slotIndex: 3 });
   });
 });
 
@@ -368,6 +373,215 @@ describe('LineupAssignmentScreen — D-23 (Phase 30): tier border on starting-11
       .join(', ');
     const tierCardsInGrid = grid!.querySelectorAll(tierSelector);
     expect(tierCardsInGrid.length).toBeGreaterThan(0);
+  });
+});
+
+/** Task 1 (Phase 47, plan 04): renderDraft — a shared helper for the new
+ * click-select draft-mode coverage below, reusing makeDraftView's default
+ * fixture (pack: p013 chase/p014 rare/p015 uncommon/p016-p018/p012 common;
+ * lineupSlots: p001 GK at 0, p002 DEF at 1, rest null; bench: p003, p004). */
+function renderDraft(
+  overrides: {
+    draftView?: DraftClientView;
+    onDraftPick?: (cardId: string, destination: DraftDestination) => void;
+    onDraftRearrange?: (from: DraftSlotRef, to: DraftSlotRef) => void;
+    lineupConfirmed?: boolean;
+  } = {},
+) {
+  return render(
+    <LineupAssignmentScreen
+      assignment={[]}
+      formationId="4-4-2"
+      playerSlot={1}
+      myTeamId="city"
+      onSwap={NOOP}
+      onConfirm={NOOP}
+      lineupConfirmed={overrides.lineupConfirmed ?? false}
+      draftMode
+      draftView={overrides.draftView ?? makeDraftView()}
+      onDraftPick={overrides.onDraftPick ?? NOOP}
+      onDraftRearrange={overrides.onDraftRearrange ?? NOOP}
+    />,
+  );
+}
+
+describe('LineupAssignmentScreen — Phase 47 draft-mode click-select (ROSTER-01/02/03/04/08, D-11)', () => {
+  it('1. clicking a pack card applies a class matching /statCardSelected/ to that card, and to no other card', () => {
+    const { container } = renderDraft();
+    const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(packCard);
+    expect(packCard.className).toMatch(/statCardSelected/);
+    const others = Array.from(container.querySelectorAll('[data-roster-card]')).filter(
+      (el) => el !== packCard,
+    );
+    others.forEach((el) => expect(el.className).not.toMatch(/statCardSelected/));
+  });
+
+  it('2. with a pack card selected, every filled lineup-slot card, every empty slot, and the bench carousel carry /statCardEligible/', () => {
+    const { container } = renderDraft();
+    const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(packCard);
+
+    const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
+    const eligibleInGrid = grid.querySelectorAll('.statCardEligible');
+    // 2 filled slots (p001, p002) + 9 empty slots = 11 eligible targets in the grid.
+    expect(eligibleInGrid.length).toBe(11);
+
+    const bench = screen.getByTestId('bench-carousel');
+    expect(bench.className).toMatch(/statCardEligible/);
+  });
+
+  it('3. clicking the selected pack card again clears the selection: no element carries /statCardSelected/ or /statCardEligible/', () => {
+    const { container } = renderDraft();
+    const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(packCard);
+    fireEvent.click(packCard);
+    expect(container.querySelector('.statCardSelected')).toBeNull();
+    expect(container.querySelector('.statCardEligible')).toBeNull();
+  });
+
+  it('4. clicking a different pack card while one is selected switches the selection (D-11), never calling onDraftPick', () => {
+    const onDraftPick = vi.fn();
+    const { container } = renderDraft({ onDraftPick });
+    const packCard1 = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    const packCard2 = container.querySelector(`.${TIER_CARD_CLASS.rare}`) as HTMLElement;
+    fireEvent.click(packCard1);
+    fireEvent.click(packCard2);
+    expect(packCard2.className).toMatch(/statCardSelected/);
+    expect(packCard1.className).not.toMatch(/statCardSelected/);
+    expect(onDraftPick).not.toHaveBeenCalled();
+  });
+
+  it('5. pack card then the bench container calls onDraftPick once with a bench destination', () => {
+    const onDraftPick = vi.fn();
+    const { container } = renderDraft({ onDraftPick });
+    const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(packCard);
+    fireEvent.click(screen.getByTestId('bench-carousel'));
+    expect(onDraftPick).toHaveBeenCalledTimes(1);
+    expect(onDraftPick).toHaveBeenCalledWith('p013', { type: 'bench' });
+  });
+
+  it('6. filled slot then another slot calls onDraftRearrange with slot->slot, never onDraftPick', () => {
+    const onDraftRearrange = vi.fn();
+    const onDraftPick = vi.fn();
+    const { container } = renderDraft({ onDraftRearrange, onDraftPick });
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const slot1Card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(slot1Card);
+    const emptySlot2 = container.querySelector('[data-slot-index="2"]') as HTMLElement;
+    fireEvent.click(emptySlot2);
+    expect(onDraftRearrange).toHaveBeenCalledTimes(1);
+    expect(onDraftRearrange).toHaveBeenCalledWith(
+      { type: 'slot', slotIndex: 1 },
+      { type: 'slot', slotIndex: 2 },
+    );
+    expect(onDraftPick).not.toHaveBeenCalled();
+  });
+
+  it('7. filled slot then the bench container calls onDraftRearrange with slot->bench (append position)', () => {
+    const onDraftRearrange = vi.fn();
+    renderDraft({ onDraftRearrange });
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const slot1Card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(slot1Card);
+    fireEvent.click(screen.getByTestId('bench-carousel'));
+    expect(onDraftRearrange).toHaveBeenCalledWith(
+      { type: 'slot', slotIndex: 1 },
+      { type: 'bench', benchIndex: 2 },
+    );
+  });
+
+  it('8. a bench card then an empty slot calls onDraftRearrange with bench->slot', () => {
+    const onDraftRearrange = vi.fn();
+    const { container } = renderDraft({ onDraftRearrange });
+    const p003 = PLAYER_BY_ID.get('p003')!;
+    const benchCard = screen
+      .getByText(`${p003.firstName} ${p003.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const emptySlot2 = container.querySelector('[data-slot-index="2"]') as HTMLElement;
+    fireEvent.click(emptySlot2);
+    expect(onDraftRearrange).toHaveBeenCalledWith(
+      { type: 'bench', benchIndex: 0 },
+      { type: 'slot', slotIndex: 2 },
+    );
+  });
+
+  it('9. with a bench card selected, the bench container itself is not an eligible target and a click on it calls neither callback (bench->bench no-op)', () => {
+    const onDraftPick = vi.fn();
+    const onDraftRearrange = vi.fn();
+    renderDraft({ onDraftPick, onDraftRearrange });
+    const p003 = PLAYER_BY_ID.get('p003')!;
+    const benchCard = screen
+      .getByText(`${p003.firstName} ${p003.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const bench = screen.getByTestId('bench-carousel');
+    expect(bench.className).not.toMatch(/statCardEligible/);
+    fireEvent.click(bench);
+    expect(onDraftPick).not.toHaveBeenCalled();
+    expect(onDraftRearrange).not.toHaveBeenCalled();
+  });
+
+  it('10. clicking the selected slot card again deselects it (ROSTER-03)', () => {
+    const { container } = renderDraft();
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const slot1Card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(slot1Card);
+    expect(slot1Card.className).toMatch(/statCardSelected/);
+    fireEvent.click(slot1Card);
+    expect(slot1Card.className).not.toMatch(/statCardSelected/);
+    expect(container.querySelector('.statCardEligible')).toBeNull();
+  });
+
+  it('11. GK rule preserved: rejects a non-GK card onto the GK slot and a GK card onto a non-GK slot, with distinct messages, calling neither callback', () => {
+    const onDraftPick = vi.fn();
+    const onDraftRearrange = vi.fn();
+    const { container } = renderDraft({ onDraftPick, onDraftRearrange });
+
+    // Non-GK pack card (p013, chase, DEF) selected -> GK slot0 (p001) rejected.
+    const nonGkPackCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(nonGkPackCard);
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkSlotCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    // Slot 0 must still carry statCardEligible while a non-GK card is selected —
+    // the rejection message is the feedback path; hiding the highlight would
+    // make it unreachable.
+    expect(gkSlotCard.className).toMatch(/statCardEligible/);
+    fireEvent.click(gkSlotCard);
+    expect(
+      screen.getByText('Swap rejected — only a goalkeeper card can be placed here.'),
+    ).toBeDefined();
+    expect(onDraftPick).not.toHaveBeenCalled();
+    expect(onDraftRearrange).not.toHaveBeenCalled();
+
+    // GK pack card (p012, common) selected -> a non-GK empty slot rejected.
+    const p012 = PLAYER_BY_ID.get('p012')!;
+    const gkPackCard = screen
+      .getByText(`${p012.firstName} ${p012.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(gkPackCard);
+    const nonGkEmptySlot = container.querySelector('[data-slot-index="2"]') as HTMLElement;
+    fireEvent.click(nonGkEmptySlot);
+    expect(screen.getByText('Swap rejected — goalkeeper slot requires a GK card.')).toBeDefined();
+    expect(onDraftPick).not.toHaveBeenCalled();
+    expect(onDraftRearrange).not.toHaveBeenCalled();
+  });
+
+  it('12. waitingForOpponent true: clicking a pack card does not select it', () => {
+    const { container } = renderDraft({ draftView: makeDraftView({ waitingForOpponent: true }) });
+    const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(packCard);
+    expect(packCard.className).not.toMatch(/statCardSelected/);
   });
 });
 
