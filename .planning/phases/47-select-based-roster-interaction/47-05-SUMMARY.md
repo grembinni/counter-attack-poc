@@ -111,8 +111,10 @@ None — no external service configuration required.
 
 - FOUND: `packages/client/src/components/GameBoard.test.tsx`
 - FOUND: `packages/client/src/components/CardInjuryBadge.crossSurface.test.tsx`
+- FOUND: `.planning/phases/47-select-based-roster-interaction/47-05-SUMMARY.md`
 - FOUND commit `e5906c77` (Task 1)
 - FOUND commit `26ad54da` (Task 2)
+- FOUND commit `86d4eca0` (SUMMARY.md)
 
 ---
 *Phase: 47-select-based-roster-interaction*
