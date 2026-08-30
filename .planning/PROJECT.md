@@ -8,6 +8,20 @@ A 2-player real-time web implementation of Counter Attack, the hex-grid football
 
 Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
 
+## Current Milestone: v1.8 Roster Interaction Overhaul & Rules Audit
+
+**Goal:** Replace drag-and-drop with a select-based swap flow for roster positioning and substitutions, fix known GK/final-third/banner-sequencing bugs, lock jersey numbers permanently at kickoff, and run a rulebook-vs-implementation gap analysis to scope the next cleanup milestone.
+
+**Target features:**
+- Select-based player swap/substitution (click = select green, eligible targets = blue, click again = deselect; replaces drag-and-drop in both the default positioning mode and stage-and-confirm substitution mode from Phase 42)
+- Final-third confirm/warning fix: green confirm button + no "not all players moved" warning when the only unmoved player is the goalkeeper
+- GK box-entry reposition offer resequenced to fire before (not after) the shot-blocking dive on an outside-the-box shot on goal
+- Permanent jersey numbers generated once at game start, fixed for the rest of the match regardless of position changes or substitutions (replaces today's position-inherited numbering)
+- Resume and close the paused foul→injury→booking banner-sequencing bug (open since v1.6 close)
+- Rulebook-vs-implementation gap analysis — an audit deliverable (findings doc), not fixes in this milestone; scopes a future cleanup milestone
+
+RESP-01..09 (response-move activation model) stays explicitly deferred — 6th consecutive milestone.
+
 ## Current State
 
 **v1.7 shipped 2026-08-30.** 6 phases (47 plans, 116 tasks, 44/44 requirements satisfied). Delivered: a single shared `CardInjuryBadge` component replacing three independently-implemented card/injury treatments and giving the bench its first-ever card/injury display (Phase 41); a mid-match roster screen rework into a default drag-and-drop positioning mode plus an explicit stage-and-confirm substitution mode capped at 3/team, alongside BUG-38's shared `isActivePiece` predicate applied across every occupancy/ZoI/interceptor site so a red-carded player is genuinely removed from every gameplay computation, not just hidden from view (Phase 42 — the largest and highest-regression-risk phase of the milestone, 17 plans across 12 waves including 5 gap-closure rounds); a server-authoritative Tackle/Steal decline mechanic with sequential multi-defender prompting and a persistent risk ring (Phase 43); a manual 2–5 Referee Leniency override coupled to both booking threshold and added time, plus a collapsed-by-default two-column Advanced Settings drawer for all match-rule toggles (Phase 44); an on-demand Game Summary popup with live per-team stats (possession, passes, tackles/steals, shots, xG via a pure formula instrumented at all 7 shot-resolution sites, fouls/cards) that persist across half-time, reachable via a scoreboard (i) icon at any point in the match (Phase 45); and a milestone-closing consistency audit extending dead-ball hex highlighting, clarifying response-move trigger language, consolidating duplicate movement/kicker-selection logic, aligning pitch/roster/bench card layout, and fixing a 3-phase-deferred `pnpm -w lint` config cap (Phase 46). Test suite grew to shared 907 / server 1635 (1 skipped, 1 todo) / client 1239 = 3,781 tests, all green.
@@ -334,4 +348,4 @@ This document is updated at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-08-30 after v1.7 milestone completion_
+_Last updated: 2026-08-30 after starting v1.8 milestone_

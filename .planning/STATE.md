@@ -1,27 +1,26 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: Awaiting next milestone
-stopped_at: Phase 46 complete (Plan 46-07, live verification recorded)
-last_updated: "2026-08-30T14:05:50.267Z"
-last_activity: 2026-08-30 — Milestone v1.7 completed and archived
+milestone: v1.8
+milestone_name: Roster Interaction Overhaul & Rules Audit
+status: planning
+last_updated: "2026-08-30T15:09:36.840Z"
+last_activity: 2026-08-30
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 47
-  completed_plans: 47
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: Milestone v1.7 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-30 — Milestone v1.7 completed and archived
+Status: Defining requirements
+Last activity: 2026-08-30 — Milestone v1.8 started
 
 ## Project Reference
 
