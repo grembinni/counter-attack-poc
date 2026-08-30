@@ -66,8 +66,17 @@ type DraftCardBodyProps = {
   /** Phase 47: fires when the card is clicked or activated via Enter/Space
    * while interactive/eligible. Omitted entirely (not just a no-op) when the
    * card is neither interactive nor an eligible target — see isInteractive
-   * derivation below and PieceOverlay.tsx's identical click-gating idiom. */
-  onClick?: () => void;
+   * derivation below and PieceOverlay.tsx's identical click-gating idiom.
+   * Phase 47 plan 02 (BenchCarousel, D-11/T-47-07): widened from `() => void`
+   * to accept the originating `SyntheticEvent` so callers that render this
+   * card inside a click-completion container (BenchCarousel's bench area)
+   * can call `event.stopPropagation()` to stop a card click from also
+   * completing the container's own click target. `SyntheticEvent` (not
+   * `MouseEvent`) because the same callback fires from both the div's
+   * `onClick` (a MouseEvent) and `handleKeyDown`'s Enter/Space activation (a
+   * KeyboardEvent) below — both extend SyntheticEvent and both expose
+   * `stopPropagation()`. */
+  onClick?: (event: React.SyntheticEvent<HTMLDivElement>) => void;
   /** Phase 47: this card is the current green selection. Wins over
    * isEligibleTarget when both are somehow true (selected always wins). */
   isSelected?: boolean;
@@ -144,10 +153,10 @@ export function DraftCardBody({
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (!isClickable || !onClick) return;
     if (e.key === 'Enter') {
-      onClick();
+      onClick(e);
     } else if (e.key === ' ') {
       e.preventDefault();
-      onClick();
+      onClick(e);
     }
   }
 

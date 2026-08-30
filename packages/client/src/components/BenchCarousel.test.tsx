@@ -1,13 +1,17 @@
 /**
  * BenchCarousel.test.tsx — Phase 29 gap-closure DRAFT-09/D-21 component tests
- * (29-08-PLAN.md Task 1).
+ * (29-08-PLAN.md Task 1), rewritten for click-select in Phase 47 (ROSTER-08).
  *
  * Covers: carousel nav chrome (Previous/Next buttons), cards render inside a
- * scroll track (not a wrapping row), N cards render for N benched cards,
- * the drop-target contract (onDropToBench) still fires on a container drop,
- * the drag-source contract (onCardDragStart) still fires with the bench
- * index on a card drag-start, and the D-22 empty-bench placeholder remains a
- * valid drop target.
+ * scroll track (not a wrapping row), N cards render for N benched cards, the
+ * D-22 empty-bench placeholder, tier-border classes, benchNumbers jersey
+ * rendering, OUT/RED CARD badge precedence + data-testid hooks,
+ * CardInjuryBadge glyph presence/absence/ordering, and scroll-reset-on-
+ * content-change — plus the click-select contract (Phase 47 / ROSTER-08):
+ * click-to-select a bench card, source guards (disabled/OUT/RED CARD),
+ * selected/eligible visuals, bench-area click-completion, and
+ * click-propagation isolation (card click and nav click must not also
+ * complete the bench-area target). Zero drag simulation remains.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
@@ -54,14 +58,7 @@ function makeCard(
 describe('BenchCarousel — DRAFT-09/D-21: carousel nav chrome', () => {
   it('renders Previous/Next nav buttons with correct aria-labels', () => {
     const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
-    render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
-    );
+    render(<BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />);
     expect(screen.getByLabelText('Previous card')).toBeDefined();
     expect(screen.getByLabelText('Next card')).toBeDefined();
   });
@@ -69,12 +66,7 @@ describe('BenchCarousel — DRAFT-09/D-21: carousel nav chrome', () => {
   it('renders cards inside a single scroll track, not a wrapping flex row', () => {
     const cards = [makeCard('b1', 'common')];
     const { container } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />,
     );
     const track = container.querySelector('[class*="carouselTrack"]');
     expect(track).not.toBeNull();
@@ -85,136 +77,224 @@ describe('BenchCarousel — DRAFT-09/D-21: carousel nav chrome', () => {
   it('renders N DraftCardBody cards for N benched cards', () => {
     const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare'), makeCard('b3', 'chase')];
     const { container } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />,
     );
     const cardEls = container.querySelectorAll('[class*="cardBody"]');
     expect(cardEls.length).toBe(3);
   });
 });
 
-describe('BenchCarousel — drag-source/drop-target contract preserved', () => {
-  it('still fires onDropToBench on a container drop', () => {
-    const onDropToBench = vi.fn();
+describe('BenchCarousel — Phase 47 (ROSTER-08): click-select source', () => {
+  it('clicking an available bench card calls onCardClick exactly once with that bench index', () => {
+    const onCardClick = vi.fn();
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container } = render(
+      <BenchCarousel cards={cards} teamId="city" onCardClick={onCardClick} />,
+    );
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.rare}`);
+    fireEvent.click(cardEl!);
+    expect(onCardClick).toHaveBeenCalledTimes(1);
+    expect(onCardClick).toHaveBeenCalledWith(1);
+  });
+
+  it('clicking an OUT card does NOT call onCardClick', () => {
+    const onCardClick = vi.fn();
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        unavailablePlayerIds={['b1']}
+        onCardClick={onCardClick}
+      />,
+    );
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
+    fireEvent.click(cardEl!);
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it('clicking a RED CARD card does NOT call onCardClick', () => {
+    const onCardClick = vi.fn();
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        redCardedPlayerIds={['b1']}
+        onCardClick={onCardClick}
+      />,
+    );
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
+    fireEvent.click(cardEl!);
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it('clicking any card while disabled is true does NOT call onCardClick', () => {
+    const onCardClick = vi.fn();
+    const cards = [makeCard('b1', 'common')];
+    const { container } = render(
+      <BenchCarousel cards={cards} teamId="city" disabled onCardClick={onCardClick} />,
+    );
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
+    fireEvent.click(cardEl!);
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it('selectedCardId applies a statCardSelected-matching class to exactly one card wrapper', () => {
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    const { container } = render(
+      <BenchCarousel cards={cards} teamId="city" selectedCardId="b2" onCardClick={() => {}} />,
+    );
+    const cardEls = Array.from(container.querySelectorAll('[data-roster-card]'));
+    expect(cardEls).toHaveLength(2);
+    const selected = cardEls.filter((el) => /statCardSelected/.test(el.className));
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.textContent).toContain('Firstb2');
+  });
+});
+
+describe('BenchCarousel — Phase 47 (ROSTER-08/T-47-07): bench-area click-completion target', () => {
+  it('benchAreaEligible true applies a statCardEligible-matching class to the bench container, and clicking it calls onBenchAreaClick once', () => {
+    const onBenchAreaClick = vi.fn();
     const cards = [makeCard('b1', 'common')];
     render(
       <BenchCarousel
         cards={cards}
         teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={onDropToBench}
+        benchAreaEligible
+        onCardClick={() => {}}
+        onBenchAreaClick={onBenchAreaClick}
       />,
     );
     const benchEl = screen.getByTestId('bench-carousel');
-    fireEvent.drop(benchEl, { dataTransfer: { getData: () => '' } });
-    expect(onDropToBench).toHaveBeenCalledTimes(1);
+    expect(benchEl.className).toMatch(/statCardEligible/);
+    fireEvent.click(benchEl);
+    expect(onBenchAreaClick).toHaveBeenCalledTimes(1);
   });
 
-  it('still fires onCardDragStart(benchIndex) on a card drag-start', () => {
-    const onCardDragStart = vi.fn();
-    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+  it('benchAreaEligible false (omitted): clicking the container does NOT call onBenchAreaClick', () => {
+    const onBenchAreaClick = vi.fn();
+    const cards = [makeCard('b1', 'common')];
+    render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        onCardClick={() => {}}
+        onBenchAreaClick={onBenchAreaClick}
+      />,
+    );
+    const benchEl = screen.getByTestId('bench-carousel');
+    expect(benchEl.className).not.toMatch(/statCardEligible/);
+    fireEvent.click(benchEl);
+    expect(onBenchAreaClick).not.toHaveBeenCalled();
+  });
+
+  it('with benchAreaEligible true, clicking a bench CARD calls onCardClick and does NOT also call onBenchAreaClick (propagation guard regression test)', () => {
+    const onCardClick = vi.fn();
+    const onBenchAreaClick = vi.fn();
+    const cards = [makeCard('b1', 'common')];
     const { container } = render(
       <BenchCarousel
         cards={cards}
         teamId="city"
-        onCardDragStart={onCardDragStart}
-        onDropToBench={() => {}}
+        benchAreaEligible
+        onCardClick={onCardClick}
+        onBenchAreaClick={onBenchAreaClick}
       />,
     );
-    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.rare}`);
-    fireEvent.dragStart(cardEl!, {
-      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
-    });
-    expect(onCardDragStart).toHaveBeenCalledWith(1);
+    const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
+    fireEvent.click(cardEl!);
+    expect(onCardClick).toHaveBeenCalledTimes(1);
+    expect(onBenchAreaClick).not.toHaveBeenCalled();
+  });
+
+  it('with benchAreaEligible true, clicking the Next card nav button does NOT call onBenchAreaClick', () => {
+    const onBenchAreaClick = vi.fn();
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchAreaEligible
+        onCardClick={() => {}}
+        onBenchAreaClick={onBenchAreaClick}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Next card'));
+    expect(onBenchAreaClick).not.toHaveBeenCalled();
+  });
+
+  it('with benchAreaEligible true, clicking the Previous card nav button does NOT call onBenchAreaClick', () => {
+    const onBenchAreaClick = vi.fn();
+    const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
+    render(
+      <BenchCarousel
+        cards={cards}
+        teamId="city"
+        benchAreaEligible
+        onCardClick={() => {}}
+        onBenchAreaClick={onBenchAreaClick}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Previous card'));
+    expect(onBenchAreaClick).not.toHaveBeenCalled();
   });
 });
 
 describe('BenchCarousel — checkpoint gap-closure (40-07 Task 2): disabled/read-only bench', () => {
-  it('every card is draggable="false" when disabled is true, even a normally-available card', () => {
+  it('every card reports data-interactive="false" when disabled is true, even a normally-available card', () => {
     const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
     const { container } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        disabled
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" disabled onCardClick={() => {}} />,
     );
-    const cardEls = container.querySelectorAll('[draggable]');
+    const cardEls = container.querySelectorAll('[data-roster-card]');
     expect(cardEls.length).toBe(2);
-    cardEls.forEach((el) => expect(el.getAttribute('draggable')).toBe('false'));
+    cardEls.forEach((el) => expect(el.getAttribute('data-interactive')).toBe('false'));
   });
 
-  it('onCardDragStart is never called from a card drag-start when disabled is true', () => {
-    const onCardDragStart = vi.fn();
+  it('onCardClick is never called from a card click when disabled is true', () => {
+    const onCardClick = vi.fn();
     const cards = [makeCard('b1', 'common')];
     const { container } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        disabled
-        onCardDragStart={onCardDragStart}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" disabled onCardClick={onCardClick} />,
     );
     const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
-    fireEvent.dragStart(cardEl!, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    expect(onCardDragStart).not.toHaveBeenCalled();
+    fireEvent.click(cardEl!);
+    expect(onCardClick).not.toHaveBeenCalled();
   });
 
-  it('onDropToBench is never called from a container drop when disabled is true', () => {
-    const onDropToBench = vi.fn();
-    const cards = [makeCard('b1', 'common')];
-    render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        disabled
-        onCardDragStart={() => {}}
-        onDropToBench={onDropToBench}
-      />,
-    );
-    const benchEl = screen.getByTestId('bench-carousel');
-    fireEvent.drop(benchEl, { dataTransfer: { getData: () => '' } });
-    expect(onDropToBench).not.toHaveBeenCalled();
-  });
-
-  it('draggable stays true (unaffected) when disabled is false/undefined', () => {
+  it('data-interactive stays "true" (unaffected) when disabled is false/undefined', () => {
     const cards = [makeCard('b1', 'common')];
     const { container } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />,
     );
-    const cardEl = container.querySelector('[draggable]');
-    expect(cardEl?.getAttribute('draggable')).toBe('true');
+    const cardEl = container.querySelector('[data-roster-card]');
+    expect(cardEl?.getAttribute('data-interactive')).toBe('true');
   });
 });
 
 describe('BenchCarousel — D-22: empty bench placeholder', () => {
-  it('renders the dashed benchSlot placeholder for 0 cards and it remains a valid drop target', () => {
-    const onDropToBench = vi.fn();
+  it('renders the dashed benchSlot placeholder for 0 cards', () => {
+    render(<BenchCarousel cards={[]} teamId="city" onCardClick={() => {}} />);
+    const benchEl = screen.getByTestId('bench-carousel');
+    const slot = benchEl.querySelector('[class*="benchSlot"]');
+    expect(slot).not.toBeNull();
+  });
+
+  it('empty bench remains a valid click-completion target when benchAreaEligible', () => {
+    const onBenchAreaClick = vi.fn();
     render(
       <BenchCarousel
         cards={[]}
         teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={onDropToBench}
+        benchAreaEligible
+        onCardClick={() => {}}
+        onBenchAreaClick={onBenchAreaClick}
       />,
     );
     const benchEl = screen.getByTestId('bench-carousel');
-    const slot = benchEl.querySelector('[class*="benchSlot"]');
-    expect(slot).not.toBeNull();
-    fireEvent.drop(benchEl, { dataTransfer: { getData: () => '' } });
-    expect(onDropToBench).toHaveBeenCalledTimes(1);
+    fireEvent.click(benchEl);
+    expect(onBenchAreaClick).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -222,12 +302,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
   it('no benchCardStatus prop renders no badge markup at all (pre-match draft non-regression)', () => {
     const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
     const { container } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />,
     );
     expect(container.querySelector('[data-testid="card-injury-badge"]')).toBeNull();
   });
@@ -239,8 +314,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         cards={cards}
         teamId="city"
         benchCardStatus={{ b1: { cardColor: 'yellow', injuryCount: 0 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     const badges = container.querySelectorAll('[data-testid="card-injury-badge"]');
@@ -259,8 +333,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         cards={cards}
         teamId="city"
         benchCardStatus={{ b1: { cardColor: null, injuryCount: 1 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     expect(container.querySelectorAll('[data-testid="piece-injury-badge"]').length).toBe(1);
@@ -276,8 +349,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         cards={cards}
         teamId="city"
         benchCardStatus={{ b1: { cardColor: 'yellow', injuryCount: 2 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     expect(container.querySelectorAll('[data-testid="piece-injury-badge"]').length).toBe(1);
@@ -302,8 +374,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         teamId="city"
         redCardedPlayerIds={['b1']}
         benchCardStatus={{ b1: { cardColor: 'red', injuryCount: 0 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     expect(container.querySelector('[data-testid="piece-card-badge"]')).toBeNull();
@@ -321,8 +392,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         teamId="city"
         redCardedPlayerIds={['b1']}
         benchCardStatus={{ b1: { cardColor: 'red', injuryCount: 1 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     expect(container.querySelector('[data-testid="piece-injury-badge"]')).not.toBeNull();
@@ -341,8 +411,7 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
         benchNumbers={{ b1: 13 }}
         unavailablePlayerIds={['b1']}
         benchCardStatus={{ b1: { cardColor: 'yellow', injuryCount: 0 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     const cardNum = container.querySelector('[class*="cardNum"]') as HTMLElement;
@@ -353,19 +422,18 @@ describe('BenchCarousel — Phase 41 (ICON-03): bench card/injury glyph', () => 
     expect(statusBadge?.getAttribute('data-testid')).toBe('bench-out-badge');
   });
 
-  it('the glyph never affects draggability', () => {
+  it('the glyph never affects interactivity', () => {
     const cards = [makeCard('b1', 'common')];
     const { container } = render(
       <BenchCarousel
         cards={cards}
         teamId="city"
         benchCardStatus={{ b1: { cardColor: 'red', injuryCount: 0 } }}
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
+        onCardClick={() => {}}
       />,
     );
     const cardEl = container.querySelector(`.${TIER_CARD_CLASS.common}`);
-    expect(cardEl?.getAttribute('draggable')).toBe('true');
+    expect(cardEl?.getAttribute('data-interactive')).toBe('true');
   });
 });
 
@@ -389,12 +457,7 @@ describe('BenchCarousel — DRAFT-09 scroll stability (gap-closure 29-12)', () =
   it('does NOT reset scroll on an unrelated re-render (new array reference, identical ids)', () => {
     const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
     const { container, rerender } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />,
     );
     const track = container.querySelector('[class*="carouselTrack"]')!;
     const scrollLeft = installControllableScrollLeft(track);
@@ -402,16 +465,9 @@ describe('BenchCarousel — DRAFT-09 scroll stability (gap-closure 29-12)', () =
     expect(scrollLeft.get()).toBe(150);
 
     // Brand-new array object, SAME ids — mirrors the pre-fix parent producing a
-    // fresh benchCards reference on every dragover tick.
+    // fresh benchCards reference on every re-render tick.
     const rerenderedCards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
-    rerender(
-      <BenchCarousel
-        cards={rerenderedCards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
-    );
+    rerender(<BenchCarousel cards={rerenderedCards} teamId="city" onCardClick={() => {}} />);
 
     expect(scrollLeft.get()).toBe(150);
   });
@@ -419,12 +475,7 @@ describe('BenchCarousel — DRAFT-09 scroll stability (gap-closure 29-12)', () =
   it('DOES reset scroll when benched content actually changes', () => {
     const cards = [makeCard('b1', 'common'), makeCard('b2', 'rare')];
     const { container, rerender } = render(
-      <BenchCarousel
-        cards={cards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
+      <BenchCarousel cards={cards} teamId="city" onCardClick={() => {}} />,
     );
     const track = container.querySelector('[class*="carouselTrack"]')!;
     const scrollLeft = installControllableScrollLeft(track);
@@ -437,14 +488,7 @@ describe('BenchCarousel — DRAFT-09 scroll stability (gap-closure 29-12)', () =
       makeCard('b2', 'rare'),
       makeCard('b3', 'chase'),
     ];
-    rerender(
-      <BenchCarousel
-        cards={rerenderedCards}
-        teamId="city"
-        onCardDragStart={() => {}}
-        onDropToBench={() => {}}
-      />,
-    );
+    rerender(<BenchCarousel cards={rerenderedCards} teamId="city" onCardClick={() => {}} />);
 
     expect(scrollLeft.get()).toBe(0);
   });
