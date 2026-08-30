@@ -244,7 +244,13 @@ function LineupStatCard({
   midmatchDraggable,
 }: StatCardProps) {
   const isMidmatch = mode === 'midmatch';
-  const isGK = !isMidmatch && slotIndex === 0;
+  // CLEANUP: pregame/draft slotIndex is a fixed formation-slot index (slot 0 is always
+  // GK by formation convention). Mid-match slotIndex is instead the per-column render
+  // index (see renderMidmatchColumn), so `slotIndex === 0` no longer identifies the GK
+  // there — it was hard-coding isGK to false for every mid-match card, hiding SAVE/
+  // HANDLING from the actual goalkeeper's roster/substitution stat grid. Use the
+  // piece's real role in mid-match mode instead.
+  const isGK = isMidmatch ? player.role === 'GK' : slotIndex === 0;
   // Phase 42 (SUB-08, research PITFALLS.md Pitfall 5): mid-match draggability is
   // a structurally separate condition from pregame/draft — but it is no longer a
   // single hardcoded `false`. It is now a three-way split: pregame (GK-lock rule),

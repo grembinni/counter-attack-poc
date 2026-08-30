@@ -714,6 +714,26 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(gkHeader?.parentElement?.textContent).toContain('Home Keeper');
   });
 
+  /* CLEANUP bug fix: isGK in mid-match mode was hard-coded to `!isMidmatch && slotIndex
+   * === 0`, which is always false in mid-match (slotIndex there is the per-column render
+   * index, not a formation-slot index) — the actual goalkeeper's roster/substitution card
+   * silently showed the outfield stat set (SHOOTING/PASSING) instead of SAVE/HANDLING. */
+  it('mid-match GK card shows SAVE/HANDLING, not SHOOTING/PASSING; an outfield card shows the reverse', () => {
+    const { container } = renderMidmatch();
+    const headers = Array.from(container.querySelectorAll('[class*="columnHeader"]'));
+    const gkCard = headers.find((h) => h.textContent === 'GK')?.parentElement;
+    expect(gkCard?.textContent).toContain('SAVE');
+    expect(gkCard?.textContent).toContain('HANDLING');
+    expect(gkCard?.textContent).not.toContain('SHOOTING');
+    expect(gkCard?.textContent).not.toContain('PASSING');
+
+    const defCard = headers.find((h) => h.textContent === 'DEF')?.parentElement;
+    expect(defCard?.textContent).toContain('SHOOTING');
+    expect(defCard?.textContent).toContain('PASSING');
+    expect(defCard?.textContent).not.toContain('SAVE');
+    expect(defCard?.textContent).not.toContain('HANDLING');
+  });
+
   /* Checkpoint gap-closure (40-07 Task 2 human-verify feedback): regression coverage for
    * the formation-shape bug — "in a 4-4-2 if a mid is in the 5 and is replaced with a FWD
    * then the new lineup will show as a 4-3-3 instead of the selected lineup." Grouping must
