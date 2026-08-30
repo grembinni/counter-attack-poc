@@ -111,6 +111,16 @@ None - no external service configuration required.
 - `DraftCardBody`/`DraftPackCarousel`'s click-select contract (`interactive`/`onClick`/`isSelected`/`isEligibleTarget`/`onCardClick`/`selectedCardId`) and the `.statCardSelected`/`.statCardEligible` CSS classes are now available for `BenchCarousel` (same phase, different plan) and `LineupAssignmentScreen.tsx` (plan 47-03) to consume.
 - **Known, plan-documented pre-existing typecheck break:** `pnpm --filter @counter-attack/client typecheck` fails at `LineupAssignmentScreen.tsx:1291` because that file still passes the old `onCardDragStart` prop to `DraftPackCarousel`. This is explicitly called out in this plan's own `<verification>` section as "EXPECTED TO FAIL after this plan and is not a gate here" — resolved when plan 47-03 ports `LineupAssignmentScreen.tsx` to the new contract. Not a regression introduced by this plan; confirmed the only typecheck errors touching these two files are this one expected break plus the pre-existing `DraftPackCarousel.tsx(210,20)` `Key` type warning on the unmodified `key={attr}` stat-grid line (predates this plan, out of scope).
 
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/47-select-based-roster-interaction/47-01-SUMMARY.md`
+- FOUND: `packages/client/src/components/LineupAssignmentScreen.module.css`
+- FOUND: `packages/client/src/components/DraftPackCarousel.tsx`
+- FOUND: `packages/client/src/components/DraftPackCarousel.test.tsx`
+- FOUND commit `c900a9bd` (Task 1)
+- FOUND commit `d6bc5859` (Task 2)
+- FOUND commit `e6ba13f8` (Task 3)
+
 ---
 *Phase: 47-select-based-roster-interaction*
 *Completed: 2026-08-30*
