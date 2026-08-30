@@ -293,6 +293,14 @@ describe('getGenericBenchPlayers — Phase 46: generic placeholder bench rosters
     }
   });
 
+  it('CLEANUP: every generic bench player has a distinct name, and nationalities are varied (not all identical)', () => {
+    const players = [...getGenericBenchPlayers('home'), ...getGenericBenchPlayers('away')];
+    const fullNames = players.map((p) => `${p.firstName} ${p.lastName}`);
+    expect(new Set(fullNames).size).toBe(fullNames.length);
+    const nationalities = new Set(players.map((p) => p.nationality));
+    expect(nationalities.size).toBeGreaterThan(1);
+  });
+
   it('no generic bench player is reachable through any DraftPoolId', () => {
     const draftable = resolvePoolPlayers(['original', 'mls', 'international', 'legends', 'icons']);
     const leaked = draftable.filter((p) => p.sourceTeamId.startsWith('generic-bench'));
