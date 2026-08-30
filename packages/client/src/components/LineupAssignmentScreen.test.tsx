@@ -1,14 +1,34 @@
 /**
- * LineupAssignmentScreen.test.tsx — Phase 29 (29-05-PLAN.md Task 3).
+ * LineupAssignmentScreen.test.tsx — originated Phase 29 (29-05-PLAN.md Task 3);
+ * fully rewritten Phase 47 (47-04-PLAN.md) from native HTML5 pointer-gesture
+ * simulation to the app's click-to-select model (click = select green,
+ * eligible targets = blue, click again = deselect, click a blue target =
+ * complete the action) across all four roster surfaces.
  *
- * First-ever test file for this component (Wave 0 gap). Covers:
- * - Draft-mode rendering (DraftPackCarousel above the grid, BenchCarousel below)
- * - Drag-to-pick: a pack-sourced card dropped on a lineup slot calls onDraftPick
- * - Waiting-for-opponent disables the draft-pack row and shows the waiting text
- * - Round/pick counter text (D-20, Phase 30)
- * - draftComplete hides the carousel and shows the existing Confirm button (D-23)
- * - D-23 (Phase 30): tier-color border on filled starting-11 lineup slot cards
- * - Standard-mode non-regression (draftMode falsy renders exactly as before)
+ * Covers, by requirement:
+ * - ROSTER-01/02/03/04: select/deselect/eligible-highlight/complete, proven
+ *   independently on every surface below.
+ * - ROSTER-05: reposition/substitute eligibility stay structurally separate
+ *   functions; a selection never survives a mode-toggle crossing.
+ * - ROSTER-07: Standard pregame lineup click-to-swap (own describe block).
+ * - ROSTER-08: draft pack/slot/bench click-select, including the five
+ *   dispatch shapes (pick->slot, pick->bench, slot->slot, slot->bench,
+ *   bench->slot) and the GK-slot rule.
+ * - D-06/D-07/D-08: substitution-mode bench-first selection with a
+ *   switch-on-reselect gesture (D-07), contrasted with positioning-mode's
+ *   strict deselect-first gesture (D-08) — each has its own dedicated test.
+ * - D-05: the SENT OFF placeholder is a positioning-mode-only eligible
+ *   target, never eligible in substitution mode.
+ * - D-09: the GK card is never a selectable source in positioning mode, but
+ *   remains a valid completion target (server's GK_SLOT_LOCKED stays the
+ *   feedback path).
+ *
+ * Other coverage carried over from earlier phases: draft-mode carousel
+ * layout and round/pick counter text (D-20, Phase 30), draftComplete
+ * hand-off and tier-color borders (D-23, Phase 30), Standard-mode
+ * non-regression, and the full Phase 40/42 mid-match substitution/
+ * positioning-mode behavioural surface (SUB-0X/ICON-0X), all re-proven under
+ * the click model.
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, within, act } from '@testing-library/react';
@@ -324,8 +344,9 @@ describe('LineupAssignmentScreen — DRAFT-09 gap-closure: selection clears afte
 
     // The completed pick must clear the selection — a lone click on a different
     // empty slot (nothing selected anymore) must NOT call onDraftPick again.
-    // This replaces the old dragEnd-based wedge test with the click-model
-    // equivalent invariant: no stale selection state blocks future actions.
+    // This replaces the old pointer-cancel-based wedge test with the
+    // click-model equivalent invariant: no stale selection state blocks
+    // future actions.
     const anotherEmptySlot = container.querySelector('[data-slot-index="3"]') as HTMLElement;
     fireEvent.click(anotherEmptySlot);
     expect(onDraftPick).toHaveBeenCalledTimes(1);
@@ -993,6 +1014,13 @@ const BENCH_ONLY_UNAVAILABLE: BenchEntry[] = [
   { playerId: 'p015', jerseyNumber: 15, status: 'redCarded' },
 ];
 
+/** Phase 47 (D-07): two AVAILABLE bench entries — BENCH_MIXED only has one,
+ * which is insufficient to prove a bench-to-bench selection switch. */
+const BENCH_TWO_AVAILABLE: BenchEntry[] = [
+  { playerId: 'p013', jerseyNumber: 13, status: 'available' },
+  { playerId: 'p016', jerseyNumber: 16, status: 'available' },
+];
+
 /** Phase 41 (ICON-03): real PLAYER_POOL ids so PLAYER_MAP/resolveTieredCard lookups
  * resolve, proving the BenchEntry -> glyph derivation is really wired end-to-end. */
 const BENCH_WITH_STATUS: BenchEntry[] = [
@@ -1140,95 +1168,84 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
     expect(screen.queryByText(/vacated slot cannot be filled/)).toBeNull();
   });
 
-  it('SUB-07: a subbedOut bench entry renders an OUT badge, is dimmed, and is not draggable', () => {
+  it('SUB-07: a subbedOut bench entry renders an OUT badge, is dimmed, and is not interactive', () => {
     renderMidmatch();
     const outBadge = screen.getByTestId('bench-out-badge');
     expect(outBadge.textContent).toBe('OUT');
-    const card = outBadge.closest('[draggable]');
+    const card = outBadge.closest('[data-roster-card]');
     expect(card).not.toBeNull();
-    expect(card!.getAttribute('draggable')).toBe('false');
+    expect(card!.getAttribute('data-interactive')).toBe('false');
     expect(card!.className).toMatch(/cardUnavailable/);
   });
 
-  it('D-13: a redCarded bench entry renders a RED CARD badge distinct from OUT, is dimmed, and is not draggable', () => {
+  it('D-13: a redCarded bench entry renders a RED CARD badge distinct from OUT, is dimmed, and is not interactive', () => {
     renderMidmatch();
     const redBadge = screen.getByTestId('bench-red-card-badge');
     expect(redBadge.textContent).toBe('RED CARD');
-    const card = redBadge.closest('[draggable]') as HTMLElement;
+    const card = redBadge.closest('[data-roster-card]') as HTMLElement;
     expect(card).not.toBeNull();
-    expect(card.getAttribute('draggable')).toBe('false');
+    expect(card.getAttribute('data-interactive')).toBe('false');
     expect(card.className).toMatch(/cardUnavailable/);
     expect(within(card).queryByTestId('bench-out-badge')).toBeNull();
   });
 
-  it('D-13: dragging a redCarded bench card never calls onSubstitute', () => {
-    const onSubstitute = vi.fn();
-    renderMidmatch({ onSubstitute });
-    const redBadge = screen.getByTestId('bench-red-card-badge');
-    const card = redBadge.closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(card, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
-    expect(onSubstitute).not.toHaveBeenCalled();
-  });
-
-  /* Plan 08 (SUB-13/14/15) UPDATED EXPECTATION (2nd revision): a bench-to-pitch
-   * drop no longer calls onSubstitute immediately — it now stages a pending
-   * substitution behind a confirmation popup. Old expectation (set by 42-07):
-   * the drag+drop called onSubstitute directly once entering substitution
-   * mode. New expectation: the drag+drop stages the popup, and onSubstitute
-   * fires only after clicking "Confirm Substitution" — same args, same call
-   * count. See 42-08-SUMMARY.md Deviations. */
-  it('SUB-02: dragging an available bench card, dropping it on an on-pitch card, and confirming the popup calls onSubstitute once with (outPieceId, inPlayerId)', () => {
+  it('D-13: clicking a redCarded bench card never calls onSubstitute', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const redBadge = screen.getByTestId('bench-red-card-badge');
+    const card = redBadge.closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  /* Plan 08 (SUB-13/14/15): a bench-to-pitch click sequence does not call
+   * onSubstitute immediately — it stages a pending substitution behind a
+   * confirmation popup, and onSubstitute fires only after clicking "Confirm
+   * Substitution" (see 42-08-SUMMARY.md). */
+  it('SUB-02: clicking an available bench card, then an on-pitch card, then confirming the popup calls onSubstitute once with (outPieceId, inPlayerId)', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onSubstitute).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText('Confirm substitution'));
     expect(onSubstitute).toHaveBeenCalledTimes(1);
     expect(onSubstitute).toHaveBeenCalledWith('home-1', 'p013');
   });
 
-  /* Phase 42 (SUB-18/D-05/D-06) UPDATED EXPECTATION: a red-carded on-pitch
-   * piece no longer renders as a named LineupStatCard — it renders the SENT
-   * OFF placeholder instead (see scenario 13 below), so the old query
-   * `getByText('Home DefRedCarded')` no longer resolves. Old expectation: the
-   * target was located by the piece's own name. New expectation: the target
-   * is located via the SENT OFF placeholder; the outcome (onSubstitute never
-   * called) is unchanged — this also now requires entering substitution mode
-   * first, matching the test above. See 42-07-SUMMARY.md Deviations. */
-  it('SUB-06: dropping a bench card onto a redCarded (SENT OFF) on-pitch slot does not call onSubstitute', () => {
+  /* Phase 42 (SUB-18/D-05/D-06): a red-carded on-pitch piece is never rendered
+   * as a named LineupStatCard — it renders the SENT OFF placeholder instead
+   * (see scenario 13 below), so the target here is located via the
+   * placeholder rather than the piece's own name. */
+  it('SUB-06: clicking a bench card then the SENT OFF (redCarded) on-pitch slot does not call onSubstitute', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
     const target = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(target);
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  /* Phase 42 (SUB-08) UPDATED EXPECTATION — the plan's own authorized
-   * exception (this is the one behavior this plan deliberately changes): a
-   * non-GK/non-slot-0 on-pitch card is now draggable BY DEFAULT (positioning
-   * mode), reverting to non-draggable once substitution mode is entered
-   * (Phase 40's original, unchanged behavior for that mode). Old expectation:
-   * unconditionally non-draggable in every mid-match mode. New expectation:
-   * mode-dependent, as follows. */
-  it('SUB-08: on-pitch cards are draggable in positioning mode (default), but revert to non-draggable in substitution mode', () => {
+  it('SUB-08: on-pitch cards are selectable in positioning mode (default), but not selectable/clickable in substitution mode', () => {
     renderMidmatch();
-    let card = screen.getByText('Home DefOne').closest('[draggable]');
-    expect(card).not.toBeNull();
-    expect(card!.getAttribute('draggable')).toBe('true');
+    const card = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    expect(card.className).toMatch(/statCardSelected/);
+    fireEvent.click(card); // deselect before switching modes
 
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    card = screen.getByText('Home DefOne').closest('[draggable]');
-    expect(card).not.toBeNull();
-    expect(card!.getAttribute('draggable')).toBe('false');
+    const cardInSubMode = screen
+      .getByText('Home DefOne')
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(cardInSubMode.getAttribute('role')).not.toBe('button');
   });
 
   it('ICON-02: renders a yellow card glyph for an on-pitch piece with yellowCards 1', () => {
@@ -1390,9 +1407,9 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
 
   /* Checkpoint gap-closure (40-07 Task 2 human-verify feedback, item 2a): the panel is now
    * openable at ANY time so a manager can view their roster outside a stoppage — but it must
-   * be read-only: no bench card is draggable and a drop can never call onSubstitute. */
+   * be read-only: no bench card is interactive and a click can never call onSubstitute. */
   describe('read-only presentation (checkpoint gap-closure 2a)', () => {
-    it('shows the read-only copy instead of the drag CTA when readOnly is true', () => {
+    it('shows the read-only copy instead of the select CTA when readOnly is true', () => {
       renderMidmatch({ readOnly: true });
       expect(
         screen.getByText(
@@ -1400,20 +1417,18 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
         ),
       ).toBeDefined();
       expect(
-        screen.queryByText('Drag a bench card onto an on-pitch card to Substitute.'),
+        screen.queryByText('Select a bench card, then click an on-pitch card to substitute.'),
       ).toBeNull();
     });
 
-    /* Phase 42 (SUB-08) UPDATED EXPECTATION: the "normal" (non-readOnly)
-     * default is now positioning mode, not substitution mode — the
-     * substitution-mode copy only appears after entering that mode (covered
-     * by Phase 42 scenario 8). Old expectation: substitution-mode copy shown
-     * immediately. New expectation: the positioning-mode copy is shown by
-     * default, and the read-only copy is absent. See 42-07-SUMMARY.md
-     * Deviations. */
-    it('shows the normal (positioning-mode) drag CTA when readOnly is false/undefined', () => {
+    /* Phase 42 (SUB-08): the "normal" (non-readOnly) default is positioning
+     * mode, not substitution mode — the substitution-mode copy only appears
+     * after entering that mode (covered by Phase 42 scenario 8). */
+    it('shows the normal (positioning-mode) select CTA when readOnly is false/undefined', () => {
       renderMidmatch();
-      expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+      expect(
+        screen.getByText('Select a player, then click another to swap positions.'),
+      ).toBeDefined();
       expect(
         screen.queryByText(
           'Viewing roster — substitutions are only available during a stoppage in play.',
@@ -1421,22 +1436,23 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
       ).toBeNull();
     });
 
-    it('bench cards are not draggable when readOnly is true, even an otherwise-available entry', () => {
+    it('bench cards are not interactive when readOnly is true, even an otherwise-available entry', () => {
       renderMidmatch({ readOnly: true });
-      const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-      expect(benchCard.getAttribute('draggable')).toBe('false');
+      const benchCard = screen
+        .getByText('Fallou Fall')
+        .closest('[data-roster-card]') as HTMLElement;
+      expect(benchCard.getAttribute('data-interactive')).toBe('false');
     });
 
-    it('dragging a bench card and dropping it on an on-pitch card never calls onSubstitute when readOnly is true', () => {
+    it('clicking a bench card then an on-pitch card never calls onSubstitute when readOnly is true', () => {
       const onSubstitute = vi.fn();
       renderMidmatch({ readOnly: true, onSubstitute });
-      const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-      // The card itself is non-draggable, but exercise the drop handler directly too —
-      // belt-and-suspenders per the onDrop-level readOnly guard added alongside the
-      // draggable=false gate (never rely on drag-source gating alone).
-      fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-      const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-      fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+      const benchCard = screen
+        .getByText('Fallou Fall')
+        .closest('[data-roster-card]') as HTMLElement;
+      fireEvent.click(benchCard);
+      const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+      fireEvent.click(target);
       expect(onSubstitute).not.toHaveBeenCalled();
     });
   });
@@ -1456,85 +1472,117 @@ describe('LineupAssignmentScreen — mid-match substitution mode (SUB-02/03/06/0
   });
 });
 
-/* ─── Phase 42 (42-07): midmatch positioning mode ──────────────────────────
+/* ─── Phase 42/47: midmatch positioning mode ────────────────────────────────
  * Covers SUB-08..12/18 and the Pitfall-5 mode-coexistence regression matrix
- * (research PITFALLS.md #5) — see 42-07-PLAN.md Task 3. */
+ * (research PITFALLS.md #5), rewritten from the retired pointer-based gesture
+ * to click-select (Phase 47, plan 04, Task 3). */
 describe('Phase 42 — midmatch positioning mode', () => {
   // ─── Positioning mode (default) ──────────────────────────────────────────
 
-  it('1. default positioning mode renders the swap helper copy and a Substitute button', () => {
+  it('1. default positioning mode renders the select helper copy and a Substitute button', () => {
     renderMidmatch();
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
     expect(screen.getByLabelText('Enter substitution mode')).toBeDefined();
   });
 
-  it('2. dragging an on-field card onto another calls onReposition once with (source, target), never onSubstitute', () => {
+  it('1b. clicking an eligible on-pitch card applies /statCardSelected/; every other rendered mid-match card carries /statCardEligible/', () => {
+    const { container } = renderMidmatch();
+    const card = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    expect(card.className).toMatch(/statCardSelected/);
+    const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
+    const others = Array.from(grid.querySelectorAll('[data-roster-card]')).filter(
+      (el) => el !== card,
+    );
+    expect(others.length).toBeGreaterThan(0);
+    others.forEach((el) => expect(el.className).toMatch(/statCardEligible/));
+  });
+
+  it('2. clicking an on-field card then another calls onReposition once with (source, target), never onSubstitute', () => {
     const onReposition = vi.fn();
     const onSubstitute = vi.fn();
     renderMidmatch({ onReposition, onSubstitute });
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(source);
+    const target = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onReposition).toHaveBeenCalledTimes(1);
     expect(onReposition).toHaveBeenCalledWith('home-1', 'home-2');
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('3. dropping a card onto itself calls neither onReposition nor onSubstitute', () => {
+  it('3. clicking a selected card again (self-click) deselects it and calls neither onReposition nor onSubstitute (ROSTER-03)', () => {
     const onReposition = vi.fn();
     const onSubstitute = vi.fn();
     renderMidmatch({ onReposition, onSubstitute });
-    const card = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(card, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    fireEvent.drop(card, { dataTransfer: { getData: () => '' } });
+    const card = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    fireEvent.click(card);
     expect(onReposition).not.toHaveBeenCalled();
     expect(onSubstitute).not.toHaveBeenCalled();
+    expect(card.className).not.toMatch(/statCardSelected/);
   });
 
-  it('4. SUB-09: actionPending disables positioning-mode dragging and a drop calls neither callback', () => {
+  it('4. SUB-09: actionPending disables positioning-mode selection and a click calls neither callback', () => {
     const onReposition = vi.fn();
     const onSubstitute = vi.fn();
     renderMidmatch({ onReposition, onSubstitute, actionPending: true });
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    expect(source.getAttribute('draggable')).toBe('false');
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    expect(source.getAttribute('role')).not.toBe('button');
+    fireEvent.click(source);
+    const target = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onReposition).not.toHaveBeenCalled();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('5. readOnly disables positioning-mode dragging and a drop calls neither callback', () => {
+  it('5. readOnly disables positioning-mode selection and a click calls neither callback', () => {
     const onReposition = vi.fn();
     const onSubstitute = vi.fn();
     renderMidmatch({ onReposition, onSubstitute, readOnly: true });
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    expect(source.getAttribute('draggable')).toBe('false');
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    expect(source.getAttribute('role')).not.toBe('button');
+    fireEvent.click(source);
+    const target = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onReposition).not.toHaveBeenCalled();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('6. SUB-10: bench cards are not draggable in positioning mode and a bench-sourced drop calls neither callback', () => {
+  it('6. SUB-10: bench cards are not interactive in positioning mode and a bench-sourced click calls neither callback', () => {
     const onReposition = vi.fn();
     const onSubstitute = vi.fn();
     renderMidmatch({ onReposition, onSubstitute });
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    expect(benchCard.getAttribute('draggable')).toBe('false');
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    expect(benchCard.getAttribute('data-interactive')).toBe('false');
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onReposition).not.toHaveBeenCalled();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('7. the GK card (slot 0) is not draggable in positioning mode', () => {
-    renderMidmatch();
-    const gkCard = screen.getByText('Home Keeper').closest('[draggable]') as HTMLElement;
-    expect(gkCard.getAttribute('draggable')).toBe('false');
+  it('7. the GK card (slot 0) is not selectable in positioning mode; clicking it with nothing selected does not select it, and onReposition is not called (D-09)', () => {
+    const onReposition = vi.fn();
+    renderMidmatch({ onReposition });
+    const gkCard = screen.getByText('Home Keeper').closest('[data-roster-card]') as HTMLElement;
+    expect(gkCard.getAttribute('role')).not.toBe('button');
+    fireEvent.click(gkCard);
+    expect(gkCard.className).not.toMatch(/statCardSelected/);
+    expect(onReposition).not.toHaveBeenCalled();
+  });
+
+  it('7b. GK-as-target is preserved: with an outfield card selected, the GK card carries /statCardEligible/ and clicking it calls onReposition', () => {
+    const onReposition = vi.fn();
+    renderMidmatch({ onReposition });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(source);
+    const gkCard = screen.getByText('Home Keeper').closest('[data-roster-card]') as HTMLElement;
+    expect(gkCard.className).toMatch(/statCardEligible/);
+    fireEvent.click(gkCard);
+    expect(onReposition).toHaveBeenCalledWith('home-1', 'home-0');
   });
 
   // ─── Mode toggle (SUB-11/SUB-12) ─────────────────────────────────────────
@@ -1543,7 +1591,7 @@ describe('Phase 42 — midmatch positioning mode', () => {
     renderMidmatch();
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
     expect(
-      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
+      screen.getByText('Select a bench card, then click an on-pitch card to substitute.'),
     ).toBeDefined();
     expect(screen.getByLabelText('Cancel substitution')).toBeDefined();
   });
@@ -1553,7 +1601,9 @@ describe('Phase 42 — midmatch positioning mode', () => {
     const btn = screen.getByLabelText('Enter substitution mode');
     expect(btn.hasAttribute('disabled')).toBe(true);
     fireEvent.click(btn);
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
   });
 
   it('10. below MAX_SUBS_PER_TEAM the Substitute button is enabled', () => {
@@ -1567,7 +1617,9 @@ describe('Phase 42 — midmatch positioning mode', () => {
     renderMidmatch({ onSubstitute, onReposition });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
     fireEvent.click(screen.getByLabelText('Cancel substitution'));
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
     expect(screen.getByLabelText('Enter substitution mode')).toBeDefined();
     expect(onSubstitute).not.toHaveBeenCalled();
     expect(onReposition).not.toHaveBeenCalled();
@@ -1589,20 +1641,24 @@ describe('Phase 42 — midmatch positioning mode', () => {
     expect(placeholder.getAttribute('aria-label')).toBe('Sent off — slot empty');
   });
 
-  it('14. D-05: dragging another on-field card onto the SENT OFF slot calls onReposition with the dismissed piece id as the target', () => {
+  it('14. D-05: with an on-field card selected, the SENT OFF placeholder carries /statCardEligible/ and clicking it calls onReposition with the dismissed piece id as the target', () => {
     const onReposition = vi.fn();
     renderMidmatch({ onReposition });
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(source);
     const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-    fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+    expect(placeholder.className).toMatch(/statCardEligible/);
+    fireEvent.click(placeholder);
     expect(onReposition).toHaveBeenCalledWith('home-1', 'home-4');
   });
 
-  it('15. the SENT OFF element is not draggable', () => {
-    renderMidmatch();
+  it('15. the SENT OFF placeholder is not clickable when nothing is selected', () => {
+    const onReposition = vi.fn();
+    renderMidmatch({ onReposition });
     const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-    expect(placeholder.getAttribute('draggable')).toBe('false');
+    expect(placeholder.className).not.toMatch(/statCardEligible/);
+    fireEvent.click(placeholder);
+    expect(onReposition).not.toHaveBeenCalled();
   });
 
   // ─── Mode-coexistence regression matrix (Pitfall 5) ──────────────────────
@@ -1613,88 +1669,76 @@ describe('Phase 42 — midmatch positioning mode', () => {
   it('SUB-04/06 (3-sub cap): positioning mode is unaffected by the cap; substitution mode entry is still blocked at the cap', () => {
     const onReposition = vi.fn();
     renderMidmatch({ subsUsed: MAX_SUBS_PER_TEAM, onReposition });
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(source);
+    const target = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onReposition).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText('Enter substitution mode').hasAttribute('disabled')).toBe(true);
   });
 
-  it('SUB-06 (red-card isSubBlocked exclusion): positioning mode allows a reposition-drop onto the SENT OFF slot (D-05); substitution mode still blocks a bench-drop onto it', () => {
+  it('SUB-06 (red-card isSubBlocked exclusion): positioning mode allows a reposition-click onto the SENT OFF slot (D-05); substitution mode still blocks a bench-click onto it', () => {
     const onSubstitute = vi.fn();
     const onReposition = vi.fn();
     renderMidmatch({ onSubstitute, onReposition });
 
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(source);
     const sentOffPlaceholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-    fireEvent.drop(sentOffPlaceholder, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(sentOffPlaceholder);
     expect(onReposition).toHaveBeenCalledWith('home-1', 'home-4');
 
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    fireEvent.drop(sentOffPlaceholder, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    fireEvent.click(sentOffPlaceholder);
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('SUB-07 (subbedOut bench exclusion): the bench is inert in positioning mode; substitution mode still blocks dragging a subbedOut bench card', () => {
+  it('SUB-07 (subbedOut bench exclusion): the bench is inert in positioning mode; substitution mode still blocks clicking a subbedOut bench card', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
 
     const outBadge = screen.getByTestId('bench-out-badge');
-    const subbedOutCard = outBadge.closest('[draggable]') as HTMLElement;
-    expect(subbedOutCard.getAttribute('draggable')).toBe('false');
+    const subbedOutCard = outBadge.closest('[data-roster-card]') as HTMLElement;
+    expect(subbedOutCard.getAttribute('data-interactive')).toBe('false');
 
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    fireEvent.dragStart(subbedOutCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(subbedOutCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  /* Phase 42 Plan 10 (Task 1 side-by-side audit, GAP closure): the test above
-   * only asserts `onSubstitute` was never called — but since Plan 08 (42-08)
-   * rewrote substitution to a stage-then-confirm flow, `onSubstitute` is ONLY
-   * ever called from the popup's "Confirm Substitution" button, which this
-   * flow never reaches regardless of whether the drag was blocked. That makes
-   * the assertion above pass even if the bench-exclusion guard were removed
-   * entirely — it no longer proves the guard is reached (confirmed by a
-   * mutation check: deleting BenchCarousel's `unavailablePlayerIds?.includes`
-   * clause left the original test green). This test closes that gap by
-   * asserting no confirmation dialog is ever staged for EITHER a subbedOut
-   * (SUB-07) or redCarded (D-13) bench source — the property the original
-   * test intended to prove. */
-  it('SUB-07/D-13 gap-closure: dragging a subbedOut or redCarded bench card in substitution mode never stages a confirmation popup', () => {
+  it('SUB-07/D-13 gap-closure: clicking a subbedOut or redCarded bench card in substitution mode never stages a confirmation popup', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
 
     const outBadge = screen.getByTestId('bench-out-badge');
-    const subbedOutCard = outBadge.closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(subbedOutCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const targetOne = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(targetOne, { dataTransfer: { getData: () => '' } });
+    const subbedOutCard = outBadge.closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(subbedOutCard);
+    const targetOne = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(targetOne);
     expect(screen.queryByRole('dialog')).toBeNull();
 
     const redBadge = screen.getByTestId('bench-red-card-badge');
-    const redCardedCard = redBadge.closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(redCardedCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const targetTwo = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(targetTwo, { dataTransfer: { getData: () => '' } });
+    const redCardedCard = redBadge.closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(redCardedCard);
+    const targetTwo = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(targetTwo);
     expect(screen.queryByRole('dialog')).toBeNull();
 
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('readOnly guard: disables positioning-mode dragging and blocks entry into (and dragging within) substitution mode identically', () => {
+  it('readOnly guard: disables positioning-mode selection and blocks entry into (and selection within) substitution mode identically', () => {
     renderMidmatch({ readOnly: true });
-    const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    expect(source.getAttribute('draggable')).toBe('false');
+    const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    expect(source.getAttribute('role')).not.toBe('button');
     expect(screen.getByLabelText('Enter substitution mode').hasAttribute('disabled')).toBe(true);
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    expect(benchCard.getAttribute('draggable')).toBe('false');
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    expect(benchCard.getAttribute('data-interactive')).toBe('false');
   });
 
   describe('gap item 6: SENT OFF slot stacking', () => {
@@ -1709,32 +1753,31 @@ describe('Phase 42 — midmatch positioning mode', () => {
       useGameStore.setState({ gameError: null });
     });
 
-    it('1. with a third active own-team piece on the red-carded slot frozen hex, dropping onto SENT OFF does NOT call onReposition', () => {
+    it('1. with a third active own-team piece on the red-carded slot frozen hex, clicking the SENT OFF slot does NOT call onReposition', () => {
       const onReposition = vi.fn();
       renderMidmatch({ midmatchPieces: COLLISION_PIECES, onReposition });
-      const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-      fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+      fireEvent.click(source);
       const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-      fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+      fireEvent.click(placeholder);
       expect(onReposition).not.toHaveBeenCalled();
     });
 
-    it('2. the SENT OFF placeholder does not receive the drop-target ring on dragOver when its hex is taken', () => {
+    it('2. the SENT OFF placeholder does not carry the eligible-target highlight when its hex is taken', () => {
       renderMidmatch({ midmatchPieces: COLLISION_PIECES });
-      const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-      fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+      fireEvent.click(source);
       const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-      fireEvent.dragOver(placeholder, { dataTransfer: {} });
-      expect(placeholder.className).not.toMatch(/statCardDropTarget/);
+      expect(placeholder.className).not.toMatch(/statCardEligible/);
     });
 
-    it('3. when the red-carded slot frozen hex is free, the same drag still calls onReposition (D-05 preserved)', () => {
+    it('3. when the red-carded slot frozen hex is free, the same click sequence still calls onReposition (D-05 preserved)', () => {
       const onReposition = vi.fn();
       renderMidmatch({ onReposition }); // default HOME_TEAM_PIECES: home-4's hex is free
-      const source = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-      fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const source = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+      fireEvent.click(source);
       const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-      fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+      fireEvent.click(placeholder);
       expect(onReposition).toHaveBeenCalledWith('home-1', 'home-4');
     });
 
@@ -1748,86 +1791,230 @@ describe('Phase 42 — midmatch positioning mode', () => {
       ).toBeDefined();
     });
 
-    it('5. substitution mode is unaffected by the pre-gate: dropping a bench card on the taken SENT OFF slot behaves as it does today', () => {
+    it('5. substitution mode is unaffected by the pre-gate: clicking a bench card then the taken SENT OFF slot behaves as it does today', () => {
       const onSubstitute = vi.fn();
       renderMidmatch({ midmatchPieces: COLLISION_PIECES, onSubstitute });
       fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-      const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-      fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+      const benchCard = screen
+        .getByText('Fallou Fall')
+        .closest('[data-roster-card]') as HTMLElement;
+      fireEvent.click(benchCard);
       const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-      fireEvent.drop(placeholder, { dataTransfer: { getData: () => '' } });
+      fireEvent.click(placeholder);
       expect(onSubstitute).not.toHaveBeenCalled();
     });
   });
 });
 
-/* ─── Plan 08 (42-08): staged substitution with confirmation ───────────────
- * Covers SUB-13/14/15 — the fire-on-drop substitution flow (42-07) is
- * replaced by a stage-then-confirm flow with a popup naming both players.
- * See 42-08-PLAN.md Task 3. */
-describe('Phase 42 — staged substitution with confirmation', () => {
-  it('1. a bench-to-pitch drop stages a substitution and renders a confirmation dialog naming both players, without calling onSubstitute', () => {
+/* ─── Phase 47 (plan 04, Task 3): click-select behaviors with no prior
+ * pointer-based equivalent — ROSTER-01/02/03/05/07, D-05..D-09. Covers the
+ * D-07/D-08 selection-switch asymmetry, the substitution-mode bench-first
+ * gesture, the eligible-target set on bench selection, the SENT OFF
+ * placeholder's non-eligibility in substitution mode, and the mode-crossing
+ * selection-clearing regression (RESEARCH.md Pitfall 1). */
+describe('Phase 47 — click-select gap coverage (ROSTER-01/02/03/05/07, D-05..D-09)', () => {
+  it('D-08: in positioning mode, clicking a different selectable card completes the swap rather than switching the selection', () => {
+    const onReposition = vi.fn();
+    renderMidmatch({ onReposition });
+    const cardA = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    const cardB = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(cardA);
+    fireEvent.click(cardB);
+    expect(onReposition).toHaveBeenCalledTimes(1);
+    expect(onReposition).toHaveBeenCalledWith('home-1', 'home-2');
+    expect(document.querySelector('[class*="statCardSelected"]')).toBeNull();
+  });
+
+  it('D-07: in substitution mode, clicking a different available bench card switches the selection without completing anything', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ bench: BENCH_TWO_AVAILABLE, onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const p013 = PLAYER_BY_ID.get('p013')!;
+    const p016 = PLAYER_BY_ID.get('p016')!;
+    const benchA = screen
+      .getByText(`${p013.firstName} ${p013.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    const benchB = screen
+      .getByText(`${p016.firstName} ${p016.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchA);
+    expect(benchA.className).toMatch(/statCardSelected/);
+    fireEvent.click(benchB);
+    expect(benchB.className).toMatch(/statCardSelected/);
+    expect(benchA.className).not.toMatch(/statCardSelected/);
+    expect(onSubstitute).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('D-06: bench-first only — clicking an on-pitch card with nothing selected does nothing', () => {
+    renderMidmatch();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const onPitchCard = screen
+      .getByText('Home DefOne')
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(onPitchCard);
+    expect(onPitchCard.className).not.toMatch(/statCardSelected/);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('clicking a bench card applies /statCardSelected/ to it and /statCardEligible/ to eligible on-pitch cards', () => {
+    renderMidmatch();
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    expect(benchCard.className).toMatch(/statCardSelected/);
+    const eligibleTarget = screen
+      .getByText('Home DefOne')
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(eligibleTarget.className).toMatch(/statCardEligible/);
+  });
+
+  it('D-05: in substitution mode with a bench card selected, the SENT OFF placeholder carries no /statCardEligible/ class, stages no pendingSub, and calls neither callback', () => {
+    const onSubstitute = vi.fn();
+    const onReposition = vi.fn();
+    renderMidmatch({ onSubstitute, onReposition });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const placeholder = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
+    expect(placeholder.className).not.toMatch(/statCardEligible/);
+    fireEvent.click(placeholder);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onSubstitute).not.toHaveBeenCalled();
+    expect(onReposition).not.toHaveBeenCalled();
+  });
+
+  it('ROSTER-05: a positioning-mode selection clears when entering substitution mode, and cannot be reused as a swap participant', () => {
+    const onReposition = vi.fn();
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onReposition, onSubstitute });
+    const card = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    expect(card.className).toMatch(/statCardSelected/);
+
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    expect(document.querySelector('[class*="statCardSelected"]')).toBeNull();
+    expect(document.querySelector('[class*="statCardEligible"]')).toBeNull();
+
+    const anotherCard = screen
+      .getByText('Home DefTwo')
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(anotherCard);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onReposition).not.toHaveBeenCalled();
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('ROSTER-05: a substitution-mode bench selection clears on Cancel, and a subsequent on-pitch click calls neither callback', () => {
+    const onReposition = vi.fn();
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onReposition, onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    expect(benchCard.className).toMatch(/statCardSelected/);
+
+    fireEvent.click(screen.getByLabelText('Cancel substitution'));
+    expect(document.querySelector('[class*="statCardSelected"]')).toBeNull();
+
+    const onPitchCard = screen
+      .getByText('Home DefOne')
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(onPitchCard);
+    expect(onReposition).not.toHaveBeenCalled();
+    expect(onSubstitute).not.toHaveBeenCalled();
+  });
+
+  it('ROSTER-05: confirming a staged substitution returns to positioning mode with no selection left over', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
+    fireEvent.click(screen.getByLabelText('Confirm substitution'));
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
+    expect(document.querySelector('[class*="statCardSelected"]')).toBeNull();
+    expect(document.querySelector('[class*="statCardEligible"]')).toBeNull();
+  });
+});
+
+/* ─── Plan 08 (42-08), rewritten Phase 47 (plan 04): staged substitution with
+ * confirmation ────────────────────────────────────────────────────────────
+ * Covers SUB-13/14/15 — a click-to-complete substitution stages a pending
+ * confirmation popup rather than firing immediately. */
+describe('Phase 42 — staged substitution with confirmation', () => {
+  it('1. a bench-click-then-pitch-click sequence stages a substitution and renders a confirmation dialog naming both players, without calling onSubstitute', () => {
+    const onSubstitute = vi.fn();
+    renderMidmatch({ onSubstitute });
+    fireEvent.click(screen.getByLabelText('Enter substitution mode'));
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(onSubstitute).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
   });
 
-  it('2. SUB-13: a second bench-to-pitch drop onto a different on-pitch card while the popup is open does not change its text or call onSubstitute', () => {
+  it('2. SUB-13: a second click sequence onto a different on-pitch card while the popup is open does not change its text or call onSubstitute', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target1 = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target1, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target1 = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target1);
     expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
 
-    // A second drop attempt while staged — belt-and-suspenders: the bench
-    // card's own onCardDragStart guard already gates on pendingSub, so this
-    // exercises the drop handler's own SUB-13 guard directly too.
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target2 = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target2, { dataTransfer: { getData: () => '' } });
+    // A second click attempt while staged — belt-and-suspenders: the bench
+    // card is disabled while a substitution is pending, so this exercises
+    // the completion handler's own SUB-13 guard directly too.
+    fireEvent.click(benchCard);
+    const target2 = screen.getByText('Home DefTwo').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target2);
     expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
 
-  it('3. SUB-13: while the popup is open, bench cards and on-pitch cards remain non-draggable', () => {
+  it('3. SUB-13: while the popup is open, bench cards are non-interactive and on-pitch cards are non-selectable', () => {
     renderMidmatch();
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(screen.getByText('Substitute Home DefOne for Fallou Fall?')).toBeDefined();
 
-    const benchCardAfter = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    expect(benchCardAfter.getAttribute('draggable')).toBe('false');
-    const pitchCardAfter = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    expect(pitchCardAfter.getAttribute('draggable')).toBe('false');
+    const benchCardAfter = screen
+      .getByText('Fallou Fall')
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(benchCardAfter.getAttribute('data-interactive')).toBe('false');
+    const pitchCardAfter = screen
+      .getByText('Home DefTwo')
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(pitchCardAfter.getAttribute('role')).not.toBe('button');
   });
 
   it('4. SUB-15 confirm: clicking Confirm Substitution calls onSubstitute once, closes the popup, and returns to positioning mode', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     fireEvent.click(screen.getByLabelText('Confirm substitution'));
     expect(onSubstitute).toHaveBeenCalledTimes(1);
     expect(onSubstitute).toHaveBeenCalledWith('home-1', 'p013');
     expect(screen.queryByText('Substitute Home DefOne for Fallou Fall?')).toBeNull();
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
     expect(screen.getByLabelText('Enter substitution mode')).toBeDefined();
   });
 
@@ -1835,15 +2022,15 @@ describe('Phase 42 — staged substitution with confirmation', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     fireEvent.click(screen.getByLabelText('Cancel substitution selection'));
     expect(onSubstitute).not.toHaveBeenCalled();
     expect(screen.queryByText('Substitute Home DefOne for Fallou Fall?')).toBeNull();
     expect(
-      screen.getByText('Drag a bench card onto an on-pitch card to Substitute.'),
+      screen.getByText('Select a bench card, then click an on-pitch card to substitute.'),
     ).toBeDefined();
     expect(screen.getByLabelText('Cancel substitution')).toBeDefined();
   });
@@ -1851,10 +2038,10 @@ describe('Phase 42 — staged substitution with confirmation', () => {
   it('5b. Gap-closure (42-12 Task 3C, gap item 5): both Cancel surfaces are orange — the popup Cancel carries subConfirmButtonCancel, and the mode-level Cancel carries rosterActionButtonCancel', () => {
     renderMidmatch();
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     const popupCancel = screen.getByLabelText('Cancel substitution selection');
     expect(popupCancel.className).toMatch(/subConfirmButtonCancel/);
     fireEvent.click(popupCancel);
@@ -1862,20 +2049,24 @@ describe('Phase 42 — staged substitution with confirmation', () => {
     expect(modeCancel.className).toMatch(/rosterActionButtonCancel/);
   });
 
-  it('6. after cancelling the popup, a fresh bench-to-pitch drop stages again', () => {
+  it('6. after cancelling the popup, a fresh bench-click-then-pitch-click stages again', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     fireEvent.click(screen.getByLabelText('Cancel substitution selection'));
 
-    const benchCardAgain = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCardAgain, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const targetAgain = screen.getByText('Home DefTwo').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(targetAgain, { dataTransfer: { getData: () => '' } });
+    const benchCardAgain = screen
+      .getByText('Fallou Fall')
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCardAgain);
+    const targetAgain = screen
+      .getByText('Home DefTwo')
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(targetAgain);
     expect(screen.getByText('Substitute Home DefTwo for Fallou Fall?')).toBeDefined();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
@@ -1884,14 +2075,16 @@ describe('Phase 42 — staged substitution with confirmation', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     fireEvent.click(screen.getByLabelText('Cancel substitution'));
     expect(onSubstitute).not.toHaveBeenCalled();
     expect(screen.queryByText('Substitute Home DefOne for Fallou Fall?')).toBeNull();
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
     expect(screen.getByLabelText('Enter substitution mode')).toBeDefined();
   });
 
@@ -1899,10 +2092,10 @@ describe('Phase 42 — staged substitution with confirmation', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ onSubstitute });
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
     const target = screen.getByText('SENT OFF').closest('[role="img"]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    fireEvent.click(target);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
@@ -1910,10 +2103,10 @@ describe('Phase 42 — staged substitution with confirmation', () => {
   it('9. readOnly prevents staging entirely — no popup renders and onSubstitute is never called', () => {
     const onSubstitute = vi.fn();
     renderMidmatch({ readOnly: true, onSubstitute });
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onSubstitute).not.toHaveBeenCalled();
   });
