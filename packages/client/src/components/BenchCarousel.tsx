@@ -6,17 +6,26 @@
  * left-right navigable carousel
  * reusing the exact same card style AND carousel chrome as
  * DraftPackCarousel (D-21 — DraftCardBody + TIER_CARD_CLASS + carouselViewport/
- * carouselTrack/carouselNav). Unlike the draft-pack row, the bench is BOTH a
- * drag source (dragging a benched card back onto the lineup, D-08) AND a drop
- * target (dragging a card from the draft-pack row, or from a lineup slot,
- * onto the bench).
+ * carouselTrack/carouselNav).
  *
- * The bench container's onDrop is intentionally payload-free — it only
- * signals that *a* drop landed on the bench. Resolving WHICH card was
- * dragged and its origin is the parent's (LineupAssignmentScreen, Plan 05)
- * job, tracked via a single parent-owned drag-state variable set through the
- * onCardDragStart callbacks. This component must never read dataTransfer to
- * decide anything (see `<action>` in 29-03-PLAN.md Task 2).
+ * Phase 47 (D-06/D-07/D-10/D-11, ROSTER-08): converted from a native
+ * HTML5 drag source + drop target to a click-select SOURCE + click-completion
+ * TARGET. Unlike the draft-pack row (a click source only), the bench is BOTH
+ * a click-select source — clicking an available bench card reports its
+ * `benchIndex` via `onCardClick` (mid-match substitution bench card; draft
+ * bench card being rearranged into a slot) — AND a click-completion target —
+ * clicking the bench container itself reports completion via
+ * `onBenchAreaClick` (draft pack->bench pick, draft slot->bench move).
+ *
+ * Both `onCardClick(benchIndex)` and `onBenchAreaClick()` are intentionally
+ * payload-free, by design (mirrors the pre-Phase-47 drag contract exactly).
+ * This component holds zero selection-resolution state of its own —
+ * `selectedCardId` and `benchAreaEligible` are entirely parent-owned
+ * (LineupAssignmentScreen). Resolving WHICH card is selected, its origin,
+ * and whether the bench is currently a legal completion target is the
+ * parent's job. This component must never infer selection/eligibility from
+ * anything besides the props it's given (Phase 47 / D-10/D-11; mirrors this
+ * component's own pre-Phase-47 "must never read dataTransfer" convention).
  */
 import { useEffect, useRef, useState } from 'react';
 import type { TeamId, TieredPoolPlayer } from '@counter-attack/shared';
@@ -31,12 +40,12 @@ type BenchCarouselProps = {
   /** Jersey numbers by card id — shown once the draft completes (D-15). */
   benchNumbers?: Record<string, number>;
   /** Phase 40 (SUB-07): card ids (PLAYER_POOL ids) that have been substituted out —
-   * rendered with an "OUT" badge, dimmed, and non-draggable. Undefined in every
+   * rendered with an "OUT" badge, dimmed, and non-interactive. Undefined in every
    * pre-match (draft) call site — pre-match draft usage is unaffected. */
   unavailablePlayerIds?: readonly string[];
   /** Phase 40 (D-13): card ids that have been sent off — rendered with a distinct
    * "RED CARD" badge (takes precedence over unavailablePlayerIds), dimmed, and
-   * non-draggable. Undefined in every pre-match (draft) call site. */
+   * non-interactive. Undefined in every pre-match (draft) call site. */
   redCardedPlayerIds?: readonly string[];
   /** Phase 41 (ICON-03): `benchCardStatus` is per-card disciplinary/fitness glyph state,
    * keyed by PLAYER_POOL card id (the same key space as `unavailablePlayerIds`/
@@ -46,15 +55,30 @@ type BenchCarouselProps = {
   benchCardStatus?: Readonly<Record<string, BenchCardStatus>>;
   /** Checkpoint gap-closure (40-07 Task 2 human-verify feedback): true when the
    * whole bench is view-only (mid-match panel opened outside a stoppage) — every
-   * card becomes non-draggable regardless of unavailable/redCarded state, and a
-   * drop on the bench is a no-op. Undefined/false in every other call site
-   * (pre-match draft never sets this — the bench is always interactive there). */
+   * card becomes non-interactive regardless of unavailable/redCarded state, and
+   * the bench container never completes a click. Undefined/false in every other
+   * call site (pre-match draft never sets this — the bench is always interactive
+   * there). */
   disabled?: boolean;
-  /** Called on drag-start with the dragged card's bench index (source-tracking only —
-   * the parent resolves which card/origin this refers to). */
-  onCardDragStart: (benchIndex: number) => void;
-  /** Called when a drag lands on the bench — payload-free BY DESIGN. */
-  onDropToBench: () => void;
+  /** Phase 47 (D-11): fires when an available bench card is clicked or activated
+   * via Enter/Space, reporting that card's bench index only — the parent resolves
+   * which card/origin this refers to (payload-free by design, same as the old
+   * onCardDragStart contract). */
+  onCardClick: (benchIndex: number) => void;
+  /** Phase 47 (D-11): fires when the bench container itself is clicked while the
+   * parent has marked it an eligible completion target (`benchAreaEligible`).
+   * Optional — the mid-match call site has no bench-as-target semantics and
+   * passes nothing. Payload-free by design (same as the old onDropToBench
+   * contract) — the parent resolves what selection is being completed. */
+  onBenchAreaClick?: () => void;
+  /** Phase 47: the currently-selected bench card's PLAYER_POOL id, parent-owned —
+   * applies the green .statCardSelected ring to the matching card. */
+  selectedCardId?: string | null;
+  /** Phase 47: true when the parent's current selection makes the bench
+   * container itself a legal completion target — applies the blue
+   * .statCardEligible ring to the container and, when also not disabled,
+   * makes the container clickable/keyboard-activatable. */
+  benchAreaEligible?: boolean;
 };
 
 /** Approximate per-card scroll step (card min-width 320px + 8px gap) — mirrors
@@ -69,8 +93,10 @@ export function BenchCarousel({
   redCardedPlayerIds,
   benchCardStatus,
   disabled,
-  onCardDragStart,
-  onDropToBench,
+  onCardClick,
+  onBenchAreaClick,
+  selectedCardId,
+  benchAreaEligible,
 }: BenchCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   // D-19/Pitfall 7: drag/scroll UI state is local — never in Zustand.
@@ -108,32 +134,52 @@ export function BenchCarousel({
     setTimeout(updateScrollState, 300);
   }
 
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>, benchIndex: number, cardId: string) {
-    // Checkpoint gap-closure (40-07): a disabled (read-only) bench never starts a
-    // drag at all, regardless of the card's own availability state.
+  /** Phase 47 (D-11/T-47-06): preserves the pre-Phase-47 drag-source guards
+   * verbatim, re-expressed for clicks — a disabled bench never starts a
+   * selection, and an OUT or RED CARD bench card is never a selection
+   * source, regardless of the badge that's shown for it. */
+  function handleCardClick(benchIndex: number, cardId: string) {
     if (disabled === true) return;
-    // Phase 40 (SUB-07/D-13): a card that is OUT or RED CARD is never a drag
-    // source — a single combined guard is fine here because both mean "not a
-    // drag source"; the visual distinction lives in the badge, not the drag
-    // behaviour (BenchCarousel.tsx module doc / D-13).
     if (unavailablePlayerIds?.includes(cardId) || redCardedPlayerIds?.includes(cardId)) return;
-    // Native HTML5 drag initiation requires a dataTransfer payload, but this
-    // string is NOT the resolution channel (see module doc) — the parent
-    // resolves drag source/origin from onCardDragStart(benchIndex) instead.
-    e.dataTransfer.setData('text/plain', `bench:${benchIndex}`);
-    e.dataTransfer.effectAllowed = 'move';
-    onCardDragStart(benchIndex);
+    onCardClick(benchIndex);
   }
 
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
+  /** Phase 47 (T-47-07): the bench container is clickable/keyboard-activatable
+   * only when the parent has marked it an eligible completion target AND the
+   * bench isn't disabled — otherwise no handler is attached at all (mirrors
+   * DraftCardBody's identical click-gating idiom). */
+  const isBenchAreaClickable = benchAreaEligible === true && disabled !== true;
+
+  function handleBenchAreaKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!isBenchAreaClickable) return;
+    if (e.key === 'Enter') {
+      onBenchAreaClick?.();
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      onBenchAreaClick?.();
+    }
   }
 
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    if (disabled === true) return;
-    onDropToBench();
+  /** Phase 47 (T-47-07): stops a nav-button click from bubbling up to the
+   * bench container's own click handler — paging the carousel must never
+   * complete a draft move. */
+  function handleNavClick(e: React.MouseEvent<HTMLButtonElement>, direction: 1 | -1) {
+    e.stopPropagation();
+    scrollByCard(direction);
   }
+
+  const containerClassName =
+    benchAreaEligible === true
+      ? `${styles.benchCarousel} ${styles.statCardEligible}`
+      : styles.benchCarousel;
+  const containerInteractiveProps = isBenchAreaClickable
+    ? {
+        onClick: () => onBenchAreaClick?.(),
+        role: 'button' as const,
+        tabIndex: 0,
+        onKeyDown: handleBenchAreaKeyDown,
+      }
+    : {};
 
   const prevClass = canScrollLeft
     ? styles.carouselNav
@@ -144,14 +190,13 @@ export function BenchCarousel({
 
   // D-22: empty bench (0 cards) reuses the existing dashed-placeholder style —
   // no new empty-state component. The whole container (including the
-  // placeholder) remains a valid drop target.
+  // placeholder) remains a valid click-completion target when eligible.
   if (cards.length === 0) {
     return (
       <div
-        className={styles.benchCarousel}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
+        className={containerClassName}
         data-testid="bench-carousel"
+        {...containerInteractiveProps}
       >
         <div className={styles.carouselViewport}>
           <div className={styles.benchSlot} data-bench-index={0} />
@@ -161,19 +206,14 @@ export function BenchCarousel({
   }
 
   return (
-    <div
-      className={styles.benchCarousel}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      data-testid="bench-carousel"
-    >
+    <div className={containerClassName} data-testid="bench-carousel" {...containerInteractiveProps}>
       <div className={styles.carouselViewport}>
         <button
           type="button"
           className={prevClass}
           aria-label="Previous card"
           disabled={!canScrollLeft}
-          onClick={() => scrollByCard(-1)}
+          onClick={(e) => handleNavClick(e, -1)}
         >
           &lsaquo;
         </button>
@@ -187,12 +227,16 @@ export function BenchCarousel({
                 card={card}
                 teamId={teamId}
                 {...(jerseyNumber !== undefined ? { jerseyNumber } : {})}
-                draggable={disabled !== true}
+                interactive={disabled !== true}
+                isSelected={selectedCardId === card.id}
                 unavailable={unavailablePlayerIds?.includes(card.id) ?? false}
                 redCarded={redCardedPlayerIds?.includes(card.id) ?? false}
                 cardColor={status?.cardColor ?? null}
                 injuryCount={status?.injuryCount ?? 0}
-                onDragStart={(e) => handleDragStart(e, benchIndex, card.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCardClick(benchIndex, card.id);
+                }}
               />
             );
           })}
@@ -202,7 +246,7 @@ export function BenchCarousel({
           className={nextClass}
           aria-label="Next card"
           disabled={!canScrollRight}
-          onClick={() => scrollByCard(1)}
+          onClick={(e) => handleNavClick(e, 1)}
         >
           &rsaquo;
         </button>
