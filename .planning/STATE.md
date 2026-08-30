@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Roster Interaction Overhaul & Rules Audit
 status: planning
-last_updated: "2026-08-30T15:09:36.840Z"
+last_updated: "2026-08-30T16:00:00.000Z"
 last_activity: 2026-08-30
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-08-30 — Milestone v1.8 started
+Phase: 47 of 51 (Select-Based Roster Interaction)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-08-30 — Roadmap created (Phases 47–51, 21/21 requirements mapped, no orphans)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-30 after v1.7 milestone completion)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Planning the next milestone (RESP-01..09 is the top carry-forward candidate — see PROJECT.md Deferred)
+**Current focus:** Phase 47: Select-Based Roster Interaction — ready to plan (`/gsd-plan-phase 47`)
 
 ## Phase Status
 
@@ -87,6 +87,11 @@ See: .planning/PROJECT.md (updated 2026-08-30 after v1.7 milestone completion)
 | 44    | Referee Leniency & Advanced Settings Drawer   | Complete    | 2026-08-28 |
 | 45    | Game Summary Popup                            | Complete    | 2026-08-29 |
 | 46    | Final Cleanup                                 | Complete    | 2026-08-30 |
+| 47    | Select-Based Roster Interaction               | Not started | -          |
+| 48    | Permanent Jersey Numbers                      | Not started | -          |
+| 49    | GK Sequencing & Final-Third Confirm Fixes     | Not started | -          |
+| 50    | Foul→Injury→Booking Banner Sequencing        | Not started | -          |
+| 51    | Rules-Fidelity Gap Analysis                   | Not started | -          |
 
 ## Blocking Dependencies
 
@@ -115,6 +120,7 @@ See: .planning/PROJECT.md (updated 2026-08-30 after v1.7 milestone completion)
 - v1.6 shipped 2026-08-17 (Phases 37–40, 83 plans, 206 tasks, 55/55 requirements) — see `.planning/milestones/v1.6-ROADMAP.md`
 - v1.7 Phases 41–46 added 2026-08-21 (Card & Injury Iconography → Substitution UX Overhaul incl. BUG-38 → Tackle/Steal Prompt & Decline → Referee Leniency & Advanced Settings Drawer → Game Summary Popup → Final Cleanup); 44/44 v1.7 requirements mapped, no orphans — BUG-38 deliberately bundled into the Substitution UX Overhaul phase rather than given its own phase, since REQUIREMENTS.md scopes it as a sub-item of that category and standard granularity (4–6 phases) disfavors a standalone single-item phase — see `.planning/ROADMAP.md`
 - v1.7 shipped 2026-08-30 (Phases 41–46, 47 plans, 116 tasks, 44/44 requirements) — see `.planning/milestones/v1.7-ROADMAP.md`
+- v1.8 Phases 47–51 added 2026-08-30 (Select-Based Roster Interaction → Permanent Jersey Numbers → GK Box-Entry Sequencing & Final-Third Confirm Fixes → Foul→Injury→Booking Banner Sequencing → Rules-Fidelity Gap Analysis); 21/21 v1.8 requirements mapped, no orphans — GKSEQ-01..03 and FINALTHIRD-01..02 deliberately combined into one phase (Phase 49) rather than two thin standalone phases, since both are small non-overlapping-file fixes and standard granularity (4–6 phases, tightened 2026-05) disfavors a standalone 2-requirement phase — see `.planning/ROADMAP.md`
 
 ### Decisions Locked
 
@@ -383,10 +389,10 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-30T13:25:28.054Z
-Stopped at: Phase 46 complete (Plan 46-07, live verification recorded)
-Resume file: .planning/phases/46-final-cleanup/46-UI-SPEC.md
-Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves — the (i) icon, standalone modal, and HALF_TIME/FULL_TIME embedding all shipped, with checkpoint 45-05-04 going through 4 rounds of live two-browser developer verification (red-card zone bug, phase-label text, modal chrome/color, a shared MatchScoreRow component, centered settings-bubble grid, and a corrected Referee Leniency color rule — all fixed and re-verified). Phase 46 (Final Cleanup) context has been gathered (`.planning/phases/46-final-cleanup/46-CONTEXT.md`) — 3 todos folded in (auto-reselect fix, PK/FK kicker pattern, speed-setting relocation), a new hardcoded-placeholder-bench patch added by explicit user scope override, 2 rendering-bug todos reviewed and declined. Next step is to plan Phase 46 (`/gsd-plan-phase 46`).
+Last session: 2026-08-30T16:00:00.000Z
+Stopped at: v1.8 ROADMAP.md created (Phases 47–51, 21/21 requirements mapped, no orphans)
+Resume file: .planning/ROADMAP.md
+Resume: v1.8 roadmap is drafted and files are written (ROADMAP.md, STATE.md, REQUIREMENTS.md traceability). 5 phases: 47 Select-Based Roster Interaction (highest regression risk, isolated, built/stabilized first) → 48 Permanent Jersey Numbers (depends on 47’s applyRosterReposition rebuild) → 49 GK Box-Entry Sequencing & Final-Third Confirm Fixes (independent, combined) → 50 Foul→Injury→Booking Banner Sequencing (standalone investigation-first debug task) → 51 Rules-Fidelity Gap Analysis (audit-only, sequenced last). Next step is to plan Phase 47 (`/gsd-plan-phase 47`).
 
 ## Performance Metrics
 
@@ -537,4 +543,4 @@ Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves —
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan Phase 47 (Select-Based Roster Interaction) with /gsd-plan-phase 47

@@ -87,18 +87,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ROSTER-01..06 | TBD | Pending |
-| NUMBER-01..05 | TBD | Pending |
-| GKSEQ-01..03 | TBD | Pending |
-| FINALTHIRD-01..02 | TBD | Pending |
-| BANNER-01..02 | TBD | Pending |
-| AUDIT-01..03 | TBD | Pending |
+| ROSTER-01 | Phase 47 | Pending |
+| ROSTER-02 | Phase 47 | Pending |
+| ROSTER-03 | Phase 47 | Pending |
+| ROSTER-04 | Phase 47 | Pending |
+| ROSTER-05 | Phase 47 | Pending |
+| ROSTER-06 | Phase 47 | Pending |
+| NUMBER-01 | Phase 48 | Pending |
+| NUMBER-02 | Phase 48 | Pending |
+| NUMBER-03 | Phase 48 | Pending |
+| NUMBER-04 | Phase 48 | Pending |
+| NUMBER-05 | Phase 48 | Pending |
+| GKSEQ-01 | Phase 49 | Pending |
+| GKSEQ-02 | Phase 49 | Pending |
+| GKSEQ-03 | Phase 49 | Pending |
+| FINALTHIRD-01 | Phase 49 | Pending |
+| FINALTHIRD-02 | Phase 49 | Pending |
+| BANNER-01 | Phase 50 | Pending |
+| BANNER-02 | Phase 50 | Pending |
+| AUDIT-01 | Phase 51 | Pending |
+| AUDIT-02 | Phase 51 | Pending |
+| AUDIT-03 | Phase 51 | Pending |
 
 **Coverage:**
 - v1.8 requirements: 21 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 21 ⚠️ (expected — roadmap not yet created)
+- Mapped to phases: 21/21 ✓
+- Unmapped: 0 — no orphans
+
+**Phase grouping note:** GKSEQ-01..03 and FINALTHIRD-01..02 are both mapped to Phase 49 (combined). Both are small, independent, single-file-ish correctness fixes with no file overlap with each other or with Phases 47/48/50/51; research explicitly flagged FINALTHIRD as parallel-friendly filler work alongside GKSEQ, and standard granularity (4–6 phases, tightened 2026-05) disfavors a standalone 2-requirement phase. See `.planning/ROADMAP.md` Phase 49 for full rationale.
 
 ---
 *Requirements defined: 2026-08-30*
-*Last updated: 2026-08-30 after initial definition*
+*Last updated: 2026-08-30 after roadmap creation (21/21 requirements mapped to Phases 47–51, no orphans)*

@@ -10,6 +10,7 @@
 - ✅ **v1.5 UX Refresh & Code Cleanup** — Phases 31–36 (shipped 2026-08-03; see [audit](milestones/v1.5-MILESTONE-AUDIT.md))
 - ✅ **v1.6 Fouls, Cards & Restarts** — Phases 37–40 (shipped 2026-08-17; see [audit](milestones/v1.6-MILESTONE-AUDIT.md))
 - ✅ **v1.7 UI Consistency, Substitution Rework & Match Summary** — Phases 41–46 (shipped 2026-08-30)
+- 🚧 **v1.8 Roster Interaction Overhaul & Rules Audit** — Phases 47–51 (in progress)
 
 ## Phases
 
@@ -54,7 +55,7 @@ Full archive: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · [Requi
 <summary>✅ v1.2 Team Identity & Core Fixes (Phases 15–18.4) — SHIPPED 2026-07-03</summary>
 
 | Phase | Name                               | Plans | Completed  |
-| ----- | ---------------------------------- | ----- | ---------- |
+| ----- | ----------------------------------- | ----- | ---------- |
 | 15    | Team Identity                      | 3/3   | 2026-06-13 |
 | 16    | Player Roster & Team Selection     | 4/4   | 2026-06-14 |
 | 17    | Rule Bugs                          | 6/6   | 2026-06-21 |
@@ -153,10 +154,97 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 ---
 
+### 🚧 v1.8 Roster Interaction Overhaul & Rules Audit (Phases 47–51) — IN PROGRESS
+
+**Milestone Goal:** Replace drag-and-drop with a select-based swap flow for roster positioning and substitutions, fix known GK/final-third/banner-sequencing bugs, lock jersey numbers permanently at kickoff, and run a rulebook-vs-implementation gap analysis to scope the next cleanup milestone.
+
+**Phase Order Rationale:** Select-Based Roster Interaction ships first: it is the milestone's highest regression-risk item (the drag-and-drop it replaces sits on the same roster-screen component tree Phase 42's retrospective called the largest, highest-regression-risk phase of v1.7) and it touches no file any other v1.8 phase touches, so stabilizing it first avoids merge contention with everything downstream. Permanent Jersey Numbers follows immediately because its number-follows-person logic is exercised through the exact `applyRosterReposition` call path Phase 47 rebuilds — testing it against the new click-to-select UI, not the soon-to-be-deleted drag UI, is the more reliable order. GK Box-Entry Sequencing & Final-Third Confirm Fixes is independent of both and bundles two small, non-file-overlapping shot/turn-flow correctness fixes into one phase rather than shipping a second thin single-purpose phase (standard granularity favors 4–6 phases, and a standalone 2-requirement final-third fix would be a thin outlier); it can be planned and executed in parallel with or adjacent to Phase 47/48. Foul→Injury→Booking Banner Sequencing is a standalone investigation-first debug task with no shared files with any other phase — budgeted independently given two prior fix attempts (one already shipped) failed to resolve the live symptom. Rules-Fidelity Gap Analysis runs last: it has no code dependency on any other phase, is a documentation-only audit deliverable, and sequencing it after the other four means it naturally excludes ground this milestone already closed.
+
+| Phase | Name                                                 | Plans | Status      |
+| ----- | ----------------------------------------------------- | ----- | ----------- |
+| 47    | Select-Based Roster Interaction                       | TBD   | Not started |
+| 48    | Permanent Jersey Numbers                              | TBD   | Not started |
+| 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
+| 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
+| 51    | Rules-Fidelity Gap Analysis                           | TBD   | Not started |
+
+### Phase 47: Select-Based Roster Interaction
+
+**Goal**: The mid-match roster screen's positioning and substitution modes use click-to-select (green selected / blue eligible targets) instead of drag-and-drop, matching the click-to-select interaction the rest of the game already uses everywhere else.
+**Depends on**: Phase 46 (last phase of v1.7) — first phase of v1.8; touches no other v1.8 phase's files, so it is sequenced first to avoid merge contention
+**Requirements**: ROSTER-01, ROSTER-02, ROSTER-03, ROSTER-04, ROSTER-05, ROSTER-06
+**Success Criteria** (what must be TRUE):
+
+1. Clicking a player card on the mid-match roster screen selects it, shown with a green outline.
+2. Selecting a player highlights every eligible swap/substitution target in blue.
+3. Clicking the selected player again deselects it and clears the blue eligible-target highlights.
+4. Clicking an eligible blue target completes the swap in positioning mode, or stages the substitution in substitution mode, exactly matching today's existing confirm flow.
+5. Positioning-mode and substitution-mode eligibility/guard logic remain two structurally separate functions, and no drag-and-drop state, handlers, or types remain in `LineupAssignmentScreen.tsx` — confirmed by a clean `knip` run.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 48: Permanent Jersey Numbers
+
+**Goal**: Every player is assigned one jersey number at squad-build time that never changes for the rest of the match, regardless of position changes, substitutions, or resets.
+**Depends on**: Phase 47 — `applyRosterReposition`, one of this phase's required update sites, is exercised end-to-end by the click-to-select interaction Phase 47 builds; testing number-follows-person logic against the new UI (not the soon-to-be-deleted drag UI) is more reliable
+**Requirements**: NUMBER-01, NUMBER-02, NUMBER-03, NUMBER-04, NUMBER-05
+**Success Criteria** (what must be TRUE):
+
+1. Each player is assigned a jersey number once at squad-build time, independent of formation/lineup slot.
+2. A player's jersey number is unchanged after repositioning, after a substitution, after a goal (by shot or penalty), and after half-time.
+3. The kickoff striker is selected by role, not by checking for jersey number 9 — kickoff still starts with the correct player regardless of what number they're wearing.
+4. No reset path (goal-via-shot, goal-via-penalty, half-time, or any other `applyRosterContinuity` call site) ever reassigns a player's permanent number to someone else.
+5. Draft-mode bench players also receive a permanent number assigned once, not re-rolled on a later view or redraw.
+
+**Plans**: TBD
+
+### Phase 49: GK Box-Entry Sequencing & Final-Third Confirm Fixes
+
+**Goal**: Two independent goalkeeper/turn-flow correctness fixes land together — the box-entry reposition offer fires while it can still matter, and the end-turn confirm control stops treating "only the GK is left" as an incomplete turn.
+**Depends on**: Nothing beyond Phase 46 — independent of Phases 47-48, no shared files with either; small and self-contained enough to slot in wherever convenient
+**Requirements**: GKSEQ-01, GKSEQ-02, GKSEQ-03, FINALTHIRD-01, FINALTHIRD-02
+**Success Criteria** (what must be TRUE):
+
+1. On an outside-the-box shot on goal, the defending manager is offered the goalkeeper box-entry reposition before the shot-blocking dive resolves, not after.
+2. The box-entry offer appears at most once per shot.
+3. Every existing shot, header, corner-kick, penalty-kick, and GK-catch scenario plays out exactly as it did before this phase — zero behavior change to those paths.
+4. The end-turn confirm button shows green (not the warning color) when the only player who hasn't moved is the goalkeeper.
+5. No "not all players moved" warning appears when the only unmoved player is the goalkeeper.
+
+**Plans**: TBD
+
+### Phase 50: Foul→Injury→Booking Banner Sequencing
+
+**Goal**: The foul → injury → booking banner sequence reliably displays every banner, in order, with no skipped or overlapping banners — closing the bug that has been open and paused since v1.6.
+**Depends on**: Nothing beyond Phase 46 — standalone investigation with no shared files with Phases 47-49
+**Requirements**: BANNER-01, BANNER-02
+**Success Criteria** (what must be TRUE):
+
+1. In a live two-browser session, a foul that produces card and/or injury events shows each banner in the confirmed correct order, with no banner skipped or overlapping another.
+2. The confirmed-correct display order is captured as a regression test, so the sequencing cannot silently regress again.
+
+**Plans**: TBD
+
+### Phase 51: Rules-Fidelity Gap Analysis
+
+**Goal**: A findings document exists that cross-references the physical rulebook against the current implementation, ready to scope a future rules-fidelity cleanup milestone.
+**Depends on**: Phases 47-50 — sequenced last (not a code dependency) so the audit naturally excludes ground this milestone already covered
+**Requirements**: AUDIT-01, AUDIT-02, AUDIT-03
+**Success Criteria** (what must be TRUE):
+
+1. A findings document cross-references rulebook v1.4.1 clauses against the current implementation, classifying each finding as gap / intentional-simplification / false-positive, in the established `vX-MILESTONE-AUDIT.md` format.
+2. Every finding was checked against PROJECT.md's Deferred/Out-of-Scope/Key-Decisions tables first, and no already-known deferral (e.g. FTP_MOVE_ENABLED, NUTMEG-01+, RESP-01..09) is logged as a new gap.
+3. The milestone's commits for this phase show zero source-file diffs outside `.planning/`.
+
+**Plans**: TBD
+
+---
+
 ## Progress
 
-| Phase                                    | Milestone | Plans Complete | Status      | Completed  |
-| ----------------------------------------- | --------- | -------------- | ----------- | ---------- |
+| Phase                                     | Milestone | Plans Complete | Status      | Completed  |
+| ------------------------------------------ | --------- | -------------- | ----------- | ---------- |
 | 1. Monorepo Scaffold                     | v1.0      | 3/3            | Complete    | 2026-05-28 |
 | 2. Move Validator                        | v1.0      | 4/4            | Complete    | 2026-05-29 |
 | 3. Server Room Manager                   | v1.0      | 3/3            | Complete    | 2026-05-29 |
@@ -211,6 +299,11 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 | 44. Referee Leniency & Advanced Settings | v1.7      | 5/5            | Complete    | 2026-08-28 |
 | 45. Game Summary Popup                   | v1.7      | 6/6            | Complete    | 2026-08-29 |
 | 46. Final Cleanup                        | v1.7      | 7/7            | Complete    | 2026-08-30 |
+| 47. Select-Based Roster Interaction      | v1.8      | 0/TBD          | Not started | -          |
+| 48. Permanent Jersey Numbers             | v1.8      | 0/TBD          | Not started | -          |
+| 49. GK Sequencing & Final-Third Fixes    | v1.8      | 0/TBD          | Not started | -          |
+| 50. Foul→Injury→Booking Banner Seq.      | v1.8      | 0/TBD          | Not started | -          |
+| 51. Rules-Fidelity Gap Analysis          | v1.8      | 0/TBD          | Not started | -          |
 
 ## Backlog
 
