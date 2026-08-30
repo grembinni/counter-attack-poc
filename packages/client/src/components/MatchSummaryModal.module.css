@@ -90,9 +90,13 @@
    inside the modal, so an explicit width here guarantees the settings
    recap rows (round 4) center against the popup's actual content width
    rather than an implicitly-sized box. */
+/* CLEANUP tweak (live-playtest feedback): raised from 50vh — the recap grew to 8
+   bubbles (CLEANUP's Team Mode addition) plus the full stat grid, which was
+   triggering an inner scrollbar on typical viewports even though the outer
+   `.matchSummaryCard` (max-height: 85vh) had headroom to spare. */
 .scrollBody {
   width: 100%;
-  max-height: 50vh;
+  max-height: 68vh;
   overflow-y: auto;
 }
 
