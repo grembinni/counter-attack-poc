@@ -4,7 +4,7 @@ milestone: v1.8
 milestone_name: Roster Interaction Overhaul & Rules Audit
 status: planning
 stopped_at: Phase 47 UI-SPEC approved
-last_updated: "2026-08-30T19:53:43.909Z"
+last_updated: "2026-08-30T20:40:09.075Z"
 last_activity: 2026-08-30 — Phase 47 context captured (scope expanded to ROSTER-07/08, drag-and-drop retired app-wide in LineupAssignmentScreen.tsx, not just mid-match)
 progress:
   total_phases: 6
