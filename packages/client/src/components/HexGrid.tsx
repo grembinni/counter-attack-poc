@@ -274,7 +274,12 @@ export function HexGrid() {
 
   // ZoI steal-risk hexes: only when ball carrier is selected (red tint = steal danger)
   const isCarrierSelected = selectedPieceId !== null && selectedPieceId === ball.carrierId;
-  const opponents = myTeam !== null ? pieces.filter((p) => p.teamId !== myTeam) : [];
+  // CLEANUP bug fix: a red-carded/benched opponent's frozen hex must not project a ZoI
+  // threat — mirrors the isActivePiece exclusion already applied to every other
+  // opponent-ZoI computation in this file (BUG-38 pattern) and to moveValidator.ts's
+  // own STEAL_ATTEMPT opponent filter, which this client-side preview mirrors.
+  const opponents =
+    myTeam !== null ? pieces.filter((p) => p.teamId !== myTeam && isActivePiece(p)) : [];
   // D-02 (Phase 17.1 gap closure, plan 09): exclude defenders already in stealAttemptedByIds
   // from the steal-risk tint, mirroring moveValidator.ts's STEAL_ATTEMPT exclusion pattern.
   const zoiRiskSet = new Set(

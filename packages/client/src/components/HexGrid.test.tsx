@@ -240,6 +240,39 @@ describe('HexGrid — D-02 gap closure: zoiRiskSet excludes stealAttemptedByIds 
   });
 });
 
+describe('HexGrid — CLEANUP bug fix: zoiRiskSet excludes red-carded/benched opponents', () => {
+  it('suppresses steal-risk tint when the only adjacent defender is redCarded (frozen hex is not a live threat)', () => {
+    const defenderId = 'away-9';
+    const state = {
+      ...baseStateWithDefender(defenderId, []),
+      pieces: baseStateWithDefender(defenderId, []).pieces.map((p) =>
+        p.id === defenderId ? { ...p, redCarded: true } : p,
+      ),
+    };
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBe(0);
+  });
+
+  it('keeps steal-risk tint when the adjacent defender is active (regression guard — not just an empty-opponents bug)', () => {
+    const defenderId = 'away-9';
+    const state = baseStateWithDefender(defenderId, []);
+    useGameStore.setState({
+      gameState: state,
+      selectedPieceId: CARRIER_ID,
+      validMoveHexes: [CANDIDATE_HEX],
+      tackleRiskHexes: [],
+    });
+    const { container } = render(<HexGrid />);
+    expect(countRiskPolygons(container)).toBeGreaterThan(0);
+  });
+});
+
 // TACKLE-03 (Phase 43, plan 06): declined-but-live risk ring persists on the client with no new
 // visual state (D-04). The claim from 43-RESEARCH.md is that a declined defender's amber risk
 // ring survives to the next move step for free — because a decline never appends the defender's
