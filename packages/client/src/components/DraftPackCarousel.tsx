@@ -6,13 +6,17 @@
  * (Chase, Rare, Uncommon, Common) and resets scroll to the leftmost card
  * whenever a new pack loads (D-20).
  *
- * Cards in this row are DRAG SOURCES ONLY (D-06) — they carry a `pack:`-
- * prefixed cardId via dataTransfer and expose no onDragOver/onDrop handler,
- * so a card can never be dragged back into the draft-pack row once picked.
+ * Cards in this row are SELECTION SOURCES ONLY (Phase 47 / D-11) — clicking a
+ * card reports its id via `onCardClick`; there is no click-to-complete target
+ * on these cards themselves and no dataTransfer/drag involvement of any kind.
+ * Pack-card selection mirrors mid-match substitution's bench-first pattern
+ * (CONTEXT.md D-11): select a pack card (green) -> eligible slots/bench turn
+ * blue -> click completes the pick. The parent screen owns all selection
+ * state; this component never resolves anything itself.
  *
  * `DraftCardBody` (the shared inner card renderer) and `TIER_CARD_CLASS` are
- * exported for reuse by `BenchCarousel` (D-21 — identical card style, drag
- * source AND drop target).
+ * exported for reuse by `BenchCarousel` (D-21 — identical card style, click
+ * source AND click target).
  */
 import { useEffect, useRef, useState } from 'react';
 import type { DraftTier, TeamId, TieredPoolPlayer } from '@counter-attack/shared';
@@ -53,18 +57,32 @@ type DraftCardBodyProps = {
   /** Shown in the header slot where LineupStatCard shows the jersey number
    * (BenchCarousel passes benchNumbers once the draft completes). */
   jerseyNumber?: number;
-  draggable: boolean;
-  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  /** Phase 47 (D-11): true when this card responds to click/keyboard input —
+   * the click-select replacement for the old `draggable` gate. Required
+   * (unlike the optional selection props below) because every caller must
+   * make an explicit interactivity decision, mirroring today's `draggable`
+   * requiredness. */
+  interactive: boolean;
+  /** Phase 47: fires when the card is clicked or activated via Enter/Space
+   * while interactive/eligible. Omitted entirely (not just a no-op) when the
+   * card is neither interactive nor an eligible target — see isInteractive
+   * derivation below and PieceOverlay.tsx's identical click-gating idiom. */
+  onClick?: () => void;
+  /** Phase 47: this card is the current green selection. Wins over
+   * isEligibleTarget when both are somehow true (selected always wins). */
+  isSelected?: boolean;
+  /** Phase 47: something else is selected and this card is a legal
+   * click-to-complete target (blue ring). Never true at the same time as
+   * isSelected being the visual winner. */
+  isEligibleTarget?: boolean;
   /** Phase 40 (SUB-07): true when this card's player has been substituted out —
-   * renders an "OUT" badge, dims the card, and forces draggable={false} regardless
-   * of the `draggable` prop above. Default false — every existing call site
+   * renders an "OUT" badge, dims the card, and forces isInteractive=false regardless
+   * of the `interactive` prop above. Default false — every existing call site
    * (draft pack row, ordinary bench cards) is unaffected. */
   unavailable?: boolean;
   /** Phase 40 (D-13): true when this card's player has been sent off — renders a
    * "RED CARD" badge (takes precedence over `unavailable`), dims the card, and
-   * forces draggable={false}. Default false. */
+   * forces isInteractive=false. Default false. */
   redCarded?: boolean;
   /** Phase 41 (ICON-02/ICON-03): disciplinary glyph colour for this card, derived by the
    * caller from the shared `cardColorFor`/`cardColorForBenchEntry`. Default undefined —
@@ -81,17 +99,17 @@ type DraftCardBodyProps = {
  * Shared inner card renderer — mirrors LineupStatCard's TeamBadge/cardBody/
  * cardHeader/statGrid/statChip markup exactly (D-18: card content unchanged),
  * with the tier border swapped in via TIER_CARD_CLASS (D-19) in place of the
- * base 1px card border. Reused by DraftPackCarousel (drag source only) and
- * BenchCarousel (drag source + drop target).
+ * base 1px card border. Reused by DraftPackCarousel (click source only) and
+ * BenchCarousel (click source + click target).
  */
 export function DraftCardBody({
   card,
   teamId,
   jerseyNumber,
-  draggable,
-  onDragStart,
-  onDragOver,
-  onDrop,
+  interactive,
+  onClick,
+  isSelected,
+  isEligibleTarget,
   unavailable,
   redCarded,
   cardColor,
@@ -99,21 +117,50 @@ export function DraftCardBody({
 }: DraftCardBodyProps) {
   const isGK = card.role === 'GK';
   const isUnavailable = unavailable === true || redCarded === true;
-  const className = isUnavailable
+  /** Phase 47: mirrors the pre-Phase-47 unavailable-forcing rule (an
+   * unavailable card never responds to input regardless of what the caller
+   * passed for `interactive`), ported from the old drag-gate equivalent. */
+  const isInteractive = isUnavailable ? false : interactive;
+  /** Phase 47: selected wins over eligible — never both classes at once. */
+  let className = isUnavailable
     ? `${TIER_CARD_CLASS[card.tier]} ${styles.cardUnavailable}`
     : TIER_CARD_CLASS[card.tier];
+  if (isSelected === true) {
+    className = `${className} ${styles.statCardSelected}`;
+  } else if (isEligibleTarget === true) {
+    className = `${className} ${styles.statCardEligible}`;
+  }
   /** Gap-closure (42-10 Section D / gap item 1): suppress the glyph's CARD half when the
    * RED CARD text badge below is already showing — see the doc comment on the
    * CardInjuryBadge call for the full rationale. Never touches injuryCount. */
   const glyphCardColor: CardColor = redCarded === true ? null : (cardColor ?? null);
+  /** Phase 47 (D-04 / UI-SPEC Accessibility): the card is clickable when it's
+   * either directly interactive or a legal click-to-complete target — only
+   * then do we attach onClick/keyboard handlers and role="button". A card
+   * that is neither gets no handler at all (not even a no-op), matching
+   * PieceOverlay.tsx's identical click-gating idiom. */
+  const isClickable = isInteractive || isEligibleTarget === true;
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!isClickable || !onClick) return;
+    if (e.key === 'Enter') {
+      onClick();
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  }
 
   return (
     <div
       className={className}
-      draggable={isUnavailable ? false : draggable}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
+      data-roster-card
+      data-interactive={isInteractive ? 'true' : 'false'}
+      style={{ cursor: isClickable ? 'pointer' : 'default' }}
+      onClick={isClickable ? onClick : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? handleKeyDown : undefined}
     >
       {/* Flat layout: [TeamBadge] [name/flag/role header + stat chips] — identical to LineupStatCard */}
       <TeamBadge teamId={teamId} size={48} />
@@ -178,10 +225,14 @@ type DraftPackCarouselProps = {
   /** The current pack's cards — always 4 (RoundConfig.cardsPerPack, D-12..D-16, Phase 30). */
   cards: TieredPoolPlayer[];
   teamId: TeamId;
-  /** D-12: true while waiting for the opponent's pick — row dims and stops accepting drag. */
+  /** D-12: true while waiting for the opponent's pick — row dims and stops accepting clicks. */
   disabled: boolean;
-  /** Called on drag-start with the dragged card's id (the pick signal, D-03). */
-  onCardDragStart: (cardId: string) => void;
+  /** Phase 47 (D-11): fires when a pack card is clicked (the pick-selection
+   * signal, replacing the old drag-start signal). */
+  onCardClick: (cardId: string) => void;
+  /** Phase 47: the currently-selected pack card, owned by the parent screen —
+   * applies the green .statCardSelected ring to the matching card. */
+  selectedCardId?: string | null;
 };
 
 /** Approximate per-card scroll step (card min-width 320px + 8px gap, DRAFT-06
@@ -192,10 +243,11 @@ export function DraftPackCarousel({
   cards,
   teamId,
   disabled,
-  onCardDragStart,
+  onCardClick,
+  selectedCardId,
 }: DraftPackCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  // D-19/Pitfall 7: drag/scroll UI state is local — never in Zustand.
+  // D-19/Pitfall 7: scroll UI state is local — never in Zustand.
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -228,13 +280,6 @@ export function DraftPackCarousel({
     setTimeout(updateScrollState, 300);
   }
 
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>, cardId: string) {
-    // D-06: drag SOURCE only — no onDragOver/onDrop on these cards (one-way out).
-    e.dataTransfer.setData('text/plain', `pack:${cardId}`);
-    e.dataTransfer.effectAllowed = 'move';
-    onCardDragStart(cardId);
-  }
-
   const rowClass = disabled
     ? `${styles.draftPackRow} ${styles.draftRowDisabled}`
     : styles.draftPackRow;
@@ -263,8 +308,9 @@ export function DraftPackCarousel({
               key={card.id}
               card={card}
               teamId={teamId}
-              draggable={!disabled}
-              onDragStart={(e) => handleDragStart(e, card.id)}
+              interactive={!disabled}
+              isSelected={selectedCardId === card.id}
+              onClick={() => onCardClick(card.id)}
             />
           ))}
         </div>
