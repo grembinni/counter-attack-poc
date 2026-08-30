@@ -183,7 +183,16 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 6. The Standard pregame lineup screen's slot-swap uses the same click-to-select model (select a card, click an eligible slot to swap) — no drag-and-drop remains there either.
 7. The draft-mode pack carousel and bench/slot rearrange use the same click-to-select model: selecting a pack card highlights eligible slots/bench in blue (mirrors mid-match substitution's bench-first pattern); selecting a filled slot or bench card highlights eligible slots/bench in blue (mirrors mid-match positioning's swap pattern). GK-slot and swap-vs-move semantics are unchanged from today.
 
-**Plans**: TBD
+**Plans**: 6 plans across 5 waves
+
+Plans:
+- [ ] 47-01-PLAN.md — Selection visual tokens (green `.statCardSelected` / blue `.statCardEligible`) + `DraftPackCarousel`/`DraftCardBody` click contract
+- [ ] 47-02-PLAN.md — `BenchCarousel` click-select source + bench-area click-completion target
+- [ ] 47-03-PLAN.md — `LineupAssignmentScreen.tsx` production port: all four surfaces to click-to-select, all drag code removed
+- [ ] 47-04-PLAN.md — `LineupAssignmentScreen.test.tsx` rewrite + new ROSTER-03/05/07 and D-07/D-08 regression tests
+- [ ] 47-05-PLAN.md — `GameBoard.test.tsx` + `CardInjuryBadge.crossSurface.test.tsx` collateral click conversion
+- [ ] 47-06-PLAN.md — Phase gate: clean `knip`, full workspace green, `docs/HIGHLIGHT-REFERENCE.md` card-selection section
+
 **UI hint**: yes
 
 ### Phase 48: Permanent Jersey Numbers
