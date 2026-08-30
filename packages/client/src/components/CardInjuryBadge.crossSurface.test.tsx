@@ -223,13 +223,7 @@ describe('Card/injury iconography — ROADMAP Phase 41 Success Criterion 3: all 
 
     const card = makeCard('p013', 'common');
     const { container, rerender } = render(
-      <BenchCarousel
-        cards={[card]}
-        teamId="city"
-        benchNumbers={{ p013: 13 }}
-        onCardDragStart={noop}
-        onDropToBench={noop}
-      />,
+      <BenchCarousel cards={[card]} teamId="city" benchNumbers={{ p013: 13 }} onCardClick={noop} />,
     );
     expect(glyphContract(container)).toEqual(CLEAN);
 
@@ -239,8 +233,7 @@ describe('Card/injury iconography — ROADMAP Phase 41 Success Criterion 3: all 
         teamId="city"
         benchNumbers={{ p013: 13 }}
         benchCardStatus={{ p013: { cardColor: 'yellow', injuryCount: 1 } }}
-        onCardDragStart={noop}
-        onDropToBench={noop}
+        onCardClick={noop}
       />,
     );
     expect(glyphContract(container)).toEqual(BOOKED_AND_INJURED);
@@ -334,8 +327,7 @@ describe('Card/injury iconography — ROADMAP Phase 41 Success Criterion 3: all 
         teamId="city"
         benchNumbers={{ p013: 13 }}
         benchCardStatus={{ p013: { cardColor: 'yellow', injuryCount: 1 } }}
-        onCardDragStart={noop}
-        onDropToBench={noop}
+        onCardClick={noop}
       />,
     );
     const benchResult = glyphContract(bench.container);
@@ -450,10 +442,10 @@ describe('Bench badge regression — Phase 42 rework (D-07/SUB-18)', () => {
   it('bench badges are unaffected by an open substitution-confirm popup', () => {
     renderRegression();
     fireEvent.click(screen.getByLabelText('Enter substitution mode'));
-    const benchCard = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(benchCard, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Home DefOne').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const benchCard = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(benchCard);
+    const target = screen.getByText('Home DefOne').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(screen.getByRole('dialog')).toBeDefined();
     assertBenchBadges();
   });
