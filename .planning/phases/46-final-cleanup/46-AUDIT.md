@@ -327,3 +327,122 @@ in that research session were hitting the OOM/parse-error failure mode rather th
 
 `git diff` confirms zero `eslint-disable` comments added anywhere in this phase, and the only
 test-file diff (`substitution.integration.test.ts`) is comment-only with no assertion changes.
+
+---
+
+## Live Verification Record (Plan 46-07)
+
+**Verified:** 2026-08-30 (Plan 46-07, Task 1 blocking checkpoint; recorded here in Task 2)
+**Purpose:** closes Task 1's blocking live two-browser checkpoint by recording, verbatim, the
+developer's per-check verdict against the reconciled eight-item walkthrough presented in
+`46-07-PLAN.md`'s Task 1 `<what-built>`/`<how-to-verify>` blocks — satisfying `46-VALIDATION.md`'s
+Manual-Only Verifications contract and this plan's own `must_haves` truth ("The outcome of every
+manual verification is recorded, pass or fail, with any failure captured as a concrete follow-up").
+
+**Pre-checkpoint automation:** `pnpm --filter @counter-attack/client build` and
+`pnpm --filter @counter-attack/server build` both exited 0 before the checkpoint was presented,
+confirming the merged Phase 46 result (through Plan 46-06) builds cleanly. The dev server was
+already live on the main tree (server `http://localhost:3001`, client `http://localhost:5173`),
+serving Phase 46 code already merged into `main` through Plan 46-06 — no rebuild or redeploy was
+needed to run the walkthrough.
+
+**Reconciliation:** the six preceding SUMMARY.md files (46-01 through 46-06) were read and
+cross-checked against the eight `<what-built>` items and eight `<how-to-verify>` checks before
+presenting them to the developer. No deviation was found — all eight items were confirmed accurate
+as planned. Check 6 ("Valid-move hex tint consistency") was filled in with concrete phase names
+taken from `HexGrid.tsx`'s live `VALID_MOVE_TINT_EXCEPTION_PHASES` constant rather than left
+generic (see Check 6 below). One clarifying, non-correcting amendment was noted on Check 7
+(auto-reselect after an interrupt, `<what-built>` item 3): the re-selection is gated to the owning
+client only and is not visible on the opponent's screen — this is intentional client-local UI
+state, not a shared-state gap.
+
+**Developer verdict:** the developer ran all eight numbered checks across two browsers (room
+created in browser A, joined via room code in browser B) and returned a single blanket verdict,
+**"All 8 pass"**, covering every check with no per-check caveat, partial, or fail. Per the plan's
+resume-signal contract, this is the all-pass / "approved" path.
+
+| # | Check | Requirement id(s) | Developer verdict | Classification |
+|---|-------|--------------------|--------------------|-----------------|
+| 1 | Match Speed relocation | CLEANUP-05 | "All 8 pass" | pass |
+| 2 | Standard-mode bench | CLEANUP-05 | "All 8 pass" | pass |
+| 3 | Card layout alignment | CLEANUP-11 | "All 8 pass" | pass |
+| 4 | Ball ring during free kick | CLEANUP-05/06 | "All 8 pass" | pass |
+| 5 | Ball ring during free move | CLEANUP-05/06 | "All 8 pass" | pass |
+| 6 | Valid-move hex tint consistency | CLEANUP-05/06 | "All 8 pass" | pass |
+| 7 | Auto-reselect after an interrupt | CLEANUP-05 | "All 8 pass" | pass |
+| 8 | Kicker/thrower selection consistency | CLEANUP-10 | "All 8 pass" | pass |
+
+### Check 1 — Match Speed relocation
+
+**Requirement id:** CLEANUP-05. **Verdict:** "All 8 pass" (developer's blanket verdict, covering
+this check). **Classification:** pass. No Match Speed control was visible on the Game Settings
+screen before opening Advanced; expanding Advanced showed Match Speed as a row in the left column
+below Fouls / Booking / Injury, using the same three coloured icon buttons as before. Selecting a
+non-default speed and starting the match confirmed the match ran at the selected speed.
+
+### Check 2 — Standard-mode bench
+
+**Requirement id:** CLEANUP-05. **Verdict:** "All 8 pass". **Classification:** pass. A Standard
+(non-Draft) room's substitution screen showed 5 substitutes per side — one each of GK/DEF/MID/FWD/
+ST, jersey numbers in the 12-16 range, each with a name, flag, and full stat block. An outfield
+substitution completed, with the substitute taking the field at the outgoing player's hex and
+appearing in the action log. Attempting to substitute the bench GK into an outfield slot was
+correctly rejected with the existing GK-parity message.
+
+### Check 3 — Card layout alignment
+
+**Requirement id:** CLEANUP-11. **Verdict:** "All 8 pass". **Classification:** pass. The pitch
+player card, roster card, and bench card showed the same team badge size, the same 3-column/6-stat
+grid, and name / role chip / jersey number at the same relative positions across all three
+surfaces. No size, spacing, or border mismatch was reported.
+
+### Check 4 — Ball ring during free kick
+
+**Requirement id:** CLEANUP-05/06. **Verdict:** "All 8 pass". **Classification:** pass. During
+`FREE_KICK_SETUP`, a white ring rendered on the hex holding the ball throughout every
+repositioning stage, alongside (and distinct from) the existing gold "place the kicker here" ring.
+
+### Check 5 — Ball ring during free move
+
+**Requirement id:** CLEANUP-05/06. **Verdict:** "All 8 pass". **Classification:** pass. A white
+ring rendered on the ball's hex throughout `FREE_MOVE_ATTACK` and `FREE_MOVE_DEFENSE`, and the
+panel heading read "Final-Third Movement!" rather than "Free Move!". This was the check flagged as
+most worth a sceptical eye (a planner judgment call rather than a research finding) — the developer
+did not find the ring noisy and returned a clean pass, so no reversion of `BALL_MARKER_PHASES` is
+warranted.
+
+### Check 6 — Valid-move hex tint consistency
+
+**Requirement id:** CLEANUP-05/06. **Verdict:** "All 8 pass". **Classification:** pass. Presented
+with the concrete phase list drawn from `HexGrid.tsx`'s live `VALID_MOVE_TINT_EXCEPTION_PHASES`:
+ordinary `MOVE`'s valid-move tint was confirmed to match `HIGH_PASS_MOVE`, `FIRST_TIME_PASS_MOVE`,
+`GK_KICK_MOVE`, `GOAL_KICK_MOVE`, `CORNER_KICK_FINAL_SETUP`, and `FREE_MOVE_ATTACK`/
+`FREE_MOVE_DEFENSE` — all render the same tint colour and opacity. `GK_DIVE` and
+`SNAPSHOT_DEFLECT` correctly show no valid-move tint at all (expected — separate mechanism, not a
+regression). `KICK_OFF_SETUP` and `FREE_KICK_SETUP` correctly show the pre-existing blue zone tint
+instead of the green valid-move tint (expected, pre-existing, unrelated to Phase 46's tint
+consolidation work).
+
+### Check 7 — Auto-reselect after an interrupt
+
+**Requirement id:** CLEANUP-05. **Verdict:** "All 8 pass". **Classification:** pass. Starting a
+multi-hex move and triggering a tackle/steal prompt mid-movement, then resolving it, left the
+moving piece selected with its movement ring showing once play returned to `MOVE`, allowing
+continued movement without re-clicking. Clarifying (non-correcting) amendment: this re-selection is
+gated to the owning client only and is intentionally not visible on the opponent's screen.
+
+### Check 8 — Kicker/thrower selection consistency
+
+**Requirement id:** CLEANUP-10. **Verdict:** "All 8 pass". **Classification:** pass. Free Kick,
+Penalty Kick, Corner Kick, and Throw-In each stated how the taker/thrower is chosen and named them
+in the same format once chosen. Free Kick remains mechanically distinct (the kicker walks onto the
+kick spot rather than click-then-confirm), but its wording now explains that and names the locked
+kicker the same way the Throw-In panel names the thrower. The developer did not report the four
+restart types as feeling like separate patterns.
+
+### Outcome
+
+No check failed or partially passed. Per the plan's Task 2 instructions, no todo was filed in
+`.planning/todos/pending/` — there is nothing to route to a gap-closure pass. This record is
+reflected in `46-VALIDATION.md`'s Manual-Only Verifications table (Outcome column) for all six
+rows (3 original + 3 added by this plan).

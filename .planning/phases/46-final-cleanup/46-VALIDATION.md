@@ -67,11 +67,14 @@ None — every touched component already has an existing `.test.tsx`/`.test.ts` 
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Cross-restart-panel kicker/thrower selection feel | CLEANUP-10 | Interaction alignment across 6 panels is a UX judgment call best confirmed live, beyond unit assertions on individual panel state | Two-browser live walkthrough: run each restart type (FK/PK/CK/GK/TI/KO) and confirm kicker/thrower selection follows one consistent pattern |
-| Pitch/roster/bench card visual alignment | CLEANUP-11 | Visual sizing/spacing/border alignment is inherently a rendered-pixel judgment, not something unit/snapshot tests fully capture | Live browser check: open pitch player-stats card, roster card, and bench card side by side; confirm badge size, column count, spacing look aligned |
-| Dead-ball hex highlighting consistency | CLEANUP-05/06 | Visual highlight consistency across every phase where the ball is dead is best confirmed by playing through each restart type | Live two-browser walkthrough of each restart type, confirming ball-location ring/hex highlight renders consistently |
+| Behavior | Requirement | Why Manual | Test Instructions | Outcome |
+|----------|-------------|------------|-------------------|---------|
+| Cross-restart-panel kicker/thrower selection feel | CLEANUP-10 | Interaction alignment across 6 panels is a UX judgment call best confirmed live, beyond unit assertions on individual panel state | Two-browser live walkthrough: run each restart type (FK/PK/CK/GK/TI/KO) and confirm kicker/thrower selection follows one consistent pattern | Pass — backed by Check 8, developer verdict "All 8 pass" (`46-AUDIT.md` Live Verification Record, Plan 46-07) |
+| Pitch/roster/bench card visual alignment | CLEANUP-11 | Visual sizing/spacing/border alignment is inherently a rendered-pixel judgment, not something unit/snapshot tests fully capture | Live browser check: open pitch player-stats card, roster card, and bench card side by side; confirm badge size, column count, spacing look aligned | Pass — backed by Check 3, developer verdict "All 8 pass" (`46-AUDIT.md` Live Verification Record, Plan 46-07) |
+| Dead-ball hex highlighting consistency | CLEANUP-05/06 | Visual highlight consistency across every phase where the ball is dead is best confirmed by playing through each restart type | Live two-browser walkthrough of each restart type, confirming ball-location ring/hex highlight renders consistently | Pass — backed by Checks 4, 5, 6, developer verdict "All 8 pass" (`46-AUDIT.md` Live Verification Record, Plan 46-07) |
+| Match Speed relocation | CLEANUP-05 | Confirming the control is absent outside Advanced Settings and that the match actually runs at the selected speed is a live interaction/behavior check, not a rendered-snapshot assertion | Live check: on Game Settings, confirm no Match Speed control before expanding Advanced; expand Advanced and confirm the row appears there; select a non-default speed and confirm the match runs at it | Pass — backed by Check 1, developer verdict "All 8 pass" (`46-AUDIT.md` Live Verification Record, Plan 46-07) |
+| Standard-mode bench | CLEANUP-05 | Bench composition, an end-to-end substitution, and the GK-parity rejection path are live interaction outcomes best confirmed by actually playing them out | Live check: create a Standard-mode room, open the substitution screen, confirm 5 generic substitutes (correct roles/numbers, full stat blocks), complete one outfield substitution, confirm bench-GK-to-outfield is rejected | Pass — backed by Check 2, developer verdict "All 8 pass" (`46-AUDIT.md` Live Verification Record, Plan 46-07) |
+| Interrupt-resume auto-reselect | CLEANUP-05 | Mid-move selection persistence across an async interrupt prompt (tackle/steal, GK dive-at-feet, GK box-entry, foul choice) is a live interaction-state check | Live check: start moving a multi-pace piece, trigger an interrupt prompt mid-move, resolve it, confirm the piece stays selected with its movement ring on return to MOVE | Pass — backed by Check 7, developer verdict "All 8 pass" (`46-AUDIT.md` Live Verification Record, Plan 46-07) |
 
 ---
 
@@ -83,5 +86,6 @@ None — every touched component already has an existing `.test.tsx`/`.test.ts` 
 - [x] No watch-mode flags — confirmed: every `<automated>` command across all 6 plans uses `vitest run` (via each package's `test` script) or a one-shot `node -e`/gate command; zero `--watch` flags found
 - [x] Feedback latency < 60s — confirmed: every quick per-package/per-file vitest run measured well under 60s; the one full-monorepo gate command (`pnpm -w typecheck && pnpm -w lint && pnpm -w test && pnpm knip`) is explicitly the phase-close exception, not a per-task sampling command
 - [x] `nyquist_compliant: true` set in frontmatter — set above
+- [x] All Manual-Only Verifications rows carry a recorded live-verification outcome — confirmed: all 6 rows (3 original + 3 added in Plan 46-07) show Outcome = Pass, each traceable to a numbered check in `46-AUDIT.md`'s Live Verification Record (Plan 46-07), backed by the developer's "All 8 pass" verdict
 
-**Approval:** complete (Plan 46-06, Task 2)
+**Approval:** complete (Plan 46-06, Task 2; Manual-Only Verifications closed out live in Plan 46-07, Task 2)
