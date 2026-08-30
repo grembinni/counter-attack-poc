@@ -170,9 +170,9 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 ### Phase 47: Select-Based Roster Interaction
 
-**Goal**: The mid-match roster screen's positioning and substitution modes use click-to-select (green selected / blue eligible targets) instead of drag-and-drop, matching the click-to-select interaction the rest of the game already uses everywhere else.
+**Goal**: Every roster/lineup surface in `LineupAssignmentScreen.tsx` — mid-match positioning, mid-match substitution, Standard pregame lineup swap, and the draft-mode pack/bench/lineup carousel — uses click-to-select (green selected / blue eligible targets) instead of drag-and-drop, matching the click-to-select interaction the rest of the game already uses everywhere else. (Widened from "mid-match only" during `/gsd-discuss-phase 47` — see `47-CONTEXT.md`.)
 **Depends on**: Phase 46 (last phase of v1.7) — first phase of v1.8; touches no other v1.8 phase's files, so it is sequenced first to avoid merge contention
-**Requirements**: ROSTER-01, ROSTER-02, ROSTER-03, ROSTER-04, ROSTER-05, ROSTER-06
+**Requirements**: ROSTER-01, ROSTER-02, ROSTER-03, ROSTER-04, ROSTER-05, ROSTER-06, ROSTER-07, ROSTER-08
 **Success Criteria** (what must be TRUE):
 
 1. Clicking a player card on the mid-match roster screen selects it, shown with a green outline.
@@ -180,6 +180,8 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 3. Clicking the selected player again deselects it and clears the blue eligible-target highlights.
 4. Clicking an eligible blue target completes the swap in positioning mode, or stages the substitution in substitution mode, exactly matching today's existing confirm flow.
 5. Positioning-mode and substitution-mode eligibility/guard logic remain two structurally separate functions, and no drag-and-drop state, handlers, or types remain in `LineupAssignmentScreen.tsx` — confirmed by a clean `knip` run.
+6. The Standard pregame lineup screen's slot-swap uses the same click-to-select model (select a card, click an eligible slot to swap) — no drag-and-drop remains there either.
+7. The draft-mode pack carousel and bench/slot rearrange use the same click-to-select model: selecting a pack card highlights eligible slots/bench in blue (mirrors mid-match substitution's bench-first pattern); selecting a filled slot or bench card highlights eligible slots/bench in blue (mirrors mid-match positioning's swap pattern). GK-slot and swap-vs-move semantics are unchanged from today.
 
 **Plans**: TBD
 **UI hint**: yes

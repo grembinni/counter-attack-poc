@@ -17,6 +17,8 @@ Replaces drag-and-drop with the app's existing click-to-select interaction model
 - [ ] **ROSTER-04**: Clicking an eligible blue target completes the swap (positioning mode) or stages the substitution (substitution mode), matching today's existing confirm flow
 - [ ] **ROSTER-05**: Positioning-mode and substitution-mode eligibility/guard logic remain implemented as separate functions, not merged into one handler
 - [ ] **ROSTER-06**: All native drag-and-drop code (drag state, handlers, types) removed from `LineupAssignmentScreen.tsx`, zero dead code per `knip`
+- [ ] **ROSTER-07**: Standard pregame lineup screen's slot-swap flow (`LineupAssignmentScreen.tsx`, non-draft mode) replaces drag-and-drop with the same click-to-select model (green selected / blue eligible targets)
+- [ ] **ROSTER-08**: Draft-mode pack carousel and bench/slot rearrange (pick, slot↔slot, slot↔bench) replace drag-and-drop with click-to-select; the pack row behaves like the mid-match bench does in substitution mode (select pack card, eligible slots/bench highlight blue, click completes the pick)
 
 ### Permanent Jersey Numbers
 
@@ -75,7 +77,6 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Pregame/draft-mode drag-and-drop carousel flows | Explicitly out of scope for v1.8 — only the mid-match roster screen's two modes are in scope |
 | Fixing gaps found by the rules audit (AUDIT-01) | Audit produces a findings document only; fixes are scoped to a future cleanup milestone |
 | A general interrupt/priority-stack engine for GK reactive moves | Not yet justified with only 3 interrupt types; GKSEQ resequencing is a targeted fix, not a general engine |
 | AI / single-player mode | Not planned |
@@ -93,6 +94,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROSTER-04 | Phase 47 | Pending |
 | ROSTER-05 | Phase 47 | Pending |
 | ROSTER-06 | Phase 47 | Pending |
+| ROSTER-07 | Phase 47 | Pending |
+| ROSTER-08 | Phase 47 | Pending |
 | NUMBER-01 | Phase 48 | Pending |
 | NUMBER-02 | Phase 48 | Pending |
 | NUMBER-03 | Phase 48 | Pending |
@@ -110,12 +113,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUDIT-03 | Phase 51 | Pending |
 
 **Coverage:**
-- v1.8 requirements: 21 total
-- Mapped to phases: 21/21 ✓
+- v1.8 requirements: 23 total
+- Mapped to phases: 23/23 ✓
 - Unmapped: 0 — no orphans
 
 **Phase grouping note:** GKSEQ-01..03 and FINALTHIRD-01..02 are both mapped to Phase 49 (combined). Both are small, independent, single-file-ish correctness fixes with no file overlap with each other or with Phases 47/48/50/51; research explicitly flagged FINALTHIRD as parallel-friendly filler work alongside GKSEQ, and standard granularity (4–6 phases, tightened 2026-05) disfavors a standalone 2-requirement phase. See `.planning/ROADMAP.md` Phase 49 for full rationale.
 
+**Scope expansion note (Phase 47 discussion, 2026-08-30):** ROSTER-07/08 and the removal of the "Pregame/draft-mode drag-and-drop" Out-of-Scope line were added during `/gsd-discuss-phase 47`. The user explicitly widened Phase 47 from "mid-match roster screen only" to "retire drag-and-drop everywhere in `LineupAssignmentScreen.tsx`" — Standard pregame lineup swap and the draft-mode pack/bench/lineup carousel now also move to click-to-select, using the same green-selected/blue-eligible-target vocabulary as ROSTER-01..04. This also resolves a pre-existing inconsistency: ROADMAP.md's Phase 47 success criterion 5 already read "no drag-and-drop state, handlers, or types remain in `LineupAssignmentScreen.tsx`" (file-wide), which contradicted the Goal text's "mid-match only" framing and the old Out-of-Scope line. See `47-CONTEXT.md`.
+
 ---
 *Requirements defined: 2026-08-30*
-*Last updated: 2026-08-30 after roadmap creation (21/21 requirements mapped to Phases 47–51, no orphans)*
+*Last updated: 2026-08-30 — Phase 47 discussion expanded scope to ROSTER-07/08 (draft-mode + Standard pregame click-select), 23/23 requirements mapped to Phases 47–51, no orphans*
