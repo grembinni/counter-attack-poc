@@ -1,5 +1,69 @@
 # Retrospective — Counter Attack Web
 
+## v1.7 UI Consistency, Substitution Rework & Match Summary (2026-08-21 → 2026-08-30)
+
+**Shipped:** 2026-08-30
+**Phases:** 6 | **Plans:** 47 | **Duration:** 9 days
+
+### What Was Built
+
+- **Phase 41** (6 plans): Single shared `CardInjuryBadge` component replacing three independently-implemented card/injury treatments (pitch, player-stats, roster cards) and giving the bench a card/injury display for the first time. Closed by a permanent source-scanning audit test and a four-surface consistency test.
+- **Phase 42** (17 plans across 12 waves — 10 original + 7 gap-closure): Mid-match roster screen rework into a default drag-and-drop positioning mode plus an explicit stage-and-confirm substitution mode capped at 3/team, and BUG-38's shared `isActivePiece` predicate applied across every occupancy/ZoI/interceptor site in `packages/shared`, `gameEngine.ts`, and `gameHandlers.ts`. The largest and highest-regression-risk phase of the milestone — the first live two-browser verification pass (42-10) found 7 discrete defects and routed them to two further gap-closure waves, and 42-VERIFICATION.md later found 2 residual BUG-38 sites requiring a third.
+- **Phase 43** (6 plans across 6 waves): Server-authoritative Tackle/Steal decline mechanic — a new `TACKLE_STEAL_PROMPT` phase intercepts every duel when the toggle is on, prompting multiple eligible defenders sequentially in tackling-descending order, with a declined opportunity's risk ring staying live. Zero pre-existing tackle/steal/foul test files were modified across all six plans, used as direct evidence for the toggle-off regression requirement.
+- **Phase 44** (5 plans across 4 waves): Manual 2–5 Referee Leniency override, deliberately coupled to both booking threshold and added-time calculation, plus a collapsed-by-default two-column Advanced Settings drawer for all six match-rule toggles.
+- **Phase 45** (6 plans across 4 waves): On-demand Game Summary popup — a scoreboard (i) icon plus the same shared `MatchSummaryContent` block embedded in the existing HALF_TIME/FULL_TIME overlays, with a pure xG formula instrumented at all 7 independent shot-resolution call sites and all 9 stat counters proven to persist across half-time by a real two-client socket integration test. Checkpoint 45-05-04 went through 4 rounds of live two-browser verification — the largest single-checkpoint iteration count since Phase 38's Corner Kick.
+- **Phase 46** (7 plans across 4 waves): Milestone-closing consistency audit — dead-ball hex highlighting extended to `FREE_KICK_SETUP`/`FREE_MOVE_ATTACK`/`FREE_MOVE_DEFENSE`, response-move trigger language clarified, six duplicated response-move config tables consolidated into one, Match Speed relocated into the Advanced Settings drawer, a standard-room generic placeholder bench added, and a 3-phase-deferred `pnpm -w lint` typescript-eslint config cap finally fixed.
+
+### What Worked
+
+**The phase-order rationale held up as designed.** Card & Injury Iconography shipped first specifically so Substitution UX's new bench red-card marker would have a real shared badge to render instead of a fourth throwaway implementation — and it worked cleanly with no rework. BUG-38's red-card field-removal fix was deliberately absorbed into the Substitution UX Overhaul phase rather than given its own phase, since the new positioning/substitution UI needed to be tested against a fixed engine, not a known-broken one — this ordering choice meant the UI work never had to be re-tested after a later engine fix.
+
+**Live two-browser verification kept catching what automated tests structurally couldn't.** Phase 42's first human walkthrough found 7 chrome/interaction defects (SUB-16/17 styling, red-card slot-swap/bench-badge behavior) invisible to a green automated suite; Phase 45's checkpoint iterated 4 full rounds, catching a red-card false-positive free-kick zone-check bug and a mangled phase-label string that no unit test was positioned to catch. Both phases correctly routed findings to numbered gap-closure waves rather than quietly patching mid-verification.
+
+**Shared-predicate extraction converged a scattered defect class in one pass.** BUG-38 had been hand-written ad hoc at 3+ sites across the codebase before this milestone (flagged explicitly in STATE.md pitfalls). Phase 42 extracted one `isActivePiece` helper and then swept it across `packages/shared`, `gameEngine.ts` (23 sites across two waves), and `gameHandlers.ts`, closing the defect class structurally instead of patching individual call sites as they were found — including a subsequent audit (42-17) that confirmed zero unclassified sites remained in `packages/shared`.
+
+### What Was Inefficient
+
+**Phase 42 needed 3 full gap-closure waves against 1 original wave block (7 of 10 original waves plus 7 gap-closure plans across 5 further waves = 17 total plans).** The first live-verify pass alone surfaced 7 discrete defects — chrome/copy issues (ROSTER label, strip color, Cancel button color) mixed with a real logic gap (`REPOSITION_SLOT_OCCUPIED` destination-occupancy guard). Bundling cosmetic and functional gaps into one verification pass made the resulting gap-closure plan list harder to size up front; splitting "visual QA" from "logic verification" as two separate checkpoints might have caught the cosmetic items in a cheaper first pass.
+
+**A resolved todo went un-auto-closed because of a missing frontmatter field, recurring the same metadata-gap pattern flagged at v1.5 close.** The Advanced-Settings-drawer todo (`2026-08-28-debt-move-speed-setting-to-advanced-settings.md`) was fully resolved by Phase 46 plan 46-03, but lacked a `resolves_phase` field at creation time, so the milestone-close tooling never picked it up automatically — it had to be found and closed by hand during this close, the same class of gap v1.5's retrospective already flagged for quick-task `status` frontmatter. Metadata fields that gate auto-closure keep going missing at whichever step creates the artifact (todo filing, quick-task summary) rather than being enforced by a template or checklist.
+
+**No dedicated `/gsd-audit-milestone` pass was run before this close, unlike the previous four milestones (v1.3–v1.6).** Every other recent milestone had a standalone audit artifact (`v1.X-MILESTONE-AUDIT.md`) cross-checking requirements coverage, phase verification completeness, and E2E flow wiring before archival. v1.7 closed directly from phase-level VERIFICATION.md files and STATE.md tracking instead. Nothing here suggests a real gap was missed — all 6 phases have their own VERIFICATION.md and 44/44 requirements were independently traced during this close — but it's a process step this milestone skipped that the last four didn't, worth deciding deliberately rather than by omission next time.
+
+### Patterns Established
+
+- **A single shared predicate for "is this piece legitimately still in play"** (`isActivePiece`) is now the standard gate for any occupancy/targeting/ZoI/interceptor/deflection-eligibility check touching `state.pieces` — never a local `redCarded` comparison written ad hoc at the call site.
+- **Stage-then-confirm for any action that changes match-permanent state.** Substitution's drag-to-target → confirmation-popup-naming-both-players flow mirrors the pre-existing early-movement-end confirmation pattern; apply this shape to any future irreversible in-match action.
+- **One reusable content block for data that must render identically in two different chrome contexts.** `MatchSummaryContent` is consumed unchanged by both the standalone modal and the HALF_TIME/FULL_TIME overlay — build the shared block first, then two thin wrappers, rather than two parallel implementations that will drift.
+- **Enumerate every independent resolution branch explicitly when no single choke point exists.** xG/stat capture required instrumenting 7 separately-coded shot-resolution call sites because no shared hook existed; the plan enumerated all 7 up front rather than discovering them by running the suite and finding under-reported branches.
+
+### Known Gaps Entering Next Milestone
+
+| Gap                               | Description                                                                                                                                                                                 | Location                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| RESP-01..09                       | Response-move single-selection activation model — still undelivered, now deferred across 5 consecutive milestones (v1.4–v1.7)                                                              | `gameEngine.ts` (old per-move-type logic unchanged)                     |
+| EventBanner foul-sequencing bug   | foul→injury→booking banner sequence stops after the Foul banner in live play; a real same-commit race was found and fixed but does not resolve the reported symptom — root cause still open, investigation explicitly paused by the user since v1.6 close | `.planning/debug/foul-banner-sequence-not-pausing.md`, `EventBanner.tsx` |
+| createServer.ts reconnect         | Misplaced `return` leaves some reconnecting sockets with no handlers registered — flagged repeatedly since Phase 07 across at least 3 prior milestone closes, still unremediated             | `packages/server/src/createServer.ts:99-167`                            |
+| Nyquist `VALIDATION.md` staleness | Phases 38/39/40's `VALIDATION.md` frontmatter (carried from v1.6) still never refreshed post-execution — documentation-currency gap only, coverage independently confirmed extensive           | `.planning/phases/38-*/38-VALIDATION.md`, `39-*`, `40-*`                |
+| Phase 46 code-review warnings     | Duplicated end-turn-confirm dialog logic; a dead CSV-parsing branch in `seed-rosters.ts`; a silent invalid-jerseyType coercion — all non-blocking                                              | `46-REVIEW.md`                                                          |
+
+### Metrics
+
+| Metric        | Value                                                                             |
+| -------------- | ---------------------------------------------------------------------------------- |
+| Duration      | 9 days (2026-08-21 → 2026-08-30)                                                  |
+| Phases        | 6 (Phases 41–46)                                                                  |
+| Plans         | 47                                                                                |
+| Tasks         | 116                                                                               |
+| Commits       | 365                                                                               |
+| Files changed | 103                                                                               |
+| Insertions    | 17,915                                                                            |
+| Deletions     | 960                                                                               |
+| Requirements  | 44/44                                                                             |
+| Test suite    | 3,781 tests across shared (907) / server (1,635, 1 skip/1 todo) / client (1,239) |
+
+---
+
 ## v1.6 Fouls, Cards & Restarts (2026-08-03 → 2026-08-17)
 
 **Shipped:** 2026-08-17
