@@ -162,7 +162,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
-| 47    | 2/6 | In Progress|  |
+| 47    | 3/6 | In Progress|  |
 | 48    | Permanent Jersey Numbers                              | TBD   | Not started |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
@@ -195,7 +195,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 47-03-PLAN.md — `LineupAssignmentScreen.tsx` production port: all four surfaces to click-to-select, all drag code removed
+- [x] 47-03-PLAN.md — `LineupAssignmentScreen.tsx` production port: all four surfaces to click-to-select, all drag code removed
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -335,7 +335,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
 
