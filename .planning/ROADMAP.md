@@ -162,7 +162,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
-| 47    | 1/6 | In Progress|  |
+| 47    | 2/6 | In Progress|  |
 | 48    | Permanent Jersey Numbers                              | TBD   | Not started |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
@@ -191,7 +191,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 47-02-PLAN.md — `BenchCarousel` click-select source + bench-area click-completion target
+- [x] 47-02-PLAN.md — `BenchCarousel` click-select source + bench-area click-completion target
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -335,7 +335,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 1/6 plans executed
+**Plans:** 2/6 plans executed
 
 Plans:
 
