@@ -155,7 +155,7 @@
 
 .statCard {
   composes: statCardBase;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   transition:
     opacity 0.1s ease,
@@ -173,16 +173,6 @@
   composes: statCardBase;
   opacity: 0.85;
   cursor: default;
-}
-
-.statCardDragging {
-  opacity: 0.45;
-  cursor: grabbing;
-}
-
-.statCardDropTarget {
-  border: 2px solid var(--color-accent-gold);
-  box-shadow: 0 0 0 2px var(--color-accent-gold-glow);
 }
 
 /* Right side of flat card: header row + stat chip grid */
@@ -536,17 +526,12 @@
   margin: 0;
 }
 
-/* SUB-02: drop-target highlight for an on-pitch card during a bench->pitch
-   drag — reuses .statCardDropTarget's treatment. */
-.statCardSubTarget {
-  border: 2px solid var(--color-accent-gold);
-  box-shadow: 0 0 0 2px var(--color-accent-gold-glow);
-}
-
-/* SUB-06: a red-carded on-pitch card can never be a substitution target. */
+/* SUB-06: a red-carded on-pitch card can never be a substitution target.
+   Phase 47 (D-04): an ineligible click is a silent no-op, so `not-allowed`
+   over-communicates — the card simply doesn't respond to hover/click. */
 .statCardSubBlocked {
   opacity: 0.7;
-  cursor: not-allowed;
+  cursor: default;
 }
 
 /* ─── Phase 42 (SUB-11/SUB-12): mode-toggle button ──────────────────────────
@@ -728,4 +713,40 @@
 
 .subConfirmButtonReady:hover {
   background: var(--color-cta-ready-bg-hover);
+}
+
+/* ─── Phase 47 (ROSTER-01/02/06): click-select highlight classes ────────────
+   Declared LAST in the file deliberately: CSS Modules resolves conflicting
+   declarations (e.g. border/box-shadow) by stylesheet declaration ORDER, not
+   by the order classes are listed in a className string. Every other
+   border-declaring card class in this file (.statCardSentOff, .benchSlot,
+   .benchCarousel, .cardTierChase/.cardTierRare/.cardTierUncommon/
+   .cardTierCommon) is declared earlier, so appending these two classes here
+   guarantees they win the cascade wherever they're composed alongside those
+   classes — the pre-Phase-47 gold drop-target treatment never actually
+   rendered on the SENT OFF placeholder for exactly this cascade-order reason. */
+
+/* Selected card — green, value-matched to PieceOverlay.tsx's exported
+   ACTIVE_RING_STROKE (the pitch's "this is the selected thing" ring).
+   Deliberate CSS-literal values, not var(--token) — per 47-UI-SPEC.md
+   "Resolved: CSS-literal vs. token-import approach": these are highlight/ring
+   colors (piece-ring family), explicitly out of tokens.css's scope (D-07,
+   tokens.css header) and not in this plan's files_modified list. The two
+   stylelint-disable lines below are a scoped, deliberate exception to the
+   project's declaration-strict-value convention for exactly this reason. */
+.statCardSelected {
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- see comment above */
+  border: 2px solid #22c55e;
+  /* stylelint-disable-next-line function-disallowed-list -- see comment above */
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.4);
+}
+
+/* Eligible-target card — blue, value-matched to PieceOverlay.tsx's
+   selectionState === 'selectable' ring stroke. Same CSS-literal rationale
+   as .statCardSelected above. */
+.statCardEligible {
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- see comment above */
+  border: 2px solid #60a5fa;
+  /* stylelint-disable-next-line function-disallowed-list -- see comment above */
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.4);
 }
