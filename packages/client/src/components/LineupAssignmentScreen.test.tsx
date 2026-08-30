@@ -423,7 +423,7 @@ describe('LineupAssignmentScreen — Phase 47 draft-mode click-select (ROSTER-01
     fireEvent.click(packCard);
 
     const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
-    const eligibleInGrid = grid.querySelectorAll('.statCardEligible');
+    const eligibleInGrid = grid.querySelectorAll('[class*="statCardEligible"]');
     // 2 filled slots (p001, p002) + 9 empty slots = 11 eligible targets in the grid.
     expect(eligibleInGrid.length).toBe(11);
 
@@ -436,8 +436,8 @@ describe('LineupAssignmentScreen — Phase 47 draft-mode click-select (ROSTER-01
     const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
     fireEvent.click(packCard);
     fireEvent.click(packCard);
-    expect(container.querySelector('.statCardSelected')).toBeNull();
-    expect(container.querySelector('.statCardEligible')).toBeNull();
+    expect(container.querySelector('[class*="statCardSelected"]')).toBeNull();
+    expect(container.querySelector('[class*="statCardEligible"]')).toBeNull();
   });
 
   it('4. clicking a different pack card while one is selected switches the selection (D-11), never calling onDraftPick', () => {
@@ -538,7 +538,7 @@ describe('LineupAssignmentScreen — Phase 47 draft-mode click-select (ROSTER-01
     expect(slot1Card.className).toMatch(/statCardSelected/);
     fireEvent.click(slot1Card);
     expect(slot1Card.className).not.toMatch(/statCardSelected/);
-    expect(container.querySelector('.statCardEligible')).toBeNull();
+    expect(container.querySelector('[class*="statCardEligible"]')).toBeNull();
   });
 
   it('11. GK rule preserved: rejects a non-GK card onto the GK slot and a GK card onto a non-GK slot, with distinct messages, calling neither callback', () => {
@@ -697,6 +697,135 @@ describe('LineupAssignmentScreen — Standard-mode non-regression', () => {
     );
     expect(awayContainer.textContent).toContain('Tomas Novak');
     expect(awayContainer.textContent).not.toContain('Jack Sullivan');
+  });
+});
+
+/** Task 2 (Phase 47, plan 04): a full 11-player Standard-mode assignment, and a
+ * render helper for the new ROSTER-07 pregame click-to-swap coverage below.
+ * Slot indices follow FORMATIONS['4-4-2'].slots ordering — slot 0 is always GK. */
+const PREGAME_ASSIGNMENT: string[] = [
+  'p001',
+  'p002',
+  'p003',
+  'p004',
+  'p005',
+  'p006',
+  'p007',
+  'p008',
+  'p009',
+  'p010',
+  'p011',
+];
+
+function renderPregame(
+  overrides: { lineupConfirmed?: boolean; onSwap?: (a: number, b: number) => void } = {},
+) {
+  return render(
+    <LineupAssignmentScreen
+      assignment={PREGAME_ASSIGNMENT}
+      formationId="4-4-2"
+      playerSlot={1}
+      myTeamId="city"
+      onSwap={overrides.onSwap ?? NOOP}
+      onConfirm={NOOP}
+      lineupConfirmed={overrides.lineupConfirmed ?? false}
+    />,
+  );
+}
+
+describe('LineupAssignmentScreen — ROSTER-07: Standard pregame click-to-swap', () => {
+  it('1. clicking an outfield card applies /statCardSelected/ to its wrapper', () => {
+    renderPregame();
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    expect(card.className).toMatch(/statCardSelected/);
+  });
+
+  it('2. with a card selected, every other outfield card carries /statCardEligible/, and the GK card does not', () => {
+    const { container } = renderPregame();
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+
+    const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
+    // 11 total cards - 1 selected - 1 GK (never an eligible target) = 9.
+    expect(grid.querySelectorAll('[class*="statCardEligible"]').length).toBe(9);
+
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(gkCard.className).not.toMatch(/statCardEligible/);
+  });
+
+  it('3. clicking a second outfield card calls onSwap exactly once with (sourceSlotIndex, targetSlotIndex) and clears the selection', () => {
+    const onSwap = vi.fn();
+    const { container } = renderPregame({ onSwap });
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const p003 = PLAYER_BY_ID.get('p003')!;
+    const card1 = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    const card2 = screen
+      .getByText(`${p003.firstName} ${p003.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card1);
+    fireEvent.click(card2);
+    expect(onSwap).toHaveBeenCalledTimes(1);
+    expect(onSwap).toHaveBeenCalledWith(1, 2);
+    expect(container.querySelector('[class*="statCardSelected"]')).toBeNull();
+    expect(container.querySelector('[class*="statCardEligible"]')).toBeNull();
+  });
+
+  it('4. clicking the selected card again deselects it and clears every highlight; onSwap is not called (ROSTER-03)', () => {
+    const onSwap = vi.fn();
+    const { container } = renderPregame({ onSwap });
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    fireEvent.click(card);
+    expect(card.className).not.toMatch(/statCardSelected/);
+    expect(container.querySelector('[class*="statCardEligible"]')).toBeNull();
+    expect(onSwap).not.toHaveBeenCalled();
+  });
+
+  it('5. the GK card is never selectable; clicking it while another card is selected calls neither onSwap nor clears the selection (D-04)', () => {
+    const onSwap = vi.fn();
+    renderPregame({ onSwap });
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(gkCard);
+    expect(gkCard.className).not.toMatch(/statCardSelected/);
+
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const outfieldCard = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(outfieldCard);
+    fireEvent.click(gkCard);
+    expect(onSwap).not.toHaveBeenCalled();
+    expect(outfieldCard.className).toMatch(/statCardSelected/);
+  });
+
+  it('6. when lineupConfirmed is true, clicking any card neither selects it nor calls onSwap', () => {
+    const onSwap = vi.fn();
+    renderPregame({ onSwap, lineupConfirmed: true });
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const card = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(card);
+    expect(card.className).not.toMatch(/statCardSelected/);
+    expect(onSwap).not.toHaveBeenCalled();
   });
 });
 
