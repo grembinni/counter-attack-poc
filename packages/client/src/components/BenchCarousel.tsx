@@ -168,13 +168,30 @@ export function BenchCarousel({
     scrollByCard(direction);
   }
 
+  /** Phase 47 (T-47-07): the bench container's own click handler. A `<button>`
+   * element's onClick is skipped by React when the button is `disabled` (the
+   * nav buttons start disabled — no scroll content yet — before any card has
+   * scrolled), so the nav button's own `stopPropagation()` call above never
+   * runs in that state; the native click event still bubbles regardless.
+   * Checking `event.target` here is the actual propagation guard (the nav
+   * button's own `stopPropagation()` is defense-in-depth for the enabled
+   * case) — a click landing on/inside a nav `<button>` never completes the
+   * bench-area target. Bench-card clicks already stop their own propagation
+   * (see the `onClick` passed to `DraftCardBody` below), so this is a second,
+   * independent line of defense against the same class of bug for cards too. */
+  function handleBenchAreaClick(e: React.MouseEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-roster-card]')) return;
+    onBenchAreaClick?.();
+  }
+
   const containerClassName =
     benchAreaEligible === true
       ? `${styles.benchCarousel} ${styles.statCardEligible}`
       : styles.benchCarousel;
   const containerInteractiveProps = isBenchAreaClickable
     ? {
-        onClick: () => onBenchAreaClick?.(),
+        onClick: handleBenchAreaClick,
         role: 'button' as const,
         tabIndex: 0,
         onKeyDown: handleBenchAreaKeyDown,

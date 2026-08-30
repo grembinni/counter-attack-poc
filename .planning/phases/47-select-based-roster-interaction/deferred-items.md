@@ -1,0 +1,15 @@
+# Deferred Items — Phase 47
+
+Out-of-scope discoveries logged during plan execution, per the executor's SCOPE BOUNDARY rule (fix only what the current task's own files touch; log everything else here rather than silently expanding scope).
+
+## Plan 47-02
+
+### `CardInjuryBadge.crossSurface.test.tsx` — one pre-existing failing test, inherited from 47-01, not from 47-02's own changes
+
+- **File:** `packages/client/src/components/CardInjuryBadge.crossSurface.test.tsx`
+- **Test:** `Bench badge regression — Phase 42 rework (D-07/SUB-18) > bench badges are unaffected by an open substitution-confirm popup`
+- **Symptom:** `fireEvent.dragStart(benchCard, ...)` throws `Unable to fire a "dragstart" event - please provide a DOM element` because `benchCard` (found via `.closest('[draggable]')`) is `null` — no element in the rendered tree carries a native `draggable` HTML attribute.
+- **Root cause:** Plan 47-01 rewrote `DraftCardBody` (`DraftPackCarousel.tsx`) to stop rendering a native `draggable` attribute at all — it renders `data-interactive="true"/"false"` instead (click-select model). `BenchCarousel.tsx` (pre-47-02) was still passing a `draggable={disabled !== true}` prop into `DraftCardBody`, but that prop had already been dropped from `DraftCardBodyProps` by 47-01 — an excess/dead prop TypeScript would already reject (confirmed: this file's own typecheck was already broken between 47-01 and 47-02, independent of any 47-02 edit). So no native `draggable` attribute has been rendered on any bench/pack card since 47-01 merged, regardless of what 47-02 does to `BenchCarousel.tsx`.
+- **Why out of scope for 47-02:** 47-02's `files_modified` frontmatter is `BenchCarousel.tsx` + `BenchCarousel.test.tsx` only. `CardInjuryBadge.crossSurface.test.tsx` is a different file, exercised indirectly through `LineupAssignmentScreen.tsx` (which 47-02's own `<verification>` section explicitly excludes as a gate — "`LineupAssignmentScreen.tsx` still passes `onCardDragStart`/`onDropToBench` and is ported in plan 47-03. Do not modify `LineupAssignmentScreen.tsx` in this plan."). This test's bench-card interaction assertion needs the same drag→click conversion `LineupAssignmentScreen.tsx` itself needs, which is 47-03's job, not 47-02's.
+- **Recommendation:** When plan 47-03 ports `LineupAssignmentScreen.tsx` to the click-select bench contract, also update this test's drag-simulation (`fireEvent.dragStart`/`fireEvent.drop` on `[draggable]`) to `fireEvent.click` on `[data-roster-card]`, mirroring the pattern already used in `DraftPackCarousel.test.tsx` and the rewritten `BenchCarousel.test.tsx`.
+- **Verified pre-existing (not a 47-02 regression):** `BenchCarousel.tsx`'s pre-47-02 `draggable`/`onDragStart` props passed into `DraftCardBody` were already excess props against the 47-01 `DraftCardBodyProps` type (no `draggable`/`onDragStart` fields exist on that type since 47-01), and `DraftCardBody`'s render output has not set a native `draggable` HTML attribute on any card since 47-01 landed — independent of anything 47-02 changed.
