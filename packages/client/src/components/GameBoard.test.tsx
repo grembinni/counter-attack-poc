@@ -635,12 +635,14 @@ describe('substitution affordance (SUB-01/02)', () => {
    * substitution-mode helper copy rendered immediately on open; new
    * expectation: the positioning-mode helper copy renders by default. See
    * 42-07-SUMMARY.md Deviations. */
-  it('clicking during a stoppage renders the substitution modal in its actionable (draggable) presentation', () => {
+  it('clicking during a stoppage renders the substitution modal in its actionable (click-select) presentation', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
   });
 
   it('clicking outside a stoppage now OPENS the modal (not disabled) in a read-only presentation', () => {
@@ -692,7 +694,9 @@ describe('substitution affordance (SUB-01/02)', () => {
     const { rerender } = render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
     expect(screen.getByText('Substitution')).toBeDefined();
-    expect(screen.getByText('Drag a player onto another to swap positions.')).toBeDefined();
+    expect(
+      screen.getByText('Select a player, then click another to swap positions.'),
+    ).toBeDefined();
 
     // Server-driven phase change (not a user click) leaves the stoppage set — the panel must
     // remain open for viewing (40-07 gap-closure) but flip to its read-only copy.
@@ -781,30 +785,32 @@ describe('Phase 42 — roster panel wiring and chrome', () => {
     expect(inactiveButton.textContent).toBe('ROSTER');
   });
 
-  it('3. SUB-08: with the panel open in a stoppage phase, dragging one on-field card onto another emits game:roster-reposition with {pieceIdA, pieceIdB}', () => {
+  it('3. SUB-08: with the panel open in a stoppage phase, clicking one on-field card then another emits game:roster-reposition with {pieceIdA, pieceIdB}', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
-    const source = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Mamadou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const source = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(source);
+    const target = screen.getByText('Mamadou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(emitMock).toHaveBeenCalledWith('game:roster-reposition', {
       pieceIdA: 'home-1',
       pieceIdB: 'home-2',
     });
   });
 
-  it('4. SUB-09: with selectedPieceId set (a game action pending), on-field cards are non-draggable and no emit occurs on drop', () => {
+  it('4. SUB-09: with selectedPieceId set (a game action pending), on-field cards are non-interactive and no emit occurs on click', () => {
     seedRosterState(STOPPAGE_SAMPLE);
     useGameStore.setState({ selectedPieceId: 'home-9' });
     render(<GameBoard />);
     fireEvent.click(screen.getByRole('button', { name: 'Open substitutions' }));
-    const source = screen.getByText('Fallou Fall').closest('[draggable]') as HTMLElement;
-    expect(source.getAttribute('draggable')).toBe('false');
-    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    const target = screen.getByText('Mamadou Fall').closest('[draggable]') as HTMLElement;
-    fireEvent.drop(target, { dataTransfer: { getData: () => '' } });
+    const source = screen.getByText('Fallou Fall').closest('[data-roster-card]') as HTMLElement;
+    expect(source.getAttribute('role')).not.toBe('button');
+    expect(source.getAttribute('tabIndex')).toBeNull();
+    fireEvent.click(source);
+    expect(document.querySelector('[class*="statCardSelected"]')).toBeNull();
+    const target = screen.getByText('Mamadou Fall').closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(target);
     expect(emitMock).not.toHaveBeenCalled();
   });
 
