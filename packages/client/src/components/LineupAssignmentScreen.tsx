@@ -2,8 +2,9 @@
  * LineupAssignmentScreen — Phase 24 D-13/D-14/D-15/D-17/D-18/D-19/D-20/D-21/D-22/D-23.
  * Standalone screen (NOT an extension of UniformSelectionScreen) that renders the
  * server-assigned lineup as a horizontal GK|DEF|MID|FWD formation grid of full stat cards,
- * supports HTML5 native drag-to-swap on outfield cards (GK locked), reflects server-authoritative
- * updates after each swap, and confirms via LINEUP_CONFIRM.
+ * supports click-to-select swap on outfield cards (GK locked, Phase 47 — see
+ * ROSTER-01..08), reflects server-authoritative updates after each swap, and
+ * confirms via LINEUP_CONFIRM.
  *
  * D-16: only the player's own assignment is shown — server never sends opponent's lineup to this socket.
  */
@@ -65,7 +66,7 @@ type Props = {
   playerSlot: 1 | 2;
   /** The player's own confirmed team ID — passed from App.tsx to avoid stale store default. */
   myTeamId: TeamId;
-  /** Called when the player drops a card onto another — emits LINEUP_SWAP to server. */
+  /** Called when the player clicks a selected card's eligible target — emits LINEUP_SWAP to server. */
   onSwap: (slotIndexA: number, slotIndexB: number) => void;
   /** Called when the player clicks Confirm Lineup — emits LINEUP_CONFIRM to server. */
   onConfirm: (confirmedOrder: string[]) => void;
@@ -77,7 +78,7 @@ type Props = {
   /** Phase 29 D-14: this player's server-authoritative, privacy-scoped draft view. Null/undefined
    * before the first DRAFT_STATE_UPDATED arrives. */
   draftView?: DraftClientView | null;
-  /** Phase 29 D-05/D-06: emitted when a pack-row card is dropped onto a lineup slot or the bench. */
+  /** Phase 29 D-05/D-06: emitted when a pack-row card is clicked onto a lineup slot or the bench. */
   onDraftPick?: (cardId: string, destination: DraftDestination) => void;
   /** Phase 29 D-08/D-10: emitted when an already-drafted card is rearranged (lineup<->bench, lineup<->lineup). */
   onDraftRearrange?: (from: DraftSlotRef, to: DraftSlotRef) => void;
@@ -94,22 +95,23 @@ type Props = {
    * on-pitch headcount cap (11 - redCardCount, D-08). */
   subsUsed?: number;
   maxOnPitch?: number;
-  /** Phase 40 (SUB-02/D-04): emitted when a bench card is dropped onto an eligible
+  /** Phase 40 (SUB-02/D-04): emitted when a bench card's selection is completed onto an eligible
    * on-pitch card — a single 1-for-1 swap, gated server-side by GAME_SUBSTITUTION. */
   onSubstitute?: (outPieceId: string, inPlayerId: string) => void;
   /** Checkpoint gap-closure (40-07 Task 2 human-verify feedback): true when the
    * panel is open OUTSIDE a stoppage — the roster is still viewable, but bench
-   * cards are never draggable and a drop can never call `onSubstitute` (the
+   * cards are never selectable and a click can never call `onSubstitute` (the
    * server would reject it as `WRONG_PHASE` anyway; this mirrors that guard
    * client-side so the panel reads as calmly read-only, not broken). Mid-match
    * mode only; every other mode ignores this prop. */
   readOnly?: boolean;
-  /** Phase 42 (SUB-08/D-02): mid-match only. Called when a positioning-mode drag
-   * lands on another on-pitch card — fires synchronously with no confirm popup.
-   * Gated server-side by `GAME_ROSTER_REPOSITION`. */
+  /** Phase 42 (SUB-08/D-02): mid-match only. Called when a positioning-mode
+   * selection's completion click lands on another on-pitch card — fires
+   * synchronously with no confirm popup. Gated server-side by
+   * `GAME_ROSTER_REPOSITION`. */
   onReposition?: (pieceIdA: string, pieceIdB: string) => void;
   /** Phase 42 (SUB-09): mid-match only. True when a game action is currently
-   * selected/pending on the pitch — disables positioning-mode dragging while
+   * selected/pending on the pitch — disables positioning-mode selection while
    * true. The parent derives this from `useGameStore`'s `selectedPieceId !== null`
    * (`GameBoard.tsx` already reads `selectedPieceId`); wiring the parent is a
    * later plan's job (42-09) — this plan only consumes the prop. */
@@ -122,18 +124,10 @@ type Props = {
   onResume?: () => void;
 };
 
-/** Phase 29 (DRAFT-06): a single parent-owned drag-state variable resolves every drop —
- * children (DraftPackCarousel/BenchCarousel/lineup slots) never have their dataTransfer
- * payload read at drop time (D-05/D-06/D-08, 29-03-SUMMARY.md pattern). */
-type DragState =
-  | { cardId: string; source: 'pack' }
-  | { cardId: string; source: 'slot'; slotIndex: number }
-  | { cardId: string; source: 'bench'; benchIndex: number };
-
 /** Phase 42 (SUB-08/SUB-11/SUB-12): the mid-match roster panel's two coexisting
- * interaction modes — default positioning (on-field drag-to-swap) vs. an
+ * interaction modes — default positioning (on-field click-to-select-swap) vs. an
  * explicit substitution mode entered through the mode-toggle button. Pitfall 5
- * (research PITFALLS.md): the two modes' drop handlers are kept as two
+ * (research PITFALLS.md): the two modes' click handlers are kept as two
  * structurally separate functions sharing no guard body — this type exists
  * purely to select WHICH handler runs, never to branch inside a shared one. */
 type MidmatchSubMode = 'reposition' | 'substitute';
@@ -142,7 +136,7 @@ type MidmatchSubMode = 'reposition' | 'substitute';
  * confirmation. A substitution consumes a capped, un-undoable resource (the
  * 3-per-team cap, no undo per REQUIREMENTS.md), unlike a reposition — so it
  * stages via this type and confirms through a popup rather than firing
- * synchronously on drop like `handleMidmatchRepositionDrop`. `outName`/
+ * synchronously on click like `handleRepositionCardClick`. `outName`/
  * `outNumber`/`inName` are captured at stage time (not re-derived at confirm
  * time) so the popup can render both players' identity even if a later
  * server broadcast changes `pieces`/`bench` before the popup is resolved. */
@@ -154,14 +148,14 @@ type PendingSubstitution = {
   inName: string;
 };
 
-/** Phase 42 (Task 1 action C): unifies the old single-purpose, bench-only drag
- * id state into one parent-owned union covering both drag sources — pitch
- * (positioning-mode swap) and bench (substitution), matching this file's
- * established `DragState` convention above. Neither mid-match drop handler
- * ever reads `e.dataTransfer.getData(...)`. */
-type MidmatchDragState =
-  | { source: 'pitch'; pieceId: string }
-  | { source: 'bench'; playerId: string };
+/** Phase 29 (DRAFT-06), Phase 47 (D-11, ROSTER-08): a single parent-owned
+ * SELECTION resolves every click — children (DraftPackCarousel/
+ * BenchCarousel/lineup slots) never resolve completion themselves, they
+ * only report which card/area was clicked. */
+type DraftSelection =
+  | { cardId: string; source: 'pack' }
+  | { cardId: string; source: 'slot'; slotIndex: number }
+  | { cardId: string; source: 'bench'; benchIndex: number };
 
 /* ─── LineupStatCard — flat format matching GameBoard/PlayerStatsPanel ────── */
 
@@ -184,64 +178,60 @@ type StatCardProps = {
   /** Absolute slot index — 0 = GK (always locked) in pregame/draft mode. In mid-match
    * mode this is a rendering-only sequence index (no formation-slot meaning). */
   slotIndex: number;
-  isDragSource: boolean;
-  isDropTarget: boolean;
+  /** Phase 47 (D-03/ROSTER-01): this card is the current green selection. */
+  isSelected: boolean;
+  /** Phase 47 (D-03/ROSTER-02): something else is selected and this card is a legal
+   * click-to-complete target (blue ring). */
+  isEligibleTarget: boolean;
   lineupConfirmed: boolean;
   /** Team badge ID for the left-column badge. */
   teamId: TeamId;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
-  onDragEnd: () => void;
-  /** Phase 29 D-08: in draft mode a GK card moves freely (both directions per the slot-role
-   * rule, not a permanent lock) — undefined/false preserves the original Standard-mode
-   * "GK always locked" behavior exactly. */
-  allowGKDrag?: boolean;
+  /** Phase 47: fires when the card is clicked or activated via Enter/Space while
+   * clickable — omitted entirely (not just gated to a no-op) when the card is
+   * neither interactive nor an eligible target (D-04, PieceOverlay.tsx's
+   * click-gating idiom). */
+  onClick: () => void;
+  /** Phase 29 D-08, Phase 47 (ROSTER-08): in draft mode a GK card is selectable
+   * freely (both directions per the slot-role rule, not a permanent lock) —
+   * undefined/false preserves the original Standard-mode "GK always locked"
+   * behavior exactly. */
+  allowGKSelect?: boolean;
   /** Phase 30 D-23: applies the TIER_CARD_CLASS tier-colored border (D-22) alongside the
-   * existing drag/lock/confirm state class — only meaningful for draft-mode cards, which
+   * existing selection/lock/confirm state class — only meaningful for draft-mode cards, which
    * are drafted with a rarity tier (Standard-mode auto-assigned cards are untouched, D-23
    * scopes tier color to "everywhere a drafted card appears", not Standard-mode lineups). */
   showTierBorder?: boolean;
   /** Phase 40 (RESEARCH.md Pitfall 6): a STRUCTURALLY SEPARATE mid-match rendering/
-   * drag-gating branch — never merged with the GK-lock expression above. */
+   * selection-gating branch — never merged with the GK-lock expression above. */
   mode?: 'pregame' | 'midmatch';
   /** Phase 41 (ICON-01): derived by the shared `cardColorFor`; the local Phase 40 ternary is gone. */
   cardColor?: CardColor;
   /** Phase 41 (ICON-01): derived by the shared `cardColorFor`; the local Phase 40 ternary is gone. */
   injuryCount?: number;
-  /** Phase 40 (SUB-02): true while this on-pitch card is the hovered bench-drag drop target. */
-  isSubTarget?: boolean;
   /** Phase 40 (SUB-06): true for a red-carded on-pitch card — never a valid sub target. */
   isSubBlocked?: boolean;
-  /** Phase 42 (SUB-08): PARENT-computed mid-match draggability — replaces the old
-   * hardcoded `isMidmatch ? false` branch below. Only meaningful when `mode ===
-   * 'midmatch'`; ignored otherwise. The card component stays dumb — it never
-   * re-derives eligibility itself. */
-  midmatchDraggable?: boolean;
+  /** Phase 42 (SUB-08), Phase 47: PARENT-computed mid-match selectability.
+   * Only meaningful when `mode === 'midmatch'`; ignored otherwise. The card
+   * component stays dumb — it never re-derives eligibility itself. */
+  isSelectable?: boolean;
 };
 
 function LineupStatCard({
   player,
   slotMeta,
   slotIndex,
-  isDragSource,
-  isDropTarget,
+  isSelected,
+  isEligibleTarget,
   lineupConfirmed,
   teamId,
-  onDragStart,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onDragEnd,
-  allowGKDrag,
+  onClick,
+  allowGKSelect,
   showTierBorder,
   mode,
   cardColor,
   injuryCount,
-  isSubTarget,
   isSubBlocked,
-  midmatchDraggable,
+  isSelectable,
 }: StatCardProps) {
   const isMidmatch = mode === 'midmatch';
   // CLEANUP: pregame/draft slotIndex is a fixed formation-slot index (slot 0 is always
@@ -251,17 +241,17 @@ function LineupStatCard({
   // HANDLING from the actual goalkeeper's roster/substitution stat grid. Use the
   // piece's real role in mid-match mode instead.
   const isGK = isMidmatch ? player.role === 'GK' : slotIndex === 0;
-  // Phase 42 (SUB-08, research PITFALLS.md Pitfall 5): mid-match draggability is
+  // Phase 42 (SUB-08, research PITFALLS.md Pitfall 5): mid-match interactivity is
   // a structurally separate condition from pregame/draft — but it is no longer a
   // single hardcoded `false`. It is now a three-way split: pregame (GK-lock rule),
-  // midmatch-reposition (parent-computed `midmatchDraggable`, true for on-field
+  // midmatch-reposition (parent-computed `isSelectable`, true for on-field
   // non-GK/non-slot-0 pieces when no other action is pending), and
   // midmatch-substitute (bench->pitch is the only gesture; on-pitch cards stay
-  // non-draggable exactly as before Phase 42 — `midmatchDraggable` is false in
-  // that mode too, since only bench cards drag in substitution mode).
-  const isDraggable = isMidmatch
-    ? midmatchDraggable === true
-    : allowGKDrag
+  // non-selectable exactly as before Phase 42 — `isSelectable` is false in
+  // that mode too, since only bench cards start a selection in substitution mode).
+  const isInteractive = isMidmatch
+    ? isSelectable === true
+    : allowGKSelect
       ? !lineupConfirmed
       : !isGK && !lineupConfirmed;
 
@@ -269,21 +259,27 @@ function LineupStatCard({
   if (isMidmatch) {
     cardClass = styles.statCard;
     if (isSubBlocked) cardClass = `${cardClass} ${styles.statCardSubBlocked}`;
-    if (isSubTarget) cardClass = `${cardClass} ${styles.statCardSubTarget}`;
-  } else if (isGK && !allowGKDrag) {
+    if (isSelected) {
+      cardClass = `${cardClass} ${styles.statCardSelected}`;
+    } else if (isEligibleTarget) {
+      cardClass = `${cardClass} ${styles.statCardEligible}`;
+    }
+  } else if (isGK && !allowGKSelect) {
     cardClass = styles.statCardLocked;
   } else if (lineupConfirmed) {
     cardClass = styles.statCardConfirmed;
-  } else if (isDragSource) {
-    cardClass = `${styles.statCard} ${styles.statCardDragging}`;
-  } else if (isDropTarget) {
-    cardClass = `${styles.statCard} ${styles.statCardDropTarget}`;
   } else {
     cardClass = styles.statCard;
+    if (isSelected) {
+      cardClass = `${cardClass} ${styles.statCardSelected}`;
+    }
+    if (isEligibleTarget) {
+      cardClass = `${cardClass} ${styles.statCardEligible}`;
+    }
   }
 
   // D-23: compose the tier-colored border (D-22) onto the state-based class — the tier
-  // border and drag/lock/confirm state are independent concerns, matching how
+  // border and selection/lock/confirm state are independent concerns, matching how
   // DraftPackCarousel/BenchCarousel apply TIER_CARD_CLASS alongside interaction state.
   if (showTierBorder) {
     const tier = classifyTier(computeTotalStat(player as PoolPlayer));
@@ -295,15 +291,27 @@ function LineupStatCard({
   // inheritance) — never from a FormationSlot, which mid-match mode doesn't have.
   const displayNumber = isMidmatch ? player.number : slotMeta?.jerseyNumber;
 
+  const isClickable = isInteractive || isEligibleTarget;
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!isClickable) return;
+    if (e.key === 'Enter') {
+      onClick();
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  }
+
   return (
     <div
       className={cardClass}
-      draggable={isDraggable}
-      onDragStart={(e) => onDragStart(e, slotIndex)}
-      onDragOver={(e) => onDragOver(e, slotIndex)}
-      onDragLeave={onDragLeave}
-      onDrop={(e) => onDrop(e, slotIndex)}
-      onDragEnd={onDragEnd}
+      data-roster-card
+      style={{ cursor: isClickable ? 'pointer' : 'default' }}
+      onClick={isClickable ? onClick : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? handleKeyDown : undefined}
     >
       {/* Flat layout: [TeamBadge] [name/flag/role header + stat chips] */}
       <TeamBadge teamId={teamId} size={48} />
@@ -323,7 +331,7 @@ function LineupStatCard({
               injuryCount={injuryCount ?? 0}
               size={16}
             />
-            {isGK && !allowGKDrag && <span className={styles.lockedBadge}>LOCK</span>}
+            {isGK && !allowGKSelect && <span className={styles.lockedBadge}>LOCK</span>}
           </div>
         </div>
         {/* 3-column stat chip grid → 2 rows of 3+3 (6 role-filtered stats) */}
@@ -378,9 +386,10 @@ export function LineupAssignmentScreen({
   const waitingForLabel = playerSlot === 1 ? 'Visitor' : 'Home';
   const isActiveNow = !lineupConfirmed;
 
-  // D-19/D-22: drag state is local — never in Zustand (Pitfall 7)
-  const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  // D-19/D-22: selection state is local — never in Zustand (Pitfall 7)
+  // Phase 47 (ROSTER-07/D-12): Standard pregame lineup swap selection — the
+  // currently selected slot index (GK slot, index 0, is never selectable).
+  const [pregameSelectedSlotIndex, setPregameSelectedSlotIndex] = useState<number | null>(null);
 
   const gameError = useGameStore((s) => s.gameError);
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
@@ -435,10 +444,9 @@ export function LineupAssignmentScreen({
 
   // ─── Phase 29 (DRAFT-06..10): draft-mode state — additive, never touched by Standard mode ───
 
-  /** Phase 29 D-06/D-08: single parent-owned drag-state — resolves every drop; never read from
-   * child dataTransfer at drop time (29-03-SUMMARY.md pattern). */
-  const [dragState, setDragState] = useState<DragState | null>(null);
-  const [draftDropTargetIndex, setDraftDropTargetIndex] = useState<number | null>(null);
+  /** Phase 29 D-06/D-08, Phase 47 (D-11): single parent-owned selection —
+   * resolves every click; children only report which card/area was clicked. */
+  const [draftSelection, setDraftSelection] = useState<DraftSelection | null>(null);
 
   /** Accumulates TieredPoolPlayer objects seen in `draftView.currentPack` over the session so
    * already-drafted cards (which leave currentPack once picked) can still be rendered with their
@@ -485,8 +493,7 @@ export function LineupAssignmentScreen({
 
   // Gap-closure 29-12 (DRAFT-09): hoisted out of the `if (draftMode)` branch into a
   // top-level memo so the array reference is stable across unrelated re-renders
-  // (setDraftDropTargetIndex fires on every native dragover tick; setRejectionMessage
-  // fires on the rejection-message timeout). draftView.benchIds gets a NEW reference
+  // (setRejectionMessage fires on the rejection-message timeout). draftView.benchIds gets a NEW reference
   // only on a genuine DRAFT_STATE_UPDATED; cardCache changes only when a new pack
   // card populates the tier-color cache. Neither changes on those unrelated
   // re-renders, so benchCards keeps a stable reference across them — this is what
@@ -501,7 +508,7 @@ export function LineupAssignmentScreen({
     // so exhaustive-deps requires it explicitly. Behavior-equivalent in practice: this app's
     // full-snapshot broadcast pattern (STATE.md "Decisions Locked") means draftView only gets a
     // new reference on a genuine DRAFT_STATE_UPDATED, which is exactly when benchIds also
-    // changes — unrelated local-state re-renders (drag-over ticks, rejection-message timeout)
+    // changes — unrelated local-state re-renders (selection changes, rejection-message timeout)
     // leave the draftView prop reference untouched, so benchCards' stable identity from
     // Gap-closure 29-12 (DRAFT-09) is preserved. resolveTieredCard is now a useCallback keyed
     // on cardCache, so its own identity change already covers the prior cardCache dependency.
@@ -516,68 +523,112 @@ export function LineupAssignmentScreen({
    * explicit cleanup needed. */
   const [subMode, setSubMode] = useState<MidmatchSubMode>('reposition');
 
-  /** Phase 42 (Task 1 action C): see `MidmatchDragState` above (module scope). */
-  const [midmatchDrag, setMidmatchDrag] = useState<MidmatchDragState | null>(null);
-  const [midmatchDropTargetPieceId, setMidmatchDropTargetPieceId] = useState<string | null>(null);
+  /** Phase 47 (D-08/D-10, T-47-10): positioning-mode selection — the
+   * currently selected on-pitch card's id. Deliberately a scalar, not a
+   * tagged union shared with substitution mode — this is the D-10
+   * discretion call that structurally enforces the D-07/D-08 asymmetry a
+   * shared union would invite collapsing. */
+  const [repositionSelectedPieceId, setRepositionSelectedPieceId] = useState<string | null>(null);
+  /** Phase 47 (D-06/D-07/D-10, T-47-10): substitution-mode selection — the
+   * currently selected bench card's PLAYER_POOL id. */
+  const [substituteSelectedPlayerId, setSubstituteSelectedPlayerId] = useState<string | null>(null);
 
   /** Plan 08 (SUB-13/14/15): the one substitution currently staged awaiting
-   * confirm/cancel. Deliberately NOT cleared by the container-level
-   * `onDragEnd` below — a staged substitution survives the end of the drag
-   * gesture that created it, since the confirmation popup (not the drag
-   * gesture) is what resolves it. */
+   * confirm/cancel. Deliberately NOT cleared by the mode-toggle clearing
+   * below — a staged substitution survives a click elsewhere, since the
+   * confirmation popup (not the click gesture) is what resolves it. */
   const [pendingSub, setPendingSub] = useState<PendingSubstitution | null>(null);
 
-  /** Phase 42 (Task 2 action A): pitch-sourced drag start for positioning mode.
-   * Bench-sourced drags are started by `BenchCarousel`'s `onCardDragStart`
-   * (Task 1 action F) — this handler is pitch-only. */
-  function handleMidmatchDragStart(e: React.DragEvent<HTMLDivElement>, pieceId: string) {
-    setMidmatchDrag({ source: 'pitch', pieceId });
-    e.dataTransfer.effectAllowed = 'move';
+  /** Phase 47 (ROSTER-05, Pitfall 5 HARD CONSTRAINT): positioning-mode
+   * selectability — reproduces the pre-Phase-47 selectability conditions
+   * verbatim, now gating click instead of the legacy pointer-based gesture.
+   * D-09: the GK card is never selectable in positioning mode. */
+  function isRepositionSelectable(piece: PlayerPiece): boolean {
+    const parsedSlotIndex = /-(\d+)$/.exec(piece.id);
+    const slotIndexNum = parsedSlotIndex !== null ? Number(parsedSlotIndex[1]) : null;
+    return (
+      subMode === 'reposition' &&
+      readOnly !== true &&
+      actionPending !== true &&
+      isActivePiece(piece) &&
+      slotIndexNum !== 0 &&
+      piece.role !== 'GK' &&
+      pendingSub === null
+    );
   }
 
-  /** Phase 42 (Task 2 action A, Pitfall 5 HARD CONSTRAINT): structurally
-   * separate from `handleMidmatchSubstituteDrop` below — shares no guard body.
-   * D-02: fires synchronously with no confirm popup/staging, the deliberate
-   * asymmetry with substitution (a reposition is free/reversible; a
-   * substitution consumes a capped resource). */
-  function handleMidmatchRepositionDrop(e: React.DragEvent<HTMLDivElement>, targetPieceId: string) {
-    e.preventDefault();
-    setMidmatchDropTargetPieceId(null);
-    const drag = midmatchDrag;
-    setMidmatchDrag(null);
-    if (!drag || drag.source !== 'pitch') return;
-    if (drag.pieceId === targetPieceId) return; // self-drop is a no-op
-    if (readOnly === true || actionPending === true) return;
-    onReposition?.(drag.pieceId, targetPieceId);
+  /** Phase 47 (ROSTER-02/05): positioning-mode target eligibility. Every
+   * rendered mid-match card other than the source is an eligible target,
+   * INCLUDING the GK card — the pre-Phase-47 target-hover logic applied no
+   * GK check to the target, and the server's `GK_SLOT_LOCKED` rejection is
+   * the existing, deliberately-preserved feedback path (D-09 restricts GK
+   * selectability only, not target eligibility). */
+  function isRepositionEligible(sourcePieceId: string, targetPieceId: string): boolean {
+    return (
+      subMode === 'reposition' &&
+      readOnly !== true &&
+      actionPending !== true &&
+      pendingSub === null &&
+      targetPieceId !== sourcePieceId
+    );
   }
 
-  /** Plan 08 (SUB-13/14/15): STAGES a substitution rather than applying it —
-   * the deliberate asymmetry with `handleMidmatchRepositionDrop` below. A
-   * substitution consumes a capped, un-undoable resource (the 3-per-team
-   * cap, no undo per REQUIREMENTS.md) so it stages and confirms via a popup;
-   * a reposition is free and reversible so it applies instantly (D-02). The
-   * two handlers still share no guard body (Pitfall 5 HARD CONSTRAINT).
-   * `onSubstitute` is NOT called anywhere in this handler — the confirmation
-   * popup's Confirm button (below) is the sole remaining call site. */
-  function handleMidmatchSubstituteDrop(
-    e: React.DragEvent<HTMLDivElement>,
-    targetPieceId: string,
-    isBlocked: boolean,
-    outName: string,
-    outNumber: number,
-  ) {
-    e.preventDefault();
-    setMidmatchDropTargetPieceId(null);
-    const drag = midmatchDrag;
-    setMidmatchDrag(null);
-    const inPlayerId = drag?.source === 'bench' ? drag.playerId : null;
-    // readOnly mirrors the server's WRONG_PHASE guard client-side (40-07).
-    if (!inPlayerId || isBlocked || readOnly === true) return;
-    if (pendingSub !== null) return; // SUB-13: only one staged sub at a time.
+  /** Phase 47 (ROSTER-01/03/04, D-08, Pitfall 5 HARD CONSTRAINT): the
+   * positioning-mode click handler — click-select/deselect/complete,
+   * structurally separate from `handleSubstitutePitchClick` below (shares no
+   * guard body). D-08: there is NO "switch selection" branch here — with a
+   * card already selected, clicking a different eligible card runs the
+   * completion path, never a re-select. */
+  function handleRepositionCardClick(pieceId: string) {
+    if (repositionSelectedPieceId === pieceId) {
+      setRepositionSelectedPieceId(null); // ROSTER-03
+      return;
+    }
+    if (repositionSelectedPieceId !== null) {
+      if (!isRepositionEligible(repositionSelectedPieceId, pieceId)) return; // D-04 no-op
+      onReposition?.(repositionSelectedPieceId, pieceId); // ROSTER-04
+      setRepositionSelectedPieceId(null);
+      return;
+    }
+    const piece = midmatchPieces?.find((p) => p.id === pieceId);
+    if (piece && isRepositionSelectable(piece)) {
+      setRepositionSelectedPieceId(pieceId);
+    }
+  }
+
+  /** Phase 47 (ROSTER-02/05): substitution-mode target eligibility —
+   * structurally separate from `isRepositionEligible` above (shares no
+   * guard body). */
+  function isSubstituteEligible(piece: PlayerPiece): boolean {
+    return (
+      subMode === 'substitute' &&
+      readOnly !== true &&
+      pendingSub === null &&
+      substituteSelectedPlayerId !== null &&
+      isActivePiece(piece) &&
+      piece.redCarded !== true
+    );
+  }
+
+  /** Phase 47 (D-06, Pitfall 5 HARD CONSTRAINT): bench-first on-pitch
+   * completion click — structurally separate from `handleRepositionCardClick`
+   * above (shares no guard body). Preserves the pre-Phase-47 staging body
+   * verbatim. */
+  function handleSubstitutePitchClick(piece: PlayerPiece) {
+    if (substituteSelectedPlayerId === null) return; // D-06: bench-first only
+    if (!isSubstituteEligible(piece)) return; // D-04 no-op
+    const inPlayerId = substituteSelectedPlayerId;
     const inPlayer = PLAYER_MAP.get(inPlayerId);
     if (!inPlayer) return; // don't stage a popup with a blank name
     const inName = `${inPlayer.firstName} ${inPlayer.lastName}`;
-    setPendingSub({ outPieceId: targetPieceId, inPlayerId, outName, outNumber, inName });
+    setPendingSub({
+      outPieceId: piece.id,
+      inPlayerId,
+      outName: `${piece.firstName} ${piece.lastName}`,
+      outNumber: piece.number,
+      inName,
+    });
+    setSubstituteSelectedPlayerId(null);
   }
 
   /** Phase 42 (gap item 6, Task 2 action B): best-effort UX pre-gate — hexes held by
@@ -616,11 +667,21 @@ export function LineupAssignmentScreen({
         <div className={styles.columnCards}>
           {pieces.map((piece, i) => {
             const isBlocked = piece.redCarded === true;
-            const isDropTargetHere = midmatchDropTargetPieceId === piece.id;
+
+            // Phase 47 (ROSTER-02/05): per-mode eligible-target derivation
+            // computed from the active selection — reposition mode consults
+            // isRepositionEligible, substitute mode consults
+            // isSubstituteEligible. Structurally separate per-mode, matching
+            // the click handlers below (Pitfall 5 HARD CONSTRAINT).
+            const isEligibleTargetHere =
+              subMode === 'reposition'
+                ? repositionSelectedPieceId !== null &&
+                  isRepositionEligible(repositionSelectedPieceId, piece.id)
+                : isSubstituteEligible(piece);
 
             // Phase 42 (Task 2 action B, D-05/D-06/SUB-18): a dismissed piece
             // is never rendered as a LineupStatCard — its slot renders the
-            // SENT OFF placeholder instead. The slot remains a valid drop
+            // SENT OFF placeholder instead. The slot remains a valid click
             // target for another on-field player being repositioned into it
             // (not permanently locked, D-05) — the server accepts a
             // red-carded piece as a legal reposition participant (42-06).
@@ -634,134 +695,58 @@ export function LineupAssignmentScreen({
               const sentOffSlotHexTaken = ownActiveHexKeys.has(
                 `${piece.position.q},${piece.position.r}`,
               );
+              // Phase 47 (D-05, RESEARCH.md Pitfall 3): eligible ONLY in
+              // positioning mode with an active, non-self, non-occupied
+              // selection — NEVER eligible in substitution mode. Deliberate
+              // behaviour change from the pre-Phase-47 implementation (D-05
+              // supersedes today's unconditional substitute-mode target).
+              const sentOffEligible =
+                subMode === 'reposition' &&
+                repositionSelectedPieceId !== null &&
+                repositionSelectedPieceId !== piece.id &&
+                !sentOffSlotHexTaken &&
+                readOnly !== true &&
+                actionPending !== true &&
+                pendingSub === null;
               return (
                 <div
                   key={piece.id}
                   className={
-                    isDropTargetHere
-                      ? `${styles.statCardSentOff} ${styles.statCardDropTarget}`
+                    sentOffEligible
+                      ? `${styles.statCardSentOff} ${styles.statCardEligible}`
                       : styles.statCardSentOff
                   }
                   aria-label="Sent off — slot empty"
                   role="img"
-                  draggable={false}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (
-                      (subMode === 'reposition' &&
-                        midmatchDrag?.source === 'pitch' &&
-                        midmatchDrag.pieceId !== piece.id &&
-                        !sentOffSlotHexTaken) ||
-                      subMode === 'substitute'
-                    ) {
-                      setMidmatchDropTargetPieceId(piece.id);
-                    }
-                  }}
-                  onDragLeave={() => setMidmatchDropTargetPieceId(null)}
-                  onDrop={(e) => {
-                    if (subMode === 'reposition' && sentOffSlotHexTaken) {
-                      // Gap item 6: the server would reject this with
-                      // the server would refuse this — suppress the doomed emit inline
-                      // rather than inside handleMidmatchRepositionDrop, which is
-                      // also reached from ordinary active cards and must keep its
-                      // Pitfall-5 separation from handleMidmatchSubstituteDrop.
-                      e.preventDefault();
-                      setMidmatchDropTargetPieceId(null);
-                      setMidmatchDrag(null);
-                      return;
-                    }
-                    return subMode === 'reposition'
-                      ? handleMidmatchRepositionDrop(e, piece.id)
-                      : handleMidmatchSubstituteDrop(
-                          e,
-                          piece.id,
-                          isBlocked,
-                          `${piece.firstName} ${piece.lastName}`,
-                          piece.number,
-                        );
-                  }}
+                  data-roster-card
+                  {...(sentOffEligible
+                    ? { onClick: () => handleRepositionCardClick(piece.id) }
+                    : {})}
                 >
                   <span className={styles.sentOffBadge}>SENT OFF</span>
                 </div>
               );
             }
 
-            // Reuse the same slot-index parse already established for column
-            // grouping above (`piece.id`'s `${team}-${slotIndex}` suffix) rather
-            // than adding a second parse implementation (Task 1 action D).
-            const parsedSlotIndex = /-(\d+)$/.exec(piece.id);
-            const slotIndexNum = parsedSlotIndex !== null ? Number(parsedSlotIndex[1]) : null;
-            // Phase 42 (SUB-08/09/10, Task 1 action D): parent-computed
-            // draggability for positioning mode. The two GK clauses
-            // (`role === 'GK'` and slot index 0) mirror
-            // `applyRosterReposition`'s GK_SLOT_LOCKED guard exactly, so a card
-            // can never look draggable and then be server-rejected.
-            // Plan 08 (SUB-13, Task 2 action C): `pendingSub === null` makes a
-            // staged-but-unresolved substitution visible as inert drag
-            // sources everywhere — not just on the bench.
-            const midmatchDraggable =
-              subMode === 'reposition' &&
-              readOnly !== true &&
-              actionPending !== true &&
-              isActivePiece(piece) &&
-              slotIndexNum !== 0 &&
-              piece.role !== 'GK' &&
-              pendingSub === null;
-            const isDragSource =
-              subMode === 'reposition' &&
-              midmatchDrag?.source === 'pitch' &&
-              midmatchDrag.pieceId === piece.id;
             return (
               <LineupStatCard
                 key={piece.id}
                 player={piece}
                 slotIndex={i}
-                isDragSource={isDragSource}
-                isDropTarget={isDropTargetHere}
+                isSelected={subMode === 'reposition' && repositionSelectedPieceId === piece.id}
+                isEligibleTarget={isEligibleTargetHere}
                 lineupConfirmed={false}
                 teamId={myTeamId}
                 mode="midmatch"
                 cardColor={cardColorFor(piece)}
                 injuryCount={piece.injuryCount ?? 0}
-                isSubTarget={isDropTargetHere}
                 isSubBlocked={isBlocked}
-                midmatchDraggable={midmatchDraggable}
-                onDragStart={(e) => {
-                  // Phase 42 (Task 1/2): positioning-mode drag start only —
-                  // substitution mode's only drag source is the bench (below).
-                  if (subMode !== 'reposition' || midmatchDraggable !== true) return;
-                  handleMidmatchDragStart(e, piece.id);
-                }}
-                onDragOver={(e) => {
-                  // Phase 42 (Task 2 action A): only mark this card as the
-                  // hovered drop target when a drop here would actually be
-                  // legal in the current mode — prevents the gold
-                  // .statCardDropTarget ring from appearing on an illegal
-                  // target. Reposition mode: a pitch-sourced drag exists and
-                  // the target is not the source. Substitute mode: unchanged
-                  // from today (any hover while a bench drag is in flight).
-                  e.preventDefault();
-                  if (subMode === 'reposition') {
-                    if (midmatchDrag?.source === 'pitch' && midmatchDrag.pieceId !== piece.id) {
-                      setMidmatchDropTargetPieceId(piece.id);
-                    }
-                    return;
-                  }
-                  setMidmatchDropTargetPieceId(piece.id);
-                }}
-                onDragLeave={() => setMidmatchDropTargetPieceId(null)}
-                onDrop={(e) =>
+                isSelectable={isRepositionSelectable(piece)}
+                onClick={() =>
                   subMode === 'reposition'
-                    ? handleMidmatchRepositionDrop(e, piece.id)
-                    : handleMidmatchSubstituteDrop(
-                        e,
-                        piece.id,
-                        isBlocked,
-                        `${piece.firstName} ${piece.lastName}`,
-                        piece.number,
-                      )
+                    ? handleRepositionCardClick(piece.id)
+                    : handleSubstitutePitchClick(piece)
                 }
-                onDragEnd={() => setMidmatchDrag(null)}
               />
             );
           })}
@@ -798,36 +783,29 @@ export function LineupAssignmentScreen({
     }
   });
 
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>, idx: number) {
-    setDragSourceIndex(idx);
-    e.dataTransfer.setData('text/plain', String(idx));
-    e.dataTransfer.effectAllowed = 'move';
+  /** Phase 47 (ROSTER-07/D-12): the GK-slot exclusion (`idx === 0`) is the
+   * pre-Phase-47 hover/completion rule carried over verbatim. */
+  function isPregameSwapEligible(sourceIdx: number, targetIdx: number): boolean {
+    return lineupConfirmed !== true && targetIdx !== 0 && sourceIdx !== targetIdx;
   }
 
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>, idx: number) {
-    // D-20/Pitfall 3: GK slot (index 0) is never a valid drop target
-    if (idx === 0) return;
-    e.preventDefault();
-    setDropTargetIndex(idx);
-  }
-
-  function handleDragLeave() {
-    setDropTargetIndex(null);
-  }
-
-  function handleDrop(e: React.DragEvent<HTMLDivElement>, targetIdx: number) {
-    e.preventDefault();
-    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    if (targetIdx !== 0 && sourceIdx !== targetIdx) {
-      onSwap(sourceIdx, targetIdx);
+  /** Phase 47 (ROSTER-01/03/04/07, D-12): the pregame swap click handler —
+   * same three-branch shape as `handleRepositionCardClick`. */
+  function handlePregameCardClick(idx: number) {
+    if (lineupConfirmed === true) return;
+    if (pregameSelectedSlotIndex === idx) {
+      setPregameSelectedSlotIndex(null);
+      return;
     }
-    setDragSourceIndex(null);
-    setDropTargetIndex(null);
-  }
-
-  function handleDragEnd() {
-    setDragSourceIndex(null);
-    setDropTargetIndex(null);
+    if (pregameSelectedSlotIndex !== null) {
+      if (!isPregameSwapEligible(pregameSelectedSlotIndex, idx)) return; // D-04 no-op
+      onSwap(pregameSelectedSlotIndex, idx);
+      setPregameSelectedSlotIndex(null);
+      return;
+    }
+    // GK slot (idx 0) is never selectable — mirrors the pre-Phase-47
+    // `!isGK && !lineupConfirmed` selectability rule (D-09-equivalent for pregame).
+    if (idx !== 0) setPregameSelectedSlotIndex(idx);
   }
 
   /** Renders one position column. Cards are wrapped in .columnCards so they
@@ -843,15 +821,14 @@ export function LineupAssignmentScreen({
               player={player}
               slotMeta={slotMeta}
               slotIndex={slotIndex}
-              isDragSource={dragSourceIndex === slotIndex}
-              isDropTarget={dropTargetIndex === slotIndex}
+              isSelected={pregameSelectedSlotIndex === slotIndex}
+              isEligibleTarget={
+                pregameSelectedSlotIndex !== null &&
+                isPregameSwapEligible(pregameSelectedSlotIndex, slotIndex)
+              }
               lineupConfirmed={lineupConfirmed}
               teamId={myTeamId}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
+              onClick={() => handlePregameCardClick(slotIndex)}
             />
           ))}
         </div>
@@ -859,7 +836,7 @@ export function LineupAssignmentScreen({
     );
   }
 
-  // ─── Phase 29: draft-mode column building + drag-drop wiring (additive; Standard-mode
+  // ─── Phase 29: draft-mode column building + click-select wiring (additive; Standard-mode
   // rendering below is untouched) ────────────────────────────────────────────────────────
 
   type DraftColEntry = { slotIndex: number; slotMeta: FormationSlot; player: PoolPlayer | null };
@@ -885,20 +862,28 @@ export function LineupAssignmentScreen({
     });
   }
 
-  /** D-09: only a GK card may land on the GK slot (index 0), and only the GK slot accepts a
-   * GK card — both directions rejected client-side for UX only (server, Plan 04, is authoritative). */
-  function rejectForGKRule(slotIndex: number, cardId: string): boolean {
+  /** Phase 47 (D-11/ROSTER-08): pure predicate extracted from `rejectForGKRule`
+   * below — contains only the two GK-rule conditions, no message side effect,
+   * so it is safe to call from render-time eligibility computation. */
+  function violatesGKRule(slotIndex: number, cardId: string): boolean {
     const isGKSlot = slotIndex === 0;
     const cardIsGK = isCardGK(cardId);
-    if (isGKSlot && !cardIsGK) {
+    return (isGKSlot && !cardIsGK) || (!isGKSlot && cardIsGK);
+  }
+
+  /** D-09: only a GK card may land on the GK slot (index 0), and only the GK slot accepts a
+   * GK card — both directions rejected client-side for UX only (server, Plan 04, is authoritative).
+   * Phase 47: rewritten to call `violatesGKRule`; keeps the message side effect, so it must
+   * only be called from a click-completion handler, never from render-time eligibility. */
+  function rejectForGKRule(slotIndex: number, cardId: string): boolean {
+    const isGKSlot = slotIndex === 0;
+    if (!violatesGKRule(slotIndex, cardId)) return false;
+    if (isGKSlot) {
       showDraftRejection('Swap rejected — only a goalkeeper card can be placed here.');
-      return true;
-    }
-    if (!isGKSlot && cardIsGK) {
+    } else {
       showDraftRejection('Swap rejected — goalkeeper slot requires a GK card.');
-      return true;
     }
-    return false;
+    return true;
   }
 
   function showDraftRejection(message: string) {
@@ -906,104 +891,160 @@ export function LineupAssignmentScreen({
     setTimeout(() => setRejectionMessage(null), 2000);
   }
 
-  function handleDraftSlotDragStart(
-    e: React.DragEvent<HTMLDivElement>,
-    cardId: string,
-    idx: number,
-  ) {
-    setDragState({ cardId, source: 'slot', slotIndex: idx });
-    e.dataTransfer.setData('text/plain', `slot:${idx}`);
-    e.dataTransfer.effectAllowed = 'move';
+  /** Phase 47 (ROSTER-02/08): every slot other than the selection's own origin
+   * slot is an eligible target. Deliberately does NOT consult `violatesGKRule`
+   * here — the pre-Phase-47 target-hover logic applied no GK check when
+   * highlighting, and the GK rule is enforced at completion time by
+   * `rejectForGKRule`'s user-facing message; excluding GK-violating slots here
+   * would make that message unreachable. */
+  function isDraftSlotEligible(selection: DraftSelection, slotIndex: number): boolean {
+    return (
+      lineupConfirmed !== true &&
+      !(selection.source === 'slot' && selection.slotIndex === slotIndex)
+    );
   }
 
-  function handleDraftSlotDragOver(e: React.DragEvent<HTMLDivElement>, idx: number) {
-    e.preventDefault();
-    setDraftDropTargetIndex(idx);
+  /** Phase 47 (ROSTER-02/08): the pre-Phase-47 bench-completion logic no-oped
+   * for a bench-sourced selection — pack->bench and slot->bench are the two
+   * legal bench completions. */
+  function isDraftBenchAreaEligible(selection: DraftSelection): boolean {
+    return lineupConfirmed !== true && selection.source !== 'bench';
   }
 
-  function handleDraftSlotDragLeave() {
-    setDraftDropTargetIndex(null);
-  }
-
-  function handleDraftSlotDrop(e: React.DragEvent<HTMLDivElement>, slotIndex: number) {
-    e.preventDefault();
-    setDraftDropTargetIndex(null);
-    const ds = dragState;
-    setDragState(null);
-    if (!ds) return;
-    if (rejectForGKRule(slotIndex, ds.cardId)) return;
-
-    if (ds.source === 'pack') {
-      onDraftPick?.(ds.cardId, { type: 'slot', slotIndex });
-    } else if (ds.source === 'slot') {
-      if (ds.slotIndex === slotIndex) return;
-      onDraftRearrange?.({ type: 'slot', slotIndex: ds.slotIndex }, { type: 'slot', slotIndex });
-    } else {
-      onDraftRearrange?.({ type: 'bench', benchIndex: ds.benchIndex }, { type: 'slot', slotIndex });
+  /** Phase 47 (D-11, Pitfall 5 HARD CONSTRAINT): pack-card selection mirrors
+   * mid-match substitution's bench-first pattern — a click on a different
+   * pack card always switches the selection (no explicit deselect step). */
+  function handleDraftPackCardClick(cardId: string) {
+    if (draftView?.waitingForOpponent === true || lineupConfirmed === true) return;
+    if (draftSelection?.source === 'pack' && draftSelection.cardId === cardId) {
+      setDraftSelection(null); // deselect
+      return;
     }
+    setDraftSelection({ cardId, source: 'pack' });
   }
 
-  function handleDraftSlotDragEnd() {
-    setDragState(null);
-    setDraftDropTargetIndex(null);
-  }
-
-  function handleDropToBench() {
-    const ds = dragState;
-    setDragState(null);
-    if (!ds || !draftView) return;
-    if (ds.source === 'bench') return; // dropped back onto the bench it came from — no-op
-
-    if (ds.source === 'pack') {
-      onDraftPick?.(ds.cardId, { type: 'bench' });
-    } else {
-      // Destination bench ref is always an append (D-08 comment on DraftSlotRef) — the current
-      // bench length is the append position.
+  /** Phase 47 (D-11, Pitfall 5 HARD CONSTRAINT): filled-slot/empty-slot click —
+   * source selection (swap-pattern, like positioning mode) when nothing is
+   * selected, deselect on a second click of the same slot, otherwise a
+   * completion attempt. */
+  function handleDraftSlotClick(slotIndex: number, cardIdAtSlot: string | null) {
+    if (draftSelection === null) {
+      if (cardIdAtSlot !== null && lineupConfirmed !== true) {
+        setDraftSelection({ cardId: cardIdAtSlot, source: 'slot', slotIndex });
+      }
+      return; // an empty slot with nothing selected is a no-op
+    }
+    if (draftSelection.source === 'slot' && draftSelection.slotIndex === slotIndex) {
+      setDraftSelection(null); // ROSTER-03 deselect
+      return;
+    }
+    if (!isDraftSlotEligible(draftSelection, slotIndex)) return; // D-04 no-op
+    if (rejectForGKRule(slotIndex, draftSelection.cardId)) {
+      setDraftSelection(null); // message already shown
+      return;
+    }
+    if (draftSelection.source === 'pack') {
+      onDraftPick?.(draftSelection.cardId, { type: 'slot', slotIndex });
+    } else if (draftSelection.source === 'slot') {
       onDraftRearrange?.(
-        { type: 'slot', slotIndex: ds.slotIndex },
+        { type: 'slot', slotIndex: draftSelection.slotIndex },
+        { type: 'slot', slotIndex },
+      );
+    } else {
+      onDraftRearrange?.(
+        { type: 'bench', benchIndex: draftSelection.benchIndex },
+        { type: 'slot', slotIndex },
+      );
+    }
+    setDraftSelection(null);
+  }
+
+  /** Phase 47 (D-11): a bench card is a swap-pattern source like a filled
+   * slot — clicking a different bench card while one is selected re-selects
+   * it (bench cards are never completion targets in draft mode — the bench
+   * AREA is, see `handleDraftBenchAreaClick`). */
+  function handleDraftBenchCardClick(benchIndex: number) {
+    const cardId = draftView?.benchIds[benchIndex];
+    if (!cardId) return;
+    if (lineupConfirmed === true) return;
+    if (draftSelection?.source === 'bench' && draftSelection.benchIndex === benchIndex) {
+      setDraftSelection(null); // deselect
+      return;
+    }
+    setDraftSelection({ cardId, source: 'bench', benchIndex });
+  }
+
+  /** Phase 47 (D-11): the bench-area click-completion target — pack->bench
+   * pick, slot->bench move (append-position semantics unchanged from the
+   * pre-Phase-47 bench-completion logic). */
+  function handleDraftBenchAreaClick() {
+    if (draftSelection === null || !draftView) return;
+    if (!isDraftBenchAreaEligible(draftSelection)) return;
+    if (draftSelection.source === 'pack') {
+      onDraftPick?.(draftSelection.cardId, { type: 'bench' });
+    } else if (draftSelection.source === 'slot') {
+      onDraftRearrange?.(
+        { type: 'slot', slotIndex: draftSelection.slotIndex },
         { type: 'bench', benchIndex: draftView.benchIds.length },
       );
     }
+    setDraftSelection(null);
   }
 
-  /** Renders one draft-mode position column — filled slots use LineupStatCard (GK draggable,
-   * D-08); empty slots reuse the dashed `.benchSlot` placeholder style (D-22) and are still a
-   * valid drop target. */
+  /** Renders one draft-mode position column — filled slots use LineupStatCard (GK
+   * selectable, D-08); empty slots reuse the dashed `.benchSlot` placeholder style
+   * (D-22) and are still a valid click target. */
   function renderDraftColumn(label: string, entries: DraftColEntry[]) {
     return (
       <div className={styles.column}>
         <div className={styles.columnHeader}>{label}</div>
         <div className={styles.columnCards}>
-          {entries.map(({ slotIndex, slotMeta, player }) =>
-            player ? (
+          {entries.map(({ slotIndex, slotMeta, player }) => {
+            const isEligibleHere =
+              draftSelection !== null && isDraftSlotEligible(draftSelection, slotIndex);
+            return player ? (
               <LineupStatCard
                 key={slotIndex}
                 player={player}
                 slotMeta={slotMeta}
                 slotIndex={slotIndex}
-                isDragSource={dragState?.source === 'slot' && dragState.slotIndex === slotIndex}
-                isDropTarget={draftDropTargetIndex === slotIndex}
+                isSelected={
+                  draftSelection?.source === 'slot' && draftSelection.slotIndex === slotIndex
+                }
+                isEligibleTarget={isEligibleHere}
                 lineupConfirmed={lineupConfirmed}
                 teamId={myTeamId}
-                allowGKDrag
+                allowGKSelect
                 showTierBorder
-                onDragStart={(e) => handleDraftSlotDragStart(e, player.id, slotIndex)}
-                onDragOver={(e) => handleDraftSlotDragOver(e, slotIndex)}
-                onDragLeave={handleDraftSlotDragLeave}
-                onDrop={(e) => handleDraftSlotDrop(e, slotIndex)}
-                onDragEnd={handleDraftSlotDragEnd}
+                onClick={() => handleDraftSlotClick(slotIndex, player.id)}
               />
             ) : (
               <div
                 key={slotIndex}
-                className={styles.benchSlot}
+                className={
+                  isEligibleHere
+                    ? `${styles.benchSlot} ${styles.statCardEligible}`
+                    : styles.benchSlot
+                }
                 data-slot-index={slotIndex}
-                onDragOver={(e) => handleDraftSlotDragOver(e, slotIndex)}
-                onDragLeave={handleDraftSlotDragLeave}
-                onDrop={(e) => handleDraftSlotDrop(e, slotIndex)}
+                {...(isEligibleHere
+                  ? {
+                      onClick: () => handleDraftSlotClick(slotIndex, null),
+                      role: 'button' as const,
+                      tabIndex: 0,
+                      onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                        if (e.key === 'Enter') {
+                          handleDraftSlotClick(slotIndex, null);
+                        } else if (e.key === ' ') {
+                          e.preventDefault();
+                          handleDraftSlotClick(slotIndex, null);
+                        }
+                      },
+                    }
+                  : {})}
               />
-            ),
-          )}
+            );
+          })}
         </div>
       </div>
     );
@@ -1065,26 +1106,34 @@ export function LineupAssignmentScreen({
     const hasAvailableBenchEntry = benchList.some((e) => e.status === 'available');
     const showEmptyBenchCopy = benchList.length === 0 || !hasAvailableBenchEntry;
 
+    /** Phase 47 (D-06/D-07, Pitfall 5 HARD CONSTRAINT): bench-first source
+     * click — structurally separate from `handleRepositionCardClick` (shares
+     * no guard body). D-07: clicking a different eligible bench card while
+     * one is already selected switches the selection without an explicit
+     * deselect step first — bench-substitution-specific, NOT symmetric with
+     * positioning mode (D-08). Defined here (not at module scope) because it
+     * needs `midmatchBenchCards`, which only exists inside this render
+     * branch — avoids duplicating the bench-card derivation. */
+    function handleSubstituteBenchClick(benchIndex: number) {
+      if (readOnly === true || subMode !== 'substitute' || pendingSub !== null) return;
+      const card = midmatchBenchCards[benchIndex];
+      if (!card) return;
+      if (substituteSelectedPlayerId === card.id) {
+        setSubstituteSelectedPlayerId(null); // explicit deselect
+        return;
+      }
+      setSubstituteSelectedPlayerId(card.id); // D-07: switches selection, no deselect step required
+    }
+
     return (
-      // Phase 42 (Task 2 action A): a container-level onDragEnd guarantees
-      // midmatchDrag/midmatchDropTargetPieceId are cleared after ANY drag
-      // gesture completes — success, cancel, or drop on empty space —
-      // mirroring the draft branch's existing container-level cleanup so no
-      // drag state can wedge after a cancelled gesture (T-42-32).
-      <div
-        className={styles.screen}
-        onDragEnd={() => {
-          setMidmatchDrag(null);
-          setMidmatchDropTargetPieceId(null);
-        }}
-      >
+      <div className={styles.screen}>
         <h2 className={styles.matchSetupHeading}>Substitution</h2>
         <p className={styles.cyclePickCounter}>
           {readOnly === true
             ? 'Viewing roster — substitutions are only available during a stoppage in play.'
             : subMode === 'reposition'
-              ? 'Drag a player onto another to swap positions.'
-              : 'Drag a bench card onto an on-pitch card to Substitute.'}
+              ? 'Select a player, then click another to swap positions.'
+              : 'Select a bench card, then click an on-pitch card to substitute.'}
         </p>
 
         <span
@@ -1122,16 +1171,8 @@ export function LineupAssignmentScreen({
             redCardedPlayerIds={redCardedPlayerIds}
             benchCardStatus={benchCardStatus}
             disabled={readOnly === true || subMode === 'reposition' || pendingSub !== null}
-            onCardDragStart={(benchIndex) => {
-              // Phase 42 (SUB-10): bench cards are inert in positioning mode —
-              // only substitution mode may start a bench-sourced drag.
-              // Plan 08 (SUB-13): also inert while a substitution is staged —
-              // exactly one swap may be in flight at a time.
-              if (readOnly === true || subMode !== 'substitute' || pendingSub !== null) return;
-              const card = midmatchBenchCards[benchIndex];
-              if (card) setMidmatchDrag({ source: 'bench', playerId: card.id });
-            }}
-            onDropToBench={() => setMidmatchDrag(null)}
+            onCardClick={handleSubstituteBenchClick}
+            selectedCardId={substituteSelectedPlayerId}
           />
           {showEmptyBenchCopy && (
             <p className={styles.cyclePickCounter}>No available substitutes on the bench.</p>
@@ -1144,9 +1185,12 @@ export function LineupAssignmentScreen({
             bottom of `.substitutionModalCard` (the previous placement read as viewport-pinned
             in live verification). */}
         <div className={styles.midmatchActionRow}>
-          {/* Phase 42 (SUB-11/SUB-12): mode-toggle button. Entering substitution
-              mode clears any in-flight positioning-mode drag; Cancel returns to
-              positioning mode and never calls onSubstitute. */}
+          {/* Phase 42 (SUB-11/SUB-12), Phase 47 (T-47-10/RESEARCH.md Anti-Pattern):
+              mode-toggle button. Entering substitution mode clears any
+              in-flight positioning-mode selection; Cancel returns to
+              positioning mode and never calls onSubstitute. Both new
+              selection state variables are cleared in BOTH buttons — the
+              old partial-clear behaviour is NOT assumed sufficient. */}
           {subMode === 'reposition' ? (
             <button
               type="button"
@@ -1156,8 +1200,8 @@ export function LineupAssignmentScreen({
               aria-disabled={readOnly === true || subsUsedVal >= MAX_SUBS_PER_TEAM}
               onClick={() => {
                 setSubMode('substitute');
-                setMidmatchDrag(null);
-                setMidmatchDropTargetPieceId(null);
+                setRepositionSelectedPieceId(null);
+                setSubstituteSelectedPlayerId(null);
                 // Defensive: entering substitution mode should never carry over
                 // a stale pending selection from a prior mode session.
                 setPendingSub(null);
@@ -1172,8 +1216,8 @@ export function LineupAssignmentScreen({
               aria-label="Cancel substitution"
               onClick={() => {
                 setSubMode('reposition');
-                setMidmatchDrag(null);
-                setMidmatchDropTargetPieceId(null);
+                setRepositionSelectedPieceId(null);
+                setSubstituteSelectedPlayerId(null);
                 setPendingSub(null);
               }}
             >
@@ -1211,7 +1255,11 @@ export function LineupAssignmentScreen({
                       type="button"
                       className={`${styles.subModeButton} ${styles.subConfirmButtonCancel}`}
                       aria-label="Cancel substitution selection"
-                      onClick={() => setPendingSub(null)}
+                      onClick={() => {
+                        setPendingSub(null);
+                        setRepositionSelectedPieceId(null);
+                        setSubstituteSelectedPlayerId(null);
+                      }}
                     >
                       Cancel
                     </button>
@@ -1223,6 +1271,8 @@ export function LineupAssignmentScreen({
                         onSubstitute?.(stagedSub.outPieceId, stagedSub.inPlayerId);
                         setPendingSub(null);
                         setSubMode('reposition');
+                        setRepositionSelectedPieceId(null);
+                        setSubstituteSelectedPlayerId(null);
                       }}
                     >
                       Confirm Substitution
@@ -1260,15 +1310,7 @@ export function LineupAssignmentScreen({
     const roundPicks = currentRoundConfig?.picks ?? draftView.picksRemaining;
 
     return (
-      // Phase 29 gap-closure (29-08-PLAN.md Task 2): a single container-level
-      // `onDragEnd` guarantees `dragState` is cleared after ANY drag gesture
-      // completes — success, cancel, or drop on empty space — even for
-      // pack-sourced and bench-sourced drags, which have no per-card
-      // `onDragEnd` of their own. The native `dragend` event always fires on
-      // the drag source and bubbles up through this container regardless of
-      // which descendant (pack card, bench card, or lineup-slot card)
-      // initiated it, so no dragState wedges between rearrangements.
-      <div className={styles.screen} onDragEnd={handleDraftSlotDragEnd}>
+      <div className={styles.screen}>
         <h2 className={styles.matchSetupHeading}>
           MATCH SETUP: STEP 4 &mdash; {currentPlayerLabel} PLAYER (YOU)
         </h2>
@@ -1288,7 +1330,8 @@ export function LineupAssignmentScreen({
             cards={draftView.currentPack}
             teamId={myTeamId}
             disabled={draftView.waitingForOpponent}
-            onCardDragStart={(cardId) => setDragState({ cardId, source: 'pack' })}
+            onCardClick={handleDraftPackCardClick}
+            selectedCardId={draftSelection?.source === 'pack' ? draftSelection.cardId : null}
           />
         )}
 
@@ -1306,11 +1349,10 @@ export function LineupAssignmentScreen({
             cards={benchCards}
             teamId={myTeamId}
             benchNumbers={draftView.benchNumbers}
-            onCardDragStart={(benchIndex) => {
-              const cardId = draftView.benchIds[benchIndex];
-              if (cardId) setDragState({ cardId, source: 'bench', benchIndex });
-            }}
-            onDropToBench={handleDropToBench}
+            onCardClick={handleDraftBenchCardClick}
+            onBenchAreaClick={handleDraftBenchAreaClick}
+            benchAreaEligible={draftSelection !== null && isDraftBenchAreaEligible(draftSelection)}
+            selectedCardId={draftSelection?.source === 'bench' ? draftSelection.cardId : null}
           />
         </div>
 
@@ -1396,8 +1438,7 @@ export function LineupAssignmentScreen({
           teamId={myTeamId}
           benchNumbers={pregameBenchNumbers}
           disabled
-          onCardDragStart={() => {}}
-          onDropToBench={() => {}}
+          onCardClick={() => {}}
         />
       </div>
 
